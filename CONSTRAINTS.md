@@ -81,16 +81,23 @@ Physical random mechanisms such as Activation Token draws and dice rolls are exp
 
 All choices that require agency are resolved through a Decision Provider abstraction rather than being hard-coded to a particular kind of player or client.
 
-The rules engine determines when a decision is required and which choices are legal. A Decision Provider determines which legal choice is selected.
+The rules engine determines when a decision is required and computes the complete legal decision space before consulting a Decision Provider. A Decision Provider only selects from the concrete legal candidates supplied by the engine, or selects no option when the rules permit that choice.
+
+The same decision-space contract is used regardless of who or what has agency over the Unit. A human player, Monster Behavior, test provider, simulation provider, or future smarter AI can therefore receive the same legal candidates and choose among them without changing movement, combat, targeting, or other legality rules.
 
 Examples include:
 
 - which Unit is selected when a rule requires a choice,
-- where a Unit moves,
-- which legal path it takes when the path matters,
-- which target it attacks,
+- which reachable destination a Unit moves to,
+- which legal target it attacks,
 - which Action or ability it uses,
 - any other rules-defined choice.
+
+For v0 movement, the engine supplies the legal reachable destinations, each with its canonical path. The provider chooses a destination or no movement when permitted.
+
+For v0 Act resolution, where Attack is the only Action, the engine supplies the legal attack targets after applying Range, Line of Sight, hostility, and all other attack-legality rules. The provider chooses one of those targets or no Action when permitted.
+
+A provider does not establish or extend legal choices. After a provider returns its selection, the engine validates that the selection corresponds to one of the candidates in the decision space that was supplied. An invalid provider response must not become a legal game action.
 
 Different Decision Provider implementations may supply decisions without changing the rules engine. Expected examples include:
 
@@ -99,7 +106,7 @@ Different Decision Provider implementations may supply decisions without changin
 - deterministic or random providers for tests and simulations,
 - a possible future smarter AI provider.
 
-Monster Behavior therefore participates through the same decision boundary as other forms of agency. It defines how Monsters choose among legal alternatives rather than implementing separate movement, combat, or activation rules.
+Monster Behavior therefore participates through the same decision boundary as other forms of agency. It defines how Monsters choose among legal alternatives rather than implementing separate movement, combat, targeting, or activation rules.
 
 A decision and a random outcome are different concepts.
 
