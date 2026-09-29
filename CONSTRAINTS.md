@@ -258,7 +258,23 @@ Rules may therefore trigger before or after the complete movement, but not in th
 
 Choosing zero steps still constitutes completing the Move phase and the movement operation. Consequently, a future rule triggered after movement may still trigger when the Unit moved zero steps.
 
-Terrain, edge features, other Units, and other rules may constrain which movement paths are legal. Those constraints are not yet fully defined.
+Each movement step crosses the shared edge between the current cell and an orthogonally adjacent destination cell. The step is legal only if that edge is passable for movement.
+
+For the currently defined edge features:
+
+- a wall is impassable,
+- a closed door is impassable,
+- an open door is passable.
+
+Other edge features may define their own movement passability when introduced.
+
+A Unit may pass through cells occupied by friendly Units during its movement.
+
+A Unit may not pass through cells occupied by hostile Units. Hostile Units can therefore block movement paths.
+
+A Unit may never end its movement in a cell occupied by another Unit, whether friendly or hostile.
+
+Whether a destination cell is otherwise passable is determined by the rules for its terrain or fixed object. Those rules are deliberately deferred to the corresponding terrain specification.
 
 ### Act
 
@@ -367,7 +383,7 @@ They may be introduced later. The architecture should not unnecessarily prevent 
 The following are intentionally not specified yet:
 
 - gameplay effects of terrain,
-- remaining movement legality rules,
+- terrain and fixed-object movement passability rules,
 - LOS-blocking behavior of hostile Units,
 - exact LOS effects of terrain and edge-feature types,
 - stat modifier and effective-stat calculation rules,
