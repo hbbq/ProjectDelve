@@ -55,6 +55,48 @@ The same state should in principle be representable as, for example:
 - a 3D representation,
 - the actual physical board and components.
 
+## Reference implementation architecture
+
+The initial reference implementation uses C#/.NET.
+
+The architecture exists to support the physical game rules rather than to define them. Game rules must remain independent of transport, UI, persistence technology, and rendering.
+
+### Persistent, stepwise game flow
+
+The rules engine is modeled as a persistent, stepwise state machine rather than as a continuously running game loop.
+
+At any stable point, the complete game can be represented by serializable state. The engine accepts a command or decision, applies the relevant rules, advances as far as it can, and returns a new stable state.
+
+The engine may automatically progress through states that require no decision. When external input is required, it stops with enough serialized context to resume the same resolution later.
+
+This allows a game to be saved and resumed and allows the same engine to be driven by different clients, such as tests, a CLI, a web client, or a mobile client.
+
+The rules engine itself must not depend on HTTP, a particular API framework, UI technology, or a continuously connected client. Those are adapters around the engine.
+
+Not every rules operation should become its own state-machine state. Flow states represent meaningful points in game resolution where progression, context, or an external decision must be preserved. Ordinary rules operations remain ordinary operations. For example, a Unit's complete movement path remains one atomic Move operation.
+
+Physical random mechanisms such as Activation Token draws and dice rolls are explicit parts of rules resolution. Their digital random sources should be replaceable or controllable for deterministic tests.
+
+### Composable rules and abilities
+
+Unit Types are primarily composed from data, behavior, and reusable rule components rather than implemented as deep class hierarchies that override the game engine.
+
+Abilities and other special rules are initially implemented as C# rule objects.
+
+Core rules provide simple defaults. Abilities and special rules may explicitly modify or override those defaults through narrowly defined rule extension points.
+
+Extension points should be introduced when actual game content requires them rather than by creating a large speculative set of hooks in advance.
+
+A rule component should be reusable by different Unit Types when they share the same ability or effect. A Unit Type should not need a bespoke subclass merely to participate in an existing rule effect.
+
+Abilities define capabilities and effects. Monster Behavior remains conceptually separate and determines decisions about those capabilities.
+
+Some rule components can resolve immediately, such as a modifier to an effective stat. A rule or ability that requires an external choice must be able to suspend resolution at a stable, serializable flow state and continue after that choice is supplied.
+
+Physical rules text and executable rule behavior are separate concerns. An ability may carry metadata such as its name and physical card text, while its executable behavior is implemented in code.
+
+A custom ability scripting language or DSL is not part of v0. If recurring simple patterns emerge from real abilities, those patterns may later become data-driven while exceptional rules remain code-based.
+
 ## Board
 
 The board is an orthogonal grid of square cells.
