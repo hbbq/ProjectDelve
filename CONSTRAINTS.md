@@ -299,6 +299,14 @@ Monster behavior must be possible to follow manually in the physical game. It mu
 
 Random choices or outcomes may be used only where the rules specify a corresponding physical random mechanism.
 
+Monster Behavior is defined per Unit Type. The engine generates the legal alternatives for a required decision; the active Monster's Behavior ranks or selects among those alternatives. Behavior does not reimplement movement legality, Line of Sight, attack legality, or other core rules.
+
+Common Monster archetypes may provide reusable default preferences. For example, a basic Melee behavior may prefer destinations from which it can attack and otherwise prefer moving closer to a suitable hostile Unit. A basic ranged behavior may prefer positions with Line of Sight and a target within `RNG`, with a preference for an appropriate attack distance. Specific Unit Types may refine or override such preferences.
+
+Monster preferences should be expressible as deterministic, manually followable priorities rather than opaque tactical utility calculations. Equal preferences are resolved by deterministic rule-defined tie-breaking. The final fallback may use the established top-to-bottom, left-to-right spatial ordering where appropriate.
+
+The Decision Provider boundary does not require every provider to use Monster Behavior ranking. A future simulation or AI provider may choose among the same legal alternatives using a different strategy.
+
 ### Abilities and behavior
 
 Abilities define what a Unit can do or what effects it can produce.
@@ -452,6 +460,22 @@ A Unit may not pass through cells occupied by hostile Units. Hostile Units can t
 A Unit may never end its movement in a cell occupied by another Unit, whether friendly or hostile.
 
 Whether a destination cell is otherwise passable is determined by the rules for its terrain or fixed object. Those rules are deliberately deferred to the corresponding terrain specification.
+
+### Reachable destinations and canonical paths
+
+A movement decision normally chooses a destination, not a path.
+
+The engine determines all cells reachable by a Unit within its effective movement allowance while applying movement legality. Each reachable destination is exposed at most once.
+
+For each reachable destination, the engine associates one deterministic shortest legal path from the Unit's starting cell to that destination. A flood-fill or breadth-first search is an appropriate implementation for the current uniform-cost grid movement.
+
+A Unit therefore does not spend unnecessary movement by taking a longer route when a shorter legal route reaches the same chosen destination.
+
+If several equally short legal paths reach the same destination, the engine selects one using a fixed deterministic tie-breaking order.
+
+The canonical path is retained as meaningful rules-result information even though the decision normally selects only the destination. This allows, for example, a graphical presentation to animate the individual steps of an otherwise atomic Move.
+
+If future rules make alternative paths to the same destination meaningfully different, path choice can be revisited explicitly at that time rather than being part of the v0 decision space.
 
 ### Act
 
