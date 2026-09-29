@@ -162,6 +162,116 @@ This posture is part of Physical State because it is directly observable on the 
 
 The gameplay meaning of either posture is deliberately not defined here.
 
+## Units
+
+Heroes and Monsters are both Units and use the same underlying rules model.
+
+A Unit has:
+
+- the common Unit stat schema,
+- a set of abilities,
+- Rules/Game State associated with the Unit,
+- a physical figure when the Unit is present on the board.
+
+Heroes and Monsters should not have parallel implementations of the same mechanics.
+
+### Heroes and Monsters
+
+The fundamental distinction between a Hero and a Monster is agency, not mechanics.
+
+For a Hero, a player makes decisions among the choices permitted by the rules.
+
+For a Monster, decisions are determined by that Monster's behavior rules. Monster behavior may determine, for example:
+
+- movement choices,
+- target selection,
+- which ability to use,
+- special decision overrides.
+
+Monster behavior must be possible to follow manually in the physical game. It must not depend on opaque computer-only decision making.
+
+Random choices or outcomes may be used only where the rules specify a corresponding physical random mechanism.
+
+### Abilities and behavior
+
+Abilities define what a Unit can do or what effects it can produce.
+
+Monster behavior defines how a Monster makes decisions about those capabilities.
+
+These are conceptually separate even if a physical Unit card presents behavior text next to, or as part of, an ability for readability.
+
+## Unit stats
+
+Every Unit has the same five base stats:
+
+- `MOV` — Movement,
+- `RNG` — Range,
+- `ATK` — Attack,
+- `DEF` — Defence,
+- `HP` — Hit Points.
+
+All five stats are integers.
+
+Their base domains are:
+
+- `MOV >= 0`. A Unit with `MOV 0` cannot move.
+- `RNG >= 0`. A Unit with `RNG 0` cannot make a normal attack.
+- `ATK >= 0`. A Unit with `ATK 0` cannot make a normal attack.
+- `DEF >= 0`. `DEF 0` is a normal valid value.
+- `HP >= 1`. Zero is not a valid HP stat value.
+
+The HP stat and current HP are distinct concepts. Current HP is mutable Rules/Game State. The consequences of current HP reaching zero are not yet defined.
+
+The detailed gameplay meaning of the stats is defined by the corresponding rules rather than by these domain constraints.
+
+## Unit activation
+
+Heroes and Monsters use the same activation structure.
+
+A Unit activation always progresses through three phases in this fixed order:
+
+1. **Bonus Action**
+2. **Move**
+3. **Act**
+
+A phase still occurs when the Unit chooses to do nothing during that phase. This is significant for rules that may trigger before or after a phase.
+
+### Bonus Action
+
+During the Bonus Action phase, a Unit may use zero or one ability explicitly marked `Bonus Action` on its Unit card.
+
+There is no general set of Bonus Actions. A Unit can perform a Bonus Action only when its card provides an applicable Bonus Action ability.
+
+If several Bonus Action abilities are available, at most one may be used during the activation.
+
+For a Hero, the player chooses whether and which available Bonus Action to use. For a Monster, its behavior rules determine that choice.
+
+### Move
+
+During the Move phase, a Unit moves from zero through `MOV` steps.
+
+Each step moves to an orthogonally adjacent cell. Diagonal movement is not allowed.
+
+The complete movement is one atomic rules operation. The path may contain multiple cells and is relevant when determining whether the movement is legal, but gameplay effects do not occur between individual steps of the movement.
+
+Rules may therefore trigger before or after the complete movement, but not in the middle of it unless a future rule explicitly overrides this principle.
+
+Choosing zero steps still constitutes completing the Move phase and the movement operation. Consequently, a future rule triggered after movement may still trigger when the Unit moved zero steps.
+
+Terrain, edge features, other Units, and other rules may constrain which movement paths are legal. Those constraints are not yet fully defined.
+
+### Act
+
+During the Act phase, a Unit may perform zero or one Action.
+
+All available Actions compete for the same single Action opportunity. A Unit cannot perform a basic Action and a Unit-specific Action during the same Act phase unless a future rule explicitly overrides this limit.
+
+A normal **Attack** is a basic Action available through the general rules.
+
+A Unit card may provide additional abilities explicitly marked `Action`. Using one of these consumes the Unit's Action for the phase.
+
+Other basic Actions may be introduced by the general rules. For example, opening a nearby door is a possible future basic Action, but this has not yet been decided.
+
 ## Physical component constraints
 
 The abstract game model and the available physical components are separate concerns.
@@ -185,7 +295,7 @@ They may be introduced later. The architecture should not unnecessarily prevent 
 The following are intentionally not specified yet:
 
 - gameplay effects of terrain,
-- movement rules,
+- remaining movement legality rules,
 - line-of-sight rules,
 - attack and combat rules,
 - gameplay effects of walls, windows, and doors,
