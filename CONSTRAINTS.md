@@ -224,6 +224,62 @@ The HP stat and current HP are distinct concepts. Current HP is mutable Rules/Ga
 
 The detailed gameplay meaning of the stats is defined by the corresponding rules rather than by these domain constraints.
 
+## Rounds and activation order
+
+Play is divided into Rounds.
+
+Activation order is determined physically by drawing Activation Tokens from a bag.
+
+### Activation Tokens
+
+An Activation Token identifies a Unit Type, not an individual Unit instance.
+
+At the start of a Round, the default rule is to place one Activation Token in the bag for each Unit Type that currently has at least one Unit in play.
+
+Each Hero is a unique Unit Type and therefore normally has its own personal Activation Token.
+
+Monsters are usually grouped by Unit Type. Multiple Units of the same Monster type share the same Activation Token. For example, any number of Skeleton Units normally contribute one Skeleton Activation Token to the bag.
+
+One token per participating Unit Type is the default rather than a structural limit. Abilities and special rules may explicitly modify how many Activation Tokens a Unit Type contributes. A particularly dangerous Monster type could, for example, contribute an additional token and therefore activate more than once during a Round.
+
+Tokens are drawn randomly from the bag without replacement. When a token is drawn, the Unit Type identified by that token activates.
+
+When the bag is empty, the Round ends. The bag is then populated again for the next Round from the Unit Types that are still in play, applying any rules that modify their number of Activation Tokens.
+
+If all Units of a type leave play after that type's token has already been placed in the bag, the token remains in the bag. If it is later drawn, the Unit Type activation is valid but affects zero Units and therefore does nothing. The bag does not need to be searched during a Round to remove such tokens.
+
+How Unit Types entering play during an ongoing Round affect the bag is deliberately deferred until spawning or reinforcement rules require it.
+
+### Unit Type activation
+
+When a Unit Type activates, all Units of that type activate as a group.
+
+Group activation is phase-based. All participating Units resolve a phase before the group proceeds to the next phase:
+
+1. all Bonus Action phases,
+2. all Move phases,
+3. all Act phases.
+
+This uses the same Bonus Action → Move → Act lifecycle defined for an individual Unit. A Hero Unit Type normally contains only one Unit, so the same group rules naturally reduce to a single Hero activation.
+
+### Deterministic order within a group phase
+
+Every scenario has a defined physical orientation with one board corner designated **top-left**.
+
+This establishes an unambiguous spatial ordering of cells: top to bottom by row, and left to right within each row.
+
+At the beginning of each group phase, the Units of the active Unit Type that are currently in play are ordered by their current board positions using this top-to-bottom, left-to-right order.
+
+That ordering is fixed for the duration of that phase.
+
+After the phase is complete, the ordering is calculated again from the current positions before the next phase begins. Movement can therefore change the order in which Units resolve their later Act phases.
+
+In a digital coordinate system where the top-left cell is `(0, 0)`, `x` increases to the right, and `y` increases downward, this ordering is equivalent to sorting by `(y, x)`.
+
+If a Unit leaves play after a phase's ordering has been established but before its own resolution in that phase, it is skipped.
+
+A Unit Type containing zero Units resolves all of its phases over an empty set and therefore has no effect.
+
 ## Unit activation
 
 Heroes and Monsters use the same activation structure.
