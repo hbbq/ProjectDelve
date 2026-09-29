@@ -77,6 +77,45 @@ Not every rules operation should become its own state-machine state. Flow states
 
 Physical random mechanisms such as Activation Token draws and dice rolls are explicit parts of rules resolution. Their digital random sources should be replaceable or controllable for deterministic tests.
 
+### Decisions, agency, and randomness
+
+All choices that require agency are resolved through a Decision Provider abstraction rather than being hard-coded to a particular kind of player or client.
+
+The rules engine determines when a decision is required and which choices are legal. A Decision Provider determines which legal choice is selected.
+
+Examples include:
+
+- which Unit is selected when a rule requires a choice,
+- where a Unit moves,
+- which legal path it takes when the path matters,
+- which target it attacks,
+- which Action or ability it uses,
+- any other rules-defined choice.
+
+Different Decision Provider implementations may supply decisions without changing the rules engine. Expected examples include:
+
+- a human player through a client,
+- Monster Behavior,
+- deterministic or random providers for tests and simulations,
+- a possible future smarter AI provider.
+
+Monster Behavior therefore participates through the same decision boundary as other forms of agency. It defines how Monsters choose among legal alternatives rather than implementing separate movement, combat, or activation rules.
+
+A decision and a random outcome are different concepts.
+
+Physical randomness such as drawing an Activation Token or rolling Attack and Defence Dice is supplied through a separate Random Provider abstraction. The rules define which physical random mechanism is required and how its result is interpreted; the provider supplies the outcome.
+
+Different Random Providers may support different contexts, for example:
+
+- digital random resolution during normal digital play,
+- deterministic predefined outcomes in tests,
+- fast automatic resolution during simulations,
+- manually entered results from physical dice or other physical random mechanisms.
+
+A human pressing a **Roll** or **Continue** button does not make the random result a decision. Such interaction may control presentation pacing or authorize the engine to continue to the random resolution, while the Random Provider remains responsible for the outcome.
+
+The state-machine and client boundary should therefore distinguish genuine rules decisions from interactions that merely control when an otherwise automatic or random resolution proceeds.
+
 ### Engine results and rules events
 
 Each engine run starts from a stable state that is waiting for input, accepts a command or decision, and resolves completely until the next stable point that requires external input or the game ends.
