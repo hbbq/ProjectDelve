@@ -220,7 +220,7 @@ Their base domains are:
 - `DEF >= 0`. `DEF 0` is a normal valid value.
 - `HP >= 1`. Zero is not a valid HP stat value.
 
-The HP stat and current HP are distinct concepts. Current HP is mutable Rules/Game State. The consequences of current HP reaching zero are not yet defined.
+The HP stat and current HP are distinct concepts. Current HP is mutable Rules/Game State. Current HP cannot be reduced below zero. Under the normal rules, a Unit whose current HP reaches zero dies and its figure is removed from the board. Future abilities may explicitly modify this behavior.
 
 The detailed gameplay meaning of the stats is defined by the corresponding rules rather than by these domain constraints.
 
@@ -272,6 +272,78 @@ A Unit card may provide additional abilities explicitly marked `Action`. Using o
 
 Other basic Actions may be introduced by the general rules. For example, opening a nearby door is a possible future basic Action, but this has not yet been decided.
 
+## Normal attacks
+
+A normal Attack is a basic Action.
+
+A Unit can make a normal Attack only when both its effective `RNG` and effective `ATK` permit it. Base stats may be modified by future rules or abilities; attack resolution uses the resulting effective stat values. The rules for combining modifiers are deliberately deferred until needed.
+
+### Range
+
+For ranged attacks, `RNG` is the maximum orthogonal distance between attacker and target. Orthogonal distance is Manhattan distance: the absolute horizontal difference plus the absolute vertical difference between their cells.
+
+`RNG 1` is a special case called **Melee**. A Melee attack may target any of the eight cells immediately surrounding the attacker, including diagonally adjacent cells. A physical Unit card may display `Melee` rather than the numeric value `1` to make this distinction explicit.
+
+A target must satisfy both the applicable range rule and Line of Sight.
+
+### Line of Sight
+
+Line of Sight (LOS) is a straight geometric line from the center of the attacker's cell to the center of the target's cell.
+
+Range measurement and LOS are separate tests.
+
+LOS blocking is based on logical grid geometry rather than the detailed physical silhouette of a miniature or terrain model.
+
+A cell is either completely LOS-blocking or completely non-blocking. If a type of terrain or fixed object is defined as LOS-blocking, the entire area of its cell blocks LOS regardless of the object's actual physical shape within the cell.
+
+Likewise, an edge feature either blocks LOS at the point where the LOS line crosses that edge or does not. For example, an open door does not partially obstruct an edge merely because a physical door model remains present.
+
+Because LOS runs between cell centers, it cannot run along a grid edge. It can, however, pass exactly through a grid corner.
+
+When LOS passes exactly through a corner, it is blocked only when all possible passages through that corner are blocked. If at least one passage is free, LOS passes through the corner. This also applies when a wall terminates exactly at the corner.
+
+Merely touching the corner of an LOS-blocking cell does not count as passing through that cell's interior.
+
+Friendly Units do not block LOS.
+
+Whether hostile Units block LOS is deliberately not yet defined.
+
+Which terrain types, fixed objects, walls, doors, windows, and other edge features block LOS will be defined by their corresponding rules.
+
+### Attack and defence dice
+
+The attacker rolls a number of Attack Dice equal to its effective `ATK`.
+
+An Attack Die is a physical six-sided die with:
+
+- 3 Hit faces,
+- 3 Miss faces.
+
+The defender rolls a number of Defence Dice equal to its effective `DEF`.
+
+A Defence Die is a physical six-sided die with:
+
+- 2 Block faces,
+- 4 Miss faces.
+
+Count the total Hits and Blocks rolled.
+
+Damage is:
+
+`max(0, Hits - Blocks)`
+
+The defender's current HP is reduced by the resulting Damage, but never below zero.
+
+A Unit with effective `ATK 0` cannot make a normal Attack. `DEF 0` is valid and means that the defender rolls zero Defence Dice.
+
+### Death
+
+Under the normal rules, when a Unit's current HP reaches zero, that Unit dies and its figure is removed from the board.
+
+This rule applies equally to Heroes and Monsters.
+
+Future abilities or special rules may explicitly alter what happens when a Unit would die, but no such exceptions are part of the base rules yet.
+
 ## Physical component constraints
 
 The abstract game model and the available physical components are separate concerns.
@@ -296,8 +368,9 @@ The following are intentionally not specified yet:
 
 - gameplay effects of terrain,
 - remaining movement legality rules,
-- line-of-sight rules,
-- attack and combat rules,
+- LOS-blocking behavior of hostile Units,
+- exact LOS effects of terrain and edge-feature types,
+- stat modifier and effective-stat calculation rules,
 - gameplay effects of walls, windows, and doors,
 - gameplay meaning of upright and lying figures,
 - passing through occupied cells,
