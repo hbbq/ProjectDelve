@@ -200,6 +200,20 @@ Monster behavior defines how a Monster makes decisions about those capabilities.
 
 These are conceptually separate even if a physical Unit card presents behavior text next to, or as part of, an ability for readability.
 
+### Per-Unit state and physical identity
+
+Persistent state associated with an individual Unit must be practically and unambiguously trackable for that specific physical figure.
+
+Units belonging to an indistinguishable group must not carry persistent per-figure state that cannot be represented by the physical figure itself. The digital implementation must not distinguish otherwise identical physical figures by silently tracking state that players cannot identify on the tabletop.
+
+Physical posture is permitted because `upright` or `lying` is directly represented by each figure itself.
+
+For the same reason, ordinary grouped Monsters that are physically indistinguishable have `HP 1`. Any Damage that reduces such a Monster's current HP therefore kills it and removes its figure, so no persistent damage needs to be associated with a particular figure.
+
+This is not a general restriction that Monsters must have `HP 1`. A physically unique Monster, such as a boss, may have higher HP when its individual current HP can be tracked unambiguously, for example on its own physical Unit card. Heroes may likewise have higher HP because each Hero is individually identifiable and its current HP can be tracked on its physical card.
+
+Abilities and effects may make grouped Monsters easier or harder to damage or kill without requiring untrackable persistent per-figure state. Different `DEF` values are one example.
+
 ## Unit stats
 
 Every Unit has the same five base stats:
