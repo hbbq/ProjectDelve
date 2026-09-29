@@ -77,6 +77,32 @@ Not every rules operation should become its own state-machine state. Flow states
 
 Physical random mechanisms such as Activation Token draws and dice rolls are explicit parts of rules resolution. Their digital random sources should be replaceable or controllable for deterministic tests.
 
+### Engine results and rules events
+
+Each engine run starts from a stable state that is waiting for input, accepts a command or decision, and resolves completely until the next stable point that requires external input or the game ends.
+
+The result of such a run contains, conceptually:
+
+- the new authoritative Game State,
+- a sequence of Rules/Domain Events describing what happened during the run,
+- the next required input, if any.
+
+Rules/Domain Events describe semantically meaningful gameplay outcomes that have already been resolved by the engine. They are not commands that a client must execute in order to produce the new Game State.
+
+The authoritative state is the Game State itself. v0 does not require event sourcing or reconstruction of Game State from the event history.
+
+Rules time and presentation time are separate. The engine does not wait for a graphical client to finish animations before rules resolution continues. A client may receive a completed engine result and then present its Rules/Domain Events over any suitable amount of real time.
+
+Rules/Domain Events should reflect the semantics of the rules rather than the desired granularity of a particular UI. There is deliberately no required one-to-one mapping between Rules/Domain Events and presentation events or animations.
+
+For example, a complete Move remains one atomic rules operation and may produce one `UnitMoved` event containing the complete path. A graphical client may translate that single event into several per-cell movement animations.
+
+Conversely, several Rules/Domain Events produced while resolving an attack may be combined by a client into one coherent attack animation or presentation sequence.
+
+A presentation adapter or client is responsible for translating Rules/Domain Events into its own presentation events, animation timeline, text output, sounds, or other UI effects. Presentation-specific events do not belong in the core rules engine.
+
+Rules/Domain Events should expose enough meaningful information for different presentations to represent what happened without exposing low-level engine implementation details. Internal operations such as path validation or rule-component lookup are not gameplay events merely because the engine performs them.
+
 ### Composable rules and abilities
 
 Unit Types are primarily composed from data, behavior, and reusable rule components rather than implemented as deep class hierarchies that override the game engine.
