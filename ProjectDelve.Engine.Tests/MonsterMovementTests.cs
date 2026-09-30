@@ -118,14 +118,14 @@ public sealed class MonsterMovementTests
 
         Assert.Equal(canonical, Assert.Single(result.Events, e => e.Kind == "MovementCompleted").Path);
         Assert.Equal(new Cell(2, 1), result.State.Physical.Figures.Single(f => f.Id == "monster").Position);
-        Assert.Equal(DecisionKind.Attack, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
         Assert.Equal(0, other.Calls);
         Assert.Equal(original, JsonSerializer.Serialize(pending.State));
     }
 
     [Theory]
     [InlineData(DecisionKind.SelectUnit)]
-    [InlineData(DecisionKind.Attack)]
+    [InlineData(DecisionKind.Act)]
     public void NonMovementDecisionsAreDelegatedUnchanged(DecisionKind kind)
     {
         var request = new DecisionRequest(kind, "monster-type", "monster", [new Candidate("selected")], true);

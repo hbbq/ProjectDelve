@@ -5,18 +5,28 @@ public enum EdgeKind { Wall, ClosedDoor, OpenDoor }
 public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
-public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp);
+[Flags]
+public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
+public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
+    UnitAction Actions = UnitAction.NormalAttack)
+{
+    // Hero content uses these defaults; capabilities never depend on side or agency.
+    public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
+        new(id, mov, rng, atk, def, hp, UnitAction.NormalAttack | UnitAction.OpenDoor);
+}
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 
 // Every cell on this first-slice board is Floor. An absent edge feature is open.
 public sealed record Board(int Width, int Height, List<Edge> Edges);
 public sealed record PhysicalState(Board Board, List<Figure> Figures);
 public enum Phase { BonusAction, Move, Act }
-public enum DecisionKind { SelectUnit, Move, Attack }
-public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null);
+public enum DecisionKind { SelectUnit, Move, Act }
+public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
+    UnitAction? Action = null, string? TargetId = null, Edge? Door = null);
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
-    string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0);
+    string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
+    Edge? Door = null);
 
 public sealed class GameState
 {

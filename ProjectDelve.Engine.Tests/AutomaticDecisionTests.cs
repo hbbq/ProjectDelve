@@ -96,16 +96,16 @@ public sealed class AutomaticDecisionTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("enemy")]
+    [InlineData("attack:enemy")]
     public void OneAttackCandidatePlusNone_RequiresProvider(string? choice)
     {
         var state = State(mov: 0, rng: 1, atk: 1);
         AddEnemy(state, "enemy", new Cell(1, 0));
         var random = new Random();
         var result = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Attack, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
         Assert.True(result.NextInput.AllowsNone);
-        Assert.Equal("enemy", Assert.Single(result.NextInput.Candidates).Key);
+        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates).Key);
         Assert.DoesNotContain(result.Events, e => e.Kind == "AttackResolved");
 
         var provider = new Choice(choice);
@@ -120,16 +120,16 @@ public sealed class AutomaticDecisionTests
     [Theory]
     [InlineData(DecisionKind.SelectUnit)]
     [InlineData(DecisionKind.Move)]
-    [InlineData(DecisionKind.Attack)]
+    [InlineData(DecisionKind.Act)]
     public void MultipleCandidates_StillRequireExternalInput(DecisionKind kind)
     {
-        var state = State(width: 3, height: 2, mov: kind == DecisionKind.Attack ? 0 : 1, rng: 1, atk: 1);
+        var state = State(width: 3, height: 2, mov: kind == DecisionKind.Act ? 0 : 1, rng: 1, atk: 1);
         if (kind == DecisionKind.SelectUnit)
         {
             state.Units.Add(new Unit("ally", "hero-type", "blue", 2));
             state.Physical.Figures.Add(new Figure("ally", new Cell(1, 0)));
         }
-        else if (kind == DecisionKind.Attack)
+        else if (kind == DecisionKind.Act)
         {
             AddEnemy(state, "enemy-a", new Cell(1, 0));
             AddEnemy(state, "enemy-b", new Cell(0, 1));
@@ -176,7 +176,7 @@ public sealed class AutomaticDecisionTests
     [Theory]
     [InlineData(DecisionKind.SelectUnit)]
     [InlineData(DecisionKind.Move)]
-    [InlineData(DecisionKind.Attack)]
+    [InlineData(DecisionKind.Act)]
     public void ResumedForcedDecision_UsesRebuiltLegalityWithoutInvokingProvider(DecisionKind kind)
     {
         // A saved pending request may come from a host running the older engine.

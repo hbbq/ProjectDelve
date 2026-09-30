@@ -35,7 +35,7 @@ public sealed class DecisionMutationTests
             state.Physical.Figures.Add(new Figure("ally", new Cell(2, 2)));
         }
         var result = GameEngine.StartRound(state, random);
-        if (kind == DecisionKind.Attack)
+        if (kind == DecisionKind.Act)
         {
             result = GameEngine.Advance(result.State, new Choice(_ => null), random);
         }
@@ -110,7 +110,7 @@ public sealed class DecisionMutationTests
     [Theory]
     [InlineData(DecisionKind.SelectUnit)]
     [InlineData(DecisionKind.Move)]
-    [InlineData(DecisionKind.Attack)]
+    [InlineData(DecisionKind.Act)]
     public void ProviderCannotInsertIllegalCandidate(DecisionKind kind)
     {
         var random = new Random();
