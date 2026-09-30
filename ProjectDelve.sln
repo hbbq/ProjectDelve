@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectDelve.Engine", "ProjectDelve.Engine\ProjectDelve.Engine.csproj", "{4DC4CB7A-6C82-4D5C-A25D-FFCB2FFDD552}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectDelve.Engine.Tests", "ProjectDelve.Engine.Tests\ProjectDelve.Engine.Tests.csproj", "{53EFA8DC-F77F-49A3-93DC-CE2C61E60384}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4DC4CB7A-6C82-4D5C-A25D-FFCB2FFDD552}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4DC4CB7A-6C82-4D5C-A25D-FFCB2FFDD552}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4DC4CB7A-6C82-4D5C-A25D-FFCB2FFDD552}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4DC4CB7A-6C82-4D5C-A25D-FFCB2FFDD552}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53EFA8DC-F77F-49A3-93DC-CE2C61E60384}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53EFA8DC-F77F-49A3-93DC-CE2C61E60384}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53EFA8DC-F77F-49A3-93DC-CE2C61E60384}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53EFA8DC-F77F-49A3-93DC-CE2C61E60384}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
