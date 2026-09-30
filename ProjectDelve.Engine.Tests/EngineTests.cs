@@ -135,6 +135,67 @@ public sealed class EngineTests
     }
 
     [Fact]
+    public void UnrelatedFeaturedEdge_DoesNotDiscardClearAttackTarget()
+    {
+        var state = State(width: 3, height: 2, mov: 0, rng: 2);
+        state.Physical.Board.Edges.Add(new Edge(new Cell(1, 1), new Cell(2, 1), EdgeKind.Wall));
+        state.Types.Add(new UnitType("enemy", 0, 0, 0, 0, 1));
+        state.Units.Add(new Unit("enemy", "enemy", "red", 1));
+        state.Physical.Figures.Add(new Figure("enemy", new Cell(2, 0)));
+        var random = new ScriptedRandom("hero-type", "enemy");
+
+        var result = GameEngine.StartRound(state, random);
+        result = Choose(result, "hero", random);
+        result = Choose(result, "hero", random);
+        result = Choose(result, "hero", random);
+
+        Assert.Equal(DecisionKind.Attack, result.NextInput!.Kind);
+        Assert.Equal("enemy", Assert.Single(result.NextInput.Candidates).Key);
+    }
+
+    [Fact]
+    public void FeaturedEdgeEndingAtLosCorner_LeavesFreeCornerPassageLegal()
+    {
+        var state = State(width: 2, height: 2, mov: 0);
+        state.Physical.Board.Edges.Add(new Edge(new Cell(0, 0), new Cell(1, 0), EdgeKind.Wall));
+        state.Types.Add(new UnitType("enemy", 0, 0, 0, 0, 1));
+        state.Units.Add(new Unit("enemy", "enemy", "red", 1));
+        state.Physical.Figures.Add(new Figure("enemy", new Cell(1, 1)));
+        var random = new ScriptedRandom("hero-type", "enemy");
+
+        var result = GameEngine.StartRound(state, random);
+        result = Choose(result, "hero", random);
+        result = Choose(result, "hero", random);
+        result = Choose(result, "hero", random);
+
+        Assert.Equal(DecisionKind.Attack, result.NextInput!.Kind);
+        Assert.Equal("enemy", Assert.Single(result.NextInput.Candidates).Key);
+    }
+
+    [Fact]
+    public void HostileUnitOnAnotherTargetsLos_DoesNotDiscardClearAttackTarget()
+    {
+        var state = State(width: 3, height: 3, mov: 0, rng: 3);
+        state.Types.Add(new UnitType("enemy", 0, 0, 0, 0, 1));
+        state.Units.Add(new Unit("intervening", "enemy", "red", 1));
+        state.Units.Add(new Unit("behind", "enemy", "red", 1));
+        state.Units.Add(new Unit("clear", "enemy", "red", 1));
+        state.Physical.Figures.Add(new Figure("intervening", new Cell(1, 0)));
+        state.Physical.Figures.Add(new Figure("behind", new Cell(2, 0)));
+        state.Physical.Figures.Add(new Figure("clear", new Cell(0, 2)));
+        var random = new ScriptedRandom("hero-type", "enemy");
+
+        var result = GameEngine.StartRound(state, random);
+        result = Choose(result, "hero", random);
+        result = Choose(result, "hero", random);
+        result = Choose(result, "hero", random);
+
+        Assert.Equal(DecisionKind.Attack, result.NextInput!.Kind);
+        Assert.Contains(result.NextInput.Candidates, candidate => candidate.Key == "clear");
+        Assert.DoesNotContain(result.NextInput.Candidates, candidate => candidate.Key == "behind");
+    }
+
+    [Fact]
     public void SameSideIsFriendlyEvenAcrossDifferentUnitTypes()
     {
         var state = State(width: 2, height: 1, mov: 1);
