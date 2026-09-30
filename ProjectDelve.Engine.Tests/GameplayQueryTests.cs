@@ -63,7 +63,6 @@ public sealed class GameplayQueryTests
     [Theory]
     [InlineData(EdgeKind.Wall)]
     [InlineData(EdgeKind.ClosedDoor)]
-    [InlineData(EdgeKind.OpenDoor)]
     public void UndefinedEdgeLosNeverCountsAsAnAttackPosition(EdgeKind kind)
     {
         var state = State();
@@ -72,6 +71,18 @@ public sealed class GameplayQueryTests
 
         Assert.False(queries.CanAttackHostileFrom("monster", new Cell(3, 0)));
         Assert.Null(queries.DistanceToAttackPositionFrom("monster", new Cell(1, 0)));
+    }
+
+    [Fact]
+    public void OpenDoorLosCountsAsAnAttackPosition()
+    {
+        var state = State();
+        state.Physical.Board.Edges.Add(new Edge(new Cell(4, 0), new Cell(3, 0), EdgeKind.OpenDoor));
+        var queries = new GameplayQueries(state);
+
+        Assert.True(queries.CanAttackHostileFrom("monster", new Cell(3, 0)));
+        Assert.Equal(0, queries.DistanceToAttackPositionFrom("monster", new Cell(3, 0)));
+        Assert.Equal(2, queries.DistanceToAttackPositionFrom("monster", new Cell(1, 0)));
     }
 
     [Fact]

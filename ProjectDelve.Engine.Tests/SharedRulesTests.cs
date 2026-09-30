@@ -100,16 +100,31 @@ public sealed class SharedRulesTests
     }
 
     [Theory]
-    [InlineData(EdgeKind.Wall)]
-    [InlineData(EdgeKind.ClosedDoor)]
-    [InlineData(EdgeKind.OpenDoor)]
-    public void FeaturedEdgeLosRemainsUndefinedIncludingOpenDoors(EdgeKind kind)
+    [InlineData(EdgeKind.Wall, false)]
+    [InlineData(EdgeKind.ClosedDoor, false)]
+    [InlineData(EdgeKind.OpenDoor, true)]
+    public void OpenDoorLosIsClearWhileOtherFeaturedEdgesRemainUndefined(EdgeKind kind, bool clear)
     {
         var state = State(rng: 3);
         var from = new Cell(2, 1);
         state.Physical.Board.Edges.Add(new Edge(from, new Cell(3, 1), kind));
 
-        Assert.Equal(NormalAttackEvaluation.UndefinedLineOfSight,
+        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.UndefinedLineOfSight,
+            AttackRules.EvaluateFrom(state, "mover", from, "target"));
+    }
+
+    [Theory]
+    [InlineData(EdgeKind.ClosedDoor, false)]
+    [InlineData(EdgeKind.OpenDoor, true)]
+    public void OpenDoorProvidesClearCornerPassage(EdgeKind kind, bool clear)
+    {
+        var state = State();
+        var from = new Cell(3, 0);
+        // Both passages are featured, but the upper one is clear when opened.
+        state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(4, 0), kind));
+        state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(3, 1), EdgeKind.Wall));
+
+        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.UndefinedLineOfSight,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
     }
 

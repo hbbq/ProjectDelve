@@ -568,6 +568,8 @@ A cell is either completely LOS-blocking or completely non-blocking. If a type o
 
 Likewise, an edge feature either blocks LOS at the point where the LOS line crosses that edge or does not. For example, an open door does not partially obstruct an edge merely because a physical door model remains present.
 
+An open door does not block LOS. Opening a door therefore immediately allows otherwise legal attacks through that edge, including hypothetical attacks used to rank Monster movement destinations.
+
 Because LOS runs between cell centers, it cannot run along a grid edge. It can, however, pass exactly through a grid corner.
 
 When LOS passes exactly through a corner, it is blocked only when all possible passages through that corner are blocked. If at least one passage is free, LOS passes through the corner. This also applies when a wall terminates exactly at the corner.

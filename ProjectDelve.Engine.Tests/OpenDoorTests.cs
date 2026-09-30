@@ -261,4 +261,53 @@ public sealed class OpenDoorTests
         Assert.Equal(new Cell(1, 0), Assert.Single(moved.State.Physical.Figures).Position);
         Assert.Equal(destination.Path, Assert.Single(moved.Events, e => e.Kind == "MovementCompleted").Path);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OpeningDoorImmediatelyChangesMonsterMovement(bool movementOnlyProvider)
+    {
+        var state = new GameState
+        {
+            Physical = new PhysicalState(new Board(6, 5,
+                [new Edge(new Cell(2, 1), new Cell(3, 1), EdgeKind.Wall),
+                    new Edge(new Cell(2, 2), new Cell(3, 2), EdgeKind.ClosedDoor),
+                    new Edge(new Cell(2, 3), new Cell(3, 3), EdgeKind.Wall),
+                    new Edge(new Cell(2, 1), new Cell(2, 2), EdgeKind.Wall),
+                    new Edge(new Cell(2, 2), new Cell(2, 3), EdgeKind.Wall)]),
+                [new Figure("hero", new Cell(4, 2)), new Figure("monster-1", new Cell(1, 2)),
+                    new Figure("monster-2", new Cell(1, 3))]),
+            Types = [UnitType.Hero("hero-type", 2, 1, 1, 0, 2),
+                new UnitType("monster-type", 2, 1, 1, 1, 1)],
+            Units = [new Unit("hero", "hero-type", "blue", 2),
+                new Unit("monster-1", "monster-type", "red", 1),
+                new Unit("monster-2", "monster-type", "red", 1)]
+        };
+        var random = new Random();
+        var pending = GameEngine.StartRound(state, random);
+        var movedHero = GameEngine.Advance(pending.State, new Choice(_ => "3,2"), random);
+        var closedQueries = new GameplayQueries(movedHero.State);
+        Assert.False(closedQueries.CanAttackHostileFrom("monster-1", new Cell(2, 2)));
+
+        var opened = Open(movedHero.State, random);
+        Assert.Equal(EdgeKind.OpenDoor, Assert.Single(opened.Events, e => e.Kind == "DoorOpened").Door!.Kind);
+        var monsters = new DefaultMonsterProvider();
+        // Select both Bonus Actions, then monster-1 for Move.
+        var result = opened;
+        while (result.NextInput!.Kind == DecisionKind.SelectUnit)
+            result = GameEngine.Advance(result.State, monsters, random);
+        Assert.Equal("monster-1", result.NextInput.UnitId);
+        Assert.Equal(DecisionKind.Move, result.NextInput.Kind);
+        Assert.Equal(new[] { new Cell(1, 2), new Cell(2, 2) },
+            result.NextInput.Candidates.Single(c => c.Key == "2,2").Path);
+
+        IDecisionProvider provider = movementOnlyProvider ? new MonsterMovementProvider(monsters) : monsters;
+        Assert.Equal("1,0", provider.Choose(result.NextInput, closedQueries));
+        var movedMonster = GameEngine.Advance(result.State, provider, random);
+        Assert.Equal(new[] { new Cell(1, 2), new Cell(2, 2) },
+            Assert.Single(movedMonster.Events, e => e.Kind == "MovementCompleted").Path);
+        Assert.True(new GameplayQueries(result.State).CanAttackHostileFrom("monster-1", new Cell(2, 2)));
+        Assert.Equal(0, new GameplayQueries(result.State).DistanceToAttackPositionFrom("monster-1", new Cell(2, 2)));
+        Assert.False(closedQueries.CanAttackHostileFrom("monster-1", new Cell(2, 2)));
+    }
 }

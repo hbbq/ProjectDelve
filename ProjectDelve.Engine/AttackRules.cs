@@ -37,12 +37,12 @@ internal static class AttackRules
 
     private static bool HasUnsupportedFeaturedEdgeLos(Board board, Cell from, Cell to)
     {
-        if (board.Edges.Any(edge => CrossesEdgeInterior(from, to, edge)))
+        if (board.Edges.Any(edge => edge.Kind != EdgeKind.OpenDoor && CrossesEdgeInterior(from, to, edge)))
             return true;
 
         // At an exact corner there are two possible passages. The defined
-        // corner rule makes LOS unambiguous when either passage has no featured
-        // edge; otherwise the effects of the encountered features are unknown.
+        // corner rule makes LOS unambiguous when either passage has only open
+        // edges or open doors; other encountered features have unknown effects.
         var minX = Math.Min(from.X, to.X);
         var maxX = Math.Max(from.X, to.X);
         var minY = Math.Min(from.Y, to.Y);
@@ -74,7 +74,8 @@ internal static class AttackRules
         HasFeaturedEdge(board, first, middle) || HasFeaturedEdge(board, middle, last);
 
     private static bool HasFeaturedEdge(Board board, Cell a, Cell b) =>
-        board.Edges.Any(edge => edge.A == a && edge.B == b || edge.A == b && edge.B == a);
+        board.Edges.Any(edge => edge.Kind != EdgeKind.OpenDoor &&
+            (edge.A == a && edge.B == b || edge.A == b && edge.B == a));
 
     private static bool CrossesEdgeInterior(Cell from, Cell to, Edge edge)
     {
