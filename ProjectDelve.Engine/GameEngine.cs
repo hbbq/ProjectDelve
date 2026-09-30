@@ -23,13 +23,22 @@ public static class GameEngine
 
     public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random)
     {
-        var request = previous.Pending ?? throw new InvalidOperationException("No decision is pending.");
-        var choice = decisions.Choose(request);
+        if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
+        var state = previous.Copy();
+        // Pending data is also exposed to clients and survives serialization. Rebuild
+        // legality from authoritative state, and never share canonical paths with a provider.
+        var request = CreateDecision(state);
+        var choice = decisions.Choose(request with
+        {
+            Candidates = request.Candidates.Select(c => c with
+            {
+                Path = c.Path is null ? null : [.. c.Path]
+            }).ToList()
+        });
         if (choice is null && !request.AllowsNone ||
             choice is not null && !request.Candidates.Any(c => c.Key == choice))
             throw new ArgumentException("Decision is not among the supplied legal candidates.", nameof(decisions));
 
-        var state = previous.Copy();
         state.Pending = null;
         var events = new List<RulesEvent>();
         switch (request.Kind)
@@ -80,11 +89,7 @@ public static class GameEngine
                 events.Add(new RulesEvent("TokenDrawn", TypeId: drawn));
             }
 
-            var eligible = state.Units.Where(u => u.TypeId == state.ActiveTypeId && u.CurrentHp > 0 &&
-                    !state.CompletedUnitIds.Contains(u.Id))
-                .OrderBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.Y)
-                .ThenBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.X)
-                .ToList();
+            var eligible = EligibleUnits(state);
             if (eligible.Count == 0)
             {
                 state.CompletedUnitIds.Clear();
@@ -95,8 +100,7 @@ public static class GameEngine
             }
             if (state.CurrentUnitId is null)
             {
-                state.Pending = new DecisionRequest(DecisionKind.SelectUnit, state.ActiveTypeId!, null,
-                    eligible.Select(u => new Candidate(u.Id)).ToList(), false);
+                state.Pending = CreateDecision(state);
                 return;
             }
             var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
@@ -196,6 +200,31 @@ public static class GameEngine
             result.Add(new Candidate(target.Id));
         }
         return result;
+    }
+
+    private static List<Unit> EligibleUnits(GameState state) =>
+        state.Units.Where(u => u.TypeId == state.ActiveTypeId && u.CurrentHp > 0 &&
+                !state.CompletedUnitIds.Contains(u.Id))
+            .OrderBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.Y)
+            .ThenBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.X)
+            .ToList();
+
+    private static DecisionRequest CreateDecision(GameState state)
+    {
+        var eligible = EligibleUnits(state);
+        if (state.CurrentUnitId is null)
+            return new DecisionRequest(DecisionKind.SelectUnit, state.ActiveTypeId!, null,
+                eligible.Select(u => new Candidate(u.Id)).ToList(), false);
+
+        var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
+        return state.Phase switch
+        {
+            Phase.Move => new DecisionRequest(DecisionKind.Move, state.ActiveTypeId!, unit.Id,
+                MovementCandidates(state, unit), true),
+            Phase.Act => new DecisionRequest(DecisionKind.Attack, state.ActiveTypeId!, unit.Id,
+                AttackCandidates(state, unit), true),
+            _ => throw new InvalidOperationException("No decision is available in this phase.")
+        };
     }
 
     private static bool HasUnsupportedFeaturedEdgeLos(Board board, Cell from, Cell to)
