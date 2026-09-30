@@ -398,23 +398,29 @@ Group activation is phase-based. All participating Units resolve a phase before 
 
 This uses the same Bonus Action → Move → Act lifecycle defined for an individual Unit. A Hero Unit Type normally contains only one Unit, so the same group rules naturally reduce to a single Hero activation.
 
-### Deterministic order within a group phase
+### Unit selection within a group phase
 
 Every scenario has a defined physical orientation with one board corner designated **top-left**.
 
-This establishes an unambiguous spatial ordering of cells: top to bottom by row, and left to right within each row.
+This establishes an unambiguous spatial ordering of cells: top to bottom by row, and left to right within each row. In a digital coordinate system where the top-left cell is `(0, 0)`, `x` increases to the right, and `y` increases downward, this ordering is equivalent to sorting by `(y, x)`.
 
-At the beginning of each group phase, the Units of the active Unit Type that are currently in play are ordered by their current board positions using this top-to-bottom, left-to-right order.
+The order in which Units resolve a group phase is not fixed at the beginning of that phase.
 
-That ordering is fixed for the duration of that phase.
+Before each Unit resolves the current group phase, the engine determines the Units of the active Unit Type that are currently eligible to resolve it and have not already completed that phase during the current activation. This concrete set is the legal decision space for choosing the next Unit.
 
-After the phase is complete, the ordering is calculated again from the current positions before the next phase begins. Movement can therefore change the order in which Units resolve their later Act phases.
+The responsible Decision Provider selects the next Unit from that set. As with other decisions, the provider does not determine eligibility and the engine validates the returned selection against the supplied candidates.
 
-In a digital coordinate system where the top-left cell is `(0, 0)`, `x` increases to the right, and `y` increases downward, this ordering is equivalent to sorting by `(y, x)`.
+Default Monster Behavior chooses the currently topmost eligible Unit, breaking ties by choosing the leftmost one. Because this choice is made again before each Unit resolves the phase, current board positions are used. Earlier movement during the same group phase can therefore affect which remaining Monster is selected next.
 
-If a Unit leaves play after a phase's ordering has been established but before its own resolution in that phase, it is skipped.
+A human or future AI Decision Provider can receive the same eligible-Unit candidates. If the applicable rules permit free ordering for that form of agency, it may choose any eligible Unit rather than using the default Monster spatial ordering.
 
-A Unit Type containing zero Units resolves all of its phases over an empty set and therefore has no effect.
+Once a Unit has completed the current group phase, it cannot be selected again during that phase. If a Unit ceases to be eligible before being selected, it is simply absent from the next candidate set.
+
+The physical procedure therefore requires tracking which Units have already resolved the current group phase, but does not require remembering their positions or a precomputed ordering from the start of the phase.
+
+A Unit Type containing zero eligible Units completes the current group phase immediately. When no eligible Units remain, the group proceeds to its next phase or completes the activation after Act.
+
+The exact eligibility consequences of future spawning, summoning, reinforcement, or similar rules are deliberately deferred until such mechanics are introduced. In particular, no general v0 rule is imposed here about whether a newly introduced Unit can participate in an activation already in progress.
 
 ## Unit activation
 
