@@ -3,13 +3,22 @@ using ProjectDelve.ConsoleHost;
 
 Console.WriteLine("Project Delve: exploratory rounds. Hero decisions are manual; Monster decisions are automatic.");
 Console.WriteLine("Tokens and dice are rolled automatically. Coordinates start at top-left (0,0).");
+Console.WriteLine("Detour scenario: walls and a closed door divide the board; rows 0 and 4 provide open routes.");
+Console.WriteLine("Choose 0 to keep the Hero at (4,2) and observe the Monsters approach over successive rounds.");
+Console.WriteLine("Or move the Hero to (3,2), then choose Open Door during Act. On a later Move, cross to (2,2).");
 
 var state = new GameState
 {
-    Physical = new PhysicalState(new Board(5, 5, []),
-        [new Figure("hero", new Cell(1, 2)), new Figure("monster-1", new Cell(3, 2)),
-            new Figure("monster-2", new Cell(3, 3))]),
-    Types = [new UnitType("hero-type", 2, 1, 1, 0, 2), new UnitType("monster-type", 2, 1, 1, 1, 1)],
+    Physical = new PhysicalState(new Board(6, 5,
+        [new Edge(new Cell(2, 1), new Cell(3, 1), EdgeKind.Wall),
+            new Edge(new Cell(2, 2), new Cell(3, 2), EdgeKind.ClosedDoor),
+            new Edge(new Cell(2, 3), new Cell(3, 3), EdgeKind.Wall),
+            // The tempting cell (2,2) is a dead end, entered only from the left.
+            new Edge(new Cell(2, 1), new Cell(2, 2), EdgeKind.Wall),
+            new Edge(new Cell(2, 2), new Cell(2, 3), EdgeKind.Wall)]),
+        [new Figure("hero", new Cell(4, 2)), new Figure("monster-1", new Cell(1, 2)),
+            new Figure("monster-2", new Cell(1, 3))]),
+    Types = [UnitType.Hero("hero-type", 2, 1, 1, 0, 2), new UnitType("monster-type", 2, 1, 1, 1, 1)],
     Units = [new Unit("hero", "hero-type", "blue", 2), new Unit("monster-1", "monster-type", "red", 1),
         new Unit("monster-2", "monster-type", "red", 1)]
 };
@@ -58,13 +67,15 @@ static void ShowState(GameState state)
     if (state.ActiveTypeId is not null)
         Console.WriteLine($"Phase: {state.Phase} | Current Unit: {state.CurrentUnitId ?? "-"} | Completed Units: {string.Join(", ", state.CompletedUnitIds)}");
     Console.WriteLine($"Bag: [{string.Join(", ", state.Bag)}]");
-    Console.Write("    ");
-    for (var x = 0; x < state.Physical.Board.Width; x++) Console.Write($"{x,-3}");
+    var board = state.Physical.Board;
+    Console.Write("     ");
+    for (var x = 0; x < board.Width; x++) Console.Write($"{x,-4}");
     Console.WriteLine();
-    for (var y = 0; y < state.Physical.Board.Height; y++)
+    Console.WriteLine("    +" + string.Concat(Enumerable.Repeat("---+", board.Width)));
+    for (var y = 0; y < board.Height; y++)
     {
-        Console.Write($" {y}  ");
-        for (var x = 0; x < state.Physical.Board.Width; x++)
+        Console.Write($"{y,2}  |");
+        for (var x = 0; x < board.Width; x++)
         {
             var figure = state.Physical.Figures.FirstOrDefault(f => f.Position == new Cell(x, y));
             var symbol = figure?.Id switch
@@ -75,10 +86,26 @@ static void ShowState(GameState state)
                 _ => "."
             };
             Console.Write($"{symbol,-3}");
+            Console.Write(x == board.Width - 1 ? '|' : EdgeMarker(board, new Cell(x, y), new Cell(x + 1, y)));
+        }
+        Console.WriteLine();
+        Console.Write("    +");
+        for (var x = 0; x < board.Width; x++)
+        {
+            var marker = y == board.Height - 1 ? "---" :
+                EdgeMarker(board, new Cell(x, y), new Cell(x, y + 1)) switch
+                {
+                    '#' => "###",
+                    'D' => "-D-",
+                    'o' => "-o-",
+                    _ => "   "
+                };
+            Console.Write(marker + "+");
         }
         Console.WriteLine();
     }
     Console.WriteLine("H = hero, M1 = monster-1, M2 = monster-2, . = Floor");
+    Console.WriteLine("# = wall, D = closed door (impassable), o = open door; blank edges are open.");
     foreach (var unit in state.Units)
     {
         var type = state.Types.Single(t => t.Id == unit.TypeId);
@@ -88,6 +115,15 @@ static void ShowState(GameState state)
     }
     Console.WriteLine();
 }
+
+static char EdgeMarker(Board board, Cell a, Cell b) =>
+    board.Edges.FirstOrDefault(e => e.A == a && e.B == b || e.A == b && e.B == a)?.Kind switch
+    {
+        EdgeKind.Wall => '#',
+        EdgeKind.ClosedDoor => 'D',
+        EdgeKind.OpenDoor => 'o',
+        _ => ' '
+    };
 
 static void ShowEvents(List<RulesEvent> events)
 {
@@ -101,6 +137,7 @@ static void ShowEvents(List<RulesEvent> events)
             "TokenDrawn" => $"TokenDrawn: {e.TypeId}",
             "MovementCompleted" => $"MovementCompleted: {e.UnitId}, path {string.Join(" -> ", e.Path!.Select(c => $"({c.X},{c.Y})"))}",
             "AttackResolved" => $"AttackResolved: {e.UnitId} -> {e.TargetId}, Hits {e.Hits}, Blocks {e.Blocks}, Damage {e.Damage}",
+            "DoorOpened" => $"DoorOpened: {e.UnitId}, ({e.Door!.A.X},{e.Door.A.Y}) <-> ({e.Door.B.X},{e.Door.B.Y})",
             "UnitDied" => $"UnitDied: {e.UnitId} (figure removed)",
             _ => e.Kind
         };

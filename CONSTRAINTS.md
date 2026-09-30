@@ -95,7 +95,9 @@ Examples include:
 
 For v0 movement, the engine supplies the legal reachable destinations, each with its canonical path. The provider chooses a destination or no movement when permitted.
 
-For v0 Act resolution, where Attack is the only Action, the engine supplies the legal attack targets after applying Range, Line of Sight, hostility, and all other attack-legality rules. The provider chooses one of those targets or no Action when permitted.
+For Act resolution, the engine supplies the complete legal set of action candidates from the Unit Type's capabilities. Normal Attack candidates apply Range, Line of Sight, hostility, and all other attack-legality rules. Open Door candidates identify each adjacent closed door separately. The provider chooses one candidate or no Action when permitted; either choice completes the Unit's Act phase.
+
+Hero Unit Types have Normal Attack and Open Door by default. Default Monster Unit Types have Normal Attack only. These are composable Unit Type capabilities, independent of side and agency; a particular Monster Unit Type can also have Open Door. Open Door is legal when the Unit occupies either cell bordering a ClosedDoor edge. Resolving it consumes Act, changes that edge to OpenDoor, and emits a DoorOpened gameplay event identifying the Unit and edge. Movement through the opened edge uses the existing OpenDoor movement rules. Default Monster behavior does not choose door opening.
 
 A provider does not establish or extend legal choices. After a provider returns its selection, the engine validates that the selection corresponds to one of the candidates in the decision space that was supplied. An invalid provider response must not become a legal game action.
 

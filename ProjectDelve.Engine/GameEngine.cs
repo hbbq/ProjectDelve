@@ -81,9 +81,27 @@ public static class GameEngine
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path]));
                 CompleteUnit(state);
                 break;
-            case DecisionKind.Attack:
+            case DecisionKind.Act:
                 if (choice is not null)
-                    ResolveAttack(state, request.UnitId!, choice, random, events);
+                {
+                    var action = request.Candidates.Single(c => c.Key == choice);
+                    switch (action.Action)
+                    {
+                        case UnitAction.NormalAttack:
+                            ResolveAttack(state, request.UnitId!, action.TargetId!, random, events);
+                            break;
+                        case UnitAction.OpenDoor:
+                            var door = action.Door!;
+                            var index = state.Physical.Board.Edges.FindIndex(e =>
+                                e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
+                            var opened = state.Physical.Board.Edges[index] with { Kind = EdgeKind.OpenDoor };
+                            state.Physical.Board.Edges[index] = opened;
+                            events.Add(new RulesEvent("DoorOpened", request.UnitId, Door: opened));
+                            break;
+                        default:
+                            throw new InvalidOperationException("Unsupported action.");
+                    }
+                }
                 CompleteUnit(state);
                 break;
         }
@@ -149,13 +167,27 @@ public static class GameEngine
     private static bool Inside(Board board, Cell cell) =>
         cell.X >= 0 && cell.X < board.Width && cell.Y >= 0 && cell.Y < board.Height;
 
-    private static List<Candidate> AttackCandidates(GameState state, Unit attacker)
+    private static List<Candidate> ActionCandidates(GameState state, Unit unit)
     {
-        var from = state.Physical.Figures.Single(f => f.Id == attacker.Id).Position;
-        return state.Units
-            .Where(target => AttackRules.EvaluateFrom(state, attacker.Id, from, target.Id)
-                == NormalAttackEvaluation.Possible)
-            .Select(target => new Candidate(target.Id)).ToList();
+        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+        var actions = state.Types.Single(t => t.Id == unit.TypeId).Actions;
+        var candidates = new List<Candidate>();
+        if (actions.HasFlag(UnitAction.NormalAttack))
+            candidates.AddRange(state.Units
+                .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
+                    == NormalAttackEvaluation.Possible)
+                .Select(target => new Candidate($"attack:{target.Id}",
+                    Action: UnitAction.NormalAttack, TargetId: target.Id)));
+        if (actions.HasFlag(UnitAction.OpenDoor))
+            candidates.AddRange(state.Physical.Board.Edges
+                .Where(edge => edge.Kind == EdgeKind.ClosedDoor && (edge.A == from || edge.B == from))
+                .Select(edge => edge.A.Y < edge.B.Y || edge.A.Y == edge.B.Y && edge.A.X < edge.B.X
+                    ? edge : edge with { A = edge.B, B = edge.A })
+                .OrderBy(edge => edge.A.Y).ThenBy(edge => edge.A.X)
+                .ThenBy(edge => edge.B.Y).ThenBy(edge => edge.B.X)
+                .Select(edge => new Candidate($"open-door:{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}",
+                    Action: UnitAction.OpenDoor, Door: edge)));
+        return candidates;
     }
 
     private static List<Unit> EligibleUnits(GameState state) =>
@@ -177,8 +209,8 @@ public static class GameEngine
         {
             Phase.Move => new DecisionRequest(DecisionKind.Move, state.ActiveTypeId!, unit.Id,
                 MovementCandidates(state, unit), true),
-            Phase.Act => new DecisionRequest(DecisionKind.Attack, state.ActiveTypeId!, unit.Id,
-                AttackCandidates(state, unit), true),
+            Phase.Act => new DecisionRequest(DecisionKind.Act, state.ActiveTypeId!, unit.Id,
+                ActionCandidates(state, unit), true),
             _ => throw new InvalidOperationException("No decision is available in this phase.")
         };
     }

@@ -12,10 +12,16 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
             var candidate = request.Candidates[i];
             var path = candidate.Path is null ? "" :
                 $" | Path: {string.Join(" -> ", candidate.Path.Select(c => $"({c.X},{c.Y})"))}";
-            Console.WriteLine($"  {i + 1}. {candidate.Key}{path}");
+            var label = candidate.Action switch
+            {
+                UnitAction.NormalAttack => $"Attack {candidate.TargetId}",
+                UnitAction.OpenDoor => $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y})",
+                _ => candidate.Key
+            };
+            Console.WriteLine($"  {i + 1}. {label}{path}");
         }
         if (request.AllowsNone)
-            Console.WriteLine(request.Kind == DecisionKind.Move ? "  0. Stay here" : "  0. Skip attack");
+            Console.WriteLine(request.Kind == DecisionKind.Move ? "  0. Stay here" : "  0. Take no action");
 
         while (true)
         {

@@ -6,7 +6,7 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
     {
         DecisionKind.SelectUnit => SelectUnit(request, queries),
         DecisionKind.Move => MonsterMovementProvider.ChooseMovement(request, queries),
-        DecisionKind.Attack => SelectAttackTarget(request, queries),
+        DecisionKind.Act => SelectAttackTarget(request, queries),
         _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported decision kind.")
     };
 
@@ -27,11 +27,12 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
         // Rank legal targets by Manhattan distance, then top-left board order.
         // Melee's special range rule determines legality, not this preference.
         var nearest = request.Candidates
+            .Where(c => c.Action == UnitAction.NormalAttack)
             .Select(c => new
             {
                 Candidate = c,
-                Distance = queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.Key),
-                Position = queries.PositionOf(c.Key)
+                Distance = queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!),
+                Position = queries.PositionOf(c.TargetId!)
             })
             .OrderBy(x => x.Distance)
             .ThenBy(x => x.Position.Y)

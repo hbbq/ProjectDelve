@@ -14,7 +14,8 @@ internal static class AttackRules
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var target = state.Units.Single(u => u.Id == targetId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
-        if (stats.Rng == 0 || stats.Atk == 0 || target.CurrentHp == 0 || target.SideId == attacker.SideId)
+        if (!stats.Actions.HasFlag(UnitAction.NormalAttack) || stats.Rng == 0 || stats.Atk == 0 ||
+            target.CurrentHp == 0 || target.SideId == attacker.SideId)
             return NormalAttackEvaluation.NotPossible;
 
         var to = state.Physical.Figures.Single(f => f.Id == target.Id).Position;

@@ -33,7 +33,7 @@ public sealed class DefaultMonsterProviderTests
     private static DecisionRequest PendingAttack(GameState state)
     {
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(DecisionKind.Attack, pending.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Act, pending.NextInput!.Kind);
         return pending.NextInput;
     }
 
@@ -86,7 +86,7 @@ public sealed class DefaultMonsterProviderTests
         Assert.Contains(result.NextInput.Candidates, c => c.Key == "monster");
         Assert.Equal("second", provider.Choose(result.NextInput, new GameplayQueries(result.State)));
         result = GameEngine.Advance(result.State, provider, random);
-        Assert.Equal(DecisionKind.Attack, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
         Assert.Equal("second", result.NextInput.UnitId);
     }
 
@@ -99,9 +99,9 @@ public sealed class DefaultMonsterProviderTests
         AddUnit(state, "friendly", new Cell(3, 2), "red");
         var request = PendingAttack(state);
         Assert.Equal(2, request.Candidates.Count);
-        Assert.DoesNotContain(request.Candidates, c => c.Key == "friendly");
+        Assert.DoesNotContain(request.Candidates, c => c.TargetId == "friendly");
 
-        Assert.Equal("near", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Equal("attack:near", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public sealed class DefaultMonsterProviderTests
         var request = PendingAttack(state);
         Assert.Equal(2, request.Candidates.Count);
 
-        Assert.Equal("first", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Equal("attack:first", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class DefaultMonsterProviderTests
         Assert.Equal(2, queries.ManhattanDistanceBetweenUnits("monster", "diagonal"));
         Assert.Equal(1, queries.ManhattanDistanceBetweenUnits("monster", "orthogonal"));
 
-        Assert.Equal("orthogonal", new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Equal("attack:orthogonal", new DefaultMonsterProvider().Choose(request, queries));
     }
 
     [Fact]
@@ -139,10 +139,10 @@ public sealed class DefaultMonsterProviderTests
         var state = State();
         AddUnit(state, "omitted", new Cell(3, 2));
         AddUnit(state, "supplied", new Cell(0, 3));
-        var request = new DecisionRequest(DecisionKind.Attack, "monster-type", "monster",
-            [new Candidate("supplied")], true);
+        var request = new DecisionRequest(DecisionKind.Act, "monster-type", "monster",
+            [new Candidate("attack:supplied", Action: UnitAction.NormalAttack, TargetId: "supplied")], true);
 
-        Assert.Equal("supplied", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Equal("attack:supplied", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
     }
 
     [Theory]
@@ -150,7 +150,7 @@ public sealed class DefaultMonsterProviderTests
     [InlineData(false)]
     public void AttackWithoutCandidatesChoosesNoneOnlyWhenAllowed(bool allowsNone)
     {
-        var request = new DecisionRequest(DecisionKind.Attack, "monster-type", "monster", [], allowsNone);
+        var request = new DecisionRequest(DecisionKind.Act, "monster-type", "monster", [], allowsNone);
         var provider = new DefaultMonsterProvider();
         var queries = new GameplayQueries(State());
 
