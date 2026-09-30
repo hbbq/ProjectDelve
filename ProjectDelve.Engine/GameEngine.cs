@@ -80,7 +80,8 @@ public static class GameEngine
                     events.Add(new RulesEvent("RoundCompleted"));
                     return;
                 }
-                var drawn = random.DrawToken(state.Bag);
+                // Token selection must not expose the authoritative bag to a provider.
+                var drawn = random.DrawToken(Array.AsReadOnly(state.Bag.ToArray()));
                 if (!state.Bag.Remove(drawn))
                     throw new ArgumentException("Random provider drew a token outside the bag.", nameof(random));
                 state.ActiveTypeId = drawn;
