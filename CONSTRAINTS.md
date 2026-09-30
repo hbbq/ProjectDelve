@@ -159,6 +159,25 @@ Core rules provide simple defaults. Abilities and special rules may explicitly m
 
 Extension points should be introduced when actual game content requires them rather than by creating a large speculative set of hooks in advance.
 
+### Resolution timing and rule extension points
+
+Ordinary rules operations resolve atomically unless a rule explicitly defines otherwise. For example, an Attack completes its complete normal resolution, including dice, Damage, death, and removal, before effects that occur **after** that Attack are resolved.
+
+The engine does not require a general interrupt or trading-card-game-style resolution stack. A rule that occurs after another operation is a subsequent resolution at a defined post-resolution timing point, not an interruption inserted into the middle of the completed operation.
+
+Post-resolution effects may themselves require further rules operations or decisions. For example, an ability could grant an additional Move after an Attack. Such follow-up resolution must be able to preserve enough continuation context for the engine to complete it and then resume the normal activation flow. If external input is required, this context must remain serializable so resolution can stop and resume through the normal persistent state-machine mechanism.
+
+An effect that genuinely needs to participate in or modify an operation while that operation is being resolved should do so through a narrowly defined rule extension point, conceptually an `On(...)` hook for the relevant part of that operation.
+
+This establishes the conceptual distinction:
+
+- `On(X)` participates in or modifies the resolution of `X`.
+- `After(X)` occurs only after `X` has fully resolved and begins subsequent resolution.
+
+Concrete `On(...)` extension points and detailed trigger timing are not defined speculatively. They should be added only when an actual ability or rule requires intervention at that point.
+
+Likewise, ordering rules for multiple simultaneous post-resolution effects should be defined when real game content creates that situation rather than by introducing a general-purpose trigger stack in advance.
+
 A rule component should be reusable by different Unit Types when they share the same ability or effect. A Unit Type should not need a bespoke subclass merely to participate in an existing rule effect.
 
 Abilities define capabilities and effects. Monster Behavior remains conceptually separate and determines decisions about those capabilities.
