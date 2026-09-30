@@ -99,6 +99,8 @@ For v0 Act resolution, where Attack is the only Action, the engine supplies the 
 
 A provider does not establish or extend legal choices. After a provider returns its selection, the engine validates that the selection corresponds to one of the candidates in the decision space that was supplied. An invalid provider response must not become a legal game action.
 
+The engine consults a Decision Provider only when there is a meaningful choice. Exactly one candidate with no option to do nothing is selected automatically. Zero candidates with an option to do nothing resolves automatically as no selection. One candidate plus the option to do nothing remains an external decision, as do multiple candidates. Automatic resolution continues until the next meaningful external decision or a stable terminal state.
+
 Different Decision Provider implementations may supply decisions without changing the rules engine. Expected examples include:
 
 - a human player through a client,
@@ -332,6 +334,23 @@ Common Monster archetypes may provide reusable default preferences. For example,
 Monster preferences should be expressible as deterministic, manually followable priorities rather than opaque tactical utility calculations. Equal preferences are resolved by deterministic rule-defined tie-breaking. The final fallback may use the established top-to-bottom, left-to-right spatial ordering where appropriate.
 
 The Decision Provider boundary does not require every provider to use Monster Behavior ranking. A future simulation or AI provider may choose among the same legal alternatives using a different strategy.
+
+### Default Monster Behavior
+
+For Unit selection, choose the engine-supplied eligible Unit whose current position is first in top-left board order (ascending `y`, then `x`). Eligibility and candidates are recomputed by the engine before every selection; no ordering is saved at the beginning of a group phase.
+
+For movement, use these priorities:
+
+1. If the Unit can make a normal Attack against a hostile Unit from its current position, stay when staying is allowed.
+2. Otherwise, choose a legal movement destination from which a hostile Unit can be attacked. Prefer the shortest movement path, then top-left board order (top to bottom by row, then left to right within the row; ascending `y`, then `x`).
+3. Otherwise, choose the legal movement destination with the shortest remaining traversable path to a position from which a hostile Unit can be attacked. Break ties by the shortest movement path for this activation, then top-left board order.
+4. If no legal movement destination has a reachable attack position, stay when allowed. If staying is not allowed, the behavior cannot supply a choice.
+
+Remaining traversable distance uses the current board and movement rules without this activation's `MOV` limit. It measures distance to an unoccupied attack position, not distance to the hostile's occupied cell. Only the querying Unit is relocated for hypothetical evaluations: its original cell is vacated and all other figures remain unchanged. An attack position must permit a normal Attack under currently supported rules; undefined LOS does not count as a possible attack.
+
+Destination ties use top-left board order. Separately, canonical shortest movement paths retain the BFS neighbor expansion order top, left, right, bottom.
+
+For Attack, choose the nearest engine-supplied legal target by Manhattan distance between the attacker's and target's current cells: `abs(dx) + abs(dy)`. Break ties by top-left board order (ascending `y`, then `x`). The special Melee range rule affects legality only: an orthogonally adjacent target ranks ahead of a diagonally adjacent target because their Manhattan distances are 1 and 2 respectively. Behavior does not determine attack legality.
 
 ### Abilities and behavior
 

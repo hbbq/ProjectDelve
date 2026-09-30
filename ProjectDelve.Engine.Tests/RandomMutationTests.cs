@@ -31,11 +31,6 @@ public sealed class RandomMutationTests
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Unexpected defence.");
     }
 
-    private sealed class FirstChoice : IDecisionProvider
-    {
-        public string? Choose(DecisionRequest request) => request.Candidates[0].Key;
-    }
-
     [Fact]
     public void ProviderCannotRemoveTokensOrSkipUnitTypeActivations()
     {
@@ -53,25 +48,14 @@ public sealed class RandomMutationTests
         var random = new MutatingRandom();
         var result = GameEngine.StartRound(state, random);
 
-        Assert.Equal(new[] { "b", "c" }, result.State.Bag);
         Assert.Equal(original, JsonSerializer.Serialize(state));
         var events = new List<RulesEvent>(result.Events);
-        var selectedTypes = new List<string>();
-        for (var step = 0; step < 9; step++) // Three phase selections per Unit Type.
-        {
-            Assert.Equal(DecisionKind.SelectUnit, result.NextInput!.Kind);
-            selectedTypes.Add(result.NextInput.TypeId);
-            // Resume through the existing serialization boundary as well.
-            var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(result.State))!;
-            result = GameEngine.Advance(restored, new FirstChoice(), random);
-            events.AddRange(result.Events);
-        }
 
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
         Assert.Empty(result.State.Bag);
         Assert.Equal(new[] { "a", "b", "c" }, events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
-        Assert.Equal(new[] { "a", "a", "a", "b", "b", "b", "c", "c", "c" }, selectedTypes);
+        Assert.Equal(new[] { "a", "b", "c" }, events.Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.Equal(3, random.SuppliedBags.Count);
         // Retained provider inputs are snapshots, independent of later engine draws.
         Assert.Equal(new[] { "a", "b", "c" }, random.SuppliedBags[0]);

@@ -7,7 +7,7 @@ public sealed class DecisionMutationTests
 {
     private sealed class Choice(Func<DecisionRequest, string?> choose) : IDecisionProvider
     {
-        public string? Choose(DecisionRequest request) => choose(request);
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => choose(request);
     }
 
     private sealed class Random : IRandomProvider
@@ -29,16 +29,15 @@ public sealed class DecisionMutationTests
             Units = [new Unit("hero", "hero-type", "blue", 2), new Unit("enemy", "other", "red", 1),
                 new Unit("friend", "other", "blue", 1)]
         };
-        var result = GameEngine.StartRound(state, random);
-        if (kind != DecisionKind.SelectUnit)
+        if (kind == DecisionKind.SelectUnit)
         {
-            result = GameEngine.Advance(result.State, new Choice(_ => "hero"), random);
-            result = GameEngine.Advance(result.State, new Choice(_ => "hero"), random);
+            state.Units.Add(new Unit("ally", "hero-type", "blue", 2));
+            state.Physical.Figures.Add(new Figure("ally", new Cell(2, 2)));
         }
+        var result = GameEngine.StartRound(state, random);
         if (kind == DecisionKind.Attack)
         {
             result = GameEngine.Advance(result.State, new Choice(_ => null), random);
-            result = GameEngine.Advance(result.State, new Choice(_ => "hero"), random);
         }
         Assert.Equal(kind, result.NextInput!.Kind);
         return result;

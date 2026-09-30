@@ -46,7 +46,7 @@ public sealed record EngineResult(GameState State, List<RulesEvent> Events, Deci
 
 public interface IDecisionProvider
 {
-    string? Choose(DecisionRequest request);
+    string? Choose(DecisionRequest request, IGameplayQueries queries);
 }
 
 public interface IRandomProvider
