@@ -36,6 +36,10 @@ Decision Providers and Random Providers form explicit boundaries around agency a
 
 ## Current status
 
-Project Delve is currently moving from rules/design specification into the first reference-engine implementation.
+Project Delve now has a first executable reference-engine slice in `ProjectDelve.Engine`, with focused tests in `ProjectDelve.Engine.Tests`.
 
-The immediate goal is not to implement every anticipated game feature. It is to build the smallest useful engine around the rules already defined, use tests and executable scenarios to expose ambiguities, and evolve the design from concrete game content rather than speculative abstractions.
+The slice resolves one Round at a time: Unit Type tokens are drawn without replacement, each group completes Bonus Action, Move, then Act, and the engine pauses at legal Unit, destination, and attack-target decisions. State contains the pending decision and can be serialized between steps. The Decision Provider selects from supplied candidates or returns `null` where doing nothing is legal; the Random Provider supplies token draws and physical die faces.
+
+The first scenario uses 1×1 figures on Floor cells. Floor is enterable and does not block LOS. Movement respects walls, closed and open doors, friendly pass-through, hostile blocking, and the top → left → right → bottom shortest-path tie-break. Normal attacks use the defined Melee/range rules, Attack and Defence Dice, damage, death, and figure removal. A Random Provider returns the die symbols; its physical implementation must preserve the Attack Die's 3 Hit/3 Miss and Defence Die's 2 Block/4 Miss face distributions. `SideId` determines friendship independently of Unit Type or who supplies decisions. The engine rejects attack LOS involving featured edges or an intervening hostile Unit, whose LOS effects are still undecided.
+
+Run the automated tests with `dotnet test ProjectDelve.sln`. The engine targets .NET 10 and has no UI or persistence adapter. The immediate goal remains to use executable scenarios to expose rule ambiguities and evolve from concrete game content.
