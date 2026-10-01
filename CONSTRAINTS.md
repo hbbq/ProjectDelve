@@ -430,6 +430,22 @@ Zombie is the first Monster Unit Type used to establish the reusable Action/Beha
 
 Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
 
+### Skeleton Archer
+
+Skeleton Archer is a ranged Monster Unit Type whose automated Behavior prefers to attack while keeping as much distance as possible.
+
+- Stats: `MOV 3`, `RNG 4`, `ATK 3`, `DEF 3`, `HP 1`.
+- Actions: Normal Attack.
+- Behaviors: Maximize Attack Distance.
+
+During Move, **Maximize Attack Distance** considers every legal movement destination plus staying in the current cell when no movement is permitted as a choice. If one or more of those positions allow the Unit to make a legal Normal Attack, only those positions participate in this Behavior's preferred-position ranking. For each such position, measure the distance to every hostile Unit that could be legally attacked from that position and take the distance to the nearest such hostile. Choose the position that maximizes that nearest-attackable-hostile distance.
+
+Ties use shortest actual movement path length, with staying treated as path length 0, then top-left board order (ascending `y`, then `x`).
+
+This Behavior may therefore move a Skeleton Archer away from an enemy even when it can already attack from its current cell, but it never moves out of all legal Normal Attack positions merely to create more distance. If no legal reachable position, including staying, permits a Normal Attack, use the normal approach behavior instead.
+
+Maximize Attack Distance is a Decision Provider preference, not an attack or movement rule. It uses shared gameplay queries for attack legality, distance, Line of Sight, and related calculations rather than reproducing those rules inside the provider.
+
 ## Unit stats
 
 Every Unit has the same five base stats:
