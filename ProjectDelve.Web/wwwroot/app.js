@@ -1,4 +1,4 @@
-const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "error", "prompt", "choices", "units", "events"]
+const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "error", "prompt", "choices", "units", "events"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let busy = false;
@@ -22,6 +22,7 @@ function placeFigure(node, cell, board) {
 
 function renderBoard(state) {
   const board = state.physical.board;
+  updateCoordinates();
   ui.board.replaceChildren(); figures.clear(); edges.clear(); cells.clear();
   ui.board.style.gridTemplateColumns = `repeat(${board.width}, minmax(0, 1fr))`;
   ui.board.style.gridTemplateRows = `repeat(${board.height}, minmax(0, 1fr))`;
@@ -31,8 +32,11 @@ function renderBoard(state) {
   const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile.kind]));
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const kind = terrain.get(cellKey({ x, y })) ?? "StoneFloor";
-    const node = text("div", `${x},${y}`);
+    const node = document.createElement("div");
     node.className = `cell ${kind}`; node.dataset.cell = cellKey({ x, y });
+    const coordinates = text("span", node.dataset.cell);
+    coordinates.className = "cell-coordinates";
+    node.append(coordinates);
     node.title = kind;
     const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", StoneFloorWithTable: "Table" }[kind];
     if (symbol) node.append(text("span", symbol));
@@ -50,10 +54,22 @@ function renderBoard(state) {
     node.title = edge.kind; edges.set(edgeKey(edge), node); ui.board.append(node);
   }
   for (const figure of state.physical.figures) {
+    const unit = state.units.find(unit => unit.id === figure.id);
+    const type = state.types.find(type => type.id === unit?.typeId);
     const node = text("div", unitLabel(figure.id));
-    node.className = `figure${state.units.find(unit => unit.id === figure.id)?.sideId === "blue" ? " hero" : ""}`;
+    node.className = `figure${unit?.sideId === "blue" ? " hero" : ""}`;
     node.style.width = `${70 / board.width}%`;
     node.title = `${figure.id} · ${figure.posture}`;
+    if (type?.hp > 1) {
+      const hp = text("span", `${unit.currentHp}/${type.hp}`);
+      hp.className = "figure-hp";
+      hp.style.setProperty("--hp-fill", `${Math.max(0, Math.min(1, unit.currentHp / type.hp)) * 100}%`);
+      node.dataset.hpLabel = `HP ${unit.currentHp}/${type.hp}`;
+      node.title += ` · ${node.dataset.hpLabel}`;
+      node.setAttribute("aria-label", `${figure.id} · ${node.dataset.hpLabel}`);
+      hp.setAttribute("aria-hidden", "true");
+      node.append(hp);
+    }
     placeFigure(node, figure.position, board); figures.set(figure.id, node); ui.board.append(node);
   }
 }
@@ -116,9 +132,10 @@ function addChoice(label, key) {
 function bindBoardChoice(node, label, key) {
   node.classList.add("board-choice");
   if (node.classList.contains("cell")) node.classList.add("legal");
-  node.title = label;
+  const accessibleLabel = node.dataset.hpLabel ? `${label} · ${node.dataset.hpLabel}` : label;
+  node.title = accessibleLabel;
   node.setAttribute("role", "button");
-  node.setAttribute("aria-label", label);
+  node.setAttribute("aria-label", accessibleLabel);
   node.addEventListener("click", event => {
     event.stopPropagation();
     chooseCandidate(key);
@@ -255,6 +272,11 @@ async function present(event) {
   }
 }
 
+function updateCoordinates() {
+  ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
+}
+
+ui.coordinates.addEventListener("change", updateCoordinates);
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
 ui.skip.addEventListener("click", () => { skipEffects = true; cancelPause?.(); updateControls(); });

@@ -22,10 +22,18 @@ aside { overflow-wrap: anywhere; }
 .cell.Water { background: repeating-linear-gradient(165deg, #225374 0 9px, #2d6488 9px 12px); color: #c5e6f8; }
 .cell.StoneFloorWithTable { background: #614731; color: #ecd5b5; }
 .cell span { display: block; font-size: .85em; }
+.cell .cell-coordinates { font-size: inherit; }
+#board.hide-coordinates .cell-coordinates { visibility: hidden; }
 .cell.legal { background: #385871; outline: 2px solid #90c8e8; outline-offset: -3px; }
 .figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(7px, calc(var(--cell-size) * .24), 14px);
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
 .figure.hero { background: #337ab8; border-color: #a5daff; }
+.figure-hp { position: absolute; bottom: -15%; min-width: 90%; padding: 1px 3px 4px;
+  border: 1px solid #aeb9cb; border-radius: 4px; background: #171c26; color: #fff;
+  font-size: clamp(7px, calc(var(--cell-size) * .18), 11px); line-height: 1; text-align: center;
+  white-space: nowrap; pointer-events: none; }
+.figure-hp::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 1px; height: 2px;
+  border-radius: 1px; background: linear-gradient(to right, #75d7a6 var(--hp-fill), #475367 var(--hp-fill)); }
 .figure.attacking, .figure.target, .edge.target { box-shadow: 0 0 0 5px #ffe084, 0 0 22px #ffe084; }
 .figure.dying { opacity: 0; transform: translate(-50%, -50%) scale(.3); transition: opacity .3s, transform .3s; }
 .edge { position: absolute; z-index: 2; background: #11151e; transform: translate(-50%, -50%); pointer-events: none; }
