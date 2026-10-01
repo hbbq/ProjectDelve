@@ -9,9 +9,8 @@ public interface IGameplayQueries
     bool CanAttackHostileFrom(string unitId, Cell position);
     // Manhattan distance to the nearest legal NormalAttack target; null if none exists.
     int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position);
-    // Ordinary approach distance to a hostile's cell, ignoring figure obstacles.
-    // null means no living hostile is reachable through terrain and passable edges.
-    int? DistanceToNearestHostileFrom(string unitId, Cell position);
+    // Eight-cell adjacency and ordinary geometric LOS, independent of hostile attack legality.
+    bool HasNearbyHostileThreatFrom(string unitId, Cell position);
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
     // position is reachable; undefined LOS does not count as a possible attack.
@@ -63,12 +62,13 @@ internal sealed class GameplayQueries : IGameplayQueries
             .Select(pair => (int?)pair.Value).Min();
     }
 
-    public int? DistanceToNearestHostileFrom(string unitId, Cell position)
+    public bool HasNearbyHostileThreatFrom(string unitId, Cell position)
     {
         HypotheticalPosition.Validate(world, unitId, position);
         var side = world.Units.Single(u => u.Id == unitId).SideId;
         return world.Units.Where(u => u.CurrentHp > 0 && u.SideId != side)
-            .Select(u => ApproachRules.Distance(world.Physical.Board, position, PositionOf(u.Id)))
-            .Min();
+            .Select(u => PositionOf(u.Id))
+            .Any(hostile => Math.Max(Math.Abs(position.X - hostile.X), Math.Abs(position.Y - hostile.Y)) == 1 &&
+                AttackRules.HasGeometricLineOfSight(world.Physical.Board, hostile, position));
     }
 }

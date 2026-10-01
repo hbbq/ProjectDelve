@@ -14,19 +14,16 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
     {
         var unitId = request.UnitId!;
         var behaviors = queries.BehaviorsOf(unitId);
-        if (request.IsMoveAfterAttack && behaviors.HasFlag(UnitBehavior.RetreatAfterAttack))
+        if (request.IsMoveAfterAttack && behaviors.HasFlag(UnitBehavior.BackAwayAfterAttack))
         {
-            var positions = request.Candidates.Select(c => (
-                Key: (string?)c.Key, Position: c.Destination!, MovementLength: c.Path!.Count - 1));
-            if (request.AllowsNone)
-                positions = positions.Append((null, queries.PositionOf(unitId), 0));
-            var ranked = positions.Select(p => new { p.Key, p.Position, p.MovementLength,
-                Distance = queries.DistanceToNearestHostileFrom(unitId, p.Position) }).ToList();
-            if (ranked.All(p => p.Distance is null))
+            if (!queries.HasNearbyHostileThreatFrom(unitId, queries.PositionOf(unitId)))
                 return NoCandidate(request);
-            return ranked.OrderByDescending(p => p.Distance)
-                .ThenBy(p => p.MovementLength).ThenBy(p => p.Position.Y).ThenBy(p => p.Position.X)
-                .First().Key;
+            var escape = request.Candidates
+                .Where(c => !queries.HasNearbyHostileThreatFrom(unitId, c.Destination!))
+                .OrderBy(c => c.Path!.Count - 1)
+                .ThenBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
+                .FirstOrDefault();
+            return escape?.Key ?? NoCandidate(request);
         }
         if (behaviors.HasFlag(UnitBehavior.MaximizeAttackDistance))
         {

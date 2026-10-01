@@ -10,7 +10,7 @@ public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.
 [Flags]
 public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, RetreatAfterAttack = 4 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
@@ -29,7 +29,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance);
 
     public static UnitType Goblin(string id = "goblin-type") =>
-        new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.RetreatAfterAttack, MoveAfterAttack: new(1));
+        new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1));
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 

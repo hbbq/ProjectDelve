@@ -41,7 +41,7 @@ public sealed class GoblinTests
         var type = UnitType.Goblin();
         Assert.Equal((4, 1, 2, 2, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
-        Assert.Equal(UnitBehavior.RetreatAfterAttack, type.Behaviors);
+        Assert.Equal(UnitBehavior.BackAwayAfterAttack, type.Behaviors);
         Assert.Equal(new MoveAfterAttack(1), type.MoveAfterAttack);
         Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
     }
@@ -159,49 +159,6 @@ public sealed class GoblinTests
     }
 
     [Fact]
-    public void RetreatMaximizesNearestHostileOrdinaryApproachAndBreaksTiesByBoardOrder()
-    {
-        var extra = Extra(State());
-        var provider = new DefaultMonsterProvider();
-        // Up, right and down are all distance two. Top-left selects up.
-        Assert.Equal("2,0", provider.Choose(extra.NextInput!, new GameplayQueries(extra.State)));
-        extra.NextInput!.Candidates.Reverse();
-        Assert.Equal("2,0", provider.Choose(extra.NextInput, new GameplayQueries(extra.State)));
-        var moved = GameEngine.Advance(extra.State, provider, new Random());
-        Assert.Equal(new Cell(2, 0), moved.State.Physical.Figures[0].Position);
-    }
-
-    [Fact]
-    public void StayWinsWhenMovementReducesNearestHostileDistance()
-    {
-        var state = State(start: new(3, 0), target: new(0, 0), width: 7, height: 1);
-        state.Units.Add(new("other", "hero-type", "blue", 4));
-        state.Physical.Figures.Add(new("other", new(6, 0)));
-        var move = GameEngine.StartRound(state, new Random());
-        var request = move.NextInput! with { IsMoveAfterAttack = true };
-        Assert.Null(new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
-        Assert.Equal("2,0", new DefaultMonsterProvider().Choose(request with { AllowsNone = false }, new GameplayQueries(state)));
-    }
-
-    [Fact]
-    public void RetreatUsesTerrainRouteIgnoresFiguresAndDoesNotOpenClosedDoorsInAnalysis()
-    {
-        var state = State(start: new(2, 1), target: new(0, 1));
-        state.Physical.Board.Edges.Add(new(new(1, 1), new(2, 1), EdgeKind.ClosedDoor));
-        state.Physical.Board.Edges.Add(new(new(1, 2), new(2, 2), EdgeKind.Wall));
-        state.Units.Add(new("friend", "goblin-type", "red", 1));
-        state.Physical.Figures.Add(new("friend", new(1, 0)));
-        var queries = new GameplayQueries(state);
-        Assert.Equal(4, queries.DistanceToNearestHostileFrom("goblin", new(2, 1)));
-        Assert.Equal(3, queries.DistanceToNearestHostileFrom("goblin", new(2, 0)));
-        Assert.Equal(5, queries.DistanceToNearestHostileFrom("goblin", new(2, 2)));
-        var request = new DecisionRequest(DecisionKind.Move, "goblin-type", "goblin",
-            [new("2,0", new(2, 0), [new(2, 1), new(2, 0)]),
-             new("2,2", new(2, 2), [new(2, 1), new(2, 2)])], true, true);
-        Assert.Equal("2,2", new DefaultMonsterProvider().Choose(request, queries));
-    }
-
-    [Fact]
     public void OrdinaryGoblinMoveApproachesAndStaysWhenAlreadyAbleToAttack()
     {
         var provider = new DefaultMonsterProvider();
@@ -212,18 +169,145 @@ public sealed class GoblinTests
         Assert.Equal("4,0", provider.Choose(distant.NextInput!, new GameplayQueries(distant.State)));
     }
 
-    [Fact]
-    public void StayWinsEqualDistanceBeforeBoardOrder()
+    [Theory]
+    [InlineData(1, 1)] // Orthogonal.
+    [InlineData(1, 0)] // Diagonal.
+    public void ClearLosAdjacencyCountsRegardlessOfHostileAttackStatsOrContent(int x, int y)
     {
-        var state = State(start: new(3, 0), target: new(0, 0), width: 6, height: 1);
-        state.Units.Add(new("other", "hero-type", "blue", 4));
-        state.Physical.Figures.Add(new("other", new(5, 0)));
+        var state = State(target: new(x, y));
+        state.Types[1] = state.Types[1] with
+        {
+            Rng = 0, Atk = 0, Actions = UnitAction.None, MoveAfterAttack = new(5),
+            Behaviors = UnitBehavior.MaximizeAttackDistance
+        };
+        var queries = new GameplayQueries(state);
+        Assert.Equal(NormalAttackEvaluation.NotPossible,
+            AttackRules.EvaluateFrom(state, "hero", new(x, y), "goblin"));
+        Assert.True(queries.HasNearbyHostileThreatFrom("goblin", new(2, 1)));
+        var extra = Extra(state);
+        var moved = GameEngine.Advance(extra.State, new DefaultMonsterProvider(), new Random());
+        Assert.Equal(new Cell(3, 1), moved.State.Physical.Figures[0].Position);
+        Assert.False(new GameplayQueries(moved.State).HasNearbyHostileThreatFrom("goblin", new(3, 1)));
+        Assert.True(moved.Events[0].IsMoveAfterAttack);
+        Assert.True(moved.State.RoundComplete);
+    }
+
+    [Theory]
+    [InlineData(EdgeKind.Wall, false)]
+    [InlineData(EdgeKind.ClosedDoor, false)]
+    [InlineData(EdgeKind.OpenDoor, true)]
+    [InlineData(EdgeKind.WallWithWindow, true)]
+    public void NearbyThreatUsesOrdinaryEdgeLos(EdgeKind edge, bool threatened)
+    {
+        var state = State();
+        state.Physical.Board.Edges.Add(new(new(1, 1), new(2, 1), edge));
+        var queries = new GameplayQueries(state);
+        Assert.Equal(threatened, queries.HasNearbyHostileThreatFrom("goblin", new(2, 1)));
         var move = GameEngine.StartRound(state, new Random());
         var request = move.NextInput! with { IsMoveAfterAttack = true };
-        var queries = new GameplayQueries(state);
-        Assert.Equal(2, queries.DistanceToNearestHostileFrom("goblin", new(3, 0)));
-        Assert.Equal(2, queries.DistanceToNearestHostileFrom("goblin", new(2, 0)));
-        Assert.Null(new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Equal(threatened ? "3,1" : null, new DefaultMonsterProvider().Choose(request, queries));
+    }
+
+    [Fact]
+    public void DiagonalThreatUsesSharedCornerLosRule()
+    {
+        var state = State(start: new(2, 2), target: new(1, 1));
+        state.Physical.Board.Edges.Add(new(new(1, 1), new(2, 1), EdgeKind.Wall));
+        // One corner passage remains open.
+        Assert.True(new GameplayQueries(state).HasNearbyHostileThreatFrom("goblin", new(2, 2)));
+        state.Physical.Board.Edges.Add(new(new(1, 1), new(1, 2), EdgeKind.ClosedDoor));
+        Assert.False(new GameplayQueries(state).HasNearbyHostileThreatFrom("goblin", new(2, 2)));
+    }
+
+    [Fact]
+    public void CannotEscapeOneHostileIntoAnother()
+    {
+        var state = State();
+        state.Units.Add(new("other", "hero-type", "blue", 4));
+        state.Physical.Figures.Add(new("other", new(4, 1)));
+        var extra = Extra(state);
+        var queries = new GameplayQueries(extra.State);
+        Assert.Contains(extra.NextInput!.Candidates, c => c.Key == "3,1");
+        // Right escapes the attacked Hero but enters the other Hero's nearby area.
+        Assert.True(queries.HasNearbyHostileThreatFrom("goblin", new(3, 1)));
+        Assert.All(extra.NextInput.Candidates, c => Assert.True(queries.HasNearbyHostileThreatFrom("goblin", c.Destination!)));
+        var stayed = GameEngine.Advance(extra.State, new DefaultMonsterProvider(), new Random());
+        Assert.Equal(new Cell(2, 1), stayed.State.Physical.Figures[0].Position);
+        Assert.Single(stayed.Events[0].Path!);
+        Assert.True(stayed.Events[0].IsMoveAfterAttack);
+    }
+
+    [Fact]
+    public void StaysWhenEveryLegalDestinationRemainsThreatened()
+    {
+        var extra = Extra(State(start: new(1, 0), target: new(0, 0), width: 2, height: 2));
+        Assert.NotEmpty(extra.NextInput!.Candidates);
+        Assert.Null(new DefaultMonsterProvider().Choose(extra.NextInput, new GameplayQueries(extra.State)));
+        var done = GameEngine.Advance(extra.State, new DefaultMonsterProvider(), new Random());
+        Assert.True(done.State.RoundComplete);
+        Assert.Equal(new Cell(1, 0), done.State.Physical.Figures[0].Position);
+    }
+
+    [Fact]
+    public void AlreadyOutsideNearbyThreatsStaysEvenWithLegalMovesFartherAway()
+    {
+        var state = State(start: new(2, 1), target: new(0, 1));
+        var move = GameEngine.StartRound(state, new Random());
+        var request = move.NextInput! with { IsMoveAfterAttack = true };
+        Assert.Contains(request.Candidates, c => c.Key == "3,1");
+        Assert.False(new GameplayQueries(state).HasNearbyHostileThreatFrom("goblin", new(2, 1)));
+        Assert.Null(new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+    }
+
+    [Fact]
+    public void KillingOneOfTwoNearbyHostilesBacksAwayFromSurvivor()
+    {
+        var state = State();
+        state.Units[1] = state.Units[1] with { CurrentHp = 1 };
+        state.Units.Add(new("survivor", "hero-type", "blue", 4));
+        state.Physical.Figures.Add(new("survivor", new(1, 0)));
+        var extra = Extra(state, hit: true);
+        Assert.Equal(new[] { "AttackResolved", "UnitDied" }, extra.Events.Select(e => e.Kind));
+        Assert.Equal(0, extra.State.Units.Single(u => u.Id == "hero").CurrentHp);
+        Assert.True(new GameplayQueries(extra.State).HasNearbyHostileThreatFrom("goblin", new(2, 1)));
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(extra.State))!;
+        var done = GameEngine.Advance(restored, new DefaultMonsterProvider(), new Random());
+        Assert.Equal(new Cell(3, 1), done.State.Physical.Figures[0].Position);
+        Assert.False(new GameplayQueries(done.State).HasNearbyHostileThreatFrom("goblin", new(3, 1)));
+        Assert.True(done.Events[0].IsMoveAfterAttack);
+        Assert.True(done.State.RoundComplete);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EqualLengthEscapesUseTopLeftOrderRegardlessOfCandidateOrder(bool reverse)
+    {
+        var extra = Extra(State(start: new(2, 2), target: new(1, 1), height: 5));
+        if (reverse) extra.NextInput!.Candidates.Reverse();
+        // Right (3,2) and down (2,3) escape. Right is first by row.
+        Assert.Equal("3,2", new DefaultMonsterProvider().Choose(extra.NextInput!, new GameplayQueries(extra.State)));
+        var state = State(start: new(2, 2), target: new(2, 1), height: 5);
+        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(3) };
+        extra = Extra(state);
+        var request = extra.NextInput! with
+        {
+            Candidates = extra.NextInput!.Candidates.Where(c => c.Key is "0,1" or "4,1" or "1,4").ToList()
+        };
+        if (reverse) request.Candidates.Reverse();
+        Assert.All(request.Candidates, c => Assert.Equal(4, c.Path!.Count));
+        Assert.Equal("0,1", new DefaultMonsterProvider().Choose(request, new GameplayQueries(extra.State)));
+    }
+
+    [Fact]
+    public void FriendlyAndDeadUnitsDoNotCountAsNearbyThreats()
+    {
+        var state = State();
+        state.Units[1] = state.Units[1] with { SideId = "red" };
+        Assert.False(new GameplayQueries(state).HasNearbyHostileThreatFrom("goblin", new(2, 1)));
+        state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 0 };
+        state.Physical.Figures.RemoveAll(f => f.Id == "hero");
+        Assert.False(new GameplayQueries(state).HasNearbyHostileThreatFrom("goblin", new(2, 1)));
     }
 
     [Fact]
@@ -232,7 +316,7 @@ public sealed class GoblinTests
         var state = State(start: new(2, 2), target: new(1, 1), width: 5, height: 5);
         state.Types[0] = state.Types[0] with { MoveAfterAttack = new(3) };
         var extra = Extra(state);
-        // Both positions are ordinary approach distance three from the hostile.
+        // Both destinations escape; the one-step path wins over the earlier board position.
         var request = extra.NextInput! with
         {
             Candidates = extra.NextInput!.Candidates.Where(c => c.Key is "0,3" or "3,2").ToList(),
@@ -241,6 +325,19 @@ public sealed class GoblinTests
         Assert.Equal(4, request.Candidates.Single(c => c.Key == "0,3").Path!.Count);
         Assert.Equal(2, request.Candidates.Single(c => c.Key == "3,2").Path!.Count);
         Assert.Equal("3,2", new DefaultMonsterProvider().Choose(request, new GameplayQueries(extra.State)));
+    }
+
+    [Fact]
+    public void ChoosesShortestEscapeWithoutMaximizingDistanceBeyondNearbyThreats()
+    {
+        var state = State(start: new(1, 0), target: new(0, 0), width: 5, height: 1);
+        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(2) };
+        var extra = Extra(state);
+        Assert.Contains(extra.NextInput!.Candidates, c => c.Key == "3,0" && c.Path!.Count == 3);
+        var done = GameEngine.Advance(extra.State, new DefaultMonsterProvider(), new Random());
+        Assert.Equal(new Cell(2, 0), done.State.Physical.Figures[0].Position);
+        Assert.Equal(2, done.Events[0].Path!.Count);
+        Assert.True(done.Events[0].IsMoveAfterAttack);
     }
 
     [Fact]
@@ -273,7 +370,7 @@ public sealed class GoblinTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void NoCalculableHostileDistanceChoosesStayAndCompletesExtraMoveNormally(bool noHostiles)
+    public void NoNearbyHostileChoosesStayAndCompletesExtraMoveNormally(bool noHostiles)
     {
         var state = State();
         state.Units[1] = state.Units[1] with { CurrentHp = 1 };
@@ -286,11 +383,11 @@ public sealed class GoblinTests
             extra.State.Physical.Board.Edges.Add(new(new(0, 0), new(0, 1), EdgeKind.Wall));
         }
         var queries = new GameplayQueries(extra.State);
-        Assert.Null(queries.DistanceToNearestHostileFrom("goblin", new(2, 1)));
+        Assert.False(queries.HasNearbyHostileThreatFrom("goblin", new(2, 1)));
         Assert.True(extra.NextInput!.IsMoveAfterAttack);
         Assert.NotEmpty(extra.NextInput.Candidates);
         Assert.All(extra.NextInput.Candidates, c =>
-            Assert.Null(queries.DistanceToNearestHostileFrom("goblin", c.Destination!)));
+            Assert.False(queries.HasNearbyHostileThreatFrom("goblin", c.Destination!)));
         var provider = new DefaultMonsterProvider();
         Assert.Null(provider.Choose(extra.NextInput, queries));
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(extra.State))!;

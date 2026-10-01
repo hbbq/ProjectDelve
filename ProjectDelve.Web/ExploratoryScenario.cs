@@ -47,7 +47,7 @@ internal static class ExploratoryScenario
                 new Figure("sentinel-2", new Cell(6, 5)),
                 // Starts two cells from Aria, with open space to retreat while shooting.
                 new Figure("archer-1", new Cell(1, 0)),
-                // Open southern route to Bram, with room for a one-step retreat.
+                // Open southern route to Bram, with room to back away one step after attacking.
                 new Figure("goblin-1", new Cell(5, 7))]),
         Types = [UnitType.Hero("aria-type", 3, 1, 2, 1, 4), UnitType.Hero("bram-type", 3, 2, 2, 1, 4),
             new UnitType("wolf-type", 3, 1, 1, 0, 1), new UnitType("sentinel-type", 2, 2, 1, 1, 1), UnitType.Zombie(),

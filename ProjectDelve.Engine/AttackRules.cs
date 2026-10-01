@@ -32,8 +32,7 @@ internal static class AttackRules
         if (from == to || (stats.Rng == 1 ? Math.Max(dx, dy) != 1 : dx + dy > stats.Rng))
             return NormalAttackEvaluation.NotPossible;
 
-        if (HasBlockingEdgeLos(state.Physical.Board, from, to) ||
-            state.Physical.Board.Terrain.Any(tile => tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)))
+        if (!HasGeometricLineOfSight(state.Physical.Board, from, to))
             return NormalAttackEvaluation.NotPossible;
 
         // Preserve target-local uncertainty: unrelated unresolved LOS does not
@@ -46,6 +45,11 @@ internal static class AttackRules
 
         return NormalAttackEvaluation.Possible;
     }
+
+    // Ordinary board geometry only; independent of Unit actions, stats and attack effects.
+    internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to) =>
+        !HasBlockingEdgeLos(board, from, to) &&
+        !board.Terrain.Any(tile => tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position));
 
     private static bool HasBlockingEdgeLos(Board board, Cell from, Cell to)
     {

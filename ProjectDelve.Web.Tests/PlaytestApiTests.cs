@@ -257,7 +257,7 @@ public sealed class PlaytestApiTests
     }
 
     [Fact]
-    public async Task GoblinApproachesAttacksThenRetreatsThroughNormalEngineEvents()
+    public async Task GoblinApproachesAttacksThenBacksAwayThroughNormalEngineEvents()
     {
         await using var host = await Host.Start();
         Assert.Equal(UnitType.Goblin(), (await host.Read()).Result.State.Types.Single(t => t.Id == "goblin-type"));
