@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectDelve.Engine.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectDelve.Console", "ProjectDelve.Console\ProjectDelve.Console.csproj", "{D1604E86-BDED-4997-AA6D-815BF2EABEA5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectDelve.Web", "ProjectDelve.Web\ProjectDelve.Web.csproj", "{CC19F43A-A54B-4035-9830-E48DEAC40428}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectDelve.Web.Tests", "ProjectDelve.Web.Tests\ProjectDelve.Web.Tests.csproj", "{BF07E33B-0958-4D36-9CA2-814DD5CECD87}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,5 +30,13 @@ Global
 		{D1604E86-BDED-4997-AA6D-815BF2EABEA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D1604E86-BDED-4997-AA6D-815BF2EABEA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D1604E86-BDED-4997-AA6D-815BF2EABEA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC19F43A-A54B-4035-9830-E48DEAC40428}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC19F43A-A54B-4035-9830-E48DEAC40428}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC19F43A-A54B-4035-9830-E48DEAC40428}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC19F43A-A54B-4035-9830-E48DEAC40428}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF07E33B-0958-4D36-9CA2-814DD5CECD87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF07E33B-0958-4D36-9CA2-814DD5CECD87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF07E33B-0958-4D36-9CA2-814DD5CECD87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF07E33B-0958-4D36-9CA2-814DD5CECD87}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
