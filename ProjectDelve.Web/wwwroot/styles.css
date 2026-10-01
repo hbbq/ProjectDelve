@@ -6,6 +6,11 @@ main { display: flex; gap: 32px; flex-wrap: wrap; }
 main > section { flex: 1 1 420px; } aside { flex: 1 1 280px; }
 #board { width: 100%; position: relative; display: grid; background: #303b4c; border: 2px solid #71809a; }
 .cell { border: 1px solid #475367; box-sizing: border-box; aspect-ratio: 1; padding: 4px; font-size: .7rem; color: #97a5b9; }
+.cell.Grass { background: #365b3d; }
+.cell.Tree { background: #1a4028; color: #b2d5a0; }
+.cell.Water { background: repeating-linear-gradient(165deg, #225374 0 9px, #2d6488 9px 12px); color: #c5e6f8; }
+.cell.StoneFloorWithTable { background: #614731; color: #ecd5b5; }
+.cell span { display: block; font-size: .65rem; }
 .cell.legal { background: #385871; outline: 2px solid #90c8e8; outline-offset: -3px; }
 .figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(.6rem, 1.3vw, .85rem);
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
@@ -15,6 +20,7 @@ main > section { flex: 1 1 420px; } aside { flex: 1 1 280px; }
 .edge { position: absolute; z-index: 2; background: #11151e; transform: translate(-50%, -50%); pointer-events: none; }
 .edge.ClosedDoor { background: #e5b353; }
 .edge.OpenDoor { background: transparent; outline: 2px dashed #75d7a6; }
+.edge.WallWithWindow { background: #8ad9eb; outline: 1px solid #11151e; }
 .board-choice[aria-disabled="false"] { cursor: pointer; }
 .board-choice[aria-disabled="false"]:hover, .board-choice:focus-visible { outline: 3px solid #ffe084; outline-offset: -3px; }
 .figure.board-choice[aria-disabled="false"] { box-shadow: 0 0 0 3px #90c8e8; }

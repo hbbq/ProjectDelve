@@ -41,6 +41,12 @@ public sealed class PlaytestApiTests
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
         Assert.Equal(4, second.Result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.ClosedDoor));
         Assert.Contains(second.Result.State.Physical.Board.Edges, e => e.Kind == EdgeKind.OpenDoor);
+        var board = second.Result.State.Physical.Board;
+        Assert.Contains(board.Edges, e => e.Kind == EdgeKind.WallWithWindow);
+        Assert.Equal(Enum.GetValues<TerrainKind>().OrderBy(kind => kind),
+            Enumerable.Range(0, board.Height).SelectMany(y => Enumerable.Range(0, board.Width)
+                .Select(x => board.TerrainAt(new Cell(x, y)))).Distinct().OrderBy(kind => kind));
+        Assert.All(second.Result.State.Physical.Figures, figure => Assert.True(board.TerrainAt(figure.Position).Passable()));
         Assert.Contains("visual playtest", await host.Client.GetStringAsync("/"));
         Assert.Contains("MovementCompleted", await host.Client.GetStringAsync("/app.js"));
     }

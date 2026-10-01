@@ -11,7 +11,7 @@ internal static class ExploratoryScenario
             [// West barrier: two door shortcuts, or open routes around either end.
                 new Edge(new Cell(3, 1), new Cell(4, 1), EdgeKind.Wall),
                 new Edge(new Cell(3, 2), new Cell(4, 2), EdgeKind.ClosedDoor),
-                new Edge(new Cell(3, 3), new Cell(4, 3), EdgeKind.Wall),
+                new Edge(new Cell(3, 3), new Cell(4, 3), EdgeKind.WallWithWindow),
                 new Edge(new Cell(3, 4), new Cell(4, 4), EdgeKind.Wall),
                 new Edge(new Cell(3, 5), new Cell(4, 5), EdgeKind.ClosedDoor),
                 // East barrier: an open passage above Bram's closed door, plus end routes.
@@ -23,7 +23,18 @@ internal static class ExploratoryScenario
                 // A short central divider changes north/south routes without forming a maze.
                 new Edge(new Cell(4, 3), new Cell(4, 4), EdgeKind.ClosedDoor),
                 new Edge(new Cell(5, 3), new Cell(5, 4), EdgeKind.Wall),
-                new Edge(new Cell(6, 3), new Cell(6, 4), EdgeKind.Wall)]),
+                new Edge(new Cell(6, 3), new Cell(6, 4), EdgeKind.Wall)])
+            {
+                Terrain = [new TerrainTile(new Cell(0, 0), TerrainKind.Grass),
+                    new TerrainTile(new Cell(1, 0), TerrainKind.Grass),
+                    new TerrainTile(new Cell(2, 0), TerrainKind.Tree),
+                    new TerrainTile(new Cell(1, 3), TerrainKind.Water),
+                    new TerrainTile(new Cell(2, 3), TerrainKind.Water),
+                    new TerrainTile(new Cell(5, 2), TerrainKind.StoneFloorWithTable),
+                    new TerrainTile(new Cell(8, 4), TerrainKind.StoneFloorWithTable),
+                    new TerrainTile(new Cell(8, 7), TerrainKind.Grass),
+                    new TerrainTile(new Cell(9, 7), TerrainKind.Tree)]
+            },
             [new Figure("aria", new Cell(1, 2)), new Figure("bram", new Cell(8, 5)),
                 new Figure("wolf-1", new Cell(4, 2)), new Figure("wolf-2", new Cell(5, 3)),
                 new Figure("wolf-3", new Cell(4, 5)), new Figure("sentinel-1", new Cell(6, 2)),

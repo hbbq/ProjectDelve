@@ -51,19 +51,20 @@ public sealed class GameplayQueryTests
     }
 
     [Fact]
-    public void FriendlyOccupiedAttackPositionCannotBeUsedAsDestination()
+    public void FriendlyOccupiedAttackPositionCountsForApproachButNotMovement()
     {
         var state = State();
         state.Units.Add(new Unit("friend", "other", "red", 1));
         state.Physical.Figures.Add(new Figure("friend", new Cell(3, 0)));
-        // The only melee position is occupied, although traversal permits friends.
-        Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new Cell(1, 0)));
+        // The future melee position counts even while a friend occupies it.
+        Assert.Equal(2, new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new Cell(1, 0)));
+        Assert.DoesNotContain(new Cell(3, 0), MovementRules.FindPaths(state, "monster", new Cell(1, 0)).Keys);
     }
 
     [Theory]
     [InlineData(EdgeKind.Wall)]
     [InlineData(EdgeKind.ClosedDoor)]
-    public void UndefinedEdgeLosNeverCountsAsAnAttackPosition(EdgeKind kind)
+    public void BlockingEdgeLosNeverCountsAsAnAttackPosition(EdgeKind kind)
     {
         var state = State();
         state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(4, 0), kind));

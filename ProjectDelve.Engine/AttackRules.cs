@@ -11,6 +11,14 @@ internal static class AttackRules
         GameState state, string attackerId, Cell from, string targetId)
     {
         HypotheticalPosition.Validate(state, attackerId, from);
+        return EvaluateApproachFrom(state, attackerId, from, targetId);
+    }
+
+    // A future attack position can currently contain a figure. Occupancy is
+    // ignored for this evaluation; range and LOS still use the shared rules.
+    internal static NormalAttackEvaluation EvaluateApproachFrom(
+        GameState state, string attackerId, Cell from, string targetId)
+    {
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var target = state.Units.Single(u => u.Id == targetId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
@@ -21,28 +29,32 @@ internal static class AttackRules
         var to = state.Physical.Figures.Single(f => f.Id == target.Id).Position;
         var dx = Math.Abs(to.X - from.X);
         var dy = Math.Abs(to.Y - from.Y);
-        if (stats.Rng == 1 ? Math.Max(dx, dy) != 1 : dx + dy > stats.Rng)
+        if (from == to || (stats.Rng == 1 ? Math.Max(dx, dy) != 1 : dx + dy > stats.Rng))
+            return NormalAttackEvaluation.NotPossible;
+
+        if (HasBlockingEdgeLos(state.Physical.Board, from, to) ||
+            state.Physical.Board.Terrain.Any(tile => tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)))
             return NormalAttackEvaluation.NotPossible;
 
         // Preserve target-local uncertainty: unrelated unresolved LOS does not
         // remove otherwise legal choices. Friendly figures do not block LOS,
         // including the attacker whose actual figure is at its original position.
-        if (HasUnsupportedFeaturedEdgeLos(state.Physical.Board, from, to) ||
-            state.Units.Where(u => u.CurrentHp > 0 && u.SideId != attacker.SideId && u.Id != target.Id)
-                .Any(u => CrossesInterior(from, to, state.Physical.Figures.Single(f => f.Id == u.Id).Position)))
+        if (state.Units.Where(u => u.CurrentHp > 0 && u.SideId != attacker.SideId && u.Id != target.Id)
+                .Any(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position != from &&
+                    CrossesInterior(from, to, state.Physical.Figures.Single(f => f.Id == u.Id).Position)))
             return NormalAttackEvaluation.UndefinedLineOfSight;
 
         return NormalAttackEvaluation.Possible;
     }
 
-    private static bool HasUnsupportedFeaturedEdgeLos(Board board, Cell from, Cell to)
+    private static bool HasBlockingEdgeLos(Board board, Cell from, Cell to)
     {
-        if (board.Edges.Any(edge => edge.Kind != EdgeKind.OpenDoor && CrossesEdgeInterior(from, to, edge)))
+        if (board.Edges.Any(edge => edge.Kind.BlocksLos() && CrossesEdgeInterior(from, to, edge)))
             return true;
 
         // At an exact corner there are two possible passages. The defined
-        // corner rule makes LOS unambiguous when either passage has only open
-        // edges or open doors; other encountered features have unknown effects.
+        // corner rule lets LOS pass when either passage has no blocking edges.
+        // A terrain cell touched only at this corner does not block LOS.
         var minX = Math.Min(from.X, to.X);
         var maxX = Math.Max(from.X, to.X);
         var minY = Math.Min(from.Y, to.Y);
@@ -74,7 +86,7 @@ internal static class AttackRules
         HasFeaturedEdge(board, first, middle) || HasFeaturedEdge(board, middle, last);
 
     private static bool HasFeaturedEdge(Board board, Cell a, Cell b) =>
-        board.Edges.Any(edge => edge.Kind != EdgeKind.OpenDoor &&
+        board.Edges.Any(edge => edge.Kind.BlocksLos() &&
             (edge.A == a && edge.B == b || edge.A == b && edge.B == a));
 
     private static bool CrossesEdgeInterior(Cell from, Cell to, Edge edge)

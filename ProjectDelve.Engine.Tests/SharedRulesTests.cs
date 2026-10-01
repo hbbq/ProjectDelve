@@ -103,13 +103,13 @@ public sealed class SharedRulesTests
     [InlineData(EdgeKind.Wall, false)]
     [InlineData(EdgeKind.ClosedDoor, false)]
     [InlineData(EdgeKind.OpenDoor, true)]
-    public void OpenDoorLosIsClearWhileOtherFeaturedEdgesRemainUndefined(EdgeKind kind, bool clear)
+    public void EdgeLosUsesDefinedBlockingProperties(EdgeKind kind, bool clear)
     {
         var state = State(rng: 3);
         var from = new Cell(2, 1);
         state.Physical.Board.Edges.Add(new Edge(from, new Cell(3, 1), kind));
 
-        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.UndefinedLineOfSight,
+        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
     }
 
@@ -124,7 +124,7 @@ public sealed class SharedRulesTests
         state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(4, 0), kind));
         state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(3, 1), EdgeKind.Wall));
 
-        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.UndefinedLineOfSight,
+        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
     }
 

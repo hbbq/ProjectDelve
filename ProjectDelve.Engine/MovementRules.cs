@@ -26,7 +26,8 @@ internal static class MovementRules
             foreach (var to in Neighbors(current)) // top, left, right, bottom
             {
                 if (!Inside(state.Physical.Board, to) || paths.ContainsKey(to) ||
-                    !Passable(state.Physical.Board, current, to))
+                    !state.Physical.Board.TerrainAt(to).Passable() ||
+                    !state.Physical.Board.EdgeBetween(current, to).Passable())
                     continue;
                 if (occupants.TryGetValue(to, out var occupant) &&
                     state.Units.Single(u => u.Id == occupant.Id).SideId != unit.SideId)
@@ -43,7 +44,7 @@ internal static class MovementRules
                 pair => (IReadOnlyList<Cell>)pair.Value.AsReadOnly()));
     }
 
-    private static IEnumerable<Cell> Neighbors(Cell cell)
+    internal static IEnumerable<Cell> Neighbors(Cell cell)
     {
         yield return new(cell.X, cell.Y - 1);
         yield return new(cell.X - 1, cell.Y);
@@ -51,12 +52,39 @@ internal static class MovementRules
         yield return new(cell.X, cell.Y + 1);
     }
 
-    private static bool Inside(Board board, Cell cell) =>
+    internal static bool Inside(Board board, Cell cell) =>
         cell.X >= 0 && cell.X < board.Width && cell.Y >= 0 && cell.Y < board.Height;
 
-    private static bool Passable(Board board, Cell a, Cell b) =>
-        board.Edges.FirstOrDefault(e => e.A == a && e.B == b || e.A == b && e.B == a)?.Kind
-            is null or EdgeKind.OpenDoor;
+}
+
+// Approach queries describe the terrain route, independently of figures and MOV.
+internal static class ApproachRules
+{
+    internal static int? Distance(Board board, Cell from, Cell goal) =>
+        Distances(board, from, goal).TryGetValue(goal, out var distance) ? distance : null;
+
+    internal static IReadOnlyDictionary<Cell, int> Distances(Board board, Cell from, Cell? goal = null)
+    {
+        if (!MovementRules.Inside(board, from) || goal is not null && !MovementRules.Inside(board, goal))
+            throw new ArgumentException("Approach endpoints must be on the board.");
+        var distances = new Dictionary<Cell, int> { [from] = 0 };
+        var queue = new Queue<Cell>();
+        queue.Enqueue(from);
+        while (queue.TryDequeue(out var current))
+        {
+            // An impassable goal is an endpoint, never a bridge to other cells.
+            if (current == goal) continue;
+            foreach (var next in MovementRules.Neighbors(current))
+            {
+                if (!MovementRules.Inside(board, next) || distances.ContainsKey(next) ||
+                    !board.EdgeBetween(current, next).Passable() ||
+                    next != goal && !board.TerrainAt(next).Passable()) continue;
+                distances[next] = distances[current] + 1;
+                queue.Enqueue(next);
+            }
+        }
+        return distances;
+    }
 }
 
 // Shared precondition for evaluating a placed, living unit at another position.

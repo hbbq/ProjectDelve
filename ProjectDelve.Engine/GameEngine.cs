@@ -259,13 +259,16 @@ public static class GameEngine
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");
         var figures = state.Physical.Figures;
+        if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
+            board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
+            throw new ArgumentException("Invalid terrain tiles.");
         if (figures.Any(f => !Inside(board, f.Position) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
             figures.Select(f => f.Id).Distinct().Count() != figures.Count ||
             figures.Select(f => f.Position).Distinct().Count() != figures.Count ||
             state.Units.Any(u => u.CurrentHp > 0 && !figures.Any(f => f.Id == u.Id)))
             throw new ArgumentException("Invalid figure placement.");
         if (board.Edges.Any(e => !Inside(board, e.A) || !Inside(board, e.B) ||
-            Math.Abs(e.A.X - e.B.X) + Math.Abs(e.A.Y - e.B.Y) != 1) ||
+            Math.Abs(e.A.X - e.B.X) + Math.Abs(e.A.Y - e.B.Y) != 1 || !Enum.IsDefined(e.Kind)) ||
             board.Edges.Select(e => e.A.Y < e.B.Y || e.A.Y == e.B.Y && e.A.X < e.B.X
                 ? (e.A, e.B) : (e.B, e.A)).Distinct().Count() != board.Edges.Count)
             throw new ArgumentException("Invalid edge features.");

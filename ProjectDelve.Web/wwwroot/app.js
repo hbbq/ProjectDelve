@@ -25,12 +25,18 @@ function renderBoard(state) {
   ui.board.replaceChildren(); figures.clear(); edges.clear(); cells.clear();
   ui.board.style.gridTemplateColumns = `repeat(${board.width}, 1fr)`;
   ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
+  const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile.kind]));
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
+    const kind = terrain.get(cellKey({ x, y })) ?? "StoneFloor";
     const node = text("div", `${x},${y}`);
-    node.className = "cell"; node.dataset.cell = cellKey({ x, y });
+    node.className = `cell ${kind}`; node.dataset.cell = cellKey({ x, y });
+    node.title = kind;
+    const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", StoneFloorWithTable: "Table" }[kind];
+    if (symbol) node.append(text("span", symbol));
     cells.set(node.dataset.cell, node); ui.board.append(node);
   }
   for (const edge of board.edges) {
+    if (edge.kind === "None") continue;
     const node = document.createElement("div");
     node.className = `edge ${edge.kind}`;
     const vertical = edge.a.y === edge.b.y;

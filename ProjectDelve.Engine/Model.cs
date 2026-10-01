@@ -1,7 +1,9 @@
 namespace ProjectDelve.Engine;
 
 public sealed record Cell(int X, int Y);
-public enum EdgeKind { Wall, ClosedDoor, OpenDoor }
+public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
+public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable }
+public sealed record TerrainTile(Cell Position, TerrainKind Kind);
 public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
@@ -16,8 +18,23 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 
-// Every cell on this first-slice board is Floor. An absent edge feature is open.
-public sealed record Board(int Width, int Height, List<Edge> Edges);
+public sealed record Board(int Width, int Height, List<Edge> Edges)
+{
+    // Unlisted cells contain stone floor; absent edges have kind None.
+    public List<TerrainTile> Terrain { get; init; } = [];
+    public TerrainKind TerrainAt(Cell cell) =>
+        Terrain.FirstOrDefault(tile => tile.Position == cell)?.Kind ?? TerrainKind.StoneFloor;
+    public EdgeKind EdgeBetween(Cell a, Cell b) =>
+        Edges.FirstOrDefault(e => e.A == a && e.B == b || e.A == b && e.B == a)?.Kind ?? EdgeKind.None;
+}
+
+public static class BoardProperties
+{
+    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor;
+    public static bool BlocksLos(this TerrainKind kind) => kind == TerrainKind.Tree;
+    public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
+    public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
+}
 public sealed record PhysicalState(Board Board, List<Figure> Figures);
 public enum Phase { BonusAction, Move, Act }
 public enum DecisionKind { SelectUnit, Move, Act }
@@ -45,7 +62,7 @@ public sealed class GameState
     internal GameState Copy() => new()
     {
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
-            [.. Physical.Board.Edges]), [.. Physical.Figures]),
+            [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
         ActiveTypeId = ActiveTypeId, Phase = Phase, CompletedUnitIds = [.. CompletedUnitIds],
         CurrentUnitId = CurrentUnitId, Pending = Pending, RoundComplete = RoundComplete

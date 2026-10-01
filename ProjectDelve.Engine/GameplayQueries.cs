@@ -6,7 +6,7 @@ public interface IGameplayQueries
     int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId);
     bool CanAttackHostileFrom(string unitId, Cell position);
 
-    // Distance ignores this activation's MOV. null means no supported attack
+    // Approach distance ignores Units and this activation's MOV. null means no supported attack
     // position is reachable; undefined LOS does not count as a possible attack.
     int? DistanceToAttackPositionFrom(string unitId, Cell position);
 }
@@ -32,9 +32,12 @@ internal sealed class GameplayQueries : IGameplayQueries
         world.Units.Any(target => AttackRules.EvaluateFrom(world, unitId, position, target.Id)
             == NormalAttackEvaluation.Possible);
 
-    public int? DistanceToAttackPositionFrom(string unitId, Cell position) =>
-        MovementRules.FindPaths(world, unitId, position)
-            .Where(pair => CanAttackHostileFrom(unitId, pair.Key))
-            .Select(pair => (int?)(pair.Value.Count - 1))
-            .Min();
+    public int? DistanceToAttackPositionFrom(string unitId, Cell position)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        return ApproachRules.Distances(world.Physical.Board, position)
+            .Where(pair => world.Units.Any(target => AttackRules.EvaluateApproachFrom(world, unitId, pair.Key, target.Id)
+                == NormalAttackEvaluation.Possible))
+            .Select(pair => (int?)pair.Value).Min();
+    }
 }
