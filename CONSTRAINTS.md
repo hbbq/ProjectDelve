@@ -163,7 +163,9 @@ Core rules provide simple defaults. Abilities and special rules may explicitly m
 
 Extension points should be introduced when actual game content requires them rather than by creating a large speculative set of hooks in advance.
 
-Simple Unit Type variation should preferentially be expressed through small reusable **Actions** and **Capabilities**, analogous to keywords on a physical Unit card. An Action defines something the Unit can choose to do; a Capability modifies how an otherwise shared rule applies to that Unit Type. These components may carry small rule parameters when the same mechanic varies between Unit Types. The rules engine and Decision Providers should act on the Action or Capability itself rather than on a specific Unit Type identity. Bespoke Unit-Type checks such as `if Zombie` should therefore not be used when the behavior can be represented by a reusable rule component.
+Simple Unit Type variation should preferentially be expressed through small reusable **Actions**, **Capabilities**, and **Behaviors**, analogous to keywords on a physical Unit card. An Action defines something the Unit can choose to do. A Capability modifies how an otherwise shared game rule applies to that Unit Type. A Behavior describes how an automated Decision Provider prefers to play that Unit Type among choices that are already legal. These components may carry small parameters when the same mechanic varies between Unit Types.
+
+Actions and Capabilities belong to the game rules and remain true regardless of who controls the Unit. Behaviors belong to automated decision-making: they do not establish legality or modify what the Unit can do, and they have no rules effect when the Unit is controlled by a different provider such as a human player. Rules code should act on reusable Actions or Capabilities, and automated providers should act on reusable Behaviors, rather than special-casing a specific Unit Type identity such as `if Zombie`.
 
 This is a content-composition principle, not a requirement for a generic keyword framework, scripting language, or universal effect system. New reusable components should be introduced from concrete game content as needed.
 
@@ -188,7 +190,7 @@ Likewise, ordering rules for multiple simultaneous post-resolution effects shoul
 
 A rule component should be reusable by different Unit Types when they share the same ability or effect. A Unit Type should not need a bespoke subclass merely to participate in an existing rule effect.
 
-Abilities define capabilities and effects. Monster Behavior remains conceptually separate and determines decisions about those capabilities.
+Abilities define capabilities and effects. Monster Behavior remains conceptually separate and determines decisions about legal choices without changing their legality.
 
 Some rule components can resolve immediately, such as a modifier to an effective stat. A rule or ability that requires an external choice must be able to suspend resolution at a stable, serializable flow state and continue after that choice is supplied.
 
@@ -420,13 +422,13 @@ Abilities and effects may make grouped Monsters easier or harder to damage or ki
 
 ### Zombie
 
-Zombie is the first Monster Unit Type used to establish the reusable Action/Capability composition pattern.
+Zombie is the first Monster Unit Type used to establish the reusable Action/Behavior composition pattern.
 
 - Stats: `MOV 2`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 1`.
 - Actions: Normal Attack; `TryOpenDoor(2/6)`.
-- Capabilities: Approach Through Closed Doors.
+- Behaviors: Approach Through Closed Doors.
 
-Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented behavior emerges from the shared approach-distance rules, the reusable Approach Through Closed Doors Capability, the reusable Try Open Door Action, and Default Monster Behavior's normal Action priorities.
+Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
 
 ## Unit stats
 
@@ -574,7 +576,9 @@ Different rules questions use different notions of pathing and distance. They mu
 
 **Approach distance** answers how far a cell is from a goal through the board's traversable terrain. It is used for evaluations such as deciding which legal movement destination brings a Monster closer to a future attack position. Approach distance respects terrain and edge passability but ignores Units as traversal obstacles. Figures are temporary occupants and must not make the underlying route appear permanently unreachable. This allows Monsters behind other Monsters, for example in a doorway or corridor, to continue moving toward the same engagement even when the front Monsters currently occupy the route.
 
-A Unit Type may explicitly modify which terrain or edges count as traversable for its approach-distance calculations without changing actual movement legality. The initial such Capability is **Approach Through Closed Doors**: Closed Door edges count as traversable when calculating that Unit Type's approach distance, but remain impassable for its actual movement unless another rule separately changes movement legality.
+Gameplay queries are neutral analysis tools over game state. A query does not decide which game rule or Behavior applies and should not infer such policy from a specific Unit Type identity. Instead, its caller supplies the parameters appropriate to the question being asked. Rules/engine code may call the same query with parameters dictated by the actual game rules, while a Decision Provider may call it with parameters dictated by the Behavior it is evaluating. The query owns the shared calculation; callers do not duplicate pathfinding, Line of Sight, legality, or other underlying algorithms.
+
+For automated Zombie movement analysis, the **Approach Through Closed Doors** Behavior tells the provider to request approach distance with Closed Door edges treated as traversable. This affects only that analysis. Closed Doors remain impassable for actual movement because movement legality is evaluated using the parameters required by the movement rules.
 
 When an approach-distance query measures distance to a specific goal cell, that goal cell itself need not be passable or currently occupiable in order for its distance to be measured. It is treated as reachable as the endpoint for that calculation only; an otherwise impassable goal cell does not become traversable and cannot be used as a route through to cells beyond it.
 
