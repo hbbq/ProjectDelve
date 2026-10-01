@@ -204,6 +204,25 @@ There are no meaningful positions between cells.
 
 Every grid cell contains exactly one terrain tile.
 
+Each terrain type defines two independent base properties:
+
+- **Passable** — whether a Unit may move through or into the cell, before Unit occupancy and other rules are considered.
+- **Blocks LOS** — whether the cell blocks Line of Sight.
+
+Passability describes the terrain itself. Unit occupancy is a separate rule: a passable cell can still be unavailable as a movement destination because another Unit occupies it, and Units may affect whether it can be traversed.
+
+The initial terrain types are:
+
+| Terrain | Passable | Blocks LOS |
+| --- | --- | --- |
+| Grass | yes | no |
+| Tree | no | yes |
+| Water | no | no |
+| Stone floor | yes | no |
+| Stone floor with table | no | no |
+
+There is no separate terrain-level distinction between being passable and being occupiable. Under the base rules, terrain that is passable may also be occupied; whether a particular Unit may actually end movement there is determined separately, including Unit occupancy.
+
 Terrain tiles currently fall into two broad physical categories.
 
 ### Flat tiles
@@ -244,7 +263,20 @@ An edge may contain physical features such as:
 - a door,
 - an opening such as a window.
 
-The exact taxonomy and gameplay effects of edge features are not yet defined.
+Each edge type defines two independent base properties:
+
+- **Passable** — whether movement may cross the edge.
+- **Blocks LOS** — whether the edge blocks Line of Sight.
+
+The initial edge types are:
+
+| Edge | Passable | Blocks LOS |
+| --- | --- | --- |
+| None | yes | no |
+| Wall | no | yes |
+| Closed door | no | yes |
+| Open door | yes | no |
+| Wall with window | no | no |
 
 Walls and similar features may physically be attached to one of the adjacent terrain tiles, but this construction detail does not change the logical model: the edge is shared by both cells.
 
@@ -348,7 +380,7 @@ For movement, use these priorities:
 3. Otherwise, choose the legal movement destination with the shortest remaining traversable path to a position from which a hostile Unit can be attacked. Break ties by the shortest movement path for this activation, then top-left board order.
 4. If no legal movement destination has a reachable attack position, stay when allowed. If staying is not allowed, the behavior cannot supply a choice.
 
-Remaining traversable distance uses the current board and movement rules without this activation's `MOV` limit. It measures distance to an unoccupied attack position, not distance to the hostile's occupied cell. Only the querying Unit is relocated for hypothetical evaluations: its original cell is vacated and all other figures remain unchanged. An attack position must permit a normal Attack under currently supported rules; undefined LOS does not count as a possible attack.
+Remaining traversable distance uses the Approach distance rules defined under Unit activation. It ignores Units as traversal obstacles while still respecting terrain and edge passability. It measures distance to a position from which the hostile Unit could be attacked, not ordinary legal movement into the hostile's occupied cell. An attack position must permit a normal Attack under currently supported rules; undefined LOS does not count as a possible attack.
 
 Destination ties use top-left board order. Separately, canonical shortest movement paths retain the BFS neighbor expansion order top, left, right, bottom.
 
@@ -514,6 +546,18 @@ A Unit may never end its movement in a cell occupied by another Unit, whether fr
 
 Whether a destination cell is otherwise passable is determined by the rules for its terrain or fixed object. Those rules are deliberately deferred to the corresponding terrain specification.
 
+### Movement and distance queries
+
+Different rules questions use different notions of pathing and distance. They must not be treated as one interchangeable pathfinding operation merely because they can share low-level grid traversal algorithms.
+
+**Actual movement** answers where a Unit can legally move during its Move phase. It respects terrain and edge passability, the Unit's effective movement allowance, and current Unit occupancy. Friendly Units may be passed through, hostile Units may not be passed through, and movement may not end on any occupied cell.
+
+**Approach distance** answers how far a cell is from a goal through the board's traversable terrain. It is used for evaluations such as deciding which legal movement destination brings a Monster closer to a future attack position. Approach distance respects terrain and edge passability but ignores Units as traversal obstacles. Figures are temporary occupants and must not make the underlying route appear permanently unreachable. This allows Monsters behind other Monsters, for example in a doorway or corridor, to continue moving toward the same engagement even when the front Monsters currently occupy the route.
+
+When an approach-distance query measures distance to a specific goal cell, that goal cell itself need not be passable or currently occupiable in order for its distance to be measured. It is treated as reachable as the endpoint for that calculation only; an otherwise impassable goal cell does not become traversable and cannot be used as a route through to cells beyond it.
+
+**Attack range** is not a pathing query. Ranged attack distance is Manhattan distance regardless of terrain, edges, or Units. Obstacles affect attack legality separately through Line of Sight and other attack rules. The special `RNG 1` Melee rule remains a separate range-legality rule.
+
 ### Reachable destinations and canonical paths
 
 A movement decision normally chooses a destination, not a path.
@@ -638,14 +682,12 @@ They may be introduced later. The architecture should not unnecessarily prevent 
 
 The following are intentionally not specified yet:
 
-- gameplay effects of terrain,
-- terrain and fixed-object movement passability rules,
+- terrain effects beyond the currently defined Passable and Blocks LOS properties,
 - LOS-blocking behavior of hostile Units,
-- exact LOS effects of terrain and edge-feature types,
+- LOS effects beyond the currently defined terrain and edge properties,
 - stat modifier and effective-stat calculation rules,
-- gameplay effects of walls, windows, and doors,
+- edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
 - gameplay meaning of upright and lying figures,
-- passing through occupied cells,
 - larger-than-1×1 figure behavior,
 - loose tokens and markers,
 - exact terrain and edge-feature taxonomies,
