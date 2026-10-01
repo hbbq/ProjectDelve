@@ -157,6 +157,25 @@ A presentation adapter or client is responsible for translating Rules/Domain Eve
 
 Rules/Domain Events should expose enough meaningful information for different presentations to represent what happened without exposing low-level engine implementation details. Internal operations such as path validation or rule-component lookup are not gameplay events merely because the engine performs them.
 
+### Client boundary and presentation
+
+A client may understand game-domain data in order to present it well, but it must not need to understand game rules in order to play the game correctly.
+
+The client consumes authoritative state to render the current game, presents the choices supplied by the rules engine, submits the selected choice, and presents the resulting Rules/Domain Events. It must not derive additional legality, turn progression, or rules consequences from state on its own.
+
+Domain-specific presentation is explicitly allowed. For example, a client may know that HP can be shown as a health bar, that a Door has an open or closed visual form, or that a UnitMoved event can be animated along its path. Such knowledge affects presentation only.
+
+State values must not be treated as implicit rules by the client. For example, HP reaching 0 does not by itself authorize the client to remove, disable, or skip a Unit. A future rule may allow a Unit with 0 HP to remain in play or activate normally. Likewise, a stat value, terrain property, or other visible state must not be used by the client to infer what choices are legal unless the engine supplied those choices.
+
+The boundary is therefore:
+
+- **State** says what the authoritative game currently looks like.
+- **Choices** say what external agency may choose now.
+- **Choice** is the external input returned to the engine.
+- **Events** say what the engine resolved while advancing to the next stable state.
+
+Game-specific rendering and animation may be rich and specialized. Rules legality and progression remain authoritative in the rules engine.
+
 ### Composable rules and abilities
 
 Unit Types are primarily composed from data, behavior, and reusable rule components rather than implemented as deep class hierarchies that override the game engine.
