@@ -52,7 +52,7 @@ public sealed class PlaytestGame(IRandomProvider random)
     private GameResponse Commit(EngineResult result)
     {
         var events = new List<RulesEvent>(result.Events);
-        while (result.NextInput?.TypeId is "wolf-type" or "sentinel-type" or "zombie-type" or "skeleton-archer-type")
+        while (result.NextInput?.TypeId is "wolf-type" or "sentinel-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type")
         {
             result = GameEngine.Advance(result.State, monsters, random);
             events.AddRange(result.Events);

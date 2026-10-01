@@ -31,13 +31,13 @@ public sealed class PlaytestApiTests
         Assert.Null(second.Result.NextInput);
         Assert.Equal(10, second.Result.State.Physical.Board.Width);
         Assert.Equal(8, second.Result.State.Physical.Board.Height);
-        Assert.Equal(9, second.Result.State.Physical.Figures.Count);
+        Assert.Equal(10, second.Result.State.Physical.Figures.Count);
         var heroes = second.Result.State.Units.Where(u => u.SideId == "blue").ToArray();
         Assert.Equal(new[] { "aria", "bram" }, heroes.Select(u => u.Id));
         Assert.Equal(2, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(UnitAction.NormalAttack | UnitAction.OpenDoor, type.Actions));
-        Assert.Equal(new[] { 1, 3, 2, 1 }, second.Result.State.Units.Where(u => u.SideId == "red")
+        Assert.Equal(new[] { 1, 3, 2, 1, 1 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
         Assert.Equal(5, second.Result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.ClosedDoor));
         Assert.Contains(second.Result.State.Physical.Board.Edges, e => e.Kind == EdgeKind.OpenDoor);
@@ -63,8 +63,8 @@ public sealed class PlaytestApiTests
         Assert.True(completed.Result.State.RoundComplete);
         Assert.Null(completed.Result.NextInput);
         var moves = completed.Result.Events.Where(e => e.Kind == "MovementCompleted").ToArray();
-        Assert.Equal(new[] { "aria", "bram", "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2", "zombie-1", "archer-1" }, moves.Select(e => e.UnitId));
-        Assert.Equal(new[] { "aria-type", "bram-type", "wolf-type", "sentinel-type", "zombie-type", "skeleton-archer-type" },
+        Assert.Equal(new[] { "aria", "bram", "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2", "zombie-1", "archer-1", "goblin-1", "goblin-1" }, moves.Select(e => e.UnitId));
+        Assert.Equal(new[] { "aria-type", "bram-type", "wolf-type", "sentinel-type", "zombie-type", "skeleton-archer-type", "goblin-type" },
             completed.Result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Contains(moves, e => e.Path!.Count > 1);
         foreach (var typeId in new[] { "wolf-type", "sentinel-type" })
@@ -177,7 +177,7 @@ public sealed class PlaytestApiTests
         var result = await host.Round(0);
         Assert.Equal("wolf-type", result.Result.Events[0].TypeId);
         Assert.Equal("aria-type", result.Result.NextInput!.TypeId);
-        Assert.Equal(new[] { "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2", "zombie-1", "archer-1" }, result.Result.Events
+        Assert.Equal(new[] { "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2", "zombie-1", "archer-1", "goblin-1", "goblin-1" }, result.Result.Events
             .Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.Equal("aria-type", result.Result.Events[^1].TypeId);
         Assert.False(result.Result.State.RoundComplete);
@@ -256,6 +256,28 @@ public sealed class PlaytestApiTests
         Assert.Equal(3, Math.Abs(end.X - 1) + Math.Abs(end.Y - 2));
     }
 
+    [Fact]
+    public async Task GoblinApproachesAttacksThenRetreatsThroughNormalEngineEvents()
+    {
+        await using var host = await Host.Start();
+        Assert.Equal(UnitType.Goblin(), (await host.Read()).Result.State.Types.Single(t => t.Id == "goblin-type"));
+        var completed = await FinishRound(host, await host.Round(0));
+        var events = completed.Result.Events.Where(e => e.UnitId == "goblin-1").ToArray();
+        Assert.Equal(new[] { "MovementCompleted", "AttackResolved", "MovementCompleted" }, events.Select(e => e.Kind));
+        Assert.False(events[0].IsMoveAfterAttack);
+        Assert.Equal(new Cell(5, 7), events[0].Path![0]);
+        Assert.InRange(events[0].Path!.Count - 1, 1, 4);
+        Assert.Equal("bram", events[1].TargetId);
+        Assert.True(events[2].IsMoveAfterAttack);
+        Assert.Equal(2, events[2].Path!.Count);
+        Assert.Equal(events[0].Path![^1], events[2].Path![0]);
+        Assert.Equal(events[2].Path![^1], completed.Result.State.Physical.Figures.Single(f => f.Id == "goblin-1").Position);
+        Assert.True(completed.Result.State.RoundComplete);
+        var script = await host.Client.GetStringAsync("/app.js");
+        Assert.Contains("decision.isMoveAfterAttack", script);
+        Assert.Contains("event.isMoveAfterAttack", script);
+    }
+
     private static async Task<GameResponse> ApproachDoors(Host host, bool open)
     {
         var result = await host.Round(0);
@@ -290,7 +312,7 @@ public sealed class PlaytestApiTests
     {
         public bool Hits { get; set; } = hit;
         public string DrawToken(IReadOnlyList<string> bag) => monstersFirst
-            ? bag.FirstOrDefault(typeId => typeId is "wolf-type" or "sentinel-type" or "zombie-type" or "skeleton-archer-type") ?? bag[0]
+            ? bag.FirstOrDefault(typeId => typeId is "wolf-type" or "sentinel-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type") ?? bag[0]
             : bag[0];
         public AttackFace RollAttackDie() => Hits ? AttackFace.Hit : AttackFace.Miss;
         public int RollD6() => doorRoll;

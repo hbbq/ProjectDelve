@@ -13,6 +13,7 @@ public static class GameEngine
             .Select(t => t.Id).ToList();
         state.ActiveTypeId = null;
         state.CurrentUnitId = null;
+        state.MoveAfterAttackAllowance = null;
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
@@ -78,10 +79,17 @@ public static class GameEngine
                 if (choice is not null)
                     state.Physical.Figures[state.Physical.Figures.IndexOf(figure)] =
                         figure with { Position = path[^1] };
-                events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path]));
-                CompleteUnit(state);
+                events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
+                    IsMoveAfterAttack: request.IsMoveAfterAttack));
+                if (request.IsMoveAfterAttack)
+                {
+                    state.MoveAfterAttackAllowance = null;
+                    state.CurrentUnitId = null;
+                }
+                else CompleteUnit(state);
                 break;
             case DecisionKind.Act:
+                var attacked = false;
                 if (choice is not null)
                 {
                     var action = request.Candidates.Single(c => c.Key == choice);
@@ -101,6 +109,7 @@ public static class GameEngine
                     {
                         case UnitAction.NormalAttack:
                             ResolveAttack(state, request.UnitId!, action.TargetId!, random, events);
+                            attacked = true;
                             break;
                         case UnitAction.OpenDoor:
                             OpenDoor(state, request.UnitId!, action.Door!, events);
@@ -110,6 +119,11 @@ public static class GameEngine
                     }
                 }
                 CompleteUnit(state);
+                if (attacked && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
+                {
+                    state.CurrentUnitId = request.UnitId;
+                    state.MoveAfterAttackAllowance = move.MaxSteps;
+                }
                 break;
         }
     }
@@ -137,7 +151,7 @@ public static class GameEngine
             }
 
             var eligible = EligibleUnits(state);
-            if (eligible.Count == 0)
+            if (eligible.Count == 0 && state.MoveAfterAttackAllowance is null)
             {
                 state.CompletedUnitIds.Clear();
                 state.CurrentUnitId = null;
@@ -170,10 +184,10 @@ public static class GameEngine
         events.Add(new RulesEvent("DoorOpened", unitId, Door: opened));
     }
 
-    private static List<Candidate> MovementCandidates(GameState state, Unit unit)
+    private static List<Candidate> MovementCandidates(GameState state, Unit unit, int? maxSteps = null)
     {
         var start = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
-        var allowance = state.Types.Single(t => t.Id == unit.TypeId).Mov;
+        var allowance = maxSteps ?? state.Types.Single(t => t.Id == unit.TypeId).Mov;
         return MovementRules.FindPaths(state, unit.Id, start, allowance)
             .Where(pair => pair.Key != start)
             .OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.X)
@@ -224,6 +238,12 @@ public static class GameEngine
 
     private static DecisionRequest CreateDecision(GameState state)
     {
+        if (state.MoveAfterAttackAllowance is { } allowance)
+        {
+            var mover = state.Units.Single(u => u.Id == state.CurrentUnitId);
+            return new DecisionRequest(DecisionKind.Move, mover.TypeId, mover.Id,
+                MovementCandidates(state, mover, allowance), true, IsMoveAfterAttack: true);
+        }
         var eligible = EligibleUnits(state);
         if (state.CurrentUnitId is null)
             return new DecisionRequest(DecisionKind.SelectUnit, state.ActiveTypeId!, null,
@@ -278,7 +298,7 @@ public static class GameEngine
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
-                t.TryOpenDoor is { SuccessCount: < 0 or > 6 }))
+                t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 }))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||

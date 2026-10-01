@@ -10,11 +10,12 @@ public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.
 [Flags]
 public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, RetreatAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
+public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
-    UnitBehavior Behaviors = UnitBehavior.None)
+    UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null)
 {
     // Hero content uses these Action defaults independently of side or agency.
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
@@ -26,6 +27,9 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 
     public static UnitType SkeletonArcher(string id = "skeleton-archer-type") =>
         new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance);
+
+    public static UnitType Goblin(string id = "goblin-type") =>
+        new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.RetreatAfterAttack, MoveAfterAttack: new(1));
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 
@@ -51,10 +55,12 @@ public enum Phase { BonusAction, Move, Act }
 public enum DecisionKind { SelectUnit, Move, Act }
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
     UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null);
-public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone);
+public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
+    bool IsMoveAfterAttack = false);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
-    Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null);
+    Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
+    bool IsMoveAfterAttack = false);
 
 public sealed class GameState
 {
@@ -67,6 +73,8 @@ public sealed class GameState
     public Phase Phase { get; set; }
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
+    // Act is complete; resume the group Act flow after this Unit's additional Move.
+    public int? MoveAfterAttackAllowance { get; set; }
     public DecisionRequest? Pending { get; set; }
     public bool RoundComplete { get; set; }
 
@@ -76,7 +84,8 @@ public sealed class GameState
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
         ActiveTypeId = ActiveTypeId, Phase = Phase, CompletedUnitIds = [.. CompletedUnitIds],
-        CurrentUnitId = CurrentUnitId, Pending = Pending, RoundComplete = RoundComplete
+        CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
+        Pending = Pending, RoundComplete = RoundComplete
     };
 }
 

@@ -150,6 +150,8 @@ public sealed class MonsterMovementTests
         public int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId) =>
             throw new InvalidOperationException("Movement ranking does not use Manhattan distance.");
         public bool CanAttackHostileFrom(string unitId, Cell position) => AttackPositions.Contains(position);
+        public int? DistanceToNearestHostileFrom(string unitId, Cell position) =>
+            throw new InvalidOperationException("Ordinary movement does not rank retreat distance.");
         public int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position) =>
             throw new InvalidOperationException("Ordinary movement does not maximize attack distance.");
         public int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false) =>

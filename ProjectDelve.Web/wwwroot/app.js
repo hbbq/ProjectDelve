@@ -12,7 +12,7 @@ const cells = new Map();
 const cellKey = cell => `${cell.x},${cell.y}`;
 const edgeKey = edge => [cellKey(edge.a), cellKey(edge.b)].sort().join("|");
 const unitLabel = id => ({ aria: "Aria", bram: "Bram", "wolf-1": "W1", "wolf-2": "W2", "wolf-3": "W3",
-  "zombie-1": "Z1", "archer-1": "A1", "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
+  "zombie-1": "Z1", "archer-1": "A1", "goblin-1": "G1", "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
 
 function placeFigure(node, cell, board) {
@@ -72,7 +72,7 @@ function renderSnapshot() {
     if (!boardChoices.has(node)) boardChoices.set(node, new Map());
     boardChoices.get(node).set(key, label);
   };
-  ui.prompt.textContent = decision ? `${decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  ui.prompt.textContent = decision ? `${decision.isMoveAfterAttack ? "Move after attack" : decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   for (const candidate of decision?.candidates ?? []) {
     const label = candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
@@ -188,7 +188,7 @@ async function mutate(operation, body = {}) {
 
 function describe(event) {
   switch (event.kind) {
-    case "MovementCompleted": return `${unitLabel(event.unitId)} moved: ${event.path.map(cellKey).join(" → ")}`;
+    case "MovementCompleted": return `${unitLabel(event.unitId)} ${event.isMoveAfterAttack ? "moved after attack" : "moved"}: ${event.path.map(cellKey).join(" → ")}`;
     case "AttackResolved": return `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
     case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Act consumed)`;
