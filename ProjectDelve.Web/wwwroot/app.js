@@ -1,4 +1,4 @@
-const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "error", "prompt", "choices", "units", "events"]
+const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "error", "prompt", "choices", "units", "events"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let busy = false;
@@ -77,7 +77,8 @@ function renderBoard(state) {
 function renderSnapshot() {
   const state = snapshot.result.state;
   renderBoard(state);
-  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${state.activeTypeId} · ${state.phase}`} · revision ${snapshot.revision}`;
+  ui.filter.checked = snapshot.filterRelevantChoices;
+  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${state.activeTypeId} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
   ui.units.replaceChildren(...state.units.map(unit => {
     const type = state.types.find(type => type.id === unit.typeId);
     return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${type.mov} RNG ${type.rng} ATK ${type.atk} DEF ${type.def}`);
@@ -93,12 +94,16 @@ function renderSnapshot() {
   };
   ui.prompt.textContent = decision ? `${decision.isMoveAfterAttack ? "Move after attack" : decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   for (const candidate of decision?.candidates ?? []) {
-    const label = candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
+    const label = candidate.kind === "Stay" ? "Stay here"
+      : candidate.kind === "EndTurn" ? "End Turn"
+      : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
       : candidate.action === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)}`
       : candidate.destination ? `Move to (${cellKey(candidate.destination)})` : unitLabel(candidate.key);
     addChoice(label, candidate.key);
-    if (decision.kind === "Move" && candidate.destination) {
+    if (candidate.kind === "Stay") {
+      offer(figures.get(decision.unitId), label, candidate.key);
+    } else if (candidate.destination) {
       offer(cells.get(cellKey(candidate.destination)), label, candidate.key);
     } else if (candidate.action === "NormalAttack") {
       offer(figures.get(candidate.targetId), label, candidate.key);
@@ -149,6 +154,7 @@ function bindBoardChoice(node, label, key) {
 
 function updateControls() {
   ui.refresh.disabled = busy;
+  ui.filter.disabled = busy || !snapshot;
   ui.round.disabled = busy || !snapshot || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
   ui.round.textContent = snapshot?.result.state.round ? "Start next round" : "Start round";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
@@ -211,7 +217,7 @@ function describe(event) {
     case "MovementCompleted": return `${unitLabel(event.unitId)} ${event.isMoveAfterAttack ? "moved after attack" : "moved"}: ${event.path.map(cellKey).join(" → ")}`;
     case "AttackResolved": return `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
-    case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Act consumed)`;
+    case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Action consumed)`;
     case "DoorOpened": return `${unitLabel(event.unitId)} opened door ${cellKey(event.door.a)} ↔ ${cellKey(event.door.b)}`;
     case "TokenDrawn": return `Token drawn: ${event.typeId}`;
     default: return event.kind;
@@ -276,6 +282,7 @@ function updateCoordinates() {
   ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
 }
 
+ui.filter.addEventListener("change", () => mutate("preferences", { filterRelevantChoices: ui.filter.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);

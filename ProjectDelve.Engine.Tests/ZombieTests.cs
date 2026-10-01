@@ -40,7 +40,7 @@ public sealed class ZombieTests
             closedDoorsTraversable: true));
         Assert.False(new GameplayQueries(state).CanAttackHostileFrom("monster", new(1, 0)));
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(new Cell(1, 0), Assert.Single(pending.NextInput!.Candidates).Destination);
+        Assert.Equal(new Cell(1, 0), Assert.Single(pending.NextInput!.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Destination);
         Assert.DoesNotContain(MovementRules.FindPaths(state, "monster", new(0, 0)).Keys, c => c.X >= 2);
         Assert.Throws<ArgumentException>(() => GameEngine.Advance(pending.State, new Choice(_ => "2,0"), new Random()));
     }
@@ -66,11 +66,11 @@ public sealed class ZombieTests
         var state = Corridor(new("unrelated-type", 2, 1, 3, 3, 1,
             Behaviors: hasBehavior ? UnitBehavior.ApproachThroughClosedDoors : UnitBehavior.None));
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(new Cell(1, 0), Assert.Single(pending.NextInput!.Candidates).Destination);
+        Assert.Equal(new Cell(1, 0), Assert.Single(pending.NextInput!.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Destination);
         var queries = new GameplayQueries(pending.State);
-        Assert.Equal(hasBehavior ? "1,0" : null, new DefaultMonsterProvider().Choose(pending.NextInput, queries));
+        Assert.Equal(hasBehavior ? "1,0" : "stay", new DefaultMonsterProvider().Choose(pending.NextInput, queries));
         // Another automated provider can use ordinary approach analysis instead.
-        Assert.Null(new MonsterMovementProvider(new Choice(_ => null)).Choose(pending.NextInput, queries));
+        Assert.Equal("stay", new MonsterMovementProvider(new Choice(_ => null)).Choose(pending.NextInput, queries));
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class ZombieTests
         var state = Corridor();
         var random = new Random(1);
         var pending = GameEngine.StartRound(state, random);
-        var stayed = GameEngine.Advance(pending.State, new Choice(_ => null), random);
+        var stayed = GameEngine.Advance(pending.State, new Choice(_ => "stay"), random);
         Assert.Equal(new Cell(0, 0), stayed.State.Physical.Figures[0].Position);
         Assert.True(stayed.State.RoundComplete);
         Assert.Equal(0, random.Rolls);
@@ -111,7 +111,7 @@ public sealed class ZombieTests
         var pending = GameEngine.StartRound(state, random);
         var moved = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random);
         Assert.Equal(new Cell(1, 0), moved.State.Physical.Figures[0].Position);
-        Assert.NotNull(Assert.Single(moved.NextInput!.Candidates).TryOpenDoor);
+        Assert.NotNull(Assert.Single(moved.NextInput!.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).TryOpenDoor);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(moved.State))!;
         var result = GameEngine.Advance(restored, new DefaultMonsterProvider(), random);
         Assert.True(result.State.RoundComplete);
@@ -136,8 +136,8 @@ public sealed class ZombieTests
         var random = new Random(1);
         var provider = new DefaultMonsterProvider();
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Move, pending.NextInput!.Kind);
-        var candidate = Assert.Single(pending.NextInput.Candidates);
+        Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind);
+        var candidate = Assert.Single(pending.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.Equal(new Cell(0, 0), candidate.Destination);
         var queries = new GameplayQueries(pending.State);
         Assert.False(queries.CanAttackHostileFrom("monster", current));
@@ -146,8 +146,8 @@ public sealed class ZombieTests
 
         var stayed = GameEngine.Advance(pending.State, provider, random);
         Assert.Equal(current, stayed.State.Physical.Figures[0].Position);
-        Assert.Equal(DecisionKind.Act, stayed.NextInput!.Kind);
-        Assert.NotNull(Assert.Single(stayed.NextInput.Candidates).TryOpenDoor);
+        Assert.Equal(DecisionKind.Activation, stayed.NextInput!.Kind);
+        Assert.NotNull(Assert.Single(stayed.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).TryOpenDoor);
         Assert.Equal(0, random.Rolls);
 
         var acted = GameEngine.Advance(stayed.State, provider, random);
@@ -193,7 +193,7 @@ public sealed class ZombieTests
         if (reverse) state.Physical.Board.Edges.Reverse();
         var random = new Random(1);
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(4, pending.NextInput!.Candidates.Count);
+        Assert.Equal(4, pending.NextInput!.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         var result = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random);
         var opened = Assert.Single(result.Events, e => e.Kind == "DoorOpened").Door!;
         Assert.True(opened.A == new Cell(1, 0) || opened.B == new Cell(1, 0));

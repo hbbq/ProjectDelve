@@ -25,7 +25,7 @@ public sealed class SkeletonArcherTests
     private static EngineResult Pending(GameState state)
     {
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(DecisionKind.Move, pending.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind);
         return pending;
     }
 
@@ -56,8 +56,8 @@ public sealed class SkeletonArcherTests
         var result = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), new Random());
         Assert.Equal(new Cell(4, 0), result.State.Physical.Figures[0].Position);
         Assert.Equal(canonical, Assert.Single(result.Events, e => e.Kind == "MovementCompleted").Path);
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
-        Assert.Equal("hero", Assert.Single(result.NextInput.Candidates).TargetId);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.Equal("hero", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).TargetId);
     }
 
     [Theory]
@@ -65,7 +65,7 @@ public sealed class SkeletonArcherTests
     [InlineData(3, 4)] // Board ends before full RNG distance.
     public void StaysAtMaximumAvailableAttackDistance(int start, int width)
     {
-        Assert.Null(Choose(State(new(start, 0), new(0, 0), width)));
+        Assert.Equal("stay", Choose(State(new(start, 0), new(0, 0), width)));
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class SkeletonArcherTests
         Assert.Equal(3, queries.DistanceToNearestAttackableHostileFrom("archer", new(3, 0)));
         Assert.Equal(2, queries.DistanceToNearestAttackableHostileFrom("archer", new(2, 0)));
         Assert.Equal(2, queries.DistanceToNearestAttackableHostileFrom("archer", new(4, 0)));
-        Assert.Null(Choose(state));
+        Assert.Equal("stay", Choose(state));
     }
 
     [Theory]
@@ -104,7 +104,7 @@ public sealed class SkeletonArcherTests
         var queries = new GameplayQueries(state);
         Assert.Equal(4, queries.DistanceToNearestAttackableHostileFrom("archer", new(2, 0)));
         Assert.Equal(3, queries.DistanceToNearestAttackableHostileFrom("archer", new(3, 0)));
-        Assert.Null(Choose(state));
+        Assert.Equal("stay", Choose(state));
     }
 
     [Fact]
@@ -153,11 +153,11 @@ public sealed class SkeletonArcherTests
             type: ordinary with { Behaviors = UnitBehavior.MaximizeAttackDistance });
         Assert.Equal(JsonSerializer.Serialize(Pending(normal).NextInput),
             JsonSerializer.Serialize(Pending(keepAway).NextInput));
-        Assert.Null(Choose(normal));
+        Assert.Equal("stay", Choose(normal));
         Assert.Equal("4,0", Choose(keepAway));
         var pending = Pending(keepAway);
         // A different provider can use the ordinary movement preference on the same content.
-        Assert.Null(new MonsterMovementProvider(new DefaultMonsterProvider())
+        Assert.Equal("stay", new MonsterMovementProvider(new DefaultMonsterProvider())
             .Choose(pending.NextInput!, new GameplayQueries(keepAway)));
     }
 
@@ -165,7 +165,9 @@ public sealed class SkeletonArcherTests
     public void StayingIsExcludedWhenDecisionDoesNotPermitIt()
     {
         var state = State(new(4, 0), new(0, 0), width: 5);
-        var request = Pending(state).NextInput! with { AllowsNone = false };
+        var pending = Pending(state).NextInput!;
+        var request = pending with { Kind = DecisionKind.Move, AllowsNone = false,
+            Candidates = pending.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToList() };
         Assert.Equal("3,0", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
     }
 }

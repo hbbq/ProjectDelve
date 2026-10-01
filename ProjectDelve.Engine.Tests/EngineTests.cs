@@ -7,7 +7,8 @@ public sealed class EngineTests
 {
     private sealed class Choice(string? key) : IDecisionProvider
     {
-        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key ?? (request.Kind == DecisionKind.Activation
+                ? request.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key : null);
     }
 
     private sealed class ScriptedRandom(params string[] tokens) : IRandomProvider
@@ -47,11 +48,11 @@ public sealed class EngineTests
         random.DefenceFaces.Enqueue(DefenceFace.Miss);
 
         var result = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         result = Choose(result, "1,1", random);
         Assert.Contains(result.Events, e => e.Kind == "MovementCompleted" &&
             e.Path!.SequenceEqual([new Cell(0, 0), new Cell(1, 0), new Cell(1, 1)]));
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         result = Choose(result, "attack:monster", random);
         Assert.Contains(result.Events, e => e.Kind == "AttackResolved" && e.Hits == 1 &&
             e.Blocks == 0 && e.Damage == 1);
@@ -71,7 +72,6 @@ public sealed class EngineTests
         var random = new ScriptedRandom("hero-type");
         var result = GameEngine.StartRound(state, random);
         result = Choose(result, "hero", random);
-        result = Choose(result, "hero", random);
         var move = result.NextInput!;
         Assert.DoesNotContain(move.Candidates, c => c.Destination == new Cell(1, 0));
         Assert.Equal([new Cell(0, 0), new Cell(1, 0), new Cell(2, 0), new Cell(2, 1)],
@@ -81,7 +81,7 @@ public sealed class EngineTests
     }
 
     [Fact]
-    public void WallsAndHostileOccupancyBlockMovement_AndNoneCompletesMove()
+    public void WallsAndHostileOccupancyBlockMovement_AndStayCompletesMove()
     {
         var state = State(width: 2, height: 2, mov: 2, atk: 0);
         state.Physical.Board.Edges.Add(new Edge(new Cell(0, 0), new Cell(1, 0), EdgeKind.Wall));
@@ -105,13 +105,13 @@ public sealed class EngineTests
         Assert.Equal(result.NextInput!.Kind, restored.Pending!.Kind);
         Assert.Equal(result.NextInput.Candidates.Select(c => c.Key), restored.Pending.Candidates.Select(c => c.Key));
         Assert.Throws<ArgumentException>(() => GameEngine.Advance(restored, new Choice("invented"), random));
-        Assert.Equal(DecisionKind.Move, restored.Pending!.Kind);
+        Assert.Equal(DecisionKind.Activation, restored.Pending!.Kind);
         result = GameEngine.Advance(restored, new Choice("1,0"), random);
         Assert.True(result.State.RoundComplete);
     }
 
     [Fact]
-    public void MeleeAllowsDiagonalTarget_AndNoneSkipsAttack()
+    public void MeleeAllowsDiagonalTarget_AndEndTurnSkipsAttack()
     {
         var state = State(width: 2, height: 2, mov: 0);
         state.Types.Add(new UnitType("enemy", 0, 0, 0, 0, 1));
@@ -119,8 +119,8 @@ public sealed class EngineTests
         state.Physical.Figures.Add(new Figure("enemy", new Cell(1, 1)));
         var random = new ScriptedRandom("hero-type", "enemy");
         var result = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
-        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates).Key);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
         result = Choose(result, null, random);
         Assert.Equal(1, result.State.Units.Single(u => u.Id == "enemy").CurrentHp);
     }
@@ -137,8 +137,8 @@ public sealed class EngineTests
 
         var result = GameEngine.StartRound(state, random);
 
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
-        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates).Key);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
     }
 
     [Fact]
@@ -153,8 +153,8 @@ public sealed class EngineTests
 
         var result = GameEngine.StartRound(state, random);
 
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
-        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates).Key);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class EngineTests
 
         var result = GameEngine.StartRound(state, random);
 
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Contains(result.NextInput.Candidates, candidate => candidate.TargetId == "clear");
         Assert.DoesNotContain(result.NextInput.Candidates, candidate => candidate.TargetId == "behind");
     }
@@ -191,12 +191,12 @@ public sealed class EngineTests
     }
 
     [Fact]
-    public void NoneCompletesMovementWithoutChangingPosition()
+    public void StayCompletesMovementWithoutChangingPosition()
     {
         var random = new ScriptedRandom("hero-type");
         var result = GameEngine.StartRound(State(atk: 0), random);
-        Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
-        Assert.DoesNotContain(result.NextInput.Candidates, c => c.Destination == new Cell(0, 0));
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.DoesNotContain(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Move && c.Destination == new Cell(0, 0));
         result = Choose(result, null, random);
         Assert.Contains(result.Events, e => e.Kind == "MovementCompleted" &&
             e.Path!.SequenceEqual([new Cell(0, 0)]));

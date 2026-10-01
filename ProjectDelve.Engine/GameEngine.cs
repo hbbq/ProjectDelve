@@ -2,7 +2,7 @@ namespace ProjectDelve.Engine;
 
 public static class GameEngine
 {
-    public static EngineResult StartRound(GameState previous, IRandomProvider random)
+    public static EngineResult StartRound(GameState previous, IRandomProvider random, bool filterRelevantChoices = true)
     {
         if (previous.Round != 0 && !previous.RoundComplete)
             throw new InvalidOperationException("The current round is still active.");
@@ -14,21 +14,33 @@ public static class GameEngine
         state.ActiveTypeId = null;
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
+        state.MoveDone = false;
+        state.ActionDone = false;
+        state.BonusActionUsed = false;
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new List<RulesEvent>();
-        RunUntilDecision(state, random, events);
+        RunUntilDecision(state, random, events, filterRelevantChoices);
         return new(state, events, state.Pending);
     }
 
-    public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random)
+    public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool filterRelevantChoices = true)
     {
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
+        var events = new List<RulesEvent>();
+        if (state.CurrentUnitId is not null &&
+            !state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0))
+        {
+            // A dead Unit cannot resume either its activation or a mandatory follow-up.
+            state.Pending = null;
+            RunUntilDecision(state, random, events, filterRelevantChoices);
+            return new(state, events, state.Pending);
+        }
         // Pending data is also exposed to clients and survives serialization. Rebuild
         // legality from authoritative state, and never share canonical paths with a provider.
-        var request = CreateDecision(state);
+        var request = EffectiveDecision(state, filterRelevantChoices);
         if (!TryAutomaticChoice(request, out var choice))
         {
             choice = decisions.Choose(request with
@@ -44,9 +56,8 @@ public static class GameEngine
             throw new ArgumentException("Decision is not among the supplied legal candidates.", nameof(decisions));
 
         state.Pending = null;
-        var events = new List<RulesEvent>();
         ApplyDecision(state, request, choice, random, events);
-        RunUntilDecision(state, random, events);
+        RunUntilDecision(state, random, events, filterRelevantChoices);
         return new(state, events, state.Pending);
     }
 
@@ -69,9 +80,14 @@ public static class GameEngine
         {
             case DecisionKind.SelectUnit:
                 state.CurrentUnitId = choice;
-                if (state.Phase == Phase.BonusAction)
-                    CompleteUnit(state);
+                state.MoveDone = false;
+                state.ActionDone = false;
+                state.BonusActionUsed = false;
                 break;
+            case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
+                CompleteUnit(state);
+                break;
+            case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay:
             case DecisionKind.Move:
                 var figure = state.Physical.Figures.Single(f => f.Id == request.UnitId);
                 var path = choice is null ? new List<Cell> { figure.Position } :
@@ -84,11 +100,10 @@ public static class GameEngine
                 if (request.IsMoveAfterAttack)
                 {
                     state.MoveAfterAttackAllowance = null;
-                    state.CurrentUnitId = null;
                 }
-                else CompleteUnit(state);
+                else state.MoveDone = true;
                 break;
-            case DecisionKind.Act:
+            case DecisionKind.Activation:
                 var attacked = false;
                 if (choice is not null)
                 {
@@ -118,8 +133,8 @@ public static class GameEngine
                             throw new InvalidOperationException("Unsupported action.");
                     }
                 }
-                CompleteUnit(state);
-                if (attacked && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
+                state.ActionDone = true;
+                if (attacked && state.Units.Single(u => u.Id == request.UnitId).CurrentHp > 0 && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
                 {
                     state.CurrentUnitId = request.UnitId;
                     state.MoveAfterAttackAllowance = move.MaxSteps;
@@ -128,7 +143,8 @@ public static class GameEngine
         }
     }
 
-    private static void RunUntilDecision(GameState state, IRandomProvider random, List<RulesEvent> events)
+    private static void RunUntilDecision(GameState state, IRandomProvider random, List<RulesEvent> events,
+        bool filterRelevantChoices)
     {
         while (state.Pending is null && !state.RoundComplete)
         {
@@ -145,21 +161,20 @@ public static class GameEngine
                 if (!state.Bag.Remove(drawn))
                     throw new ArgumentException("Random provider drew a token outside the bag.", nameof(random));
                 state.ActiveTypeId = drawn;
-                state.Phase = Phase.BonusAction;
                 state.CompletedUnitIds.Clear();
                 events.Add(new RulesEvent("TokenDrawn", TypeId: drawn));
             }
 
-            var eligible = EligibleUnits(state);
-            if (eligible.Count == 0 && state.MoveAfterAttackAllowance is null)
+            if (state.CurrentUnitId is not null &&
+                !state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0))
+                CompleteUnit(state);
+            if (state.CurrentUnitId is null && EligibleUnits(state).Count == 0)
             {
                 state.CompletedUnitIds.Clear();
-                state.CurrentUnitId = null;
-                if (state.Phase == Phase.Act) state.ActiveTypeId = null;
-                else state.Phase++;
+                state.ActiveTypeId = null;
                 continue;
             }
-            var request = CreateDecision(state);
+            var request = EffectiveDecision(state, filterRelevantChoices);
             if (!TryAutomaticChoice(request, out var choice))
             {
                 state.Pending = request;
@@ -173,6 +188,10 @@ public static class GameEngine
     {
         state.CompletedUnitIds.Add(state.CurrentUnitId!);
         state.CurrentUnitId = null;
+        state.MoveAfterAttackAllowance = null;
+        state.MoveDone = false;
+        state.ActionDone = false;
+        state.BonusActionUsed = false;
     }
 
     private static void OpenDoor(GameState state, string unitId, Edge door, List<RulesEvent> events)
@@ -191,7 +210,7 @@ public static class GameEngine
         return MovementRules.FindPaths(state, unit.Id, start, allowance)
             .Where(pair => pair.Key != start)
             .OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.X)
-            .Select(pair => new Candidate($"{pair.Key.X},{pair.Key.Y}", pair.Key, [.. pair.Value])).ToList();
+            .Select(pair => new Candidate($"{pair.Key.X},{pair.Key.Y}", pair.Key, [.. pair.Value], Kind: ActivationChoiceKind.Move)).ToList();
     }
 
     private static bool Inside(Board board, Cell cell) =>
@@ -247,17 +266,45 @@ public static class GameEngine
         var eligible = EligibleUnits(state);
         if (state.CurrentUnitId is null)
             return new DecisionRequest(DecisionKind.SelectUnit, state.ActiveTypeId!, null,
-                eligible.Select(u => new Candidate(u.Id)).ToList(), false);
+                eligible.Select(u => new Candidate(u.Id, Kind: ActivationChoiceKind.SelectUnit)).ToList(), false);
 
         var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
-        return state.Phase switch
+        var candidates = new List<Candidate>();
+        if (!state.MoveDone)
         {
-            Phase.Move => new DecisionRequest(DecisionKind.Move, state.ActiveTypeId!, unit.Id,
-                MovementCandidates(state, unit), true),
-            Phase.Act => new DecisionRequest(DecisionKind.Act, state.ActiveTypeId!, unit.Id,
-                ActionCandidates(state, unit), true),
-            _ => throw new InvalidOperationException("No decision is available in this phase.")
-        };
+            candidates.AddRange(MovementCandidates(state, unit));
+            var position = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+            candidates.Add(new Candidate("stay", position, [position], Kind: ActivationChoiceKind.Stay));
+        }
+        else
+        {
+            if (!state.ActionDone) candidates.AddRange(ActionCandidates(state, unit));
+            candidates.Add(new Candidate("end-turn", Kind: ActivationChoiceKind.EndTurn));
+        }
+        return new DecisionRequest(DecisionKind.Activation, unit.TypeId, unit.Id, candidates, false);
+    }
+
+    private static DecisionRequest EffectiveDecision(GameState state, bool filterRelevantChoices)
+    {
+        var legal = CreateDecision(state);
+        // Current content has no temporary Bonus/Free stat modifiers to hide.
+        // Keep relevance policy at the decision boundary: it never changes GameState
+        // or legal timing, and all consumers (including auto-choice) use this result.
+        return filterRelevantChoices ? FilterRelevantChoices(legal) : legal;
+    }
+
+    private static DecisionRequest FilterRelevantChoices(DecisionRequest legal) => legal;
+
+    // Rebuild presentation choices when a host changes its session preference.
+    // Continue any newly forced choices through the same automatic resolution path.
+    public static EngineResult RefreshChoices(GameState previous, IRandomProvider random,
+        bool filterRelevantChoices = true)
+    {
+        var state = previous.Copy();
+        state.Pending = null;
+        var events = new List<RulesEvent>();
+        if (state.Round > 0) RunUntilDecision(state, random, events, filterRelevantChoices);
+        return new(state, events, state.Pending);
     }
 
     private static void ResolveAttack(GameState state, string attackerId, string targetId,

@@ -57,10 +57,13 @@ public static class BoardProperties
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
 }
 public sealed record PhysicalState(Board Board, List<Figure> Figures);
-public enum Phase { BonusAction, Move, Act }
-public enum DecisionKind { SelectUnit, Move, Act }
+// Normal Unit choices use Activation. Move is also used for the narrow post-attack
+// continuation; Move/Act requests support the providers' existing ranking routines.
+public enum DecisionKind { SelectUnit, Activation, Move, Act }
+public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit }
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
-    UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null);
+    UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null,
+    ActivationChoiceKind Kind = ActivationChoiceKind.Action);
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
     bool IsMoveAfterAttack = false);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
@@ -68,6 +71,9 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
     bool IsMoveAfterAttack = false);
 
+// Old group-phase saves cannot be resumed as per-unit activations.
+[System.Text.Json.Serialization.JsonUnmappedMemberHandling(
+    System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 public sealed class GameState
 {
     public required PhysicalState Physical { get; set; }
@@ -76,10 +82,12 @@ public sealed class GameState
     public int Round { get; set; }
     public List<string> Bag { get; set; } = [];
     public string? ActiveTypeId { get; set; }
-    public Phase Phase { get; set; }
+    public bool MoveDone { get; set; }
+    public bool ActionDone { get; set; }
+    public bool BonusActionUsed { get; set; }
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
-    // Act is complete; resume the group Act flow after this Unit's additional Move.
+    // Mandatory post-attack movement resolves before the activation may end.
     public int? MoveAfterAttackAllowance { get; set; }
     public DecisionRequest? Pending { get; set; }
     public bool RoundComplete { get; set; }
@@ -89,7 +97,8 @@ public sealed class GameState
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
-        ActiveTypeId = ActiveTypeId, Phase = Phase, CompletedUnitIds = [.. CompletedUnitIds],
+        ActiveTypeId = ActiveTypeId, MoveDone = MoveDone, ActionDone = ActionDone,
+        BonusActionUsed = BonusActionUsed, CompletedUnitIds = [.. CompletedUnitIds],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         Pending = Pending, RoundComplete = RoundComplete
     };

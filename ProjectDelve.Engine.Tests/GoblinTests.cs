@@ -15,7 +15,8 @@ public sealed class GoblinTests
 
     private sealed class Choice(string? key) : IDecisionProvider
     {
-        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key ?? (request.Kind == DecisionKind.Activation
+                ? request.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key : null);
     }
 
     private static GameState State(Cell? start = null, Cell? target = null, int width = 5, int height = 3) => new()
@@ -47,22 +48,20 @@ public sealed class GoblinTests
     }
 
     [Fact]
-    public void AttackCompletesActAndImmediatelyOffersOneStepMoveThenResumesActivation()
+    public void AttackConsumesActionAndResolvesExtraMoveBeforeNextUnitActivates()
     {
         var state = State();
         state.Units.Add(new("second", "goblin-type", "red", 1));
         state.Physical.Figures.Add(new("second", new(0, 2)));
         var result = GameEngine.StartRound(state, new Random());
-        // Select and finish both ordinary Moves before selecting the first Act.
-        result = GameEngine.Advance(result.State, new Choice("goblin"), new Random()); // Bonus
-        result = GameEngine.Advance(result.State, new Choice("goblin"), new Random()); // Move selection
-        result = GameEngine.Advance(result.State, new Choice(null), new Random());
-        result = GameEngine.Advance(result.State, new Choice(null), new Random()); // second Move
-        result = GameEngine.Advance(result.State, new Choice("goblin"), new Random()); // Act selection
+        result = GameEngine.Advance(result.State, new Choice("goblin"), new Random());
+        result = GameEngine.Advance(result.State, new Choice("stay"), new Random());
         result = GameEngine.Advance(result.State, new Choice("attack:hero"), new Random());
         Assert.Equal("AttackResolved", Assert.Single(result.Events).Kind);
-        Assert.Equal(Phase.Act, result.State.Phase);
-        Assert.Contains("goblin", result.State.CompletedUnitIds);
+        Assert.True(result.State.MoveDone);
+        Assert.DoesNotContain("goblin", result.State.CompletedUnitIds);
+        Assert.True(result.State.ActionDone);
+        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
         Assert.Equal("goblin", result.NextInput!.UnitId);
         Assert.Equal(DecisionKind.Move, result.NextInput.Kind);
         Assert.True(result.NextInput.IsMoveAfterAttack);
@@ -77,9 +76,10 @@ public sealed class GoblinTests
         Assert.True(movement.IsMoveAfterAttack);
         Assert.Equal(new[] { new Cell(2, 1), new Cell(3, 1) }, movement.Path);
         Assert.Equal("second", moved.State.CurrentUnitId);
-        Assert.Equal(DecisionKind.Act, moved.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, moved.NextInput!.Kind);
         Assert.Null(moved.State.MoveAfterAttackAllowance);
-        Assert.True(GameEngine.Advance(moved.State, new Choice(null), new Random()).State.RoundComplete);
+        var stayed = GameEngine.Advance(moved.State, new Choice("stay"), new Random());
+        Assert.True(GameEngine.Advance(stayed.State, new Choice("end-turn"), new Random()).State.RoundComplete);
     }
 
     [Fact]
@@ -110,10 +110,10 @@ public sealed class GoblinTests
         state.Physical.Board.Terrain.Add(new(new(3, 1), TerrainKind.Water));
         state.Units.Add(new("friend", "goblin-type", "red", 1));
         state.Physical.Figures.Add(new("friend", new(2, 2)));
-        // Reach the attack through the normal group selection flow.
+        // Resume this Unit after its normal Move.
         state.Round = 1;
         state.ActiveTypeId = "goblin-type";
-        state.Phase = Phase.Act;
+        state.MoveDone = true;
         state.CurrentUnitId = "goblin";
         state.Pending = new(DecisionKind.Act, "goblin-type", "goblin", [], true);
         var result = GameEngine.Advance(state, new Choice("attack:hero"), new Random());
@@ -164,7 +164,7 @@ public sealed class GoblinTests
         var provider = new DefaultMonsterProvider();
         var adjacent = GameEngine.StartRound(State(), new Random());
         Assert.False(adjacent.NextInput!.IsMoveAfterAttack);
-        Assert.Null(provider.Choose(adjacent.NextInput, new GameplayQueries(adjacent.State)));
+        Assert.Equal("stay", provider.Choose(adjacent.NextInput, new GameplayQueries(adjacent.State)));
         var distant = GameEngine.StartRound(State(start: new(0, 0), target: new(6, 0), width: 7, height: 1), new Random());
         Assert.Equal("4,0", provider.Choose(distant.NextInput!, new GameplayQueries(distant.State)));
     }
@@ -205,7 +205,7 @@ public sealed class GoblinTests
         Assert.Equal(threatened, queries.HasNearbyHostileThreatFrom("goblin", new(2, 1)));
         var move = GameEngine.StartRound(state, new Random());
         var request = move.NextInput! with { IsMoveAfterAttack = true };
-        Assert.Equal(threatened ? "3,1" : null, new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Equal(threatened ? "3,1" : "stay", new DefaultMonsterProvider().Choose(request, queries));
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public sealed class GoblinTests
         var request = move.NextInput! with { IsMoveAfterAttack = true };
         Assert.Contains(request.Candidates, c => c.Key == "3,1");
         Assert.False(new GameplayQueries(state).HasNearbyHostileThreatFrom("goblin", new(2, 1)));
-        Assert.Null(new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Equal("stay", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
     }
 
     [Fact]

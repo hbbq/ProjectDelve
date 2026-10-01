@@ -55,14 +55,14 @@ public sealed class OpenDoorTests
         var state = State();
         var random = new Random();
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Act, pending.NextInput!.Kind);
-        Assert.True(pending.NextInput.AllowsNone);
-        var candidate = Assert.Single(pending.NextInput.Candidates);
+        Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind);
+        Assert.False(pending.NextInput.AllowsNone);
+        var candidate = Assert.Single(pending.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.Equal(UnitAction.OpenDoor, candidate.Action);
         Assert.Equal(EdgeKind.ClosedDoor, candidate.Door!.Kind);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(pending.State))!;
         Assert.Equal(pending.State.Types[0].Actions, restored.Types[0].Actions);
-        Assert.Equal(candidate, Assert.Single(restored.Pending!.Candidates));
+        Assert.Equal(candidate, Assert.Single(restored.Pending!.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))));
 
         var result = Open(restored, random);
 
@@ -83,11 +83,11 @@ public sealed class OpenDoorTests
         var other = new Edge(new Cell(1, 1), new Cell(1, 2), EdgeKind.ClosedDoor);
         state.Physical.Board.Edges.Add(other);
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(2, pending.NextInput!.Candidates.Count);
-        Assert.All(pending.NextInput.Candidates, c => Assert.Equal(UnitAction.OpenDoor, c.Action));
-        Assert.Equal(2, pending.NextInput.Candidates.Select(c => c.Key).Distinct().Count());
+        Assert.Equal(2, pending.NextInput!.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
+        Assert.All(pending.NextInput.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action), c => Assert.Equal(UnitAction.OpenDoor, c.Action));
+        Assert.Equal(2, pending.NextInput.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action).Select(c => c.Key).Distinct().Count());
 
-        foreach (var candidate in pending.NextInput.Candidates)
+        foreach (var candidate in pending.NextInput.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action))
         {
             var result = GameEngine.Advance(pending.State, new Choice(_ => candidate.Key), new Random());
             Assert.Single(result.State.Physical.Board.Edges, e => e.Kind == EdgeKind.OpenDoor);
@@ -103,7 +103,7 @@ public sealed class OpenDoorTests
     {
         var random = new Random();
         var pending = GameEngine.StartRound(State(enemies: true), random);
-        Assert.Equal(3, pending.NextInput!.Candidates.Count);
+        Assert.Equal(3, pending.NextInput!.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.Equal(2, pending.NextInput.Candidates.Count(c => c.Action == UnitAction.NormalAttack));
 
         var result = FinishEnemies(Open(pending.State, random), random);
@@ -134,12 +134,12 @@ public sealed class OpenDoorTests
     }
 
     [Fact]
-    public void HeroCanChooseNone_WhenActionsAreAvailable()
+    public void HeroCanChooseEndTurn_WhenActionsAreAvailable()
     {
         var random = new Random();
         var pending = GameEngine.StartRound(State(enemies: true), random);
-        Assert.Equal(3, pending.NextInput!.Candidates.Count);
-        var result = FinishEnemies(GameEngine.Advance(pending.State, new Choice(_ => null), random), random);
+        Assert.Equal(3, pending.NextInput!.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
+        var result = FinishEnemies(GameEngine.Advance(pending.State, new Choice(_ => "end-turn"), random), random);
 
         Assert.True(result.State.RoundComplete);
         Assert.Equal(Door, Assert.Single(result.State.Physical.Board.Edges));
@@ -154,8 +154,8 @@ public sealed class OpenDoorTests
         state.Types[0] = new UnitType("hero-type", 0, 1, 1, 0, 2);
         var random = new Random();
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(2, pending.NextInput!.Candidates.Count);
-        Assert.All(pending.NextInput.Candidates, c => Assert.Equal(UnitAction.NormalAttack, c.Action));
+        Assert.Equal(2, pending.NextInput!.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
+        Assert.All(pending.NextInput.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action), c => Assert.Equal(UnitAction.NormalAttack, c.Action));
 
         var result = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random);
         Assert.Equal("enemy-1", Assert.Single(result.Events, e => e.Kind == "AttackResolved").TargetId);
@@ -171,7 +171,7 @@ public sealed class OpenDoorTests
         state.Units[0] = state.Units[0] with { TypeId = "monster-type", SideId = "red" };
         var random = new Random();
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(UnitAction.OpenDoor, Assert.Single(pending.NextInput!.Candidates).Action);
+        Assert.Equal(UnitAction.OpenDoor, Assert.Single(pending.NextInput!.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Action);
         var automatic = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random);
         Assert.Equal(Door, Assert.Single(automatic.State.Physical.Board.Edges));
         Assert.Equal(EdgeKind.OpenDoor, Assert.Single(Open(pending.State, random).State.Physical.Board.Edges).Kind);
@@ -206,7 +206,7 @@ public sealed class OpenDoorTests
         state.Types[0] = state.Types[0] with { Actions = UnitAction.OpenDoor, Atk = atk, Rng = rng };
         var random = new Random();
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(UnitAction.OpenDoor, Assert.Single(pending.NextInput!.Candidates).Action);
+        Assert.Equal(UnitAction.OpenDoor, Assert.Single(pending.NextInput!.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Action);
         var queries = new GameplayQueries(pending.State);
         Assert.False(queries.CanAttackHostileFrom("hero", new Cell(1, 1)));
         Assert.Null(queries.DistanceToAttackPositionFrom("hero", new Cell(1, 1)));
@@ -249,12 +249,12 @@ public sealed class OpenDoorTests
             [new Figure("hero", new Cell(0, 0))]);
         var random = new Random();
         var pending = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Act, pending.NextInput!.Kind); // Closed door prevents Move.
+        Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind); // Closed door prevents Move.
         var opened = Open(pending.State, random);
         Assert.True(opened.State.RoundComplete);
         var nextRound = GameEngine.StartRound(opened.State, random);
-        Assert.Equal(DecisionKind.Move, nextRound.NextInput!.Kind);
-        var destination = Assert.Single(nextRound.NextInput.Candidates);
+        Assert.Equal(DecisionKind.Activation, nextRound.NextInput!.Kind);
+        var destination = Assert.Single(nextRound.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.Equal(new Cell(1, 0), destination.Destination);
         Assert.Equal([new Cell(0, 0), new Cell(1, 0)], destination.Path);
 
@@ -298,7 +298,7 @@ public sealed class OpenDoorTests
         while (result.NextInput!.Kind == DecisionKind.SelectUnit)
             result = GameEngine.Advance(result.State, monsters, random);
         Assert.Equal("monster-1", result.NextInput.UnitId);
-        Assert.Equal(DecisionKind.Move, result.NextInput.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput.Kind);
         Assert.Equal(new[] { new Cell(1, 2), new Cell(2, 2) },
             result.NextInput.Candidates.Single(c => c.Key == "2,2").Path);
 

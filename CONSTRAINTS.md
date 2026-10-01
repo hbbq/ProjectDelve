@@ -594,7 +594,7 @@ A living Unit normally has:
 - at most one Bonus Action when supplied by an applicable ability,
 - any applicable Free Actions, subject to their own rules and usage limits.
 
-After any choice resolves, the currently legal choices are determined again from the resulting state. The activation ends when the Unit chooses or automatically resolves **End Turn** and no further resolution remains.
+After any choice resolves, the currently legal choices are determined again from the resulting state. The activation ends when the Unit chooses or automatically resolves **End Turn**. End Turn is legal only after Move (including Stay) is completed and all mandatory follow-up resolution has finished. In particular, Move After Attack resolves before End Turn or selection of another Unit; End Turn never starts an extra phase.
 
 A Unit that dies during its own activation cannot continue acting.
 
@@ -650,7 +650,7 @@ Whether a destination cell is otherwise passable is determined by the rules for 
 
 Different rules questions use different notions of pathing and distance. They must not be treated as one interchangeable pathfinding operation merely because they can share low-level grid traversal algorithms.
 
-**Actual movement** answers where a Unit can legally move during its Move phase. It respects terrain and edge passability, the Unit's effective movement allowance, and current Unit occupancy. Friendly Units may be passed through, hostile Units may not be passed through, and movement may not end on any occupied cell.
+**Actual movement** answers where a Unit can legally move during its Move. It respects terrain and edge passability, the Unit's effective movement allowance, and current Unit occupancy. Friendly Units may be passed through, hostile Units may not be passed through, and movement may not end on any occupied cell.
 
 **Approach distance** answers how far a cell is from a goal through the board's traversable terrain. It is used for evaluations such as deciding which legal movement destination brings a Monster closer to a future attack position. Approach distance respects terrain and edge passability but ignores Units as traversal obstacles. Figures are temporary occupants and must not make the underlying route appear permanently unreachable. This allows Monsters behind other Monsters, for example in a doorway or corridor, to continue moving toward the same engagement even when the front Monsters currently occupy the route.
 
