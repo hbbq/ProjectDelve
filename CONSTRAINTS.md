@@ -446,6 +446,25 @@ This Behavior may therefore move a Skeleton Archer away from an enemy even when 
 
 Maximize Attack Distance is a Decision Provider preference, not an attack or movement rule. It uses shared gameplay queries for attack legality, distance, Line of Sight, and related calculations rather than reproducing those rules inside the provider.
 
+### Goblin
+
+Goblin is the first Monster Unit Type with a Capability that changes the normal phase flow.
+
+- Stats: `MOV 4`, `RNG 1` (Melee), `ATK 2`, `DEF 2`, `HP 1`.
+- Actions: Normal Attack.
+- Capabilities: `MoveAfterAttack(1)`.
+- Behaviors: Retreat After Attack.
+
+**Move After Attack** is a reusable Capability parameterized by the maximum number of movement steps. If the Unit performed an Attack during its Act phase, that Attack first resolves completely according to the normal resolution-timing rules. Immediately after the Act phase is complete, before activation proceeds to another Unit or phase, that same Unit receives one additional Move phase with its movement allowance limited to the Capability's value. For Goblin this is `MOV 1`.
+
+The additional Move uses the normal movement rules and legal-destination generation except for its reduced movement allowance. It is part of the game rules and therefore occurs regardless of which Decision Provider controls the Unit. If the Unit did not perform an Attack during Act, no additional Move phase is created.
+
+**Retreat After Attack** is the Default Monster Behavior for choosing during that additional Move only. It does not affect Goblin's ordinary Move phase. Consider every legal destination for the additional Move plus staying in the current cell when no movement is permitted as a choice. For each position, calculate the ordinary approach distance to the nearest hostile Unit using the normal approach-distance assumptions. Choose the position that maximizes that nearest-hostile approach distance.
+
+Ties use shortest actual movement path length, with staying treated as path length 0, then top-left board order (ascending `y`, then `x`).
+
+Retreat After Attack is only a Decision Provider preference. A Goblin controlled by another provider still receives `MoveAfterAttack(1)`, but that provider chooses how to use the additional Move. No general mechanism for assigning arbitrary Behaviors to arbitrary extra phases is required at this stage.
+
 ## Unit stats
 
 Every Unit has the same five base stats:
