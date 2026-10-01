@@ -44,13 +44,16 @@ internal static class ExploratoryScenario
             [new Figure("zombie-1", new Cell(0, 6)), new Figure("aria", new Cell(1, 2)), new Figure("bram", new Cell(8, 5)),
                 new Figure("wolf-1", new Cell(4, 2)), new Figure("wolf-2", new Cell(5, 3)),
                 new Figure("wolf-3", new Cell(4, 5)), new Figure("sentinel-1", new Cell(6, 2)),
-                new Figure("sentinel-2", new Cell(6, 5))]),
+                new Figure("sentinel-2", new Cell(6, 5)),
+                // Starts two cells from Aria, with open space to retreat while shooting.
+                new Figure("archer-1", new Cell(1, 0))]),
         Types = [UnitType.Hero("aria-type", 3, 1, 2, 1, 4), UnitType.Hero("bram-type", 3, 2, 2, 1, 4),
-            new UnitType("wolf-type", 3, 1, 1, 0, 1), new UnitType("sentinel-type", 2, 2, 1, 1, 1), UnitType.Zombie()],
+            new UnitType("wolf-type", 3, 1, 1, 0, 1), new UnitType("sentinel-type", 2, 2, 1, 1, 1), UnitType.Zombie(),
+            UnitType.SkeletonArcher()],
         Units = [new Unit("zombie-1", "zombie-type", "red", 1), new Unit("aria", "aria-type", "blue", 4), new Unit("bram", "bram-type", "blue", 4),
             new Unit("wolf-1", "wolf-type", "red", 1), new Unit("wolf-2", "wolf-type", "red", 1),
             new Unit("wolf-3", "wolf-type", "red", 1), new Unit("sentinel-1", "sentinel-type", "red", 1),
-            new Unit("sentinel-2", "sentinel-type", "red", 1)]
+            new Unit("sentinel-2", "sentinel-type", "red", 1), new Unit("archer-1", "skeleton-archer-type", "red", 1)]
     };
 }
 

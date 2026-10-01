@@ -10,7 +10,7 @@ public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.
 [Flags]
 public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
@@ -23,6 +23,9 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Zombie(string id = "zombie-type") =>
         new(id, 2, 1, 3, 3, 1, TryOpenDoor: new(2),
             Behaviors: UnitBehavior.ApproachThroughClosedDoors);
+
+    public static UnitType SkeletonArcher(string id = "skeleton-archer-type") =>
+        new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance);
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 

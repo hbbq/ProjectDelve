@@ -5,12 +5,37 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
     public string? Choose(DecisionRequest request, IGameplayQueries queries) => request.Kind switch
     {
         DecisionKind.SelectUnit => SelectUnit(request, queries),
-        DecisionKind.Move => MonsterMovementProvider.ChooseMovement(request, queries,
-            closedDoorsTraversable: queries.BehaviorsOf(request.UnitId!)
-                .HasFlag(UnitBehavior.ApproachThroughClosedDoors)),
+        DecisionKind.Move => SelectMovement(request, queries),
         DecisionKind.Act => SelectAction(request, queries),
         _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported decision kind.")
     };
+
+    private static string? SelectMovement(DecisionRequest request, IGameplayQueries queries)
+    {
+        var unitId = request.UnitId!;
+        var behaviors = queries.BehaviorsOf(unitId);
+        if (behaviors.HasFlag(UnitBehavior.MaximizeAttackDistance))
+        {
+            var positions = request.Candidates.Select(c => (
+                Key: (string?)c.Key, Position: c.Destination!, MovementLength: c.Path!.Count - 1));
+            if (request.AllowsNone)
+                positions = positions.Append((null, queries.PositionOf(unitId), 0));
+
+            var preferred = positions
+                .Select(p => new { p.Key, p.Position, p.MovementLength,
+                    Distance = queries.DistanceToNearestAttackableHostileFrom(unitId, p.Position) })
+                .Where(p => p.Distance.HasValue)
+                .OrderByDescending(p => p.Distance!.Value)
+                .ThenBy(p => p.MovementLength)
+                .ThenBy(p => p.Position.Y)
+                .ThenBy(p => p.Position.X)
+                .FirstOrDefault();
+            if (preferred is not null) return preferred.Key;
+        }
+
+        return MonsterMovementProvider.ChooseMovement(request, queries,
+            closedDoorsTraversable: behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors));
+    }
 
     private static string? SelectUnit(DecisionRequest request, IGameplayQueries queries)
     {

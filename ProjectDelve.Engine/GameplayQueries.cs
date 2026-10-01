@@ -7,6 +7,8 @@ public interface IGameplayQueries
     UnitBehavior BehaviorsOf(string unitId);
     int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId);
     bool CanAttackHostileFrom(string unitId, Cell position);
+    // Manhattan distance to the nearest legal NormalAttack target; null if none exists.
+    int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position);
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
     // position is reachable; undefined LOS does not count as a possible attack.
@@ -37,6 +39,17 @@ internal sealed class GameplayQueries : IGameplayQueries
     public bool CanAttackHostileFrom(string unitId, Cell position) =>
         world.Units.Any(target => AttackRules.EvaluateFrom(world, unitId, position, target.Id)
             == NormalAttackEvaluation.Possible);
+
+    public int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        return world.Units
+            .Where(target => AttackRules.EvaluateFrom(world, unitId, position, target.Id)
+                == NormalAttackEvaluation.Possible)
+            .Select(target => PositionOf(target.Id))
+            .Select(target => (int?)(Math.Abs(position.X - target.X) + Math.Abs(position.Y - target.Y)))
+            .Min();
+    }
 
     public int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
     {

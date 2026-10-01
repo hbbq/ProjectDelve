@@ -12,7 +12,7 @@ const cells = new Map();
 const cellKey = cell => `${cell.x},${cell.y}`;
 const edgeKey = edge => [cellKey(edge.a), cellKey(edge.b)].sort().join("|");
 const unitLabel = id => ({ aria: "Aria", bram: "Bram", "wolf-1": "W1", "wolf-2": "W2", "wolf-3": "W3",
-  "zombie-1": "Z1", "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
+  "zombie-1": "Z1", "archer-1": "A1", "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
 
 function placeFigure(node, cell, board) {
