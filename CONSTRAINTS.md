@@ -386,6 +386,8 @@ For movement, use these priorities:
 
 Remaining traversable distance uses the Approach distance rules defined under Unit activation. It ignores Units as traversal obstacles while still respecting terrain and edge passability. It measures distance to a position from which the hostile Unit could be attacked, not ordinary legal movement into the hostile's occupied cell. An attack position must permit a normal Attack under currently supported rules; undefined LOS does not count as a possible attack.
 
+When the Move decision permits no movement, remaining in the Unit's current cell participates in the same approach ranking as the engine-supplied movement destinations. Treat staying as movement path length 0 and evaluate its remaining approach distance from the current cell. If staying ranks best under the normal criteria, the Monster stays. This includes ties on remaining approach distance: because staying has path length 0, a Monster does not move when movement would leave it equally close to a future attack position.
+
 Destination ties use top-left board order. Separately, canonical shortest movement paths retain the BFS neighbor expansion order top, left, right, bottom.
 
 For Act, Default Monster Behavior first chooses among engine-supplied Normal Attack candidates using the attack ranking below. If no Normal Attack candidate exists and one or more Try Open Door candidates exist, it chooses Try Open Door. When several such door candidates exist, choose the candidate whose cell on the opposite side of the door is first in top-left board order (ascending `y`, then `x`). Default Monster Behavior acts on these reusable Action types and does not special-case the Unit Type that supplied them.
