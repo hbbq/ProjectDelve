@@ -463,6 +463,8 @@ The additional Move uses the normal movement rules and legal-destination generat
 
 Ties use shortest actual movement path length, with staying treated as path length 0, then top-left board order (ascending `y`, then `x`).
 
+If no hostile Unit has a calculable ordinary approach distance from any of the available positions, Retreat After Attack chooses no movement and the Unit stays in its current cell. The Move After Attack phase still occurs and is completed normally; absence of reachable danger only determines the automated provider's choice.
+
 Retreat After Attack is only a Decision Provider preference. A Goblin controlled by another provider still receives `MoveAfterAttack(1)`, but that provider chooses how to use the additional Move. No general mechanism for assigning arbitrary Behaviors to arbitrary extra phases is required at this stage.
 
 ## Unit stats
