@@ -418,9 +418,32 @@ This is not a general restriction that Monsters must have `HP 1`. A physically u
 
 Abilities and effects may make grouped Monsters easier or harder to damage or kill without requiring untrackable persistent per-figure state. Different `DEF` values are one example.
 
-## Initial Monster content
+## Initial Unit content
 
-### Zombie
+The current v0 content roster is deliberately small. The reference implementation and its default test/playtest scenario should use only the Unit Types listed in this section unless a test defines a temporary Unit Type specifically to exercise a rule.
+
+### Heroes
+
+#### Barbarian
+
+- Stats: `MOV 3`, `RNG 1` (Melee), `ATK 4`, `DEF 3`, `HP 5`.
+- Actions: Normal Attack.
+
+#### Rogue
+
+- Stats: `MOV 4`, `RNG 1` (Melee), `ATK 3`, `DEF 2`, `HP 4`.
+- Actions: Normal Attack.
+
+### Monsters
+
+#### Grunt
+
+Grunt is the baseline Monster Unit Type with no special Actions, Capabilities, or Behaviors.
+
+- Stats: `MOV 3`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 1`.
+- Actions: Normal Attack.
+
+#### Zombie
 
 Zombie is the first Monster Unit Type used to establish the reusable Action/Behavior composition pattern.
 
@@ -430,7 +453,7 @@ Zombie is the first Monster Unit Type used to establish the reusable Action/Beha
 
 Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
 
-### Skeleton Archer
+#### Skeleton Archer
 
 Skeleton Archer is a ranged Monster Unit Type whose automated Behavior prefers to attack while keeping as much distance as possible.
 
@@ -446,7 +469,7 @@ This Behavior may therefore move a Skeleton Archer away from an enemy even when 
 
 Maximize Attack Distance is a Decision Provider preference, not an attack or movement rule. It uses shared gameplay queries for attack legality, distance, Line of Sight, and related calculations rather than reproducing those rules inside the provider.
 
-### Goblin
+#### Goblin
 
 Goblin is the first Monster Unit Type with a Capability that changes the normal phase flow.
 
