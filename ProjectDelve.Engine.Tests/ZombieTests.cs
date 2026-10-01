@@ -79,6 +79,38 @@ public sealed class ZombieTests
     }
 
     [Fact]
+    public void ZombieAdjacentToClosedDoorStaysThenTriesToOpenIt()
+    {
+        var state = Corridor();
+        var current = new Cell(1, 0);
+        state.Physical.Figures[0] = new("monster", current);
+        var random = new Random(1);
+        var provider = new DefaultMonsterProvider();
+        var pending = GameEngine.StartRound(state, random);
+        Assert.Equal(DecisionKind.Move, pending.NextInput!.Kind);
+        var candidate = Assert.Single(pending.NextInput.Candidates);
+        Assert.Equal(new Cell(0, 0), candidate.Destination);
+        var queries = new GameplayQueries(pending.State);
+        Assert.False(queries.CanAttackHostileFrom("monster", current));
+        Assert.Equal(2, queries.DistanceToAttackPositionFrom("monster", current));
+        Assert.Equal(3, queries.DistanceToAttackPositionFrom("monster", candidate.Destination!));
+
+        var stayed = GameEngine.Advance(pending.State, provider, random);
+        Assert.Equal(current, stayed.State.Physical.Figures[0].Position);
+        Assert.Equal(DecisionKind.Act, stayed.NextInput!.Kind);
+        Assert.NotNull(Assert.Single(stayed.NextInput.Candidates).TryOpenDoor);
+        Assert.Equal(0, random.Rolls);
+
+        var acted = GameEngine.Advance(stayed.State, provider, random);
+        Assert.True(acted.State.RoundComplete);
+        Assert.Equal(current, acted.State.Physical.Figures[0].Position);
+        Assert.Equal(1, random.Rolls);
+        Assert.Single(acted.Events, e => e.Kind == "DoorOpeningAttemptResolved");
+        Assert.Single(acted.Events, e => e.Kind == "DoorOpened");
+        Assert.Equal(EdgeKind.OpenDoor, acted.State.Physical.Board.Edges[0].Kind);
+    }
+
+    [Fact]
     public void AttackHasPriorityOverDoorAttempt()
     {
         var state = Corridor();

@@ -142,7 +142,7 @@ public sealed class MonsterMovementTests
     // Supply query answers directly to isolate ranking priorities from geometry.
     private sealed class RankingQueries : IGameplayQueries
     {
-        public Cell Current { get; } = new(0, 0);
+        public Cell Current { get; init; } = new(0, 0);
         public HashSet<Cell> AttackPositions { get; } = [];
         public Dictionary<Cell, int?> Distances { get; } = [];
         public Cell PositionOf(string unitId) => Current;
@@ -155,6 +155,34 @@ public sealed class MonsterMovementTests
     private static Candidate Choice(Cell destination, int steps) =>
         new($"{destination.X},{destination.Y}", destination,
             Enumerable.Repeat(new Cell(0, 0), steps).Append(destination).ToList());
+
+    [Theory]
+    [InlineData(3, true)] // Staying has a shorter remaining distance than every move.
+    [InlineData(2, true)] // Equal distance: staying wins with movement length zero.
+    [InlineData(1, false)] // A genuine improvement wins despite requiring movement.
+    public void ApproachRankingIncludesStayingWhenAllowed(int candidateDistance, bool stays)
+    {
+        var queries = new RankingQueries { Current = new Cell(3, 3) };
+        var candidates = new[] { Choice(new Cell(1, 0), 1), Choice(new Cell(2, 0), 2) };
+        queries.Distances[queries.Current] = 2;
+        foreach (var candidate in candidates)
+            queries.Distances[candidate.Destination!] = candidateDistance;
+        var request = new DecisionRequest(DecisionKind.Move, "type", "unit", candidates.ToList(), true);
+
+        Assert.Equal(stays ? null : candidates[0].Key, new DefaultMonsterProvider().Choose(request, queries));
+    }
+
+    [Fact]
+    public void ApproachRankingExcludesStayingWhenNotAllowed()
+    {
+        var queries = new RankingQueries();
+        var candidate = Choice(new Cell(1, 0), 1);
+        queries.Distances[queries.Current] = 1;
+        queries.Distances[candidate.Destination!] = 2;
+        var request = new DecisionRequest(DecisionKind.Move, "type", "unit", [candidate], false);
+
+        Assert.Equal(candidate.Key, new DefaultMonsterProvider().Choose(request, queries));
+    }
 
     [Fact]
     public void RemainingDistanceRanksBeforeMovementLengthAndTopLeftBoardOrder()

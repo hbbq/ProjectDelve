@@ -28,23 +28,28 @@ public sealed class MonsterMovementProvider(IDecisionProvider otherDecisions) : 
         if (attackDestination is not null)
             return attackDestination.Key;
 
-        // 3. Approach an attack position by shortest remaining traversable
+        // 3. Rank movement and, when allowed, staying by remaining approach
         //    distance, then movement path length, then top-left board order.
-        var approachingDestination = request.Candidates
-            .Select(c => new
-            {
-                Candidate = c,
-                RemainingDistance = queries.DistanceToAttackPositionFrom(unitId, c.Destination!)
-            })
+        var approachOptions = request.Candidates
+            .Select(c => (
+                Key: (string?)c.Key,
+                Position: c.Destination!,
+                MovementLength: c.Path!.Count - 1,
+                RemainingDistance: queries.DistanceToAttackPositionFrom(unitId, c.Destination!)));
+        if (request.AllowsNone)
+            approachOptions = approachOptions.Append((null, current, 0,
+                queries.DistanceToAttackPositionFrom(unitId, current)));
+
+        var approachingDestination = approachOptions
             .Where(x => x.RemainingDistance.HasValue)
             .OrderBy(x => x.RemainingDistance!.Value)
-            .ThenBy(x => x.Candidate.Path!.Count - 1)
-            .ThenBy(x => x.Candidate.Destination!.Y)
-            .ThenBy(x => x.Candidate.Destination!.X)
+            .ThenBy(x => x.MovementLength)
+            .ThenBy(x => x.Position.Y)
+            .ThenBy(x => x.Position.X)
             .FirstOrDefault();
 
-        if (approachingDestination is not null)
-            return approachingDestination.Candidate.Key;
+        if (approachingDestination.RemainingDistance.HasValue)
+            return approachingDestination.Key;
 
         // No legal destination can reach an attack position: stay if allowed.
         if (request.AllowsNone) return null;
