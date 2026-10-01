@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Delve · Playtest</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header><h1>Project Delve <small>visual playtest</small></h1>
+    <p>Aria approaches from the west; Bram from the east. Open doors at (3,2) or (7,5), or flank around the walls.</p>
+  </header>
+  <main>
+    <section aria-label="Board">
+      <p id="status" aria-live="polite">Loading…</p>
+      <div id="board" aria-label="Dungeon board"></div>
+      <p class="legend">Blue: Aria &amp; Bram · Red: W1–W3 Wolves, S1–S2 Sentinels · Dark edge: wall · Gold: closed door · Dashed green: open door</p>
+      <p id="effect" role="status"></p>
+      <div class="toolbar">
+        <button id="round" disabled>Start round</button>
+        <button id="refresh" disabled>Refresh</button>
+        <button id="skip" disabled>Skip effects</button>
+        <label><input id="animate" type="checkbox" checked> Animate events</label>
+      </div>
+      <p id="error" role="alert"></p>
+    </section>
+    <aside>
+      <h2>Player choice</h2><p id="prompt"></p><div id="choices"></div>
+      <h2>Units</h2><div id="units"></div>
+      <h2>Events <small>latest response</small></h2><ol id="events"></ol>
+    </aside>
+  </main>
+  <footer>One game lives in this host. Restart the host to reset the scenario. There are no victory conditions.</footer>
+</body>
+</html>
