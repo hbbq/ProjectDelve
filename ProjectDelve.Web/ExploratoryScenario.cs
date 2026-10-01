@@ -2,62 +2,61 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Web;
 
-// Web-only exploratory content: opposing approaches to a shared central encounter.
+// A sealed crypt beside a narrow approach opens onto a broad courtyard.
 internal static class ExploratoryScenario
 {
-    internal static GameState Create() => new()
+    internal static GameState Create()
     {
-        Physical = new PhysicalState(new Board(10, 8,
-            [// Zombie corridor: its only exit is a closed door toward Aria.
-                new Edge(new Cell(0, 3), new Cell(0, 4), EdgeKind.ClosedDoor),
-                new Edge(new Cell(0, 4), new Cell(1, 4), EdgeKind.Wall),
-                new Edge(new Cell(0, 5), new Cell(1, 5), EdgeKind.Wall),
-                new Edge(new Cell(0, 6), new Cell(1, 6), EdgeKind.Wall),
-                new Edge(new Cell(0, 7), new Cell(1, 7), EdgeKind.Wall),
-                // West barrier: two door shortcuts, or open routes around either end.
-                new Edge(new Cell(3, 1), new Cell(4, 1), EdgeKind.Wall),
-                new Edge(new Cell(3, 2), new Cell(4, 2), EdgeKind.ClosedDoor),
-                new Edge(new Cell(3, 3), new Cell(4, 3), EdgeKind.WallWithWindow),
-                new Edge(new Cell(3, 4), new Cell(4, 4), EdgeKind.Wall),
-                new Edge(new Cell(3, 5), new Cell(4, 5), EdgeKind.ClosedDoor),
-                // East barrier: an open passage above Bram's closed door, plus end routes.
-                new Edge(new Cell(6, 2), new Cell(7, 2), EdgeKind.Wall),
-                new Edge(new Cell(6, 3), new Cell(7, 3), EdgeKind.OpenDoor),
-                new Edge(new Cell(6, 4), new Cell(7, 4), EdgeKind.Wall),
-                new Edge(new Cell(6, 5), new Cell(7, 5), EdgeKind.ClosedDoor),
-                new Edge(new Cell(6, 6), new Cell(7, 6), EdgeKind.Wall),
-                // A short central divider changes north/south routes without forming a maze.
-                new Edge(new Cell(4, 3), new Cell(4, 4), EdgeKind.ClosedDoor),
-                new Edge(new Cell(5, 3), new Cell(5, 4), EdgeKind.Wall),
-                new Edge(new Cell(6, 3), new Cell(6, 4), EdgeKind.Wall)])
-            {
-                Terrain = [new TerrainTile(new Cell(0, 0), TerrainKind.Grass),
-                    new TerrainTile(new Cell(1, 0), TerrainKind.Grass),
-                    new TerrainTile(new Cell(2, 0), TerrainKind.Tree),
-                    new TerrainTile(new Cell(1, 3), TerrainKind.Water),
-                    new TerrainTile(new Cell(2, 3), TerrainKind.Water),
-                    new TerrainTile(new Cell(5, 2), TerrainKind.StoneFloorWithTable),
-                    new TerrainTile(new Cell(8, 4), TerrainKind.StoneFloorWithTable),
-                    new TerrainTile(new Cell(8, 7), TerrainKind.Grass),
-                    new TerrainTile(new Cell(9, 7), TerrainKind.Tree)]
-            },
-            [new Figure("zombie-1", new Cell(0, 6)), new Figure("aria", new Cell(1, 2)), new Figure("bram", new Cell(8, 5)),
-                new Figure("wolf-1", new Cell(4, 2)), new Figure("wolf-2", new Cell(5, 3)),
-                new Figure("wolf-3", new Cell(4, 5)), new Figure("sentinel-1", new Cell(6, 2)),
-                new Figure("sentinel-2", new Cell(6, 5)),
-                // Starts two cells from Aria, with open space to retreat while shooting.
-                new Figure("archer-1", new Cell(1, 0)),
-                // Open southern route to Bram, with room to back away one step after attacking.
-                new Figure("goblin-1", new Cell(5, 7))]),
-        Types = [UnitType.Hero("aria-type", 3, 1, 2, 1, 4), UnitType.Hero("bram-type", 3, 2, 2, 1, 4),
-            new UnitType("wolf-type", 3, 1, 1, 0, 1), new UnitType("sentinel-type", 2, 2, 1, 1, 1), UnitType.Zombie(),
-            UnitType.SkeletonArcher(), UnitType.Goblin()],
-        Units = [new Unit("zombie-1", "zombie-type", "red", 1), new Unit("aria", "aria-type", "blue", 4), new Unit("bram", "bram-type", "blue", 4),
-            new Unit("wolf-1", "wolf-type", "red", 1), new Unit("wolf-2", "wolf-type", "red", 1),
-            new Unit("wolf-3", "wolf-type", "red", 1), new Unit("sentinel-1", "sentinel-type", "red", 1),
-            new Unit("sentinel-2", "sentinel-type", "red", 1), new Unit("archer-1", "skeleton-archer-type", "red", 1),
-            new Unit("goblin-1", "goblin-type", "red", 1)]
-    };
+        var edges = new List<Edge>();
+        // Crypt interior: x=1..3, y=2..5. Its only exit is the eastern door.
+        for (var x = 1; x <= 3; x++)
+        {
+            edges.Add(new(new(x, 1), new(x, 2), EdgeKind.Wall));
+            edges.Add(new(new(x, 5), new(x, 6), EdgeKind.Wall));
+        }
+        for (var y = 2; y <= 5; y++)
+        {
+            edges.Add(new(new(0, y), new(1, y), EdgeKind.Wall));
+            edges.Add(new(new(3, y), new(4, y), y == 4 ? EdgeKind.ClosedDoor : EdgeKind.Wall));
+        }
+        // Two-cell approach beside the crypt, with a window into the courtyard.
+        for (var y = 1; y <= 5; y++)
+            edges.Add(new(new(5, y), new(6, y), y == 3 ? EdgeKind.WallWithWindow : EdgeKind.Wall));
+        // Southern ruin: a doorway and an open end give two routes through.
+        for (var x = 0; x <= 5; x++)
+            edges.Add(new(new(x, 11), new(x, 12), x == 3 ? EdgeKind.OpenDoor : EdgeKind.Wall));
+
+        var board = new Board(15, 15, edges)
+        {
+            Terrain = [
+                // A stream with a stone crossing at y=3; space to go around below.
+                new(new(8, 0), TerrainKind.Water), new(new(8, 1), TerrainKind.Water),
+                new(new(8, 2), TerrainKind.Water), new(new(8, 4), TerrainKind.Water),
+                new(new(8, 5), TerrainKind.Water),
+                new(new(11, 1), TerrainKind.Grass), new(new(12, 1), TerrainKind.Tree),
+                new(new(13, 1), TerrainKind.Grass), new(new(13, 2), TerrainKind.Tree),
+                new(new(11, 12), TerrainKind.Grass), new(new(12, 12), TerrainKind.Grass),
+                new(new(13, 12), TerrainKind.Tree), new(new(12, 13), TerrainKind.Grass),
+                new(new(2, 2), TerrainKind.StoneFloorWithTable),
+                new(new(9, 10), TerrainKind.StoneFloorWithTable)]
+        };
+        return new()
+        {
+            Physical = new(board, [
+                new("barbarian", new(4, 7)), new("rogue", new(4, 10)),
+                new("grunt-1", new(7, 11)), new("grunt-2", new(10, 8)),
+                new("zombie-1", new(2, 3)), new("zombie-2", new(1, 5)),
+                new("archer-1", new(6, 7)), new("archer-2", new(12, 3)),
+                new("goblin-1", new(7, 10))]),
+            Types = [UnitType.Barbarian(), UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(),
+                UnitType.SkeletonArcher(), UnitType.Goblin()],
+            Units = [new("barbarian", "barbarian-type", "blue", 5), new("rogue", "rogue-type", "blue", 4),
+                new("grunt-1", "grunt-type", "red", 1), new("grunt-2", "grunt-type", "red", 1),
+                new("zombie-1", "zombie-type", "red", 1), new("zombie-2", "zombie-type", "red", 1),
+                new("archer-1", "skeleton-archer-type", "red", 1), new("archer-2", "skeleton-archer-type", "red", 1),
+                new("goblin-1", "goblin-type", "red", 1)]
+        };
+    }
 }
 
 internal sealed class SystemRandomProvider : IRandomProvider

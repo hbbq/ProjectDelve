@@ -5,7 +5,7 @@ Console.WriteLine("Project Delve: exploratory rounds. Hero decisions are manual;
 Console.WriteLine("Tokens and dice are rolled automatically. Coordinates start at top-left (0,0).");
 Console.WriteLine("Detour scenario: walls and a closed door divide the board; rows 0 and 4 provide open routes.");
 Console.WriteLine("Choose 0 to keep the Hero at (4,2) and observe the Monsters approach over successive rounds.");
-Console.WriteLine("Or move the Hero to (3,2), then choose Open Door during Act. On a later Move, cross to (2,2).");
+Console.WriteLine("Barbarian faces two Grunts. The closed door blocks both sides; use the open end routes.");
 
 var state = new GameState
 {
@@ -18,9 +18,9 @@ var state = new GameState
             new Edge(new Cell(2, 2), new Cell(2, 3), EdgeKind.Wall)]),
         [new Figure("hero", new Cell(4, 2)), new Figure("monster-1", new Cell(1, 2)),
             new Figure("monster-2", new Cell(1, 3))]),
-    Types = [UnitType.Hero("hero-type", 2, 1, 1, 0, 2), new UnitType("monster-type", 2, 1, 1, 1, 1)],
-    Units = [new Unit("hero", "hero-type", "blue", 2), new Unit("monster-1", "monster-type", "red", 1),
-        new Unit("monster-2", "monster-type", "red", 1)]
+    Types = [UnitType.Barbarian(), UnitType.Grunt()],
+    Units = [new Unit("hero", "barbarian-type", "blue", 5), new Unit("monster-1", "grunt-type", "red", 1),
+        new Unit("monster-2", "grunt-type", "red", 1)]
 };
 var manualDecisions = new ConsoleDecisionProvider();
 var monsterDecisions = new DefaultMonsterProvider();
@@ -49,7 +49,7 @@ try
             result = GameEngine.StartRound(result.State, random);
             continue;
         }
-        IDecisionProvider decisions = result.NextInput!.TypeId == "monster-type"
+        IDecisionProvider decisions = result.NextInput!.TypeId == "grunt-type"
             ? monsterDecisions
             : manualDecisions;
         result = GameEngine.Advance(result.State, decisions, random);

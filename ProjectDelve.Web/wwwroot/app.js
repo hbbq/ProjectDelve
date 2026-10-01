@@ -11,8 +11,8 @@ const cells = new Map();
 // These helpers describe geometry and presentation only. Legal choices arrive from the engine.
 const cellKey = cell => `${cell.x},${cell.y}`;
 const edgeKey = edge => [cellKey(edge.a), cellKey(edge.b)].sort().join("|");
-const unitLabel = id => ({ aria: "Aria", bram: "Bram", "wolf-1": "W1", "wolf-2": "W2", "wolf-3": "W3",
-  "zombie-1": "Z1", "archer-1": "A1", "goblin-1": "G1", "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
+const unitLabel = id => ({ barbarian: "B", rogue: "R", "grunt-1": "Gr1", "grunt-2": "Gr2",
+  "zombie-1": "Z1", "zombie-2": "Z2", "archer-1": "A1", "archer-2": "A2", "goblin-1": "G1" })[id] ?? id;
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
 
 function placeFigure(node, cell, board) {
@@ -23,7 +23,10 @@ function placeFigure(node, cell, board) {
 function renderBoard(state) {
   const board = state.physical.board;
   ui.board.replaceChildren(); figures.clear(); edges.clear(); cells.clear();
-  ui.board.style.gridTemplateColumns = `repeat(${board.width}, 1fr)`;
+  ui.board.style.gridTemplateColumns = `repeat(${board.width}, minmax(0, 1fr))`;
+  ui.board.style.gridTemplateRows = `repeat(${board.height}, minmax(0, 1fr))`;
+  ui.board.style.setProperty("--columns", board.width);
+  ui.board.style.setProperty("--board-ratio", board.width / board.height);
   ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
   const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile.kind]));
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
@@ -42,8 +45,8 @@ function renderBoard(state) {
     const vertical = edge.a.y === edge.b.y;
     node.style.left = `${((edge.a.x + edge.b.x) / 2 + .5) / board.width * 100}%`;
     node.style.top = `${((edge.a.y + edge.b.y) / 2 + .5) / board.height * 100}%`;
-    node.style.width = vertical ? "6px" : `${100 / board.width}%`;
-    node.style.height = vertical ? `${100 / board.height}%` : "6px";
+    node.style.width = vertical ? "var(--edge-thickness)" : `${100 / board.width}%`;
+    node.style.height = vertical ? `${100 / board.height}%` : "var(--edge-thickness)";
     node.title = edge.kind; edges.set(edgeKey(edge), node); ui.board.append(node);
   }
   for (const figure of state.physical.figures) {

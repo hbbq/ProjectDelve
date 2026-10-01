@@ -1,18 +1,29 @@
 :root { font-family: system-ui, sans-serif; color: #e9edf4; background: #171c26; }
-body { max-width: 1050px; margin: 0 auto; padding: 20px; }
+* { box-sizing: border-box; }
+body { max-width: 1440px; margin: 0 auto; padding: clamp(10px, 2vw, 24px); }
 h1 { margin-bottom: 8px; } h2 { font-size: 1.1rem; margin-top: 24px; }
 small, .legend, footer { color: #aeb9cb; font-size: .85rem; }
-main { display: flex; gap: 32px; flex-wrap: wrap; }
-main > section { flex: 1 1 420px; } aside { flex: 1 1 280px; }
-#board { width: 100%; position: relative; display: grid; background: #303b4c; border: 2px solid #71809a; }
-.cell { border: 1px solid #475367; box-sizing: border-box; aspect-ratio: 1; padding: 4px; font-size: .7rem; color: #97a5b9; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 24px; }
+main > section, aside { min-width: 0; }
+aside { overflow-wrap: anywhere; }
+#board { width: min(100%, calc(78dvh * var(--board-ratio, 1))); margin-inline: auto;
+  position: relative; display: grid; container-type: inline-size;
+  background: #303b4c; outline: 2px solid #71809a;
+  --cell-size: calc(100cqw / var(--columns, 15));
+  --edge-thickness: clamp(2px, calc(var(--cell-size) * .1), 6px); }
+.cell { border: 1px solid #475367; min-width: 0; min-height: 0; overflow: hidden;
+  padding: 3%; font-size: clamp(6px, calc(var(--cell-size) * .18), 11px); color: #97a5b9; }
+@media (max-width: 800px) {
+  main { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  #board { width: 100%; }
+}
 .cell.Grass { background: #365b3d; }
 .cell.Tree { background: #1a4028; color: #b2d5a0; }
 .cell.Water { background: repeating-linear-gradient(165deg, #225374 0 9px, #2d6488 9px 12px); color: #c5e6f8; }
 .cell.StoneFloorWithTable { background: #614731; color: #ecd5b5; }
-.cell span { display: block; font-size: .65rem; }
+.cell span { display: block; font-size: .85em; }
 .cell.legal { background: #385871; outline: 2px solid #90c8e8; outline-offset: -3px; }
-.figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(.6rem, 1.3vw, .85rem);
+.figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(7px, calc(var(--cell-size) * .24), 14px);
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
 .figure.hero { background: #337ab8; border-color: #a5daff; }
 .figure.attacking, .figure.target, .edge.target { box-shadow: 0 0 0 5px #ffe084, 0 0 22px #ffe084; }
@@ -27,7 +38,7 @@ main > section { flex: 1 1 420px; } aside { flex: 1 1 280px; }
 .edge.board-choice { pointer-events: auto; }
 .edge.board-choice[aria-disabled="false"] { box-shadow: 0 0 0 3px #90c8e8; }
 /* Enlarge the thin door's click target without changing its rendered geometry. */
-.edge.board-choice::after { content: ""; position: absolute; inset: -6px; }
+.edge.board-choice::after { content: ""; position: absolute; inset: calc(var(--edge-thickness) * -1); }
 button { background: #35455e; border: 1px solid #7c91af; color: white; padding: 9px 12px; border-radius: 5px; cursor: pointer; }
 button:hover:enabled { background: #496282; } button:focus-visible { outline: 3px solid #ffe084; }
 button:disabled { opacity: .45; cursor: default; }

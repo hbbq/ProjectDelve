@@ -21,6 +21,12 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp, UnitAction.NormalAttack | UnitAction.OpenDoor);
 
+    public static UnitType Barbarian(string id = "barbarian-type") => new(id, 3, 1, 4, 3, 5);
+
+    public static UnitType Rogue(string id = "rogue-type") => new(id, 4, 1, 3, 2, 4);
+
+    public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
+
     public static UnitType Zombie(string id = "zombie-type") =>
         new(id, 2, 1, 3, 3, 1, TryOpenDoor: new(2),
             Behaviors: UnitBehavior.ApproachThroughClosedDoors);

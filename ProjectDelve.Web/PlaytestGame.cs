@@ -31,7 +31,7 @@ public sealed class PlaytestGame(IRandomProvider random)
         lock (gate)
         {
             CheckRevision(expectedRevision);
-            if (state.Pending is null || state.Pending.TypeId is not ("aria-type" or "bram-type"))
+            if (state.Pending is null || state.Pending.TypeId is not ("barbarian-type" or "rogue-type"))
                 throw new PlaytestRequestException(409, "No player decision is pending.");
             EngineResult result;
             try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random); }
@@ -52,7 +52,7 @@ public sealed class PlaytestGame(IRandomProvider random)
     private GameResponse Commit(EngineResult result)
     {
         var events = new List<RulesEvent>(result.Events);
-        while (result.NextInput?.TypeId is "wolf-type" or "sentinel-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type")
+        while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type")
         {
             result = GameEngine.Advance(result.State, monsters, random);
             events.AddRange(result.Events);
