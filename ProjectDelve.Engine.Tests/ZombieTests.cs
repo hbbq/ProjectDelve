@@ -28,18 +28,67 @@ public sealed class ZombieTests
     };
 
     [Fact]
-    public void ZombieStatsAndApproach_DoNotChangeActualMovementOrLos()
+    public void ZombieStatsAndBehavior_DoNotChangeActualMovementOrLos()
     {
         var state = Corridor();
         var type = state.Types[0];
         Assert.Equal((2, 1, 3, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(3, new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0)));
+        Assert.Equal(new TryOpenDoor(2), type.TryOpenDoor);
+        Assert.Equal(UnitBehavior.ApproachThroughClosedDoors, type.Behaviors);
+        Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0)));
+        Assert.Equal(3, new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0),
+            closedDoorsTraversable: true));
         Assert.False(new GameplayQueries(state).CanAttackHostileFrom("monster", new(1, 0)));
         var pending = GameEngine.StartRound(state, new Random());
         Assert.Equal(new Cell(1, 0), Assert.Single(pending.NextInput!.Candidates).Destination);
         Assert.DoesNotContain(MovementRules.FindPaths(state, "monster", new(0, 0)).Keys, c => c.X >= 2);
-        state.Types[0] = type with { Capabilities = UnitCapability.None };
-        Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0)));
+        Assert.Throws<ArgumentException>(() => GameEngine.Advance(pending.State, new Choice(_ => "2,0"), new Random()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApproachQueryUsesCallerParametersRegardlessOfIdentityOrBehavior(bool hasBehavior)
+    {
+        var state = Corridor(new("unrelated-type", 2, 1, 3, 3, 1,
+            Behaviors: hasBehavior ? UnitBehavior.ApproachThroughClosedDoors : UnitBehavior.None));
+        var queries = new GameplayQueries(state);
+        Assert.Null(queries.DistanceToAttackPositionFrom("monster", new(0, 0)));
+        Assert.Equal(3, queries.DistanceToAttackPositionFrom("monster", new(0, 0), closedDoorsTraversable: true));
+        Assert.Null(queries.DistanceToAttackPositionFrom("monster", new(0, 0), closedDoorsTraversable: false));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DefaultProviderInterpretsReusableBehaviorWithoutChangingLegalCandidates(bool hasBehavior)
+    {
+        var state = Corridor(new("unrelated-type", 2, 1, 3, 3, 1,
+            Behaviors: hasBehavior ? UnitBehavior.ApproachThroughClosedDoors : UnitBehavior.None));
+        var pending = GameEngine.StartRound(state, new Random());
+        Assert.Equal(new Cell(1, 0), Assert.Single(pending.NextInput!.Candidates).Destination);
+        var queries = new GameplayQueries(pending.State);
+        Assert.Equal(hasBehavior ? "1,0" : null, new DefaultMonsterProvider().Choose(pending.NextInput, queries));
+        // Another automated provider can use ordinary approach analysis instead.
+        Assert.Null(new MonsterMovementProvider(new Choice(_ => null)).Choose(pending.NextInput, queries));
+    }
+
+    [Fact]
+    public void HumanControlledZombieCanIgnoreBehaviorAndStillUseDoorAction()
+    {
+        var state = Corridor();
+        var random = new Random(1);
+        var pending = GameEngine.StartRound(state, random);
+        var stayed = GameEngine.Advance(pending.State, new Choice(_ => null), random);
+        Assert.Equal(new Cell(0, 0), stayed.State.Physical.Figures[0].Position);
+        Assert.True(stayed.State.RoundComplete);
+        Assert.Equal(0, random.Rolls);
+
+        var moved = GameEngine.Advance(pending.State, new Choice(_ => "1,0"), random);
+        var attempted = GameEngine.Advance(moved.State,
+            new Choice(request => request.Candidates.Single(c => c.TryOpenDoor is not null).Key), random);
+        Assert.Equal(1, random.Rolls);
+        Assert.Single(attempted.Events, e => e.Kind == "DoorOpened");
     }
 
     [Theory]
@@ -57,7 +106,7 @@ public sealed class ZombieTests
     {
         // No Zombie identity, factory, or agency is involved in this content.
         var state = Corridor(new("other-type", 2, 1, 1, 0, 1,
-            TryOpenDoor: new(count), Capabilities: UnitCapability.ApproachThroughClosedDoors));
+            TryOpenDoor: new(count), Behaviors: UnitBehavior.ApproachThroughClosedDoors));
         var random = new Random(roll);
         var pending = GameEngine.StartRound(state, random);
         var moved = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random);
@@ -92,8 +141,8 @@ public sealed class ZombieTests
         Assert.Equal(new Cell(0, 0), candidate.Destination);
         var queries = new GameplayQueries(pending.State);
         Assert.False(queries.CanAttackHostileFrom("monster", current));
-        Assert.Equal(2, queries.DistanceToAttackPositionFrom("monster", current));
-        Assert.Equal(3, queries.DistanceToAttackPositionFrom("monster", candidate.Destination!));
+        Assert.Equal(2, queries.DistanceToAttackPositionFrom("monster", current, closedDoorsTraversable: true));
+        Assert.Equal(3, queries.DistanceToAttackPositionFrom("monster", candidate.Destination!, closedDoorsTraversable: true));
 
         var stayed = GameEngine.Advance(pending.State, provider, random);
         Assert.Equal(current, stayed.State.Physical.Figures[0].Position);
@@ -174,21 +223,21 @@ public sealed class ZombieTests
     [Theory]
     [InlineData(EdgeKind.Wall)]
     [InlineData(EdgeKind.WallWithWindow)]
-    public void CapabilityDoesNotCrossOtherImpassableEdges(EdgeKind edge)
+    public void ClosedDoorAnalysisDoesNotCrossOtherImpassableEdges(EdgeKind edge)
     {
         var state = Corridor();
         state.Physical.Board.Edges[0] = state.Physical.Board.Edges[0] with { Kind = edge };
-        Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0)));
+        Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0), closedDoorsTraversable: true));
     }
 
     [Fact]
-    public void CapabilityPreservesImpassableGoalEndpointAndTerrainRules()
+    public void ClosedDoorAnalysisPreservesImpassableGoalEndpointAndTerrainRules()
     {
         var board = Corridor().Physical.Board;
         board.Terrain.Add(new(new(2, 0), TerrainKind.Water));
-        var capability = UnitCapability.ApproachThroughClosedDoors;
-        Assert.Equal(2, ApproachRules.Distance(board, new(0, 0), new(2, 0), capability));
-        Assert.Null(ApproachRules.Distance(board, new(0, 0), new(3, 0), capability));
-        Assert.DoesNotContain(new Cell(3, 0), ApproachRules.Distances(board, new(0, 0), new(2, 0), capability).Keys);
+        Assert.Equal(2, ApproachRules.Distance(board, new(0, 0), new(2, 0), closedDoorsTraversable: true));
+        Assert.Null(ApproachRules.Distance(board, new(0, 0), new(3, 0), closedDoorsTraversable: true));
+        Assert.DoesNotContain(new Cell(3, 0), ApproachRules.Distances(board, new(0, 0), new(2, 0),
+            closedDoorsTraversable: true).Keys);
     }
 }

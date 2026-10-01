@@ -5,7 +5,9 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
     public string? Choose(DecisionRequest request, IGameplayQueries queries) => request.Kind switch
     {
         DecisionKind.SelectUnit => SelectUnit(request, queries),
-        DecisionKind.Move => MonsterMovementProvider.ChooseMovement(request, queries),
+        DecisionKind.Move => MonsterMovementProvider.ChooseMovement(request, queries,
+            closedDoorsTraversable: queries.BehaviorsOf(request.UnitId!)
+                .HasFlag(UnitBehavior.ApproachThroughClosedDoors)),
         DecisionKind.Act => SelectAction(request, queries),
         _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported decision kind.")
     };

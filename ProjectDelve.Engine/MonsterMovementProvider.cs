@@ -7,7 +7,8 @@ public sealed class MonsterMovementProvider(IDecisionProvider otherDecisions) : 
             ? ChooseMovement(request, queries)
             : otherDecisions.Choose(request, queries);
 
-    internal static string? ChooseMovement(DecisionRequest request, IGameplayQueries queries)
+    internal static string? ChooseMovement(DecisionRequest request, IGameplayQueries queries,
+        bool closedDoorsTraversable = false)
     {
         var unitId = request.UnitId!;
         var current = queries.PositionOf(unitId);
@@ -35,10 +36,10 @@ public sealed class MonsterMovementProvider(IDecisionProvider otherDecisions) : 
                 Key: (string?)c.Key,
                 Position: c.Destination!,
                 MovementLength: c.Path!.Count - 1,
-                RemainingDistance: queries.DistanceToAttackPositionFrom(unitId, c.Destination!)));
+                RemainingDistance: queries.DistanceToAttackPositionFrom(unitId, c.Destination!, closedDoorsTraversable)));
         if (request.AllowsNone)
             approachOptions = approachOptions.Append((null, current, 0,
-                queries.DistanceToAttackPositionFrom(unitId, current)));
+                queries.DistanceToAttackPositionFrom(unitId, current, closedDoorsTraversable)));
 
         var approachingDestination = approachOptions
             .Where(x => x.RemainingDistance.HasValue)

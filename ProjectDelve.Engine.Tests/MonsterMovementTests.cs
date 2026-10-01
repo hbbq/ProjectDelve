@@ -146,10 +146,12 @@ public sealed class MonsterMovementTests
         public HashSet<Cell> AttackPositions { get; } = [];
         public Dictionary<Cell, int?> Distances { get; } = [];
         public Cell PositionOf(string unitId) => Current;
+        public UnitBehavior BehaviorsOf(string unitId) => UnitBehavior.None;
         public int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId) =>
             throw new InvalidOperationException("Movement ranking does not use Manhattan distance.");
         public bool CanAttackHostileFrom(string unitId, Cell position) => AttackPositions.Contains(position);
-        public int? DistanceToAttackPositionFrom(string unitId, Cell position) => Distances.GetValueOrDefault(position);
+        public int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false) =>
+            Distances.GetValueOrDefault(position);
     }
 
     private static Candidate Choice(Cell destination, int steps) =>

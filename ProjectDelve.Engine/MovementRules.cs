@@ -61,11 +61,11 @@ internal static class MovementRules
 internal static class ApproachRules
 {
     internal static int? Distance(Board board, Cell from, Cell goal,
-        UnitCapability capabilities = UnitCapability.None) =>
-        Distances(board, from, goal, capabilities).TryGetValue(goal, out var distance) ? distance : null;
+        bool closedDoorsTraversable = false) =>
+        Distances(board, from, goal, closedDoorsTraversable).TryGetValue(goal, out var distance) ? distance : null;
 
     internal static IReadOnlyDictionary<Cell, int> Distances(Board board, Cell from, Cell? goal = null,
-        UnitCapability capabilities = UnitCapability.None)
+        bool closedDoorsTraversable = false)
     {
         if (!MovementRules.Inside(board, from) || goal is not null && !MovementRules.Inside(board, goal))
             throw new ArgumentException("Approach endpoints must be on the board.");
@@ -81,7 +81,7 @@ internal static class ApproachRules
                 if (!MovementRules.Inside(board, next) || distances.ContainsKey(next) ||
                     !(board.EdgeBetween(current, next).Passable() ||
                         board.EdgeBetween(current, next) == EdgeKind.ClosedDoor &&
-                        capabilities.HasFlag(UnitCapability.ApproachThroughClosedDoors)) ||
+                        closedDoorsTraversable) ||
                     next != goal && !board.TerrainAt(next).Passable()) continue;
                 distances[next] = distances[current] + 1;
                 queue.Enqueue(next);

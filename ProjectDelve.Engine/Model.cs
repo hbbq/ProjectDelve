@@ -10,19 +10,19 @@ public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.
 [Flags]
 public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
 [Flags]
-public enum UnitCapability { None = 0, ApproachThroughClosedDoors = 1 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
-    UnitCapability Capabilities = UnitCapability.None)
+    UnitBehavior Behaviors = UnitBehavior.None)
 {
-    // Hero content uses these defaults; capabilities never depend on side or agency.
+    // Hero content uses these Action defaults independently of side or agency.
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp, UnitAction.NormalAttack | UnitAction.OpenDoor);
 
     public static UnitType Zombie(string id = "zombie-type") =>
         new(id, 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-            Capabilities: UnitCapability.ApproachThroughClosedDoors);
+            Behaviors: UnitBehavior.ApproachThroughClosedDoors);
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 
