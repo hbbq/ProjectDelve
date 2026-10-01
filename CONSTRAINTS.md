@@ -461,9 +461,11 @@ The additional Move uses the normal movement rules and legal-destination generat
 
 **Back Away After Attack** is the Default Monster Behavior for choosing during that additional Move only. It does not affect Goblin's ordinary Move phase.
 
-Adjacency for this Behavior means any of the eight surrounding cells, matching the game's geometric Melee adjacency. If the Goblin is adjacent to one or more hostile Units after its Attack has resolved, consider the legal destinations for its additional Move where the Goblin would be adjacent to no hostile Unit. If at least one such destination exists, choose among those destinations using shortest actual movement path length and then top-left board order (ascending `y`, then `x`). If no such destination exists, choose no movement and stay.
+For this Behavior, a hostile Unit threatens the Goblin in Melee when that hostile could make a legal Normal Attack against the Goblin from its current position under the ordinary Melee attack rules. This includes the game's eight-cell Melee geometry and the applicable Line of Sight rules; geometric adjacency alone is not sufficient. For example, a hostile on an adjacent cell does not threaten the Goblin through a blocking Wall or Closed Door. The Behavior should use shared gameplay queries/rules for this determination rather than reproducing Melee or Line of Sight logic.
 
-If the Goblin is not adjacent to any hostile Unit when the additional Move is being chosen, choose no movement and stay. Back Away After Attack does not try to maximize distance once the Goblin is outside hostile adjacency.
+If the Goblin is threatened in Melee by one or more hostile Units after its Attack has resolved, consider the legal destinations for its additional Move where the Goblin would be threatened in Melee by no hostile Unit. If at least one such destination exists, choose among those destinations using shortest actual movement path length and then top-left board order (ascending `y`, then `x`). If no such destination exists, choose no movement and stay.
+
+If the Goblin is not threatened in Melee by any hostile Unit when the additional Move is being chosen, choose no movement and stay. Back Away After Attack does not try to maximize distance once the Goblin is outside all hostile Melee threats.
 
 Back Away After Attack is only a Decision Provider preference. A Goblin controlled by another provider still receives `MoveAfterAttack(1)`, but that provider chooses how to use the additional Move. No general mechanism for assigning arbitrary Behaviors to arbitrary extra phases is required at this stage.
 
