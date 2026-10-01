@@ -95,9 +95,13 @@ Examples include:
 
 For v0 movement, the engine supplies the legal reachable destinations, each with its canonical path. The provider chooses a destination or no movement when permitted.
 
-For Act resolution, the engine supplies the complete legal set of action candidates from the Unit Type's capabilities. Normal Attack candidates apply Range, Line of Sight, hostility, and all other attack-legality rules. Open Door candidates identify each adjacent closed door separately. The provider chooses one candidate or no Action when permitted; either choice completes the Unit's Act phase.
+For Action resolution, the engine supplies the complete legal set of action candidates from the Unit Type's Actions. Normal Attack candidates apply Range, Line of Sight, hostility, and all other attack-legality rules. Other Actions supply their own legal candidates and targets.
 
-Hero Unit Types have Normal Attack and Open Door by default. Default Monster Unit Types have Normal Attack only. These are composable Unit Type capabilities, independent of side and agency; a particular Monster Unit Type can also have Open Door. Open Door is legal when the Unit occupies either cell bordering a ClosedDoor edge. Resolving it consumes Act, changes that edge to OpenDoor, and emits a DoorOpened gameplay event identifying the Unit and edge. Movement through the opened edge uses the existing OpenDoor movement rules. Default Monster behavior does not choose door opening.
+A provider does not establish or extend legal choices. Legal candidate generation is authoritative game rules. A separate optional **relevance filter** may hide legal choices that are structurally irrelevant to the remaining activation, for example a temporary `ATK` bonus when no Attack choice remains or a temporary `MOV` bonus after the Unit has already completed its Move. This filter is deliberately shallow convenience policy, not tactical evaluation: it need not determine whether extra movement reaches a useful cell or whether an attack bonus is likely to overcome a particular defence or effect.
+
+Relevance filtering may be disabled. A debug, simulation, or future smarter AI provider may therefore inspect and choose from all legal candidates, including choices that normal human-facing presentation would hide. The filtering preference belongs to the decision/session/provider boundary rather than changing the physical game state. Any automatic choice resolution must use the same effective candidate set that the receiving provider or human client uses.
+
+Presentation relevance must not silently become ability timing. An ability does not acquire a rule such as `BeforeMove` or `BeforeAttack` merely because normal presentation hides it when its ordinary purpose can no longer affect the remaining activation. Explicit timing restrictions should exist only when the physical game rule actually requires them.
 
 A provider does not establish or extend legal choices. After a provider returns its selection, the engine validates that the selection corresponds to one of the candidates in the decision space that was supplied. An invalid provider response must not become a legal game action.
 
@@ -377,7 +381,7 @@ The Decision Provider boundary does not require every provider to use Monster Be
 
 ### Default Monster Behavior
 
-For Unit selection, choose the engine-supplied eligible Unit whose current position is first in top-left board order (ascending `y`, then `x`). Eligibility and candidates are recomputed by the engine before every selection; no ordering is saved at the beginning of a group phase.
+For Unit selection, choose the engine-supplied eligible Unit whose current position is first in top-left board order (ascending `y`, then `x`). Eligibility and candidates are recomputed by the engine before every selection; no ordering is saved at the beginning of a Unit selection.
 
 For movement, use these priorities:
 
@@ -392,7 +396,7 @@ When the Move decision permits no movement, remaining in the Unit's current cell
 
 Destination ties use top-left board order. Separately, canonical shortest movement paths retain the BFS neighbor expansion order top, left, right, bottom.
 
-For Act, Default Monster Behavior first chooses among engine-supplied Normal Attack candidates using the attack ranking below. If no Normal Attack candidate exists and one or more Try Open Door candidates exist, it chooses Try Open Door. When several such door candidates exist, choose the candidate whose cell on the opposite side of the door is first in top-left board order (ascending `y`, then `x`). Default Monster Behavior acts on these reusable Action types and does not special-case the Unit Type that supplied them.
+For Action, Default Monster Behavior first chooses among engine-supplied Normal Attack candidates using the attack ranking below. If no Normal Attack candidate exists and one or more Try Open Door candidates exist, it chooses Try Open Door. When several such door candidates exist, choose the candidate whose cell on the opposite side of the door is first in top-left board order (ascending `y`, then `x`). Default Monster Behavior acts on these reusable Action types and does not special-case the Unit Type that supplied them.
 
 For Attack, choose the nearest engine-supplied legal target by Manhattan distance between the attacker's and target's current cells: `abs(dx) + abs(dy)`. Break ties by top-left board order (ascending `y`, then `x`). The special Melee range rule affects legality only: an orthogonally adjacent target ranks ahead of a diagonally adjacent target because their Manhattan distances are 1 and 2 respectively. Behavior does not determine attack legality.
 
@@ -478,11 +482,11 @@ Goblin is the first Monster Unit Type with a Capability that changes the normal 
 - Capabilities: `MoveAfterAttack(1)`.
 - Behaviors: Back Away After Attack.
 
-**Move After Attack** is a reusable Capability parameterized by the maximum number of movement steps. If the Unit performed an Attack during its Act phase, that Attack first resolves completely according to the normal resolution-timing rules. Immediately after the Act phase is complete, before activation proceeds to another Unit or phase, that same Unit receives one additional Move phase with its movement allowance limited to the Capability's value. For Goblin this is `MOV 1`.
+**Move After Attack** is a reusable Capability parameterized by the maximum number of movement steps. If the Unit performed an Attack as its Action, that Attack first resolves completely according to the normal resolution-timing rules. Immediately after that Action is complete, before the Unit's activation can finish or another Unit can be selected, that same Unit receives one additional Move with its movement allowance limited to the Capability's value. For Goblin this is `MOV 1`.
 
-The additional Move uses the normal movement rules and legal-destination generation except for its reduced movement allowance. It is part of the game rules and therefore occurs regardless of which Decision Provider controls the Unit. If the Unit did not perform an Attack during Act, no additional Move phase is created.
+The additional Move uses the normal movement rules and legal-destination generation except for its reduced movement allowance. It is part of the game rules and therefore occurs regardless of which Decision Provider controls the Unit. If the Unit did not perform an Attack as its Action, no additional Move is created.
 
-**Back Away After Attack** is the Default Monster Behavior for choosing during that additional Move only. It does not affect Goblin's ordinary Move phase.
+**Back Away After Attack** is the Default Monster Behavior for choosing during that additional Move only. It does not affect Goblin's ordinary Move.
 
 For this Behavior, a hostile Unit counts as a nearby threat when it occupies one of the eight cells surrounding the Goblin and there is normal geometric Line of Sight between the hostile's cell and the Goblin's cell. Geometric adjacency alone is not sufficient: for example, a hostile on an adjacent cell separated by a blocking Wall or Closed Door does not count. Use the shared Line of Sight query with the ordinary/default geometric Line of Sight assumptions.
 
@@ -546,65 +550,56 @@ How Unit Types entering play during an ongoing Round affect the bag is deliberat
 
 ### Unit Type activation
 
-When a Unit Type activates, all Units of that type activate as a group.
+When a Unit Type activates, all living Units of that type participate in that Unit Type activation.
 
-Group activation is phase-based. All participating Units resolve a phase before the group proceeds to the next phase:
+Units activate **one at a time**. One Unit completes its entire activation before another Unit of the same Unit Type is selected. Effects and physical changes produced by an earlier Unit are therefore already part of the board state when the next Unit is selected and activated.
 
-1. all Bonus Action phases,
-2. all Move phases,
-3. all Act phases.
+The order is not fixed at the beginning of the Unit Type activation. Before each Unit activation, the engine determines the Units of the active Unit Type that are currently eligible and have not already completed an activation for this token. This concrete set is the legal decision space for choosing the next Unit.
 
-This uses the same Bonus Action → Move → Act lifecycle defined for an individual Unit. A Hero Unit Type normally contains only one Unit, so the same group rules naturally reduce to a single Hero activation.
+The responsible Decision Provider selects the next Unit from that set. Default Monster Behavior chooses the currently topmost eligible Unit, breaking ties by choosing the leftmost one, using current board positions. A human or future smarter AI provider may choose a different eligible Unit when the rules permit it. Once a Unit has completed its activation for the current token, it cannot be selected again for that token.
 
-### Unit selection within a group phase
+This ordering is intentionally state-dependent. For example, one Zombie may open a door and a later Zombie of the same Unit Type may then move through that now-open door. Conversely, a different deterministic Unit order may produce a less advantageous sequence. Default Monster Behavior is intended to remain simple, deterministic, and manually followable in physical solo play rather than planning the complete group activation. A digital-only smarter provider may plan across several legal choices without changing the underlying game rules.
 
-Every scenario has a defined physical orientation with one board corner designated **top-left**.
-
-This establishes an unambiguous spatial ordering of cells: top to bottom by row, and left to right within each row. In a digital coordinate system where the top-left cell is `(0, 0)`, `x` increases to the right, and `y` increases downward, this ordering is equivalent to sorting by `(y, x)`.
-
-The order in which Units resolve a group phase is not fixed at the beginning of that phase.
-
-Before each Unit resolves the current group phase, the engine determines the Units of the active Unit Type that are currently eligible to resolve it and have not already completed that phase during the current activation. This concrete set is the legal decision space for choosing the next Unit.
-
-The responsible Decision Provider selects the next Unit from that set. As with other decisions, the provider does not determine eligibility and the engine validates the returned selection against the supplied candidates.
-
-Default Monster Behavior chooses the currently topmost eligible Unit, breaking ties by choosing the leftmost one. Because this choice is made again before each Unit resolves the phase, current board positions are used. Earlier movement during the same group phase can therefore affect which remaining Monster is selected next.
-
-A human or future AI Decision Provider can receive the same eligible-Unit candidates. If the applicable rules permit free ordering for that form of agency, it may choose any eligible Unit rather than using the default Monster spatial ordering.
-
-Once a Unit has completed the current group phase, it cannot be selected again during that phase. If a Unit ceases to be eligible before being selected, it is simply absent from the next candidate set.
-
-The physical procedure therefore requires tracking which Units have already resolved the current group phase, but does not require remembering their positions or a precomputed ordering from the start of the phase.
-
-A Unit Type containing zero eligible Units completes the current group phase immediately. When no eligible Units remain, the group proceeds to its next phase or completes the activation after Act.
-
-The exact eligibility consequences of future spawning, summoning, reinforcement, or similar rules are deliberately deferred until such mechanics are introduced. In particular, no general v0 rule is imposed here about whether a newly introduced Unit can participate in an activation already in progress.
+The exact eligibility consequences of future spawning, summoning, reinforcement, or similar rules are deliberately deferred until such mechanics are introduced.
 
 ## Unit activation
 
-Heroes and Monsters use the same activation structure.
+Heroes and Monsters use the same activation rules.
 
-A Unit activation always progresses through three phases in this fixed order:
+A Unit activation is driven by what the Unit has already done rather than by mandatory Bonus Action, Move, and Act phases. Conceptually the activation tracks at least whether the Unit has completed its Move, whether it has completed its Action, and whether it has used its Bonus Action opportunity.
 
-1. **Bonus Action**
-2. **Move**
-3. **Act**
+A living Unit normally has:
 
-A phase still occurs when the Unit chooses to do nothing during that phase. This is significant for rules that may trigger before or after a phase.
+- one Move opportunity,
+- one Action opportunity after its Move has been completed,
+- at most one Bonus Action when supplied by an applicable ability,
+- any applicable Free Actions, subject to their own rules and usage limits.
 
-### Bonus Action
+After any choice resolves, the currently legal choices are determined again from the resulting state. The activation ends when the Unit chooses or automatically resolves **End Turn** and no further resolution remains.
 
-During the Bonus Action phase, a Unit may use zero or one ability explicitly marked `Bonus Action` on its Unit card.
+A Unit that dies during its own activation cannot continue acting.
 
-There is no general set of Bonus Actions. A Unit can perform a Bonus Action only when its card provides an applicable Bonus Action ability.
+### Bonus Actions
 
-If several Bonus Action abilities are available, at most one may be used during the activation.
+A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. The ability must have any required uses remaining and satisfy its own legality conditions.
 
-For a Hero, the player chooses whether and which available Bonus Action to use. For a Monster, its behavior rules determine that choice.
+Using a Bonus Action consumes the Unit's Bonus Action opportunity but does not by itself consume or complete Move or Action. After it resolves, legal choices are generated again from the new state.
+
+There is no mandatory Bonus Action phase and no general `Skip Bonus Action` decision. Choosing another choice naturally allows the activation to progress without using a Bonus Action.
+
+### Free Actions
+
+A Free Action consumes neither the Unit's Move opportunity, Action opportunity, nor Bonus Action opportunity. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
+
+Free Actions may be available at more than one point during an activation. After a Free Action resolves, legal choices are generated again from the resulting state.
+
+Whether a particular Free Action is legal is part of the rules. Whether a legal Free Action is hidden by normal relevance filtering is a separate presentation/provider concern.
 
 ### Move
 
-During the Move phase, a Unit moves from zero through `MOV` steps.
+Before the Unit has completed its Move, it may choose one legal Move destination. Choosing to remain in the current cell is **Stay** and counts as completing the Unit's Move.
+
+During a Move, a Unit moves from zero through `MOV` steps.
 
 Each step moves to an orthogonally adjacent cell. Diagonal movement is not allowed.
 
@@ -612,7 +607,7 @@ The complete movement is one atomic rules operation. The path may contain multip
 
 Rules may therefore trigger before or after the complete movement, but not in the middle of it unless a future rule explicitly overrides this principle.
 
-Choosing zero steps still constitutes completing the Move phase and the movement operation. Consequently, a future rule triggered after movement may still trigger when the Unit moved zero steps.
+Choosing Stay still constitutes a completed Move and movement operation. Consequently, a future rule triggered after movement may still trigger when the Unit moved zero steps.
 
 Each movement step crosses the shared edge between the current cell and an orthogonally adjacent destination cell. The step is legal only if that edge is passable for movement.
 
@@ -664,15 +659,15 @@ The canonical path is retained as meaningful rules-result information even thoug
 
 If future rules make alternative paths to the same destination meaningfully different, path choice can be revisited explicitly at that time rather than being part of the v0 decision space.
 
-### Act
+### Action
 
-During the Act phase, a Unit may perform zero or one Action.
+After the Unit has completed its Move and before it has completed its Action, it may perform at most one Action.
 
-All available Actions compete for the same single Action opportunity. A Unit cannot perform a basic Action and a Unit-specific Action during the same Act phase unless a future rule explicitly overrides this limit.
+All available Actions compete for the same single Action opportunity. A Unit cannot perform a basic Action and a Unit-specific Action during the same activation unless a future rule explicitly overrides this limit.
 
 A normal **Attack** is a basic Action available through the general rules.
 
-A Unit card may provide additional abilities explicitly marked `Action`. Using one of these consumes the Unit's Action for the phase.
+A Unit card may provide additional abilities explicitly marked `Action`. Using one consumes the Unit's Action opportunity.
 
 The reusable **Try Open Door** Action is available only to Unit Types that have that Action. It is legal when the Unit occupies either cell bordering a Closed Door edge. Resolving it consumes the Unit's Action and rolls one ordinary six-sided die. The Action has a success count from 0 through 6; that many faces are designated as success faces. On success, the Closed Door becomes an Open Door and the normal door-open gameplay event is emitted. On failure, the door remains closed. The Action is consumed in either case.
 
