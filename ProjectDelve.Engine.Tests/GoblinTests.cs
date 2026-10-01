@@ -273,7 +273,7 @@ public sealed class GoblinTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void UndefinedRetreatRankingIsReportedWithoutChangingEngineLegalMovement(bool noHostiles)
+    public void NoCalculableHostileDistanceChoosesStayAndCompletesExtraMoveNormally(bool noHostiles)
     {
         var state = State();
         state.Units[1] = state.Units[1] with { CurrentHp = 1 };
@@ -287,9 +287,23 @@ public sealed class GoblinTests
         }
         var queries = new GameplayQueries(extra.State);
         Assert.Null(queries.DistanceToNearestHostileFrom("goblin", new(2, 1)));
-        var error = Assert.Throws<InvalidOperationException>(() =>
-            new DefaultMonsterProvider().Choose(extra.NextInput!, queries));
-        Assert.Contains("unspecified", error.Message);
+        Assert.True(extra.NextInput!.IsMoveAfterAttack);
+        Assert.NotEmpty(extra.NextInput.Candidates);
+        Assert.All(extra.NextInput.Candidates, c =>
+            Assert.Null(queries.DistanceToNearestHostileFrom("goblin", c.Destination!)));
+        var provider = new DefaultMonsterProvider();
+        Assert.Null(provider.Choose(extra.NextInput, queries));
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(extra.State))!;
+        var stayed = GameEngine.Advance(restored, provider, new Random());
+        var movement = Assert.Single(stayed.Events, e => e.IsMoveAfterAttack);
+        Assert.Equal("MovementCompleted", movement.Kind);
+        Assert.Equal(new[] { new Cell(2, 1) }, movement.Path);
+        Assert.Equal(new Cell(2, 1), stayed.State.Physical.Figures[0].Position);
+        Assert.Null(stayed.State.MoveAfterAttackAllowance);
+        Assert.Null(stayed.State.CurrentUnitId);
+        Assert.Null(stayed.NextInput);
+        Assert.True(stayed.State.RoundComplete);
+        // The fallback is only a provider preference; other providers can still move.
         var moved = GameEngine.Advance(extra.State, new Choice("3,1"), new Random());
         Assert.Equal(new Cell(3, 1), moved.State.Physical.Figures[0].Position);
         Assert.True(moved.State.RoundComplete);

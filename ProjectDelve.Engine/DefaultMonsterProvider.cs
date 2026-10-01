@@ -23,8 +23,7 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
             var ranked = positions.Select(p => new { p.Key, p.Position, p.MovementLength,
                 Distance = queries.DistanceToNearestHostileFrom(unitId, p.Position) }).ToList();
             if (ranked.All(p => p.Distance is null))
-                throw new InvalidOperationException(
-                    "RetreatAfterAttack ranking is unspecified when no hostile is reachable by ordinary approach.");
+                return NoCandidate(request);
             return ranked.OrderByDescending(p => p.Distance)
                 .ThenBy(p => p.MovementLength).ThenBy(p => p.Position.Y).ThenBy(p => p.Position.X)
                 .First().Key;
