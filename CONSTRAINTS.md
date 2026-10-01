@@ -163,6 +163,10 @@ Core rules provide simple defaults. Abilities and special rules may explicitly m
 
 Extension points should be introduced when actual game content requires them rather than by creating a large speculative set of hooks in advance.
 
+Simple Unit Type variation should preferentially be expressed through small reusable **Actions** and **Capabilities**, analogous to keywords on a physical Unit card. An Action defines something the Unit can choose to do; a Capability modifies how an otherwise shared rule applies to that Unit Type. These components may carry small rule parameters when the same mechanic varies between Unit Types. The rules engine and Decision Providers should act on the Action or Capability itself rather than on a specific Unit Type identity. Bespoke Unit-Type checks such as `if Zombie` should therefore not be used when the behavior can be represented by a reusable rule component.
+
+This is a content-composition principle, not a requirement for a generic keyword framework, scripting language, or universal effect system. New reusable components should be introduced from concrete game content as needed.
+
 ### Resolution timing and rule extension points
 
 Ordinary rules operations resolve atomically unless a rule explicitly defines otherwise. For example, an Attack completes its complete normal resolution, including dice, Damage, death, and removal, before effects that occur **after** that Attack are resolved.
@@ -384,6 +388,8 @@ Remaining traversable distance uses the Approach distance rules defined under Un
 
 Destination ties use top-left board order. Separately, canonical shortest movement paths retain the BFS neighbor expansion order top, left, right, bottom.
 
+For Act, Default Monster Behavior first chooses among engine-supplied Normal Attack candidates using the attack ranking below. If no Normal Attack candidate exists and one or more Try Open Door candidates exist, it chooses Try Open Door. When several such door candidates exist, choose the candidate whose cell on the opposite side of the door is first in top-left board order (ascending `y`, then `x`). Default Monster Behavior acts on these reusable Action types and does not special-case the Unit Type that supplied them.
+
 For Attack, choose the nearest engine-supplied legal target by Manhattan distance between the attacker's and target's current cells: `abs(dx) + abs(dy)`. Break ties by top-left board order (ascending `y`, then `x`). The special Melee range rule affects legality only: an orthogonally adjacent target ranks ahead of a diagonally adjacent target because their Manhattan distances are 1 and 2 respectively. Behavior does not determine attack legality.
 
 ### Abilities and behavior
@@ -407,6 +413,18 @@ For the same reason, ordinary grouped Monsters that are physically indistinguish
 This is not a general restriction that Monsters must have `HP 1`. A physically unique Monster, such as a boss, may have higher HP when its individual current HP can be tracked unambiguously, for example on its own physical Unit card. Heroes may likewise have higher HP because each Hero is individually identifiable and its current HP can be tracked on its physical card.
 
 Abilities and effects may make grouped Monsters easier or harder to damage or kill without requiring untrackable persistent per-figure state. Different `DEF` values are one example.
+
+## Initial Monster content
+
+### Zombie
+
+Zombie is the first Monster Unit Type used to establish the reusable Action/Capability composition pattern.
+
+- Stats: `MOV 2`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 1`.
+- Actions: Normal Attack; `TryOpenDoor(2/6)`.
+- Capabilities: Approach Through Closed Doors.
+
+Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented behavior emerges from the shared approach-distance rules, the reusable Approach Through Closed Doors Capability, the reusable Try Open Door Action, and Default Monster Behavior's normal Action priorities.
 
 ## Unit stats
 
@@ -554,6 +572,8 @@ Different rules questions use different notions of pathing and distance. They mu
 
 **Approach distance** answers how far a cell is from a goal through the board's traversable terrain. It is used for evaluations such as deciding which legal movement destination brings a Monster closer to a future attack position. Approach distance respects terrain and edge passability but ignores Units as traversal obstacles. Figures are temporary occupants and must not make the underlying route appear permanently unreachable. This allows Monsters behind other Monsters, for example in a doorway or corridor, to continue moving toward the same engagement even when the front Monsters currently occupy the route.
 
+A Unit Type may explicitly modify which terrain or edges count as traversable for its approach-distance calculations without changing actual movement legality. The initial such Capability is **Approach Through Closed Doors**: Closed Door edges count as traversable when calculating that Unit Type's approach distance, but remain impassable for its actual movement unless another rule separately changes movement legality.
+
 When an approach-distance query measures distance to a specific goal cell, that goal cell itself need not be passable or currently occupiable in order for its distance to be measured. It is treated as reachable as the endpoint for that calculation only; an otherwise impassable goal cell does not become traversable and cannot be used as a route through to cells beyond it.
 
 **Attack range** is not a pathing query. Ranged attack distance is Manhattan distance regardless of terrain, edges, or Units. Obstacles affect attack legality separately through Line of Sight and other attack rules. The special `RNG 1` Melee rule remains a separate range-legality rule.
@@ -584,7 +604,9 @@ A normal **Attack** is a basic Action available through the general rules.
 
 A Unit card may provide additional abilities explicitly marked `Action`. Using one of these consumes the Unit's Action for the phase.
 
-Other basic Actions may be introduced by the general rules. For example, opening a nearby door is a possible future basic Action, but this has not yet been decided.
+The reusable **Try Open Door** Action is available only to Unit Types that have that Action. It is legal when the Unit occupies either cell bordering a Closed Door edge. Resolving it consumes the Unit's Action and rolls one ordinary six-sided die. The Action has a success count from 0 through 6; that many faces are designated as success faces. On success, the Closed Door becomes an Open Door and the normal door-open gameplay event is emitted. On failure, the door remains closed. The Action is consumed in either case.
+
+The first use of this Action is `TryOpenDoor(2/6)` for Zombies.
 
 ## Normal attacks
 
