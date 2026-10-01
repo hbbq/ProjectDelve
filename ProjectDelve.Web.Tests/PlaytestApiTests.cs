@@ -31,15 +31,15 @@ public sealed class PlaytestApiTests
         Assert.Null(second.Result.NextInput);
         Assert.Equal(10, second.Result.State.Physical.Board.Width);
         Assert.Equal(8, second.Result.State.Physical.Board.Height);
-        Assert.Equal(7, second.Result.State.Physical.Figures.Count);
+        Assert.Equal(8, second.Result.State.Physical.Figures.Count);
         var heroes = second.Result.State.Units.Where(u => u.SideId == "blue").ToArray();
         Assert.Equal(new[] { "aria", "bram" }, heroes.Select(u => u.Id));
         Assert.Equal(2, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(UnitAction.NormalAttack | UnitAction.OpenDoor, type.Actions));
-        Assert.Equal(new[] { 3, 2 }, second.Result.State.Units.Where(u => u.SideId == "red")
+        Assert.Equal(new[] { 1, 3, 2 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
-        Assert.Equal(4, second.Result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.ClosedDoor));
+        Assert.Equal(5, second.Result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.ClosedDoor));
         Assert.Contains(second.Result.State.Physical.Board.Edges, e => e.Kind == EdgeKind.OpenDoor);
         var board = second.Result.State.Physical.Board;
         Assert.Contains(board.Edges, e => e.Kind == EdgeKind.WallWithWindow);
@@ -63,8 +63,8 @@ public sealed class PlaytestApiTests
         Assert.True(completed.Result.State.RoundComplete);
         Assert.Null(completed.Result.NextInput);
         var moves = completed.Result.Events.Where(e => e.Kind == "MovementCompleted").ToArray();
-        Assert.Equal(new[] { "aria", "bram", "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2" }, moves.Select(e => e.UnitId));
-        Assert.Equal(new[] { "aria-type", "bram-type", "wolf-type", "sentinel-type" },
+        Assert.Equal(new[] { "aria", "bram", "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2", "zombie-1" }, moves.Select(e => e.UnitId));
+        Assert.Equal(new[] { "aria-type", "bram-type", "wolf-type", "sentinel-type", "zombie-type" },
             completed.Result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Contains(moves, e => e.Path!.Count > 1);
         foreach (var typeId in new[] { "wolf-type", "sentinel-type" })
@@ -176,7 +176,7 @@ public sealed class PlaytestApiTests
         var result = await host.Round(0);
         Assert.Equal("wolf-type", result.Result.Events[0].TypeId);
         Assert.Equal("aria-type", result.Result.NextInput!.TypeId);
-        Assert.Equal(new[] { "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2" }, result.Result.Events
+        Assert.Equal(new[] { "wolf-1", "wolf-2", "wolf-3", "sentinel-1", "sentinel-2", "zombie-1" }, result.Result.Events
             .Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.Equal("aria-type", result.Result.Events[^1].TypeId);
         Assert.False(result.Result.State.RoundComplete);
@@ -214,6 +214,27 @@ public sealed class PlaytestApiTests
         Assert.Equal(started.Revision + 1, (await host.Read()).Revision);
     }
 
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    public async Task ZombieApproachesDoorAndReportsOutcome(int roll, bool succeeds)
+    {
+        await using var host = await Host.Start(doorRoll: roll);
+        var result = await FinishRound(host, await host.Round(0));
+        var move = Assert.Single(result.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == "zombie-1");
+        Assert.Equal(new[] { new Cell(0, 6), new Cell(0, 5), new Cell(0, 4) }, move.Path);
+        var attempt = Assert.Single(result.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved");
+        Assert.Equal(roll, attempt.DieRoll);
+        Assert.Equal(2, attempt.SuccessCount);
+        Assert.Equal(succeeds, attempt.Succeeded);
+        Assert.Equal(succeeds ? EdgeKind.OpenDoor : EdgeKind.ClosedDoor,
+            result.Result.State.Physical.Board.EdgeBetween(new(0, 3), new(0, 4)));
+        Assert.Equal(succeeds, result.Result.Events.Any(e => e.Kind == "DoorOpened" && e.UnitId == "zombie-1"));
+        var script = await host.Client.GetStringAsync("/app.js");
+        Assert.Contains("DoorOpeningAttemptResolved", script);
+        Assert.Contains("failed; door stays closed", script);
+    }
+
     private static async Task<GameResponse> ApproachDoors(Host host, bool open)
     {
         var result = await host.Round(0);
@@ -244,12 +265,13 @@ public sealed class PlaytestApiTests
         return result with { Result = result.Result with { Events = events } };
     }
 
-    private sealed class FixedRandom(bool hit, bool monstersFirst) : IRandomProvider
+    private sealed class FixedRandom(bool hit, bool monstersFirst, int doorRoll) : IRandomProvider
     {
         public string DrawToken(IReadOnlyList<string> bag) => monstersFirst
-            ? bag.FirstOrDefault(typeId => typeId is "wolf-type" or "sentinel-type") ?? bag[0]
+            ? bag.FirstOrDefault(typeId => typeId is "wolf-type" or "sentinel-type" or "zombie-type") ?? bag[0]
             : bag[0];
         public AttackFace RollAttackDie() => hit ? AttackFace.Hit : AttackFace.Miss;
+        public int RollD6() => doorRoll;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
     }
 
@@ -257,10 +279,10 @@ public sealed class PlaytestApiTests
     private sealed class Host(WebApplication app, HttpClient client) : IAsyncDisposable
     {
         public HttpClient Client { get; } = client;
-        public static async Task<Host> Start(bool hit = false, bool monstersFirst = false)
+        public static async Task<Host> Start(bool hit = false, bool monstersFirst = false, int doorRoll = 6)
         {
             var contentRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-            var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", contentRoot], new FixedRandom(hit, monstersFirst));
+            var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", contentRoot], new FixedRandom(hit, monstersFirst, doorRoll));
             await app.StartAsync();
             var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
             return new(app, new HttpClient { BaseAddress = new Uri(address) });

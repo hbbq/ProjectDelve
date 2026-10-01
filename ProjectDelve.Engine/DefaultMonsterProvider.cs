@@ -6,7 +6,7 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
     {
         DecisionKind.SelectUnit => SelectUnit(request, queries),
         DecisionKind.Move => MonsterMovementProvider.ChooseMovement(request, queries),
-        DecisionKind.Act => SelectAttackTarget(request, queries),
+        DecisionKind.Act => SelectAction(request, queries),
         _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported decision kind.")
     };
 
@@ -22,7 +22,7 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
         return first?.Candidate.Key ?? NoCandidate(request);
     }
 
-    private static string? SelectAttackTarget(DecisionRequest request, IGameplayQueries queries)
+    private static string? SelectAction(DecisionRequest request, IGameplayQueries queries)
     {
         // Rank legal targets by Manhattan distance, then top-left board order.
         // Melee's special range rule determines legality, not this preference.
@@ -39,7 +39,13 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
             .ThenBy(x => x.Position.X)
             .FirstOrDefault();
 
-        return nearest?.Candidate.Key ?? NoCandidate(request);
+        if (nearest is not null) return nearest.Candidate.Key;
+        var from = queries.PositionOf(request.UnitId!);
+        var door = request.Candidates.Where(c => c.TryOpenDoor is not null)
+            .OrderBy(c => (c.Door!.A == from ? c.Door.B : c.Door.A).Y)
+            .ThenBy(c => (c.Door!.A == from ? c.Door.B : c.Door.A).X)
+            .FirstOrDefault();
+        return door?.Key ?? NoCandidate(request);
     }
 
     private static string? NoCandidate(DecisionRequest request)

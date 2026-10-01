@@ -8,6 +8,7 @@ public sealed class DefaultMonsterProviderTests
     {
         public string DrawToken(IReadOnlyList<string> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Miss;
+        public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
     }
 

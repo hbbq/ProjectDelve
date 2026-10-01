@@ -85,18 +85,25 @@ public static class GameEngine
                 if (choice is not null)
                 {
                     var action = request.Candidates.Single(c => c.Key == choice);
-                    switch (action.Action)
+                    if (action.TryOpenDoor is { } attempt)
+                    {
+                        var roll = random.RollD6();
+                        if (roll is < 1 or > 6)
+                            throw new ArgumentException("Invalid D6 face.", nameof(random));
+                        // Designate faces 1 through SuccessCount as the success faces.
+                        var succeeded = roll <= attempt.SuccessCount;
+                        events.Add(new RulesEvent("DoorOpeningAttemptResolved", request.UnitId,
+                            Door: action.Door, DieRoll: roll, SuccessCount: attempt.SuccessCount,
+                            Succeeded: succeeded));
+                        if (succeeded) OpenDoor(state, request.UnitId!, action.Door!, events);
+                    }
+                    else switch (action.Action)
                     {
                         case UnitAction.NormalAttack:
                             ResolveAttack(state, request.UnitId!, action.TargetId!, random, events);
                             break;
                         case UnitAction.OpenDoor:
-                            var door = action.Door!;
-                            var index = state.Physical.Board.Edges.FindIndex(e =>
-                                e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
-                            var opened = state.Physical.Board.Edges[index] with { Kind = EdgeKind.OpenDoor };
-                            state.Physical.Board.Edges[index] = opened;
-                            events.Add(new RulesEvent("DoorOpened", request.UnitId, Door: opened));
+                            OpenDoor(state, request.UnitId!, action.Door!, events);
                             break;
                         default:
                             throw new InvalidOperationException("Unsupported action.");
@@ -154,6 +161,15 @@ public static class GameEngine
         state.CurrentUnitId = null;
     }
 
+    private static void OpenDoor(GameState state, string unitId, Edge door, List<RulesEvent> events)
+    {
+        var index = state.Physical.Board.Edges.FindIndex(e =>
+            e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
+        var opened = state.Physical.Board.Edges[index] with { Kind = EdgeKind.OpenDoor };
+        state.Physical.Board.Edges[index] = opened;
+        events.Add(new RulesEvent("DoorOpened", unitId, Door: opened));
+    }
+
     private static List<Candidate> MovementCandidates(GameState state, Unit unit)
     {
         var start = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
@@ -170,7 +186,8 @@ public static class GameEngine
     private static List<Candidate> ActionCandidates(GameState state, Unit unit)
     {
         var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
-        var actions = state.Types.Single(t => t.Id == unit.TypeId).Actions;
+        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var actions = type.Actions;
         var candidates = new List<Candidate>();
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
@@ -178,15 +195,23 @@ public static class GameEngine
                     == NormalAttackEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
-        if (actions.HasFlag(UnitAction.OpenDoor))
-            candidates.AddRange(state.Physical.Board.Edges
+        if (actions.HasFlag(UnitAction.OpenDoor) || type.TryOpenDoor is not null)
+        {
+            var doors = state.Physical.Board.Edges
                 .Where(edge => edge.Kind == EdgeKind.ClosedDoor && (edge.A == from || edge.B == from))
                 .Select(edge => edge.A.Y < edge.B.Y || edge.A.Y == edge.B.Y && edge.A.X < edge.B.X
                     ? edge : edge with { A = edge.B, B = edge.A })
                 .OrderBy(edge => edge.A.Y).ThenBy(edge => edge.A.X)
-                .ThenBy(edge => edge.B.Y).ThenBy(edge => edge.B.X)
-                .Select(edge => new Candidate($"open-door:{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}",
-                    Action: UnitAction.OpenDoor, Door: edge)));
+                .ThenBy(edge => edge.B.Y).ThenBy(edge => edge.B.X);
+            foreach (var edge in doors)
+            {
+                var key = $"{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}";
+                if (actions.HasFlag(UnitAction.OpenDoor))
+                    candidates.Add(new Candidate($"open-door:{key}", Action: UnitAction.OpenDoor, Door: edge));
+                if (type.TryOpenDoor is not null)
+                    candidates.Add(new Candidate($"try-open-door:{key}", Door: edge, TryOpenDoor: type.TryOpenDoor));
+            }
+        }
         return candidates;
     }
 
@@ -252,7 +277,8 @@ public static class GameEngine
         var board = state.Physical.Board;
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
-            state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1))
+            state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
+                t.TryOpenDoor is { SuccessCount: < 0 or > 6 }))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||

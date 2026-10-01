@@ -15,7 +15,7 @@ main > section { flex: 1 1 420px; } aside { flex: 1 1 280px; }
 .figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(.6rem, 1.3vw, .85rem);
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
 .figure.hero { background: #337ab8; border-color: #a5daff; }
-.figure.attacking, .figure.target { box-shadow: 0 0 0 5px #ffe084, 0 0 22px #ffe084; }
+.figure.attacking, .figure.target, .edge.target { box-shadow: 0 0 0 5px #ffe084, 0 0 22px #ffe084; }
 .figure.dying { opacity: 0; transform: translate(-50%, -50%) scale(.3); transition: opacity .3s, transform .3s; }
 .edge { position: absolute; z-index: 2; background: #11151e; transform: translate(-50%, -50%); pointer-events: none; }
 .edge.ClosedDoor { background: #e5b353; }

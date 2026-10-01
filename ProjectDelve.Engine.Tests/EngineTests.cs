@@ -17,6 +17,7 @@ public sealed class EngineTests
         public Queue<DefenceFace> DefenceFaces { get; } = new();
         public string DrawToken(IReadOnlyList<string> bag) => _tokens.Dequeue();
         public AttackFace RollAttackDie() => AttackFaces.Dequeue();
+        public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => DefenceFaces.Dequeue();
     }
 

@@ -9,12 +9,20 @@ public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
 public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
+[Flags]
+public enum UnitCapability { None = 0, ApproachThroughClosedDoors = 1 }
+public sealed record TryOpenDoor(int SuccessCount);
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
-    UnitAction Actions = UnitAction.NormalAttack)
+    UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
+    UnitCapability Capabilities = UnitCapability.None)
 {
     // Hero content uses these defaults; capabilities never depend on side or agency.
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp, UnitAction.NormalAttack | UnitAction.OpenDoor);
+
+    public static UnitType Zombie(string id = "zombie-type") =>
+        new(id, 2, 1, 3, 3, 1, TryOpenDoor: new(2),
+            Capabilities: UnitCapability.ApproachThroughClosedDoors);
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
 
@@ -39,11 +47,11 @@ public sealed record PhysicalState(Board Board, List<Figure> Figures);
 public enum Phase { BonusAction, Move, Act }
 public enum DecisionKind { SelectUnit, Move, Act }
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
-    UnitAction? Action = null, string? TargetId = null, Edge? Door = null);
+    UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null);
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
-    Edge? Door = null);
+    Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null);
 
 public sealed class GameState
 {
@@ -81,6 +89,7 @@ public interface IRandomProvider
     string DrawToken(IReadOnlyList<string> bag);
     AttackFace RollAttackDie();
     DefenceFace RollDefenceDie();
+    int RollD6();
 }
 
 public enum AttackFace { Hit, Miss }

@@ -12,7 +12,7 @@ const cells = new Map();
 const cellKey = cell => `${cell.x},${cell.y}`;
 const edgeKey = edge => [cellKey(edge.a), cellKey(edge.b)].sort().join("|");
 const unitLabel = id => ({ aria: "Aria", bram: "Bram", "wolf-1": "W1", "wolf-2": "W2", "wolf-3": "W3",
-  "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
+  "zombie-1": "Z1", "sentinel-1": "S1", "sentinel-2": "S2" })[id] ?? id;
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
 
 function placeFigure(node, cell, board) {
@@ -74,7 +74,8 @@ function renderSnapshot() {
   };
   ui.prompt.textContent = decision ? `${decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   for (const candidate of decision?.candidates ?? []) {
-    const label = candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
+    const label = candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
+      : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
       : candidate.action === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)}`
       : candidate.destination ? `Move to (${cellKey(candidate.destination)})` : unitLabel(candidate.key);
     addChoice(label, candidate.key);
@@ -84,7 +85,7 @@ function renderSnapshot() {
       offer(figures.get(candidate.targetId), label, candidate.key);
       const figure = state.physical.figures.find(figure => figure.id === candidate.targetId);
       if (figure) offer(cells.get(cellKey(figure.position)), label, candidate.key);
-    } else if (candidate.action === "OpenDoor" && candidate.door) {
+    } else if ((candidate.action === "OpenDoor" || candidate.tryOpenDoor) && candidate.door) {
       offer(edges.get(edgeKey(candidate.door)), label, candidate.key);
     }
   }
@@ -190,6 +191,7 @@ function describe(event) {
     case "MovementCompleted": return `${unitLabel(event.unitId)} moved: ${event.path.map(cellKey).join(" → ")}`;
     case "AttackResolved": return `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
+    case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Act consumed)`;
     case "DoorOpened": return `${unitLabel(event.unitId)} opened door ${cellKey(event.door.a)} ↔ ${cellKey(event.door.b)}`;
     case "TokenDrawn": return `Token drawn: ${event.typeId}`;
     default: return event.kind;
@@ -233,6 +235,13 @@ async function present(event) {
     case "UnitDied": {
       const node = figures.get(event.unitId); node?.classList.add("dying");
       await pause(320); node?.remove(); figures.delete(event.unitId); break;
+    }
+    case "DoorOpeningAttemptResolved": {
+      const node = edges.get(edgeKey(event.door));
+      node?.classList.add("target");
+      await pause(1000);
+      node?.classList.remove("target");
+      break;
     }
     case "DoorOpened": {
       const node = edges.get(edgeKey(event.door));

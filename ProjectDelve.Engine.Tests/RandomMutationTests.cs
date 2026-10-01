@@ -28,6 +28,7 @@ public sealed class RandomMutationTests
         }
 
         public AttackFace RollAttackDie() => throw new InvalidOperationException("Unexpected attack.");
+        public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Unexpected defence.");
     }
 

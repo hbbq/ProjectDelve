@@ -35,7 +35,8 @@ internal sealed class GameplayQueries : IGameplayQueries
     public int? DistanceToAttackPositionFrom(string unitId, Cell position)
     {
         HypotheticalPosition.Validate(world, unitId, position);
-        return ApproachRules.Distances(world.Physical.Board, position)
+        var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
+        return ApproachRules.Distances(world.Physical.Board, position, capabilities: type.Capabilities)
             .Where(pair => world.Units.Any(target => AttackRules.EvaluateApproachFrom(world, unitId, pair.Key, target.Id)
                 == NormalAttackEvaluation.Possible))
             .Select(pair => (int?)pair.Value).Min();

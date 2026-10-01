@@ -10,6 +10,7 @@ public sealed class OpenDoorTests
         public int AttackRolls { get; private set; }
         public string DrawToken(IReadOnlyList<string> bag) => bag[0];
         public AttackFace RollAttackDie() { AttackRolls++; return AttackFace.Hit; }
+        public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
     }
 

@@ -9,6 +9,7 @@ public sealed class AutomaticDecisionTests
     {
         public string DrawToken(IReadOnlyList<string> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
+        public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
     }
 
