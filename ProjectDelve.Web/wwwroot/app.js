@@ -98,10 +98,12 @@ function renderSnapshot() {
       : candidate.kind === "EndTurn" ? "End Turn"
       : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
-      : candidate.action === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)}`
+      : candidate.freeAction === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)} (Free Action)`
       : candidate.destination ? `Move to (${cellKey(candidate.destination)})` : unitLabel(candidate.key);
     addChoice(label, candidate.key);
-    if (candidate.kind === "Stay") {
+    if (candidate.door) {
+      offer(edges.get(edgeKey(candidate.door)), label, candidate.key);
+    } else if (candidate.kind === "Stay") {
       offer(figures.get(decision.unitId), label, candidate.key);
     } else if (candidate.destination) {
       offer(cells.get(cellKey(candidate.destination)), label, candidate.key);
@@ -109,8 +111,6 @@ function renderSnapshot() {
       offer(figures.get(candidate.targetId), label, candidate.key);
       const figure = state.physical.figures.find(figure => figure.id === candidate.targetId);
       if (figure) offer(cells.get(cellKey(figure.position)), label, candidate.key);
-    } else if ((candidate.action === "OpenDoor" || candidate.tryOpenDoor) && candidate.door) {
-      offer(edges.get(edgeKey(candidate.door)), label, candidate.key);
     }
   }
   if (decision?.allowsNone) addChoice(decision.kind === "Move" ? "Stay here" : "Take no action", null);

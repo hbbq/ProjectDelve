@@ -87,6 +87,9 @@ public static class GameEngine
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state);
                 break;
+            case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).FreeAction == UnitFreeAction.OpenDoor:
+                OpenDoor(state, request.UnitId!, request.Candidates.Single(c => c.Key == choice).Door!, events);
+                break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay:
             case DecisionKind.Move:
                 var figure = state.Physical.Figures.Single(f => f.Id == request.UnitId);
@@ -125,9 +128,6 @@ public static class GameEngine
                         case UnitAction.NormalAttack:
                             ResolveAttack(state, request.UnitId!, action.TargetId!, random, events);
                             attacked = true;
-                            break;
-                        case UnitAction.OpenDoor:
-                            OpenDoor(state, request.UnitId!, action.Door!, events);
                             break;
                         default:
                             throw new InvalidOperationException("Unsupported action.");
@@ -228,24 +228,35 @@ public static class GameEngine
                     == NormalAttackEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
-        if (actions.HasFlag(UnitAction.OpenDoor) || type.TryOpenDoor is not null)
+        if (type.TryOpenDoor is not null)
         {
-            var doors = state.Physical.Board.Edges
-                .Where(edge => edge.Kind == EdgeKind.ClosedDoor && (edge.A == from || edge.B == from))
-                .Select(edge => edge.A.Y < edge.B.Y || edge.A.Y == edge.B.Y && edge.A.X < edge.B.X
-                    ? edge : edge with { A = edge.B, B = edge.A })
-                .OrderBy(edge => edge.A.Y).ThenBy(edge => edge.A.X)
-                .ThenBy(edge => edge.B.Y).ThenBy(edge => edge.B.X);
-            foreach (var edge in doors)
+            foreach (var edge in AdjacentClosedDoors(state, unit))
             {
                 var key = $"{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}";
-                if (actions.HasFlag(UnitAction.OpenDoor))
-                    candidates.Add(new Candidate($"open-door:{key}", Action: UnitAction.OpenDoor, Door: edge));
-                if (type.TryOpenDoor is not null)
-                    candidates.Add(new Candidate($"try-open-door:{key}", Door: edge, TryOpenDoor: type.TryOpenDoor));
+                candidates.Add(new Candidate($"try-open-door:{key}", Door: edge, TryOpenDoor: type.TryOpenDoor));
             }
         }
         return candidates;
+    }
+
+    private static IEnumerable<Edge> AdjacentClosedDoors(GameState state, Unit unit)
+    {
+        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+        return state.Physical.Board.Edges
+            .Where(edge => edge.Kind == EdgeKind.ClosedDoor && (edge.A == from || edge.B == from))
+            .Select(edge => edge.A.Y < edge.B.Y || edge.A.Y == edge.B.Y && edge.A.X < edge.B.X
+                ? edge : edge with { A = edge.B, B = edge.A })
+            .OrderBy(edge => edge.A.Y).ThenBy(edge => edge.A.X)
+            .ThenBy(edge => edge.B.Y).ThenBy(edge => edge.B.X);
+    }
+
+    private static IEnumerable<Candidate> FreeActionCandidates(GameState state, Unit unit)
+    {
+        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        if (!type.FreeActions.HasFlag(UnitFreeAction.OpenDoor)) return [];
+        return AdjacentClosedDoors(state, unit).Select(edge => new Candidate(
+            $"open-door:{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}", Door: edge,
+            Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor));
     }
 
     private static List<Unit> EligibleUnits(GameState state) =>
@@ -270,6 +281,7 @@ public static class GameEngine
 
         var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
         var candidates = new List<Candidate>();
+        candidates.AddRange(FreeActionCandidates(state, unit));
         if (!state.MoveDone)
         {
             candidates.AddRange(MovementCandidates(state, unit));

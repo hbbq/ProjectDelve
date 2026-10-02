@@ -8,22 +8,26 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, OpenDoor = 2 }
+public enum UnitAction { None = 0, NormalAttack = 1 }
+[Flags]
+public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
-    UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null)
+    UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
+    UnitFreeAction FreeActions = UnitFreeAction.None)
 {
-    // Hero content uses these Action defaults independently of side or agency.
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
-        new(id, mov, rng, atk, def, hp, UnitAction.NormalAttack | UnitAction.OpenDoor);
+        new(id, mov, rng, atk, def, hp);
 
-    public static UnitType Barbarian(string id = "barbarian-type") => new(id, 3, 1, 4, 3, 5);
+    public static UnitType Barbarian(string id = "barbarian-type") =>
+        new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor);
 
-    public static UnitType Rogue(string id = "rogue-type") => new(id, 4, 1, 3, 2, 4);
+    public static UnitType Rogue(string id = "rogue-type") =>
+        new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor);
 
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
 
@@ -60,10 +64,10 @@ public sealed record PhysicalState(Board Board, List<Figure> Figures);
 // Normal Unit choices use Activation. Move is also used for the narrow post-attack
 // continuation; Move/Act requests support the providers' existing ranking routines.
 public enum DecisionKind { SelectUnit, Activation, Move, Act }
-public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit }
+public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction }
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
     UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null,
-    ActivationChoiceKind Kind = ActivationChoiceKind.Action);
+    ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null);
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
     bool IsMoveAfterAttack = false);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,

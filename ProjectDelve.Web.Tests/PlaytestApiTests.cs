@@ -55,15 +55,49 @@ public sealed class PlaytestApiTests
     [InlineData("barbarian-type", 3, 1, 4, 3, 5)]
     [InlineData("rogue-type", 4, 1, 3, 2, 4)]
     [InlineData("grunt-type", 3, 1, 3, 3, 1)]
-    public async Task BasicContentHasSpecifiedStatsAndOnlyNormalAttack(string id, int mov, int rng, int atk, int def, int hp)
+    public async Task BasicContentHasSpecifiedStatsAndExplicitActions(string id, int mov, int rng, int atk, int def, int hp)
     {
         await using var host = await Host.Start();
         var type = (await host.Read()).Result.State.Types.Single(t => t.Id == id);
         Assert.Equal((mov, rng, atk, def, hp), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
+        Assert.Equal(id == "grunt-type" ? UnitFreeAction.None : UnitFreeAction.OpenDoor, type.FreeActions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
         Assert.Null(type.TryOpenDoor);
         Assert.Null(type.MoveAfterAttack);
+    }
+
+    [Fact]
+    public async Task HeroDoorChoiceIsSuppliedByEngine_AndOpeningBeforeMoveKeepsMoveAndAttackAvailable()
+    {
+        await using var host = await Host.Start();
+        var started = await host.Round(0);
+        var moved = await host.Decide(started.Revision, "4,4");
+        var afterMove = Assert.Single(moved.Result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
+        Assert.Equal(ActivationChoiceKind.FreeAction, afterMove.Kind);
+        Assert.Null(afterMove.Action);
+        Assert.Equal("open-door:3,4:4,4", afterMove.Key);
+        // Decline it for this activation so the next activation can open before Move.
+        var completed = await FinishRound(host, await host.Decide(moved.Revision, "end-turn"));
+        var next = await host.Round(completed.Revision);
+        var beforeMove = Assert.Single(next.Result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
+        var opened = await host.Decide(next.Revision, beforeMove.Key);
+        Assert.Equal(next.Revision + 1, opened.Revision);
+        Assert.Equal("DoorOpened", Assert.Single(opened.Result.Events).Kind);
+        Assert.Equal("barbarian", opened.Result.NextInput!.UnitId);
+        Assert.False(opened.Result.State.MoveDone);
+        Assert.False(opened.Result.State.ActionDone);
+        Assert.False(opened.Result.State.BonusActionUsed);
+        Assert.Contains(opened.Result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Stay);
+        Assert.DoesNotContain(opened.Result.NextInput.Candidates, c => c.Key == beforeMove.Key);
+        Assert.Equal(EdgeKind.OpenDoor, opened.Result.State.Physical.Board.EdgeBetween(new(3, 4), new(4, 4)));
+        var stayed = await host.Decide(opened.Revision, "stay");
+        var attack = Assert.Single(stayed.Result.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
+        var attacked = await host.Decide(stayed.Revision, attack.Key);
+        Assert.Contains(attacked.Result.Events, e => e.Kind == "AttackResolved" && e.UnitId == "barbarian");
+        var script = await host.Client.GetStringAsync("/app.js");
+        Assert.Contains("candidate.freeAction === \"OpenDoor\"", script);
+        Assert.Contains("(Free Action)", script);
     }
 
     [Fact]
@@ -144,7 +178,7 @@ public sealed class PlaytestApiTests
         });
         var started = await host.Round(0);
         var moved = await host.Decide(started.Revision, "4,6");
-        Assert.DoesNotContain(moved.Result.NextInput!.Candidates, c => c.Action == UnitAction.OpenDoor);
+        Assert.DoesNotContain(moved.Result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
     }
 
     [Fact]

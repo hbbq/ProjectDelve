@@ -132,7 +132,7 @@ public sealed class GoblinTests
         var distant = Act(State(target: new(0, 0), start: new(4, 2)));
         Assert.True(distant.State.RoundComplete);
         var doorState = State();
-        doorState.Types[0] = doorState.Types[0] with { Actions = UnitAction.OpenDoor };
+        doorState.Types[0] = doorState.Types[0] with { Actions = UnitAction.None, FreeActions = UnitFreeAction.OpenDoor };
         doorState.Physical.Board.Edges.Add(new(new(2, 1), new(3, 1), EdgeKind.ClosedDoor));
         var door = Act(doorState);
         var opened = GameEngine.Advance(door.State, new Choice(door.NextInput!.Candidates[0].Key), new Random());

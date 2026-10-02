@@ -13,10 +13,11 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
             var path = candidate.Path is null ? "" :
                 $" | Path: {string.Join(" -> ", candidate.Path.Select(c => $"({c.X},{c.Y})"))}";
             var label = candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
-                candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" : candidate.Action switch
+                candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" :
+                candidate.FreeAction == UnitFreeAction.OpenDoor ?
+                    $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y}) (Free Action)" : candidate.Action switch
             {
                 UnitAction.NormalAttack => $"Attack {candidate.TargetId}",
-                UnitAction.OpenDoor => $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y})",
                 _ => candidate.Key
             };
             Console.WriteLine($"  {i + 1}. {label}{path}");
