@@ -656,6 +656,20 @@ After any choice resolves, the currently legal choices are determined again from
 
 A Unit that dies during its own activation cannot continue acting.
 
+### Passive abilities and state-dependent modifiers
+
+A passive ability is continuously applicable while its stated conditions are true and does not consume Move, Action, Bonus Action, or Free Action opportunities.
+
+The first passive Hero ability is the Cleric's **Adjacent Heroes get DEF +1**. The Cleric has base stats `MOV 3`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, and `HP 4`, and has the standard Hero Open Door Free Action.
+
+For this passive, **adjacent** uses the same spatial relationship already used when determining whether a Unit is threatened by an adjacent Unit: the other Unit occupies one of the eight surrounding cells and normal Line of Sight exists between the two cells. Walls, doors, corners, and other LOS effects therefore affect this adjacency through the ordinary LOS rules rather than through a separate passive-specific approximation.
+
+The Cleric grants `DEF +1` to each adjacent friendly Hero. The Cleric does not grant the bonus to itself because it is not adjacent to itself. Multiple applicable sources stack additively: for example, a Hero adjacent to two Clerics receives `DEF +2`, and adjacent Clerics may grant `DEF +1` to each other.
+
+State-dependent modifiers are derived from the authoritative Game State being evaluated rather than stored as independently authoritative state. Moving, death, changes to LOS, or other state changes therefore naturally change which modifiers apply. Effective-stat calculation and any shared gameplay queries must derive such modifiers from the specific Game State passed to them.
+
+This also applies to copied or hypothetical Game States used by relevance evaluation. A state-dependent modifier must be calculated from the hypothetical state's own positions, Units, terrain, edges, and other relevant state, not from cached or precomputed information belonging to the original/live state. Implementations may optimize derived calculations later if necessary, but any cache must remain non-authoritative and preserve these semantics.
+
 ### Bonus Actions
 
 A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, its Bonus Action opportunity remains unused, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
