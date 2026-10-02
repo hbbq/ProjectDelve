@@ -451,11 +451,13 @@ The current v0 content roster is deliberately small. The reference implementatio
 
 - Stats: `MOV 3`, `RNG 1` (Melee), `ATK 4`, `DEF 3`, `HP 5`.
 - Actions: Normal Attack.
+- Free Actions: Open Door.
 
 #### Rogue
 
 - Stats: `MOV 4`, `RNG 1` (Melee), `ATK 3`, `DEF 2`, `HP 4`.
 - Actions: Normal Attack.
+- Free Actions: Open Door.
 
 ### Monsters
 
@@ -613,6 +615,14 @@ A Free Action consumes neither the Unit's Move opportunity, Action opportunity, 
 Free Actions may be available at more than one point during an activation. After a Free Action resolves, legal choices are generated again from the resulting state.
 
 Whether a particular Free Action is legal is part of the rules. Whether a legal Free Action is hidden by normal relevance filtering is a separate presentation/provider concern.
+
+There is no general Free Action phase and no general `Skip Free Action` decision. A legal Free Action appears alongside the other choices currently available to the Unit. If several concrete uses of a Free Action are legal, each is a separate candidate.
+
+The reusable **Open Door** Free Action is available only to Unit Types that explicitly have that Free Action. It is legal whenever the Unit occupies either cell bordering a Closed Door edge, and there is one legal Open Door candidate for each such Closed Door. Resolving the Free Action changes that edge to an Open Door and emits the normal door-open gameplay event.
+
+Open Door has no additional activation-timing restriction. It may therefore be used before or after the Unit's Move and before or after its Action, whenever an adjacent Closed Door makes the Free Action legal and the Unit's activation has not ended. Opening a door consumes no Move, Action, or Bonus Action opportunity. Legal choices are regenerated afterward, so opening one door may make another Open Door candidate available or change other legal choices.
+
+Open Door is standard Hero content, but is represented explicitly on each Hero Unit Type rather than being inherited implicitly merely because the Unit Type is a Hero. The current Barbarian and Rogue Unit Types both have Open Door.
 
 ### Move
 
