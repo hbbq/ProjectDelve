@@ -53,5 +53,15 @@ button:disabled { opacity: .45; cursor: default; }
 #choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #effect { min-height: 1.5em; color: #ffe084; } #error { color: #ffaaa4; min-height: 1.5em; }
-#units p { margin: 8px 0; font-size: .9rem; } #events { max-height: 250px; overflow: auto; padding-left: 24px; font-size: .9rem; }
+#events { max-height: 250px; overflow: auto; padding-left: 24px; font-size: .9rem; }
 footer { margin-top: 24px; }
+
+#unit-card { padding: 16px; border: 1px solid #71809a; border-radius: 8px; background: #222d3f; }
+#unit-card h3 { margin: 4px 0; font-size: 1.3rem; }
+#unit-card h4 { margin: 16px 0 8px; color: #a5daff; }
+#unit-card p { margin: 6px 0; font-size: .9rem; }
+#unit-card small { display: block; }
+.card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 12px; }
+.modified-stat { color: #ffe084; }
+.card-ability { padding: 10px 0; border-bottom: 1px solid #475367; }
+.card-ability button { margin-top: 6px; }

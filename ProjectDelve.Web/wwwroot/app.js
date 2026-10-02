@@ -1,9 +1,12 @@
-const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "units", "events"]
+const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let busy = false;
 let skipEffects = false;
 let cancelPause;
+let displayedState;
+let latestUnitId;
+let hoveredUnitId;
 const figures = new Map();
 const edges = new Map();
 const cells = new Map();
@@ -89,7 +92,11 @@ function renderBoard(state, preserveNodes = false) {
       node.append(hp);
     }
     placeFigure(node, figure.position, board);
-    if (!figures.has(figure.id)) ui.board.append(node);
+    if (!figures.has(figure.id)) {
+      node.addEventListener("mouseenter", () => { hoveredUnitId = figure.id; renderUnitCard(); });
+      node.addEventListener("mouseleave", () => { hoveredUnitId = null; renderUnitCard(); });
+      ui.board.append(node);
+    }
     figures.set(figure.id, node);
   }
   for (const [nodes, retained] of [[cells, retainedCells], [edges, retainedEdges], [figures, retainedFigures]]) {
@@ -103,21 +110,68 @@ function renderBoard(state, preserveNodes = false) {
 function renderState(state, preserveNodes = true) {
   renderBoard(state, preserveNodes);
   ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${state.activeTypeId} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
-  ui.units.replaceChildren(...state.units.map(unit => {
-    const type = state.types.find(type => type.id === unit.typeId);
-    const atk = state.effectiveAtk?.[unit.id];
-    const mov = state.effectiveMov?.[unit.id];
-    const rng = state.effectiveRng?.[unit.id];
-    const abilities = (type.bonusActions ?? []).map(ability => {
-      const uses = unit.bonusActionUses?.[ability.name];
-      return uses ? ` · ${ability.name} ${uses.remainingUses}/${uses.maxUses}` : "";
-    }).join("");
-    return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${mov ?? type.mov} RNG ${rng ?? type.rng} ATK ${atk ?? type.atk} (base ${type.atk}) DEF ${type.def}${abilities}`);
-  }));
+  displayedState = state;
+  if (state.currentUnitId) latestUnitId = state.currentUnitId;
+  renderUnitCard();
+}
+
+const readableName = id => id.replace(/-type$/, "").replace(/-/g, " ")
+  .replace(/\b\w/g, letter => letter.toUpperCase());
+const visibleChoice = candidate => !(ui.filter.checked && candidate.relevant === false);
+
+// One card renderer for activation display and board inspection. Values are supplied by the engine.
+function renderUnitCard() {
+  const state = displayedState;
+  const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
+  const card = ui["unit-card"];
+  card.replaceChildren();
+  if (!unit) { card.append(text("p", "Start a round or hover a Unit to inspect it.")); return; }
+  const type = state.types.find(type => type.id === unit.typeId);
+  card.append(text("small", hoveredUnitId ? "Inspecting" : state.currentUnitId === unit.id ? "Active Unit" : "Most recently active"));
+  card.append(text("h3", readableName(type.id)));
+  card.append(text("small", `${unit.id} \u00b7 ${unit.sideId ?? ""}`));
+  const stats = text("div", ""); stats.className = "card-stats";
+  for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
+    const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
+    const value = text("p", `${stat.toUpperCase()} ${base === effective ? base : `${base} \u2192 ${effective}`}`);
+    if (base !== effective) value.className = "modified-stat";
+    stats.append(value);
+  }
+  card.append(stats);
+  card.append(text("p", `HP ${unit.currentHp} / ${type.hp}`));
+  card.append(text("h4", "Bonus Actions"));
+  if (!type.bonusActions?.length) card.append(text("small", "None"));
+  for (const ability of type.bonusActions ?? []) {
+    const row = text("div", ""); row.className = "card-ability";
+    row.append(text("strong", ability.name));
+    row.append(text("p", `${ability.modifiers.map(modifier => `${modifier.amount >= 0 ? "+" : ""}${modifier.amount} ${modifier.stat.toUpperCase()}`).join(" & ")} this turn`));
+    const uses = unit.bonusActionUses?.[ability.name];
+    if (uses) row.append(text("small", `${uses.remainingUses} / ${uses.maxUses} uses`));
+    const decision = snapshot?.result.nextInput;
+    const candidate = decision?.unitId === unit.id
+      ? decision.candidates.find(candidate => candidate.bonusAction?.name === ability.name) : null;
+    const button = text("button", "Use");
+    button.dataset.legal = String(!!candidate);
+    button.disabled = busy || !candidate;
+    button.hidden = !!candidate && !visibleChoice(candidate);
+    button.setAttribute("aria-label", `Use ${ability.name}`);
+    button.addEventListener("click", () => { if (candidate) return chooseCandidate(candidate.key); });
+    row.append(button);
+    if (candidate?.relevant === false) row.append(text("small", button.hidden ? "Irrelevant choice hidden by filter" : "Currently irrelevant"));
+    card.append(row);
+  }
+  card.append(text("h4", "Passives"));
+  const passive = type.adjacentFriendlyUnitsDefenceBonus;
+  if (passive) {
+    card.append(text("strong", passive.name));
+    card.append(text("small", "Passive"));
+    card.append(text("p", `Adjacent friendly Units get DEF +${passive.amount}`));
+  } else card.append(text("small", "None"));
 }
 
 function renderSnapshot() {
   const state = snapshot.result.state;
+  hoveredUnitId = null;
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   ui.choices.replaceChildren();
@@ -130,6 +184,8 @@ function renderSnapshot() {
     boardChoices.get(node).set(key, label);
   };
   ui.prompt.textContent = decision ? `${decision.isMoveAfterAttack ? "Move after attack" : decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  const presentedOnBoard = new Set();
+  const labels = new Map();
   for (const candidate of decision?.candidates ?? []) {
     if (ui.filter.checked && candidate.relevant === false) continue;
     const label = candidate.kind === "Stay" ? "Stay here"
@@ -139,8 +195,10 @@ function renderSnapshot() {
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
       : candidate.freeAction === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)} (Free Action)`
       : candidate.destination ? `Move to (${cellKey(candidate.destination)})` : unitLabel(candidate.key);
-    addChoice(label, candidate.key);
-    if (candidate.door) {
+    labels.set(candidate.key, label);
+    if (candidate.kind === "SelectUnit") {
+      offer(figures.get(candidate.key), label, candidate.key);
+    } else if (candidate.door) {
       offer(edges.get(edgeKey(candidate.door)), label, candidate.key);
     } else if (candidate.kind === "Stay") {
       offer(figures.get(decision.unitId), label, candidate.key);
@@ -152,18 +210,28 @@ function renderSnapshot() {
       if (figure) offer(cells.get(cellKey(figure.position)), label, candidate.key);
     }
   }
-  if (decision?.allowsNone) addChoice(decision.kind === "Move" ? "Stay here" : "Take no action", null);
   if (decision?.kind === "Move" && decision.allowsNone)
     offer(figures.get(decision.unitId), "Stay here", null);
   for (const [node, choices] of boardChoices) {
     if (choices.size !== 1) continue;
     const [key, label] = choices.entries().next().value;
     bindBoardChoice(node, label, key);
+    presentedOnBoard.add(key);
+  }
+  if (decision?.allowsNone && !presentedOnBoard.has(null))
+    addChoice(decision.kind === "Move" ? "Stay here" : "Take no action", null);
+  for (const candidate of decision?.candidates ?? []) {
+    if (!visibleChoice(candidate) || presentedOnBoard.has(candidate.key)) continue;
+    const cardUnit = state.units.find(unit => unit.id === decision.unitId);
+    const cardType = state.types.find(type => type.id === cardUnit?.typeId);
+    if (candidate.bonusAction && cardType?.bonusActions?.some(ability => ability.name === candidate.bonusAction.name)) continue;
+    addChoice(labels.get(candidate.key), candidate.key);
   }
   updateControls();
 }
 
 function chooseCandidate(key) {
+  if (busy) return;
   return mutate("decision", { candidateKey: key });
 }
 
@@ -182,12 +250,12 @@ function bindBoardChoice(node, label, key) {
   node.setAttribute("aria-label", accessibleLabel);
   node.addEventListener("click", event => {
     event.stopPropagation();
-    chooseCandidate(key);
+    return chooseCandidate(key);
   });
   node.addEventListener("keydown", event => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    chooseCandidate(key);
+    return chooseCandidate(key);
   });
 }
 
@@ -198,6 +266,7 @@ function updateControls() {
   ui.round.disabled = busy || !snapshot || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
   ui.round.textContent = snapshot?.result.state.round ? "Start next round" : "Start round";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
+  for (const button of ui["unit-card"].querySelectorAll("button")) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
   for (const node of ui.board.querySelectorAll(".board-choice")) {
     const disabled = busy || !snapshot;
     node.setAttribute("aria-disabled", String(disabled));

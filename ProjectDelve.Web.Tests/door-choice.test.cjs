@@ -32,14 +32,13 @@ class Element {
     this.parent = null;
   }
   set textContent(value) { this.replaceChildren(); this.content = value; }
-  get textContent() { return this.content; }
+  get textContent() { return [this.content ?? "", ...this.children.map(child => child.textContent)].join(" "); }
   setAttribute(name, value) { this.attributes[name] = value; }
   removeAttribute(name) { delete this.attributes[name]; }
   getBoundingClientRect() { this.layoutReads = (this.layoutReads ?? 0) + 1; return {}; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
   querySelectorAll(selector) {
-    return this.children.filter(child => selector === "button"
-      ? child.tagName === "button" : child.classList.contains(selector.slice(1)));
+    return this.children.flatMap(child => [ ...(selector === "button" ? child.tagName === "button" : child.classList.contains(selector.slice(1))) ? [child] : [], ...child.querySelectorAll(selector)]);
   }
 }
 
@@ -102,7 +101,8 @@ for (const mode of ["animate", "disabled", "skip"]) {
       : mode === "skip" ? ["HP 5/5"] : []);
     assert.equal(elements.get("choices").children.length, 1);
     assert.equal(elements.get("choices").children[0].disabled, false);
-    assert.match(elements.get("units").children[0].textContent, /HP 2\/5/);
+    vm.runInContext('hoveredUnitId = "hero"; renderUnitCard();', context);
+    assert.match(elements.get("unit-card").textContent, /HP 2 \/ 5/);
     assert.equal(initial.result.state.units[0].currentHp, 5);
     assert.equal(response.result.state.units[0].currentHp, 2);
   });
@@ -197,8 +197,7 @@ for (const moveDone of [false, true]) {
     renderedDoor.listeners.keydown({ key: "Enter", preventDefault() { prevented = true; } });
     assert.ok(prevented);
     assert.deepEqual(submitted, [key, key]);
-    elements.get("choices").children[0].listeners.click();
-    assert.deepEqual(submitted, [key, key, key]);
+    assert.equal(elements.get("choices").children.length, 0);
   });
 }
 
@@ -242,13 +241,13 @@ test("relevance filtering is local, preserves legal submissions, and is independ
   assert.equal(requests.length, 0);
   assert.equal(response.revision, 2);
   assert.equal(response.result.nextInput.candidates.length, 2);
-  assert.equal(elements.get("choices").children.length, 2);
+  assert.equal(elements.get("choices").children.length, 1);
   assert.equal(renderedDoor().classList.contains("board-choice"), true);
   assert.equal(elements.get("auto").checked, false);
-  await elements.get("choices").children[0].listeners.click();
+  await renderedDoor().listeners.click({ stopPropagation() {} });
   assert.deepEqual(requests[0], { url: "/api/game/decision", body: { expectedRevision: 2, candidateKey: irrelevant.key } });
   assert.equal(elements.get("filter").checked, false);
-  assert.equal(elements.get("choices").children.length, 2);
+  assert.equal(elements.get("choices").children.length, 1);
   elements.get("filter").checked = true;
   elements.get("filter").listeners.change();
   assert.equal(requests.length, 1);
@@ -306,17 +305,100 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
   const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
   vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
   vm.runInContext("snapshot = response; renderSnapshot();", context);
-  assert.match(elements.get("units").children[0].textContent, /ATK 17 \(base 4\)/);
-  assert.match(elements.get("units").children[0].textContent, /Rage 1\/2/);
-  assert.match(elements.get("units").children[1].textContent, /MOV 6 RNG 3 ATK 2 \(base 3\)/);
-  assert.match(elements.get("units").children[1].textContent, /Dash 2\/2 · Throwing Knife 1\/2/);
+  const card = elements.get("unit-card");
+  assert.match(card.textContent, /Barbarian/);
+  assert.match(card.textContent, /HP 5 \/ 5/);
+  assert.match(card.textContent, /MOV 3/);
+  assert.match(card.textContent, /ATK 4 \u2192 17/);
+  assert.match(card.textContent, /Rage.*\+2 ATK this turn.*1 \/ 2 uses/);
+  assert.equal(card.querySelectorAll("button")[0].hidden, true);
+  assert.equal(card.querySelectorAll("button")[0].disabled, false);
   assert.equal(elements.get("choices").children.length, 1);
   elements.get("filter").checked = false;
   elements.get("filter").listeners.change();
   assert.equal(requests.length, 0);
-  assert.equal(elements.get("choices").children.length, 2);
-  assert.equal(elements.get("choices").children[0].textContent, "Rage (Bonus Action)");
-  await elements.get("choices").children[0].listeners.click();
+  assert.equal(elements.get("choices").children.length, 1);
+  assert.equal(card.querySelectorAll("button")[0].hidden, false);
+  // Rules-looking flags are display data, never the source of button legality.
+  response.result.state.bonusActionUsed = true;
+  response.result.state.actionDone = true;
+  vm.runInContext('renderSnapshot();', context);
+  assert.equal(card.querySelectorAll("button")[0].disabled, false);
+  await card.querySelectorAll("button")[0].listeners.click();
   assert.deepEqual(requests[0], { url: "/api/game/decision", body: { expectedRevision: 7, candidateKey: "opaque-bonus-key" } });
+  vm.runInContext('hoveredUnitId = "rogue"; renderUnitCard();', context);
+  assert.match(card.textContent, /MOV 4 \u2192 6.*RNG 1 \u2192 3.*ATK 3 \u2192 2/);
+  assert.match(card.textContent, /Dash.*2 \/ 2 uses.*Throwing Knife.*1 \/ 2 uses/);
+  assert.ok(card.querySelectorAll("button").every(button => button.disabled));
+  vm.runInContext('hoveredUnitId = null; response.result.nextInput.candidates = []; renderSnapshot();', context);
+  assert.equal(card.querySelectorAll("button")[0].disabled, true);
+  vm.runInContext('response.result.state.currentUnitId = null; renderSnapshot();', context);
+  assert.match(card.textContent, /Most recently active.*Barbarian/);
   assert.match(vm.runInContext('describe({ kind: "AbilityUsed", unitId: "barbarian", abilityName: "Rage" })', context), /used Rage/);
+});
+
+
+test("hover shares the card, restores activation display, and keeps board and fallback choices usable", () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new Element());
+      return elements.get(id);
+    },
+    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
+  };
+  const submitted = [];
+  const context = vm.createContext({ document, submitted });
+  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  const response = { revision: 1, result: {
+    state: { round: 1, currentUnitId: "barbarian",
+      physical: { board: { width: 4, height: 1, edges: [] }, figures: [
+        { id: "barbarian", position: { x: 0, y: 0 } },
+        { id: "rogue", position: { x: 1, y: 0 } },
+        { id: "cleric", position: { x: 2, y: 0 } },
+        { id: "enemy", position: { x: 3, y: 0 } }
+      ] },
+      units: ["barbarian", "rogue", "cleric", "enemy"].map(id => ({ id, typeId: `${id}-type`, currentHp: 4 })),
+      types: ["barbarian", "rogue", "cleric", "enemy"].map(id => ({ id: `${id}-type`, mov: 3, rng: 1, atk: 3, def: 2, hp: 4,
+        ...(id === "cleric" ? { adjacentFriendlyUnitsDefenceBonus: { name: "Aura", amount: 1 } } : {}) })),
+      effectiveDef: { rogue: 3 } },
+    nextInput: { kind: "Activation", unitId: "barbarian", candidates: [
+      { key: "opaque-attack", action: "NormalAttack", targetId: "enemy" },
+      { key: "opaque-move", destination: { x: 1, y: 0 } },
+      { key: "opaque-end", kind: "EndTurn" },
+      { key: "future-choice", kind: "Action" }
+    ] }
+  } };
+  context.response = response;
+  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
+  const card = elements.get("unit-card");
+  const figure = id => vm.runInContext(`figures.get("${id}")`, context);
+  assert.match(card.textContent, /Active Unit.*Barbarian/);
+  figure("rogue").listeners.mouseenter();
+  assert.match(card.textContent, /Inspecting.*Rogue.*DEF 2 \u2192 3/);
+  figure("rogue").listeners.mouseleave();
+  assert.match(card.textContent, /Active Unit.*Barbarian/);
+  figure("cleric").listeners.mouseenter();
+  assert.match(card.textContent, /Aura Passive Adjacent friendly Units get DEF \+1/);
+  figure("cleric").listeners.mouseleave();
+  figure("enemy").listeners.mouseenter();
+  assert.match(card.textContent, /Inspecting.*Enemy/);
+  figure("enemy").listeners.click({ stopPropagation() {} });
+  assert.deepEqual(submitted, ["opaque-attack"]);
+  figure("enemy").listeners.mouseleave();
+  const move = elements.get("board").children.find(node => node.dataset.cell === "1,0");
+  move.listeners.click({ stopPropagation() {} });
+  const buttons = elements.get("choices").children;
+  assert.deepEqual(buttons.map(button => button.textContent), ["End Turn", "future-choice"]);
+  buttons[0].listeners.click(); buttons[1].listeners.click();
+  assert.deepEqual(submitted, ["opaque-attack", "opaque-move", "opaque-end", "future-choice"]);
+  response.result.state.currentUnitId = null;
+  vm.runInContext('renderSnapshot();', context);
+  figure("rogue").listeners.mouseenter(); figure("rogue").listeners.mouseleave();
+  assert.match(card.textContent, /Most recently active.*Barbarian/);
+  // An unavailable board target must remain usable through the generic fallback.
+  response.result.nextInput.candidates[0].targetId = "missing";
+  vm.runInContext('renderSnapshot();', context);
+  assert.ok(elements.get("choices").children.some(button => button.textContent === "Attack missing"));
 });

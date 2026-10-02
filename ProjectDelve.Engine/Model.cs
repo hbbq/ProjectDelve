@@ -17,7 +17,7 @@ public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
-public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount);
+public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
 // Current HP is never a modifier stat.
 public enum Stat { Atk, Mov, Rng, Def }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
@@ -72,7 +72,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Cleric(string id = "cleric-type") =>
         new(id, 3, 1, 3, 3, 4, FreeActions: UnitFreeAction.OpenDoor)
         {
-            AdjacentFriendlyUnitsDefenceBonus = new(1)
+            AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
         };
 
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);

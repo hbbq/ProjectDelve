@@ -20,6 +20,33 @@ public sealed class PlaytestApiTests
     };
 
     [Fact]
+    public async Task CardDataIncludesNamedAuraAndAuthoritativeEffectiveDefence()
+    {
+        await using var host = await Host.Start();
+        using var json = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
+        var state = json.RootElement.GetProperty("result").GetProperty("state");
+        var types = state.GetProperty("types").EnumerateArray().ToArray();
+        var barbarian = types.Single(t => t.GetProperty("id").GetString() == "barbarian-type");
+        Assert.Equal(3, barbarian.GetProperty("mov").GetInt32());
+        Assert.Equal(1, barbarian.GetProperty("rng").GetInt32());
+        Assert.Equal(4, barbarian.GetProperty("atk").GetInt32());
+        Assert.Equal(3, barbarian.GetProperty("def").GetInt32());
+        Assert.Equal(5, barbarian.GetProperty("hp").GetInt32());
+        Assert.Equal("Rage", barbarian.GetProperty("bonusActions")[0].GetProperty("name").GetString());
+        var rogue = types.Single(t => t.GetProperty("id").GetString() == "rogue-type");
+        Assert.Equal(new[] { "Dash", "Throwing Knife" }, rogue.GetProperty("bonusActions").EnumerateArray()
+            .Select(a => a.GetProperty("name").GetString()));
+        var cleric = types.Single(t => t.GetProperty("id").GetString() == "cleric-type");
+        var aura = cleric.GetProperty("adjacentFriendlyUnitsDefenceBonus");
+        Assert.Equal("Aura", aura.GetProperty("name").GetString());
+        Assert.Equal(1, aura.GetProperty("amount").GetInt32());
+        // Rogue starts adjacent to Cleric; base DEF remains unchanged in content.
+        Assert.Equal(2, rogue.GetProperty("def").GetInt32());
+        Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty("rogue").GetInt32());
+        Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty("barbarian").GetInt32());
+    }
+
+    [Fact]
     public async Task ReadIsSideEffectFree_AndHostServesBrowserAssets()
     {
         await using var host = await Host.Start();
