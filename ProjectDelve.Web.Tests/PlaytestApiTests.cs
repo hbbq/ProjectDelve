@@ -73,7 +73,7 @@ public sealed class PlaytestApiTests
         var started = await host.Round(0);
         Assert.Equal(1, started.Revision);
         Assert.Equal("barbarian-type", started.Result.NextInput!.TypeId);
-        Assert.Equal(DecisionKind.Move, started.Result.NextInput.Kind);
+        Assert.Equal(DecisionKind.Activation, started.Result.NextInput.Kind);
         var completed = await FinishRound(host, started);
         Assert.True(completed.Result.State.RoundComplete);
         Assert.Null(completed.Result.NextInput);
@@ -82,13 +82,16 @@ public sealed class PlaytestApiTests
         Assert.Equal(new[] { "barbarian-type", "rogue-type", "grunt-type", "zombie-type", "skeleton-archer-type", "goblin-type" },
             completed.Result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Contains(moves, e => e.Path!.Count > 1);
+        // Each Unit finishes before the next Unit of that Type moves.
         foreach (var typeId in new[] { "grunt-type", "zombie-type", "skeleton-archer-type" })
         {
-            var groupIds = completed.Result.State.Units.Where(u => u.TypeId == typeId).Select(u => u.Id).ToArray();
-            var groupEvents = completed.Result.Events.Where(e => groupIds.Contains(e.UnitId)).ToList();
-            var firstAttack = groupEvents.FindIndex(e => e.Kind == "AttackResolved");
-            if (firstAttack >= 0)
-                Assert.All(groupEvents.Skip(firstAttack), e => Assert.NotEqual("MovementCompleted", e.Kind));
+            var ids = completed.Result.State.Units.Where(u => u.TypeId == typeId).Select(u => u.Id).ToArray();
+            var unitEvents = completed.Result.Events.Where(e => ids.Contains(e.UnitId)).Select(e => e.UnitId).ToArray();
+            foreach (var id in ids)
+            {
+                var indices = unitEvents.Select((value, index) => (value, index)).Where(x => x.value == id).Select(x => x.index).ToArray();
+                if (indices.Length > 0) Assert.Equal(indices.Length, indices[^1] - indices[0] + 1);
+            }
         }
         Assert.Equal("RoundCompleted", completed.Result.Events[^1].Kind);
         Assert.Empty((await host.Read()).Result.Events); // Refresh must not replay effects.
@@ -295,6 +298,36 @@ public sealed class PlaytestApiTests
         Assert.Contains("event.isMoveAfterAttack", script);
     }
 
+    [Fact]
+    public async Task FilteringPreferenceIsBackendVisibleRevisionedAndOutsideGameState()
+    {
+        await using var host = await Host.Start();
+        var started = await host.Round(0);
+        Assert.True(started.FilterRelevantChoices);
+        var stateBefore = JsonSerializer.Serialize(started.Result.State, Json);
+        using var response = await host.Post("preferences", new {
+            expectedRevision = started.Revision, filterRelevantChoices = false });
+        response.EnsureSuccessStatusCode();
+        var changed = (await response.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        Assert.False(changed.FilterRelevantChoices);
+        Assert.Equal(started.Revision + 1, changed.Revision);
+        Assert.Equal(stateBefore, JsonSerializer.Serialize(changed.Result.State, Json));
+        Assert.False((await host.Read()).FilterRelevantChoices);
+        Assert.Equal(HttpStatusCode.Conflict, (await host.Post("preferences", new {
+            expectedRevision = started.Revision, filterRelevantChoices = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("preferences", new {
+            expectedRevision = changed.Revision })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
+            expectedRevision = changed.Revision, candidateKey = (string?)null })).StatusCode);
+        var moved = await host.Decide(changed.Revision, "4,6");
+        Assert.False(moved.FilterRelevantChoices);
+        Assert.Contains(moved.Result.Events, e => e.Kind == "MovementCompleted");
+        var script = await host.Client.GetStringAsync("/app.js");
+        Assert.Contains("filterRelevantChoices", script);
+        Assert.DoesNotContain("state.phase", script);
+        Assert.Contains("Filter irrelevant choices", await host.Client.GetStringAsync("/"));
+    }
+
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)
     {
         var events = new List<RulesEvent>(result.Result.Events);
@@ -336,7 +369,12 @@ public sealed class PlaytestApiTests
         public async Task<GameResponse> Read() => (await Client.GetFromJsonAsync<GameResponse>("/api/game", Json))!;
         public Task<HttpResponseMessage> Post(string operation, object body) => Client.PostAsJsonAsync($"/api/game/{operation}", body);
         public Task<GameResponse> Round(long revision) => Mutation("round", new { expectedRevision = revision });
-        public Task<GameResponse> Decide(long revision, string? key) => Mutation("decision", new { expectedRevision = revision, candidateKey = key });
+        public async Task<GameResponse> Decide(long revision, string? key)
+        {
+            if (key is null)
+                key = (await Read()).Result.NextInput!.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key;
+            return await Mutation("decision", new { expectedRevision = revision, candidateKey = key });
+        }
         private async Task<GameResponse> Mutation(string operation, object body)
         {
             using var response = await Post(operation, body);

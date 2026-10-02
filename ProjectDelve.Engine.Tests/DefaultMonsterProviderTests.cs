@@ -14,7 +14,8 @@ public sealed class DefaultMonsterProviderTests
 
     private sealed class Choice(string? key) : IDecisionProvider
     {
-        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key ?? (request.Kind == DecisionKind.Activation
+                ? request.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key : null);
     }
 
     private static GameState State(int rng = 5, int mov = 0) => new()
@@ -34,7 +35,7 @@ public sealed class DefaultMonsterProviderTests
     private static DecisionRequest PendingAttack(GameState state)
     {
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(DecisionKind.Act, pending.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind);
         return pending.NextInput;
     }
 
@@ -66,7 +67,7 @@ public sealed class DefaultMonsterProviderTests
         var result = GameEngine.StartRound(state, random);
         Assert.Equal("monster", provider.Choose(result.NextInput!, new GameplayQueries(result.State)));
 
-        // Finish the group's Bonus Action selections and reach monster's Move.
+        // Select the first Unit and reach its Move.
         while (result.NextInput!.Kind == DecisionKind.SelectUnit)
             result = GameEngine.Advance(result.State, provider, random);
         Assert.Equal("monster", result.NextInput.UnitId);
@@ -74,21 +75,16 @@ public sealed class DefaultMonsterProviderTests
         Assert.Equal(new Cell(0, 2), result.State.Physical.Figures.Single(f => f.Id == "monster").Position);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Key == "monster");
 
-        // The remaining Units finish Move without moving.
         result = GameEngine.Advance(result.State, provider, random);
-        Assert.Equal("second", result.NextInput!.UnitId);
-        result = GameEngine.Advance(result.State, new Choice(null), random);
-        Assert.Equal("third", result.NextInput!.UnitId);
-        result = GameEngine.Advance(result.State, new Choice(null), random);
-
-        // In Act all three are eligible again. The moved monster now sorts last.
-        Assert.Equal(Phase.Act, result.State.Phase);
+        // The first Unit ends its complete activation before selecting another.
+        Assert.Contains("monster", result.State.CompletedUnitIds);
         Assert.Equal(DecisionKind.SelectUnit, result.NextInput!.Kind);
-        Assert.Contains(result.NextInput.Candidates, c => c.Key == "monster");
+        Assert.DoesNotContain(result.NextInput.Candidates, c => c.Key == "monster");
         Assert.Equal("second", provider.Choose(result.NextInput, new GameplayQueries(result.State)));
         result = GameEngine.Advance(result.State, provider, random);
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
-        Assert.Equal("second", result.NextInput.UnitId);
+        Assert.Equal("second", result.NextInput!.UnitId);
+        Assert.False(result.State.MoveDone);
+
     }
 
     [Fact]
@@ -99,7 +95,7 @@ public sealed class DefaultMonsterProviderTests
         AddUnit(state, "near", new Cell(3, 5));
         AddUnit(state, "friendly", new Cell(3, 2), "red");
         var request = PendingAttack(state);
-        Assert.Equal(2, request.Candidates.Count);
+        Assert.Equal(2, request.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.DoesNotContain(request.Candidates, c => c.TargetId == "friendly");
 
         Assert.Equal("attack:near", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
@@ -114,7 +110,7 @@ public sealed class DefaultMonsterProviderTests
         AddUnit(state, "other", new Cell(otherX, otherY));
         AddUnit(state, "first", new Cell(firstX, firstY));
         var request = PendingAttack(state);
-        Assert.Equal(2, request.Candidates.Count);
+        Assert.Equal(2, request.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
 
         Assert.Equal("attack:first", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
     }
@@ -126,7 +122,7 @@ public sealed class DefaultMonsterProviderTests
         AddUnit(state, "diagonal", new Cell(2, 2));
         AddUnit(state, "orthogonal", new Cell(4, 3));
         var request = PendingAttack(state);
-        Assert.Equal(2, request.Candidates.Count);
+        Assert.Equal(2, request.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         var queries = new GameplayQueries(state);
         Assert.Equal(2, queries.ManhattanDistanceBetweenUnits("monster", "diagonal"));
         Assert.Equal(1, queries.ManhattanDistanceBetweenUnits("monster", "orthogonal"));
@@ -166,7 +162,7 @@ public sealed class DefaultMonsterProviderTests
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Position = new Cell(0, 1) };
         AddUnit(state, "hostile", new Cell(3, 1));
         var pending = GameEngine.StartRound(state, new Random());
-        Assert.Equal(DecisionKind.Move, pending.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind);
         var queries = new GameplayQueries(pending.State);
         var original = new MonsterMovementProvider(new Choice(null)).Choose(pending.NextInput, queries);
         Assert.Equal("2,1", original);

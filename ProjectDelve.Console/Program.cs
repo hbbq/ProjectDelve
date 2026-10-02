@@ -65,7 +65,7 @@ static void ShowState(GameState state)
     Console.WriteLine();
     Console.WriteLine($"Round: {state.Round} | Complete: {state.RoundComplete} | Active type: {state.ActiveTypeId ?? "-"}");
     if (state.ActiveTypeId is not null)
-        Console.WriteLine($"Phase: {state.Phase} | Current Unit: {state.CurrentUnitId ?? "-"} | Completed Units: {string.Join(", ", state.CompletedUnitIds)}");
+        Console.WriteLine($"Move done: {state.MoveDone} | Action done: {state.ActionDone} | Current Unit: {state.CurrentUnitId ?? "-"} | Completed Units: {string.Join(", ", state.CompletedUnitIds)}");
     Console.WriteLine($"Bag: [{string.Join(", ", state.Bag)}]");
     var board = state.Physical.Board;
     Console.Write("     ");

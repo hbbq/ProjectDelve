@@ -4,11 +4,26 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
 {
     public string? Choose(DecisionRequest request, IGameplayQueries queries) => request.Kind switch
     {
+        DecisionKind.Activation => SelectActivation(request, queries),
         DecisionKind.SelectUnit => SelectUnit(request, queries),
         DecisionKind.Move => SelectMovement(request, queries),
         DecisionKind.Act => SelectAction(request, queries),
         _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported decision kind.")
     };
+
+    private static string SelectActivation(DecisionRequest request, IGameplayQueries queries)
+    {
+        if (request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay))
+        {
+            var moves = request with { Kind = DecisionKind.Move,
+                Candidates = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToList(),
+                AllowsNone = request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Stay) };
+            return SelectMovement(moves, queries) ?? request.Candidates.Single(c => c.Kind == ActivationChoiceKind.Stay).Key;
+        }
+        var actions = request with { Kind = DecisionKind.Act,
+            Candidates = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action).ToList(), AllowsNone = true };
+        return SelectAction(actions, queries) ?? request.Candidates.Single(c => c.Kind == ActivationChoiceKind.EndTurn).Key;
+    }
 
     private static string? SelectMovement(DecisionRequest request, IGameplayQueries queries)
     {

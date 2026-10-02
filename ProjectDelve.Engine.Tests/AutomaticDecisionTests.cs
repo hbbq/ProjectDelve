@@ -19,7 +19,8 @@ public sealed class AutomaticDecisionTests
         public string? Choose(DecisionRequest request, IGameplayQueries queries)
         {
             Calls++;
-            return key;
+            return key ?? (request.Kind == DecisionKind.Activation
+                ? request.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key : null);
         }
     }
 
@@ -50,16 +51,16 @@ public sealed class AutomaticDecisionTests
         var original = JsonSerializer.Serialize(state);
         var result = GameEngine.StartRound(state, new Random());
 
-        Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("hero", result.NextInput.UnitId);
-        Assert.Equal(Phase.Move, result.State.Phase);
+        Assert.False(result.State.MoveDone);
         Assert.Equal("hero", result.State.CurrentUnitId);
         Assert.Same(result.NextInput, result.State.Pending);
         Assert.Equal(original, JsonSerializer.Serialize(state));
     }
 
     [Fact]
-    public void NoMovementOrAttackCandidates_ResolvesNoneAndCompletesRound()
+    public void OnlyStayAndEndTurn_AutoResolveAndCompleteRound()
     {
         var state = State(mov: 0, rng: 1, atk: 1);
         var result = GameEngine.StartRound(state, new Random());
@@ -76,13 +77,15 @@ public sealed class AutomaticDecisionTests
     [Theory]
     [InlineData(null)]
     [InlineData("1,0")]
-    public void OneMovementCandidatePlusNone_RequiresProvider(string? choice)
+    public void MovementDestinationAndStay_RequireProvider(string? choice)
     {
         var random = new Random();
         var result = GameEngine.StartRound(State(), random);
-        Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
-        Assert.True(result.NextInput.AllowsNone);
-        Assert.Equal("1,0", Assert.Single(result.NextInput.Candidates).Key);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.False(result.NextInput.AllowsNone);
+        Assert.Equal(2, result.NextInput.Candidates.Count);
+        Assert.Contains(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Stay);
+        Assert.Equal("1,0", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
 
         var provider = new Choice(choice);
@@ -98,15 +101,17 @@ public sealed class AutomaticDecisionTests
     [Theory]
     [InlineData(null)]
     [InlineData("attack:enemy")]
-    public void OneAttackCandidatePlusNone_RequiresProvider(string? choice)
+    public void AttackAndEndTurn_RequireProvider(string? choice)
     {
         var state = State(mov: 0, rng: 1, atk: 1);
         AddEnemy(state, "enemy", new Cell(1, 0));
         var random = new Random();
         var result = GameEngine.StartRound(state, random);
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
-        Assert.True(result.NextInput.AllowsNone);
-        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates).Key);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.False(result.NextInput.AllowsNone);
+        Assert.Equal(2, result.NextInput.Candidates.Count);
+        Assert.Contains(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
+        Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
         Assert.DoesNotContain(result.Events, e => e.Kind == "AttackResolved");
 
         var provider = new Choice(choice);
@@ -138,9 +143,9 @@ public sealed class AutomaticDecisionTests
         var random = new Random();
         var result = GameEngine.StartRound(state, random);
 
-        Assert.Equal(kind, result.NextInput!.Kind);
-        Assert.Equal(2, result.NextInput.Candidates.Count);
-        Assert.Equal(kind != DecisionKind.SelectUnit, result.NextInput.AllowsNone);
+        Assert.Equal(kind == DecisionKind.SelectUnit ? kind : DecisionKind.Activation, result.NextInput!.Kind);
+        Assert.Equal(2, result.NextInput.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
+        Assert.False(result.NextInput.AllowsNone);
         Assert.False(result.State.RoundComplete);
         var provider = new Choice(result.NextInput.Candidates[0].Key);
         GameEngine.Advance(result.State, provider, random);
@@ -167,7 +172,7 @@ public sealed class AutomaticDecisionTests
         result = GameEngine.Advance(restored, provider, random);
 
         Assert.Equal(1, provider.Calls);
-        Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("next", result.NextInput.UnitId);
         Assert.Equal(new[] { "idle-type", "next-type" }, result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Equal(new[] { "hero", "idle" }, result.Events.Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
@@ -180,16 +185,11 @@ public sealed class AutomaticDecisionTests
     [InlineData(DecisionKind.Act)]
     public void ResumedForcedDecision_UsesRebuiltLegalityWithoutInvokingProvider(DecisionKind kind)
     {
-        // A saved pending request may come from a host running the older engine.
+        // Serialized Pending is informational; rebuild forced choices from progress.
         var state = State(mov: 0);
         state.Round = 1;
         state.ActiveTypeId = "hero-type";
-        state.Phase = kind switch
-        {
-            DecisionKind.SelectUnit => Phase.BonusAction,
-            DecisionKind.Move => Phase.Move,
-            _ => Phase.Act
-        };
+        state.MoveDone = kind == DecisionKind.Act;
         state.CurrentUnitId = kind == DecisionKind.SelectUnit ? null : "hero";
         state.Pending = new DecisionRequest(kind, "hero-type", state.CurrentUnitId,
             [new Candidate("forged")], false);

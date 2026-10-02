@@ -9,10 +9,11 @@ public sealed class PlaytestGame(IRandomProvider random)
     private readonly DefaultMonsterProvider monsters = new();
     private GameState state = ExploratoryScenario.Create();
     private long revision;
+    private bool filterRelevantChoices = true;
 
     public GameResponse Snapshot()
     {
-        lock (gate) return new(revision, new(state, [], state.Pending));
+        lock (gate) return new(revision, new(state, [], state.Pending), filterRelevantChoices);
     }
 
     public GameResponse StartRound(long expectedRevision)
@@ -22,7 +23,7 @@ public sealed class PlaytestGame(IRandomProvider random)
             CheckRevision(expectedRevision);
             if (state.Round != 0 && !state.RoundComplete)
                 throw new PlaytestRequestException(409, "The current round is still active.");
-            return Commit(GameEngine.StartRound(state, random));
+            return Commit(GameEngine.StartRound(state, random, filterRelevantChoices));
         }
     }
 
@@ -34,11 +35,22 @@ public sealed class PlaytestGame(IRandomProvider random)
             if (state.Pending is null || state.Pending.TypeId is not ("barbarian-type" or "rogue-type"))
                 throw new PlaytestRequestException(409, "No player decision is pending.");
             EngineResult result;
-            try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random); }
+            try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random, filterRelevantChoices); }
             catch (ArgumentException error) when (error.ParamName == "decisions")
             {
                 throw new PlaytestRequestException(400, "Choose one of the supplied candidates, or none when allowed.");
             }
+            return Commit(result);
+        }
+    }
+
+    public GameResponse SetFiltering(long expectedRevision, bool enabled)
+    {
+        lock (gate)
+        {
+            CheckRevision(expectedRevision);
+            var result = GameEngine.RefreshChoices(state, random, enabled);
+            filterRelevantChoices = enabled;
             return Commit(result);
         }
     }
@@ -54,12 +66,12 @@ public sealed class PlaytestGame(IRandomProvider random)
         var events = new List<RulesEvent>(result.Events);
         while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type")
         {
-            result = GameEngine.Advance(result.State, monsters, random);
+            result = GameEngine.Advance(result.State, monsters, random, filterRelevantChoices);
             events.AddRange(result.Events);
         }
         state = result.State;
         revision++;
-        return new(revision, result with { Events = events });
+        return new(revision, result with { Events = events }, filterRelevantChoices);
     }
 
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider

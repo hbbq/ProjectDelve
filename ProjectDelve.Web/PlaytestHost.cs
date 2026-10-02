@@ -23,6 +23,8 @@ public static class PlaytestHost
             Mutate(() => game.StartRound(request.ExpectedRevision)));
         app.MapPost("/api/game/decision", (DecisionSubmission request, PlaytestGame game) =>
             Mutate(() => game.Decide(request.ExpectedRevision, request.CandidateKey)));
+        app.MapPost("/api/game/preferences", (PreferenceRequest request, PlaytestGame game) =>
+            Mutate(() => game.SetFiltering(request.ExpectedRevision, request.FilterRelevantChoices)));
         return app;
     }
 
@@ -47,4 +49,10 @@ public sealed record DecisionSubmission
     public required string? CandidateKey { get; init; }
 }
 
-public sealed record GameResponse(long Revision, EngineResult Result);
+public sealed record PreferenceRequest
+{
+    public required long ExpectedRevision { get; init; }
+    public required bool FilterRelevantChoices { get; init; }
+}
+
+public sealed record GameResponse(long Revision, EngineResult Result, bool FilterRelevantChoices = true);

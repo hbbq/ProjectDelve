@@ -38,7 +38,7 @@ public sealed class MonsterMovementTests
     private static EngineResult PendingMove(GameState state)
     {
         var result = GameEngine.StartRound(state, new Random());
-        Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         return result;
     }
 
@@ -57,7 +57,7 @@ public sealed class MonsterMovementTests
     [Fact]
     public void AlreadyAbleToAttackStaysAndDoesNotDelegateMovement()
     {
-        Assert.Null(ChooseMove(State(new Cell(1, 1), new Cell(2, 2))));
+        Assert.Equal("stay", ChooseMove(State(new Cell(1, 1), new Cell(2, 2))));
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class MonsterMovementTests
         for (var y = 0; y < 3; y++)
             state.Physical.Board.Edges.Add(new Edge(new Cell(1, y), new Cell(2, y), EdgeKind.ClosedDoor));
         Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new Cell(0, 1)));
-        Assert.Null(ChooseMove(state));
+        Assert.Equal("stay", ChooseMove(state));
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class MonsterMovementTests
 
         Assert.Equal(canonical, Assert.Single(result.Events, e => e.Kind == "MovementCompleted").Path);
         Assert.Equal(new Cell(2, 1), result.State.Physical.Figures.Single(f => f.Id == "monster").Position);
-        Assert.Equal(DecisionKind.Act, result.NextInput!.Kind);
+        Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal(0, other.Calls);
         Assert.Equal(original, JsonSerializer.Serialize(pending.State));
     }

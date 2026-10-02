@@ -2,10 +2,13 @@ namespace ProjectDelve.Engine;
 
 public sealed class MonsterMovementProvider(IDecisionProvider otherDecisions) : IDecisionProvider
 {
-    public string? Choose(DecisionRequest request, IGameplayQueries queries) =>
-        request.Kind == DecisionKind.Move
-            ? ChooseMovement(request, queries)
-            : otherDecisions.Choose(request, queries);
+    public string? Choose(DecisionRequest request, IGameplayQueries queries)
+    {
+        if (request.Kind == DecisionKind.Activation && request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Stay))
+            return ChooseMovement(request with { Kind = DecisionKind.Move, AllowsNone = true,
+                Candidates = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToList() }, queries) ?? "stay";
+        return request.Kind == DecisionKind.Move ? ChooseMovement(request, queries) : otherDecisions.Choose(request, queries);
+    }
 
     internal static string? ChooseMovement(DecisionRequest request, IGameplayQueries queries,
         bool closedDoorsTraversable = false)

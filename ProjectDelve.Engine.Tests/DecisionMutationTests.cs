@@ -38,9 +38,9 @@ public sealed class DecisionMutationTests
         var result = GameEngine.StartRound(state, random);
         if (kind == DecisionKind.Act)
         {
-            result = GameEngine.Advance(result.State, new Choice(_ => null), random);
+            result = GameEngine.Advance(result.State, new Choice(_ => "stay"), random);
         }
-        Assert.Equal(kind, result.NextInput!.Kind);
+        Assert.Equal(kind == DecisionKind.SelectUnit ? kind : DecisionKind.Activation, result.NextInput!.Kind);
         return result;
     }
 

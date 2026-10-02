@@ -12,7 +12,8 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
             var candidate = request.Candidates[i];
             var path = candidate.Path is null ? "" :
                 $" | Path: {string.Join(" -> ", candidate.Path.Select(c => $"({c.X},{c.Y})"))}";
-            var label = candidate.Action switch
+            var label = candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
+                candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" : candidate.Action switch
             {
                 UnitAction.NormalAttack => $"Attack {candidate.TargetId}",
                 UnitAction.OpenDoor => $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y})",
