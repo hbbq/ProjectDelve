@@ -824,6 +824,29 @@ The reusable **Try Open Door** Action is available only to Unit Types that have 
 
 The first use of this Action is `TryOpenDoor(2/6)` for Zombies.
 
+### Immediate follow-ups
+
+Some rules may create an immediate follow-up after another operation has fully resolved. A follow-up is not a separate Action or Bonus Action category. It is a continuation of the rule that created it and must be resolved or declined, when optional, before ordinary activation choices resume.
+
+Follow-ups use the normal authoritative decision boundary when they require agency. A mandatory follow-up may permit only its follow-up choices; an optional follow-up also permits declining it. Once the follow-up is resolved or declined, ordinary legal choices are generated again from the resulting state.
+
+The Goblin's Move After Attack is the first mandatory example. The Barbarian ability **Cleave** is the first optional example:
+
+```text
+Cleave [2/game]
+
+After an Attack deals 2 or more damage,
+you may immediately deal 1 damage to an adjacent enemy.
+```
+
+Cleave starts each game with 2 remaining uses and a maximum of 2. After the Barbarian's Attack has fully resolved, if that Attack dealt at least 2 Damage, Cleave has at least one use remaining, and at least one legal Cleave target exists, an optional Cleave follow-up is created. Ordinary activation choices do not resume until the Barbarian either uses Cleave or declines that follow-up.
+
+Each adjacent hostile Unit is a separate legal Cleave target. For Cleave, adjacent uses the same eight surrounding cells and normal Line of Sight requirement used by other adjacency rules. Choosing a target immediately spends one Cleave use and deals 1 Damage directly to that target. This Damage is not an Attack and does not roll Attack or Defence Dice. Current HP is reduced by 1, never below zero, and normal death resolution applies.
+
+Declining Cleave spends no use. Whether used or declined, that particular follow-up then ends and ordinary legal choices are generated again. Cleave has no once-per-activation restriction of its own: if a future rule allows the Barbarian to make another Attack during the same activation and that Attack independently deals at least 2 Damage, it may create another Cleave follow-up if a use remains.
+
+Cleave does not require persistent activation history such as the last choice made or the maximum Damage dealt earlier in the activation. Its eligibility comes directly from the Attack that has just resolved, preserving the physical rule that Cleave is an immediate continuation rather than an opportunity that can be saved for later.
+
 ## Normal attacks
 
 A normal Attack is a basic Action.
@@ -885,6 +908,8 @@ Count the total Hits and Blocks rolled.
 Damage is:
 
 `max(0, Hits - Blocks)`
+
+This value is the **Damage dealt by the Attack**. Damage dealt is determined before applying the defender's remaining HP and is not capped by that HP. For example, an Attack that produces 2 Damage against a Unit with 1 current HP still dealt 2 Damage.
 
 The defender's current HP is reduced by the resulting Damage, but never below zero.
 
