@@ -97,11 +97,21 @@ For v0 movement, the engine supplies the legal reachable destinations, each with
 
 For Action resolution, the engine supplies the complete legal set of action candidates from the Unit Type's Actions. Normal Attack candidates apply Range, Line of Sight, hostility, and all other attack-legality rules. Other Actions supply their own legal candidates and targets.
 
-A provider does not establish or extend legal choices. Legal candidate generation is authoritative game rules. A separate optional **relevance filter** may hide legal choices that are structurally irrelevant to the remaining activation, for example a temporary `ATK` bonus when no Attack choice remains or a temporary `MOV` bonus after the Unit has already completed its Move. This filter is deliberately shallow convenience policy, not tactical evaluation: it need not determine whether extra movement reaches a useful cell or whether an attack bonus is likely to overcome a particular defence or effect.
+A provider does not establish or extend legal choices. Legal candidate generation is authoritative game rules.
 
-Relevance filtering may be disabled. A debug, simulation, or future smarter AI provider may therefore inspect and choose from all legal candidates, including choices that normal human-facing presentation would hide. The filtering preference belongs to the decision/session/provider boundary rather than changing the physical game state. Any automatic choice resolution must use the same effective candidate set that the receiving provider or human client uses.
+A legal choice may additionally carry **relevance** metadata. Relevance does not change legality or player agency: all legal choices remain part of the authoritative decision space and may be exposed to and selected by an external Decision Provider or client. Relevance is a deliberately shallow convenience policy describing whether a legal choice is meaningful enough to require a normal decision stop. It is not tactical evaluation.
 
-Presentation relevance must not silently become ability timing. An ability does not acquire a rule such as `BeforeMove` or `BeforeAttack` merely because normal presentation hides it when its ordinary purpose can no longer affect the remaining activation. Explicit timing restrictions should exist only when the physical game rule actually requires them.
+For example, a temporary `ATK` bonus may be legal but irrelevant when no legal Attack choice remains, while a temporary `MOV` bonus may be irrelevant after the Unit has already completed its Move. Relevance need not determine whether extra movement reaches a useful cell or whether an attack bonus is likely to overcome a particular defence or effect.
+
+Automatic progression may optionally operate on the relevant subset without removing other legal choices from the authoritative decision space. In particular, when exactly one relevant choice remains, that choice may be selected automatically even if additional legal-but-irrelevant choices exist. The semantics of a future state containing zero relevant choices while legal choices remain are deliberately deferred until concrete game content requires them.
+
+Presentation filtering is separate again. A client may choose to hide legal choices marked irrelevant, or may display them differently, without changing engine legality or submission validation. Such a setting is presentation state rather than Rules/Game State and must not alter which choices are legal or available for explicit submission.
+
+This distinction is summarized as: **legality determines agency; relevance may determine decision stops; presentation determines which supplied choices are shown.**
+
+The first intended concrete relevance-sensitive content is the future Barbarian ability **Rage**, but Rage is not defined as a game rule yet. The motivating case is a Bonus Action that temporarily increases `ATK`: after Move it could remain legal even when no Attack is available, while being marked irrelevant because the modifier can no longer affect an Attack during that activation. A state with legal choices such as irrelevant Rage plus relevant End Turn should therefore be able to auto-progress through End Turn without making Rage illegal or unavailable to a client when automatic progression is disabled.
+
+Presentation relevance must not silently become ability timing. An ability does not acquire a rule such as `BeforeMove` or `BeforeAttack` merely because normal presentation hides it or automatic progression skips a decision stop when its ordinary purpose can no longer affect the remaining activation. Explicit timing restrictions should exist only when the physical game rule actually requires them.
 
 A provider does not establish or extend legal choices. After a provider returns its selection, the engine validates that the selection corresponds to one of the candidates in the decision space that was supplied. An invalid provider response must not become a legal game action.
 
