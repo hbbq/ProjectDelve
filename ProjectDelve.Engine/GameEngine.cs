@@ -323,36 +323,40 @@ public static class GameEngine
     private static bool BonusActionRelevant(GameState state, Unit unit, BonusActionAbility ability)
     {
         var modified = state.Copy();
-        // Every question sees the complete package, including negative modifiers.
+        // Compare gameplay results of the complete effect, regardless of its modifiers.
         modified.ModifiersThisTurn.AddRange(ability.Modifiers);
-        var positiveStats = ability.Modifiers.Where(m => m.Amount > 0).Select(m => m.Stat).ToHashSet();
-        if (state.MoveDone && !state.ActionDone &&
-            (positiveStats.Contains(Stat.Atk) || positiveStats.Contains(Stat.Rng)))
-        {
-            var attacks = ActionCandidates(modified, unit).Where(c => c.Action == UnitAction.NormalAttack).ToList();
-            if (positiveStats.Contains(Stat.Atk) && attacks.Count > 0) return true;
-            if (positiveStats.Contains(Stat.Rng))
-            {
-                var targets = ActionCandidates(state, unit).Where(c => c.Action == UnitAction.NormalAttack)
-                    .Select(c => c.TargetId).ToHashSet();
-                if (attacks.Any(c => !targets.Contains(c.TargetId))) return true;
-            }
-        }
-        if (!state.MoveDone && positiveStats.Contains(Stat.Mov))
-        {
-            var destinations = MovementCandidates(state, unit).Select(c => c.Destination).ToHashSet();
-            if (MovementCandidates(modified, unit).Any(c => !destinations.Contains(c.Destination))) return true;
-        }
-        return false;
+        var before = GameplayCandidates(state, unit).ToList();
+        var after = GameplayCandidates(modified, unit).ToList();
+        var destinations = before.Where(c => c.Kind == ActivationChoiceKind.Move)
+            .Select(c => c.Destination).ToHashSet();
+        if (after.Any(c => c.Kind == ActivationChoiceKind.Move && !destinations.Contains(c.Destination)))
+            return true;
+
+        var targets = before.Where(c => c.Action == UnitAction.NormalAttack)
+            .Select(c => c.TargetId).ToHashSet();
+        // A new target improves targeting; a shared target improves effectiveness
+        // only when resolution would roll more attack dice.
+        return after.Where(c => c.Action == UnitAction.NormalAttack).Any(c =>
+            !targets.Contains(c.TargetId) || modified.EffectiveAtkOf(unit.Id) > state.EffectiveAtkOf(unit.Id));
+    }
+
+    // Authoritative Move/Action opportunities at this point in the activation.
+    // Both decision generation and hypothetical-effect relevance use this query.
+    internal static IEnumerable<Candidate> GameplayCandidates(GameState state, Unit unit)
+    {
+        if (state.MoveAfterAttackAllowance is { } allowance)
+            return MovementCandidates(state, unit, allowance);
+        if (!state.MoveDone) return MovementCandidates(state, unit);
+        return state.ActionDone ? [] : ActionCandidates(state, unit);
     }
 
     private static DecisionRequest CreateDecision(GameState state)
     {
-        if (state.MoveAfterAttackAllowance is { } allowance)
+        if (state.MoveAfterAttackAllowance is not null)
         {
             var mover = state.Units.Single(u => u.Id == state.CurrentUnitId);
             return new DecisionRequest(DecisionKind.Move, mover.TypeId, mover.Id,
-                MovementCandidates(state, mover, allowance), true, IsMoveAfterAttack: true);
+                GameplayCandidates(state, mover).ToList(), true, IsMoveAfterAttack: true);
         }
         var eligible = EligibleUnits(state);
         if (state.CurrentUnitId is null)
@@ -363,15 +367,14 @@ public static class GameEngine
         var candidates = new List<Candidate>();
         candidates.AddRange(FreeActionCandidates(state, unit));
         candidates.AddRange(BonusActionCandidates(state, unit));
+        candidates.AddRange(GameplayCandidates(state, unit));
         if (!state.MoveDone)
         {
-            candidates.AddRange(MovementCandidates(state, unit));
             var position = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
             candidates.Add(new Candidate("stay", position, [position], Kind: ActivationChoiceKind.Stay));
         }
         else
         {
-            if (!state.ActionDone) candidates.AddRange(ActionCandidates(state, unit));
             candidates.Add(new Candidate("end-turn", Kind: ActivationChoiceKind.EndTurn));
         }
         return new DecisionRequest(DecisionKind.Activation, unit.TypeId, unit.Id, candidates, false);

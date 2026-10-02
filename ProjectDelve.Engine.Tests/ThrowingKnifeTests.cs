@@ -106,10 +106,10 @@ public sealed class ThrowingKnifeTests
     }
 
     [Theory]
-    [InlineData(1, false)] // Already legal target: RNG asks for a new target, unlike ATK.
+    [InlineData(1, false)] // Same legal target with fewer attack dice is no improvement.
     [InlineData(3, true)]
     [InlineData(4, false)]
-    public void RngRelevanceComparesTargetChoices(int targetX, bool relevant)
+    public void KnifeRelevanceComparesLegalTargetsDespiteLowerAttackDice(int targetX, bool relevant)
     {
         var moved = Moved(State(targetX));
         Assert.Equal(relevant, Ability(moved).Relevant);
@@ -173,6 +173,8 @@ public sealed class ThrowingKnifeTests
     [InlineData("atk-and-range-positive", 3, true)]
     [InlineData("movement-and-range-positive", 7, true)] // MOV succeeds with no Attack.
     [InlineData("movement-cancelled", 7, false)]
+    [InlineData("attack-cancelled", 1, false)]
+    [InlineData("attack-net-negative", 1, false)]
     public void RelevanceComposesQuestionsAgainstTheCompletePackage(string package, int targetX, bool relevant)
     {
         ImmutableArray<ModifierThisTurn> modifiers = package switch
@@ -183,6 +185,8 @@ public sealed class ThrowingKnifeTests
             "atk-and-range-positive" => [new(Stat.Atk, 2), new(Stat.Rng, 2)],
             "movement-and-range-positive" => [new(Stat.Mov, 2), new(Stat.Rng, 2)],
             "movement-cancelled" => [new(Stat.Mov, 2), new(Stat.Mov, -2)],
+            "attack-cancelled" => [new(Stat.Atk, 2), new(Stat.Atk, -2)],
+            "attack-net-negative" => [new(Stat.Atk, 2), new(Stat.Atk, -3)],
             _ => throw new InvalidOperationException()
         };
         var type = UnitType.Rogue() with
@@ -201,6 +205,57 @@ public sealed class ThrowingKnifeTests
         Assert.Equal(relevant, Ability(reversed, "Combined").Relevant);
         var used = Choose(result.State, Ability(result, "Combined").Key);
         Assert.Equal(modifiers, used.ResolutionSteps[0].StateAfter.ModifiersThisTurn);
+    }
+
+    [Theory]
+    [InlineData("before-move")]
+    [InlineData("after-attack")]
+    [InlineData("out-of-range")]
+    [InlineData("no-normal-attack")]
+    public void PositiveAttackEffectNeedsAnAuthoritativeAttackOpportunity(string restriction)
+    {
+        var type = UnitType.Rogue() with
+        {
+            BonusActions = [new("Attack Boost", 2, [new(Stat.Atk, 2)])],
+            Actions = restriction == "no-normal-attack" ? UnitAction.None : UnitAction.NormalAttack
+        };
+        var state = State(restriction == "out-of-range" ? 4 : 1, type);
+        var result = restriction == "before-move" ? Start(state) : Moved(state);
+        if (restriction == "after-attack") result = Choose(result.State, "attack:enemy");
+
+        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
+        Assert.False(Ability(result, "Attack Boost").Relevant);
+        var used = Choose(result.State, Ability(result, "Attack Boost").Key);
+        Assert.Equal(5, used.ResolutionSteps[0].StateAfter.EffectiveAtkOf("rogue"));
+    }
+
+    [Theory]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, false, true)]
+    [InlineData(true, true, false, false)]
+    public void RelevanceFollowsTheSameOpportunitiesAsDecisionGeneration(
+        bool moveDone, bool actionDone, bool dashRelevant, bool attackRelevant)
+    {
+        var type = UnitType.Rogue() with
+        {
+            BonusActions = [
+                new("Dash", 2, [new(Stat.Mov, 2)]),
+                new("Attack Boost", 2, [new(Stat.Atk, 2)])]
+        };
+        var state = Start(State(1, type)).State;
+        state.MoveDone = moveDone;
+        state.ActionDone = actionDone;
+        var result = GameEngine.RefreshChoices(state, new Random(), false);
+        var opportunities = GameEngine.GameplayCandidates(result.State, result.State.Units[0]).ToList();
+
+        Assert.Equal(opportunities.Select(c => (c.Key, c.Destination, c.Action, c.TargetId)),
+            result.NextInput!.Candidates
+                .Where(c => c.Kind == ActivationChoiceKind.Move || c.Action == UnitAction.NormalAttack)
+                .Select(c => (c.Key, c.Destination, c.Action, c.TargetId)));
+        Assert.Equal(dashRelevant, Ability(result, "Dash").Relevant);
+        Assert.Equal(attackRelevant, Ability(result, "Attack Boost").Relevant);
+        Assert.Equal(attackRelevant, opportunities.Any(c => c.Action == UnitAction.NormalAttack));
     }
 
     [Fact]
