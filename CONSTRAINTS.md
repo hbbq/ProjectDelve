@@ -85,6 +85,14 @@ The rules engine determines when a decision is required and computes the complet
 
 The same decision-space contract is used regardless of who or what has agency over the Unit. A human player, Monster Behavior, test provider, simulation provider, or future smarter AI can therefore receive the same legal candidates and choose among them without changing movement, combat, targeting, or other legality rules.
 
+Control/agency is assigned independently of Side and Unit Type. Side describes game relationships such as friendly and hostile; it does not imply human or automated control. Likewise, being Hero, Monster, companion, boss, or other content does not select a different activation model. All Units use the same activation, legality, Actions, Capabilities, and rules resolution regardless of which Decision Provider controls them. A scenario may therefore mix forms of agency on either Side: several humans may each control individual Units, a human may control a boss while ordinary Units on the same Side use automated Behavior, or a rule may temporarily transfer control of a Unit to another provider without changing what that Unit can legally do.
+
+Behavior is a policy for automated agency, not an intrinsic restriction on the Unit. It may express the Unit's intended character or play style by choosing among its existing legal choices. For example, a Goblin's Capability may permit an extra Move after an Attack while its default Behavior uses that opportunity to retreat; a different automated Behavior or a human controller may use the same legal opportunity more aggressively.
+
+Automated Behavior may depend on observable and physically trackable game state. This allows physical content such as companions or bosses to change decision policy according to HP, a tracker, a phase, activation parity, or another explicitly represented condition while remaining manually executable at the table. A physical card may, for example, be flipped when a boss enters another phase and provide a different Behavior on its reverse side. Such a Behavior change is distinct from changing the boss's Stats, Actions, or Capabilities: only the latter changes the Unit's actual rules and legal possibilities.
+
+Default automated content intended for ordinary physical play should remain simple, deterministic, and practical to execute manually. More sophisticated digital Decision Providers may make smarter selections among the same legal choices without creating different underlying game rules. Concrete companions, boss phases, control-transfer abilities, and similar content should define the smallest additional state or rules they actually require rather than introducing a speculative general controller or phase framework.
+
 Examples include:
 
 - which Unit is selected when a rule requires a choice,
