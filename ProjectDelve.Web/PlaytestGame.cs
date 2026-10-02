@@ -9,11 +9,11 @@ public sealed class PlaytestGame(IRandomProvider random)
     private readonly DefaultMonsterProvider monsters = new();
     private GameState state = ExploratoryScenario.Create();
     private long revision;
-    private bool filterRelevantChoices = true;
+    private bool autoChooseSingleRelevantChoice = true;
 
     public GameResponse Snapshot()
     {
-        lock (gate) return new(revision, new(state, [], state.Pending), filterRelevantChoices);
+        lock (gate) return new(revision, new(state, [], state.Pending), autoChooseSingleRelevantChoice);
     }
 
     public GameResponse StartRound(long expectedRevision)
@@ -23,7 +23,7 @@ public sealed class PlaytestGame(IRandomProvider random)
             CheckRevision(expectedRevision);
             if (state.Round != 0 && !state.RoundComplete)
                 throw new PlaytestRequestException(409, "The current round is still active.");
-            return Commit(GameEngine.StartRound(state, random, filterRelevantChoices));
+            return Commit(GameEngine.StartRound(state, random, autoChooseSingleRelevantChoice));
         }
     }
 
@@ -35,7 +35,7 @@ public sealed class PlaytestGame(IRandomProvider random)
             if (state.Pending is null || state.Pending.TypeId is not ("barbarian-type" or "rogue-type"))
                 throw new PlaytestRequestException(409, "No player decision is pending.");
             EngineResult result;
-            try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random, filterRelevantChoices); }
+            try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random, autoChooseSingleRelevantChoice); }
             catch (ArgumentException error) when (error.ParamName == "decisions")
             {
                 throw new PlaytestRequestException(400, "Choose one of the supplied candidates, or none when allowed.");
@@ -44,13 +44,13 @@ public sealed class PlaytestGame(IRandomProvider random)
         }
     }
 
-    public GameResponse SetFiltering(long expectedRevision, bool enabled)
+    public GameResponse SetRelevanceAutoChoice(long expectedRevision, bool enabled)
     {
         lock (gate)
         {
             CheckRevision(expectedRevision);
             var result = GameEngine.RefreshChoices(state, random, enabled);
-            filterRelevantChoices = enabled;
+            autoChooseSingleRelevantChoice = enabled;
             return Commit(result);
         }
     }
@@ -67,13 +67,13 @@ public sealed class PlaytestGame(IRandomProvider random)
         var steps = new List<ResolutionStep>(result.ResolutionSteps);
         while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type")
         {
-            result = GameEngine.Advance(result.State, monsters, random, filterRelevantChoices);
+            result = GameEngine.Advance(result.State, monsters, random, autoChooseSingleRelevantChoice);
             steps.AddRange(result.ResolutionSteps.Select(step => step with { EventIndex = step.EventIndex + events.Count }));
             events.AddRange(result.Events);
         }
         state = result.State;
         revision++;
-        return new(revision, result with { Events = events, ResolutionSteps = steps }, filterRelevantChoices);
+        return new(revision, result with { Events = events, ResolutionSteps = steps }, autoChooseSingleRelevantChoice);
     }
 
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider

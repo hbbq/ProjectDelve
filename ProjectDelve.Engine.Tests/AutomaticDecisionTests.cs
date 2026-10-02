@@ -44,6 +44,129 @@ public sealed class AutomaticDecisionTests
         state.Physical.Figures.Add(new Figure(id, position));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SoleLegalChoices_AutoResolveRegardlessOfRelevancePreference(bool enabled)
+    {
+        var random = new Random();
+        var result = GameEngine.StartRound(State(mov: 0), random, autoChooseSingleRelevantChoice: enabled);
+        Assert.True(result.State.RoundComplete);
+        Assert.Null(result.NextInput);
+        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, result.Events.Select(e => e.Kind));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RefreshChoices_PreservesMultipleRelevantLegalChoices(bool enabled)
+    {
+        var random = new Random();
+        var result = GameEngine.StartRound(State(), random);
+        var original = JsonSerializer.Serialize(result.State);
+        var refreshed = GameEngine.RefreshChoices(result.State, random, autoChooseSingleRelevantChoice: enabled);
+        Assert.False(refreshed.State.RoundComplete);
+        Assert.Equal(JsonSerializer.Serialize(result.NextInput), JsonSerializer.Serialize(refreshed.NextInput));
+        Assert.Empty(refreshed.Events);
+        Assert.Equal(original, JsonSerializer.Serialize(result.State));
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void SoleLegalChoice_IsAutomaticRegardlessOfPreferenceOrRelevance(bool enabled, bool relevant)
+    {
+        var request = new DecisionRequest(DecisionKind.Activation, "hero-type", "hero",
+            [new Candidate("end-turn", Kind: ActivationChoiceKind.EndTurn, Relevant: relevant)], false);
+        Assert.Equal("end-turn", GameEngine.SelectChoice(request, new UnexpectedChoice(),
+            new GameplayQueries(State()), enabled));
+        Assert.False(GameEngine.TryAutomaticChoice(request with { AllowsNone = true }, enabled, out _));
+    }
+
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, false)]
+    [InlineData(true, true, false)]
+    public void AutomaticChoice_UsesRelevantSubsetWithoutRemovingLegalChoices(
+        bool enabled, bool allowsNone, bool expectedAutomatic)
+    {
+        // Synthetic metadata only; no relevance-sensitive game content exists yet.
+        var request = new DecisionRequest(DecisionKind.Activation, "hero-type", "hero",
+            [new Candidate("optional", Relevant: false),
+                new Candidate("end-turn", Kind: ActivationChoiceKind.EndTurn)], allowsNone);
+        var original = JsonSerializer.Serialize(request);
+        Assert.Equal(expectedAutomatic, GameEngine.TryAutomaticChoice(request, enabled, out var choice));
+        Assert.Equal(expectedAutomatic ? "end-turn" : null, choice);
+        Assert.Equal(original, JsonSerializer.Serialize(request));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MultipleLegalChoicesWithZeroRelevantCandidates_StillRequireInput(bool allowsNone)
+    {
+        var request = new DecisionRequest(DecisionKind.Activation, "hero-type", "hero",
+            [new Candidate("optional", Relevant: false), new Candidate("other", Relevant: false)], allowsNone);
+        Assert.False(GameEngine.TryAutomaticChoice(request, true, out var choice));
+        Assert.Null(choice);
+    }
+
+    [Theory]
+    [InlineData("optional")]
+    [InlineData("end-turn")]
+    [InlineData("forged")]
+    public void ExternalSelection_ReceivesAllLegalChoicesAndValidatesRegardlessOfRelevance(string key)
+    {
+        var request = new DecisionRequest(DecisionKind.Activation, "hero-type", "hero",
+            [new Candidate("optional", Relevant: false),
+                new Candidate("end-turn", Kind: ActivationChoiceKind.EndTurn)], false);
+        var provider = new InspectChoice(supplied =>
+        {
+            Assert.Equal(request.Candidates, supplied.Candidates);
+            // Provider mutations must not change authoritative validation.
+            supplied.Candidates.Clear();
+            supplied.Candidates.Add(new Candidate(key));
+            return key;
+        });
+        if (key == "forged")
+            Assert.Throws<ArgumentException>(() => GameEngine.SelectChoice(request, provider,
+                new GameplayQueries(State()), false));
+        else
+            Assert.Equal(key, GameEngine.SelectChoice(request, provider, new GameplayQueries(State()), false));
+        Assert.Equal(2, request.Candidates.Count);
+        Assert.False(request.Candidates[0].Relevant);
+    }
+
+    private sealed class InspectChoice(Func<DecisionRequest, string?> choose) : IDecisionProvider
+    {
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => choose(request);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EmptyOptionalRequest_PreservesForcedNone(bool enabled)
+    {
+        var request = new DecisionRequest(DecisionKind.Move, "hero-type", "hero", [], true);
+        Assert.True(GameEngine.TryAutomaticChoice(request, enabled, out var choice));
+        Assert.Null(choice);
+    }
+
+    [Fact]
+    public void PendingRelevanceIsRebuilt_AndDoesNotRestrictSubmission()
+    {
+        var random = new Random();
+        var result = GameEngine.StartRound(State(), random);
+        Assert.All(result.NextInput!.Candidates, c => Assert.True(c.Relevant));
+        result.NextInput.Candidates[0] = result.NextInput.Candidates[0] with { Relevant = false };
+        var provider = new Choice("1,0");
+        var advanced = GameEngine.Advance(result.State, provider, random);
+        Assert.Equal(1, provider.Calls);
+        Assert.Equal(new Cell(1, 0), advanced.State.Physical.Figures.Single().Position);
+    }
+
     [Fact]
     public void SoleRequiredUnitIsSelectedAutomatically_UntilMovementNeedsInput()
     {
@@ -180,10 +303,13 @@ public sealed class AutomaticDecisionTests
     }
 
     [Theory]
-    [InlineData(DecisionKind.SelectUnit)]
-    [InlineData(DecisionKind.Move)]
-    [InlineData(DecisionKind.Act)]
-    public void ResumedForcedDecision_UsesRebuiltLegalityWithoutInvokingProvider(DecisionKind kind)
+    [InlineData(DecisionKind.SelectUnit, true)]
+    [InlineData(DecisionKind.SelectUnit, false)]
+    [InlineData(DecisionKind.Move, true)]
+    [InlineData(DecisionKind.Move, false)]
+    [InlineData(DecisionKind.Act, true)]
+    [InlineData(DecisionKind.Act, false)]
+    public void ResumedForcedDecision_UsesRebuiltLegalityWithoutInvokingProvider(DecisionKind kind, bool enabled)
     {
         // Serialized Pending is informational; rebuild forced choices from progress.
         var state = State(mov: 0);
@@ -195,7 +321,7 @@ public sealed class AutomaticDecisionTests
             [new Candidate("forged")], false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
-        var result = GameEngine.Advance(restored, new UnexpectedChoice(), new Random());
+        var result = GameEngine.Advance(restored, new UnexpectedChoice(), new Random(), enabled);
 
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);

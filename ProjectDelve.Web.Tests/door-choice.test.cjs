@@ -165,7 +165,7 @@ for (const moveDone of [false, true]) {
     const door = { a: { x: 1, y: 0 }, b: { x: 0, y: 0 }, kind: "ClosedDoor" };
     const key = "open-door:0,0:1,0";
     const response = {
-      revision: 2, filterRelevantChoices: true,
+      revision: 2, autoChooseSingleRelevantChoice: true,
       result: {
         state: {
           round: 1, roundComplete: false, activeTypeId: "barbarian-type", currentUnitId: "barbarian",
@@ -201,3 +201,65 @@ for (const moveDone of [false, true]) {
     assert.deepEqual(submitted, [key, key, key]);
   });
 }
+
+
+test("relevance filtering is local, preserves legal submissions, and is independent of automatic progression", async () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new Element());
+      return elements.get(id);
+    },
+    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
+  };
+  const door = { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: "ClosedDoor" };
+  const irrelevant = { key: "open-door:0,0:1,0", kind: "FreeAction", freeAction: "OpenDoor", door, relevant: false };
+  const response = {
+    revision: 2, autoChooseSingleRelevantChoice: false,
+    result: {
+      state: { round: 1, physical: { board: { width: 2, height: 1, edges: [door] }, figures: [] }, units: [], types: [] },
+      nextInput: { kind: "Activation", unitId: "hero", allowsNone: false,
+        candidates: [irrelevant, { key: "end-turn", kind: "EndTurn", relevant: true }] },
+      events: [], resolutionSteps: []
+    }
+  };
+  const requests = [];
+  const context = vm.createContext({ document, response,
+    fetch: async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) });
+      return { ok: true, json: async () => response };
+    }
+  });
+  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext("snapshot = response; renderSnapshot();", context);
+  const renderedDoor = () => elements.get("board").children.find(node => node.classList.contains("edge"));
+  assert.equal(elements.get("choices").children.length, 1);
+  assert.equal(renderedDoor().classList.contains("board-choice"), false);
+  assert.equal(elements.get("auto").checked, false);
+  elements.get("filter").checked = false;
+  elements.get("filter").listeners.change();
+  assert.equal(requests.length, 0);
+  assert.equal(response.revision, 2);
+  assert.equal(response.result.nextInput.candidates.length, 2);
+  assert.equal(elements.get("choices").children.length, 2);
+  assert.equal(renderedDoor().classList.contains("board-choice"), true);
+  assert.equal(elements.get("auto").checked, false);
+  await elements.get("choices").children[0].listeners.click();
+  assert.deepEqual(requests[0], { url: "/api/game/decision", body: { expectedRevision: 2, candidateKey: irrelevant.key } });
+  assert.equal(elements.get("filter").checked, false);
+  assert.equal(elements.get("choices").children.length, 2);
+  elements.get("filter").checked = true;
+  elements.get("filter").listeners.change();
+  assert.equal(requests.length, 1);
+  assert.equal(elements.get("choices").children.length, 1);
+  assert.equal(renderedDoor().classList.contains("board-choice"), false);
+  // Even a hidden supplied key remains available for explicit submission.
+  await vm.runInContext(`chooseCandidate("${irrelevant.key}")`, context);
+  assert.equal(requests[1].body.candidateKey, irrelevant.key);
+  elements.get("auto").checked = true;
+  await elements.get("auto").listeners.change();
+  assert.deepEqual(requests[2], { url: "/api/game/preferences",
+    body: { expectedRevision: 2, autoChooseSingleRelevantChoice: true } });
+  assert.equal(elements.get("filter").checked, true);
+});

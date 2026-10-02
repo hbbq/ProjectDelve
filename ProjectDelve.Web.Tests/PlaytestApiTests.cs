@@ -374,33 +374,63 @@ public sealed class PlaytestApiTests
     }
 
     [Fact]
-    public async Task FilteringPreferenceIsBackendVisibleRevisionedAndOutsideGameState()
+    public async Task RelevanceAutoChoicePreferenceIsBackendVisibleRevisionedAndOutsideGameState()
     {
         await using var host = await Host.Start();
         var started = await host.Round(0);
-        Assert.True(started.FilterRelevantChoices);
+        Assert.True(started.AutoChooseSingleRelevantChoice);
+        Assert.All(started.Result.NextInput!.Candidates, c => Assert.True(c.Relevant));
+        using var snapshot = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
+        Assert.All(snapshot.RootElement.GetProperty("result").GetProperty("nextInput")
+            .GetProperty("candidates").EnumerateArray(), c => Assert.True(c.GetProperty("relevant").GetBoolean()));
         var stateBefore = JsonSerializer.Serialize(started.Result.State, Json);
         using var response = await host.Post("preferences", new {
-            expectedRevision = started.Revision, filterRelevantChoices = false });
+            expectedRevision = started.Revision, autoChooseSingleRelevantChoice = false });
         response.EnsureSuccessStatusCode();
         var changed = (await response.Content.ReadFromJsonAsync<GameResponse>(Json))!;
-        Assert.False(changed.FilterRelevantChoices);
+        Assert.False(changed.AutoChooseSingleRelevantChoice);
         Assert.Equal(started.Revision + 1, changed.Revision);
         Assert.Equal(stateBefore, JsonSerializer.Serialize(changed.Result.State, Json));
-        Assert.False((await host.Read()).FilterRelevantChoices);
+        Assert.False((await host.Read()).AutoChooseSingleRelevantChoice);
         Assert.Equal(HttpStatusCode.Conflict, (await host.Post("preferences", new {
-            expectedRevision = started.Revision, filterRelevantChoices = true })).StatusCode);
+            expectedRevision = started.Revision, autoChooseSingleRelevantChoice = true })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("preferences", new {
             expectedRevision = changed.Revision })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
             expectedRevision = changed.Revision, candidateKey = (string?)null })).StatusCode);
         var moved = await host.Decide(changed.Revision, "4,6");
-        Assert.False(moved.FilterRelevantChoices);
+        Assert.False(moved.AutoChooseSingleRelevantChoice);
         Assert.Contains(moved.Result.Events, e => e.Kind == "MovementCompleted");
         var script = await host.Client.GetStringAsync("/app.js");
-        Assert.Contains("filterRelevantChoices", script);
+        Assert.Contains("autoChooseSingleRelevantChoice", script);
+        Assert.Contains("candidate.relevant === false", script);
         Assert.DoesNotContain("state.phase", script);
-        Assert.Contains("Filter irrelevant choices", await host.Client.GetStringAsync("/"));
+        var page = await host.Client.GetStringAsync("/");
+        Assert.Contains("Filter irrelevant choices (display only)", page);
+        Assert.Contains("Auto-choose single relevant choice", page);
+    }
+
+    [Fact]
+    public async Task DisabledRelevanceAutoChoice_PreservesOrdinarySoleLegalChoiceResolution()
+    {
+        await using var host = await Host.Start();
+        using var preference = await host.Post("preferences", new {
+            expectedRevision = 0, autoChooseSingleRelevantChoice = false });
+        preference.EnsureSuccessStatusCode();
+        var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var started = await host.Round(changed.Revision);
+        Assert.False(started.AutoChooseSingleRelevantChoice);
+        Assert.Equal(DecisionKind.Activation, started.Result.NextInput!.Kind);
+        Assert.Equal("barbarian", started.Result.NextInput.UnitId);
+        Assert.True(started.Result.NextInput.Candidates.Count > 1);
+        Assert.All(started.Result.NextInput.Candidates, c => Assert.True(c.Relevant));
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
+            expectedRevision = started.Revision, candidateKey = "forged" })).StatusCode);
+        var stayed = await host.Decide(started.Revision, "stay");
+        // Sole End Turn and the next sole Unit selection still resolve automatically.
+        Assert.Equal(DecisionKind.Activation, stayed.Result.NextInput!.Kind);
+        Assert.Equal("rogue", stayed.Result.NextInput.UnitId);
+        Assert.False(stayed.AutoChooseSingleRelevantChoice);
     }
 
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)

@@ -36,28 +36,28 @@ public sealed class ActivationTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void DoorOpenedByFirstUnitChangesSecondUnitsMoveDuringSameToken(bool filtered)
+    public void DoorOpenedByFirstUnitChangesSecondUnitsMoveDuringSameToken(bool relevanceAutoChoice)
     {
         var random = new Random();
-        var result = GameEngine.StartRound(State(), random, filtered);
-        result = GameEngine.Advance(result.State, new Choice("first"), random, filtered);
+        var result = GameEngine.StartRound(State(), random, relevanceAutoChoice);
+        result = GameEngine.Advance(result.State, new Choice("first"), random, relevanceAutoChoice);
         Assert.False(result.NextInput!.AllowsNone);
         Assert.DoesNotContain(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(result.State, new Choice("end-turn"), random, filtered));
-        result = GameEngine.Advance(result.State, new Choice("stay"), random, filtered);
+        Assert.Throws<ArgumentException>(() => GameEngine.Advance(result.State, new Choice("end-turn"), random, relevanceAutoChoice));
+        result = GameEngine.Advance(result.State, new Choice("stay"), random, relevanceAutoChoice);
         Assert.True(result.State.MoveDone);
         Assert.False(result.State.ActionDone);
         Assert.False(result.State.BonusActionUsed);
         Assert.Contains(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
-        result = GameEngine.Advance(result.State, new Choice("try-open-door:1,0:2,0"), random, filtered);
+        result = GameEngine.Advance(result.State, new Choice("try-open-door:1,0:2,0"), random, relevanceAutoChoice);
+        Assert.Contains(result.Events, e => e.Kind == "DoorOpened");
         Assert.Equal("second", result.State.CurrentUnitId);
         Assert.Contains("first", result.State.CompletedUnitIds);
         Assert.False(result.State.MoveDone);
         Assert.Contains(result.NextInput!.Candidates, c => c.Destination == new Cell(2, 0));
-        Assert.Contains(result.Events, e => e.Kind == "DoorOpened");
         Assert.DoesNotContain(result.NextInput.Candidates, c => c.Key == "first");
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(result.State))!;
-        result = GameEngine.Advance(restored, new Choice("2,0"), random, filtered);
+        result = GameEngine.Advance(restored, new Choice("2,0"), random, relevanceAutoChoice);
         Assert.Equal(new Cell(2, 0), result.State.Physical.Figures.Single(f => f.Id == "second").Position);
     }
 
@@ -94,13 +94,13 @@ public sealed class ActivationTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void OnlyStayThenOnlyEndTurnAutoResolveWithoutProvider(bool filtered)
+    public void OnlyStayThenOnlyEndTurnAutoResolveWithoutProvider(bool relevanceAutoChoice)
     {
         var state = State();
         state.Types = [new("idle", 0, 0, 0, 0, 1)];
         state.Units = [new("first", "idle", "red", 1)];
         state.Physical.Figures.RemoveAll(f => f.Id != "first");
-        var result = GameEngine.StartRound(state, new Random(), filtered);
+        var result = GameEngine.StartRound(state, new Random(), relevanceAutoChoice);
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
         Assert.Equal(new[] { new Cell(1, 0) }, Assert.Single(result.Events, e => e.Kind == "MovementCompleted").Path);

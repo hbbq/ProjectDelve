@@ -25,8 +25,8 @@ public sealed class OpenDoorTests
         Units = enemy ? [new("hero", "barbarian-type", "blue", 5), new("enemy", "enemy-type", "red", 1)]
             : [new("hero", "barbarian-type", "blue", 5)]
     };
-    private static EngineResult Choose(GameState state, string key, bool filter = true) =>
-        GameEngine.Advance(state, new Choice(_ => key), new Random(), filter);
+    private static EngineResult Choose(GameState state, string key, bool relevanceAutoChoice = true) =>
+        GameEngine.Advance(state, new Choice(_ => key), new Random(), relevanceAutoChoice);
     private static Candidate DoorChoice(EngineResult result) =>
         Assert.Single(result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
 
@@ -53,26 +53,26 @@ public sealed class OpenDoorTests
     [InlineData(true, false, true)]
     [InlineData(true, true, false)]
     [InlineData(true, true, true)]
-    public void OpeningPreservesAllOpportunities_BeforeMoveAfterMoveAndAfterAttack(bool moveDone, bool actionDone, bool filter)
+    public void OpeningPreservesAllOpportunities_BeforeMoveAfterMoveAndAfterAttack(bool moveDone, bool actionDone, bool relevanceAutoChoice)
     {
         var state = State(enemy: true);
         state.Physical.Figures[1] = new("enemy", new(1, 0));
         // Keep another optional choice after opening, including after the Attack.
         state.Physical.Board.Edges.Add(new(new(1, 1), new(1, 2), EdgeKind.ClosedDoor));
-        var pending = GameEngine.StartRound(state, new Random(), filter);
-        if (moveDone) pending = Choose(pending.State, "stay", filter);
-        if (actionDone) pending = Choose(pending.State, "attack:enemy", filter);
-        pending.State.BonusActionUsed = filter;
+        var pending = GameEngine.StartRound(state, new Random(), relevanceAutoChoice);
+        if (moveDone) pending = Choose(pending.State, "stay", relevanceAutoChoice);
+        if (actionDone) pending = Choose(pending.State, "attack:enemy", relevanceAutoChoice);
+        pending.State.BonusActionUsed = relevanceAutoChoice;
         var candidate = pending.NextInput!.Candidates.Single(c => c.Key == "open-door:1,1:2,1");
         Assert.Equal(ActivationChoiceKind.FreeAction, candidate.Kind);
         Assert.Null(candidate.Action);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(pending.State))!;
         Assert.Equal(UnitFreeAction.OpenDoor, restored.Types[0].FreeActions);
         Assert.Equal(candidate, restored.Pending!.Candidates.Single(c => c.Key == candidate.Key));
-        var opened = Choose(restored, candidate.Key, filter);
+        var opened = Choose(restored, candidate.Key, relevanceAutoChoice);
         Assert.Equal(moveDone, opened.State.MoveDone);
         Assert.Equal(actionDone, opened.State.ActionDone);
-        Assert.Equal(filter, opened.State.BonusActionUsed);
+        Assert.Equal(relevanceAutoChoice, opened.State.BonusActionUsed);
         Assert.Equal("hero", opened.State.CurrentUnitId);
         Assert.False(opened.State.RoundComplete);
         var evt = Assert.Single(opened.Events);
@@ -85,7 +85,7 @@ public sealed class OpenDoorTests
         Assert.Equal(!moveDone, opened.NextInput.Candidates.Any(c => c.Kind == ActivationChoiceKind.Stay));
         Assert.Equal(moveDone, opened.NextInput.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn));
         Assert.Equal(moveDone && !actionDone, opened.NextInput.Candidates.Any(c => c.Action == UnitAction.NormalAttack));
-        if (moveDone) Assert.True(Choose(opened.State, "end-turn", filter).State.RoundComplete);
+        if (moveDone) Assert.True(Choose(opened.State, "end-turn", relevanceAutoChoice).State.RoundComplete);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ namespace ProjectDelve.Engine;
 
 public static class GameEngine
 {
-    public static EngineResult StartRound(GameState previous, IRandomProvider random, bool filterRelevantChoices = true)
+    public static EngineResult StartRound(GameState previous, IRandomProvider random, bool autoChooseSingleRelevantChoice = true)
     {
         if (previous.Round != 0 && !previous.RoundComplete)
             throw new InvalidOperationException("The current round is still active.");
@@ -21,11 +21,11 @@ public static class GameEngine
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new ResolutionEvents(state);
-        RunUntilDecision(state, random, events, filterRelevantChoices);
+        RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
-    public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool filterRelevantChoices = true)
+    public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool autoChooseSingleRelevantChoice = true)
     {
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
@@ -35,13 +35,24 @@ public static class GameEngine
         {
             // A dead Unit cannot resume either its activation or a mandatory follow-up.
             state.Pending = null;
-            RunUntilDecision(state, random, events, filterRelevantChoices);
+            RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
             return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
         }
         // Pending data is also exposed to clients and survives serialization. Rebuild
         // legality from authoritative state, and never share canonical paths with a provider.
-        var request = EffectiveDecision(state, filterRelevantChoices);
-        if (!TryAutomaticChoice(request, out var choice))
+        var request = CreateDecision(state);
+        var choice = SelectChoice(request, decisions, new GameplayQueries(state), autoChooseSingleRelevantChoice);
+
+        state.Pending = null;
+        ApplyDecision(state, request, choice, random, events);
+        RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
+        return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
+    }
+
+    internal static string? SelectChoice(DecisionRequest request, IDecisionProvider decisions,
+        IGameplayQueries queries, bool autoChooseSingleRelevantChoice)
+    {
+        if (!TryAutomaticChoice(request, autoChooseSingleRelevantChoice, out var choice))
         {
             choice = decisions.Choose(request with
             {
@@ -49,26 +60,36 @@ public static class GameEngine
                 {
                     Path = c.Path is null ? null : [.. c.Path]
                 }).ToList()
-            }, new GameplayQueries(state));
+            }, queries);
         }
         if (choice is null && !request.AllowsNone ||
             choice is not null && !request.Candidates.Any(c => c.Key == choice))
             throw new ArgumentException("Decision is not among the supplied legal candidates.", nameof(decisions));
 
-        state.Pending = null;
-        ApplyDecision(state, request, choice, random, events);
-        RunUntilDecision(state, random, events, filterRelevantChoices);
-        return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
+        return choice;
     }
 
-    private static bool TryAutomaticChoice(DecisionRequest request, out string? choice)
+    internal static bool TryAutomaticChoice(DecisionRequest request, bool autoChooseSingleRelevantChoice,
+        out string? choice)
     {
         choice = null;
         if (request.Candidates.Count == 0 && request.AllowsNone) return true;
+        // Ordinary forced choices are independent of relevance and its preference.
         if (request.Candidates.Count == 1 && !request.AllowsNone)
         {
             choice = request.Candidates[0].Key;
             return true;
+        }
+        // The preference only adds auto-choice among multiple legal candidates.
+        // Multiple legal choices with zero relevant candidates still need input.
+        if (autoChooseSingleRelevantChoice && request.Candidates.Count > 1 && !request.AllowsNone)
+        {
+            var relevant = request.Candidates.Where(c => c.Relevant).ToList();
+            if (relevant.Count == 1)
+            {
+                choice = relevant[0].Key;
+                return true;
+            }
         }
         return false;
     }
@@ -144,7 +165,7 @@ public static class GameEngine
     }
 
     private static void RunUntilDecision(GameState state, IRandomProvider random, ResolutionEvents events,
-        bool filterRelevantChoices)
+        bool autoChooseSingleRelevantChoice)
     {
         while (state.Pending is null && !state.RoundComplete)
         {
@@ -174,8 +195,8 @@ public static class GameEngine
                 state.ActiveTypeId = null;
                 continue;
             }
-            var request = EffectiveDecision(state, filterRelevantChoices);
-            if (!TryAutomaticChoice(request, out var choice))
+            var request = CreateDecision(state);
+            if (!TryAutomaticChoice(request, autoChooseSingleRelevantChoice, out var choice))
             {
                 state.Pending = request;
                 return;
@@ -296,26 +317,15 @@ public static class GameEngine
         return new DecisionRequest(DecisionKind.Activation, unit.TypeId, unit.Id, candidates, false);
     }
 
-    private static DecisionRequest EffectiveDecision(GameState state, bool filterRelevantChoices)
-    {
-        var legal = CreateDecision(state);
-        // Current content has no temporary Bonus/Free stat modifiers to hide.
-        // Keep relevance policy at the decision boundary: it never changes GameState
-        // or legal timing, and all consumers (including auto-choice) use this result.
-        return filterRelevantChoices ? FilterRelevantChoices(legal) : legal;
-    }
-
-    private static DecisionRequest FilterRelevantChoices(DecisionRequest legal) => legal;
-
-    // Rebuild presentation choices when a host changes its session preference.
-    // Continue any newly forced choices through the same automatic resolution path.
+    // Rebuild all legal choices when a host changes relevance-based auto-choice.
+    // Continue any newly automatic choices through the same resolution path.
     public static EngineResult RefreshChoices(GameState previous, IRandomProvider random,
-        bool filterRelevantChoices = true)
+        bool autoChooseSingleRelevantChoice = true)
     {
         var state = previous.Copy();
         state.Pending = null;
         var events = new ResolutionEvents(state);
-        if (state.Round > 0) RunUntilDecision(state, random, events, filterRelevantChoices);
+        if (state.Round > 0) RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 

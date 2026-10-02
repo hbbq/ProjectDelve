@@ -1,4 +1,4 @@
-const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "error", "prompt", "choices", "units", "events"]
+const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "units", "events"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let busy = false;
@@ -112,7 +112,7 @@ function renderState(state, preserveNodes = true) {
 function renderSnapshot() {
   const state = snapshot.result.state;
   renderState(state, false);
-  ui.filter.checked = snapshot.filterRelevantChoices;
+  ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   ui.choices.replaceChildren();
   const decision = snapshot.result.nextInput;
   // Map supplied choices onto rendered objects; ambiguous targets keep the choice-panel interface.
@@ -124,6 +124,7 @@ function renderSnapshot() {
   };
   ui.prompt.textContent = decision ? `${decision.isMoveAfterAttack ? "Move after attack" : decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   for (const candidate of decision?.candidates ?? []) {
+    if (ui.filter.checked && candidate.relevant === false) continue;
     const label = candidate.kind === "Stay" ? "Stay here"
       : candidate.kind === "EndTurn" ? "End Turn"
       : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
@@ -185,6 +186,7 @@ function bindBoardChoice(node, label, key) {
 function updateControls() {
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
+  ui.auto.disabled = busy || !snapshot;
   ui.round.disabled = busy || !snapshot || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
   ui.round.textContent = snapshot?.result.state.round ? "Start next round" : "Start round";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
@@ -319,7 +321,8 @@ function updateCoordinates() {
   ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
 }
 
-ui.filter.addEventListener("change", () => mutate("preferences", { filterRelevantChoices: ui.filter.checked }));
+ui.filter.addEventListener("change", renderSnapshot);
+ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingleRelevantChoice: ui.auto.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);

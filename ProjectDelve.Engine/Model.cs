@@ -65,9 +65,12 @@ public sealed record PhysicalState(Board Board, List<Figure> Figures);
 // continuation; Move/Act requests support the providers' existing ranking routines.
 public enum DecisionKind { SelectUnit, Activation, Move, Act }
 public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction }
+// Every candidate is legal. Relevance guides decision stops and presentation only;
+// current content has no relevance-sensitive choices, so all default to relevant.
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
     UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null,
-    ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null);
+    ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
+    bool Relevant = true);
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
     bool IsMoveAfterAttack = false);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
