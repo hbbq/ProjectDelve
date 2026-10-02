@@ -18,6 +18,10 @@ public sealed class FuryTests
     {
         public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
     }
+    private sealed class Decline : IDecisionProvider
+    {
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => null;
+    }
 
     private static GameState State(int enemies = 2)
     {
@@ -169,7 +173,10 @@ public sealed class FuryTests
         var deathIndex = attacked.Events.FindIndex(e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
         Assert.Equal(rage ? 6 : 4, attacked.ResolutionSteps.Single(s => s.EventIndex == deathIndex)
             .StateAfter.EffectiveAtkOf("hero"));
-        Assert.Equal(4, attacked.State.EffectiveAtkOf("hero"));
+        Assert.Equal(rage ? 6 : 4, attacked.State.EffectiveAtkOf("hero"));
+        Assert.Equal(DecisionKind.Cleave, attacked.NextInput!.Kind);
+        var declined = GameEngine.Advance(attacked.State, new Decline(), random, false);
+        Assert.Equal(4, declined.State.EffectiveAtkOf("hero"));
         Assert.Equal(expected, ready.State.EffectiveAtkOf("hero"));
     }
 

@@ -4,6 +4,53 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+test("Cleave targets and decline consume supplied choices without client legality", () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new Element());
+      return elements.get(id);
+    },
+    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
+  };
+  const submitted = [];
+  const response = { revision: 1, result: {
+    state: { round: 1, currentUnitId: "barbarian",
+      physical: { board: { width: 5, height: 1, edges: [] }, figures: [
+        { id: "barbarian", position: { x: 0, y: 0 } },
+        { id: "enemy", position: { x: 4, y: 0 } }
+      ] },
+      // Deliberately inconsistent rules-looking state: only supplied choices govern UI.
+      cleavePending: false, actionDone: false,
+      units: [
+        { id: "barbarian", typeId: "barbarian-type", sideId: "same", currentHp: 5, cleaveUses: { maxUses: 2, remainingUses: 0 } },
+        { id: "enemy", typeId: "enemy-type", sideId: "same", currentHp: 1 }
+      ],
+      types: [{ id: "barbarian-type", hp: 5, cleave: { maxUses: 2 } }, { id: "enemy-type", hp: 1 }]
+    },
+    nextInput: { kind: "Cleave", unitId: "barbarian", allowsNone: true,
+      candidates: [{ key: "opaque-cleave", kind: "Cleave", targetId: "enemy", relevant: true }] }
+  } };
+  const context = vm.createContext({ document, response, submitted });
+  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
+  assert.match(elements.get("unit-card").textContent, /Cleave.*0 \/ 2 uses/);
+  const enemy = vm.runInContext('figures.get("enemy")', context);
+  enemy.listeners.click({ stopPropagation() {} });
+  assert.equal(submitted[0], "opaque-cleave");
+  const decline = elements.get("choices").children[0];
+  assert.equal(decline.textContent, "Decline Cleave");
+  decline.listeners.click();
+  assert.equal(submitted[1], null);
+  assert.match(vm.runInContext('describe({ kind: "CleaveResolved", unitId: "barbarian", targetId: "enemy", damage: 1 })', context), /cleaved.*1 Damage/);
+  response.result.nextInput.candidates = [];
+  response.result.nextInput.allowsNone = false;
+  vm.runInContext('renderSnapshot();', context);
+  assert.equal(vm.runInContext('figures.get("enemy").classList.contains("board-choice")', context), false);
+  assert.equal(elements.get("choices").children.length, 0);
+});
+
 // Exercise the actual renderer and event bindings without a browser dependency.
 class Element {
   constructor() {

@@ -139,6 +139,11 @@ function renderUnitCard() {
   }
   card.append(stats);
   card.append(text("p", `HP ${unit.currentHp} / ${type.hp}`));
+  if (type.cleave) {
+    card.append(text("h4", "Cleave"));
+    card.append(text("p", "After an Attack deals 2 or more damage, you may immediately deal 1 damage to an adjacent enemy."));
+    if (unit.cleaveUses) card.append(text("small", `${unit.cleaveUses.remainingUses} / ${unit.cleaveUses.maxUses} uses`));
+  }
   card.append(text("h4", "Bonus Actions"));
   if (!type.bonusActions?.length) card.append(text("small", "None"));
   for (const ability of type.bonusActions ?? []) {
@@ -190,6 +195,7 @@ function renderSnapshot() {
     if (ui.filter.checked && candidate.relevant === false) continue;
     const label = candidate.kind === "Stay" ? "Stay here"
       : candidate.kind === "EndTurn" ? "End Turn"
+      : candidate.kind === "Cleave" ? `Cleave ${unitLabel(candidate.targetId)}`
       : candidate.bonusAction ? `${candidate.bonusAction.name} (Bonus Action)`
       : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
@@ -204,7 +210,7 @@ function renderSnapshot() {
       offer(figures.get(decision.unitId), label, candidate.key);
     } else if (candidate.destination) {
       offer(cells.get(cellKey(candidate.destination)), label, candidate.key);
-    } else if (candidate.action === "NormalAttack") {
+    } else if (candidate.targetId) {
       offer(figures.get(candidate.targetId), label, candidate.key);
       const figure = state.physical.figures.find(figure => figure.id === candidate.targetId);
       if (figure) offer(cells.get(cellKey(figure.position)), label, candidate.key);
@@ -219,7 +225,7 @@ function renderSnapshot() {
     presentedOnBoard.add(key);
   }
   if (decision?.allowsNone && !presentedOnBoard.has(null))
-    addChoice(decision.kind === "Move" ? "Stay here" : "Take no action", null);
+    addChoice(decision.kind === "Move" ? "Stay here" : decision.kind === "Cleave" ? "Decline Cleave" : "Take no action", null);
   for (const candidate of decision?.candidates ?? []) {
     if (!visibleChoice(candidate) || presentedOnBoard.has(candidate.key)) continue;
     const cardUnit = state.units.find(unit => unit.id === decision.unitId);
@@ -329,6 +335,7 @@ function describe(event) {
     case "AttackResolved": return `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
     case "AbilityUsed": return `${unitLabel(event.unitId)} used ${event.abilityName} (Bonus Action)`;
+    case "CleaveResolved": return `${unitLabel(event.unitId)} cleaved ${unitLabel(event.targetId)}: ${event.damage} Damage`;
     case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Action consumed)`;
     case "DoorOpened": return `${unitLabel(event.unitId)} opened door ${cellKey(event.door.a)} ↔ ${cellKey(event.door.b)}`;
     case "TokenDrawn": return `Token drawn: ${event.typeId}`;

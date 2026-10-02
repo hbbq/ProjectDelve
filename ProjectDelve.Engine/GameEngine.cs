@@ -12,6 +12,8 @@ public static class GameEngine
         if (state.Round == 0)
             state.Units = state.Units.Select(u => u with
             {
+                CleaveUses = u.CleaveUses ?? (state.Types.Single(t => t.Id == u.TypeId).Cleave is { } cleave
+                    ? new(cleave.MaxUses, cleave.MaxUses) : null),
                 BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
                         ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
@@ -22,6 +24,7 @@ public static class GameEngine
         state.ActiveTypeId = null;
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
+        state.CleavePending = false;
         state.MoveDone = false;
         state.ActionDone = false;
         state.BonusActionsUsedThisActivation.Clear();
@@ -108,6 +111,21 @@ public static class GameEngine
     {
         switch (request.Kind)
         {
+            case DecisionKind.Cleave:
+                state.CleavePending = false;
+                if (choice is not null)
+                {
+                    var cleaverIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
+                    var cleaveUses = state.Units[cleaverIndex].CleaveUses!;
+                    state.Units[cleaverIndex] = state.Units[cleaverIndex] with
+                    {
+                        CleaveUses = new(cleaveUses.MaxUses, cleaveUses.RemainingUses - 1)
+                    };
+                    var targetId = request.Candidates.Single(c => c.Key == choice).TargetId!;
+                    DealDamage(state, targetId, 1,
+                        new RulesEvent("CleaveResolved", request.UnitId, targetId, Damage: 1, AbilityName: "Cleave"), events);
+                }
+                break;
             case DecisionKind.SelectUnit:
                 state.CurrentUnitId = choice;
                 state.MoveDone = false;
@@ -233,6 +251,7 @@ public static class GameEngine
         state.CompletedUnitIds.Add(state.CurrentUnitId!);
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
+        state.CleavePending = false;
         state.MoveDone = false;
         state.ActionDone = false;
         state.BonusActionsUsedThisActivation.Clear();
@@ -344,6 +363,7 @@ public static class GameEngine
     // Both decision generation and hypothetical-effect relevance use this query.
     internal static IEnumerable<Candidate> GameplayCandidates(GameState state, Unit unit)
     {
+        if (state.CleavePending) return [];
         if (state.MoveAfterAttackAllowance is { } allowance)
             return MovementCandidates(state, unit, allowance);
         if (!state.MoveDone) return MovementCandidates(state, unit);
@@ -352,6 +372,11 @@ public static class GameEngine
 
     private static DecisionRequest CreateDecision(GameState state)
     {
+        if (state.CleavePending)
+        {
+            var cleaver = state.Units.Single(u => u.Id == state.CurrentUnitId);
+            return new(DecisionKind.Cleave, cleaver.TypeId, cleaver.Id, CleaveCandidates(state, cleaver), true);
+        }
         if (state.MoveAfterAttackAllowance is not null)
         {
             var mover = state.Units.Single(u => u.Id == state.CurrentUnitId);
@@ -395,7 +420,6 @@ public static class GameEngine
     private static void ResolveAttack(GameState state, string attackerId, string targetId,
         IRandomProvider random, ResolutionEvents events)
     {
-        var target = state.Units.Single(u => u.Id == targetId);
         var attackDice = state.EffectiveAtkOf(attackerId);
         var defenceDice = state.EffectiveDefOf(targetId);
         var hits = 0;
@@ -413,9 +437,32 @@ public static class GameEngine
             if (face == DefenceFace.Block) blocks++;
         }
         var damage = Math.Max(0, hits - blocks);
+        DealDamage(state, targetId, damage,
+            new RulesEvent("AttackResolved", attackerId, targetId, Hits: hits, Blocks: blocks, Damage: damage), events);
+        var attacker = state.Units.Single(u => u.Id == attackerId);
+        if (damage >= 2 && attacker.CurrentHp > 0 && CleaveCandidates(state, attacker).Count > 0)
+            state.CleavePending = true;
+    }
+
+    private static List<Candidate> CleaveCandidates(GameState state, Unit unit)
+    {
+        if (state.Types.Single(t => t.Id == unit.TypeId).Cleave is null ||
+            unit.CleaveUses is not { RemainingUses: > 0 }) return [];
+        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+        return state.Units.Where(target => target.CurrentHp > 0 && target.SideId != unit.SideId &&
+                SpatialRules.AreAdjacent(state.Physical.Board, from,
+                    state.Physical.Figures.Single(f => f.Id == target.Id).Position))
+            .Select(target => new Candidate($"cleave:{target.Id}", TargetId: target.Id,
+                Kind: ActivationChoiceKind.Cleave)).ToList();
+    }
+
+    private static void DealDamage(GameState state, string targetId, int damage,
+        RulesEvent resolved, ResolutionEvents events)
+    {
+        var target = state.Units.Single(u => u.Id == targetId);
         var index = state.Units.IndexOf(target);
         state.Units[index] = target with { CurrentHp = Math.Max(0, target.CurrentHp - damage) };
-        events.Add(new RulesEvent("AttackResolved", attackerId, targetId, Hits: hits, Blocks: blocks, Damage: damage));
+        events.Add(resolved);
         if (state.Units[index].CurrentHp == 0)
         {
             state.Physical.Figures.RemoveAll(f => f.Id == targetId);
@@ -443,6 +490,7 @@ public static class GameEngine
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
+                t.Cleave is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
@@ -455,6 +503,9 @@ public static class GameEngine
                 state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .SingleOrDefault(a => a.Name == entry.Key)?.MaxUses != entry.Value.MaxUses)))
             throw new ArgumentException("Ability uses must match Unit Type content.");
+        if (state.Units.Any(u => u.CleaveUses is { } uses &&
+            state.Types.Single(t => t.Id == u.TypeId).Cleave?.MaxUses != uses.MaxUses))
+            throw new ArgumentException("Cleave uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)

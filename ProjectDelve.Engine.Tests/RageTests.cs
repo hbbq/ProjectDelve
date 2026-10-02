@@ -18,6 +18,10 @@ public sealed class RageTests
     {
         public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
     }
+    private sealed class Decline : IDecisionProvider
+    {
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => null;
+    }
 
     private static GameState State(int enemyX = 1, UnitType? type = null)
     {
@@ -86,6 +90,8 @@ public sealed class RageTests
         Assert.Equal(6, attack.Hits);
         Assert.Equal(6, attack.Damage);
         Assert.Equal(6, attacked.ResolutionSteps.First().StateAfter.EffectiveAtkOf("hero"));
+        Assert.Equal(DecisionKind.Cleave, attacked.NextInput!.Kind);
+        attacked = GameEngine.Advance(attacked.State, new Decline(), random, false);
         Assert.True(attacked.State.RoundComplete);
         Assert.Empty(attacked.State.ModifiersThisTurn);
         Assert.Equal(4, attacked.State.EffectiveAtkOf("hero"));
@@ -117,6 +123,7 @@ public sealed class RageTests
         {
             var attacked = Choose(moved.State, "attack:enemy");
             Assert.True(attacked.State.ActionDone);
+            attacked = GameEngine.Advance(attacked.State, new Decline(), new Random(), false);
             Assert.False(Rage(attacked).Relevant);
             moved = attacked;
         }

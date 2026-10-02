@@ -14,6 +14,7 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
                 $" | Path: {string.Join(" -> ", candidate.Path.Select(c => $"({c.X},{c.Y})"))}";
             var label = candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
                 candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" :
+                candidate.Kind == ActivationChoiceKind.Cleave ? $"Cleave {candidate.TargetId}" :
                 candidate.BonusAction is { } ability ? $"{ability.Name} (Bonus Action)" :
                 candidate.FreeAction == UnitFreeAction.OpenDoor ?
                     $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y}) (Free Action)" : candidate.Action switch
@@ -24,7 +25,8 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
             Console.WriteLine($"  {i + 1}. {label}{path}");
         }
         if (request.AllowsNone)
-            Console.WriteLine(request.Kind == DecisionKind.Move ? "  0. Stay here" : "  0. Take no action");
+            Console.WriteLine(request.Kind == DecisionKind.Move ? "  0. Stay here" :
+                request.Kind == DecisionKind.Cleave ? "  0. Decline Cleave" : "  0. Take no action");
 
         while (true)
         {

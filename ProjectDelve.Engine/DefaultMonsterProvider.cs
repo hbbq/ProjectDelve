@@ -8,6 +8,7 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
         DecisionKind.SelectUnit => SelectUnit(request, queries),
         DecisionKind.Move => SelectMovement(request, queries),
         DecisionKind.Act => SelectAction(request, queries),
+        DecisionKind.Cleave => request.Candidates.FirstOrDefault()?.Key ?? NoCandidate(request),
         _ => throw new ArgumentOutOfRangeException(nameof(request), "Unsupported decision kind.")
     };
 

@@ -17,6 +17,7 @@ public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
+public sealed record Cleave(int MaxUses = 2);
 public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
 public sealed record Fury
 {
@@ -50,6 +51,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 {
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
+    public Cleave? Cleave { get; init; }
     public IReadOnlyList<PassiveDescription> Passives
     {
         get
@@ -68,6 +70,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Unit CreateUnit(string id, string sideId) => 
         new(id, Id, sideId, Hp)
         {
+            CleaveUses = Cleave is { } cleave ? new(cleave.MaxUses, cleave.MaxUses) : null,
             BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
         };
 
@@ -75,6 +78,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
         {
             Fury = new(),
+            Cleave = new(),
             BonusActions = [
                 new("Rage", 2, [new(Stat.Atk, 2)])
             ]
@@ -109,6 +113,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {
+    public AbilityUses? CleaveUses { get; init; }
     public ImmutableDictionary<string, AbilityUses> BonusActionUses { get; init; } = ImmutableDictionary<string, AbilityUses>.Empty;
 }
 
@@ -132,8 +137,8 @@ public static class BoardProperties
 public sealed record PhysicalState(Board Board, List<Figure> Figures);
 // Normal Unit choices use Activation. Move is also used for the narrow post-attack
 // continuation; Move/Act requests support the providers' existing ranking routines.
-public enum DecisionKind { SelectUnit, Activation, Move, Act }
-public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction, BonusAction }
+public enum DecisionKind { SelectUnit, Activation, Move, Act, Cleave }
+public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction, BonusAction, Cleave }
 // Every candidate is legal. Relevance guides decision stops and presentation only;
 // choices default to relevant unless their rule component supplies a narrower policy.
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
@@ -215,6 +220,8 @@ public sealed class GameState
     public string? CurrentUnitId { get; set; }
     // Mandatory post-attack movement resolves before the activation may end.
     public int? MoveAfterAttackAllowance { get; set; }
+    // Optional immediate resolution created by a qualifying Attack, never activation history.
+    public bool CleavePending { get; set; }
     public DecisionRequest? Pending { get; set; }
     public bool RoundComplete { get; set; }
 
@@ -227,6 +234,7 @@ public sealed class GameState
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
+        CleavePending = CleavePending,
         Pending = Pending, RoundComplete = RoundComplete
     };
 }
