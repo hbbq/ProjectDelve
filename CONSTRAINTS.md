@@ -117,7 +117,7 @@ Presentation filtering is separate again. A client may choose to hide legal choi
 
 This distinction is summarized as: **legality determines agency; relevance may determine decision stops; presentation determines which supplied choices are shown.**
 
-The first intended concrete relevance-sensitive content is the future Barbarian ability **Rage**, but Rage is not defined as a game rule yet. The motivating case is a Bonus Action that temporarily increases `ATK`: after Move it could remain legal even when no Attack is available, while being marked irrelevant because the modifier can no longer affect an Attack during that activation. A state with legal choices such as irrelevant Rage plus relevant End Turn should therefore be able to auto-progress through End Turn without making Rage illegal or unavailable to a client when automatic progression is disabled.
+The first concrete relevance-sensitive content is the Barbarian ability **Rage**. Rage is a Bonus Action with two uses per game and applies `+2 ATK this turn`. Rage may remain legal even when no Attack is available, while being marked irrelevant because the modifier can no longer affect an Attack during that activation. A state with legal choices such as irrelevant Rage plus relevant End Turn should therefore be able to auto-progress through End Turn without making Rage illegal or unavailable to a client when automatic progression is disabled.
 
 Presentation relevance must not silently become ability timing. An ability does not acquire a rule such as `BeforeMove` or `BeforeAttack` merely because normal presentation hides it or automatic progression skips a decision stop when its ordinary purpose can no longer affect the remaining activation. Explicit timing restrictions should exist only when the physical game rule actually requires them.
 
@@ -650,6 +650,22 @@ Using a Bonus Action consumes the Unit's Bonus Action opportunity but does not b
 
 There is no mandatory Bonus Action phase and no general `Skip Bonus Action` decision. Choosing another choice naturally allows the activation to progress without using a Bonus Action.
 
+Ability names are content identity and may carry theme or lore without defining unique engine semantics. Different named abilities may therefore use the same underlying rules components. The first example is the Barbarian ability **Rage**:
+
+```text
+Rage [2/game]
+Bonus Action
++2 ATK this turn
+```
+
+Rage starts each game with 2 remaining uses and has a maximum of 2 uses. Using Rage immediately consumes one remaining use and the Unit's Bonus Action opportunity, then applies `+2 ATK` for the remainder of the current activation. The use is spent regardless of whether the Barbarian subsequently makes an Attack. Rage is legal while the Barbarian's activation is active, its Bonus Action opportunity remains unused, and at least one Rage use remains; its relevance is separate from that legality.
+
+Limited-use abilities track both maximum uses and remaining uses as Rules/Game State. A future rule may restore spent uses, but restoration cannot increase remaining uses above the ability's maximum. No general recharge or restoration rule is introduced by Rage itself.
+
+Rage introduces the reusable effect concept **Modifier This Turn**, parameterized by a stat and signed amount; Rage applies `ModifierThisTurn(ATK, +2)`. A this-turn modifier is serializable Rules/Game State because it can affect later decisions and resolution during the activation. It contributes to the stat's effective value and is removed when that Unit's activation ends. Rage requires only this activation-duration modifier behavior; general modifier durations, stacking policies, priorities, sources, or a universal effect framework are deliberately deferred until concrete content requires them.
+
+Current HP remains mutable Unit state rather than being treated as a stat modifier merely because other stats may have effective values.
+
 ### Free Actions
 
 A Free Action consumes neither the Unit's Move opportunity, Action opportunity, nor Bonus Action opportunity. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
@@ -843,7 +859,7 @@ The following are intentionally not specified yet:
 - terrain effects beyond the currently defined Passable and Blocks LOS properties,
 - LOS-blocking behavior of hostile Units,
 - LOS effects beyond the currently defined terrain and edge properties,
-- stat modifier and effective-stat calculation rules,
+- stat modifier rules beyond the currently defined additive `ModifierThisTurn(stat, amount)` behavior,
 - edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
 - gameplay meaning of upright and lying figures,
 - larger-than-1×1 figure behavior,
