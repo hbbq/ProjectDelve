@@ -15,8 +15,8 @@ public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
-// Only ATK is needed by current content. Current HP is never a modifier stat.
-public enum Stat { Atk }
+// Current HP is never a modifier stat.
+public enum Stat { Atk, Mov }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
 public sealed record BonusActionAbility(string Name, int MaxUses, ModifierThisTurn Modifier);
 public sealed record AbilityUses
@@ -50,7 +50,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     };
 
     public static UnitType Rogue(string id = "rogue-type") =>
-        new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor);
+        new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor,
+            BonusAction: new("Dash", 2, new(Stat.Mov, 2)));
 
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
 
@@ -121,10 +122,14 @@ public sealed class GameState
     public List<ModifierThisTurn> ModifiersThisTurn { get; set; } = [];
     // Derived authoritative values are also serialized for rule-independent clients.
     public Dictionary<string, int> EffectiveAtk => Units.ToDictionary(u => u.Id, u => EffectiveAtkOf(u.Id));
+    public Dictionary<string, int> EffectiveMov => Units.ToDictionary(u => u.Id, u => EffectiveMovOf(u.Id));
 
     public int EffectiveAtkOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Atk +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
+    public int EffectiveMovOf(string unitId) =>
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
+        (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0);
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
     // Mandatory post-attack movement resolves before the activation may end.

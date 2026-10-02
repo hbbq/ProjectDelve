@@ -113,7 +113,7 @@ static void ShowState(GameState state)
         var placement = figure is null ? "off board" : $"({figure.Position.X},{figure.Position.Y}), {figure.Posture}";
         var uses = unit.BonusActionUses is { } abilityUses
             ? $" | {type.BonusAction!.Name} {abilityUses.RemainingUses}/{abilityUses.MaxUses}" : "";
-        Console.WriteLine($"{unit.Id}: side {unit.SideId}, HP {unit.CurrentHp}/{type.Hp}, {placement} | MOV {type.Mov}, RNG {type.Rng}, ATK {state.EffectiveAtkOf(unit.Id)} (base {type.Atk}), DEF {type.Def}{uses}");
+        Console.WriteLine($"{unit.Id}: side {unit.SideId}, HP {unit.CurrentHp}/{type.Hp}, {placement} | MOV {state.EffectiveMovOf(unit.Id)}, RNG {type.Rng}, ATK {state.EffectiveAtkOf(unit.Id)} (base {type.Atk}), DEF {type.Def}{uses}");
     }
     Console.WriteLine();
 }

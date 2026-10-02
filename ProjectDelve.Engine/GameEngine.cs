@@ -247,7 +247,7 @@ public static class GameEngine
     private static List<Candidate> MovementCandidates(GameState state, Unit unit, int? maxSteps = null)
     {
         var start = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
-        var allowance = maxSteps ?? state.Types.Single(t => t.Id == unit.TypeId).Mov;
+        var allowance = maxSteps ?? state.EffectiveMovOf(unit.Id);
         return MovementRules.FindPaths(state, unit.Id, start, allowance)
             .Where(pair => pair.Key != start)
             .OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.X)
@@ -312,14 +312,22 @@ public static class GameEngine
         var ability = state.Types.Single(t => t.Id == unit.TypeId).BonusAction;
         if (ability is null || state.BonusActionUsed || unit.BonusActionUses is not { RemainingUses: > 0 })
             return [];
-        // Shallow relevance: a currently available Attack must be able to benefit.
-        // Before Move the engine offers no Attack; relevance never restricts legality.
+        // Relevance never restricts legality. ATK needs a currently available Attack;
+        // MOV needs at least one additional legal destination before Move completes.
         var relevant = false;
         if (state.MoveDone && !state.ActionDone && ability.Modifier is { Stat: Stat.Atk, Amount: > 0 })
         {
             var boosted = state.Copy();
             boosted.ModifiersThisTurn.Add(ability.Modifier);
             relevant = ActionCandidates(boosted, unit).Any(c => c.Action == UnitAction.NormalAttack);
+        }
+        else if (!state.MoveDone && ability.Modifier is { Stat: Stat.Mov, Amount: > 0 })
+        {
+            var destinations = MovementCandidates(state, unit).Select(c => c.Destination).ToHashSet();
+            var boosted = state.Copy();
+            boosted.ModifiersThisTurn.Add(ability.Modifier);
+            // Destination choices matter; regenerated canonical paths do not.
+            relevant = MovementCandidates(boosted, unit).Any(c => !destinations.Contains(c.Destination));
         }
         return [new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
             Relevant: relevant, BonusAction: ability)];

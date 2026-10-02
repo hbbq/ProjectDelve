@@ -44,7 +44,7 @@ public sealed class RageTests
         Assert.Equal(new BonusActionAbility("Rage", 2, new(Stat.Atk, 2)), type.BonusAction);
         Assert.Equal(new AbilityUses(2, 2), Uses(State()));
         Assert.Null(UnitType.Hero("hero", 1, 1, 1, 1, 1).BonusAction);
-        Assert.All(new[] { UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(), UnitType.SkeletonArcher(), UnitType.Goblin() },
+        Assert.All(new[] { UnitType.Grunt(), UnitType.Zombie(), UnitType.SkeletonArcher(), UnitType.Goblin() },
             t => Assert.Null(t.BonusAction));
         var bare = State();
         bare.Units[0] = new("hero", type.Id, "blue", type.Hp);
