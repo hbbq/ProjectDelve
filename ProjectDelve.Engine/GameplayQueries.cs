@@ -68,7 +68,6 @@ internal sealed class GameplayQueries : IGameplayQueries
         var side = world.Units.Single(u => u.Id == unitId).SideId;
         return world.Units.Where(u => u.CurrentHp > 0 && u.SideId != side)
             .Select(u => PositionOf(u.Id))
-            .Any(hostile => Math.Max(Math.Abs(position.X - hostile.X), Math.Abs(position.Y - hostile.Y)) == 1 &&
-                AttackRules.HasGeometricLineOfSight(world.Physical.Board, hostile, position));
+            .Any(hostile => SpatialRules.AreAdjacent(world.Physical.Board, hostile, position));
     }
 }

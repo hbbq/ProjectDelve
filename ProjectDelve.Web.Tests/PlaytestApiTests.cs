@@ -31,10 +31,10 @@ public sealed class PlaytestApiTests
         Assert.Null(second.Result.NextInput);
         Assert.Equal(15, second.Result.State.Physical.Board.Width);
         Assert.Equal(15, second.Result.State.Physical.Board.Height);
-        Assert.Equal(9, second.Result.State.Physical.Figures.Count);
+        Assert.Equal(10, second.Result.State.Physical.Figures.Count);
         var heroes = second.Result.State.Units.Where(u => u.SideId == "blue").ToArray();
-        Assert.Equal(new[] { "barbarian", "rogue" }, heroes.Select(u => u.Id));
-        Assert.Equal(2, heroes.Select(u => u.TypeId).Distinct().Count());
+        Assert.Equal(new[] { "barbarian", "rogue", "cleric" }, heroes.Select(u => u.Id));
+        Assert.Equal(3, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(UnitAction.NormalAttack, type.Actions));
         Assert.Equal(new[] { 2, 2, 2, 1 }, second.Result.State.Units.Where(u => u.SideId == "red")
@@ -54,6 +54,7 @@ public sealed class PlaytestApiTests
     [Theory]
     [InlineData("barbarian-type", 3, 1, 4, 3, 5)]
     [InlineData("rogue-type", 4, 1, 3, 2, 4)]
+    [InlineData("cleric-type", 3, 1, 3, 3, 4)]
     [InlineData("grunt-type", 3, 1, 3, 3, 1)]
     public async Task BasicContentHasSpecifiedStatsAndExplicitActions(string id, int mov, int rng, int atk, int def, int hp)
     {
@@ -112,8 +113,8 @@ public sealed class PlaytestApiTests
         Assert.True(completed.Result.State.RoundComplete);
         Assert.Null(completed.Result.NextInput);
         var moves = completed.Result.Events.Where(e => e.Kind == "MovementCompleted").ToArray();
-        Assert.Equal(new[] { "barbarian", "rogue", "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "goblin-1", "goblin-1" }, moves.Select(e => e.UnitId));
-        Assert.Equal(new[] { "barbarian-type", "rogue-type", "grunt-type", "zombie-type", "skeleton-archer-type", "goblin-type" },
+        Assert.Equal(new[] { "barbarian", "rogue", "cleric", "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "goblin-1", "goblin-1" }, moves.Select(e => e.UnitId));
+        Assert.Equal(new[] { "barbarian-type", "rogue-type", "cleric-type", "grunt-type", "zombie-type", "skeleton-archer-type", "goblin-type" },
             completed.Result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Contains(moves, e => e.Path!.Count > 1);
         // Each Unit finishes before the next Unit of that Type moves.
@@ -156,7 +157,7 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start();
         var state = (await host.Read()).Result.State;
-        Assert.Equal(JsonSerializer.Serialize(new[] { UnitType.Barbarian(), UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(),
+        Assert.Equal(JsonSerializer.Serialize(new[] { UnitType.Barbarian(), UnitType.Rogue(), UnitType.Cleric(), UnitType.Grunt(), UnitType.Zombie(),
             UnitType.SkeletonArcher(), UnitType.Goblin() }, Json), JsonSerializer.Serialize(state.Types, Json));
         var rogue = state.Units.Single(u => u.Id == "rogue");
         Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Dash"]);
@@ -499,8 +500,8 @@ public sealed class PlaytestApiTests
         var events = new List<RulesEvent>(result.Result.Events);
         for (var decisions = 0; result.Result.NextInput is not null; decisions++)
         {
-            Assert.True(decisions < 12, "A round must stop after the two Heroes' choices.");
-            Assert.Contains(result.Result.NextInput.TypeId, new[] { "barbarian-type", "rogue-type" });
+            Assert.True(decisions < 18, "A round must stop after the three Heroes' choices.");
+            Assert.Contains(result.Result.NextInput.TypeId, new[] { "barbarian-type", "rogue-type", "cleric-type" });
             result = await host.Decide(result.Revision, null);
             events.AddRange(result.Result.Events);
         }

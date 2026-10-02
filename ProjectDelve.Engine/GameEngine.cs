@@ -397,7 +397,7 @@ public static class GameEngine
     {
         var target = state.Units.Single(u => u.Id == targetId);
         var attackDice = state.EffectiveAtkOf(attackerId);
-        var defenceDice = state.Types.Single(t => t.Id == target.TypeId).Def;
+        var defenceDice = state.EffectiveDefOf(targetId);
         var hits = 0;
         var blocks = 0;
         for (var i = 0; i < attackDice; i++)

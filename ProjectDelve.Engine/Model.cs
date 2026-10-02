@@ -17,8 +17,9 @@ public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
+public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount);
 // Current HP is never a modifier stat.
-public enum Stat { Atk, Mov, Rng }
+public enum Stat { Atk, Mov, Rng, Def }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
 // Immutable content and per-ability counters may be shared safely by state copies.
 public sealed record BonusActionAbility(string Name, int MaxUses, ImmutableArray<ModifierThisTurn> Modifiers);
@@ -40,9 +41,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
+    public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public ImmutableArray<BonusActionAbility> BonusActions { get; init; } = [];
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
-        new(id, mov, rng, atk, def, hp);        
+        new(id, mov, rng, atk, def, hp);
 
     public Unit CreateUnit(string id, string sideId) => 
         new(id, Id, sideId, Hp)
@@ -65,6 +67,12 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
                 new("Dash", 2, [new(Stat.Mov, 2)]),
                 new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])
             ]
+        };
+
+    public static UnitType Cleric(string id = "cleric-type") =>
+        new(id, 3, 1, 3, 3, 4, FreeActions: UnitFreeAction.OpenDoor)
+        {
+            AdjacentFriendlyUnitsDefenceBonus = new(1)
         };
 
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
@@ -138,6 +146,7 @@ public sealed class GameState
     public Dictionary<string, int> EffectiveAtk => Units.ToDictionary(u => u.Id, u => EffectiveAtkOf(u.Id));
     public Dictionary<string, int> EffectiveMov => Units.ToDictionary(u => u.Id, u => EffectiveMovOf(u.Id));
     public Dictionary<string, int> EffectiveRng => Units.ToDictionary(u => u.Id, u => EffectiveRngOf(u.Id));
+    public Dictionary<string, int> EffectiveDef => Units.ToDictionary(u => u.Id, u => EffectiveDefOf(u.Id));
 
     public int EffectiveAtkOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Atk +
@@ -148,6 +157,27 @@ public sealed class GameState
     public int EffectiveRngOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
+    public int EffectiveDefOf(string unitId)
+    {
+        var unit = Units.Single(u => u.Id == unitId);
+        var type = Types.Single(t => t.Id == unit.TypeId);
+        var defence = type.Def + (CurrentUnitId == unitId
+            ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
+        var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
+        if (unit.CurrentHp <= 0 || figure is null) return defence;
+
+        // Derive passives from this state's content and physical situation on every query.
+        // No derived state is shared with live, copied or hypothetical worlds.
+        foreach (var source in Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId))
+        {
+            var bonus = Types.Single(t => t.Id == source.TypeId).AdjacentFriendlyUnitsDefenceBonus;
+            if (bonus is null) continue;
+            var sourceFigure = Physical.Figures.SingleOrDefault(f => f.Id == source.Id);
+            if (sourceFigure is not null && SpatialRules.AreAdjacent(Physical.Board, sourceFigure.Position, figure.Position))
+                defence += bonus.Amount;
+        }
+        return defence;
+    }
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
     // Mandatory post-attack movement resolves before the activation may end.

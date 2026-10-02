@@ -44,13 +44,15 @@ internal static class ExploratoryScenario
         {
             Physical = new(board, [
                 new("barbarian", new(4, 7)), new("rogue", new(4, 10)),
+                new("cleric", new(3, 9)),
                 new("grunt-1", new(7, 11)), new("grunt-2", new(10, 8)),
                 new("zombie-1", new(2, 3)), new("zombie-2", new(1, 5)),
                 new("archer-1", new(6, 7)), new("archer-2", new(12, 3)),
                 new("goblin-1", new(7, 10))]),
-            Types = [UnitType.Barbarian(), UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(),
+            Types = [UnitType.Barbarian(), UnitType.Rogue(), UnitType.Cleric(), UnitType.Grunt(), UnitType.Zombie(),
                 UnitType.SkeletonArcher(), UnitType.Goblin()],
             Units = [UnitType.Barbarian().CreateUnit("barbarian", "blue"), UnitType.Rogue().CreateUnit("rogue", "blue"),
+                UnitType.Cleric().CreateUnit("cleric", "blue"),
                 new("grunt-1", "grunt-type", "red", 1), new("grunt-2", "grunt-type", "red", 1),
                 new("zombie-1", "zombie-type", "red", 1), new("zombie-2", "zombie-type", "red", 1),
                 new("archer-1", "skeleton-archer-type", "red", 1), new("archer-2", "skeleton-archer-type", "red", 1),

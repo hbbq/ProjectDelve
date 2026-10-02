@@ -11,7 +11,7 @@ const cells = new Map();
 // These helpers describe geometry and presentation only. Legal choices arrive from the engine.
 const cellKey = cell => `${cell.x},${cell.y}`;
 const edgeKey = edge => [cellKey(edge.a), cellKey(edge.b)].sort().join("|");
-const unitLabel = id => ({ barbarian: "B", rogue: "R", "grunt-1": "Gr1", "grunt-2": "Gr2",
+const unitLabel = id => ({ barbarian: "B", rogue: "R", cleric: "C", "grunt-1": "Gr1", "grunt-2": "Gr2",
   "zombie-1": "Z1", "zombie-2": "Z2", "archer-1": "A1", "archer-2": "A2", "goblin-1": "G1" })[id] ?? id;
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
 

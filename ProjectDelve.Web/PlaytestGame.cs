@@ -32,7 +32,7 @@ public sealed class PlaytestGame(IRandomProvider random)
         lock (gate)
         {
             CheckRevision(expectedRevision);
-            if (state.Pending is null || state.Pending.TypeId is not ("barbarian-type" or "rogue-type"))
+            if (state.Pending is null || state.Pending.TypeId is not ("barbarian-type" or "rogue-type" or "cleric-type"))
                 throw new PlaytestRequestException(409, "No player decision is pending.");
             EngineResult result;
             try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random, autoChooseSingleRelevantChoice); }
