@@ -652,7 +652,7 @@ A Unit that dies during its own activation cannot continue acting.
 
 ### Bonus Actions
 
-A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. The ability must have any required uses remaining and satisfy its own legality conditions.
+A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, its Bonus Action opportunity remains unused, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
 
 Using a Bonus Action consumes the Unit's Bonus Action opportunity but does not by itself consume or complete Move or Action. After it resolves, legal choices are generated again from the new state.
 
@@ -673,6 +673,18 @@ Limited-use abilities track both maximum uses and remaining uses as Rules/Game S
 Rage introduces the reusable effect concept **Modifier This Turn**, parameterized by a stat and signed amount; Rage applies `ModifierThisTurn(ATK, +2)`. A this-turn modifier is serializable Rules/Game State because it can affect later decisions and resolution during the activation. It contributes to the stat's effective value and is removed when that Unit's activation ends. Rage requires only this activation-duration modifier behavior; general modifier durations, stacking policies, priorities, sources, or a universal effect framework are deliberately deferred until concrete content requires them.
 
 Current HP remains mutable Unit state rather than being treated as a stat modifier merely because other stats may have effective values.
+
+The Rogue has the Bonus Action ability **Dash**:
+
+```text
+Dash [2/game]
+Bonus Action
++2 MOV this turn
+```
+
+Dash starts each game with 2 remaining uses and has a maximum of 2 uses. Using Dash immediately consumes one remaining use and the Unit's Bonus Action opportunity, then applies `ModifierThisTurn(MOV, +2)` for the remainder of the current activation. Dash has no additional timing restriction: in particular, it remains legal after the Rogue has already completed its Move. In that situation the use can still be spent even though the movement modifier can no longer affect the already-completed Move.
+
+Dash relevance is evaluated separately from legality. If the Rogue has already completed its Move, Dash is irrelevant. Otherwise, relevance compares the Rogue's authoritative legal Move destinations in the current state with those produced from a hypothetical copy of state containing Dash's `MOV +2` modifier. Dash is relevant when the modifier makes at least one additional Move destination legal. The comparison concerns destination choices rather than incidental representation such as a different canonical path to a destination that was already reachable. The hypothetical evaluation reuses normal authoritative movement candidate generation and does not duplicate movement or pathing rules inside Dash relevance.
 
 ### Free Actions
 
