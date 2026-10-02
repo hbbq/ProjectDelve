@@ -686,6 +686,18 @@ Dash starts each game with 2 remaining uses and has a maximum of 2 uses. Using D
 
 Dash relevance is evaluated separately from legality. If the Rogue has already completed its Move, Dash is irrelevant. Otherwise, relevance compares the Rogue's authoritative legal Move destinations in the current state with those produced from a hypothetical copy of state containing Dash's `MOV +2` modifier. Dash is relevant when the modifier makes at least one additional Move destination legal. The comparison concerns destination choices rather than incidental representation such as a different canonical path to a destination that was already reachable. The hypothetical evaluation reuses normal authoritative movement candidate generation and does not duplicate movement or pathing rules inside Dash relevance.
 
+The Rogue also has the Bonus Action ability **Throwing Knife**:
+
+```text
+Throwing Knife [2/game]
+Bonus Action
+RNG +2 & ATK -1 this turn
+```
+
+Throwing Knife starts with 2 remaining uses and a maximum of 2. Using it spends one use and the Unit's Bonus Action opportunity, then applies both temporary modifiers for the remainder of the activation. Multiple modifiers from one ability are applied together as one effect package for effective stats and relevance, and are removed together when the activation ends.
+
+Throwing Knife does not perform an Attack itself. It changes the Rogue's effective stats; a later normal Attack uses those values. With base `RNG 1` and `ATK 3`, the Rogue therefore has `RNG 3` and `ATK 2` after using it. Gaining a new legal Attack target is sufficient to make Throwing Knife relevant even though its attack strength is lower.
+
 ### Free Actions
 
 A Free Action consumes neither the Unit's Move opportunity, Action opportunity, nor Bonus Action opportunity. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
