@@ -157,6 +157,30 @@ A presentation adapter or client is responsible for translating Rules/Domain Eve
 
 Rules/Domain Events should expose enough meaningful information for different presentations to represent what happened without exposing low-level engine implementation details. Internal operations such as path validation or rule-component lookup are not gameplay events merely because the engine performs them.
 
+### Intermediate authoritative state during presentation
+
+A single engine run may resolve several gameplay events before reaching the next stable state. Presentation may need to show authoritative state changes at the point where those events occur rather than displaying only the final state after the complete event sequence has been presented. For example, if several Monsters damage the same Hero during one engine run, a graphical client should be able to show the Hero's authoritative current HP changing between those attack presentations.
+
+The client must not reconstruct these intermediate states by applying Rules/Domain Events as state mutations. An event such as damage, movement, opening a door, or death describes what happened; it does not require the client to know the corresponding rules for mutating Game State.
+
+Instead, an engine result may associate presentation-relevant resolution steps with an authoritative Game State snapshot representing the state after that step. Conceptually:
+
+```text
+initial authoritative state
+    -> event / presentation step
+    -> authoritative state after that step
+    -> event / presentation step
+    -> authoritative state after that step
+    -> ...
+    -> final stable authoritative state and next required input
+```
+
+This may be represented by a result-level structure such as a sequence of resolution steps containing event information together with `StateAfter`. The exact transport shape is an implementation concern; the important rule is that intermediate state comes from the rules engine rather than being derived by the client.
+
+Rules/Domain Events remain semantic descriptions of resolved gameplay and should not become generic state patches merely to support presentation. Likewise, state snapshots are not themselves gameplay events. Keeping these concepts separate allows a client to animate or narrate an event and then render the authoritative state for that point without learning how the event changes HP, positions, doors, status, or other game state.
+
+The final Game State returned by the engine remains authoritative and must correspond to the state after all resolved steps in that engine run.
+
 ### Client boundary and presentation
 
 A client may understand game-domain data in order to present it well, but it must not need to understand game rules in order to play the game correctly.
