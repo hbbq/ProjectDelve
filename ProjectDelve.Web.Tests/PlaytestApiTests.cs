@@ -156,8 +156,11 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start();
         var state = (await host.Read()).Result.State;
-        Assert.Equal(new[] { UnitType.Barbarian(), UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(),
-            UnitType.SkeletonArcher(), UnitType.Goblin() }, state.Types);
+        Assert.Equal(JsonSerializer.Serialize(new[] { UnitType.Barbarian(), UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(),
+            UnitType.SkeletonArcher(), UnitType.Goblin() }, Json), JsonSerializer.Serialize(state.Types, Json));
+        var rogue = state.Units.Single(u => u.Id == "rogue");
+        Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Dash"]);
+        Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Throwing Knife"]);
         var board = state.Physical.Board;
         var room = Enumerable.Range(1, 3).SelectMany(x => Enumerable.Range(2, 4).Select(y => new Cell(x, y))).ToHashSet();
         var zombies = state.Units.Where(u => u.TypeId == "zombie-type").ToArray();
@@ -443,7 +446,7 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(hit: true);
         var initial = await host.Read();
-        Assert.Equal(new AbilityUses(2, 2), initial.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        Assert.Equal(new AbilityUses(2, 2), initial.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
         using var preference = await host.Post("preferences", new {
             expectedRevision = 0, autoChooseSingleRelevantChoice = false });
         preference.EnsureSuccessStatusCode();
@@ -456,7 +459,7 @@ public sealed class PlaytestApiTests
         rage = Assert.Single(moved.Result.NextInput!.Candidates, c => c.BonusAction is not null);
         Assert.True(rage.Relevant);
         var raging = await host.Decide(moved.Revision, rage.Key);
-        Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
         Assert.True(raging.Result.State.BonusActionUsed);
         Assert.Equal(6, raging.Result.State.EffectiveAtk["barbarian"]);
         Assert.Equal(4, raging.Result.State.Types.Single(t => t.Id == "barbarian-type").Atk);
@@ -468,7 +471,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(6, Assert.Single(attacked.Result.Events, e => e.Kind == "AttackResolved").Hits);
         Assert.Empty(attacked.Result.State.ModifiersThisTurn);
         Assert.Equal(4, attacked.Result.State.EffectiveAtk["barbarian"]);
-        Assert.Equal(new AbilityUses(2, 1), attacked.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        Assert.Equal(new AbilityUses(2, 1), attacked.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
     }
 
     [Fact]
@@ -486,7 +489,7 @@ public sealed class PlaytestApiTests
         Assert.False(rage.Relevant);
         var used = await host.Decide(attacked.Revision, rage.Key);
         Assert.Contains(used.Result.Events, e => e.Kind == "AbilityUsed" && e.AbilityName == "Rage");
-        Assert.Equal(new AbilityUses(2, 1), used.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        Assert.Equal(new AbilityUses(2, 1), used.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
         Assert.Empty(used.Result.State.ModifiersThisTurn);
         Assert.Equal("rogue", used.Result.NextInput!.UnitId);
     }

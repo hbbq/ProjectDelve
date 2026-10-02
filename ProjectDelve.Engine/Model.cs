@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace ProjectDelve.Engine;
 
 public sealed record Cell(int X, int Y);
@@ -16,9 +18,10 @@ public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAtt
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 // Current HP is never a modifier stat.
-public enum Stat { Atk, Mov }
+public enum Stat { Atk, Mov, Rng }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
-public sealed record BonusActionAbility(string Name, int MaxUses, ModifierThisTurn Modifier);
+// Immutable content and per-ability counters may be shared safely by state copies.
+public sealed record BonusActionAbility(string Name, int MaxUses, ImmutableArray<ModifierThisTurn> Modifiers);
 public sealed record AbilityUses
 {
     public int MaxUses { get; }
@@ -35,23 +38,29 @@ public sealed record AbilityUses
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
-    UnitFreeAction FreeActions = UnitFreeAction.None, BonusActionAbility? BonusAction = null)
+    UnitFreeAction FreeActions = UnitFreeAction.None)
 {
+    public ImmutableArray<BonusActionAbility> BonusActions { get; init; } = [];
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
 
     public static UnitType Barbarian(string id = "barbarian-type") =>
-        new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor,
-            BonusAction: new("Rage", 2, new(Stat.Atk, 2)));
+        new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
+        {
+            BonusActions = [new("Rage", 2, [new(Stat.Atk, 2)])]
+        };
 
     public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp)
     {
-        BonusActionUses = BonusAction is { } ability ? new(ability.MaxUses, ability.MaxUses) : null
+        BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
     };
 
     public static UnitType Rogue(string id = "rogue-type") =>
-        new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor,
-            BonusAction: new("Dash", 2, new(Stat.Mov, 2)));
+        new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
+        {
+            BonusActions = [new("Dash", 2, [new(Stat.Mov, 2)]),
+                new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
+        };
 
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
 
@@ -67,7 +76,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {
-    public AbilityUses? BonusActionUses { get; init; }
+    public ImmutableDictionary<string, AbilityUses> BonusActionUses { get; init; } = ImmutableDictionary<string, AbilityUses>.Empty;
 }
 
 public sealed record Board(int Width, int Height, List<Edge> Edges)
@@ -123,6 +132,7 @@ public sealed class GameState
     // Derived authoritative values are also serialized for rule-independent clients.
     public Dictionary<string, int> EffectiveAtk => Units.ToDictionary(u => u.Id, u => EffectiveAtkOf(u.Id));
     public Dictionary<string, int> EffectiveMov => Units.ToDictionary(u => u.Id, u => EffectiveMovOf(u.Id));
+    public Dictionary<string, int> EffectiveRng => Units.ToDictionary(u => u.Id, u => EffectiveRngOf(u.Id));
 
     public int EffectiveAtkOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Atk +
@@ -130,6 +140,9 @@ public sealed class GameState
     public int EffectiveMovOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0);
+    public int EffectiveRngOf(string unitId) =>
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng +
+        (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
     // Mandatory post-attack movement resolves before the activation may end.

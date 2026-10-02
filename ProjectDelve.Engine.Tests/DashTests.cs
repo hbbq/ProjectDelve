@@ -33,8 +33,8 @@ public sealed class DashTests
     private static EngineResult Choose(GameState state, string key, bool auto = false) =>
         GameEngine.Advance(state, new Choice(key), new Random(), auto);
     private static Candidate Dash(EngineResult result) =>
-        Assert.Single(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
-    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "rogue").BonusActionUses!;
+        Assert.Single(result.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
+    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "rogue").BonusActionUses["Dash"];
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
     private static Candidate[] Moves(EngineResult result) =>
         result.NextInput!.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToArray();
@@ -43,12 +43,14 @@ public sealed class DashTests
     public void RogueHasDashWithTwoOfTwoUsesIncludingBareScenarioInitialization()
     {
         var state = State();
-        Assert.Equal(new BonusActionAbility("Dash", 2, new(Stat.Mov, 2)), state.Types[0].BonusAction);
+        var ability = Assert.Single(state.Types[0].BonusActions, a => a.Name == "Dash");
+        Assert.Equal(2, ability.MaxUses);
+        Assert.Equal(new ModifierThisTurn(Stat.Mov, 2), Assert.Single(ability.Modifiers));
         Assert.Equal(new AbilityUses(2, 2), Uses(state));
         state.Units[0] = new("rogue", state.Types[0].Id, "blue", 4);
         var started = Start(state);
         Assert.Equal(new AbilityUses(2, 2), Uses(started.State));
-        Assert.Null(Uses(state));
+        Assert.Empty(state.Units[0].BonusActionUses);
     }
 
     [Fact]
@@ -100,10 +102,10 @@ public sealed class DashTests
     public void ZeroUsesMakesDashIllegalEvenWithAnUnusedBonusAction()
     {
         var state = State();
-        state.Units[0] = state.Units[0] with { BonusActionUses = new(2, 0) };
+        state.Units[0] = state.Units[0] with { BonusActionUses = state.Units[0].BonusActionUses.SetItem("Dash", new(2, 0)) };
         var started = Start(state);
         Assert.False(started.State.BonusActionUsed);
-        Assert.DoesNotContain(started.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
+        Assert.DoesNotContain(started.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
         Assert.Throws<ArgumentException>(() => Choose(started.State, "bonus-action:Dash"));
     }
 
@@ -204,7 +206,7 @@ public sealed class DashTests
         Assert.Empty(ended.State.ModifiersThisTurn);
         Assert.Equal(4, ended.State.EffectiveMovOf("rogue"));
         Assert.Equal(4, ended.State.EffectiveMovOf("ally"));
-        Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").BonusActionUses);
+        Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").BonusActionUses["Dash"]);
         Assert.Equal(new AbilityUses(2, 1), Uses(ended.State));
     }
 }

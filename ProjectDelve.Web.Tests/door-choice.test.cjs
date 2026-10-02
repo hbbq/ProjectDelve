@@ -273,18 +273,23 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
     },
     createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
   };
-  const ability = { name: "Rage", maxUses: 2, modifier: { stat: "Atk", amount: 2 } };
+  const ability = { name: "Rage", maxUses: 2, modifiers: [{ stat: "Atk", amount: 2 }] };
+  const dash = { name: "Dash", maxUses: 2, modifiers: [{ stat: "Mov", amount: 2 }] };
+  const knife = { name: "Throwing Knife", maxUses: 2, modifiers: [{ stat: "Rng", amount: 2 }, { stat: "Atk", amount: -1 }] };
   const response = {
     revision: 7, autoChooseSingleRelevantChoice: false,
     result: {
       state: { round: 1, currentUnitId: "barbarian", moveDone: false,
         physical: { board: { width: 1, height: 1, edges: [] }, figures: [] },
-        types: [{ id: "barbarian-type", hp: 5, mov: 3, rng: 1, atk: 4, def: 3, bonusAction: ability }],
+        types: [{ id: "barbarian-type", hp: 5, mov: 3, rng: 1, atk: 4, def: 3, bonusActions: [ability] },
+          { id: "rogue-type", hp: 4, mov: 4, rng: 1, atk: 3, def: 2, bonusActions: [dash, knife] }],
         units: [{ id: "barbarian", typeId: "barbarian-type", sideId: "blue", currentHp: 5,
-          bonusActionUses: { remainingUses: 1, maxUses: 2 } }],
-        modifiersThisTurn: [ability.modifier],
+          bonusActionUses: { Rage: { remainingUses: 1, maxUses: 2 } } },
+          { id: "rogue", typeId: "rogue-type", sideId: "blue", currentHp: 4,
+            bonusActionUses: { Dash: { remainingUses: 2, maxUses: 2 }, "Throwing Knife": { remainingUses: 1, maxUses: 2 } } }],
+        modifiersThisTurn: ability.modifiers,
         // Deliberately different from base + modifier: render the supplied engine value.
-        effectiveAtk: { barbarian: 17 } },
+        effectiveAtk: { barbarian: 17, rogue: 2 }, effectiveRng: { rogue: 3 }, effectiveMov: { rogue: 6 } },
       nextInput: { kind: "Activation", unitId: "barbarian", allowsNone: false,
         candidates: [{ key: "opaque-bonus-key", kind: "BonusAction", bonusAction: ability, relevant: false },
           { key: "stay", kind: "Stay", relevant: true }] },
@@ -303,6 +308,8 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
   vm.runInContext("snapshot = response; renderSnapshot();", context);
   assert.match(elements.get("units").children[0].textContent, /ATK 17 \(base 4\)/);
   assert.match(elements.get("units").children[0].textContent, /Rage 1\/2/);
+  assert.match(elements.get("units").children[1].textContent, /MOV 6 RNG 3 ATK 2 \(base 3\)/);
+  assert.match(elements.get("units").children[1].textContent, /Dash 2\/2 · Throwing Knife 1\/2/);
   assert.equal(elements.get("choices").children.length, 1);
   elements.get("filter").checked = false;
   elements.get("filter").listeners.change();

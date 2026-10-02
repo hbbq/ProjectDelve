@@ -10,9 +10,12 @@ public static class GameEngine
         var state = previous.Copy();
         // Scenario constructors may supply bare Units; initialize content once at game start.
         if (state.Round == 0)
-            state.Units = state.Units.Select(u => u.BonusActionUses is null &&
-                state.Types.Single(t => t.Id == u.TypeId).BonusAction is { } ability
-                    ? u with { BonusActionUses = new(ability.MaxUses, ability.MaxUses) } : u).ToList();
+            state.Units = state.Units.Select(u => u with
+            {
+                BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions
+                    .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
+                        ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
+            }).ToList();
         state.Round++;
         state.Bag = state.Types.Where(t => state.Units.Any(u => u.TypeId == t.Id && u.CurrentHp > 0))
             .Select(t => t.Id).ToList();
@@ -115,13 +118,14 @@ public static class GameEngine
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
                 var ability = request.Candidates.Single(c => c.Key == choice).BonusAction!;
                 var index = state.Units.FindIndex(u => u.Id == request.UnitId);
-                var uses = state.Units[index].BonusActionUses!;
+                var uses = state.Units[index].BonusActionUses[ability.Name];
                 state.Units[index] = state.Units[index] with
                 {
-                    BonusActionUses = new(uses.MaxUses, uses.RemainingUses - 1)
+                    BonusActionUses = state.Units[index].BonusActionUses.SetItem(ability.Name,
+                        new(uses.MaxUses, uses.RemainingUses - 1))
                 };
                 state.BonusActionUsed = true;
-                state.ModifiersThisTurn.Add(ability.Modifier);
+                state.ModifiersThisTurn.AddRange(ability.Modifiers);
                 events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.Name));
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
@@ -309,28 +313,37 @@ public static class GameEngine
 
     private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
     {
-        var ability = state.Types.Single(t => t.Id == unit.TypeId).BonusAction;
-        if (ability is null || state.BonusActionUsed || unit.BonusActionUses is not { RemainingUses: > 0 })
-            return [];
-        // Relevance never restricts legality. ATK needs a currently available Attack;
-        // MOV needs at least one additional legal destination before Move completes.
-        var relevant = false;
-        if (state.MoveDone && !state.ActionDone && ability.Modifier is { Stat: Stat.Atk, Amount: > 0 })
+        if (state.BonusActionUsed) yield break;
+        foreach (var ability in state.Types.Single(t => t.Id == unit.TypeId).BonusActions)
+            if (unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0)
+                yield return new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
+                    Relevant: BonusActionRelevant(state, unit, ability), BonusAction: ability);
+    }
+
+    private static bool BonusActionRelevant(GameState state, Unit unit, BonusActionAbility ability)
+    {
+        var modified = state.Copy();
+        // Every question sees the complete package, including negative modifiers.
+        modified.ModifiersThisTurn.AddRange(ability.Modifiers);
+        var positiveStats = ability.Modifiers.Where(m => m.Amount > 0).Select(m => m.Stat).ToHashSet();
+        if (state.MoveDone && !state.ActionDone &&
+            (positiveStats.Contains(Stat.Atk) || positiveStats.Contains(Stat.Rng)))
         {
-            var boosted = state.Copy();
-            boosted.ModifiersThisTurn.Add(ability.Modifier);
-            relevant = ActionCandidates(boosted, unit).Any(c => c.Action == UnitAction.NormalAttack);
+            var attacks = ActionCandidates(modified, unit).Where(c => c.Action == UnitAction.NormalAttack).ToList();
+            if (positiveStats.Contains(Stat.Atk) && attacks.Count > 0) return true;
+            if (positiveStats.Contains(Stat.Rng))
+            {
+                var targets = ActionCandidates(state, unit).Where(c => c.Action == UnitAction.NormalAttack)
+                    .Select(c => c.TargetId).ToHashSet();
+                if (attacks.Any(c => !targets.Contains(c.TargetId))) return true;
+            }
         }
-        else if (!state.MoveDone && ability.Modifier is { Stat: Stat.Mov, Amount: > 0 })
+        if (!state.MoveDone && positiveStats.Contains(Stat.Mov))
         {
             var destinations = MovementCandidates(state, unit).Select(c => c.Destination).ToHashSet();
-            var boosted = state.Copy();
-            boosted.ModifiersThisTurn.Add(ability.Modifier);
-            // Destination choices matter; regenerated canonical paths do not.
-            relevant = MovementCandidates(boosted, unit).Any(c => !destinations.Contains(c.Destination));
+            if (MovementCandidates(modified, unit).Any(c => !destinations.Contains(c.Destination))) return true;
         }
-        return [new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
-            Relevant: relevant, BonusAction: ability)];
+        return false;
     }
 
     private static DecisionRequest CreateDecision(GameState state)
@@ -427,15 +440,17 @@ public static class GameEngine
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
-                t.BonusAction is { } ability && (ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
-                    !Enum.IsDefined(ability.Modifier.Stat))))
+                t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
+                    ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
+                t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");
-        if (state.Units.Any(u => u.BonusActionUses is { } uses &&
-                state.Types.Single(t => t.Id == u.TypeId).BonusAction?.MaxUses != uses.MaxUses))
+        if (state.Units.Any(u => u.BonusActionUses.Any(entry =>
+                state.Types.Single(t => t.Id == u.TypeId).BonusActions
+                    .SingleOrDefault(a => a.Name == entry.Key)?.MaxUses != entry.Value.MaxUses)))
             throw new ArgumentException("Ability uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||

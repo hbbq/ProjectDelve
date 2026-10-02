@@ -107,9 +107,12 @@ function renderState(state, preserveNodes = true) {
     const type = state.types.find(type => type.id === unit.typeId);
     const atk = state.effectiveAtk?.[unit.id];
     const mov = state.effectiveMov?.[unit.id];
-    const uses = unit.bonusActionUses;
-    const ability = uses ? ` · ${type.bonusAction.name} ${uses.remainingUses}/${uses.maxUses}` : "";
-    return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${mov ?? type.mov} RNG ${type.rng} ATK ${atk ?? type.atk} (base ${type.atk}) DEF ${type.def}${ability}`);
+    const rng = state.effectiveRng?.[unit.id];
+    const abilities = (type.bonusActions ?? []).map(ability => {
+      const uses = unit.bonusActionUses?.[ability.name];
+      return uses ? ` · ${ability.name} ${uses.remainingUses}/${uses.maxUses}` : "";
+    }).join("");
+    return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${mov ?? type.mov} RNG ${rng ?? type.rng} ATK ${atk ?? type.atk} (base ${type.atk}) DEF ${type.def}${abilities}`);
   }));
 }
 

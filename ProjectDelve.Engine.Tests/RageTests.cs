@@ -34,23 +34,26 @@ public sealed class RageTests
         GameEngine.Advance(state, new Choice(key), random ?? new(), auto);
     private static Candidate Rage(EngineResult result) =>
         Assert.Single(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
-    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "hero").BonusActionUses!;
+    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "hero").BonusActionUses["Rage"];
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
     public void BarbarianExplicitlySuppliesRageAndStartsWithTwoOfTwoUses()
     {
         var type = UnitType.Barbarian();
-        Assert.Equal(new BonusActionAbility("Rage", 2, new(Stat.Atk, 2)), type.BonusAction);
+        var ability = Assert.Single(type.BonusActions);
+        Assert.Equal("Rage", ability.Name);
+        Assert.Equal(2, ability.MaxUses);
+        Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(ability.Modifiers));
         Assert.Equal(new AbilityUses(2, 2), Uses(State()));
-        Assert.Null(UnitType.Hero("hero", 1, 1, 1, 1, 1).BonusAction);
+        Assert.Empty(UnitType.Hero("hero", 1, 1, 1, 1, 1).BonusActions);
         Assert.All(new[] { UnitType.Grunt(), UnitType.Zombie(), UnitType.SkeletonArcher(), UnitType.Goblin() },
-            t => Assert.Null(t.BonusAction));
+            t => Assert.Empty(t.BonusActions));
         var bare = State();
         bare.Units[0] = new("hero", type.Id, "blue", type.Hp);
         var started = GameEngine.StartRound(bare, new Random(), false);
         Assert.Equal(new AbilityUses(2, 2), Uses(started.State));
-        Assert.Null(Uses(bare)); // Initialization is detached from the supplied scenario.
+        Assert.Empty(bare.Units[0].BonusActionUses); // Initialization is detached from the supplied scenario.
     }
 
     [Fact]
@@ -182,7 +185,7 @@ public sealed class RageTests
         Assert.Empty(ended.State.ModifiersThisTurn);
         Assert.Equal(4, ended.State.EffectiveAtkOf("ally"));
         Assert.Equal(4, ended.State.EffectiveAtkOf("hero"));
-        Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").BonusActionUses);
+        Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").BonusActionUses["Rage"]);
         Assert.Equal(new AbilityUses(2, 1), Uses(ended.State));
         Assert.Equal(6, beforeEnd.EffectiveAtkOf("hero"));
         Assert.Single(beforeEnd.ModifiersThisTurn); // Completion cannot mutate a prior snapshot.
@@ -193,7 +196,7 @@ public sealed class RageTests
     {
         var type = UnitType.Barbarian("other") with
         {
-            Atk = 0, BonusAction = new("Battle Focus", 2, new(Stat.Atk, 2))
+            Atk = 0, BonusActions = [new("Battle Focus", 2, [new(Stat.Atk, 2)])]
         };
         var started = GameEngine.StartRound(State(type: type), new Random(), false);
         var moved = Choose(started.State, "stay");

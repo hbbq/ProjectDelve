@@ -22,14 +22,15 @@ internal static class AttackRules
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var target = state.Units.Single(u => u.Id == targetId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
-        if (!stats.Actions.HasFlag(UnitAction.NormalAttack) || stats.Rng == 0 || state.EffectiveAtkOf(attackerId) <= 0 ||
+        var range = state.EffectiveRngOf(attackerId);
+        if (!stats.Actions.HasFlag(UnitAction.NormalAttack) || range <= 0 || state.EffectiveAtkOf(attackerId) <= 0 ||
             target.CurrentHp == 0 || target.SideId == attacker.SideId)
             return NormalAttackEvaluation.NotPossible;
 
         var to = state.Physical.Figures.Single(f => f.Id == target.Id).Position;
         var dx = Math.Abs(to.X - from.X);
         var dy = Math.Abs(to.Y - from.Y);
-        if (from == to || (stats.Rng == 1 ? Math.Max(dx, dy) != 1 : dx + dy > stats.Rng))
+        if (from == to || (range == 1 ? Math.Max(dx, dy) != 1 : dx + dy > range))
             return NormalAttackEvaluation.NotPossible;
 
         if (!HasGeometricLineOfSight(state.Physical.Board, from, to))
