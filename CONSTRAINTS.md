@@ -50,7 +50,7 @@ Players must not be required to remember persistent game state that is not repre
 
 At stable boundaries, the board and physical components must contain all information required to continue play correctly. In particular, once a turn or other currently resolving sequence has completed, players must be able to leave the game indefinitely, return later, inspect the table, and continue correctly without remembering what happened previously. Conceptually, a finished turn could be left for years and play resumed by drawing the next Activation Token.
 
-Short-lived progress within the sequence currently being resolved may be kept mentally when it is natural and unambiguous. Current examples include whose turn or activation is in progress, which Units of the currently resolving Unit Type have already activated during that activation, and whether the currently active Unit has already completed its Move, Action, or Bonus Action. If such information must survive a stable stopping point, however, it must be represented explicitly.
+Short-lived progress within the sequence currently being resolved may be kept mentally when it is natural and unambiguous. Current examples include whose turn or activation is in progress, which Units of the currently resolving Unit Type have already activated during that activation, and whether the currently active Unit has already completed its Move or Action, and which individual Bonus Actions it has already used during that activation. If such information must survive a stable stopping point, however, it must be represented explicitly.
 
 Persistent or cross-turn information such as HP, remaining ability uses, acquired abilities, changed stats, statuses, opened doors, spawned or removed Units, and similar state must therefore have a physical representation rather than relying on player memory.
 
@@ -684,9 +684,9 @@ This also applies to copied or hypothetical Game States used by relevance evalua
 
 ### Bonus Actions
 
-A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, its Bonus Action opportunity remains unused, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
+Each individual ability explicitly marked `Bonus Action` may be used at most once during a Unit's activation. Different Bonus Action abilities do not compete for a shared Bonus Action opportunity and may be combined during the same activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, that specific ability has not already been used during the activation, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
 
-Using a Bonus Action consumes the Unit's Bonus Action opportunity but does not by itself consume or complete Move or Action. After it resolves, legal choices are generated again from the new state.
+Using a Bonus Action marks that specific Bonus Action ability as used for the current activation but does not prevent other Bonus Action abilities from being used. It does not by itself consume or complete Move or Action. After it resolves, legal choices are generated again from the new state.
 
 There is no mandatory Bonus Action phase and no general `Skip Bonus Action` decision. Choosing another choice naturally allows the activation to progress without using a Bonus Action.
 
@@ -698,7 +698,7 @@ Bonus Action
 +2 ATK this turn
 ```
 
-Rage starts each game with 2 remaining uses and has a maximum of 2 uses. Using Rage immediately consumes one remaining use and the Unit's Bonus Action opportunity, then applies `+2 ATK` for the remainder of the current activation. The use is spent regardless of whether the Barbarian subsequently makes an Attack. Rage is legal while the Barbarian's activation is active, its Bonus Action opportunity remains unused, and at least one Rage use remains; its relevance is separate from that legality.
+Rage starts each game with 2 remaining uses and has a maximum of 2 uses. Using Rage immediately consumes one remaining use and marks Rage as used for the current activation, then applies `+2 ATK` for the remainder of the current activation. The use is spent regardless of whether the Barbarian subsequently makes an Attack. Rage is legal while the Barbarian's activation is active, Rage has not already been used during that activation, and at least one Rage use remains; its relevance is separate from that legality.
 
 Limited-use abilities track both maximum uses and remaining uses as Rules/Game State. A future rule may restore spent uses, but restoration cannot increase remaining uses above the ability's maximum. No general recharge or restoration rule is introduced by Rage itself.
 
@@ -714,7 +714,7 @@ Bonus Action
 +2 MOV this turn
 ```
 
-Dash starts each game with 2 remaining uses and has a maximum of 2 uses. Using Dash immediately consumes one remaining use and the Unit's Bonus Action opportunity, then applies `ModifierThisTurn(MOV, +2)` for the remainder of the current activation. Dash has no additional timing restriction: in particular, it remains legal after the Rogue has already completed its Move. In that situation the use can still be spent even though the movement modifier can no longer affect the already-completed Move.
+Dash starts each game with 2 remaining uses and has a maximum of 2 uses. Using Dash immediately consumes one remaining use and marks Dash as used for the current activation, then applies `ModifierThisTurn(MOV, +2)` for the remainder of the current activation. Dash has no additional timing restriction: in particular, it remains legal after the Rogue has already completed its Move. In that situation the use can still be spent even though the movement modifier can no longer affect the already-completed Move.
 
 Dash relevance is evaluated separately from legality. Relevance compares the Rogue's authoritative legal Move destinations in the current state with those produced from a hypothetical copy of state containing Dash's `MOV +2` modifier. Dash is relevant when the modifier makes at least one additional Move destination legal. If Move is no longer available, the authoritative gameplay query naturally supplies no Move opportunities in either state, so relevance needs no separate timing check. The comparison concerns destination choices rather than incidental representation such as a different canonical path to a destination that was already reachable. The hypothetical evaluation reuses normal authoritative candidate generation and does not duplicate movement, pathing, or activation rules inside Dash relevance.
 
@@ -726,13 +726,13 @@ Bonus Action
 RNG +2 & ATK -1 this turn
 ```
 
-Throwing Knife starts with 2 remaining uses and a maximum of 2. Using it spends one use and the Unit's Bonus Action opportunity, then applies both temporary modifiers for the remainder of the activation. Multiple modifiers from one ability are applied together as one effect package for effective stats and relevance, and are removed together when the activation ends.
+Throwing Knife starts with 2 remaining uses and a maximum of 2. Using it spends one use and marks Throwing Knife as used for the current activation, then applies both temporary modifiers for the remainder of the activation. Multiple modifiers from one ability are applied together as one effect package for effective stats and relevance, and are removed together when the activation ends.
 
 Throwing Knife does not perform an Attack itself. It changes the Rogue's effective stats; a later normal Attack uses those values. With base `RNG 1` and `ATK 3`, the Rogue therefore has `RNG 3` and `ATK 2` after using it. Gaining a new legal Attack target is sufficient to make Throwing Knife relevant even though its attack strength is lower.
 
 ### Free Actions
 
-A Free Action consumes neither the Unit's Move opportunity, Action opportunity, nor Bonus Action opportunity. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
+A Free Action consumes neither the Unit's Move opportunity nor Action opportunity and does not count as using any Bonus Action ability. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
 
 Free Actions may be available at more than one point during an activation. After a Free Action resolves, legal choices are generated again from the resulting state.
 
@@ -742,7 +742,7 @@ There is no general Free Action phase and no general `Skip Free Action` decision
 
 The reusable **Open Door** Free Action is available only to Unit Types that explicitly have that Free Action. It is legal whenever the Unit occupies either cell bordering a Closed Door edge, and there is one legal Open Door candidate for each such Closed Door. Resolving the Free Action changes that edge to an Open Door and emits the normal door-open gameplay event.
 
-Open Door has no additional activation-timing restriction. It may therefore be used before or after the Unit's Move and before or after its Action, whenever an adjacent Closed Door makes the Free Action legal and the Unit's activation has not ended. Opening a door consumes no Move, Action, or Bonus Action opportunity. Legal choices are regenerated afterward, so opening one door may make another Open Door candidate available or change other legal choices.
+Open Door has no additional activation-timing restriction. It may therefore be used before or after the Unit's Move and before or after its Action, whenever an adjacent Closed Door makes the Free Action legal and the Unit's activation has not ended. Opening a door consumes no Move or Action opportunity and does not count as using any Bonus Action ability. Legal choices are regenerated afterward, so opening one door may make another Open Door candidate available or change other legal choices.
 
 Open Door is standard Hero content, but is represented explicitly on each Hero Unit Type rather than being inherited implicitly merely because the Unit Type is a Hero. The current Barbarian and Rogue Unit Types both have Open Door.
 
