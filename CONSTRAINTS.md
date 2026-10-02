@@ -44,6 +44,18 @@ Examples may eventually include health, actions, abilities, experience, activati
 
 Exactly what belongs here will be defined as the rules develop.
 
+### No hidden remembered game state
+
+Players must not be required to remember persistent game state that is not represented by the physical game.
+
+At stable boundaries, the board and physical components must contain all information required to continue play correctly. In particular, once a turn or other currently resolving sequence has completed, players must be able to leave the game indefinitely, return later, inspect the table, and continue correctly without remembering what happened previously. Conceptually, a finished turn could be left for years and play resumed by drawing the next Activation Token.
+
+Short-lived progress within the sequence currently being resolved may be kept mentally when it is natural and unambiguous. Current examples include whose turn or activation is in progress, which Units of the currently resolving Unit Type have already activated during that activation, and whether the currently active Unit has already completed its Move, Action, or Bonus Action. If such information must survive a stable stopping point, however, it must be represented explicitly.
+
+Persistent or cross-turn information such as HP, remaining ability uses, acquired abilities, changed stats, statuses, opened doors, spawned or removed Units, and similar state must therefore have a physical representation rather than relying on player memory.
+
+Strategic intent is not game state. Players may of course remember or forget plans, deductions, priorities, and intended future actions; the game need not physically record what a player was planning to do.
+
 ### Presentation is separate
 
 Physical State and Rules/Game State must not depend on a particular renderer.
