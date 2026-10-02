@@ -109,6 +109,14 @@ A provider does not establish or extend legal choices. Legal candidate generatio
 
 A legal choice may additionally carry **relevance** metadata. Relevance does not change legality or player agency: all legal choices remain part of the authoritative decision space and may be exposed to and selected by an external Decision Provider or client. Relevance is a deliberately shallow convenience policy describing whether a legal choice is meaningful enough to require a normal decision stop. It is not tactical evaluation.
 
+Relevance asks whether there is a concrete reason to consider the choice for its ordinary intended gameplay effect, not whether the choice is strategically good. It deliberately does not attempt tactical evaluation, probability thresholds, or optimization. For example, Rage remains relevant when an Attack can use its `ATK` modifier even if the attacker already has overwhelmingly more `ATK` than the defender has `DEF`; the modifier can still affect the Attack, so whether spending Rage is worthwhile belongs to the player or Decision Provider.
+
+A relevance rule should use the simplest evaluation that correctly represents the concrete content. Sometimes current state is sufficient: a hypothetical `Heal 1 HP` could simply be irrelevant when current HP already equals maximum HP. When an effect changes the rules context needed to answer the question, relevance may instead evaluate a hypothetical copy of state with that effect applied and then reuse the normal authoritative rules or gameplay queries against the resulting state. This avoids duplicating simplified versions of movement, attack, targeting, Line of Sight, or other legality rules inside relevance logic.
+
+Hypothetical evaluation does not imply one universal comparison algorithm. The concrete content determines the shallow question being asked. An `ATK` modifier may ask whether an Attack can be made after applying it; a future `RNG` modifier might ask whether applying it makes additional hostile targets attackable; a future `MOV` modifier might ask whether it adds legal Move destinations. Such checks determine whether the intended effect has something concrete to affect, not whether the resulting choices are tactically valuable.
+
+Relevance is intentionally allowed to ignore unusual strategic value caused only by secondary state changes. For example, using Rage with no possible Attack still spends one of its limited uses and therefore changes Game State, and a future rule might even reward exhausting all uses. Rage may nevertheless remain irrelevant in that situation because its ordinary intended `ATK` effect cannot be used. Supporting every such interaction would turn relevance into strategic reasoning rather than a shallow default decision-stop policy. A player who wants access to these unusual but legal choices can disable relevance-based automatic progression or presentation filtering; legality and explicit submission remain authoritative and unchanged.
+
 For example, a temporary `ATK` bonus may be legal but irrelevant when no legal Attack choice remains, while a temporary `MOV` bonus may be irrelevant after the Unit has already completed its Move. Relevance need not determine whether extra movement reaches a useful cell or whether an attack bonus is likely to overcome a particular defence or effect.
 
 Automatic progression may optionally operate on the relevant subset without removing other legal choices from the authoritative decision space. In particular, when exactly one relevant choice remains, that choice may be selected automatically even if additional legal-but-irrelevant choices exist. The semantics of a future state containing zero relevant choices while legal choices remain are deliberately deferred until concrete game content requires them.
@@ -644,7 +652,7 @@ A Unit that dies during its own activation cannot continue acting.
 
 ### Bonus Actions
 
-A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. The ability must have any required uses remaining and satisfy its own legality conditions.
+A Unit may use at most one ability explicitly marked `Bonus Action` during an activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, its Bonus Action opportunity remains unused, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
 
 Using a Bonus Action consumes the Unit's Bonus Action opportunity but does not by itself consume or complete Move or Action. After it resolves, legal choices are generated again from the new state.
 
@@ -665,6 +673,18 @@ Limited-use abilities track both maximum uses and remaining uses as Rules/Game S
 Rage introduces the reusable effect concept **Modifier This Turn**, parameterized by a stat and signed amount; Rage applies `ModifierThisTurn(ATK, +2)`. A this-turn modifier is serializable Rules/Game State because it can affect later decisions and resolution during the activation. It contributes to the stat's effective value and is removed when that Unit's activation ends. Rage requires only this activation-duration modifier behavior; general modifier durations, stacking policies, priorities, sources, or a universal effect framework are deliberately deferred until concrete content requires them.
 
 Current HP remains mutable Unit state rather than being treated as a stat modifier merely because other stats may have effective values.
+
+The Rogue has the Bonus Action ability **Dash**:
+
+```text
+Dash [2/game]
+Bonus Action
++2 MOV this turn
+```
+
+Dash starts each game with 2 remaining uses and has a maximum of 2 uses. Using Dash immediately consumes one remaining use and the Unit's Bonus Action opportunity, then applies `ModifierThisTurn(MOV, +2)` for the remainder of the current activation. Dash has no additional timing restriction: in particular, it remains legal after the Rogue has already completed its Move. In that situation the use can still be spent even though the movement modifier can no longer affect the already-completed Move.
+
+Dash relevance is evaluated separately from legality. If the Rogue has already completed its Move, Dash is irrelevant. Otherwise, relevance compares the Rogue's authoritative legal Move destinations in the current state with those produced from a hypothetical copy of state containing Dash's `MOV +2` modifier. Dash is relevant when the modifier makes at least one additional Move destination legal. The comparison concerns destination choices rather than incidental representation such as a different canonical path to a destination that was already reachable. The hypothetical evaluation reuses normal authoritative movement candidate generation and does not duplicate movement or pathing rules inside Dash relevance.
 
 ### Free Actions
 
