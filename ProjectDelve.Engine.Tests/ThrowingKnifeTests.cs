@@ -64,7 +64,7 @@ public sealed class ThrowingKnifeTests
         var started = Start(State());
         Assert.False(Ability(started).Relevant); // No legal Attack before Move.
         var used = Choose(started.State, Ability(started).Key);
-        Assert.True(used.State.BonusActionUsed);
+        Assert.Equal("Throwing Knife", Assert.Single(used.State.BonusActionsUsedThisActivation));
         Assert.False(used.State.MoveDone);
         Assert.False(used.State.ActionDone);
         Assert.Equal(new AbilityUses(2, 1), Uses(used.State));
@@ -79,9 +79,9 @@ public sealed class ThrowingKnifeTests
         var snapshot = Assert.Single(used.ResolutionSteps).StateAfter;
         Assert.Equal(3, snapshot.EffectiveRngOf("rogue"));
         Assert.Equal(2, snapshot.EffectiveAtkOf("rogue"));
-        Assert.DoesNotContain(used.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
+        Assert.DoesNotContain(used.NextInput!.Candidates, c => c.BonusAction?.Name == "Throwing Knife");
+        Assert.NotNull(Ability(used, "Dash"));
         Assert.Throws<ArgumentException>(() => Choose(used.State, "bonus-action:Throwing Knife"));
-        Assert.Throws<ArgumentException>(() => Choose(used.State, "bonus-action:Dash"));
         Assert.Empty(started.State.ModifiersThisTurn);
         Assert.Equal(new AbilityUses(2, 2), Uses(started.State));
 
@@ -94,6 +94,7 @@ public sealed class ThrowingKnifeTests
         var attacked = Choose(Restore(moved.State), "attack:enemy", random);
         Assert.Equal(2, random.AttackRolls);
         Assert.Equal(2, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Damage);
+        attacked = Choose(attacked.State, "end-turn");
         Assert.True(attacked.State.RoundComplete);
         Assert.Empty(attacked.State.ModifiersThisTurn);
         Assert.Equal(1, attacked.State.EffectiveRngOf("rogue"));
@@ -102,7 +103,7 @@ public sealed class ThrowingKnifeTests
         Assert.Equal(2, restored.ModifiersThisTurn.Count);
         var next = Start(Restore(attacked.State));
         Assert.Equal(new AbilityUses(2, 1), Uses(next.State));
-        Assert.False(next.State.BonusActionUsed);
+        Assert.Empty(next.State.BonusActionsUsedThisActivation);
     }
 
     [Theory]
@@ -140,13 +141,40 @@ public sealed class ThrowingKnifeTests
     [Theory]
     [InlineData("Throwing Knife", "Dash")]
     [InlineData("Dash", "Throwing Knife")]
-    public void SpentBonusActionPreventsTheOtherAbilityInSameActivation(string first, string second)
+    public void DifferentAbilitiesCanBothBeUsedOnceInEitherOrder(string first, string second)
     {
         var started = Start(State());
         var used = Choose(started.State, Ability(started, first).Key);
         Assert.Equal(new AbilityUses(2, 1), Uses(used.State, first));
         Assert.Equal(new AbilityUses(2, 2), Uses(used.State, second));
-        Assert.Throws<ArgumentException>(() => Choose(used.State, $"bonus-action:{second}"));
+        Assert.Equal(first, Assert.Single(used.State.BonusActionsUsedThisActivation));
+        Assert.Empty(started.State.BonusActionsUsedThisActivation);
+        Assert.Throws<ArgumentException>(() => Choose(Restore(used.State), $"bonus-action:{first}"));
+        var both = Choose(Restore(used.State), Ability(used, second).Key);
+        Assert.Equal(new AbilityUses(2, 1), Uses(both.State, first));
+        Assert.Equal(new AbilityUses(2, 1), Uses(both.State, second));
+        Assert.True(both.State.BonusActionsUsedThisActivation.SetEquals([first, second]));
+        Assert.DoesNotContain(both.NextInput!.Candidates, c => c.BonusAction is not null);
+        Assert.Throws<ArgumentException>(() => Choose(both.State, $"bonus-action:{first}"));
+        Assert.Throws<ArgumentException>(() => Choose(both.State, $"bonus-action:{second}"));
+        Assert.Equal(6, both.State.EffectiveMovOf("rogue"));
+        Assert.Equal(3, both.State.EffectiveRngOf("rogue"));
+        Assert.Equal(2, both.State.EffectiveAtkOf("rogue"));
+        Assert.Equal(3, both.State.ModifiersThisTurn.Count);
+        Assert.Equal(first, Assert.Single(used.State.BonusActionsUsedThisActivation));
+
+        var ended = Choose(Choose(both.State, "stay").State, "end-turn");
+        Assert.Empty(ended.State.BonusActionsUsedThisActivation);
+        Assert.Empty(ended.State.ModifiersThisTurn);
+        var next = Start(Restore(ended.State));
+        Assert.Empty(next.State.BonusActionsUsedThisActivation);
+        Assert.Equal(new AbilityUses(2, 1), Uses(next.State, first));
+        Assert.Equal(new AbilityUses(2, 1), Uses(next.State, second));
+        Assert.NotNull(Ability(next, first));
+        Assert.NotNull(Ability(next, second));
+        var nextBoth = Choose(Choose(next.State, Ability(next, first).Key).State, $"bonus-action:{second}");
+        Assert.Equal(new AbilityUses(2, 0), Uses(nextBoth.State, first));
+        Assert.Equal(new AbilityUses(2, 0), Uses(nextBoth.State, second));
     }
 
     [Fact]
@@ -277,6 +305,8 @@ public sealed class ThrowingKnifeTests
         Assert.False(Ability(attacked).Relevant);
         var used = Choose(attacked.State, Ability(attacked).Key);
         Assert.Equal(new AbilityUses(2, 1), Uses(used.State));
+        Assert.NotNull(Ability(used, "Dash"));
+        used = Choose(used.State, "end-turn");
         Assert.Empty(used.State.ModifiersThisTurn);
     }
 
@@ -293,6 +323,8 @@ public sealed class ThrowingKnifeTests
         var beforeEnd = Choose(used.State, "stay");
         var ended = Choose(Restore(beforeEnd.State), "end-turn");
         Assert.Equal("ally", ended.State.CurrentUnitId);
+        Assert.Empty(ended.State.BonusActionsUsedThisActivation);
+        Assert.NotNull(Ability(ended));
         Assert.Empty(ended.State.ModifiersThisTurn);
         Assert.Equal(1, ended.State.EffectiveRngOf("rogue"));
         Assert.Equal(3, ended.State.EffectiveAtkOf("rogue"));
@@ -301,6 +333,46 @@ public sealed class ThrowingKnifeTests
         Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").BonusActionUses["Throwing Knife"]);
         Assert.Equal(new AbilityUses(2, 1), Uses(ended.State));
         Assert.Equal(2, beforeEnd.State.ModifiersThisTurn.Count);
+    }
+
+    [Fact]
+    public void UnusedAbilitiesKeepIndependentRelevanceAsActivationProgresses()
+    {
+        var started = Start(State());
+        Assert.True(Ability(started, "Dash").Relevant);
+        Assert.False(Ability(started).Relevant);
+        var dashed = Choose(started.State, Ability(started, "Dash").Key);
+        Assert.False(Ability(dashed).Relevant);
+        var moved = Choose(dashed.State, "stay");
+        Assert.True(Ability(moved).Relevant);
+        var both = Choose(moved.State, Ability(moved).Key);
+        Assert.Contains(both.NextInput!.Candidates, c => c.TargetId == "enemy");
+
+        var knifeFirst = Choose(started.State, Ability(started).Key);
+        Assert.True(Ability(knifeFirst, "Dash").Relevant);
+        var knifeMoved = Choose(knifeFirst.State, "stay");
+        Assert.False(Ability(knifeMoved, "Dash").Relevant);
+        var automatic = Choose(knifeMoved.State, "attack:enemy", auto: true);
+        Assert.True(automatic.State.RoundComplete);
+        Assert.Equal(new AbilityUses(2, 2), Uses(automatic.State, "Dash"));
+    }
+
+    [Fact]
+    public void PerAbilityLimitUsesContentIdentityOnAnUnrelatedUnitType()
+    {
+        var type = UnitType.Hero("custom-type", 4, 1, 3, 2, 4) with
+        {
+            BonusActions = [new("Stride", 2, [new(Stat.Mov, 2)]),
+                new("Reach", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
+        };
+        var started = Start(State(rogue: type));
+        var stride = Choose(started.State, Ability(started, "Stride").Key);
+        Assert.Throws<ArgumentException>(() => Choose(stride.State, "bonus-action:Stride"));
+        var both = Choose(stride.State, Ability(stride, "Reach").Key);
+        Assert.True(both.State.BonusActionsUsedThisActivation.SetEquals(["Stride", "Reach"]));
+        Assert.Equal(6, both.State.EffectiveMovOf("rogue"));
+        Assert.Equal(3, both.State.EffectiveRngOf("rogue"));
+        Assert.Equal(2, both.State.EffectiveAtkOf("rogue"));
     }
 
     [Theory]

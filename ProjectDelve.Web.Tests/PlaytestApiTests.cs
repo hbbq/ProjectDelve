@@ -122,7 +122,7 @@ public sealed class PlaytestApiTests
         Assert.Equal("barbarian", opened.Result.NextInput!.UnitId);
         Assert.False(opened.Result.State.MoveDone);
         Assert.False(opened.Result.State.ActionDone);
-        Assert.False(opened.Result.State.BonusActionUsed);
+        Assert.Empty(opened.Result.State.BonusActionsUsedThisActivation);
         Assert.Contains(opened.Result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Stay);
         Assert.DoesNotContain(opened.Result.NextInput.Candidates, c => c.Key == beforeMove.Key);
         Assert.Equal(EdgeKind.OpenDoor, opened.Result.State.Physical.Board.EdgeBetween(new(3, 4), new(4, 4)));
@@ -495,7 +495,7 @@ public sealed class PlaytestApiTests
         Assert.True(rage.Relevant);
         var raging = await host.Decide(moved.Revision, rage.Key);
         Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
-        Assert.True(raging.Result.State.BonusActionUsed);
+        Assert.Equal("Rage", Assert.Single(raging.Result.State.BonusActionsUsedThisActivation));
         Assert.Equal(6, raging.Result.State.EffectiveAtk["barbarian"]);
         Assert.Equal(4, raging.Result.State.Types.Single(t => t.Id == "barbarian-type").Atk);
         Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(raging.Result.State.ModifiersThisTurn));

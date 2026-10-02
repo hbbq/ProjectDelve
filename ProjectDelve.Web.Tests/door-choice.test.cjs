@@ -169,7 +169,7 @@ for (const moveDone of [false, true]) {
       result: {
         state: {
           round: 1, roundComplete: false, activeTypeId: "barbarian-type", currentUnitId: "barbarian",
-          moveDone, actionDone: false, bonusActionUsed: false,
+          moveDone, actionDone: false, bonusActionsUsedThisActivation: [],
           physical: { board: { width: 2, height: 1, edges: [door] }, figures: [] },
           units: [], types: []
         },
@@ -328,7 +328,7 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
   assert.equal(elements.get("choices").children.length, 1);
   assert.equal(card.querySelectorAll("button")[0].hidden, false);
   // Rules-looking flags are display data, never the source of button legality.
-  response.result.state.bonusActionUsed = true;
+  response.result.state.bonusActionsUsedThisActivation = ["Rage"];
   response.result.state.actionDone = true;
   vm.runInContext('renderSnapshot();', context);
   assert.equal(card.querySelectorAll("button")[0].disabled, false);
@@ -337,6 +337,21 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
   vm.runInContext('hoveredUnitId = "rogue"; renderUnitCard();', context);
   assert.match(card.textContent, /MOV 4 \u2192 6.*RNG 1 \u2192 3.*ATK 3 \u2192 2/);
   assert.match(card.textContent, /Dash.*2 \/ 2 uses.*Throwing Knife.*1 \/ 2 uses/);
+  assert.ok(card.querySelectorAll("button").every(button => button.disabled));
+  // Per-ability availability comes exclusively from supplied legal candidates.
+  response.result.nextInput = { unitId: "rogue", candidates: [
+    { key: "dash-key", bonusAction: dash }, { key: "knife-key", bonusAction: knife }
+  ] };
+  vm.runInContext('renderUnitCard();', context);
+  assert.deepEqual(card.querySelectorAll("button").map(button => button.disabled), [false, false]);
+  response.result.nextInput.candidates = [{ key: "knife-key", bonusAction: knife }];
+  vm.runInContext('renderUnitCard();', context);
+  assert.deepEqual(card.querySelectorAll("button").map(button => button.disabled), [true, false]);
+  response.result.nextInput.candidates = [{ key: "dash-key", bonusAction: dash }];
+  vm.runInContext('renderUnitCard();', context);
+  assert.deepEqual(card.querySelectorAll("button").map(button => button.disabled), [false, true]);
+  response.result.nextInput.candidates = [];
+  vm.runInContext('renderUnitCard();', context);
   assert.ok(card.querySelectorAll("button").every(button => button.disabled));
   vm.runInContext('hoveredUnitId = null; response.result.nextInput.candidates = []; renderSnapshot();', context);
   assert.equal(card.querySelectorAll("button")[0].disabled, true);

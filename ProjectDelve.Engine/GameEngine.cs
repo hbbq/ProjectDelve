@@ -24,7 +24,7 @@ public static class GameEngine
         state.MoveAfterAttackAllowance = null;
         state.MoveDone = false;
         state.ActionDone = false;
-        state.BonusActionUsed = false;
+        state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         state.Pending = null;
         state.CompletedUnitIds.Clear();
@@ -112,7 +112,7 @@ public static class GameEngine
                 state.CurrentUnitId = choice;
                 state.MoveDone = false;
                 state.ActionDone = false;
-                state.BonusActionUsed = false;
+                state.BonusActionsUsedThisActivation.Clear();
                 state.ModifiersThisTurn.Clear();
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
@@ -124,7 +124,7 @@ public static class GameEngine
                     BonusActionUses = state.Units[index].BonusActionUses.SetItem(ability.Name,
                         new(uses.MaxUses, uses.RemainingUses - 1))
                 };
-                state.BonusActionUsed = true;
+                state.BonusActionsUsedThisActivation.Add(ability.Name);
                 state.ModifiersThisTurn.AddRange(ability.Modifiers);
                 events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.Name));
                 break;
@@ -235,7 +235,7 @@ public static class GameEngine
         state.MoveAfterAttackAllowance = null;
         state.MoveDone = false;
         state.ActionDone = false;
-        state.BonusActionUsed = false;
+        state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
     }
 
@@ -313,9 +313,9 @@ public static class GameEngine
 
     private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
     {
-        if (state.BonusActionUsed) yield break;
         foreach (var ability in state.Types.Single(t => t.Id == unit.TypeId).BonusActions)
-            if (unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0)
+            if (!state.BonusActionsUsedThisActivation.Contains(ability.Name) &&
+                unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0)
                 yield return new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
                     Relevant: BonusActionRelevant(state, unit, ability), BonusAction: ability);
     }

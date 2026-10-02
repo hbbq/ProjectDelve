@@ -62,7 +62,7 @@ public sealed class OpenDoorTests
         var pending = GameEngine.StartRound(state, new Random(), relevanceAutoChoice);
         if (moveDone) pending = Choose(pending.State, "stay", relevanceAutoChoice);
         if (actionDone) pending = Choose(pending.State, "attack:enemy", relevanceAutoChoice);
-        pending.State.BonusActionUsed = relevanceAutoChoice;
+        if (relevanceAutoChoice) pending.State.BonusActionsUsedThisActivation.Add("Rage");
         var candidate = pending.NextInput!.Candidates.Single(c => c.Key == "open-door:1,1:2,1");
         Assert.Equal(ActivationChoiceKind.FreeAction, candidate.Kind);
         Assert.Null(candidate.Action);
@@ -72,7 +72,7 @@ public sealed class OpenDoorTests
         var opened = Choose(restored, candidate.Key, relevanceAutoChoice);
         Assert.Equal(moveDone, opened.State.MoveDone);
         Assert.Equal(actionDone, opened.State.ActionDone);
-        Assert.Equal(relevanceAutoChoice, opened.State.BonusActionUsed);
+        Assert.Equal(pending.State.BonusActionsUsedThisActivation, opened.State.BonusActionsUsedThisActivation);
         Assert.Equal("hero", opened.State.CurrentUnitId);
         Assert.False(opened.State.RoundComplete);
         var evt = Assert.Single(opened.Events);
@@ -109,7 +109,7 @@ public sealed class OpenDoorTests
             Assert.DoesNotContain(second.NextInput!.Candidates, c => c.FreeAction is not null);
             Assert.False(second.State.MoveDone);
             Assert.False(second.State.ActionDone);
-            Assert.False(second.State.BonusActionUsed);
+            Assert.Empty(second.State.BonusActionsUsedThisActivation);
         }
     }
 

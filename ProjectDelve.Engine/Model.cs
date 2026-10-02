@@ -160,7 +160,8 @@ public sealed class GameState
     public string? ActiveTypeId { get; set; }
     public bool MoveDone { get; set; }
     public bool ActionDone { get; set; }
-    public bool BonusActionUsed { get; set; }
+    // Ability names are the existing content identities, shared with persistent use counters.
+    public HashSet<string> BonusActionsUsedThisActivation { get; set; } = [];
     public List<ModifierThisTurn> ModifiersThisTurn { get; set; } = [];
     // Derived authoritative values are also serialized for rule-independent clients.
     public Dictionary<string, int> EffectiveAtk => Units.ToDictionary(u => u.Id, u => EffectiveAtkOf(u.Id));
@@ -223,7 +224,7 @@ public sealed class GameState
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
         ActiveTypeId = ActiveTypeId, MoveDone = MoveDone, ActionDone = ActionDone,
-        BonusActionUsed = BonusActionUsed, CompletedUnitIds = [.. CompletedUnitIds],
+        BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         Pending = Pending, RoundComplete = RoundComplete

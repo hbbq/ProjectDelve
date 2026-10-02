@@ -47,7 +47,7 @@ public sealed class ActivationTests
         result = GameEngine.Advance(result.State, new Choice("stay"), random, relevanceAutoChoice);
         Assert.True(result.State.MoveDone);
         Assert.False(result.State.ActionDone);
-        Assert.False(result.State.BonusActionUsed);
+        Assert.Empty(result.State.BonusActionsUsedThisActivation);
         Assert.Contains(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
         result = GameEngine.Advance(result.State, new Choice("try-open-door:1,0:2,0"), random, relevanceAutoChoice);
         Assert.Contains(result.Events, e => e.Kind == "DoorOpened");

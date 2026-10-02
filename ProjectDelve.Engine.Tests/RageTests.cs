@@ -66,7 +66,7 @@ public sealed class RageTests
         var raging = Choose(started.State, Rage(started).Key, random);
         Assert.Equal(new AbilityUses(2, 1), Uses(raging.State));
         Assert.Equal(new AbilityUses(2, 2), Uses(started.State));
-        Assert.True(raging.State.BonusActionUsed);
+        Assert.Equal("Rage", Assert.Single(raging.State.BonusActionsUsedThisActivation));
         Assert.False(raging.State.MoveDone);
         Assert.False(raging.State.ActionDone);
         Assert.Equal(4, raging.State.Types[0].Atk);
@@ -98,7 +98,7 @@ public sealed class RageTests
         Assert.Equal(new AbilityUses(2, 0), Uses(second.State));
         var ended = Choose(Choose(second.State, "stay").State, "end-turn");
         var third = GameEngine.StartRound(Restore(ended.State), random, false);
-        Assert.False(third.State.BonusActionUsed);
+        Assert.Empty(third.State.BonusActionsUsedThisActivation);
         Assert.Equal(new AbilityUses(2, 0), Uses(third.State));
         Assert.DoesNotContain(third.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
         Assert.Throws<ArgumentException>(() => Choose(third.State, Rage(next).Key));

@@ -81,7 +81,7 @@ public sealed class ClericTests
         Assert.Empty(state.ModifiersThisTurn);
         Assert.False(state.MoveDone);
         Assert.False(state.ActionDone);
-        Assert.False(state.BonusActionUsed);
+        Assert.Empty(state.BonusActionsUsedThisActivation);
     }
 
     [Fact]
