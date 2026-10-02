@@ -92,7 +92,7 @@ public sealed class AutomaticDecisionTests
     public void AutomaticChoice_UsesRelevantSubsetWithoutRemovingLegalChoices(
         bool enabled, bool allowsNone, bool expectedAutomatic)
     {
-        // Synthetic metadata only; no relevance-sensitive game content exists yet.
+        // Synthetic metadata isolates the automatic-choice policy from concrete content.
         var request = new DecisionRequest(DecisionKind.Activation, "hero-type", "hero",
             [new Candidate("optional", Relevant: false),
                 new Candidate("end-turn", Kind: ActivationChoiceKind.EndTurn)], allowsNone);

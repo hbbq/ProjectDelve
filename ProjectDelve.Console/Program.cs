@@ -19,7 +19,7 @@ var state = new GameState
         [new Figure("hero", new Cell(4, 2)), new Figure("monster-1", new Cell(1, 2)),
             new Figure("monster-2", new Cell(1, 3))]),
     Types = [UnitType.Barbarian(), UnitType.Grunt()],
-    Units = [new Unit("hero", "barbarian-type", "blue", 5), new Unit("monster-1", "grunt-type", "red", 1),
+    Units = [UnitType.Barbarian().CreateUnit("hero", "blue"), new Unit("monster-1", "grunt-type", "red", 1),
         new Unit("monster-2", "grunt-type", "red", 1)]
 };
 var manualDecisions = new ConsoleDecisionProvider();
@@ -111,7 +111,9 @@ static void ShowState(GameState state)
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var figure = state.Physical.Figures.FirstOrDefault(f => f.Id == unit.Id);
         var placement = figure is null ? "off board" : $"({figure.Position.X},{figure.Position.Y}), {figure.Posture}";
-        Console.WriteLine($"{unit.Id}: side {unit.SideId}, HP {unit.CurrentHp}/{type.Hp}, {placement} | MOV {type.Mov}, RNG {type.Rng}, ATK {type.Atk}, DEF {type.Def}");
+        var uses = unit.BonusActionUses is { } abilityUses
+            ? $" | {type.BonusAction!.Name} {abilityUses.RemainingUses}/{abilityUses.MaxUses}" : "";
+        Console.WriteLine($"{unit.Id}: side {unit.SideId}, HP {unit.CurrentHp}/{type.Hp}, {placement} | MOV {type.Mov}, RNG {type.Rng}, ATK {state.EffectiveAtkOf(unit.Id)} (base {type.Atk}), DEF {type.Def}{uses}");
     }
     Console.WriteLine();
 }

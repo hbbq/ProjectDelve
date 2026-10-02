@@ -50,7 +50,7 @@ internal static class ExploratoryScenario
                 new("goblin-1", new(7, 10))]),
             Types = [UnitType.Barbarian(), UnitType.Rogue(), UnitType.Grunt(), UnitType.Zombie(),
                 UnitType.SkeletonArcher(), UnitType.Goblin()],
-            Units = [new("barbarian", "barbarian-type", "blue", 5), new("rogue", "rogue-type", "blue", 4),
+            Units = [UnitType.Barbarian().CreateUnit("barbarian", "blue"), new("rogue", "rogue-type", "blue", 4),
                 new("grunt-1", "grunt-type", "red", 1), new("grunt-2", "grunt-type", "red", 1),
                 new("zombie-1", "zombie-type", "red", 1), new("zombie-2", "zombie-type", "red", 1),
                 new("archer-1", "skeleton-archer-type", "red", 1), new("archer-2", "skeleton-archer-type", "red", 1),

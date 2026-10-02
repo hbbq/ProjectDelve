@@ -14,6 +14,7 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
                 $" | Path: {string.Join(" -> ", candidate.Path.Select(c => $"({c.X},{c.Y})"))}";
             var label = candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
                 candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" :
+                candidate.BonusAction is { } ability ? $"{ability.Name} (Bonus Action)" :
                 candidate.FreeAction == UnitFreeAction.OpenDoor ?
                     $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y}) (Free Action)" : candidate.Action switch
             {

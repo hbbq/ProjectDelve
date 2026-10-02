@@ -105,7 +105,10 @@ function renderState(state, preserveNodes = true) {
   ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${state.activeTypeId} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
   ui.units.replaceChildren(...state.units.map(unit => {
     const type = state.types.find(type => type.id === unit.typeId);
-    return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${type.mov} RNG ${type.rng} ATK ${type.atk} DEF ${type.def}`);
+    const atk = state.effectiveAtk?.[unit.id];
+    const uses = unit.bonusActionUses;
+    const ability = uses ? ` · ${type.bonusAction.name} ${uses.remainingUses}/${uses.maxUses}` : "";
+    return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${type.mov} RNG ${type.rng} ATK ${atk ?? type.atk} (base ${type.atk}) DEF ${type.def}${ability}`);
   }));
 }
 
@@ -127,6 +130,7 @@ function renderSnapshot() {
     if (ui.filter.checked && candidate.relevant === false) continue;
     const label = candidate.kind === "Stay" ? "Stay here"
       : candidate.kind === "EndTurn" ? "End Turn"
+      : candidate.bonusAction ? `${candidate.bonusAction.name} (Bonus Action)`
       : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
       : candidate.freeAction === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)} (Free Action)`
@@ -251,6 +255,7 @@ function describe(event) {
     case "MovementCompleted": return `${unitLabel(event.unitId)} ${event.isMoveAfterAttack ? "moved after attack" : "moved"}: ${event.path.map(cellKey).join(" → ")}`;
     case "AttackResolved": return `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
+    case "AbilityUsed": return `${unitLabel(event.unitId)} used ${event.abilityName} (Bonus Action)`;
     case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Action consumed)`;
     case "DoorOpened": return `${unitLabel(event.unitId)} opened door ${cellKey(event.door.a)} ↔ ${cellKey(event.door.b)}`;
     case "TokenDrawn": return `Token drawn: ${event.typeId}`;

@@ -15,16 +15,39 @@ public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
+// Only ATK is needed by current content. Current HP is never a modifier stat.
+public enum Stat { Atk }
+public sealed record ModifierThisTurn(Stat Stat, int Amount);
+public sealed record BonusActionAbility(string Name, int MaxUses, ModifierThisTurn Modifier);
+public sealed record AbilityUses
+{
+    public int MaxUses { get; }
+    public int RemainingUses { get; }
+
+    public AbilityUses(int maxUses, int remainingUses)
+    {
+        if (maxUses < 0 || remainingUses < 0 || remainingUses > maxUses)
+            throw new ArgumentOutOfRangeException(nameof(remainingUses));
+        MaxUses = maxUses;
+        RemainingUses = remainingUses;
+    }
+}
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
-    UnitFreeAction FreeActions = UnitFreeAction.None)
+    UnitFreeAction FreeActions = UnitFreeAction.None, BonusActionAbility? BonusAction = null)
 {
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
 
     public static UnitType Barbarian(string id = "barbarian-type") =>
-        new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor);
+        new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor,
+            BonusAction: new("Rage", 2, new(Stat.Atk, 2)));
+
+    public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp)
+    {
+        BonusActionUses = BonusAction is { } ability ? new(ability.MaxUses, ability.MaxUses) : null
+    };
 
     public static UnitType Rogue(string id = "rogue-type") =>
         new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor);
@@ -41,7 +64,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Goblin(string id = "goblin-type") =>
         new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1));
 }
-public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp);
+public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
+{
+    public AbilityUses? BonusActionUses { get; init; }
+}
 
 public sealed record Board(int Width, int Height, List<Edge> Edges)
 {
@@ -64,19 +90,19 @@ public sealed record PhysicalState(Board Board, List<Figure> Figures);
 // Normal Unit choices use Activation. Move is also used for the narrow post-attack
 // continuation; Move/Act requests support the providers' existing ranking routines.
 public enum DecisionKind { SelectUnit, Activation, Move, Act }
-public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction }
+public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction, BonusAction }
 // Every candidate is legal. Relevance guides decision stops and presentation only;
-// current content has no relevance-sensitive choices, so all default to relevant.
+// choices default to relevant unless their rule component supplies a narrower policy.
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
     UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null,
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
-    bool Relevant = true);
+    bool Relevant = true, BonusActionAbility? BonusAction = null);
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
     bool IsMoveAfterAttack = false);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
     Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
-    bool IsMoveAfterAttack = false);
+    bool IsMoveAfterAttack = false, string? AbilityName = null);
 
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(
@@ -92,6 +118,13 @@ public sealed class GameState
     public bool MoveDone { get; set; }
     public bool ActionDone { get; set; }
     public bool BonusActionUsed { get; set; }
+    public List<ModifierThisTurn> ModifiersThisTurn { get; set; } = [];
+    // Derived authoritative values are also serialized for rule-independent clients.
+    public Dictionary<string, int> EffectiveAtk => Units.ToDictionary(u => u.Id, u => EffectiveAtkOf(u.Id));
+
+    public int EffectiveAtkOf(string unitId) =>
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Atk +
+        (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
     // Mandatory post-attack movement resolves before the activation may end.
@@ -106,6 +139,7 @@ public sealed class GameState
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
         ActiveTypeId = ActiveTypeId, MoveDone = MoveDone, ActionDone = ActionDone,
         BonusActionUsed = BonusActionUsed, CompletedUnitIds = [.. CompletedUnitIds],
+        ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         Pending = Pending, RoundComplete = RoundComplete
     };

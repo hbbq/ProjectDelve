@@ -263,3 +263,53 @@ test("relevance filtering is local, preserves legal submissions, and is independ
     body: { expectedRevision: 2, autoChooseSingleRelevantChoice: true } });
   assert.equal(elements.get("filter").checked, true);
 });
+
+test("Rage displays supplied uses and effective ATK and submits irrelevant supplied choices", async () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new Element());
+      return elements.get(id);
+    },
+    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
+  };
+  const ability = { name: "Rage", maxUses: 2, modifier: { stat: "Atk", amount: 2 } };
+  const response = {
+    revision: 7, autoChooseSingleRelevantChoice: false,
+    result: {
+      state: { round: 1, currentUnitId: "barbarian", moveDone: false,
+        physical: { board: { width: 1, height: 1, edges: [] }, figures: [] },
+        types: [{ id: "barbarian-type", hp: 5, mov: 3, rng: 1, atk: 4, def: 3, bonusAction: ability }],
+        units: [{ id: "barbarian", typeId: "barbarian-type", sideId: "blue", currentHp: 5,
+          bonusActionUses: { remainingUses: 1, maxUses: 2 } }],
+        modifiersThisTurn: [ability.modifier],
+        // Deliberately different from base + modifier: render the supplied engine value.
+        effectiveAtk: { barbarian: 17 } },
+      nextInput: { kind: "Activation", unitId: "barbarian", allowsNone: false,
+        candidates: [{ key: "opaque-bonus-key", kind: "BonusAction", bonusAction: ability, relevant: false },
+          { key: "stay", kind: "Stay", relevant: true }] },
+      events: [], resolutionSteps: []
+    }
+  };
+  const requests = [];
+  const context = vm.createContext({ document, response,
+    fetch: async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) });
+      return { ok: true, json: async () => response };
+    }
+  });
+  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext("snapshot = response; renderSnapshot();", context);
+  assert.match(elements.get("units").children[0].textContent, /ATK 17 \(base 4\)/);
+  assert.match(elements.get("units").children[0].textContent, /Rage 1\/2/);
+  assert.equal(elements.get("choices").children.length, 1);
+  elements.get("filter").checked = false;
+  elements.get("filter").listeners.change();
+  assert.equal(requests.length, 0);
+  assert.equal(elements.get("choices").children.length, 2);
+  assert.equal(elements.get("choices").children[0].textContent, "Rage (Bonus Action)");
+  await elements.get("choices").children[0].listeners.click();
+  assert.deepEqual(requests[0], { url: "/api/game/decision", body: { expectedRevision: 7, candidateKey: "opaque-bonus-key" } });
+  assert.match(vm.runInContext('describe({ kind: "AbilityUsed", unitId: "barbarian", abilityName: "Rage" })', context), /used Rage/);
+});

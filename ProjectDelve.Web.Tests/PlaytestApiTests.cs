@@ -379,10 +379,12 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         var started = await host.Round(0);
         Assert.True(started.AutoChooseSingleRelevantChoice);
-        Assert.All(started.Result.NextInput!.Candidates, c => Assert.True(c.Relevant));
+        Assert.All(started.Result.NextInput!.Candidates, c =>
+            Assert.Equal(c.Kind != ActivationChoiceKind.BonusAction, c.Relevant));
         using var snapshot = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         Assert.All(snapshot.RootElement.GetProperty("result").GetProperty("nextInput")
-            .GetProperty("candidates").EnumerateArray(), c => Assert.True(c.GetProperty("relevant").GetBoolean()));
+            .GetProperty("candidates").EnumerateArray(), c =>
+                Assert.Equal(c.GetProperty("kind").GetString() != "BonusAction", c.GetProperty("relevant").GetBoolean()));
         var stateBefore = JsonSerializer.Serialize(started.Result.State, Json);
         using var response = await host.Post("preferences", new {
             expectedRevision = started.Revision, autoChooseSingleRelevantChoice = false });
@@ -423,14 +425,70 @@ public sealed class PlaytestApiTests
         Assert.Equal(DecisionKind.Activation, started.Result.NextInput!.Kind);
         Assert.Equal("barbarian", started.Result.NextInput.UnitId);
         Assert.True(started.Result.NextInput.Candidates.Count > 1);
-        Assert.All(started.Result.NextInput.Candidates, c => Assert.True(c.Relevant));
+        Assert.All(started.Result.NextInput.Candidates, c =>
+            Assert.Equal(c.Kind != ActivationChoiceKind.BonusAction, c.Relevant));
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
             expectedRevision = started.Revision, candidateKey = "forged" })).StatusCode);
-        var stayed = await host.Decide(started.Revision, "stay");
+        var raging = await host.Decide(started.Revision,
+            started.Result.NextInput.Candidates.Single(c => c.Kind == ActivationChoiceKind.BonusAction).Key);
+        var stayed = await host.Decide(raging.Revision, "stay");
         // Sole End Turn and the next sole Unit selection still resolve automatically.
         Assert.Equal(DecisionKind.Activation, stayed.Result.NextInput!.Kind);
         Assert.Equal("rogue", stayed.Result.NextInput.UnitId);
         Assert.False(stayed.AutoChooseSingleRelevantChoice);
+    }
+
+    [Fact]
+    public async Task RageIsSuppliedWithUsesEffectiveAtkAndAuthoritativeRelevance()
+    {
+        await using var host = await Host.Start(hit: true);
+        var initial = await host.Read();
+        Assert.Equal(new AbilityUses(2, 2), initial.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        using var preference = await host.Post("preferences", new {
+            expectedRevision = 0, autoChooseSingleRelevantChoice = false });
+        preference.EnsureSuccessStatusCode();
+        var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var started = await host.Round(changed.Revision);
+        var rage = Assert.Single(started.Result.NextInput!.Candidates, c => c.BonusAction is not null);
+        Assert.False(rage.Relevant);
+        Assert.Equal("Rage", rage.BonusAction!.Name);
+        var moved = await host.Decide(started.Revision, "5,7");
+        rage = Assert.Single(moved.Result.NextInput!.Candidates, c => c.BonusAction is not null);
+        Assert.True(rage.Relevant);
+        var raging = await host.Decide(moved.Revision, rage.Key);
+        Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        Assert.True(raging.Result.State.BonusActionUsed);
+        Assert.Equal(6, raging.Result.State.EffectiveAtk["barbarian"]);
+        Assert.Equal(4, raging.Result.State.Types.Single(t => t.Id == "barbarian-type").Atk);
+        Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(raging.Result.State.ModifiersThisTurn));
+        Assert.Equal(6, Assert.Single(raging.Result.ResolutionSteps).StateAfter.EffectiveAtk["barbarian"]);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
+            expectedRevision = raging.Revision, candidateKey = rage.Key })).StatusCode);
+        var attacked = await host.Decide(raging.Revision, "attack:archer-1");
+        Assert.Equal(6, Assert.Single(attacked.Result.Events, e => e.Kind == "AttackResolved").Hits);
+        Assert.Empty(attacked.Result.State.ModifiersThisTurn);
+        Assert.Equal(4, attacked.Result.State.EffectiveAtk["barbarian"]);
+        Assert.Equal(new AbilityUses(2, 1), attacked.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+    }
+
+    [Fact]
+    public async Task LegalIrrelevantRageCanBeSubmittedOverHttpAfterAction()
+    {
+        await using var host = await Host.Start();
+        using var preference = await host.Post("preferences", new {
+            expectedRevision = 0, autoChooseSingleRelevantChoice = false });
+        preference.EnsureSuccessStatusCode();
+        var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var moved = await host.Decide((await host.Round(changed.Revision)).Revision, "5,7");
+        var attacked = await host.Decide(moved.Revision, "attack:archer-1");
+        var rage = Assert.Single(attacked.Result.NextInput!.Candidates, c => c.BonusAction is not null);
+        Assert.True(attacked.Result.State.ActionDone);
+        Assert.False(rage.Relevant);
+        var used = await host.Decide(attacked.Revision, rage.Key);
+        Assert.Contains(used.Result.Events, e => e.Kind == "AbilityUsed" && e.AbilityName == "Rage");
+        Assert.Equal(new AbilityUses(2, 1), used.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses);
+        Assert.Empty(used.Result.State.ModifiersThisTurn);
+        Assert.Equal("rogue", used.Result.NextInput!.UnitId);
     }
 
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)

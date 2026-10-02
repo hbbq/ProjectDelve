@@ -8,6 +8,11 @@ public static class GameEngine
             throw new InvalidOperationException("The current round is still active.");
         ValidateScenario(previous);
         var state = previous.Copy();
+        // Scenario constructors may supply bare Units; initialize content once at game start.
+        if (state.Round == 0)
+            state.Units = state.Units.Select(u => u.BonusActionUses is null &&
+                state.Types.Single(t => t.Id == u.TypeId).BonusAction is { } ability
+                    ? u with { BonusActionUses = new(ability.MaxUses, ability.MaxUses) } : u).ToList();
         state.Round++;
         state.Bag = state.Types.Where(t => state.Units.Any(u => u.TypeId == t.Id && u.CurrentHp > 0))
             .Select(t => t.Id).ToList();
@@ -17,6 +22,7 @@ public static class GameEngine
         state.MoveDone = false;
         state.ActionDone = false;
         state.BonusActionUsed = false;
+        state.ModifiersThisTurn.Clear();
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
@@ -104,6 +110,19 @@ public static class GameEngine
                 state.MoveDone = false;
                 state.ActionDone = false;
                 state.BonusActionUsed = false;
+                state.ModifiersThisTurn.Clear();
+                break;
+            case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
+                var ability = request.Candidates.Single(c => c.Key == choice).BonusAction!;
+                var index = state.Units.FindIndex(u => u.Id == request.UnitId);
+                var uses = state.Units[index].BonusActionUses!;
+                state.Units[index] = state.Units[index] with
+                {
+                    BonusActionUses = new(uses.MaxUses, uses.RemainingUses - 1)
+                };
+                state.BonusActionUsed = true;
+                state.ModifiersThisTurn.Add(ability.Modifier);
+                events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.Name));
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state);
@@ -213,6 +232,7 @@ public static class GameEngine
         state.MoveDone = false;
         state.ActionDone = false;
         state.BonusActionUsed = false;
+        state.ModifiersThisTurn.Clear();
     }
 
     private static void OpenDoor(GameState state, string unitId, Edge door, ResolutionEvents events)
@@ -287,6 +307,24 @@ public static class GameEngine
             .ThenBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.X)
             .ToList();
 
+    private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
+    {
+        var ability = state.Types.Single(t => t.Id == unit.TypeId).BonusAction;
+        if (ability is null || state.BonusActionUsed || unit.BonusActionUses is not { RemainingUses: > 0 })
+            return [];
+        // Shallow relevance: a currently available Attack must be able to benefit.
+        // Before Move the engine offers no Attack; relevance never restricts legality.
+        var relevant = false;
+        if (state.MoveDone && !state.ActionDone && ability.Modifier is { Stat: Stat.Atk, Amount: > 0 })
+        {
+            var boosted = state.Copy();
+            boosted.ModifiersThisTurn.Add(ability.Modifier);
+            relevant = ActionCandidates(boosted, unit).Any(c => c.Action == UnitAction.NormalAttack);
+        }
+        return [new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
+            Relevant: relevant, BonusAction: ability)];
+    }
+
     private static DecisionRequest CreateDecision(GameState state)
     {
         if (state.MoveAfterAttackAllowance is { } allowance)
@@ -303,6 +341,7 @@ public static class GameEngine
         var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
         var candidates = new List<Candidate>();
         candidates.AddRange(FreeActionCandidates(state, unit));
+        candidates.AddRange(BonusActionCandidates(state, unit));
         if (!state.MoveDone)
         {
             candidates.AddRange(MovementCandidates(state, unit));
@@ -332,9 +371,8 @@ public static class GameEngine
     private static void ResolveAttack(GameState state, string attackerId, string targetId,
         IRandomProvider random, ResolutionEvents events)
     {
-        var attacker = state.Units.Single(u => u.Id == attackerId);
         var target = state.Units.Single(u => u.Id == targetId);
-        var attackDice = state.Types.Single(t => t.Id == attacker.TypeId).Atk;
+        var attackDice = state.EffectiveAtkOf(attackerId);
         var defenceDice = state.Types.Single(t => t.Id == target.TypeId).Def;
         var hits = 0;
         var blocks = 0;
@@ -380,12 +418,17 @@ public static class GameEngine
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
-                t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 }))
+                t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
+                t.BonusAction is { } ability && (ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
+                    !Enum.IsDefined(ability.Modifier.Stat))))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");
+        if (state.Units.Any(u => u.BonusActionUses is { } uses &&
+                state.Types.Single(t => t.Id == u.TypeId).BonusAction?.MaxUses != uses.MaxUses))
+            throw new ArgumentException("Ability uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
