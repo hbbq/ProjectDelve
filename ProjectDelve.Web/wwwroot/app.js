@@ -161,12 +161,12 @@ function renderUnitCard() {
     card.append(row);
   }
   card.append(text("h4", "Passives"));
-  const passive = type.adjacentFriendlyUnitsDefenceBonus;
-  if (passive) {
+  if (!type.passives?.length) card.append(text("small", "None"));
+  for (const passive of type.passives ?? []) {
     card.append(text("strong", passive.name));
     card.append(text("small", "Passive"));
-    card.append(text("p", `Adjacent friendly Units get DEF +${passive.amount}`));
-  } else card.append(text("small", "None"));
+    card.append(text("p", passive.displayText));
+  }
 }
 
 function renderSnapshot() {

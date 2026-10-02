@@ -280,7 +280,8 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
     result: {
       state: { round: 1, currentUnitId: "barbarian", moveDone: false,
         physical: { board: { width: 1, height: 1, edges: [] }, figures: [] },
-        types: [{ id: "barbarian-type", hp: 5, mov: 3, rng: 1, atk: 4, def: 3, bonusActions: [ability] },
+        types: [{ id: "barbarian-type", hp: 5, mov: 3, rng: 1, atk: 4, def: 3, bonusActions: [ability],
+          passives: [{ name: "Fury", displayText: "ATK +1 while adjacent to 2 or more enemies" }] },
           { id: "rogue-type", hp: 4, mov: 4, rng: 1, atk: 3, def: 2, bonusActions: [dash, knife] }],
         units: [{ id: "barbarian", typeId: "barbarian-type", sideId: "blue", currentHp: 5,
           bonusActionUses: { Rage: { remainingUses: 1, maxUses: 2 } } },
@@ -310,6 +311,13 @@ test("Rage displays supplied uses and effective ATK and submits irrelevant suppl
   assert.match(card.textContent, /HP 5 \/ 5/);
   assert.match(card.textContent, /MOV 3/);
   assert.match(card.textContent, /ATK 4 \u2192 17/);
+  assert.match(card.textContent, /Passives Fury Passive ATK \+1 while adjacent to 2 or more enemies/);
+  for (const effective of [4, 5, 7]) {
+    response.result.state.effectiveAtk.barbarian = effective;
+    vm.runInContext("renderSnapshot();", context);
+    assert.ok(card.textContent.includes(effective === 4 ? "ATK 4" : `ATK 4 \u2192 ${effective}`));
+    assert.match(card.textContent, /Fury Passive ATK \+1 while adjacent to 2 or more enemies/);
+  }
   assert.match(card.textContent, /Rage.*\+2 ATK this turn.*1 \/ 2 uses/);
   assert.equal(card.querySelectorAll("button")[0].hidden, true);
   assert.equal(card.querySelectorAll("button")[0].disabled, false);
@@ -361,7 +369,7 @@ test("hover shares the card, restores activation display, and keeps board and fa
       ] },
       units: ["barbarian", "rogue", "cleric", "enemy"].map(id => ({ id, typeId: `${id}-type`, currentHp: 4 })),
       types: ["barbarian", "rogue", "cleric", "enemy"].map(id => ({ id: `${id}-type`, mov: 3, rng: 1, atk: 3, def: 2, hp: 4,
-        ...(id === "cleric" ? { adjacentFriendlyUnitsDefenceBonus: { name: "Aura", amount: 1 } } : {}) })),
+        ...(id === "cleric" ? { passives: [{ name: "Aura", displayText: "Adjacent friendly Units get DEF +1" }] } : {}) })),
       effectiveDef: { rogue: 3 } },
     nextInput: { kind: "Activation", unitId: "barbarian", candidates: [
       { key: "opaque-attack", action: "NormalAttack", targetId: "enemy" },

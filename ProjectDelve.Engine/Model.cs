@@ -18,6 +18,13 @@ public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAtt
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
+public sealed record Fury
+{
+    public string Name => "Fury";
+    public string DisplayText => "ATK +1 while adjacent to 2 or more enemies";
+}
+// Presentation metadata only; passive rules retain their concrete representations.
+public sealed record PassiveDescription(string Name, string DisplayText);
 // Current HP is never a modifier stat.
 public enum Stat { Atk, Mov, Rng, Def }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
@@ -42,6 +49,18 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
+    public Fury? Fury { get; init; }
+    public IReadOnlyList<PassiveDescription> Passives
+    {
+        get
+        {
+            List<PassiveDescription> passives = [];
+            if (AdjacentFriendlyUnitsDefenceBonus is { } aura)
+                passives.Add(new(aura.Name, $"Adjacent friendly Units get DEF +{aura.Amount}"));
+            if (Fury is { } fury) passives.Add(new(fury.Name, fury.DisplayText));
+            return passives;
+        }
+    }
     public ImmutableArray<BonusActionAbility> BonusActions { get; init; } = [];
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
@@ -55,6 +74,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Barbarian(string id = "barbarian-type") =>
         new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
         {
+            Fury = new(),
             BonusActions = [
                 new("Rage", 2, [new(Stat.Atk, 2)])
             ]
@@ -148,9 +168,21 @@ public sealed class GameState
     public Dictionary<string, int> EffectiveRng => Units.ToDictionary(u => u.Id, u => EffectiveRngOf(u.Id));
     public Dictionary<string, int> EffectiveDef => Units.ToDictionary(u => u.Id, u => EffectiveDefOf(u.Id));
 
-    public int EffectiveAtkOf(string unitId) =>
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Atk +
-        (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
+    public int EffectiveAtkOf(string unitId)
+    {
+        var unit = Units.Single(u => u.Id == unitId);
+        var type = Types.Single(t => t.Id == unit.TypeId);
+        var attack = type.Atk + (CurrentUnitId == unitId
+            ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
+        var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
+        if (type.Fury is null || unit.CurrentHp <= 0 || figure is null) return attack;
+
+        // Derive Fury solely from the evaluated world, including hypothetical copies.
+        var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && u.SideId != unit.SideId)
+            .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
+                SpatialRules.AreAdjacent(Physical.Board, figure.Position, enemyFigure.Position));
+        return attack + (adjacentEnemies >= 2 ? 1 : 0);
+    }
     public int EffectiveMovOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0);

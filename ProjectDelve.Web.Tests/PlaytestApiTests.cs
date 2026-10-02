@@ -33,6 +33,11 @@ public sealed class PlaytestApiTests
         Assert.Equal(3, barbarian.GetProperty("def").GetInt32());
         Assert.Equal(5, barbarian.GetProperty("hp").GetInt32());
         Assert.Equal("Rage", barbarian.GetProperty("bonusActions")[0].GetProperty("name").GetString());
+        Assert.Equal("Fury", barbarian.GetProperty("fury").GetProperty("name").GetString());
+        var fury = barbarian.GetProperty("passives")[0];
+        Assert.Equal("Fury", fury.GetProperty("name").GetString());
+        Assert.Equal("ATK +1 while adjacent to 2 or more enemies", fury.GetProperty("displayText").GetString());
+        Assert.Equal(4, state.GetProperty("effectiveAtk").GetProperty("barbarian").GetInt32());
         var rogue = types.Single(t => t.GetProperty("id").GetString() == "rogue-type");
         Assert.Equal(new[] { "Dash", "Throwing Knife" }, rogue.GetProperty("bonusActions").EnumerateArray()
             .Select(a => a.GetProperty("name").GetString()));
@@ -40,6 +45,8 @@ public sealed class PlaytestApiTests
         var aura = cleric.GetProperty("adjacentFriendlyUnitsDefenceBonus");
         Assert.Equal("Aura", aura.GetProperty("name").GetString());
         Assert.Equal(1, aura.GetProperty("amount").GetInt32());
+        Assert.Equal("Aura", cleric.GetProperty("passives")[0].GetProperty("name").GetString());
+        Assert.Equal("Adjacent friendly Units get DEF +1", cleric.GetProperty("passives")[0].GetProperty("displayText").GetString());
         // Rogue starts adjacent to Cleric; base DEF remains unchanged in content.
         Assert.Equal(2, rogue.GetProperty("def").GetInt32());
         Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty("rogue").GetInt32());
