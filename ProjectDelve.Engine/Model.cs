@@ -108,7 +108,13 @@ public sealed class GameState
     };
 }
 
-public sealed record EngineResult(GameState State, List<RulesEvent> Events, DecisionRequest? NextInput);
+// EventIndex associates a snapshot with Events without duplicating semantic events.
+// StateAfter is a detached engine state, not a patch or a resumable decision point.
+public sealed record ResolutionStep(int EventIndex, GameState StateAfter);
+public sealed record EngineResult(GameState State, List<RulesEvent> Events, DecisionRequest? NextInput)
+{
+    public List<ResolutionStep> ResolutionSteps { get; init; } = [];
+}
 
 public interface IDecisionProvider
 {

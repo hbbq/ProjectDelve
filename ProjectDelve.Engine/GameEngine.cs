@@ -20,23 +20,23 @@ public static class GameEngine
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
-        var events = new List<RulesEvent>();
+        var events = new ResolutionEvents(state);
         RunUntilDecision(state, random, events, filterRelevantChoices);
-        return new(state, events, state.Pending);
+        return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
     public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool filterRelevantChoices = true)
     {
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
-        var events = new List<RulesEvent>();
+        var events = new ResolutionEvents(state);
         if (state.CurrentUnitId is not null &&
             !state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0))
         {
             // A dead Unit cannot resume either its activation or a mandatory follow-up.
             state.Pending = null;
             RunUntilDecision(state, random, events, filterRelevantChoices);
-            return new(state, events, state.Pending);
+            return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
         }
         // Pending data is also exposed to clients and survives serialization. Rebuild
         // legality from authoritative state, and never share canonical paths with a provider.
@@ -58,7 +58,7 @@ public static class GameEngine
         state.Pending = null;
         ApplyDecision(state, request, choice, random, events);
         RunUntilDecision(state, random, events, filterRelevantChoices);
-        return new(state, events, state.Pending);
+        return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
     private static bool TryAutomaticChoice(DecisionRequest request, out string? choice)
@@ -74,7 +74,7 @@ public static class GameEngine
     }
 
     private static void ApplyDecision(GameState state, DecisionRequest request, string? choice,
-        IRandomProvider random, List<RulesEvent> events)
+        IRandomProvider random, ResolutionEvents events)
     {
         switch (request.Kind)
         {
@@ -98,15 +98,16 @@ public static class GameEngine
                 if (choice is not null)
                     state.Physical.Figures[state.Physical.Figures.IndexOf(figure)] =
                         figure with { Position = path[^1] };
-                events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
-                    IsMoveAfterAttack: request.IsMoveAfterAttack));
                 if (request.IsMoveAfterAttack)
                 {
                     state.MoveAfterAttackAllowance = null;
                 }
                 else state.MoveDone = true;
+                events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
+                    IsMoveAfterAttack: request.IsMoveAfterAttack));
                 break;
             case DecisionKind.Activation:
+                state.ActionDone = true;
                 var attacked = false;
                 if (choice is not null)
                 {
@@ -133,7 +134,6 @@ public static class GameEngine
                             throw new InvalidOperationException("Unsupported action.");
                     }
                 }
-                state.ActionDone = true;
                 if (attacked && state.Units.Single(u => u.Id == request.UnitId).CurrentHp > 0 && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
                 {
                     state.CurrentUnitId = request.UnitId;
@@ -143,7 +143,7 @@ public static class GameEngine
         }
     }
 
-    private static void RunUntilDecision(GameState state, IRandomProvider random, List<RulesEvent> events,
+    private static void RunUntilDecision(GameState state, IRandomProvider random, ResolutionEvents events,
         bool filterRelevantChoices)
     {
         while (state.Pending is null && !state.RoundComplete)
@@ -194,7 +194,7 @@ public static class GameEngine
         state.BonusActionUsed = false;
     }
 
-    private static void OpenDoor(GameState state, string unitId, Edge door, List<RulesEvent> events)
+    private static void OpenDoor(GameState state, string unitId, Edge door, ResolutionEvents events)
     {
         var index = state.Physical.Board.Edges.FindIndex(e =>
             e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
@@ -314,13 +314,13 @@ public static class GameEngine
     {
         var state = previous.Copy();
         state.Pending = null;
-        var events = new List<RulesEvent>();
+        var events = new ResolutionEvents(state);
         if (state.Round > 0) RunUntilDecision(state, random, events, filterRelevantChoices);
-        return new(state, events, state.Pending);
+        return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
     private static void ResolveAttack(GameState state, string attackerId, string targetId,
-        IRandomProvider random, List<RulesEvent> events)
+        IRandomProvider random, ResolutionEvents events)
     {
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var target = state.Units.Single(u => u.Id == targetId);
@@ -348,6 +348,19 @@ public static class GameEngine
         {
             state.Physical.Figures.RemoveAll(f => f.Id == targetId);
             events.Add(new RulesEvent("UnitDied", targetId));
+        }
+    }
+
+    // Capture at emission time, before later operations mutate this run's working state.
+    private sealed class ResolutionEvents(GameState state)
+    {
+        public List<RulesEvent> Events { get; } = [];
+        public List<ResolutionStep> Steps { get; } = [];
+
+        public void Add(RulesEvent resolved)
+        {
+            Steps.Add(new ResolutionStep(Events.Count, state.Copy()));
+            Events.Add(resolved);
         }
     }
 

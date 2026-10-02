@@ -182,6 +182,47 @@ public sealed class PlaytestApiTests
     }
 
     [Fact]
+    public async Task CombinedMonsterResolutionTransportsProgressiveHpSnapshots()
+    {
+        await using var host = await Host.Start(hit: true);
+        var result = await host.Read();
+        Assert.Empty(result.Result.ResolutionSteps);
+        var found = false;
+        for (var round = 0; round < 10 && !found; round++)
+        {
+            result = await host.Round(result.Revision);
+            while (!result.Result.State.RoundComplete)
+            {
+                var before = result.Result.State;
+                result = await host.Decide(result.Revision, null);
+                Assert.Equal(Enumerable.Range(0, result.Result.Events.Count),
+                    result.Result.ResolutionSteps.Select(s => s.EventIndex));
+                var attacks = result.Result.ResolutionSteps
+                    .Where(s => result.Result.Events[s.EventIndex] is { Kind: "AttackResolved", Damage: > 0 })
+                    .GroupBy(s => result.Result.Events[s.EventIndex].TargetId);
+                foreach (var group in attacks.Where(g => g.Count() > 1))
+                {
+                    var hp = before.Units.Single(u => u.Id == group.Key).CurrentHp;
+                    var values = new List<int>();
+                    foreach (var step in group)
+                    {
+                        hp = Math.Max(0, hp - result.Result.Events[step.EventIndex].Damage);
+                        var supplied = step.StateAfter.Units.Single(u => u.Id == group.Key).CurrentHp;
+                        Assert.Equal(hp, supplied);
+                        values.Add(supplied);
+                    }
+                    Assert.True(values[0] > values[^1]);
+                    Assert.Equal(values[^1], result.Result.State.Units.Single(u => u.Id == group.Key).CurrentHp);
+                    found = true;
+                }
+                if (found) break;
+            }
+        }
+        Assert.True(found, "Expected several Monster attacks on the same Hero in one API response.");
+        Assert.Empty((await host.Read()).Result.ResolutionSteps);
+    }
+
+    [Fact]
     public async Task MonsterAttacksAndDeathAreReturnedInOrder_WithAuthoritativeHpAndFigureRemoval()
     {
         await using var host = await Host.Start(hit: true);

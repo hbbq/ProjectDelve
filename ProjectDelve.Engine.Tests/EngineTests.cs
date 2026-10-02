@@ -37,6 +37,40 @@ public sealed class EngineTests
         GameEngine.Advance(result.State, new Choice(key), random);
 
     [Fact]
+    public void SuccessiveAttacksCaptureDetachedProgressiveHp_AndDeathRemovalAtItsStep()
+    {
+        var state = State(width: 3, height: 1, mov: 0, atk: 0, hp: 2);
+        state.Types.Add(new UnitType("monster-type", 0, 1, 1, 0, 1));
+        state.Units.AddRange([new("first", "monster-type", "red", 1), new("second", "monster-type", "red", 1)]);
+        state.Physical.Figures.AddRange([new("first", new(1, 0)), new("second", new(2, 0))]);
+        // Both Monsters can attack the Hero from their starting positions.
+        state.Types[^1] = state.Types[^1] with { Rng = 2 };
+        var original = JsonSerializer.Serialize(state);
+        var random = new ScriptedRandom("monster-type", "hero-type");
+        random.AttackFaces.Enqueue(AttackFace.Hit);
+        random.AttackFaces.Enqueue(AttackFace.Hit);
+        var result = GameEngine.StartRound(state, random);
+        result = Choose(result, "first", random);
+        var first = Choose(result, "attack:hero", random);
+        var firstStep = first.ResolutionSteps.Single(s => first.Events[s.EventIndex].Kind == "AttackResolved");
+        Assert.Equal(1, firstStep.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
+        // End Turn, selection of the remaining Monster, and Stay resolve automatically.
+        var second = Choose(first, "attack:hero", random);
+        var attack = second.ResolutionSteps.Single(s => second.Events[s.EventIndex].Kind == "AttackResolved");
+        var death = second.ResolutionSteps.Single(s => second.Events[s.EventIndex].Kind == "UnitDied");
+        Assert.Equal(0, attack.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
+        Assert.Contains(attack.StateAfter.Physical.Figures, f => f.Id == "hero");
+        Assert.DoesNotContain(death.StateAfter.Physical.Figures, f => f.Id == "hero");
+        Assert.Equal(1, firstStep.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
+        Assert.Equal(original, JsonSerializer.Serialize(state));
+        second.State.Units.Clear();
+        second.State.Physical.Figures.Clear();
+        Assert.NotEmpty(death.StateAfter.Units);
+        Assert.NotEmpty(death.StateAfter.Physical.Figures);
+        Assert.Equal(Enumerable.Range(0, second.Events.Count), second.ResolutionSteps.Select(s => s.EventIndex));
+    }
+
+    [Fact]
     public void FullRound_MovesThenAttacksWithControlledDice_AndRemovesDeadFigure()
     {
         var state = State();

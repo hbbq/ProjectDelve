@@ -64,14 +64,16 @@ public sealed class PlaytestGame(IRandomProvider random)
     private GameResponse Commit(EngineResult result)
     {
         var events = new List<RulesEvent>(result.Events);
+        var steps = new List<ResolutionStep>(result.ResolutionSteps);
         while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type")
         {
             result = GameEngine.Advance(result.State, monsters, random, filterRelevantChoices);
+            steps.AddRange(result.ResolutionSteps.Select(step => step with { EventIndex = step.EventIndex + events.Count }));
             events.AddRange(result.Events);
         }
         state = result.State;
         revision++;
-        return new(revision, result with { Events = events }, filterRelevantChoices);
+        return new(revision, result with { Events = events, ResolutionSteps = steps }, filterRelevantChoices);
     }
 
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider

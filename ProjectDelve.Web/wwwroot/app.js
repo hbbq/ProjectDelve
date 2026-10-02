@@ -20,10 +20,14 @@ function placeFigure(node, cell, board) {
   node.style.top = `${(cell.y + .5) / board.height * 100}%`;
 }
 
-function renderBoard(state) {
+function renderBoard(state, preserveNodes = false) {
   const board = state.physical.board;
   updateCoordinates();
-  ui.board.replaceChildren(); figures.clear(); edges.clear(); cells.clear();
+  if (!preserveNodes) {
+    ui.board.replaceChildren(); figures.clear(); edges.clear(); cells.clear();
+  }
+  // Keep mounted figures across resolution steps so CSS transitions have a painted start.
+  const retainedCells = new Set(), retainedEdges = new Set(), retainedFigures = new Set();
   ui.board.style.gridTemplateColumns = `repeat(${board.width}, minmax(0, 1fr))`;
   ui.board.style.gridTemplateRows = `repeat(${board.height}, minmax(0, 1fr))`;
   ui.board.style.setProperty("--columns", board.width);
@@ -32,31 +36,45 @@ function renderBoard(state) {
   const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile.kind]));
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const kind = terrain.get(cellKey({ x, y })) ?? "StoneFloor";
-    const node = document.createElement("div");
-    node.className = `cell ${kind}`; node.dataset.cell = cellKey({ x, y });
+    const key = cellKey({ x, y });
+    const node = cells.get(key) ?? document.createElement("div");
+    node.replaceChildren();
+    node.className = `cell ${kind}`; node.dataset.cell = key;
+    retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
     node.title = kind;
     const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", StoneFloorWithTable: "Table" }[kind];
     if (symbol) node.append(text("span", symbol));
-    cells.set(node.dataset.cell, node); ui.board.append(node);
+    if (!cells.has(key)) ui.board.append(node);
+    cells.set(key, node);
   }
   for (const edge of board.edges) {
     if (edge.kind === "None") continue;
-    const node = document.createElement("div");
+    const key = edgeKey(edge);
+    const node = edges.get(key) ?? document.createElement("div");
+    retainedEdges.add(key);
     node.className = `edge ${edge.kind}`;
     const vertical = edge.a.y === edge.b.y;
     node.style.left = `${((edge.a.x + edge.b.x) / 2 + .5) / board.width * 100}%`;
     node.style.top = `${((edge.a.y + edge.b.y) / 2 + .5) / board.height * 100}%`;
     node.style.width = vertical ? "var(--edge-thickness)" : `${100 / board.width}%`;
     node.style.height = vertical ? `${100 / board.height}%` : "var(--edge-thickness)";
-    node.title = edge.kind; edges.set(edgeKey(edge), node); ui.board.append(node);
+    node.title = edge.kind;
+    if (!edges.has(key)) ui.board.append(node);
+    edges.set(key, node);
   }
   for (const figure of state.physical.figures) {
     const unit = state.units.find(unit => unit.id === figure.id);
     const type = state.types.find(type => type.id === unit?.typeId);
-    const node = text("div", unitLabel(figure.id));
+    const node = figures.get(figure.id) ?? document.createElement("div");
+    retainedFigures.add(figure.id);
+    node.textContent = unitLabel(figure.id);
+    // Snapshot positions settle any skipped movement without animating a state correction.
+    node.style.transition = "none";
+    delete node.dataset.hpLabel;
+    node.removeAttribute("aria-label");
     node.className = `figure${unit?.sideId === "blue" ? " hero" : ""}`;
     node.style.width = `${70 / board.width}%`;
     node.title = `${figure.id} · ${figure.posture}`;
@@ -70,19 +88,31 @@ function renderBoard(state) {
       hp.setAttribute("aria-hidden", "true");
       node.append(hp);
     }
-    placeFigure(node, figure.position, board); figures.set(figure.id, node); ui.board.append(node);
+    placeFigure(node, figure.position, board);
+    if (!figures.has(figure.id)) ui.board.append(node);
+    figures.set(figure.id, node);
+  }
+  for (const [nodes, retained] of [[cells, retainedCells], [edges, retainedEdges], [figures, retainedFigures]]) {
+    for (const [key, node] of nodes) {
+      if (retained.has(key)) continue;
+      node.remove(); nodes.delete(key);
+    }
   }
 }
 
-function renderSnapshot() {
-  const state = snapshot.result.state;
-  renderBoard(state);
-  ui.filter.checked = snapshot.filterRelevantChoices;
+function renderState(state, preserveNodes = true) {
+  renderBoard(state, preserveNodes);
   ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${state.activeTypeId} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
   ui.units.replaceChildren(...state.units.map(unit => {
     const type = state.types.find(type => type.id === unit.typeId);
     return text("p", `${unitLabel(unit.id)} · ${unit.sideId} · HP ${unit.currentHp}/${type.hp} · MOV ${type.mov} RNG ${type.rng} ATK ${type.atk} DEF ${type.def}`);
   }));
+}
+
+function renderSnapshot() {
+  const state = snapshot.result.state;
+  renderState(state, false);
+  ui.filter.checked = snapshot.filterRelevantChoices;
   ui.choices.replaceChildren();
   const decision = snapshot.result.nextInput;
   // Map supplied choices onto rendered objects; ambiguous targets keep the choice-panel interface.
@@ -193,12 +223,14 @@ async function mutate(operation, body = {}) {
   if (busy || !snapshot) return;
   busy = true; skipEffects = !ui.animate.checked; updateControls(); ui.error.textContent = "";
   try {
-    // Retain the previous visible board until the ordered effects have finished.
+    // Present from the previous visible state, advancing only with engine snapshots.
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
     ui.events.replaceChildren();
-    for (const event of snapshot.result.events) {
+    const steps = new Map(snapshot.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
+    for (const [index, event] of snapshot.result.events.entries()) {
       ui.events.append(text("li", describe(event)));
       if (!skipEffects) await present(event);
+      if (steps.has(index)) renderState(steps.get(index));
     }
   } catch (error) {
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
@@ -238,6 +270,8 @@ async function present(event) {
     case "MovementCompleted": {
       const node = figures.get(event.unitId);
       if (!node) break;
+      // Commit the starting layout, including an immediately preceding snapshot render.
+      node.getBoundingClientRect();
       for (const cell of event.path.slice(1)) {
         if (skipEffects) break;
         node.style.transition = "left .22s linear, top .22s linear";
@@ -259,7 +293,10 @@ async function present(event) {
       break;
     }
     case "UnitDied": {
-      const node = figures.get(event.unitId); node?.classList.add("dying");
+      const node = figures.get(event.unitId);
+      node?.getBoundingClientRect();
+      if (node) node.style.transition = "";
+      node?.classList.add("dying");
       await pause(320); node?.remove(); figures.delete(event.unitId); break;
     }
     case "DoorOpeningAttemptResolved": {
