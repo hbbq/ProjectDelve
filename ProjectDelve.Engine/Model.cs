@@ -42,24 +42,29 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 {
     public ImmutableArray<BonusActionAbility> BonusActions { get; init; } = [];
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
-        new(id, mov, rng, atk, def, hp);
+        new(id, mov, rng, atk, def, hp);        
+
+    public Unit CreateUnit(string id, string sideId) => 
+        new(id, Id, sideId, Hp)
+        {
+            BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
+        };
 
     public static UnitType Barbarian(string id = "barbarian-type") =>
         new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
         {
-            BonusActions = [new("Rage", 2, [new(Stat.Atk, 2)])]
+            BonusActions = [
+                new("Rage", 2, [new(Stat.Atk, 2)])
+            ]
         };
-
-    public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp)
-    {
-        BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
-    };
 
     public static UnitType Rogue(string id = "rogue-type") =>
         new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
         {
-            BonusActions = [new("Dash", 2, [new(Stat.Mov, 2)]),
-                new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
+            BonusActions = [
+                new("Dash", 2, [new(Stat.Mov, 2)]),
+                new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])
+            ]
         };
 
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
