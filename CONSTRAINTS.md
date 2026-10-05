@@ -527,6 +527,13 @@ The current v0 content roster is deliberately small. The reference implementatio
 - Actions: Normal Attack.
 - Free Actions: Open Door.
 
+#### Wizard
+
+- Stats: `MOV 2`, `RNG 4`, `ATK 3`, `DEF 2`, `HP 4`.
+- Actions: Normal Attack; Fireball.
+- Bonus Actions: Focus.
+- Free Actions: Open Door.
+
 ### Monsters
 
 #### Grunt
@@ -721,6 +728,32 @@ Damage dealt by a multi-target Attack belongs to each target separately. Damage 
 
 Holy Wave requires only this concrete shared-roll multi-target Attack behavior. Broader area-of-effect shapes, arbitrary multi-target attack profiles, attack-effect categories, or a universal effect framework are deliberately deferred until concrete content requires them.
 
+The Wizard has the limited-use Action ability **Fireball**:
+
+```text
+Fireball [2/game]
+Action
+
+Choose a Cell within RNG and LOS.
+Attack all Units on or adjacent to that Cell.
+```
+
+Fireball starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity and is an Attack for rules that refer to an Attack. Using Fireball therefore spends one Fireball use and consumes the Wizard's Action.
+
+The player chooses one target Cell within the Wizard's effective `RNG` and with normal Line of Sight from the Wizard's Cell. Range to the target Cell uses the ordinary ranged Manhattan-distance rule. Line of Sight is the established geometric Cell-to-Cell Line of Sight; Units do not create a separate visibility rule for Fireball. The target Cell may be empty, and Fireball remains legal even when its explosion would affect no Unit.
+
+The explosion area is the target Cell and its eight surrounding Cells. A Unit in that area is a Fireball target only when normal Line of Sight exists from the target Cell to that Unit's Cell. Blocking terrain or edges may therefore protect a Unit in an otherwise adjacent Cell from the explosion.
+
+Fireball targets **all Units** satisfying that area and Line of Sight rule, regardless of Side. Friendly fire therefore applies. The Wizard may also be a target of its own Fireball if its Cell lies in the explosion area and has the required Line of Sight from the target Cell.
+
+Fireball is one Attack with multiple targets. Its Attack Dice use the attacker's general effective `ATK` when the Fireball begins, so ordinary this-turn modifiers such as Focus affect Fireball. The Attack Dice are rolled once for the whole Fireball and the resulting Hits are shared by every target. Target-specific attack modifiers do not independently change that shared roll unless a future rule explicitly says they apply to such an Attack.
+
+Each target rolls its own effective `DEF` separately. Damage is calculated and applied separately to each target using the normal `max(0, Hits - Blocks)` rule, and normal death resolution applies. The complete target set is determined when the Attack begins, before Attack Dice, Defence Dice, Damage, or deaths are resolved.
+
+Rules that occur after an Attack occur once after the complete Fireball has resolved, not once per target. Damage dealt to different targets remains separate for rules such as Cleave; Damage is not added across targets.
+
+Fireball is the second concrete shared-roll multi-target Attack. Holy Wave and Fireball may share reusable implementation machinery where their now-concrete common structure warrants it, while their targeting, attack-value rules, content identity, and presentation remain distinct. This does not establish a universal area-effect or spell framework.
+
 ### Bonus Actions
 
 Each individual ability explicitly marked `Bonus Action` may be used at most once during a Unit's activation. Different Bonus Action abilities do not compete for a shared Bonus Action opportunity and may be combined during the same activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, that specific ability has not already been used during the activation, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
@@ -742,6 +775,18 @@ Rage starts each game with 2 remaining uses and has a maximum of 2 uses. Using R
 Limited-use abilities track both maximum uses and remaining uses as Rules/Game State. A future rule may restore spent uses, but restoration cannot increase remaining uses above the ability's maximum. No general recharge or restoration rule is introduced by Rage itself.
 
 Rage introduces the reusable effect concept **Modifier This Turn**, parameterized by a stat and signed amount; Rage applies `ModifierThisTurn(ATK, +2)`. A this-turn modifier is serializable Rules/Game State because it can affect later decisions and resolution during the activation. It contributes to the stat's effective value and is removed when that Unit's activation ends. Rage requires only this activation-duration modifier behavior; general modifier durations, stacking policies, priorities, sources, or a universal effect framework are deliberately deferred until concrete content requires them.
+
+The Wizard has the Bonus Action ability **Focus**:
+
+```text
+Focus [2/game]
+Bonus Action
++1 ATK this turn
+```
+
+Focus starts each game with 2 remaining uses and a maximum of 2. It uses the same reusable Bonus Action and Modifier This Turn rules as Rage rather than defining a separate mechanical effect. Using Focus spends one use, marks Focus as used for the current activation, and applies `ModifierThisTurn(ATK, +1)` for the remainder of that activation. Focus is therefore legal under the same per-ability Bonus Action rules and does not consume the Wizard's Action or prevent a different Bonus Action ability from being used during the same activation.
+
+Focus contributes to the Wizard's general effective `ATK`. It therefore affects both normal Attacks and other Attacks that use general effective `ATK`, including Fireball.
 
 Current HP remains mutable Unit state rather than being treated as a stat modifier merely because other stats may have effective values.
 
