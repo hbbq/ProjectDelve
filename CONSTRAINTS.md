@@ -478,6 +478,18 @@ A Unit has:
 
 Heroes and Monsters should not have parallel implementations of the same mechanics.
 
+### Unique Unit Types
+
+A Unit Type may be **Unique**. At most one Unit of a Unique Unit Type may be in play at a time.
+
+Unique is a physical tracking constraint, not a Hero, Monster, controller, or Side distinction. A Unit Type may have maximum `HP` greater than 1 only if that Unit Type is Unique. This keeps damage physically attributable to a single identifiable figure/card instead of requiring players to distinguish several otherwise interchangeable figures of the same Unit Type with different remaining HP values.
+
+Unique does not require maximum `HP` greater than 1; a Unique Unit Type may still have `HP 1`.
+
+Unique constrains simultaneous in-play Units, not how many times that Unit Type may ever enter play during a game. Future rules may therefore remove and later return or recreate a Unique Unit, provided no more than one Unit of that Unit Type is in play at the same time.
+
+Scenario setup and any rule that creates or places Units must preserve this invariant.
+
 ### Heroes and Monsters
 
 Hero and Monster are content classifications, not different rules or agency models. Control is assigned independently of Side and Unit Type as defined under Decisions, agency, and randomness.
@@ -552,18 +564,21 @@ The current v0 content roster is deliberately small. The reference implementatio
 
 #### Barbarian
 
+- Unique: yes.
 - Stats: `MOV 3`, `RNG 1` (Melee), `ATK 4`, `DEF 3`, `HP 5`.
 - Actions: Normal Attack.
 - Free Actions: Open Door.
 
 #### Rogue
 
+- Unique: yes.
 - Stats: `MOV 4`, `RNG 1` (Melee), `ATK 3`, `DEF 2`, `HP 4`.
 - Actions: Normal Attack.
 - Free Actions: Open Door.
 
 #### Wizard
 
+- Unique: yes.
 - Stats: `MOV 2`, `RNG 4`, `ATK 3`, `DEF 2`, `HP 4`.
 - Actions: Normal Attack; Fireball; Telekinesis.
 - Bonus Actions: Focus.
@@ -571,6 +586,7 @@ The current v0 content roster is deliberately small. The reference implementatio
 
 #### Cleric
 
+- Unique: yes.
 - Stats: `MOV 3`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 4`.
 - Actions: Normal Attack; Heal; Holy Wave.
 - Passive abilities: Aura (adjacent friendly Units get `DEF +1`).
