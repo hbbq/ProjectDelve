@@ -24,6 +24,11 @@ public sealed record Fury
     public string Name => "Fury";
     public string DisplayText => "ATK +1 while adjacent to 2 or more enemies";
 }
+public sealed record Backstab
+{
+    public string Name => "Backstab";
+    public string DisplayText => "+1 ATK when attacking an enemy that is adjacent to another friendly Unit";
+}
 // Presentation metadata only; passive rules retain their concrete representations.
 public sealed record PassiveDescription(string Name, string DisplayText);
 // Current HP is never a modifier stat.
@@ -51,6 +56,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 {
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
+    public Backstab? Backstab { get; init; }
     public Cleave? Cleave { get; init; }
     public IReadOnlyList<PassiveDescription> Passives
     {
@@ -60,6 +66,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
             if (AdjacentFriendlyUnitsDefenceBonus is { } aura)
                 passives.Add(new(aura.Name, $"Adjacent friendly Units get DEF +{aura.Amount}"));
             if (Fury is { } fury) passives.Add(new(fury.Name, fury.DisplayText));
+            if (Backstab is { } backstab) passives.Add(new(backstab.Name, backstab.DisplayText));
             return passives;
         }
     }
@@ -87,6 +94,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Rogue(string id = "rogue-type") =>
         new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
         {
+            Backstab = new(),
             BonusActions = [
                 new("Dash", 2, [new(Stat.Mov, 2)]),
                 new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])
@@ -188,6 +196,24 @@ public sealed class GameState
             .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
                 SpatialRules.AreAdjacent(Physical.Board, figure.Position, enemyFigure.Position));
         return attack + (adjacentEnemies >= 2 ? 1 : 0);
+    }
+    // Target-specific Attack Dice, shared by legality, effectiveness and resolution.
+    // General EffectiveAtk remains independent of the selected target.
+    public int EffectiveAtkAgainst(string attackerId, string targetId)
+    {
+        var attack = EffectiveAtkOf(attackerId);
+        var attacker = Units.Single(u => u.Id == attackerId);
+        var target = Units.Single(u => u.Id == targetId);
+        if (Types.Single(t => t.Id == attacker.TypeId).Backstab is null ||
+            attacker.CurrentHp <= 0 || target.CurrentHp <= 0 || attacker.SideId == target.SideId)
+            return attack;
+
+        var targetFigure = Physical.Figures.SingleOrDefault(f => f.Id == targetId);
+        if (targetFigure is null) return attack;
+        var supported = Units.Any(u => u.Id != attackerId && u.CurrentHp > 0 && u.SideId == attacker.SideId &&
+            Physical.Figures.SingleOrDefault(f => f.Id == u.Id) is { } friendlyFigure &&
+            SpatialRules.AreAdjacent(Physical.Board, targetFigure.Position, friendlyFigure.Position));
+        return attack + (supported ? 1 : 0);
     }
     public int EffectiveMovOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +

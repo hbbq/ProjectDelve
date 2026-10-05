@@ -356,7 +356,8 @@ public static class GameEngine
         // A new target improves targeting; a shared target improves effectiveness
         // only when resolution would roll more attack dice.
         return after.Where(c => c.Action == UnitAction.NormalAttack).Any(c =>
-            !targets.Contains(c.TargetId) || modified.EffectiveAtkOf(unit.Id) > state.EffectiveAtkOf(unit.Id));
+            !targets.Contains(c.TargetId) ||
+            modified.EffectiveAtkAgainst(unit.Id, c.TargetId!) > state.EffectiveAtkAgainst(unit.Id, c.TargetId!));
     }
 
     // Authoritative Move/Action opportunities at this point in the activation.
@@ -420,7 +421,7 @@ public static class GameEngine
     private static void ResolveAttack(GameState state, string attackerId, string targetId,
         IRandomProvider random, ResolutionEvents events)
     {
-        var attackDice = state.EffectiveAtkOf(attackerId);
+        var attackDice = state.EffectiveAtkAgainst(attackerId, targetId);
         var defenceDice = state.EffectiveDefOf(targetId);
         var hits = 0;
         var blocks = 0;
