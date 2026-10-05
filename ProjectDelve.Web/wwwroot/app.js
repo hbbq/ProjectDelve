@@ -121,6 +121,7 @@ const visibleChoice = candidate => !(ui.filter.checked && candidate.relevant ===
 
 // One card renderer for activation display and board inspection. Values are supplied by the engine.
 function renderUnitCard() {
+  clearHolyWavePreview();
   const state = displayedState;
   const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
   const card = ui["unit-card"];
@@ -146,8 +147,31 @@ function renderUnitCard() {
   }
   if (type.cleave) {
     card.append(text("h4", "Cleave"));
-    card.append(text("p", "After an Attack deals 2 or more damage, you may immediately deal 1 damage to an adjacent enemy."));
+    card.append(text("p", "After an Attack deals 2 or more damage to a Unit, you may immediately deal 1 damage to an adjacent enemy."));
     if (unit.cleaveUses) card.append(text("small", `${unit.cleaveUses.remainingUses} / ${unit.cleaveUses.maxUses} uses`));
+  }
+  if (type.holyWave) {
+    card.append(text("h4", "Holy Wave (Action)"));
+    card.append(text("p", "Attack all adjacent enemies with ATK=2. Roll Attack Dice once for all targets."));
+    if (unit.holyWaveUses) card.append(text("small", `${unit.holyWaveUses.remainingUses} / ${unit.holyWaveUses.maxUses} uses`));
+    const decision = snapshot?.result.nextInput;
+    const candidate = decision?.unitId === unit.id
+      ? decision.candidates.find(candidate => candidate.action === "HolyWave") : null;
+    const button = text("button", "Use Holy Wave");
+    button.dataset.legal = String(!!candidate);
+    button.disabled = busy || !candidate;
+    button.hidden = !!candidate && !visibleChoice(candidate);
+    button.addEventListener("click", () => { if (candidate) return chooseCandidate(candidate.key); });
+    const preview = () => {
+      clearHolyWavePreview();
+      if (busy || !candidate || !visibleChoice(candidate)) return;
+      for (const targetId of candidate.targetIds) figures.get(targetId)?.classList.add("holy-wave-preview");
+    };
+    button.addEventListener("mouseenter", preview);
+    button.addEventListener("focus", preview);
+    button.addEventListener("mouseleave", clearHolyWavePreview);
+    button.addEventListener("blur", clearHolyWavePreview);
+    card.append(button);
   }
   card.append(text("h4", "Bonus Actions"));
   if (!type.bonusActions?.length) card.append(text("small", "None"));
@@ -179,6 +203,10 @@ function renderUnitCard() {
   }
 }
 
+function clearHolyWavePreview() {
+  for (const node of figures.values()) node.classList.remove("holy-wave-preview");
+}
+
 function renderSnapshot() {
   const state = snapshot.result.state;
   hoveredUnitId = null;
@@ -198,6 +226,7 @@ function renderSnapshot() {
   const labels = new Map();
   for (const candidate of decision?.candidates ?? []) {
     if (ui.filter.checked && candidate.relevant === false) continue;
+    if (candidate.action === "HolyWave") continue; // Selected only from the Unit card.
     const label = candidate.kind === "Stay" ? "Stay here"
       : candidate.kind === "EndTurn" ? "End Turn"
       : candidate.kind === "Cleave" ? `Cleave ${unitLabel(candidate.targetId)}`
@@ -233,7 +262,7 @@ function renderSnapshot() {
   if (decision?.allowsNone && !presentedOnBoard.has(null))
     addChoice(decision.kind === "Move" ? "Stay here" : decision.kind === "Cleave" ? "Decline Cleave" : "Take no action", null);
   for (const candidate of decision?.candidates ?? []) {
-    if (!visibleChoice(candidate) || presentedOnBoard.has(candidate.key)) continue;
+    if (!visibleChoice(candidate) || presentedOnBoard.has(candidate.key) || candidate.action === "HolyWave") continue;
     const cardUnit = state.units.find(unit => unit.id === decision.unitId);
     const cardType = state.types.find(type => type.id === cardUnit?.typeId);
     if (candidate.bonusAction && cardType?.bonusActions?.some(ability => ability.name === candidate.bonusAction.name)) continue;
@@ -272,6 +301,7 @@ function bindBoardChoice(node, label, key) {
 }
 
 function updateControls() {
+  if (busy) clearHolyWavePreview();
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
   ui.auto.disabled = busy || !snapshot;
@@ -338,7 +368,10 @@ async function mutate(operation, body = {}) {
 function describe(event) {
   switch (event.kind) {
     case "MovementCompleted": return `${unitLabel(event.unitId)} ${event.isMoveAfterAttack ? "moved after attack" : "moved"}: ${event.path.map(cellKey).join(" → ")}`;
-    case "AttackResolved": return `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
+    case "AttackResolved": return event.abilityName === "Holy Wave"
+      ? `${unitLabel(event.unitId)} used Holy Wave: ${event.attack.attackDice} Attack Dice, ${event.attack.hits} shared Hits; ${event.attack.targets.map(target => `${unitLabel(target.targetId)}: ${target.blocks} Blocks, ${target.damage} Damage`).join("; ")}`
+      : `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
+    case "AttackTargetResolved": return `${event.abilityName} → ${unitLabel(event.targetId)}: ${event.hits} shared Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
     case "AbilityUsed": return `${unitLabel(event.unitId)} used ${event.abilityName} (Bonus Action)`;
     case "CleaveResolved": return `${unitLabel(event.unitId)} cleaved ${unitLabel(event.targetId)}: ${event.damage} Damage`;
@@ -374,10 +407,17 @@ async function present(event) {
       }
       break;
     }
+    case "AttackTargetResolved":
     case "AttackResolved": {
+      if (event.abilityName === "Holy Wave" && event.kind === "AttackResolved") {
+        await pause(450);
+        break;
+      }
       const attacker = figures.get(event.unitId), target = figures.get(event.targetId);
       attacker?.classList.add("attacking"); target?.classList.add("target");
-      ui.effect.textContent = `${unitLabel(event.unitId)} attacks ${unitLabel(event.targetId)}`;
+      ui.effect.textContent = event.kind === "AttackTargetResolved"
+        ? `${event.abilityName}: ${unitLabel(event.targetId)}`
+        : `${unitLabel(event.unitId)} attacks ${unitLabel(event.targetId)}`;
       await pause(350);
       ui.effect.textContent = `${event.hits} Hits · ${event.blocks} Blocks`;
       await pause(450);

@@ -10,7 +10,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -19,6 +19,7 @@ public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Cleave(int MaxUses = 2);
 public sealed record Heal(int MaxUses = 2);
+public sealed record HolyWave(int MaxUses = 2);
 public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
 public sealed record Fury
 {
@@ -60,6 +61,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Backstab? Backstab { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
+    public HolyWave? HolyWave { get; init; }
     public IReadOnlyList<PassiveDescription> Passives
     {
         get
@@ -81,6 +83,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         {
             CleaveUses = Cleave is { } cleave ? new(cleave.MaxUses, cleave.MaxUses) : null,
             HealUses = Heal is { } heal ? new(heal.MaxUses, heal.MaxUses) : null,
+            HolyWaveUses = HolyWave is { } wave ? new(wave.MaxUses, wave.MaxUses) : null,
             BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
         };
 
@@ -105,10 +108,11 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         };
 
     public static UnitType Cleric(string id = "cleric-type") =>
-        new(id, 3, 1, 3, 3, 4, Actions: UnitAction.NormalAttack | UnitAction.Heal,
+        new(id, 3, 1, 3, 3, 4, Actions: UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave,
             FreeActions: UnitFreeAction.OpenDoor)
         {
             Heal = new(),
+            HolyWave = new(),
             AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
         };
 
@@ -128,6 +132,7 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
 {
     public AbilityUses? CleaveUses { get; init; }
     public AbilityUses? HealUses { get; init; }
+    public AbilityUses? HolyWaveUses { get; init; }
     public ImmutableDictionary<string, AbilityUses> BonusActionUses { get; init; } = ImmutableDictionary<string, AbilityUses>.Empty;
 }
 
@@ -158,13 +163,20 @@ public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, Free
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
     UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null,
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
-    bool Relevant = true, BonusActionAbility? BonusAction = null);
+    bool Relevant = true, BonusActionAbility? BonusAction = null)
+{
+    public ImmutableArray<string> TargetIds { get; init; } = [];
+}
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
     bool IsMoveAfterAttack = false);
+public sealed record AttackTargetResult(string TargetId, int DefenceDice, int Blocks, int Damage);
+// One roll and separate per-Unit Damage; there is deliberately no total Damage.
+public sealed record AttackResult(int AttackDice, int Hits, ImmutableArray<AttackTargetResult> Targets);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
     Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
-    bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0);
+    bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
+    AttackResult? Attack = null);
 
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(

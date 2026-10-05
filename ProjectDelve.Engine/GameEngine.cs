@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace ProjectDelve.Engine;
 
 public static class GameEngine
@@ -16,6 +18,8 @@ public static class GameEngine
                     ? new(cleave.MaxUses, cleave.MaxUses) : null),
                 HealUses = u.HealUses ?? (state.Types.Single(t => t.Id == u.TypeId).Heal is { } heal
                     ? new(heal.MaxUses, heal.MaxUses) : null),
+                HolyWaveUses = u.HolyWaveUses ?? (state.Types.Single(t => t.Id == u.TypeId).HolyWave is { } wave
+                    ? new(wave.MaxUses, wave.MaxUses) : null),
                 BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
                         ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
@@ -191,7 +195,18 @@ public static class GameEngine
                     else switch (action.Action)
                     {
                         case UnitAction.NormalAttack:
-                            ResolveAttack(state, request.UnitId!, action.TargetId!, random, events);
+                            ResolveAttack(state, request.UnitId!, [action.TargetId!],
+                                state.EffectiveAtkAgainst(request.UnitId!, action.TargetId!), random, events);
+                            attacked = true;
+                            break;
+                        case UnitAction.HolyWave:
+                            var waveIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
+                            var waveUses = state.Units[waveIndex].HolyWaveUses!;
+                            state.Units[waveIndex] = state.Units[waveIndex] with
+                            {
+                                HolyWaveUses = new(waveUses.MaxUses, waveUses.RemainingUses - 1)
+                            };
+                            ResolveAttack(state, request.UnitId!, action.TargetIds, 2, random, events, "Holy Wave");
                             attacked = true;
                             break;
                         case UnitAction.Heal:
@@ -306,6 +321,13 @@ public static class GameEngine
                         state.Physical.Figures.Single(f => f.Id == target.Id).Position))
                 .Select(target => new Candidate($"heal:{target.Id}",
                     Action: UnitAction.Heal, TargetId: target.Id)));
+        if (actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is not null &&
+            unit.HolyWaveUses is { RemainingUses: > 0 })
+        {
+            var targets = AdjacentHostiles(state, unit).Select(u => u.Id).ToImmutableArray();
+            if (targets.Length > 0)
+                candidates.Add(new Candidate("holy-wave", Action: UnitAction.HolyWave) { TargetIds = targets });
+        }
         if (type.TryOpenDoor is not null)
         {
             foreach (var edge in AdjacentClosedDoors(state, unit))
@@ -432,30 +454,43 @@ public static class GameEngine
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
-    private static void ResolveAttack(GameState state, string attackerId, string targetId,
-        IRandomProvider random, ResolutionEvents events)
+    private static void ResolveAttack(GameState state, string attackerId,
+        ImmutableArray<string> targetIds, int attackDice,
+        IRandomProvider random, ResolutionEvents events, string? abilityName = null)
     {
-        var attackDice = state.EffectiveAtkAgainst(attackerId, targetId);
-        var defenceDice = state.EffectiveDefOf(targetId);
         var hits = 0;
-        var blocks = 0;
         for (var i = 0; i < attackDice; i++)
         {
             var face = random.RollAttackDie();
             if (!Enum.IsDefined(face)) throw new ArgumentException("Invalid Attack Die face.", nameof(random));
             if (face == AttackFace.Hit) hits++;
         }
-        for (var i = 0; i < defenceDice; i++)
+        var results = new List<AttackTargetResult>();
+        // The authoritative candidate fixed membership before any roll. Death and
+        // removal may change the world (including DEF), never the remaining targets.
+        foreach (var targetId in targetIds)
         {
-            var face = random.RollDefenceDie();
-            if (!Enum.IsDefined(face)) throw new ArgumentException("Invalid Defence Die face.", nameof(random));
-            if (face == DefenceFace.Block) blocks++;
+            var defenceDice = state.EffectiveDefOf(targetId);
+            var blocks = 0;
+            for (var i = 0; i < defenceDice; i++)
+            {
+                var face = random.RollDefenceDie();
+                if (!Enum.IsDefined(face)) throw new ArgumentException("Invalid Defence Die face.", nameof(random));
+                if (face == DefenceFace.Block) blocks++;
+            }
+            var damage = Math.Max(0, hits - blocks);
+            results.Add(new(targetId, defenceDice, blocks, damage));
+            DealDamage(state, targetId, damage,
+                new RulesEvent(abilityName is null ? "AttackResolved" : "AttackTargetResolved",
+                    attackerId, targetId, Hits: hits, Blocks: blocks, Damage: damage,
+                    AbilityName: abilityName,
+                    Attack: abilityName is null ? new(attackDice, hits, [.. results]) : null), events);
         }
-        var damage = Math.Max(0, hits - blocks);
-        DealDamage(state, targetId, damage,
-            new RulesEvent("AttackResolved", attackerId, targetId, Hits: hits, Blocks: blocks, Damage: damage), events);
+        if (abilityName is not null)
+            events.Add(new RulesEvent("AttackResolved", attackerId, Hits: hits,
+                AbilityName: abilityName, Attack: new(attackDice, hits, [.. results])));
         var attacker = state.Units.Single(u => u.Id == attackerId);
-        if (damage >= 2 && attacker.CurrentHp > 0 && CleaveCandidates(state, attacker).Count > 0)
+        if (results.Any(r => r.Damage >= 2) && attacker.CurrentHp > 0 && CleaveCandidates(state, attacker).Count > 0)
             state.CleavePending = true;
     }
 
@@ -478,12 +513,17 @@ public static class GameEngine
     {
         if (state.Types.Single(t => t.Id == unit.TypeId).Cleave is null ||
             unit.CleaveUses is not { RemainingUses: > 0 }) return [];
+        return AdjacentHostiles(state, unit)
+            .Select(target => new Candidate($"cleave:{target.Id}", TargetId: target.Id,
+                Kind: ActivationChoiceKind.Cleave)).ToList();
+    }
+
+    private static IEnumerable<Unit> AdjacentHostiles(GameState state, Unit unit)
+    {
         var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
         return state.Units.Where(target => target.CurrentHp > 0 && target.SideId != unit.SideId &&
                 SpatialRules.AreAdjacent(state.Physical.Board, from,
-                    state.Physical.Figures.Single(f => f.Id == target.Id).Position))
-            .Select(target => new Candidate($"cleave:{target.Id}", TargetId: target.Id,
-                Kind: ActivationChoiceKind.Cleave)).ToList();
+                    state.Physical.Figures.Single(f => f.Id == target.Id).Position));
     }
 
     private static void DealDamage(GameState state, string targetId, int damage,
@@ -522,6 +562,7 @@ public static class GameEngine
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
                 t.Cleave is { MaxUses: < 1 } ||
                 t.Heal is { MaxUses: < 1 } ||
+                t.HolyWave is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
@@ -540,6 +581,9 @@ public static class GameEngine
         if (state.Units.Any(u => u.HealUses is { } uses &&
             state.Types.Single(t => t.Id == u.TypeId).Heal?.MaxUses != uses.MaxUses))
             throw new ArgumentException("Heal uses must match Unit Type content.");
+        if (state.Units.Any(u => u.HolyWaveUses is { } uses &&
+            state.Types.Single(t => t.Id == u.TypeId).HolyWave?.MaxUses != uses.MaxUses))
+            throw new ArgumentException("Holy Wave uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)

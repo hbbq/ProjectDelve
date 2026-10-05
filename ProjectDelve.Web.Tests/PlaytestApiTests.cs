@@ -70,7 +70,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(new[] { "barbarian", "rogue", "cleric" }, heroes.Select(u => u.Id));
         Assert.Equal(3, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
-            type => Assert.Equal(type.Id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal
+            type => Assert.Equal(type.Id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
                 : UnitAction.NormalAttack, type.Actions));
         Assert.Equal(new[] { 2, 2, 2, 1 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
@@ -96,7 +96,7 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         var type = (await host.Read()).Result.State.Types.Single(t => t.Id == id);
         Assert.Equal((mov, rng, atk, def, hp), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal
+        Assert.Equal(id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
             : UnitAction.NormalAttack, type.Actions);
         if (id == "cleric-type")
         {

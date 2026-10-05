@@ -43,6 +43,7 @@ aside { overflow-wrap: anywhere; }
 .board-choice[aria-disabled="false"] { cursor: pointer; }
 .board-choice[aria-disabled="false"]:hover, .board-choice:focus-visible { outline: 3px solid #ffe084; outline-offset: -3px; }
 .figure.board-choice[aria-disabled="false"] { box-shadow: 0 0 0 3px #90c8e8; }
+.figure.holy-wave-preview { outline: 3px solid #ffe084; outline-offset: 3px; }
 .edge.board-choice { pointer-events: auto; }
 .edge.board-choice[aria-disabled="false"] { box-shadow: 0 0 0 3px #90c8e8; }
 /* Enlarge the thin door's click target without changing its rendered geometry. */

@@ -97,6 +97,91 @@ test("Heal displays and submits only authoritative targets", () => {
   assert.equal(elements.get("choices").children.length, 0);
 });
 
+test("Holy Wave is card-only, previews supplied targets, and leaves normal attacks clickable", () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new Element());
+      return elements.get(id);
+    },
+    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
+  };
+  const submitted = [];
+  const response = { revision: 1, result: {
+    state: { round: 1, currentUnitId: "cleric", actionDone: true,
+      physical: { board: { width: 6, height: 1, edges: [] }, figures: [
+        { id: "cleric", position: { x: 0, y: 0 } },
+        { id: "a", position: { x: 4, y: 0 } },
+        { id: "b", position: { x: 5, y: 0 } },
+        { id: "excluded", position: { x: 1, y: 0 } }
+      ] },
+      // Distant friendly targets, zero uses and completed Action must not override supplied choices.
+      units: [
+        { id: "cleric", typeId: "cleric-type", sideId: "blue", currentHp: 4, holyWaveUses: { maxUses: 2, remainingUses: 0 } },
+        ...["a", "b", "excluded"].map(id => ({ id, typeId: "enemy-type", sideId: "blue", currentHp: 4 }))
+      ],
+      types: [{ id: "cleric-type", hp: 4, holyWave: { maxUses: 2 } }, { id: "enemy-type", hp: 4 }]
+    },
+    nextInput: { kind: "Activation", unitId: "cleric", allowsNone: false,
+      candidates: [
+        { key: "opaque-wave", kind: "Action", action: "HolyWave", targetIds: ["a", "b"], relevant: true },
+        { key: "normal-a", kind: "Action", action: "NormalAttack", targetId: "a", relevant: true },
+        { key: "normal-b", kind: "Action", action: "NormalAttack", targetId: "b", relevant: true }
+      ] }
+  } };
+  const context = vm.createContext({ document, response, submitted });
+  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
+  assert.match(elements.get("unit-card").textContent, /Holy Wave \(Action\).*0 \/ 2 uses/);
+  for (const id of ["a", "b"]) {
+    const target = vm.runInContext(`figures.get("${id}")`, context);
+    assert.match(target.attributes["aria-label"], new RegExp(`Attack ${id}`));
+    target.listeners.click({ stopPropagation() {} });
+  }
+  assert.deepEqual(submitted, ["normal-a", "normal-b"]);
+  assert.equal(vm.runInContext('figures.get("excluded").classList.contains("board-choice")', context), false);
+  const button = elements.get("unit-card").querySelectorAll("button")[0];
+  assert.equal(button.textContent, "Use Holy Wave");
+  assert.equal(button.disabled, false);
+  button.listeners.mouseenter();
+  for (const id of ["a", "b"]) {
+    assert.equal(vm.runInContext(`figures.get("${id}").classList.contains("holy-wave-preview")`, context), true);
+  }
+  assert.equal(vm.runInContext('figures.get("excluded").classList.contains("holy-wave-preview")', context), false);
+  assert.deepEqual(submitted, ["normal-a", "normal-b"]);
+  button.listeners.mouseleave();
+  assert.equal(vm.runInContext('figures.get("a").classList.contains("holy-wave-preview")', context), false);
+  button.listeners.focus();
+  assert.equal(vm.runInContext('figures.get("b").classList.contains("holy-wave-preview")', context), true);
+  button.listeners.blur();
+  assert.equal(vm.runInContext('figures.get("b").classList.contains("holy-wave-preview")', context), false);
+  button.listeners.click();
+  assert.equal(submitted[2], "opaque-wave");
+  assert.equal(elements.get("choices").children.length, 0);
+  const description = vm.runInContext('describe({ kind: "AttackResolved", unitId: "cleric", abilityName: "Holy Wave", attack: { attackDice: 2, hits: 2, targets: [{ targetId: "a", blocks: 0, damage: 2 }, { targetId: "b", blocks: 1, damage: 1 }] } })', context);
+  assert.match(description, /2 Attack Dice, 2 shared Hits.*a: 0 Blocks, 2 Damage.*b: 1 Blocks, 1 Damage/);
+  assert.match(vm.runInContext('describe({ kind: "AttackTargetResolved", abilityName: "Holy Wave", targetId: "b", hits: 2, blocks: 1, damage: 1 })', context), /2 shared Hits, 1 Blocks, 1 Damage/);
+  response.result.nextInput.candidates = [response.result.nextInput.candidates[0]];
+  vm.runInContext('renderSnapshot();', context);
+  assert.equal(vm.runInContext('figures.get("a").classList.contains("board-choice")', context), false);
+  assert.equal(vm.runInContext('cells.get("4,0").classList.contains("board-choice")', context), false);
+  assert.equal(elements.get("choices").children.length, 0);
+  const waveOnlyButton = elements.get("unit-card").querySelectorAll("button")[0];
+  waveOnlyButton.listeners.mouseenter();
+  response.result.nextInput.candidates = [];
+  vm.runInContext('renderSnapshot();', context);
+  assert.equal(vm.runInContext('figures.get("a").classList.contains("board-choice")', context), false);
+  assert.equal(vm.runInContext('figures.get("a").classList.contains("holy-wave-preview")', context), false);
+  const unavailableButton = elements.get("unit-card").querySelectorAll("button")[0];
+  assert.equal(unavailableButton.disabled, true);
+  unavailableButton.listeners.mouseenter();
+  unavailableButton.listeners.click();
+  assert.equal(submitted.length, 3);
+  assert.equal(vm.runInContext('figures.get("a").classList.contains("holy-wave-preview")', context), false);
+  assert.equal(elements.get("choices").children.length, 0);
+});
+
 // Exercise the actual renderer and event bindings without a browser dependency.
 class Element {
   constructor() {
