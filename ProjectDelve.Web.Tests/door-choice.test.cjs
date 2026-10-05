@@ -135,6 +135,89 @@ function harness(initial, fetchImpl) {
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 
+// Large bases are generic projection data; the renderer never recognizes a Unit Type id.
+function largeResponse(candidates = []) {
+  const snapshot = response(candidates);
+  snapshot.result.state.physical.board.height = 4;
+  snapshot.presentation.figures = {
+    actor: { anchor: { x: 0, y: 0 }, cellSpan: 2, occupiedCells: [
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] },
+    a: { anchor: { x: 4, y: 0 }, cellSpan: 1, occupiedCells: [{ x: 4, y: 0 }] },
+    b: { anchor: { x: 5, y: 0 }, cellSpan: 1, occupiedCells: [{ x: 5, y: 0 }] }
+  };
+  return snapshot;
+}
+
+test("generic 2x2 Figure has one identity and all four Cells select and inspect it", async () => {
+  const initial = largeResponse([choice("select-opaque", "Unit", { unitId: "actor" })]);
+  const submitted = [];
+  const h = harness(initial, async (url, options) => { submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial }; });
+  assert.equal(h.figure("actor").classList.contains("large"), true);
+  assert.ok(Math.abs(parseFloat(h.figure("actor").style.left) - 100 / 6) < 1e-10);
+  assert.equal(h.figure("actor").style.top, "25%");
+  assert.equal(h.figure("actor").style.width, `${190 / 6}%`);
+  assert.equal(h.run("figures.size"), 3);
+  for (const key of ["0,0", "1,0", "0,1", "1,1"]) {
+    const tile = h.run(`cells.get("${key}")`);
+    tile.listeners.mouseenter();
+    assert.match(h.elements.get("unit-card").textContent, /A printed name/);
+    await click(tile);
+    assert.equal(submitted.at(-1).candidateKey, "select-opaque");
+  }
+});
+
+test("Cell targets under a large base retain distinct supplied choices", async () => {
+  const initial = largeResponse([
+    choice("cell-zero", "Position", { position: { x: 0, y: 0 } }),
+    choice("cell-one", "Position", { position: { x: 1, y: 1 } })
+  ]);
+  const submitted = [];
+  const h = harness(initial, async (url, options) => { submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial }; });
+  assert.equal(h.figure("actor").style.pointerEvents, "none");
+  await click(h.run('cells.get("0,0")'));
+  assert.equal(submitted.at(-1).candidateKey, "cell-zero");
+  await click(h.run('cells.get("1,1")'));
+  assert.equal(submitted.at(-1).candidateKey, "cell-one");
+});
+
+test("placement previews use supplied Cells without expanding anchor choices", () => {
+  const h = harness(largeResponse([choice("move-opaque", "Position", { position: { x: 2, y: 2 } }, {
+    placementCells: [{ x: 2, y: 2 }, { x: 3, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 3 }]
+  })]));
+  h.run('cells.get("2,2").listeners.mouseenter()');
+  for (const key of ["2,2", "3,2", "2,3", "3,3"]) {
+    assert.equal(h.run(`cells.get("${key}").classList.contains("placement-preview")`), true);
+  }
+  assert.equal(h.run('cells.get("3,3").classList.contains("board-choice")'), false);
+  h.run('cells.get("2,2").listeners.mouseleave()');
+  assert.equal(h.run('cells.get("3,3").classList.contains("placement-preview")'), false);
+});
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`2x2 movement and Lying playback retain authoritative square geometry (${mode})`, async () => {
+    const initial = largeResponse(), final = largeResponse();
+    final.result.state.physical.figures[0].position = { x: 2, y: 1 };
+    final.result.state.physical.figures[0].posture = "Lying";
+    final.presentation.figures.actor = { anchor: { x: 2, y: 1 }, cellSpan: 2, occupiedCells: [
+      { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 2 }] };
+    final.presentation.events = [{ role: "Movement", text: "Supplied movement", unitId: "actor",
+      path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }] }];
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
+    final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards, figures: final.presentation.figures }];
+    const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    h.context.mode = mode;
+    h.run('ui.animate.checked = mode !== "disabled"; pause = async () => { if (mode === "skip") skipEffects = true; }');
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.equal(h.figure("actor").style.left, "50%");
+    assert.equal(h.figure("actor").style.top, "50%");
+    assert.equal(h.figure("actor").dataset.cellSpan, 2);
+    assert.equal(h.figure("actor").classList.contains("large"), true);
+    assert.equal(h.figure("actor").classList.contains("lying"), true);
+    assert.equal(h.run('figureCells(displayedState.physical.figures[0]).length'), 4);
+    assert.equal(h.run("figures.size"), 3);
+  });
+}
+
 for (const mode of ["animate", "disabled", "skip"]) {
   test(`Spawn Goblin uses supplied Cell choice and new Lying figure from StateAfter (${mode})`, async () => {
     const printed = { content: { id: "spawn-goblin", name: "Spawn Goblin", category: "Action",

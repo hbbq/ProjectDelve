@@ -28,8 +28,13 @@ aside { overflow-wrap: anywhere; }
 .figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(7px, calc(var(--cell-size) * .24), 14px);
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
 .figure.side-blue { background: #337ab8; border-color: #a5daff; }
+.figure.large { border-radius: 18%; }
+.figure.selected { outline: 2px solid #90c8e8; outline-offset: 2px; }
+.cell.placement-preview { box-shadow: inset 0 0 0 3px #ffe084; }
 .figure.lying { aspect-ratio: 1.65; transform: translate(-50%, -50%) rotate(-25deg); border-style: dashed; }
 .figure.lying .figure-name, .figure.lying .figure-hp { transform: rotate(25deg); }
+.figure.large.lying { aspect-ratio: 1; transform: translate(-50%, -50%); opacity: .8; }
+.figure.large.lying .figure-name, .figure.large.lying .figure-hp { transform: none; }
 .figure-hp { position: absolute; bottom: -15%; min-width: 90%; padding: 1px 3px 4px;
   border: 1px solid #aeb9cb; border-radius: 4px; background: #171c26; color: #fff;
   font-size: clamp(7px, calc(var(--cell-size) * .18), 11px); line-height: 1; text-align: center;

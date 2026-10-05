@@ -7,6 +7,9 @@ namespace ProjectDelve.Engine;
 // Normal Attack is baseline; Behaviors are automated policy, not card mechanics.
 public static class UnitRoster
 {
+    public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) =>
+        UnitType.Define(id, "Red Dragon", Stats(2, 4, 4, 4, 8), Unique(), Footprint2x2());
+
     public static UnitType Ghost(string id = UnitTypeIds.Ghost) =>
         UnitType.Define(id, "Ghost", Stats(2, 1, 3, 3, 1), Phase());
 

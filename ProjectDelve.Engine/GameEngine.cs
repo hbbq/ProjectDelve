@@ -357,11 +357,13 @@ public static class GameEngine
         var candidates = new List<Candidate>();
         if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon &&
             UnitContent.Find(summon.UnitTypeId, state.Types) is { } summonedType && state.CanPlaceUnitType(summonedType))
-            for (var y = from.Y - 1; y <= from.Y + 1; y++)
-                for (var x = from.X - 1; x <= from.X + 1; x++)
+            for (var y = 0; y < state.Physical.Board.Height; y++)
+                for (var x = 0; x < state.Physical.Board.Width; x++)
                 {
                     var cell = new Cell(x, y);
-                    if (SpatialRules.CanPlaceUnit(state, cell) && SpatialRules.AreAdjacent(state.Physical.Board, from, cell))
+                    if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell) &&
+                        SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id),
+                            FootprintGeometry.OccupiedCells(summonedType.Footprint, cell)))
                         candidates.Add(new($"spawn-goblin:{x},{y}", Destination: cell, Action: UnitAction.SummonAdjacent));
                 }
         if (actions.HasFlag(UnitAction.NormalAttack))
@@ -375,8 +377,7 @@ public static class GameEngine
             candidates.AddRange(state.Units.Where(target => target.Id != unit.Id &&
                     target.SideId == unit.SideId && target.CurrentHp > 0 &&
                     target.CurrentHp < state.Types.Single(t => t.Id == target.TypeId).Hp &&
-                    SpatialRules.AreAdjacent(state.Physical.Board, from,
-                        state.Physical.Figures.Single(f => f.Id == target.Id).Position))
+                    SpatialRules.AreAdjacent(state, unit.Id, target.Id))
                 .Select(target => new Candidate($"heal:{target.Id}",
                     Action: UnitAction.Heal, TargetId: target.Id)));
         if (actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is not null &&
@@ -411,20 +412,20 @@ public static class GameEngine
     private static IEnumerable<Candidate> FireballCandidates(GameState state, Unit unit)
     {
         var board = state.Physical.Board;
-        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+        var sources = FootprintGeometry.OccupiedCells(state, unit.Id);
         var range = state.EffectiveRngOf(unit.Id);
         for (var y = 0; y < board.Height; y++)
         for (var x = 0; x < board.Width; x++)
         {
             var center = new Cell(x, y);
-            if (Math.Abs(x - from.X) + Math.Abs(y - from.Y) > range ||
-                !AttackRules.HasUnitLineOfSight(state, unit.Id, from, center)) continue;
+            if (!sources.Any(from => Math.Abs(x - from.X) + Math.Abs(y - from.Y) <= range &&
+                AttackRules.HasUnitLineOfSight(state, unit.Id, from, center))) continue;
             var targets = state.Units.Where(u => u.CurrentHp > 0)
                 .Where(u =>
                 {
-                    var position = state.Physical.Figures.Single(f => f.Id == u.Id).Position;
-                    return Math.Max(Math.Abs(position.X - x), Math.Abs(position.Y - y)) <= 1 &&
-                        AttackRules.HasGeometricLineOfSight(board, center, position);
+                    return FootprintGeometry.OccupiedCells(state, u.Id).Any(position =>
+                        Math.Max(Math.Abs(position.X - x), Math.Abs(position.Y - y)) <= 1 &&
+                        AttackRules.HasGeometricLineOfSight(board, center, position));
                 }).Select(u => u.Id).ToImmutableArray();
             yield return new Candidate($"fireball:{x},{y}", Destination: center,
                 Action: UnitAction.Fireball, Relevant: !targets.IsEmpty) { TargetIds = targets };
@@ -433,9 +434,9 @@ public static class GameEngine
 
     private static IEnumerable<Edge> AdjacentClosedDoors(GameState state, Unit unit)
     {
-        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+        var occupied = FootprintGeometry.OccupiedCells(state, unit.Id);
         return state.Physical.Board.Edges
-            .Where(edge => edge.Kind == EdgeKind.ClosedDoor && (edge.A == from || edge.B == from))
+            .Where(edge => edge.Kind == EdgeKind.ClosedDoor && (occupied.Contains(edge.A) || occupied.Contains(edge.B)))
             .Select(edge => edge.A.Y < edge.B.Y || edge.A.Y == edge.B.Y && edge.A.X < edge.B.X
                 ? edge : edge with { A = edge.B, B = edge.A })
             .OrderBy(edge => edge.A.Y).ThenBy(edge => edge.A.X)
@@ -621,10 +622,8 @@ public static class GameEngine
 
     private static IEnumerable<Unit> AdjacentHostiles(GameState state, Unit unit)
     {
-        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
         return state.Units.Where(target => target.CurrentHp > 0 && target.SideId != unit.SideId &&
-                SpatialRules.AreAdjacent(state.Physical.Board, from,
-                    state.Physical.Figures.Single(f => f.Id == target.Id).Position));
+                SpatialRules.AreAdjacent(state, unit.Id, target.Id));
     }
 
     private static void DealDamage(GameState state, string targetId, int damage,
@@ -670,7 +669,7 @@ public static class GameEngine
         var board = state.Physical.Board;
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
-            state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
+            state.Types.Any(t => !Enum.IsDefined(t.Footprint) || t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
                 t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
@@ -710,12 +709,12 @@ public static class GameEngine
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
             throw new ArgumentException("Invalid terrain tiles.");
-        if (figures.Any(f => !Inside(board, f.Position) || !board.TerrainAt(f.Position).Passable() ||
-                !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
+        if (figures.Any(f => !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
             figures.Select(f => f.Id).Distinct().Count() != figures.Count ||
-            figures.Select(f => f.Position).Distinct().Count() != figures.Count ||
             state.Units.Any(u => u.CurrentHp > 0 && !figures.Any(f => f.Id == u.Id)))
             throw new ArgumentException("Invalid figure placement.");
+        if (figures.Any(f => !SpatialRules.CanPlaceUnit(state, FootprintGeometry.FootprintOf(state, f.Id), f.Position, f.Id)))
+            throw new ArgumentException("Invalid figure footprint placement.");
         if (board.Edges.Any(e => !Inside(board, e.A) || !Inside(board, e.B) ||
             Math.Abs(e.A.X - e.B.X) + Math.Abs(e.A.Y - e.B.Y) != 1 || !Enum.IsDefined(e.Kind)) ||
             board.Edges.Select(e => e.A.Y < e.B.Y || e.A.Y == e.B.Y && e.A.X < e.B.X

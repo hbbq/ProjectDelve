@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 namespace ProjectDelve.Engine;
 
 public sealed record Cell(int X, int Y);
+public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
 public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable }
 public sealed record TerrainTile(Cell Position, TerrainKind Kind);
@@ -94,6 +95,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
     public bool Unique { get; init; }
+    public Footprint Footprint { get; init; } = Footprint.OneByOne;
     public string? DisplayName { get; init; }
     public AbilityPresentationNames AbilityNames { get; init; } = new();
     public SummonAdjacent? SummonAdjacent { get; init; }
@@ -146,6 +148,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);
+    public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitRoster.RedDragon(id);
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {
@@ -220,7 +223,7 @@ public sealed class GameState
         if (!CanPlaceUnitType(type))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play.", nameof(typeId));
         if (Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
-            !Enum.IsDefined(posture) || !SpatialRules.CanPlaceUnit(this, cell))
+            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell))
             throw new ArgumentException("Invalid Unit placement.");
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
         Units.Add(type.CreateUnit(id, sideId));
@@ -255,7 +258,7 @@ public sealed class GameState
         // Derive Fury solely from the evaluated world, including hypothetical copies.
         var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && u.SideId != unit.SideId)
             .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
-                SpatialRules.AreAdjacent(Physical.Board, figure.Position, enemyFigure.Position));
+                SpatialRules.AreAdjacent(this, unitId, enemy.Id));
         return attack + (adjacentEnemies >= fury.AdjacentEnemyThreshold ? fury.AtkBonus : 0);
     }
     // Target-specific Attack Dice, shared by legality, effectiveness and resolution.
@@ -273,7 +276,7 @@ public sealed class GameState
         if (targetFigure is null) return attack;
         var supported = Units.Any(u => u.Id != attackerId && u.CurrentHp > 0 && u.SideId == attacker.SideId &&
             Physical.Figures.SingleOrDefault(f => f.Id == u.Id) is { } friendlyFigure &&
-            SpatialRules.AreAdjacent(Physical.Board, targetFigure.Position, friendlyFigure.Position));
+            SpatialRules.AreAdjacent(this, targetId, u.Id));
         return attack + (supported ? backstab.AtkBonus : 0);
     }
     public int EffectiveMovOf(string unitId) =>
@@ -293,12 +296,12 @@ public sealed class GameState
 
         // Derive passives from this state's content and physical situation on every query.
         // No derived state is shared with live, copied or hypothetical worlds.
-        foreach (var source in Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId))
+        foreach (var source in Units.Where(u => u.Id != unitId && u.CurrentHp > 0 && u.SideId == unit.SideId))
         {
             var bonus = Types.Single(t => t.Id == source.TypeId).AdjacentFriendlyUnitsDefenceBonus;
             if (bonus is null) continue;
             var sourceFigure = Physical.Figures.SingleOrDefault(f => f.Id == source.Id);
-            if (sourceFigure is { Posture: Posture.Upright } && SpatialRules.AreAdjacent(Physical.Board, sourceFigure.Position, figure.Position))
+            if (sourceFigure is { Posture: Posture.Upright } && SpatialRules.AreAdjacent(this, source.Id, unitId))
                 defence += bonus.Amount;
         }
         return defence;

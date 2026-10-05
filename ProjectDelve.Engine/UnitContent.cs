@@ -2,6 +2,7 @@ namespace ProjectDelve.Engine;
 
 public static class UnitTypeIds
 {
+    public const string RedDragon = "red-dragon-type";
     public const string Grunt = "grunt-type";
     public const string Zombie = "zombie-type";
     public const string Ghost = "ghost-type";
@@ -21,6 +22,7 @@ internal static class UnitContent
     internal static UnitType? Find(string id, IReadOnlyList<UnitType>? existing = null) =>
         existing?.SingleOrDefault(t => t.Id == id) ?? (id switch
         {
+            UnitTypeIds.RedDragon => UnitRoster.RedDragon(),
             UnitTypeIds.Grunt => UnitRoster.Grunt(),
             UnitTypeIds.Zombie => UnitRoster.Zombie(),
             UnitTypeIds.Ghost => UnitRoster.Ghost(),

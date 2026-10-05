@@ -115,10 +115,10 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
             .FirstOrDefault();
 
         if (nearest is not null) return nearest.Candidate.Key;
-        var from = queries.PositionOf(request.UnitId!);
+        var occupied = queries.OccupiedCellsOf(request.UnitId!);
         var door = request.Candidates.Where(c => c.TryOpenDoor is not null)
-            .OrderBy(c => (c.Door!.A == from ? c.Door.B : c.Door.A).Y)
-            .ThenBy(c => (c.Door!.A == from ? c.Door.B : c.Door.A).X)
+            .OrderBy(c => (occupied.Contains(c.Door!.A) ? c.Door.B : c.Door.A).Y)
+            .ThenBy(c => (occupied.Contains(c.Door!.A) ? c.Door.B : c.Door.A).X)
             .FirstOrDefault();
         return door?.Key ?? NoCandidate(request);
     }

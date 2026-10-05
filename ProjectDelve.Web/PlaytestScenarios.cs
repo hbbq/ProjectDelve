@@ -14,7 +14,7 @@ public static class PlaytestScenarios
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
-        new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman through multiple routes as it spawns Goblins.")
+        new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach.")
     ]);
 
     public static GameState Create(string id) => id switch
@@ -113,7 +113,8 @@ public static class PlaytestScenarios
         return Setup(board, [
             (UnitType.Barbarian(), "barbarian", 2, 6), (UnitType.Rogue(), "rogue", 3, 7),
             (UnitType.Wizard(), "wizard", 2, 7), (UnitType.Cleric(), "cleric", 1, 7),
-            (UnitType.Shaman(), "shaman-1", 7, 5), (UnitType.Grunt(), "grunt-1", 5, 8)]);
+            (UnitType.Shaman(), "shaman-1", 7, 5), (UnitType.Grunt(), "grunt-1", 5, 8),
+            (UnitType.RedDragon(), "red-dragon", 11, 5)]);
     }
 
     private static GameState Setup(Board board, (UnitType Type, string Id, int X, int Y)[] units) => new()

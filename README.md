@@ -69,11 +69,11 @@ The Web host serves a plain HTML/CSS/JavaScript client and six server-owned play
 | `archers` | Archers | 12x12 | Barbarian, Rogue; Grunts, Goblins and Skeleton Archers |
 | `wizard-doors` | Wizard / Doors | 15x15 | Barbarian, Rogue, Wizard; Goblins, Skeleton Archers, Zombies and a Ghost |
 | `full-party-trolls` | Full Party / Trolls | 15x15 | All four Heroes; Goblins, Skeleton Archers, Zombies and Trolls |
-| `shaman-hunt` | Shaman Hunt | 15x15 | All four Heroes; Shaman and Grunt, with no initial Goblins |
+| `shaman-hunt` | Shaman Hunt | 15x15 | All four Heroes; Shaman, Grunt and a 2x2 Red Dragon, with no initial Goblins |
 
 Basic Combat is the startup default. Select a setup, click **Start selected**, then **Start round**. Choose for its Heroes; Monster choices use `DefaultMonsterProvider` automatically. Completed rounds wait for **Start next round**. These are test content with no victory conditions or progression. Exact maps and placements are editable factories in `ProjectDelve.Web/PlaytestScenarios.cs`; the browser receives catalog metadata and authoritative game snapshots.
 
-Across the catalog, the roster includes all ten current Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
+Across the catalog, the roster includes all twelve current Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
 
 | Type | Stats | Actions / special content |
 | --- | --- | --- |
@@ -82,6 +82,8 @@ Across the catalog, the roster includes all ten current Unit Types (stats in MOV
 | Cleric | 3 / 1 / 3 / 3 / 4 | NormalAttack, OpenDoor, Heal, Holy Wave, Aura |
 | Wizard | 2 / 4 / 3 / 2 / 4 | NormalAttack, OpenDoor, Focus, Fireball, Telekinesis |
 | Grunt | 3 / 1 / 3 / 3 / 1 | NormalAttack only; no special capability or behavior |
+| Ghost | 2 / 1 / 3 / 3 / 1 | NormalAttack, Phase |
+| Red Dragon | 2 / 4 / 4 / 4 / 8 | NormalAttack only; Unique; 2x2 footprint |
 | Zombie | 2 / 1 / 3 / 3 / 1 | NormalAttack, TryOpenDoor(2/6), ApproachThroughClosedDoors |
 | Skeleton Archer | 3 / 4 / 3 / 3 / 1 | NormalAttack, MaximizeAttackDistance |
 | Goblin | 4 / 1 / 2 / 2 / 1 | NormalAttack, MoveAfterAttack(1), BackAwayAfterAttack |
@@ -90,7 +92,9 @@ Across the catalog, the roster includes all ten current Unit Types (stats in MOV
 
 Early maps offer movement, flanks, retreat space and broken sight lines. Wizard / Doors encloses a five-by-five room with two gates: Zombies try the Doors while a Ghost near the southwest corner can phase through the Walls toward the Heroes, still needing ordinary LOS to attack. Full Party / Trolls adds another broad gated room and partial partitions, leaving several routes through the central area. Shaman Hunt uses staggered walls, open Doors and obstacles; the Shaman remains reachable and flees through ordinary terrain paths. Its first spawned Goblin begins Lying and enters a later round's bag only through the normal snapshot rules. No scenario adds special rules.
 
-The responsive layout caps board width by the viewport height on desktop, gives the board a larger column beside the debug panel, and stacks the panel below at narrow widths. Explicit shrinkable grid tracks keep cells square; percentage positioning aligns figures, edges, movement highlights, and click targets. Cell labels, figures, and edge thickness scale with the board. Small cells retain coordinates and terrain tooltips even when their text is compact. No game rules run in JavaScript.
+Figures support exactly 1x1 and 2x2 footprints. Position is the top-left occupied Cell, movement paths contain anchors, and a large base remains one Unit for activation, HP and effects. The engine validates every occupied Cell and internal Edge. Shaman Hunt places Red Dragon in its broad eastern area near the partitions, using ordinary Default Monster Behavior without Dragon-specific mechanics.
+
+The responsive layout caps board width by the viewport height on desktop, gives the board a larger column beside the debug panel, and stacks the panel below at narrow widths. Explicit shrinkable grid tracks keep cells square; percentage positioning aligns figures, edges, movement highlights, and click targets. Cell labels, figures, and edge thickness scale with the board. Small cells retain coordinates and terrain tooltips even when their text is compact. Authoritative figure geometry and placement previews come from the browser projection, including progressive snapshots. Any occupied Cell can identify a large Unit, while Cell-targeted choices remain distinct beneath its base. No game rules run in JavaScript.
 
 Events play sequentially: movement follows the engine's canonical path, attacks show the supplied Hits/Blocks/Damage, death removes a figure, and door opening changes the visible edge. HP and round/current-Unit labels synchronize to the authoritative snapshot after playback. **Skip effects** ends playback quickly; uncheck **Animate events** to use immediate rendering. **Refresh** fetches the current snapshot without replaying old events. The browser performs no movement, combat, activation, or Monster rules.
 

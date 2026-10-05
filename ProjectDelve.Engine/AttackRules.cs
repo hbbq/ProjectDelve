@@ -18,6 +18,13 @@ internal static class AttackRules
     internal static UnitTargetEvaluation EvaluateApproachFrom(
         GameState state, string attackerId, Cell from, string targetId)
     {
+        // Position-dependent passives must see the same placement as targeting geometry.
+        var figure = state.Physical.Figures.Single(f => f.Id == attackerId);
+        if (figure.Position != from)
+        {
+            state = state.Copy();
+            state.Physical.Figures[state.Physical.Figures.FindIndex(f => f.Id == attackerId)] = figure with { Position = from };
+        }
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
         if (!state.IsUpright(attackerId) || !stats.Actions.HasFlag(UnitAction.NormalAttack) || state.EffectiveAtkAgainst(attackerId, targetId) <= 0)
@@ -36,29 +43,34 @@ internal static class AttackRules
         if (range <= 0 || target.CurrentHp == 0 || target.SideId == attacker.SideId)
             return UnitTargetEvaluation.NotPossible;
 
-        var to = state.Physical.Figures.Single(f => f.Id == target.Id).Position;
-        var dx = Math.Abs(to.X - from.X);
-        var dy = Math.Abs(to.Y - from.Y);
-        if (from == to || (range == 1 ? Math.Max(dx, dy) != 1 : dx + dy > range))
-            return UnitTargetEvaluation.NotPossible;
-
-        return HasUnitLineOfSight(state, sourceId, from, to)
+        return FootprintGeometry.OccupiedCells(state, sourceId, from).Any(source =>
+            FootprintGeometry.OccupiedCells(state, targetId).Any(to => InRange(source, to, range) &&
+                HasUnitLineOfSight(state, sourceId, source, to, targetId)))
             ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
     }
 
+    private static bool InRange(Cell from, Cell to, int range)
+    {
+        var dx = Math.Abs(to.X - from.X);
+        var dy = Math.Abs(to.Y - from.Y);
+        return from != to && (range == 1 ? Math.Max(dx, dy) == 1 : dx + dy <= range);
+    }
+
     // Unit-origin LOS shares board geometry, then checks hostile figure interiors.
-    // Endpoint occupants do not intervene; hypothetical origins vacate the source's actual Cell.
-    internal static bool HasUnitLineOfSight(GameState state, string sourceId, Cell from, Cell to)
+    // Source and target exemptions are by identity, including every occupied Cell.
+    internal static bool HasUnitLineOfSight(GameState state, string sourceId, Cell from, Cell to, string? targetId = null)
     {
         if (!HasGeometricLineOfSight(state.Physical.Board, from, to)) return false;
+        targetId ??= FootprintGeometry.UnitAtCell(state, to);
         var side = state.Units.Single(u => u.Id == sourceId).SideId;
-        return !state.Units.Where(u => u.CurrentHp > 0 && u.SideId != side && u.Id != sourceId)
-            .Any(u =>
-            {
-                var position = state.Physical.Figures.Single(f => f.Id == u.Id).Position;
-                return position != from && position != to && CrossesInterior(from, to, position);
-            });
+        return !state.Units.Where(u => u.CurrentHp > 0 && u.SideId != side && u.Id != sourceId && u.Id != targetId)
+            .Any(u => FootprintGeometry.OccupiedCells(state, u.Id)
+                .Any(position => position != from && position != to && CrossesInterior(from, to, position)));
     }
+
+    internal static bool HasUnitLineOfSight(GameState state, string sourceId, string targetId) =>
+        FootprintGeometry.OccupiedCells(state, sourceId).Any(from =>
+            FootprintGeometry.OccupiedCells(state, targetId).Any(to => HasUnitLineOfSight(state, sourceId, from, to, targetId)));
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.
     internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to) =>

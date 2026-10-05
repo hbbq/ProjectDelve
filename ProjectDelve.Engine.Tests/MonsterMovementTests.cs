@@ -146,6 +146,7 @@ public sealed class MonsterMovementTests
         public HashSet<Cell> AttackPositions { get; } = [];
         public Dictionary<Cell, int?> Distances { get; } = [];
         public Cell PositionOf(string unitId) => Current;
+        public IReadOnlyList<Cell> OccupiedCellsOf(string unitId) => [Current];
         public UnitBehavior BehaviorsOf(string unitId) => UnitBehavior.None;
         public int? DistanceToNearestHostileFrom(string unitId, Cell position, bool closedDoorsTraversable = false) =>
             throw new InvalidOperationException("Ordinary approach does not flee.");

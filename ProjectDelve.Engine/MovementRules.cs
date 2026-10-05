@@ -28,9 +28,11 @@ internal static class MovementRules
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
         var traversal = MovementTraversal.For(state, moverId);
-        // Relocate only the mover: its original cell is now unoccupied.
+        var footprint = FootprintGeometry.FootprintOf(state, moverId);
+        // Relocate only the mover: its entire original footprint is now unoccupied.
         var occupants = state.Physical.Figures.Where(f => f.Id != moverId)
-            .ToDictionary(f => f.Position);
+            .SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id).Select(c => (Cell: c, Figure: f)))
+            .ToDictionary(p => p.Cell, p => p.Figure);
         var paths = new Dictionary<Cell, List<Cell>> { [from] = [from] };
         var queue = new Queue<Cell>();
         queue.Enqueue(from);
@@ -40,12 +42,10 @@ internal static class MovementRules
             if (paths[current].Count - 1 == maxSteps) continue;
             foreach (var to in Neighbors(current)) // top, left, right, bottom
             {
-                if (!Inside(state.Physical.Board, to) || paths.ContainsKey(to) ||
-                    !traversal.CanTraverse(state.Physical.Board.TerrainAt(to)) ||
-                    !traversal.CanTraverse(state.Physical.Board.EdgeBetween(current, to)))
+                if (paths.ContainsKey(to) || !CanStep(state.Physical.Board, footprint, current, to, traversal))
                     continue;
-                if (occupants.TryGetValue(to, out var occupant) &&
-                    state.Units.Single(u => u.Id == occupant.Id).SideId != unit.SideId)
+                if (FootprintGeometry.OccupiedCells(footprint, to).Any(c => occupants.TryGetValue(c, out var occupant) &&
+                    state.Units.Single(u => u.Id == occupant.Id).SideId != unit.SideId))
                     continue;
                 paths[to] = [.. paths[current], to];
                 queue.Enqueue(to);
@@ -54,10 +54,16 @@ internal static class MovementRules
 
         // Friendly and impassable terrain cells may be traversed but cannot be destinations.
         return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(paths
-            .Where(pair => !occupants.ContainsKey(pair.Key) && state.Physical.Board.TerrainAt(pair.Key).Passable())
+            .Where(pair => SpatialRules.Fits(state.Physical.Board, footprint, pair.Key) &&
+                FootprintGeometry.OccupiedCells(footprint, pair.Key).All(c => !occupants.ContainsKey(c)))
             .ToDictionary(pair => pair.Key,
                 pair => (IReadOnlyList<Cell>)pair.Value.AsReadOnly()));
     }
+
+    internal static bool CanStep(Board board, Footprint footprint, Cell from, Cell to, MovementTraversal traversal) =>
+        SpatialRules.Fits(board, footprint, to, traversal) &&
+        FootprintGeometry.OccupiedCells(footprint, from).All(c =>
+            traversal.CanTraverse(board.EdgeBetween(c, new(c.X + to.X - from.X, c.Y + to.Y - from.Y))));
 
     internal static IEnumerable<Cell> Neighbors(Cell cell)
     {
@@ -80,7 +86,8 @@ internal static class ApproachRules
         Distances(board, from, goal, closedDoorsTraversable, traversal).TryGetValue(goal, out var distance) ? distance : null;
 
     internal static IReadOnlyDictionary<Cell, int> Distances(Board board, Cell from, Cell? goal = null,
-        bool closedDoorsTraversable = false, MovementTraversal traversal = default)
+        bool closedDoorsTraversable = false, MovementTraversal traversal = default,
+        Footprint footprint = Footprint.OneByOne)
     {
         traversal = traversal with { ClosedDoorsTraversable = traversal.ClosedDoorsTraversable || closedDoorsTraversable };
         if (!MovementRules.Inside(board, from) || goal is not null && !MovementRules.Inside(board, goal))
@@ -94,9 +101,13 @@ internal static class ApproachRules
             if (current == goal) continue;
             foreach (var next in MovementRules.Neighbors(current))
             {
-                if (!MovementRules.Inside(board, next) || distances.ContainsKey(next) ||
-                    !traversal.CanTraverse(board.EdgeBetween(current, next)) ||
-                    next != goal && !traversal.CanTraverse(board.TerrainAt(next))) continue;
+                if (distances.ContainsKey(next)) continue;
+                // Exceptional goal Cells belong to the 1x1 distance calculation used by Flee.
+                if (next == goal && footprint == Footprint.OneByOne)
+                {
+                    if (!MovementRules.Inside(board, next) || !traversal.CanTraverse(board.EdgeBetween(current, next))) continue;
+                }
+                else if (!MovementRules.CanStep(board, footprint, current, next, traversal)) continue;
                 distances[next] = distances[current] + 1;
                 queue.Enqueue(next);
             }
@@ -114,9 +125,7 @@ internal static class HypotheticalPosition
         var unit = state.Units.Single(u => u.Id == unitId);
         if (unit.CurrentHp <= 0 || !state.Physical.Figures.Any(f => f.Id == unitId))
             throw new ArgumentException("The querying unit must be alive and placed.", nameof(unitId));
-        var board = state.Physical.Board;
-        if (from.X < 0 || from.X >= board.Width || from.Y < 0 || from.Y >= board.Height ||
-            state.Physical.Figures.Any(f => f.Id != unitId && f.Position == from))
-            throw new ArgumentException("The hypothetical position must be on the board and unoccupied by other figures.", nameof(from));
+        if (!SpatialRules.CanPlaceUnit(state, FootprintGeometry.FootprintOf(state, unitId), from, unitId))
+            throw new ArgumentException("The hypothetical footprint must be a normally legal placement, free of other figures.", nameof(from));
     }
 }

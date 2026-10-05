@@ -270,6 +270,7 @@ public sealed class ShamanTests
     }
     private sealed class FleeRankingQueries(IGameplayQueries real, Dictionary<Cell, int?> distances) : IGameplayQueries
     {
+        public IReadOnlyList<Cell> OccupiedCellsOf(string unitId) => real.OccupiedCellsOf(unitId);
         public Cell PositionOf(string id) => real.PositionOf(id);
         public UnitBehavior BehaviorsOf(string id) => real.BehaviorsOf(id);
         public int? DistanceToNearestHostileFrom(string id, Cell cell, bool closedDoorsTraversable = false) => distances[cell];

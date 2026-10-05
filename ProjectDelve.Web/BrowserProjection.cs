@@ -6,19 +6,32 @@ public enum InteractionKind { Direct, Unit, Position, Door }
 public sealed record ChoiceInteraction(InteractionKind Kind, string? UnitId = null,
     Cell? Position = null, Edge? Door = null);
 public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
-    bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds);
+    bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds)
+{
+    public IReadOnlyList<Cell> PlacementCells { get; init; } = [];
+}
+public sealed record FigureGeometry(Cell Anchor, IReadOnlyList<Cell> OccupiedCells, int CellSpan);
 public sealed record BrowserDecision(string? UnitId, string Prompt,
     IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice);
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses);
-public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries);
+public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
+{
+    public string? FootprintLabel { get; init; }
+}
 public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Death, DoorAttempt, DoorOpened }
 public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitId = null,
     string? TargetId = null, List<Cell>? Path = null, Edge? Door = null,
     int Hits = 0, int Blocks = 0, int Damage = 0);
-public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards);
+public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
+{
+    public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
+}
 public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> Cards,
     BrowserDecision? Decision, IReadOnlyList<BrowserOutcome> Events,
-    IReadOnlyList<BrowserResolutionStep> ResolutionSteps);
+    IReadOnlyList<BrowserResolutionStep> ResolutionSteps)
+{
+    public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
+}
 
 // An adapter over authoritative engine results; never generates or filters legal choices.
 // The raw EngineResult remains available, including all progressive StateAfter snapshots.
@@ -27,13 +40,24 @@ public static class BrowserProjection
     public static BrowserPresentation Create(EngineResult result) => new(
         Cards(result.State), Decision(result.NextInput, result.State),
         result.Events.Select(e => Outcome(e, result.State)).ToArray(),
-        result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))).ToArray());
+        result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))
+            { Figures = Figures(s.StateAfter) }).ToArray()) { Figures = Figures(result.State) };
+
+    public static IReadOnlyDictionary<string, FigureGeometry> Figures(GameState state) =>
+        state.Physical.Figures.ToDictionary(f => f.Id, f =>
+        {
+            var cells = FootprintGeometry.OccupiedCells(state, f.Id);
+            return new FigureGeometry(f.Position, cells, cells.Max(c => c.X) - f.Position.X + 1);
+        });
 
     public static IReadOnlyDictionary<string, UnitCard> Cards(GameState state) => state.Units.ToDictionary(u => u.Id, u =>
     {
         var type = state.Types.Single(t => t.Id == u.TypeId);
         return new UnitCard(type.DisplayName ?? type.Id,
-            type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray());
+            type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray())
+        {
+            FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : "Footprint 1 × 1"
+        };
     });
 
     public static BrowserDecision? Decision(DecisionRequest? request, GameState state)
@@ -65,7 +89,15 @@ public static class BrowserProjection
             };
             IReadOnlyList<string> affected = !c.TargetIds.IsEmpty ? c.TargetIds.ToArray()
                 : c.TargetId is not null ? [c.TargetId] : [];
-            return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected);
+            return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
+            {
+                PlacementCells = c.Destination is null ? [] :
+                    c.Kind == ActivationChoiceKind.Move
+                        ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
+                        : c.Action == UnitAction.SummonAdjacent
+                            ? FootprintGeometry.PlacementCells(state, type.SummonAdjacent!.UnitTypeId, c.Destination)
+                            : []
+            };
         }).ToArray();
         var continuation = request.Kind == DecisionKind.Cleave ? entries.GetValueOrDefault("cleave")
             : request.IsMoveAfterAttack ? entries.GetValueOrDefault("move-after-attack") : null;

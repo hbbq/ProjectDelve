@@ -10,6 +10,7 @@ let displayedState;
 let latestUnitId;
 let hoveredUnitId;
 let displayedCards;
+let displayedFigures;
 const cardChoiceKeys = new Set();
 const boardChoiceKeys = new Set();
 let boardChooser;
@@ -27,8 +28,18 @@ const abbreviatedName = name => {
 };
 
 function placeFigure(node, cell, board) {
-  node.style.left = `${(cell.x + .5) / board.width * 100}%`;
-  node.style.top = `${(cell.y + .5) / board.height * 100}%`;
+  // Visual placement only; gameplay geometry always comes from occupied Cell centers.
+  const span = Number(node.dataset.cellSpan ?? 1);
+  node.style.left = `${(cell.x + span / 2) / board.width * 100}%`;
+  node.style.top = `${(cell.y + span / 2) / board.height * 100}%`;
+}
+
+// Compatibility for older 1x1 projections; current responses always supply geometry.
+const figureCells = figure => displayedFigures?.[figure.id]?.occupiedCells ?? [figure.position];
+function inspectCell(key) {
+  hoveredUnitId = displayedState?.physical.figures.find(figure =>
+    figureCells(figure).some(cell => cellKey(cell) === key))?.id ?? null;
+  renderUnitCard();
 }
 
 function renderBoard(state, preserveNodes = false) {
@@ -58,7 +69,11 @@ function renderBoard(state, preserveNodes = false) {
     node.title = kind;
     const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", StoneFloorWithTable: "Table" }[kind];
     if (symbol) node.append(text("span", symbol));
-    if (!cells.has(key)) ui.board.append(node);
+    if (!cells.has(key)) {
+      node.addEventListener("mouseenter", () => inspectCell(key));
+      node.addEventListener("mouseleave", () => { hoveredUnitId = null; renderUnitCard(); });
+      ui.board.append(node);
+    }
     cells.set(key, node);
   }
   for (const edge of board.edges) {
@@ -90,8 +105,11 @@ function renderBoard(state, preserveNodes = false) {
     node.style.transition = "none";
     delete node.dataset.hpLabel;
     node.removeAttribute("aria-label");
-    node.className = `figure${unit?.sideId === "blue" ? " side-blue" : ""}${figure.posture === "Lying" ? " lying" : ""}`;
-    node.style.width = `${70 / board.width}%`;
+    const span = displayedFigures?.[figure.id]?.cellSpan ?? 1;
+    node.dataset.cellSpan = span;
+    node.className = `figure${span > 1 ? " large" : ""}${unit?.sideId === "blue" ? " side-blue" : ""}${figure.posture === "Lying" ? " lying" : ""}${state.currentUnitId === figure.id ? " selected" : ""}`;
+    node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
+    node.style.pointerEvents = "";
     node.title = `${figure.id} · ${figure.posture}`;
     node.dataset.postureLabel = node.title;
     if (type?.hp > 1) {
@@ -120,8 +138,9 @@ function renderBoard(state, preserveNodes = false) {
   }
 }
 
-function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures) {
   displayedCards = cards;
+  displayedFigures = geometry;
   renderBoard(state, preserveNodes);
   const typeName = state.types.find(type => type.id === state.activeTypeId)?.displayName ?? state.activeTypeId;
   ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${typeName} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
@@ -155,6 +174,7 @@ function renderUnitCard() {
   }
   card.append(stats);
   card.append(text("p", `HP ${unit.currentHp} / ${type.hp}`));
+  if (content.footprintLabel) card.append(text("small", content.footprintLabel));
   for (const entry of content.entries) {
     const row = text("div", ""); row.className = "card-ability";
     const ability = entry.content;
@@ -182,15 +202,21 @@ function renderUnitCard() {
 
 function clearAffectedPreview() {
   for (const node of figures.values()) node.classList.remove("affected-preview");
+  for (const node of cells.values()) node.classList.remove("placement-preview");
+}
+
+function previewChoice(candidate) {
+  clearAffectedPreview();
+  if (busy || !visibleChoice(candidate)) return;
+  for (const id of candidate.affectedUnitIds) figures.get(id)?.classList.add("affected-preview");
+  for (const cell of candidate.placementCells ?? []) cells.get(cellKey(cell))?.classList.add("placement-preview");
 }
 
 function choiceButton(candidate) {
   const button = text("button", candidate.label);
   button.addEventListener("click", () => chooseCandidate(candidate.key));
   const preview = () => {
-    clearAffectedPreview();
-    if (busy || !visibleChoice(candidate)) return;
-    for (const id of candidate.affectedUnitIds) figures.get(id)?.classList.add("affected-preview");
+    previewChoice(candidate);
   };
   button.addEventListener("mouseenter", preview);
   button.addEventListener("focus", preview);
@@ -254,11 +280,15 @@ function renderSnapshot() {
     if (selection.kind === "Unit") {
       offer(figures.get(selection.unitId), candidate);
       const figure = state.physical.figures.find(figure => figure.id === selection.unitId);
-      if (figure) offer(cells.get(cellKey(figure.position)), candidate);
+      if (figure) for (const cell of figureCells(figure)) offer(cells.get(cellKey(cell)), candidate);
     } else if (selection.kind === "Position") {
       offer(cells.get(cellKey(selection.position)), candidate);
       for (const figure of state.physical.figures) {
-        if (cellKey(figure.position) === cellKey(selection.position)) offer(figures.get(figure.id), candidate);
+        if (figureCells(figure).some(cell => cellKey(cell) === cellKey(selection.position))) {
+          if (figureCells(figure).length === 1) offer(figures.get(figure.id), candidate);
+          // Preserve exact Cell targeting underneath a large Figure.
+          else figures.get(figure.id).style.pointerEvents = "none";
+        }
       }
     } else if (selection.kind === "Door") {
       offer(edges.get(edgeKey(selection.door)), candidate);
@@ -289,6 +319,15 @@ function bindBoardChoice(node, candidates) {
     ui.choices.querySelectorAll("button")[0]?.focus();
   };
   node.classList.add("board-choice");
+  if (candidates.length === 1) {
+    node.addEventListener("mouseenter", () => {
+      if (node.dataset.cell) inspectCell(node.dataset.cell);
+      previewChoice(candidates[0]);
+    });
+    node.addEventListener("focus", () => previewChoice(candidates[0]));
+    node.addEventListener("mouseleave", clearAffectedPreview);
+    node.addEventListener("blur", clearAffectedPreview);
+  }
   if (node.classList.contains("cell")) node.classList.add("legal");
   const accessibleLabel = [label, node.dataset.postureLabel, node.dataset.hpLabel].filter(Boolean).join(" · ");
   node.title = accessibleLabel;
@@ -365,7 +404,10 @@ async function mutate(operation, body = {}) {
     for (const [index, event] of snapshot.presentation.events.entries()) {
       ui.events.append(text("li", describe(event)));
       if (!skipEffects) await present(event);
-      if (steps.has(index)) renderState(steps.get(index), true, snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index).cards);
+      if (steps.has(index)) {
+        const projected = snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index);
+        renderState(steps.get(index), true, projected.cards, projected.figures);
+      }
     }
   } catch (error) {
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;

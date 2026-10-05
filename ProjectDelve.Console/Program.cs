@@ -77,7 +77,7 @@ static void ShowState(GameState state)
         Console.Write($"{y,2}  |");
         for (var x = 0; x < board.Width; x++)
         {
-            var figure = state.Physical.Figures.FirstOrDefault(f => f.Position == new Cell(x, y));
+            var figure = state.Physical.Figures.FirstOrDefault(f => FootprintGeometry.OccupiedCells(state, f.Id).Contains(new Cell(x, y)));
             var symbol = figure?.Id switch
             {
                 "hero" => "H",

@@ -37,6 +37,7 @@ public static class UnitAuthoring
 
     public static Entry CantAttack() => new CantAttackEntry();
     public static Entry Unique() => new UniqueEntry();
+    public static Entry Footprint2x2() => new FootprintEntry();
     public static Entry OpenDoor() => new OpenDoorEntry();
     public static Entry Phase() => new PhaseEntry();
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
@@ -135,6 +136,10 @@ public static class UnitAuthoring
     private sealed class UniqueEntry : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { Unique = true };
+    }
+    private sealed class FootprintEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Footprint = Footprint.TwoByTwo };
     }
     private sealed class CantAttackEntry : Entry
     {
