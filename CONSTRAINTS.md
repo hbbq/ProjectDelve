@@ -614,6 +614,24 @@ Once laid down by Undying, the Troll follows the ordinary Posture rules. When it
 
 Undying is the first concrete rule that replaces normal Death according to current Posture. Implement only the narrow extension required by this content; it does not establish a general death-replacement, resurrection, trigger-stack, or condition framework.
 
+#### Ghost
+
+Ghost is a phasing Monster that uses the normal Monster Behavior but treats the board differently for movement and movement-path analysis.
+
+- Stats: `MOV 2`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 1`.
+- Actions: Normal Attack.
+- Capabilities: Phase.
+
+**Phase** changes traversal for this Unit's movement and movement-path analysis. While determining where the Ghost can move or how it can reach future positions, treat all terrain Cells and all Edges as passable. For movement purposes, the map therefore behaves like an unobstructed floor grid except for Units.
+
+Units continue to affect movement normally. Friendly Units may be passed through but cannot be the destination. Hostile Units cannot be passed through or used as the destination.
+
+Phase changes traversal only. A Ghost must end every Move in an unoccupied Cell that is normally passable for a figure; it cannot end its Move in otherwise impassable terrain or fixed-object space. It may pass through such Cells and through normally impassable Edges during the Move.
+
+Phase also applies when Default Monster Behavior evaluates reachable attack positions and remaining approach distance for the Ghost. Those analyses use the Ghost's actual phasing traversal rather than ordinary terrain/edge passability. This may make a route through otherwise impassable Cells or Edges the shortest route to a Cell from which a legal Attack can be made, or may make a longer movement route preferable because it leads toward such an attack position.
+
+Phase does not alter Range, Line of Sight, targeting, or Attack rules. A Ghost's Normal Attack requires ordinary legal Range and normal Unit-origin Line of Sight. Terrain and Edges therefore continue to block its attacks according to their ordinary LOS properties even though the Ghost may move through them.
+
 #### Shaman
 
 Shaman is a non-attacking Monster that creates Goblins and tries to keep away from reachable enemies.
