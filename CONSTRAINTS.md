@@ -634,6 +634,46 @@ Once laid down by Undying, the Troll follows the ordinary Posture rules. When it
 
 Undying is the first concrete rule that replaces normal Death according to current Posture. Implement only the narrow extension required by this content; it does not establish a general death-replacement, resurrection, trigger-stack, or condition framework.
 
+#### Red Dragon
+
+Red Dragon is a Unique 2 × 2 Monster. Its large footprint uses the ordinary footprint rules and does not make it a separate boss category.
+
+- Unique: yes.
+- Footprint: `2 × 2`.
+- Stats: `MOV 2`, `RNG 4`, `ATK 4`, `DEF 4`, `HP 8`.
+- Actions: Normal Attack; Fire Breath; Claw Attack.
+- Behaviors: prefer Fire Breath when it has at least 2 legal targets; otherwise prefer Claw Attack when possible; otherwise prefer Normal Attack; otherwise use ordinary Default Monster Behavior movement/approach.
+
+**Fire Breath** is an Action:
+
+```text
+Fire Breath
+Action
+
+Attack all enemies within RNG.
+```
+
+Fire Breath targets every hostile Unit that is a legal target under the ordinary ranged Range and Unit-origin Line of Sight rules. For a multi-Cell source or target, the established same-occupied-Cell-pair Range-and-LOS rule applies. Fire Breath is one Attack with multiple targets, so it uses the normal shared Attack Dice roll: roll the Red Dragon's authoritative Attack Dice once and use that Hit result against every target, while each target rolls its own snapshotted Defence Dice and resolves its own Damage.
+
+Fire Breath has no usage limit or additional area shape. It attacks Units directly; it does not select an explosion Cell and does not use Fireball's explosion rules.
+
+For automated Red Dragon play, Fire Breath is preferred as the Action only when it currently has at least two legal targets. With fewer than two legal targets, continue to the next Action preference.
+
+**Claw Attack** is an Action:
+
+```text
+Claw Attack
+Action
+
+Attack one adjacent enemy with ATK +1.
+```
+
+A legal Claw Attack target is one adjacent hostile Unit under the ordinary footprint-aware adjacency rule. Claw Attack is an Attack and uses the Red Dragon's authoritative `ATK` with an additional `+1 ATK` for that Attack. With the current base stats it therefore normally rolls 5 Attack Dice. It otherwise uses ordinary single-target Attack resolution.
+
+For automated Red Dragon play, when Fire Breath does not have at least two legal targets and one or more Claw Attack targets exist, prefer Claw Attack. Choose among legal Claw Attack targets using the ordinary Default Monster Behavior target ranking. If no Claw Attack is possible, prefer an ordinary Normal Attack when one is legal. If none of these Actions is currently possible, movement and approach use ordinary Default Monster Behavior rather than Dragon-specific pathfinding.
+
+These preferences choose among authoritative legal Actions and targets. They do not alter Range, Line of Sight, adjacency, movement, or Attack legality.
+
 #### Ghost
 
 Ghost is a phasing Monster that uses the normal Monster Behavior but treats the board differently for movement and movement-path analysis.
@@ -1180,6 +1220,8 @@ Those dice counts remain fixed for the remainder of that Attack. State changes c
 This is a snapshot of the Attack's targets and dice counts, not a snapshot of the whole Game State and not simultaneous Damage resolution. Once that Attack has fully resolved, its state changes affect subsequent Attacks normally.
 
 The attacker rolls a number of Attack Dice equal to the authoritative `ATK` for that specific Attack, including any applicable target-specific modifiers such as Backstab.
+
+An Attack rolls its Attack Dice **once**, regardless of how many Units it targets. If an Attack has multiple targets, the same Attack Dice result and Hit count are used against every target. Each target still rolls its own snapshotted Defence Dice separately, and Damage is determined separately for each target. This shared Attack roll is the normal multi-target Attack rule rather than a Fireball-specific exception.
 
 An Attack Die is a physical six-sided die with:
 
