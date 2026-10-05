@@ -12,7 +12,7 @@ public static class UnitRoster
 
     public static UnitType Zombie(string id = UnitTypeIds.Zombie) =>
         UnitType.Define(id, "Zombie", Stats(2, 1, 3, 3, 1),
-            Ability("Try Open Door", Unlimited(), TryOpenDoor(successes: 2)))
+            Ability("Break Door", Unlimited(), TryOpenDoor(successes: 2)))
         .WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) =>
@@ -26,7 +26,7 @@ public static class UnitRoster
 
     public static UnitType Troll(string id = UnitTypeIds.Troll) =>
         UnitType.Define(id, "Troll", Stats(2, 1, 4, 4, 1),
-            Ability("Try Open Door", Unlimited(), TryOpenDoor(successes: 4)),
+            Ability("Smash Door", Unlimited(), TryOpenDoor(successes: 4)),
             Ability("Undying", Unlimited(), Undying()))
         .WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
