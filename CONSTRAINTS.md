@@ -682,6 +682,24 @@ State-dependent modifiers are derived from the authoritative Game State being ev
 
 This also applies to copied or hypothetical Game States used by relevance evaluation. A state-dependent modifier must be calculated from the hypothetical state's own positions, Units, terrain, edges, and other relevant state, not from cached or precomputed information belonging to the original/live state. Implementations may optimize derived calculations later if necessary, but any cache must remain non-authoritative and preserve these semantics.
 
+The Cleric also has the limited-use Action ability **Heal**:
+
+```text
+Heal [2/game]
+Action
+
+Restore up to 2 HP to an adjacent
+damaged friendly Unit.
+```
+
+Heal starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity, so using Heal consumes the Cleric's Action for that activation just as a normal Attack would.
+
+A legal Heal target is a friendly Unit other than the Cleric that is adjacent under the same eight-surrounding-cells plus normal Line of Sight rule used by Aura, and whose current HP is below its maximum HP. A Unit at maximum HP is not a legal Heal target. Because the Cleric is not adjacent to itself, Heal cannot target the Cleric.
+
+Resolving Heal immediately spends one use and restores up to 2 current HP to the chosen target, never increasing current HP above that Unit's maximum HP. A Unit missing only 1 HP is therefore a legal target and restores 1 HP. Heal involves no dice roll.
+
+After Heal resolves, the Cleric's Action is complete and ordinary legal choices are generated again from the resulting state. Heal does not introduce a general healing, targeting, or effect framework beyond the rules required by this concrete ability.
+
 ### Bonus Actions
 
 Each individual ability explicitly marked `Bonus Action` may be used at most once during a Unit's activation. Different Bonus Action abilities do not compete for a shared Bonus Action opportunity and may be combined during the same activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, that specific ability has not already been used during the activation, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
