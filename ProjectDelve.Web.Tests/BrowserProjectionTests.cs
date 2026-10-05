@@ -10,6 +10,34 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void SpawnUsesGenericPositionSelectionAndProgressiveOrdinaryGoblinCard()
+    {
+        var shaman = UnitType.Shaman();
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 3, []), [new("actor", new(1, 1))]),
+            Types = [shaman], Units = [shaman.CreateUnit("actor", "red")]
+        };
+        var started = GameEngine.StartRound(state, new Dice(), false);
+        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var decision = BrowserProjection.Create(action).Decision!;
+        var spawn = decision.Candidates.Single(c => c.Key == "spawn-goblin:0,0");
+        Assert.Equal("spawn-goblin", spawn.EntryId);
+        Assert.Equal(new ChoiceInteraction(InteractionKind.Position, Position: new(0, 0)), spawn.Interaction);
+        Assert.Contains("Spawn Goblin (Action)", spawn.Label);
+        Assert.Empty(spawn.AffectedUnitIds);
+        Assert.Equal("spawn-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries).Content.Id);
+        var result = GameEngine.Advance(action.State, new Choice(spawn.Key!), new Dice(), false);
+        var presentation = BrowserProjection.Create(result);
+        var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated");
+        var goblin = Assert.Single(step.StateAfter.Units, u => u.TypeId == "goblin-type");
+        Assert.Equal(Posture.Lying, step.StateAfter.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
+        var card = presentation.ResolutionSteps.Single(s => s.EventIndex == step.EventIndex).Cards[goblin.Id];
+        Assert.Equal("Goblin", card.DisplayName);
+        Assert.Equal(UnitType.Goblin().CardEntries(), card.Entries.Select(e => e.Content));
+    }
+
+    [Fact]
     public void TrollCardAndLethalOutcomeUseGenericContentAndAuthoritativePostureProjection()
     {
         var wizard = UnitType.Wizard();

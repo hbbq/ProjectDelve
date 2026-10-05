@@ -2,6 +2,11 @@ namespace ProjectDelve.Engine;
 
 internal static class SpatialRules
 {
+    internal static bool CanPlaceUnit(GameState state, Cell cell) =>
+        MovementRules.Inside(state.Physical.Board, cell) &&
+        state.Physical.Board.TerrainAt(cell).Passable() &&
+        !state.Physical.Figures.Any(f => f.Position == cell);
+
     // Eight surrounding cells with normal geometric LOS; independent of Side and attack legality.
     internal static bool AreAdjacent(Board board, Cell first, Cell second) =>
         Math.Max(Math.Abs(first.X - second.X), Math.Abs(first.Y - second.Y)) == 1 &&

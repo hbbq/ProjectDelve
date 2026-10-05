@@ -30,6 +30,23 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
     {
         var unitId = request.UnitId!;
         var behaviors = queries.BehaviorsOf(unitId);
+        if (behaviors.HasFlag(UnitBehavior.Flee))
+        {
+            var closedDoorsTraversable = behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors);
+            if (queries.DistanceToNearestHostileFrom(unitId, queries.PositionOf(unitId), closedDoorsTraversable) is null)
+                return NoCandidate(request);
+            var positions = request.Candidates.Select(c => (
+                Key: (string?)c.Key, Position: c.Destination!, MovementLength: c.Path!.Count - 1));
+            if (request.AllowsNone)
+                positions = positions.Append((null, queries.PositionOf(unitId), 0));
+            return positions.Select(p => new { p.Key, p.Position, p.MovementLength,
+                    Distance = queries.DistanceToNearestHostileFrom(unitId, p.Position, closedDoorsTraversable) })
+                .Where(p => p.Distance.HasValue)
+                .OrderByDescending(p => p.Distance!.Value)
+                .ThenBy(p => p.MovementLength)
+                .ThenBy(p => p.Position.Y).ThenBy(p => p.Position.X)
+                .FirstOrDefault()?.Key ?? NoCandidate(request);
+        }
         if (request.IsMoveAfterAttack && behaviors.HasFlag(UnitBehavior.BackAwayAfterAttack))
         {
             if (!queries.HasNearbyHostileThreatFrom(unitId, queries.PositionOf(unitId)))
@@ -78,6 +95,10 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
 
     private static string? SelectAction(DecisionRequest request, IGameplayQueries queries)
     {
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.SpawnGoblin))
+            return request.Candidates.Where(c => c.Action == UnitAction.SpawnGoblin)
+                .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
+                .FirstOrDefault()?.Key ?? NoCandidate(request);
         // Rank legal targets by Manhattan distance, then top-left board order.
         // Melee's special range rule determines legality, not this preference.
         var nearest = request.Candidates

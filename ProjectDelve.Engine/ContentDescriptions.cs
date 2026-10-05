@@ -26,6 +26,8 @@ public static class ContentDescriptions
                 "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", fireball.MaxUses));
         if (type.Actions.HasFlag(UnitAction.Telekinesis))
             entries.Add(new("telekinesis", "Telekinesis", "Action", "Lay down an upright enemy within RNG and LOS."));
+        if (type.Actions.HasFlag(UnitAction.SpawnGoblin))
+            entries.Add(new("spawn-goblin", "Spawn Goblin", "Action", "Place one Lying Goblin in an adjacent empty Cell."));
         if (type.TryOpenDoor is { } attempt)
             entries.Add(new("try-open-door", "Try Open Door", "Action",
                 $"Try to open an adjacent Closed Door. Roll a D6: succeeds on {attempt.SuccessCount} of 6 faces. The Action is consumed whether it succeeds or fails."));
@@ -63,6 +65,7 @@ public static class ContentDescriptions
         { Action: UnitAction.HolyWave } => "holy-wave",
         { Action: UnitAction.Fireball } => "fireball",
         { Action: UnitAction.Telekinesis } => "telekinesis",
+        { Action: UnitAction.SpawnGoblin } => "spawn-goblin",
         _ => null
     };
 

@@ -50,7 +50,7 @@ public sealed class PlaytestApiTests
         Assert.Equal("cleric", result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "6,9");
         var wave = Assert.Single(result.Result.NextInput!.Candidates, c => c.Action == UnitAction.HolyWave);
-        Assert.Equal(new[] { "goblin-1", "grunt-2" }, wave.TargetIds.OrderBy(id => id));
+        Assert.Equal(new[] { "grunt-2", "shaman-1" }, wave.TargetIds.OrderBy(id => id));
         using var choicesJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var projectedWave = choicesJson.RootElement.GetProperty("presentation").GetProperty("decision").GetProperty("candidates")
             .EnumerateArray().Single(c => c.GetProperty("key").GetString() == wave.Key);
@@ -211,8 +211,8 @@ public sealed class PlaytestApiTests
         Assert.True(completed.Result.State.RoundComplete);
         Assert.Null(completed.Result.NextInput);
         var moves = completed.Result.Events.Where(e => e.Kind == "MovementCompleted").ToArray();
-        Assert.Equal(new[] { "barbarian", "rogue", "cleric", "wizard", "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "goblin-1", "goblin-1", "troll-1", "troll-2" }, moves.Select(e => e.UnitId));
-        Assert.Equal(new[] { "barbarian-type", "rogue-type", "cleric-type", "wizard-type", "grunt-type", "zombie-type", "skeleton-archer-type", "goblin-type", "troll-type" },
+        Assert.Equal(new[] { "barbarian", "rogue", "cleric", "wizard", "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "shaman-1", "troll-1", "troll-2" }, moves.Select(e => e.UnitId));
+        Assert.Equal(new[] { "barbarian-type", "rogue-type", "cleric-type", "wizard-type", "grunt-type", "zombie-type", "skeleton-archer-type", "shaman-type", "troll-type" },
             completed.Result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Contains(moves, e => e.Path!.Count > 1);
         // Each Unit finishes before the next Unit of that Type moves.
@@ -256,7 +256,9 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         var state = (await host.Read()).Result.State;
         Assert.Equal(JsonSerializer.Serialize(new[] { UnitType.Barbarian(), UnitType.Rogue(), UnitType.Cleric(), UnitType.Wizard(), UnitType.Grunt(), UnitType.Zombie(),
-            UnitType.SkeletonArcher(), UnitType.Goblin(), UnitType.Troll() }, Json), JsonSerializer.Serialize(state.Types, Json));
+            UnitType.SkeletonArcher(), UnitType.Goblin(), UnitType.Shaman(), UnitType.Troll() }, Json), JsonSerializer.Serialize(state.Types, Json));
+        Assert.Contains(state.Units, u => u.TypeId == "shaman-type");
+        Assert.DoesNotContain(state.Units, u => u.TypeId == "goblin-type");
         var rogue = state.Units.Single(u => u.Id == "rogue");
         Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Dash"]);
         Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Throwing Knife"]);
@@ -383,7 +385,7 @@ public sealed class PlaytestApiTests
         var result = await host.Round(0);
         Assert.Equal("grunt-type", result.Result.Events[0].TypeId);
         Assert.Equal("barbarian-type", result.Result.NextInput!.TypeId);
-        Assert.Equal(new[] { "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "goblin-1", "goblin-1", "troll-1", "troll-2" }, result.Result.Events
+        Assert.Equal(new[] { "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "shaman-1", "troll-1", "troll-2" }, result.Result.Events
             .Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.Equal("barbarian-type", result.Result.Events[^1].TypeId);
         Assert.False(result.Result.State.RoundComplete);
@@ -455,22 +457,35 @@ public sealed class PlaytestApiTests
     }
 
     [Fact]
-    public async Task GoblinApproachesAttacksThenBacksAwayThroughNormalEngineEvents()
+    public async Task ShamanFleesSpawnsFirstGoblinAndNextRoundOnlyStandsItUp()
     {
         await using var host = await Host.Start();
-        Assert.Equal(UnitType.Goblin(), (await host.Read()).Result.State.Types.Single(t => t.Id == "goblin-type"));
-        var completed = await FinishRound(host, await host.Round(0));
-        var events = completed.Result.Events.Where(e => e.UnitId == "goblin-1").ToArray();
-        Assert.Equal(new[] { "MovementCompleted", "AttackResolved", "MovementCompleted" }, events.Select(e => e.Kind));
-        Assert.False(events[0].IsMoveAfterAttack);
-        Assert.Equal(new Cell(7, 10), events[0].Path![0]);
-        Assert.InRange(events[0].Path!.Count - 1, 1, 4);
-        Assert.Equal("rogue", events[1].TargetId);
-        Assert.True(events[2].IsMoveAfterAttack);
-        Assert.Equal(2, events[2].Path!.Count);
-        Assert.Equal(events[0].Path![^1], events[2].Path![0]);
-        Assert.Equal(events[2].Path![^1], completed.Result.State.Physical.Figures.Single(f => f.Id == "goblin-1").Position);
+        var initial = (await host.Read()).Result.State;
+        Assert.Equal(UnitType.Shaman(), initial.Types.Single(t => t.Id == "shaman-type"));
+        Assert.DoesNotContain(initial.Units, u => u.TypeId == "goblin-type");
+        var started = await host.Round(0);
+        Assert.DoesNotContain("goblin-type", started.Result.State.Bag);
+        var completed = await FinishRound(host, started);
+        var move = Assert.Single(completed.Result.Events, e => e.UnitId == "shaman-1" && e.Kind == "MovementCompleted");
+        Assert.Equal(new Cell(7, 10), move.Path![0]);
+        Assert.InRange(move.Path.Count - 1, 1, 2);
+        var createdIndex = completed.Result.Events.FindIndex(e => e.Kind == "UnitCreated");
+        Assert.True(createdIndex >= 0);
+        var created = completed.Result.ResolutionSteps.Single(s => s.EventIndex == createdIndex).StateAfter;
+        var goblin = Assert.Single(created.Units, u => u.TypeId == "goblin-type");
+        Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red"), goblin);
+        Assert.Equal(Posture.Lying, created.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
+        Assert.DoesNotContain("goblin-type", created.Bag);
+        Assert.DoesNotContain(completed.Result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == "goblin-type");
         Assert.True(completed.Result.State.RoundComplete);
+        var next = await host.Round(completed.Revision);
+        Assert.Contains("goblin-type", next.Result.State.Bag);
+        Assert.Equal(Posture.Lying, next.Result.State.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
+        var second = await FinishRound(host, next);
+        Assert.Equal(new RulesEvent("PostureChanged", goblin.Id, Posture: Posture.Upright),
+            Assert.Single(second.Result.Events, e => e.UnitId == goblin.Id));
+        var third = await FinishRound(host, await host.Round(second.Revision));
+        Assert.Contains(third.Result.Events, e => e.UnitId == goblin.Id && e.Kind == "MovementCompleted");
         var script = await host.Client.GetStringAsync("/app.js");
         Assert.Contains("decision.prompt", script);
         Assert.Contains("event.text", script);
@@ -805,21 +820,23 @@ public sealed class PlaytestApiTests
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)
     {
         var events = new List<RulesEvent>(result.Result.Events);
+        var steps = new List<ResolutionStep>(result.Result.ResolutionSteps);
         for (var decisions = 0; result.Result.NextInput is not null; decisions++)
         {
             Assert.True(decisions < 18, "A round must stop after the four Heroes' choices.");
             Assert.Contains(result.Result.NextInput.TypeId, new[] { "barbarian-type", "rogue-type", "cleric-type", "wizard-type" });
             result = await host.Decide(result.Revision, null);
+            steps.AddRange(result.Result.ResolutionSteps.Select(s => s with { EventIndex = s.EventIndex + events.Count }));
             events.AddRange(result.Result.Events);
         }
-        return result with { Result = result.Result with { Events = events } };
+        return result with { Result = result.Result with { Events = events, ResolutionSteps = steps } };
     }
 
     private sealed class FixedRandom(bool hit, bool monstersFirst, int doorRoll) : IRandomProvider
     {
         public bool Hits { get; set; } = hit;
         public string DrawToken(IReadOnlyList<string> bag) => monstersFirst
-            ? bag.FirstOrDefault(typeId => typeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "troll-type") ?? bag[0]
+            ? bag.FirstOrDefault(typeId => typeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "shaman-type" or "troll-type") ?? bag[0]
             : bag[0];
         public AttackFace RollAttackDie() => Hits ? AttackFace.Hit : AttackFace.Miss;
         public int RollD6() => doorRoll;

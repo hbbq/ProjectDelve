@@ -10,11 +10,11 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SpawnGoblin = 32 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, SpawnGoblin = 16 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Undying;
@@ -148,6 +148,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 
     public static UnitType Goblin(string id = "goblin-type") =>
         new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1)) { DisplayName = "Goblin" };
+
+    public static UnitType Shaman(string id = "shaman-type") =>
+        new(id, 2, 0, 0, 3, 1, Actions: UnitAction.SpawnGoblin,
+            Behaviors: UnitBehavior.Flee | UnitBehavior.SpawnGoblin) { DisplayName = "Shaman" };
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {

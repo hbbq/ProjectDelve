@@ -65,7 +65,7 @@ public sealed class PlaytestGame(IRandomProvider random)
     {
         var events = new List<RulesEvent>(result.Events);
         var steps = new List<ResolutionStep>(result.ResolutionSteps);
-        while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "troll-type")
+        while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "shaman-type" or "troll-type")
         {
             result = GameEngine.Advance(result.State, monsters, random, autoChooseSingleRelevantChoice);
             steps.AddRange(result.ResolutionSteps.Select(step => step with { EventIndex = step.EventIndex + events.Count }));

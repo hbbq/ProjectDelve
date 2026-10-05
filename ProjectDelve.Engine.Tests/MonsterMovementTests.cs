@@ -147,6 +147,8 @@ public sealed class MonsterMovementTests
         public Dictionary<Cell, int?> Distances { get; } = [];
         public Cell PositionOf(string unitId) => Current;
         public UnitBehavior BehaviorsOf(string unitId) => UnitBehavior.None;
+        public int? DistanceToNearestHostileFrom(string unitId, Cell position, bool closedDoorsTraversable = false) =>
+            throw new InvalidOperationException("Ordinary approach does not flee.");
         public int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId) =>
             throw new InvalidOperationException("Movement ranking does not use Manhattan distance.");
         public bool CanAttackHostileFrom(string unitId, Cell position) => AttackPositions.Contains(position);

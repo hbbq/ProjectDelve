@@ -135,6 +135,42 @@ function harness(initial, fetchImpl) {
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`Spawn Goblin uses supplied Cell choice and new Lying figure from StateAfter (${mode})`, async () => {
+    const printed = { content: { id: "spawn-goblin", name: "Spawn Goblin", category: "Action",
+      description: "Place one Lying Goblin in an adjacent empty Cell.", maxUses: null, useLimitText: null }, uses: null };
+    const supplied = choice("opaque placement", "Position", { position: { x: 1, y: 0 } },
+      { entryId: "spawn-goblin", label: "Spawn Goblin (Action) at supplied Cell" });
+    const initial = response([supplied], [printed]), final = response();
+    initial.presentation.cards.actor.displayName = "Shaman";
+    final.result.state.types.push({ id: "goblin-type", displayName: "Goblin", mov: 4, rng: 1, atk: 2, def: 2, hp: 1 });
+    final.result.state.units.push({ id: "new-goblin", typeId: "goblin-type", sideId: "red", currentHp: 1 });
+    final.result.state.physical.figures.push({ id: "new-goblin", position: { x: 1, y: 0 }, posture: "Lying" });
+    final.presentation.cards["new-goblin"] = { displayName: "Goblin", entries: [entry("attack", "Attack")] };
+    final.presentation.events = [{ role: "Notice", text: "Supplied Unit creation" }];
+    final.result.events = [{ kind: "UnitCreated" }];
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
+    final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards }];
+    const requests = [], h = harness(initial, async (url, request) => {
+      requests.push(JSON.parse(request.body));
+      return { ok: true, json: async () => final };
+    });
+    assert.match(h.elements.get("unit-card").textContent, /Shaman.*Spawn Goblin/s);
+    assert.doesNotMatch(h.elements.get("unit-card").textContent, /Flee|uses|\/game/);
+    assert.equal(h.figure("new-goblin"), undefined);
+    h.context.mode = mode;
+    h.run(`ui.animate.checked = mode !== "disabled"; pause = async () => {};
+      const originalPresent = present;
+      present = async event => { await originalPresent(event); if (mode === "skip") ui.skip.listeners.click(); };`);
+    await click(h.run('cells.get("1,0")'));
+    assert.deepEqual(requests, [{ expectedRevision: 8, candidateKey: supplied.key }]);
+    assert.equal(h.figure("new-goblin").classList.contains("lying"), true);
+    assert.match(h.figure("new-goblin").title, /new-goblin.*Lying/);
+    h.figure("new-goblin").listeners.mouseenter();
+    assert.match(h.elements.get("unit-card").textContent, /Goblin.*Attack/s);
+  });
+}
+
 for (const name of ["Holy Wave", "An unfamiliar ability"]) for (const affected of [["a"], ["a", "b"]]) {
   test(`Direct ${name} previews authoritative membership (${affected.length}) and submits one opaque key`, () => {
     const direct = choice("opaque complete choice", "Direct", {}, { entryId: "opaque-entry", affectedUnitIds: affected });

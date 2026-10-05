@@ -58,10 +58,10 @@ internal static class ExploratoryScenario
                 new("grunt-1", new(7, 11)), new("grunt-2", new(7, 8)),
                 new("zombie-1", new(2, 3)), new("zombie-2", new(1, 5)),
                 new("archer-1", new(6, 7)), new("archer-2", new(9, 3)),
-                new("goblin-1", new(7, 10)),
+                new("shaman-1", new(7, 10)),
                 new("troll-1", new(11, 0)), new("troll-2", new(13, 0))]),
             Types = [UnitType.Barbarian(), UnitType.Rogue(), UnitType.Cleric(), UnitType.Wizard(), UnitType.Grunt(), UnitType.Zombie(),
-                UnitType.SkeletonArcher(), UnitType.Goblin(), UnitType.Troll()],
+                UnitType.SkeletonArcher(), UnitType.Goblin(), UnitType.Shaman(), UnitType.Troll()],
             Units = [UnitType.Barbarian().CreateUnit("barbarian", "blue"), UnitType.Rogue().CreateUnit("rogue", "blue"),
                 UnitType.Cleric().CreateUnit("cleric", "blue"),
                 // A wounded Hero beside Cleric makes Heal immediately useful.
@@ -69,7 +69,7 @@ internal static class ExploratoryScenario
                 new("grunt-1", "grunt-type", "red", 1), new("grunt-2", "grunt-type", "red", 1),
                 new("zombie-1", "zombie-type", "red", 1), new("zombie-2", "zombie-type", "red", 1),
                 new("archer-1", "skeleton-archer-type", "red", 1), new("archer-2", "skeleton-archer-type", "red", 1),
-                new("goblin-1", "goblin-type", "red", 1),
+                UnitType.Shaman().CreateUnit("shaman-1", "red"),
                 UnitType.Troll().CreateUnit("troll-1", "red"), UnitType.Troll().CreateUnit("troll-2", "red")]
         };
     }

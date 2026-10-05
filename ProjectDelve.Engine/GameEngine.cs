@@ -232,6 +232,17 @@ public static class GameEngine
                         case UnitAction.Telekinesis:
                             ChangePosture(state, action.TargetId!, Posture.Lying, events);
                             break;
+                        case UnitAction.SpawnGoblin:
+                            var goblin = UnitType.Goblin();
+                            if (!state.Types.Any(t => t.Id == goblin.Id)) state.Types.Add(goblin);
+                            var goblinNumber = 1;
+                            while (state.Units.Any(u => u.Id == $"goblin-{goblinNumber}")) goblinNumber++;
+                            var goblinId = $"goblin-{goblinNumber}";
+                            state.Units.Add(state.Types.Single(t => t.Id == goblin.Id)
+                                .CreateUnit(goblinId, state.Units.Single(u => u.Id == request.UnitId).SideId));
+                            state.Physical.Figures.Add(new(goblinId, action.Destination!, Posture.Lying));
+                            events.Add(new RulesEvent("UnitCreated", goblinId, TypeId: goblin.Id, AbilityName: "Spawn Goblin"));
+                            break;
                         case UnitAction.Heal:
                             ResolveHeal(state, request.UnitId!, action.TargetId!, events);
                             break;
@@ -337,6 +348,14 @@ public static class GameEngine
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var actions = type.Actions;
         var candidates = new List<Candidate>();
+        if (actions.HasFlag(UnitAction.SpawnGoblin))
+            for (var y = from.Y - 1; y <= from.Y + 1; y++)
+                for (var x = from.X - 1; x <= from.X + 1; x++)
+                {
+                    var cell = new Cell(x, y);
+                    if (SpatialRules.CanPlaceUnit(state, cell) && SpatialRules.AreAdjacent(state.Physical.Board, from, cell))
+                        candidates.Add(new($"spawn-goblin:{x},{y}", Destination: cell, Action: UnitAction.SpawnGoblin));
+                }
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
                 .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)

@@ -16,6 +16,10 @@ public interface IGameplayQueries
     // position is reachable; undefined LOS does not count as a possible attack.
     // The caller selects edge traversal for its analysis; this never changes movement legality.
     int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false);
+
+    // Terrain-route distance to the nearest living hostile, ignoring figure obstacles.
+    // null means no hostile endpoint is reachable under the supplied edge analysis.
+    int? DistanceToNearestHostileFrom(string unitId, Cell position, bool closedDoorsTraversable = false);
 }
 
 internal sealed class GameplayQueries : IGameplayQueries
@@ -71,5 +75,14 @@ internal sealed class GameplayQueries : IGameplayQueries
         return world.Units.Where(u => u.CurrentHp > 0 && u.SideId != side)
             .Select(u => PositionOf(u.Id))
             .Any(hostile => SpatialRules.AreAdjacent(world.Physical.Board, hostile, position));
+    }
+
+    public int? DistanceToNearestHostileFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        var side = world.Units.Single(u => u.Id == unitId).SideId;
+        return world.Units.Where(u => u.CurrentHp > 0 && u.SideId != side)
+            .Select(u => ApproachRules.Distance(world.Physical.Board, position, PositionOf(u.Id), closedDoorsTraversable))
+            .Where(distance => distance.HasValue).Min();
     }
 }
