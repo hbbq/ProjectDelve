@@ -204,18 +204,18 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void AllCanonicalFactoriesPreserveCompleteRuntimeContentAndCustomIds()
     {
-        // Pre-refactor runtime content is the independent parity fixture.
+        // Independent runtime fixture, including the current printed ability names.
         (Func<string, UnitType> Factory, UnitType Expected)[] content =
         [
             (UnitType.Grunt, new("grunt-type", 3, 1, 3, 3, 1) { DisplayName = "Grunt" }),
             (UnitType.Zombie, new("zombie-type", 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Zombie" }),
+                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Zombie", AbilityNames = new() { TryOpenDoor = "Break Door" } }),
             (UnitType.SkeletonArcher, new("skeleton-archer-type", 3, 4, 3, 3, 1,
                 Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" }),
             (UnitType.Goblin, new("goblin-type", 4, 1, 2, 2, 1, MoveAfterAttack: new(1),
                 Behaviors: UnitBehavior.BackAwayAfterAttack) { DisplayName = "Goblin" }),
             (UnitType.Troll, new("troll-type", 2, 1, 4, 4, 1, TryOpenDoor: new(4),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new() }),
+                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new(), AbilityNames = new() { TryOpenDoor = "Smash Door" } }),
             (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent,
                 Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { DisplayName = "Shaman", SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
                 AbilityNames = new() { Summon = "Summon Goblin" } }),

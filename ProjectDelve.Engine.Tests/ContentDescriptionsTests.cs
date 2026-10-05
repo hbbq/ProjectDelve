@@ -16,10 +16,10 @@ public sealed class ContentDescriptionsTests
         Assert.Equal(new[] { "Attack", "Open Door", "Dash", "Throwing Knife", "Backstab" }, types[1].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Heal", "Holy Wave", "Open Door", "Aura" }, types[2].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[3].CardEntries().Select(e => e.Name));
-        Assert.Equal(new[] { "Attack", "Try Open Door" }, types[4].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Break Door" }, types[4].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[5].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Move After Attack" }, types[6].CardEntries().Select(e => e.Name));
-        Assert.Equal(new[] { "Attack", "Try Open Door", "Undying" }, types[7].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Smash Door", "Undying" }, types[7].CardEntries().Select(e => e.Name));
         Assert.All(types.SelectMany(t => t.CardEntries()), e =>
         {
             Assert.False(string.IsNullOrWhiteSpace(e.Name));
@@ -31,7 +31,7 @@ public sealed class ContentDescriptionsTests
         Assert.Equal("2/game", wave.UseLimitText);
         Assert.Equal("+2 ATK this turn", Assert.Single(types[0].CardEntries(), e => e.Name == "Rage").Description);
         Assert.Equal("+2 RNG & -1 ATK this turn", Assert.Single(types[1].CardEntries(), e => e.Name == "Throwing Knife").Description);
-        Assert.Contains("2 of 6 faces", Assert.Single(types[4].CardEntries(), e => e.Name == "Try Open Door").Description);
+        Assert.Contains("2 of 6 faces", Assert.Single(types[4].CardEntries(), e => e.Name == "Break Door").Description);
         Assert.DoesNotContain(types.SelectMany(t => t.CardEntries()), e => e.Category == "Behavior");
     }
 

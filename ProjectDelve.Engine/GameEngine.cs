@@ -549,11 +549,16 @@ public static class GameEngine
     // Normal Attack and Fireball supply membership and ATK independently.
     // Resolution owns one shared roll, per-target results and post-Attack processing.
     private sealed record SharedRollAttack(ImmutableArray<string> TargetIds, int AttackDice, string? AbilityName = null);
+    private sealed record AttackTargetDice(string TargetId, int DefenceDice);
 
     private static void ResolveAttack(GameState state, string attackerId, SharedRollAttack attack,
         IRandomProvider random, ResolutionEvents events)
     {
         var (targetIds, attackDice, abilityName) = attack;
+        // Fix every target's dice before the first roll, using the same authoritative
+        // effective stats as Normal Attack. Only these inputs are captured; damage,
+        // death, Undying and presentation snapshots still resolve sequentially.
+        var targets = targetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         var hits = 0;
         for (var i = 0; i < attackDice; i++)
         {
@@ -562,11 +567,8 @@ public static class GameEngine
             if (face == AttackFace.Hit) hits++;
         }
         var results = new List<AttackTargetResult>();
-        // The authoritative candidate fixed membership before any roll. Death and
-        // removal may change the world (including DEF), never the remaining targets.
-        foreach (var targetId in targetIds)
+        foreach (var (targetId, defenceDice) in targets)
         {
-            var defenceDice = state.EffectiveDefOf(targetId);
             var blocks = 0;
             for (var i = 0; i < defenceDice; i++)
             {

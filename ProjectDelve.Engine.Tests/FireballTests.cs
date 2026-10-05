@@ -263,7 +263,7 @@ public sealed class FireballTests
     }
 
     [Fact]
-    public void EffectiveDefenceIsQueriedPerTargetAndDeathsRemoveAllFiguresWithFixedMembership()
+    public void DefenceIsFixedBeforeResolutionAndDeathsRemoveAllFiguresWithFixedMembership()
     {
         var state = Scenario();
         var aura = UnitType.Cleric("aura") with { Def = 0 };
@@ -277,13 +277,72 @@ public sealed class FireballTests
         Assert.Equal(new[] { "AttackTargetResolved", "UnitDied", "AttackTargetResolved", "UnitDied", "AttackResolved" }, result.Events.Select(e => e.Kind));
         var attack = result.Events.Last().Attack!;
         Assert.Equal(new[] { "a", "b" }, attack.Targets.Select(t => t.TargetId));
-        Assert.Equal(new[] { 0, 1 }, attack.Targets.Select(t => t.DefenceDice));
+        Assert.Equal(new[] { 0, 2 }, attack.Targets.Select(t => t.DefenceDice));
         Assert.All(attack.Targets, t => Assert.Equal(3, t.Damage));
         Assert.Single(result.State.Physical.Figures);
         Assert.Equal(1, result.ResolutionSteps[1].StateAfter.Units[2].CurrentHp);
         Assert.DoesNotContain(result.ResolutionSteps[1].StateAfter.Physical.Figures, f => f.Id == "a");
         Assert.Contains(result.ResolutionSteps[2].StateAfter.Physical.Figures, f => f.Id == "b");
         Assert.DoesNotContain(result.ResolutionSteps[3].StateAfter.Physical.Figures, f => f.Id == "b");
+    }
+
+    [Theory]
+    [InlineData(1, false)] [InlineData(1, true)]
+    [InlineData(-1, false)] [InlineData(-1, true)]
+    public void DefenceSnapshotSurvivesAuraSourceDeathOrUndyingAndLaterAttackUsesCurrentState(int modifier, bool undying)
+    {
+        var state = Scenario();
+        var cleric = UnitRoster.Cleric("cleric") with
+        {
+            Def = 0,
+            AdjacentFriendlyUnitsDefenceBonus = new(modifier),
+            Undying = undying ? new() : null
+        };
+        state.Types.Add(cleric);
+        state.Units[1] = cleric.CreateUnit("a", "red") with { CurrentHp = 1 };
+        state.Units[2] = state.Units[2] with { SideId = "red" };
+        // This Wizard activates next, before the Cleric can stand up.
+        var nextWizard = UnitRoster.Wizard("next-wizard");
+        state.Types.Insert(1, nextWizard);
+        state.Units.Add(nextWizard.CreateUnit("next", "blue"));
+        state.Physical.Figures.Add(new("next", new(4, 4)));
+        var defenceAtStart = 1 + modifier;
+        Assert.Equal(defenceAtStart, state.EffectiveDefOf("b"));
+        var dice = new Dice();
+        var result = Choose(Action(state).State, "fireball:3,2", dice);
+
+        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        Assert.Equal(new[] { new AttackTargetResult("a", 0, 0, 3),
+            new AttackTargetResult("b", defenceAtStart, 0, 3) }, attack.Targets);
+        Assert.Equal(3, dice.AttackRolls); // One shared roll even when the first target changes state.
+        Assert.Equal(defenceAtStart, dice.DefenceRolls);
+        Assert.Equal(Enumerable.Repeat("attack", 3).Concat(Enumerable.Repeat("defence", defenceAtStart)), dice.Order);
+        Assert.Equal(new[] { "AttackTargetResolved", undying ? "PostureChanged" : "UnitDied",
+            "AttackTargetResolved", "AttackResolved" }, result.Events.Select(e => e.Kind));
+        Assert.Equal(1, result.State.EffectiveDefOf("b"));
+
+        // Intermediate playback exposes the first outcome before the second target's damage.
+        for (var i = 0; i < 2; i++)
+        {
+            var intermediate = result.ResolutionSteps[i].StateAfter;
+            Assert.Equal(undying ? 1 : 0, intermediate.Units[1].CurrentHp);
+            Assert.Equal(8, intermediate.Units[2].CurrentHp);
+            Assert.Equal(1, intermediate.EffectiveDefOf("b"));
+            if (undying)
+                Assert.Equal(Posture.Lying, intermediate.Physical.Figures.Single(f => f.Id == "a").Posture);
+        }
+        Assert.Equal(5, result.ResolutionSteps[2].StateAfter.Units[2].CurrentHp);
+        Assert.Equal(undying, result.State.Physical.Figures.Any(f => f.Id == "a"));
+
+        result = Choose(Restore(result.State), "end-turn");
+        Assert.Equal("next", result.State.CurrentUnitId);
+        result = Choose(result.State, "stay");
+        var nextDice = new Dice(0);
+        result = Choose(result.State, "attack:b", nextDice);
+        var nextAttack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        Assert.Equal(3, nextAttack.AttackDice);
+        Assert.Equal(new AttackTargetResult("b", 1, 0, 0), Assert.Single(nextAttack.Targets));
+        Assert.Equal(1, nextDice.DefenceRolls);
     }
 
     [Theory]
