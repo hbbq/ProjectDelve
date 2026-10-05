@@ -1,6 +1,8 @@
-const ui = Object.fromEntries(["board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
+let queuedScenario;
+let renderedScenarioId;
 let busy = false;
 let skipEffects = false;
 let cancelPause;
@@ -218,6 +220,20 @@ function renderChoicePanel() {
 
 function renderSnapshot() {
   const state = snapshot.result.state;
+  if (snapshot.scenarios) {
+    if (!ui.scenario.children.length) {
+      for (const scenario of snapshot.scenarios) {
+        const option = text("option", scenario.name); option.value = scenario.id;
+        ui.scenario.append(option);
+      }
+    }
+    if (renderedScenarioId !== snapshot.scenarioId) {
+      ui.scenario.value = snapshot.scenarioId;
+      latestUnitId = null;
+      renderedScenarioId = snapshot.scenarioId;
+    }
+    describeScenario();
+  }
   hoveredUnitId = null;
   boardChooser = null;
   boardChoiceKeys.clear();
@@ -291,6 +307,9 @@ function bindBoardChoice(node, candidates) {
 
 function updateControls() {
   if (busy) clearAffectedPreview();
+  ui.scenario.disabled = !snapshot;
+  ui["start-scenario"].disabled = !snapshot;
+  ui["restart-scenario"].disabled = !snapshot;
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
   ui.auto.disabled = busy || !snapshot;
@@ -326,7 +345,13 @@ async function refresh() {
   try {
     snapshot = await request(""); ui.events.replaceChildren(); ui.effect.textContent = ""; renderSnapshot();
   } catch (error) { ui.error.textContent = error.message; }
-  finally { busy = false; updateControls(); }
+  finally {
+    busy = false; updateControls();
+    if (queuedScenario) {
+      const next = queuedScenario; queuedScenario = null;
+      await replaceScenario(next.operation, next.body);
+    }
+  }
 }
 
 async function mutate(operation, body = {}) {
@@ -351,7 +376,28 @@ async function mutate(operation, body = {}) {
     if (snapshot) renderSnapshot();
     else { ui.choices.replaceChildren(); ui.prompt.textContent = "Refresh to reconnect."; }
     ui.effect.textContent = ""; busy = false; updateControls();
+    if (queuedScenario) {
+      const next = queuedScenario; queuedScenario = null;
+      await replaceScenario(next.operation, next.body);
+    }
   }
+}
+
+function describeScenario() {
+  const current = snapshot?.scenarios?.find(s => s.id === snapshot.scenarioId);
+  const selected = snapshot?.scenarios?.find(s => s.id === ui.scenario.value);
+  ui["scenario-description"].textContent = current ? `Current: ${current.name}. ${selected?.description ?? ""}` : "";
+}
+
+async function replaceScenario(operation, body = {}) {
+  if (!snapshot) return;
+  if (busy) {
+    queuedScenario = { operation, body };
+    skipEffects = true; cancelPause?.();
+    return;
+  }
+  latestUnitId = null;
+  await mutate(operation, body);
 }
 
 function describe(event) { return event.text; }
@@ -419,6 +465,9 @@ function updateCoordinates() {
   ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
 }
 
+ui.scenario.addEventListener("change", describeScenario);
+ui["start-scenario"].addEventListener("click", () => replaceScenario("scenario", { scenarioId: ui.scenario.value }));
+ui["restart-scenario"].addEventListener("click", () => replaceScenario("restart"));
 ui.filter.addEventListener("change", renderSnapshot);
 ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingleRelevantChoice: ui.auto.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);

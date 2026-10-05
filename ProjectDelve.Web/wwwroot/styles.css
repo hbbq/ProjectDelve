@@ -50,8 +50,8 @@ aside { overflow-wrap: anywhere; }
 .edge.board-choice[aria-disabled="false"] { box-shadow: 0 0 0 3px #90c8e8; }
 /* Enlarge the thin door's click target without changing its rendered geometry. */
 .edge.board-choice::after { content: ""; position: absolute; inset: calc(var(--edge-thickness) * -1); }
-button { background: #35455e; border: 1px solid #7c91af; color: white; padding: 9px 12px; border-radius: 5px; cursor: pointer; }
-button:hover:enabled { background: #496282; } button:focus-visible { outline: 3px solid #ffe084; }
+button, select { background: #35455e; border: 1px solid #7c91af; color: white; padding: 9px 12px; border-radius: 5px; cursor: pointer; }
+button:hover:enabled { background: #496282; } button:focus-visible, select:focus-visible { outline: 3px solid #ffe084; }
 button:disabled { opacity: .45; cursor: default; }
 #choices { display: flex; flex-wrap: wrap; gap: 6px; }
 .board-chooser { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; }

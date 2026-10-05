@@ -6,11 +6,16 @@ namespace ProjectDelve.Web;
 public static class PlaytestHost
 {
     public static WebApplication Build(string[] args, IRandomProvider? random = null)
+        => Build(args, random, null);
+
+    internal static WebApplication Build(string[] args, IRandomProvider? random, GameState? initialState)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-        builder.Services.AddSingleton(new PlaytestGame(random ?? new SystemRandomProvider()));
+        var randomProvider = random ?? new SystemRandomProvider();
+        builder.Services.AddSingleton(initialState is null
+            ? new PlaytestGame(randomProvider) : new PlaytestGame(randomProvider, initialState));
         var app = builder.Build();
         app.UseDefaultFiles();
         app.UseStaticFiles();
@@ -19,6 +24,10 @@ public static class PlaytestHost
             context.Response.Headers.CacheControl = "no-store";
             return game.Snapshot();
         });
+        app.MapPost("/api/game/scenario", (ScenarioRequest request, PlaytestGame game) =>
+            Mutate(() => game.StartScenario(request.ExpectedRevision, request.ScenarioId)));
+        app.MapPost("/api/game/restart", (RoundRequest request, PlaytestGame game) =>
+            Mutate(() => game.Restart(request.ExpectedRevision)));
         app.MapPost("/api/game/round", (RoundRequest request, PlaytestGame game) =>
             Mutate(() => game.StartRound(request.ExpectedRevision)));
         app.MapPost("/api/game/decision", (DecisionSubmission request, PlaytestGame game) =>
@@ -38,6 +47,12 @@ public static class PlaytestHost
     }
 }
 
+public sealed record ScenarioRequest
+{
+    public required long ExpectedRevision { get; init; }
+    public required string ScenarioId { get; init; }
+}
+
 public sealed record RoundRequest
 {
     public required long ExpectedRevision { get; init; }
@@ -55,7 +70,8 @@ public sealed record PreferenceRequest
     public required bool AutoChooseSingleRelevantChoice { get; init; }
 }
 
-public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true)
+public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true, string ScenarioId = PlaytestScenarios.DefaultId)
 {
+    public IReadOnlyList<ScenarioDescription> Scenarios => PlaytestScenarios.Catalog;
     public BrowserPresentation Presentation => BrowserProjection.Create(Result);
 }

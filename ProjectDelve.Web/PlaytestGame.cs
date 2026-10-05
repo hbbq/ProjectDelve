@@ -3,17 +3,47 @@ using ProjectDelve.Engine;
 namespace ProjectDelve.Web;
 
 // This is host orchestration, not gameplay: the engine computes and validates every choice.
-public sealed class PlaytestGame(IRandomProvider random)
+public sealed class PlaytestGame
 {
     private readonly object gate = new();
     private readonly DefaultMonsterProvider monsters = new();
-    private GameState state = ExploratoryScenario.Create();
+    private readonly IRandomProvider random;
+    private GameState state;
+    private string scenarioId = PlaytestScenarios.DefaultId;
     private long revision;
     private bool autoChooseSingleRelevantChoice = true;
 
+    public PlaytestGame(IRandomProvider random) : this(random, PlaytestScenarios.Create(PlaytestScenarios.DefaultId)) { }
+
+    // Test seam for focused rule fixtures; production setups always come from the catalog.
+    internal PlaytestGame(IRandomProvider random, GameState initialState)
+    {
+        this.random = random;
+        state = initialState;
+    }
+
+    public GameResponse StartScenario(long expectedRevision, string id)
+    {
+        lock (gate)
+        {
+            CheckRevision(expectedRevision);
+            if (!PlaytestScenarios.Catalog.Any(s => s.Id == id))
+                throw new PlaytestRequestException(400, "Choose an available scenario.");
+            state = PlaytestScenarios.Create(id);
+            scenarioId = id;
+            revision++;
+            return Snapshot();
+        }
+    }
+
+    public GameResponse Restart(long expectedRevision)
+    {
+        lock (gate) return StartScenario(expectedRevision, scenarioId);
+    }
+
     public GameResponse Snapshot()
     {
-        lock (gate) return new(revision, new(state, [], state.Pending), autoChooseSingleRelevantChoice);
+        lock (gate) return new(revision, new(state, [], state.Pending), autoChooseSingleRelevantChoice, scenarioId);
     }
 
     public GameResponse StartRound(long expectedRevision)
@@ -73,7 +103,7 @@ public sealed class PlaytestGame(IRandomProvider random)
         }
         state = result.State;
         revision++;
-        return new(revision, result with { Events = events, ResolutionSteps = steps }, autoChooseSingleRelevantChoice);
+        return new(revision, result with { Events = events, ResolutionSteps = steps }, autoChooseSingleRelevantChoice, scenarioId);
     }
 
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider

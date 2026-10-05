@@ -1,9 +1,9 @@
 using ProjectDelve.Engine;
 
-namespace ProjectDelve.Web;
+namespace ProjectDelve.Web.Tests;
 
 // Early courtyard encounters, a Zombie crypt, and a Troll vault with three gates.
-internal static class ExploratoryScenario
+internal static class CourtyardFixture
 {
     internal static GameState Create()
     {
@@ -75,10 +75,3 @@ internal static class ExploratoryScenario
     }
 }
 
-internal sealed class SystemRandomProvider : IRandomProvider
-{
-    public string DrawToken(IReadOnlyList<string> bag) => bag[Random.Shared.Next(bag.Count)];
-    public AttackFace RollAttackDie() => Random.Shared.Next(6) < 3 ? AttackFace.Hit : AttackFace.Miss;
-    public int RollD6() => Random.Shared.Next(1, 7);
-    public DefenceFace RollDefenceDie() => Random.Shared.Next(6) < 2 ? DefenceFace.Block : DefenceFace.Miss;
-}

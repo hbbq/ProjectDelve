@@ -13,6 +13,12 @@
   </header>
   <main>
     <section aria-label="Board">
+      <div class="toolbar" aria-label="Playtest scenarios">
+        <label>Scenario <select id="scenario" disabled></select></label>
+        <button id="start-scenario" disabled>Start selected</button>
+        <button id="restart-scenario" disabled>Restart current</button>
+      </div>
+      <p id="scenario-description" class="legend"></p>
       <p id="status" aria-live="polite">Loading…</p>
       <div id="board" aria-label="Dungeon board"></div>
       <p class="legend">Figures abbreviate Unit names; hover to inspect. Blue and red distinguish Sides. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
@@ -35,6 +41,6 @@
       <h2>Events <small>latest response</small></h2><ol id="events"></ol>
     </aside>
   </main>
-  <footer>One game lives in this host. Restart the host to reset the scenario. There are no victory conditions.</footer>
+  <footer>One game lives in this host. Start or restart a scenario to discard the current game. There are no victory conditions.</footer>
 </body>
 </html>

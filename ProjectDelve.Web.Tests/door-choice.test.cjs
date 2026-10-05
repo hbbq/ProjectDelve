@@ -565,3 +565,83 @@ test("collision chooser only includes currently presented choices and ignores bu
   h.run("busy = false"); click(h.figure("b"));
   assert.equal(buttons(h.elements.get("choices").children[0]).length, 3);
 });
+
+test("scenario controls use supplied catalog, switch board size and restart current", async () => {
+  const initial = response(), switched = response(), restarted = response();
+  const catalog = [
+    { id: "setup-a", name: "Supplied first", description: "First description" },
+    { id: "setup-b", name: "Supplied second", description: "Second description" }
+  ];
+  for (const value of [initial, switched, restarted]) value.scenarios = catalog;
+  initial.scenarioId = "setup-a";
+  for (const value of [switched, restarted]) {
+    value.scenarioId = "setup-b";
+    value.result.state.round = 0; value.result.state.currentUnitId = null;
+    value.result.state.physical.board.width = 9;
+    value.result.state.physical.board.height = 2;
+    value.presentation.decision = null; value.result.nextInput = null;
+  }
+  switched.revision = 9; restarted.revision = 10;
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, json: async () => requests.length === 1 ? switched : restarted };
+  });
+  const select = h.elements.get("scenario");
+  assert.deepEqual(select.children.map(option => [option.value, option.textContent]), catalog.map(s => [s.id, s.name]));
+  assert.equal(select.value, "setup-a");
+  select.value = "setup-b"; select.listeners.change();
+  assert.match(h.elements.get("scenario-description").textContent, /Second description/);
+  await h.elements.get("start-scenario").listeners.click();
+  assert.deepEqual(requests[0], { url: "/api/game/scenario", body: { expectedRevision: 8, scenarioId: "setup-b" } });
+  assert.equal(h.elements.get("board").style.gridTemplateColumns, "repeat(9, minmax(0, 1fr))");
+  assert.equal(h.run("cells.size"), 18);
+  assert.equal(h.run("latestUnitId"), null);
+  assert.equal(h.elements.get("round").disabled, false);
+  // Selection can differ from the current scenario; restart uses server identity.
+  select.value = "setup-a";
+  await h.elements.get("restart-scenario").listeners.click();
+  assert.deepEqual(requests[1], { url: "/api/game/restart", body: { expectedRevision: 9 } });
+  assert.equal(h.run("snapshot.scenarioId"), "setup-b");
+  assert.equal(h.elements.get("scenario").children.length, 2);
+  assert.equal(h.run("snapshot.result.state.round"), 0);
+});
+
+test("scenario change interrupts playback and uses the completed request revision", async () => {
+  const initial = response(), resolved = response(), fresh = response();
+  resolved.revision = 9; fresh.revision = 10;
+  resolved.presentation.events = [{ role: "Notice", text: "Pending playback" }, { role: "Notice", text: "More playback" }];
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, json: async () => requests.length === 1 ? resolved : fresh };
+  });
+  h.run(`present = async () => {
+    if (ui["start-scenario"].disabled) throw new Error("Scenario must remain available during playback");
+    ui.scenario.value = "chosen-setup";
+    await ui["start-scenario"].listeners.click();
+  };`);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.deepEqual(requests.map(r => r.url), ["/api/game/decision", "/api/game/scenario"]);
+  assert.deepEqual(requests[1].body, { expectedRevision: 9, scenarioId: "chosen-setup" });
+  assert.equal(h.run("snapshot.revision"), 10);
+  assert.equal(h.run("busy"), false);
+});
+
+test("scenario restart waits for an in-flight request without submitting its stale revision", async () => {
+  const initial = response(), resolved = response(), fresh = response();
+  resolved.revision = 9; fresh.revision = 10;
+  let release;
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    if (requests.length === 1) await new Promise(resolve => { release = resolve; });
+    return { ok: true, json: async () => requests.length === 1 ? resolved : fresh };
+  });
+  const pending = h.run('mutate("decision", { candidateKey: "opaque" })');
+  await h.elements.get("restart-scenario").listeners.click();
+  assert.equal(requests.length, 1);
+  release(); await pending;
+  assert.deepEqual(requests[1], { url: "/api/game/restart", body: { expectedRevision: 9 } });
+  assert.equal(h.run("snapshot.revision"), 10);
+});

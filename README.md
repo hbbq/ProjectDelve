@@ -58,9 +58,20 @@ Hero decisions use numbered engine-supplied choices. Choose the supplied Stay or
 
 Run `dotnet run --project ProjectDelve.Web -- --urls http://localhost:5080`, then open [localhost:5080](http://localhost:5080).
 
-The Web host serves a plain HTML/CSS/JavaScript client and one hand-authored 15x15 playtest map. One game lives in memory for the lifetime of the host; restarting resets it. Click **Start round**, then choose for the four Heroes. Monster choices use `DefaultMonsterProvider` automatically. Completed rounds wait for **Start next round**. There are no victory conditions.
+The Web host serves a plain HTML/CSS/JavaScript client and six server-owned playtest setups. One authoritative game lives in memory. **Start selected** replaces it with the selected scenario; **Restart current** recreates the current scenario. Both discard the previous state, including pending activations and follow-ups. During effects, either control skips playback and applies the replacement after any in-flight request finishes. Revision checks still protect concurrent clients.
 
-The roster includes all ten current Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
+| Scenario id | Name | Board | Initial content |
+| --- | --- | --- | --- |
+| `basic-combat` | Basic Combat | 8x8 | Barbarian; several Grunts |
+| `goblins` | Goblins | 10x10 | Barbarian, Rogue; Grunts and Goblins |
+| `archers` | Archers | 12x12 | Barbarian, Rogue; Grunts, Goblins and Skeleton Archers |
+| `wizard-doors` | Wizard / Doors | 15x15 | Barbarian, Rogue, Wizard; Goblins, Skeleton Archers and Zombies |
+| `full-party-trolls` | Full Party / Trolls | 15x15 | All four Heroes; Goblins, Skeleton Archers, Zombies and Trolls |
+| `shaman-hunt` | Shaman Hunt | 15x15 | All four Heroes; Shaman and Grunt, with no initial Goblins |
+
+Basic Combat is the startup default. Select a setup, click **Start selected**, then **Start round**. Choose for its Heroes; Monster choices use `DefaultMonsterProvider` automatically. Completed rounds wait for **Start next round**. These are test content with no victory conditions or progression. Exact maps and placements are editable factories in `ProjectDelve.Web/PlaytestScenarios.cs`; the browser receives catalog metadata and authoritative game snapshots.
+
+Across the catalog, the roster includes all ten current Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
 
 | Type | Stats | Actions / special content |
 | --- | --- | --- |
@@ -75,23 +86,7 @@ The roster includes all ten current Unit Types (stats in MOV / RNG / ATK / DEF /
 | Shaman | 2 / 0 / 0 / 3 / 1 | Spawn Goblin, Flee; no Normal Attack |
 | Troll | 2 / 1 / 4 / 4 / 1 | NormalAttack, TryOpenDoor(4/6), Undying, ApproachThroughClosedDoors |
 
-Barbarian starts at `(4,7)`, Rogue at `(4,10)`, Cleric at `(3,9)`, and Wizard at `(2,8)`. Wizard begins at 2/4 HP; all other Units start at full HP. There are two each of Grunts, Zombies, Skeleton Archers and Trolls, plus one Shaman at `(7,10)`: thirteen figures and nine initial Activation Tokens. There are no initial Goblins. Units of the same Type share a token.
-
-The western crypt covers `x=1..3, y=2..5`, enclosed by walls except for the Closed Door at `(3,4)-(4,4)`. Zombies at `(2,3)` and `(1,5)` must approach and try that door to leave. Let Heroes stay to observe failure/retry or success/opening, or move a Hero beside the door to open it freely.
-
-The northern Troll vault covers `x=10..14, y=0..4`. Trolls at `(11,0)` and `(13,0)` must open three doors in sequence: `(11,1)-(11,2)`, `(11,2)-(11,3)`, and `(11,4)-(11,5)`. Walls across each partition prevent bypassing a gate. With Heroes staying and every attempt succeeding, both Trolls remain inside for the first two rounds; failures delay them further. They use the same door Action and approach Behavior as Zombies, with better opening odds.
-
-The narrow passage beside the crypt opens onto a broad courtyard for ranged fire and Monster movement. A stream has a stone crossing at row 3 and an open route below; the southern ruin has an Open Door and an open end. Sparse trees and tables break up sight and movement without making a maze. A1 starts two cells from Barbarian and can retreat to full firing range. Shaman flees reachable Heroes using terrain-route distance, then places a Lying Goblin in the top-left legal adjacent empty Cell. Counts are for playtesting, not a balance target.
-
-Try these alternatives from a fresh game; token order and dice will affect later encounters. Disable **Auto-choose single relevant choice** to inspect every decision:
-
-- **Barbarian:** move to `(6,8)` beside Archer at `(6,7)` and Grunt at `(7,8)` to activate Fury. Rage adds more Attack Dice. An Attack dealing at least 2 Damage offers Cleave against the other adjacent Monster.
-- **Rogue:** leave Barbarian at `(6,8)`, then move Rogue to `(6,9)` and attack Grunt at `(7,8)` with Backstab support. Try Dash for a longer flank or Throwing Knife to attack from farther away.
-- **Cleric:** stay beside Wizard and Heal its missing 2 HP. Aura also protects adjacent Heroes. Alternatively, move to `(6,9)` and use Holy Wave to lay down nearby Grunt and Shaman, as well as Cleric itself.
-- **Wizard:** move to `(4,8)` and cast Fireball at `(6,8)` to hit Archer and Grunt together; keep Heroes outside the blast. Focus increases Attack Dice. Telekinesis instead lays down one enemy without damage.
-- **Monster Behavior:** let Heroes stay to watch Grunts approach, Archers seek firing distance, Shaman flee and spawn, and Zombies/Trolls work through their doors.
-- **Spawn and round bag:** the first round has no Goblin token. Shaman's first spawn remains Lying through that round and does not change its bag. The next round includes a Goblin token; its first activation only stands it up and ends. Later activations use ordinary Goblin attack and retreat behavior.
-- **Undying and Posture:** when Trolls arrive, lethal damage lays an Upright Troll down at HP 1. Attack it again while Lying to kill it, or watch its next activation only stand it up. Holy Wave or Telekinesis can lay a Troll down first so subsequent lethal damage kills it normally.
+Early maps offer movement, flanks, retreat space and broken sight lines. Wizard / Doors encloses a five-by-five Zombie room with two gates. Full Party / Trolls adds another broad gated room and partial partitions, leaving several routes through the central area. Shaman Hunt uses staggered walls, open Doors and obstacles; the Shaman remains reachable and flees through ordinary terrain paths. Its first spawned Goblin begins Lying and enters a later round's bag only through the normal snapshot rules. No scenario adds special rules.
 
 The responsive layout caps board width by the viewport height on desktop, gives the board a larger column beside the debug panel, and stacks the panel below at narrow widths. Explicit shrinkable grid tracks keep cells square; percentage positioning aligns figures, edges, movement highlights, and click targets. Cell labels, figures, and edge thickness scale with the board. Small cells retain coordinates and terrain tooltips even when their text is compact. No game rules run in JavaScript.
 
@@ -103,12 +98,14 @@ The HTTP boundary is deliberately small:
 
 | Endpoint | Request | Response / behavior |
 | --- | --- | --- |
-| `GET /api/game` | None | `{ revision, result, autoChooseSingleRelevantChoice }`, with current State/NextInput and an empty Events list; no side effects. |
+| `GET /api/game` | None | `{ revision, result, autoChooseSingleRelevantChoice, scenarioId, scenarios, presentation }`, with current State/NextInput and an empty Events list; no side effects. |
+| `POST /api/game/scenario` | `{ "expectedRevision": 0, "scenarioId": "goblins" }` | Discards the old game and creates the selected setup at round 0. Unknown ids return `400`. |
+| `POST /api/game/restart` | `{ "expectedRevision": 1 }` | Creates the current scenario from scratch, including Units, ability uses, Doors and empty initial bag. |
 | `POST /api/game/round` | `{ "expectedRevision": 0 }` | Starts a round and advances automatic Monster decisions to a player choice or round end. |
 | `POST /api/game/preferences` | `{ "expectedRevision": 1, "autoChooseSingleRelevantChoice": false }` | Changes relevance-based auto-choice and rebuilds all legal choices; defaults to enabled. |
 | `POST /api/game/decision` | `{ "expectedRevision": 1, "candidateKey": "3,2" }` | Resolves the selected engine candidate and advances Monsters to the same stopping boundary. |
 
-Mutation responses use the same `{ revision, result, autoChooseSingleRelevantChoice }` envelope. `result` serializes the existing `EngineResult`, with ordered events accumulated across automatic Monster advances. JSON properties are camelCase and enums use their C# names. Candidate keys are opaque; submit the supplied key, or explicit `null` when `AllowsNone` permits it. All mutation request fields are required. Normal activation choices have explicit Stay/End Turn candidates and do not accept `null`. The server retains authoritative state and rejects illegal choices with `400`, or stale revisions and invalid lifecycle operations with `409`. Concurrent mutations are serialized. A failed or uncertain browser submission fetches the current snapshot rather than retrying the decision automatically.
+Mutation responses use the same `{ revision, result, autoChooseSingleRelevantChoice, scenarioId, scenarios, presentation }` envelope. `result` serializes the existing `EngineResult`, with ordered events accumulated across automatic Monster advances. JSON properties are camelCase and enums use their C# names. Candidate keys are opaque; submit the supplied key, or explicit `null` when `AllowsNone` permits it. All mutation request fields are required. Normal activation choices have explicit Stay/End Turn candidates and do not accept `null`. The server retains authoritative state and rejects illegal choices with `400`, or stale revisions and invalid lifecycle operations with `409`. Concurrent mutations are serialized. A failed or uncertain browser submission fetches the current snapshot rather than retrying the decision automatically.
 
 Every supplied legal candidate carries engine-evaluated `relevant` metadata. Rage is legal whenever the active Barbarian has uses and Rage unused in this activation. It is irrelevant before Move, after Action, or when no legal Attack can benefit from its modifier; after Move (including Stay), it is relevant when an Attack can benefit. The **Filter irrelevant choices (display only)** checkbox hides candidates with `relevant: false` locally, without a server request or any change to submission legality. The separate **Auto-choose single relevant choice** checkbox controls the backend/session preference `autoChooseSingleRelevantChoice`, outside physical/rules GameState. A sole legal candidate with no option to do nothing always resolves automatically, regardless of relevance or this preference. When enabled, the preference additionally auto-selects exactly one relevant candidate among multiple legal candidates in a required choice. When disabled, such multiple-choice requests stop and expose all legal candidates to the provider. An empty optional request still resolves to none; multiple legal choices with no relevant candidates still require external input. Submission validation always uses all authoritative legal candidates.
 
@@ -118,7 +115,7 @@ Barbarian explicitly supplies a `BonusActionAbility` composed of its content nam
 
 Run the browser renderer and interaction checks with `node --test ProjectDelve.Web.Tests/door-choice.test.cjs`.
 
-The host routes Barbarian, Rogue, Cleric and Wizard to player input, and all six Monster Types to the existing default provider. The Engine and Console have no Web dependencies. `ProjectDelve.Web.Tests` exercises the host over loopback HTTP with deterministic randomness, including all ten Types, map dimensions, sealed Zombie room, the Troll vault's three sequential doors and delayed emergence, all four Hero choices, courtyard Fury/Cleave and Backstab, early Heal and Fireball, complete per-Unit Monster event order, Archer retreat and attack, Shaman spawning and Goblin activation across round bags, damage, death, stale/illegal decisions, concurrency, and round progression. Engine behavior regressions retain their small test-local Types. Run the full suite with `dotnet test ProjectDelve.sln`.
+The host routes Barbarian, Rogue, Cleric and Wizard to player input, and all six Monster Types to the existing default provider. The Engine and Console have no Web dependencies. Web tests cover the production catalog, fresh independent setups, restarts, activation/follow-up replacement, Shaman spawning and round bags, and the HTTP controls. Detailed courtyard interactions retain the old map as a test-only fixture. Run the full suite with `dotnet test ProjectDelve.sln`; renderer checks use the Node command above.
 
 
 The shared Unit Card shows the active Unit, retains the most recently active Unit, and temporarily inspects a board Unit on hover. `UnitType.DisplayName` and domain-owned `CardEntryDescription` records supply names, categories and printed rules text for Actions, Free Actions, Bonus Actions, passives and playable follow-ups. Monster Behavior remains decision policy and is excluded from these entries. Concrete rules and usage counters retain their existing engine representations.
