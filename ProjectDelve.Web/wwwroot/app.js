@@ -139,6 +139,11 @@ function renderUnitCard() {
   }
   card.append(stats);
   card.append(text("p", `HP ${unit.currentHp} / ${type.hp}`));
+  if (type.heal) {
+    card.append(text("h4", "Heal (Action)"));
+    card.append(text("p", "Restore up to 2 HP to an adjacent damaged friendly Unit."));
+    if (unit.healUses) card.append(text("small", `${unit.healUses.remainingUses} / ${unit.healUses.maxUses} uses`));
+  }
   if (type.cleave) {
     card.append(text("h4", "Cleave"));
     card.append(text("p", "After an Attack deals 2 or more damage, you may immediately deal 1 damage to an adjacent enemy."));
@@ -199,6 +204,7 @@ function renderSnapshot() {
       : candidate.bonusAction ? `${candidate.bonusAction.name} (Bonus Action)`
       : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
       : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
+      : candidate.action === "Heal" ? `Heal ${unitLabel(candidate.targetId)} (Action)`
       : candidate.freeAction === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)} (Free Action)`
       : candidate.destination ? `Move to (${cellKey(candidate.destination)})` : unitLabel(candidate.key);
     labels.set(candidate.key, label);
@@ -336,6 +342,7 @@ function describe(event) {
     case "UnitDied": return `${unitLabel(event.unitId)} died`;
     case "AbilityUsed": return `${unitLabel(event.unitId)} used ${event.abilityName} (Bonus Action)`;
     case "CleaveResolved": return `${unitLabel(event.unitId)} cleaved ${unitLabel(event.targetId)}: ${event.damage} Damage`;
+    case "HealResolved": return `${unitLabel(event.unitId)} healed ${unitLabel(event.targetId)}: ${event.healing} HP restored`;
     case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Action consumed)`;
     case "DoorOpened": return `${unitLabel(event.unitId)} opened door ${cellKey(event.door.a)} ↔ ${cellKey(event.door.b)}`;
     case "TokenDrawn": return `Token drawn: ${event.typeId}`;

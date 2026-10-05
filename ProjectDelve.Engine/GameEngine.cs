@@ -14,6 +14,8 @@ public static class GameEngine
             {
                 CleaveUses = u.CleaveUses ?? (state.Types.Single(t => t.Id == u.TypeId).Cleave is { } cleave
                     ? new(cleave.MaxUses, cleave.MaxUses) : null),
+                HealUses = u.HealUses ?? (state.Types.Single(t => t.Id == u.TypeId).Heal is { } heal
+                    ? new(heal.MaxUses, heal.MaxUses) : null),
                 BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
                         ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
@@ -192,6 +194,9 @@ public static class GameEngine
                             ResolveAttack(state, request.UnitId!, action.TargetId!, random, events);
                             attacked = true;
                             break;
+                        case UnitAction.Heal:
+                            ResolveHeal(state, request.UnitId!, action.TargetId!, events);
+                            break;
                         default:
                             throw new InvalidOperationException("Unsupported action.");
                     }
@@ -292,6 +297,15 @@ public static class GameEngine
                     == NormalAttackEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
+        if (actions.HasFlag(UnitAction.Heal) && type.Heal is not null &&
+            unit.HealUses is { RemainingUses: > 0 })
+            candidates.AddRange(state.Units.Where(target => target.Id != unit.Id &&
+                    target.SideId == unit.SideId && target.CurrentHp > 0 &&
+                    target.CurrentHp < state.Types.Single(t => t.Id == target.TypeId).Hp &&
+                    SpatialRules.AreAdjacent(state.Physical.Board, from,
+                        state.Physical.Figures.Single(f => f.Id == target.Id).Position))
+                .Select(target => new Candidate($"heal:{target.Id}",
+                    Action: UnitAction.Heal, TargetId: target.Id)));
         if (type.TryOpenDoor is not null)
         {
             foreach (var edge in AdjacentClosedDoors(state, unit))
@@ -445,6 +459,21 @@ public static class GameEngine
             state.CleavePending = true;
     }
 
+    private static void ResolveHeal(GameState state, string healerId, string targetId, ResolutionEvents events)
+    {
+        var healerIndex = state.Units.FindIndex(u => u.Id == healerId);
+        var uses = state.Units[healerIndex].HealUses!;
+        state.Units[healerIndex] = state.Units[healerIndex] with
+        {
+            HealUses = new(uses.MaxUses, uses.RemainingUses - 1)
+        };
+        var targetIndex = state.Units.FindIndex(u => u.Id == targetId);
+        var target = state.Units[targetIndex];
+        var healing = Math.Min(2, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
+        state.Units[targetIndex] = target with { CurrentHp = target.CurrentHp + healing };
+        events.Add(new RulesEvent("HealResolved", healerId, targetId, AbilityName: "Heal", Healing: healing));
+    }
+
     private static List<Candidate> CleaveCandidates(GameState state, Unit unit)
     {
         if (state.Types.Single(t => t.Id == unit.TypeId).Cleave is null ||
@@ -492,6 +521,7 @@ public static class GameEngine
             state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
                 t.Cleave is { MaxUses: < 1 } ||
+                t.Heal is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
@@ -507,6 +537,9 @@ public static class GameEngine
         if (state.Units.Any(u => u.CleaveUses is { } uses &&
             state.Types.Single(t => t.Id == u.TypeId).Cleave?.MaxUses != uses.MaxUses))
             throw new ArgumentException("Cleave uses must match Unit Type content.");
+        if (state.Units.Any(u => u.HealUses is { } uses &&
+            state.Types.Single(t => t.Id == u.TypeId).Heal?.MaxUses != uses.MaxUses))
+            throw new ArgumentException("Heal uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)

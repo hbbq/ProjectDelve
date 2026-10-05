@@ -55,7 +55,7 @@ public sealed class ClericTests
     {
         var type = UnitType.Cleric();
         Assert.Equal((3, 1, 3, 3, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.NormalAttack, type.Actions);
+        Assert.Equal(UnitAction.NormalAttack | UnitAction.Heal, type.Actions);
         Assert.Equal(UnitFreeAction.OpenDoor, type.FreeActions);
         Assert.Equal(new AdjacentFriendlyUnitsDefenceBonus(1), type.AdjacentFriendlyUnitsDefenceBonus);
         Assert.Empty(type.BonusActions);

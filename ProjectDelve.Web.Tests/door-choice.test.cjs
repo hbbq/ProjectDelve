@@ -51,6 +51,52 @@ test("Cleave targets and decline consume supplied choices without client legalit
   assert.equal(elements.get("choices").children.length, 0);
 });
 
+test("Heal displays and submits only authoritative targets", () => {
+  const elements = new Map();
+  const document = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, new Element());
+      return elements.get(id);
+    },
+    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
+  };
+  const submitted = [];
+  const response = { revision: 1, result: {
+    state: { round: 1, currentUnitId: "cleric", actionDone: true,
+      physical: { board: { width: 5, height: 1, edges: [] }, figures: [
+        { id: "cleric", position: { x: 0, y: 0 } },
+        { id: "target", position: { x: 4, y: 0 } },
+        { id: "friend", position: { x: 1, y: 0 } }
+      ] },
+      // Deliberately inconsistent: the renderer must trust the supplied choice,
+      // even with zero uses, a completed Action, and a distant full-HP hostile.
+      units: [
+        { id: "cleric", typeId: "cleric-type", sideId: "blue", currentHp: 4, healUses: { maxUses: 2, remainingUses: 0 } },
+        { id: "target", typeId: "other-type", sideId: "red", currentHp: 4 },
+        { id: "friend", typeId: "other-type", sideId: "blue", currentHp: 1 }
+      ],
+      types: [{ id: "cleric-type", hp: 4, heal: { maxUses: 2 } }, { id: "other-type", hp: 4 }]
+    },
+    nextInput: { kind: "Activation", unitId: "cleric", allowsNone: false,
+      candidates: [{ key: "opaque-heal", kind: "Action", action: "Heal", targetId: "target", relevant: true }] }
+  } };
+  const context = vm.createContext({ document, response, submitted });
+  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
+  assert.match(elements.get("unit-card").textContent, /Heal \(Action\).*0 \/ 2 uses/);
+  const target = vm.runInContext('figures.get("target")', context);
+  assert.match(target.attributes["aria-label"], /Heal.*\(Action\)/);
+  target.listeners.click({ stopPropagation() {} });
+  assert.deepEqual(submitted, ["opaque-heal"]);
+  assert.equal(vm.runInContext('figures.get("friend").classList.contains("board-choice")', context), false);
+  assert.match(vm.runInContext('describe({ kind: "HealResolved", unitId: "cleric", targetId: "target", healing: 1 })', context), /healed.*1 HP restored/);
+  response.result.nextInput.candidates = [];
+  vm.runInContext('renderSnapshot();', context);
+  assert.equal(vm.runInContext('figures.get("target").classList.contains("board-choice")', context), false);
+  assert.equal(elements.get("choices").children.length, 0);
+});
+
 // Exercise the actual renderer and event bindings without a browser dependency.
 class Element {
   constructor() {
