@@ -95,8 +95,8 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
 
     private static string? SelectAction(DecisionRequest request, IGameplayQueries queries)
     {
-        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.SpawnGoblin))
-            return request.Candidates.Where(c => c.Action == UnitAction.SpawnGoblin)
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.UseSummon))
+            return request.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent)
                 .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
                 .FirstOrDefault()?.Key ?? NoCandidate(request);
         // Rank legal targets by Manhattan distance, then top-left board order.

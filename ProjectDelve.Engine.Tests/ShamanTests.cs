@@ -36,21 +36,75 @@ public sealed class ShamanTests
     {
         var type = UnitType.Shaman();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.SpawnGoblin, type.Actions);
-        Assert.Equal(UnitBehavior.Flee | UnitBehavior.SpawnGoblin, type.Behaviors);
+        Assert.Equal(UnitAction.SummonAdjacent, type.Actions);
+        Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, type.Behaviors);
         Assert.Null(type.TryOpenDoor);
-        Assert.Equal("Spawn Goblin", Assert.Single(type.CardEntries()).Name);
+        Assert.Equal("Summon Goblin", Assert.Single(type.CardEntries()).Name);
         Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
         var state = State(enemy: new(3, 2));
         state.Types[0] = type with { Atk = 10, Rng = 10 };
         Assert.DoesNotContain(Action(state).NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
     }
 
+    [Theory]
+    [InlineData(false, Posture.Upright)]
+    [InlineData(false, Posture.Lying)]
+    [InlineData(true, Posture.Upright)]
+    [InlineData(true, Posture.Lying)]
+    public void SummonUsesConfiguredTypePostureAndExistingContentWithoutChangingCurrentBag(bool existing, Posture posture)
+    {
+        var summoner = UnitType.Define("summoner", "Summoner", UnitAuthoring.Stats(2, 0, 0, 3, 1),
+            UnitAuthoring.CantAttack(),
+            UnitAuthoring.Ability("Call Ally", UnitAuthoring.Unlimited(),
+                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, posture)))
+            .WithBehaviors(UnitBehavior.UseSummon);
+        var initial = State();
+        initial.Types[0] = summoner;
+        initial.Units[0] = summoner.CreateUnit("shaman", "red");
+        var expectedType = existing ? UnitType.Wizard() with { Hp = 7, DisplayName = "Learned Wizard" } : UnitType.Wizard();
+        if (existing) initial.Types.Add(expectedType);
+        var action = Action(Restore(initial));
+        var entry = Assert.Single(action.State.Types[0].CardEntries(action.State.Types));
+        Assert.Equal("spawn-goblin", entry.Id); // Existing opaque presentation identity is retained.
+        Assert.Equal("Call Ally", entry.Name);
+        Assert.Null(entry.MaxUses);
+        Assert.Equal($"Place one {posture} {expectedType.DisplayName} in an adjacent empty Cell.", entry.Description);
+        var restored = Restore(action.State);
+        Assert.Equal(new SummonAdjacent(UnitTypeIds.Wizard, posture), restored.Types[0].SummonAdjacent);
+        var result = GameEngine.Advance(restored, new DefaultMonsterProvider(), new Random(), false);
+        var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated");
+        var created = Assert.Single(step.StateAfter.Units, u => u.TypeId == UnitTypeIds.Wizard);
+        Assert.Equal(expectedType.Hp, created.CurrentHp);
+        Assert.Equal("red", created.SideId);
+        Assert.Equal(new AbilityUses(2, 2), created.FireballUses);
+        Assert.Equal(new AbilityUses(2, 2), created.BonusActionUses["Focus"]);
+        Assert.Equal(new Figure(created.Id, new(1, 1), posture), step.StateAfter.Physical.Figures.Single(f => f.Id == created.Id));
+        Assert.Equal(JsonSerializer.Serialize(expectedType), JsonSerializer.Serialize(
+            Assert.Single(step.StateAfter.Types, t => t.Id == UnitTypeIds.Wizard)));
+        Assert.Equal("Call Ally", result.Events[step.EventIndex].AbilityName);
+        Assert.Equal(action.State.Bag, step.StateAfter.Bag);
+        Assert.DoesNotContain(result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == UnitTypeIds.Wizard);
+        Assert.DoesNotContain(result.State.Types, t => t.Id == UnitTypeIds.Goblin);
+        Assert.True(result.State.RoundComplete);
+        Assert.Contains(UnitTypeIds.Wizard, GameEngine.StartRound(Restore(result.State), new Random(), false).State.Bag);
+    }
+
+    [Theory]
+    [InlineData("missing-type", Posture.Upright)]
+    [InlineData("goblin-type", (Posture)99)]
+    public void InvalidSummonConfigurationIsRejectedBeforeResolution(string typeId, Posture posture)
+    {
+        var state = State();
+        state.Types[0] = state.Types[0] with { SummonAdjacent = new(typeId, posture) };
+        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Random(), false));
+        Assert.Single(state.Units);
+    }
+
     [Fact]
     public void SpawnIncludesAllEightAdjacentCellsAndNoOthers()
     {
         var result = Action(State());
-        var spawns = result.NextInput!.Candidates.Where(c => c.Action == UnitAction.SpawnGoblin).ToArray();
+        var spawns = result.NextInput!.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent).ToArray();
         Assert.Equal(8, spawns.Length);
         Assert.All(spawns, c => Assert.True(SpatialRules.AreAdjacent(result.State.Physical.Board, new(2, 2), c.Destination!)));
         Assert.Throws<ArgumentException>(() => Choose(result.State, "spawn-goblin:0,0"));

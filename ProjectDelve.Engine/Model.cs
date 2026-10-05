@@ -10,11 +10,29 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SpawnGoblin = 32 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, SpawnGoblin = 16 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16 }
+public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
+public sealed record Telekinesis;
+// Presentation only: fixed mechanic/counter identities never depend on these names.
+public sealed record AbilityPresentationNames
+{
+    public string? Heal { get; init; }
+    public string? Cleave { get; init; }
+    public string? HolyWave { get; init; }
+    public string? Fireball { get; init; }
+    public string? Aura { get; init; }
+    public string? Fury { get; init; }
+    public string? Backstab { get; init; }
+    public string? Undying { get; init; }
+    public string? Telekinesis { get; init; }
+    public string? TryOpenDoor { get; init; }
+    public string? Summon { get; init; }
+    public string? MoveAfterAttack { get; init; }
+}
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Undying;
@@ -50,7 +68,12 @@ public sealed record PassiveDescription(string Name, string DisplayText);
 public enum Stat { Atk, Mov, Rng, Def }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
 // Immutable content and per-ability counters may be shared safely by state copies.
-public sealed record BonusActionAbility(string Name, int MaxUses, ImmutableArray<ModifierThisTurn> Modifiers);
+public sealed record BonusActionAbility(string Name, int MaxUses, ImmutableArray<ModifierThisTurn> Modifiers)
+{
+    // Name remains the existing persisted key; presentation can vary independently.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? DisplayName { get; init; }
+}
 public sealed record AbilityUses
 {
     public int MaxUses { get; }
@@ -70,6 +93,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
     public string? DisplayName { get; init; }
+    public AbilityPresentationNames AbilityNames { get; init; } = new();
+    public SummonAdjacent? SummonAdjacent { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
@@ -84,9 +109,9 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         {
             List<PassiveDescription> passives = [];
             if (AdjacentFriendlyUnitsDefenceBonus is { } aura)
-                passives.Add(new(aura.Name, $"Adjacent friendly Units get DEF +{aura.Amount}"));
-            if (Fury is { } fury) passives.Add(new(fury.Name, fury.DisplayText));
-            if (Backstab is { } backstab) passives.Add(new(backstab.Name, backstab.DisplayText));
+                passives.Add(new(AbilityNames.Aura ?? aura.Name, $"Adjacent friendly Units get DEF +{aura.Amount}"));
+            if (Fury is { } fury) passives.Add(new(AbilityNames.Fury ?? fury.Name, fury.DisplayText));
+            if (Backstab is { } backstab) passives.Add(new(AbilityNames.Backstab ?? backstab.Name, backstab.DisplayText));
             return passives;
         }
     }
@@ -104,65 +129,19 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
             BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
         };
 
-    public static UnitType Barbarian(string id = "barbarian-type") =>
-        new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
-        {
-            DisplayName = "Barbarian",
-            Fury = new() { AdjacentEnemyThreshold = 2, AtkBonus = 1 },
-            Cleave = new(MaxUses: 2) { TriggerDamage = 2, Damage = 1 },
-            BonusActions = [
-                new("Rage", 2, [new(Stat.Atk, 2)])
-            ]
-        };
+    public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
+        UnitAuthoring.Define(id, name, stats, entries);
 
-    public static UnitType Rogue(string id = "rogue-type") =>
-        new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
-        {
-            DisplayName = "Rogue",
-            Backstab = new() { AtkBonus = 1 },
-            BonusActions = [
-                new("Dash", 2, [new(Stat.Mov, 2)]),
-                new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])
-            ]
-        };
-
-    public static UnitType Cleric(string id = "cleric-type") =>
-        new(id, 3, 1, 3, 3, 4, Actions: UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave,
-            FreeActions: UnitFreeAction.OpenDoor)
-        {
-            DisplayName = "Cleric",
-            Heal = new(MaxUses: 2) { Amount = 2 },
-            HolyWave = new(),
-            AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
-        };
-
-    public static UnitType Wizard(string id = "wizard-type") =>
-        new(id, 2, 4, 3, 2, 4, Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
-        {
-            DisplayName = "Wizard",
-            Fireball = new(),
-            BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
-        };
-
-    public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1) { DisplayName = "Grunt" };
-
-    public static UnitType Zombie(string id = "zombie-type") =>
-        new(id, 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-            Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Zombie" };
-
-    public static UnitType SkeletonArcher(string id = "skeleton-archer-type") =>
-        new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" };
-
-    public static UnitType Troll(string id = "troll-type") =>
-        new(id, 2, 1, 4, 4, 1, TryOpenDoor: new(4),
-            Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new() };
-
-    public static UnitType Goblin(string id = "goblin-type") =>
-        new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1)) { DisplayName = "Goblin" };
-
-    public static UnitType Shaman(string id = "shaman-type") =>
-        new(id, 2, 0, 0, 3, 1, Actions: UnitAction.SpawnGoblin,
-            Behaviors: UnitBehavior.Flee | UnitBehavior.SpawnGoblin) { DisplayName = "Shaman" };
+    public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) => UnitRoster.Barbarian(id);
+    public static UnitType Rogue(string id = UnitTypeIds.Rogue) => UnitRoster.Rogue(id);
+    public static UnitType Cleric(string id = UnitTypeIds.Cleric) => UnitRoster.Cleric(id);
+    public static UnitType Wizard(string id = UnitTypeIds.Wizard) => UnitRoster.Wizard(id);
+    public static UnitType Grunt(string id = UnitTypeIds.Grunt) => UnitRoster.Grunt(id);
+    public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitRoster.Zombie(id);
+    public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitRoster.SkeletonArcher(id);
+    public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
+    public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
+    public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {

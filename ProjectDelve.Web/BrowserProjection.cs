@@ -33,14 +33,14 @@ public static class BrowserProjection
     {
         var type = state.Types.Single(t => t.Id == u.TypeId);
         return new UnitCard(type.DisplayName ?? type.Id,
-            type.CardEntries().Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray());
+            type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray());
     });
 
     public static BrowserDecision? Decision(DecisionRequest? request, GameState state)
     {
         if (request is null) return null;
         var type = state.Types.Single(t => t.Id == request.TypeId);
-        var entries = type.CardEntries().ToDictionary(e => e.Id);
+        var entries = type.CardEntries(state.Types).ToDictionary(e => e.Id);
         var candidates = request.Candidates.Select(c =>
         {
             var entryId = ContentDescriptions.EntryId(c);

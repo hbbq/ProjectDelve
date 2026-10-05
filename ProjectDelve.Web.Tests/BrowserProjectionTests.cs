@@ -10,15 +10,43 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void SummonCardsUseConfiguredTypeNamePostureAndTypedChoiceDespitePrintedAlias()
+    {
+        var summoner = UnitType.Define("caller", "Caller", UnitAuthoring.Stats(2, 0, 0, 3, 1),
+            UnitAuthoring.CantAttack(),
+            UnitAuthoring.Ability("Call Sage", UnitAuthoring.Unlimited(),
+                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, Posture.Upright)));
+        var sage = UnitType.Wizard() with { DisplayName = "Sage" };
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 3, []), [new("actor", new(1, 1))]),
+            Types = [summoner, sage], Units = [summoner.CreateUnit("actor", "red")]
+        };
+        state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        var entry = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries);
+        Assert.Equal("Call Sage", entry.Content.Name);
+        Assert.Equal("Action", entry.Content.Category);
+        Assert.Equal("Place one Upright Sage in an adjacent empty Cell.", entry.Content.Description);
+        Assert.Null(entry.Content.MaxUses);
+        Assert.Null(entry.Uses);
+        var request = new DecisionRequest(DecisionKind.Activation, summoner.Id, "actor",
+            [new("opaque-summon-choice", Destination: new(0, 0), Action: UnitAction.SummonAdjacent)], false);
+        var choice = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
+        Assert.Equal("spawn-goblin", choice.EntryId);
+        Assert.Equal("opaque-summon-choice", choice.Key);
+        Assert.Equal(new ChoiceInteraction(InteractionKind.Position, Position: new(0, 0)), choice.Interaction);
+        Assert.Contains("Call Sage (Action)", choice.Label);
+    }
+
+    [Fact]
     public void ConfiguredMechanicValuesReachBrowserCardsThroughDomainDescriptions()
     {
-        var type = new UnitType("unfamiliar", 1, 1, 3, 2, 4, Actions: UnitAction.Heal)
-        {
-            Heal = new(MaxUses: 2) { Amount = 3 },
-            Fury = new() { AdjacentEnemyThreshold = 3, AtkBonus = 2 },
-            Backstab = new() { AtkBonus = 4 },
-            Cleave = new(MaxUses: 2) { TriggerDamage = 4, Damage = 2 }
-        };
+        var type = UnitType.Define("unfamiliar", "Unfamiliar", UnitAuthoring.Stats(1, 1, 3, 2, 4),
+            UnitAuthoring.CantAttack(),
+            UnitAuthoring.Ability("Heal", UnitAuthoring.Uses(2), UnitAuthoring.Heal(amount: 3)),
+            UnitAuthoring.Ability("Fury", UnitAuthoring.Unlimited(), UnitAuthoring.Fury(atkBonus: 2, adjacentEnemies: 3)),
+            UnitAuthoring.Ability("Backstab", UnitAuthoring.Unlimited(), UnitAuthoring.Backstab(atkBonus: 4)),
+            UnitAuthoring.Ability("Cleave", UnitAuthoring.Uses(2), UnitAuthoring.Cleave(triggerDamage: 4, damage: 2)));
         var state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(State(type)))!;
         var entries = BrowserProjection.Cards(state)["actor"].Entries.ToDictionary(e => e.Content.Id);
         Assert.Equal("Restore up to 3 HP to an adjacent damaged friendly Unit.", entries["heal"].Content.Description);
@@ -28,6 +56,25 @@ public sealed class BrowserProjectionTests
         Assert.Equal(new AbilityUses(2, 2), entries["heal"].Uses);
         Assert.Equal(new AbilityUses(2, 2), entries["cleave"].Uses);
         Assert.Equal(type.CardEntries(), entries.Values.Select(e => e.Content));
+    }
+
+    [Fact]
+    public void AuthoredBonusDisplayNameLeavesBrowserEntryAndCandidateIdentityStable()
+    {
+        var type = UnitType.Define("named", "Named", UnitAuthoring.Stats(1, 1, 3, 2, 4),
+            UnitAuthoring.Ability("Battle Cry", UnitAuthoring.Uses(3),
+                UnitAuthoring.BonusActionSelfModifier(UnitAuthoring.Modifier(Stat.Atk, 2)), id: "stable-key"));
+        var state = State(type);
+        var ability = type.BonusActions[0];
+        var candidate = new Candidate("bonus-action:stable-key", Kind: ActivationChoiceKind.BonusAction, BonusAction: ability);
+        var request = new DecisionRequest(DecisionKind.Activation, type.Id, "actor", [candidate], false);
+        var card = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries, e => e.Content.Id == "bonus:stable-key");
+        var choice = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
+        Assert.Equal("Battle Cry", card.Content.Name);
+        Assert.Equal(new AbilityUses(3, 3), card.Uses);
+        Assert.Equal("bonus:stable-key", choice.EntryId);
+        Assert.Equal(candidate.Key, choice.Key);
+        Assert.Contains("Battle Cry", choice.Label);
     }
 
     [Fact]
@@ -45,7 +92,7 @@ public sealed class BrowserProjectionTests
         var spawn = decision.Candidates.Single(c => c.Key == "spawn-goblin:0,0");
         Assert.Equal("spawn-goblin", spawn.EntryId);
         Assert.Equal(new ChoiceInteraction(InteractionKind.Position, Position: new(0, 0)), spawn.Interaction);
-        Assert.Contains("Spawn Goblin (Action)", spawn.Label);
+        Assert.Contains("Summon Goblin (Action)", spawn.Label);
         Assert.Empty(spawn.AffectedUnitIds);
         Assert.Equal("spawn-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries).Content.Id);
         var result = GameEngine.Advance(action.State, new Choice(spawn.Key!), new Dice(), false);

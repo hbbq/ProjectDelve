@@ -133,7 +133,8 @@ public static class GameEngine
                     var targetId = request.Candidates.Single(c => c.Key == choice).TargetId!;
                     var cleave = state.Types.Single(t => t.Id == request.TypeId).Cleave!;
                     DealDamage(state, targetId, cleave.Damage,
-                        new RulesEvent("CleaveResolved", request.UnitId, targetId, Damage: cleave.Damage, AbilityName: "Cleave"), events);
+                        new RulesEvent("CleaveResolved", request.UnitId, targetId, Damage: cleave.Damage,
+                            AbilityName: state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Cleave ?? "Cleave"), events);
                 }
                 break;
             case DecisionKind.SelectUnit:
@@ -159,7 +160,7 @@ public static class GameEngine
                 };
                 state.BonusActionsUsedThisActivation.Add(ability.Name);
                 state.ModifiersThisTurn.AddRange(ability.Modifiers);
-                events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.Name));
+                events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name));
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state);
@@ -227,22 +228,28 @@ public static class GameEngine
                                 FireballUses = new(fireballUses.MaxUses, fireballUses.RemainingUses - 1)
                             };
                             ResolveAttack(state, request.UnitId!,
-                                new(action.TargetIds, state.EffectiveAtkOf(request.UnitId!), "Fireball"), random, events);
+                                new(action.TargetIds, state.EffectiveAtkOf(request.UnitId!),
+                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Fireball ?? "Fireball"), random, events);
                             attacked = true;
                             break;
                         case UnitAction.Telekinesis:
                             ChangePosture(state, action.TargetId!, Posture.Lying, events);
                             break;
-                        case UnitAction.SpawnGoblin:
-                            var goblin = UnitType.Goblin();
-                            if (!state.Types.Any(t => t.Id == goblin.Id)) state.Types.Add(goblin);
-                            var goblinNumber = 1;
-                            while (state.Units.Any(u => u.Id == $"goblin-{goblinNumber}")) goblinNumber++;
-                            var goblinId = $"goblin-{goblinNumber}";
-                            state.Units.Add(state.Types.Single(t => t.Id == goblin.Id)
-                                .CreateUnit(goblinId, state.Units.Single(u => u.Id == request.UnitId).SideId));
-                            state.Physical.Figures.Add(new(goblinId, action.Destination!, Posture.Lying));
-                            events.Add(new RulesEvent("UnitCreated", goblinId, TypeId: goblin.Id, AbilityName: "Spawn Goblin"));
+                        case UnitAction.SummonAdjacent:
+                            var summoner = state.Types.Single(t => t.Id == request.TypeId);
+                            var summon = summoner.SummonAdjacent!;
+                            var summonedType = UnitContent.Find(summon.UnitTypeId, state.Types)
+                                ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
+                            if (!state.Types.Any(t => t.Id == summonedType.Id)) state.Types.Add(summonedType);
+                            var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal)
+                                ? summonedType.Id[..^5] : summonedType.Id;
+                            var number = 1;
+                            while (state.Units.Any(u => u.Id == $"{prefix}-{number}")) number++;
+                            var summonedId = $"{prefix}-{number}";
+                            state.Units.Add(summonedType.CreateUnit(summonedId, state.Units.Single(u => u.Id == request.UnitId).SideId));
+                            state.Physical.Figures.Add(new(summonedId, action.Destination!, summon.InitialPosture));
+                            events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
+                                AbilityName: summoner.AbilityNames.Summon ?? "Summon Adjacent"));
                             break;
                         case UnitAction.Heal:
                             ResolveHeal(state, request.UnitId!, action.TargetId!, events);
@@ -349,13 +356,13 @@ public static class GameEngine
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var actions = type.Actions;
         var candidates = new List<Candidate>();
-        if (actions.HasFlag(UnitAction.SpawnGoblin))
+        if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is not null)
             for (var y = from.Y - 1; y <= from.Y + 1; y++)
                 for (var x = from.X - 1; x <= from.X + 1; x++)
                 {
                     var cell = new Cell(x, y);
                     if (SpatialRules.CanPlaceUnit(state, cell) && SpatialRules.AreAdjacent(state.Physical.Board, from, cell))
-                        candidates.Add(new($"spawn-goblin:{x},{y}", Destination: cell, Action: UnitAction.SpawnGoblin));
+                        candidates.Add(new($"spawn-goblin:{x},{y}", Destination: cell, Action: UnitAction.SummonAdjacent));
                 }
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
@@ -597,7 +604,8 @@ public static class GameEngine
         var heal = state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).Heal!;
         var healing = Math.Min(heal.Amount, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
         state.Units[targetIndex] = target with { CurrentHp = target.CurrentHp + healing };
-        events.Add(new RulesEvent("HealResolved", healerId, targetId, AbilityName: "Heal", Healing: healing));
+        events.Add(new RulesEvent("HealResolved", healerId, targetId,
+            AbilityName: state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).AbilityNames.Heal ?? "Heal", Healing: healing));
     }
 
     private static List<Candidate> CleaveCandidates(GameState state, Unit unit)
@@ -665,6 +673,9 @@ public static class GameEngine
                 t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
                 t.Fury is { AdjacentEnemyThreshold: < 1 } ||
+                (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
+                (t.SummonAdjacent is { } summon && (string.IsNullOrWhiteSpace(summon.UnitTypeId) ||
+                    !Enum.IsDefined(summon.InitialPosture) || UnitContent.Find(summon.UnitTypeId, state.Types) is null)) ||
                 t.HolyWave is { MaxUses: < 1 } ||
                 t.Fireball is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
