@@ -28,7 +28,7 @@ public sealed class ActivationTests
     {
         Physical = new(new Board(5, 2, [new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor)]),
             [new("first", new(1, 0)), new("second", new(0, 0)), new("hero", new(4, 0))]),
-        Types = [UnitType.Zombie(), new("hero-type", 0, 0, 0, 0, 4)],
+        Types = [UnitType.Zombie(), new("hero-type", 0, 0, 0, 0, 4) { Unique = true }],
         Units = [new("first", "zombie-type", "red", 1), new("second", "zombie-type", "red", 1),
             new("hero", "hero-type", "blue", 4)]
     };

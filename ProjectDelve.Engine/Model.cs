@@ -93,6 +93,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
+    public bool Unique { get; init; }
     public string? DisplayName { get; init; }
     public AbilityPresentationNames AbilityNames { get; init; } = new();
     public SummonAdjacent? SummonAdjacent { get; init; }
@@ -205,6 +206,26 @@ public sealed class GameState
     public required PhysicalState Physical { get; set; }
     public required List<UnitType> Types { get; set; }
     public required List<Unit> Units { get; set; }
+
+    internal bool CanPlaceUnitType(UnitType type) =>
+        !type.Unique || !Units.Any(u => u.TypeId == type.Id && u.CurrentHp > 0);
+
+    // Creating detached Unit data does not enter play; placement is the runtime entry boundary.
+    public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright)
+    {
+        var type = UnitContent.Find(typeId, Types)
+            ?? throw new ArgumentException("Unit Type is not defined.", nameof(typeId));
+        if (type.Hp > 1 && !type.Unique)
+            throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
+        if (!CanPlaceUnitType(type))
+            throw new ArgumentException("A Unit of this Unique Unit Type is already in play.", nameof(typeId));
+        if (Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
+            !Enum.IsDefined(posture) || !SpatialRules.CanPlaceUnit(this, cell))
+            throw new ArgumentException("Invalid Unit placement.");
+        if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
+        Units.Add(type.CreateUnit(id, sideId));
+        Physical.Figures.Add(new(id, cell, posture));
+    }
     public int Round { get; set; }
     public List<string> Bag { get; set; } = [];
     public string? ActiveTypeId { get; set; }

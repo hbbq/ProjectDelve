@@ -22,7 +22,7 @@ public sealed class TelekinesisTests
         return new()
         {
             Physical = new(new Board(8, 5, []), [new("wizard", new(0, 0)), new("enemy", target ?? new(4, 0))]),
-            Types = [type, new("enemy-type", 0, 0, 0, 2, 8)],
+            Types = [type, new("enemy-type", 0, 0, 0, 2, 8) { Unique = true }],
             Units = [type.CreateUnit("wizard", "blue"), new("enemy", "enemy-type", "red", 8)]
         };
     }
@@ -95,7 +95,8 @@ public sealed class TelekinesisTests
             case "door": state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor)); break;
             case "tree": state.Physical.Board.Terrain.Add(new(new(2, 0), TerrainKind.Tree)); break;
             case "intervening-hostile":
-                state.Units.Add(new("blocker", "enemy-type", "red", 8));
+                state.Types.Add(state.Types.Single(t => t.Id == "enemy-type") with { Id = "blocker-type" });
+                state.Units.Add(new("blocker", "blocker-type", "red", 8));
                 state.Physical.Figures.Add(new("blocker", new(2, 0)));
                 break;
         }
@@ -109,7 +110,8 @@ public sealed class TelekinesisTests
     {
         var state = Scenario();
         state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.OpenDoor));
-        state.Units.Add(new("friend", "enemy-type", "blue", 8));
+        state.Types.Add(state.Types.Single(t => t.Id == "enemy-type") with { Id = "friend-type" });
+        state.Units.Add(new("friend", "friend-type", "blue", 8));
         state.Physical.Figures.Add(new("friend", new(2, 0)));
         Assert.Contains(Action(state).NextInput!.Candidates, c => c.Key == "telekinesis:enemy");
     }

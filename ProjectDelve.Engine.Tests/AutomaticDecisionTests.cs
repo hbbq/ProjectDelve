@@ -32,7 +32,7 @@ public sealed class AutomaticDecisionTests
     private static GameState State(int width = 2, int height = 1, int mov = 1, int rng = 0, int atk = 0) => new()
     {
         Physical = new PhysicalState(new Board(width, height, []), [new Figure("hero", new Cell(0, 0))]),
-        Types = [new UnitType("hero-type", mov, rng, atk, 0, 2)],
+        Types = [new UnitType("hero-type", mov, rng, atk, 0, 2) { Unique = true }],
         Units = [new Unit("hero", "hero-type", "blue", 2)]
     };
 
@@ -255,7 +255,9 @@ public sealed class AutomaticDecisionTests
         var state = State(width: 3, height: 2, mov: kind == DecisionKind.Act ? 0 : 1, rng: 1, atk: 1);
         if (kind == DecisionKind.SelectUnit)
         {
-            state.Units.Add(new Unit("ally", "hero-type", "blue", 2));
+            state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+            state.Units[0] = state.Units[0] with { CurrentHp = 1 };
+            state.Units.Add(new Unit("ally", "hero-type", "blue", 1));
             state.Physical.Figures.Add(new Figure("ally", new Cell(1, 0)));
         }
         else if (kind == DecisionKind.Act)

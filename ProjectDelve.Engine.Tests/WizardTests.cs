@@ -25,7 +25,7 @@ public sealed class WizardTests
         return new()
         {
             Physical = new(new Board(7, 2, []), [new("wizard", new(0, 0)), new("enemy", new(enemyX, 0))]),
-            Types = [type, new("enemy-type", 0, 0, 0, 0, 20)],
+            Types = [type, new("enemy-type", 0, 0, 0, 0, 20) { Unique = true }],
             Units = [type.CreateUnit("wizard", "blue"), new("enemy", "enemy-type", "red", 20)]
         };
     }

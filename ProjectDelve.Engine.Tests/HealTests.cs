@@ -23,7 +23,7 @@ public sealed class HealTests
     {
         Physical = new(new Board(5, 5, [new(new(1, 1), new(1, 2), EdgeKind.ClosedDoor)]),
             [new("cleric", new(1, 1)), new("friend", new(2, 1)), new("enemy", new(0, 1))]),
-        Types = [UnitType.Cleric(), UnitType.Hero("friend-type", 0, 1, 1, 2, 4), UnitType.Grunt()],
+        Types = [UnitType.Cleric(), UnitType.Hero("friend-type", 0, 1, 1, 2, 4) with { Unique = true }, UnitType.Grunt()],
         Units = [UnitType.Cleric().CreateUnit("cleric", "blue"), new("friend", "friend-type", "blue", hp),
             UnitType.Grunt().CreateUnit("enemy", "red")]
     };
@@ -45,7 +45,7 @@ public sealed class HealTests
         var scenario = Scenario(hp);
         var healer = new UnitType("unfamiliar-healer", 1, 0, 0, 0, 4, Actions: UnitAction.Heal,
             FreeActions: UnitFreeAction.OpenDoor)
-        {
+        { Unique = true,
             Heal = new(MaxUses: 2) { Amount = 3 }
         };
         scenario.Types[0] = healer;
@@ -188,7 +188,7 @@ public sealed class HealTests
     public void FriendshipDependsOnSideEvenForMonsterContent()
     {
         var scenario = Scenario();
-        var goblin = UnitType.Goblin() with { Hp = 4 };
+        var goblin = UnitType.Goblin() with { Hp = 4, Unique = true };
         scenario.Types[1] = goblin;
         scenario.Units[1] = new("friend", goblin.Id, "blue", 2);
         Assert.True(OffersHeal(Action(scenario)));

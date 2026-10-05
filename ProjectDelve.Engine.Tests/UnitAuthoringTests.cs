@@ -10,10 +10,10 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void StatsOnlyDefinitionHasBaselineAttackAndNoOtherContent()
     {
-        var type = UnitType.Define("ordinary", "Ordinary", Stats(2, 3, 4, 5, 6));
+        var type = UnitType.Define("ordinary", "Ordinary", Stats(2, 3, 4, 5, 1));
         Assert.Equal("ordinary", type.Id);
         Assert.Equal("Ordinary", type.DisplayName);
-        Assert.Equal((2, 3, 4, 5, 6), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
+        Assert.Equal((2, 3, 4, 5, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal("attack", Assert.Single(type.CardEntries()).Id);
         Assert.Empty(type.BonusActions);
@@ -25,7 +25,7 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void NamedUnlimitedAbilitiesPreserveCategoriesAndHaveNoUseCounters()
     {
-        var type = UnitType.Define("named", "Named", Stats(1, 4, 3, 2, 5),
+        var type = UnitType.Define("named", "Named", Stats(1, 4, 3, 2, 5), Unique(),
             Ability("Distant Touch", Unlimited(), Telekinesis()),
             Ability("Resolve", Unlimited(), Fury(atkBonus: 2, adjacentEnemies: 1)),
             Ability("Flank", Unlimited(), Backstab(atkBonus: 3)),
@@ -60,7 +60,7 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void RenamedLimitedAbilityKeepsMechanicalEntryAndCounterIdentity()
     {
-        var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5),
+        var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5), Unique(),
             Ability("Mend", Uses(4), Heal(amount: 3)));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
@@ -79,7 +79,7 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void CantAttackOnlyRemovesNormalAttackAndDoesNotFreezeEffectiveStats()
     {
-        var type = UnitType.Define("non-attacker", "Non-attacker", Stats(1, 4, 3, 2, 5), CantAttack(), Ability("Telekinesis", Unlimited(), Telekinesis()));
+        var type = UnitType.Define("non-attacker", "Non-attacker", Stats(1, 4, 3, 2, 5), Unique(), CantAttack(), Ability("Telekinesis", Unlimited(), Telekinesis()));
         var state = State(type);
         state.CurrentUnitId = "actor";
         state.MoveDone = true;
@@ -111,7 +111,7 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void NamedBonusPresentationDoesNotChangePersistedIdentityOrCounters()
     {
-        var type = UnitType.Define("custom", "Custom", Stats(1, 1, 3, 2, 5),
+        var type = UnitType.Define("custom", "Custom", Stats(1, 1, 3, 2, 5), Unique(),
             Ability("Battle Cry", Uses(3), BonusActionSelfModifier(Modifier(Atk, +2)), id: "stable-key"));
         var started = GameEngine.StartRound(State(type), new Dice(), false);
         var restored = Restore(started.State);
@@ -139,7 +139,7 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void AuthoredHealAmountAndUsesDriveResolutionAndDescriptionAfterStateRoundTrip()
     {
-        var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5),
+        var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5), Unique(),
             Ability("Heal", Uses(4), Heal(amount: 3)));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
@@ -171,7 +171,7 @@ public sealed class UnitAuthoringTests
     [Fact]
     public void TypedHelpersPreserveAlternateParametersAndExplicitUseLimits()
     {
-        var type = UnitType.Define("configured", "Configured", Stats(1, 4, 3, 2, 5),
+        var type = UnitType.Define("configured", "Configured", Stats(1, 4, 3, 2, 5), Unique(),
             Ability("Try Open Door", Unlimited(), TryOpenDoor(successes: 5)),
             Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 3)),
             Ability("Undying", Unlimited(), Undying()),
@@ -221,23 +221,23 @@ public sealed class UnitAuthoringTests
                 AbilityNames = new() { Summon = "Summon Goblin" } }),
             (UnitType.Barbarian, new("barbarian-type", 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
             {
-                DisplayName = "Barbarian", Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },
+                Unique = true, DisplayName = "Barbarian", Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },
                 Cleave = new(2) { TriggerDamage = 2, Damage = 1 }, BonusActions = [new("Rage", 2, [new(Stat.Atk, 2)])]
             }),
             (UnitType.Rogue, new("rogue-type", 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
             {
-                DisplayName = "Rogue", Backstab = new() { AtkBonus = 1 },
+                Unique = true, DisplayName = "Rogue", Backstab = new() { AtkBonus = 1 },
                 BonusActions = [new("Dash", 2, [new(Stat.Mov, 2)]), new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
             }),
             (UnitType.Cleric, new("cleric-type", 3, 1, 3, 3, 4,
                 Actions: UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave, FreeActions: UnitFreeAction.OpenDoor)
             {
-                DisplayName = "Cleric", Heal = new(2) { Amount = 2 }, HolyWave = new(2), AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
+                Unique = true, DisplayName = "Cleric", Heal = new(2) { Amount = 2 }, HolyWave = new(2), AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
             }),
             (UnitType.Wizard, new("wizard-type", 2, 4, 3, 2, 4,
                 Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
             {
-                DisplayName = "Wizard", Fireball = new(2), BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
+                Unique = true, DisplayName = "Wizard", Fireball = new(2), BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
             })
         ];
         foreach (var (factory, expected) in content)
@@ -257,7 +257,7 @@ public sealed class UnitAuthoringTests
     private static GameState State(UnitType type) => new()
     {
         Physical = new(new Board(3, 2, []), [new("actor", new(0, 0)), new("target", new(1, 0))]),
-        Types = [type, new("target-type", 0, 0, 0, 0, 6)],
+        Types = [type, new("target-type", 0, 0, 0, 0, 6) { Unique = true }],
         Units = [type.CreateUnit("actor", "blue"), new("target", "target-type", "red", 6)]
     };
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;

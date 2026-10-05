@@ -21,7 +21,7 @@ public sealed class ShamanTests
         Physical = new(new Board(width, height, []), enemy is null
             ? [new("shaman", start ?? new(2, 2))]
             : [new("shaman", start ?? new(2, 2)), new("enemy", enemy)]),
-        Types = [UnitType.Shaman(), new("enemy-type", 0, 0, 0, 0, 10, Actions: UnitAction.None)],
+        Types = [UnitType.Shaman(), new("enemy-type", 0, 0, 0, 0, 10, Actions: UnitAction.None) { Unique = true }],
         Units = enemy is null ? [UnitType.Shaman().CreateUnit("shaman", "red")]
             : [UnitType.Shaman().CreateUnit("shaman", "red"), new("enemy", "enemy-type", "blue", 10)]
     };
@@ -127,7 +127,8 @@ public sealed class ShamanTests
         switch (blocker)
         {
             case "occupied":
-                state.Units.Add(new("friend", "enemy-type", "red", 10));
+                state.Types.Add(state.Types.Single(t => t.Id == "enemy-type") with { Id = "friend-type" });
+                state.Units.Add(new("friend", "friend-type", "red", 10));
                 state.Physical.Figures.Add(new("friend", cell, Posture.Lying)); break;
             case "water": state.Physical.Board.Terrain.Add(new(cell, TerrainKind.Water)); break;
             case "tree": state.Physical.Board.Terrain.Add(new(cell, TerrainKind.Tree)); break;
@@ -206,7 +207,8 @@ public sealed class ShamanTests
     {
         Assert.Equal(new Cell(0, 2), Flee(State(enemy: new(2, 0))));
         var state = State(enemy: new(2, 0));
-        state.Units.Add(new("second-enemy", "enemy-type", "blue", 10));
+        state.Types.Add(state.Types.Single(t => t.Id == "enemy-type") with { Id = "second-enemy-type" });
+        state.Units.Add(new("second-enemy", "second-enemy-type", "blue", 10));
         state.Physical.Figures.Add(new("second-enemy", new(0, 2)));
         Assert.Equal(new Cell(4, 2), Flee(state));
     }
@@ -222,7 +224,8 @@ public sealed class ShamanTests
         Assert.Equal(new Cell(0, 0), Flee(state));
 
         var corridor = State(new(2, 0), new(0, 0), 5, 1);
-        corridor.Units.Add(new("second-enemy", "enemy-type", "blue", 10));
+        corridor.Types.Add(corridor.Types.Single(t => t.Id == "enemy-type") with { Id = "second-enemy-type" });
+        corridor.Units.Add(new("second-enemy", "second-enemy-type", "blue", 10));
         corridor.Physical.Figures.Add(new("second-enemy", new(4, 0)));
         Assert.Equal(new Cell(2, 0), Flee(corridor));
     }
@@ -282,7 +285,8 @@ public sealed class ShamanTests
     {
         var state = State(new(0, 0), new(4, 0), 5, 1);
         state.Physical.Board.Edges.Add(new(new(1, 0), new(2, 0), EdgeKind.WallWithWindow));
-        state.Units.Add(new("blocker", "enemy-type", "red", 10));
+        state.Types.Add(state.Types.Single(t => t.Id == "enemy-type") with { Id = "blocker-type" });
+        state.Units.Add(new("blocker", "blocker-type", "red", 10));
         state.Physical.Figures.Add(new("blocker", new(2, 0), Posture.Lying));
         state.Physical.Figures[1] = state.Physical.Figures[1] with { Posture = Posture.Lying };
         Assert.Null(new GameplayQueries(state).DistanceToNearestHostileFrom("shaman", new(0, 0)));

@@ -41,6 +41,7 @@ public static class UnitRoster
 
     public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) =>
         UnitType.Define(id, "Barbarian", Stats(3, 1, 4, 3, 5),
+            Unique(),
             OpenDoor(),
             Ability("Fury", Unlimited(), Fury(atkBonus: +1, adjacentEnemies: 2)),
             Ability("Cleave", Uses(2), Cleave(triggerDamage: 2, damage: 1)),
@@ -48,6 +49,7 @@ public static class UnitRoster
 
     public static UnitType Rogue(string id = UnitTypeIds.Rogue) =>
         UnitType.Define(id, "Rogue", Stats(4, 1, 3, 2, 4),
+            Unique(),
             OpenDoor(),
             Ability("Backstab", Unlimited(), Backstab(atkBonus: +1)),
             Ability("Dash", Uses(2), BonusActionSelfModifier(Modifier(Mov, +2)), id: "Dash"),
@@ -56,6 +58,7 @@ public static class UnitRoster
 
     public static UnitType Cleric(string id = UnitTypeIds.Cleric) =>
         UnitType.Define(id, "Cleric", Stats(3, 1, 3, 3, 4),
+            Unique(),
             OpenDoor(),
             Ability("Heal", Uses(2), Heal(amount: 2)),
             Ability("Holy Wave", Uses(2), HolyWave()),
@@ -63,6 +66,7 @@ public static class UnitRoster
 
     public static UnitType Wizard(string id = UnitTypeIds.Wizard) =>
         UnitType.Define(id, "Wizard", Stats(2, 4, 3, 2, 4),
+            Unique(),
             OpenDoor(),
             Ability("Fireball", Uses(2), Fireball()),
             Ability("Telekinesis", Unlimited(), Telekinesis()),

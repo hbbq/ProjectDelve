@@ -24,9 +24,9 @@ public sealed class CleaveTests
     {
         Physical = new(new Board(5, 5, [new(new(2, 2), new(2, 3), EdgeKind.ClosedDoor)]),
             [new("barbarian", new(2, 2)), new("target", new(3, 2)), new("other", new(1, 1))]),
-        Types = [UnitType.Barbarian(), new("enemy", 0, 0, 0, 2, 10)],
+        Types = [UnitType.Barbarian(), new("enemy", 0, 0, 0, 2, 10) { Unique = true }, new("other-enemy", 0, 0, 0, 2, 10) { Unique = true }],
         Units = [UnitType.Barbarian().CreateUnit("barbarian", "heroes"),
-            new("target", "enemy", "enemies", targetHp), new("other", "enemy", "third-side", 2)]
+            new("target", "enemy", "enemies", targetHp), new("other", "other-enemy", "third-side", 2)]
     };
 
     private static EngineResult Choose(GameState state, string? key, IRandomProvider? dice = null, bool auto = false) =>
@@ -49,7 +49,7 @@ public sealed class CleaveTests
     {
         var scenario = Scenario();
         var type = new UnitType("unfamiliar-cleaver", 0, 1, 4, 0, 5, FreeActions: UnitFreeAction.OpenDoor)
-        {
+        { Unique = true,
             Cleave = new(MaxUses: 2) { TriggerDamage = trigger, Damage = 3 }
         };
         scenario.Types[0] = type;
@@ -130,7 +130,9 @@ public sealed class CleaveTests
     public void EachAdjacentHostileHasOneCandidateAndFriendsAndDistantUnitsAreExcluded()
     {
         var scenario = Scenario();
-        scenario.Units.AddRange([new("friend", "enemy", "heroes", 10), new("far", "enemy", "enemies", 10)]);
+        scenario.Types.Add(new("friend-type", 0, 0, 0, 2, 10) { Unique = true });
+        scenario.Types.Add(new("far-type", 0, 0, 0, 2, 10) { Unique = true });
+        scenario.Units.AddRange([new("friend", "friend-type", "heroes", 10), new("far", "far-type", "enemies", 10)]);
         scenario.Physical.Figures.AddRange([new("friend", new(2, 1)), new("far", new(4, 4))]);
         var result = Attack(scenario);
         Assert.Equal(new[] { "target", "other" }, result.NextInput!.Candidates.Select(c => c.TargetId));

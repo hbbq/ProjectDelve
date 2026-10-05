@@ -26,13 +26,15 @@ public sealed class DecisionMutationTests
                 [new Edge(new Cell(0, 0), new Cell(1, 0), EdgeKind.Wall)]),
                 [new Figure("hero", new Cell(0, 0)), new Figure("enemy", new Cell(0, 2)),
                     new Figure("friend", new Cell(2, 0))]),
-            Types = [new UnitType("hero-type", 3, 2, 1, 0, 2), new UnitType("other", 0, 0, 0, 0, 1)],
+            Types = [new UnitType("hero-type", 3, 2, 1, 0, 2) { Unique = true }, new UnitType("other", 0, 0, 0, 0, 1)],
             Units = [new Unit("hero", "hero-type", "blue", 2), new Unit("enemy", "other", "red", 1),
                 new Unit("friend", "other", "blue", 1)]
         };
         if (kind == DecisionKind.SelectUnit)
         {
-            state.Units.Add(new Unit("ally", "hero-type", "blue", 2));
+            state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+            state.Units[0] = state.Units[0] with { CurrentHp = 1 };
+            state.Units.Add(new Unit("ally", "hero-type", "blue", 1));
             state.Physical.Figures.Add(new Figure("ally", new Cell(2, 2)));
         }
         var result = GameEngine.StartRound(state, random);

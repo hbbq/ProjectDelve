@@ -26,7 +26,7 @@ public sealed class ClericTests
     private static GameState State(UnitType? recipient = null)
     {
         var cleric = UnitType.Cleric();
-        recipient ??= UnitType.Hero("recipient-type", 3, 1, 3, 2, 4);
+        recipient ??= UnitType.Hero("recipient-type", 3, 1, 3, 2, 4) with { Unique = true };
         return new()
         {
             Physical = new(new Board(6, 5, []), [new("cleric", new(1, 1)), new("recipient", new(2, 1))]),

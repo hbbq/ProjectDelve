@@ -23,7 +23,7 @@ public sealed class BackstabTests
     {
         var rogue = UnitType.Rogue();
         // A hostile Hero and a friendly Unit with monster behavior exercise Side relationships.
-        var target = UnitType.Hero("target-type", 0, 1, 1, 0, 20);
+        var target = UnitType.Hero("target-type", 0, 1, 1, 0, 20) with { Unique = true };
         var friend = UnitType.Zombie();
         var state = new GameState
         {
@@ -72,7 +72,7 @@ public sealed class BackstabTests
     {
         var state = State(ally: ally);
         var type = new UnitType("unfamiliar-flanker", 1, 1, 3, 0, 4)
-        {
+        { Unique = true,
             Backstab = new() { AtkBonus = 3 }
         };
         state.Types[0] = type;

@@ -26,7 +26,7 @@ public sealed class ThrowingKnifeTests
         return new()
         {
             Physical = new(new Board(8, 3, []), [new("rogue", new(0, 0)), new("enemy", new(targetX, 0))]),
-            Types = [rogue, new("enemy-type", 0, 0, 0, 0, 20)],
+            Types = [rogue, new("enemy-type", 0, 0, 0, 0, 20) { Unique = true }],
             Units = [rogue.CreateUnit("rogue", "blue"), new("enemy", "enemy-type", "red", 20)]
         };
     }
@@ -314,7 +314,9 @@ public sealed class ThrowingKnifeTests
     public void BothModifiersClearBeforeNextRoguesActivationWithoutTransferringUses()
     {
         var state = State();
-        state.Units.Add(UnitType.Rogue().CreateUnit("ally", "blue"));
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Units[0] = state.Units[0] with { CurrentHp = 1 };
+        state.Units.Add(state.Types[0].CreateUnit("ally", "blue"));
         state.Physical.Figures.Add(new("ally", new(0, 2)));
         var started = Choose(Start(state).State, "rogue");
         var used = Choose(started.State, Ability(started).Key);
@@ -361,7 +363,7 @@ public sealed class ThrowingKnifeTests
     public void PerAbilityLimitUsesContentIdentityOnAnUnrelatedUnitType()
     {
         var type = UnitType.Hero("custom-type", 4, 1, 3, 2, 4) with
-        {
+        { Unique = true,
             BonusActions = [new("Stride", 2, [new(Stat.Mov, 2)]),
                 new("Reach", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
         };

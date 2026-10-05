@@ -70,7 +70,7 @@ public sealed class FuryTests
     {
         var state = State(enemies);
         var type = new UnitType("unfamiliar-fighter", 1, 1, 4, 0, 5)
-        {
+        { Unique = true,
             Fury = new() { AdjacentEnemyThreshold = 3, AtkBonus = 3 }
         };
         state.Types[0] = type;

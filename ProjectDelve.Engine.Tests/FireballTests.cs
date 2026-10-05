@@ -34,8 +34,8 @@ public sealed class FireballTests
         return new()
         {
             Physical = new(new Board(8, 7, []), [new("wizard", new(1, 2)), new("a", new(3, 2)), new("b", new(4, 3))]),
-            Types = [type, new("target", 0, 0, 0, 1, 8)],
-            Units = [type.CreateUnit("wizard", "blue"), new("a", "target", "red", 8), new("b", "target", "blue", 8)]
+            Types = [type, new("target", 0, 0, 0, 1, 8) { Unique = true }, new("target-b", 0, 0, 0, 1, 8) { Unique = true }],
+            Units = [type.CreateUnit("wizard", "blue"), new("a", "target", "red", 8), new("b", "target-b", "blue", 8)]
         };
     }
     private static EngineResult Choose(GameState state, string? key, Dice? dice = null) =>
@@ -298,7 +298,8 @@ public sealed class FireballTests
         state.Units[2] = state.Units[2] with { SideId = "red" };
         state.Physical.Figures[1] = new("a", new(2, 1));
         state.Physical.Figures[2] = new("b", new(2, 3));
-        state.Units.Add(new("friend", "target", "blue", 8));
+        state.Types.Add(new("friend-type", 0, 0, 0, 1, 8) { Unique = true });
+        state.Units.Add(new("friend", "friend-type", "blue", 8));
         state.Physical.Figures.Add(new("friend", new(3, 1)));
         var action = Action(state);
         action.State.ModifiersThisTurn.Add(new(Stat.Atk, 2));

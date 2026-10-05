@@ -42,6 +42,7 @@ public sealed class BrowserProjectionTests
     public void ConfiguredMechanicValuesReachBrowserCardsThroughDomainDescriptions()
     {
         var type = UnitType.Define("unfamiliar", "Unfamiliar", UnitAuthoring.Stats(1, 1, 3, 2, 4),
+            UnitAuthoring.Unique(),
             UnitAuthoring.CantAttack(),
             UnitAuthoring.Ability("Heal", UnitAuthoring.Uses(2), UnitAuthoring.Heal(amount: 3)),
             UnitAuthoring.Ability("Fury", UnitAuthoring.Unlimited(), UnitAuthoring.Fury(atkBonus: 2, adjacentEnemies: 3)),
@@ -62,6 +63,7 @@ public sealed class BrowserProjectionTests
     public void AuthoredBonusDisplayNameLeavesBrowserEntryAndCandidateIdentityStable()
     {
         var type = UnitType.Define("named", "Named", UnitAuthoring.Stats(1, 1, 3, 2, 4),
+            UnitAuthoring.Unique(),
             UnitAuthoring.Ability("Battle Cry", UnitAuthoring.Uses(3),
                 UnitAuthoring.BonusActionSelfModifier(UnitAuthoring.Modifier(Stat.Atk, 2)), id: "stable-key"));
         var state = State(type);

@@ -24,7 +24,7 @@ public sealed class TrollTests
     {
         target ??= UnitType.Troll();
         var attacker = new UnitType("attacker-type", 2, 1, 2, 0, 5, FreeActions: UnitFreeAction.OpenDoor)
-            { Cleave = cleave ? new() : null };
+            { Unique = true, Cleave = cleave ? new() : null };
         return new()
         {
             Physical = new(new Board(4, 2, [new(new(0, 0), new(0, 1), EdgeKind.ClosedDoor)]),
@@ -65,7 +65,7 @@ public sealed class TrollTests
     public void TrollApproachesAndUsesSharedFourOfSixDoorAction(int roll)
     {
         var troll = UnitType.Troll();
-        var hero = new UnitType("hero", 0, 0, 0, 0, 5);
+        var hero = new UnitType("hero", 0, 0, 0, 0, 5) { Unique = true };
         var state = new GameState
         {
             Physical = new(new Board(5, 1, [new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor)]),
@@ -116,7 +116,7 @@ public sealed class TrollTests
     [InlineData(1, 0, 1)] [InlineData(3, 1, 2)]
     public void NonlethalDamageIsOrdinaryAndCapabilityWorksWithoutTrollIdentity(int hp, int hits, int expected)
     {
-        var type = new UnitType("unrelated", 2, 1, 4, 4, hp) { Undying = new() };
+        var type = new UnitType("unrelated", 2, 1, 4, 4, hp) { Unique = true, Undying = new() };
         var result = Attack(Scenario(type), new Dice(hits));
         Assert.Equal(expected, result.State.Units[1].CurrentHp);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[1].Posture);
@@ -151,7 +151,7 @@ public sealed class TrollTests
     [Fact]
     public void DirectCleaveDamageAlsoUsesUndyingReplacement()
     {
-        var type = new UnitType("other", 2, 1, 4, 4, 3) { Undying = new() };
+        var type = new UnitType("other", 2, 1, 4, 4, 3) { Unique = true, Undying = new() };
         var attack = Attack(Scenario(type, cleave: true));
         Assert.Equal(Posture.Upright, attack.State.Physical.Figures[1].Posture);
         var result = Choose(attack.State, "cleave:target");

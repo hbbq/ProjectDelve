@@ -17,7 +17,7 @@ public sealed class SkeletonArcherTests
         UnitType? type = null) => new()
     {
         Physical = new(new Board(width, height, []), [new("archer", start), new("hero", target)]),
-        Types = [type ?? UnitType.SkeletonArcher(), new("hero-type", 0, 0, 0, 0, 4)],
+        Types = [type ?? UnitType.SkeletonArcher(), new("hero-type", 0, 0, 0, 0, 4) { Unique = true }],
         Units = [new("archer", (type ?? UnitType.SkeletonArcher()).Id, "red", 1),
             new("hero", "hero-type", "blue", 4)]
     };
@@ -82,7 +82,8 @@ public sealed class SkeletonArcherTests
     public void MultipleHostilesUseNearestAttackableRatherThanFarthestTarget()
     {
         var state = State(new(3, 0), new(0, 0), width: 7);
-        state.Units.Add(new("other", "hero-type", "blue", 4));
+        state.Types.Add(state.Types.Single(t => t.Id == "hero-type") with { Id = "other-type" });
+        state.Units.Add(new("other", "other-type", "blue", 4));
         state.Physical.Figures.Add(new("other", new(6, 0)));
         var queries = new GameplayQueries(state);
         Assert.Equal(3, queries.DistanceToNearestAttackableHostileFrom("archer", new(3, 0)));
@@ -97,7 +98,8 @@ public sealed class SkeletonArcherTests
     public void GeometricallyNearHostileDoesNotCountWhenLosIsBlocked(bool terrain)
     {
         var state = State(new(2, 0), new(0, 0), width: 7);
-        state.Units.Add(new("other", "hero-type", "blue", 4));
+        state.Types.Add(state.Types.Single(t => t.Id == "hero-type") with { Id = "other-type" });
+        state.Units.Add(new("other", "other-type", "blue", 4));
         state.Physical.Figures.Add(new("other", new(6, 0)));
         if (terrain) state.Physical.Board.Terrain.Add(new(new(1, 0), TerrainKind.Tree));
         else state.Physical.Board.Edges.Add(new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor));

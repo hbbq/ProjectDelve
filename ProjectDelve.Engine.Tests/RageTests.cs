@@ -29,7 +29,7 @@ public sealed class RageTests
         return new()
         {
             Physical = new(new Board(6, 2, []), [new("hero", new(0, 0)), new("enemy", new(enemyX, 0))]),
-            Types = [type, new("enemy-type", 0, 0, 0, 0, 20)],
+            Types = [type, new("enemy-type", 0, 0, 0, 0, 20) { Unique = true }],
             Units = [type.CreateUnit("hero", "blue"), new("enemy", "enemy-type", "red", 20)]
         };
     }
@@ -181,7 +181,9 @@ public sealed class RageTests
     public void EndingFirstBarbariansActivationDoesNotTransferModifierOrSpendSecondUnitsUses()
     {
         var state = State();
-        state.Units.Add(UnitType.Barbarian().CreateUnit("ally", "blue"));
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Units[0] = state.Units[0] with { CurrentHp = 1 };
+        state.Units.Add(state.Types[0].CreateUnit("ally", "blue"));
         state.Physical.Figures.Add(new("ally", new(0, 1)));
         var selecting = GameEngine.StartRound(state, new Random(), false);
         var started = Choose(selecting.State, "hero");

@@ -23,7 +23,7 @@ public sealed class ZombieTests
     {
         Physical = new(new Board(5, 1, [new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor)]),
             [new("monster", new(0, 0)), new("hero", new(4, 0))]),
-        Types = [type ?? UnitType.Zombie(), new("hero-type", 0, 0, 0, 0, 4)],
+        Types = [type ?? UnitType.Zombie(), new("hero-type", 0, 0, 0, 0, 4) { Unique = true }],
         Units = [new("monster", (type ?? UnitType.Zombie()).Id, "red", 1), new("hero", "hero-type", "blue", 4)]
     };
 

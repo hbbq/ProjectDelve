@@ -23,7 +23,7 @@ public sealed class GoblinTests
     {
         Physical = new(new Board(width, height, []),
             [new("goblin", start ?? new(2, 1)), new("hero", target ?? new(1, 1))]),
-        Types = [UnitType.Goblin(), new("hero-type", 0, 0, 0, 0, 4)],
+        Types = [UnitType.Goblin(), new("hero-type", 0, 0, 0, 0, 4) { Unique = true }],
         Units = [new("goblin", "goblin-type", "red", 1), new("hero", "hero-type", "blue", 4)]
     };
 
@@ -223,7 +223,8 @@ public sealed class GoblinTests
     public void CannotEscapeOneHostileIntoAnother()
     {
         var state = State();
-        state.Units.Add(new("other", "hero-type", "blue", 4));
+        state.Types.Add(state.Types.Single(t => t.Id == "hero-type") with { Id = "other-type" });
+        state.Units.Add(new("other", "other-type", "blue", 4));
         state.Physical.Figures.Add(new("other", new(4, 1)));
         var extra = Extra(state);
         var queries = new GameplayQueries(extra.State);
@@ -264,7 +265,8 @@ public sealed class GoblinTests
     {
         var state = State();
         state.Units[1] = state.Units[1] with { CurrentHp = 1 };
-        state.Units.Add(new("survivor", "hero-type", "blue", 4));
+        state.Types.Add(state.Types.Single(t => t.Id == "hero-type") with { Id = "survivor-type" });
+        state.Units.Add(new("survivor", "survivor-type", "blue", 4));
         state.Physical.Figures.Add(new("survivor", new(1, 0)));
         var extra = Extra(state, hit: true);
         Assert.Equal(new[] { "AttackResolved", "UnitDied" }, extra.Events.Select(e => e.Kind));
@@ -377,7 +379,8 @@ public sealed class GoblinTests
         var extra = Extra(state, hit: true);
         if (!noHostiles)
         {
-            extra.State.Units.Add(new("isolated", "hero-type", "blue", 4));
+            extra.State.Types.Add(extra.State.Types.Single(t => t.Id == "hero-type") with { Id = "isolated-type" });
+            extra.State.Units.Add(new("isolated", "isolated-type", "blue", 4));
             extra.State.Physical.Figures.Add(new("isolated", new(0, 0)));
             extra.State.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor));
             extra.State.Physical.Board.Edges.Add(new(new(0, 0), new(0, 1), EdgeKind.Wall));

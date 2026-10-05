@@ -28,7 +28,7 @@ public sealed class EngineTests
         return new GameState
         {
             Physical = new PhysicalState(new Board(width, height, []), [new Figure("hero", new Cell(0, 0))]),
-            Types = [new UnitType("hero-type", mov, rng, atk, def, hp)],
+            Types = [new UnitType("hero-type", mov, rng, atk, def, hp) { Unique = true }],
             Units = [new Unit("hero", "hero-type", "blue", hp)]
         };
     }
@@ -124,7 +124,9 @@ public sealed class EngineTests
     public void Movement_UsesTopLeftRightBottomTieBreak_AndFriendlyPassThrough()
     {
         var state = State(width: 3, height: 3, mov: 3, atk: 0);
-        state.Units.Add(new Unit("friend", "hero-type", "blue", 2));
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Units[0] = state.Units[0] with { CurrentHp = 1 };
+        state.Units.Add(new Unit("friend", "hero-type", "blue", 1));
         state.Physical.Figures.Add(new Figure("friend", new Cell(1, 0)));
         var random = new ScriptedRandom("hero-type");
         var result = GameEngine.StartRound(state, random);

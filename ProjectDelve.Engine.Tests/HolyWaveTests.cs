@@ -23,8 +23,8 @@ public sealed class HolyWaveTests
         {
             Physical = new(new Board(6, 6, [new(new(2, 2), new(2, 3), EdgeKind.ClosedDoor)]),
                 [new("cleric", new(2, 2)), new("a", new(3, 2)), new("b", new(1, 1))]),
-            Types = [type, new("enemy", 0, 0, 0, 1, 4)],
-            Units = [type.CreateUnit("cleric", "blue"), new("a", "enemy", "red", 4), new("b", "enemy", "third-side", 4)]
+            Types = [type, new("enemy", 0, 0, 0, 1, 4) { Unique = true }, new("enemy-b", 0, 0, 0, 1, 4) { Unique = true }],
+            Units = [type.CreateUnit("cleric", "blue"), new("a", "enemy", "red", 4), new("b", "enemy-b", "third-side", 4)]
         };
     }
     private static EngineResult Choose(GameState state, string key) =>
@@ -65,8 +65,10 @@ public sealed class HolyWaveTests
     public void CompleteTargetSetExcludesFriendlyDistantBlockedAndAlreadyLyingUnits()
     {
         var state = Scenario();
-        state.Units.AddRange([new("friend", "enemy", "blue", 4), new("far", "enemy", "red", 4),
-            new("blocked", "enemy", "red", 4), new("lying", "enemy", "red", 4)]);
+        foreach (var id in new[] { "friend", "far", "blocked", "lying" })
+            state.Types.Add(new(id + "-type", 0, 0, 0, 1, 4) { Unique = true });
+        state.Units.AddRange([new("friend", "friend-type", "blue", 4), new("far", "far-type", "red", 4),
+            new("blocked", "blocked-type", "red", 4), new("lying", "lying-type", "red", 4)]);
         state.Physical.Figures.AddRange([new("friend", new(2, 1)), new("far", new(5, 5)),
             new("blocked", new(2, 3)), new("lying", new(1, 2), Posture.Lying)]);
         var action = Action(state);

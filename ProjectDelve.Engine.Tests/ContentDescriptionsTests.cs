@@ -40,7 +40,7 @@ public sealed class ContentDescriptionsTests
     {
         var type = new UnitType("unfamiliar", 2, 3, 4, 5, 6, Actions: UnitAction.None,
             TryOpenDoor: new(5), MoveAfterAttack: new(3))
-        {
+        { Unique = true,
             DisplayName = "A different printed name",
             BonusActions = [new("Unfamiliar ability", 7, [new(Stat.Def, -2)])]
         };

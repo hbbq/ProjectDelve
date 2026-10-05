@@ -240,14 +240,13 @@ public static class GameEngine
                             var summon = summoner.SummonAdjacent!;
                             var summonedType = UnitContent.Find(summon.UnitTypeId, state.Types)
                                 ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
-                            if (!state.Types.Any(t => t.Id == summonedType.Id)) state.Types.Add(summonedType);
                             var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal)
                                 ? summonedType.Id[..^5] : summonedType.Id;
                             var number = 1;
                             while (state.Units.Any(u => u.Id == $"{prefix}-{number}")) number++;
                             var summonedId = $"{prefix}-{number}";
-                            state.Units.Add(summonedType.CreateUnit(summonedId, state.Units.Single(u => u.Id == request.UnitId).SideId));
-                            state.Physical.Figures.Add(new(summonedId, action.Destination!, summon.InitialPosture));
+                            state.PlaceUnit(summonedType.Id, summonedId, state.Units.Single(u => u.Id == request.UnitId).SideId,
+                                action.Destination!, summon.InitialPosture);
                             events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
                                 AbilityName: summoner.AbilityNames.Summon ?? "Summon Adjacent"));
                             break;
@@ -356,7 +355,8 @@ public static class GameEngine
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var actions = type.Actions;
         var candidates = new List<Candidate>();
-        if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is not null)
+        if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon &&
+            UnitContent.Find(summon.UnitTypeId, state.Types) is { } summonedType && state.CanPlaceUnitType(summonedType))
             for (var y = from.Y - 1; y <= from.Y + 1; y++)
                 for (var x = from.X - 1; x <= from.X + 1; x++)
                 {
@@ -670,7 +670,7 @@ public static class GameEngine
         var board = state.Physical.Board;
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
-            state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
+            state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
                 t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
@@ -688,6 +688,8 @@ public static class GameEngine
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");
+        if (state.Types.Any(t => t.Unique && state.Units.Count(u => u.TypeId == t.Id && u.CurrentHp > 0) > 1))
+            throw new ArgumentException("Only one Unit of a Unique Unit Type may be in play.");
         if (state.Units.Any(u => u.BonusActionUses.Any(entry =>
                 state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .SingleOrDefault(a => a.Name == entry.Key)?.MaxUses != entry.Value.MaxUses)))

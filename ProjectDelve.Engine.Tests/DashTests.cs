@@ -199,7 +199,9 @@ public sealed class DashTests
     public void EndingActivationDoesNotTransferMovementModifierToNextRogue()
     {
         var state = State(8, 2);
-        state.Units.Add(UnitType.Rogue().CreateUnit("ally", "blue"));
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Units[0] = state.Units[0] with { CurrentHp = 1 };
+        state.Units.Add(state.Types[0].CreateUnit("ally", "blue"));
         state.Physical.Figures.Add(new("ally", new(0, 1)));
         var started = Choose(Start(state).State, "rogue");
         var dashed = Choose(started.State, Dash(started).Key);

@@ -25,7 +25,7 @@ public sealed class PostureTests
     private static GameState State(UnitType? type = null, Posture posture = Posture.Upright)
     {
         type ??= UnitType.Barbarian();
-        var target = new UnitType("target-type", 1, 1, 2, 2, 10);
+        var target = new UnitType("target-type", 1, 1, 2, 2, 10) { Unique = true };
         return new()
         {
             Physical = new(new Board(5, 3, [new(new(1, 1), new(1, 0), EdgeKind.ClosedDoor)]),
@@ -73,6 +73,8 @@ public sealed class PostureTests
     public void SameTypeUnitsHaveIndependentPostureAndIndividualActivationsAfterSerialization()
     {
         var state = State();
+        state.Types[0] = state.Types[0] with { Hp = 1, Unique = false };
+        state.Units[0] = state.Units[0] with { CurrentHp = 1 };
         state.Units.Add(state.Types[0].CreateUnit("second", "blue"));
         state.Units.Add(state.Types[0].CreateUnit("third", "blue"));
         state.Physical.Figures.Add(new("second", new(0, 2), Posture.Lying));

@@ -36,6 +36,7 @@ public static class UnitAuthoring
     public static SelfModifiers BonusActionSelfModifier(params ModifierThisTurn[] modifiers) => new([.. modifiers]);
 
     public static Entry CantAttack() => new CantAttackEntry();
+    public static Entry Unique() => new UniqueEntry();
     public static Entry OpenDoor() => new OpenDoorEntry();
     public static Entry Phase() => new PhaseEntry();
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
@@ -95,6 +96,8 @@ public static class UnitAuthoring
         }
         if (type.BonusActions.Select(a => a.Name).Distinct().Count() != type.BonusActions.Length)
             throw new ArgumentException("Bonus ability ids must be unique.", nameof(entries));
+        if (type.Hp > 1 && !type.Unique)
+            throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(entries));
         return type;
     }
 
@@ -129,6 +132,10 @@ public static class UnitAuthoring
         }
     }
 
+    private sealed class UniqueEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Unique = true };
+    }
     private sealed class CantAttackEntry : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions & ~UnitAction.NormalAttack };
