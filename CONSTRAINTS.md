@@ -56,6 +56,22 @@ Persistent or cross-turn information such as HP, remaining ability uses, acquire
 
 Strategic intent is not game state. Players may of course remember or forget plans, deductions, priorities, and intended future actions; the game need not physically record what a player was planning to do.
 
+### Unit posture
+
+Every Unit figure has a physical **Posture**: **Upright** or **Lying**. Posture is part of observable Physical State and therefore requires no separate status token or remembered duration.
+
+An Upright Unit functions normally.
+
+A Lying Unit remains in play, remains a Unit of its Side and Unit Type, occupies its Cell normally, and may be targeted and attacked normally. Its Stats and current HP continue to exist and are used normally, including effective values produced by rules originating elsewhere.
+
+While Lying, the Unit cannot Move, Attack, or use Actions, Bonus Actions, or Free Actions. Its own Passives, Capabilities, and Behavior are inactive and produce no effects or opportunities. Rules originating from other Units or from the scenario may still affect the Lying Unit normally. Merely being Lying does not cause the figure to stop counting as a Unit for occupancy, friendliness/hostility, adjacency, targeting, or conditions on another Unit's rules.
+
+When a Lying Unit would activate, stand its figure Upright and immediately complete that Unit's activation. It receives no Move, Action, Bonus Action, Free Action, or other ordinary activation opportunity from that activation. If one Unit Type activation contains several Units of that type, each Lying Unit is still activated in the normal sequence; its individual activation consists only of standing up.
+
+Rules may directly change Posture by instructing the player to **lay down** an Upright Unit or **stand up** a Lying Unit. A scenario may also begin with Units already Lying, and future rules may place or create Units in either Posture when explicitly specified.
+
+Posture describes the physical state rather than a cause such as stunned, knocked down, sleeping, or spawned. Concrete content should use the physical operations `lay down` and `stand up` unless it genuinely needs additional rules.
+
 ### Presentation is separate
 
 Physical State and Rules/Game State must not depend on a particular renderer.
@@ -713,20 +729,17 @@ The Cleric's third ability is **Holy Wave**:
 Holy Wave [2/game]
 Action
 
-Attack all adjacent enemies with ATK=2.
+Lay down all adjacent upright enemies.
+Then lay down this Unit.
 ```
 
-Holy Wave starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity and is an Attack for rules that refer to an Attack. Using Holy Wave therefore consumes the Cleric's Action just as a normal Attack would.
+Holy Wave starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity, so using Holy Wave spends one use and consumes the Cleric's Action. Holy Wave is not an Attack: it rolls no Attack or Defence Dice, deals no Damage, and does not create rules opportunities that require an Attack to have occurred.
 
-Holy Wave targets every adjacent hostile Unit. Adjacent uses the established eight surrounding cells plus normal Line of Sight rule. The complete target set is determined when the Attack begins, before any dice are rolled or Damage is resolved.
+Holy Wave lays down every adjacent hostile Unit that is currently Upright. Adjacent uses the established eight surrounding cells plus normal Line of Sight rule. Lying enemies are unaffected. After all affected enemies have been laid down, the Cleric is laid down as well.
 
-`ATK=2` is a fixed attack value for Holy Wave rather than a modifier to the Cleric's general effective `ATK`. The Cleric rolls 2 Attack Dice once for the whole Holy Wave. The resulting number of Hits is shared by every target. Each target then rolls its own effective `DEF` separately, and Damage is calculated and applied separately to each target using the normal `max(0, Hits - Blocks)` rule. Normal death resolution applies to each target.
+Holy Wave remains legal when there are no adjacent Upright enemies, provided its normal use and Action requirements are satisfied. In that case it still spends one use, consumes the Action, and lays down the Cleric. Relevance may safely classify such a use as irrelevant when it has no ordinary beneficial effect; this does not change its legality.
 
-Holy Wave is one Attack with multiple targets, not one separate Attack per target. Rules that occur after an Attack therefore occur once after the complete Holy Wave has resolved. For example, a Unit with Move After Attack that somehow used Holy Wave would receive one Move After Attack follow-up, not one for each target.
-
-Damage dealt by a multi-target Attack belongs to each target separately. Damage values from different targets are not added together when a rule asks whether an Attack dealt a particular amount of Damage to a Unit. In particular, Cleave becomes eligible when Holy Wave deals at least 2 Damage to at least one Unit; dealing 1 Damage to each of two Units does not satisfy Cleave.
-
-Holy Wave requires only this concrete shared-roll multi-target Attack behavior. Broader area-of-effect shapes, arbitrary multi-target attack profiles, attack-effect categories, or a universal effect framework are deliberately deferred until concrete content requires them.
+Holy Wave is the first concrete ability that changes another Unit's Posture. It does not establish a general knockdown, stun, condition, saving-throw, resistance, or posture-effect framework beyond the base Posture rules.
 
 The Wizard has the limited-use Action ability **Fireball**:
 
@@ -1057,7 +1070,6 @@ The following are intentionally not specified yet:
 - LOS effects beyond the currently defined terrain and edge properties,
 - stat modifier rules beyond the currently defined additive `ModifierThisTurn(stat, amount)` behavior,
 - edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
-- gameplay meaning of upright and lying figures,
 - larger-than-1×1 figure behavior,
 - loose tokens and markers,
 - exact terrain and edge-feature taxonomies,
