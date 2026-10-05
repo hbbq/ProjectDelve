@@ -98,7 +98,7 @@ The initial catalog should contain six progressively broader playtest scenarios:
 3. An approximately `12x12` scenario with Barbarian and Rogue against Grunts, Goblins, and Skeleton Archers, providing useful ranged and Line-of-Sight situations.
 4. An approximately `15x15` scenario with Barbarian, Rogue, and Wizard against Goblins, Skeleton Archers, and Zombies, including useful Doors and terrain for their established mechanics.
 5. An approximately `15x15` scenario with Barbarian, Rogue, Wizard, and Cleric against Goblins, Skeleton Archers, Zombies, Trolls, and optionally some Grunts. It should contain substantially more Walls and Doors while avoiding excessive one-cell-wide corridors and bottlenecks.
-6. An approximately `15x15` Shaman-focused scenario with all four Heroes, at least one Shaman, and optionally some simpler non-Goblin enemies. Its layout should provide multiple paths and enough maze-like structure for Flee to matter while still allowing the Shaman to be pursued. **No Goblins are present in its initial setup**; Goblins should enter play through Spawn Goblin so Unit creation, Lying Posture, and next-round Activation Bag participation can be exercised naturally.
+6. An approximately `15x15` Shaman-focused scenario with all four Heroes, at least one Shaman, and optionally some simpler non-Goblin enemies. Its layout should provide multiple paths and enough maze-like structure for Flee to matter while still allowing the Shaman to be pursued. **No Goblins are present in its initial setup**; Goblins should enter play through Summon Goblin so Unit creation, Lying Posture, and next-round Activation Bag participation can be exercised naturally.
 
 These scenarios currently have no rules-defined victory or defeat conditions. Their purpose is interactive playtesting. Campaign progression, unlocking, difficulty metadata, scoring, objectives, victory/defeat, and other scenario systems are deferred until concrete game content requires them.
 
@@ -426,7 +426,7 @@ The gameplay consequences of an open or closed door are rules and are deliberate
 
 Walls may contain openings such as windows.
 
-Their effects on movement, line of sight, attacks, or other rules are deliberately deferred.
+For the currently defined **Wall with window** edge, the edge is impassable for movement and does not block Line of Sight, as specified by the edge-property table above. Additional window- or opening-specific effects beyond those properties are deliberately deferred.
 
 ## Figures
 
@@ -439,6 +439,8 @@ Larger figures are expected in the future, so the overall model should not assum
 ### Position
 
 A 1 × 1 figure on the board occupies exactly one grid cell.
+
+A figure may be placed only in a Cell that can physically and legally hold that figure. Initial scenario setup follows the same occupancy constraint: a Unit may not begin on non-passable terrain or a fixed object that occupies the figure's space unless a future rule explicitly permits it.
 
 Two figures cannot occupy the same cell.
 
@@ -478,11 +480,9 @@ Heroes and Monsters should not have parallel implementations of the same mechani
 
 ### Heroes and Monsters
 
-The fundamental distinction between a Hero and a Monster is agency, not mechanics.
+Hero and Monster are content classifications, not different rules or agency models. Control is assigned independently of Side and Unit Type as defined under Decisions, agency, and randomness.
 
-For a Hero, a player makes decisions among the choices permitted by the rules.
-
-For a Monster, decisions are determined by that Monster's behavior rules. Monster behavior may determine, for example:
+Current playtest content normally presents Heroes to a player and supplies automated Behavior for Monsters, but this is a scenario/client convention rather than a fundamental distinction. Monster behavior may determine, for example:
 
 - movement choices,
 - target selection,
@@ -565,8 +565,15 @@ The current v0 content roster is deliberately small. The reference implementatio
 #### Wizard
 
 - Stats: `MOV 2`, `RNG 4`, `ATK 3`, `DEF 2`, `HP 4`.
-- Actions: Normal Attack; Fireball.
+- Actions: Normal Attack; Fireball; Telekinesis.
 - Bonus Actions: Focus.
+- Free Actions: Open Door.
+
+#### Cleric
+
+- Stats: `MOV 3`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 4`.
+- Actions: Normal Attack; Heal; Holy Wave.
+- Passive abilities: Aura (adjacent friendly Units get `DEF +1`).
 - Free Actions: Open Door.
 
 ### Monsters
@@ -583,7 +590,7 @@ Grunt is the baseline Monster Unit Type with no special Actions, Capabilities, o
 Zombie is the first Monster Unit Type used to establish the reusable Action/Behavior composition pattern.
 
 - Stats: `MOV 2`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 1`.
-- Actions: Normal Attack; `TryOpenDoor(2/6)`.
+- Actions: Normal Attack; **Break Door**, using `TryOpenDoor(2/6)`.
 - Behaviors: Approach Through Closed Doors.
 
 Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
@@ -593,11 +600,11 @@ Zombie itself has no bespoke pathfinding or Decision Provider implementation. It
 Troll is a tougher door-breaking Monster related to the Zombie.
 
 - Stats: `MOV 2`, `RNG 1` (Melee), `ATK 4`, `DEF 4`, `HP 1`.
-- Actions: Normal Attack; `TryOpenDoor(4/6)`.
+- Actions: Normal Attack; **Smash Door**, using `TryOpenDoor(4/6)`.
 - Capabilities: Undying.
 - Behaviors: Approach Through Closed Doors.
 
-Troll uses the same reusable Approach Through Closed Doors Behavior and Try Open Door Action as Zombie, but its Try Open Door succeeds on 4 of the 6 die faces.
+Troll uses the same reusable Approach Through Closed Doors Behavior and Try Open Door mechanic as Zombie, but its printed ability is **Smash Door** and succeeds on 4 of the 6 die faces.
 
 **Undying** changes what happens when this Unit would die. If an Upright Troll's current HP would reach zero, it does not die or leave the board. Instead, set its current HP to 1 and lay it down. This replacement is part of resolving that damage/death outcome; the Troll remains in play in the same Cell.
 
@@ -612,26 +619,28 @@ Undying is the first concrete rule that replaces normal Death according to curre
 Shaman is a non-attacking Monster that creates Goblins and tries to keep away from reachable enemies.
 
 - Stats: `MOV 2`, `RNG 0`, `ATK 0`, `DEF 3`, `HP 1`.
-- Actions: Spawn Goblin.
-- Behaviors: Flee; use Spawn Goblin when possible, choosing the top-left legal placement Cell.
+- Actions: Summon Goblin.
+- Behaviors: Flee; use Summon Goblin when possible, choosing the top-left legal placement Cell.
 - Shaman does not have the Normal Attack Action.
 
-**Spawn Goblin** is an Action:
+**Summon Goblin** is an Action:
 
 ```text
-Spawn Goblin
+Summon Goblin
 Action
 
 Place one Lying Goblin in an adjacent empty Cell.
 ```
 
-A legal placement Cell uses the ordinary eight-cell adjacency and normal Line of Sight rules. It must also be a Cell where a Unit figure can legally be placed under the ordinary board constraints: the terrain is passable and the Cell is unoccupied. Spawn Goblin does not create a separate placement model or allow placement onto blocking/non-passable terrain.
+A legal placement Cell uses the ordinary eight-cell adjacency and normal Line of Sight rules. It must also be a Cell where a Unit figure can legally be placed under the ordinary board constraints: the terrain is passable and the Cell is unoccupied. Summon Goblin does not create a separate placement model or allow placement onto blocking/non-passable terrain.
 
-The created Unit is an ordinary Goblin in all respects except that its initial Posture is Lying. It has its normal maximum and current HP and all normal Goblin content. No spawned, summoning-sickness, or temporary state is added.
+The created Unit is an ordinary Goblin in all respects except that its initial Posture is Lying. It has the same Side as the summoning Shaman, its normal maximum and current HP, and all normal Goblin content. Unit Type does not determine allegiance. No spawned, summoning-sickness, or temporary state is added.
 
-Spawned Units follow the established round-bag snapshot rule. Creating the first Goblin during a round does not add a Goblin Unit Type token to the current round's already-established bag. If at least one Goblin is alive when the next round's bag is established, Goblin participates normally in that next round. A spawned Goblin that is still Lying when its activation occurs follows the ordinary Posture rule: it stands Upright and that individual activation immediately completes.
+Summoned Units follow the established round-bag snapshot rule. Summoning never adds a Unit Type token to the current round's already-established bag. If a Goblin token is already present and has not yet been drawn, a newly summoned Goblin is an ordinary living Goblin when that Unit Type later activates and therefore participates in that activation. If the Goblin token has already resolved, the new Goblin waits until a later Goblin activation, normally in the next round. Creating the first Goblin during a round does not add a Goblin token to that round's bag; if at least one Goblin is alive when the next round's bag is established, Goblin participates normally.
 
-For automated Shaman play, if at least one legal Spawn Goblin placement exists when its Action is available, use Spawn Goblin and choose the top-left legal Cell (ascending `y`, then `x`). If no legal placement exists, it takes no Action. This is a Behavior preference among authoritative legal choices, not additional Spawn Goblin legality.
+A summoned Goblin that is still Lying when its activation occurs follows the ordinary Posture rule: it stands Upright and that individual activation immediately completes. Eligibility semantics for future content that creates a Unit while that same Unit Type token is already being resolved are deliberately deferred until such content exists.
+
+For automated Shaman play, if at least one legal Summon Goblin placement exists when its Action is available, use Summon Goblin and choose the top-left legal Cell (ascending `y`, then `x`). If no legal placement exists, it takes no Action. This is a Behavior preference among authoritative legal choices, not additional Summon Goblin legality.
 
 **Flee** is Shaman's ordinary-Move Behavior. It uses the existing movement/pathfinding model rather than geometric or Manhattan distance. Determine hostile Units that are reachable through that analysis under Shaman's actual movement/pathfinding capabilities. In particular, Shaman does not have Approach Through Closed Doors, so a hostile that can only be reached through a Closed Door is not considered reachable for Flee.
 
@@ -641,7 +650,7 @@ Otherwise, consider Shaman's legal movement destinations, including staying wher
 
 Flee is only a Decision Provider preference. It does not change movement legality, make Closed Doors traversable, introduce a perception/visibility system, or give Shaman knowledge through otherwise unreachable paths.
 
-Shaman introduces Unit creation during play as concrete content. Implement only the placement and Unit-creation behavior required by Spawn Goblin; this does not establish a general summoning, reinforcement, spawn-wave, or Unit-factory framework.
+Shaman introduces Unit creation during play as concrete content. Implement only the placement and Unit-creation behavior required by Summon Goblin; this does not establish a general summoning, reinforcement, spawn-wave, or Unit-factory framework.
 
 #### Skeleton Archer
 
@@ -732,7 +741,7 @@ When the bag is empty, the Round ends. The bag is then populated again for the n
 
 If all Units of a type leave play after that type's token has already been placed in the bag, the token remains in the bag. If it is later drawn, the Unit Type activation is valid but affects zero Units and therefore does nothing. The bag does not need to be searched during a Round to remove such tokens.
 
-How Unit Types entering play during an ongoing Round affect the bag is deliberately deferred until spawning or reinforcement rules require it.
+Unit Types entering play during an ongoing Round do not add tokens to the already-established bag. They may participate later in the round only if a token for that Unit Type is already present and has not yet resolved. Future rules may explicitly modify bag contents.
 
 ### Unit Type activation
 
@@ -746,19 +755,19 @@ The responsible Decision Provider selects the next Unit from that set. Default M
 
 This ordering is intentionally state-dependent. For example, one Zombie may open a door and a later Zombie of the same Unit Type may then move through that now-open door. Conversely, a different deterministic Unit order may produce a less advantageous sequence. Default Monster Behavior is intended to remain simple, deterministic, and manually followable in physical solo play rather than planning the complete group activation. A digital-only smarter provider may plan across several legal choices without changing the underlying game rules.
 
-The exact eligibility consequences of future spawning, summoning, reinforcement, or similar rules are deliberately deferred until such mechanics are introduced.
+Units created before their Unit Type token is drawn participate normally when that token later resolves. Eligibility for future content that creates a Unit while its own Unit Type token is already being resolved is deliberately deferred until such content exists.
 
 ## Unit activation
 
 Heroes and Monsters use the same activation rules.
 
-A Unit activation is driven by what the Unit has already done rather than by mandatory Bonus Action, Move, and Act phases. Conceptually the activation tracks at least whether the Unit has completed its Move, whether it has completed its Action, and whether it has used its Bonus Action opportunity.
+A Unit activation is driven by what the Unit has already done rather than by mandatory Bonus Action, Move, and Act phases. Conceptually the activation tracks at least whether the Unit has completed its Move, whether it has completed its Action, and which individual Bonus Action abilities it has used during this activation.
 
 A living Unit normally has:
 
 - one Move opportunity,
 - one Action opportunity after its Move has been completed,
-- at most one Bonus Action when supplied by an applicable ability,
+- each applicable Bonus Action ability at most once during the activation, subject to that ability's own rules and remaining uses,
 - any applicable Free Actions, subject to their own rules and usage limits.
 
 After any choice resolves, the currently legal choices are determined again from the resulting state. The activation ends when the Unit chooses or automatically resolves **End Turn**. End Turn is legal only after Move (including Stay) is completed and all mandatory follow-up resolution has finished. In particular, Move After Attack resolves before End Turn or selection of another Unit; End Turn never starts an extra phase.
@@ -827,9 +836,9 @@ Attack all Units on or adjacent to that Cell.
 
 Fireball starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity and is an Attack for rules that refer to an Attack. Using Fireball therefore spends one Fireball use and consumes the Wizard's Action.
 
-The player chooses one target Cell within the Wizard's effective `RNG` and with normal Line of Sight from the Wizard's Cell. Range to the target Cell uses the ordinary ranged Manhattan-distance rule. Line of Sight is the established geometric Cell-to-Cell Line of Sight; Units do not create a separate visibility rule for Fireball. The target Cell may be empty, and Fireball remains legal even when its explosion would affect no Unit.
+The player chooses one target Cell within the Wizard's effective `RNG` and with normal Line of Sight from the Wizard's Cell. Range to the target Cell uses the ordinary ranged Manhattan-distance rule. Line of Sight to the chosen target Cell uses the normal Line of Sight rule, including blocking by intervening hostile Units. The target Cell may be empty, and Fireball remains legal even when its explosion would affect no Unit.
 
-The explosion area is the target Cell and its eight surrounding Cells. A Unit in that area is a Fireball target only when normal Line of Sight exists from the target Cell to that Unit's Cell. Blocking terrain or edges may therefore protect a Unit in an otherwise adjacent Cell from the explosion.
+The explosion area is the target Cell and its eight surrounding Cells. A Unit in that area is a Fireball target only when geometric board Line of Sight exists from the target Cell to that Unit's Cell. This explosion-origin check considers blocking terrain and edges but not intervening Unit figures; the target Cell is not itself a Unit with friendly or hostile relationships. Blocking terrain or edges may therefore protect a Unit in an otherwise adjacent Cell from the explosion.
 
 Fireball targets **all Units** satisfying that area and Line of Sight rule, regardless of Side. Friendly fire therefore applies. The Wizard may also be a target of its own Fireball if its Cell lies in the explosion area and has the required Line of Sight from the target Cell.
 
@@ -839,7 +848,7 @@ Each target rolls its own effective `DEF` separately. Damage is calculated and a
 
 Rules that occur after an Attack occur once after the complete Fireball has resolved, not once per target. Damage dealt to different targets remains separate for rules such as Cleave; Damage is not added across targets.
 
-Fireball is the second concrete shared-roll multi-target Attack. Holy Wave and Fireball may share reusable implementation machinery where their now-concrete common structure warrants it, while their targeting, attack-value rules, content identity, and presentation remain distinct. This does not establish a universal area-effect or spell framework.
+Fireball is the current concrete shared-roll multi-target Attack. This does not establish a universal area-effect or spell framework. Holy Wave is a Posture-changing Action, not an Attack.
 
 The Wizard also has the Action ability **Telekinesis**:
 
@@ -866,7 +875,19 @@ Using a Bonus Action marks that specific Bonus Action ability as used for the cu
 
 There is no mandatory Bonus Action phase and no general `Skip Bonus Action` decision. Choosing another choice naturally allows the activation to progress without using a Bonus Action.
 
-Ability names are content identity and may carry theme or lore without defining unique engine semantics. Different named abilities may therefore use the same underlying rules components. The first example is the Barbarian ability **Rage**:
+Ability names are content identity and may carry theme or lore without defining unique engine semantics. Different named abilities may therefore use the same underlying rules components.
+
+The Barbarian has the passive ability **Fury**:
+
+```text
+Fury
+Passive
++1 ATK while adjacent to at least 2 enemies.
+```
+
+Fury is derived from current Game State. While the Barbarian is Upright and at least two hostile Units are adjacent, Fury contributes one `+1 ATK` bonus. Adjacent uses the established eight surrounding cells plus normal Line of Sight. Additional qualifying enemies do not increase the bonus. Lying hostile Units still count because Posture does not stop a Unit from satisfying another Unit's conditions. A Lying Barbarian does not produce Fury because its own passive abilities are inactive. Fury stacks normally with other applicable modifiers such as Rage.
+
+The first Bonus Action example is the Barbarian ability **Rage**:
 
 ```text
 Rage [2/game]
@@ -1092,7 +1113,7 @@ Merely touching the corner of an LOS-blocking cell does not count as passing thr
 
 Friendly Units do not block LOS.
 
-Whether hostile Units block LOS is deliberately not yet defined.
+Hostile Units block LOS when their Cell interior lies between the observing/acting Unit and the target Cell. The target Unit itself does not block LOS to itself. This rule applies to normal Unit-to-target Line of Sight, including Normal Attack, Telekinesis, and selection of Fireball's target Cell. Rules that establish LOS from something other than a Unit, such as Fireball's explosion-origin Cell, define whether Unit figures participate in that LOS check.
 
 Which terrain types, fixed objects, walls, doors, windows, and other edge features block LOS will be defined by their corresponding rules.
 
@@ -1138,7 +1159,7 @@ Under the normal rules, when a Unit's current HP reaches zero, that Unit dies an
 
 This rule applies equally to Heroes and Monsters.
 
-Future abilities or special rules may explicitly alter what happens when a Unit would die, but no such exceptions are part of the base rules yet.
+Abilities or special rules may explicitly alter what happens when a Unit would die. Troll **Undying** is the current concrete exception to normal Death.
 
 ## Physical component constraints
 
@@ -1163,7 +1184,6 @@ They may be introduced later. The architecture should not unnecessarily prevent 
 The following are intentionally not specified yet:
 
 - terrain effects beyond the currently defined Passable and Blocks LOS properties,
-- LOS-blocking behavior of hostile Units,
 - LOS effects beyond the currently defined terrain and edge properties,
 - stat modifier rules beyond the currently defined additive `ModifierThisTurn(stat, amount)` behavior,
 - edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
