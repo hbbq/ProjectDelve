@@ -646,7 +646,7 @@ Ghost is a phasing Monster that uses the normal Monster Behavior but treats the 
 
 Units continue to affect movement normally. Friendly Units may be passed through but cannot be the destination. Hostile Units cannot be passed through or used as the destination.
 
-Phase changes traversal only. A Ghost must end every Move in an unoccupied Cell that is normally passable for a figure; it cannot end its Move in otherwise impassable terrain or fixed-object space. It may pass through such Cells and through normally impassable Edges during the Move.
+Phase changes traversal only. A Ghost must end every Move with its complete footprint in an unoccupied placement that is normally legal for a figure. It cannot end with any occupied Cell in otherwise impassable terrain or fixed-object space, or with its footprint spanning a normally impassable internal Edge. During traversal it may pass through such terrain and normally impassable Edges, subject to the ordinary Unit-occupancy rules for its complete footprint.
 
 Phase also applies when Default Monster Behavior evaluates reachable attack positions and remaining approach distance for the Ghost. Those analyses use the Ghost's actual phasing traversal rather than ordinary terrain/edge passability. This may make a route through otherwise impassable Cells or Edges the shortest route to a Cell from which a legal Attack can be made, or may make a longer movement route preferable because it leads toward such an attack position.
 
@@ -670,7 +670,7 @@ Action
 Place one Lying Goblin in an adjacent empty Cell.
 ```
 
-A legal placement Cell uses the ordinary eight-cell adjacency and normal Line of Sight rules. It must also be a Cell where a Unit figure can legally be placed under the ordinary board constraints: the terrain is passable and the Cell is unoccupied. Summon Goblin does not create a separate placement model or allow placement onto blocking/non-passable terrain.
+A legal summoned placement uses ordinary footprint adjacency and normal Line of Sight rules. The summoned Unit's complete footprint must satisfy ordinary placement legality. For the current 1 × 1 Goblin this is the same adjacent empty-Cell rule printed above. A future 2 × 2 summoned Unit would likewise require only one qualifying adjacency relationship, but its complete 2 × 2 footprint would have to be legal. Summon Goblin does not create a separate placement model or allow placement onto blocking/non-passable terrain.
 
 The created Unit is an ordinary Goblin in all respects except that its initial Posture is Lying. It has the same Side as the summoning Shaman, its normal maximum and current HP, and all normal Goblin content. Unit Type does not determine allegiance. No spawned, summoning-sickness, or temporary state is added.
 
@@ -876,11 +876,11 @@ Attack all Units on or adjacent to that Cell.
 
 Fireball starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity and is an Attack for rules that refer to an Attack. Using Fireball therefore spends one Fireball use and consumes the Wizard's Action.
 
-The player chooses one target Cell within the Wizard's effective `RNG` and with normal Line of Sight from the Wizard's Cell. Range to the target Cell uses the ordinary ranged Manhattan-distance rule. Line of Sight to the chosen target Cell uses the normal Line of Sight rule, including blocking by intervening hostile Units. The target Cell may be empty, and Fireball remains legal even when its explosion would affect no Unit.
+The player chooses one target Cell using an occupied Cell of the Wizard as the source. One and the same source Cell must place the target Cell within the Wizard's effective `RNG` by the ordinary ranged Manhattan-distance rule and have normal Unit-origin Line of Sight to that Cell. Range through one part of a multi-Cell source cannot be combined with LOS from another part. Line of Sight includes blocking by intervening hostile Units. If the chosen target Cell is occupied by a hostile multi-Cell Unit, that entire Unit is excluded as a blocker to its own target Cell. The target Cell may be empty, and Fireball remains legal even when its explosion would affect no Unit.
 
-The explosion area is the target Cell and its eight surrounding Cells. A Unit in that area is a Fireball target only when geometric board Line of Sight exists from the target Cell to that Unit's Cell. This explosion-origin check considers blocking terrain and edges but not intervening Unit figures; the target Cell is not itself a Unit with friendly or hostile relationships. Blocking terrain or edges may therefore protect a Unit in an otherwise adjacent Cell from the explosion.
+The explosion area is the target Cell and its eight surrounding Cells. A Unit is a Fireball target when at least one **same occupied Cell** of that Unit both lies in the explosion area and has geometric board Line of Sight from the target Cell. Area membership through one Cell cannot be combined with explosion LOS to another Cell. This explosion-origin check considers blocking terrain and edges but not intervening Unit figures; the target Cell is not itself a Unit with friendly or hostile relationships. Blocking terrain or edges may therefore protect part or all of a multi-Cell Unit from the explosion.
 
-Fireball targets **all Units** satisfying that area and Line of Sight rule, regardless of Side. Friendly fire therefore applies. The Wizard may also be a target of its own Fireball if its Cell lies in the explosion area and has the required Line of Sight from the target Cell.
+Fireball targets **all Units** satisfying that area and Line of Sight rule exactly once, regardless of how many of their occupied Cells qualify. Friendly fire therefore applies. The Wizard may also be a target of its own Fireball if at least one of its occupied Cells satisfies the same rule.
 
 Fireball is one Attack with multiple targets. Its Attack Dice use the attacker's general effective `ATK` when the Fireball begins, so ordinary this-turn modifiers such as Focus affect Fireball. The Attack Dice are rolled once for the whole Fireball and the resulting Hits are shared by every target. Target-specific attack modifiers do not independently change that shared roll unless a future rule explicitly says they apply to such an Attack.
 
@@ -901,7 +901,7 @@ Lay down an upright enemy within RNG and LOS.
 
 Telekinesis has no per-game usage limit. It uses the Unit's normal Action opportunity and therefore competes with the Wizard's normal Attack and Fireball.
 
-A legal Telekinesis target is an Upright hostile Unit within the Wizard's effective `RNG` and normal Line of Sight. Range uses the ordinary ranged Manhattan-distance rule, with the established `RNG 1` Melee special case if such a value ever applies. Lying enemies are not legal Telekinesis targets.
+A legal Telekinesis target is an Upright hostile Unit for which at least one occupied-Cell pair simultaneously satisfies the Wizard's effective `RNG` and normal Unit-origin Line of Sight. Range uses the ordinary ranged Manhattan-distance rule, with the established `RNG 1` Melee special case if such a value ever applies. Range through one Cell pair cannot be combined with LOS through another. Lying enemies are not legal Telekinesis targets.
 
 Resolving Telekinesis lays the chosen target down. It is not an Attack, rolls no Attack or Defence Dice, deals no Damage, and does not create rules opportunities that require an Attack to have occurred.
 
