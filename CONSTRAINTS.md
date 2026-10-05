@@ -569,6 +569,25 @@ Zombie is the first Monster Unit Type used to establish the reusable Action/Beha
 
 Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
 
+#### Troll
+
+Troll is a tougher door-breaking Monster related to the Zombie.
+
+- Stats: `MOV 2`, `RNG 1` (Melee), `ATK 4`, `DEF 4`, `HP 1`.
+- Actions: Normal Attack; `TryOpenDoor(4/6)`.
+- Capabilities: Undying.
+- Behaviors: Approach Through Closed Doors.
+
+Troll uses the same reusable Approach Through Closed Doors Behavior and Try Open Door Action as Zombie, but its Try Open Door succeeds on 4 of the 6 die faces.
+
+**Undying** changes what happens when this Unit would die. If an Upright Troll's current HP would reach zero, it does not die or leave the board. Instead, set its current HP to 1 and lay it down. This replacement is part of resolving that damage/death outcome; the Troll remains in play in the same Cell.
+
+If a Lying Troll's current HP reaches zero, normal Death applies and the Troll is removed from the board. Undying therefore does not protect a Troll that is already Lying.
+
+Once laid down by Undying, the Troll follows the ordinary Posture rules. When its activation later occurs, that activation only stands it Upright and immediately ends. No separate regeneration timer, resurrection marker, remembered state, or automatic stand-up rule is introduced.
+
+Undying is the first concrete rule that replaces normal Death according to current Posture. Implement only the narrow extension required by this content; it does not establish a general death-replacement, resurrection, trigger-stack, or condition framework.
+
 #### Skeleton Archer
 
 Skeleton Archer is a ranged Monster Unit Type whose automated Behavior prefers to attack while keeping as much distance as possible.
