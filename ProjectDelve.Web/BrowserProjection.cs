@@ -86,6 +86,9 @@ public static class BrowserProjection
         string description;
         switch (e.Kind)
         {
+            case "PostureChanged":
+                description = $"{e.UnitId}: {e.Posture}";
+                break;
             case "MovementCompleted":
                 role = OutcomeRole.Movement;
                 description = $"{e.UnitId} {(e.IsMoveAfterAttack ? "moved after attack" : "moved")}: {string.Join(" → ", e.Path!.Select(CellLabel))}";

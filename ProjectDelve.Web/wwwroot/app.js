@@ -81,24 +81,27 @@ function renderBoard(state, preserveNodes = false) {
     retainedFigures.add(figure.id);
     const peers = state.units.filter(peer => peer.typeId === unit?.typeId);
     const name = displayedCards[figure.id]?.displayName ?? figure.id;
-    node.textContent = abbreviatedName(name) + (peers.length > 1 ? peers.findIndex(peer => peer.id === figure.id) + 1 : "");
+    const label = text("span", abbreviatedName(name) + (peers.length > 1 ? peers.findIndex(peer => peer.id === figure.id) + 1 : ""));
+    label.className = "figure-name";
+    node.replaceChildren(label);
     // Snapshot positions settle any skipped movement without animating a state correction.
     node.style.transition = "none";
     delete node.dataset.hpLabel;
     node.removeAttribute("aria-label");
-    node.className = `figure${unit?.sideId === "blue" ? " side-blue" : ""}`;
+    node.className = `figure${unit?.sideId === "blue" ? " side-blue" : ""}${figure.posture === "Lying" ? " lying" : ""}`;
     node.style.width = `${70 / board.width}%`;
     node.title = `${figure.id} · ${figure.posture}`;
+    node.dataset.postureLabel = node.title;
     if (type?.hp > 1) {
       const hp = text("span", `${unit.currentHp}/${type.hp}`);
       hp.className = "figure-hp";
       hp.style.setProperty("--hp-fill", `${Math.max(0, Math.min(1, unit.currentHp / type.hp)) * 100}%`);
       node.dataset.hpLabel = `HP ${unit.currentHp}/${type.hp}`;
       node.title += ` · ${node.dataset.hpLabel}`;
-      node.setAttribute("aria-label", `${figure.id} · ${node.dataset.hpLabel}`);
       hp.setAttribute("aria-hidden", "true");
       node.append(hp);
     }
+    node.setAttribute("aria-label", node.title);
     placeFigure(node, figure.position, board);
     if (!figures.has(figure.id)) {
       node.addEventListener("mouseenter", () => { hoveredUnitId = figure.id; renderUnitCard(); });
@@ -271,7 +274,7 @@ function bindBoardChoice(node, candidates) {
   };
   node.classList.add("board-choice");
   if (node.classList.contains("cell")) node.classList.add("legal");
-  const accessibleLabel = node.dataset.hpLabel ? `${label} · ${node.dataset.hpLabel}` : label;
+  const accessibleLabel = [label, node.dataset.postureLabel, node.dataset.hpLabel].filter(Boolean).join(" · ");
   node.title = accessibleLabel;
   node.setAttribute("role", "button");
   node.setAttribute("aria-label", accessibleLabel);

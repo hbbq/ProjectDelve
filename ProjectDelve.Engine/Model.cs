@@ -192,7 +192,7 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
     Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
-    AttackResult? Attack = null);
+    AttackResult? Attack = null, Posture? Posture = null);
 
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(
@@ -216,6 +216,9 @@ public sealed class GameState
     public Dictionary<string, int> EffectiveRng => Units.ToDictionary(u => u.Id, u => EffectiveRngOf(u.Id));
     public Dictionary<string, int> EffectiveDef => Units.ToDictionary(u => u.Id, u => EffectiveDefOf(u.Id));
 
+    public bool IsUpright(string unitId) =>
+        Physical.Figures.Any(f => f.Id == unitId && f.Posture == Posture.Upright);
+
     public int EffectiveAtkOf(string unitId)
     {
         var unit = Units.Single(u => u.Id == unitId);
@@ -223,7 +226,7 @@ public sealed class GameState
         var attack = type.Atk + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
-        if (type.Fury is null || unit.CurrentHp <= 0 || figure is null) return attack;
+        if (type.Fury is null || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return attack;
 
         // Derive Fury solely from the evaluated world, including hypothetical copies.
         var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && u.SideId != unit.SideId)
@@ -239,7 +242,7 @@ public sealed class GameState
         var attacker = Units.Single(u => u.Id == attackerId);
         var target = Units.Single(u => u.Id == targetId);
         if (Types.Single(t => t.Id == attacker.TypeId).Backstab is null ||
-            attacker.CurrentHp <= 0 || target.CurrentHp <= 0 || attacker.SideId == target.SideId)
+            attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || attacker.SideId == target.SideId)
             return attack;
 
         var targetFigure = Physical.Figures.SingleOrDefault(f => f.Id == targetId);
@@ -271,7 +274,7 @@ public sealed class GameState
             var bonus = Types.Single(t => t.Id == source.TypeId).AdjacentFriendlyUnitsDefenceBonus;
             if (bonus is null) continue;
             var sourceFigure = Physical.Figures.SingleOrDefault(f => f.Id == source.Id);
-            if (sourceFigure is not null && SpatialRules.AreAdjacent(Physical.Board, sourceFigure.Position, figure.Position))
+            if (sourceFigure is { Posture: Posture.Upright } && SpatialRules.AreAdjacent(Physical.Board, sourceFigure.Position, figure.Position))
                 defence += bonus.Amount;
         }
         return defence;

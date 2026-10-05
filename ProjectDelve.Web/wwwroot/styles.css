@@ -28,6 +28,8 @@ aside { overflow-wrap: anywhere; }
 .figure { position: absolute; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: clamp(7px, calc(var(--cell-size) * .24), 14px);
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
 .figure.side-blue { background: #337ab8; border-color: #a5daff; }
+.figure.lying { aspect-ratio: 1.65; transform: translate(-50%, -50%) rotate(-25deg); border-style: dashed; }
+.figure.lying .figure-name, .figure.lying .figure-hp { transform: rotate(25deg); }
 .figure-hp { position: absolute; bottom: -15%; min-width: 90%; padding: 1px 3px 4px;
   border: 1px solid #aeb9cb; border-radius: 4px; background: #171c26; color: #fff;
   font-size: clamp(7px, calc(var(--cell-size) * .18), 11px); line-height: 1; text-align: center;

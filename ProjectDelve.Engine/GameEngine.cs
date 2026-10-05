@@ -51,9 +51,10 @@ public static class GameEngine
         var state = previous.Copy();
         var events = new ResolutionEvents(state);
         if (state.CurrentUnitId is not null &&
-            !state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0))
+            (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
+             !state.IsUpright(state.CurrentUnitId)))
         {
-            // A dead Unit cannot resume either its activation or a mandatory follow-up.
+            // A dead or Lying Unit cannot resume ordinary choices or follow-ups.
             state.Pending = null;
             RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
             return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
@@ -140,6 +141,11 @@ public static class GameEngine
                 state.ActionDone = false;
                 state.BonusActionsUsedThisActivation.Clear();
                 state.ModifiersThisTurn.Clear();
+                if (!state.IsUpright(choice!))
+                {
+                    ChangePosture(state, choice!, Posture.Upright, events);
+                    CompleteUnit(state);
+                }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
                 var ability = request.Candidates.Single(c => c.Key == choice).BonusAction!;
@@ -208,9 +214,9 @@ public static class GameEngine
                             {
                                 HolyWaveUses = new(waveUses.MaxUses, waveUses.RemainingUses - 1)
                             };
-                            ResolveAttack(state, request.UnitId!,
-                                new(action.TargetIds, 2, "Holy Wave"), random, events);
-                            attacked = true;
+                            foreach (var targetId in action.TargetIds)
+                                ChangePosture(state, targetId, Posture.Lying, events);
+                            ChangePosture(state, request.UnitId!, Posture.Lying, events);
                             break;
                         case UnitAction.Fireball:
                             var fireballIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
@@ -230,7 +236,7 @@ public static class GameEngine
                             throw new InvalidOperationException("Unsupported action.");
                     }
                 }
-                if (attacked && state.Units.Single(u => u.Id == request.UnitId).CurrentHp > 0 && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
+                if (attacked && state.IsUpright(request.UnitId!) && state.Units.Single(u => u.Id == request.UnitId).CurrentHp > 0 && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
                 {
                     state.CurrentUnitId = request.UnitId;
                     state.MoveAfterAttackAllowance = move.MaxSteps;
@@ -262,7 +268,8 @@ public static class GameEngine
             }
 
             if (state.CurrentUnitId is not null &&
-                !state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0))
+                (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
+                 !state.IsUpright(state.CurrentUnitId)))
                 CompleteUnit(state);
             if (state.CurrentUnitId is null && EligibleUnits(state).Count == 0)
             {
@@ -290,6 +297,13 @@ public static class GameEngine
         state.ActionDone = false;
         state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
+    }
+
+    private static void ChangePosture(GameState state, string unitId, Posture posture, ResolutionEvents events)
+    {
+        var index = state.Physical.Figures.FindIndex(f => f.Id == unitId);
+        state.Physical.Figures[index] = state.Physical.Figures[index] with { Posture = posture };
+        events.Add(new RulesEvent("PostureChanged", unitId, Posture: posture));
     }
 
     private static void OpenDoor(GameState state, string unitId, Edge door, ResolutionEvents events)
@@ -338,9 +352,10 @@ public static class GameEngine
         if (actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is not null &&
             unit.HolyWaveUses is { RemainingUses: > 0 })
         {
-            var targets = AdjacentHostiles(state, unit).Select(u => u.Id).ToImmutableArray();
-            if (targets.Length > 0)
-                candidates.Add(new Candidate("holy-wave", Action: UnitAction.HolyWave) { TargetIds = targets });
+            var targets = AdjacentHostiles(state, unit).Where(u => state.IsUpright(u.Id))
+                .Select(u => u.Id).ToImmutableArray();
+            candidates.Add(new Candidate("holy-wave", Action: UnitAction.HolyWave,
+                Relevant: !targets.IsEmpty) { TargetIds = targets });
         }
         if (actions.HasFlag(UnitAction.Fireball) && type.Fireball is not null &&
             unit.FireballUses is { RemainingUses: > 0 })
@@ -440,7 +455,7 @@ public static class GameEngine
     // Both decision generation and hypothetical-effect relevance use this query.
     internal static IEnumerable<Candidate> GameplayCandidates(GameState state, Unit unit)
     {
-        if (state.CleavePending) return [];
+        if (!state.IsUpright(unit.Id) || state.CleavePending) return [];
         if (state.MoveAfterAttackAllowance is { } allowance)
             return MovementCandidates(state, unit, allowance);
         if (!state.MoveDone) return MovementCandidates(state, unit);
@@ -494,7 +509,7 @@ public static class GameEngine
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
-    // The two concrete area Actions supply membership and ATK independently.
+    // Normal Attack and Fireball supply membership and ATK independently.
     // Resolution owns one shared roll, per-target results and post-Attack processing.
     private sealed record SharedRollAttack(ImmutableArray<string> TargetIds, int AttackDice, string? AbilityName = null);
 
@@ -555,7 +570,7 @@ public static class GameEngine
 
     private static List<Candidate> CleaveCandidates(GameState state, Unit unit)
     {
-        if (state.Types.Single(t => t.Id == unit.TypeId).Cleave is null ||
+        if (!state.IsUpright(unit.Id) || state.Types.Single(t => t.Id == unit.TypeId).Cleave is null ||
             unit.CleaveUses is not { RemainingUses: > 0 }) return [];
         return AdjacentHostiles(state, unit)
             .Select(target => new Candidate($"cleave:{target.Id}", TargetId: target.Id,
@@ -636,7 +651,7 @@ public static class GameEngine
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
             throw new ArgumentException("Invalid terrain tiles.");
-        if (figures.Any(f => !Inside(board, f.Position) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
+        if (figures.Any(f => !Inside(board, f.Position) || !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
             figures.Select(f => f.Id).Distinct().Count() != figures.Count ||
             figures.Select(f => f.Position).Distinct().Count() != figures.Count ||
             state.Units.Any(u => u.CurrentHp > 0 && !figures.Any(f => f.Id == u.Id)))

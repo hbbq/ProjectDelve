@@ -28,7 +28,7 @@ public sealed class PlaytestApiTests
         Assert.Equal("Cleric", cards.GetProperty("cleric").GetProperty("displayName").GetString());
         var cardWave = cards.GetProperty("cleric").GetProperty("entries").EnumerateArray()
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "holy-wave");
-        Assert.Equal("Attack all adjacent enemies with ATK=2.", cardWave.GetProperty("content").GetProperty("description").GetString());
+        Assert.Equal("Lay down all adjacent upright enemies.\nThen lay down this Unit.", cardWave.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(2, cardWave.GetProperty("uses").GetProperty("remainingUses").GetInt32());
         using var preference = await host.Post("preferences", new { expectedRevision = 0, autoChooseSingleRelevantChoice = false });
         preference.EnsureSuccessStatusCode();
@@ -49,8 +49,15 @@ public sealed class PlaytestApiTests
         Assert.Equal("Direct", projectedWave.GetProperty("interaction").GetProperty("kind").GetString());
         Assert.Equal(wave.TargetIds, projectedWave.GetProperty("affectedUnitIds").EnumerateArray().Select(t => t.GetString()));
         var resolved = await host.Decide(result.Revision, wave.Key);
-        var summary = Assert.Single(resolved.Presentation.Events, e => e.Role == OutcomeRole.AttackSummary);
-        Assert.Contains("2 Attack Dice", summary.Text);
+        var changes = resolved.Result.Events.Where(e => e.Kind == "PostureChanged" && e.Posture == Posture.Lying).ToArray();
+        Assert.Equal(wave.TargetIds.Append("cleric"), changes.Select(e => e.UnitId));
+        Assert.DoesNotContain(resolved.Result.Events, e => e.AbilityName == "Holy Wave" && e.Attack is not null);
+        Assert.Equal(Posture.Lying, resolved.Result.State.Physical.Figures.Single(f => f.Id == "cleric").Posture);
+        using var resolvedJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
+        var figureJson = resolvedJson.RootElement.GetProperty("result").GetProperty("state")
+            .GetProperty("physical").GetProperty("figures").EnumerateArray()
+            .Single(f => f.GetProperty("id").GetString() == "cleric");
+        Assert.Equal("Lying", figureJson.GetProperty("posture").GetString());
         Assert.Equal(resolved.Result.Events.Count, resolved.Presentation.Events.Count);
         Assert.Equal(resolved.Result.ResolutionSteps.Select(s => s.EventIndex), resolved.Presentation.ResolutionSteps.Select(s => s.EventIndex));
         foreach (var step in resolved.Result.ResolutionSteps)

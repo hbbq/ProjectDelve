@@ -29,7 +29,9 @@ internal sealed class GameplayQueries : IGameplayQueries
         world.Physical.Figures.Single(f => f.Id == unitId).Position;
 
     public UnitBehavior BehaviorsOf(string unitId) =>
-        world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Behaviors;
+        world.IsUpright(unitId)
+            ? world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Behaviors
+            : UnitBehavior.None;
 
     public int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId)
     {

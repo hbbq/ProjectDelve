@@ -9,6 +9,23 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class BrowserProjectionTests
 {
+    [Fact]
+    public void GenericPostureEventsAndPhysicalSnapshotsSerializeWithoutAbilityKnowledge()
+    {
+        var state = State();
+        state.Physical.Figures[1] = state.Physical.Figures[1] with { Posture = Posture.Lying };
+        var outcome = new RulesEvent("PostureChanged", "target", Posture: Posture.Lying);
+        var result = new EngineResult(state, [outcome], null) { ResolutionSteps = [new(0, state)] };
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(0, result), options));
+        var raw = json.RootElement.GetProperty("result");
+        Assert.Equal("Lying", raw.GetProperty("state").GetProperty("physical").GetProperty("figures")[1].GetProperty("posture").GetString());
+        Assert.Equal("Lying", raw.GetProperty("resolutionSteps")[0].GetProperty("stateAfter").GetProperty("physical").GetProperty("figures")[1].GetProperty("posture").GetString());
+        Assert.Equal("target: Lying", BrowserProjection.Create(result).Events[0].Text);
+        Assert.Equal(OutcomeRole.Notice, BrowserProjection.Create(result).Events[0].Role);
+    }
+
     private sealed class Dice : IRandomProvider
     {
         public string DrawToken(IReadOnlyList<string> bag) => bag[0];

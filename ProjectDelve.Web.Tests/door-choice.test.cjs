@@ -92,7 +92,7 @@ for (const name of ["Holy Wave", "An unfamiliar ability"]) for (const affected o
   test(`Direct ${name} previews authoritative membership (${affected.length}) and submits one opaque key`, () => {
     const direct = choice("opaque complete choice", "Direct", {}, { entryId: "opaque-entry", affectedUnitIds: affected });
     const initial = response([direct, choice("opaque single target", "Unit", { unitId: "a" })],
-      [entry("opaque-entry", name, "Action", "Attack all adjacent enemies with ATK=2.")]);
+      [entry("opaque-entry", name, "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.")]);
     const h = harness(initial);
     h.run("chooseCandidate = key => submitted.push(key)");
     const button = buttons(h.elements.get("unit-card"))[0];
@@ -331,6 +331,54 @@ test("movement retains mounted figures and commits each progressive animation st
 test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
   assert.doesNotMatch(script, /Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
 });
+
+test("Lying tokens render generic physical posture with readable identity and supplied choices", () => {
+  const initial = response([choice("supplied despite posture", "Unit", { unitId: "actor" })]);
+  initial.result.state.physical.figures[0].posture = "Lying";
+  const h = harness(initial);
+  h.run("chooseCandidate = key => submitted.push(key)");
+  assert.equal(h.figure("actor").classList.contains("lying"), true);
+  assert.equal(h.figure("a").classList.contains("lying"), false);
+  assert.match(h.figure("actor").attributes["aria-label"], /actor.*Lying.*HP 4\/4/);
+  assert.match(h.figure("actor").textContent, /Apn1/);
+  click(h.figure("actor"));
+  assert.deepEqual(h.submitted, ["supplied despite posture"]);
+  const mounted = h.figure("actor");
+  initial.result.state.physical.figures[0].posture = "Upright";
+  h.run("renderState(initial.result.state)");
+  assert.equal(h.figure("actor"), mounted);
+  assert.equal(mounted.classList.contains("lying"), false);
+  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  assert.match(css, /\.figure\.lying\s*\{[^}]*aspect-ratio:\s*1\.65[^}]*rotate\(-25deg\)[^}]*border-style:\s*dashed/);
+  assert.match(css, /\.figure\.lying \.figure-name[^}]*rotate\(25deg\)/);
+});
+
+for (const animate of [true, false]) {
+  test(`posture changes follow authoritative StateAfter for unknown causes (animate=${animate})`, async () => {
+    const initial = response(), final = response();
+    const first = state();
+    first.physical.figures[1].posture = "Lying";
+    final.result.state.physical.figures[1].posture = "Lying";
+    final.result.state.physical.figures[0].posture = "Lying";
+    final.result.events = [{ kind: "Unknown future cause" }];
+    final.presentation.events = [0, 1].map(i => ({ role: "Notice", text: "Supplied posture change", unitId: i ? "actor" : "a" }));
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: first }, { eventIndex: 1, stateAfter: final.result.state }];
+    final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: cards() }));
+    const shown = [], h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    h.context.shown = shown; h.context.animate = animate;
+    h.run(`
+      ui.animate.checked = animate;
+      pause = async () => {};
+      const originalRender = renderState;
+      renderState = (...args) => {
+        originalRender(...args);
+        shown.push([figures.get("actor").classList.contains("lying"), figures.get("a").classList.contains("lying")]);
+      };
+    `);
+    await h.run('mutate("decision")');
+    assert.deepEqual(shown.map(x => Array.from(x)), [[false, true], [true, true], [true, true]]);
+  });
+}
 
 for (const name of ["Fireball", "Unfamiliar option"]) for (const surface of ["figure", "cell"]) {
   test(`Unit and Position collision on ${surface} offers supplied labels for ${name}`, () => {
