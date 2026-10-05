@@ -120,6 +120,13 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
             AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
         };
 
+    public static UnitType Wizard(string id = "wizard-type") =>
+        new(id, 2, 4, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
+        {
+            DisplayName = "Wizard",
+            BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
+        };
+
     public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1) { DisplayName = "Grunt" };
 
     public static UnitType Zombie(string id = "zombie-type") =>
