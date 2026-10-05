@@ -430,23 +430,27 @@ For the currently defined **Wall with window** edge, the edge is impassable for 
 
 ## Figures
 
-### v0 footprint
+### Footprint
 
-The initial implementation supports only figures with a 1 × 1 footprint.
+A figure has either a **1 × 1** or **2 × 2** footprint. These are the only supported footprint sizes.
 
-Larger figures are expected in the future, so the overall model should not assume that all figures must always be 1 × 1. Support for larger footprints is not required in v0.
+A 1 × 1 figure occupies one Cell. A 2 × 2 figure occupies four Cells in a square. A 2 × 2 footprint has no orientation and cannot turn or rotate as a gameplay operation. Rectangular footprints such as 2 × 1, arbitrary shapes, and a general rotation/facing system are not part of the current rules.
 
-### Position
+A figure's Position is its anchor Cell. For a 1 × 1 figure the anchor is its occupied Cell. For a 2 × 2 figure the anchor is the top-left occupied Cell; if the anchor is `(x,y)`, the footprint occupies `(x,y)`, `(x+1,y)`, `(x,y+1)`, and `(x+1,y+1)`. Top-left is only a coordinate convention and does not create facing.
 
-A 1 × 1 figure on the board occupies exactly one grid cell.
+The footprint belongs to the Unit Type and describes one physical figure/base. A 2 × 2 Unit is still one Unit with one identity, HP value, Posture, activation, Side, controller, and set of abilities. Occupying several Cells never causes it to count several times for an effect or condition.
 
-A figure may be placed only in a Cell that can physically and legally hold that figure. Initial scenario setup follows the same occupancy constraint: a Unit may not begin on non-passable terrain or a fixed object that occupies the figure's space unless a future rule explicitly permits it.
+### Position and placement
 
-Two figures cannot occupy the same cell.
+A figure may be placed only where its complete footprint can physically and legally stand. Every occupied Cell must be on the board, normally passable for a figure, and free of other figures.
 
-A figure cannot occupy an intermediate position between cells or partially occupy multiple cells.
+The interior of a 2 × 2 footprint may not span an Edge that is impassable for movement. For example, a 2 × 2 figure cannot stand with a Wall, Closed Door, or Wall With Window running through its base even when all four terrain Cells are individually passable. Passable internal Edges such as an Open Door do not prevent placement.
 
-How movement between cells works is a gameplay rule and is not defined here.
+Initial scenario setup and runtime placement use the same complete-footprint legality. Two figures' footprints may not overlap.
+
+A figure cannot occupy an intermediate position between Cells. A 2 × 2 figure physically occupying several Cells according to its footprint is not an intermediate position.
+
+A Lying figure retains its complete footprint. Removing the figure removes the complete footprint.
 
 ### Facing
 
@@ -676,13 +680,15 @@ A summoned Goblin that is still Lying when its activation occurs follows the ord
 
 For automated Shaman play, if at least one legal Summon Goblin placement exists when its Action is available, use Summon Goblin and choose the top-left legal Cell (ascending `y`, then `x`). If no legal placement exists, it takes no Action. This is a Behavior preference among authoritative legal choices, not additional Summon Goblin legality.
 
-**Flee** is Shaman's ordinary-Move Behavior. It uses the existing movement/pathfinding model rather than geometric or Manhattan distance. Determine hostile Units that are reachable through that analysis under Shaman's actual movement/pathfinding capabilities. In particular, Shaman does not have Approach Through Closed Doors, so a hostile that can only be reached through a Closed Door is not considered reachable for Flee.
+**Flee** is Shaman's ordinary-Move Behavior. Legal movement destinations are generated using the fleeing Unit's real movement rules and complete footprint. A 2 × 2 Unit using Flee therefore considers only destinations and movement paths through which its complete footprint can actually travel.
 
-If no hostile Unit is reachable in that analysis, Shaman stays in its current Cell.
+Flee's **distance ranking** is intentionally a different query. For each legal destination, consider every Cell in the fleeing Unit's footprint at that destination and every occupied Cell of every hostile Unit. Measure ordinary terrain-route distance between those Cell pairs as a 1 × 1 Cell-to-Cell path calculation: the distance path itself does not need to accommodate the fleeing Unit's footprint or the hostile Unit's footprint. The destination's Flee value is the smallest reachable such Cell-pair distance. Prefer the legal destination with the highest Flee value.
 
-Otherwise, consider Shaman's legal movement destinations, including staying where applicable. For each destination, evaluate pathfinding distance to the nearest hostile Unit that is reachable under that same analysis, and prefer the destination that maximizes that nearest-enemy pathfinding distance. Ties use shortest actual movement path length, with staying treated as path length 0, then top-left board order (ascending `y`, then `x`).
+Only hostiles for which at least one such Cell-to-Cell terrain route exists participate in the ranking. The distance analysis uses the traversal parameters appropriate to Flee; in particular, Shaman does not have Approach Through Closed Doors, so Closed Doors are not made traversable merely for this calculation. If no hostile Unit has a reachable Cell pair, the Unit stays.
 
-Flee is only a Decision Provider preference. It does not change movement legality, make Closed Doors traversable, introduce a perception/visibility system, or give Shaman knowledge through otherwise unreachable paths.
+Ties use shortest actual movement path length, with staying treated as path length 0, then top-left board order (ascending `y`, then `x`).
+
+Flee is only a Decision Provider preference. Its 1 × 1 Cell-to-Cell distance calculation does not change actual movement legality. A 2 × 2 fleeing Unit must still fit along its own real movement path even though the ranking distance is measured independently between footprint Cells.
 
 Shaman introduces Unit creation during play as concrete content. Implement only the placement and Unit-creation behavior required by Summon Goblin; this does not establish a general summoning, reinforcement, spawn-wave, or Unit-factory framework.
 
@@ -992,6 +998,12 @@ For example, the Rogue normally has `ATK 3`, and attacks a qualifying Backstab t
 
 Any rule that evaluates the effectiveness of a specific Attack, including relevance comparison, uses the same authoritative target-specific attack values as actual attack resolution. Backstab must not be reimplemented as special relevance logic or inferred by presentation code.
 
+### Footprint adjacency
+
+When a rule refers to Units as adjacent, the Units are adjacent when at least one occupied Cell of one Unit has the ordinary eight-cell adjacency relationship, including that adjacency rule's normal geometric board LOS, to at least one occupied Cell of the other Unit. The **same Cell pair** must satisfy both adjacency and its required geometric LOS.
+
+A Unit never counts as adjacent to itself merely because Cells inside its own footprint are adjacent. A multi-Cell Unit still counts as one Unit regardless of how many Cell pairs establish adjacency. Effects such as Fury, Backstab, Aura, Heal, Holy Wave, and Cleave therefore count or affect a qualifying Unit once, not once per contacting Cell.
+
 ### Free Actions
 
 A Free Action consumes neither the Unit's Move opportunity nor Action opportunity and does not count as using any Bonus Action ability. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
@@ -1022,7 +1034,11 @@ Rules may therefore trigger before or after the complete movement, but not in th
 
 Choosing Stay still constitutes a completed Move and movement operation. Consequently, a future rule triggered after movement may still trigger when the Unit moved zero steps.
 
-Each movement step crosses the shared edge between the current cell and an orthogonally adjacent destination cell. The step is legal only if that edge is passable for movement.
+Each movement step translates the Unit's complete footprint one Cell orthogonally. For a 1 × 1 Unit this crosses the ordinary shared Edge between its current Cell and destination Cell. For a 2 × 2 Unit the anchor likewise moves one Cell and all four occupied Cells translate together; there is no turning or rotation.
+
+A movement step is legal only when the complete footprint remains on the board, every terrain Cell traversed by the footprint is passable under that Unit's traversal rules, and every Edge crossed by translating the footprint is passable under those traversal rules. A 2 × 2 Unit therefore cannot pass through a one-Cell-wide opening or corridor. If a route around such an opening exists, pathfinding may find it; if no fitting route exists, the destination is unreachable.
+
+The complete footprint must also be a legal stopping placement at the final destination, including the normal internal-Edge placement rule. Traversal permissions do not by themselves make an otherwise illegal footprint a legal stopping placement.
 
 For the currently defined edge features:
 
@@ -1032,11 +1048,11 @@ For the currently defined edge features:
 
 Other edge features may define their own movement passability when introduced.
 
-A Unit may pass through cells occupied by friendly Units during its movement.
+A Unit may pass through Cells occupied by friendly Units during its movement; for a multi-Cell footprint, overlap with a friendly footprint may occur during traversal.
 
-A Unit may not pass through cells occupied by hostile Units. Hostile Units can therefore block movement paths.
+A Unit may not pass through any Cell occupied by a hostile Unit. Any footprint intersection with a hostile Unit therefore blocks that traversal position.
 
-A Unit may never end its movement in a cell occupied by another Unit, whether friendly or hostile.
+A Unit may never end its movement with any part of its footprint overlapping another Unit, whether friendly or hostile.
 
 Whether a destination cell is otherwise passable is determined by the rules for its terrain or fixed object. Those rules are deliberately deferred to the corresponding terrain specification.
 
@@ -1060,9 +1076,9 @@ When an approach-distance query measures distance to a specific goal cell, that 
 
 A movement decision normally chooses a destination, not a path.
 
-The engine determines all cells reachable by a Unit within its effective movement allowance while applying movement legality. Each reachable destination is exposed at most once.
+The engine determines all legal footprint placements reachable by a Unit within its effective movement allowance while applying movement legality. A reachable destination is represented by the figure's anchor Cell and is exposed at most once. Pathfinding nodes therefore represent placements of the complete footprint, not independent movement of its occupied Cells.
 
-For each reachable destination, the engine associates one deterministic shortest legal path from the Unit's starting cell to that destination. A flood-fill or breadth-first search is an appropriate implementation for the current uniform-cost grid movement.
+For each reachable destination, the engine associates one deterministic shortest legal path from the Unit's starting anchor Cell to that destination anchor. A flood-fill or breadth-first search is an appropriate implementation for the current uniform-cost grid movement.
 
 A Unit therefore does not spend unnecessary movement by taking a longer route when a shorter legal route reaches the same chosen destination.
 
@@ -1119,17 +1135,19 @@ The first target-specific attack modifier is the Rogue's Backstab passive. Broad
 
 ### Range
 
-For ranged attacks, `RNG` is the maximum orthogonal distance between attacker and target. Orthogonal distance is Manhattan distance: the absolute horizontal difference plus the absolute vertical difference between their cells.
+For ranged attacks, `RNG` is the maximum orthogonal distance between an occupied Cell of the attacker and an occupied Cell of the target. Orthogonal distance is Manhattan distance: the absolute horizontal difference plus the absolute vertical difference between the two Cells.
 
-`RNG 1` is a special case called **Melee**. A Melee attack may target any of the eight cells immediately surrounding the attacker, including diagonally adjacent cells. A physical Unit card may display `Melee` rather than the numeric value `1` to make this distinction explicit.
+`RNG 1` is a special case called **Melee**. A Melee attack may target a Unit when an occupied Cell of the attacker and an occupied Cell of the target are among the ordinary eight neighboring Cells, including diagonal adjacency. A physical Unit card may display `Melee` rather than the numeric value `1` to make this distinction explicit.
 
-A target must satisfy both the applicable range rule and Line of Sight.
+A target must satisfy both the applicable range rule and Line of Sight through the **same occupied-Cell pair**. It is not sufficient for one pair of Cells to establish Range while a different pair establishes LOS. For multi-Cell Units, a legal normal Attack therefore exists when at least one source/target occupied-Cell pair simultaneously satisfies the applicable Range rule and ordinary Unit-origin LOS.
+
+When a rule needs Unit-to-Unit distance without attack legality, use the minimum applicable Cell-to-Cell distance over the Units' occupied Cells unless that rule defines a different distance measure.
 
 ### Line of Sight
 
-Line of Sight (LOS) is a straight geometric line from the center of the attacker's cell to the center of the target's cell.
+Line of Sight (LOS) preserves the Cell-center-to-Cell-center geometric primitive. A Unit has Unit-to-Unit LOS when at least one of its occupied Cell centers has ordinary LOS to at least one occupied Cell center of the other Unit. A 2 × 2 figure has no separate geometric center for LOS.
 
-Range measurement and LOS are separate tests.
+Range and LOS remain distinct properties, but when a rule such as Normal Attack requires both, the same occupied-Cell pair must satisfy both as specified by that rule.
 
 LOS blocking is based on logical grid geometry rather than the detailed physical silhouette of a miniature or terrain model.
 
@@ -1147,7 +1165,9 @@ Merely touching the corner of an LOS-blocking cell does not count as passing thr
 
 Friendly Units do not block LOS.
 
-Hostile Units block LOS when their Cell interior lies between the observing/acting Unit and the target Cell. The target Unit itself does not block LOS to itself. This rule applies to normal Unit-to-target Line of Sight, including Normal Attack, Telekinesis, and selection of Fireball's target Cell. Rules that establish LOS from something other than a Unit, such as Fireball's explosion-origin Cell, define whether Unit figures participate in that LOS check.
+Hostile Units block LOS when the interior of any Cell in their footprint lies between the observing/acting Unit's source Cell and the target Cell. Friendly Units do not block LOS. When evaluating LOS to a target Unit, exclude the target Unit's complete footprint as a blocker; it cannot block LOS to itself. Likewise, the observing/acting Unit's own complete footprint cannot block its own LOS. These exemptions are by Unit identity, not merely by endpoint Cell.
+
+This rule applies to normal Unit-origin Line of Sight, including Normal Attack and Telekinesis. For selection of Fireball's target Cell, if that Cell is occupied by a hostile Unit, that entire Unit is likewise excluded as a blocker for LOS to that target Cell. Rules that establish LOS from something other than a Unit, such as Fireball's explosion-origin Cell, define whether Unit figures participate in that LOS check.
 
 Which terrain types, fixed objects, walls, doors, windows, and other edge features block LOS will be defined by their corresponding rules.
 
@@ -1221,7 +1241,6 @@ The following are intentionally not specified yet:
 - LOS effects beyond the currently defined terrain and edge properties,
 - stat modifier rules beyond the currently defined additive `ModifierThisTurn(stat, amount)` behavior,
 - edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
-- larger-than-1×1 figure behavior,
 - loose tokens and markers,
 - exact terrain and edge-feature taxonomies,
 - scenario validation against an inventory of physical components.
