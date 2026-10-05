@@ -767,6 +767,23 @@ Rules that occur after an Attack occur once after the complete Fireball has reso
 
 Fireball is the second concrete shared-roll multi-target Attack. Holy Wave and Fireball may share reusable implementation machinery where their now-concrete common structure warrants it, while their targeting, attack-value rules, content identity, and presentation remain distinct. This does not establish a universal area-effect or spell framework.
 
+The Wizard also has the Action ability **Telekinesis**:
+
+```text
+Telekinesis
+Action
+
+Lay down an upright enemy within RNG and LOS.
+```
+
+Telekinesis has no per-game usage limit. It uses the Unit's normal Action opportunity and therefore competes with the Wizard's normal Attack and Fireball.
+
+A legal Telekinesis target is an Upright hostile Unit within the Wizard's effective `RNG` and normal Line of Sight. Range uses the ordinary ranged Manhattan-distance rule, with the established `RNG 1` Melee special case if such a value ever applies. Lying enemies are not legal Telekinesis targets.
+
+Resolving Telekinesis lays the chosen target down. It is not an Attack, rolls no Attack or Defence Dice, deals no Damage, and does not create rules opportunities that require an Attack to have occurred.
+
+Telekinesis is the first targeted Action that changes another Unit's Posture. It uses the base Posture rules directly and does not introduce forced movement, saving throws, resistance, immunity, a knockdown/stun condition, or a general posture-effect framework.
+
 ### Bonus Actions
 
 Each individual ability explicitly marked `Bonus Action` may be used at most once during a Unit's activation. Different Bonus Action abilities do not compete for a shared Bonus Action opportunity and may be combined during the same activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, that specific ability has not already been used during the activation, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
