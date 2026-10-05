@@ -13,7 +13,7 @@ public interface IGameplayQueries
     bool HasNearbyHostileThreatFrom(string unitId, Cell position);
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
-    // position is reachable; undefined LOS does not count as a possible attack.
+    // position is reachable under the normal attack range and LOS rules.
     // The caller selects edge traversal for its analysis; this never changes movement legality.
     int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false);
 

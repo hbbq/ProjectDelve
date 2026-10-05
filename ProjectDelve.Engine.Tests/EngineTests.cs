@@ -37,6 +37,29 @@ public sealed class EngineTests
         GameEngine.Advance(result.State, new Choice(key), random);
 
     [Fact]
+    public void InitialFigurePlacementRejectsNonPassableTerrain()
+    {
+        foreach (var terrain in new[] { TerrainKind.Tree, TerrainKind.StoneFloorWithTable, TerrainKind.Water })
+        {
+            var state = State();
+            state.Physical.Board.Terrain.Add(new(new(0, 0), terrain));
+            var original = JsonSerializer.Serialize(state);
+            Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new ScriptedRandom("hero-type")));
+            Assert.Equal(original, JsonSerializer.Serialize(state));
+        }
+    }
+
+    [Theory]
+    [InlineData(TerrainKind.Grass)]
+    [InlineData(TerrainKind.StoneFloor)]
+    public void InitialFigurePlacementAcceptsPassableTerrain(TerrainKind terrain)
+    {
+        var state = State();
+        state.Physical.Board.Terrain.Add(new(new(0, 0), terrain));
+        Assert.NotNull(GameEngine.StartRound(state, new ScriptedRandom("hero-type")).NextInput);
+    }
+
+    [Fact]
     public void SuccessiveAttacksCaptureDetachedProgressiveHp_AndDeathRemovalAtItsStep()
     {
         var state = State(width: 3, height: 1, mov: 0, atk: 0, hp: 2);

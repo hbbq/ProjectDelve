@@ -129,7 +129,7 @@ public sealed class SharedRulesTests
     }
 
     [Fact]
-    public void InterveningHostileLosRemainsUndefinedWhileFriendlyLosIsClear()
+    public void InterveningHostileBlocksLosWhileFriendlyLosIsClear()
     {
         var state = State(rng: 4);
         state.Physical.Figures[1] = state.Physical.Figures[1] with { Position = new Cell(2, 1) };
@@ -138,7 +138,7 @@ public sealed class SharedRulesTests
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
 
         state.Units[1] = state.Units[1] with { SideId = "red" };
-        Assert.Equal(UnitTargetEvaluation.UndefinedLineOfSight,
+        Assert.Equal(UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
         Assert.Equal(UnitTargetEvaluation.Possible,
             AttackRules.EvaluateFrom(state, "mover", from, "friend"));

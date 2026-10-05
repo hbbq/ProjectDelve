@@ -100,20 +100,66 @@ public sealed class FireballTests
     [InlineData(0, 1, 2, true)] [InlineData(0, 2, 2, false)]
     public void RangeUsesRangedManhattanEvenAtOneOrZero(int range, int x, int y, bool legal)
     {
-        var action = Action(Scenario(UnitType.Wizard() with { Rng = range }));
+        var state = Scenario(UnitType.Wizard() with { Rng = range });
+        state.Units[1] = state.Units[1] with { SideId = "blue" };
+        var action = Action(state);
         Assert.Equal(legal, action.NextInput!.Candidates.Any(c => c.Key == $"fireball:{x},{y}"));
     }
 
     [Fact]
-    public void EffectiveRangeAndGeometryIgnoreInterveningUnits()
+    public void EffectiveRangeAndUnitLosIgnoreInterveningFriendlyUnits()
     {
-        var action = Action();
+        var state = Scenario();
+        state.Units[1] = state.Units[1] with { SideId = "blue" };
+        var action = Action(state);
         Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:6,2");
         action.State.ModifiersThisTurn.Add(new(Stat.Rng, 1));
         var refreshed = GameEngine.RefreshChoices(action.State, new Dice(), false);
-        Assert.NotNull(CellChoice(refreshed, 6, 2)); // a lies on the ray, but does not block it.
+        Assert.NotNull(CellChoice(refreshed, 6, 2)); // Friendly a lies on the ray.
         Assert.Contains(refreshed.NextInput!.Candidates, c => c.Key == "fireball:5,2");
         Assert.DoesNotContain(refreshed.NextInput.Candidates, c => c.Key == "attack:b"); // Friendly target.
+    }
+
+    [Theory]
+    [InlineData(Posture.Upright)]
+    [InlineData(Posture.Lying)]
+    public void InterveningHostileBlocksTargetCellButNotItsOwnCell(Posture posture)
+    {
+        var state = Scenario();
+        state.Units[2] = state.Units[2] with { SideId = "red" };
+        state.Physical.Figures[2] = new("b", new(4, 2));
+        state.Physical.Figures[1] = state.Physical.Figures[1] with { Posture = posture };
+        var action = Action(state);
+        Assert.NotNull(CellChoice(action)); // The hostile at the target Cell does not block itself.
+        Assert.Contains(action.NextInput!.Candidates, c => c.Key == "attack:a");
+        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:4,2");
+        Assert.DoesNotContain(action.NextInput.Candidates, c => c.Key == "attack:b");
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "fireball:4,2"));
+    }
+
+    [Fact]
+    public void FireballSubmissionRechecksHostileUnitLos()
+    {
+        var state = Scenario();
+        state.Units[1] = state.Units[1] with { SideId = "blue" };
+        var action = Action(state);
+        Assert.NotNull(CellChoice(action, 4, 2));
+        action.State.Units[1] = action.State.Units[1] with { SideId = "red" };
+        Assert.Throws<ArgumentException>(() => Choose(Restore(action.State), "fireball:4,2"));
+    }
+
+    [Fact]
+    public void ExplosionOriginIgnoresFiguresOnCenterAndSurroundingCells()
+    {
+        var state = Scenario();
+        state.Physical.Figures[2] = new("b", new(4, 2));
+        var action = Action(state);
+        // Hostile a blocks Wizard -> b, but does not block the explosion from a's Cell.
+        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:4,2");
+        Assert.Equal(new[] { "a", "b" }, CellChoice(action).TargetIds);
+        var result = Choose(action.State, "fireball:3,2");
+        Assert.Equal(new[] { "a", "b" }, result.Events.Single(e => e.Kind == "AttackResolved")
+            .Attack!.Targets.Select(t => t.TargetId));
     }
 
     [Theory]
@@ -155,6 +201,7 @@ public sealed class FireballTests
     {
         var state = Scenario();
         state.Units.RemoveAt(2); state.Physical.Figures.RemoveAt(2);
+        state.Units[1] = state.Units[1] with { SideId = "blue" };
         state.Physical.Figures[1] = new("a", new(x, y));
         Assert.Equal(targeted, CellChoice(Action(state)).TargetIds.Contains("a"));
     }
@@ -190,13 +237,14 @@ public sealed class FireballTests
     }
 
     [Fact]
-    public void FriendlyOnlyExplosionIsRelevantAndBlockingTerrainCanProtectItsUnit()
+    public void FriendlyOnlyExplosionIsRelevantAndBlockingTerrainPreventsTargetCell()
     {
         var state = Scenario();
         state.Units[1] = state.Units[1] with { SideId = "blue" };
         Assert.True(CellChoice(Action(state)).Relevant);
-        state.Physical.Board.Terrain.Add(new(new(4, 3), TerrainKind.Tree));
-        Assert.Equal(new[] { "a" }, CellChoice(Action(state)).TargetIds);
+        state.Physical.Board.Terrain.Add(new(new(2, 2), TerrainKind.Tree));
+        Assert.All(state.Physical.Figures, f => Assert.True(state.Physical.Board.TerrainAt(f.Position).Passable()));
+        Assert.DoesNotContain(Action(state).NextInput!.Candidates, c => c.Key == "fireball:3,2");
     }
 
     [Fact]
@@ -248,7 +296,7 @@ public sealed class FireballTests
         var type = UnitType.Wizard() with { Backstab = new(), Fury = new() };
         var state = Scenario(type);
         state.Units[2] = state.Units[2] with { SideId = "red" };
-        state.Physical.Figures[1] = new("a", new(2, 2));
+        state.Physical.Figures[1] = new("a", new(2, 1));
         state.Physical.Figures[2] = new("b", new(2, 3));
         state.Units.Add(new("friend", "target", "blue", 8));
         state.Physical.Figures.Add(new("friend", new(3, 1)));
@@ -351,7 +399,7 @@ public sealed class FireballTests
     {
         var type = UnitType.Wizard() with { Cleave = new(), MoveAfterAttack = new(1) };
         var state = Scenario(type);
-        state.Physical.Figures[1] = new("a", new(2, 2));
+        state.Physical.Figures[1] = new("a", new(2, 1));
         state.Physical.Figures[2] = new("b", new(2, 3));
         state.Units[2] = state.Units[2] with { SideId = "red" };
         var dice = new Dice(2, blocks > 0 ? DefenceFace.Block : DefenceFace.Miss,

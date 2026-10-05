@@ -1,7 +1,6 @@
 namespace ProjectDelve.Engine;
 
-// Undefined LOS is not a rule that the encountered feature blocks LOS.
-internal enum UnitTargetEvaluation { NotPossible, Possible, UndefinedLineOfSight }
+internal enum UnitTargetEvaluation { NotPossible, Possible }
 
 internal static class AttackRules
 {
@@ -43,18 +42,22 @@ internal static class AttackRules
         if (from == to || (range == 1 ? Math.Max(dx, dy) != 1 : dx + dy > range))
             return UnitTargetEvaluation.NotPossible;
 
-        if (!HasGeometricLineOfSight(state.Physical.Board, from, to))
-            return UnitTargetEvaluation.NotPossible;
+        return HasUnitLineOfSight(state, sourceId, from, to)
+            ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
+    }
 
-        // Preserve target-local uncertainty: unrelated unresolved LOS does not
-        // remove otherwise legal choices. Friendly figures do not block LOS,
-        // including the attacker whose actual figure is at its original position.
-        if (state.Units.Where(u => u.CurrentHp > 0 && u.SideId != attacker.SideId && u.Id != target.Id)
-                .Any(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position != from &&
-                    CrossesInterior(from, to, state.Physical.Figures.Single(f => f.Id == u.Id).Position)))
-            return UnitTargetEvaluation.UndefinedLineOfSight;
-
-        return UnitTargetEvaluation.Possible;
+    // Unit-origin LOS shares board geometry, then checks hostile figure interiors.
+    // Endpoint occupants do not intervene; hypothetical origins vacate the source's actual Cell.
+    internal static bool HasUnitLineOfSight(GameState state, string sourceId, Cell from, Cell to)
+    {
+        if (!HasGeometricLineOfSight(state.Physical.Board, from, to)) return false;
+        var side = state.Units.Single(u => u.Id == sourceId).SideId;
+        return !state.Units.Where(u => u.CurrentHp > 0 && u.SideId != side && u.Id != sourceId)
+            .Any(u =>
+            {
+                var position = state.Physical.Figures.Single(f => f.Id == u.Id).Position;
+                return position != from && position != to && CrossesInterior(from, to, position);
+            });
     }
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.

@@ -418,7 +418,7 @@ public static class GameEngine
         {
             var center = new Cell(x, y);
             if (Math.Abs(x - from.X) + Math.Abs(y - from.Y) > range ||
-                !AttackRules.HasGeometricLineOfSight(board, from, center)) continue;
+                !AttackRules.HasUnitLineOfSight(state, unit.Id, from, center)) continue;
             var targets = state.Units.Where(u => u.CurrentHp > 0)
                 .Where(u =>
                 {
@@ -708,7 +708,8 @@ public static class GameEngine
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
             throw new ArgumentException("Invalid terrain tiles.");
-        if (figures.Any(f => !Inside(board, f.Position) || !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
+        if (figures.Any(f => !Inside(board, f.Position) || !board.TerrainAt(f.Position).Passable() ||
+                !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
             figures.Select(f => f.Id).Distinct().Count() != figures.Count ||
             figures.Select(f => f.Position).Distinct().Count() != figures.Count ||
             state.Units.Any(u => u.CurrentHp > 0 && !figures.Any(f => f.Id == u.Id)))
