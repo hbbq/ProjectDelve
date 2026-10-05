@@ -588,6 +588,42 @@ Once laid down by Undying, the Troll follows the ordinary Posture rules. When it
 
 Undying is the first concrete rule that replaces normal Death according to current Posture. Implement only the narrow extension required by this content; it does not establish a general death-replacement, resurrection, trigger-stack, or condition framework.
 
+#### Shaman
+
+Shaman is a non-attacking Monster that creates Goblins and tries to keep away from reachable enemies.
+
+- Stats: `MOV 2`, `RNG 0`, `ATK 0`, `DEF 3`, `HP 1`.
+- Actions: Spawn Goblin.
+- Behaviors: Flee; use Spawn Goblin when possible, choosing the top-left legal placement Cell.
+- Shaman does not have the Normal Attack Action.
+
+**Spawn Goblin** is an Action:
+
+```text
+Spawn Goblin
+Action
+
+Place one Lying Goblin in an adjacent empty Cell.
+```
+
+A legal placement Cell uses the ordinary eight-cell adjacency and normal Line of Sight rules. It must also be a Cell where a Unit figure can legally be placed under the ordinary board constraints: the terrain is passable and the Cell is unoccupied. Spawn Goblin does not create a separate placement model or allow placement onto blocking/non-passable terrain.
+
+The created Unit is an ordinary Goblin in all respects except that its initial Posture is Lying. It has its normal maximum and current HP and all normal Goblin content. No spawned, summoning-sickness, or temporary state is added.
+
+Spawned Units follow the established round-bag snapshot rule. Creating the first Goblin during a round does not add a Goblin Unit Type token to the current round's already-established bag. If at least one Goblin is alive when the next round's bag is established, Goblin participates normally in that next round. A spawned Goblin that is still Lying when its activation occurs follows the ordinary Posture rule: it stands Upright and that individual activation immediately completes.
+
+For automated Shaman play, if at least one legal Spawn Goblin placement exists when its Action is available, use Spawn Goblin and choose the top-left legal Cell (ascending `y`, then `x`). If no legal placement exists, it takes no Action. This is a Behavior preference among authoritative legal choices, not additional Spawn Goblin legality.
+
+**Flee** is Shaman's ordinary-Move Behavior. It uses the existing movement/pathfinding model rather than geometric or Manhattan distance. Determine hostile Units that are reachable through that analysis under Shaman's actual movement/pathfinding capabilities. In particular, Shaman does not have Approach Through Closed Doors, so a hostile that can only be reached through a Closed Door is not considered reachable for Flee.
+
+If no hostile Unit is reachable in that analysis, Shaman stays in its current Cell.
+
+Otherwise, consider Shaman's legal movement destinations, including staying where applicable. For each destination, evaluate pathfinding distance to the nearest hostile Unit that is reachable under that same analysis, and prefer the destination that maximizes that nearest-enemy pathfinding distance. Ties use shortest actual movement path length, with staying treated as path length 0, then top-left board order (ascending `y`, then `x`).
+
+Flee is only a Decision Provider preference. It does not change movement legality, make Closed Doors traversable, introduce a perception/visibility system, or give Shaman knowledge through otherwise unreachable paths.
+
+Shaman introduces Unit creation during play as concrete content. Implement only the placement and Unit-creation behavior required by Spawn Goblin; this does not establish a general summoning, reinforcement, spawn-wave, or Unit-factory framework.
+
 #### Skeleton Archer
 
 Skeleton Archer is a ranged Monster Unit Type whose automated Behavior prefers to attack while keeping as much distance as possible.
