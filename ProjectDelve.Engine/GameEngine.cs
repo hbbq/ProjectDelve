@@ -131,8 +131,9 @@ public static class GameEngine
                         CleaveUses = new(cleaveUses.MaxUses, cleaveUses.RemainingUses - 1)
                     };
                     var targetId = request.Candidates.Single(c => c.Key == choice).TargetId!;
-                    DealDamage(state, targetId, 1,
-                        new RulesEvent("CleaveResolved", request.UnitId, targetId, Damage: 1, AbilityName: "Cleave"), events);
+                    var cleave = state.Types.Single(t => t.Id == request.TypeId).Cleave!;
+                    DealDamage(state, targetId, cleave.Damage,
+                        new RulesEvent("CleaveResolved", request.UnitId, targetId, Damage: cleave.Damage, AbilityName: "Cleave"), events);
                 }
                 break;
             case DecisionKind.SelectUnit:
@@ -578,7 +579,8 @@ public static class GameEngine
             events.Add(new RulesEvent("AttackResolved", attackerId, Hits: hits,
                 AbilityName: abilityName, Attack: new(attackDice, hits, [.. results])));
         var attacker = state.Units.Single(u => u.Id == attackerId);
-        if (results.Any(r => r.Damage >= 2) && attacker.CurrentHp > 0 && CleaveCandidates(state, attacker).Count > 0)
+        if (state.Types.Single(t => t.Id == attacker.TypeId).Cleave is { } cleave &&
+            results.Any(r => r.Damage >= cleave.TriggerDamage) && attacker.CurrentHp > 0 && CleaveCandidates(state, attacker).Count > 0)
             state.CleavePending = true;
     }
 
@@ -592,7 +594,8 @@ public static class GameEngine
         };
         var targetIndex = state.Units.FindIndex(u => u.Id == targetId);
         var target = state.Units[targetIndex];
-        var healing = Math.Min(2, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
+        var heal = state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).Heal!;
+        var healing = Math.Min(heal.Amount, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
         state.Units[targetIndex] = target with { CurrentHp = target.CurrentHp + healing };
         events.Add(new RulesEvent("HealResolved", healerId, targetId, AbilityName: "Heal", Healing: healing));
     }
@@ -659,8 +662,9 @@ public static class GameEngine
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
-                t.Cleave is { MaxUses: < 1 } ||
-                t.Heal is { MaxUses: < 1 } ||
+                t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
+                t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
+                t.Fury is { AdjacentEnemyThreshold: < 1 } ||
                 t.HolyWave is { MaxUses: < 1 } ||
                 t.Fireball is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||

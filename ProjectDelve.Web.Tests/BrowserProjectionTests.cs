@@ -10,6 +10,27 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void ConfiguredMechanicValuesReachBrowserCardsThroughDomainDescriptions()
+    {
+        var type = new UnitType("unfamiliar", 1, 1, 3, 2, 4, Actions: UnitAction.Heal)
+        {
+            Heal = new(MaxUses: 2) { Amount = 3 },
+            Fury = new() { AdjacentEnemyThreshold = 3, AtkBonus = 2 },
+            Backstab = new() { AtkBonus = 4 },
+            Cleave = new(MaxUses: 2) { TriggerDamage = 4, Damage = 2 }
+        };
+        var state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(State(type)))!;
+        var entries = BrowserProjection.Cards(state)["actor"].Entries.ToDictionary(e => e.Content.Id);
+        Assert.Equal("Restore up to 3 HP to an adjacent damaged friendly Unit.", entries["heal"].Content.Description);
+        Assert.Equal("ATK +2 while adjacent to 3 or more enemies", entries["passive:Fury"].Content.Description);
+        Assert.Equal("+4 ATK when attacking an enemy that is adjacent to another friendly Unit", entries["passive:Backstab"].Content.Description);
+        Assert.Equal("After an Attack deals 4 or more damage to a Unit, you may immediately deal 2 damage to an adjacent enemy.", entries["cleave"].Content.Description);
+        Assert.Equal(new AbilityUses(2, 2), entries["heal"].Uses);
+        Assert.Equal(new AbilityUses(2, 2), entries["cleave"].Uses);
+        Assert.Equal(type.CardEntries(), entries.Values.Select(e => e.Content));
+    }
+
+    [Fact]
     public void SpawnUsesGenericPositionSelectionAndProgressiveOrdinaryGoblinCard()
     {
         var shaman = UnitType.Shaman();

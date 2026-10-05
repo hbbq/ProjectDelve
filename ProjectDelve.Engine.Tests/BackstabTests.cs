@@ -66,6 +66,31 @@ public sealed class BackstabTests
     }
 
     [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 6)]
+    public void ConfiguredBonusIsTargetSpecificOnUnfamiliarTypeAfterSerialization(bool ally, int expected)
+    {
+        var state = State(ally: ally);
+        var type = new UnitType("unfamiliar-flanker", 1, 1, 3, 0, 4)
+        {
+            Backstab = new() { AtkBonus = 3 }
+        };
+        state.Types[0] = type;
+        state.Units[0] = type.CreateUnit("rogue", "blue");
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        Assert.Equal(type.Backstab, restored.Types[0].Backstab);
+        Assert.Equal(3, restored.EffectiveAtkOf("rogue"));
+        Assert.Equal(expected, restored.EffectiveAtkAgainst("rogue", "target"));
+        Assert.Equal("+3 ATK when attacking an enemy that is adjacent to another friendly Unit",
+            Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "passive:Backstab").Description);
+        var ready = Ready(restored);
+        var random = new Random();
+        var attacked = Choose(ready.State, "attack:target", random);
+        Assert.Equal(expected, random.AttackRolls);
+        Assert.Equal(expected, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+    }
+
+    [Theory]
     [InlineData(0, 3)]
     [InlineData(1, 4)]
     [InlineData(3, 4)]

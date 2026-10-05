@@ -37,6 +37,38 @@ public sealed class HealTests
     private static bool OffersHeal(EngineResult result, string id = "friend") =>
         result.NextInput!.Candidates.Any(c => c.Action == UnitAction.Heal && c.TargetId == id);
 
+    [Theory]
+    [InlineData(1, 4, 3)]
+    [InlineData(3, 4, 1)]
+    public void ConfiguredAmountOnUnfamiliarTypeDrivesResolutionCardAndHpCap(int hp, int expectedHp, int healing)
+    {
+        var scenario = Scenario(hp);
+        var healer = new UnitType("unfamiliar-healer", 1, 0, 0, 0, 4, Actions: UnitAction.Heal,
+            FreeActions: UnitFreeAction.OpenDoor)
+        {
+            Heal = new(MaxUses: 2) { Amount = 3 }
+        };
+        scenario.Types[0] = healer;
+        scenario.Units[0] = healer.CreateUnit("cleric", "blue");
+        var action = Action(scenario);
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(action.State))!;
+        Assert.Equal(healer.Heal, restored.Types[0].Heal);
+        var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "heal");
+        Assert.Equal("heal", entry.Id);
+        Assert.Equal("Restore up to 3 HP to an adjacent damaged friendly Unit.", entry.Description);
+        Assert.Equal("2/game", entry.UseLimitText);
+
+        var dice = new Dice();
+        var result = Choose(restored, "heal:friend", dice);
+        Assert.Equal(expectedHp, result.State.Units[1].CurrentHp);
+        Assert.Equal(healing, Assert.Single(result.Events).Healing);
+        Assert.Equal("Heal", result.Events[0].AbilityName);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].HealUses);
+        Assert.Equal(0, dice.Rolls);
+        Assert.Equal(3, result.ResolutionSteps[0].StateAfter.Types[0].Heal!.Amount);
+        Assert.Equal(hp, action.State.Units[1].CurrentHp);
+    }
+
     [Fact]
     public void ContentAndBareUnitsInitializeTwoUsesAndSerialize()
     {

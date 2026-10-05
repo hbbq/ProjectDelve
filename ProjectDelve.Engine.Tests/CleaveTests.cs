@@ -40,6 +40,46 @@ public sealed class CleaveTests
     private static Unit Barbarian(GameState state) => state.Units.Single(u => u.Id == "barbarian");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
+    [Theory]
+    [InlineData(1, 1, false)]
+    [InlineData(1, 2, true)]
+    [InlineData(3, 2, false)]
+    [InlineData(3, 3, true)]
+    public void ConfiguredTriggerAndDamageDriveUnfamiliarTypeAndSurvivePendingFollowUp(int trigger, int hits, bool offered)
+    {
+        var scenario = Scenario();
+        var type = new UnitType("unfamiliar-cleaver", 0, 1, 4, 0, 5, FreeActions: UnitFreeAction.OpenDoor)
+        {
+            Cleave = new(MaxUses: 2) { TriggerDamage = trigger, Damage = 3 }
+        };
+        scenario.Types[0] = type;
+        scenario.Units[0] = type.CreateUnit("barbarian", "heroes");
+        var attack = Attack(Restore(scenario), hits: hits, blocks: trigger == 1 ? 1 : 0);
+        Assert.Equal(offered, attack.State.CleavePending);
+        var restored = Restore(attack.State);
+        Assert.Equal(type.Cleave, restored.Types[0].Cleave);
+        var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "cleave");
+        Assert.Equal($"After an Attack deals {trigger} or more damage to a Unit, you may immediately deal 3 damage to an adjacent enemy.", entry.Description);
+        Assert.Equal("2/game", entry.UseLimitText);
+        if (!offered) return;
+
+        Assert.Equal(DecisionKind.Cleave, restored.Pending!.Kind);
+        Assert.True(restored.Pending.AllowsNone);
+        var declined = Choose(Restore(restored), null);
+        Assert.Equal(new AbilityUses(2, 2), Barbarian(declined.State).CleaveUses);
+        var dice = new Dice();
+        var result = Choose(restored, "cleave:other", dice);
+        Assert.Equal(0, result.State.Units[2].CurrentHp);
+        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, result.Events.Select(e => e.Kind));
+        Assert.Equal(3, result.Events[0].Damage);
+        Assert.Equal("Cleave", result.Events[0].AbilityName);
+        Assert.Equal(new AbilityUses(2, 1), Barbarian(result.State).CleaveUses);
+        Assert.Equal(0, dice.AttackRolls);
+        Assert.Equal(0, dice.DefenceRolls);
+        Assert.Equal(type.Cleave, result.ResolutionSteps[0].StateAfter.Types[0].Cleave);
+        Assert.False(result.State.CleavePending);
+    }
+
     [Fact]
     public void ContentAndBareUnitsInitializeSeparateTwoUseCounter()
     {

@@ -18,20 +18,31 @@ public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAtt
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Undying;
-public sealed record Cleave(int MaxUses = 2);
-public sealed record Heal(int MaxUses = 2);
+public sealed record Cleave(int MaxUses = 2)
+{
+    public int TriggerDamage { get; init; } = 2;
+    public int Damage { get; init; } = 1;
+}
+// The positional argument remains MaxUses; configure healing through the named Amount property.
+public sealed record Heal(int MaxUses = 2)
+{
+    public int Amount { get; init; } = 2;
+}
 public sealed record HolyWave(int MaxUses = 2);
 public sealed record Fireball(int MaxUses = 2);
 public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
 public sealed record Fury
 {
+    public int AdjacentEnemyThreshold { get; init; } = 2;
+    public int AtkBonus { get; init; } = 1;
     public string Name => "Fury";
-    public string DisplayText => "ATK +1 while adjacent to 2 or more enemies";
+    public string DisplayText => $"ATK {AtkBonus:+0;-0;0} while adjacent to {AdjacentEnemyThreshold} or more enemies";
 }
 public sealed record Backstab
 {
+    public int AtkBonus { get; init; } = 1;
     public string Name => "Backstab";
-    public string DisplayText => "+1 ATK when attacking an enemy that is adjacent to another friendly Unit";
+    public string DisplayText => $"{AtkBonus:+0;-0;0} ATK when attacking an enemy that is adjacent to another friendly Unit";
 }
 // Presentation metadata only; passive rules retain their concrete representations.
 public sealed record PassiveDescription(string Name, string DisplayText);
@@ -97,8 +108,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
         {
             DisplayName = "Barbarian",
-            Fury = new(),
-            Cleave = new(),
+            Fury = new() { AdjacentEnemyThreshold = 2, AtkBonus = 1 },
+            Cleave = new(MaxUses: 2) { TriggerDamage = 2, Damage = 1 },
             BonusActions = [
                 new("Rage", 2, [new(Stat.Atk, 2)])
             ]
@@ -108,7 +119,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
         {
             DisplayName = "Rogue",
-            Backstab = new(),
+            Backstab = new() { AtkBonus = 1 },
             BonusActions = [
                 new("Dash", 2, [new(Stat.Mov, 2)]),
                 new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])
@@ -120,7 +131,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
             FreeActions: UnitFreeAction.OpenDoor)
         {
             DisplayName = "Cleric",
-            Heal = new(),
+            Heal = new(MaxUses: 2) { Amount = 2 },
             HolyWave = new(),
             AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
         };
@@ -236,13 +247,13 @@ public sealed class GameState
         var attack = type.Atk + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
-        if (type.Fury is null || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return attack;
+        if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return attack;
 
         // Derive Fury solely from the evaluated world, including hypothetical copies.
         var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && u.SideId != unit.SideId)
             .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
                 SpatialRules.AreAdjacent(Physical.Board, figure.Position, enemyFigure.Position));
-        return attack + (adjacentEnemies >= 2 ? 1 : 0);
+        return attack + (adjacentEnemies >= fury.AdjacentEnemyThreshold ? fury.AtkBonus : 0);
     }
     // Target-specific Attack Dice, shared by legality, effectiveness and resolution.
     // General EffectiveAtk remains independent of the selected target.
@@ -251,7 +262,7 @@ public sealed class GameState
         var attack = EffectiveAtkOf(attackerId);
         var attacker = Units.Single(u => u.Id == attackerId);
         var target = Units.Single(u => u.Id == targetId);
-        if (Types.Single(t => t.Id == attacker.TypeId).Backstab is null ||
+        if (Types.Single(t => t.Id == attacker.TypeId).Backstab is not { } backstab ||
             attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || attacker.SideId == target.SideId)
             return attack;
 
@@ -260,7 +271,7 @@ public sealed class GameState
         var supported = Units.Any(u => u.Id != attackerId && u.CurrentHp > 0 && u.SideId == attacker.SideId &&
             Physical.Figures.SingleOrDefault(f => f.Id == u.Id) is { } friendlyFigure &&
             SpatialRules.AreAdjacent(Physical.Board, targetFigure.Position, friendlyFigure.Position));
-        return attack + (supported ? 1 : 0);
+        return attack + (supported ? backstab.AtkBonus : 0);
     }
     public int EffectiveMovOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +

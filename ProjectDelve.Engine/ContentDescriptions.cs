@@ -18,7 +18,7 @@ public static class ContentDescriptions
         if (type.Actions.HasFlag(UnitAction.NormalAttack))
             entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight."));
         if (type.Actions.HasFlag(UnitAction.Heal) && type.Heal is { } heal)
-            entries.Add(new("heal", "Heal", "Action", "Restore up to 2 HP to an adjacent damaged friendly Unit.", heal.MaxUses));
+            entries.Add(new("heal", "Heal", "Action", $"Restore up to {heal.Amount} HP to an adjacent damaged friendly Unit.", heal.MaxUses));
         if (type.Actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is { } wave)
             entries.Add(new("holy-wave", "Holy Wave", "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.", wave.MaxUses));
         if (type.Actions.HasFlag(UnitAction.Fireball) && type.Fireball is { } fireball)
@@ -45,7 +45,7 @@ public static class ContentDescriptions
                 "When upright and reduced to 0 HP, remain in your Cell at 1 HP and lay down instead of dying.\nWhile lying, die normally at 0 HP. Your next activation only stands you up and ends."));
         if (type.Cleave is { } cleave)
             entries.Add(new("cleave", "Cleave", "Follow-up",
-                "After an Attack deals 2 or more damage to a Unit, you may immediately deal 1 damage to an adjacent enemy.", cleave.MaxUses));
+                $"After an Attack deals {cleave.TriggerDamage} or more damage to a Unit, you may immediately deal {cleave.Damage} damage to an adjacent enemy.", cleave.MaxUses));
         if (type.MoveAfterAttack is { } move)
             entries.Add(new("move-after-attack", "Move After Attack", "Follow-up",
                 $"After an Attack, immediately Move up to {move.MaxSteps} steps."));

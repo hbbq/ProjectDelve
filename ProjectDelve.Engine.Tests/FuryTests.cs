@@ -64,6 +64,31 @@ public sealed class FuryTests
     }
 
     [Theory]
+    [InlineData(2, 4)]
+    [InlineData(3, 7)]
+    public void ConfiguredThresholdAndBonusDriveUnfamiliarTypesAttackAndCardAfterSerialization(int enemies, int expected)
+    {
+        var state = State(enemies);
+        var type = new UnitType("unfamiliar-fighter", 1, 1, 4, 0, 5)
+        {
+            Fury = new() { AdjacentEnemyThreshold = 3, AtkBonus = 3 }
+        };
+        state.Types[0] = type;
+        state.Units[0] = type.CreateUnit("hero", "blue");
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        Assert.Equal(type.Fury, restored.Types[0].Fury);
+        Assert.Equal(expected, restored.EffectiveAtkOf("hero"));
+        Assert.Equal("ATK +3 while adjacent to 3 or more enemies",
+            Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "passive:Fury").Description);
+        var random = new Random("unfamiliar-fighter");
+        var started = GameEngine.StartRound(restored, random, false);
+        var ready = Choose(started.State, "stay", random);
+        var attacked = Choose(ready.State, "attack:enemy-0", random);
+        Assert.Equal(expected, random.AttackRolls);
+        Assert.Equal(expected, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+    }
+
+    [Theory]
     [InlineData(0, 4)]
     [InlineData(1, 4)]
     [InlineData(2, 5)]
