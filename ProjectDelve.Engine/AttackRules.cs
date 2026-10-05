@@ -1,13 +1,13 @@
 namespace ProjectDelve.Engine;
 
 // Undefined LOS is not a rule that the encountered feature blocks LOS.
-internal enum NormalAttackEvaluation { NotPossible, Possible, UndefinedLineOfSight }
+internal enum UnitTargetEvaluation { NotPossible, Possible, UndefinedLineOfSight }
 
 internal static class AttackRules
 {
     // This evaluates a normal attack in the current world, independently of phase.
     // Only the attacker is relocated; its original cell is vacated.
-    internal static NormalAttackEvaluation EvaluateFrom(
+    internal static UnitTargetEvaluation EvaluateFrom(
         GameState state, string attackerId, Cell from, string targetId)
     {
         HypotheticalPosition.Validate(state, attackerId, from);
@@ -16,25 +16,35 @@ internal static class AttackRules
 
     // A future attack position can currently contain a figure. Occupancy is
     // ignored for this evaluation; range and LOS still use the shared rules.
-    internal static NormalAttackEvaluation EvaluateApproachFrom(
+    internal static UnitTargetEvaluation EvaluateApproachFrom(
         GameState state, string attackerId, Cell from, string targetId)
     {
         var attacker = state.Units.Single(u => u.Id == attackerId);
-        var target = state.Units.Single(u => u.Id == targetId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
-        var range = state.EffectiveRngOf(attackerId);
-        if (!state.IsUpright(attackerId) || !stats.Actions.HasFlag(UnitAction.NormalAttack) || range <= 0 || state.EffectiveAtkAgainst(attackerId, targetId) <= 0 ||
-            target.CurrentHp == 0 || target.SideId == attacker.SideId)
-            return NormalAttackEvaluation.NotPossible;
+        if (!state.IsUpright(attackerId) || !stats.Actions.HasFlag(UnitAction.NormalAttack) || state.EffectiveAtkAgainst(attackerId, targetId) <= 0)
+            return UnitTargetEvaluation.NotPossible;
+
+        return EvaluateHostileTargetFrom(state, attackerId, from, targetId);
+    }
+
+    // Shared Unit targeting geometry for Normal Attack and Telekinesis, independent of ATK or Action content.
+    internal static UnitTargetEvaluation EvaluateHostileTargetFrom(
+        GameState state, string sourceId, Cell from, string targetId)
+    {
+        var attacker = state.Units.Single(u => u.Id == sourceId);
+        var target = state.Units.Single(u => u.Id == targetId);
+        var range = state.EffectiveRngOf(sourceId);
+        if (range <= 0 || target.CurrentHp == 0 || target.SideId == attacker.SideId)
+            return UnitTargetEvaluation.NotPossible;
 
         var to = state.Physical.Figures.Single(f => f.Id == target.Id).Position;
         var dx = Math.Abs(to.X - from.X);
         var dy = Math.Abs(to.Y - from.Y);
         if (from == to || (range == 1 ? Math.Max(dx, dy) != 1 : dx + dy > range))
-            return NormalAttackEvaluation.NotPossible;
+            return UnitTargetEvaluation.NotPossible;
 
         if (!HasGeometricLineOfSight(state.Physical.Board, from, to))
-            return NormalAttackEvaluation.NotPossible;
+            return UnitTargetEvaluation.NotPossible;
 
         // Preserve target-local uncertainty: unrelated unresolved LOS does not
         // remove otherwise legal choices. Friendly figures do not block LOS,
@@ -42,9 +52,9 @@ internal static class AttackRules
         if (state.Units.Where(u => u.CurrentHp > 0 && u.SideId != attacker.SideId && u.Id != target.Id)
                 .Any(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position != from &&
                     CrossesInterior(from, to, state.Physical.Figures.Single(f => f.Id == u.Id).Position)))
-            return NormalAttackEvaluation.UndefinedLineOfSight;
+            return UnitTargetEvaluation.UndefinedLineOfSight;
 
-        return NormalAttackEvaluation.Possible;
+        return UnitTargetEvaluation.Possible;
     }
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.

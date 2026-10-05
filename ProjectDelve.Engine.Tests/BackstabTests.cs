@@ -77,7 +77,7 @@ public sealed class BackstabTests
         Assert.Equal(expected, state.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal(3, state.EffectiveAtkOf("rogue"));
         Assert.Equal(3, state.EffectiveAtk["rogue"]);
-        Assert.Equal(NormalAttackEvaluation.Possible, AttackRules.EvaluateFrom(state, "rogue", new(1, 1), "target"));
+        Assert.Equal(UnitTargetEvaluation.Possible, AttackRules.EvaluateFrom(state, "rogue", new(1, 1), "target"));
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class BackstabTests
         state.Units[0] = state.Units[0] with { TypeId = "custom-type" };
         state.Units.Add(state.Types[1].CreateUnit("unsupported", "red"));
         state.Physical.Figures.Add(new("unsupported", new(1, 4)));
-        Assert.Equal(NormalAttackEvaluation.Possible, AttackRules.EvaluateFrom(state, "rogue", new(1, 1), "unsupported"));
+        Assert.Equal(UnitTargetEvaluation.Possible, AttackRules.EvaluateFrom(state, "rogue", new(1, 1), "unsupported"));
         Assert.Equal(4, state.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal(3, state.EffectiveAtkAgainst("rogue", "unsupported"));
         state.Types[0] = state.Types[0] with { Backstab = null };

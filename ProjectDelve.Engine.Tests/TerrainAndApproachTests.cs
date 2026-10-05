@@ -25,7 +25,7 @@ public sealed class TerrainAndApproachTests
         state.Types[0] = state.Types[0] with { Rng = 6 };
         Assert.Equal(passable, MovementRules.FindPaths(state, "monster", new(0, 0)).ContainsKey(new(2, 0)));
         Assert.Equal(passable ? 6 : (int?)null, ApproachRules.Distance(state.Physical.Board, new(0, 0), new(6, 0)));
-        Assert.Equal(blocksLos ? NormalAttackEvaluation.NotPossible : NormalAttackEvaluation.Possible,
+        Assert.Equal(blocksLos ? UnitTargetEvaluation.NotPossible : UnitTargetEvaluation.Possible,
             AttackRules.EvaluateFrom(state, "monster", new(0, 0), "hero"));
     }
 
@@ -43,7 +43,7 @@ public sealed class TerrainAndApproachTests
         Assert.Equal(passable, MovementRules.FindPaths(state, "monster", new(0, 0)).ContainsKey(new(1, 0)));
         Assert.Equal(passable ? 6 : (int?)null, ApproachRules.Distance(state.Physical.Board, new(0, 0), new(6, 0)));
         Assert.Equal(passable ? 6 : (int?)null, ApproachRules.Distance(state.Physical.Board, new(6, 0), new(0, 0)));
-        Assert.Equal(blocksLos ? NormalAttackEvaluation.NotPossible : NormalAttackEvaluation.Possible,
+        Assert.Equal(blocksLos ? UnitTargetEvaluation.NotPossible : UnitTargetEvaluation.Possible,
             AttackRules.EvaluateFrom(state, "monster", new(0, 0), "hero"));
     }
 
@@ -92,7 +92,7 @@ public sealed class TerrainAndApproachTests
         var state = Corridor();
         state.Physical = new(new Board(2, 2, []) { Terrain = [new(new(1, 0), TerrainKind.Tree)] },
             [new("monster", new(0, 0)), new("hero", new(1, 1))]);
-        Assert.Equal(NormalAttackEvaluation.Possible, AttackRules.EvaluateFrom(state, "monster", new(0, 0), "hero"));
+        Assert.Equal(UnitTargetEvaluation.Possible, AttackRules.EvaluateFrom(state, "monster", new(0, 0), "hero"));
     }
 
     [Fact]

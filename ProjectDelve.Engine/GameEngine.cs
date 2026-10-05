@@ -229,6 +229,9 @@ public static class GameEngine
                                 new(action.TargetIds, state.EffectiveAtkOf(request.UnitId!), "Fireball"), random, events);
                             attacked = true;
                             break;
+                        case UnitAction.Telekinesis:
+                            ChangePosture(state, action.TargetId!, Posture.Lying, events);
+                            break;
                         case UnitAction.Heal:
                             ResolveHeal(state, request.UnitId!, action.TargetId!, events);
                             break;
@@ -337,7 +340,7 @@ public static class GameEngine
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
                 .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
-                    == NormalAttackEvaluation.Possible)
+                    == UnitTargetEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
         if (actions.HasFlag(UnitAction.Heal) && type.Heal is not null &&
@@ -360,6 +363,13 @@ public static class GameEngine
         if (actions.HasFlag(UnitAction.Fireball) && type.Fireball is not null &&
             unit.FireballUses is { RemainingUses: > 0 })
             candidates.AddRange(FireballCandidates(state, unit));
+        if (actions.HasFlag(UnitAction.Telekinesis))
+            candidates.AddRange(state.Units
+                .Where(target => state.IsUpright(target.Id) &&
+                    AttackRules.EvaluateHostileTargetFrom(state, unit.Id, from, target.Id)
+                        == UnitTargetEvaluation.Possible)
+                .Select(target => new Candidate($"telekinesis:{target.Id}",
+                    Action: UnitAction.Telekinesis, TargetId: target.Id)));
         if (type.TryOpenDoor is not null)
         {
             foreach (var edge in AdjacentClosedDoors(state, unit))

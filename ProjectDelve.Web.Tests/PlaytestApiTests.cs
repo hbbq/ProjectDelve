@@ -26,6 +26,13 @@ public sealed class PlaytestApiTests
         using var initialJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var cards = initialJson.RootElement.GetProperty("presentation").GetProperty("cards");
         Assert.Equal("Cleric", cards.GetProperty("cleric").GetProperty("displayName").GetString());
+        var telekinesis = cards.GetProperty("wizard").GetProperty("entries").EnumerateArray()
+            .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "telekinesis");
+        Assert.Equal("Telekinesis", telekinesis.GetProperty("content").GetProperty("name").GetString());
+        Assert.Equal("Action", telekinesis.GetProperty("content").GetProperty("category").GetString());
+        Assert.Equal("Lay down an upright enemy within RNG and LOS.", telekinesis.GetProperty("content").GetProperty("description").GetString());
+        Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("uses").ValueKind);
+        Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("content").GetProperty("maxUses").ValueKind);
         var cardWave = cards.GetProperty("cleric").GetProperty("entries").EnumerateArray()
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "holy-wave");
         Assert.Equal("Lay down all adjacent upright enemies.\nThen lay down this Unit.", cardWave.GetProperty("content").GetProperty("description").GetString());
@@ -118,7 +125,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(4, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(type.Id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
-                : type.Id == "wizard-type" ? UnitAction.NormalAttack | UnitAction.Fireball
+                : type.Id == "wizard-type" ? UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis
                 : UnitAction.NormalAttack, type.Actions));
         Assert.Equal(new[] { 2, 2, 2, 1 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
@@ -643,6 +650,43 @@ public sealed class PlaytestApiTests
         Assert.DoesNotContain("wizard", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Focus", script);
         Assert.DoesNotContain("bonus:focus", script, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TelekinesisExposesAndResolvesAuthoritativeUnitChoiceOverHttp()
+    {
+        await using var host = await Host.Start();
+        using var preference = await host.Post("preferences", new { expectedRevision = 0, autoChooseSingleRelevantChoice = false });
+        preference.EnsureSuccessStatusCode();
+        var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var result = await host.Round(changed.Revision);
+        foreach (var id in new[] { "barbarian", "rogue", "cleric" })
+        {
+            Assert.Equal(id, result.Result.NextInput!.UnitId);
+            result = await host.Decide(result.Revision, "stay");
+            if (result.Result.NextInput?.UnitId == id)
+                result = await host.Decide(result.Revision, "end-turn");
+        }
+        Assert.Equal("wizard", result.Result.NextInput!.UnitId);
+        result = await host.Decide(result.Revision, "4,8");
+        var action = result.Result.NextInput!.Candidates.First(c => c.Action == UnitAction.Telekinesis);
+        var projected = result.Presentation.Decision!.Candidates.Single(c => c.Key == action.Key);
+        Assert.Equal("telekinesis", projected.EntryId);
+        Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: action.TargetId), projected.Interaction);
+        Assert.Equal(new[] { action.TargetId! }, projected.AffectedUnitIds);
+        var before = result.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId);
+        var hp = result.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp;
+        var resolved = await host.Decide(result.Revision, projected.Key);
+        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying), Assert.Single(resolved.Result.Events));
+        Assert.Equal(before with { Posture = Posture.Lying }, resolved.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId));
+        Assert.Equal(hp, resolved.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp);
+        Assert.True(resolved.Result.State.ActionDone);
+        Assert.DoesNotContain(resolved.Result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
+        Assert.Equal(Posture.Lying, Assert.Single(resolved.Result.ResolutionSteps).StateAfter.Physical.Figures.Single(f => f.Id == action.TargetId).Posture);
+        Assert.Equal(OutcomeRole.Notice, Assert.Single(resolved.Presentation.Events).Role);
+        Assert.Null(resolved.Presentation.Cards["wizard"].Entries.Single(e => e.Content.Id == "telekinesis").Uses);
+        using var repeated = await host.Post("decision", new { expectedRevision = resolved.Revision, candidateKey = projected.Key });
+        Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
     }
 
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)

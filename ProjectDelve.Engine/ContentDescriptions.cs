@@ -24,6 +24,8 @@ public static class ContentDescriptions
         if (type.Actions.HasFlag(UnitAction.Fireball) && type.Fireball is { } fireball)
             entries.Add(new("fireball", "Fireball", "Action",
                 "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", fireball.MaxUses));
+        if (type.Actions.HasFlag(UnitAction.Telekinesis))
+            entries.Add(new("telekinesis", "Telekinesis", "Action", "Lay down an upright enemy within RNG and LOS."));
         if (type.TryOpenDoor is { } attempt)
             entries.Add(new("try-open-door", "Try Open Door", "Action",
                 $"Try to open an adjacent Closed Door. Roll a D6: succeeds on {attempt.SuccessCount} of 6 faces. The Action is consumed whether it succeeds or fails."));
@@ -57,6 +59,7 @@ public static class ContentDescriptions
         { Action: UnitAction.Heal } => "heal",
         { Action: UnitAction.HolyWave } => "holy-wave",
         { Action: UnitAction.Fireball } => "fireball",
+        { Action: UnitAction.Telekinesis } => "telekinesis",
         _ => null
     };
 

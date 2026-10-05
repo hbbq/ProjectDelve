@@ -80,7 +80,7 @@ public sealed class SharedRulesTests
         foreach (var target in state.Units)
             Assert.Equal(AttackRules.EvaluateFrom(relocated, "mover", from, target.Id),
                 AttackRules.EvaluateFrom(state, "mover", from, target.Id));
-        Assert.Equal(NormalAttackEvaluation.Possible,
+        Assert.Equal(UnitTargetEvaluation.Possible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
         Assert.Equal(original, JsonSerializer.Serialize(state));
     }
@@ -96,7 +96,7 @@ public sealed class SharedRulesTests
         bool possible)
     {
         Assert.Equal(possible, AttackRules.EvaluateFrom(State(rng, atk), "mover", new Cell(x, y), "target")
-            == NormalAttackEvaluation.Possible);
+            == UnitTargetEvaluation.Possible);
     }
 
     [Theory]
@@ -109,7 +109,7 @@ public sealed class SharedRulesTests
         var from = new Cell(2, 1);
         state.Physical.Board.Edges.Add(new Edge(from, new Cell(3, 1), kind));
 
-        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.NotPossible,
+        Assert.Equal(clear ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
     }
 
@@ -124,7 +124,7 @@ public sealed class SharedRulesTests
         state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(4, 0), kind));
         state.Physical.Board.Edges.Add(new Edge(new Cell(3, 0), new Cell(3, 1), EdgeKind.Wall));
 
-        Assert.Equal(clear ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.NotPossible,
+        Assert.Equal(clear ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
     }
 
@@ -134,13 +134,13 @@ public sealed class SharedRulesTests
         var state = State(rng: 4);
         state.Physical.Figures[1] = state.Physical.Figures[1] with { Position = new Cell(2, 1) };
         var from = new Cell(0, 1);
-        Assert.Equal(NormalAttackEvaluation.Possible,
+        Assert.Equal(UnitTargetEvaluation.Possible,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
 
         state.Units[1] = state.Units[1] with { SideId = "red" };
-        Assert.Equal(NormalAttackEvaluation.UndefinedLineOfSight,
+        Assert.Equal(UnitTargetEvaluation.UndefinedLineOfSight,
             AttackRules.EvaluateFrom(state, "mover", from, "target"));
-        Assert.Equal(NormalAttackEvaluation.Possible,
+        Assert.Equal(UnitTargetEvaluation.Possible,
             AttackRules.EvaluateFrom(state, "mover", from, "friend"));
     }
 
@@ -148,11 +148,11 @@ public sealed class SharedRulesTests
     public void FriendlyAndDeadTargetsCannotBeAttacked()
     {
         var state = State(rng: 4);
-        Assert.Equal(NormalAttackEvaluation.NotPossible,
+        Assert.Equal(UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", new Cell(0, 1), "friend"));
         state.Units[2] = state.Units[2] with { CurrentHp = 0 };
         state.Physical.Figures.RemoveAt(2);
-        Assert.Equal(NormalAttackEvaluation.NotPossible,
+        Assert.Equal(UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "mover", new Cell(0, 1), "target"));
     }
 

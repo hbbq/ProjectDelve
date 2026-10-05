@@ -42,14 +42,14 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public bool CanAttackHostileFrom(string unitId, Cell position) =>
         world.Units.Any(target => AttackRules.EvaluateFrom(world, unitId, position, target.Id)
-            == NormalAttackEvaluation.Possible);
+            == UnitTargetEvaluation.Possible);
 
     public int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position)
     {
         HypotheticalPosition.Validate(world, unitId, position);
         return world.Units
             .Where(target => AttackRules.EvaluateFrom(world, unitId, position, target.Id)
-                == NormalAttackEvaluation.Possible)
+                == UnitTargetEvaluation.Possible)
             .Select(target => PositionOf(target.Id))
             .Select(target => (int?)(Math.Abs(position.X - target.X) + Math.Abs(position.Y - target.Y)))
             .Min();
@@ -60,7 +60,7 @@ internal sealed class GameplayQueries : IGameplayQueries
         HypotheticalPosition.Validate(world, unitId, position);
         return ApproachRules.Distances(world.Physical.Board, position, closedDoorsTraversable: closedDoorsTraversable)
             .Where(pair => world.Units.Any(target => AttackRules.EvaluateApproachFrom(world, unitId, pair.Key, target.Id)
-                == NormalAttackEvaluation.Possible))
+                == UnitTargetEvaluation.Possible))
             .Select(pair => (int?)pair.Value).Min();
     }
 

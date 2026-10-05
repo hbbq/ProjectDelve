@@ -10,7 +10,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -124,7 +124,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         };
 
     public static UnitType Wizard(string id = "wizard-type") =>
-        new(id, 2, 4, 3, 2, 4, Actions: UnitAction.NormalAttack | UnitAction.Fireball, FreeActions: UnitFreeAction.OpenDoor)
+        new(id, 2, 4, 3, 2, 4, Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
         {
             DisplayName = "Wizard",
             Fireball = new(),

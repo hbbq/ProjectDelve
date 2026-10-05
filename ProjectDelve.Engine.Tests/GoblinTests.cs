@@ -181,7 +181,7 @@ public sealed class GoblinTests
             Behaviors = UnitBehavior.MaximizeAttackDistance
         };
         var queries = new GameplayQueries(state);
-        Assert.Equal(NormalAttackEvaluation.NotPossible,
+        Assert.Equal(UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(state, "hero", new(x, y), "goblin"));
         Assert.True(queries.HasNearbyHostileThreatFrom("goblin", new(2, 1)));
         var extra = Extra(state);

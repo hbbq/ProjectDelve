@@ -134,7 +134,7 @@ public sealed class ThrowingKnifeTests
         var snapshot = used.ResolutionSteps[0].StateAfter;
         Assert.Equal(3, snapshot.EffectiveRngOf("rogue"));
         Assert.Equal(baseAtk - 1, snapshot.EffectiveAtkOf("rogue"));
-        Assert.Equal(relevant ? NormalAttackEvaluation.Possible : NormalAttackEvaluation.NotPossible,
+        Assert.Equal(relevant ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(snapshot, "rogue", new(0, 0), "enemy"));
     }
 
@@ -391,7 +391,7 @@ public sealed class ThrowingKnifeTests
         var moved = Moved(state);
         Assert.False(Ability(moved).Relevant);
         var used = Choose(moved.State, Ability(moved).Key);
-        Assert.Equal(NormalAttackEvaluation.NotPossible,
+        Assert.Equal(UnitTargetEvaluation.NotPossible,
             AttackRules.EvaluateFrom(used.ResolutionSteps[0].StateAfter, "rogue", new(0, 0), "enemy"));
     }
 

@@ -328,8 +328,42 @@ test("movement retains mounted figures and commits each progressive animation st
   assert.ok(positions.every(p => p.same));
 });
 
+for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surface of ["figure", "cell"]) {
+  test(`${name} uses generic Unit targeting on ${surface} and authoritative posture after submission`, async () => {
+    const printed = entry("opaque-entry", name, "Action", "Lay down an upright enemy within RNG and LOS.");
+    printed.content.maxUses = null; printed.content.useLimitText = null; printed.uses = null;
+    const attack = choice("opaque normal attack", "Unit", { unitId: "a" });
+    const action = choice("opaque posture choice", "Unit", { unitId: "a" },
+      { entryId: "opaque-entry", label: `${name} (Action) → a`, affectedUnitIds: ["a"] });
+    const initial = response([attack, action], [printed]), final = response([], [printed]);
+    final.result.state.physical.figures[1].posture = "Lying";
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
+    final.presentation.events = [{ role: "Notice", text: "a: Lying", unitId: "a" }];
+    final.presentation.resolutionSteps = [{ eventIndex: 0, cards: cards([printed]) }];
+    const requests = [], h = harness(initial, async (url, request) => {
+      requests.push({ url, body: JSON.parse(request.body) });
+      return { ok: true, json: async () => final };
+    });
+    h.run("pause = async () => {}");
+    assert.match(h.elements.get("unit-card").textContent, new RegExp(name));
+    assert.match(h.elements.get("unit-card").textContent, /Lay down an upright enemy within RNG and LOS\./);
+    assert.doesNotMatch(h.elements.get("unit-card").textContent, /\/game|uses/);
+    const target = h.figure("a"), left = target.style.left, top = target.style.top;
+    // The fixture's same-side distant Unit is selected solely from the supplied interaction.
+    click(surface === "figure" ? target : h.run('cells.get("4,0")'));
+    const options = buttons(h.elements.get("choices").children[0]);
+    assert.deepEqual(options.map(option => option.textContent), [attack.label, action.label, "Cancel"]);
+    assert.equal(target.classList.contains("lying"), false);
+    await click(options[1]);
+    assert.deepEqual(requests, [{ url: "/api/game/decision", body: { expectedRevision: 8, candidateKey: action.key } }]);
+    assert.equal(h.figure("a").classList.contains("lying"), true);
+    assert.equal(h.figure("a").style.left, left); assert.equal(h.figure("a").style.top, top);
+    assert.equal(h.figure("actor").classList.contains("attacking"), false);
+  });
+}
+
 test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
-  assert.doesNotMatch(script, /Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
+  assert.doesNotMatch(script, /Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
 });
 
 test("Lying tokens render generic physical posture with readable identity and supplied choices", () => {

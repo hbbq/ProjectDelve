@@ -80,6 +80,38 @@ public sealed class BrowserProjectionTests
         Assert.Equal("fireball", projected.EntryId);
     }
 
+    [Fact]
+    public void TelekinesisUsesGenericUnitInteractionDomainCardAndAuthoritativePostureSnapshots()
+    {
+        var state = State(UnitType.Wizard());
+        state.Units[1] = state.Units[1] with { SideId = "hostile" };
+        var started = GameEngine.StartRound(state, new Dice(), false);
+        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var presentation = BrowserProjection.Create(action);
+        var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "telekinesis");
+        Assert.Equal(new CardEntryDescription("telekinesis", "Telekinesis", "Action",
+            "Lay down an upright enemy within RNG and LOS."), card.Content);
+        Assert.Null(card.Uses);
+        var choice = presentation.Decision!.Candidates.Single(c => c.EntryId == "telekinesis");
+        Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: "target"), choice.Interaction);
+        Assert.Equal("Telekinesis (Action) → target", choice.Label);
+        Assert.Equal(new[] { "target" }, choice.AffectedUnitIds);
+        var result = GameEngine.Advance(action.State, new Choice(choice.Key!), new Dice(), false);
+        var resolved = BrowserProjection.Create(result);
+        Assert.Equal(OutcomeRole.Notice, Assert.Single(resolved.Events).Role);
+        Assert.Equal(Posture.Lying, Assert.Single(result.ResolutionSteps).StateAfter.Physical.Figures[1].Posture);
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        using var choicesJson = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(1, action), options));
+        var projected = choicesJson.RootElement.GetProperty("presentation").GetProperty("decision")
+            .GetProperty("candidates").EnumerateArray().Single(c => c.GetProperty("key").GetString() == choice.Key);
+        Assert.Equal("Unit", projected.GetProperty("interaction").GetProperty("kind").GetString());
+        Assert.Equal("target", projected.GetProperty("interaction").GetProperty("unitId").GetString());
+        using var resolvedJson = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(2, result), options));
+        Assert.Equal("Lying", resolvedJson.RootElement.GetProperty("result").GetProperty("resolutionSteps")[0]
+            .GetProperty("stateAfter").GetProperty("physical").GetProperty("figures")[1].GetProperty("posture").GetString());
+    }
+
     private static GameState State(UnitType? type = null)
     {
         type ??= UnitType.Cleric();

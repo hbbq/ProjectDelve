@@ -95,7 +95,7 @@ public sealed class GameplayQueryTests
         state.Physical.Figures.Add(new Figure("intervening", new Cell(2, 0)));
         var queries = new GameplayQueries(state);
 
-        Assert.Equal(NormalAttackEvaluation.UndefinedLineOfSight,
+        Assert.Equal(UnitTargetEvaluation.UndefinedLineOfSight,
             AttackRules.EvaluateFrom(state, "monster", new Cell(1, 0), "hostile"));
         // The intervening hostile remains a supported target itself.
         Assert.True(queries.CanAttackHostileFrom("monster", new Cell(1, 0)));
