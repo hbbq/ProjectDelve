@@ -4,194 +4,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-test("Cleave targets and decline consume supplied choices without client legality", () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const submitted = [];
-  const response = { revision: 1, result: {
-    state: { round: 1, currentUnitId: "barbarian",
-      physical: { board: { width: 5, height: 1, edges: [] }, figures: [
-        { id: "barbarian", position: { x: 0, y: 0 } },
-        { id: "enemy", position: { x: 4, y: 0 } }
-      ] },
-      // Deliberately inconsistent rules-looking state: only supplied choices govern UI.
-      cleavePending: false, actionDone: false,
-      units: [
-        { id: "barbarian", typeId: "barbarian-type", sideId: "same", currentHp: 5, cleaveUses: { maxUses: 2, remainingUses: 0 } },
-        { id: "enemy", typeId: "enemy-type", sideId: "same", currentHp: 1 }
-      ],
-      types: [{ id: "barbarian-type", hp: 5, cleave: { maxUses: 2 } }, { id: "enemy-type", hp: 1 }]
-    },
-    nextInput: { kind: "Cleave", unitId: "barbarian", allowsNone: true,
-      candidates: [{ key: "opaque-cleave", kind: "Cleave", targetId: "enemy", relevant: true }] }
-  } };
-  const context = vm.createContext({ document, response, submitted });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
-  assert.match(elements.get("unit-card").textContent, /Cleave.*0 \/ 2 uses/);
-  const enemy = vm.runInContext('figures.get("enemy")', context);
-  enemy.listeners.click({ stopPropagation() {} });
-  assert.equal(submitted[0], "opaque-cleave");
-  const decline = elements.get("choices").children[0];
-  assert.equal(decline.textContent, "Decline Cleave");
-  decline.listeners.click();
-  assert.equal(submitted[1], null);
-  assert.match(vm.runInContext('describe({ kind: "CleaveResolved", unitId: "barbarian", targetId: "enemy", damage: 1 })', context), /cleaved.*1 Damage/);
-  response.result.nextInput.candidates = [];
-  response.result.nextInput.allowsNone = false;
-  vm.runInContext('renderSnapshot();', context);
-  assert.equal(vm.runInContext('figures.get("enemy").classList.contains("board-choice")', context), false);
-  assert.equal(elements.get("choices").children.length, 0);
-});
+const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
-test("Heal displays and submits only authoritative targets", () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const submitted = [];
-  const response = { revision: 1, result: {
-    state: { round: 1, currentUnitId: "cleric", actionDone: true,
-      physical: { board: { width: 5, height: 1, edges: [] }, figures: [
-        { id: "cleric", position: { x: 0, y: 0 } },
-        { id: "target", position: { x: 4, y: 0 } },
-        { id: "friend", position: { x: 1, y: 0 } }
-      ] },
-      // Deliberately inconsistent: the renderer must trust the supplied choice,
-      // even with zero uses, a completed Action, and a distant full-HP hostile.
-      units: [
-        { id: "cleric", typeId: "cleric-type", sideId: "blue", currentHp: 4, healUses: { maxUses: 2, remainingUses: 0 } },
-        { id: "target", typeId: "other-type", sideId: "red", currentHp: 4 },
-        { id: "friend", typeId: "other-type", sideId: "blue", currentHp: 1 }
-      ],
-      types: [{ id: "cleric-type", hp: 4, heal: { maxUses: 2 } }, { id: "other-type", hp: 4 }]
-    },
-    nextInput: { kind: "Activation", unitId: "cleric", allowsNone: false,
-      candidates: [{ key: "opaque-heal", kind: "Action", action: "Heal", targetId: "target", relevant: true }] }
-  } };
-  const context = vm.createContext({ document, response, submitted });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
-  assert.match(elements.get("unit-card").textContent, /Heal \(Action\).*0 \/ 2 uses/);
-  const target = vm.runInContext('figures.get("target")', context);
-  assert.match(target.attributes["aria-label"], /Heal.*\(Action\)/);
-  target.listeners.click({ stopPropagation() {} });
-  assert.deepEqual(submitted, ["opaque-heal"]);
-  assert.equal(vm.runInContext('figures.get("friend").classList.contains("board-choice")', context), false);
-  assert.match(vm.runInContext('describe({ kind: "HealResolved", unitId: "cleric", targetId: "target", healing: 1 })', context), /healed.*1 HP restored/);
-  response.result.nextInput.candidates = [];
-  vm.runInContext('renderSnapshot();', context);
-  assert.equal(vm.runInContext('figures.get("target").classList.contains("board-choice")', context), false);
-  assert.equal(elements.get("choices").children.length, 0);
-});
-
-test("Holy Wave is card-only, previews supplied targets, and leaves normal attacks clickable", () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const submitted = [];
-  const response = { revision: 1, result: {
-    state: { round: 1, currentUnitId: "cleric", actionDone: true,
-      physical: { board: { width: 6, height: 1, edges: [] }, figures: [
-        { id: "cleric", position: { x: 0, y: 0 } },
-        { id: "a", position: { x: 4, y: 0 } },
-        { id: "b", position: { x: 5, y: 0 } },
-        { id: "excluded", position: { x: 1, y: 0 } }
-      ] },
-      // Distant friendly targets, zero uses and completed Action must not override supplied choices.
-      units: [
-        { id: "cleric", typeId: "cleric-type", sideId: "blue", currentHp: 4, holyWaveUses: { maxUses: 2, remainingUses: 0 } },
-        ...["a", "b", "excluded"].map(id => ({ id, typeId: "enemy-type", sideId: "blue", currentHp: 4 }))
-      ],
-      types: [{ id: "cleric-type", hp: 4, holyWave: { maxUses: 2 } }, { id: "enemy-type", hp: 4 }]
-    },
-    nextInput: { kind: "Activation", unitId: "cleric", allowsNone: false,
-      candidates: [
-        { key: "opaque-wave", kind: "Action", action: "HolyWave", targetIds: ["a", "b"], relevant: true },
-        { key: "normal-a", kind: "Action", action: "NormalAttack", targetId: "a", relevant: true },
-        { key: "normal-b", kind: "Action", action: "NormalAttack", targetId: "b", relevant: true }
-      ] }
-  } };
-  const context = vm.createContext({ document, response, submitted });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
-  assert.match(elements.get("unit-card").textContent, /Holy Wave \(Action\).*0 \/ 2 uses/);
-  for (const id of ["a", "b"]) {
-    const target = vm.runInContext(`figures.get("${id}")`, context);
-    assert.match(target.attributes["aria-label"], new RegExp(`Attack ${id}`));
-    target.listeners.click({ stopPropagation() {} });
-  }
-  assert.deepEqual(submitted, ["normal-a", "normal-b"]);
-  assert.equal(vm.runInContext('figures.get("excluded").classList.contains("board-choice")', context), false);
-  const button = elements.get("unit-card").querySelectorAll("button")[0];
-  assert.equal(button.textContent, "Use Holy Wave");
-  assert.equal(button.disabled, false);
-  button.listeners.mouseenter();
-  for (const id of ["a", "b"]) {
-    assert.equal(vm.runInContext(`figures.get("${id}").classList.contains("holy-wave-preview")`, context), true);
-  }
-  assert.equal(vm.runInContext('figures.get("excluded").classList.contains("holy-wave-preview")', context), false);
-  assert.deepEqual(submitted, ["normal-a", "normal-b"]);
-  button.listeners.mouseleave();
-  assert.equal(vm.runInContext('figures.get("a").classList.contains("holy-wave-preview")', context), false);
-  button.listeners.focus();
-  assert.equal(vm.runInContext('figures.get("b").classList.contains("holy-wave-preview")', context), true);
-  button.listeners.blur();
-  assert.equal(vm.runInContext('figures.get("b").classList.contains("holy-wave-preview")', context), false);
-  button.listeners.click();
-  assert.equal(submitted[2], "opaque-wave");
-  assert.equal(elements.get("choices").children.length, 0);
-  const description = vm.runInContext('describe({ kind: "AttackResolved", unitId: "cleric", abilityName: "Holy Wave", attack: { attackDice: 2, hits: 2, targets: [{ targetId: "a", blocks: 0, damage: 2 }, { targetId: "b", blocks: 1, damage: 1 }] } })', context);
-  assert.match(description, /2 Attack Dice, 2 shared Hits.*a: 0 Blocks, 2 Damage.*b: 1 Blocks, 1 Damage/);
-  assert.match(vm.runInContext('describe({ kind: "AttackTargetResolved", abilityName: "Holy Wave", targetId: "b", hits: 2, blocks: 1, damage: 1 })', context), /2 shared Hits, 1 Blocks, 1 Damage/);
-  response.result.nextInput.candidates = [response.result.nextInput.candidates[0]];
-  vm.runInContext('renderSnapshot();', context);
-  assert.equal(vm.runInContext('figures.get("a").classList.contains("board-choice")', context), false);
-  assert.equal(vm.runInContext('cells.get("4,0").classList.contains("board-choice")', context), false);
-  assert.equal(elements.get("choices").children.length, 0);
-  const waveOnlyButton = elements.get("unit-card").querySelectorAll("button")[0];
-  waveOnlyButton.listeners.mouseenter();
-  response.result.nextInput.candidates = [];
-  vm.runInContext('renderSnapshot();', context);
-  assert.equal(vm.runInContext('figures.get("a").classList.contains("board-choice")', context), false);
-  assert.equal(vm.runInContext('figures.get("a").classList.contains("holy-wave-preview")', context), false);
-  const unavailableButton = elements.get("unit-card").querySelectorAll("button")[0];
-  assert.equal(unavailableButton.disabled, true);
-  unavailableButton.listeners.mouseenter();
-  unavailableButton.listeners.click();
-  assert.equal(submitted.length, 3);
-  assert.equal(vm.runInContext('figures.get("a").classList.contains("holy-wave-preview")', context), false);
-  assert.equal(elements.get("choices").children.length, 0);
-});
-
-// Exercise the actual renderer and event bindings without a browser dependency.
+// A small DOM harness exercising the actual renderer, event listeners and request body.
 class Element {
   constructor() {
-    this.children = [];
-    this.dataset = {};
-    this.attributes = {};
-    this.listeners = {};
-    this.style = { setProperty() {} };
-    this.checked = true;
-    this.className = "";
+    this.children = []; this.dataset = {}; this.attributes = {}; this.listeners = {};
+    this.style = { setProperty() {} }; this.checked = true; this.className = "";
     this.classList = {
       contains: name => this.className.split(" ").includes(name),
       add: name => { if (!this.classList.contains(name)) this.className += ` ${name}`; },
@@ -202,8 +21,7 @@ class Element {
   append(child) { child.remove(); child.parent = this; this.children.push(child); }
   replaceChildren(...children) {
     for (const child of this.children) child.parent = null;
-    this.children = [];
-    for (const child of children) this.append(child);
+    this.children = []; for (const child of children) this.append(child);
   }
   remove() {
     if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this);
@@ -216,390 +34,299 @@ class Element {
   getBoundingClientRect() { this.layoutReads = (this.layoutReads ?? 0) + 1; return {}; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
   querySelectorAll(selector) {
-    return this.children.flatMap(child => [ ...(selector === "button" ? child.tagName === "button" : child.classList.contains(selector.slice(1))) ? [child] : [], ...child.querySelectorAll(selector)]);
+    return this.children.flatMap(child => [
+      ...(selector === "button" ? child.tagName === "button" : child.classList.contains(selector.slice(1))) ? [child] : [],
+      ...child.querySelectorAll(selector)
+    ]);
   }
 }
 
+function state(hp = 4, actorX = 0) {
+  return {
+    round: 1, currentUnitId: "actor", activeTypeId: "opaque-type",
+    // Distant same-side targets and exhausted uses deliberately contradict apparent rules.
+    actionDone: true, moveDone: true, cleavePending: false,
+    physical: { board: { width: 6, height: 1, edges: [] }, figures: [
+      { id: "actor", position: { x: actorX, y: 0 }, posture: "Upright" },
+      { id: "a", position: { x: 4, y: 0 }, posture: "Upright" },
+      { id: "b", position: { x: 5, y: 0 }, posture: "Upright" }
+    ] },
+    units: ["actor", "a", "b"].map(id => ({ id, typeId: "opaque-type", sideId: "same", currentHp: id === "actor" ? hp : 4,
+      holyWaveUses: { maxUses: 2, remainingUses: 0 }, healUses: { maxUses: 2, remainingUses: 0 }, cleaveUses: { maxUses: 2, remainingUses: 0 } })),
+    types: [{ id: "opaque-type", displayName: "A printed name", mov: 3, rng: 1, atk: 3, def: 2, hp: 4 }],
+    effectiveAtk: { actor: 17 }, effectiveDef: { actor: 9 }
+  };
+}
+const entry = (id, name, category = "Action", description = "Wording supplied by content") => ({
+  content: { id, name, category, description, maxUses: 2, useLimitText: "2/game" }, uses: { remainingUses: 0, maxUses: 2 }
+});
+const cards = (entries = []) => Object.fromEntries(["actor", "a", "b"].map(id => [id, {
+  displayName: id === "actor" ? "A printed name" : "Inspected name", entries: id === "actor" ? entries : []
+}]));
+const choice = (key, kind, refs = {}, extra = {}) => ({ key, label: `Supplied label ${key}`, entryId: null,
+  relevant: true, interaction: { kind, ...refs }, affectedUnitIds: [], ...extra });
+function response(candidates = [], entries = []) {
+  return { revision: 8, autoChooseSingleRelevantChoice: false,
+    result: { state: state(), nextInput: { kind: "raw engine kind must not be read", candidates: [] }, events: [], resolutionSteps: [] },
+    presentation: { cards: cards(entries), decision: { unitId: "actor", prompt: "Supplied prompt", candidates, noneChoice: null }, events: [], resolutionSteps: [] }
+  };
+}
+function harness(initial, fetchImpl) {
+  const elements = new Map(), submitted = [];
+  const document = {
+    getElementById(id) { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); },
+    createElement(tag) { const node = new Element(); node.tagName = tag; return node; }
+  };
+  const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
+    fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })) });
+  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext("snapshot = initial; renderSnapshot();", context);
+  return { elements, submitted, run: code => vm.runInContext(code, context), context,
+    figure: id => vm.runInContext(`figures.get(${JSON.stringify(id)})`, context) };
+}
+const click = node => node.listeners.click({ stopPropagation() {} });
+const buttons = node => node.querySelectorAll("button");
+
+for (const name of ["Holy Wave", "An unfamiliar ability"]) for (const affected of [["a"], ["a", "b"]]) {
+  test(`Direct ${name} previews authoritative membership (${affected.length}) and submits one opaque key`, () => {
+    const direct = choice("opaque complete choice", "Direct", {}, { entryId: "opaque-entry", affectedUnitIds: affected });
+    const initial = response([direct, choice("opaque single target", "Unit", { unitId: "a" })],
+      [entry("opaque-entry", name, "Action", "Attack all adjacent enemies with ATK=2.")]);
+    const h = harness(initial);
+    h.run("chooseCandidate = key => submitted.push(key)");
+    const button = buttons(h.elements.get("unit-card"))[0];
+    assert.equal(button.textContent, direct.label);
+    assert.equal(button.disabled, false);
+    assert.match(h.elements.get("unit-card").textContent, /0 \/ 2 uses/);
+    assert.equal(h.elements.get("choices").children.length, 0);
+    for (const event of ["mouseenter", "focus"]) {
+      button.listeners[event]();
+      for (const id of ["actor", "a", "b"]) assert.equal(h.figure(id).classList.contains("affected-preview"), affected.includes(id));
+      button.listeners[event === "focus" ? "blur" : "mouseleave"]();
+      assert.equal(h.figure("a").classList.contains("affected-preview"), false);
+    }
+    click(h.figure("a")); click(button);
+    assert.deepEqual(h.submitted, ["opaque single target", "opaque complete choice"]);
+    // Affected Units never become selection controls merely by belonging to the set.
+    assert.equal(h.figure("b").classList.contains("board-choice"), false);
+    h.figure("b").listeners.mouseenter();
+    assert.equal(h.elements.get("choices").children[0].textContent, direct.label);
+    click(h.elements.get("choices").children[0]);
+    assert.equal(h.submitted[2], direct.key);
+    h.figure("b").listeners.mouseleave();
+    assert.equal(h.elements.get("choices").children.length, 0);
+    initial.presentation.decision.candidates = [];
+    h.run("renderSnapshot()");
+    assert.equal(buttons(h.elements.get("unit-card")).length, 0);
+    assert.equal(h.figure("a").classList.contains("board-choice"), false);
+  });
+}
+
+for (const name of ["Cleave", "Heal", "New unit ability"]) {
+  test(`Unit interaction ${name} trusts choices despite contradictory state`, () => {
+    const supplied = choice("unparsed unit key", "Unit", { unitId: "b" }, { entryId: "arbitrary", affectedUnitIds: ["b"], label: name });
+    const initial = response([supplied], [entry("arbitrary", name)]);
+    initial.presentation.decision.noneChoice = choice(null, "Direct", {}, { label: "Supplied optional wording" });
+    const h = harness(initial);
+    h.run("chooseCandidate = key => submitted.push(key)");
+    click(h.figure("b")); click(h.elements.get("choices").children[0]);
+    assert.deepEqual(h.submitted, ["unparsed unit key", null]);
+    assert.match(h.figure("b").attributes["aria-label"], new RegExp(name));
+    assert.equal(h.elements.get("prompt").textContent, "Supplied prompt · actor");
+    assert.equal(h.figure("a").classList.contains("board-choice"), false);
+  });
+}
+
+test("Position, Door, Unit selection and optional stay bind explicit references", () => {
+  const door = { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: "ClosedDoor" };
+  const initial = response([
+    choice("opaque move", "Position", { position: { x: 2, y: 0 } }),
+    choice("opaque door", "Door", { door }),
+    choice("opaque selection, not a Unit ID", "Unit", { unitId: "b" })
+  ]);
+  initial.result.state.physical.board.edges = [door];
+  initial.presentation.decision.noneChoice = choice(null, "Unit", { unitId: "actor" }, { label: "Stay supplied" });
+  const h = harness(initial);
+  h.run("chooseCandidate = key => submitted.push(key)");
+  click(h.elements.get("board").children.find(n => n.dataset.cell === "2,0"));
+  click(h.run('edges.get("0,0|1,0")'));
+  click(h.figure("b")); click(h.figure("actor"));
+  assert.deepEqual(h.submitted, ["opaque move", "opaque door", "opaque selection, not a Unit ID", null]);
+  assert.equal(h.elements.get("choices").children.length, 0);
+});
+
+test("ambiguous and missing board references remain selectable in the choice panel", () => {
+  const initial = response([
+    choice("first", "Unit", { unitId: "b" }), choice("second", "Unit", { unitId: "b" }),
+    choice("missing", "Unit", { unitId: "absent" }), choice("unknown direct", "Direct", {}, { entryId: "no-card-entry" })
+  ]);
+  const h = harness(initial);
+  h.run("chooseCandidate = key => submitted.push(key)");
+  assert.equal(h.figure("b").classList.contains("board-choice"), false);
+  for (const button of h.elements.get("choices").children) click(button);
+  assert.deepEqual(h.submitted, ["first", "second", "missing", "unknown direct"]);
+});
+
+test("all card wording, categories, counters and effective stats are supplied", () => {
+  const entries = ["Action", "Free Action", "Bonus Action", "Passive", "Follow-up"].map((category, i) =>
+    entry(`id-${i}`, `Unfamiliar ${i}`, category, `Authoritative wording ${i}`));
+  entries[3].uses = null; entries[3].content.maxUses = null; entries[3].content.useLimitText = null;
+  const initial = response([], entries);
+  // Raw engine content should not influence names, descriptions or ability counter lookup.
+  initial.result.state.types[0].passives = [{ name: "Wrong name", displayText: "Wrong wording" }];
+  initial.result.state.types[0].bonusActions = [{ name: "Wrong name", modifiers: [{ amount: 999, stat: "Atk" }] }];
+  const h = harness(initial);
+  const content = h.elements.get("unit-card").textContent;
+  assert.match(content, /A printed name/);
+  assert.match(content, /ATK 3 → 17/); assert.match(content, /DEF 2 → 9/);
+  for (let i = 0; i < entries.length; i++) assert.ok(content.includes(`Authoritative wording ${i}`));
+  assert.ok(!content.includes("Wrong")); assert.ok(!content.includes("999"));
+  assert.equal((content.match(/0 \/ 2 uses/g) ?? []).length, 4);
+  assert.equal((content.match(/\[2\/game\]/g) ?? []).length, 4);
+});
+
+test("relevance filtering is local and does not infer ability timing or uses", () => {
+  const initial = response([choice("legal irrelevant", "Direct", {}, { entryId: "bonus", relevant: false })], [entry("bonus", "Unknown bonus", "Bonus Action")]);
+  const h = harness(initial);
+  h.run("chooseCandidate = key => submitted.push(key)");
+  assert.equal(buttons(h.elements.get("unit-card"))[0].hidden, true);
+  h.run("ui.filter.checked = false; renderSnapshot()");
+  assert.equal(buttons(h.elements.get("unit-card"))[0].hidden, false);
+  click(buttons(h.elements.get("unit-card"))[0]);
+  assert.deepEqual(h.submitted, ["legal irrelevant"]);
+  h.run("busy = true; updateControls()");
+  assert.equal(buttons(h.elements.get("unit-card"))[0].disabled, true);
+  buttons(h.elements.get("unit-card"))[0].listeners.focus();
+  assert.equal(h.figure("a").classList.contains("affected-preview"), false);
+  assert.equal(h.elements.get("auto").checked, false);
+});
+
+test("decision requests submit only revision and opaque key", async () => {
+  const initial = response([choice("arbitrary:do not parse", "Direct")]);
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, json: async () => initial };
+  });
+  h.run("ui.animate.checked = false");
+  await click(h.elements.get("choices").children[0]);
+  assert.deepEqual(requests, [{ url: "/api/game/decision", body: { expectedRevision: 8, candidateKey: "arbitrary:do not parse" } }]);
+});
+
+test("keyboard board selection keeps supplied labels and HP accessibility", () => {
+  const h = harness(response([choice("opaque keyboard", "Unit", { unitId: "b" })]));
+  h.run("chooseCandidate = key => submitted.push(key)");
+  const figure = h.figure("b");
+  assert.match(figure.attributes["aria-label"], /Supplied label opaque keyboard.*HP 4\/4/);
+  assert.equal(figure.attributes.role, "button");
+  let prevented = 0;
+  for (const key of ["Escape", "Enter", " "]) figure.listeners.keydown({ key, preventDefault() { prevented++; } });
+  assert.equal(prevented, 2);
+  assert.deepEqual(h.submitted, ["opaque keyboard", "opaque keyboard"]);
+});
+
+test("several Direct candidates for one entry each retain a complete selection", () => {
+  const initial = response([
+    choice("one", "Direct", {}, { entryId: "entry" }), choice("two", "Direct", {}, { entryId: "entry" })
+  ], [entry("entry", "Unfamiliar alternatives")]);
+  const h = harness(initial);
+  h.run("chooseCandidate = key => submitted.push(key)");
+  for (const button of buttons(h.elements.get("unit-card"))) click(button);
+  assert.deepEqual(h.submitted, ["one", "two"]);
+  assert.equal(h.elements.get("choices").children.length, 0);
+});
+
+test("uncertain mutations synchronize once without resubmitting a decision", async () => {
+  const initial = response([choice("opaque failed request", "Direct")]);
+  const synchronized = response([choice("new supplied key", "Direct")]);
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, method: options.method });
+    return options.method === "POST"
+      ? { ok: false, json: async () => ({ detail: "Stale revision" }) }
+      : { ok: true, json: async () => synchronized };
+  });
+  await click(h.elements.get("choices").children[0]);
+  assert.deepEqual(requests, [{ url: "/api/game/decision", method: "POST" }, { url: "/api/game", method: "GET" }]);
+  assert.equal(h.elements.get("choices").children[0].textContent, "Supplied label new supplied key");
+  assert.equal(h.elements.get("choices").children[0].disabled, false);
+  assert.match(h.elements.get("error").textContent, /Synchronized to the server/);
+});
+
 for (const mode of ["animate", "disabled", "skip"]) {
-  test(`playback renders supplied progressive HP and final state (${mode})`, async () => {
-    const elements = new Map();
-    const document = {
-      getElementById(id) {
-        if (!elements.has(id)) elements.set(id, new Element());
-        return elements.get(id);
-      },
-      createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-    };
-    const state = hp => ({
-      round: 1, activeTypeId: "monster-type", currentUnitId: "monster",
-      physical: { board: { width: 2, height: 1, edges: [] }, figures: [
-        { id: "hero", position: { x: 0, y: 0 }, posture: "Upright" },
-        { id: "monster", position: { x: 1, y: 0 }, posture: "Upright" }
-      ] },
-      units: [{ id: "hero", typeId: "hero-type", sideId: "blue", currentHp: hp },
-        { id: "monster", typeId: "monster-type", sideId: "red", currentHp: 1 }],
-      types: [{ id: "hero-type", hp: 5 }, { id: "monster-type", hp: 1 }]
-    });
-    const initial = { revision: 1, result: { state: state(5), nextInput: null } };
-    const response = {
-      revision: 2, result: {
-        state: state(2), nextInput: { kind: "Activation", unitId: "hero", candidates: [
-          { key: "end-turn", kind: "EndTurn" }
-        ] },
-        // Deliberately unrelated Damage values: presentation must use supplied HP.
-        events: [1, 2].map(() => ({ kind: "AttackResolved", unitId: "monster", targetId: "hero", damage: 99 })),
-        resolutionSteps: [{ eventIndex: 0, stateAfter: state(4) }, { eventIndex: 1, stateAfter: state(2) }]
-      }
-    };
-    const shown = [], beforeAnimation = [];
-    const context = vm.createContext({ document, initial, response, shown, beforeAnimation, mode,
-      fetch: async () => ({ ok: true, json: async () => response }) });
-    const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-    vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-    vm.runInContext(`
-      snapshot = initial; renderSnapshot();
+  test(`progressive StateAfter and card counters remain authoritative (${mode})`, async () => {
+    const initial = response();
+    const final = response([choice("end", "Direct")]);
+    final.result.state = state(1);
+    final.presentation.cards = cards([entry("limited", "Printed ability")]);
+    final.presentation.cards.actor.entries[0].uses.remainingUses = 0;
+    const intermediate = state(3), intermediateCards = cards([entry("limited", "Printed ability")]);
+    intermediateCards.actor.entries[0].uses.remainingUses = 1;
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: intermediate }, { eventIndex: 1, stateAfter: final.result.state }];
+    final.presentation.resolutionSteps = [{ eventIndex: 0, cards: intermediateCards }, { eventIndex: 1, cards: final.presentation.cards }];
+    final.presentation.events = [0, 1].map(() => ({ role: "AttackTarget", text: "Supplied attack result", unitId: "b", targetId: "actor", hits: 100, blocks: 0, damage: 99 }));
+    // Raw events differ deliberately; the browser uses projected outcomes and authoritative states.
+    final.result.events = [{ kind: "Ignored raw event" }];
+    const shown = [], before = [];
+    const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    h.context.shown = shown; h.context.before = before; h.context.mode = mode;
+    h.run(`
       ui.animate.checked = mode !== "disabled";
       pause = async () => {};
-      const originalRenderState = renderState;
-      renderState = (state, preserveNodes) => {
-        originalRenderState(state, preserveNodes);
-        shown.push({ hp: figures.get("hero").dataset.hpLabel, choices: ui.choices.children.length });
+      const originalRender = renderState;
+      renderState = (state, preserve, cards) => {
+        originalRender(state, preserve, cards);
+        shown.push({ hp: figures.get("actor").dataset.hpLabel, card: ui["unit-card"].textContent, choices: ui.choices.children.length });
       };
       const originalPresent = present;
       present = async event => {
-        beforeAnimation.push(figures.get("hero").dataset.hpLabel);
+        before.push(figures.get("actor").dataset.hpLabel);
         await originalPresent(event);
         if (mode === "skip") ui.skip.listeners.click();
       };
-    `, context);
-    await vm.runInContext('mutate("decision", { candidateKey: "end-turn" })', context);
-    assert.deepEqual(shown.map(value => value.hp), ["HP 4/5", "HP 2/5", "HP 2/5"]);
+    `);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.deepEqual(shown.map(value => value.hp), ["HP 3/4", "HP 1/4", "HP 1/4"]);
+    assert.match(shown[0].card, /1 \/ 2 uses/); assert.match(shown[1].card, /0 \/ 2 uses/);
     assert.deepEqual(shown.slice(0, 2).map(value => value.choices), [0, 0]);
-    assert.deepEqual(beforeAnimation, mode === "animate" ? ["HP 5/5", "HP 4/5"]
-      : mode === "skip" ? ["HP 5/5"] : []);
-    assert.equal(elements.get("choices").children.length, 1);
-    assert.equal(elements.get("choices").children[0].disabled, false);
-    vm.runInContext('hoveredUnitId = "hero"; renderUnitCard();', context);
-    assert.match(elements.get("unit-card").textContent, /HP 2 \/ 5/);
-    assert.equal(initial.result.state.units[0].currentHp, 5);
-    assert.equal(response.result.state.units[0].currentHp, 2);
+    assert.deepEqual(before, mode === "animate" ? ["HP 4/4", "HP 3/4"] : mode === "skip" ? ["HP 4/4"] : []);
+    assert.equal(h.elements.get("choices").children.length, 1);
+    assert.equal(h.elements.get("choices").children[0].disabled, false);
+    assert.equal(h.elements.get("events").children.length, 2);
+    assert.equal(h.elements.get("error").textContent, "");
   });
 }
 
-test("successive movement snapshots retain mounted figures and commit each animation start", async () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const state = x => ({ round: 1,
-    physical: { board: { width: 3, height: 1, edges: [] },
-      figures: [{ id: "hero", position: { x, y: 0 }, posture: "Upright" }] },
-    units: [{ id: "hero", typeId: "hero-type", currentHp: 5 }],
-    types: [{ id: "hero-type", hp: 5 }] });
-  const initial = { revision: 1, result: { state: state(0), nextInput: null } };
-  const response = { revision: 2, result: { state: state(2), nextInput: null,
-    events: [0, 1].map(x => ({ kind: "MovementCompleted", unitId: "hero",
-      path: [{ x, y: 0 }, { x: x + 1, y: 0 }] })),
-    resolutionSteps: [0, 1].map(eventIndex => ({ eventIndex, stateAfter: state(eventIndex + 1) })) } };
-  const movements = [], starts = [];
-  const context = vm.createContext({ document, initial, movements, starts,
-    fetch: async () => ({ ok: true, json: async () => response }) });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  vm.runInContext(`
-    snapshot = initial; renderSnapshot();
-    const mounted = figures.get("hero");
-    mounted.getBoundingClientRect = () => { starts.push(mounted.style.left); return {}; };
-    pause = async () => {
-      movements.push({ sameNode: figures.get("hero") === mounted,
-        attached: ui.board.children.includes(mounted), left: mounted.style.left });
-    };
-  `, context);
-  await vm.runInContext('mutate("decision")', context);
-  assert.deepEqual(starts, [`${.5 / 3 * 100}%`, "50%"]);
-  assert.deepEqual(movements.map(step => step.sameNode && step.attached), [true, true]);
-  assert.deepEqual(movements.map(step => step.left), ["50%", `${2.5 / 3 * 100}%`]);
-  assert.equal(elements.get("error").textContent, "");
+test("aggregate attacks with unfamiliar names use the summary role without target animation", async () => {
+  const h = harness(response());
+  const pauses = [];
+  h.context.pauses = pauses;
+  h.run("pause = async ms => pauses.push(ms)");
+  h.context.outcome = { role: "AttackSummary", text: "Unknown attack: supplied one-target summary", abilityName: "Never heard of this" };
+  await h.run("present(outcome)");
+  assert.deepEqual(pauses, [450]);
+  assert.equal(h.elements.get("effect").textContent, h.context.outcome.text);
+  assert.equal(h.figure("actor").classList.contains("attacking"), false);
 });
 
-for (const moveDone of [false, true]) {
-  test(`clicking the door submits its Free Action key ${moveDone ? "after" : "before"} Move`, () => {
-    const elements = new Map();
-    const document = {
-      getElementById(id) {
-        if (!elements.has(id)) elements.set(id, new Element());
-        return elements.get(id);
-      },
-      createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-    };
-    const submitted = [];
-    const context = vm.createContext({ document, submitted });
-    const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-    vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-    const door = { a: { x: 1, y: 0 }, b: { x: 0, y: 0 }, kind: "ClosedDoor" };
-    const key = "open-door:0,0:1,0";
-    const response = {
-      revision: 2, autoChooseSingleRelevantChoice: true,
-      result: {
-        state: {
-          round: 1, roundComplete: false, activeTypeId: "barbarian-type", currentUnitId: "barbarian",
-          moveDone, actionDone: false, bonusActionsUsedThisActivation: [],
-          physical: { board: { width: 2, height: 1, edges: [door] }, figures: [] },
-          units: [], types: []
-        },
-        nextInput: {
-          kind: "Activation", unitId: "barbarian", allowsNone: false,
-          // Canonical candidate endpoints differ from the board edge's endpoint order.
-          candidates: [{ key, kind: "FreeAction", freeAction: "OpenDoor", action: null,
-            door: { ...door, a: door.b, b: door.a } }]
-        }
-      }
-    };
-    vm.runInContext(`snapshot = ${JSON.stringify(response)};
-      chooseCandidate = key => submitted.push(key);
-      renderSnapshot();`, context);
-    const renderedDoor = elements.get("board").children.find(node => node.classList.contains("edge"));
-    assert.ok(renderedDoor.classList.contains("board-choice"));
-    assert.equal(renderedDoor.attributes.role, "button");
-    assert.equal(renderedDoor.attributes["aria-disabled"], "false");
-    assert.match(renderedDoor.attributes["aria-label"], /Open door.*\(Free Action\)/);
-    let stopped = false;
-    renderedDoor.listeners.click({ stopPropagation() { stopped = true; } });
-    assert.ok(stopped);
-    assert.deepEqual(submitted, [key]);
-    let prevented = false;
-    renderedDoor.listeners.keydown({ key: "Enter", preventDefault() { prevented = true; } });
-    assert.ok(prevented);
-    assert.deepEqual(submitted, [key, key]);
-    assert.equal(elements.get("choices").children.length, 0);
-  });
-}
-
-
-test("relevance filtering is local, preserves legal submissions, and is independent of automatic progression", async () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const door = { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: "ClosedDoor" };
-  const irrelevant = { key: "open-door:0,0:1,0", kind: "FreeAction", freeAction: "OpenDoor", door, relevant: false };
-  const response = {
-    revision: 2, autoChooseSingleRelevantChoice: false,
-    result: {
-      state: { round: 1, physical: { board: { width: 2, height: 1, edges: [door] }, figures: [] }, units: [], types: [] },
-      nextInput: { kind: "Activation", unitId: "hero", allowsNone: false,
-        candidates: [irrelevant, { key: "end-turn", kind: "EndTurn", relevant: true }] },
-      events: [], resolutionSteps: []
-    }
-  };
-  const requests = [];
-  const context = vm.createContext({ document, response,
-    fetch: async (url, options) => {
-      requests.push({ url, body: JSON.parse(options.body) });
-      return { ok: true, json: async () => response };
-    }
-  });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  vm.runInContext("snapshot = response; renderSnapshot();", context);
-  const renderedDoor = () => elements.get("board").children.find(node => node.classList.contains("edge"));
-  assert.equal(elements.get("choices").children.length, 1);
-  assert.equal(renderedDoor().classList.contains("board-choice"), false);
-  assert.equal(elements.get("auto").checked, false);
-  elements.get("filter").checked = false;
-  elements.get("filter").listeners.change();
-  assert.equal(requests.length, 0);
-  assert.equal(response.revision, 2);
-  assert.equal(response.result.nextInput.candidates.length, 2);
-  assert.equal(elements.get("choices").children.length, 1);
-  assert.equal(renderedDoor().classList.contains("board-choice"), true);
-  assert.equal(elements.get("auto").checked, false);
-  await renderedDoor().listeners.click({ stopPropagation() {} });
-  assert.deepEqual(requests[0], { url: "/api/game/decision", body: { expectedRevision: 2, candidateKey: irrelevant.key } });
-  assert.equal(elements.get("filter").checked, false);
-  assert.equal(elements.get("choices").children.length, 1);
-  elements.get("filter").checked = true;
-  elements.get("filter").listeners.change();
-  assert.equal(requests.length, 1);
-  assert.equal(elements.get("choices").children.length, 1);
-  assert.equal(renderedDoor().classList.contains("board-choice"), false);
-  // Even a hidden supplied key remains available for explicit submission.
-  await vm.runInContext(`chooseCandidate("${irrelevant.key}")`, context);
-  assert.equal(requests[1].body.candidateKey, irrelevant.key);
-  elements.get("auto").checked = true;
-  await elements.get("auto").listeners.change();
-  assert.deepEqual(requests[2], { url: "/api/game/preferences",
-    body: { expectedRevision: 2, autoChooseSingleRelevantChoice: true } });
-  assert.equal(elements.get("filter").checked, true);
+test("movement retains mounted figures and commits each progressive animation start", async () => {
+  const initial = response(), final = response();
+  final.presentation.decision = null;
+  final.result.state = state(4, 2);
+  final.result.resolutionSteps = [0, 1].map(i => ({ eventIndex: i, stateAfter: state(4, i + 1) }));
+  final.presentation.resolutionSteps = [0, 1].map(i => ({ eventIndex: i, cards: cards() }));
+  final.presentation.events = [0, 1].map(i => ({ role: "Movement", text: "Movement supplied", unitId: "actor", path: [{ x: i, y: 0 }, { x: i + 1, y: 0 }] }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  const mounted = h.figure("actor"), starts = [], positions = [];
+  mounted.getBoundingClientRect = () => { starts.push(mounted.style.left); return {}; };
+  h.context.positions = positions; h.context.mounted = mounted;
+  h.run('pause = async () => positions.push({ same: figures.get("actor") === mounted, left: mounted.style.left })');
+  await h.run('mutate("decision")');
+  assert.deepEqual(starts, [`${.5 / 6 * 100}%`, `${1.5 / 6 * 100}%`]);
+  assert.deepEqual(positions.map(p => p.left), [`${1.5 / 6 * 100}%`, `${2.5 / 6 * 100}%`]);
+  assert.ok(positions.every(p => p.same));
 });
 
-test("Rage displays supplied uses and effective ATK and submits irrelevant supplied choices", async () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const ability = { name: "Rage", maxUses: 2, modifiers: [{ stat: "Atk", amount: 2 }] };
-  const dash = { name: "Dash", maxUses: 2, modifiers: [{ stat: "Mov", amount: 2 }] };
-  const knife = { name: "Throwing Knife", maxUses: 2, modifiers: [{ stat: "Rng", amount: 2 }, { stat: "Atk", amount: -1 }] };
-  const response = {
-    revision: 7, autoChooseSingleRelevantChoice: false,
-    result: {
-      state: { round: 1, currentUnitId: "barbarian", moveDone: false,
-        physical: { board: { width: 1, height: 1, edges: [] }, figures: [] },
-        types: [{ id: "barbarian-type", hp: 5, mov: 3, rng: 1, atk: 4, def: 3, bonusActions: [ability],
-          passives: [{ name: "Fury", displayText: "ATK +1 while adjacent to 2 or more enemies" }] },
-          { id: "rogue-type", hp: 4, mov: 4, rng: 1, atk: 3, def: 2, bonusActions: [dash, knife] }],
-        units: [{ id: "barbarian", typeId: "barbarian-type", sideId: "blue", currentHp: 5,
-          bonusActionUses: { Rage: { remainingUses: 1, maxUses: 2 } } },
-          { id: "rogue", typeId: "rogue-type", sideId: "blue", currentHp: 4,
-            bonusActionUses: { Dash: { remainingUses: 2, maxUses: 2 }, "Throwing Knife": { remainingUses: 1, maxUses: 2 } } }],
-        modifiersThisTurn: ability.modifiers,
-        // Deliberately different from base + modifier: render the supplied engine value.
-        effectiveAtk: { barbarian: 17, rogue: 2 }, effectiveRng: { rogue: 3 }, effectiveMov: { rogue: 6 } },
-      nextInput: { kind: "Activation", unitId: "barbarian", allowsNone: false,
-        candidates: [{ key: "opaque-bonus-key", kind: "BonusAction", bonusAction: ability, relevant: false },
-          { key: "stay", kind: "Stay", relevant: true }] },
-      events: [], resolutionSteps: []
-    }
-  };
-  const requests = [];
-  const context = vm.createContext({ document, response,
-    fetch: async (url, options) => {
-      requests.push({ url, body: JSON.parse(options.body) });
-      return { ok: true, json: async () => response };
-    }
-  });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  vm.runInContext("snapshot = response; renderSnapshot();", context);
-  const card = elements.get("unit-card");
-  assert.match(card.textContent, /Barbarian/);
-  assert.match(card.textContent, /HP 5 \/ 5/);
-  assert.match(card.textContent, /MOV 3/);
-  assert.match(card.textContent, /ATK 4 \u2192 17/);
-  assert.match(card.textContent, /Passives Fury Passive ATK \+1 while adjacent to 2 or more enemies/);
-  for (const effective of [4, 5, 7]) {
-    response.result.state.effectiveAtk.barbarian = effective;
-    vm.runInContext("renderSnapshot();", context);
-    assert.ok(card.textContent.includes(effective === 4 ? "ATK 4" : `ATK 4 \u2192 ${effective}`));
-    assert.match(card.textContent, /Fury Passive ATK \+1 while adjacent to 2 or more enemies/);
-  }
-  assert.match(card.textContent, /Rage.*\+2 ATK this turn.*1 \/ 2 uses/);
-  assert.equal(card.querySelectorAll("button")[0].hidden, true);
-  assert.equal(card.querySelectorAll("button")[0].disabled, false);
-  assert.equal(elements.get("choices").children.length, 1);
-  elements.get("filter").checked = false;
-  elements.get("filter").listeners.change();
-  assert.equal(requests.length, 0);
-  assert.equal(elements.get("choices").children.length, 1);
-  assert.equal(card.querySelectorAll("button")[0].hidden, false);
-  // Rules-looking flags are display data, never the source of button legality.
-  response.result.state.bonusActionsUsedThisActivation = ["Rage"];
-  response.result.state.actionDone = true;
-  vm.runInContext('renderSnapshot();', context);
-  assert.equal(card.querySelectorAll("button")[0].disabled, false);
-  await card.querySelectorAll("button")[0].listeners.click();
-  assert.deepEqual(requests[0], { url: "/api/game/decision", body: { expectedRevision: 7, candidateKey: "opaque-bonus-key" } });
-  vm.runInContext('hoveredUnitId = "rogue"; renderUnitCard();', context);
-  assert.match(card.textContent, /MOV 4 \u2192 6.*RNG 1 \u2192 3.*ATK 3 \u2192 2/);
-  assert.match(card.textContent, /Dash.*2 \/ 2 uses.*Throwing Knife.*1 \/ 2 uses/);
-  assert.ok(card.querySelectorAll("button").every(button => button.disabled));
-  // Per-ability availability comes exclusively from supplied legal candidates.
-  response.result.nextInput = { unitId: "rogue", candidates: [
-    { key: "dash-key", bonusAction: dash }, { key: "knife-key", bonusAction: knife }
-  ] };
-  vm.runInContext('renderUnitCard();', context);
-  assert.deepEqual(card.querySelectorAll("button").map(button => button.disabled), [false, false]);
-  response.result.nextInput.candidates = [{ key: "knife-key", bonusAction: knife }];
-  vm.runInContext('renderUnitCard();', context);
-  assert.deepEqual(card.querySelectorAll("button").map(button => button.disabled), [true, false]);
-  response.result.nextInput.candidates = [{ key: "dash-key", bonusAction: dash }];
-  vm.runInContext('renderUnitCard();', context);
-  assert.deepEqual(card.querySelectorAll("button").map(button => button.disabled), [false, true]);
-  response.result.nextInput.candidates = [];
-  vm.runInContext('renderUnitCard();', context);
-  assert.ok(card.querySelectorAll("button").every(button => button.disabled));
-  vm.runInContext('hoveredUnitId = null; response.result.nextInput.candidates = []; renderSnapshot();', context);
-  assert.equal(card.querySelectorAll("button")[0].disabled, true);
-  vm.runInContext('response.result.state.currentUnitId = null; renderSnapshot();', context);
-  assert.match(card.textContent, /Most recently active.*Barbarian/);
-  assert.match(vm.runInContext('describe({ kind: "AbilityUsed", unitId: "barbarian", abilityName: "Rage" })', context), /used Rage/);
-});
-
-
-test("hover shares the card, restores activation display, and keeps board and fallback choices usable", () => {
-  const elements = new Map();
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, new Element());
-      return elements.get(id);
-    },
-    createElement(tag) { const element = new Element(); element.tagName = tag; return element; }
-  };
-  const submitted = [];
-  const context = vm.createContext({ document, submitted });
-  const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
-  const response = { revision: 1, result: {
-    state: { round: 1, currentUnitId: "barbarian",
-      physical: { board: { width: 4, height: 1, edges: [] }, figures: [
-        { id: "barbarian", position: { x: 0, y: 0 } },
-        { id: "rogue", position: { x: 1, y: 0 } },
-        { id: "cleric", position: { x: 2, y: 0 } },
-        { id: "enemy", position: { x: 3, y: 0 } }
-      ] },
-      units: ["barbarian", "rogue", "cleric", "enemy"].map(id => ({ id, typeId: `${id}-type`, currentHp: 4 })),
-      types: ["barbarian", "rogue", "cleric", "enemy"].map(id => ({ id: `${id}-type`, mov: 3, rng: 1, atk: 3, def: 2, hp: 4,
-        ...(id === "cleric" ? { passives: [{ name: "Aura", displayText: "Adjacent friendly Units get DEF +1" }] } : {}) })),
-      effectiveDef: { rogue: 3 } },
-    nextInput: { kind: "Activation", unitId: "barbarian", candidates: [
-      { key: "opaque-attack", action: "NormalAttack", targetId: "enemy" },
-      { key: "opaque-move", destination: { x: 1, y: 0 } },
-      { key: "opaque-end", kind: "EndTurn" },
-      { key: "future-choice", kind: "Action" }
-    ] }
-  } };
-  context.response = response;
-  vm.runInContext('snapshot = response; chooseCandidate = key => submitted.push(key); renderSnapshot();', context);
-  const card = elements.get("unit-card");
-  const figure = id => vm.runInContext(`figures.get("${id}")`, context);
-  assert.match(card.textContent, /Active Unit.*Barbarian/);
-  figure("rogue").listeners.mouseenter();
-  assert.match(card.textContent, /Inspecting.*Rogue.*DEF 2 \u2192 3/);
-  figure("rogue").listeners.mouseleave();
-  assert.match(card.textContent, /Active Unit.*Barbarian/);
-  figure("cleric").listeners.mouseenter();
-  assert.match(card.textContent, /Aura Passive Adjacent friendly Units get DEF \+1/);
-  figure("cleric").listeners.mouseleave();
-  figure("enemy").listeners.mouseenter();
-  assert.match(card.textContent, /Inspecting.*Enemy/);
-  figure("enemy").listeners.click({ stopPropagation() {} });
-  assert.deepEqual(submitted, ["opaque-attack"]);
-  figure("enemy").listeners.mouseleave();
-  const move = elements.get("board").children.find(node => node.dataset.cell === "1,0");
-  move.listeners.click({ stopPropagation() {} });
-  const buttons = elements.get("choices").children;
-  assert.deepEqual(buttons.map(button => button.textContent), ["End Turn", "future-choice"]);
-  buttons[0].listeners.click(); buttons[1].listeners.click();
-  assert.deepEqual(submitted, ["opaque-attack", "opaque-move", "opaque-end", "future-choice"]);
-  response.result.state.currentUnitId = null;
-  vm.runInContext('renderSnapshot();', context);
-  figure("rogue").listeners.mouseenter(); figure("rogue").listeners.mouseleave();
-  assert.match(card.textContent, /Most recently active.*Barbarian/);
-  // An unavailable board target must remain usable through the generic fallback.
-  response.result.nextInput.candidates[0].targetId = "missing";
-  vm.runInContext('renderSnapshot();', context);
-  assert.ok(elements.get("choices").children.some(button => button.textContent === "Attack missing"));
+test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
+  assert.doesNotMatch(script, /HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
 });

@@ -55,4 +55,7 @@ public sealed record PreferenceRequest
     public required bool AutoChooseSingleRelevantChoice { get; init; }
 }
 
-public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true);
+public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true)
+{
+    public BrowserPresentation Presentation => BrowserProjection.Create(Result);
+}

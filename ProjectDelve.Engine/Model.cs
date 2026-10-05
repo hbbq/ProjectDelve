@@ -56,6 +56,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
+    public string? DisplayName { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
@@ -90,6 +91,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Barbarian(string id = "barbarian-type") =>
         new(id, 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
         {
+            DisplayName = "Barbarian",
             Fury = new(),
             Cleave = new(),
             BonusActions = [
@@ -100,6 +102,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Rogue(string id = "rogue-type") =>
         new(id, 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
         {
+            DisplayName = "Rogue",
             Backstab = new(),
             BonusActions = [
                 new("Dash", 2, [new(Stat.Mov, 2)]),
@@ -111,22 +114,23 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         new(id, 3, 1, 3, 3, 4, Actions: UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave,
             FreeActions: UnitFreeAction.OpenDoor)
         {
+            DisplayName = "Cleric",
             Heal = new(),
             HolyWave = new(),
             AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
         };
 
-    public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1);
+    public static UnitType Grunt(string id = "grunt-type") => new(id, 3, 1, 3, 3, 1) { DisplayName = "Grunt" };
 
     public static UnitType Zombie(string id = "zombie-type") =>
         new(id, 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-            Behaviors: UnitBehavior.ApproachThroughClosedDoors);
+            Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Zombie" };
 
     public static UnitType SkeletonArcher(string id = "skeleton-archer-type") =>
-        new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance);
+        new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" };
 
     public static UnitType Goblin(string id = "goblin-type") =>
-        new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1));
+        new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1)) { DisplayName = "Goblin" };
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {

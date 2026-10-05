@@ -7,6 +7,9 @@ let cancelPause;
 let displayedState;
 let latestUnitId;
 let hoveredUnitId;
+let displayedCards;
+const cardChoiceKeys = new Set();
+const boardChoiceKeys = new Set();
 const figures = new Map();
 const edges = new Map();
 const cells = new Map();
@@ -14,9 +17,11 @@ const cells = new Map();
 // These helpers describe geometry and presentation only. Legal choices arrive from the engine.
 const cellKey = cell => `${cell.x},${cell.y}`;
 const edgeKey = edge => [cellKey(edge.a), cellKey(edge.b)].sort().join("|");
-const unitLabel = id => ({ barbarian: "B", rogue: "R", cleric: "C", "grunt-1": "Gr1", "grunt-2": "Gr2",
-  "zombie-1": "Z1", "zombie-2": "Z2", "archer-1": "A1", "archer-2": "A2", "goblin-1": "G1" })[id] ?? id;
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
+const abbreviatedName = name => {
+  const words = name.split(/\s+/);
+  return words.length === 1 ? name.slice(0, 2) : words.map(word => word[0]).join("").slice(0, 3);
+};
 
 function placeFigure(node, cell, board) {
   node.style.left = `${(cell.x + .5) / board.width * 100}%`;
@@ -73,12 +78,14 @@ function renderBoard(state, preserveNodes = false) {
     const type = state.types.find(type => type.id === unit?.typeId);
     const node = figures.get(figure.id) ?? document.createElement("div");
     retainedFigures.add(figure.id);
-    node.textContent = unitLabel(figure.id);
+    const peers = state.units.filter(peer => peer.typeId === unit?.typeId);
+    const name = displayedCards[figure.id]?.displayName ?? figure.id;
+    node.textContent = abbreviatedName(name) + (peers.length > 1 ? peers.findIndex(peer => peer.id === figure.id) + 1 : "");
     // Snapshot positions settle any skipped movement without animating a state correction.
     node.style.transition = "none";
     delete node.dataset.hpLabel;
     node.removeAttribute("aria-label");
-    node.className = `figure${unit?.sideId === "blue" ? " hero" : ""}`;
+    node.className = `figure${unit?.sideId === "blue" ? " side-blue" : ""}`;
     node.style.width = `${70 / board.width}%`;
     node.title = `${figure.id} · ${figure.posture}`;
     if (type?.hp > 1) {
@@ -107,179 +114,136 @@ function renderBoard(state, preserveNodes = false) {
   }
 }
 
-function renderState(state, preserveNodes = true) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards) {
+  displayedCards = cards;
   renderBoard(state, preserveNodes);
-  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${state.activeTypeId} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
+  const typeName = state.types.find(type => type.id === state.activeTypeId)?.displayName ?? state.activeTypeId;
+  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${typeName} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
   displayedState = state;
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
   renderUnitCard();
 }
 
-const readableName = id => id.replace(/-type$/, "").replace(/-/g, " ")
-  .replace(/\b\w/g, letter => letter.toUpperCase());
 const visibleChoice = candidate => !(ui.filter.checked && candidate.relevant === false);
 
-// One card renderer for activation display and board inspection. Values are supplied by the engine.
+// Content wording and current counters come from the domain/API, not rule components.
 function renderUnitCard() {
-  clearHolyWavePreview();
+  clearAffectedPreview();
+  cardChoiceKeys.clear();
   const state = displayedState;
   const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
   const card = ui["unit-card"];
   card.replaceChildren();
   if (!unit) { card.append(text("p", "Start a round or hover a Unit to inspect it.")); return; }
   const type = state.types.find(type => type.id === unit.typeId);
+  const content = displayedCards[unit.id];
   card.append(text("small", hoveredUnitId ? "Inspecting" : state.currentUnitId === unit.id ? "Active Unit" : "Most recently active"));
-  card.append(text("h3", readableName(type.id)));
-  card.append(text("small", `${unit.id} \u00b7 ${unit.sideId ?? ""}`));
+  card.append(text("h3", content.displayName));
+  card.append(text("small", `${unit.id} · ${unit.sideId ?? ""}`));
   const stats = text("div", ""); stats.className = "card-stats";
   for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
     const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
-    const value = text("p", `${stat.toUpperCase()} ${base === effective ? base : `${base} \u2192 ${effective}`}`);
+    const value = text("p", `${stat.toUpperCase()} ${base === effective ? base : `${base} → ${effective}`}`);
     if (base !== effective) value.className = "modified-stat";
     stats.append(value);
   }
   card.append(stats);
   card.append(text("p", `HP ${unit.currentHp} / ${type.hp}`));
-  if (type.heal) {
-    card.append(text("h4", "Heal (Action)"));
-    card.append(text("p", "Restore up to 2 HP to an adjacent damaged friendly Unit."));
-    if (unit.healUses) card.append(text("small", `${unit.healUses.remainingUses} / ${unit.healUses.maxUses} uses`));
-  }
-  if (type.cleave) {
-    card.append(text("h4", "Cleave"));
-    card.append(text("p", "After an Attack deals 2 or more damage to a Unit, you may immediately deal 1 damage to an adjacent enemy."));
-    if (unit.cleaveUses) card.append(text("small", `${unit.cleaveUses.remainingUses} / ${unit.cleaveUses.maxUses} uses`));
-  }
-  if (type.holyWave) {
-    card.append(text("h4", "Holy Wave (Action)"));
-    card.append(text("p", "Attack all adjacent enemies with ATK=2. Roll Attack Dice once for all targets."));
-    if (unit.holyWaveUses) card.append(text("small", `${unit.holyWaveUses.remainingUses} / ${unit.holyWaveUses.maxUses} uses`));
-    const decision = snapshot?.result.nextInput;
-    const candidate = decision?.unitId === unit.id
-      ? decision.candidates.find(candidate => candidate.action === "HolyWave") : null;
-    const button = text("button", "Use Holy Wave");
-    button.dataset.legal = String(!!candidate);
-    button.disabled = busy || !candidate;
-    button.hidden = !!candidate && !visibleChoice(candidate);
-    button.addEventListener("click", () => { if (candidate) return chooseCandidate(candidate.key); });
-    const preview = () => {
-      clearHolyWavePreview();
-      if (busy || !candidate || !visibleChoice(candidate)) return;
-      for (const targetId of candidate.targetIds) figures.get(targetId)?.classList.add("holy-wave-preview");
-    };
-    button.addEventListener("mouseenter", preview);
-    button.addEventListener("focus", preview);
-    button.addEventListener("mouseleave", clearHolyWavePreview);
-    button.addEventListener("blur", clearHolyWavePreview);
-    card.append(button);
-  }
-  card.append(text("h4", "Bonus Actions"));
-  if (!type.bonusActions?.length) card.append(text("small", "None"));
-  for (const ability of type.bonusActions ?? []) {
+  for (const entry of content.entries) {
     const row = text("div", ""); row.className = "card-ability";
-    row.append(text("strong", ability.name));
-    row.append(text("p", `${ability.modifiers.map(modifier => `${modifier.amount >= 0 ? "+" : ""}${modifier.amount} ${modifier.stat.toUpperCase()}`).join(" & ")} this turn`));
-    const uses = unit.bonusActionUses?.[ability.name];
-    if (uses) row.append(text("small", `${uses.remainingUses} / ${uses.maxUses} uses`));
-    const decision = snapshot?.result.nextInput;
-    const candidate = decision?.unitId === unit.id
-      ? decision.candidates.find(candidate => candidate.bonusAction?.name === ability.name) : null;
-    const button = text("button", "Use");
-    button.dataset.legal = String(!!candidate);
-    button.disabled = busy || !candidate;
-    button.hidden = !!candidate && !visibleChoice(candidate);
-    button.setAttribute("aria-label", `Use ${ability.name}`);
-    button.addEventListener("click", () => { if (candidate) return chooseCandidate(candidate.key); });
-    row.append(button);
-    if (candidate?.relevant === false) row.append(text("small", button.hidden ? "Irrelevant choice hidden by filter" : "Currently irrelevant"));
+    const ability = entry.content;
+    row.append(text("strong", `${ability.name}${ability.useLimitText == null ? "" : ` [${ability.useLimitText}]`}`));
+    row.append(text("small", ability.category));
+    row.append(text("p", ability.description));
+    if (entry.uses) row.append(text("small", `${entry.uses.remainingUses} / ${entry.uses.maxUses} uses`));
+    const decision = snapshot?.presentation.decision;
+    const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
+      ? decision.candidates.filter(candidate => candidate.entryId === ability.id && candidate.interaction.kind === "Direct") : [];
+    for (const candidate of candidates) {
+      const button = choiceButton(candidate);
+      button.dataset.legal = "true";
+      button.disabled = busy;
+      button.hidden = !visibleChoice(candidate);
+      row.append(button);
+      if (!button.hidden) cardChoiceKeys.add(candidate.key);
+      if (!candidate.relevant) row.append(text("small", button.hidden ? "Irrelevant choice hidden by filter" : "Currently irrelevant"));
+    }
     card.append(row);
   }
-  card.append(text("h4", "Passives"));
-  if (!type.passives?.length) card.append(text("small", "None"));
-  for (const passive of type.passives ?? []) {
-    card.append(text("strong", passive.name));
-    card.append(text("small", "Passive"));
-    card.append(text("p", passive.displayText));
-  }
+  // Hover inspection must not strand a Direct choice whose card is no longer shown.
+  if (!busy) renderChoicePanel();
 }
 
-function clearHolyWavePreview() {
-  for (const node of figures.values()) node.classList.remove("holy-wave-preview");
+function clearAffectedPreview() {
+  for (const node of figures.values()) node.classList.remove("affected-preview");
+}
+
+function choiceButton(candidate) {
+  const button = text("button", candidate.label);
+  button.addEventListener("click", () => chooseCandidate(candidate.key));
+  const preview = () => {
+    clearAffectedPreview();
+    if (busy || !visibleChoice(candidate)) return;
+    for (const id of candidate.affectedUnitIds) figures.get(id)?.classList.add("affected-preview");
+  };
+  button.addEventListener("mouseenter", preview);
+  button.addEventListener("focus", preview);
+  button.addEventListener("mouseleave", clearAffectedPreview);
+  button.addEventListener("blur", clearAffectedPreview);
+  return button;
+}
+
+function renderChoicePanel() {
+  ui.choices.replaceChildren();
+  const decision = snapshot?.presentation.decision;
+  if (decision?.noneChoice && !boardChoiceKeys.has(null)) ui.choices.append(choiceButton(decision.noneChoice));
+  for (const candidate of decision?.candidates ?? []) {
+    if (!visibleChoice(candidate) || boardChoiceKeys.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
+    ui.choices.append(choiceButton(candidate));
+  }
 }
 
 function renderSnapshot() {
   const state = snapshot.result.state;
   hoveredUnitId = null;
+  boardChoiceKeys.clear();
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
-  ui.choices.replaceChildren();
-  const decision = snapshot.result.nextInput;
-  // Map supplied choices onto rendered objects; ambiguous targets keep the choice-panel interface.
+  const decision = snapshot.presentation.decision;
+  // Bind supplied selection references. Affected Units are preview data, never selections.
   const boardChoices = new Map();
-  const offer = (node, label, key) => {
+  const offer = (node, candidate) => {
     if (!node) return;
     if (!boardChoices.has(node)) boardChoices.set(node, new Map());
-    boardChoices.get(node).set(key, label);
+    boardChoices.get(node).set(candidate.key, candidate.label);
   };
-  ui.prompt.textContent = decision ? `${decision.isMoveAfterAttack ? "Move after attack" : decision.kind} · ${decision.unitId ?? "Choose a Unit"}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
-  const presentedOnBoard = new Set();
-  const labels = new Map();
-  for (const candidate of decision?.candidates ?? []) {
-    if (ui.filter.checked && candidate.relevant === false) continue;
-    if (candidate.action === "HolyWave") continue; // Selected only from the Unit card.
-    const label = candidate.kind === "Stay" ? "Stay here"
-      : candidate.kind === "EndTurn" ? "End Turn"
-      : candidate.kind === "Cleave" ? `Cleave ${unitLabel(candidate.targetId)}`
-      : candidate.bonusAction ? `${candidate.bonusAction.name} (Bonus Action)`
-      : candidate.tryOpenDoor ? `Try door ${cellKey(candidate.door.a)} ? ${cellKey(candidate.door.b)} (${candidate.tryOpenDoor.successCount}/6)`
-      : candidate.action === "NormalAttack" ? `Attack ${unitLabel(candidate.targetId)}`
-      : candidate.action === "Heal" ? `Heal ${unitLabel(candidate.targetId)} (Action)`
-      : candidate.freeAction === "OpenDoor" ? `Open door ${cellKey(candidate.door.a)} ↔ ${cellKey(candidate.door.b)} (Free Action)`
-      : candidate.destination ? `Move to (${cellKey(candidate.destination)})` : unitLabel(candidate.key);
-    labels.set(candidate.key, label);
-    if (candidate.kind === "SelectUnit") {
-      offer(figures.get(candidate.key), label, candidate.key);
-    } else if (candidate.door) {
-      offer(edges.get(edgeKey(candidate.door)), label, candidate.key);
-    } else if (candidate.kind === "Stay") {
-      offer(figures.get(decision.unitId), label, candidate.key);
-    } else if (candidate.destination) {
-      offer(cells.get(cellKey(candidate.destination)), label, candidate.key);
-    } else if (candidate.targetId) {
-      offer(figures.get(candidate.targetId), label, candidate.key);
-      const figure = state.physical.figures.find(figure => figure.id === candidate.targetId);
-      if (figure) offer(cells.get(cellKey(figure.position)), label, candidate.key);
+  ui.prompt.textContent = decision ? `${decision.prompt} · ${decision.unitId ?? ""}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
+    if (!visibleChoice(candidate)) continue;
+    const selection = candidate.interaction;
+    if (selection.kind === "Unit") {
+      offer(figures.get(selection.unitId), candidate);
+      const figure = state.physical.figures.find(figure => figure.id === selection.unitId);
+      if (figure) offer(cells.get(cellKey(figure.position)), candidate);
+    } else if (selection.kind === "Position") {
+      offer(cells.get(cellKey(selection.position)), candidate);
+    } else if (selection.kind === "Door") {
+      offer(edges.get(edgeKey(selection.door)), candidate);
     }
   }
-  if (decision?.kind === "Move" && decision.allowsNone)
-    offer(figures.get(decision.unitId), "Stay here", null);
   for (const [node, choices] of boardChoices) {
     if (choices.size !== 1) continue;
     const [key, label] = choices.entries().next().value;
     bindBoardChoice(node, label, key);
-    presentedOnBoard.add(key);
+    boardChoiceKeys.add(key);
   }
-  if (decision?.allowsNone && !presentedOnBoard.has(null))
-    addChoice(decision.kind === "Move" ? "Stay here" : decision.kind === "Cleave" ? "Decline Cleave" : "Take no action", null);
-  for (const candidate of decision?.candidates ?? []) {
-    if (!visibleChoice(candidate) || presentedOnBoard.has(candidate.key) || candidate.action === "HolyWave") continue;
-    const cardUnit = state.units.find(unit => unit.id === decision.unitId);
-    const cardType = state.types.find(type => type.id === cardUnit?.typeId);
-    if (candidate.bonusAction && cardType?.bonusActions?.some(ability => ability.name === candidate.bonusAction.name)) continue;
-    addChoice(labels.get(candidate.key), candidate.key);
-  }
+  renderChoicePanel();
   updateControls();
 }
 
 function chooseCandidate(key) {
   if (busy) return;
   return mutate("decision", { candidateKey: key });
-}
-
-function addChoice(label, key) {
-  const button = text("button", label);
-  button.addEventListener("click", () => chooseCandidate(key));
-  ui.choices.append(button);
 }
 
 function bindBoardChoice(node, label, key) {
@@ -301,7 +265,7 @@ function bindBoardChoice(node, label, key) {
 }
 
 function updateControls() {
-  if (busy) clearHolyWavePreview();
+  if (busy) clearAffectedPreview();
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
   ui.auto.disabled = busy || !snapshot;
@@ -348,10 +312,10 @@ async function mutate(operation, body = {}) {
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
     ui.events.replaceChildren();
     const steps = new Map(snapshot.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
-    for (const [index, event] of snapshot.result.events.entries()) {
+    for (const [index, event] of snapshot.presentation.events.entries()) {
       ui.events.append(text("li", describe(event)));
       if (!skipEffects) await present(event);
-      if (steps.has(index)) renderState(steps.get(index));
+      if (steps.has(index)) renderState(steps.get(index), true, snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index).cards);
     }
   } catch (error) {
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
@@ -365,23 +329,7 @@ async function mutate(operation, body = {}) {
   }
 }
 
-function describe(event) {
-  switch (event.kind) {
-    case "MovementCompleted": return `${unitLabel(event.unitId)} ${event.isMoveAfterAttack ? "moved after attack" : "moved"}: ${event.path.map(cellKey).join(" → ")}`;
-    case "AttackResolved": return event.abilityName === "Holy Wave"
-      ? `${unitLabel(event.unitId)} used Holy Wave: ${event.attack.attackDice} Attack Dice, ${event.attack.hits} shared Hits; ${event.attack.targets.map(target => `${unitLabel(target.targetId)}: ${target.blocks} Blocks, ${target.damage} Damage`).join("; ")}`
-      : `${unitLabel(event.unitId)} → ${unitLabel(event.targetId)}: ${event.hits} Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
-    case "AttackTargetResolved": return `${event.abilityName} → ${unitLabel(event.targetId)}: ${event.hits} shared Hits, ${event.blocks} Blocks, ${event.damage} Damage`;
-    case "UnitDied": return `${unitLabel(event.unitId)} died`;
-    case "AbilityUsed": return `${unitLabel(event.unitId)} used ${event.abilityName} (Bonus Action)`;
-    case "CleaveResolved": return `${unitLabel(event.unitId)} cleaved ${unitLabel(event.targetId)}: ${event.damage} Damage`;
-    case "HealResolved": return `${unitLabel(event.unitId)} healed ${unitLabel(event.targetId)}: ${event.healing} HP restored`;
-    case "DoorOpeningAttemptResolved": return `${unitLabel(event.unitId)} tried door ${cellKey(event.door.a)} ? ${cellKey(event.door.b)}: D6 ${event.dieRoll}, ${event.successCount}/6 ? ${event.succeeded ? "success" : "failed; door stays closed"} (Action consumed)`;
-    case "DoorOpened": return `${unitLabel(event.unitId)} opened door ${cellKey(event.door.a)} ↔ ${cellKey(event.door.b)}`;
-    case "TokenDrawn": return `Token drawn: ${event.typeId}`;
-    default: return event.kind;
-  }
-}
+function describe(event) { return event.text; }
 
 function pause(ms) {
   if (skipEffects) return Promise.resolve();
@@ -393,8 +341,8 @@ function pause(ms) {
 
 async function present(event) {
   ui.effect.textContent = describe(event);
-  switch (event.kind) {
-    case "MovementCompleted": {
+  switch (event.role) {
+    case "Movement": {
       const node = figures.get(event.unitId);
       if (!node) break;
       // Commit the starting layout, including an immediately preceding snapshot render.
@@ -407,17 +355,10 @@ async function present(event) {
       }
       break;
     }
-    case "AttackTargetResolved":
-    case "AttackResolved": {
-      if (event.abilityName === "Holy Wave" && event.kind === "AttackResolved") {
-        await pause(450);
-        break;
-      }
+    case "AttackSummary": await pause(450); break;
+    case "AttackTarget": {
       const attacker = figures.get(event.unitId), target = figures.get(event.targetId);
       attacker?.classList.add("attacking"); target?.classList.add("target");
-      ui.effect.textContent = event.kind === "AttackTargetResolved"
-        ? `${event.abilityName}: ${unitLabel(event.targetId)}`
-        : `${unitLabel(event.unitId)} attacks ${unitLabel(event.targetId)}`;
       await pause(350);
       ui.effect.textContent = `${event.hits} Hits · ${event.blocks} Blocks`;
       await pause(450);
@@ -426,14 +367,14 @@ async function present(event) {
       attacker?.classList.remove("attacking"); target?.classList.remove("target");
       break;
     }
-    case "UnitDied": {
+    case "Death": {
       const node = figures.get(event.unitId);
       node?.getBoundingClientRect();
       if (node) node.style.transition = "";
       node?.classList.add("dying");
       await pause(320); node?.remove(); figures.delete(event.unitId); break;
     }
-    case "DoorOpeningAttemptResolved": {
+    case "DoorAttempt": {
       const node = edges.get(edgeKey(event.door));
       node?.classList.add("target");
       await pause(1000);

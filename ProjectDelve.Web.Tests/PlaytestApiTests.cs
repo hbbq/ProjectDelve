@@ -20,6 +20,46 @@ public sealed class PlaytestApiTests
     };
 
     [Fact]
+    public async Task HttpSuppliesDomainCardsAndCompleteDirectChoiceWithProgressivePresentation()
+    {
+        await using var host = await Host.Start(hit: true);
+        using var initialJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
+        var cards = initialJson.RootElement.GetProperty("presentation").GetProperty("cards");
+        Assert.Equal("Cleric", cards.GetProperty("cleric").GetProperty("displayName").GetString());
+        var cardWave = cards.GetProperty("cleric").GetProperty("entries").EnumerateArray()
+            .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "holy-wave");
+        Assert.Equal("Attack all adjacent enemies with ATK=2.", cardWave.GetProperty("content").GetProperty("description").GetString());
+        Assert.Equal(2, cardWave.GetProperty("uses").GetProperty("remainingUses").GetInt32());
+        using var preference = await host.Post("preferences", new { expectedRevision = 0, autoChooseSingleRelevantChoice = false });
+        preference.EnsureSuccessStatusCode();
+        var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var result = await host.Round(changed.Revision);
+        foreach (var id in new[] { "barbarian", "rogue" })
+        {
+            Assert.Equal(id, result.Result.NextInput!.UnitId);
+            result = await host.Decide(result.Revision, "stay");
+            result = await host.Decide(result.Revision, "end-turn");
+        }
+        Assert.Equal("cleric", result.Result.NextInput!.UnitId);
+        result = await host.Decide(result.Revision, "6,9");
+        var wave = Assert.Single(result.Result.NextInput!.Candidates, c => c.Action == UnitAction.HolyWave);
+        using var choicesJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
+        var projectedWave = choicesJson.RootElement.GetProperty("presentation").GetProperty("decision").GetProperty("candidates")
+            .EnumerateArray().Single(c => c.GetProperty("key").GetString() == wave.Key);
+        Assert.Equal("Direct", projectedWave.GetProperty("interaction").GetProperty("kind").GetString());
+        Assert.Equal(wave.TargetIds, projectedWave.GetProperty("affectedUnitIds").EnumerateArray().Select(t => t.GetString()));
+        var resolved = await host.Decide(result.Revision, wave.Key);
+        var summary = Assert.Single(resolved.Presentation.Events, e => e.Role == OutcomeRole.AttackSummary);
+        Assert.Contains("2 Attack Dice", summary.Text);
+        Assert.Equal(resolved.Result.Events.Count, resolved.Presentation.Events.Count);
+        Assert.Equal(resolved.Result.ResolutionSteps.Select(s => s.EventIndex), resolved.Presentation.ResolutionSteps.Select(s => s.EventIndex));
+        foreach (var step in resolved.Result.ResolutionSteps)
+            Assert.Equal(BrowserProjection.Cards(step.StateAfter)["cleric"].Entries,
+                resolved.Presentation.ResolutionSteps.Single(s => s.EventIndex == step.EventIndex).Cards["cleric"].Entries);
+        Assert.Equal(1, resolved.Presentation.Cards["cleric"].Entries.Single(e => e.Content.Id == "holy-wave").Uses!.RemainingUses);
+    }
+
+    [Fact]
     public async Task CardDataIncludesNamedAuraAndAuthoritativeEffectiveDefence()
     {
         await using var host = await Host.Start();
@@ -83,7 +123,7 @@ public sealed class PlaytestApiTests
                 .Select(x => board.TerrainAt(new Cell(x, y)))).Distinct().OrderBy(kind => kind));
         Assert.All(second.Result.State.Physical.Figures, figure => Assert.True(board.TerrainAt(figure.Position).Passable()));
         Assert.Contains("visual playtest", await host.Client.GetStringAsync("/"));
-        Assert.Contains("MovementCompleted", await host.Client.GetStringAsync("/app.js"));
+        Assert.Contains("case \"Movement\"", await host.Client.GetStringAsync("/app.js"));
     }
 
     [Theory]
@@ -139,8 +179,8 @@ public sealed class PlaytestApiTests
         var attacked = await host.Decide(stayed.Revision, attack.Key);
         Assert.Contains(attacked.Result.Events, e => e.Kind == "AttackResolved" && e.UnitId == "barbarian");
         var script = await host.Client.GetStringAsync("/app.js");
-        Assert.Contains("candidate.freeAction === \"OpenDoor\"", script);
-        Assert.Contains("(Free Action)", script);
+        Assert.Contains("selection.kind === \"Door\"", script);
+        Assert.Contains("Open Door (Free Action)", moved.Presentation.Decision!.Candidates.Single(c => c.Key == afterMove.Key).Label);
     }
 
     [Fact]
@@ -373,8 +413,9 @@ public sealed class PlaytestApiTests
         if (!succeeds)
             Assert.Contains(next.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == "zombie-1");
         var script = await host.Client.GetStringAsync("/app.js");
-        Assert.Contains("DoorOpeningAttemptResolved", script);
-        Assert.Contains("failed; door stays closed", script);
+        Assert.Contains("case \"DoorAttempt\"", script);
+        var projectedAttempt = Assert.Single(result.Presentation.Events, e => e.Role == OutcomeRole.DoorAttempt);
+        Assert.Contains(succeeds ? "success" : "failed; door stays closed", projectedAttempt.Text);
     }
 
     [Fact]
@@ -415,8 +456,8 @@ public sealed class PlaytestApiTests
         Assert.Equal(events[2].Path![^1], completed.Result.State.Physical.Figures.Single(f => f.Id == "goblin-1").Position);
         Assert.True(completed.Result.State.RoundComplete);
         var script = await host.Client.GetStringAsync("/app.js");
-        Assert.Contains("decision.isMoveAfterAttack", script);
-        Assert.Contains("event.isMoveAfterAttack", script);
+        Assert.Contains("decision.prompt", script);
+        Assert.Contains("event.text", script);
     }
 
     [Fact]

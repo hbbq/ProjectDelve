@@ -9,15 +9,15 @@
 </head>
 <body>
   <header><h1>Project Delve <small>visual playtest</small></h1>
-    <p>Barbarian (B) and Rogue (R) start beside the crypt. Leave its gold door at (3,4)-(4,4) closed to watch Z1 and Z2 approach and try to open it. The eastern courtyard gives Archers and Goblins space to maneuver.</p>
+    <p>Start a round to play. Inspect any Unit by hovering its figure. Choose a highlighted board object or a supplied choice on the card or in the choice panel.</p>
   </header>
   <main>
     <section aria-label="Board">
       <p id="status" aria-live="polite">Loading…</p>
       <div id="board" aria-label="Dungeon board"></div>
-      <p class="legend">Blue: B Barbarian, R Rogue | Red: Gr1-Gr2 Grunts, Z1-Z2 Zombies, A1-A2 Skeleton Archers, G1 Goblin | Dark edge: wall | Gold: closed door | Dashed green: open door</p>
+      <p class="legend">Figures abbreviate Unit names; hover to inspect. Blue and red distinguish Sides. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
       <p id="effect" role="status"></p>
-      <p class="legend">Green: grass; dark green: tree; blue waves: water; brown: table; grey: stone floor. Trees block movement and sight; water and tables block movement only. Cyan edges are windows: sight passes, movement does not.</p>
+      <p class="legend">Green: grass; dark green: tree; blue waves: water; brown: table; grey: stone floor. Cyan edges are windows. Highlights show supplied choices.</p>
       <div class="toolbar">
         <button id="round" disabled>Start round</button>
         <button id="refresh" disabled>Refresh</button>
