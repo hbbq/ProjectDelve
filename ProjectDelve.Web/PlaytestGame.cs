@@ -62,7 +62,7 @@ public sealed class PlaytestGame
         lock (gate)
         {
             CheckRevision(expectedRevision);
-            if (state.Pending is null || state.Pending.TypeId is not ("barbarian-type" or "rogue-type" or "cleric-type" or "wizard-type"))
+            if (state.Pending is null || !IsPlayerControlled(state.Pending.TypeId))
                 throw new PlaytestRequestException(409, "No player decision is pending.");
             EngineResult result;
             try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random, autoChooseSingleRelevantChoice); }
@@ -95,7 +95,7 @@ public sealed class PlaytestGame
     {
         var events = new List<RulesEvent>(result.Events);
         var steps = new List<ResolutionStep>(result.ResolutionSteps);
-        while (result.NextInput?.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "shaman-type" or "troll-type")
+        while (result.NextInput is { } pending && !IsPlayerControlled(pending.TypeId))
         {
             result = GameEngine.Advance(result.State, monsters, random, autoChooseSingleRelevantChoice);
             steps.AddRange(result.ResolutionSteps.Select(step => step with { EventIndex = step.EventIndex + events.Count }));
@@ -105,6 +105,10 @@ public sealed class PlaytestGame
         revision++;
         return new(revision, result with { Events = events, ResolutionSteps = steps }, autoChooseSingleRelevantChoice, scenarioId);
     }
+
+    // Playtest agency: the four Heroes use player input; other content uses the shared provider.
+    private static bool IsPlayerControlled(string typeId) => typeId is
+        UnitTypeIds.Barbarian or UnitTypeIds.Rogue or UnitTypeIds.Cleric or UnitTypeIds.Wizard;
 
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider
     {

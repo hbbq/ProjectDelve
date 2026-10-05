@@ -2,6 +2,20 @@ using System.Collections.ObjectModel;
 
 namespace ProjectDelve.Engine;
 
+// Shared terrain/edge traversal parameters. Occupancy and stopping legality stay separate.
+internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = false,
+    bool ClosedDoorsTraversable = false)
+{
+    internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
+        new(state.IsUpright(unitId) &&
+            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).Phase is not null,
+            closedDoorsTraversable);
+
+    internal bool CanTraverse(TerrainKind terrain) => IgnoreTerrainAndEdges || terrain.Passable();
+    internal bool CanTraverse(EdgeKind edge) => IgnoreTerrainAndEdges || edge.Passable() ||
+        ClosedDoorsTraversable && edge == EdgeKind.ClosedDoor;
+}
+
 internal static class MovementRules
 {
     // Paths include the origin, so movement distance is path.Count - 1.
@@ -13,6 +27,7 @@ internal static class MovementRules
         HypotheticalPosition.Validate(state, moverId, from);
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
+        var traversal = MovementTraversal.For(state, moverId);
         // Relocate only the mover: its original cell is now unoccupied.
         var occupants = state.Physical.Figures.Where(f => f.Id != moverId)
             .ToDictionary(f => f.Position);
@@ -26,8 +41,8 @@ internal static class MovementRules
             foreach (var to in Neighbors(current)) // top, left, right, bottom
             {
                 if (!Inside(state.Physical.Board, to) || paths.ContainsKey(to) ||
-                    !state.Physical.Board.TerrainAt(to).Passable() ||
-                    !state.Physical.Board.EdgeBetween(current, to).Passable())
+                    !traversal.CanTraverse(state.Physical.Board.TerrainAt(to)) ||
+                    !traversal.CanTraverse(state.Physical.Board.EdgeBetween(current, to)))
                     continue;
                 if (occupants.TryGetValue(to, out var occupant) &&
                     state.Units.Single(u => u.Id == occupant.Id).SideId != unit.SideId)
@@ -37,9 +52,9 @@ internal static class MovementRules
             }
         }
 
-        // Friendly cells may be traversed but cannot be destinations.
+        // Friendly and impassable terrain cells may be traversed but cannot be destinations.
         return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(paths
-            .Where(pair => !occupants.ContainsKey(pair.Key))
+            .Where(pair => !occupants.ContainsKey(pair.Key) && state.Physical.Board.TerrainAt(pair.Key).Passable())
             .ToDictionary(pair => pair.Key,
                 pair => (IReadOnlyList<Cell>)pair.Value.AsReadOnly()));
     }
@@ -61,12 +76,13 @@ internal static class MovementRules
 internal static class ApproachRules
 {
     internal static int? Distance(Board board, Cell from, Cell goal,
-        bool closedDoorsTraversable = false) =>
-        Distances(board, from, goal, closedDoorsTraversable).TryGetValue(goal, out var distance) ? distance : null;
+        bool closedDoorsTraversable = false, MovementTraversal traversal = default) =>
+        Distances(board, from, goal, closedDoorsTraversable, traversal).TryGetValue(goal, out var distance) ? distance : null;
 
     internal static IReadOnlyDictionary<Cell, int> Distances(Board board, Cell from, Cell? goal = null,
-        bool closedDoorsTraversable = false)
+        bool closedDoorsTraversable = false, MovementTraversal traversal = default)
     {
+        traversal = traversal with { ClosedDoorsTraversable = traversal.ClosedDoorsTraversable || closedDoorsTraversable };
         if (!MovementRules.Inside(board, from) || goal is not null && !MovementRules.Inside(board, goal))
             throw new ArgumentException("Approach endpoints must be on the board.");
         var distances = new Dictionary<Cell, int> { [from] = 0 };
@@ -79,10 +95,8 @@ internal static class ApproachRules
             foreach (var next in MovementRules.Neighbors(current))
             {
                 if (!MovementRules.Inside(board, next) || distances.ContainsKey(next) ||
-                    !(board.EdgeBetween(current, next).Passable() ||
-                        board.EdgeBetween(current, next) == EdgeKind.ClosedDoor &&
-                        closedDoorsTraversable) ||
-                    next != goal && !board.TerrainAt(next).Passable()) continue;
+                    !traversal.CanTraverse(board.EdgeBetween(current, next)) ||
+                    next != goal && !traversal.CanTraverse(board.TerrainAt(next))) continue;
                 distances[next] = distances[current] + 1;
                 queue.Enqueue(next);
             }

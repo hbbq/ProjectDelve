@@ -37,6 +37,7 @@ public static class UnitAuthoring
 
     public static Entry CantAttack() => new CantAttackEntry();
     public static Entry OpenDoor() => new OpenDoorEntry();
+    public static Entry Phase() => new PhaseEntry();
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
@@ -135,6 +136,10 @@ public static class UnitAuthoring
     private sealed class OpenDoorEntry : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { FreeActions = type.FreeActions | UnitFreeAction.OpenDoor };
+    }
+    private sealed class PhaseEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Phase = new() };
     }
     private sealed class DoorEntry(TryOpenDoor mechanic) : Entry
     {

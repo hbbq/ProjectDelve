@@ -12,7 +12,7 @@ public static class PlaytestScenarios
         new(DefaultId, "Basic Combat", "Barbarian against Grunts: movement, Normal Attack and activation flow."),
         new("goblins", "Goblins", "Two Heroes, flanking opportunities and space for Goblins to retreat."),
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
-        new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed Zombie room."),
+        new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
         new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman through multiple routes as it spawns Goblins.")
     ]);
@@ -77,7 +77,8 @@ public static class PlaytestScenarios
             (UnitType.Wizard(), "wizard", 2, 6),
             (UnitType.Goblin(), "goblin-1", 6, 6), (UnitType.Goblin(), "goblin-2", 7, 8),
             (UnitType.SkeletonArcher(), "archer-1", 7, 4), (UnitType.SkeletonArcher(), "archer-2", 10, 8),
-            (UnitType.Zombie(), "zombie-1", 8, 3), (UnitType.Zombie(), "zombie-2", 10, 5)]);
+            (UnitType.Zombie(), "zombie-1", 8, 3), (UnitType.Zombie(), "zombie-2", 10, 5),
+            (UnitType.Ghost(), "ghost-1", 8, 5)]);
     }
 
     private static GameState FullParty()

@@ -53,6 +53,9 @@ public static class ContentDescriptions
         if (type.Undying is not null)
             entries.Add(new("undying", names.Undying ?? "Undying", "Capability",
                 "When upright and reduced to 0 HP, remain in your Cell at 1 HP and lay down instead of dying.\nWhile lying, die normally at 0 HP. Your next activation only stands you up and ends."));
+        if (type.Phase is not null)
+            entries.Add(new("phase", "Phase", "Capability",
+                "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nFriendly Units may be passed through; hostile Units block movement. End on an unoccupied, normally passable Cell.\nRange, Line of Sight and Attack rules remain normal."));
         if (type.Cleave is { } cleave)
             entries.Add(new("cleave", names.Cleave ?? "Cleave", "Follow-up",
                 $"After an Attack deals {cleave.TriggerDamage} or more damage to a Unit, you may immediately deal {cleave.Damage} damage to an adjacent enemy.", cleave.MaxUses));

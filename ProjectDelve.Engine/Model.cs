@@ -36,6 +36,7 @@ public sealed record AbilityPresentationNames
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Undying;
+public sealed record Phase;
 public sealed record Cleave(int MaxUses = 2)
 {
     public int TriggerDamage { get; init; } = 2;
@@ -99,6 +100,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
     public Undying? Undying { get; init; }
+    public Phase? Phase { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
     public HolyWave? HolyWave { get; init; }
@@ -138,6 +140,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Wizard(string id = UnitTypeIds.Wizard) => UnitRoster.Wizard(id);
     public static UnitType Grunt(string id = UnitTypeIds.Grunt) => UnitRoster.Grunt(id);
     public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitRoster.Zombie(id);
+    public static UnitType Ghost(string id = UnitTypeIds.Ghost) => UnitRoster.Ghost(id);
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitRoster.SkeletonArcher(id);
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);

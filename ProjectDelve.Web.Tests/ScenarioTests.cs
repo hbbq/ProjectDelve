@@ -31,7 +31,7 @@ public sealed class ScenarioTests
         { "basic-combat", 8, ["barbarian"], ["grunt"] },
         { "goblins", 10, ["barbarian", "rogue"], ["grunt", "goblin"] },
         { "archers", 12, ["barbarian", "rogue"], ["grunt", "goblin", "skeleton-archer"] },
-        { "wizard-doors", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie"] },
+        { "wizard-doors", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
         { "full-party-trolls", 15, ["barbarian", "rogue", "wizard", "cleric"], ["goblin", "skeleton-archer", "zombie", "troll"] },
         { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt"] }
     };
@@ -65,6 +65,50 @@ public sealed class ScenarioTests
         first.Physical.Board.Terrain.Clear(); first.Physical.Board.Edges.Clear(); first.Bag.Add("leak");
         Assert.Equal(expected, Serialize(second));
         Assert.Equal(expected, Serialize(PlaytestScenarios.Create(id)));
+    }
+
+    [Fact]
+    public void WizardRoomGhostPhasesThroughWallUsingGenericPresentationAndBehavior()
+    {
+        var state = PlaytestScenarios.Create("wizard-doors");
+        var ghost = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.Ghost);
+        var start = state.Physical.Figures.Single(f => f.Id == ghost.Id).Position;
+        Assert.Equal(new Cell(8, 5), start);
+        Assert.True(state.Physical.Board.TerrainAt(start).Passable());
+        var card = BrowserProjection.Cards(state)[ghost.Id];
+        Assert.Equal("Ghost", card.DisplayName);
+        var phase = Assert.Single(card.Entries, e => e.Content.Id == "phase");
+        Assert.Equal(state.Types.Single(t => t.Id == ghost.TypeId).CardEntries().Single(e => e.Id == "phase"), phase.Content);
+        Assert.Equal("Capability", phase.Content.Category);
+        Assert.Null(phase.Uses);
+
+        // Draw Ghost before any other Unit can alter the setup.
+        var random = new GhostFirstRandom();
+        var pending = GameEngine.StartRound(state, random, false);
+        Assert.Equal(ghost.Id, pending.NextInput!.UnitId);
+        var moved = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random, false);
+        var movement = Assert.Single(moved.Events, e => e.Kind == "MovementCompleted");
+        Assert.Equal(new Cell[] { new(8, 5), new(7, 5), new(6, 5) }, movement.Path);
+        Assert.Equal(EdgeKind.Wall, state.Physical.Board.EdgeBetween(movement.Path![0], movement.Path[1]));
+        Assert.True(moved.State.Physical.Board.TerrainAt(movement.Path[^1]).Passable());
+        Assert.Equal(state.Physical.Board.Edges, moved.State.Physical.Board.Edges);
+        Assert.DoesNotContain(moved.Events, e => e.Kind is "DoorOpened" or "DoorOpeningAttemptResolved");
+        Assert.DoesNotContain(moved.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
+        Assert.Contains("Ghost", PlaytestScenarios.Catalog.Single(s => s.Id == "wizard-doors").Description);
+
+        var game = new PlaytestGame(random);
+        var initial = game.StartScenario(0, "wizard-doors");
+        var round = game.StartRound(initial.Revision);
+        Assert.Contains(round.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == ghost.Id);
+        Assert.NotEqual(UnitTypeIds.Ghost, round.Result.NextInput?.TypeId);
+    }
+
+    private sealed class GhostFirstRandom : IRandomProvider
+    {
+        public string DrawToken(IReadOnlyList<string> bag) => bag.Contains(UnitTypeIds.Ghost) ? UnitTypeIds.Ghost : bag[0];
+        public AttackFace RollAttackDie() => throw new InvalidOperationException("Ghost has not reached attack range yet.");
+        public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Unexpected attack.");
+        public int RollD6() => throw new InvalidOperationException("Phase does not open Doors.");
     }
 
     [Fact]
@@ -221,6 +265,7 @@ public sealed class ScenarioTests
         });
         Assert.DoesNotContain("grunt", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("shaman", script, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ghost", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("new Board", script);
         var html = await client.GetStringAsync("/");
         Assert.Contains("id=\"scenario\"", html);

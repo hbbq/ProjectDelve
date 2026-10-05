@@ -4,6 +4,7 @@ public static class UnitTypeIds
 {
     public const string Grunt = "grunt-type";
     public const string Zombie = "zombie-type";
+    public const string Ghost = "ghost-type";
     public const string SkeletonArcher = "skeleton-archer-type";
     public const string Goblin = "goblin-type";
     public const string Troll = "troll-type";
@@ -22,6 +23,7 @@ internal static class UnitContent
         {
             UnitTypeIds.Grunt => UnitRoster.Grunt(),
             UnitTypeIds.Zombie => UnitRoster.Zombie(),
+            UnitTypeIds.Ghost => UnitRoster.Ghost(),
             UnitTypeIds.SkeletonArcher => UnitRoster.SkeletonArcher(),
             UnitTypeIds.Goblin => UnitRoster.Goblin(),
             UnitTypeIds.Troll => UnitRoster.Troll(),

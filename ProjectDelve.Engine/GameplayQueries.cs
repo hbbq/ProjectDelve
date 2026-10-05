@@ -14,7 +14,8 @@ public interface IGameplayQueries
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
     // position is reachable under the normal attack range and LOS rules.
-    // The caller selects edge traversal for its analysis; this never changes movement legality.
+    // Uses the Unit's traversal capabilities; the caller may additionally permit Closed Doors
+    // for approach analysis. That extra preference never changes actual movement legality.
     int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false);
 
     // Terrain-route distance to the nearest living hostile, ignoring figure obstacles.
@@ -62,8 +63,10 @@ internal sealed class GameplayQueries : IGameplayQueries
     public int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
     {
         HypotheticalPosition.Validate(world, unitId, position);
-        return ApproachRules.Distances(world.Physical.Board, position, closedDoorsTraversable: closedDoorsTraversable)
-            .Where(pair => world.Units.Any(target => AttackRules.EvaluateApproachFrom(world, unitId, pair.Key, target.Id)
+        return ApproachRules.Distances(world.Physical.Board, position,
+                traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable))
+            .Where(pair => world.Physical.Board.TerrainAt(pair.Key).Passable() &&
+                world.Units.Any(target => AttackRules.EvaluateApproachFrom(world, unitId, pair.Key, target.Id)
                 == UnitTargetEvaluation.Possible))
             .Select(pair => (int?)pair.Value).Min();
     }
@@ -82,7 +85,8 @@ internal sealed class GameplayQueries : IGameplayQueries
         HypotheticalPosition.Validate(world, unitId, position);
         var side = world.Units.Single(u => u.Id == unitId).SideId;
         return world.Units.Where(u => u.CurrentHp > 0 && u.SideId != side)
-            .Select(u => ApproachRules.Distance(world.Physical.Board, position, PositionOf(u.Id), closedDoorsTraversable))
+            .Select(u => ApproachRules.Distance(world.Physical.Board, position, PositionOf(u.Id),
+                traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable)))
             .Where(distance => distance.HasValue).Min();
     }
 }

@@ -67,7 +67,7 @@ The Web host serves a plain HTML/CSS/JavaScript client and six server-owned play
 | `basic-combat` | Basic Combat | 8x8 | Barbarian; several Grunts |
 | `goblins` | Goblins | 10x10 | Barbarian, Rogue; Grunts and Goblins |
 | `archers` | Archers | 12x12 | Barbarian, Rogue; Grunts, Goblins and Skeleton Archers |
-| `wizard-doors` | Wizard / Doors | 15x15 | Barbarian, Rogue, Wizard; Goblins, Skeleton Archers and Zombies |
+| `wizard-doors` | Wizard / Doors | 15x15 | Barbarian, Rogue, Wizard; Goblins, Skeleton Archers, Zombies and a Ghost |
 | `full-party-trolls` | Full Party / Trolls | 15x15 | All four Heroes; Goblins, Skeleton Archers, Zombies and Trolls |
 | `shaman-hunt` | Shaman Hunt | 15x15 | All four Heroes; Shaman and Grunt, with no initial Goblins |
 
@@ -88,7 +88,7 @@ Across the catalog, the roster includes all ten current Unit Types (stats in MOV
 | Shaman | 2 / 0 / 0 / 3 / 1 | Summon Goblin, Flee; no Normal Attack |
 | Troll | 2 / 1 / 4 / 4 / 1 | NormalAttack, TryOpenDoor(4/6), Undying, ApproachThroughClosedDoors |
 
-Early maps offer movement, flanks, retreat space and broken sight lines. Wizard / Doors encloses a five-by-five Zombie room with two gates. Full Party / Trolls adds another broad gated room and partial partitions, leaving several routes through the central area. Shaman Hunt uses staggered walls, open Doors and obstacles; the Shaman remains reachable and flees through ordinary terrain paths. Its first spawned Goblin begins Lying and enters a later round's bag only through the normal snapshot rules. No scenario adds special rules.
+Early maps offer movement, flanks, retreat space and broken sight lines. Wizard / Doors encloses a five-by-five room with two gates: Zombies try the Doors while a Ghost near the southwest corner can phase through the Walls toward the Heroes, still needing ordinary LOS to attack. Full Party / Trolls adds another broad gated room and partial partitions, leaving several routes through the central area. Shaman Hunt uses staggered walls, open Doors and obstacles; the Shaman remains reachable and flees through ordinary terrain paths. Its first spawned Goblin begins Lying and enters a later round's bag only through the normal snapshot rules. No scenario adds special rules.
 
 The responsive layout caps board width by the viewport height on desktop, gives the board a larger column beside the debug panel, and stacks the panel below at narrow widths. Explicit shrinkable grid tracks keep cells square; percentage positioning aligns figures, edges, movement highlights, and click targets. Cell labels, figures, and edge thickness scale with the board. Small cells retain coordinates and terrain tooltips even when their text is compact. No game rules run in JavaScript.
 
@@ -117,7 +117,7 @@ Barbarian explicitly supplies a `BonusActionAbility` composed of its content nam
 
 Run the browser renderer and interaction checks with `node --test ProjectDelve.Web.Tests/door-choice.test.cjs`.
 
-The host routes Barbarian, Rogue, Cleric and Wizard to player input, and all six Monster Types to the existing default provider. The Engine and Console have no Web dependencies. Web tests cover the production catalog, fresh independent setups, restarts, activation/follow-up replacement, Shaman spawning and round bags, and the HTTP controls. Detailed courtyard interactions retain the old map as a test-only fixture. Run the full suite with `dotnet test ProjectDelve.sln`; renderer checks use the Node command above.
+The host routes Barbarian, Rogue, Cleric and Wizard to player input, and all seven Monster Types to the existing default provider. The Engine and Console have no Web dependencies. Web tests cover the production catalog, fresh independent setups, restarts, activation/follow-up replacement, Shaman spawning and round bags, and the HTTP controls. Detailed courtyard interactions retain the old map as a test-only fixture. Run the full suite with `dotnet test ProjectDelve.sln`; renderer checks use the Node command above.
 
 
 The shared Unit Card shows the active Unit, retains the most recently active Unit, and temporarily inspects a board Unit on hover. `UnitType.DisplayName` and domain-owned `CardEntryDescription` records supply names, categories and printed rules text for Actions, Free Actions, Bonus Actions, passives and playable follow-ups. Monster Behavior remains decision policy and is excluded from these entries. Concrete rules and usage counters retain their existing engine representations.
