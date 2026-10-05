@@ -52,6 +52,8 @@ public static class UnitAuthoring
     public static Cleave Cleave(int triggerDamage, int damage) => new() { TriggerDamage = triggerDamage, Damage = damage };
     public static HolyWave HolyWave() => new();
     public static Fireball Fireball() => new();
+    public static FireBreath FireBreath() => new();
+    public static ClawAttack ClawAttack(int atkBonus = 1) => new(atkBonus);
     public static AdjacentFriendlyUnitsDefenceBonus AdjacentFriendliesDefenceBonus(int amount) => new(amount);
 
     // Usage overloads allow only the timing/use semantics already supported by each mechanic.
@@ -63,6 +65,10 @@ public static class UnitAuthoring
         new NamedEntry(new WaveEntry(mechanic with { MaxUses = usage.Count }), name, NamedMechanic.HolyWave);
     public static Entry Ability(string name, UseLimit usage, Fireball mechanic) =>
         new NamedEntry(new FireballEntry(mechanic with { MaxUses = usage.Count }), name, NamedMechanic.Fireball);
+    public static Entry Ability(string name, UnlimitedUsage usage, FireBreath mechanic) =>
+        new NamedEntry(new BreathEntry(), name, NamedMechanic.FireBreath);
+    public static Entry Ability(string name, UnlimitedUsage usage, ClawAttack mechanic) =>
+        new NamedEntry(new ClawEntry(mechanic), name, NamedMechanic.ClawAttack);
     public static Entry Ability(string name, UnlimitedUsage usage, AdjacentFriendlyUnitsDefenceBonus mechanic) =>
         new NamedEntry(new AuraEntry(mechanic), name, NamedMechanic.Aura);
     public static Entry Ability(string name, UnlimitedUsage usage, Fury mechanic) =>
@@ -105,7 +111,7 @@ public static class UnitAuthoring
     public static UnitType WithBehaviors(this UnitType type, params UnitBehavior[] behaviors) =>
         type with { Behaviors = behaviors.Aggregate(type.Behaviors, (combined, behavior) => combined | behavior) };
 
-    private enum NamedMechanic { Heal, Cleave, HolyWave, Fireball, Aura, Fury, Backstab, Undying, Telekinesis, TryOpenDoor, Summon, MoveAfterAttack }
+    private enum NamedMechanic { Heal, Cleave, HolyWave, Fireball, FireBreath, ClawAttack, Aura, Fury, Backstab, Undying, Telekinesis, TryOpenDoor, Summon, MoveAfterAttack }
     private sealed class NamedEntry(Entry mechanic, string name, NamedMechanic kind) : Entry
     {
         internal override Type Slot => mechanic.Slot;
@@ -119,6 +125,8 @@ public static class UnitAuthoring
                 NamedMechanic.Cleave => names with { Cleave = name == "Cleave" ? null : name },
                 NamedMechanic.HolyWave => names with { HolyWave = name == "Holy Wave" ? null : name },
                 NamedMechanic.Fireball => names with { Fireball = name == "Fireball" ? null : name },
+                NamedMechanic.FireBreath => names with { FireBreath = name == "Fire Breath" ? null : name },
+                NamedMechanic.ClawAttack => names with { ClawAttack = name == "Claw Attack" ? null : name },
                 NamedMechanic.Aura => names with { Aura = name == "Aura" ? null : name },
                 NamedMechanic.Fury => names with { Fury = name == "Fury" ? null : name },
                 NamedMechanic.Backstab => names with { Backstab = name == "Backstab" ? null : name },
@@ -196,6 +204,14 @@ public static class UnitAuthoring
     private sealed class FireballEntry(Fireball mechanic) : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Fireball, Fireball = mechanic };
+    }
+    private sealed class BreathEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.FireBreath };
+    }
+    private sealed class ClawEntry(ClawAttack mechanic) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.ClawAttack, ClawAttack = mechanic };
     }
     private sealed class AuraEntry(AdjacentFriendlyUnitsDefenceBonus mechanic) : Entry
     {

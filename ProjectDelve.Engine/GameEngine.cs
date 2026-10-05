@@ -206,7 +206,20 @@ public static class GameEngine
                     {
                         case UnitAction.NormalAttack:
                             ResolveAttack(state, request.UnitId!,
-                                new([action.TargetId!], state.EffectiveAtkAgainst(request.UnitId!, action.TargetId!)), random, events);
+                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.NormalAttack)), random, events);
+                            attacked = true;
+                            break;
+                        case UnitAction.ClawAttack:
+                            var clawType = state.Types.Single(t => t.Id == request.TypeId);
+                            ResolveAttack(state, request.UnitId!,
+                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.ClawAttack),
+                                    clawType.AbilityNames.ClawAttack ?? "Claw Attack"), random, events);
+                            attacked = true;
+                            break;
+                        case UnitAction.FireBreath:
+                            ResolveAttack(state, request.UnitId!,
+                                new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.FireBreath),
+                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.FireBreath ?? "Fire Breath"), random, events);
                             attacked = true;
                             break;
                         case UnitAction.HolyWave:
@@ -228,7 +241,7 @@ public static class GameEngine
                                 FireballUses = new(fireballUses.MaxUses, fireballUses.RemainingUses - 1)
                             };
                             ResolveAttack(state, request.UnitId!,
-                                new(action.TargetIds, state.EffectiveAtkOf(request.UnitId!),
+                                new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.Fireball),
                                     state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Fireball ?? "Fireball"), random, events);
                             attacked = true;
                             break;
@@ -372,6 +385,19 @@ public static class GameEngine
                     == UnitTargetEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
+        if (actions.HasFlag(UnitAction.ClawAttack))
+            candidates.AddRange(state.Units
+                .Where(target => AttackRules.EvaluateApproachFrom(state, unit.Id, from, target.Id, UnitAction.ClawAttack)
+                    == UnitTargetEvaluation.Possible)
+                .Select(target => new Candidate($"claw-attack:{target.Id}", Action: UnitAction.ClawAttack, TargetId: target.Id)));
+        if (actions.HasFlag(UnitAction.FireBreath))
+        {
+            var targets = state.Units.Where(target =>
+                AttackRules.EvaluateApproachFrom(state, unit.Id, from, target.Id, UnitAction.FireBreath)
+                    == UnitTargetEvaluation.Possible).Select(target => target.Id).ToImmutableArray();
+            if (!targets.IsEmpty)
+                candidates.Add(new Candidate("fire-breath", Action: UnitAction.FireBreath) { TargetIds = targets });
+        }
         if (actions.HasFlag(UnitAction.Heal) && type.Heal is not null &&
             unit.HealUses is { RemainingUses: > 0 })
             candidates.AddRange(state.Units.Where(target => target.Id != unit.Id &&
@@ -547,8 +573,9 @@ public static class GameEngine
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
-    // Normal Attack and Fireball supply membership and ATK independently.
-    // Resolution owns one shared roll, per-target results and post-Attack processing.
+    // Every Attack supplies its complete membership and authoritative ATK at Attack start.
+    // One shared Attack roll is the general rule, irrespective of target selection.
+    // Resolution snapshots DEF, then resolves per-target damage/death and follow-ups.
     private sealed record SharedRollAttack(ImmutableArray<string> TargetIds, int AttackDice, string? AbilityName = null);
     private sealed record AttackTargetDice(string TargetId, int DefenceDice);
 
@@ -675,6 +702,7 @@ public static class GameEngine
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
                 t.Fury is { AdjacentEnemyThreshold: < 1 } ||
                 (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
+                (t.Actions.HasFlag(UnitAction.ClawAttack) && t.ClawAttack is null) ||
                 (t.SummonAdjacent is { } summon && (string.IsNullOrWhiteSpace(summon.UnitTypeId) ||
                     !Enum.IsDefined(summon.InitialPosture) || UnitContent.Find(summon.UnitTypeId, state.Types) is null)) ||
                 t.HolyWave is { MaxUses: < 1 } ||

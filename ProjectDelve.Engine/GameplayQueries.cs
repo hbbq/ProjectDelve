@@ -7,6 +7,7 @@ public interface IGameplayQueries
     // Content metadata only; the provider decides whether to use these preferences.
     UnitBehavior BehaviorsOf(string unitId);
     int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId);
+    // Any supported hostile-target Attack, using authoritative Action targeting.
     bool CanAttackHostileFrom(string unitId, Cell position);
     // Manhattan distance to the nearest legal NormalAttack target; null if none exists.
     int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position);
@@ -14,7 +15,7 @@ public interface IGameplayQueries
     bool HasNearbyHostileThreatFrom(string unitId, Cell position);
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
-    // position is reachable under the normal attack range and LOS rules.
+    // position is reachable under the Unit's supported Attack targeting rules.
     // Uses the Unit's traversal capabilities; the caller may additionally permit Closed Doors
     // for approach analysis. That extra preference never changes actual movement legality.
     int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false);
@@ -47,9 +48,12 @@ internal sealed class GameplayQueries : IGameplayQueries
         return SpatialRules.ManhattanDistance(OccupiedCellsOf(firstUnitId), OccupiedCellsOf(secondUnitId));
     }
 
-    public bool CanAttackHostileFrom(string unitId, Cell position) =>
-        world.Units.Any(target => AttackRules.EvaluateFrom(world, unitId, position, target.Id)
+    public bool CanAttackHostileFrom(string unitId, Cell position)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        return world.Units.Any(target => AttackRules.EvaluateAvailableApproachFrom(world, unitId, position, target.Id)
             == UnitTargetEvaluation.Possible);
+    }
 
     public int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position)
     {
@@ -69,7 +73,7 @@ internal sealed class GameplayQueries : IGameplayQueries
                 traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
                 footprint: FootprintGeometry.FootprintOf(world, unitId))
             .Where(pair => SpatialRules.Fits(world.Physical.Board, FootprintGeometry.FootprintOf(world, unitId), pair.Key) &&
-                world.Units.Any(target => AttackRules.EvaluateApproachFrom(world, unitId, pair.Key, target.Id)
+                world.Units.Any(target => AttackRules.EvaluateAvailableApproachFrom(world, unitId, pair.Key, target.Id)
                 == UnitTargetEvaluation.Possible))
             .Select(pair => (int?)pair.Value).Min();
     }

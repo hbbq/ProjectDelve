@@ -16,7 +16,7 @@ internal static class AttackRules
     // A future attack position can currently contain a figure. Occupancy is
     // ignored for this evaluation; range and LOS still use the shared rules.
     internal static UnitTargetEvaluation EvaluateApproachFrom(
-        GameState state, string attackerId, Cell from, string targetId)
+        GameState state, string attackerId, Cell from, string targetId, UnitAction action = UnitAction.NormalAttack)
     {
         // Position-dependent passives must see the same placement as targeting geometry.
         var figure = state.Physical.Figures.Single(f => f.Id == attackerId);
@@ -27,13 +27,39 @@ internal static class AttackRules
         }
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
-        if (!state.IsUpright(attackerId) || !stats.Actions.HasFlag(UnitAction.NormalAttack) || state.EffectiveAtkAgainst(attackerId, targetId) <= 0)
+        var attackDice = AttackDice(state, attackerId, targetId, action);
+        if (!state.IsUpright(attackerId) || !stats.Actions.HasFlag(action) || attackDice <= 0)
             return UnitTargetEvaluation.NotPossible;
 
+        if (action == UnitAction.ClawAttack)
+        {
+            var target = state.Units.Single(u => u.Id == targetId);
+            return stats.ClawAttack is not null && target.CurrentHp > 0 && target.SideId != attacker.SideId &&
+                SpatialRules.AreAdjacent(state, attackerId, targetId)
+                ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
+        }
         return EvaluateHostileTargetFrom(state, attackerId, from, targetId);
     }
 
-    // Shared Unit targeting geometry for Normal Attack and Telekinesis, independent of ATK or Action content.
+    internal static int AttackDice(GameState state, string attackerId, string? targetId, UnitAction action)
+    {
+        // Fireball and the Dragon's Fire Breath use general effective ATK.
+        // Single-target Attacks retain target-specific modifiers such as Backstab.
+        if (action is UnitAction.FireBreath or UnitAction.Fireball) return state.EffectiveAtkOf(attackerId);
+        var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == attackerId).TypeId);
+        return state.EffectiveAtkAgainst(attackerId, targetId!) +
+            (action == UnitAction.ClawAttack ? type.ClawAttack?.AtkBonus ?? 0 : 0);
+    }
+
+    // Movement asks whether any supported Attack is possible, using the same
+    // target evaluation as current Action candidates. No tactical target-count scoring.
+    internal static UnitTargetEvaluation EvaluateAvailableApproachFrom(
+        GameState state, string attackerId, Cell from, string targetId) =>
+        new[] { UnitAction.NormalAttack, UnitAction.FireBreath, UnitAction.ClawAttack }
+            .Any(action => EvaluateApproachFrom(state, attackerId, from, targetId, action) == UnitTargetEvaluation.Possible)
+            ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
+
+    // Shared Unit targeting geometry for ranged Attacks and Telekinesis, independent of ATK or Action content.
     internal static UnitTargetEvaluation EvaluateHostileTargetFrom(
         GameState state, string sourceId, Cell from, string targetId)
     {

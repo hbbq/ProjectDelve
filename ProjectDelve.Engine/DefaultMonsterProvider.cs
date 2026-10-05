@@ -99,10 +99,18 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
             return request.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent)
                 .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
                 .FirstOrDefault()?.Key ?? NoCandidate(request);
+        var preferredAttack = UnitAction.NormalAttack;
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferFireBreathThenClaw))
+        {
+            var breath = request.Candidates.FirstOrDefault(c => c.Action == UnitAction.FireBreath && c.TargetIds.Length >= 2);
+            if (breath is not null) return breath.Key;
+            if (request.Candidates.Any(c => c.Action == UnitAction.ClawAttack))
+                preferredAttack = UnitAction.ClawAttack;
+        }
         // Rank legal targets by Manhattan distance, then top-left board order.
         // Melee's special range rule determines legality, not this preference.
         var nearest = request.Candidates
-            .Where(c => c.Action == UnitAction.NormalAttack)
+            .Where(c => c.Action == preferredAttack)
             .Select(c => new
             {
                 Candidate = c,

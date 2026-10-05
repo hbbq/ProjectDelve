@@ -18,6 +18,10 @@ public static class ContentDescriptions
         var names = type.AbilityNames;
         if (type.Actions.HasFlag(UnitAction.NormalAttack))
             entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight."));
+        if (type.Actions.HasFlag(UnitAction.FireBreath))
+            entries.Add(new("fire-breath", names.FireBreath ?? "Fire Breath", "Action", "Attack all enemies within RNG."));
+        if (type.Actions.HasFlag(UnitAction.ClawAttack) && type.ClawAttack is { } claw)
+            entries.Add(new("claw-attack", names.ClawAttack ?? "Claw Attack", "Action", $"Attack one adjacent enemy with ATK {claw.AtkBonus:+0;-0;0}."));
         if (type.Actions.HasFlag(UnitAction.Heal) && type.Heal is { } heal)
             entries.Add(new("heal", names.Heal ?? "Heal", "Action", $"Restore up to {heal.Amount} HP to an adjacent damaged friendly Unit.", heal.MaxUses));
         if (type.Actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is { } wave)
@@ -74,6 +78,8 @@ public static class ContentDescriptions
         { TryOpenDoor: not null } => "try-open-door",
         { FreeAction: UnitFreeAction.OpenDoor } => "open-door",
         { Action: UnitAction.NormalAttack } => "attack",
+        { Action: UnitAction.FireBreath } => "fire-breath",
+        { Action: UnitAction.ClawAttack } => "claw-attack",
         { Action: UnitAction.Heal } => "heal",
         { Action: UnitAction.HolyWave } => "holy-wave",
         { Action: UnitAction.Fireball } => "fireball",

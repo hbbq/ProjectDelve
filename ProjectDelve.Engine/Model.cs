@@ -11,11 +11,11 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16, PreferFireBreathThenClaw = 32 }
 public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
 public sealed record Telekinesis;
 // Presentation only: fixed mechanic/counter identities never depend on these names.
@@ -25,6 +25,8 @@ public sealed record AbilityPresentationNames
     public string? Cleave { get; init; }
     public string? HolyWave { get; init; }
     public string? Fireball { get; init; }
+    public string? FireBreath { get; init; }
+    public string? ClawAttack { get; init; }
     public string? Aura { get; init; }
     public string? Fury { get; init; }
     public string? Backstab { get; init; }
@@ -50,6 +52,8 @@ public sealed record Heal(int MaxUses = 2)
 }
 public sealed record HolyWave(int MaxUses = 2);
 public sealed record Fireball(int MaxUses = 2);
+public sealed record FireBreath;
+public sealed record ClawAttack(int AtkBonus = 1);
 public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
 public sealed record Fury
 {
@@ -108,6 +112,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Heal? Heal { get; init; }
     public HolyWave? HolyWave { get; init; }
     public Fireball? Fireball { get; init; }
+    public ClawAttack? ClawAttack { get; init; }
     public IReadOnlyList<PassiveDescription> Passives
     {
         get

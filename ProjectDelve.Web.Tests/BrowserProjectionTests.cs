@@ -9,6 +9,38 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class BrowserProjectionTests
 {
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void DragonActionsUseGenericCardsDirectAndUnitChoicesWithAuthoritativeTargets(bool aliases)
+    {
+        var dragon = UnitType.RedDragon();
+        if (aliases) dragon = dragon with { AbilityNames = new() { FireBreath = "Embers", ClawAttack = "Slash" } };
+        var enemy = new UnitType("enemy", 0, 0, 0, 0, 1);
+        var state = new GameState
+        {
+            Physical = new(new Board(8, 6, []), [new("dragon", new(1, 1)), new("a", new(3, 1)), new("b", new(1, 4))]),
+            Types = [dragon, enemy], Units = [dragon.CreateUnit("dragon", "red"), enemy.CreateUnit("a", "blue"), enemy.CreateUnit("b", "blue")],
+            Round = 1, ActiveTypeId = dragon.Id, CurrentUnitId = "dragon", MoveDone = true
+        };
+        var request = GameEngine.RefreshChoices(state, new Dice(), false).NextInput!;
+        var candidates = request.Candidates;
+        var presentation = BrowserProjection.Decision(request, state)!;
+        var cards = BrowserProjection.Cards(state)["dragon"].Entries.ToDictionary(e => e.Content.Id);
+        Assert.Equal("Attack all enemies within RNG.", cards["fire-breath"].Content.Description);
+        Assert.Equal("Attack one adjacent enemy with ATK +1.", cards["claw-attack"].Content.Description);
+        Assert.Null(cards["fire-breath"].Uses); Assert.Null(cards["claw-attack"].Uses);
+        var breath = Assert.Single(presentation.Candidates, c => c.EntryId == "fire-breath");
+        Assert.Equal(InteractionKind.Direct, breath.Interaction.Kind);
+        Assert.Equal(new[] { "a", "b" }, breath.AffectedUnitIds);
+        Assert.Contains(aliases ? "Embers" : "Fire Breath", breath.Label);
+        Assert.True(breath.Relevant);
+        var claw = Assert.Single(presentation.Candidates, c => c.EntryId == "claw-attack");
+        Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: "a"), claw.Interaction);
+        Assert.Equal(new[] { "a" }, claw.AffectedUnitIds);
+        Assert.Contains(aliases ? "Slash" : "Claw Attack", claw.Label);
+        Assert.Equal(candidates.Single(c => c.Action == UnitAction.ClawAttack).Key, claw.Key);
+    }
+
     [Fact]
     public void SummonCardsUseConfiguredTypeNamePostureAndTypedChoiceDespitePrintedAlias()
     {

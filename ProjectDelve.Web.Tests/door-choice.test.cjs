@@ -254,7 +254,7 @@ for (const mode of ["animate", "disabled", "skip"]) {
   });
 }
 
-for (const name of ["Holy Wave", "An unfamiliar ability"]) for (const affected of [["a"], ["a", "b"]]) {
+for (const name of ["Holy Wave", "Fire Breath", "An unfamiliar ability"]) for (const affected of [["a"], ["a", "b"]]) {
   test(`Direct ${name} previews authoritative membership (${affected.length}) and submits one opaque key`, () => {
     const direct = choice("opaque complete choice", "Direct", {}, { entryId: "opaque-entry", affectedUnitIds: affected });
     const initial = response([direct, choice("opaque single target", "Unit", { unitId: "a" })],
@@ -289,7 +289,7 @@ for (const name of ["Holy Wave", "An unfamiliar ability"]) for (const affected o
   });
 }
 
-for (const name of ["Cleave", "Heal", "New unit ability"]) {
+for (const name of ["Cleave", "Heal", "Claw Attack", "New unit ability"]) {
   test(`Unit interaction ${name} trusts choices despite contradictory state`, () => {
     const supplied = choice("unparsed unit key", "Unit", { unitId: "b" }, { entryId: "arbitrary", affectedUnitIds: ["b"], label: name });
     const initial = response([supplied], [entry("arbitrary", name)]);
@@ -529,7 +529,7 @@ for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surf
 }
 
 test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
-  assert.doesNotMatch(script, /Troll|Undying|Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
+  assert.doesNotMatch(script, /Red Dragon|Fire Breath|Claw Attack|Troll|Undying|Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
 });
 
 test("Lying tokens render generic physical posture with readable identity and supplied choices", () => {
