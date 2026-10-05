@@ -730,6 +730,25 @@ Throwing Knife starts with 2 remaining uses and a maximum of 2. Using it spends 
 
 Throwing Knife does not perform an Attack itself. It changes the Rogue's effective stats; a later normal Attack uses those values. With base `RNG 1` and `ATK 3`, the Rogue therefore has `RNG 3` and `ATK 2` after using it. Gaining a new legal Attack target is sufficient to make Throwing Knife relevant even though its attack strength is lower.
 
+The Rogue also has the passive ability **Backstab**:
+
+```text
+Backstab
+Passive
++1 ATK when attacking an enemy
+that is adjacent to another friendly Unit.
+```
+
+Backstab is derived from the current Game State and the specific target of an Attack. It applies when the target is adjacent to at least one friendly Unit other than the attacking Rogue. Friendly is determined by Side relationship rather than Hero classification, controller, Unit Type, or Behavior. Multiple qualifying friendly Units still provide only a single `+1 ATK` bonus.
+
+For Backstab, adjacent uses the established adjacency rule: one of the eight surrounding cells with normal Line of Sight between the cells. The Rogue itself does not satisfy the requirement merely by being adjacent to its target.
+
+Backstab is target-specific rather than a general change to the Rogue's effective `ATK`. General effective stats describe the Unit before considering a particular Attack target; attack resolution may then apply additional target-specific modifiers to determine the authoritative Attack Dice for that combat. Backstab contributes `+1 ATK` at this target-specific stage.
+
+For example, the Rogue normally has `ATK 3`, and attacks a qualifying Backstab target with 4 Attack Dice. After Throwing Knife, the Rogue's general effective stats are `RNG 3` and `ATK 2`; against a qualifying Backstab target that Attack therefore rolls 3 Attack Dice.
+
+Any rule that evaluates the effectiveness of a specific Attack, including relevance comparison, uses the same authoritative target-specific attack values as actual attack resolution. Backstab must not be reimplemented as special relevance logic or inferred by presentation code.
+
 ### Free Actions
 
 A Free Action consumes neither the Unit's Move opportunity nor Action opportunity and does not count as using any Bonus Action ability. It may have its own legality conditions, usage limits, exhaustion, or other restrictions.
@@ -851,7 +870,9 @@ Cleave does not require persistent activation history such as the last choice ma
 
 A normal Attack is a basic Action.
 
-A Unit can make a normal Attack only when both its effective `RNG` and effective `ATK` permit it. Base stats may be modified by future rules or abilities; attack resolution uses the resulting effective stat values. The rules for combining modifiers are deliberately deferred until needed.
+A Unit can make a normal Attack only when both its effective `RNG` and effective `ATK` permit it. Base stats may be modified by rules or abilities. General effective stats are derived without assuming a particular target. When an Attack targets a specific Unit, target-specific rules may further modify the values used for that combat. Attack resolution uses these authoritative target-specific attack inputs where applicable rather than treating the Unit's general effective stats as necessarily final.
+
+The first target-specific attack modifier is the Rogue's Backstab passive. Broader categories, ordering, or a universal combat-modifier framework are deliberately deferred until concrete content requires them.
 
 ### Range
 
@@ -889,7 +910,7 @@ Which terrain types, fixed objects, walls, doors, windows, and other edge featur
 
 ### Attack and defence dice
 
-The attacker rolls a number of Attack Dice equal to its effective `ATK`.
+The attacker rolls a number of Attack Dice equal to the authoritative `ATK` for that specific Attack, including any applicable target-specific modifiers such as Backstab.
 
 An Attack Die is a physical six-sided die with:
 
