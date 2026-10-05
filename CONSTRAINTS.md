@@ -700,6 +700,27 @@ Resolving Heal immediately spends one use and restores up to 2 current HP to the
 
 After Heal resolves, the Cleric's Action is complete and ordinary legal choices are generated again from the resulting state. Heal does not introduce a general healing, targeting, or effect framework beyond the rules required by this concrete ability.
 
+The Cleric's third ability is **Holy Wave**:
+
+```text
+Holy Wave [2/game]
+Action
+
+Attack all adjacent enemies with ATK=2.
+```
+
+Holy Wave starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity and is an Attack for rules that refer to an Attack. Using Holy Wave therefore consumes the Cleric's Action just as a normal Attack would.
+
+Holy Wave targets every adjacent hostile Unit. Adjacent uses the established eight surrounding cells plus normal Line of Sight rule. The complete target set is determined when the Attack begins, before any dice are rolled or Damage is resolved.
+
+`ATK=2` is a fixed attack value for Holy Wave rather than a modifier to the Cleric's general effective `ATK`. The Cleric rolls 2 Attack Dice once for the whole Holy Wave. The resulting number of Hits is shared by every target. Each target then rolls its own effective `DEF` separately, and Damage is calculated and applied separately to each target using the normal `max(0, Hits - Blocks)` rule. Normal death resolution applies to each target.
+
+Holy Wave is one Attack with multiple targets, not one separate Attack per target. Rules that occur after an Attack therefore occur once after the complete Holy Wave has resolved. For example, a Unit with Move After Attack that somehow used Holy Wave would receive one Move After Attack follow-up, not one for each target.
+
+Damage dealt by a multi-target Attack belongs to each target separately. Damage values from different targets are not added together when a rule asks whether an Attack dealt a particular amount of Damage to a Unit. In particular, Cleave becomes eligible when Holy Wave deals at least 2 Damage to at least one Unit; dealing 1 Damage to each of two Units does not satisfy Cleave.
+
+Holy Wave requires only this concrete shared-roll multi-target Attack behavior. Broader area-of-effect shapes, arbitrary multi-target attack profiles, attack-effect categories, or a universal effect framework are deliberately deferred until concrete content requires them.
+
 ### Bonus Actions
 
 Each individual ability explicitly marked `Bonus Action` may be used at most once during a Unit's activation. Different Bonus Action abilities do not compete for a shared Bonus Action opportunity and may be combined during the same activation. As a common baseline, a Bonus Action ability is legal while the Unit's activation is active, that specific ability has not already been used during the activation, and any required uses remain. Individual abilities may define additional legality conditions, such as requiring a valid target or a damaged Unit. Such restrictions are actual ability rules and are distinct from relevance; they should not be inferred merely because using an ability would normally be unhelpful.
@@ -872,15 +893,15 @@ The Goblin's Move After Attack is the first mandatory example. The Barbarian abi
 ```text
 Cleave [2/game]
 
-After an Attack deals 2 or more damage,
+After an Attack deals 2 or more damage to a Unit,
 you may immediately deal 1 damage to an adjacent enemy.
 ```
 
-Cleave starts each game with 2 remaining uses and a maximum of 2. After the Barbarian's Attack has fully resolved, if that Attack dealt at least 2 Damage, Cleave has at least one use remaining, and at least one legal Cleave target exists, an optional Cleave follow-up is created. Ordinary activation choices do not resume until the Barbarian either uses Cleave or declines that follow-up.
+Cleave starts each game with 2 remaining uses and a maximum of 2. After the Barbarian's Attack has fully resolved, if that Attack dealt at least 2 Damage to at least one Unit, Cleave has at least one use remaining, and at least one legal Cleave target exists, an optional Cleave follow-up is created. Damage dealt to different targets is not added together for this condition. Ordinary activation choices do not resume until the Barbarian either uses Cleave or declines that follow-up.
 
 Each adjacent hostile Unit is a separate legal Cleave target. For Cleave, adjacent uses the same eight surrounding cells and normal Line of Sight requirement used by other adjacency rules. Choosing a target immediately spends one Cleave use and deals 1 Damage directly to that target. This Damage is not an Attack and does not roll Attack or Defence Dice. Current HP is reduced by 1, never below zero, and normal death resolution applies.
 
-Declining Cleave spends no use. Whether used or declined, that particular follow-up then ends and ordinary legal choices are generated again. Cleave has no once-per-activation restriction of its own: if a future rule allows the Barbarian to make another Attack during the same activation and that Attack independently deals at least 2 Damage, it may create another Cleave follow-up if a use remains.
+Declining Cleave spends no use. Whether used or declined, that particular follow-up then ends and ordinary legal choices are generated again. Cleave has no once-per-activation restriction of its own: if a future rule allows the Barbarian to make another Attack during the same activation and that Attack independently deals at least 2 Damage to a Unit, it may create another Cleave follow-up if a use remains.
 
 Cleave does not require persistent activation history such as the last choice made or the maximum Damage dealt earlier in the activation. Its eligibility comes directly from the Attack that has just resolved, preserving the physical rule that Cleave is an immediate continuation rather than an opportunity that can be saved for later.
 
@@ -948,7 +969,9 @@ Damage is:
 
 `max(0, Hits - Blocks)`
 
-This value is the **Damage dealt by the Attack**. Damage dealt is determined before applying the defender's remaining HP and is not capped by that HP. For example, an Attack that produces 2 Damage against a Unit with 1 current HP still dealt 2 Damage.
+This value is the **Damage dealt by the Attack to that Unit**. Damage dealt is determined before applying the defender's remaining HP and is not capped by that HP. For example, an Attack that produces 2 Damage against a Unit with 1 current HP still dealt 2 Damage to that Unit.
+
+For an Attack with multiple targets, Damage is determined separately for each target. Damage dealt to different targets is not implicitly combined into one total Damage value for the Attack.
 
 The defender's current HP is reduced by the resulting Damage, but never below zero.
 
