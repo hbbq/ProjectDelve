@@ -1098,6 +1098,12 @@ Which terrain types, fixed objects, walls, doors, windows, and other edge featur
 
 ### Attack and defence dice
 
+When an Attack begins resolving, its target set and the dice counts used for that Attack are determined from the Game State at that point, before any dice for the Attack are rolled. Determine the authoritative number of Attack Dice and the effective number of Defence Dice for each target before resolving any of those rolls.
+
+Those dice counts remain fixed for the remainder of that Attack. State changes caused while resolving the Attack do not change the Attack Dice or Defence Dice already determined for later targets of the same Attack. Dice rolls, Damage, death, and other automatic outcomes may still be resolved sequentially, with their resulting state changes represented normally.
+
+This is a snapshot of the Attack's targets and dice counts, not a snapshot of the whole Game State and not simultaneous Damage resolution. Once that Attack has fully resolved, its state changes affect subsequent Attacks normally.
+
 The attacker rolls a number of Attack Dice equal to the authoritative `ATK` for that specific Attack, including any applicable target-specific modifiers such as Backstab.
 
 An Attack Die is a physical six-sided die with:
