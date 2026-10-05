@@ -17,6 +17,7 @@ public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4 }
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
+public sealed record Undying;
 public sealed record Cleave(int MaxUses = 2);
 public sealed record Heal(int MaxUses = 2);
 public sealed record HolyWave(int MaxUses = 2);
@@ -61,6 +62,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
+    public Undying? Undying { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
     public HolyWave? HolyWave { get; init; }
@@ -139,6 +141,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 
     public static UnitType SkeletonArcher(string id = "skeleton-archer-type") =>
         new(id, 3, 4, 3, 3, 1, Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" };
+
+    public static UnitType Troll(string id = "troll-type") =>
+        new(id, 2, 1, 4, 4, 1, TryOpenDoor: new(4),
+            Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new() };
 
     public static UnitType Goblin(string id = "goblin-type") =>
         new(id, 4, 1, 2, 2, 1, Behaviors: UnitBehavior.BackAwayAfterAttack, MoveAfterAttack: new(1)) { DisplayName = "Goblin" };

@@ -38,6 +38,9 @@ public static class ContentDescriptions
                 ability.MaxUses));
         foreach (var passive in type.Passives)
             entries.Add(new($"passive:{passive.Name}", passive.Name, "Passive", passive.DisplayText));
+        if (type.Undying is not null)
+            entries.Add(new("undying", "Undying", "Capability",
+                "When upright and reduced to 0 HP, remain in your Cell at 1 HP and lay down instead of dying.\nWhile lying, die normally at 0 HP. Your next activation only stands you up and ends."));
         if (type.Cleave is { } cleave)
             entries.Add(new("cleave", "Cleave", "Follow-up",
                 "After an Attack deals 2 or more damage to a Unit, you may immediately deal 1 damage to an adjacent enemy.", cleave.MaxUses));

@@ -600,8 +600,19 @@ public static class GameEngine
     {
         var target = state.Units.Single(u => u.Id == targetId);
         var index = state.Units.IndexOf(target);
-        state.Units[index] = target with { CurrentHp = Math.Max(0, target.CurrentHp - damage) };
+        var hp = Math.Max(0, target.CurrentHp - damage);
+        var savedByUndying = hp == 0 && state.IsUpright(targetId) &&
+            state.Types.Single(t => t.Id == target.TypeId).Undying is not null;
+        state.Units[index] = target with { CurrentHp = savedByUndying ? 1 : hp };
+        if (savedByUndying)
+        {
+            // Complete the replacement before exposing any damage outcome snapshot.
+            var figureIndex = state.Physical.Figures.FindIndex(f => f.Id == targetId);
+            state.Physical.Figures[figureIndex] = state.Physical.Figures[figureIndex] with { Posture = Posture.Lying };
+        }
         events.Add(resolved);
+        if (savedByUndying)
+            events.Add(new RulesEvent("PostureChanged", targetId, Posture: Posture.Lying));
         if (state.Units[index].CurrentHp == 0)
         {
             state.Physical.Figures.RemoveAll(f => f.Id == targetId);

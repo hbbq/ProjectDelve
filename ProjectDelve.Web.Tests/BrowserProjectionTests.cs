@@ -10,6 +10,50 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void TrollCardAndLethalOutcomeUseGenericContentAndAuthoritativePostureProjection()
+    {
+        var wizard = UnitType.Wizard();
+        var troll = UnitType.Troll();
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 2, []), [new("actor", new(0, 0)), new("target", new(1, 0))]),
+            Types = [wizard, troll], Units = [wizard.CreateUnit("actor", "blue"), troll.CreateUnit("target", "red")]
+        };
+        var started = GameEngine.StartRound(state, new Dice(), false);
+        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var result = GameEngine.Advance(action.State, new Choice("attack:target"), new Dice(), false);
+        var presentation = BrowserProjection.Create(result);
+        var card = presentation.Cards["target"];
+        Assert.Equal("Troll", card.DisplayName);
+        var capability = Assert.Single(card.Entries, e => e.Content.Id == "undying");
+        Assert.Equal("Undying", capability.Content.Name);
+        Assert.Equal("Capability", capability.Content.Category);
+        Assert.Null(capability.Uses);
+        Assert.Contains("4 of 6", card.Entries.Single(e => e.Content.Id == "try-open-door").Content.Description);
+        Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, result.Events.Select(e => e.Kind));
+        Assert.Equal("target: Lying", presentation.Events[1].Text);
+        Assert.All(result.ResolutionSteps, step =>
+        {
+            Assert.Equal(1, step.StateAfter.Units[1].CurrentHp);
+            Assert.Equal(new Figure("target", new(1, 0), Posture.Lying), step.StateAfter.Physical.Figures[1]);
+        });
+        Assert.All(presentation.ResolutionSteps, step =>
+        {
+            Assert.Equal(card.DisplayName, step.Cards["target"].DisplayName);
+            Assert.Equal(card.Entries, step.Cards["target"].Entries);
+        });
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(1, result), options));
+        foreach (var step in json.RootElement.GetProperty("result").GetProperty("resolutionSteps").EnumerateArray())
+        {
+            var after = step.GetProperty("stateAfter");
+            Assert.Equal(1, after.GetProperty("units")[1].GetProperty("currentHp").GetInt32());
+            Assert.Equal("Lying", after.GetProperty("physical").GetProperty("figures")[1].GetProperty("posture").GetString());
+        }
+    }
+
+    [Fact]
     public void GenericPostureEventsAndPhysicalSnapshotsSerializeWithoutAbilityKnowledge()
     {
         var state = State();

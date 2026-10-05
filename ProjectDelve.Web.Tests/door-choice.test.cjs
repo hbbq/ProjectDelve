@@ -6,6 +6,53 @@ const vm = require("node:vm");
 
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`Troll survives lethal playback using generic HP, posture and card content (${mode})`, async () => {
+    const printed = { content: { id: "undying", name: "Undying", category: "Capability",
+      description: "When upright and reduced to 0 HP, remain in your Cell at 1 HP and lay down instead of dying.",
+      maxUses: null, useLimitText: null }, uses: null };
+    const initial = response([], [printed]), final = response([], [printed]);
+    for (const snapshot of [initial, final]) {
+      snapshot.result.state.types[0].displayName = "Troll";
+      snapshot.result.state.types[0].hp = 1;
+      snapshot.result.state.units[0].currentHp = 1;
+      snapshot.presentation.cards.actor.displayName = "Troll";
+    }
+    final.result.state.physical.figures[0].posture = "Lying";
+    final.result.events = [{ kind: "AttackResolved", damage: 99 }, { kind: "PostureChanged", posture: "Lying" }];
+    final.presentation.events = [
+      { role: "AttackTarget", text: "Supplied attack result", unitId: "b", targetId: "actor", hits: 99, blocks: 0, damage: 99 },
+      { role: "Notice", text: "actor: Lying", unitId: "actor" }
+    ];
+    final.result.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, stateAfter: final.result.state }));
+    final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+    const shown = [], h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    assert.match(h.elements.get("unit-card").textContent, /Troll/);
+    assert.match(h.elements.get("unit-card").textContent, /Undying/);
+    assert.match(h.elements.get("unit-card").textContent, /Capability/);
+    assert.doesNotMatch(h.elements.get("unit-card").textContent, /uses|\/game/);
+    h.context.shown = shown; h.context.mode = mode;
+    h.run(`
+      ui.animate.checked = mode !== "disabled";
+      pause = async () => {};
+      const originalRender = renderState;
+      renderState = (...args) => {
+        originalRender(...args);
+        shown.push({ hp: ui["unit-card"].textContent, lying: figures.get("actor").classList.contains("lying") });
+      };
+      const originalPresent = present;
+      present = async event => {
+        await originalPresent(event);
+        if (mode === "skip") ui.skip.listeners.click();
+      };
+    `);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.equal(shown.length, 3);
+    assert.ok(shown.every(value => /HP 1 \/ 1/.test(value.hp) && value.lying));
+    assert.equal(h.figure("actor").classList.contains("lying"), true);
+  });
+}
+
 // A small DOM harness exercising the actual renderer, event listeners and request body.
 class Element {
   constructor() {
@@ -363,7 +410,7 @@ for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surf
 }
 
 test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
-  assert.doesNotMatch(script, /Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
+  assert.doesNotMatch(script, /Troll|Undying|Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
 });
 
 test("Lying tokens render generic physical posture with readable identity and supplied choices", () => {

@@ -9,8 +9,8 @@ public sealed class ContentDescriptionsTests
     public void AllCurrentPlayableContentHasDomainOwnedCardWording()
     {
         var types = new[] { UnitType.Barbarian("b"), UnitType.Rogue("r"), UnitType.Cleric("c"),
-            UnitType.Grunt("g"), UnitType.Zombie("z"), UnitType.SkeletonArcher("s"), UnitType.Goblin("o") };
-        Assert.Equal(new[] { "Barbarian", "Rogue", "Cleric", "Grunt", "Zombie", "Skeleton Archer", "Goblin" },
+            UnitType.Grunt("g"), UnitType.Zombie("z"), UnitType.SkeletonArcher("s"), UnitType.Goblin("o"), UnitType.Troll("t") };
+        Assert.Equal(new[] { "Barbarian", "Rogue", "Cleric", "Grunt", "Zombie", "Skeleton Archer", "Goblin", "Troll" },
             types.Select(t => t.DisplayName));
         Assert.Equal(new[] { "Attack", "Open Door", "Rage", "Fury", "Cleave" }, types[0].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Open Door", "Dash", "Throwing Knife", "Backstab" }, types[1].CardEntries().Select(e => e.Name));
@@ -19,6 +19,7 @@ public sealed class ContentDescriptionsTests
         Assert.Equal(new[] { "Attack", "Try Open Door" }, types[4].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[5].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Move After Attack" }, types[6].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Try Open Door", "Undying" }, types[7].CardEntries().Select(e => e.Name));
         Assert.All(types.SelectMany(t => t.CardEntries()), e =>
         {
             Assert.False(string.IsNullOrWhiteSpace(e.Name));

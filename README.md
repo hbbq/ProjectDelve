@@ -58,22 +58,38 @@ Hero decisions use numbered engine-supplied choices. Choose the supplied Stay or
 
 Run `dotnet run --project ProjectDelve.Web -- --urls http://localhost:5080`, then open [localhost:5080](http://localhost:5080).
 
-The Web host serves a plain HTML/CSS/JavaScript client and one hand-authored 15x15 playtest map. One game lives in memory for the lifetime of the host; restarting resets it. Click **Start round**, then choose for either Hero. Monster choices use `DefaultMonsterProvider` automatically. Completed rounds wait for **Start next round**. There are no victory conditions.
+The Web host serves a plain HTML/CSS/JavaScript client and one hand-authored 15x15 playtest map. One game lives in memory for the lifetime of the host; restarting resets it. Click **Start round**, then choose for the four Heroes. Monster choices use `DefaultMonsterProvider` automatically. Completed rounds wait for **Start next round**. There are no victory conditions.
 
-The real roster contains exactly six Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
+The roster includes all nine current Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
 
 | Type | Stats | Actions / special content |
 | --- | --- | --- |
-| Barbarian | 3 / 1 / 4 / 3 / 5 | NormalAttack, OpenDoor (Free Action), Rage (Bonus Action, 2/game, +2 ATK this turn) |
-| Rogue | 4 / 1 / 3 / 2 / 4 | NormalAttack, OpenDoor (Free Action) |
+| Barbarian | 3 / 1 / 4 / 3 / 5 | NormalAttack, OpenDoor, Rage, Fury, Cleave |
+| Rogue | 4 / 1 / 3 / 2 / 4 | NormalAttack, OpenDoor, Dash, Throwing Knife, Backstab |
+| Cleric | 3 / 1 / 3 / 3 / 4 | NormalAttack, OpenDoor, Heal, Holy Wave, Aura |
+| Wizard | 2 / 4 / 3 / 2 / 4 | NormalAttack, OpenDoor, Focus, Fireball, Telekinesis |
 | Grunt | 3 / 1 / 3 / 3 / 1 | NormalAttack only; no special capability or behavior |
 | Zombie | 2 / 1 / 3 / 3 / 1 | NormalAttack, TryOpenDoor(2/6), ApproachThroughClosedDoors |
 | Skeleton Archer | 3 / 4 / 3 / 3 / 1 | NormalAttack, MaximizeAttackDistance |
 | Goblin | 4 / 1 / 2 / 2 / 1 | NormalAttack, MoveAfterAttack(1), BackAwayAfterAttack |
+| Troll | 2 / 1 / 4 / 4 / 1 | NormalAttack, TryOpenDoor(4/6), Undying, ApproachThroughClosedDoors |
 
-Barbarian (B) starts at `(4,7)` and Rogue (R) at `(4,10)`. Two Grunts, two Zombies, two Skeleton Archers, and one Goblin each share a token with others of their Type. The crypt interior covers `x=1..3, y=2..5`, enclosed by walls except for the Closed Door at `(3,4)-(4,4)`. Z1 at `(2,3)` and Z2 at `(1,5)` must approach and try that door to leave. Let Heroes stay to observe the attempts, including failure/retry or success/opening, or move a Hero beside the door to open it freely.
+Barbarian starts at `(4,7)`, Rogue at `(4,10)`, Cleric at `(3,9)`, and Wizard at `(2,8)`. Wizard begins at 2/4 HP; all other Units start at full HP. There are two each of Grunts, Zombies, Skeleton Archers and Trolls, plus one Goblin: thirteen figures and nine Activation Tokens. Units of the same Type share a token.
+
+The western crypt covers `x=1..3, y=2..5`, enclosed by walls except for the Closed Door at `(3,4)-(4,4)`. Zombies at `(2,3)` and `(1,5)` must approach and try that door to leave. Let Heroes stay to observe failure/retry or success/opening, or move a Hero beside the door to open it freely.
+
+The northern Troll vault covers `x=10..14, y=0..4`. Trolls at `(11,0)` and `(13,0)` must open three doors in sequence: `(11,1)-(11,2)`, `(11,2)-(11,3)`, and `(11,4)-(11,5)`. Walls across each partition prevent bypassing a gate. With Heroes staying and every attempt succeeding, both Trolls remain inside for the first two rounds; failures delay them further. They use the same door Action and approach Behavior as Zombies, with better opening odds.
 
 The narrow passage beside the crypt opens onto a broad courtyard for ranged fire and Goblin movement. A stream has a stone crossing at row 3 and an open route below; the southern ruin has an Open Door and an open end. Sparse trees and tables break up sight and movement without making a maze. A1 starts two cells from Barbarian and can retreat to full firing range; G1 approaches Rogue, attacks, and backs away. Counts are for playtesting, not a balance target.
+
+Try these alternatives from a fresh game; token order and dice will affect later encounters. Disable **Auto-choose single relevant choice** to inspect every decision:
+
+- **Barbarian:** move to `(6,8)` beside Archer at `(6,7)` and Grunt at `(7,8)` to activate Fury. Rage adds more Attack Dice. An Attack dealing at least 2 Damage offers Cleave against the other adjacent Monster.
+- **Rogue:** leave Barbarian at `(6,8)`, then move Rogue to `(6,9)` and attack Grunt at `(7,8)` with Backstab support. Try Dash for a longer flank or Throwing Knife to attack from farther away.
+- **Cleric:** stay beside Wizard and Heal its missing 2 HP. Aura also protects adjacent Heroes. Alternatively, move to `(6,9)` and use Holy Wave to lay down nearby Grunt and Goblin, as well as Cleric itself.
+- **Wizard:** move to `(4,8)` and cast Fireball at `(6,8)` to hit Archer and Grunt together; keep Heroes outside the blast. Focus increases Attack Dice. Telekinesis instead lays down one enemy without damage.
+- **Monster Behavior:** let Heroes stay to watch Grunts approach, Archers seek firing distance, Goblin attack and retreat, and Zombies/Trolls work through their doors.
+- **Undying and Posture:** when Trolls arrive, lethal damage lays an Upright Troll down at HP 1. Attack it again while Lying to kill it, or watch its next activation only stand it up. Holy Wave or Telekinesis can lay a Troll down first so subsequent lethal damage kills it normally.
 
 The responsive layout caps board width by the viewport height on desktop, gives the board a larger column beside the debug panel, and stacks the panel below at narrow widths. Explicit shrinkable grid tracks keep cells square; percentage positioning aligns figures, edges, movement highlights, and click targets. Cell labels, figures, and edge thickness scale with the board. Small cells retain coordinates and terrain tooltips even when their text is compact. No game rules run in JavaScript.
 
@@ -100,7 +116,7 @@ Barbarian explicitly supplies a `BonusActionAbility` composed of its content nam
 
 Run the browser renderer and interaction checks with `node --test ProjectDelve.Web.Tests/door-choice.test.cjs`.
 
-The host routes `barbarian-type` and `rogue-type` to player input, and the four Monster Types to the existing default provider. The Engine and Console have no Web dependencies. `ProjectDelve.Web.Tests` exercises the host over loopback HTTP with deterministic randomness, including the roster, map dimensions, sealed Zombie room, six tokens, both Hero choices, complete per-Unit Monster event order, Archer retreat and attack, Goblin movement after attack, door attempts, damage, death, stale/illegal decisions, concurrency, and round progression. Engine behavior regressions retain their small test-local Types. Run the full suite with `dotnet test ProjectDelve.sln`.
+The host routes Barbarian, Rogue, Cleric and Wizard to player input, and all five Monster Types to the existing default provider. The Engine and Console have no Web dependencies. `ProjectDelve.Web.Tests` exercises the host over loopback HTTP with deterministic randomness, including all nine Types, map dimensions, sealed Zombie room, the Troll vault's three sequential doors and delayed emergence, all four Hero choices, courtyard Fury/Cleave and Backstab, early Heal and Fireball, complete per-Unit Monster event order, Archer retreat and attack, Goblin movement after attack, damage, death, stale/illegal decisions, concurrency, and round progression. Engine behavior regressions retain their small test-local Types. Run the full suite with `dotnet test ProjectDelve.sln`.
 
 
 The shared Unit Card shows the active Unit, retains the most recently active Unit, and temporarily inspects a board Unit on hover. `UnitType.DisplayName` and domain-owned `CardEntryDescription` records supply names, categories and printed rules text for Actions, Free Actions, Bonus Actions, passives and playable follow-ups. Monster Behavior remains decision policy and is excluded from these entries. Concrete rules and usage counters retain their existing engine representations.
