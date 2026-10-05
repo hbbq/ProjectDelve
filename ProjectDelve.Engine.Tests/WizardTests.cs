@@ -36,14 +36,14 @@ public sealed class WizardTests
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
-    public void WizardSuppliesOnlyNormalAttackOpenDoorAndGenericFocusContent()
+    public void WizardSuppliesNormalAttackFireballOpenDoorAndGenericFocusContent()
     {
         var type = UnitType.Wizard();
         Assert.Equal("wizard-type", type.Id);
         Assert.Equal("custom", UnitType.Wizard("custom").Id);
         Assert.Equal("Wizard", type.DisplayName);
         Assert.Equal((2, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.NormalAttack, type.Actions);
+        Assert.Equal(UnitAction.NormalAttack | UnitAction.Fireball, type.Actions);
         Assert.Equal(UnitFreeAction.OpenDoor, type.FreeActions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
         Assert.Empty(type.Passives);
@@ -161,7 +161,7 @@ public sealed class WizardTests
     public void CardWordingAndUseLimitAreDomainOwned()
     {
         var type = UnitType.Wizard();
-        Assert.Equal(new[] { "Attack", "Open Door", "Focus" }, type.CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Fireball", "Open Door", "Focus" }, type.CardEntries().Select(e => e.Name));
         var focus = Assert.Single(type.CardEntries(), e => e.Name == "Focus");
         Assert.Equal(new CardEntryDescription("bonus:Focus", "Focus", "Bonus Action", "+1 ATK this turn", 2), focus);
         Assert.Equal("2/game", focus.UseLimitText);

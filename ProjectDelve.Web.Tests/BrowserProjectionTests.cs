@@ -9,6 +9,60 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class BrowserProjectionTests
 {
+    private sealed class Dice : IRandomProvider
+    {
+        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public AttackFace RollAttackDie() => AttackFace.Hit;
+        public DefenceFace RollDefenceDie() => DefenceFace.Miss;
+        public int RollD6() => 1;
+    }
+    private sealed class Choice(string key) : IDecisionProvider
+    {
+        public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
+    }
+
+    [Fact]
+    public void FireballProjectsDomainCardCellBindingAuthoritativeTargetsAndProgressiveCounters()
+    {
+        var state = State(UnitType.Wizard());
+        state.Units[1] = state.Units[1] with { SideId = "hostile" };
+        var started = GameEngine.StartRound(state, new Dice(), false);
+        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var presentation = BrowserProjection.Create(action);
+        var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "fireball");
+        Assert.Equal(new AbilityUses(2, 2), card.Uses);
+        Assert.Equal("Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", card.Content.Description);
+        var fireball = presentation.Decision!.Candidates.Single(c => c.Key == "fireball:4,0");
+        var attack = presentation.Decision.Candidates.Single(c => c.Key == "attack:target");
+        Assert.Equal(InteractionKind.Position, fireball.Interaction.Kind);
+        Assert.Equal(new Cell(4, 0), fireball.Interaction.Position);
+        Assert.Equal(InteractionKind.Unit, attack.Interaction.Kind);
+        Assert.Equal("target", attack.Interaction.UnitId);
+        Assert.Equal(new[] { "target" }, fireball.AffectedUnitIds);
+        Assert.Equal("Fireball (Action) → (4,0)", fireball.Label);
+        Assert.Empty(presentation.Decision.Candidates.Single(c => c.Key == "fireball:2,0").AffectedUnitIds);
+        var result = GameEngine.Advance(action.State, new Choice(fireball.Key!), new Dice(), false);
+        var resolved = BrowserProjection.Create(result);
+        Assert.Equal(OutcomeRole.AttackSummary, resolved.Events.Last(e => e.Role == OutcomeRole.AttackSummary).Role);
+        Assert.All(resolved.ResolutionSteps, s => Assert.Equal(1,
+            s.Cards["actor"].Entries.Single(e => e.Content.Id == "fireball").Uses!.RemainingUses));
+        Assert.Contains(result.ResolutionSteps[0].StateAfter.Physical.Figures, f => f.Id == "target");
+        Assert.DoesNotContain(result.ResolutionSteps[1].StateAfter.Physical.Figures, f => f.Id == "target");
+    }
+
+    [Fact]
+    public void PositionProjectionCopiesSuppliedAffectedUnitsWithoutInferringExplosion()
+    {
+        var state = State(UnitType.Wizard());
+        var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "actor",
+            [new("opaque cell", Destination: new(4, 0), Action: UnitAction.Fireball)
+                { TargetIds = ["not-on-board", "actor"] }], false);
+        var projected = BrowserProjection.Decision(request, state)!.Candidates[0];
+        Assert.Equal(new[] { "not-on-board", "actor" }, projected.AffectedUnitIds);
+        Assert.Equal("opaque cell", projected.Key);
+        Assert.Equal("fireball", projected.EntryId);
+    }
+
     private static GameState State(UnitType? type = null)
     {
         type ??= UnitType.Cleric();

@@ -60,6 +60,7 @@ public static class BrowserProjection
                 ActivationChoiceKind.Move => $"Move to ({c.Destination!.X},{c.Destination.Y})",
                 _ => entry is null ? "Choose option" : $"{entry.Name} ({entry.Category})" +
                     (c.TargetId is not null ? $" → {c.TargetId}" :
+                     c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" :
                      c.Door is not null ? $" → ({c.Door.A.X},{c.Door.A.Y})–({c.Door.B.X},{c.Door.B.Y})" : "")
             };
             IReadOnlyList<string> affected = !c.TargetIds.IsEmpty ? c.TargetIds.ToArray()

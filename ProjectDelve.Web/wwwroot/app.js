@@ -10,6 +10,7 @@ let hoveredUnitId;
 let displayedCards;
 const cardChoiceKeys = new Set();
 const boardChoiceKeys = new Set();
+let boardChooser;
 const figures = new Map();
 const edges = new Map();
 const cells = new Map();
@@ -196,6 +197,15 @@ function choiceButton(candidate) {
 function renderChoicePanel() {
   ui.choices.replaceChildren();
   const decision = snapshot?.presentation.decision;
+  if (boardChooser) {
+    const chooser = text("div", ""); chooser.className = "board-chooser";
+    chooser.append(text("small", "Choose an option"));
+    for (const candidate of boardChooser) chooser.append(choiceButton(candidate));
+    const cancel = text("button", "Cancel");
+    cancel.addEventListener("click", () => { boardChooser = null; clearAffectedPreview(); renderChoicePanel(); });
+    chooser.append(cancel);
+    ui.choices.append(chooser);
+  }
   if (decision?.noneChoice && !boardChoiceKeys.has(null)) ui.choices.append(choiceButton(decision.noneChoice));
   for (const candidate of decision?.candidates ?? []) {
     if (!visibleChoice(candidate) || boardChoiceKeys.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
@@ -206,6 +216,7 @@ function renderChoicePanel() {
 function renderSnapshot() {
   const state = snapshot.result.state;
   hoveredUnitId = null;
+  boardChooser = null;
   boardChoiceKeys.clear();
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
@@ -215,7 +226,7 @@ function renderSnapshot() {
   const offer = (node, candidate) => {
     if (!node) return;
     if (!boardChoices.has(node)) boardChoices.set(node, new Map());
-    boardChoices.get(node).set(candidate.key, candidate.label);
+    boardChoices.get(node).set(candidate.key, candidate);
   };
   ui.prompt.textContent = decision ? `${decision.prompt} · ${decision.unitId ?? ""}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
@@ -227,15 +238,17 @@ function renderSnapshot() {
       if (figure) offer(cells.get(cellKey(figure.position)), candidate);
     } else if (selection.kind === "Position") {
       offer(cells.get(cellKey(selection.position)), candidate);
+      for (const figure of state.physical.figures) {
+        if (cellKey(figure.position) === cellKey(selection.position)) offer(figures.get(figure.id), candidate);
+      }
     } else if (selection.kind === "Door") {
       offer(edges.get(edgeKey(selection.door)), candidate);
     }
   }
   for (const [node, choices] of boardChoices) {
-    if (choices.size !== 1) continue;
-    const [key, label] = choices.entries().next().value;
-    bindBoardChoice(node, label, key);
-    boardChoiceKeys.add(key);
+    const candidates = [...choices.values()]; // Preserve authoritative candidate order.
+    bindBoardChoice(node, candidates);
+    if (candidates.length === 1) boardChoiceKeys.add(candidates[0].key);
   }
   renderChoicePanel();
   updateControls();
@@ -246,7 +259,16 @@ function chooseCandidate(key) {
   return mutate("decision", { candidateKey: key });
 }
 
-function bindBoardChoice(node, label, key) {
+function bindBoardChoice(node, candidates) {
+  const label = candidates.map(candidate => candidate.label).join(" / ");
+  const select = () => {
+    if (busy) return;
+    if (candidates.length === 1) return chooseCandidate(candidates[0].key);
+    boardChooser = candidates;
+    clearAffectedPreview();
+    renderChoicePanel();
+    ui.choices.querySelectorAll("button")[0]?.focus();
+  };
   node.classList.add("board-choice");
   if (node.classList.contains("cell")) node.classList.add("legal");
   const accessibleLabel = node.dataset.hpLabel ? `${label} · ${node.dataset.hpLabel}` : label;
@@ -255,12 +277,12 @@ function bindBoardChoice(node, label, key) {
   node.setAttribute("aria-label", accessibleLabel);
   node.addEventListener("click", event => {
     event.stopPropagation();
-    return chooseCandidate(key);
+    return select();
   });
   node.addEventListener("keydown", event => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    return chooseCandidate(key);
+    return select();
   });
 }
 

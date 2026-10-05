@@ -21,6 +21,9 @@ public static class ContentDescriptions
             entries.Add(new("heal", "Heal", "Action", "Restore up to 2 HP to an adjacent damaged friendly Unit.", heal.MaxUses));
         if (type.Actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is { } wave)
             entries.Add(new("holy-wave", "Holy Wave", "Action", "Attack all adjacent enemies with ATK=2.", wave.MaxUses));
+        if (type.Actions.HasFlag(UnitAction.Fireball) && type.Fireball is { } fireball)
+            entries.Add(new("fireball", "Fireball", "Action",
+                "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", fireball.MaxUses));
         if (type.TryOpenDoor is { } attempt)
             entries.Add(new("try-open-door", "Try Open Door", "Action",
                 $"Try to open an adjacent Closed Door. Roll a D6: succeeds on {attempt.SuccessCount} of 6 faces. The Action is consumed whether it succeeds or fails."));
@@ -53,6 +56,7 @@ public static class ContentDescriptions
         { Action: UnitAction.NormalAttack } => "attack",
         { Action: UnitAction.Heal } => "heal",
         { Action: UnitAction.HolyWave } => "holy-wave",
+        { Action: UnitAction.Fireball } => "fireball",
         _ => null
     };
 
@@ -62,6 +66,7 @@ public static class ContentDescriptions
         "cleave" => unit.CleaveUses,
         "heal" => unit.HealUses,
         "holy-wave" => unit.HolyWaveUses,
+        "fireball" => unit.FireballUses,
         _ => type.BonusActions.FirstOrDefault(a => BonusEntryId(a.Name) == entryId) is { } ability
             ? unit.BonusActionUses.GetValueOrDefault(ability.Name) : null
     };

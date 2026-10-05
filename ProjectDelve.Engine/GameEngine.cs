@@ -20,6 +20,8 @@ public static class GameEngine
                     ? new(heal.MaxUses, heal.MaxUses) : null),
                 HolyWaveUses = u.HolyWaveUses ?? (state.Types.Single(t => t.Id == u.TypeId).HolyWave is { } wave
                     ? new(wave.MaxUses, wave.MaxUses) : null),
+                FireballUses = u.FireballUses ?? (state.Types.Single(t => t.Id == u.TypeId).Fireball is { } fireball
+                    ? new(fireball.MaxUses, fireball.MaxUses) : null),
                 BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
                         ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
@@ -195,8 +197,8 @@ public static class GameEngine
                     else switch (action.Action)
                     {
                         case UnitAction.NormalAttack:
-                            ResolveAttack(state, request.UnitId!, [action.TargetId!],
-                                state.EffectiveAtkAgainst(request.UnitId!, action.TargetId!), random, events);
+                            ResolveAttack(state, request.UnitId!,
+                                new([action.TargetId!], state.EffectiveAtkAgainst(request.UnitId!, action.TargetId!)), random, events);
                             attacked = true;
                             break;
                         case UnitAction.HolyWave:
@@ -206,7 +208,19 @@ public static class GameEngine
                             {
                                 HolyWaveUses = new(waveUses.MaxUses, waveUses.RemainingUses - 1)
                             };
-                            ResolveAttack(state, request.UnitId!, action.TargetIds, 2, random, events, "Holy Wave");
+                            ResolveAttack(state, request.UnitId!,
+                                new(action.TargetIds, 2, "Holy Wave"), random, events);
+                            attacked = true;
+                            break;
+                        case UnitAction.Fireball:
+                            var fireballIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
+                            var fireballUses = state.Units[fireballIndex].FireballUses!;
+                            state.Units[fireballIndex] = state.Units[fireballIndex] with
+                            {
+                                FireballUses = new(fireballUses.MaxUses, fireballUses.RemainingUses - 1)
+                            };
+                            ResolveAttack(state, request.UnitId!,
+                                new(action.TargetIds, state.EffectiveAtkOf(request.UnitId!), "Fireball"), random, events);
                             attacked = true;
                             break;
                         case UnitAction.Heal:
@@ -328,6 +342,9 @@ public static class GameEngine
             if (targets.Length > 0)
                 candidates.Add(new Candidate("holy-wave", Action: UnitAction.HolyWave) { TargetIds = targets });
         }
+        if (actions.HasFlag(UnitAction.Fireball) && type.Fireball is not null &&
+            unit.FireballUses is { RemainingUses: > 0 })
+            candidates.AddRange(FireballCandidates(state, unit));
         if (type.TryOpenDoor is not null)
         {
             foreach (var edge in AdjacentClosedDoors(state, unit))
@@ -337,6 +354,29 @@ public static class GameEngine
             }
         }
         return candidates;
+    }
+
+    private static IEnumerable<Candidate> FireballCandidates(GameState state, Unit unit)
+    {
+        var board = state.Physical.Board;
+        var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+        var range = state.EffectiveRngOf(unit.Id);
+        for (var y = 0; y < board.Height; y++)
+        for (var x = 0; x < board.Width; x++)
+        {
+            var center = new Cell(x, y);
+            if (Math.Abs(x - from.X) + Math.Abs(y - from.Y) > range ||
+                !AttackRules.HasGeometricLineOfSight(board, from, center)) continue;
+            var targets = state.Units.Where(u => u.CurrentHp > 0)
+                .Where(u =>
+                {
+                    var position = state.Physical.Figures.Single(f => f.Id == u.Id).Position;
+                    return Math.Max(Math.Abs(position.X - x), Math.Abs(position.Y - y)) <= 1 &&
+                        AttackRules.HasGeometricLineOfSight(board, center, position);
+                }).Select(u => u.Id).ToImmutableArray();
+            yield return new Candidate($"fireball:{x},{y}", Destination: center,
+                Action: UnitAction.Fireball, Relevant: !targets.IsEmpty) { TargetIds = targets };
+        }
     }
 
     private static IEnumerable<Edge> AdjacentClosedDoors(GameState state, Unit unit)
@@ -454,10 +494,14 @@ public static class GameEngine
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
-    private static void ResolveAttack(GameState state, string attackerId,
-        ImmutableArray<string> targetIds, int attackDice,
-        IRandomProvider random, ResolutionEvents events, string? abilityName = null)
+    // The two concrete area Actions supply membership and ATK independently.
+    // Resolution owns one shared roll, per-target results and post-Attack processing.
+    private sealed record SharedRollAttack(ImmutableArray<string> TargetIds, int AttackDice, string? AbilityName = null);
+
+    private static void ResolveAttack(GameState state, string attackerId, SharedRollAttack attack,
+        IRandomProvider random, ResolutionEvents events)
     {
+        var (targetIds, attackDice, abilityName) = attack;
         var hits = 0;
         for (var i = 0; i < attackDice; i++)
         {
@@ -563,6 +607,7 @@ public static class GameEngine
                 t.Cleave is { MaxUses: < 1 } ||
                 t.Heal is { MaxUses: < 1 } ||
                 t.HolyWave is { MaxUses: < 1 } ||
+                t.Fireball is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
@@ -584,6 +629,9 @@ public static class GameEngine
         if (state.Units.Any(u => u.HolyWaveUses is { } uses &&
             state.Types.Single(t => t.Id == u.TypeId).HolyWave?.MaxUses != uses.MaxUses))
             throw new ArgumentException("Holy Wave uses must match Unit Type content.");
+        if (state.Units.Any(u => u.FireballUses is { } uses &&
+            state.Types.Single(t => t.Id == u.TypeId).Fireball?.MaxUses != uses.MaxUses))
+            throw new ArgumentException("Fireball uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)

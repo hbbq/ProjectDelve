@@ -33,6 +33,7 @@ class Element {
   removeAttribute(name) { delete this.attributes[name]; }
   getBoundingClientRect() { this.layoutReads = (this.layoutReads ?? 0) + 1; return {}; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
+  focus() { this.listeners.focus?.(); }
   querySelectorAll(selector) {
     return this.children.flatMap(child => [
       ...(selector === "button" ? child.tagName === "button" : child.classList.contains(selector.slice(1))) ? [child] : [],
@@ -162,7 +163,7 @@ test("ambiguous and missing board references remain selectable in the choice pan
   ]);
   const h = harness(initial);
   h.run("chooseCandidate = key => submitted.push(key)");
-  assert.equal(h.figure("b").classList.contains("board-choice"), false);
+  assert.equal(h.figure("b").classList.contains("board-choice"), true);
   for (const button of h.elements.get("choices").children) click(button);
   assert.deepEqual(h.submitted, ["first", "second", "missing", "unknown direct"]);
 });
@@ -328,5 +329,74 @@ test("movement retains mounted figures and commits each progressive animation st
 });
 
 test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
-  assert.doesNotMatch(script, /HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
+  assert.doesNotMatch(script, /Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
+});
+
+for (const name of ["Fireball", "Unfamiliar option"]) for (const surface of ["figure", "cell"]) {
+  test(`Unit and Position collision on ${surface} offers supplied labels for ${name}`, () => {
+    const unit = choice("opaque attack", "Unit", { unitId: "b" }, { label: "Normal Attack supplied" });
+    const position = choice("opaque other", "Position", { position: { x: 5, y: 0 } },
+      { label: `${name} supplied`, affectedUnitIds: ["actor", "a"] });
+    const h = harness(response([unit, position]));
+    h.run("chooseCandidate = key => submitted.push(key)");
+    const node = surface === "figure" ? h.figure("b") : h.run('cells.get("5,0")');
+    click(node);
+    assert.deepEqual(h.submitted, []);
+    const chooser = h.elements.get("choices").children[0];
+    assert.equal(chooser.className, "board-chooser");
+    const items = buttons(chooser);
+    assert.deepEqual(items.map(item => item.textContent), [unit.label, position.label, "Cancel"]);
+    items[1].listeners.mouseenter();
+    assert.equal(h.figure("actor").classList.contains("affected-preview"), true);
+    assert.equal(h.figure("a").classList.contains("affected-preview"), true);
+    assert.equal(h.figure("b").classList.contains("affected-preview"), false);
+    click(items[1]);
+    assert.deepEqual(h.submitted, [position.key]);
+    click(items[2]);
+    assert.equal(h.elements.get("choices").children[0].className, "");
+    assert.equal(h.figure("a").classList.contains("affected-preview"), false);
+    // Ambiguous choices retain a panel fallback.
+    click(h.elements.get("choices").children[0]);
+    assert.deepEqual(h.submitted, [position.key, unit.key]);
+  });
+}
+
+test("multiple Position candidates retain authoritative order and keyboard chooser submits opaque key", async () => {
+  const options = ["z-key", "a-key"].map(key => choice(key, "Position", { position: { x: 2, y: 0 } }));
+  const initial = response(options), requests = [];
+  const h = harness(initial, async (url, request) => {
+    requests.push({ url, body: JSON.parse(request.body) });
+    return { ok: true, json: async () => response() };
+  });
+  const node = h.run('cells.get("2,0")');
+  node.listeners.keydown({ key: "Enter", preventDefault() {} });
+  const items = buttons(h.elements.get("choices").children[0]);
+  assert.deepEqual(items.slice(0, 2).map(item => item.textContent), options.map(option => option.label));
+  await click(items[1]);
+  assert.deepEqual(requests, [{ url: "/api/game/decision", body: { expectedRevision: 8, candidateKey: "a-key" } }]);
+});
+
+test("one Position candidate on occupied Cell selects directly from either surface", () => {
+  const h = harness(response([choice("opaque lone position", "Position", { position: { x: 5, y: 0 } })]));
+  h.run("chooseCandidate = key => submitted.push(key)");
+  click(h.figure("b")); click(h.run('cells.get("5,0")'));
+  assert.deepEqual(h.submitted, ["opaque lone position", "opaque lone position"]);
+  assert.equal(h.elements.get("choices").children.length, 0);
+});
+
+test("collision chooser only includes currently presented choices and ignores busy input", () => {
+  const initial = response([
+    choice("visible", "Unit", { unitId: "b" }),
+    choice("filtered", "Position", { position: { x: 5, y: 0 } }, { relevant: false })
+  ]);
+  const h = harness(initial);
+  h.run("chooseCandidate = key => submitted.push(key)");
+  click(h.figure("b"));
+  assert.deepEqual(h.submitted, ["visible"]);
+  h.elements.get("filter").checked = false;
+  h.run("renderSnapshot(); busy = true");
+  click(h.figure("b"));
+  assert.equal(h.elements.get("choices").children[0].className, "");
+  h.run("busy = false"); click(h.figure("b"));
+  assert.equal(buttons(h.elements.get("choices").children[0]).length, 3);
 });

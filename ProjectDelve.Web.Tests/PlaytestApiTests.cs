@@ -111,6 +111,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(4, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(type.Id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
+                : type.Id == "wizard-type" ? UnitAction.NormalAttack | UnitAction.Fireball
                 : UnitAction.NormalAttack, type.Actions));
         Assert.Equal(new[] { 2, 2, 2, 1 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));

@@ -10,7 +10,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -20,6 +20,7 @@ public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Cleave(int MaxUses = 2);
 public sealed record Heal(int MaxUses = 2);
 public sealed record HolyWave(int MaxUses = 2);
+public sealed record Fireball(int MaxUses = 2);
 public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
 public sealed record Fury
 {
@@ -63,6 +64,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
     public HolyWave? HolyWave { get; init; }
+    public Fireball? Fireball { get; init; }
     public IReadOnlyList<PassiveDescription> Passives
     {
         get
@@ -85,6 +87,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
             CleaveUses = Cleave is { } cleave ? new(cleave.MaxUses, cleave.MaxUses) : null,
             HealUses = Heal is { } heal ? new(heal.MaxUses, heal.MaxUses) : null,
             HolyWaveUses = HolyWave is { } wave ? new(wave.MaxUses, wave.MaxUses) : null,
+            FireballUses = Fireball is { } fireball ? new(fireball.MaxUses, fireball.MaxUses) : null,
             BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
         };
 
@@ -121,9 +124,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         };
 
     public static UnitType Wizard(string id = "wizard-type") =>
-        new(id, 2, 4, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
+        new(id, 2, 4, 3, 2, 4, Actions: UnitAction.NormalAttack | UnitAction.Fireball, FreeActions: UnitFreeAction.OpenDoor)
         {
             DisplayName = "Wizard",
+            Fireball = new(),
             BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
         };
 
@@ -144,6 +148,7 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
     public AbilityUses? CleaveUses { get; init; }
     public AbilityUses? HealUses { get; init; }
     public AbilityUses? HolyWaveUses { get; init; }
+    public AbilityUses? FireballUses { get; init; }
     public ImmutableDictionary<string, AbilityUses> BonusActionUses { get; init; } = ImmutableDictionary<string, AbilityUses>.Empty;
 }
 
