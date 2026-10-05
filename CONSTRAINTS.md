@@ -83,6 +83,25 @@ The same state should in principle be representable as, for example:
 - a 3D representation,
 - the actual physical board and components.
 
+## Playtest scenarios
+
+The reference implementation provides a small catalog of named **playtest scenarios**. These are development content for exercising rules and interactions, not a campaign, progression system, or statement that their layouts and balance are final game rules.
+
+A playtest scenario supplies the authoritative initial setup needed to create a fresh game, including its board and initial Units. The scenario catalog exposes stable identity and human-readable presentation such as an id, name, and short description. Exact terrain layouts, Unit positions, and balancing of these playtest scenarios are implementation content and may be iterated without changing the core rules constraints.
+
+A client may list the available scenarios and may at any time start a selected scenario, restart the current scenario, or switch to another scenario. Starting or restarting creates a fresh authoritative game state from that scenario's initial setup. The previous game state is discarded; changing scenarios does not require an in-game transition, undo operation, state migration, or completion of the current activation/resolution.
+
+The initial catalog should contain six progressively broader playtest scenarios:
+
+1. An approximately `8x8` scenario with Barbarian and several Grunts in a relatively open environment, emphasizing basic movement and combat.
+2. An approximately `10x10` scenario with Barbarian and Rogue against Grunts and Goblins.
+3. An approximately `12x12` scenario with Barbarian and Rogue against Grunts, Goblins, and Skeleton Archers, providing useful ranged and Line-of-Sight situations.
+4. An approximately `15x15` scenario with Barbarian, Rogue, and Wizard against Goblins, Skeleton Archers, and Zombies, including useful Doors and terrain for their established mechanics.
+5. An approximately `15x15` scenario with Barbarian, Rogue, Wizard, and Cleric against Goblins, Skeleton Archers, Zombies, Trolls, and optionally some Grunts. It should contain substantially more Walls and Doors while avoiding excessive one-cell-wide corridors and bottlenecks.
+6. An approximately `15x15` Shaman-focused scenario with all four Heroes, at least one Shaman, and optionally some simpler non-Goblin enemies. Its layout should provide multiple paths and enough maze-like structure for Flee to matter while still allowing the Shaman to be pursued. **No Goblins are present in its initial setup**; Goblins should enter play through Spawn Goblin so Unit creation, Lying Posture, and next-round Activation Bag participation can be exercised naturally.
+
+These scenarios currently have no rules-defined victory or defeat conditions. Their purpose is interactive playtesting. Campaign progression, unlocking, difficulty metadata, scoring, objectives, victory/defeat, and other scenario systems are deferred until concrete game content requires them.
+
 ## Reference implementation architecture
 
 The initial reference implementation uses C#/.NET.
