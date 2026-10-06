@@ -8,7 +8,7 @@ public sealed class ClericTests
     private sealed class Random(string token = "cleric-type", bool block = false) : IRandomProvider
     {
         public int DefenceRolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag.Contains(token) ? token : bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.FirstOrDefault(t => t.TypeId == token) ?? bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie()
         {
@@ -48,7 +48,7 @@ public sealed class ClericTests
     }
 
     private static EngineResult Choose(GameState state, string key, Random random) =>
-        GameEngine.Advance(state, new Choice(key), random, false);
+        TestGame.Advance(state, new Choice(key), random, false);
 
     [Fact]
     public void ClericSuppliesStatsOpenDoorAndConcretePassive()
@@ -171,12 +171,12 @@ public sealed class ClericTests
     {
         var state = State();
         var random = new Random(token);
-        var started = GameEngine.StartRound(state, random, false);
+        var started = TestGame.StartRound(state, random, false);
         Assert.Equal(id, started.State.CurrentUnitId);
         Assert.Equal(3, started.State.EffectiveDefOf("recipient"));
         var moved = Choose(started.State, destination, random);
         Assert.Equal(2, moved.State.EffectiveDefOf("recipient"));
-        Assert.Equal(2, moved.ResolutionSteps[0].StateAfter.EffectiveDefOf("recipient"));
+        Assert.Equal(2, TestGame.OperationSteps(moved)[0].StateAfter.EffectiveDefOf("recipient"));
         Assert.Equal(3, started.State.EffectiveDefOf("recipient"));
         Assert.Empty(moved.State.ModifiersThisTurn);
     }
@@ -230,12 +230,12 @@ public sealed class ClericTests
         var state = State();
         AddAttacker(state, new(3, 1));
         var random = new Random("grunt-type", block: true);
-        var started = GameEngine.StartRound(state, random, false);
+        var started = TestGame.StartRound(state, random, false);
         var stayed = Choose(started.State, "stay", random);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(stayed.State))!;
         Assert.Equal(3, restored.EffectiveDefOf("recipient"));
         var attacked = Choose(restored, "attack:recipient", random);
-        var attack = Assert.Single(attacked.Events, e => e.Kind == "AttackResolved");
+        var attack = Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved");
         Assert.Equal(3, random.DefenceRolls);
         Assert.Equal(3, attack.Blocks);
         Assert.Equal(0, attack.Damage);
@@ -248,12 +248,12 @@ public sealed class ClericTests
         var state = State();
         AddAttacker(state, new(0, 1), attack: 4);
         var random = new Random("grunt-type");
-        var started = GameEngine.StartRound(state, random, false);
+        var started = TestGame.StartRound(state, random, false);
         var stayed = Choose(started.State, "stay", random);
         var attacked = Choose(stayed.State, "attack:cleric", random);
-        Assert.Contains(attacked.Events, e => e.Kind == "UnitDied" && e.UnitId == "cleric");
+        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "UnitDied" && e.UnitId == "cleric");
         Assert.Equal(2, attacked.State.EffectiveDefOf("recipient"));
-        Assert.Equal(2, attacked.ResolutionSteps.Last().StateAfter.EffectiveDefOf("recipient"));
+        Assert.Equal(2, TestGame.OperationSteps(attacked).Last().StateAfter.EffectiveDefOf("recipient"));
         Assert.Equal(3, stayed.State.EffectiveDefOf("recipient"));
         Assert.Empty(attacked.State.ModifiersThisTurn);
     }

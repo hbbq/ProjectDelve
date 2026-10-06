@@ -7,7 +7,7 @@ public sealed class AutomaticDecisionTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
@@ -50,10 +50,10 @@ public sealed class AutomaticDecisionTests
     public void SoleLegalChoices_AutoResolveRegardlessOfRelevancePreference(bool enabled)
     {
         var random = new Random();
-        var result = GameEngine.StartRound(State(mov: 0), random, autoChooseSingleRelevantChoice: enabled);
+        var result = TestGame.StartRound(State(mov: 0), random, autoChooseSingleRelevantChoice: enabled);
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
-        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, result.Events.Select(e => e.Kind));
+        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, TestGame.OperationEvents(result).Select(e => e.Kind));
     }
 
     [Theory]
@@ -62,12 +62,12 @@ public sealed class AutomaticDecisionTests
     public void RefreshChoices_PreservesMultipleRelevantLegalChoices(bool enabled)
     {
         var random = new Random();
-        var result = GameEngine.StartRound(State(), random);
+        var result = TestGame.StartRound(State(), random);
         var original = JsonSerializer.Serialize(result.State);
         var refreshed = GameEngine.RefreshChoices(result.State, random, autoChooseSingleRelevantChoice: enabled);
         Assert.False(refreshed.State.RoundComplete);
         Assert.Equal(JsonSerializer.Serialize(result.NextInput), JsonSerializer.Serialize(refreshed.NextInput));
-        Assert.Empty(refreshed.Events);
+        Assert.Empty(TestGame.OperationEvents(refreshed));
         Assert.Equal(original, JsonSerializer.Serialize(result.State));
     }
 
@@ -158,11 +158,11 @@ public sealed class AutomaticDecisionTests
     public void PendingRelevanceIsRebuilt_AndDoesNotRestrictSubmission()
     {
         var random = new Random();
-        var result = GameEngine.StartRound(State(), random);
+        var result = TestGame.StartRound(State(), random);
         Assert.All(result.NextInput!.Candidates, c => Assert.True(c.Relevant));
         result.NextInput.Candidates[0] = result.NextInput.Candidates[0] with { Relevant = false };
         var provider = new Choice("1,0");
-        var advanced = GameEngine.Advance(result.State, provider, random);
+        var advanced = TestGame.Advance(result.State, provider, random);
         Assert.Equal(1, provider.Calls);
         Assert.Equal(new Cell(1, 0), advanced.State.Physical.Figures.Single().Position);
     }
@@ -172,7 +172,7 @@ public sealed class AutomaticDecisionTests
     {
         var state = State();
         var original = JsonSerializer.Serialize(state);
-        var result = GameEngine.StartRound(state, new Random());
+        var result = TestGame.StartRound(state, new Random());
 
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("hero", result.NextInput.UnitId);
@@ -186,13 +186,13 @@ public sealed class AutomaticDecisionTests
     public void OnlyStayAndEndTurn_AutoResolveAndCompleteRound()
     {
         var state = State(mov: 0, rng: 1, atk: 1);
-        var result = GameEngine.StartRound(state, new Random());
+        var result = TestGame.StartRound(state, new Random());
 
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
         Assert.Null(result.State.Pending);
-        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, result.Events.Select(e => e.Kind));
-        Assert.Equal(new[] { new Cell(0, 0) }, result.Events[1].Path);
+        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { new Cell(0, 0) }, TestGame.OperationEvents(result)[1].Path);
         Assert.Equal(2, result.State.Units.Single().CurrentHp);
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
     }
@@ -203,7 +203,7 @@ public sealed class AutomaticDecisionTests
     public void MovementDestinationAndStay_RequireProvider(string? choice)
     {
         var random = new Random();
-        var result = GameEngine.StartRound(State(), random);
+        var result = TestGame.StartRound(State(), random);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.False(result.NextInput.AllowsNone);
         Assert.Equal(2, result.NextInput.Candidates.Count);
@@ -212,13 +212,13 @@ public sealed class AutomaticDecisionTests
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
 
         var provider = new Choice(choice);
-        result = GameEngine.Advance(result.State, provider, random);
+        result = TestGame.Advance(result.State, provider, random);
 
         Assert.Equal(1, provider.Calls);
         Assert.True(result.State.RoundComplete);
         Assert.Equal(new Cell(choice is null ? 0 : 1, 0), result.State.Physical.Figures.Single().Position);
-        Assert.Equal("MovementCompleted", result.Events[0].Kind);
-        Assert.Equal("RoundCompleted", result.Events[^1].Kind);
+        Assert.Equal("MovementCompleted", TestGame.OperationEvents(result)[0].Kind);
+        Assert.Equal("RoundCompleted", TestGame.OperationEvents(result)[^1].Kind);
     }
 
     [Theory]
@@ -229,21 +229,21 @@ public sealed class AutomaticDecisionTests
         var state = State(mov: 0, rng: 1, atk: 1);
         AddEnemy(state, "enemy", new Cell(1, 0));
         var random = new Random();
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.False(result.NextInput.AllowsNone);
         Assert.Equal(2, result.NextInput.Candidates.Count);
         Assert.Contains(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
         Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
-        Assert.DoesNotContain(result.Events, e => e.Kind == "AttackResolved");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
 
         var provider = new Choice(choice);
-        result = GameEngine.Advance(result.State, provider, random);
+        result = TestGame.Advance(result.State, provider, random);
 
         Assert.Equal(1, provider.Calls);
         Assert.True(result.State.RoundComplete);
         Assert.Equal(choice is null ? 1 : 0, result.State.Units.Single(u => u.Id == "enemy").CurrentHp);
-        Assert.Equal(choice is not null, result.Events.Any(e => e.Kind == "AttackResolved"));
+        Assert.Equal(choice is not null, TestGame.OperationEvents(result).Any(e => e.Kind == "AttackResolved"));
     }
 
     [Theory]
@@ -266,14 +266,14 @@ public sealed class AutomaticDecisionTests
             AddEnemy(state, "enemy-b", new Cell(0, 1));
         }
         var random = new Random();
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
 
         Assert.Equal(kind == DecisionKind.SelectUnit ? kind : DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal(2, result.NextInput.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.False(result.NextInput.AllowsNone);
         Assert.False(result.State.RoundComplete);
         var provider = new Choice(result.NextInput.Candidates[0].Key);
-        GameEngine.Advance(result.State, provider, random);
+        TestGame.Advance(result.State, provider, random);
         Assert.Equal(1, provider.Calls);
     }
 
@@ -291,16 +291,16 @@ public sealed class AutomaticDecisionTests
             Figures = [.. state.Physical.Figures, new Figure("idle", new Cell(2, 1)), new Figure("next", new Cell(2, 0))]
         };
         var random = new Random();
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(result.State))!;
         var provider = new Choice(null);
-        result = GameEngine.Advance(restored, provider, random);
+        result = TestGame.Advance(restored, provider, random);
 
         Assert.Equal(1, provider.Calls);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("next", result.NextInput.UnitId);
-        Assert.Equal(new[] { "idle-type", "next-type" }, result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
-        Assert.Equal(new[] { "hero", "idle" }, result.Events.Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
+        Assert.Equal(new[] { "idle-type", "next-type" }, TestGame.OperationEvents(result).Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
+        Assert.Equal(new[] { "hero", "idle" }, TestGame.OperationEvents(result).Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.False(result.State.RoundComplete);
     }
 
@@ -316,18 +316,18 @@ public sealed class AutomaticDecisionTests
         // Serialized Pending is informational; rebuild forced choices from progress.
         var state = State(mov: 0);
         state.Round = 1;
-        state.ActiveTypeId = "hero-type";
+        state.ActiveToken = new("hero-type", state.Units.First(u => u.TypeId == "hero-type").SideId);
         state.MoveDone = kind == DecisionKind.Act;
         state.CurrentUnitId = kind == DecisionKind.SelectUnit ? null : "hero";
         state.Pending = new DecisionRequest(kind, "hero-type", state.CurrentUnitId,
             [new Candidate("forged")], false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
-        var result = GameEngine.Advance(restored, new UnexpectedChoice(), new Random(), enabled);
+        var result = TestGame.Advance(restored, new UnexpectedChoice(), new Random(), enabled);
 
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
-        Assert.DoesNotContain(result.Events, e => e.Kind == "AttackResolved");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
     }
 }

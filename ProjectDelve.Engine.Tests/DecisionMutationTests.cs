@@ -12,7 +12,7 @@ public sealed class DecisionMutationTests
 
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => throw new InvalidOperationException("Unexpected attack.");
         public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Unexpected defence.");
@@ -37,10 +37,10 @@ public sealed class DecisionMutationTests
             state.Units.Add(new Unit("ally", "hero-type", "blue", 1));
             state.Physical.Figures.Add(new Figure("ally", new Cell(2, 2)));
         }
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         if (kind == DecisionKind.Act)
         {
-            result = GameEngine.Advance(result.State, new Choice(_ => "stay"), random);
+            result = TestGame.Advance(result.State, new Choice(_ => "stay"), random);
         }
         Assert.Equal(kind == DecisionKind.SelectUnit ? kind : DecisionKind.Activation, result.NextInput!.Kind);
         return result;
@@ -59,7 +59,7 @@ public sealed class DecisionMutationTests
         var original = JsonSerializer.Serialize(result.State);
         Cell[] canonical = [new Cell(0, 0), new Cell(0, 1), new Cell(1, 1), new Cell(2, 1)];
 
-        var advanced = GameEngine.Advance(result.State, new Choice(request =>
+        var advanced = TestGame.Advance(result.State, new Choice(request =>
         {
             var candidate = request.Candidates.Single(c => c.Key == "2,1");
             switch (mutation)
@@ -86,7 +86,7 @@ public sealed class DecisionMutationTests
         }), random);
 
         Assert.Equal(new Cell(2, 1), advanced.State.Physical.Figures.Single(f => f.Id == "hero").Position);
-        Assert.Equal(canonical, Assert.Single(advanced.Events, e => e.Kind == "MovementCompleted").Path);
+        Assert.Equal(canonical, Assert.Single(TestGame.OperationEvents(advanced), e => e.Kind == "MovementCompleted" && e.UnitId == "hero").Path);
         Assert.Equal(original, JsonSerializer.Serialize(result.State));
     }
 
@@ -100,14 +100,14 @@ public sealed class DecisionMutationTests
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(result.State))!;
         Cell[] canonical = [new Cell(0, 0), new Cell(0, 1), new Cell(1, 1), new Cell(2, 1)];
 
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(restored, new Choice(_ => "20,20"), random));
-        var advanced = GameEngine.Advance(restored, new Choice(request =>
+        Assert.Throws<ArgumentException>(() => TestGame.Advance(restored, new Choice(_ => "20,20"), random));
+        var advanced = TestGame.Advance(restored, new Choice(request =>
         {
             Assert.DoesNotContain(request.Candidates, c => c.Key == "20,20");
             Assert.Equal(canonical, request.Candidates.Single(c => c.Key == "2,1").Path);
             return "2,1";
         }), random);
-        Assert.Equal(canonical, Assert.Single(advanced.Events, e => e.Kind == "MovementCompleted").Path);
+        Assert.Equal(canonical, Assert.Single(TestGame.OperationEvents(advanced), e => e.Kind == "MovementCompleted" && e.UnitId == "hero").Path);
     }
 
     [Theory]
@@ -123,7 +123,7 @@ public sealed class DecisionMutationTests
             ? new Candidate("20,20", new Cell(20, 20), [new Cell(0, 0), new Cell(20, 20)])
             : new Candidate("friend"); // Wrong activation type or friendly attack target.
 
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(result.State,
+        Assert.Throws<ArgumentException>(() => TestGame.Advance(result.State,
             new Choice(request =>
             {
                 request.Candidates.Clear();

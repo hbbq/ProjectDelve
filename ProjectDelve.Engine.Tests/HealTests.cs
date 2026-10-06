@@ -8,7 +8,7 @@ public sealed class HealTests
     private sealed class Dice : IRandomProvider
     {
         public int Rolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag.Contains("cleric-type") ? "cleric-type" : bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.FirstOrDefault(t => t.TypeId == "cleric-type") ?? bag[0];
         public AttackFace RollAttackDie() { Rolls++; return AttackFace.Hit; }
         public DefenceFace RollDefenceDie() { Rolls++; return DefenceFace.Miss; }
         public int RollD6() => throw new InvalidOperationException("Heal must not roll dice.");
@@ -29,10 +29,10 @@ public sealed class HealTests
     };
 
     private static EngineResult Choose(GameState state, string key, Dice? dice = null) =>
-        GameEngine.Advance(state, new Choice(key), dice ?? new Dice(), false);
+        TestGame.Advance(state, new Choice(key), dice ?? new Dice(), false);
 
     private static EngineResult Action(GameState? scenario = null) =>
-        Choose(GameEngine.StartRound(scenario ?? Scenario(), new Dice(), false).State, "stay");
+        Choose(TestGame.StartRound(scenario ?? Scenario(), new Dice(), false).State, "stay");
 
     private static bool OffersHeal(EngineResult result, string id = "friend") =>
         result.NextInput!.Candidates.Any(c => c.Action == UnitAction.Heal && c.TargetId == id);
@@ -61,11 +61,11 @@ public sealed class HealTests
         var dice = new Dice();
         var result = Choose(restored, "heal:friend", dice);
         Assert.Equal(expectedHp, result.State.Units[1].CurrentHp);
-        Assert.Equal(healing, Assert.Single(result.Events).Healing);
-        Assert.Equal("Heal", result.Events[0].AbilityName);
+        Assert.Equal(healing, Assert.Single(TestGame.OperationEvents(result)).Healing);
+        Assert.Equal("Heal", TestGame.OperationEvents(result)[0].AbilityName);
         Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].HealUses);
         Assert.Equal(0, dice.Rolls);
-        Assert.Equal(3, result.ResolutionSteps[0].StateAfter.Types[0].Heal!.Amount);
+        Assert.Equal(3, TestGame.OperationSteps(result)[0].StateAfter.Types[0].Heal!.Amount);
         Assert.Equal(hp, action.State.Units[1].CurrentHp);
     }
 
@@ -78,7 +78,7 @@ public sealed class HealTests
         Assert.Null(UnitType.Grunt().Heal);
         var scenario = Scenario();
         scenario.Units[0] = new("cleric", type.Id, "blue", 4);
-        var started = GameEngine.StartRound(scenario, new Dice(), false);
+        var started = TestGame.StartRound(scenario, new Dice(), false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(started.State))!;
         Assert.Equal(new AbilityUses(2, 2), restored.Units[0].HealUses);
         Assert.Equal(type.Heal, restored.Types[0].Heal);
@@ -118,13 +118,13 @@ public sealed class HealTests
         Assert.True(healed.State.ActionDone);
         Assert.True(healed.State.MoveDone);
         Assert.Equal(0, dice.Rolls);
-        var resolved = Assert.Single(healed.Events);
+        var resolved = Assert.Single(TestGame.OperationEvents(healed));
         Assert.Equal("HealResolved", resolved.Kind);
         Assert.Equal(healing, resolved.Healing);
         Assert.Equal("cleric", resolved.UnitId);
         Assert.Equal("friend", resolved.TargetId);
-        Assert.True(healed.ResolutionSteps[0].StateAfter.ActionDone);
-        Assert.Equal(expectedHp, healed.ResolutionSteps[0].StateAfter.Units[1].CurrentHp);
+        Assert.True(TestGame.OperationSteps(healed)[0].StateAfter.ActionDone);
+        Assert.Equal(expectedHp, TestGame.OperationSteps(healed)[0].StateAfter.Units[1].CurrentHp);
         Assert.Equal(hp, action.State.Units[1].CurrentHp);
         Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].HealUses);
     }
@@ -223,7 +223,7 @@ public sealed class HealTests
         Assert.Equal(3, result.State.EffectiveDefOf("friend")); // Aura remains derived.
         if (chosen == "attack:enemy")
         {
-            Assert.Equal(3, Assert.Single(result.Events, e => e.Kind == "AttackResolved").Hits);
+            Assert.Equal(3, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Hits);
             Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].HealUses);
         }
     }

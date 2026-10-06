@@ -16,7 +16,8 @@ public sealed class EngineTests
         private readonly Queue<string> _tokens = new(tokens);
         public Queue<AttackFace> AttackFaces { get; } = new();
         public Queue<DefenceFace> DefenceFaces { get; } = new();
-        public string DrawToken(IReadOnlyList<string> bag) => _tokens.Dequeue();
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.FirstOrDefault(t => t.TypeId == _tokens.Peek()) is { } token ? Take(token) : new(_tokens.Dequeue(), "missing");
+        private ActivationToken Take(ActivationToken token) { _tokens.Dequeue(); return token; }
         public AttackFace RollAttackDie() => AttackFaces.Dequeue();
         public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => DefenceFaces.Dequeue();
@@ -34,7 +35,7 @@ public sealed class EngineTests
     }
 
     private static EngineResult Choose(EngineResult result, string? key, ScriptedRandom random) =>
-        GameEngine.Advance(result.State, new Choice(key), random);
+        TestGame.Advance(result.State, new Choice(key), random);
 
     [Fact]
     public void InitialFigurePlacementRejectsNonPassableTerrain()
@@ -44,7 +45,7 @@ public sealed class EngineTests
             var state = State();
             state.Physical.Board.Terrain.Add(new(new(0, 0), terrain));
             var original = JsonSerializer.Serialize(state);
-            Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new ScriptedRandom("hero-type")));
+            Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new ScriptedRandom("hero-type")));
             Assert.Equal(original, JsonSerializer.Serialize(state));
         }
     }
@@ -56,7 +57,7 @@ public sealed class EngineTests
     {
         var state = State();
         state.Physical.Board.Terrain.Add(new(new(0, 0), terrain));
-        Assert.NotNull(GameEngine.StartRound(state, new ScriptedRandom("hero-type")).NextInput);
+        Assert.NotNull(TestGame.StartRound(state, new ScriptedRandom("hero-type")).NextInput);
     }
 
     [Fact]
@@ -72,15 +73,15 @@ public sealed class EngineTests
         var random = new ScriptedRandom("monster-type", "hero-type");
         random.AttackFaces.Enqueue(AttackFace.Hit);
         random.AttackFaces.Enqueue(AttackFace.Hit);
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         result = Choose(result, "first", random);
         var first = Choose(result, "attack:hero", random);
-        var firstStep = first.ResolutionSteps.Single(s => first.Events[s.EventIndex].Kind == "AttackResolved");
+        var firstStep = TestGame.OperationSteps(first).Single(s => TestGame.OperationEvents(first)[s.EventIndex].Kind == "AttackResolved");
         Assert.Equal(1, firstStep.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
         // End Turn, selection of the remaining Monster, and Stay resolve automatically.
         var second = Choose(first, "attack:hero", random);
-        var attack = second.ResolutionSteps.Single(s => second.Events[s.EventIndex].Kind == "AttackResolved");
-        var death = second.ResolutionSteps.Single(s => second.Events[s.EventIndex].Kind == "UnitDied");
+        var attack = TestGame.OperationSteps(second).Single(s => TestGame.OperationEvents(second)[s.EventIndex].Kind == "AttackResolved");
+        var death = TestGame.OperationSteps(second).Single(s => TestGame.OperationEvents(second)[s.EventIndex].Kind == "UnitDied");
         Assert.Equal(0, attack.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
         Assert.Contains(attack.StateAfter.Physical.Figures, f => f.Id == "hero");
         Assert.DoesNotContain(death.StateAfter.Physical.Figures, f => f.Id == "hero");
@@ -90,7 +91,7 @@ public sealed class EngineTests
         second.State.Physical.Figures.Clear();
         Assert.NotEmpty(death.StateAfter.Units);
         Assert.NotEmpty(death.StateAfter.Physical.Figures);
-        Assert.Equal(Enumerable.Range(0, second.Events.Count), second.ResolutionSteps.Select(s => s.EventIndex));
+        Assert.Equal(Enumerable.Range(0, TestGame.OperationEvents(second).Count), TestGame.OperationSteps(second).Select(s => s.EventIndex));
     }
 
     [Fact]
@@ -104,20 +105,20 @@ public sealed class EngineTests
         random.AttackFaces.Enqueue(AttackFace.Hit);
         random.DefenceFaces.Enqueue(DefenceFace.Miss);
 
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         result = Choose(result, "1,1", random);
-        Assert.Contains(result.Events, e => e.Kind == "MovementCompleted" &&
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted" &&
             e.Path!.SequenceEqual([new Cell(0, 0), new Cell(1, 0), new Cell(1, 1)]));
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         result = Choose(result, "attack:monster", random);
-        Assert.Contains(result.Events, e => e.Kind == "AttackResolved" && e.Hits == 1 &&
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved" && e.Hits == 1 &&
             e.Blocks == 0 && e.Damage == 1);
-        Assert.Contains(result.Events, e => e.Kind == "UnitDied" && e.UnitId == "monster");
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "UnitDied" && e.UnitId == "monster");
         Assert.True(result.State.RoundComplete);
         Assert.Empty(result.State.Physical.Figures.Where(f => f.Id == "monster"));
         Assert.Equal(0, result.State.Units.Single(u => u.Id == "monster").CurrentHp);
-        Assert.Contains(result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == "monster-type");
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "TokenDrawn" && e.TypeId == "monster-type");
     }
 
     [Fact]
@@ -129,7 +130,7 @@ public sealed class EngineTests
         state.Units.Add(new Unit("friend", "hero-type", "blue", 1));
         state.Physical.Figures.Add(new Figure("friend", new Cell(1, 0)));
         var random = new ScriptedRandom("hero-type");
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         result = Choose(result, "hero", random);
         var move = result.NextInput!;
         Assert.DoesNotContain(move.Candidates, c => c.Destination == new Cell(1, 0));
@@ -148,24 +149,24 @@ public sealed class EngineTests
         state.Units.Add(new Unit("enemy", "enemy", "red", 1));
         state.Physical.Figures.Add(new Figure("enemy", new Cell(0, 1)));
         var random = new ScriptedRandom("hero-type", "enemy");
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         Assert.True(result.State.RoundComplete); // No legal destinations or attacks.
         Assert.Null(result.NextInput);
-        Assert.Contains(result.Events, e => e.Kind == "MovementCompleted" && e.Path!.Count == 1);
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted" && e.Path!.Count == 1);
     }
 
     [Fact]
     public void InvalidDecisionLeavesOriginalStateUntouched_AndPendingStateRoundTripsAsJson()
     {
         var random = new ScriptedRandom("hero-type");
-        var result = GameEngine.StartRound(State(), random);
+        var result = TestGame.StartRound(State(), random);
         var json = JsonSerializer.Serialize(result.State);
         var restored = JsonSerializer.Deserialize<GameState>(json)!;
         Assert.Equal(result.NextInput!.Kind, restored.Pending!.Kind);
         Assert.Equal(result.NextInput.Candidates.Select(c => c.Key), restored.Pending.Candidates.Select(c => c.Key));
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(restored, new Choice("invented"), random));
+        Assert.Throws<ArgumentException>(() => TestGame.Advance(restored, new Choice("invented"), random));
         Assert.Equal(DecisionKind.Activation, restored.Pending!.Kind);
-        result = GameEngine.Advance(restored, new Choice("1,0"), random);
+        result = TestGame.Advance(restored, new Choice("1,0"), random);
         Assert.True(result.State.RoundComplete);
     }
 
@@ -177,7 +178,7 @@ public sealed class EngineTests
         state.Units.Add(new Unit("enemy", "enemy", "red", 1));
         state.Physical.Figures.Add(new Figure("enemy", new Cell(1, 1)));
         var random = new ScriptedRandom("hero-type", "enemy");
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
         result = Choose(result, null, random);
@@ -194,7 +195,7 @@ public sealed class EngineTests
         state.Physical.Figures.Add(new Figure("enemy", new Cell(2, 0)));
         var random = new ScriptedRandom("hero-type", "enemy");
 
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
 
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
@@ -210,7 +211,7 @@ public sealed class EngineTests
         state.Physical.Figures.Add(new Figure("enemy", new Cell(1, 1)));
         var random = new ScriptedRandom("hero-type", "enemy");
 
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
 
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("attack:enemy", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).Key);
@@ -229,7 +230,7 @@ public sealed class EngineTests
         state.Physical.Figures.Add(new Figure("clear", new Cell(0, 2)));
         var random = new ScriptedRandom("hero-type", "enemy");
 
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
 
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Contains(result.NextInput.Candidates, candidate => candidate.TargetId == "clear");
@@ -244,7 +245,7 @@ public sealed class EngineTests
         state.Units.Add(new Unit("other", "other", "blue", 1));
         state.Physical.Figures.Add(new Figure("other", new Cell(1, 0)));
         var random = new ScriptedRandom("hero-type", "other");
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
     }
@@ -253,11 +254,11 @@ public sealed class EngineTests
     public void StayCompletesMovementWithoutChangingPosition()
     {
         var random = new ScriptedRandom("hero-type");
-        var result = GameEngine.StartRound(State(atk: 0), random);
+        var result = TestGame.StartRound(State(atk: 0), random);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.DoesNotContain(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Move && c.Destination == new Cell(0, 0));
         result = Choose(result, null, random);
-        Assert.Contains(result.Events, e => e.Kind == "MovementCompleted" &&
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted" &&
             e.Path!.SequenceEqual([new Cell(0, 0)]));
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
     }
@@ -274,9 +275,9 @@ public sealed class EngineTests
         random.AttackFaces.Enqueue(AttackFace.Hit);
         random.AttackFaces.Enqueue(AttackFace.Hit);
         random.DefenceFaces.Enqueue(DefenceFace.Miss);
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         result = Choose(result, "attack:enemy", random);
-        Assert.Contains(result.Events, e => e.Kind == "AttackResolved" && e.Damage == 3);
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved" && e.Damage == 3);
         Assert.Equal(0, result.State.Units.Single(u => u.Id == "enemy").CurrentHp);
     }
 
@@ -290,9 +291,9 @@ public sealed class EngineTests
         var random = new ScriptedRandom("hero-type", "enemy");
         random.AttackFaces.Enqueue(AttackFace.Hit);
         random.DefenceFaces.Enqueue(DefenceFace.Block);
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
         result = Choose(result, "attack:enemy", random);
-        Assert.Contains(result.Events, e => e.Kind == "AttackResolved" && e.Hits == 1 &&
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved" && e.Hits == 1 &&
             e.Blocks == 1 && e.Damage == 0);
         Assert.Contains(result.State.Physical.Figures, f => f.Id == "enemy");
     }

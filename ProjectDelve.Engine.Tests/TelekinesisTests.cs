@@ -7,7 +7,7 @@ public sealed class TelekinesisTests
 {
     private sealed class NoDice : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => throw new InvalidOperationException("Telekinesis must not roll.");
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Telekinesis must not roll.");
         public int RollD6() => throw new InvalidOperationException("Telekinesis must not roll.");
@@ -27,9 +27,9 @@ public sealed class TelekinesisTests
         };
     }
     private static EngineResult Choose(GameState state, string key) =>
-        GameEngine.Advance(state, new Choice(key), new NoDice(), false);
+        TestGame.Advance(state, new Choice(key), new NoDice(), false);
     private static EngineResult Action(GameState? state = null) =>
-        Choose(GameEngine.StartRound(state ?? Scenario(), new NoDice(), false).State, "stay");
+        Choose(TestGame.StartRound(state ?? Scenario(), new NoDice(), false).State, "stay");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
@@ -137,8 +137,8 @@ public sealed class TelekinesisTests
         var type = UnitType.Wizard() with { Atk = 0, Actions = UnitAction.Telekinesis, Cleave = new(), MoveAfterAttack = new(2) };
         var action = Action(Scenario(type));
         var result = Choose(Restore(action.State), "telekinesis:enemy");
-        var changed = Assert.Single(result.Events);
-        Assert.Equal(new RulesEvent("PostureChanged", "enemy", Posture: Posture.Lying), changed);
+        var changed = Assert.Single(TestGame.OperationEvents(result));
+        Assert.Equal(new RulesEvent("PostureChanged", "enemy", Posture: Posture.Lying) { SourceUnitId = "wizard", ActionId = "telekinesis" }, changed);
         Assert.True(result.State.ActionDone);
         Assert.False(result.State.CleavePending);
         Assert.Null(result.State.MoveAfterAttackAllowance);
@@ -151,7 +151,7 @@ public sealed class TelekinesisTests
         Assert.Equal(Posture.Lying, result.State.Physical.Figures[1].Posture);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[0].Posture);
         Assert.Equal(Posture.Upright, action.State.Physical.Figures[1].Posture);
-        var step = Assert.Single(result.ResolutionSteps).StateAfter;
+        var step = Assert.Single(TestGame.OperationSteps(result)).StateAfter;
         Assert.True(step.ActionDone);
         Assert.Equal(Posture.Lying, Restore(step).Physical.Figures[1].Posture);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
@@ -169,13 +169,13 @@ public sealed class TelekinesisTests
         Assert.Contains(action.NextInput.Candidates, c => c.Key == "fireball:4,0");
         Assert.Contains(action.NextInput.Candidates, c => c.Key == "telekinesis:enemy");
         // Attack choices need a deterministic dice provider; reuse the existing physical faces.
-        var result = GameEngine.Advance(action.State, new Choice(key), new Dice(), false);
+        var result = TestGame.Advance(action.State, new Choice(key), new Dice(), false);
         Assert.True(result.State.ActionDone);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
     }
     private sealed class Dice : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException();

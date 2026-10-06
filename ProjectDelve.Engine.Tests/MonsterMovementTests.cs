@@ -7,7 +7,7 @@ public sealed class MonsterMovementTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => throw new InvalidOperationException("Unexpected attack roll.");
         public int RollD6() => throw new InvalidOperationException("Unexpected D6 roll.");
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Unexpected defence roll.");
@@ -37,7 +37,7 @@ public sealed class MonsterMovementTests
 
     private static EngineResult PendingMove(GameState state)
     {
-        var result = GameEngine.StartRound(state, new Random());
+        var result = TestGame.StartRound(state, new Random());
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         return result;
     }
@@ -46,7 +46,7 @@ public sealed class MonsterMovementTests
     {
         var pending = PendingMove(state);
         var other = new OtherDecisions();
-        var choice = new MonsterMovementProvider(other)
+        var choice = new ApproachMovementProvider(other)
             .Choose(pending.NextInput!, new GameplayQueries(pending.State));
         Assert.Equal(0, other.Calls);
         if (choice is not null)
@@ -115,9 +115,9 @@ public sealed class MonsterMovementTests
         var canonical = pending.NextInput!.Candidates.Single(c => c.Key == "2,1").Path!.ToArray();
         var other = new OtherDecisions();
 
-        var result = GameEngine.Advance(pending.State, new MonsterMovementProvider(other), new Random());
+        var result = TestGame.Advance(pending.State, new ApproachMovementProvider(other), new Random());
 
-        Assert.Equal(canonical, Assert.Single(result.Events, e => e.Kind == "MovementCompleted").Path);
+        Assert.Equal(canonical, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted").Path);
         Assert.Equal(new Cell(2, 1), result.State.Physical.Figures.Single(f => f.Id == "monster").Position);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal(0, other.Calls);
@@ -133,7 +133,7 @@ public sealed class MonsterMovementTests
         var queries = new GameplayQueries(State(new Cell(0, 1), new Cell(3, 1)));
         var other = new OtherDecisions();
 
-        Assert.Equal("selected", new MonsterMovementProvider(other).Choose(request, queries));
+        Assert.Equal("selected", new ApproachMovementProvider(other).Choose(request, queries));
         Assert.Equal(1, other.Calls);
         Assert.Same(request, other.Request);
         Assert.Same(queries, other.Queries);
@@ -178,7 +178,7 @@ public sealed class MonsterMovementTests
             queries.Distances[candidate.Destination!] = candidateDistance;
         var request = new DecisionRequest(DecisionKind.Move, "type", "unit", candidates.ToList(), true);
 
-        Assert.Equal(stays ? null : candidates[0].Key, new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Equal(stays ? null : candidates[0].Key, new DefaultAutomatedProvider().Choose(request, queries));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class MonsterMovementTests
         queries.Distances[candidate.Destination!] = 2;
         var request = new DecisionRequest(DecisionKind.Move, "type", "unit", [candidate], false);
 
-        Assert.Equal(candidate.Key, new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Equal(candidate.Key, new DefaultAutomatedProvider().Choose(request, queries));
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public sealed class MonsterMovementTests
         queries.Distances[far.Destination!] = 2;
         var request = new DecisionRequest(DecisionKind.Move, "type", "unit", [far, near], true);
 
-        Assert.Equal(near.Key, new MonsterMovementProvider(new OtherDecisions()).Choose(request, queries));
+        Assert.Equal(near.Key, new ApproachMovementProvider(new OtherDecisions()).Choose(request, queries));
     }
 
     [Fact]
@@ -216,7 +216,7 @@ public sealed class MonsterMovementTests
         queries.Distances[longMove.Destination!] = 3;
         var request = new DecisionRequest(DecisionKind.Move, "type", "unit", [longMove, shortMove], true);
 
-        Assert.Equal(shortMove.Key, new MonsterMovementProvider(new OtherDecisions()).Choose(request, queries));
+        Assert.Equal(shortMove.Key, new ApproachMovementProvider(new OtherDecisions()).Choose(request, queries));
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed class MonsterMovementTests
         foreach (var candidate in candidates) queries.Distances[candidate.Destination!] = 3;
         var request = new DecisionRequest(DecisionKind.Move, "type", "unit", candidates.ToList(), true);
 
-        Assert.Equal("1,1", new MonsterMovementProvider(new OtherDecisions()).Choose(request, queries));
+        Assert.Equal("1,1", new ApproachMovementProvider(new OtherDecisions()).Choose(request, queries));
     }
 
     [Theory]
@@ -237,7 +237,7 @@ public sealed class MonsterMovementTests
     {
         var queries = new RankingQueries();
         var request = new DecisionRequest(DecisionKind.Move, "type", "unit", [Choice(new Cell(1, 0), 1)], allowsNone);
-        var provider = new MonsterMovementProvider(new OtherDecisions());
+        var provider = new ApproachMovementProvider(new OtherDecisions());
 
         if (allowsNone) Assert.Null(provider.Choose(request, queries));
         else Assert.Contains("staying is not allowed", Assert.Throws<InvalidOperationException>(

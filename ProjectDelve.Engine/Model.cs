@@ -2,6 +2,29 @@ using System.Collections.Immutable;
 
 namespace ProjectDelve.Engine;
 
+public sealed record ActivationToken(string TypeId, string SideId);
+public enum ControllerKind { Human, Automated }
+public sealed record ControllerAssignment(ActivationToken Token, ControllerKind Controller);
+public enum DiceFamily { Attack, Defence, D6 }
+public sealed record DicePool(DiceFamily Family, int Count, string OwnerUnitId, string SourceUnitId,
+    string SourceActionId, string Purpose, string? TargetId = null, Edge? Door = null, int? SuccessCount = null)
+{
+    public Cell? SelectedCell { get; init; }
+    public ImmutableArray<string> TargetIds { get; init; } = [];
+}
+public sealed record DiceResult(DicePool Pool, ImmutableArray<string> Faces, int Successes);
+public enum AttackStage { AttackRoll, DefenceRoll }
+public sealed record AttackTargetDice(string TargetId, int DefenceDice);
+// Immutable, narrowly scoped progress for one committed Attack, safe to share in detached copies.
+public sealed record AttackContinuation(string AttackerId, string ActionId, string? AbilityName,
+    Cell? SelectedCell, ImmutableArray<AttackTargetDice> Targets, int AttackDice,
+    AttackStage Stage = AttackStage.AttackRoll, int Hits = 0, int TargetIndex = 0,
+    ImmutableArray<AttackTargetResult> Results = default)
+{
+    public DiceResult? AttackRoll { get; init; }
+}
+public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount, string ActionId);
+
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
@@ -184,8 +207,8 @@ public static class BoardProperties
 public sealed record PhysicalState(Board Board, List<Figure> Figures);
 // Normal Unit choices use Activation. Move is also used for the narrow post-attack
 // continuation; Move/Act requests support the providers' existing ranking routines.
-public enum DecisionKind { SelectUnit, Activation, Move, Act, Cleave }
-public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction, BonusAction, Cleave }
+public enum DecisionKind { SelectUnit, Activation, Move, Act, Cleave, RollDice }
+public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, FreeAction, BonusAction, Cleave, RollDice }
 // Every candidate is legal. Relevance guides decision stops and presentation only;
 // choices default to relevant unless their rule component supplies a narrower policy.
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
@@ -196,7 +219,11 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
     public ImmutableArray<string> TargetIds { get; init; } = [];
 }
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
-    bool IsMoveAfterAttack = false);
+    bool IsMoveAfterAttack = false)
+{
+    public ActivationToken? Token { get; init; }
+    public DicePool? Roll { get; init; }
+}
 public sealed record AttackTargetResult(string TargetId, int DefenceDice, int Blocks, int Damage);
 // One roll and separate per-Unit Damage; there is deliberately no total Damage.
 public sealed record AttackResult(int AttackDice, int Hits, ImmutableArray<AttackTargetResult> Targets);
@@ -204,7 +231,18 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
     Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
-    AttackResult? Attack = null, Posture? Posture = null);
+    AttackResult? Attack = null, Posture? Posture = null)
+{
+    public ActivationToken? Token { get; init; }
+    public string? SideId { get; init; }
+    public string? SourceUnitId { get; init; }
+    public string? ActionId { get; init; }
+    public ActivationChoiceKind? Category { get; init; }
+    public Cell? Cell { get; init; }
+    public AttackContinuation? AttackContext { get; init; }
+    public DiceResult? Dice { get; init; }
+    public int? Round { get; init; }
+}
 
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(
@@ -235,8 +273,14 @@ public sealed class GameState
         Physical.Figures.Add(new(id, cell, posture));
     }
     public int Round { get; set; }
-    public List<string> Bag { get; set; } = [];
-    public string? ActiveTypeId { get; set; }
+    public List<ActivationToken> Bag { get; set; } = [];
+    public ActivationToken? ActiveToken { get; set; }
+    public List<ControllerAssignment> Controllers { get; set; } = [];
+    public ControllerKind ControllerFor(ActivationToken token) => Controllers.Single(c => c.Token == token).Controller;
+    public ControllerKind ControllerFor(DecisionRequest request) => ControllerFor(request.Token
+        ?? throw new InvalidOperationException("Decision has no controlling group."));
+    public AttackContinuation? AttackInProgress { get; set; }
+    public DoorContinuation? DoorInProgress { get; set; }
     public bool MoveDone { get; set; }
     public bool ActionDone { get; set; }
     // Ability names are the existing content identities, shared with persistent use counters.
@@ -325,7 +369,8 @@ public sealed class GameState
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
-        ActiveTypeId = ActiveTypeId, MoveDone = MoveDone, ActionDone = ActionDone,
+        ActiveToken = ActiveToken, Controllers = [.. Controllers],
+        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, MoveDone = MoveDone, ActionDone = ActionDone,
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
@@ -349,7 +394,7 @@ public interface IDecisionProvider
 
 public interface IRandomProvider
 {
-    string DrawToken(IReadOnlyList<string> bag);
+    ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag);
     AttackFace RollAttackDie();
     DefenceFace RollDefenceDie();
     int RollD6();

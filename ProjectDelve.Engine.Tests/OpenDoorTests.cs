@@ -7,7 +7,7 @@ public sealed class OpenDoorTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException("Open Door does not roll dice.");
@@ -26,7 +26,7 @@ public sealed class OpenDoorTests
             : [new("hero", "barbarian-type", "blue", 5)]
     };
     private static EngineResult Choose(GameState state, string key, bool relevanceAutoChoice = true) =>
-        GameEngine.Advance(state, new Choice(_ => key), new Random(), relevanceAutoChoice);
+        TestGame.Advance(state, new Choice(_ => key), new Random(), relevanceAutoChoice);
     private static Candidate DoorChoice(EngineResult result) =>
         Assert.Single(result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
 
@@ -41,9 +41,9 @@ public sealed class OpenDoorTests
         var state = State();
         state.Types[0] = state.Types[0] with { Actions = UnitAction.None, Atk = 0, Rng = 0 };
         state.Units[0] = state.Units[0] with { SideId = "red" };
-        Assert.NotNull(DoorChoice(GameEngine.StartRound(state, new Random())));
+        Assert.NotNull(DoorChoice(TestGame.StartRound(state, new Random())));
         state.Types[0] = state.Types[0] with { FreeActions = UnitFreeAction.None };
-        Assert.DoesNotContain(GameEngine.StartRound(state, new Random()).NextInput!.Candidates, c => c.FreeAction is not null);
+        Assert.DoesNotContain(TestGame.StartRound(state, new Random()).NextInput!.Candidates, c => c.FreeAction is not null);
     }
 
     [Theory]
@@ -59,7 +59,7 @@ public sealed class OpenDoorTests
         state.Physical.Figures[1] = new("enemy", new(1, 0));
         // Keep another optional choice after opening, including after the Attack.
         state.Physical.Board.Edges.Add(new(new(1, 1), new(1, 2), EdgeKind.ClosedDoor));
-        var pending = GameEngine.StartRound(state, new Random(), relevanceAutoChoice);
+        var pending = TestGame.StartRound(state, new Random(), relevanceAutoChoice);
         if (moveDone) pending = Choose(pending.State, "stay", relevanceAutoChoice);
         if (actionDone) pending = Choose(pending.State, "attack:enemy", relevanceAutoChoice);
         if (relevanceAutoChoice) pending.State.BonusActionsUsedThisActivation.Add("Rage");
@@ -75,7 +75,7 @@ public sealed class OpenDoorTests
         Assert.Equal(pending.State.BonusActionsUsedThisActivation, opened.State.BonusActionsUsedThisActivation);
         Assert.Equal("hero", opened.State.CurrentUnitId);
         Assert.False(opened.State.RoundComplete);
-        var evt = Assert.Single(opened.Events);
+        var evt = Assert.Single(TestGame.OperationEvents(opened));
         Assert.Equal("DoorOpened", evt.Kind);
         Assert.Equal("hero", evt.UnitId);
         Assert.Equal(Door with { Kind = EdgeKind.OpenDoor }, evt.Door);
@@ -96,7 +96,7 @@ public sealed class OpenDoorTests
         state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor));
         state.Physical.Board.Edges.Add(new(new(1, 1), new(0, 1), EdgeKind.OpenDoor));
         state.Physical.Board.Edges.Add(new(new(1, 1), new(1, 0), EdgeKind.Wall));
-        var pending = GameEngine.StartRound(state, new Random());
+        var pending = TestGame.StartRound(state, new Random());
         var doors = pending.NextInput!.Candidates.Where(c => c.FreeAction is not null).ToArray();
         Assert.Equal(2, doors.Length);
         Assert.Equal(2, doors.Select(c => c.Key).Distinct().Count());
@@ -120,7 +120,7 @@ public sealed class OpenDoorTests
         state.Physical = new(new Board(3, 1,
             [new(new(1, 0), new(0, 0), EdgeKind.ClosedDoor), new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor)]),
             [new("hero", new(0, 0))]);
-        var pending = GameEngine.StartRound(state, new Random());
+        var pending = TestGame.StartRound(state, new Random());
         Assert.DoesNotContain(pending.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Move);
         var opened = Choose(pending.State, DoorChoice(pending).Key);
         var move = Assert.Single(opened.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Move);
@@ -135,7 +135,7 @@ public sealed class OpenDoorTests
     [Fact]
     public void OpeningAfterMoveRegeneratesAttackLegality_AndDoesNotConsumeAttack()
     {
-        var pending = GameEngine.StartRound(State(enemy: true), new Random());
+        var pending = TestGame.StartRound(State(enemy: true), new Random());
         var stayed = Choose(pending.State, "stay");
         Assert.DoesNotContain(stayed.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
         var opened = Choose(stayed.State, DoorChoice(stayed).Key);
@@ -143,24 +143,24 @@ public sealed class OpenDoorTests
         Assert.False(opened.State.ActionDone);
         Assert.Equal(0, new GameplayQueries(opened.State).DistanceToAttackPositionFrom("hero", new(1, 1)));
         var attacked = Choose(opened.State, "attack:enemy");
-        Assert.Contains(attacked.Events, e => e.Kind == "AttackResolved");
+        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved");
         Assert.True(attacked.State.RoundComplete);
     }
 
     [Fact]
     public void EndTurnCanDeclineFreeActions_AndDefaultMonsterDoesNotInventDoorBehavior()
     {
-        var pending = GameEngine.StartRound(State(), new Random());
+        var pending = TestGame.StartRound(State(), new Random());
         Assert.DoesNotContain(pending.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
         var stayed = Choose(pending.State, "stay");
         var ended = Choose(stayed.State, "end-turn");
         Assert.True(ended.State.RoundComplete);
         Assert.Equal(Door, Assert.Single(ended.State.Physical.Board.Edges));
-        Assert.DoesNotContain(ended.Events, e => e.Kind == "DoorOpened");
+        Assert.DoesNotContain(TestGame.OperationEvents(ended), e => e.Kind == "DoorOpened");
         Assert.Throws<InvalidOperationException>(() => Choose(ended.State, DoorChoice(stayed).Key));
-        var automatic = GameEngine.Advance(stayed.State, new DefaultMonsterProvider(), new Random());
+        var automatic = TestGame.Advance(stayed.State, new DefaultAutomatedProvider(), new Random());
         Assert.True(automatic.State.RoundComplete);
-        Assert.DoesNotContain(automatic.Events, e => e.Kind == "DoorOpened");
+        Assert.DoesNotContain(TestGame.OperationEvents(automatic), e => e.Kind == "DoorOpened");
     }
 
     [Theory]
@@ -171,30 +171,30 @@ public sealed class OpenDoorTests
     {
         var state = State();
         state.Physical.Board.Edges[0] = Door with { Kind = kind };
-        Assert.DoesNotContain(GameEngine.StartRound(state, new Random()).NextInput!.Candidates, c => c.FreeAction is not null);
+        Assert.DoesNotContain(TestGame.StartRound(state, new Random()).NextInput!.Candidates, c => c.FreeAction is not null);
     }
 
     [Fact]
     public void ProviderCannotForgeChoicesOrReplaceCanonicalFreeActionPayload()
     {
-        var pending = GameEngine.StartRound(State(enemy: true), new Random());
+        var pending = TestGame.StartRound(State(enemy: true), new Random());
         var candidate = DoorChoice(pending);
         var forged = candidate with { Key = "open-door:0,0:1,0", Door = new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor) };
         pending.State.Pending!.Candidates.Add(forged);
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(pending.State, new Choice(request =>
+        Assert.Throws<ArgumentException>(() => TestGame.Advance(pending.State, new Choice(request =>
         {
             Assert.DoesNotContain(request.Candidates, c => c.Key == forged.Key);
             request.Candidates.Add(forged);
             return forged.Key;
         }), new Random()));
-        var result = GameEngine.Advance(pending.State, new Choice(request =>
+        var result = TestGame.Advance(pending.State, new Choice(request =>
         {
             request.Candidates[request.Candidates.FindIndex(c => c.Key == candidate.Key)] = candidate with
                 { FreeAction = null, Action = UnitAction.NormalAttack, TargetId = "enemy", Door = forged.Door };
             return candidate.Key;
         }), new Random());
         Assert.Equal(Door with { Kind = EdgeKind.OpenDoor }, Assert.Single(result.State.Physical.Board.Edges));
-        Assert.DoesNotContain(result.Events, e => e.Kind == "AttackResolved");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
         Assert.False(result.State.MoveDone);
         Assert.False(result.State.ActionDone);
     }

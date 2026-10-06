@@ -8,7 +8,7 @@ public sealed class FuryTests
     private sealed class Random(string token = "barbarian-type") : IRandomProvider
     {
         public int AttackRolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag.Contains(token) ? token : bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.FirstOrDefault(t => t.TypeId == token) ?? bag[0];
         public AttackFace RollAttackDie() { AttackRolls++; return AttackFace.Hit; }
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException();
@@ -45,7 +45,7 @@ public sealed class FuryTests
     }
 
     private static EngineResult Choose(GameState state, string key, Random random) =>
-        GameEngine.Advance(state, new Choice(key), random, false);
+        TestGame.Advance(state, new Choice(key), random, false);
 
     [Fact]
     public void BarbarianRetainsContentAndSuppliesNamedFury()
@@ -81,11 +81,11 @@ public sealed class FuryTests
         Assert.Equal("ATK +3 while adjacent to 3 or more enemies",
             Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "passive:Fury").Description);
         var random = new Random("unfamiliar-fighter");
-        var started = GameEngine.StartRound(restored, random, false);
+        var started = TestGame.StartRound(restored, random, false);
         var ready = Choose(started.State, "stay", random);
         var attacked = Choose(ready.State, "attack:enemy-0", random);
         Assert.Equal(expected, random.AttackRolls);
-        Assert.Equal(expected, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+        Assert.Equal(expected, Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved").Attack!.AttackDice);
     }
 
     [Theory]
@@ -153,12 +153,12 @@ public sealed class FuryTests
         if (destination == "2,3") Move(state, "enemy-1", new(5, 3));
         var before = state.EffectiveAtkOf("hero");
         var random = new Random(token);
-        var started = GameEngine.StartRound(state, random, false);
+        var started = TestGame.StartRound(state, random, false);
         if (id != started.State.CurrentUnitId)
             started = Choose(started.State, id, random);
         var moved = Choose(started.State, destination, random);
         Assert.Equal(expected, moved.State.EffectiveAtkOf("hero"));
-        Assert.Equal(expected, moved.ResolutionSteps[0].StateAfter.EffectiveAtkOf("hero"));
+        Assert.Equal(expected, TestGame.OperationSteps(moved)[0].StateAfter.EffectiveAtkOf("hero"));
         Assert.Equal(before, started.State.EffectiveAtkOf("hero"));
         Assert.Empty(moved.State.ModifiersThisTurn);
     }
@@ -182,7 +182,7 @@ public sealed class FuryTests
     public void NormalAttackAndRageUseEffectiveAtkAndDeathEndsFury(bool rage, int expected)
     {
         var random = new Random();
-        var started = GameEngine.StartRound(State(), random, false);
+        var started = TestGame.StartRound(State(), random, false);
         var stayed = Choose(started.State, "stay", random);
         var rageCandidate = Assert.Single(stayed.NextInput!.Candidates, c => c.BonusAction?.Name == "Rage");
         Assert.True(rageCandidate.Relevant); // Existing hypothetical-effect relevance sees Fury + Rage.
@@ -193,14 +193,14 @@ public sealed class FuryTests
         Assert.Equal(expected, restored.EffectiveAtkOf("hero"));
         var attacked = Choose(restored, "attack:enemy-0", random);
         Assert.Equal(expected, random.AttackRolls);
-        Assert.Equal(expected, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Hits);
-        Assert.Contains(attacked.Events, e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
-        var deathIndex = attacked.Events.FindIndex(e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
-        Assert.Equal(rage ? 6 : 4, attacked.ResolutionSteps.Single(s => s.EventIndex == deathIndex)
+        Assert.Equal(expected, Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved").Hits);
+        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
+        var deathIndex = TestGame.OperationEvents(attacked).FindIndex(e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
+        Assert.Equal(rage ? 6 : 4, TestGame.OperationSteps(attacked).Single(s => s.EventIndex == deathIndex)
             .StateAfter.EffectiveAtkOf("hero"));
         Assert.Equal(rage ? 6 : 4, attacked.State.EffectiveAtkOf("hero"));
         Assert.Equal(DecisionKind.Cleave, attacked.NextInput!.Kind);
-        var declined = GameEngine.Advance(attacked.State, new Decline(), random, false);
+        var declined = TestGame.Advance(attacked.State, new Decline(), random, false);
         Assert.Equal(4, declined.State.EffectiveAtkOf("hero"));
         Assert.Equal(expected, ready.State.EffectiveAtkOf("hero"));
     }

@@ -91,7 +91,7 @@ class Element {
 
 function state(hp = 4, actorX = 0) {
   return {
-    round: 1, currentUnitId: "actor", activeTypeId: "opaque-type",
+    round: 1, currentUnitId: "actor", activeToken: { typeId: "opaque-type", sideId: "amber" },
     // Distant same-side targets and exhausted uses deliberately contradict apparent rules.
     actionDone: true, moveDone: true, cleavePending: false,
     physical: { board: { width: 6, height: 1, edges: [] }, figures: [
@@ -727,4 +727,97 @@ test("scenario restart waits for an in-flight request without submitting its sta
   release(); await pending;
   assert.deepEqual(requests[1], { url: "/api/game/restart", body: { expectedRevision: 9 } });
   assert.equal(h.run("snapshot.revision"), 10);
+});
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`mandatory RollDice remains pending after playback (${mode})`, async () => {
+    const initial = response([choice("commit-attack", "Direct")]);
+    const final = response([choice("opaque-roll", "Direct", {}, { label: "Roll Dice" })]);
+    final.revision = 9;
+    final.presentation.decision.prompt = "actor: roll 3 Attack dice (supplied context)";
+    final.presentation.decision.roll = { family: "Attack", count: 3, ownerUnitId: "actor", sourceActionId: "arbitrary" };
+    final.result.nextInput = { kind: "RollDice", candidates: [{ key: "opaque-roll" }], allowsNone: false };
+    final.result.events = [{ kind: "ActionUsed" }, { kind: "AttackStarted" }];
+    final.presentation.events = [
+      { role: "Notice", text: "actor used supplied Action" },
+      { role: "Notice", text: "actor Attack started with fixed membership" }
+    ];
+    final.result.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, stateAfter: final.result.state }));
+    final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+    const requests = [];
+    const h = harness(initial, async (url, options) => {
+      requests.push({ url, body: options.body ? JSON.parse(options.body) : null });
+      return { ok: true, json: async () => final };
+    });
+    h.context.mode = mode;
+    h.run(`
+      ui.animate.checked = mode !== "disabled";
+      pause = async () => {};
+      const presentNormally = present;
+      present = async event => {
+        await presentNormally(event);
+        if (mode === "skip") ui.skip.listeners.click();
+      };
+    `);
+    await click(buttons(h.elements.get("choices"))[0]);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].body.candidateKey, "commit-attack");
+    assert.match(h.elements.get("prompt").textContent, /roll 3 Attack dice/);
+    assert.equal(buttons(h.elements.get("choices")).length, 1);
+    assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
+    assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
+    assert.equal(h.run("busy"), false);
+    // Refresh only reprojects the supplied pending boundary.
+    await h.elements.get("refresh").listeners.click();
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].body, null);
+    await click(buttons(h.elements.get("choices"))[0]);
+    assert.equal(requests.length, 3);
+    assert.deepEqual(requests[2].body, { expectedRevision: 9, candidateKey: "opaque-roll" });
+  });
+}
+
+test("dice faces, token Side and arbitrary agency are generic supplied presentation", async () => {
+  const initial = response([choice("opaque", "Direct")]), final = response();
+  for (const value of [initial, final]) {
+    value.result.state.activeToken = { typeId: "opaque-type", sideId: "violet" };
+    value.result.state.units[0].sideId = "violet";
+    value.result.state.controllers = [{ token: value.result.state.activeToken, controller: "Human" }];
+  }
+  final.presentation.events = [
+    { role: "Notice", text: "Token drawn: A printed name (violet)" },
+    { role: "Notice", text: "actor: Attack dice [Hit, Miss, Hit], 2 successes (arbitrary)" },
+    { role: "Notice", text: "a: Defence dice [Block, Miss], 1 success (arbitrary)" },
+    { role: "Notice", text: "actor: D6 dice [4], 0 successes (arbitrary-check)" }
+  ];
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push(JSON.parse(options.body)); return { ok: true, json: async () => final };
+  });
+  h.run("ui.animate.checked = false");
+  assert.match(h.elements.get("status").textContent, /violet/);
+  await click(buttons(h.elements.get("choices"))[0]);
+  assert.equal(requests[0].candidateKey, "opaque");
+  assert.match(h.elements.get("events").textContent, /Hit, Miss, Hit/);
+  assert.match(h.elements.get("events").textContent, /Block, Miss/);
+  assert.match(h.elements.get("events").textContent, /D6 dice \[4\]/);
+  assert.match(h.elements.get("events").textContent, /violet/);
+});
+
+test("playback failure recovers pending RollDice without submitting it", async () => {
+  const final = response([choice("opaque-roll", "Direct", {}, { label: "Roll Dice" })]);
+  final.result.nextInput.kind = "RollDice";
+  final.presentation.events = [{ role: "Notice", text: "Resolved attack start" }];
+  const requests = [];
+  const h = harness(response(), async (url, options) => {
+    requests.push({ url, body: options.body ? JSON.parse(options.body) : null });
+    return { ok: true, json: async () => final };
+  });
+  h.run('present = async () => { throw new Error("playback failed"); };');
+  await h.run('mutate("decision", { candidateKey: "commit" })');
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests.map(r => r.url), ["/api/game/decision", "/api/game"]);
+  assert.equal(requests[1].body, null);
+  assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
+  assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
 });

@@ -182,7 +182,7 @@ public sealed class PlaytestApiTests
         var beforeMove = Assert.Single(next.Result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
         var opened = await host.Decide(next.Revision, beforeMove.Key);
         Assert.Equal(next.Revision + 1, opened.Revision);
-        Assert.Equal("DoorOpened", Assert.Single(opened.Result.Events).Kind);
+        Assert.Equal("DoorOpened", Assert.Single(opened.Result.Events, e => e.Kind == "DoorOpened").Kind);
         Assert.Equal("barbarian", opened.Result.NextInput!.UnitId);
         Assert.False(opened.Result.State.MoveDone);
         Assert.False(opened.Result.State.ActionDone);
@@ -348,7 +348,7 @@ public sealed class PlaytestApiTests
         Assert.True(result.Result.State.RoundComplete);
         var next = await host.Round(result.Revision);
         var deadType = result.Result.State.Units.Single(u => u.Id == died.UnitId).TypeId;
-        Assert.DoesNotContain(next.Result.State.Bag, typeId => typeId == deadType);
+        Assert.DoesNotContain(next.Result.State.Bag, token => token.TypeId == deadType);
         Assert.DoesNotContain(next.Result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == deadType);
     }
 
@@ -369,11 +369,11 @@ public sealed class PlaytestApiTests
         var moved = await host.Decide(next.Revision, destination.Key);
         var attack = moved.Result.NextInput!.Candidates.First(c => c.TargetId?.StartsWith("grunt-") == true);
         var result = await host.Decide(moved.Revision, attack.Key);
-        Assert.Equal("AttackResolved", result.Result.Events[0].Kind);
-        Assert.Equal("barbarian", result.Result.Events[0].UnitId);
-        Assert.Equal(4, result.Result.Events[0].Damage);
-        Assert.Equal("UnitDied", result.Result.Events[1].Kind);
-        Assert.Equal(attack.TargetId, result.Result.Events[1].UnitId);
+        Assert.Equal("AttackResolved", result.Result.Events.First(e => e.Kind == "AttackResolved").Kind);
+        Assert.Equal("barbarian", result.Result.Events.First(e => e.Kind == "AttackResolved").UnitId);
+        Assert.Equal(4, result.Result.Events.First(e => e.Kind == "AttackResolved").Damage);
+        Assert.Equal("UnitDied", result.Result.Events.First(e => e.Kind == "UnitDied").Kind);
+        Assert.Equal(attack.TargetId, result.Result.Events.First(e => e.Kind == "UnitDied").UnitId);
         Assert.Equal(0, result.Result.State.Units.Single(u => u.Id == attack.TargetId).CurrentHp);
         Assert.DoesNotContain(result.Result.State.Physical.Figures, f => f.Id == attack.TargetId);
     }
@@ -383,11 +383,11 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(monstersFirst: true);
         var result = await host.Round(0);
-        Assert.Equal("grunt-type", result.Result.Events[0].TypeId);
+        Assert.Equal("grunt-type", result.Result.Events.First(e => e.Kind == "TokenDrawn").TypeId);
         Assert.Equal("barbarian-type", result.Result.NextInput!.TypeId);
         Assert.Equal(new[] { "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "shaman-1", "troll-1", "troll-2" }, result.Result.Events
             .Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
-        Assert.Equal("barbarian-type", result.Result.Events[^1].TypeId);
+        Assert.Equal("barbarian-type", result.Result.Events.Last(e => e.Kind == "TokenDrawn").Token!.TypeId);
         Assert.False(result.Result.State.RoundComplete);
     }
 
@@ -464,7 +464,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(UnitType.Shaman(), initial.Types.Single(t => t.Id == "shaman-type"));
         Assert.DoesNotContain(initial.Units, u => u.TypeId == "goblin-type");
         var started = await host.Round(0);
-        Assert.DoesNotContain("goblin-type", started.Result.State.Bag);
+        Assert.DoesNotContain("goblin-type", started.Result.State.Bag.Select(t => t.TypeId));
         var completed = await FinishRound(host, started);
         var move = Assert.Single(completed.Result.Events, e => e.UnitId == "shaman-1" && e.Kind == "MovementCompleted");
         Assert.Equal(new Cell(7, 10), move.Path![0]);
@@ -475,15 +475,15 @@ public sealed class PlaytestApiTests
         var goblin = Assert.Single(created.Units, u => u.TypeId == "goblin-type");
         Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red"), goblin);
         Assert.Equal(Posture.Lying, created.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
-        Assert.DoesNotContain("goblin-type", created.Bag);
+        Assert.DoesNotContain("goblin-type", created.Bag.Select(t => t.TypeId));
         Assert.DoesNotContain(completed.Result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == "goblin-type");
         Assert.True(completed.Result.State.RoundComplete);
         var next = await host.Round(completed.Revision);
-        Assert.Contains("goblin-type", next.Result.State.Bag);
+        Assert.Contains("goblin-type", next.Result.State.Bag.Select(t => t.TypeId));
         Assert.Equal(Posture.Lying, next.Result.State.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
         var second = await FinishRound(host, next);
         Assert.Equal(new RulesEvent("PostureChanged", goblin.Id, Posture: Posture.Upright),
-            Assert.Single(second.Result.Events, e => e.UnitId == goblin.Id));
+            Assert.Single(second.Result.Events, e => e.UnitId == goblin.Id && e.Kind == "PostureChanged"));
         var third = await FinishRound(host, await host.Round(second.Revision));
         Assert.Contains(third.Result.Events, e => e.UnitId == goblin.Id && e.Kind == "MovementCompleted");
         var script = await host.Client.GetStringAsync("/app.js");
@@ -579,7 +579,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(6, raging.Result.State.EffectiveAtk["barbarian"]);
         Assert.Equal(4, raging.Result.State.Types.Single(t => t.Id == "barbarian-type").Atk);
         Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(raging.Result.State.ModifiersThisTurn));
-        Assert.Equal(6, Assert.Single(raging.Result.ResolutionSteps).StateAfter.EffectiveAtk["barbarian"]);
+        Assert.Equal(6, raging.Result.ResolutionSteps.Last().StateAfter.EffectiveAtk["barbarian"]);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
             expectedRevision = raging.Revision, candidateKey = rage.Key })).StatusCode);
         var attacked = await host.Decide(raging.Revision, "attack:archer-1");
@@ -653,9 +653,9 @@ public sealed class PlaytestApiTests
         Assert.Equal(4, focused.Result.State.EffectiveAtk["wizard"]);
         Assert.False(focused.Result.State.ActionDone);
         Assert.Equal(new AbilityUses(2, 1), focused.Presentation.Cards["wizard"].Entries.Single(e => e.Content.Name == "Focus").Uses);
-        Assert.Equal(OutcomeRole.Notice, Assert.Single(focused.Presentation.Events).Role);
-        Assert.Equal("wizard used Focus", focused.Presentation.Events[0].Text);
-        Assert.Equal(new AbilityUses(2, 1), Assert.Single(focused.Presentation.ResolutionSteps).Cards["wizard"].Entries.Single(e => e.Content.Name == "Focus").Uses);
+        Assert.Equal(OutcomeRole.Notice, focused.Presentation.Events.Last().Role);
+        Assert.Equal("wizard used Focus", focused.Presentation.Events.Last().Text);
+        Assert.Equal(new AbilityUses(2, 1), focused.Presentation.ResolutionSteps.Last().Cards["wizard"].Entries.Single(e => e.Content.Name == "Focus").Uses);
         Assert.DoesNotContain(focused.Presentation.Decision!.Candidates, c => c.EntryId == focusCard.Content.Id);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new { expectedRevision = focused.Revision, candidateKey = focus.Key })).StatusCode);
         var attack = focused.Result.NextInput!.Candidates.First(c => c.Action == UnitAction.NormalAttack);
@@ -693,13 +693,13 @@ public sealed class PlaytestApiTests
         var before = result.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId);
         var hp = result.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp;
         var resolved = await host.Decide(result.Revision, projected.Key);
-        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying), Assert.Single(resolved.Result.Events));
+        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying) { SourceUnitId = "wizard", ActionId = "telekinesis" }, Assert.Single(resolved.Result.Events, e => e.Kind == "PostureChanged"));
         Assert.Equal(before with { Posture = Posture.Lying }, resolved.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId));
         Assert.Equal(hp, resolved.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp);
         Assert.True(resolved.Result.State.ActionDone);
         Assert.DoesNotContain(resolved.Result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
-        Assert.Equal(Posture.Lying, Assert.Single(resolved.Result.ResolutionSteps).StateAfter.Physical.Figures.Single(f => f.Id == action.TargetId).Posture);
-        Assert.Equal(OutcomeRole.Notice, Assert.Single(resolved.Presentation.Events).Role);
+        Assert.Equal(Posture.Lying, resolved.Result.ResolutionSteps.Last().StateAfter.Physical.Figures.Single(f => f.Id == action.TargetId).Posture);
+        Assert.Equal(OutcomeRole.Notice, resolved.Presentation.Events.Last().Role);
         Assert.Null(resolved.Presentation.Cards["wizard"].Entries.Single(e => e.Content.Id == "telekinesis").Uses);
         using var repeated = await host.Post("decision", new { expectedRevision = resolved.Revision, candidateKey = projected.Key });
         Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
@@ -772,7 +772,7 @@ public sealed class PlaytestApiTests
         var moved = await host.Decide(started.Revision, "6,8");
         Assert.Equal(5, moved.Result.State.EffectiveAtkOf("barbarian"));
         var attacked = await host.Decide(moved.Revision, "attack:grunt-2");
-        Assert.Equal(5, attacked.Result.Events[0].Damage);
+        Assert.Equal(5, attacked.Result.Events.First(e => e.Kind == "AttackResolved").Damage);
         Assert.Equal(DecisionKind.Cleave, attacked.Result.NextInput!.Kind);
         Assert.Contains(attacked.Result.NextInput.Candidates, c => c.Key == "cleave:archer-1");
         var cleaved = await host.Decide(attacked.Revision, "cleave:archer-1");
@@ -835,8 +835,8 @@ public sealed class PlaytestApiTests
     private sealed class FixedRandom(bool hit, bool monstersFirst, int doorRoll) : IRandomProvider
     {
         public bool Hits { get; set; } = hit;
-        public string DrawToken(IReadOnlyList<string> bag) => monstersFirst
-            ? bag.FirstOrDefault(typeId => typeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "shaman-type" or "troll-type") ?? bag[0]
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => monstersFirst
+            ? bag.FirstOrDefault(token => token.TypeId is "grunt-type" or "zombie-type" or "skeleton-archer-type" or "goblin-type" or "shaman-type" or "troll-type") ?? bag[0]
             : bag[0];
         public AttackFace RollAttackDie() => Hits ? AttackFace.Hit : AttackFace.Miss;
         public int RollD6() => doorRoll;
@@ -863,14 +863,26 @@ public sealed class PlaytestApiTests
         public async Task<GameResponse> Decide(long revision, string? key)
         {
             if (key is null)
-                key = (await Read()).Result.NextInput!.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key;
+                key = (await Read()).Result.NextInput!.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice).Key;
             return await Mutation("decision", new { expectedRevision = revision, candidateKey = key });
         }
         private async Task<GameResponse> Mutation(string operation, object body)
         {
             using var response = await Post(operation, body);
             response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+            var result = (await response.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+            // Legacy completed-operation tests explicitly continue each supplied pool over HTTP.
+            var events = new List<RulesEvent>(result.Result.Events);
+            var steps = new List<ResolutionStep>(result.Result.ResolutionSteps);
+            while (result.Result.NextInput?.Kind == DecisionKind.RollDice)
+            {
+                using var rolled = await Post("decision", new { expectedRevision = result.Revision, candidateKey = "roll-dice" });
+                rolled.EnsureSuccessStatusCode();
+                result = (await rolled.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+                steps.AddRange(result.Result.ResolutionSteps.Select(step => step with { EventIndex = step.EventIndex + events.Count }));
+                events.AddRange(result.Result.Events);
+            }
+            return result with { Result = result.Result with { Events = events, ResolutionSteps = steps } };
         }
         public async ValueTask DisposeAsync() { Client.Dispose(); await app.DisposeAsync(); }
     }

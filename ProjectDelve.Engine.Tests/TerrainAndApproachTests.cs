@@ -79,7 +79,7 @@ public sealed class TerrainAndApproachTests
                 new Candidate($"{p.Key.X},{p.Key.Y}", p.Key, p.Value.ToList())).ToList(), true);
         var queries = new GameplayQueries(state);
         Assert.Equal(occupantSide == "red" ? 4 : 1, queries.DistanceToAttackPositionFrom("monster", new(1, 0)));
-        Assert.Equal("1,0", MonsterMovementProvider.ChooseMovement(request, queries));
+        Assert.Equal("1,0", ApproachMovementProvider.ChooseMovement(request, queries));
         var actual = MovementRules.FindPaths(state, "monster", new(0, 0));
         Assert.DoesNotContain(new Cell(3, 0), actual.Keys);
         Assert.DoesNotContain(new Cell(5, 0), actual.Keys);

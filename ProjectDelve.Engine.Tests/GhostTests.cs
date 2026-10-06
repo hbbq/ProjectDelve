@@ -8,7 +8,7 @@ public sealed class GhostTests
 {
     private sealed class Dice : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException("Phase does not open Doors.");
@@ -67,11 +67,11 @@ public sealed class GhostTests
         var state = State();
         state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), kind));
         Assert.Equal(new Cell[] { new(0, 0), new(1, 0), new(2, 0) }, Paths(state)[new(2, 0)]);
-        var pending = GameEngine.StartRound(state, new Dice(), false);
-        var moved = GameEngine.Advance(pending.State, new Choice("2,0"), new Dice(), false);
+        var pending = TestGame.StartRound(state, new Dice(), false);
+        var moved = TestGame.Advance(pending.State, new Choice("2,0"), new Dice(), false);
         Assert.Equal(new Cell(2, 0), moved.State.Physical.Figures.Single(f => f.Id == "ghost").Position);
         Assert.Equal(kind, Assert.Single(moved.State.Physical.Board.Edges).Kind);
-        Assert.DoesNotContain(moved.Events, e => e.Kind is "DoorOpened" or "DoorOpeningAttemptResolved");
+        Assert.DoesNotContain(TestGame.OperationEvents(moved), e => e.Kind is "DoorOpened" or "DoorOpeningAttemptResolved");
         state.Types[0] = UnitRoster.Grunt(UnitTypeIds.Ghost);
         Assert.DoesNotContain(new Cell(1, 0), Paths(state).Keys);
         Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("ghost", new(0, 0)));
@@ -87,9 +87,9 @@ public sealed class GhostTests
         state.Physical.Board.Terrain.Add(new(new(1, 0), kind));
         Assert.Equal(new Cell[] { new(0, 0), new(1, 0), new(2, 0) }, Paths(state)[new(2, 0)]);
         Assert.DoesNotContain(new Cell(1, 0), Paths(state).Keys);
-        var pending = GameEngine.StartRound(state, new Dice(), false);
+        var pending = TestGame.StartRound(state, new Dice(), false);
         Assert.DoesNotContain(pending.NextInput!.Candidates, c => c.Destination == new Cell(1, 0));
-        var moved = GameEngine.Advance(pending.State, new Choice("2,0"), new Dice(), false);
+        var moved = TestGame.Advance(pending.State, new Choice("2,0"), new Dice(), false);
         Assert.Equal(new Cell(2, 0), moved.State.Physical.Figures.Single(f => f.Id == "ghost").Position);
         state.Types[0] = UnitRoster.Grunt(UnitTypeIds.Ghost);
         Assert.DoesNotContain(new Cell(2, 0), Paths(state).Keys);
@@ -117,11 +117,11 @@ public sealed class GhostTests
         var queries = new GameplayQueries(state);
         Assert.Equal(3, queries.DistanceToAttackPositionFrom("ghost", new(0, 0)));
         Assert.Equal(4, queries.DistanceToNearestHostileFrom("ghost", new(0, 0)));
-        Assert.Equal("2,0", new DefaultMonsterProvider().Choose(Moves(state), queries));
+        Assert.Equal("2,0", new DefaultAutomatedProvider().Choose(Moves(state), queries));
         state.Physical.Figures[1] = new("hero", new(3, 0));
-        Assert.Equal("2,0", new DefaultMonsterProvider().Choose(Moves(state), new GameplayQueries(state)));
-        var pending = GameEngine.StartRound(state, new Dice(), false);
-        var moved = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), new Dice(), false);
+        Assert.Equal("2,0", new DefaultAutomatedProvider().Choose(Moves(state), new GameplayQueries(state)));
+        var pending = TestGame.StartRound(state, new Dice(), false);
+        var moved = TestGame.Advance(pending.State, new DefaultAutomatedProvider(), new Dice(), false);
         Assert.Equal(new Cell(2, 0), moved.State.Physical.Figures.Single(f => f.Id == "ghost").Position);
         Assert.Contains(moved.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack && c.TargetId == "hero");
     }
@@ -142,7 +142,7 @@ public sealed class GhostTests
         Assert.Equal(4, queries.DistanceToAttackPositionFrom("ghost", new(2, 2)));
         Assert.Equal(3, queries.DistanceToAttackPositionFrom("ghost", new(2, 1)));
         var request = Moves(state);
-        var choice = new DefaultMonsterProvider().Choose(request, queries);
+        var choice = new DefaultAutomatedProvider().Choose(request, queries);
         Assert.Equal("2,1", choice);
         var destination = request.Candidates.Single(c => c.Key == choice).Destination!;
         var current = queries.PositionOf("ghost");
@@ -199,6 +199,6 @@ public sealed class GhostTests
     {
         var state = State();
         state.Physical.Board.Terrain.Add(new(new(0, 0), TerrainKind.Water));
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice(), false));
     }
 }

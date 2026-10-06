@@ -45,12 +45,12 @@ public sealed class MechanicConfigurationTests
             Physical = new(new Board(1, 1, []), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "side")]
         };
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice()));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice()));
     }
 
     private sealed class Dice : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => throw new InvalidOperationException();
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException();
         public int RollD6() => throw new InvalidOperationException();

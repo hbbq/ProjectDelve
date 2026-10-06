@@ -2,7 +2,7 @@ using ProjectDelve.Engine;
 using ProjectDelve.ConsoleHost;
 
 Console.WriteLine("Project Delve: exploratory rounds. Hero decisions are manual; Monster decisions are automatic.");
-Console.WriteLine("Tokens and dice are rolled automatically. Coordinates start at top-left (0,0).");
+Console.WriteLine("Tokens are drawn automatically; controllers continue each dice pool. Coordinates start at top-left (0,0).");
 Console.WriteLine("Detour scenario: walls and a closed door divide the board; rows 0 and 4 provide open routes.");
 Console.WriteLine("Choose 0 to keep the Hero at (4,2) and observe the Monsters approach over successive rounds.");
 Console.WriteLine("Barbarian faces two Grunts. The closed door blocks both sides; use the open end routes.");
@@ -18,12 +18,13 @@ var state = new GameState
             new Edge(new Cell(2, 2), new Cell(2, 3), EdgeKind.Wall)]),
         [new Figure("hero", new Cell(4, 2)), new Figure("monster-1", new Cell(1, 2)),
             new Figure("monster-2", new Cell(1, 3))]),
+    Controllers = [new(new(UnitTypeIds.Barbarian, "blue"), ControllerKind.Human), new(new(UnitTypeIds.Grunt, "red"), ControllerKind.Automated)],
     Types = [UnitType.Barbarian(), UnitType.Grunt()],
     Units = [UnitType.Barbarian().CreateUnit("hero", "blue"), new Unit("monster-1", "grunt-type", "red", 1),
         new Unit("monster-2", "grunt-type", "red", 1)]
 };
 var manualDecisions = new ConsoleDecisionProvider();
-var monsterDecisions = new DefaultMonsterProvider();
+var automatedDecisions = new DefaultAutomatedProvider();
 var random = new ConsoleRandomProvider();
 ShowState(state);
 
@@ -49,8 +50,8 @@ try
             result = GameEngine.StartRound(result.State, random);
             continue;
         }
-        IDecisionProvider decisions = result.NextInput!.TypeId == "grunt-type"
-            ? monsterDecisions
+        IDecisionProvider decisions = result.State.ControllerFor(result.NextInput!) == ControllerKind.Automated
+            ? automatedDecisions
             : manualDecisions;
         result = GameEngine.Advance(result.State, decisions, random);
     }
@@ -63,8 +64,8 @@ catch (OperationCanceledException)
 static void ShowState(GameState state)
 {
     Console.WriteLine();
-    Console.WriteLine($"Round: {state.Round} | Complete: {state.RoundComplete} | Active type: {state.ActiveTypeId ?? "-"}");
-    if (state.ActiveTypeId is not null)
+    Console.WriteLine($"Round: {state.Round} | Complete: {state.RoundComplete} | Active type: {state.ActiveToken?.ToString() ?? "-"}");
+    if (state.ActiveToken is not null)
         Console.WriteLine($"Move done: {state.MoveDone} | Action done: {state.ActionDone} | Current Unit: {state.CurrentUnitId ?? "-"} | Completed Units: {string.Join(", ", state.CompletedUnitIds)}");
     Console.WriteLine($"Bag: [{string.Join(", ", state.Bag)}]");
     var board = state.Physical.Board;
@@ -137,7 +138,10 @@ static void ShowEvents(List<RulesEvent> events)
     {
         var description = e.Kind switch
         {
-            "TokenDrawn" => $"TokenDrawn: {e.TypeId}",
+            "TokenDrawn" => $"TokenDrawn: {e.Token}",
+            "DiceRolled" => $"{e.UnitId}: {e.Dice!.Pool.Family} [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} successes",
+            "ActionUsed" => $"{e.UnitId} used {e.ActionId} ({e.Category})",
+            "ActivationStarted" or "ActivationCompleted" => $"{e.Kind}: {e.UnitId} ({e.Token})",
             "MovementCompleted" => $"MovementCompleted: {e.UnitId}, path {string.Join(" -> ", e.Path!.Select(c => $"({c.X},{c.Y})"))}",
             "AttackResolved" => $"AttackResolved: {e.UnitId} -> {e.TargetId}, Hits {e.Hits}, Blocks {e.Blocks}, Damage {e.Damage}",
             "DoorOpened" => $"DoorOpened: {e.UnitId}, ({e.Door!.A.X},{e.Door.A.Y}) <-> ({e.Door.B.X},{e.Door.B.Y})",

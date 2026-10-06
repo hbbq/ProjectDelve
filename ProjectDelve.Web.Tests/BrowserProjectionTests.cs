@@ -20,7 +20,7 @@ public sealed class BrowserProjectionTests
         {
             Physical = new(new Board(8, 6, []), [new("dragon", new(1, 1)), new("a", new(3, 1)), new("b", new(1, 4))]),
             Types = [dragon, enemy], Units = [dragon.CreateUnit("dragon", "red"), enemy.CreateUnit("a", "blue"), enemy.CreateUnit("b", "blue")],
-            Round = 1, ActiveTypeId = dragon.Id, CurrentUnitId = "dragon", MoveDone = true
+            Round = 1, ActiveToken = new(dragon.Id, "red"), CurrentUnitId = "dragon", MoveDone = true
         };
         var request = GameEngine.RefreshChoices(state, new Dice(), false).NextInput!;
         var candidates = request.Candidates;
@@ -120,8 +120,8 @@ public sealed class BrowserProjectionTests
             Physical = new(new Board(3, 3, []), [new("actor", new(1, 1))]),
             Types = [shaman], Units = [shaman.CreateUnit("actor", "red")]
         };
-        var started = GameEngine.StartRound(state, new Dice(), false);
-        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var started = TestGame.StartRound(state, new Dice(), false);
+        var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var decision = BrowserProjection.Create(action).Decision!;
         var spawn = decision.Candidates.Single(c => c.Key == "spawn-goblin:0,0");
         Assert.Equal("spawn-goblin", spawn.EntryId);
@@ -129,7 +129,7 @@ public sealed class BrowserProjectionTests
         Assert.Contains("Summon Goblin (Action)", spawn.Label);
         Assert.Empty(spawn.AffectedUnitIds);
         Assert.Equal("spawn-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries).Content.Id);
-        var result = GameEngine.Advance(action.State, new Choice(spawn.Key!), new Dice(), false);
+        var result = TestGame.Advance(action.State, new Choice(spawn.Key!), new Dice(), false);
         var presentation = BrowserProjection.Create(result);
         var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated");
         var goblin = Assert.Single(step.StateAfter.Units, u => u.TypeId == "goblin-type");
@@ -149,9 +149,9 @@ public sealed class BrowserProjectionTests
             Physical = new(new Board(3, 2, []), [new("actor", new(0, 0)), new("target", new(1, 0))]),
             Types = [wizard, troll], Units = [wizard.CreateUnit("actor", "blue"), troll.CreateUnit("target", "red")]
         };
-        var started = GameEngine.StartRound(state, new Dice(), false);
-        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
-        var result = GameEngine.Advance(action.State, new Choice("attack:target"), new Dice(), false);
+        var started = TestGame.StartRound(state, new Dice(), false);
+        var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var result = TestGame.Advance(action.State, new Choice("attack:target"), new Dice(), false);
         var presentation = BrowserProjection.Create(result);
         var card = presentation.Cards["target"];
         Assert.Equal("Troll", card.DisplayName);
@@ -160,9 +160,9 @@ public sealed class BrowserProjectionTests
         Assert.Equal("Capability", capability.Content.Category);
         Assert.Null(capability.Uses);
         Assert.Contains("4 of 6", card.Entries.Single(e => e.Content.Id == "try-open-door").Content.Description);
-        Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, result.Events.Select(e => e.Kind));
-        Assert.Equal("target: Lying", presentation.Events[1].Text);
-        Assert.All(result.ResolutionSteps, step =>
+        Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal("target: Lying", presentation.Events.Last().Text);
+        Assert.All(result.ResolutionSteps.Where(s => result.Events[s.EventIndex].Kind is "AttackResolved" or "PostureChanged"), step =>
         {
             Assert.Equal(1, step.StateAfter.Units[1].CurrentHp);
             Assert.Equal(new Figure("target", new(1, 0), Posture.Lying), step.StateAfter.Physical.Figures[1]);
@@ -175,7 +175,7 @@ public sealed class BrowserProjectionTests
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new JsonStringEnumConverter());
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(1, result), options));
-        foreach (var step in json.RootElement.GetProperty("result").GetProperty("resolutionSteps").EnumerateArray())
+        foreach (var step in json.RootElement.GetProperty("result").GetProperty("resolutionSteps").EnumerateArray().Where(s => result.Events[s.GetProperty("eventIndex").GetInt32()].Kind is "AttackResolved" or "PostureChanged"))
         {
             var after = step.GetProperty("stateAfter");
             Assert.Equal(1, after.GetProperty("units")[1].GetProperty("currentHp").GetInt32());
@@ -202,7 +202,7 @@ public sealed class BrowserProjectionTests
 
     private sealed class Dice : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 1;
@@ -217,8 +217,8 @@ public sealed class BrowserProjectionTests
     {
         var state = State(UnitType.Wizard());
         state.Units[1] = state.Units[1] with { SideId = "hostile" };
-        var started = GameEngine.StartRound(state, new Dice(), false);
-        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var started = TestGame.StartRound(state, new Dice(), false);
+        var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var presentation = BrowserProjection.Create(action);
         var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "fireball");
         Assert.Equal(new AbilityUses(2, 2), card.Uses);
@@ -232,13 +232,13 @@ public sealed class BrowserProjectionTests
         Assert.Equal(new[] { "target" }, fireball.AffectedUnitIds);
         Assert.Equal("Fireball (Action) → (4,0)", fireball.Label);
         Assert.Empty(presentation.Decision.Candidates.Single(c => c.Key == "fireball:2,0").AffectedUnitIds);
-        var result = GameEngine.Advance(action.State, new Choice(fireball.Key!), new Dice(), false);
+        var result = TestGame.Advance(action.State, new Choice(fireball.Key!), new Dice(), false);
         var resolved = BrowserProjection.Create(result);
         Assert.Equal(OutcomeRole.AttackSummary, resolved.Events.Last(e => e.Role == OutcomeRole.AttackSummary).Role);
         Assert.All(resolved.ResolutionSteps, s => Assert.Equal(1,
             s.Cards["actor"].Entries.Single(e => e.Content.Id == "fireball").Uses!.RemainingUses));
         Assert.Contains(result.ResolutionSteps[0].StateAfter.Physical.Figures, f => f.Id == "target");
-        Assert.DoesNotContain(result.ResolutionSteps[1].StateAfter.Physical.Figures, f => f.Id == "target");
+        Assert.DoesNotContain(result.ResolutionSteps.First(s => result.Events[s.EventIndex].Kind == "UnitDied").StateAfter.Physical.Figures, f => f.Id == "target");
     }
 
     [Fact]
@@ -259,8 +259,8 @@ public sealed class BrowserProjectionTests
     {
         var state = State(UnitType.Wizard());
         state.Units[1] = state.Units[1] with { SideId = "hostile" };
-        var started = GameEngine.StartRound(state, new Dice(), false);
-        var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var started = TestGame.StartRound(state, new Dice(), false);
+        var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var presentation = BrowserProjection.Create(action);
         var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "telekinesis");
         Assert.Equal(new CardEntryDescription("telekinesis", "Telekinesis", "Action",
@@ -270,10 +270,10 @@ public sealed class BrowserProjectionTests
         Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: "target"), choice.Interaction);
         Assert.Equal("Telekinesis (Action) → target", choice.Label);
         Assert.Equal(new[] { "target" }, choice.AffectedUnitIds);
-        var result = GameEngine.Advance(action.State, new Choice(choice.Key!), new Dice(), false);
+        var result = TestGame.Advance(action.State, new Choice(choice.Key!), new Dice(), false);
         var resolved = BrowserProjection.Create(result);
-        Assert.Equal(OutcomeRole.Notice, Assert.Single(resolved.Events).Role);
-        Assert.Equal(Posture.Lying, Assert.Single(result.ResolutionSteps).StateAfter.Physical.Figures[1].Posture);
+        Assert.Equal(OutcomeRole.Notice, resolved.Events.Last().Role);
+        Assert.Equal(Posture.Lying, result.ResolutionSteps.Last().StateAfter.Physical.Figures[1].Posture);
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new JsonStringEnumConverter());
         using var choicesJson = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(1, action), options));
@@ -282,7 +282,7 @@ public sealed class BrowserProjectionTests
         Assert.Equal("Unit", projected.GetProperty("interaction").GetProperty("kind").GetString());
         Assert.Equal("target", projected.GetProperty("interaction").GetProperty("unitId").GetString());
         using var resolvedJson = JsonDocument.Parse(JsonSerializer.Serialize(new GameResponse(2, result), options));
-        Assert.Equal("Lying", resolvedJson.RootElement.GetProperty("result").GetProperty("resolutionSteps")[0]
+        Assert.Equal("Lying", resolvedJson.RootElement.GetProperty("result").GetProperty("resolutionSteps")[1]
             .GetProperty("stateAfter").GetProperty("physical").GetProperty("figures")[1].GetProperty("posture").GetString());
     }
 

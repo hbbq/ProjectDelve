@@ -9,7 +9,7 @@ public sealed class ThrowingKnifeTests
     private sealed class Random : IRandomProvider
     {
         public int AttackRolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() { AttackRolls++; return AttackFace.Hit; }
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException();
@@ -31,9 +31,9 @@ public sealed class ThrowingKnifeTests
         };
     }
 
-    private static EngineResult Start(GameState state) => GameEngine.StartRound(state, new Random(), false);
+    private static EngineResult Start(GameState state) => TestGame.StartRound(state, new Random(), false);
     private static EngineResult Choose(GameState state, string key, Random? random = null, bool auto = false) =>
-        GameEngine.Advance(state, new Choice(key), random ?? new(), auto);
+        TestGame.Advance(state, new Choice(key), random ?? new(), auto);
     private static Candidate Ability(EngineResult result, string name = "Throwing Knife") =>
         Assert.Single(result.NextInput!.Candidates, c => c.BonusAction?.Name == name);
     private static AbilityUses Uses(GameState state, string name = "Throwing Knife") =>
@@ -75,8 +75,8 @@ public sealed class ThrowingKnifeTests
         Assert.Equal(1, used.State.Types[0].Rng);
         Assert.Equal(3, used.State.Types[0].Atk);
         Assert.Equal(Ability(started).BonusAction!.Modifiers, used.State.ModifiersThisTurn);
-        Assert.Equal("Throwing Knife", Assert.Single(used.Events).AbilityName);
-        var snapshot = Assert.Single(used.ResolutionSteps).StateAfter;
+        Assert.Equal("Throwing Knife", Assert.Single(TestGame.OperationEvents(used)).AbilityName);
+        var snapshot = Assert.Single(TestGame.OperationSteps(used)).StateAfter;
         Assert.Equal(3, snapshot.EffectiveRngOf("rogue"));
         Assert.Equal(2, snapshot.EffectiveAtkOf("rogue"));
         Assert.DoesNotContain(used.NextInput!.Candidates, c => c.BonusAction?.Name == "Throwing Knife");
@@ -93,7 +93,7 @@ public sealed class ThrowingKnifeTests
         var random = new Random();
         var attacked = Choose(Restore(moved.State), "attack:enemy", random);
         Assert.Equal(2, random.AttackRolls);
-        Assert.Equal(2, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Damage);
+        Assert.Equal(2, Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved").Damage);
         attacked = Choose(attacked.State, "end-turn");
         Assert.True(attacked.State.RoundComplete);
         Assert.Empty(attacked.State.ModifiersThisTurn);
@@ -131,7 +131,7 @@ public sealed class ThrowingKnifeTests
         Assert.DoesNotContain(moved.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
         Assert.Equal(relevant, Ability(moved).Relevant);
         var used = Choose(moved.State, Ability(moved).Key);
-        var snapshot = used.ResolutionSteps[0].StateAfter;
+        var snapshot = TestGame.OperationSteps(used)[0].StateAfter;
         Assert.Equal(3, snapshot.EffectiveRngOf("rogue"));
         Assert.Equal(baseAtk - 1, snapshot.EffectiveAtkOf("rogue"));
         Assert.Equal(relevant ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible,
@@ -232,7 +232,7 @@ public sealed class ThrowingKnifeTests
         var reversed = beforeMove ? Start(state) : Moved(state);
         Assert.Equal(relevant, Ability(reversed, "Combined").Relevant);
         var used = Choose(result.State, Ability(result, "Combined").Key);
-        Assert.Equal(modifiers, used.ResolutionSteps[0].StateAfter.ModifiersThisTurn);
+        Assert.Equal(modifiers, TestGame.OperationSteps(used)[0].StateAfter.ModifiersThisTurn);
     }
 
     [Theory]
@@ -254,7 +254,7 @@ public sealed class ThrowingKnifeTests
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
         Assert.False(Ability(result, "Attack Boost").Relevant);
         var used = Choose(result.State, Ability(result, "Attack Boost").Key);
-        Assert.Equal(5, used.ResolutionSteps[0].StateAfter.EffectiveAtkOf("rogue"));
+        Assert.Equal(5, TestGame.OperationSteps(used)[0].StateAfter.EffectiveAtkOf("rogue"));
     }
 
     [Theory]
@@ -394,7 +394,7 @@ public sealed class ThrowingKnifeTests
         Assert.False(Ability(moved).Relevant);
         var used = Choose(moved.State, Ability(moved).Key);
         Assert.Equal(UnitTargetEvaluation.NotPossible,
-            AttackRules.EvaluateFrom(used.ResolutionSteps[0].StateAfter, "rogue", new(0, 0), "enemy"));
+            AttackRules.EvaluateFrom(TestGame.OperationSteps(used)[0].StateAfter, "rogue", new(0, 0), "enemy"));
     }
 
     [Fact]

@@ -10,7 +10,7 @@ public sealed class FireballTests
         public int AttackRolls { get; private set; }
         public int DefenceRolls { get; private set; }
         public List<string> Order { get; } = [];
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie()
         {
             Order.Add("attack");
@@ -39,9 +39,9 @@ public sealed class FireballTests
         };
     }
     private static EngineResult Choose(GameState state, string? key, Dice? dice = null) =>
-        GameEngine.Advance(state, new Choice(key), dice ?? new(), false);
+        TestGame.Advance(state, new Choice(key), dice ?? new(), false);
     private static EngineResult Action(GameState? state = null) =>
-        Choose(GameEngine.StartRound(state ?? Scenario(), new Dice(), false).State, "stay");
+        Choose(TestGame.StartRound(state ?? Scenario(), new Dice(), false).State, "stay");
     private static Candidate CellChoice(EngineResult result, int x = 3, int y = 2) =>
         result.NextInput!.Candidates.Single(c => c.Key == $"fireball:{x},{y}");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
@@ -158,7 +158,7 @@ public sealed class FireballTests
         Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:4,2");
         Assert.Equal(new[] { "a", "b" }, CellChoice(action).TargetIds);
         var result = Choose(action.State, "fireball:3,2");
-        Assert.Equal(new[] { "a", "b" }, result.Events.Single(e => e.Kind == "AttackResolved")
+        Assert.Equal(new[] { "a", "b" }, TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved")
             .Attack!.Targets.Select(t => t.TargetId));
     }
 
@@ -184,7 +184,7 @@ public sealed class FireballTests
         Assert.False(empty.Relevant);
         var dice = new Dice();
         var result = Choose(action.State, empty.Key, dice);
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Empty(attack.Targets);
         Assert.Equal(3, dice.AttackRolls);
         Assert.Equal(0, dice.DefenceRolls);
@@ -217,7 +217,7 @@ public sealed class FireballTests
         Assert.Equal(new[] { "wizard", "a", "b" }, CellChoice(action, 1, 2).TargetIds);
         Assert.True(CellChoice(action, 1, 2).Relevant);
         var result = Choose(action.State, "fireball:1,2");
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(new[] { "wizard", "a", "b" }, attack.Targets.Select(t => t.TargetId));
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "wizard");
         Assert.Equal(5, result.State.Units[1].CurrentHp);
@@ -254,7 +254,7 @@ public sealed class FireballTests
         state.Units[0] = state.Units[0] with { FireballUses = new(2, 1) };
         var result = Choose(Action(state).State, "fireball:3,2", new Dice(0));
         Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].FireballUses);
-        Assert.All(result.Events.Single(e => e.Kind == "AttackResolved").Attack!.Targets, t => Assert.Equal(0, t.Damage));
+        Assert.All(TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved").Attack!.Targets, t => Assert.Equal(0, t.Damage));
         while (!result.State.RoundComplete)
         {
             var request = result.NextInput!;
@@ -262,7 +262,7 @@ public sealed class FireballTests
                 : request.Candidates.Any(c => c.Key == "stay") ? "stay" : "end-turn";
             result = Choose(result.State, key);
         }
-        result = Choose(GameEngine.StartRound(Restore(result.State), new Dice(), false).State, "stay");
+        result = Choose(TestGame.StartRound(Restore(result.State), new Dice(), false).State, "stay");
         Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].FireballUses);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Action == UnitAction.Fireball);
     }
@@ -275,7 +275,7 @@ public sealed class FireballTests
         if (focus) action = Choose(action.State, "bonus-action:Focus");
         var dice = new Dice(4, DefenceFace.Block, DefenceFace.Miss);
         var result = Choose(Restore(action.State), "fireball:3,2", dice);
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved");
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
         Assert.Null(attack.TargetId);
         Assert.Equal("Fireball", attack.AbilityName);
         Assert.Equal(atk, attack.Attack!.AttackDice);
@@ -283,9 +283,9 @@ public sealed class FireballTests
         Assert.Equal(2, dice.DefenceRolls);
         Assert.Equal(new[] { new AttackTargetResult("a", 1, 1, atk - 1), new AttackTargetResult("b", 1, 0, atk) }, attack.Attack.Targets);
         Assert.Equal(Enumerable.Repeat("attack", atk).Concat(["defence", "defence"]), dice.Order);
-        Assert.Equal(9 - atk, result.ResolutionSteps[0].StateAfter.Units[1].CurrentHp);
-        Assert.Equal(8, result.ResolutionSteps[0].StateAfter.Units[2].CurrentHp);
-        Assert.Equal(8 - atk, result.ResolutionSteps[1].StateAfter.Units[2].CurrentHp);
+        Assert.Equal(9 - atk, TestGame.OperationSteps(result)[0].StateAfter.Units[1].CurrentHp);
+        Assert.Equal(8, TestGame.OperationSteps(result)[0].StateAfter.Units[2].CurrentHp);
+        Assert.Equal(8 - atk, TestGame.OperationSteps(result)[1].StateAfter.Units[2].CurrentHp);
         Assert.Equal(attack.Attack.Targets.ToArray(), JsonSerializer.Deserialize<EngineResult>(JsonSerializer.Serialize(result))!
             .Events.Single(e => e.Kind == "AttackResolved").Attack!.Targets.ToArray());
     }
@@ -308,7 +308,7 @@ public sealed class FireballTests
         var dice = new Dice(0);
         var result = Choose(action.State, "fireball:3,2", dice);
         Assert.Equal(6, dice.AttackRolls);
-        Assert.Equal(6, Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+        Assert.Equal(6, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!.AttackDice);
     }
 
     [Fact]
@@ -323,16 +323,16 @@ public sealed class FireballTests
         var action = Action(state);
         action.State.Pending!.Candidates.Clear(); // Informational candidates cannot alter membership.
         var result = Choose(Restore(action.State), "fireball:3,2");
-        Assert.Equal(new[] { "AttackTargetResolved", "UnitDied", "AttackTargetResolved", "UnitDied", "AttackResolved" }, result.Events.Select(e => e.Kind));
-        var attack = result.Events.Last().Attack!;
+        Assert.Equal(new[] { "AttackTargetResolved", "UnitDied", "AttackTargetResolved", "UnitDied", "AttackResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        var attack = TestGame.OperationEvents(result).Last().Attack!;
         Assert.Equal(new[] { "a", "b" }, attack.Targets.Select(t => t.TargetId));
         Assert.Equal(new[] { 0, 2 }, attack.Targets.Select(t => t.DefenceDice));
         Assert.All(attack.Targets, t => Assert.Equal(3, t.Damage));
         Assert.Single(result.State.Physical.Figures);
-        Assert.Equal(1, result.ResolutionSteps[1].StateAfter.Units[2].CurrentHp);
-        Assert.DoesNotContain(result.ResolutionSteps[1].StateAfter.Physical.Figures, f => f.Id == "a");
-        Assert.Contains(result.ResolutionSteps[2].StateAfter.Physical.Figures, f => f.Id == "b");
-        Assert.DoesNotContain(result.ResolutionSteps[3].StateAfter.Physical.Figures, f => f.Id == "b");
+        Assert.Equal(1, TestGame.OperationSteps(result)[1].StateAfter.Units[2].CurrentHp);
+        Assert.DoesNotContain(TestGame.OperationSteps(result)[1].StateAfter.Physical.Figures, f => f.Id == "a");
+        Assert.Contains(TestGame.OperationSteps(result)[2].StateAfter.Physical.Figures, f => f.Id == "b");
+        Assert.DoesNotContain(TestGame.OperationSteps(result)[3].StateAfter.Physical.Figures, f => f.Id == "b");
     }
 
     [Theory]
@@ -360,27 +360,27 @@ public sealed class FireballTests
         var dice = new Dice();
         var result = Choose(Action(state).State, "fireball:3,2", dice);
 
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(new[] { new AttackTargetResult("a", 0, 0, 3),
             new AttackTargetResult("b", defenceAtStart, 0, 3) }, attack.Targets);
         Assert.Equal(3, dice.AttackRolls); // One shared roll even when the first target changes state.
         Assert.Equal(defenceAtStart, dice.DefenceRolls);
         Assert.Equal(Enumerable.Repeat("attack", 3).Concat(Enumerable.Repeat("defence", defenceAtStart)), dice.Order);
         Assert.Equal(new[] { "AttackTargetResolved", undying ? "PostureChanged" : "UnitDied",
-            "AttackTargetResolved", "AttackResolved" }, result.Events.Select(e => e.Kind));
+            "AttackTargetResolved", "AttackResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(1, result.State.EffectiveDefOf("b"));
 
         // Intermediate playback exposes the first outcome before the second target's damage.
         for (var i = 0; i < 2; i++)
         {
-            var intermediate = result.ResolutionSteps[i].StateAfter;
+            var intermediate = TestGame.OperationSteps(result)[i].StateAfter;
             Assert.Equal(undying ? 1 : 0, intermediate.Units[1].CurrentHp);
             Assert.Equal(8, intermediate.Units[2].CurrentHp);
             Assert.Equal(1, intermediate.EffectiveDefOf("b"));
             if (undying)
                 Assert.Equal(Posture.Lying, intermediate.Physical.Figures.Single(f => f.Id == "a").Posture);
         }
-        Assert.Equal(5, result.ResolutionSteps[2].StateAfter.Units[2].CurrentHp);
+        Assert.Equal(5, TestGame.OperationSteps(result)[2].StateAfter.Units[2].CurrentHp);
         Assert.Equal(undying, result.State.Physical.Figures.Any(f => f.Id == "a"));
 
         result = Choose(Restore(result.State), "end-turn");
@@ -388,7 +388,7 @@ public sealed class FireballTests
         result = Choose(result.State, "stay");
         var nextDice = new Dice(0);
         result = Choose(result.State, "attack:b", nextDice);
-        var nextAttack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var nextAttack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(3, nextAttack.AttackDice);
         Assert.Equal(new AttackTargetResult("b", 1, 0, 0), Assert.Single(nextAttack.Targets));
         Assert.Equal(1, nextDice.DefenceRolls);
@@ -406,19 +406,19 @@ public sealed class FireballTests
         var dice = new Dice(2, blocks > 0 ? DefenceFace.Block : DefenceFace.Miss,
             blocks > 1 ? DefenceFace.Block : DefenceFace.Miss);
         var result = Choose(Action(state).State, "fireball:3,2", dice);
-        Assert.Single(result.Events, e => e.Kind == "AttackResolved");
+        Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
         Assert.Equal(qualifies, result.State.CleavePending);
         Assert.Equal(qualifies ? DecisionKind.Cleave : DecisionKind.Move, result.NextInput!.Kind);
         if (qualifies)
         {
             result = Choose(Restore(result.State), "cleave:a");
-            Assert.Single(result.Events, e => e.Kind == "CleaveResolved");
+            Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "CleaveResolved");
             Assert.False(result.State.CleavePending);
             Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].CleaveUses);
             Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
         }
         result = Choose(Restore(result.State), null);
-        Assert.True(Assert.Single(result.Events, e => e.Kind == "MovementCompleted").IsMoveAfterAttack);
+        Assert.True(Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted").IsMoveAfterAttack);
         Assert.Null(result.State.MoveAfterAttackAllowance);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.False(result.State.CleavePending);

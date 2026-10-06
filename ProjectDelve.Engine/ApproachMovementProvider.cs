@@ -1,6 +1,6 @@
 namespace ProjectDelve.Engine;
 
-public sealed class MonsterMovementProvider(IDecisionProvider otherDecisions) : IDecisionProvider
+public sealed class ApproachMovementProvider(IDecisionProvider otherDecisions) : IDecisionProvider
 {
     public string? Choose(DecisionRequest request, IGameplayQueries queries)
     {

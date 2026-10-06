@@ -12,7 +12,10 @@ public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
 }
 public sealed record FigureGeometry(Cell Anchor, IReadOnlyList<Cell> OccupiedCells, int CellSpan);
 public sealed record BrowserDecision(string? UnitId, string Prompt,
-    IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice);
+    IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice)
+{
+    public DicePool? Roll { get; init; }
+}
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
@@ -78,6 +81,7 @@ public static class BrowserProjection
                 : new ChoiceInteraction(InteractionKind.Direct);
             var label = c.Kind switch
             {
+                ActivationChoiceKind.RollDice => "Roll Dice",
                 ActivationChoiceKind.Stay => "Stay here",
                 ActivationChoiceKind.EndTurn => "End Turn",
                 ActivationChoiceKind.SelectUnit => $"Select {c.Key}",
@@ -101,23 +105,63 @@ public static class BrowserProjection
         }).ToArray();
         var continuation = request.Kind == DecisionKind.Cleave ? entries.GetValueOrDefault("cleave")
             : request.IsMoveAfterAttack ? entries.GetValueOrDefault("move-after-attack") : null;
-        var prompt = request.Kind == DecisionKind.SelectUnit ? "Choose a Unit"
+        var prompt = request.Roll is { } pool ? $"{pool.OwnerUnitId}: roll {pool.Count} {pool.Family} dice ({pool.Purpose}, {pool.SourceActionId})"
+                + (pool.TargetId is null ? "" : $" against {pool.TargetId}")
+                + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")
+            : request.Kind == DecisionKind.SelectUnit ? "Choose a Unit"
             : continuation?.Name ?? "Choose an activation choice";
         BrowserChoice? none = !request.AllowsNone ? null : new(null,
             request.Kind == DecisionKind.Move ? "Stay here" : continuation is not null ? $"Decline {continuation.Name}" : "Take no action",
             null, true, request.Kind == DecisionKind.Move
                 ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), []);
-        return new(request.UnitId, prompt, candidates, none);
+        return new(request.UnitId, prompt, candidates, none) { Roll = request.Roll };
     }
 
     public static BrowserOutcome Outcome(RulesEvent e, GameState state)
     {
         string CellLabel(Cell cell) => $"{cell.X},{cell.Y}";
         var subject = e.AbilityName is null ? e.UnitId : $"{e.UnitId} · {e.AbilityName}";
+        var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
+        var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
+            .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId)?.Name ?? e.ActionId;
         var role = OutcomeRole.Notice;
         string description;
         switch (e.Kind)
         {
+            case "RoundStarted":
+                description = $"Round {e.Round} started";
+                break;
+            case "RoundCompleted":
+                description = $"Round {e.Round} completed";
+                break;
+            case "ActivationStarted":
+            case "ActivationCompleted":
+                description = $"{e.UnitId}: {(e.Kind == "ActivationStarted" ? "activation started" : "activation completed")} ({e.Token?.TypeId}, {e.Token?.SideId})";
+                break;
+            case "ActionUsed":
+                var category = e.Category switch
+                {
+                    ActivationChoiceKind.BonusAction => "Bonus Action",
+                    ActivationChoiceKind.FreeAction => "Free Action",
+                    _ => "Action"
+                };
+                description = $"{e.UnitId} used {actionName} ({category})";
+                break;
+            case "AttackStarted":
+                description = $"{e.UnitId}: {actionName} started against {string.Join(", ", e.AttackContext!.Targets.Select(t => t.TargetId))}";
+                break;
+            case "DiceRolled":
+                var resultLabel = e.Dice!.Pool.Family switch
+                {
+                    DiceFamily.Attack => "Hits",
+                    DiceFamily.Defence => "Blocks",
+                    _ => "successes"
+                };
+                description = $"{e.UnitId}: {e.Dice.Pool.Family} dice [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} {resultLabel} ({e.Dice.Pool.SourceUnitId}, {e.ActionId})";
+                break;
+            case "UnitCreated":
+                description = $"{e.SourceUnitId} created {e.UnitId} ({e.SideId}) at {e.Cell?.X},{e.Cell?.Y}, {e.Posture}";
+                break;
             case "PostureChanged":
                 description = $"{e.UnitId}: {e.Posture}";
                 break;
@@ -159,7 +203,7 @@ public static class BrowserProjection
                 description = $"{e.UnitId} opened door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
                 break;
             case "TokenDrawn":
-                description = $"Token drawn: {state.Types.Single(t => t.Id == e.TypeId).DisplayName ?? e.TypeId}";
+                description = $"Token drawn: {state.Types.Single(t => t.Id == e.TypeId).DisplayName ?? e.TypeId} ({e.Token?.SideId})";
                 break;
             default:
                 description = e.Kind;

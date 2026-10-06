@@ -8,7 +8,7 @@ public sealed class UniqueUnitTypeTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 1;
@@ -34,7 +34,7 @@ public sealed class UniqueUnitTypeTests
         var type = UnitType.Define("test-type", "Test", Stats(0, 0, 0, 0, hp), Unique());
         Assert.True(type.Unique);
         Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
-        Assert.True(GameEngine.StartRound(Setup(type, "side"), new Random(), false).State.RoundComplete);
+        Assert.True(TestGame.StartRound(Setup(type, "side"), new Random(), false).State.RoundComplete);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class UniqueUnitTypeTests
         // The legacy Hero helper does not imply Unique either.
         var raw = UnitType.Hero("invalid", 0, 0, 0, 0, 2);
         Assert.False(raw.Unique);
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(Setup(raw, "side"), new Random(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(Setup(raw, "side"), new Random(), false));
         Assert.Throws<ArgumentException>(() => Setup(raw).PlaceUnit(raw.Id, "new", "side", new(0, 0)));
     }
 
@@ -66,8 +66,8 @@ public sealed class UniqueUnitTypeTests
         var state = Setup(type, "blue", secondSide);
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Upright };
         // Validation precedes any controller decision; no provider can accept this setup.
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Random(), false));
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Random(), true));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random(), true));
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class UniqueUnitTypeTests
         var type = UnitType.Define("ordinary", "Ordinary", Stats(0, 0, 0, 0, 1));
         var state = Setup(type, "blue", "red");
         state.PlaceUnit(type.Id, "third", "blue", new(2, 0), Posture.Lying);
-        Assert.NotNull(GameEngine.StartRound(state, new Random(), false).NextInput);
+        Assert.NotNull(TestGame.StartRound(state, new Random(), false).NextInput);
         Assert.Equal(3, state.Units.Count);
     }
 
@@ -95,7 +95,7 @@ public sealed class UniqueUnitTypeTests
         else state.Units[0] = state.Units[0] with { CurrentHp = 0 };
         state.PlaceUnit(type.Id, "later", "red", new(1, 0), Posture.Lying);
         Assert.Single(state.Units.Where(u => u.CurrentHp > 0));
-        Assert.True(GameEngine.StartRound(state, new Random(), false).State.RoundComplete);
+        Assert.True(TestGame.StartRound(state, new Random(), false).State.RoundComplete);
     }
 
     [Fact]
@@ -108,18 +108,18 @@ public sealed class UniqueUnitTypeTests
         state.Types.Add(target);
         state.Physical.Figures[0] = new("unit-0", new(2, 2));
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.ClosedDoor));
-        var ready = GameEngine.StartRound(state, new Random(), false);
-        ready = GameEngine.Advance(ready.State, new Choice("stay"), new Random(), false);
+        var ready = TestGame.StartRound(state, new Random(), false);
+        ready = TestGame.Advance(ready.State, new Choice("stay"), new Random(), false);
         Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.SummonAdjacent);
         // A saved candidate cannot bypass legality if another Unit has since entered play.
         ready.State.PlaceUnit(target.Id, "existing", "red", new(0, 0), Posture.Lying);
         Assert.DoesNotContain(GameEngine.GameplayCandidates(ready.State, ready.State.Units[0]),
             c => c.Action == UnitAction.SummonAdjacent);
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false));
         ready.State.Units[1] = ready.State.Units[1] with { CurrentHp = 0 };
         ready.State.Physical.Figures.RemoveAll(f => f.Id == "existing");
-        var created = GameEngine.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false);
-        Assert.Single(created.Events, e => e.Kind == "UnitCreated" && e.TypeId == target.Id);
+        var created = TestGame.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false);
+        Assert.Single(TestGame.OperationEvents(created), e => e.Kind == "UnitCreated" && e.TypeId == target.Id);
         Assert.Single(created.State.Units.Where(u => u.TypeId == target.Id && u.CurrentHp > 0));
     }
 }

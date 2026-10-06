@@ -7,13 +7,13 @@ public sealed class RandomMutationTests
 {
     private sealed class MutatingRandom : IRandomProvider
     {
-        public List<IReadOnlyList<string>> SuppliedBags { get; } = [];
+        public List<IReadOnlyList<ActivationToken>> SuppliedBags { get; } = [];
 
-        public string DrawToken(IReadOnlyList<string> bag)
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag)
         {
             SuppliedBags.Add(bag);
             var drawn = bag[0];
-            var mutable = Assert.IsAssignableFrom<IList<string>>(bag);
+            var mutable = Assert.IsAssignableFrom<IList<ActivationToken>>(bag);
             try
             {
                 // Remove a different token while returning a valid draw.
@@ -47,10 +47,10 @@ public sealed class RandomMutationTests
         };
         var original = JsonSerializer.Serialize(state);
         var random = new MutatingRandom();
-        var result = GameEngine.StartRound(state, random);
+        var result = TestGame.StartRound(state, random);
 
         Assert.Equal(original, JsonSerializer.Serialize(state));
-        var events = new List<RulesEvent>(result.Events);
+        var events = new List<RulesEvent>(TestGame.OperationEvents(result));
 
         Assert.True(result.State.RoundComplete);
         Assert.Null(result.NextInput);
@@ -59,8 +59,8 @@ public sealed class RandomMutationTests
         Assert.Equal(new[] { "a", "b", "c" }, events.Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.Equal(3, random.SuppliedBags.Count);
         // Retained provider inputs are snapshots, independent of later engine draws.
-        Assert.Equal(new[] { "a", "b", "c" }, random.SuppliedBags[0]);
-        Assert.Equal(new[] { "b", "c" }, random.SuppliedBags[1]);
-        Assert.Equal(new[] { "c" }, random.SuppliedBags[2]);
+        Assert.Equal(new[] { "a", "b", "c" }, random.SuppliedBags[0].Select(t => t.TypeId));
+        Assert.Equal(new[] { "b", "c" }, random.SuppliedBags[1].Select(t => t.TypeId));
+        Assert.Equal(new[] { "c" }, random.SuppliedBags[2].Select(t => t.TypeId));
     }
 }

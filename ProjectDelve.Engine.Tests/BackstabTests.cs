@@ -8,7 +8,7 @@ public sealed class BackstabTests
     private sealed class Random : IRandomProvider
     {
         public int AttackRolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag.Contains("rogue-type") ? "rogue-type" : bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.FirstOrDefault(t => t.TypeId == "rogue-type") ?? bag[0];
         public AttackFace RollAttackDie() { AttackRolls++; return AttackFace.Hit; }
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException();
@@ -49,10 +49,10 @@ public sealed class BackstabTests
     }
 
     private static EngineResult Choose(GameState state, string key, Random? random = null) =>
-        GameEngine.Advance(state, new Choice(key), random ?? new(), false);
+        TestGame.Advance(state, new Choice(key), random ?? new(), false);
 
     private static EngineResult Ready(GameState state) =>
-        Choose(GameEngine.StartRound(state, new Random(), false).State, "stay");
+        Choose(TestGame.StartRound(state, new Random(), false).State, "stay");
 
     [Fact]
     public void ContentIsPassiveAndHasNoUsesOrActivationState()
@@ -87,7 +87,7 @@ public sealed class BackstabTests
         var random = new Random();
         var attacked = Choose(ready.State, "attack:target", random);
         Assert.Equal(expected, random.AttackRolls);
-        Assert.Equal(expected, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+        Assert.Equal(expected, Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved").Attack!.AttackDice);
     }
 
     [Theory]
@@ -192,7 +192,7 @@ public sealed class BackstabTests
         var random = new Random();
         var attacked = Choose(ready.State, "attack:target", random);
         Assert.Equal(expectedAttack, random.AttackRolls);
-        Assert.Equal(expectedAttack, Assert.Single(attacked.Events, e => e.Kind == "AttackResolved").Hits);
+        Assert.Equal(expectedAttack, Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved").Hits);
     }
 
     [Fact]

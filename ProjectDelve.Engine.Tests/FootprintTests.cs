@@ -29,7 +29,7 @@ public sealed class FootprintTests
     private sealed class Dice : IRandomProvider
     {
         public int AttackRolls, DefenceRolls;
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() { AttackRolls++; return AttackFace.Hit; }
         public DefenceFace RollDefenceDie() { DefenceRolls++; return DefenceFace.Miss; }
         public int RollD6() => 1;
@@ -40,10 +40,10 @@ public sealed class FootprintTests
     }
     private static EngineResult Act(GameState state, string key, Dice? dice = null)
     {
-        state.Round = 1; state.ActiveTypeId = state.Units[0].TypeId; state.CurrentUnitId = "actor";
+        state.Round = 1; state.ActiveToken = new(state.Units[0].TypeId, state.Units.First(u => u.TypeId == state.Units[0].TypeId).SideId); state.CurrentUnitId = "actor";
         state.MoveDone = true;
-        state.Pending = new(DecisionKind.Activation, state.ActiveTypeId, "actor", [], false);
-        return GameEngine.Advance(state, new Choice(key), dice ?? new Dice(), false);
+        state.Pending = new(DecisionKind.Activation, state.ActiveToken!.TypeId, "actor", [], false);
+        return TestGame.Advance(state, new Choice(key), dice ?? new Dice(), false);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class FootprintTests
     public void CompleteBoundaryIsCheckedAtSetupRuntimeAndHypotheticalPlacement(int x, int y)
     {
         var state = World(anchor: new(x, y));
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice(), false));
         var valid = World();
         Assert.Throws<ArgumentException>(() => valid.PlaceUnit("large", "other", "red", new(x, y)));
         Assert.Throws<ArgumentException>(() => MovementRules.FindPaths(valid, "actor", new(x, y)));
@@ -75,7 +75,7 @@ public sealed class FootprintTests
     {
         var state = World(Large() with { Phase = new() });
         state.Physical.Board.Terrain.Add(new(new(2, 2), terrain));
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice()));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice()));
         Assert.False(SpatialRules.CanPlaceUnit(state, Footprint.TwoByTwo, new(1, 1), "actor"));
         Assert.Throws<ArgumentException>(() => HypotheticalPosition.Validate(state, "actor", new(1, 1)));
     }
@@ -91,8 +91,8 @@ public sealed class FootprintTests
             var state = World();
             state.Physical.Board.Edges.Add(new(edge.Item1, edge.Item2, kind));
             Assert.Equal(legal, SpatialRules.CanPlaceUnit(state, Footprint.TwoByTwo, new(1, 1), "actor"));
-            if (legal) GameEngine.StartRound(state, new Dice(), false);
-            else Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice(), false));
+            if (legal) TestGame.StartRound(state, new Dice(), false);
+            else Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice(), false));
         }
     }
 
@@ -104,7 +104,7 @@ public sealed class FootprintTests
         Assert.Equal("actor", FootprintGeometry.UnitAtCell(state, new(2, 2)));
         Assert.Throws<ArgumentException>(() => state.PlaceUnit("large", "other", "red", new(2, 2)));
         Add(state, "other", new("small", 0, 0, 0, 0, 1), new(2, 2));
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice(), false));
     }
 
     [Theory]
@@ -277,13 +277,13 @@ public sealed class FootprintTests
         Assert.Equal(new[] { "enemy" }, Actions(state).Single(c => c.Key == "holy-wave").TargetIds.ToArray());
         var healed = Act(state, "heal:friend");
         Assert.Equal(3, healed.State.Units.Single(u => u.Id == "friend").CurrentHp);
-        Assert.Single(healed.Events.Where(e => e.Kind == "HealResolved"));
+        Assert.Single(TestGame.OperationEvents(healed).Where(e => e.Kind == "HealResolved"));
         var waved = Act(state, "holy-wave");
-        Assert.Single(waved.Events.Where(e => e.Kind == "PostureChanged" && e.UnitId == "enemy"));
+        Assert.Single(TestGame.OperationEvents(waved).Where(e => e.Kind == "PostureChanged" && e.UnitId == "enemy"));
         Assert.Equal(4, FootprintGeometry.OccupiedCells(waved.State, "enemy").Count);
         state.CleavePending = true;
         var cleaved = Act(state, "cleave:enemy");
-        Assert.Single(cleaved.Events.Where(e => e.Kind == "CleaveResolved"));
+        Assert.Single(TestGame.OperationEvents(cleaved).Where(e => e.Kind == "CleaveResolved"));
         Assert.DoesNotContain(cleaved.State.Physical.Figures, f => f.Id == "enemy");
     }
 
@@ -299,7 +299,7 @@ public sealed class FootprintTests
         var result = Act(state, candidate.Key, dice);
         Assert.Equal(2, dice.AttackRolls);
         Assert.Equal(3, dice.DefenceRolls);
-        var attack = result.Events.Single(e => e.Kind == "AttackResolved").Attack!;
+        var attack = TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved").Attack!;
         Assert.Single(attack.Targets);
         Assert.Equal(3, attack.Targets[0].DefenceDice);
         Assert.Equal(6, result.State.Units.Single(u => u.Id == "target").CurrentHp);
@@ -345,7 +345,7 @@ public sealed class FootprintTests
         Assert.DoesNotContain(new Cell(4, 1), MovementRules.FindPaths(state, "actor", new(0, 1)).Keys);
         var candidates = GameEngine.GameplayCandidates(state, state.Units[0]).ToList();
         var request = new DecisionRequest(DecisionKind.Move, "large", "actor", candidates, true);
-        var chosen = new DefaultMonsterProvider().Choose(request, queries);
+        var chosen = new DefaultAutomatedProvider().Choose(request, queries);
         // Moving down increases the nearest Cell-pair route distance; the chosen footprint stays west.
         Assert.NotNull(chosen);
         var move = candidates.Single(c => c.Key == chosen);
@@ -368,7 +368,7 @@ public sealed class FootprintTests
         Assert.Equal(spawns.Count, spawns.Select(c => c.Destination).Distinct().Count());
         Assert.All(spawns, c => Assert.True(SpatialRules.CanPlaceUnit(state, Footprint.TwoByTwo, c.Destination!)));
         var summoned = Act(state, spawns.First().Key);
-        var created = summoned.Events.Single(e => e.Kind == "UnitCreated").UnitId!;
+        var created = TestGame.OperationEvents(summoned).Single(e => e.Kind == "UnitCreated").UnitId!;
         Assert.Equal(4, FootprintGeometry.OccupiedCells(summoned.State, created).Count);
         Assert.False(summoned.State.IsUpright(created));
     }
@@ -391,12 +391,12 @@ public sealed class FootprintTests
         var state = World(dragon, new(0, 0));
         Add(state, "target", new("small", 0, 0, 0, 0, 1), new(6, 1));
         var dice = new Dice();
-        var start = GameEngine.StartRound(state, dice, false);
-        Assert.Equal(new[] { UnitTypeIds.RedDragon, "small" }, new[] { start.State.ActiveTypeId!, start.State.Bag.Single() });
-        var moved = GameEngine.Advance(start.State, new DefaultMonsterProvider(), dice, false);
-        Assert.Single(moved.Events.Where(e => e.Kind == "MovementCompleted"));
-        var attacked = GameEngine.Advance(moved.State, new DefaultMonsterProvider(), dice, false);
-        Assert.Single(attacked.Events.Where(e => e.Kind == "AttackResolved"));
+        var start = TestGame.StartRound(state, dice, false);
+        Assert.Equal(new[] { UnitTypeIds.RedDragon, "small" }, new[] { start.State.ActiveToken!.TypeId, start.State.Bag.Single().TypeId });
+        var moved = TestGame.Advance(start.State, new DefaultAutomatedProvider(), dice, false);
+        Assert.Single(TestGame.OperationEvents(moved).Where(e => e.Kind == "MovementCompleted"));
+        var attacked = TestGame.Advance(moved.State, new DefaultAutomatedProvider(), dice, false);
+        Assert.Single(TestGame.OperationEvents(attacked).Where(e => e.Kind == "AttackResolved"));
         Assert.DoesNotContain(attacked.State.Physical.Figures, f => f.Id == "target");
         Assert.Equal(8, attacked.State.Units[0].CurrentHp);
     }
@@ -409,12 +409,12 @@ public sealed class FootprintTests
         Add(state, "recipient", Large("recipient") with { Hp = 8, Unique = true, Def = 1 }, new(5, 0));
         Assert.Equal(3, state.EffectiveDefOf("recipient"));
         var result = Act(state, "fireball:4,1");
-        var attack = result.Events.Single(e => e.Kind == "AttackResolved").Attack!;
+        var attack = TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(2, attack.Targets.Length);
         Assert.Equal(3, attack.Targets.Single(t => t.TargetId == "recipient").DefenceDice);
         Assert.Equal(1, result.State.EffectiveDefOf("recipient"));
         Assert.Equal(6, result.State.Units.Single(u => u.Id == "recipient").CurrentHp);
-        Assert.Single(result.Events.Where(e => e.Kind == "UnitDied" && e.UnitId == "aura"));
+        Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "UnitDied" && e.UnitId == "aura"));
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "aura");
     }
 
@@ -444,7 +444,7 @@ public sealed class FootprintTests
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.ClosedDoor));
         var candidates = Actions(state);
         var request = new DecisionRequest(DecisionKind.Act, "large", "actor", candidates, true);
-        var choice = new DefaultMonsterProvider().Choose(request, new GameplayQueries(state));
+        var choice = new DefaultAutomatedProvider().Choose(request, new GameplayQueries(state));
         Assert.Equal(candidates.Single(c => c.Door!.A == new Cell(2, 2)).Key, choice);
     }
 
@@ -458,7 +458,7 @@ public sealed class FootprintTests
         Assert.Equal(5, new GameplayQueries(state).DistanceToNearestHostileFrom("actor", new(0, 0), true));
         var request = new DecisionRequest(DecisionKind.Move, "large", "actor",
             GameEngine.GameplayCandidates(state, state.Units[0]).ToList(), true);
-        Assert.Null(new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Null(new DefaultAutomatedProvider().Choose(request, new GameplayQueries(state)));
     }
 
     [Fact]
@@ -466,11 +466,11 @@ public sealed class FootprintTests
     {
         var state = World(UnitType.RedDragon());
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Lying };
-        var result = GameEngine.StartRound(state, new Dice(), false);
-        Assert.Single(result.Events.Where(e => e.Kind == "PostureChanged"));
+        var result = TestGame.StartRound(state, new Dice(), false);
+        Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "PostureChanged"));
         Assert.True(result.State.RoundComplete);
-        Assert.Single(result.Events.Where(e => e.Kind == "TokenDrawn"));
-        Assert.DoesNotContain(result.Events, e => e.Kind is "MovementCompleted" or "AttackResolved");
+        Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "TokenDrawn"));
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind is "MovementCompleted" or "AttackResolved");
         Assert.Equal(4, FootprintGeometry.OccupiedCells(result.State, "actor").Count);
         Assert.Equal(8, result.State.Units[0].CurrentHp);
     }
@@ -480,14 +480,14 @@ public sealed class FootprintTests
     {
         var state = World(UnitType.Rogue() with { Footprint = Footprint.TwoByTwo }, new(0, 0), 10, 3);
         Add(state, "target", new("small", 0, 0, 0, 0, 1), new(3, 0));
-        state.Round = 1; state.ActiveTypeId = state.Units[0].TypeId; state.CurrentUnitId = "actor";
+        state.Round = 1; state.ActiveToken = new(state.Units[0].TypeId, state.Units.First(u => u.TypeId == state.Units[0].TypeId).SideId); state.CurrentUnitId = "actor";
         var beforeMove = GameEngine.RefreshChoices(state, new Dice(), false);
         Assert.True(beforeMove.NextInput!.Candidates.Single(c => c.Key == "bonus-action:Dash").Relevant);
         state.MoveDone = true;
         var beforeAttack = GameEngine.RefreshChoices(state, new Dice(), false);
         Assert.DoesNotContain(beforeAttack.NextInput!.Candidates, c => c.Key == "attack:target");
         Assert.True(beforeAttack.NextInput.Candidates.Single(c => c.Key == "bonus-action:Throwing Knife").Relevant);
-        var knife = GameEngine.Advance(beforeAttack.State, new Choice("bonus-action:Throwing Knife"), new Dice(), false);
+        var knife = TestGame.Advance(beforeAttack.State, new Choice("bonus-action:Throwing Knife"), new Dice(), false);
         Assert.Contains(knife.NextInput!.Candidates, c => c.Key == "attack:target");
     }
 }

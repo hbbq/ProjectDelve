@@ -8,7 +8,7 @@ public sealed class TrollTests
     private sealed class Dice(int hits = 2, int doorRoll = 1) : IRandomProvider
     {
         private int rolls;
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => rolls++ < hits ? AttackFace.Hit : AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => doorRoll;
@@ -18,7 +18,7 @@ public sealed class TrollTests
         public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
     }
     private static EngineResult Choose(GameState state, string? key, Dice? dice = null) =>
-        GameEngine.Advance(state, new Choice(key), dice ?? new(), false);
+        TestGame.Advance(state, new Choice(key), dice ?? new(), false);
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
     private static GameState Scenario(UnitType? target = null, Posture posture = Posture.Upright, bool cleave = false)
     {
@@ -34,7 +34,7 @@ public sealed class TrollTests
         };
     }
     private static EngineResult Attack(GameState state, Dice? dice = null) =>
-        Choose(Choose(GameEngine.StartRound(state, new Dice(), false).State, "stay").State, "attack:target", dice);
+        Choose(Choose(TestGame.StartRound(state, new Dice(), false).State, "stay").State, "attack:target", dice);
     private static void AssertSaved(GameState state)
     {
         Assert.Equal(1, state.Units.Single(u => u.Id == "target").CurrentHp);
@@ -73,12 +73,12 @@ public sealed class TrollTests
             Types = [troll, hero], Units = [troll.CreateUnit("troll", "red"), hero.CreateUnit("hero", "blue")]
         };
         var dice = new Dice(doorRoll: roll);
-        var start = GameEngine.StartRound(state, dice, false);
-        var moved = GameEngine.Advance(start.State, new DefaultMonsterProvider(), dice, false);
+        var start = TestGame.StartRound(state, dice, false);
+        var moved = TestGame.Advance(start.State, new DefaultAutomatedProvider(), dice, false);
         Assert.Equal(new Cell(1, 0), moved.State.Physical.Figures[0].Position);
         Assert.Equal(new TryOpenDoor(4), Assert.Single(moved.NextInput!.Candidates, c => c.TryOpenDoor is not null).TryOpenDoor);
-        var result = GameEngine.Advance(Restore(moved.State), new DefaultMonsterProvider(), dice, false);
-        var attempt = Assert.Single(result.Events, e => e.Kind == "DoorOpeningAttemptResolved");
+        var result = TestGame.Advance(Restore(moved.State), new DefaultAutomatedProvider(), dice, false);
+        var attempt = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "DoorOpeningAttemptResolved");
         Assert.Equal(4, attempt.SuccessCount);
         Assert.Equal(roll <= 4, attempt.Succeeded);
         Assert.Equal(roll <= 4 ? EdgeKind.OpenDoor : EdgeKind.ClosedDoor, result.State.Physical.Board.Edges[0].Kind);
@@ -90,11 +90,11 @@ public sealed class TrollTests
         var scenario = Scenario();
         var result = Attack(scenario);
         AssertSaved(result.State);
-        Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, result.Events.Select(e => e.Kind));
-        Assert.Equal(2, result.Events[0].Damage); // Damage is not capped by HP or the replacement.
-        Assert.Equal(Posture.Lying, result.Events[1].Posture);
-        Assert.All(result.ResolutionSteps, s => AssertSaved(s.StateAfter));
-        Assert.Equal(new[] { 0, 1 }, result.ResolutionSteps.Select(s => s.EventIndex));
+        Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(2, TestGame.OperationEvents(result)[0].Damage); // Damage is not capped by HP or the replacement.
+        Assert.Equal(Posture.Lying, TestGame.OperationEvents(result)[1].Posture);
+        Assert.All(TestGame.OperationSteps(result), s => AssertSaved(s.StateAfter));
+        Assert.Equal(new[] { 0, 1 }, TestGame.OperationSteps(result).Select(s => s.EventIndex));
         AssertSaved(Restore(result.State));
         Assert.Equal(Posture.Upright, scenario.Physical.Figures[1].Posture);
     }
@@ -108,8 +108,8 @@ public sealed class TrollTests
         var result = Attack(Scenario(type, posture));
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
-        Assert.Single(result.Events, e => e.Kind == "UnitDied" && e.UnitId == "target");
-        Assert.DoesNotContain(result.Events, e => e.Kind == "PostureChanged");
+        Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "UnitDied" && e.UnitId == "target");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "PostureChanged");
     }
 
     [Theory]
@@ -120,7 +120,7 @@ public sealed class TrollTests
         var result = Attack(Scenario(type), new Dice(hits));
         Assert.Equal(expected, result.State.Units[1].CurrentHp);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[1].Posture);
-        Assert.Single(result.Events);
+        Assert.Single(TestGame.OperationEvents(result));
         if (hp == 1) AssertSaved(Attack(Scenario(type)).State);
     }
 
@@ -131,7 +131,7 @@ public sealed class TrollTests
         var completed = Choose(Restore(saved.State), "end-turn");
         Assert.True(completed.State.RoundComplete);
         Assert.Equal(Posture.Upright, completed.State.Physical.Figures[1].Posture);
-        Assert.Equal(new[] { "PostureChanged" }, completed.Events.Where(e => e.UnitId == "target").Select(e => e.Kind));
+        Assert.Equal(new[] { "PostureChanged" }, TestGame.OperationEvents(completed).Where(e => e.UnitId == "target").Select(e => e.Kind));
         AssertSaved(Attack(Restore(completed.State)).State);
     }
 
@@ -145,7 +145,7 @@ public sealed class TrollTests
         var result = Choose(Restore(attack.State), "cleave:target");
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
-        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, result.Events.Select(e => e.Kind));
+        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
     }
 
     [Fact]
@@ -156,8 +156,8 @@ public sealed class TrollTests
         Assert.Equal(Posture.Upright, attack.State.Physical.Figures[1].Posture);
         var result = Choose(attack.State, "cleave:target");
         AssertSaved(result.State);
-        Assert.All(result.ResolutionSteps, s => AssertSaved(s.StateAfter));
-        Assert.Equal(new[] { "CleaveResolved", "PostureChanged" }, result.Events.Select(e => e.Kind));
+        Assert.All(TestGame.OperationSteps(result), s => AssertSaved(s.StateAfter));
+        Assert.Equal(new[] { "CleaveResolved", "PostureChanged" }, TestGame.OperationEvents(result).Select(e => e.Kind));
     }
 
     [Fact]
@@ -167,14 +167,14 @@ public sealed class TrollTests
         var wizard = UnitType.Wizard();
         state.Types[0] = wizard;
         state.Units[0] = wizard.CreateUnit("attacker", "blue");
-        var action = Choose(GameEngine.StartRound(state, new Dice(), false).State, "stay");
+        var action = Choose(TestGame.StartRound(state, new Dice(), false).State, "stay");
         var result = Choose(action.State, "fireball:1,0");
         AssertSaved(result.State);
-        var targetIndex = result.Events.FindIndex(e => e.Kind == "AttackTargetResolved" && e.TargetId == "target");
+        var targetIndex = TestGame.OperationEvents(result).FindIndex(e => e.Kind == "AttackTargetResolved" && e.TargetId == "target");
         Assert.True(targetIndex >= 0);
-        Assert.All(result.ResolutionSteps.Where(s => s.EventIndex >= targetIndex), s => AssertSaved(s.StateAfter));
-        Assert.DoesNotContain(result.Events, e => e.Kind == "UnitDied");
-        Assert.Contains(result.Events.Last().Attack!.Targets, t => t.TargetId == "target" && t.Damage == 2);
+        Assert.All(TestGame.OperationSteps(result).Where(s => s.EventIndex >= targetIndex), s => AssertSaved(s.StateAfter));
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "UnitDied");
+        Assert.Contains(TestGame.OperationEvents(result).Last().Attack!.Targets, t => t.TargetId == "target" && t.Damage == 2);
     }
 
     [Theory]
@@ -186,16 +186,16 @@ public sealed class TrollTests
         state.Types.Insert(0, caster);
         state.Units.Insert(0, caster.CreateUnit("caster", "blue"));
         state.Physical.Figures.Insert(0, new("caster", new(2, 0)));
-        var start = GameEngine.StartRound(state, new Dice(), false);
+        var start = TestGame.StartRound(state, new Dice(), false);
         var action = Choose(start.State, "stay");
         var laidDown = Choose(action.State, holyWave ? "holy-wave" : "telekinesis:target");
         AssertSaved(laidDown.State);
-        Assert.DoesNotContain(laidDown.Events, e => e.Kind is "AttackResolved" or "UnitDied");
+        Assert.DoesNotContain(TestGame.OperationEvents(laidDown), e => e.Kind is "AttackResolved" or "UnitDied");
         if (!holyWave) laidDown = Choose(laidDown.State, "end-turn");
         Assert.Equal("attacker", laidDown.NextInput!.UnitId);
         var killed = Choose(Choose(Restore(laidDown.State), "stay").State, "attack:target");
         Assert.Equal(0, killed.State.Units.Single(u => u.Id == "target").CurrentHp);
         Assert.DoesNotContain(killed.State.Physical.Figures, f => f.Id == "target");
-        Assert.Single(killed.Events, e => e.Kind == "UnitDied");
+        Assert.Single(TestGame.OperationEvents(killed), e => e.Kind == "UnitDied");
     }
 }

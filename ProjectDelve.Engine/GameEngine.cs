@@ -27,12 +27,16 @@ public static class GameEngine
                         ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
             }).ToList();
         state.Round++;
-        state.Bag = state.Types.Where(t => state.Units.Any(u => u.TypeId == t.Id && u.CurrentHp > 0))
-            .Select(t => t.Id).ToList();
-        state.ActiveTypeId = null;
+        state.Bag = state.Types.SelectMany(t => state.Units
+            .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
+            .Distinct().OrderBy(side => side, StringComparer.Ordinal)
+            .Select(side => new ActivationToken(t.Id, side))).ToList();
+        state.ActiveToken = null;
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
         state.CleavePending = false;
+        state.AttackInProgress = null;
+        state.DoorInProgress = null;
         state.MoveDone = false;
         state.ActionDone = false;
         state.BonusActionsUsedThisActivation.Clear();
@@ -41,6 +45,7 @@ public static class GameEngine
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new ResolutionEvents(state);
+        events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
@@ -50,7 +55,7 @@ public static class GameEngine
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
         var events = new ResolutionEvents(state);
-        if (state.CurrentUnitId is not null &&
+        if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
             (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
              !state.IsUpright(state.CurrentUnitId)))
         {
@@ -94,6 +99,7 @@ public static class GameEngine
         out string? choice)
     {
         choice = null;
+        if (request.Kind == DecisionKind.RollDice) return false;
         if (request.Candidates.Count == 0 && request.AllowsNone) return true;
         // Ordinary forced choices are independent of relevance and its preference.
         if (request.Candidates.Count == 1 && !request.AllowsNone)
@@ -120,6 +126,9 @@ public static class GameEngine
     {
         switch (request.Kind)
         {
+            case DecisionKind.RollDice:
+                SubmitRoll(state, request.Roll!, random, events);
+                break;
             case DecisionKind.Cleave:
                 state.CleavePending = false;
                 if (choice is not null)
@@ -134,7 +143,8 @@ public static class GameEngine
                     var cleave = state.Types.Single(t => t.Id == request.TypeId).Cleave!;
                     DealDamage(state, targetId, cleave.Damage,
                         new RulesEvent("CleaveResolved", request.UnitId, targetId, Damage: cleave.Damage,
-                            AbilityName: state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Cleave ?? "Cleave"), events);
+                            AbilityName: state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Cleave ?? "Cleave")
+                            { ActionId = "cleave", SourceUnitId = request.UnitId }, events);
                 }
                 break;
             case DecisionKind.SelectUnit:
@@ -143,10 +153,11 @@ public static class GameEngine
                 state.ActionDone = false;
                 state.BonusActionsUsedThisActivation.Clear();
                 state.ModifiersThisTurn.Clear();
+                events.Add(new RulesEvent("ActivationStarted", choice) { Token = state.ActiveToken });
                 if (!state.IsUpright(choice!))
                 {
                     ChangePosture(state, choice!, Posture.Upright, events);
-                    CompleteUnit(state);
+                    CompleteUnit(state, events);
                 }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
@@ -160,12 +171,14 @@ public static class GameEngine
                 };
                 state.BonusActionsUsedThisActivation.Add(ability.Name);
                 state.ModifiersThisTurn.AddRange(ability.Modifiers);
+                EmitActionUsed(request, choice!, events);
                 events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name));
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
-                CompleteUnit(state);
+                CompleteUnit(state, events);
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).FreeAction == UnitFreeAction.OpenDoor:
+                EmitActionUsed(request, choice!, events);
                 OpenDoor(state, request.UnitId!, request.Candidates.Single(c => c.Key == choice).Door!, events);
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay:
@@ -186,41 +199,34 @@ public static class GameEngine
                 break;
             case DecisionKind.Activation:
                 state.ActionDone = true;
-                var attacked = false;
+
                 if (choice is not null)
                 {
                     var action = request.Candidates.Single(c => c.Key == choice);
                     if (action.TryOpenDoor is { } attempt)
                     {
-                        var roll = random.RollD6();
-                        if (roll is < 1 or > 6)
-                            throw new ArgumentException("Invalid D6 face.", nameof(random));
-                        // Designate faces 1 through SuccessCount as the success faces.
-                        var succeeded = roll <= attempt.SuccessCount;
-                        events.Add(new RulesEvent("DoorOpeningAttemptResolved", request.UnitId,
-                            Door: action.Door, DieRoll: roll, SuccessCount: attempt.SuccessCount,
-                            Succeeded: succeeded));
-                        if (succeeded) OpenDoor(state, request.UnitId!, action.Door!, events);
+                        EmitActionUsed(request, choice!, events);
+                        state.DoorInProgress = new(request.UnitId!, action.Door!, attempt.SuccessCount, "try-open-door");
                     }
                     else switch (action.Action)
                     {
                         case UnitAction.NormalAttack:
-                            ResolveAttack(state, request.UnitId!,
-                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.NormalAttack)), random, events);
-                            attacked = true;
+                            EmitActionUsed(request, choice!, events);
+                            BeginAttack(state, request.UnitId!,
+                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.NormalAttack)), events, ActionIdentity(action), action.Destination);
                             break;
                         case UnitAction.ClawAttack:
                             var clawType = state.Types.Single(t => t.Id == request.TypeId);
-                            ResolveAttack(state, request.UnitId!,
+                            EmitActionUsed(request, choice!, events);
+                            BeginAttack(state, request.UnitId!,
                                 new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.ClawAttack),
-                                    clawType.AbilityNames.ClawAttack ?? "Claw Attack"), random, events);
-                            attacked = true;
+                                    clawType.AbilityNames.ClawAttack ?? "Claw Attack"), events, ActionIdentity(action), action.Destination);
                             break;
                         case UnitAction.FireBreath:
-                            ResolveAttack(state, request.UnitId!,
+                            EmitActionUsed(request, choice!, events);
+                            BeginAttack(state, request.UnitId!,
                                 new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.FireBreath),
-                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.FireBreath ?? "Fire Breath"), random, events);
-                            attacked = true;
+                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.FireBreath ?? "Fire Breath"), events, ActionIdentity(action), action.Destination);
                             break;
                         case UnitAction.HolyWave:
                             var waveIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
@@ -229,9 +235,10 @@ public static class GameEngine
                             {
                                 HolyWaveUses = new(waveUses.MaxUses, waveUses.RemainingUses - 1)
                             };
+                            EmitActionUsed(request, choice!, events);
                             foreach (var targetId in action.TargetIds)
-                                ChangePosture(state, targetId, Posture.Lying, events);
-                            ChangePosture(state, request.UnitId!, Posture.Lying, events);
+                                ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ActionIdentity(action));
+                            ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ActionIdentity(action));
                             break;
                         case UnitAction.Fireball:
                             var fireballIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
@@ -240,13 +247,14 @@ public static class GameEngine
                             {
                                 FireballUses = new(fireballUses.MaxUses, fireballUses.RemainingUses - 1)
                             };
-                            ResolveAttack(state, request.UnitId!,
+                            EmitActionUsed(request, choice!, events);
+                            BeginAttack(state, request.UnitId!,
                                 new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.Fireball),
-                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Fireball ?? "Fireball"), random, events);
-                            attacked = true;
+                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Fireball ?? "Fireball"), events, ActionIdentity(action), action.Destination);
                             break;
                         case UnitAction.Telekinesis:
-                            ChangePosture(state, action.TargetId!, Posture.Lying, events);
+                            EmitActionUsed(request, choice!, events);
+                            ChangePosture(state, action.TargetId!, Posture.Lying, events, request.UnitId, ActionIdentity(action));
                             break;
                         case UnitAction.SummonAdjacent:
                             var summoner = state.Types.Single(t => t.Id == request.TypeId);
@@ -258,22 +266,23 @@ public static class GameEngine
                             var number = 1;
                             while (state.Units.Any(u => u.Id == $"{prefix}-{number}")) number++;
                             var summonedId = $"{prefix}-{number}";
-                            state.PlaceUnit(summonedType.Id, summonedId, state.Units.Single(u => u.Id == request.UnitId).SideId,
+                            var source = state.Units.Single(u => u.Id == request.UnitId);
+                            var group = new ActivationToken(summonedType.Id, source.SideId);
+                            if (!state.Controllers.Any(c => c.Token == group))
+                                state.Controllers.Add(new(group, state.ControllerFor(new ActivationToken(source.TypeId, source.SideId))));
+                            EmitActionUsed(request, choice!, events);
+                            state.PlaceUnit(summonedType.Id, summonedId, source.SideId,
                                 action.Destination!, summon.InitialPosture);
                             events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
-                                AbilityName: summoner.AbilityNames.Summon ?? "Summon Adjacent"));
+                                AbilityName: summoner.AbilityNames.Summon ?? "Summon Adjacent", Posture: summon.InitialPosture)
+                                { SourceUnitId = source.Id, SideId = source.SideId, Cell = action.Destination, ActionId = ActionIdentity(action) });
                             break;
                         case UnitAction.Heal:
-                            ResolveHeal(state, request.UnitId!, action.TargetId!, events);
+                            ResolveHeal(state, request, choice!, action.TargetId!, events);
                             break;
                         default:
                             throw new InvalidOperationException("Unsupported action.");
                     }
-                }
-                if (attacked && state.IsUpright(request.UnitId!) && state.Units.Single(u => u.Id == request.UnitId).CurrentHp > 0 && state.Types.Single(t => t.Id == request.TypeId).MoveAfterAttack is { } move)
-                {
-                    state.CurrentUnitId = request.UnitId;
-                    state.MoveAfterAttackAllowance = move.MaxSteps;
                 }
                 break;
         }
@@ -284,31 +293,38 @@ public static class GameEngine
     {
         while (state.Pending is null && !state.RoundComplete)
         {
-            if (state.ActiveTypeId is null)
+            if (state.AttackInProgress is not null)
+            {
+                ProgressAttack(state, events);
+                if (state.AttackInProgress is not null) { state.Pending = CreateDecision(state); return; }
+                continue;
+            }
+            if (state.DoorInProgress is not null) { state.Pending = CreateDecision(state); return; }
+            if (state.ActiveToken is null)
             {
                 if (state.Bag.Count == 0)
                 {
                     state.RoundComplete = true;
-                    events.Add(new RulesEvent("RoundCompleted"));
+                    events.Add(new RulesEvent("RoundCompleted") { Round = state.Round });
                     return;
                 }
                 // Token selection must not expose the authoritative bag to a provider.
                 var drawn = random.DrawToken(Array.AsReadOnly(state.Bag.ToArray()));
                 if (!state.Bag.Remove(drawn))
                     throw new ArgumentException("Random provider drew a token outside the bag.", nameof(random));
-                state.ActiveTypeId = drawn;
+                state.ActiveToken = drawn;
                 state.CompletedUnitIds.Clear();
-                events.Add(new RulesEvent("TokenDrawn", TypeId: drawn));
+                events.Add(new RulesEvent("TokenDrawn", TypeId: drawn.TypeId) { Token = drawn, SideId = drawn.SideId });
             }
 
-            if (state.CurrentUnitId is not null &&
+            if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
                 (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
                  !state.IsUpright(state.CurrentUnitId)))
-                CompleteUnit(state);
+                CompleteUnit(state, events);
             if (state.CurrentUnitId is null && EligibleUnits(state).Count == 0)
             {
                 state.CompletedUnitIds.Clear();
-                state.ActiveTypeId = null;
+                state.ActiveToken = null;
                 continue;
             }
             var request = CreateDecision(state);
@@ -321,8 +337,9 @@ public static class GameEngine
         }
     }
 
-    private static void CompleteUnit(GameState state)
+    private static void CompleteUnit(GameState state, ResolutionEvents events)
     {
+        var unitId = state.CurrentUnitId;
         state.CompletedUnitIds.Add(state.CurrentUnitId!);
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
@@ -331,22 +348,23 @@ public static class GameEngine
         state.ActionDone = false;
         state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
+        events.Add(new RulesEvent("ActivationCompleted", unitId) { Token = state.ActiveToken });
     }
 
-    private static void ChangePosture(GameState state, string unitId, Posture posture, ResolutionEvents events)
+    private static void ChangePosture(GameState state, string unitId, Posture posture, ResolutionEvents events, string? sourceUnitId = null, string? actionId = null)
     {
         var index = state.Physical.Figures.FindIndex(f => f.Id == unitId);
         state.Physical.Figures[index] = state.Physical.Figures[index] with { Posture = posture };
-        events.Add(new RulesEvent("PostureChanged", unitId, Posture: posture));
+        events.Add(new RulesEvent("PostureChanged", unitId, Posture: posture) { SourceUnitId = sourceUnitId, ActionId = actionId });
     }
 
-    private static void OpenDoor(GameState state, string unitId, Edge door, ResolutionEvents events)
+    private static void OpenDoor(GameState state, string unitId, Edge door, ResolutionEvents events, string actionId = "open-door")
     {
         var index = state.Physical.Board.Edges.FindIndex(e =>
             e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
         var opened = state.Physical.Board.Edges[index] with { Kind = EdgeKind.OpenDoor };
         state.Physical.Board.Edges[index] = opened;
-        events.Add(new RulesEvent("DoorOpened", unitId, Door: opened));
+        events.Add(new RulesEvent("DoorOpened", unitId, Door: opened) { SourceUnitId = unitId, ActionId = actionId });
     }
 
     private static List<Candidate> MovementCandidates(GameState state, Unit unit, int? maxSteps = null)
@@ -479,7 +497,7 @@ public static class GameEngine
     }
 
     private static List<Unit> EligibleUnits(GameState state) =>
-        state.Units.Where(u => u.TypeId == state.ActiveTypeId && u.CurrentHp > 0 &&
+        state.Units.Where(u => u.TypeId == state.ActiveToken!.TypeId && u.SideId == state.ActiveToken.SideId && u.CurrentHp > 0 &&
                 !state.CompletedUnitIds.Contains(u.Id))
             .OrderBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.Y)
             .ThenBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.X)
@@ -528,6 +546,28 @@ public static class GameEngine
 
     private static DecisionRequest CreateDecision(GameState state)
     {
+        var request = CreateDecisionCore(state);
+        var owner = request.UnitId is null ? null : state.Units.Single(u => u.Id == request.UnitId);
+        return request with { Token = owner is null ? state.ActiveToken : new(owner.TypeId, owner.SideId) };
+    }
+
+    private static DecisionRequest CreateDecisionCore(GameState state)
+    {
+        DicePool? pool = null;
+        if (state.DoorInProgress is { } door)
+            pool = new(DiceFamily.D6, 1, door.UnitId, door.UnitId, door.ActionId, "Door check", Door: door.Door, SuccessCount: door.SuccessCount);
+        if (state.AttackInProgress is { } attack)
+        {
+            var target = attack.Stage == AttackStage.DefenceRoll ? attack.Targets[attack.TargetIndex] : null;
+            pool = target is null
+                ? new(DiceFamily.Attack, attack.AttackDice, attack.AttackerId, attack.AttackerId, attack.ActionId, "Attack")
+                : new(DiceFamily.Defence, target.DefenceDice, target.TargetId, attack.AttackerId, attack.ActionId, "Defence", target.TargetId);
+            pool = pool with { SelectedCell = attack.SelectedCell, TargetIds = attack.Targets.Select(t => t.TargetId).ToImmutableArray() };
+        }
+        if (pool is not null)
+            return new DecisionRequest(DecisionKind.RollDice, state.Units.Single(u => u.Id == pool.OwnerUnitId).TypeId,
+                pool.OwnerUnitId, [new("roll-dice", Kind: ActivationChoiceKind.RollDice)], false) { Roll = pool };
+
         if (state.CleavePending)
         {
             var cleaver = state.Units.Single(u => u.Id == state.CurrentUnitId);
@@ -541,7 +581,7 @@ public static class GameEngine
         }
         var eligible = EligibleUnits(state);
         if (state.CurrentUnitId is null)
-            return new DecisionRequest(DecisionKind.SelectUnit, state.ActiveTypeId!, null,
+            return new DecisionRequest(DecisionKind.SelectUnit, state.ActiveToken!.TypeId, null,
                 eligible.Select(u => new Candidate(u.Id, Kind: ActivationChoiceKind.SelectUnit)).ToList(), false);
 
         var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
@@ -577,65 +617,135 @@ public static class GameEngine
     // One shared Attack roll is the general rule, irrespective of target selection.
     // Resolution snapshots DEF, then resolves per-target damage/death and follow-ups.
     private sealed record SharedRollAttack(ImmutableArray<string> TargetIds, int AttackDice, string? AbilityName = null);
-    private sealed record AttackTargetDice(string TargetId, int DefenceDice);
-
-    private static void ResolveAttack(GameState state, string attackerId, SharedRollAttack attack,
-        IRandomProvider random, ResolutionEvents events)
+    private static void EmitActionUsed(DecisionRequest request, string choice, ResolutionEvents events)
     {
-        var (targetIds, attackDice, abilityName) = attack;
-        // Fix every target's dice before the first roll, using the same authoritative
-        // effective stats as Normal Attack. Only these inputs are captured; damage,
-        // death, Undying and presentation snapshots still resolve sequentially.
-        var targets = targetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
-        var hits = 0;
-        for (var i = 0; i < attackDice; i++)
-        {
-            var face = random.RollAttackDie();
-            if (!Enum.IsDefined(face)) throw new ArgumentException("Invalid Attack Die face.", nameof(random));
-            if (face == AttackFace.Hit) hits++;
-        }
-        var results = new List<AttackTargetResult>();
-        foreach (var (targetId, defenceDice) in targets)
-        {
-            var blocks = 0;
-            for (var i = 0; i < defenceDice; i++)
-            {
-                var face = random.RollDefenceDie();
-                if (!Enum.IsDefined(face)) throw new ArgumentException("Invalid Defence Die face.", nameof(random));
-                if (face == DefenceFace.Block) blocks++;
-            }
-            var damage = Math.Max(0, hits - blocks);
-            results.Add(new(targetId, defenceDice, blocks, damage));
-            DealDamage(state, targetId, damage,
-                new RulesEvent(abilityName is null ? "AttackResolved" : "AttackTargetResolved",
-                    attackerId, targetId, Hits: hits, Blocks: blocks, Damage: damage,
-                    AbilityName: abilityName,
-                    Attack: abilityName is null ? new(attackDice, hits, [.. results]) : null), events);
-        }
-        if (abilityName is not null)
-            events.Add(new RulesEvent("AttackResolved", attackerId, Hits: hits,
-                AbilityName: abilityName, Attack: new(attackDice, hits, [.. results])));
-        var attacker = state.Units.Single(u => u.Id == attackerId);
-        if (state.Types.Single(t => t.Id == attacker.TypeId).Cleave is { } cleave &&
-            results.Any(r => r.Damage >= cleave.TriggerDamage) && attacker.CurrentHp > 0 && CleaveCandidates(state, attacker).Count > 0)
-            state.CleavePending = true;
+        var used = request.Candidates.Single(c => c.Key == choice);
+        events.Add(new RulesEvent("ActionUsed", request.UnitId, used.TargetId, Door: used.Door,
+            AbilityName: used.BonusAction?.DisplayName ?? used.BonusAction?.Name)
+            { ActionId = ActionIdentity(used), Category = used.Kind, Cell = used.Destination, SourceUnitId = request.UnitId });
     }
 
-    private static void ResolveHeal(GameState state, string healerId, string targetId, ResolutionEvents events)
+    private static string ActionIdentity(Candidate candidate) => ContentDescriptions.EntryId(candidate)
+        ?? throw new InvalidOperationException("Action has no stable identity.");
+
+    private static void BeginAttack(GameState state, string attackerId, SharedRollAttack attack,
+        ResolutionEvents events, string actionId, Cell? selectedCell)
     {
+        var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
+        state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
+            attack.AttackDice, Results: []);
+        events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
+            { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId });
+    }
+
+    // Progress only deterministic portions; nonempty pools always return to the decision boundary.
+    private static void ProgressAttack(GameState state, ResolutionEvents events)
+    {
+        var attack = state.AttackInProgress!;
+        if (attack.Stage == AttackStage.AttackRoll)
+        {
+            if (attack.AttackDice > 0) return;
+            state.AttackInProgress = attack = attack with { Stage = AttackStage.DefenceRoll };
+        }
+        while (attack.TargetIndex < attack.Targets.Length)
+        {
+            if (attack.Targets[attack.TargetIndex].DefenceDice > 0) return;
+            ResolveAttackTarget(state, 0, events);
+            attack = state.AttackInProgress!;
+        }
+        if (attack.AbilityName is not null)
+            events.Add(new RulesEvent("AttackResolved", attack.AttackerId, Hits: attack.Hits,
+                AbilityName: attack.AbilityName, Attack: new(attack.AttackDice, attack.Hits, attack.Results))
+                { ActionId = attack.ActionId });
+        state.AttackInProgress = null;
+        var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
+        var type = state.Types.Single(t => t.Id == attacker.TypeId);
+        if (attacker.CurrentHp > 0 && state.IsUpright(attacker.Id))
+        {
+            if (type.Cleave is { } cleave && attack.Results.Any(r => r.Damage >= cleave.TriggerDamage) && CleaveCandidates(state, attacker).Count > 0)
+                state.CleavePending = true;
+            if (type.MoveAfterAttack is { } move) state.MoveAfterAttackAllowance = move.MaxSteps;
+        }
+    }
+
+    private static void ResolveAttackTarget(GameState state, int blocks, ResolutionEvents events)
+    {
+        var attack = state.AttackInProgress!;
+        var target = attack.Targets[attack.TargetIndex];
+        var damage = Math.Max(0, attack.Hits - blocks);
+        var results = attack.Results.Add(new(target.TargetId, target.DefenceDice, blocks, damage));
+        state.AttackInProgress = attack with { Results = results, TargetIndex = attack.TargetIndex + 1 };
+        DealDamage(state, target.TargetId, damage,
+            new RulesEvent(attack.AbilityName is null ? "AttackResolved" : "AttackTargetResolved",
+                attack.AttackerId, target.TargetId, Hits: attack.Hits, Blocks: blocks, Damage: damage,
+                AbilityName: attack.AbilityName,
+                Attack: attack.AbilityName is null ? new(attack.AttackDice, attack.Hits, results) : null)
+                { ActionId = attack.ActionId, SourceUnitId = attack.AttackerId }, events);
+    }
+
+    private static void SubmitRoll(GameState state, DicePool pool, IRandomProvider random, ResolutionEvents events)
+    {
+        var faces = ImmutableArray.CreateBuilder<string>(pool.Count);
+        var successes = 0;
+        for (var i = 0; i < pool.Count; i++)
+        {
+            switch (pool.Family)
+            {
+                case DiceFamily.Attack:
+                    var hit = random.RollAttackDie();
+                    if (!Enum.IsDefined(hit)) throw new ArgumentException("Invalid Attack Die face.", nameof(random));
+                    faces.Add(hit.ToString());
+                    if (hit == AttackFace.Hit) successes++;
+                    break;
+                case DiceFamily.Defence:
+                    var block = random.RollDefenceDie();
+                    if (!Enum.IsDefined(block)) throw new ArgumentException("Invalid Defence Die face.", nameof(random));
+                    faces.Add(block.ToString());
+                    if (block == DefenceFace.Block) successes++;
+                    break;
+                case DiceFamily.D6:
+                    var d6 = random.RollD6();
+                    if (d6 is < 1 or > 6) throw new ArgumentException("Invalid D6 face.", nameof(random));
+                    faces.Add(d6.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    if (d6 <= pool.SuccessCount) successes++;
+                    break;
+            }
+        }
+        var result = new DiceResult(pool, faces.ToImmutable(), successes);
+        if (pool.Family == DiceFamily.Attack)
+            state.AttackInProgress = state.AttackInProgress! with { Hits = successes, Stage = AttackStage.DefenceRoll, AttackRoll = result };
+        events.Add(new RulesEvent("DiceRolled", pool.OwnerUnitId, pool.TargetId, Door: pool.Door)
+            { SourceUnitId = pool.SourceUnitId, ActionId = pool.SourceActionId, Dice = result });
+        if (pool.Family == DiceFamily.Defence) ResolveAttackTarget(state, successes, events);
+        if (pool.Family == DiceFamily.D6)
+        {
+            var door = state.DoorInProgress!;
+            state.DoorInProgress = null;
+            var roll = int.Parse(faces[0], System.Globalization.CultureInfo.InvariantCulture);
+            events.Add(new RulesEvent("DoorOpeningAttemptResolved", door.UnitId, Door: door.Door,
+                DieRoll: roll, SuccessCount: door.SuccessCount, Succeeded: successes > 0) { ActionId = door.ActionId });
+            if (successes > 0) OpenDoor(state, door.UnitId, door.Door, events, door.ActionId);
+        }
+    }
+
+    private static void ResolveHeal(GameState state, DecisionRequest request, string choice, string targetId, ResolutionEvents events)
+    {
+        var healerId = request.UnitId!;
         var healerIndex = state.Units.FindIndex(u => u.Id == healerId);
         var uses = state.Units[healerIndex].HealUses!;
         state.Units[healerIndex] = state.Units[healerIndex] with
         {
             HealUses = new(uses.MaxUses, uses.RemainingUses - 1)
         };
+        EmitActionUsed(request, choice, events);
         var targetIndex = state.Units.FindIndex(u => u.Id == targetId);
         var target = state.Units[targetIndex];
         var heal = state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).Heal!;
         var healing = Math.Min(heal.Amount, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
         state.Units[targetIndex] = target with { CurrentHp = target.CurrentHp + healing };
         events.Add(new RulesEvent("HealResolved", healerId, targetId,
-            AbilityName: state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).AbilityNames.Heal ?? "Heal", Healing: healing));
+            AbilityName: state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).AbilityNames.Heal ?? "Heal", Healing: healing)
+            { SourceUnitId = healerId, ActionId = "heal" });
     }
 
     private static List<Candidate> CleaveCandidates(GameState state, Unit unit)
@@ -670,11 +780,11 @@ public static class GameEngine
         }
         events.Add(resolved);
         if (savedByUndying)
-            events.Add(new RulesEvent("PostureChanged", targetId, Posture: Posture.Lying));
+            events.Add(new RulesEvent("PostureChanged", targetId, Posture: Posture.Lying) { SourceUnitId = resolved.UnitId, ActionId = resolved.ActionId });
         if (state.Units[index].CurrentHp == 0)
         {
             state.Physical.Figures.RemoveAll(f => f.Id == targetId);
-            events.Add(new RulesEvent("UnitDied", targetId));
+            events.Add(new RulesEvent("UnitDied", targetId) { SourceUnitId = resolved.UnitId, ActionId = resolved.ActionId });
         }
     }
 
@@ -694,6 +804,10 @@ public static class GameEngine
     private static void ValidateScenario(GameState state)
     {
         var board = state.Physical.Board;
+        if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||
+            state.Controllers.Any(c => !Enum.IsDefined(c.Controller) || string.IsNullOrWhiteSpace(c.Token.SideId) || string.IsNullOrWhiteSpace(c.Token.TypeId)) ||
+            state.Units.Any(u => u.CurrentHp > 0 && !state.Controllers.Any(c => c.Token == new ActivationToken(u.TypeId, u.SideId))))
+            throw new ArgumentException("Every participating Unit Type + Side needs one explicit controller assignment.");
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => !Enum.IsDefined(t.Footprint) || t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||

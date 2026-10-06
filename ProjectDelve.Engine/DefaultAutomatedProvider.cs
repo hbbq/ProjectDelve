@@ -1,9 +1,10 @@
 namespace ProjectDelve.Engine;
 
-public sealed class DefaultMonsterProvider : IDecisionProvider
+public sealed class DefaultAutomatedProvider : IDecisionProvider
 {
     public string? Choose(DecisionRequest request, IGameplayQueries queries) => request.Kind switch
     {
+        DecisionKind.RollDice => request.Candidates.Single().Key,
         DecisionKind.Activation => SelectActivation(request, queries),
         DecisionKind.SelectUnit => SelectUnit(request, queries),
         DecisionKind.Move => SelectMovement(request, queries),
@@ -77,7 +78,7 @@ public sealed class DefaultMonsterProvider : IDecisionProvider
             if (preferred is not null) return preferred.Key;
         }
 
-        return MonsterMovementProvider.ChooseMovement(request, queries,
+        return ApproachMovementProvider.ChooseMovement(request, queries,
             closedDoorsTraversable: behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors));
     }
 

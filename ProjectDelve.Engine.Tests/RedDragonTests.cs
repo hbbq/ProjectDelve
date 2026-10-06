@@ -12,7 +12,7 @@ public sealed class RedDragonTests
         {
             Physical = new(new Board(14, 10, []), [new("dragon", anchor ?? new(1, 1))]),
             Types = [actor], Units = [actor.CreateUnit("dragon", "red")],
-            Round = 1, ActiveTypeId = actor.Id, CurrentUnitId = "dragon", MoveDone = true,
+            Round = 1, ActiveToken = new(actor.Id, "red"), CurrentUnitId = "dragon", MoveDone = true,
             Pending = new(DecisionKind.Activation, actor.Id, "dragon", [], false)
         };
     }
@@ -29,14 +29,14 @@ public sealed class RedDragonTests
         GameEngine.GameplayCandidates(state, state.Units[0]).ToList();
     private static Candidate? Breath(GameState state) => Candidates(state).SingleOrDefault(c => c.Action == UnitAction.FireBreath);
     private static DecisionRequest Request(GameState state) =>
-        new(DecisionKind.Activation, state.ActiveTypeId!, "dragon", Candidates(state), false);
-    private static string? Behavior(GameState state) => new DefaultMonsterProvider().Choose(Request(state), new GameplayQueries(state));
+        new(DecisionKind.Activation, state.ActiveToken!.TypeId, "dragon", Candidates(state), false);
+    private static string? Behavior(GameState state) => new DefaultAutomatedProvider().Choose(Request(state), new GameplayQueries(state));
 
     private sealed class Dice(params DefenceFace[] defence) : IRandomProvider
     {
         public int AttackRolls, DefenceRolls;
         public List<string> Order = [];
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() { AttackRolls++; Order.Add("attack"); return AttackFace.Hit; }
         public DefenceFace RollDefenceDie()
         {
@@ -51,7 +51,7 @@ public sealed class RedDragonTests
         public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
     }
     private static EngineResult Act(GameState state, string key, Dice? dice = null) =>
-        GameEngine.Advance(JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!, new Choice(key), dice ?? new(), false);
+        TestGame.Advance(JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!, new Choice(key), dice ?? new(), false);
 
     [Fact]
     public void BreathIncludesAllLegalHostilesOnlyAndIsRelevantWithOneTarget()
@@ -67,7 +67,7 @@ public sealed class RedDragonTests
         Assert.Equal(new[] { "near" }, breath.TargetIds);
         Assert.True(breath.Relevant);
         var result = Act(state, breath.Key);
-        Assert.Equal("Fire Breath", Assert.Single(result.Events, e => e.Kind == "AttackResolved").AbilityName);
+        Assert.Equal("Fire Breath", Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").AbilityName);
         Assert.DoesNotContain(Candidates(state), c => c.TargetId == "friend");
     }
 
@@ -85,7 +85,7 @@ public sealed class RedDragonTests
         state.ModifiersThisTurn.Add(new(Stat.Atk, 2));
         var dice = new Dice(DefenceFace.Block, DefenceFace.Miss, DefenceFace.Miss);
         var result = Act(state, "fire-breath", dice);
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(6, dice.AttackRolls);
         Assert.Equal(3, dice.DefenceRolls);
         Assert.Equal(new[] { new AttackTargetResult("large", 2, 1, 5), new AttackTargetResult("other", 1, 0, 6) }, attack.Targets);
@@ -128,13 +128,13 @@ public sealed class RedDragonTests
         Assert.Equal(3, state.EffectiveDefOf("later"));
         var dice = new Dice(DefenceFace.Block, DefenceFace.Miss, DefenceFace.Miss);
         var result = Act(state, "fire-breath", dice);
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(4, attack.AttackDice);
         Assert.Equal(4, dice.AttackRolls);
         Assert.Equal(3, dice.DefenceRolls);
         Assert.Equal(new[] { new AttackTargetResult("aura", 0, 0, 4), new AttackTargetResult("later", 3, 1, 3) }, attack.Targets);
         Assert.Equal(1, result.State.EffectiveDefOf("later"));
-        Assert.Equal(20, result.ResolutionSteps[1].StateAfter.Units[2].CurrentHp);
+        Assert.Equal(20, TestGame.OperationSteps(result)[1].StateAfter.Units[2].CurrentHp);
         Assert.Equal(17, result.State.Units[2].CurrentHp);
         Assert.False(result.State.IsUpright("aura"));
         Assert.Equal(undying, result.State.Physical.Figures.Any(f => f.Id == "aura"));
@@ -178,10 +178,10 @@ public sealed class RedDragonTests
         Assert.Equal(14, result.State.Units[1].CurrentHp);
         Assert.Equal(4, result.State.EffectiveAtkOf("dragon"));
         Assert.Empty(result.State.ModifiersThisTurn);
-        var nextRound = GameEngine.StartRound(result.State, new Dice(), false);
-        var nextAction = GameEngine.Advance(nextRound.State, new Choice("stay"), new Dice(), false);
+        var nextRound = TestGame.StartRound(result.State, new Dice(), false);
+        var nextAction = TestGame.Advance(nextRound.State, new Choice("stay"), new Dice(), false);
         var normal = Act(nextAction.State, "attack:enemy", new Dice());
-        Assert.Equal(5, Assert.Single(normal.Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+        Assert.Equal(5, Assert.Single(TestGame.OperationEvents(normal), e => e.Kind == "AttackResolved").Attack!.AttackDice);
         var baseline = World(); Add(baseline, "enemy", new(3, 1));
         Assert.Equal(5, Assert.Single(Act(baseline, "claw-attack:enemy").Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
         Assert.Equal(4, Assert.Single(Act(baseline, "attack:enemy").Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
@@ -220,11 +220,11 @@ public sealed class RedDragonTests
         Assert.DoesNotContain(candidates, c => c.Action is UnitAction.NormalAttack or UnitAction.ClawAttack or UnitAction.FireBreath);
         var request = Request(state);
         var queries = new GameplayQueries(state);
-        var expected = new MonsterMovementProvider(new DefaultMonsterProvider()).Choose(request, queries);
-        var actual = new DefaultMonsterProvider().Choose(request, queries);
+        var expected = new ApproachMovementProvider(new DefaultAutomatedProvider()).Choose(request, queries);
+        var actual = new DefaultAutomatedProvider().Choose(request, queries);
         Assert.Equal(expected, actual);
         Assert.Equal("3,1", actual);
-        var result = GameEngine.Advance(state, new DefaultMonsterProvider(), new Dice(), false);
+        var result = TestGame.Advance(state, new DefaultAutomatedProvider(), new Dice(), false);
         Assert.Equal(new Cell(3, 1), result.State.Physical.Figures[0].Position);
     }
 
@@ -253,7 +253,7 @@ public sealed class RedDragonTests
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.Wall));
         Assert.Equal(new[] { "blocker", "later" }, Breath(state)!.TargetIds);
         var result = Act(state, "fire-breath");
-        var attack = Assert.Single(result.Events, e => e.Kind == "AttackResolved").Attack!;
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(5, attack.AttackDice);
         Assert.All(attack.Targets, t => Assert.Equal(5, t.Damage));
         Assert.Equal(new[] { "blocker", "later" }, attack.Targets.Select(t => t.TargetId));

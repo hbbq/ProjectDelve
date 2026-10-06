@@ -34,9 +34,9 @@ public static class PlaytestScenarios
             new(new(3, 2), TerrainKind.Tree), new(new(3, 3), TerrainKind.Grass),
             new(new(4, 5), TerrainKind.StoneFloorWithTable)] };
         return Setup(board, [
-            (UnitType.Barbarian(), "barbarian", 1, 4),
-            (UnitType.Grunt(), "grunt-1", 4, 4), (UnitType.Grunt(), "grunt-2", 4, 3),
-            (UnitType.Grunt(), "grunt-3", 6, 6)]);
+            (UnitType.Barbarian(), "barbarian", 1, 4, "blue", ControllerKind.Human),
+            (UnitType.Grunt(), "grunt-1", 4, 4, "red", ControllerKind.Automated), (UnitType.Grunt(), "grunt-2", 4, 3, "red", ControllerKind.Automated),
+            (UnitType.Grunt(), "grunt-3", 6, 6, "red", ControllerKind.Automated)]);
     }
 
     private static GameState Goblins()
@@ -46,9 +46,9 @@ public static class PlaytestScenarios
             new(new(5, 7), TerrainKind.Water), new(new(6, 7), TerrainKind.Water),
             new(new(2, 6), TerrainKind.StoneFloorWithTable)] };
         return Setup(board, [
-            (UnitType.Barbarian(), "barbarian", 2, 4), (UnitType.Rogue(), "rogue", 2, 5),
-            (UnitType.Grunt(), "grunt-1", 5, 4), (UnitType.Grunt(), "grunt-2", 6, 6),
-            (UnitType.Goblin(), "goblin-1", 4, 5), (UnitType.Goblin(), "goblin-2", 7, 3)]);
+            (UnitType.Barbarian(), "barbarian", 2, 4, "blue", ControllerKind.Human), (UnitType.Rogue(), "rogue", 2, 5, "blue", ControllerKind.Human),
+            (UnitType.Grunt(), "grunt-1", 5, 4, "red", ControllerKind.Automated), (UnitType.Grunt(), "grunt-2", 6, 6, "red", ControllerKind.Automated),
+            (UnitType.Goblin(), "goblin-1", 4, 5, "red", ControllerKind.Automated), (UnitType.Goblin(), "goblin-2", 7, 3, "red", ControllerKind.Automated)]);
     }
 
     private static GameState Archers()
@@ -58,10 +58,10 @@ public static class PlaytestScenarios
             new(new(7, 8), TerrainKind.StoneFloorWithTable), new(new(8, 8), TerrainKind.StoneFloorWithTable)] };
         Vertical(board, 6, 5, 7, 6, EdgeKind.WallWithWindow);
         return Setup(board, [
-            (UnitType.Barbarian(), "barbarian", 2, 5), (UnitType.Rogue(), "rogue", 2, 6),
-            (UnitType.Grunt(), "grunt-1", 5, 5), (UnitType.Grunt(), "grunt-2", 7, 7),
-            (UnitType.Goblin(), "goblin-1", 5, 6), (UnitType.Goblin(), "goblin-2", 8, 3),
-            (UnitType.SkeletonArcher(), "archer-1", 6, 2), (UnitType.SkeletonArcher(), "archer-2", 8, 6)]);
+            (UnitType.Barbarian(), "barbarian", 2, 5, "blue", ControllerKind.Human), (UnitType.Rogue(), "rogue", 2, 6, "blue", ControllerKind.Human),
+            (UnitType.Grunt(), "grunt-1", 5, 5, "red", ControllerKind.Automated), (UnitType.Grunt(), "grunt-2", 7, 7, "red", ControllerKind.Automated),
+            (UnitType.Goblin(), "goblin-1", 5, 6, "red", ControllerKind.Automated), (UnitType.Goblin(), "goblin-2", 8, 3, "red", ControllerKind.Automated),
+            (UnitType.SkeletonArcher(), "archer-1", 6, 2, "red", ControllerKind.Automated), (UnitType.SkeletonArcher(), "archer-2", 8, 6, "red", ControllerKind.Automated)]);
     }
 
     private static GameState WizardDoors()
@@ -73,12 +73,12 @@ public static class PlaytestScenarios
         Room(board, 8, 1, 12, 5, 3, 10);
         Horizontal(board, 9, 1, 5, 3, EdgeKind.OpenDoor);
         return Setup(board, [
-            (UnitType.Barbarian(), "barbarian", 3, 6), (UnitType.Rogue(), "rogue", 3, 7),
-            (UnitType.Wizard(), "wizard", 2, 6),
-            (UnitType.Goblin(), "goblin-1", 6, 6), (UnitType.Goblin(), "goblin-2", 7, 8),
-            (UnitType.SkeletonArcher(), "archer-1", 7, 4), (UnitType.SkeletonArcher(), "archer-2", 10, 8),
-            (UnitType.Zombie(), "zombie-1", 8, 3), (UnitType.Zombie(), "zombie-2", 10, 5),
-            (UnitType.Ghost(), "ghost-1", 8, 5)]);
+            (UnitType.Barbarian(), "barbarian", 3, 6, "blue", ControllerKind.Human), (UnitType.Rogue(), "rogue", 3, 7, "blue", ControllerKind.Human),
+            (UnitType.Wizard(), "wizard", 2, 6, "blue", ControllerKind.Human),
+            (UnitType.Goblin(), "goblin-1", 6, 6, "red", ControllerKind.Automated), (UnitType.Goblin(), "goblin-2", 7, 8, "red", ControllerKind.Automated),
+            (UnitType.SkeletonArcher(), "archer-1", 7, 4, "red", ControllerKind.Automated), (UnitType.SkeletonArcher(), "archer-2", 10, 8, "red", ControllerKind.Automated),
+            (UnitType.Zombie(), "zombie-1", 8, 3, "red", ControllerKind.Automated), (UnitType.Zombie(), "zombie-2", 10, 5, "red", ControllerKind.Automated),
+            (UnitType.Ghost(), "ghost-1", 8, 5, "red", ControllerKind.Automated)]);
     }
 
     private static GameState FullParty()
@@ -91,12 +91,12 @@ public static class PlaytestScenarios
         Vertical(board, 4, 0, 3, 2, EdgeKind.ClosedDoor);
         Horizontal(board, 9, 0, 4, 2, EdgeKind.OpenDoor);
         return Setup(board, [
-            (UnitType.Barbarian(), "barbarian", 3, 6), (UnitType.Rogue(), "rogue", 3, 7),
-            (UnitType.Wizard(), "wizard", 2, 6), (UnitType.Cleric(), "cleric", 2, 7),
-            (UnitType.Goblin(), "goblin-1", 6, 6), (UnitType.Goblin(), "goblin-2", 7, 7),
-            (UnitType.SkeletonArcher(), "archer-1", 6, 3), (UnitType.SkeletonArcher(), "archer-2", 8, 8),
-            (UnitType.Zombie(), "zombie-1", 8, 3), (UnitType.Zombie(), "zombie-2", 10, 5),
-            (UnitType.Troll(), "troll-1", 9, 11), (UnitType.Troll(), "troll-2", 11, 9)]);
+            (UnitType.Barbarian(), "barbarian", 3, 6, "blue", ControllerKind.Human), (UnitType.Rogue(), "rogue", 3, 7, "blue", ControllerKind.Human),
+            (UnitType.Wizard(), "wizard", 2, 6, "blue", ControllerKind.Human), (UnitType.Cleric(), "cleric", 2, 7, "blue", ControllerKind.Human),
+            (UnitType.Goblin(), "goblin-1", 6, 6, "red", ControllerKind.Automated), (UnitType.Goblin(), "goblin-2", 7, 7, "red", ControllerKind.Automated),
+            (UnitType.SkeletonArcher(), "archer-1", 6, 3, "red", ControllerKind.Automated), (UnitType.SkeletonArcher(), "archer-2", 8, 8, "red", ControllerKind.Automated),
+            (UnitType.Zombie(), "zombie-1", 8, 3, "red", ControllerKind.Automated), (UnitType.Zombie(), "zombie-2", 10, 5, "red", ControllerKind.Automated),
+            (UnitType.Troll(), "troll-1", 9, 11, "red", ControllerKind.Automated), (UnitType.Troll(), "troll-2", 11, 9, "red", ControllerKind.Automated)]);
     }
 
     private static GameState ShamanHunt()
@@ -111,18 +111,18 @@ public static class PlaytestScenarios
         Horizontal(board, 4, 7, 13, 10, EdgeKind.OpenDoor);
         Horizontal(board, 10, 0, 6, 2, EdgeKind.OpenDoor);
         return Setup(board, [
-            (UnitType.Barbarian(), "barbarian", 2, 6), (UnitType.Rogue(), "rogue", 3, 7),
-            (UnitType.Wizard(), "wizard", 2, 7), (UnitType.Cleric(), "cleric", 1, 7),
-            (UnitType.Shaman(), "shaman-1", 7, 5), (UnitType.Grunt(), "grunt-1", 5, 8),
-            (UnitType.RedDragon(), "red-dragon", 11, 5)]);
+            (UnitType.Barbarian(), "barbarian", 2, 6, "blue", ControllerKind.Human), (UnitType.Rogue(), "rogue", 3, 7, "blue", ControllerKind.Human),
+            (UnitType.Wizard(), "wizard", 2, 7, "blue", ControllerKind.Human), (UnitType.Cleric(), "cleric", 1, 7, "blue", ControllerKind.Human),
+            (UnitType.Shaman(), "shaman-1", 7, 5, "red", ControllerKind.Automated), (UnitType.Grunt(), "grunt-1", 5, 8, "red", ControllerKind.Automated),
+            (UnitType.RedDragon(), "red-dragon", 11, 5, "red", ControllerKind.Automated)]);
     }
 
-    private static GameState Setup(Board board, (UnitType Type, string Id, int X, int Y)[] units) => new()
+    private static GameState Setup(Board board, (UnitType Type, string Id, int X, int Y, string Side, ControllerKind Controller)[] units) => new()
     {
         Physical = new(board, units.Select(u => new Figure(u.Id, new(u.X, u.Y))).ToList()),
         Types = units.Select(u => u.Type).DistinctBy(t => t.Id).ToList(),
-        Units = units.Select(u => u.Type.CreateUnit(u.Id,
-            u.Type.Id is "barbarian-type" or "rogue-type" or "wizard-type" or "cleric-type" ? "blue" : "red")).ToList()
+        Controllers = units.Select(u => new ControllerAssignment(new(u.Type.Id, u.Side), u.Controller)).Distinct().ToList(),
+        Units = units.Select(u => u.Type.CreateUnit(u.Id, u.Side)).ToList()
     };
 
     // Only map drawing helpers, not scenario rules or a scripting language.

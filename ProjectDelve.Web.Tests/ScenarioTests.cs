@@ -20,7 +20,7 @@ public sealed class ScenarioTests
     private static string Serialize(GameState state) => JsonSerializer.Serialize(state, Json);
     private sealed class Random(bool shamanFirst = false) : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => shamanFirst && bag.Contains("shaman-type") ? "shaman-type" : bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => shamanFirst ? bag.FirstOrDefault(t => t.TypeId == "shaman-type") ?? bag[0] : bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 1;
@@ -60,9 +60,9 @@ public sealed class ScenarioTests
         Assert.All(first.Physical.Figures, f => Assert.True(first.Physical.Board.TerrainAt(f.Position).Passable()));
         var expected = Serialize(second);
         // Starting a round runs the engine's existing complete scenario validation.
-        Assert.NotNull(GameEngine.StartRound(first, new Random(), false).NextInput);
+        Assert.NotNull(TestGame.StartRound(first, new Random(), false).NextInput);
         first.Units.Clear(); first.Types.Clear(); first.Physical.Figures.Clear();
-        first.Physical.Board.Terrain.Clear(); first.Physical.Board.Edges.Clear(); first.Bag.Add("leak");
+        first.Physical.Board.Terrain.Clear(); first.Physical.Board.Edges.Clear(); first.Bag.Add(new("leak", "leak"));
         Assert.Equal(expected, Serialize(second));
         Assert.Equal(expected, Serialize(PlaytestScenarios.Create(id)));
     }
@@ -84,9 +84,9 @@ public sealed class ScenarioTests
 
         // Draw Ghost before any other Unit can alter the setup.
         var random = new GhostFirstRandom();
-        var pending = GameEngine.StartRound(state, random, false);
+        var pending = TestGame.StartRound(state, random, false);
         Assert.Equal(ghost.Id, pending.NextInput!.UnitId);
-        var moved = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), random, false);
+        var moved = TestGame.Advance(pending.State, new DefaultAutomatedProvider(), random, false);
         var movement = Assert.Single(moved.Events, e => e.Kind == "MovementCompleted");
         Assert.Equal(new Cell[] { new(8, 5), new(7, 5), new(6, 5) }, movement.Path);
         Assert.Equal(EdgeKind.Wall, state.Physical.Board.EdgeBetween(movement.Path![0], movement.Path[1]));
@@ -105,7 +105,7 @@ public sealed class ScenarioTests
 
     private sealed class GhostFirstRandom : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag.Contains(UnitTypeIds.Ghost) ? UnitTypeIds.Ghost : bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.FirstOrDefault(t => t.TypeId == UnitTypeIds.Ghost) ?? bag[0];
         public AttackFace RollAttackDie() => throw new InvalidOperationException("Ghost has not reached attack range yet.");
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException("Unexpected attack.");
         public int RollD6() => throw new InvalidOperationException("Phase does not open Doors.");
@@ -131,7 +131,7 @@ public sealed class ScenarioTests
                 state.Physical.Board.Edges[i] = state.Physical.Board.Edges[i] with { Kind = EdgeKind.OpenDoor };
         state.Units.Add(UnitType.Goblin().CreateUnit("spawned", "red"));
         state.Physical.Figures.Add(new("spawned", new(0, 1), Posture.Lying));
-        state.Round = 9; state.Bag.Add("goblin-type"); state.ActiveTypeId = "barbarian-type";
+        state.Round = 9; state.Bag.Add(new("goblin-type", "red")); state.ActiveToken = new("barbarian-type", state.Units.First(u => u.TypeId == "barbarian-type").SideId);
         state.CurrentUnitId = "barbarian"; state.MoveDone = true; state.ActionDone = true;
         state.CompletedUnitIds.Add("rogue"); state.CleavePending = true; state.MoveAfterAttackAllowance = 1;
         state.BonusActionsUsedThisActivation.Add("Rage"); state.ModifiersThisTurn.Add(new(Stat.Atk, 2));
@@ -155,6 +155,7 @@ public sealed class ScenarioTests
         {
             active = game.Decide(active.Revision, "3,4");
             active = game.Decide(active.Revision, "attack:grunt-1");
+            while (active.Result.NextInput?.Kind == DecisionKind.RollDice) active = game.Decide(active.Revision, "roll-dice");
             Assert.Equal(DecisionKind.Cleave, active.Result.NextInput!.Kind);
             Assert.True(active.Result.State.CleavePending);
         }
@@ -194,15 +195,15 @@ public sealed class ScenarioTests
         var afterSpawn = round.Result.ResolutionSteps.Single(s => s.EventIndex == createdIndex).StateAfter;
         var beforeSpawn = round.Result.ResolutionSteps.Last(s => s.EventIndex < createdIndex).StateAfter;
         Assert.Equal(beforeSpawn.Bag, afterSpawn.Bag);
-        Assert.DoesNotContain("goblin-type", afterSpawn.Bag);
+        Assert.DoesNotContain("goblin-type", afterSpawn.Bag.Select(t => t.TypeId));
         Assert.Equal(UnitType.Goblin(), Assert.Single(afterSpawn.Types, t => t.Id == "goblin-type"));
         var goblin = Assert.Single(afterSpawn.Units, u => u.TypeId == "goblin-type");
         Assert.Equal(Posture.Lying, afterSpawn.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
         while (round.Result.NextInput is { } pending)
-            round = game.Decide(round.Revision, pending.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key);
+            round = game.Decide(round.Revision, pending.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice).Key);
         Assert.True(round.Result.State.RoundComplete);
         var next = game.StartRound(round.Revision);
-        Assert.Contains("goblin-type", next.Result.State.Bag);
+        Assert.Contains("goblin-type", next.Result.State.Bag.Select(t => t.TypeId));
         var restarted = game.Restart(next.Revision);
         Assert.DoesNotContain(restarted.Result.State.Units, u => u.TypeId == "goblin-type");
         Assert.Equal(Serialize(PlaytestScenarios.Create("shaman-hunt")), Serialize(restarted.Result.State));
@@ -219,7 +220,7 @@ public sealed class ScenarioTests
         var events = new List<RulesEvent>(result.Result.Events);
         while (result.Result.NextInput is { } pending)
         {
-            result = game.Decide(result.Revision, pending.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn).Key);
+            result = game.Decide(result.Revision, pending.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice).Key);
             events.AddRange(result.Result.Events);
         }
         Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == "zombie-1");

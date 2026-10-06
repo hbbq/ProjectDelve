@@ -7,7 +7,7 @@ public sealed class SkeletonArcherTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 1;
@@ -24,7 +24,7 @@ public sealed class SkeletonArcherTests
 
     private static EngineResult Pending(GameState state)
     {
-        var pending = GameEngine.StartRound(state, new Random());
+        var pending = TestGame.StartRound(state, new Random());
         Assert.Equal(DecisionKind.Activation, pending.NextInput!.Kind);
         return pending;
     }
@@ -32,7 +32,7 @@ public sealed class SkeletonArcherTests
     private static string? Choose(GameState state)
     {
         var pending = Pending(state);
-        var choice = new DefaultMonsterProvider().Choose(pending.NextInput!, new GameplayQueries(pending.State));
+        var choice = new DefaultAutomatedProvider().Choose(pending.NextInput!, new GameplayQueries(pending.State));
         if (choice is not null) Assert.Contains(pending.NextInput!.Candidates, c => c.Key == choice);
         return choice;
     }
@@ -53,9 +53,9 @@ public sealed class SkeletonArcherTests
     {
         var pending = Pending(State(new(2, 0), new(0, 0)));
         var canonical = pending.NextInput!.Candidates.Single(c => c.Key == "4,0").Path;
-        var result = GameEngine.Advance(pending.State, new DefaultMonsterProvider(), new Random());
+        var result = TestGame.Advance(pending.State, new DefaultAutomatedProvider(), new Random());
         Assert.Equal(new Cell(4, 0), result.State.Physical.Figures[0].Position);
-        Assert.Equal(canonical, Assert.Single(result.Events, e => e.Kind == "MovementCompleted").Path);
+        Assert.Equal(canonical, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted").Path);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Equal("hero", Assert.Single(result.NextInput.Candidates.Where(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn))).TargetId);
     }
@@ -119,7 +119,7 @@ public sealed class SkeletonArcherTests
         Assert.All(pending.NextInput!.Candidates,
             c => Assert.Null(queries.DistanceToNearestAttackableHostileFrom("archer", c.Destination!)));
         Assert.Equal("3,0", Choose(state));
-        Assert.Equal(new MonsterMovementProvider(new DefaultMonsterProvider()).Choose(pending.NextInput, queries),
+        Assert.Equal(new ApproachMovementProvider(new DefaultAutomatedProvider()).Choose(pending.NextInput, queries),
             Choose(state));
     }
 
@@ -143,7 +143,7 @@ public sealed class SkeletonArcherTests
         var pending = Pending(state);
         if (reverse) pending.NextInput!.Candidates.Reverse();
         // (0,3), (4,3), (1,4), (3,4), (2,5) all have distance four and path length three.
-        Assert.Equal("0,3", new DefaultMonsterProvider().Choose(pending.NextInput!, new GameplayQueries(state)));
+        Assert.Equal("0,3", new DefaultAutomatedProvider().Choose(pending.NextInput!, new GameplayQueries(state)));
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public sealed class SkeletonArcherTests
         Assert.Equal("4,0", Choose(keepAway));
         var pending = Pending(keepAway);
         // A different provider can use the ordinary movement preference on the same content.
-        Assert.Equal("stay", new MonsterMovementProvider(new DefaultMonsterProvider())
+        Assert.Equal("stay", new ApproachMovementProvider(new DefaultAutomatedProvider())
             .Choose(pending.NextInput!, new GameplayQueries(keepAway)));
     }
 
@@ -170,6 +170,6 @@ public sealed class SkeletonArcherTests
         var pending = Pending(state).NextInput!;
         var request = pending with { Kind = DecisionKind.Move, AllowsNone = false,
             Candidates = pending.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToList() };
-        Assert.Equal("3,0", new DefaultMonsterProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Equal("3,0", new DefaultAutomatedProvider().Choose(request, new GameplayQueries(state)));
     }
 }

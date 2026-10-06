@@ -7,7 +7,7 @@ public sealed class DashTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => throw new InvalidOperationException();
         public DefenceFace RollDefenceDie() => throw new InvalidOperationException();
         public int RollD6() => throw new InvalidOperationException();
@@ -29,9 +29,9 @@ public sealed class DashTests
     }
 
     private static EngineResult Start(GameState state, bool auto = false) =>
-        GameEngine.StartRound(state, new Random(), auto);
+        TestGame.StartRound(state, new Random(), auto);
     private static EngineResult Choose(GameState state, string key, bool auto = false) =>
-        GameEngine.Advance(state, new Choice(key), new Random(), auto);
+        TestGame.Advance(state, new Choice(key), new Random(), auto);
     private static Candidate Dash(EngineResult result) =>
         Assert.Single(result.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
     private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "rogue").BonusActionUses["Dash"];
@@ -70,8 +70,8 @@ public sealed class DashTests
         Assert.Equal(6, dashed.State.EffectiveMovOf("rogue"));
         Assert.Equal(3, dashed.State.EffectiveAtkOf("rogue"));
         Assert.Equal(new ModifierThisTurn(Stat.Mov, 2), Assert.Single(dashed.State.ModifiersThisTurn));
-        Assert.Equal("Dash", Assert.Single(dashed.Events).AbilityName);
-        Assert.Equal(6, Assert.Single(dashed.ResolutionSteps).StateAfter.EffectiveMovOf("rogue"));
+        Assert.Equal("Dash", Assert.Single(TestGame.OperationEvents(dashed)).AbilityName);
+        Assert.Equal(6, Assert.Single(TestGame.OperationSteps(dashed)).StateAfter.EffectiveMovOf("rogue"));
         Assert.DoesNotContain(dashed.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
         Assert.Contains(dashed.NextInput.Candidates, c => c.BonusAction?.Name == "Throwing Knife");
         Assert.Throws<ArgumentException>(() => Choose(dashed.State, "bonus-action:Dash"));
@@ -87,7 +87,7 @@ public sealed class DashTests
         Assert.Equal(6, restored.EffectiveMov["rogue"]);
         var moved = Choose(restored, "6,0");
         Assert.Equal(new Cell(6, 0), moved.State.Physical.Figures[0].Position);
-        Assert.Equal(6, moved.ResolutionSteps.First().StateAfter.EffectiveMovOf("rogue"));
+        Assert.Equal(6, TestGame.OperationSteps(moved).First().StateAfter.EffectiveMovOf("rogue"));
         moved = Choose(moved.State, "end-turn"); // Unused Throwing Knife is still a legal choice.
         Assert.True(moved.State.RoundComplete);
         Assert.Empty(moved.State.ModifiersThisTurn);
@@ -120,8 +120,8 @@ public sealed class DashTests
         Assert.True(moved.State.MoveDone);
         Assert.False(Dash(moved).Relevant);
         var dashed = Choose(Restore(moved.State), Dash(moved).Key);
-        Assert.Equal("Dash", dashed.Events[0].AbilityName);
-        var snapshot = dashed.ResolutionSteps[0].StateAfter;
+        Assert.Equal("Dash", TestGame.OperationEvents(dashed)[0].AbilityName);
+        var snapshot = TestGame.OperationSteps(dashed)[0].StateAfter;
         Assert.True(snapshot.MoveDone);
         Assert.Equal("Dash", Assert.Single(snapshot.BonusActionsUsedThisActivation));
         Assert.Equal(6, snapshot.EffectiveMovOf("rogue"));

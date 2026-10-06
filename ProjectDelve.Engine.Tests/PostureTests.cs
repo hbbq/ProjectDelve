@@ -8,7 +8,7 @@ public sealed class PostureTests
     private sealed class Random : IRandomProvider
     {
         public int DefenceRolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie() { DefenceRolls++; return DefenceFace.Block; }
         public int RollD6() => 1;
@@ -35,7 +35,7 @@ public sealed class PostureTests
         };
     }
     private static EngineResult Choose(GameState state, string key, Random? random = null) =>
-        GameEngine.Advance(state, new Choice(key), random ?? new(), false);
+        TestGame.Advance(state, new Choice(key), random ?? new(), false);
     private static void Lie(GameState state, string id)
     {
         var index = state.Physical.Figures.FindIndex(f => f.Id == id);
@@ -45,14 +45,14 @@ public sealed class PostureTests
     [Fact]
     public void UprightActivatesNormallyWithMoveBonusFreeActionAndAttack()
     {
-        var start = GameEngine.StartRound(State(), new Random(), false);
+        var start = TestGame.StartRound(State(), new Random(), false);
         Assert.Equal("actor", start.NextInput!.UnitId);
         Assert.Contains(start.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Move);
         Assert.Contains(start.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
         Assert.Contains(start.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.FreeAction);
         var action = Choose(start.State, "stay");
         Assert.Contains(action.NextInput!.Candidates, c => c.Key == "attack:target");
-        Assert.DoesNotContain(start.Events, e => e.Kind == "PostureChanged");
+        Assert.DoesNotContain(TestGame.OperationEvents(start), e => e.Kind == "PostureChanged");
     }
 
     [Theory]
@@ -60,12 +60,12 @@ public sealed class PostureTests
     public void LyingActivationOnlyStandsAndCompletesWithoutBehavior(bool automatic)
     {
         var state = State(UnitType.Goblin() with { FreeActions = UnitFreeAction.OpenDoor }, Posture.Lying);
-        var result = GameEngine.StartRound(state, new Random(), automatic);
+        var result = TestGame.StartRound(state, new Random(), automatic);
         Assert.Equal("target", result.NextInput!.UnitId);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[0].Posture);
         Assert.Equal(Posture.Lying, state.Physical.Figures[0].Posture);
-        Assert.Equal(Posture.Upright, Assert.Single(result.Events, e => e.Kind == "PostureChanged").Posture);
-        Assert.DoesNotContain(result.Events, e => e.Kind is "MovementCompleted" or "AttackResolved" or "AbilityUsed" or "DoorOpened");
+        Assert.Equal(Posture.Upright, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "PostureChanged").Posture);
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind is "MovementCompleted" or "AttackResolved" or "AbilityUsed" or "DoorOpened");
         Assert.Null(result.State.MoveAfterAttackAllowance);
     }
 
@@ -79,7 +79,7 @@ public sealed class PostureTests
         state.Units.Add(state.Types[0].CreateUnit("third", "blue"));
         state.Physical.Figures.Add(new("second", new(0, 2), Posture.Lying));
         state.Physical.Figures.Add(new("third", new(1, 2), Posture.Lying));
-        var result = GameEngine.StartRound(state, new Random(), false);
+        var result = TestGame.StartRound(state, new Random(), false);
         Assert.Equal(DecisionKind.SelectUnit, result.NextInput!.Kind);
         Assert.Equal(3, result.NextInput.Candidates.Count);
         result = Choose(result.State, "second");
@@ -91,7 +91,7 @@ public sealed class PostureTests
         Assert.Contains("second", result.State.CompletedUnitIds);
         Assert.Contains("third", result.State.CompletedUnitIds);
         Assert.All(result.NextInput.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move), c => Assert.NotNull(c.Path));
-        Assert.Equal("third", Assert.Single(result.Events, e => e.Kind == "PostureChanged").UnitId);
+        Assert.Equal("third", Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "PostureChanged").UnitId);
     }
 
     [Fact]
@@ -99,14 +99,14 @@ public sealed class PostureTests
     {
         var state = State(); Lie(state, "target");
         var random = new Random();
-        var started = GameEngine.StartRound(state, random, false);
+        var started = TestGame.StartRound(state, random, false);
         Assert.DoesNotContain(started.NextInput!.Candidates, c => c.Destination == new Cell(2, 1));
         Assert.True(new GameplayQueries(started.State).HasNearbyHostileThreatFrom("actor", new(1, 1)));
         var action = Choose(started.State, "stay");
         Assert.Contains(action.NextInput!.Candidates, c => c.Key == "attack:target");
         var result = Choose(action.State, "attack:target", random);
         Assert.Equal(2, random.DefenceRolls);
-        Assert.Equal(2, result.Events.Single(e => e.Kind == "AttackResolved").Attack!.Targets[0].DefenceDice);
+        Assert.Equal(2, TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved").Attack!.Targets[0].DefenceDice);
         Assert.Equal(8, result.State.Units[1].CurrentHp);
         Assert.Contains(result.State.Physical.Figures, f => f.Id == "target" && f.Position == new Cell(2, 1) && f.Posture == Posture.Lying);
     }
@@ -159,18 +159,18 @@ public sealed class PostureTests
     public void LyingCurrentUnitCannotResumeOrdinaryChoicesOrCapabilities(bool cleave)
     {
         var state = State(UnitType.Barbarian() with { MoveAfterAttack = new(1), Behaviors = UnitBehavior.BackAwayAfterAttack });
-        var result = GameEngine.StartRound(state, new Random(), false);
+        var result = TestGame.StartRound(state, new Random(), false);
         Lie(result.State, "actor");
         result.State.CleavePending = cleave;
         result.State.MoveAfterAttackAllowance = 1;
         Assert.Empty(GameEngine.GameplayCandidates(result.State, result.State.Units[0]));
         Assert.Equal(UnitBehavior.None, new GameplayQueries(result.State).BehaviorsOf("actor"));
         Assert.False(new GameplayQueries(result.State).CanAttackHostileFrom("actor", new(1, 1)));
-        result = GameEngine.Advance(result.State, new NoOrdinaryChoices(), new Random(), false);
+        result = TestGame.Advance(result.State, new NoOrdinaryChoices(), new Random(), false);
         Assert.Equal("target", result.NextInput!.UnitId);
         Assert.False(result.State.CleavePending);
         Assert.Null(result.State.MoveAfterAttackAllowance);
         Assert.Equal(Posture.Lying, result.State.Physical.Figures[0].Posture);
-        Assert.Empty(result.Events.Where(e => e.UnitId == "actor"));
+        Assert.Empty(TestGame.OperationEvents(result).Where(e => e.UnitId == "actor"));
     }
 }

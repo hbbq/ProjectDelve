@@ -7,7 +7,7 @@ public sealed class ShamanTests
 {
     private sealed class Random : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException("Shaman does not roll dice.");
@@ -26,9 +26,9 @@ public sealed class ShamanTests
             : [UnitType.Shaman().CreateUnit("shaman", "red"), new("enemy", "enemy-type", "blue", 10)]
     };
     private static EngineResult Choose(GameState state, string key) =>
-        GameEngine.Advance(state, new Choice(key), new Random(), false);
+        TestGame.Advance(state, new Choice(key), new Random(), false);
     private static EngineResult Action(GameState state) =>
-        Choose(GameEngine.StartRound(state, new Random(), false).State, "stay");
+        Choose(TestGame.StartRound(state, new Random(), false).State, "stay");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
@@ -71,8 +71,8 @@ public sealed class ShamanTests
         Assert.Equal($"Place one {posture} {expectedType.DisplayName} in an adjacent empty Cell.", entry.Description);
         var restored = Restore(action.State);
         Assert.Equal(new SummonAdjacent(UnitTypeIds.Wizard, posture), restored.Types[0].SummonAdjacent);
-        var result = GameEngine.Advance(restored, new DefaultMonsterProvider(), new Random(), false);
-        var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated");
+        var result = TestGame.Advance(restored, new DefaultAutomatedProvider(), new Random(), false);
+        var step = Assert.Single(TestGame.OperationSteps(result), s => TestGame.OperationEvents(result)[s.EventIndex].Kind == "UnitCreated");
         var created = Assert.Single(step.StateAfter.Units, u => u.TypeId == UnitTypeIds.Wizard);
         Assert.Equal(expectedType.Hp, created.CurrentHp);
         Assert.Equal("red", created.SideId);
@@ -81,12 +81,12 @@ public sealed class ShamanTests
         Assert.Equal(new Figure(created.Id, new(1, 1), posture), step.StateAfter.Physical.Figures.Single(f => f.Id == created.Id));
         Assert.Equal(JsonSerializer.Serialize(expectedType), JsonSerializer.Serialize(
             Assert.Single(step.StateAfter.Types, t => t.Id == UnitTypeIds.Wizard)));
-        Assert.Equal("Call Ally", result.Events[step.EventIndex].AbilityName);
+        Assert.Equal("Call Ally", TestGame.OperationEvents(result)[step.EventIndex].AbilityName);
         Assert.Equal(action.State.Bag, step.StateAfter.Bag);
-        Assert.DoesNotContain(result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == UnitTypeIds.Wizard);
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "TokenDrawn" && e.TypeId == UnitTypeIds.Wizard);
         Assert.DoesNotContain(result.State.Types, t => t.Id == UnitTypeIds.Goblin);
         Assert.True(result.State.RoundComplete);
-        Assert.Contains(UnitTypeIds.Wizard, GameEngine.StartRound(Restore(result.State), new Random(), false).State.Bag);
+        Assert.Contains(UnitTypeIds.Wizard, TestGame.StartRound(Restore(result.State), new Random(), false).State.Bag.Select(t => t.TypeId));
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public sealed class ShamanTests
     {
         var state = State();
         state.Types[0] = state.Types[0] with { SummonAdjacent = new(typeId, posture) };
-        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Random(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random(), false));
         Assert.Single(state.Units);
     }
 
@@ -149,9 +149,9 @@ public sealed class ShamanTests
     {
         var initial = State();
         var action = Action(initial);
-        Assert.DoesNotContain("goblin-type", action.State.Bag);
-        var result = GameEngine.Advance(Restore(action.State), new DefaultMonsterProvider(), new Random(), false);
-        var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated").StateAfter;
+        Assert.DoesNotContain("goblin-type", action.State.Bag.Select(t => t.TypeId));
+        var result = TestGame.Advance(Restore(action.State), new DefaultAutomatedProvider(), new Random(), false);
+        var step = Assert.Single(TestGame.OperationSteps(result), s => TestGame.OperationEvents(result)[s.EventIndex].Kind == "UnitCreated").StateAfter;
         Assert.True(step.ActionDone);
         Assert.Equal(action.State.Bag, step.Bag);
         var goblin = Assert.Single(step.Units, u => u.TypeId == "goblin-type");
@@ -160,18 +160,18 @@ public sealed class ShamanTests
         Assert.Equal(new Figure(goblin.Id, new(1, 1), Posture.Lying), step.Physical.Figures.Single(f => f.Id == goblin.Id));
         Assert.Single(initial.Units);
         Assert.True(result.State.RoundComplete);
-        Assert.DoesNotContain(result.Events, e => e.TypeId == "goblin-type" && e.Kind == "TokenDrawn");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.TypeId == "goblin-type" && e.Kind == "TokenDrawn");
 
-        var next = GameEngine.StartRound(Restore(result.State), new Random(), false);
-        Assert.Contains("goblin-type", next.State.Bag);
+        var next = TestGame.StartRound(Restore(result.State), new Random(), false);
+        Assert.Contains("goblin-type", next.State.Bag.Select(t => t.TypeId));
         Assert.Equal(Posture.Lying, next.State.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
         next = Choose(next.State, "stay");
         next = Choose(next.State, "end-turn");
-        Assert.Contains(next.Events, e => e.Kind == "TokenDrawn" && e.TypeId == "goblin-type");
+        Assert.Contains(TestGame.OperationEvents(next), e => e.Kind == "TokenDrawn" && e.TypeId == "goblin-type");
         Assert.Equal(new RulesEvent("PostureChanged", goblin.Id, Posture: Posture.Upright),
-            Assert.Single(next.Events, e => e.UnitId == goblin.Id));
+            Assert.Single(TestGame.OperationEvents(next), e => e.UnitId == goblin.Id));
         Assert.True(next.State.RoundComplete);
-        var later = GameEngine.StartRound(next.State, new Random(), false);
+        var later = TestGame.StartRound(next.State, new Random(), false);
         later = Choose(later.State, "stay");
         later = Choose(later.State, "end-turn");
         Assert.Equal(goblin.Id, later.NextInput!.UnitId);
@@ -185,21 +185,21 @@ public sealed class ShamanTests
         var state = State();
         state.Physical.Board.Terrain.Add(new(new(1, 1), TerrainKind.Water));
         var action = Action(state);
-        var provider = new DefaultMonsterProvider();
+        var provider = new DefaultAutomatedProvider();
         Assert.Equal("spawn-goblin:2,1", provider.Choose(action.NextInput!, new GameplayQueries(action.State)));
         for (var y = 1; y <= 3; y++)
             for (var x = 1; x <= 3; x++)
                 if ((x != 2 || y != 2) && (x != 1 || y != 1))
                     state.Physical.Board.Terrain.Add(new(new(x, y), TerrainKind.Water));
-        Assert.True(GameEngine.StartRound(state, new Random(), false).State.RoundComplete);
+        Assert.True(TestGame.StartRound(state, new Random(), false).State.RoundComplete);
         Assert.Null(provider.Choose(new(DecisionKind.Act, "shaman-type", "shaman", [], true), new GameplayQueries(state)));
     }
 
     private static Cell Flee(GameState state)
     {
-        var move = GameEngine.StartRound(state, new Random(), false);
-        var result = GameEngine.Advance(move.State, new DefaultMonsterProvider(), new Random(), false);
-        return result.Events.Single(e => e.Kind == "MovementCompleted").Path![^1];
+        var move = TestGame.StartRound(state, new Random(), false);
+        var result = TestGame.Advance(move.State, new DefaultAutomatedProvider(), new Random(), false);
+        return TestGame.OperationEvents(result).Single(e => e.Kind == "MovementCompleted").Path![^1];
     }
 
     [Fact]
@@ -238,9 +238,9 @@ public sealed class ShamanTests
         state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor));
         Assert.Null(new GameplayQueries(state).DistanceToNearestHostileFrom("shaman", new(2, 0)));
         Assert.Equal(new Cell(2, 0), Flee(state));
-        var withFlee = GameEngine.StartRound(state, new Random(), false).NextInput!;
+        var withFlee = TestGame.StartRound(state, new Random(), false).NextInput!;
         state.Types[0] = state.Types[0] with { Behaviors = UnitBehavior.None };
-        Assert.Equal(withFlee.Candidates, GameEngine.StartRound(state, new Random(), false).NextInput!.Candidates,
+        Assert.Equal(withFlee.Candidates, TestGame.StartRound(state, new Random(), false).NextInput!.Candidates,
             new CandidateKeyComparer());
         state.Types[0] = UnitType.Shaman();
         state.Physical.Board.Edges[0] = state.Physical.Board.Edges[0] with { Kind = EdgeKind.OpenDoor };
@@ -264,9 +264,9 @@ public sealed class ShamanTests
             new("long", new(0, 2), [new(2, 2), new(1, 2), new(0, 2)]),
             new("bottom", new(2, 3), [new(2, 2), new(2, 3)]),
             new("left", new(1, 2), [new(2, 2), new(1, 2)])], true);
-        Assert.Equal("left", new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Equal("left", new DefaultAutomatedProvider().Choose(request, queries));
         distances[new(2, 2)] = 4;
-        Assert.Null(new DefaultMonsterProvider().Choose(request, queries));
+        Assert.Null(new DefaultAutomatedProvider().Choose(request, queries));
     }
     private sealed class FleeRankingQueries(IGameplayQueries real, Dictionary<Cell, int?> distances) : IGameplayQueries
     {

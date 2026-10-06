@@ -9,7 +9,7 @@ public sealed class CleaveTests
     {
         public int AttackRolls { get; private set; }
         public int DefenceRolls { get; private set; }
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackRolls++ < hits ? AttackFace.Hit : AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceRolls++ < blocks ? DefenceFace.Block : DefenceFace.Miss;
         public int RollD6() => throw new InvalidOperationException("Cleave must not roll dice.");
@@ -30,10 +30,10 @@ public sealed class CleaveTests
     };
 
     private static EngineResult Choose(GameState state, string? key, IRandomProvider? dice = null, bool auto = false) =>
-        GameEngine.Advance(state, new Choice(key), dice ?? new Dice(), auto);
+        TestGame.Advance(state, new Choice(key), dice ?? new Dice(), auto);
     private static EngineResult Attack(GameState? state = null, int hits = 2, int blocks = 0)
     {
-        var started = GameEngine.StartRound(state ?? Scenario(), new Dice(), false);
+        var started = TestGame.StartRound(state ?? Scenario(), new Dice(), false);
         var moved = Choose(started.State, "stay");
         return Choose(moved.State, "attack:target", new Dice(hits, blocks));
     }
@@ -70,13 +70,13 @@ public sealed class CleaveTests
         var dice = new Dice();
         var result = Choose(restored, "cleave:other", dice);
         Assert.Equal(0, result.State.Units[2].CurrentHp);
-        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, result.Events.Select(e => e.Kind));
-        Assert.Equal(3, result.Events[0].Damage);
-        Assert.Equal("Cleave", result.Events[0].AbilityName);
+        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(3, TestGame.OperationEvents(result)[0].Damage);
+        Assert.Equal("Cleave", TestGame.OperationEvents(result)[0].AbilityName);
         Assert.Equal(new AbilityUses(2, 1), Barbarian(result.State).CleaveUses);
         Assert.Equal(0, dice.AttackRolls);
         Assert.Equal(0, dice.DefenceRolls);
-        Assert.Equal(type.Cleave, result.ResolutionSteps[0].StateAfter.Types[0].Cleave);
+        Assert.Equal(type.Cleave, TestGame.OperationSteps(result)[0].StateAfter.Types[0].Cleave);
         Assert.False(result.State.CleavePending);
     }
 
@@ -90,7 +90,7 @@ public sealed class CleaveTests
         Assert.Null(UnitType.Goblin().Cleave);
         var scenario = Scenario();
         scenario.Units[0] = new("barbarian", type.Id, "heroes", 5);
-        var started = GameEngine.StartRound(scenario, new Dice(), false);
+        var started = TestGame.StartRound(scenario, new Dice(), false);
         Assert.Equal(new AbilityUses(2, 2), Barbarian(started.State).CleaveUses);
         Assert.Null(Barbarian(scenario).CleaveUses);
         Assert.Equal(new Cleave(2), Restore(started.State).Types[0].Cleave);
@@ -106,7 +106,7 @@ public sealed class CleaveTests
     public void TriggerUsesUncappedHitsMinusBlocks(int hits, int blocks, bool offered)
     {
         var result = Attack(hits: hits, blocks: blocks);
-        Assert.Equal(Math.Max(0, hits - blocks), Assert.Single(result.Events).Damage);
+        Assert.Equal(Math.Max(0, hits - blocks), Assert.Single(TestGame.OperationEvents(result)).Damage);
         Assert.Equal(offered, result.State.CleavePending);
         Assert.Equal(offered ? DecisionKind.Cleave : DecisionKind.Activation, result.NextInput!.Kind);
     }
@@ -115,15 +115,15 @@ public sealed class CleaveTests
     public void OverkillAndDeathFinishBeforeOnlyLivingTargetsAreOffered()
     {
         var result = Attack(Scenario(targetHp: 1));
-        Assert.Equal(new[] { "AttackResolved", "UnitDied" }, result.Events.Select(e => e.Kind));
-        Assert.Equal(2, result.Events[0].Damage);
+        Assert.Equal(new[] { "AttackResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(2, TestGame.OperationEvents(result)[0].Damage);
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
         Assert.Equal("other", Assert.Single(result.NextInput!.Candidates).TargetId);
         Assert.True(result.NextInput.AllowsNone); // Even one target requires agency.
-        Assert.Null(result.ResolutionSteps[0].StateAfter.Pending);
-        Assert.Contains(result.ResolutionSteps[0].StateAfter.Physical.Figures, f => f.Id == "target");
-        Assert.DoesNotContain(result.ResolutionSteps[1].StateAfter.Physical.Figures, f => f.Id == "target");
+        Assert.Null(TestGame.OperationSteps(result)[0].StateAfter.Pending);
+        Assert.Contains(TestGame.OperationSteps(result)[0].StateAfter.Physical.Figures, f => f.Id == "target");
+        Assert.DoesNotContain(TestGame.OperationSteps(result)[1].StateAfter.Physical.Figures, f => f.Id == "target");
     }
 
     [Fact]
@@ -186,14 +186,14 @@ public sealed class CleaveTests
         Assert.Equal(kill ? 0 : 1, result.State.Units[2].CurrentHp);
         Assert.Equal(0, dice.AttackRolls);
         Assert.Equal(0, dice.DefenceRolls);
-        var cleave = result.Events[0];
+        var cleave = TestGame.OperationEvents(result)[0];
         Assert.Equal("CleaveResolved", cleave.Kind);
         Assert.Equal(1, cleave.Damage);
         Assert.Equal("other", cleave.TargetId);
-        Assert.DoesNotContain(result.Events, e => e.Kind == "AttackResolved");
-        Assert.Equal(kill ? new[] { "CleaveResolved", "UnitDied" } : new[] { "CleaveResolved" }, result.Events.Select(e => e.Kind));
-        Assert.Equal(new AbilityUses(2, 1), Barbarian(result.ResolutionSteps[0].StateAfter).CleaveUses);
-        Assert.False(result.ResolutionSteps[0].StateAfter.CleavePending);
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
+        Assert.Equal(kill ? new[] { "CleaveResolved", "UnitDied" } : new[] { "CleaveResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new AbilityUses(2, 1), Barbarian(TestGame.OperationSteps(result)[0].StateAfter).CleaveUses);
+        Assert.False(TestGame.OperationSteps(result)[0].StateAfter.CleavePending);
         if (kill) Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "other");
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
         Assert.Contains(result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
@@ -210,7 +210,7 @@ public sealed class CleaveTests
         Assert.Equal(DecisionKind.Cleave, refreshed.NextInput!.Kind);
         var declined = Choose(refreshed.State, null, auto: true);
         Assert.False(declined.State.CleavePending);
-        Assert.Empty(declined.Events);
+        Assert.Empty(TestGame.OperationEvents(declined));
         Assert.Equal(new AbilityUses(2, 2), Barbarian(declined.State).CleaveUses);
         Assert.Equal(DecisionKind.Activation, declined.NextInput!.Kind);
         Assert.Contains(declined.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
@@ -230,7 +230,7 @@ public sealed class CleaveTests
     [Fact]
     public void RageThenAttackThenCleaveDoesNotUseBonusActionSystem()
     {
-        var started = GameEngine.StartRound(Scenario(), new Dice(), false);
+        var started = TestGame.StartRound(Scenario(), new Dice(), false);
         var raging = Choose(started.State, "bonus-action:Rage");
         var moved = Choose(raging.State, "stay");
         var dice = new Dice(hits: 7);

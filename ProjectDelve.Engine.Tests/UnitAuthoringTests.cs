@@ -64,14 +64,14 @@ public sealed class UnitAuthoringTests
             Ability("Mend", Uses(4), Heal(amount: 3)));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
-        var started = GameEngine.StartRound(state, new Dice(), false);
-        var ready = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var started = TestGame.StartRound(state, new Dice(), false);
+        var ready = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var entry = Assert.Single(ready.State.Types[0].CardEntries(), e => e.Id == "heal");
         Assert.Equal("Mend", entry.Name);
         Assert.Equal("4/game", entry.UseLimitText);
-        var healed = GameEngine.Advance(Restore(ready.State), new Choice("heal:target"), new Dice(), false);
-        Assert.Equal(3, Assert.Single(healed.Events, e => e.Kind == "HealResolved").Healing);
-        Assert.Equal("Mend", Assert.Single(healed.Events, e => e.Kind == "HealResolved").AbilityName);
+        var healed = TestGame.Advance(Restore(ready.State), new Choice("heal:target"), new Dice(), false);
+        Assert.Equal(3, Assert.Single(TestGame.OperationEvents(healed), e => e.Kind == "HealResolved").Healing);
+        Assert.Equal("Mend", Assert.Single(TestGame.OperationEvents(healed), e => e.Kind == "HealResolved").AbilityName);
         Assert.Equal(new AbilityUses(4, 3), healed.State.Units[0].HealUses);
         Assert.Equal("heal", ContentDescriptions.EntryId(new("unparsed", Action: UnitAction.Heal)));
     }
@@ -113,7 +113,7 @@ public sealed class UnitAuthoringTests
     {
         var type = UnitType.Define("custom", "Custom", Stats(1, 1, 3, 2, 5), Unique(),
             Ability("Battle Cry", Uses(3), BonusActionSelfModifier(Modifier(Atk, +2)), id: "stable-key"));
-        var started = GameEngine.StartRound(State(type), new Dice(), false);
+        var started = TestGame.StartRound(State(type), new Dice(), false);
         var restored = Restore(started.State);
         var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "bonus:stable-key");
         Assert.Equal("Battle Cry", entry.Name);
@@ -122,11 +122,11 @@ public sealed class UnitAuthoringTests
         var bonus = Assert.Single(restored.Pending!.Candidates, c => c.BonusAction is not null);
         Assert.Equal("bonus-action:stable-key", bonus.Key);
         Assert.Equal("bonus:stable-key", ContentDescriptions.EntryId(bonus));
-        var used = GameEngine.Advance(restored, new Choice(bonus.Key), new Dice(), false);
+        var used = TestGame.Advance(restored, new Choice(bonus.Key), new Dice(), false);
         Assert.Equal(new AbilityUses(3, 2), used.State.Units[0].BonusActionUses["stable-key"]);
         Assert.Contains("stable-key", used.State.BonusActionsUsedThisActivation);
         Assert.False(used.State.Units[0].BonusActionUses.ContainsKey("Battle Cry"));
-        Assert.Equal("Battle Cry", Assert.Single(used.Events).AbilityName);
+        Assert.Equal("Battle Cry", Assert.Single(TestGame.OperationEvents(used)).AbilityName);
         Assert.Equal(5, used.State.EffectiveAtkOf("actor"));
         var renamed = type with { BonusActions = [type.BonusActions[0] with { DisplayName = "New wording" }] };
         used.State.Types[0] = renamed;
@@ -143,15 +143,15 @@ public sealed class UnitAuthoringTests
             Ability("Heal", Uses(4), Heal(amount: 3)));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
-        var started = GameEngine.StartRound(state, new Dice(), false);
-        var ready = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
+        var started = TestGame.StartRound(state, new Dice(), false);
+        var ready = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var restored = Restore(ready.State);
         var heal = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "heal");
         Assert.Equal("Restore up to 3 HP to an adjacent damaged friendly Unit.", heal.Description);
         Assert.Equal("4/game", heal.UseLimitText);
-        var healed = GameEngine.Advance(restored, new Choice("heal:target"), new Dice(), false);
+        var healed = TestGame.Advance(restored, new Choice("heal:target"), new Dice(), false);
         Assert.Equal(4, healed.State.Units[1].CurrentHp);
-        Assert.Equal(3, Assert.Single(healed.Events, e => e.Kind == "HealResolved").Healing);
+        Assert.Equal(3, Assert.Single(TestGame.OperationEvents(healed), e => e.Kind == "HealResolved").Healing);
         Assert.Equal(new AbilityUses(4, 3), healed.State.Units[0].HealUses);
     }
 
@@ -267,7 +267,7 @@ public sealed class UnitAuthoringTests
     }
     private sealed class Dice : IRandomProvider
     {
-        public string DrawToken(IReadOnlyList<string> bag) => bag[0];
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
         public AttackFace RollAttackDie() => AttackFace.Hit;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 1;

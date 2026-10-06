@@ -142,8 +142,8 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   displayedCards = cards;
   displayedFigures = geometry;
   renderBoard(state, preserveNodes);
-  const typeName = state.types.find(type => type.id === state.activeTypeId)?.displayName ?? state.activeTypeId;
-  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${typeName} · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
+  const typeName = state.types.find(type => type.id === state.activeToken?.typeId)?.displayName ?? state.activeToken?.typeId;
+  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${typeName} (${state.activeToken?.sideId}) · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
   displayedState = state;
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
   renderUnitCard();

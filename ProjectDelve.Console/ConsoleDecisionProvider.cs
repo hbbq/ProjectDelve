@@ -7,12 +7,14 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
     public string? Choose(DecisionRequest request, IGameplayQueries queries)
     {
         Console.WriteLine($"Pending: {request.Kind} | Type: {request.TypeId} | Unit: {request.UnitId ?? "(choose a Unit)"}");
+        if (request.Roll is { } roll) Console.WriteLine($"Roll {roll.Count} {roll.Family} dice for {roll.OwnerUnitId}: {roll.Purpose}");
         for (var i = 0; i < request.Candidates.Count; i++)
         {
             var candidate = request.Candidates[i];
             var path = candidate.Path is null ? "" :
                 $" | Path: {string.Join(" -> ", candidate.Path.Select(c => $"({c.X},{c.Y})"))}";
-            var label = candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
+            var label = candidate.Kind == ActivationChoiceKind.RollDice ? "Roll Dice" :
+                candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
                 candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" :
                 candidate.Kind == ActivationChoiceKind.Cleave ? $"Cleave {candidate.TargetId}" :
                 candidate.BonusAction is { } ability ? $"{ability.Name} (Bonus Action)" :

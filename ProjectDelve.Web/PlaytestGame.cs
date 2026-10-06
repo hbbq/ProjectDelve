@@ -6,7 +6,7 @@ namespace ProjectDelve.Web;
 public sealed class PlaytestGame
 {
     private readonly object gate = new();
-    private readonly DefaultMonsterProvider monsters = new();
+    private readonly DefaultAutomatedProvider automated = new();
     private readonly IRandomProvider random;
     private GameState state;
     private string scenarioId = PlaytestScenarios.DefaultId;
@@ -62,7 +62,7 @@ public sealed class PlaytestGame
         lock (gate)
         {
             CheckRevision(expectedRevision);
-            if (state.Pending is null || !IsPlayerControlled(state.Pending.TypeId))
+            if (state.Pending is null || state.ControllerFor(state.Pending) != ControllerKind.Human)
                 throw new PlaytestRequestException(409, "No player decision is pending.");
             EngineResult result;
             try { result = GameEngine.Advance(state, new SubmittedDecisionProvider(key), random, autoChooseSingleRelevantChoice); }
@@ -95,9 +95,9 @@ public sealed class PlaytestGame
     {
         var events = new List<RulesEvent>(result.Events);
         var steps = new List<ResolutionStep>(result.ResolutionSteps);
-        while (result.NextInput is { } pending && !IsPlayerControlled(pending.TypeId))
+        while (result.NextInput is { } pending && result.State.ControllerFor(pending) == ControllerKind.Automated)
         {
-            result = GameEngine.Advance(result.State, monsters, random, autoChooseSingleRelevantChoice);
+            result = GameEngine.Advance(result.State, automated, random, autoChooseSingleRelevantChoice);
             steps.AddRange(result.ResolutionSteps.Select(step => step with { EventIndex = step.EventIndex + events.Count }));
             events.AddRange(result.Events);
         }
@@ -105,10 +105,6 @@ public sealed class PlaytestGame
         revision++;
         return new(revision, result with { Events = events, ResolutionSteps = steps }, autoChooseSingleRelevantChoice, scenarioId);
     }
-
-    // Playtest agency: the four Heroes use player input; other content uses the shared provider.
-    private static bool IsPlayerControlled(string typeId) => typeId is
-        UnitTypeIds.Barbarian or UnitTypeIds.Rogue or UnitTypeIds.Cleric or UnitTypeIds.Wizard;
 
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider
     {
