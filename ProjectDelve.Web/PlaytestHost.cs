@@ -19,6 +19,7 @@ public static class PlaytestHost
         var app = builder.Build();
         app.UseDefaultFiles();
         app.UseStaticFiles();
+        DesignerApi.Map(app);
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";

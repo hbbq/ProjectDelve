@@ -1,0 +1,586 @@
+{
+  "board": {
+    "width": 15,
+    "height": 15,
+    "defaultTerrain": "StoneFloor",
+    "cells": [
+      {
+        "position": {
+          "x": 5,
+          "y": 4
+        },
+        "terrain": "Tree"
+      },
+      {
+        "position": {
+          "x": 3,
+          "y": 12
+        },
+        "terrain": "Tree"
+      },
+      {
+        "position": {
+          "x": 6,
+          "y": 10
+        },
+        "terrain": "StoneFloorWithTable"
+      }
+    ],
+    "edges": [
+      {
+        "position": {
+          "x": 7,
+          "y": 1
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 7,
+          "y": 2
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 7,
+          "y": 3
+        },
+        "direction": "Right",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 7,
+          "y": 4
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 7,
+          "y": 5
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 1
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 2
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 3
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 4
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 5
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 0
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 10,
+          "y": 0
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 11,
+          "y": 0
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 0
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 10,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 11,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 9
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 10
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 11
+        },
+        "direction": "Right",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 12
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 13
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 9
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 10
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 11
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 12
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 13
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 8
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 10,
+          "y": 8
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 11,
+          "y": 8
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 8
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 8
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 13
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 10,
+          "y": 13
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 11,
+          "y": 13
+        },
+        "direction": "Down",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 12,
+          "y": 13
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 13,
+          "y": 13
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 1
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "direction": "Right",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 3
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 0,
+          "y": 9
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 9
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 2,
+          "y": 9
+        },
+        "direction": "Down",
+        "kind": "OpenDoor"
+      },
+      {
+        "position": {
+          "x": 3,
+          "y": 9
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 9
+        },
+        "direction": "Down",
+        "kind": "Wall"
+      }
+    ]
+  },
+  "unitTypeIds": [
+    "barbarian-type",
+    "rogue-type",
+    "wizard-type",
+    "cleric-type",
+    "goblin-type",
+    "skeleton-archer-type",
+    "zombie-type",
+    "troll-type"
+  ],
+  "units": [
+    {
+      "unitTypeId": "barbarian-type",
+      "sideId": "blue",
+      "anchor": {
+        "x": 3,
+        "y": 6
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "rogue-type",
+      "sideId": "blue",
+      "anchor": {
+        "x": 3,
+        "y": 7
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "sideId": "blue",
+      "anchor": {
+        "x": 2,
+        "y": 6
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "sideId": "blue",
+      "anchor": {
+        "x": 2,
+        "y": 7
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "goblin-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 6,
+        "y": 6
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "goblin-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 7,
+        "y": 7
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "skeleton-archer-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 6,
+        "y": 3
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "skeleton-archer-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 8,
+        "y": 8
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "zombie-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 8,
+        "y": 3
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "zombie-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 10,
+        "y": 5
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "troll-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 9,
+        "y": 11
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "troll-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 11,
+        "y": 9
+      },
+      "posture": "Upright"
+    }
+  ],
+  "agency": [
+    {
+      "unitTypeId": "barbarian-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "rogue-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "goblin-type",
+      "sideId": "red",
+      "controller": "Automated"
+    },
+    {
+      "unitTypeId": "skeleton-archer-type",
+      "sideId": "red",
+      "controller": "Automated"
+    },
+    {
+      "unitTypeId": "zombie-type",
+      "sideId": "red",
+      "controller": "Automated"
+    },
+    {
+      "unitTypeId": "troll-type",
+      "sideId": "red",
+      "controller": "Automated"
+    }
+  ]
+}

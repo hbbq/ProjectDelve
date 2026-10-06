@@ -26,10 +26,15 @@ public static class ScenarioDefinitionJson
     /// JSON errors throw JsonException; scenario validity errors retain the creation boundary's exceptions.
     /// </summary>
     public static ScenarioDefinition FromJson(string json)
+        => FromJson(json, null);
+
+    // A host may reject expensive input before materialization, without changing engine rules.
+    public static ScenarioDefinition FromJson(string json, Action<ScenarioDefinition>? beforeCreation)
     {
         ArgumentNullException.ThrowIfNull(json);
         var scenario = JsonSerializer.Deserialize<ScenarioDefinition>(json, Options)
             ?? throw new JsonException("Expected a ScenarioDefinition object, not null.");
+        beforeCreation?.Invoke(scenario);
         _ = GameEngine.CreateGame(scenario);
         return scenario;
     }

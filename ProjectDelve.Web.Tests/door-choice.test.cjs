@@ -135,6 +135,36 @@ function harness(initial, fetchImpl) {
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 
+test("designer play hook submits existing revisioned imported-scenario operation", async () => {
+  const initial = response(), submitted = [];
+  const h = harness(initial, async (url, options) => {
+    submitted.push([url, JSON.parse(options.body)]);
+    return { ok: true, json: async () => response() };
+  });
+  h.run("ui.animate.checked = false");
+  assert.equal(await h.run('delvePlayDesign("DELVE1:from-designer")'), true);
+  assert.deepEqual(submitted, [["/api/game/scenario/import", { expectedRevision: 8, transport: "DELVE1:from-designer" }]]);
+});
+
+test("designer play waits for an in-flight replacement and submits the completed revision", async () => {
+  const initial = response(), resolved = response(), fresh = response();
+  resolved.revision = 9; fresh.revision = 10;
+  let release;
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    if (requests.length === 1) await new Promise(resolve => { release = resolve; });
+    return { ok: true, json: async () => requests.length === 1 ? resolved : fresh };
+  });
+  h.run("ui.animate.checked = false");
+  const mutation = h.run('mutate("decision", { candidateKey: "opaque" })');
+  const play = h.run('delvePlayDesign("DELVE1:queued-design")');
+  assert.equal(requests.length, 1);
+  release(); await mutation;
+  assert.equal(await play, true);
+  assert.deepEqual(requests[1], { url: "/api/game/scenario/import", body: { expectedRevision: 9, transport: "DELVE1:queued-design" } });
+});
+
 // Large bases are generic projection data; the renderer never recognizes a Unit Type id.
 function largeResponse(candidates = []) {
   const snapshot = response(candidates);

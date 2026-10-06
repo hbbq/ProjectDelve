@@ -95,7 +95,29 @@ var definition = Define(
 var state = GameEngine.CreateGame(definition);
 ```
 
-`Define` derives normal Type order from first group occurrence; its optional `unitTypeIds` argument preserves explicitly authored order and unplaced Types. `GameEngine.CreateGame` resolves canonical IDs, validates data and normal full-footprint setup legality, and returns independent mutable round-zero state with deterministic generated Unit IDs. It does not draw tokens or invoke providers; `StartRound` still initializes the activation bag and advances play. Catalog presentation remains separate. The console detour and courtyard API fixture use the same creation boundary, including the courtyard's wounded Wizard and unplaced Goblin Type. Scenario JSON and import/export are not implemented.
+`Define` derives normal Type order from first group occurrence; its optional `unitTypeIds` argument preserves explicitly authored order and unplaced Types. `GameEngine.CreateGame` resolves canonical IDs, validates data and normal full-footprint setup legality, and returns independent mutable round-zero state with deterministic generated Unit IDs. It does not draw tokens or invoke providers; `StartRound` still initializes the activation bag and advances play. Catalog presentation remains separate. The console detour and courtyard API fixture use the same creation boundary, including the courtyard's wounded Wizard and unplaced Goblin Type. `ScenarioDefinitionJson` serializes concrete initial setup; `ScenarioDefinitionTransport` wraps that JSON in portable `DELVE1:` strings. Browser imports enter the same creation boundary and restart retains the imported definition.
+
+### Level Designer V1
+
+Click **Designer** in the browser host to author the same `ScenarioDefinition` format visually. The browser retains a local draft, including temporarily invalid placements, and uses only generic grid editing and server-supplied Unit geometry. It does not evaluate Delve placement, terrain, Unique, HP, or agency legality. Reload discards the draft; export a DELVE1 string to keep it. Switching to Playtest and back retains it.
+
+**Terrain** paints sparse overrides by click/drag; **Use default** removes an override. **Edge** paints internal Right/Down boundaries, including empty ones, with Walls, Windows and open/closed Doors; **Remove** erases a segment. **Unit** places the chosen canonical Type at its top-left anchor with arbitrary SideId and an explicit Type + Side controller. **Select** opens cell/edge/Unit properties. Overlapping Units remain editable through a chooser or the placement list. Unit properties include anchor, SideId, Posture and optional InitialHp; blank HP means canonical full HP.
+
+Agency rows are per `(UnitTypeId, SideId)` and can be added, edited or removed independently. Existing pairs are reused on placement; rows with no initial Units are retained. First Type use appends its declaration, deletion does not remove it, imported Type order is preserved, and unplaced Types can be declared explicitly. Order is displayed; V1 does not reorder declarations.
+
+**Validate** checks a snapshot through engine creation. **Export DELVE1** always validates before encoding. **Play design** exports, then uses the existing revisioned `/api/game/scenario/import` operation to create round-zero gameplay; click **Start round** to begin. It does not turn runtime state back into a draft. Errors leave the draft editable, and responses from an older draft/request are ignored. Edits mark it **Unchecked**. No validation requests run during painting.
+
+The Web host limits designer boards and imported playtest boards to **50 × 50** before materialization. This is host/editor policy, not an engine game rule. Shrinking is refused if it would hide authored terrain, edges or any Unit footprint. DefaultTerrain changes retain explicit overrides. Import retains the decoded definition directly, including redundant overrides, explicit None edges, unplaced Types, zero-placement agency, optional HP and all list order.
+
+The designer uses four stateless endpoints: `GET /api/designer/catalog`, `POST /api/designer/import` with `{ transport }`, and `POST /api/designer/validate` / `export` with the ScenarioDefinition JSON body. Catalog metadata comes from the engine's single `CanonicalUnitTypes` registry. Validation returns `{ valid, errors: [{ message, path }] }`; first-error reporting includes authoring locations where available. Import returns scenario JSON; export returns `{ transport }`. These operations never mutate the active game.
+
+Browser tests exercise the actual editor modules using the small Node DOM harness:
+
+```powershell
+node --test ProjectDelve.Web.Tests/*.test.cjs
+```
+
+For manual acceptance, import a FullParty DELVE1 into Designer; check its 15 × 15 board, four initial party Units and concrete room edges. Paint terrain, change a Door, and select/edit a Unit. Validate, repair any reported issue, export, and click Play design. Confirm round-zero setup, start a round, then return to Designer and confirm the authored draft is retained. Room/line tools, undo, declaration reordering and reload persistence are deferred.
 
 Map authoring uses `Vertical(x, top, bottom, kind)`, `Horizontal(y, left, right, kind)`, and `Room(left, top, right, bottom, kind = EdgeKind.Wall)` to generate complete lines or room sides. Doors and windows are explicit later entries such as `Edge(7, 3, EdgeDirection.Right, EdgeKind.ClosedDoor)`. `Map` applies later entries with the same Position and Direction while retaining the first list position for that identity. `Tiles(TerrainKind.Tree, At(5, 4), At(3, 12))` expands several positions into concrete Cell overrides. The resulting definition contains only concrete Cells and unique Edges; duplicate Edges or Cell overrides in directly constructed definitions remain invalid. Game creation rejects undefined directions, out-of-bounds positions, Right edges in the last column, and Down edges in the last row; there are no exterior-boundary edge definitions.
 

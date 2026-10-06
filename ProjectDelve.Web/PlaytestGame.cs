@@ -41,7 +41,11 @@ public sealed class PlaytestGame
         {
             CheckRevision(expectedRevision);
             ScenarioDefinition definition;
-            try { definition = ScenarioDefinitionTransport.Decode(transport); }
+            try { definition = ScenarioDefinitionTransport.Decode(transport, DesignerApi.CheckHostLimits); }
+            catch (DesignerBoardLimitException error)
+            {
+                throw new PlaytestRequestException(400, error.Message);
+            }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)
             {
                 throw new PlaytestRequestException(400, "Could not load scenario. Paste a valid DELVE1 scenario string.");

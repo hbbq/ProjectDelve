@@ -6,11 +6,16 @@
   <title>Project Delve · Playtest</title>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
+  <script type="module" src="designer.js"></script>
 </head>
 <body>
   <header><h1>Project Delve <small>visual playtest</small></h1>
   </header>
-  <main>
+  <nav class="toolbar mode-switch" aria-label="Application mode">
+    <button id="mode-playtest" aria-pressed="true">Playtest</button>
+    <button id="mode-designer" aria-pressed="false">Designer</button>
+  </nav>
+  <main id="playtest-main">
     <section aria-label="Board">
       <div class="toolbar" aria-label="Playtest scenarios">
         <label>Scenario <select id="scenario" disabled></select></label>
@@ -54,6 +59,65 @@
       <div id="dice" aria-label="Authoritative dice results" aria-live="polite"></div>
       <div id="unit-card" aria-label="Unit Card"></div>
       <details><summary>Event history &middot; latest response</summary><ol id="events"></ol></details>
+    </aside>
+  </main>
+  <main id="designer-main" hidden>
+    <section aria-label="Scenario designer board">
+      <form id="designer-board-form" class="toolbar">
+        <label>Width <input id="designer-width" type="number" min="1" max="50" value="15" required></label>
+        <label>Height <input id="designer-height" type="number" min="1" max="50" value="15" required></label>
+        <label>Default terrain <select id="designer-default"></select></label>
+        <button>Apply board</button>
+      </form>
+      <div id="designer-tools" class="toolbar" aria-label="Designer tools">
+        <button data-tool="Select" aria-pressed="true">Select</button>
+        <button data-tool="Terrain" aria-pressed="false">Terrain</button>
+        <button data-tool="Edge" aria-pressed="false">Edge</button>
+        <button data-tool="Unit" aria-pressed="false">Unit</button>
+      </div>
+      <div id="designer-brushes" class="toolbar">
+        <label id="designer-terrain-label" hidden>Terrain brush <select id="designer-terrain"></select></label>
+        <label id="designer-edge-label" hidden>Edge brush <select id="designer-edge"></select></label>
+        <div id="designer-unit-brush" class="toolbar" hidden>
+          <label>Unit Type <select id="designer-type"></select></label>
+          <label>SideId <input id="designer-side" list="designer-sides" value="side-1"></label>
+          <label>Controller for Type + Side <select id="designer-controller"></select></label>
+        </div>
+      </div>
+      <p id="designer-help" class="legend">Select a cell, edge or Unit to edit its properties.</p>
+      <div id="designer-board" class="designer-board" aria-label="Editable scenario board"></div>
+      <p id="designer-hover" class="legend" aria-live="polite"></p>
+      <div class="toolbar designer-actions">
+        <button id="designer-validate">Validate</button>
+        <button id="designer-export">Export DELVE1</button>
+        <button id="designer-play">Play design</button>
+      </div>
+      <p id="designer-status" role="status">Unchecked</p>
+      <div id="designer-errors" role="alert"></div>
+      <details class="designer-transport"><summary>DELVE1 import / export</summary>
+        <label for="designer-transport">Portable scenario string</label>
+        <textarea id="designer-transport" rows="3" spellcheck="false" placeholder="Paste DELVE1:... to import, or export the current draft."></textarea>
+        <div class="toolbar"><button id="designer-import">Import into designer</button><button id="designer-copy">Copy string</button></div>
+      </details>
+    </section>
+    <aside aria-label="Designer properties and scenario data">
+      <h2>Selected item</h2><div id="designer-properties">Nothing selected.</div>
+      <h2>Unit Type order</h2>
+      <p class="legend">First use appends a Type. Deleting Units retains declarations.</p>
+      <ol id="designer-order"></ol>
+      <form id="designer-declare-form" class="toolbar"><label>Declare unplaced Type <select id="designer-declare-type"></select></label><button>Declare</button></form>
+      <h2>Agency: Type + Side</h2>
+      <p class="legend">Each pair has one controller. Rows without initial Units are retained.</p>
+      <div id="designer-agency"></div>
+      <form id="designer-agency-form" class="designer-property-form">
+        <label>Unit Type <select id="designer-agency-type"></select></label>
+        <label>SideId <input id="designer-agency-side" list="designer-sides" value="side-1"></label>
+        <label>Controller <select id="designer-agency-controller"></select></label>
+        <button>Add / update pair</button>
+      </form>
+      <details><summary>All placements (including overlaps)</summary><div id="designer-placements"></div></details>
+      <datalist id="designer-sides"></datalist>
+      <p class="legend">Boards: 1..50 × 1..50, a host/editor limit. Drafts may be invalid. Reload discards this draft; export to keep it.</p>
     </aside>
   </main>
   <footer>One game lives in this host. Start or restart a scenario to discard the current game. There are no victory conditions.</footer>

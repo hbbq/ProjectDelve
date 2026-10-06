@@ -426,17 +426,20 @@ async function refresh() {
     busy = false; updateControls();
     if (queuedScenario) {
       const next = queuedScenario; queuedScenario = null;
-      await replaceScenario(next.operation, next.body);
+      const replaced = await replaceScenario(next.operation, next.body);
+      next.resolve?.(replaced);
     }
   }
 }
 
 async function mutate(operation, body = {}) {
-  if (busy || !snapshot) return;
+  if (busy || !snapshot) return false;
+  let succeeded = false;
   busy = true; skipEffects = !ui.animate.checked; updateControls(); ui.error.textContent = "";
   try {
     // Present from the previous visible state, advancing only with engine snapshots.
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
+    succeeded = true;
     if (["scenario", "scenario/import", "restart"].includes(operation)) latestUnitId = null;
     ui.events.replaceChildren();
     const steps = new Map(snapshot.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
@@ -475,9 +478,11 @@ async function mutate(operation, body = {}) {
     busy = false; updateControls();
     if (queuedScenario) {
       const next = queuedScenario; queuedScenario = null;
-      await replaceScenario(next.operation, next.body);
+      const replaced = await replaceScenario(next.operation, next.body);
+      next.resolve?.(replaced);
     }
   }
+  return succeeded;
 }
 
 function describeScenario() {
@@ -486,14 +491,16 @@ function describeScenario() {
   ui["scenario-description"].textContent = snapshot ? `Current: ${current?.name ?? "Imported scenario"}. ${selected?.description ?? ""}` : "";
 }
 
-async function replaceScenario(operation, body = {}) {
-  if (!snapshot) return;
+async function replaceScenario(operation, body = {}, waitForReplacement = false) {
+  if (!snapshot) return false;
   if (busy) {
-    queuedScenario = { operation, body };
+    queuedScenario?.resolve?.(false);
     skipEffects = true; cancelPause?.();
+    const completion = new Promise(resolve => { queuedScenario = { operation, body, resolve }; });
+    if (waitForReplacement) return completion;
     return;
   }
-  await mutate(operation, body);
+  return mutate(operation, body);
 }
 
 function describe(event) { return event.text; }
@@ -682,4 +689,6 @@ ui.coordinates.addEventListener("change", updateCoordinates);
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
 ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); cancelPause?.(); updateControls(); });
+// Designer exports enter the same revisioned scenario replacement operation as pasted imports.
+globalThis.delvePlayDesign = transport => replaceScenario("scenario/import", { transport }, true);
 await refresh();
