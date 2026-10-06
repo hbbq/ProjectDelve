@@ -17,6 +17,8 @@ Interesting directions include:
 - ways the client can reveal ambiguities, missing event information, or awkward rules;
 - lightweight tools that help create, vary, replay, inspect, or compare playtest situations when there is a concrete need for them;
 - ideas prompted by having multiple Heroes, multiple Monster Unit Types, terrain, doors, movement, combat, and automatic Monster behavior on a larger board.
+- ideas for new heroes, monsters, bosses or other units
+- ideas for new terrain types
 
 The browser is not the only source of ideas. Rules, physical components, Monster behavior, scenario design, engine boundaries, testing, and developer/playtest workflow are all valid areas.
 
