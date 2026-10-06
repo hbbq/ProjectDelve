@@ -24,6 +24,11 @@ public sealed class ScenarioDefinitionJsonTests
         Assert.Equal(authoredDefinition.Units, loadedDefinition.Units);
         Assert.Equal(authoredDefinition.Agency, loadedDefinition.Agency);
 
+        AssertEquivalentRoundZeroStates(authoredState, loadedState);
+    }
+
+    internal static void AssertEquivalentRoundZeroStates(GameState authoredState, GameState loadedState)
+    {
         var expectedBoard = authoredState.Physical.Board;
         var actualBoard = loadedState.Physical.Board;
         Assert.Equal((expectedBoard.Width, expectedBoard.Height), (actualBoard.Width, actualBoard.Height));
