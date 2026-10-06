@@ -132,7 +132,11 @@ The rules engine determines when a decision is required and computes the complet
 
 The same decision-space contract is used regardless of who or what has agency over the Unit. A human player, Monster Behavior, test provider, simulation provider, or future smarter AI can therefore receive the same legal candidates and choose among them without changing movement, combat, targeting, or other legality rules.
 
-Control/agency is assigned independently of Side and Unit Type. Side describes game relationships such as friendly and hostile; it does not imply human or automated control. Likewise, being Hero, Monster, companion, boss, or other content does not select a different activation model. All Units use the same activation, legality, Actions, Capabilities, and rules resolution regardless of which Decision Provider controls them. A scenario may therefore mix forms of agency on either Side: several humans may each control individual Units, a human may control a boss while ordinary Units on the same Side use automated Behavior, or a rule may temporarily transfer control of a Unit to another provider without changing what that Unit can legally do.
+Control/agency is assigned independently of Side and Unit Type. Side describes game relationships such as friendly and hostile; it does not imply human or automated control. Likewise, being Hero, Monster, companion, boss, or other content does not select a different activation model. All Units use the same activation, legality, Actions, Capabilities, and rules resolution regardless of which Decision Provider controls them.
+
+Agency is authored for the participating combination of **Unit Type + Side**, which is also the identity of its Activation Token. All Units belonging to the same Unit Type on the same Side therefore share one controller. Different Unit Types on the same Side may use different controllers, and the same non-Unique Unit Type on different Sides may use different controllers. A human may therefore control a boss while ordinary Units on the same Side use automated Behavior without changing either Unit's rules.
+
+The controller for the active Unit Type + Side group selects the next Unit within that group's activation. A Unit created during play uses the controller already assigned to its Unit Type + Side group. If that combination did not previously exist, it inherits the controller of the Unit that created it unless the creating rule explicitly specifies another controller.
 
 Behavior is a policy for automated agency, not an intrinsic restriction on the Unit. It may express the Unit's intended character or play style by choosing among its existing legal choices. For example, a Goblin's Capability may permit an extra Move after an Attack while its default Behavior uses that opportunity to retreat; a different automated Behavior or a human controller may use the same legal opportunity more aggressively.
 
@@ -184,7 +188,9 @@ Presentation relevance must not silently become ability timing. An ability does 
 
 A provider does not establish or extend legal choices. After a provider returns its selection, the engine validates that the selection corresponds to one of the candidates in the decision space that was supplied. An invalid provider response must not become a legal game action.
 
-The engine consults a Decision Provider only when there is a meaningful choice. Exactly one candidate with no option to do nothing is selected automatically. Zero candidates with an option to do nothing resolves automatically as no selection. One candidate plus the option to do nothing remains an external decision, as do multiple candidates. Automatic resolution continues until the next meaningful external decision or a stable terminal state.
+The engine consults a Decision Provider only when there is a meaningful choice. Ordinarily, exactly one candidate with no option to do nothing is selected automatically. Zero candidates with an option to do nothing resolves automatically as no selection. One candidate plus the option to do nothing remains an external decision, as do multiple candidates. Automatic resolution continues until the next meaningful external decision or a stable terminal state.
+
+`RollDice` is a deliberate exception to ordinary single-candidate auto-resolution. It is a mandatory continuation boundary and must remain externally observable even though it has exactly one legal candidate and cannot be declined. Engine-level forced-choice progression, choice refresh, or relevance handling must never consume or bypass a pending `RollDice` boundary.
 
 Different Decision Provider implementations may supply decisions without changing the rules engine. Expected examples include:
 
@@ -206,9 +212,15 @@ Different Random Providers may support different contexts, for example:
 - fast automatic resolution during simulations,
 - manually entered results from physical dice or other physical random mechanisms.
 
-A human pressing a **Roll** or **Continue** button does not make the random result a decision. Such interaction may control presentation pacing or authorize the engine to continue to the random resolution, while the Random Provider remains responsible for the outcome.
+A `RollDice` input is such an authorization boundary, not a choice of random outcome. Before a controller-owned dice pool is rolled, the engine exposes one mandatory `RollDice` candidate and preserves the committed resolution context required to continue. The input may carry semantic metadata needed to present the pending roll, such as the dice family, number of dice, rolling Unit, source Action, target, or door, but it never contains or permits the caller to choose the result.
 
-The state-machine and client boundary should therefore distinguish genuine rules decisions from interactions that merely control when an otherwise automatic or random resolution proceeds.
+Submitting `RollDice` authorizes the engine to perform exactly that pending dice pool through the normal Random Provider. The engine remains the authority that invokes randomness, validates the returned faces, interprets the result, emits the resulting dice-roll event, and continues resolution. The same Random Provider abstraction remains replaceable for deterministic tests and other environments.
+
+Dice ownership follows the Unit whose dice are being rolled. The attacking Unit's controller owns the Attack Dice roll. Each defending Unit's controller owns that Unit's Defence Dice roll. The acting Unit's controller owns a Try Open Door roll. A multi-target Attack therefore has one Attack Dice boundary followed, as resolution reaches them, by one Defence Dice boundary for each target that actually rolls Defence Dice. A zero-dice pool has no `RollDice` boundary because no physical dice are rolled.
+
+The rules engine does not distinguish a human `RollDice` from an automated one and does not provide a second random-resolution path. An automated Decision Provider may immediately submit the same mandatory candidate. A client may likewise offer presentation preferences such as automatically submitting an exposed `RollDice` when it is the only pending input. Such auto-roll behavior is client/provider policy only: it does not bypass the boundary, supply a result, or move randomness out of the engine.
+
+The state-machine and client boundary therefore distinguish genuine choice among alternatives from mandatory continuation boundaries, while both remain authoritative inputs required before unresolved rules resolution proceeds.
 
 ### Engine results and rules events
 
@@ -220,7 +232,13 @@ The result of such a run contains, conceptually:
 - a sequence of Rules/Domain Events describing what happened during the run,
 - the next required input, if any.
 
-Rules/Domain Events describe semantically meaningful gameplay outcomes that have already been resolved by the engine. They are not commands that a client must execute in order to produce the new Game State.
+Rules/Domain Events describe semantically meaningful gameplay occurrences and outcomes that have already been resolved by the engine. They are not commands that a client must execute in order to produce the new Game State.
+
+The event stream should expose the meaningful occurrences needed to present play without requiring the client to infer rules from state changes. The current minimum vocabulary should include activation start and completion, Action/Bonus Action/Free Action use, Attack start with its fixed target context, each completed dice pool, and Round start, alongside the existing token draw, movement, posture, creation, attack outcome, healing, death, door, and Round completion events. Existing outcome events may remain when they already carry the appropriate rule semantics; a separate event type is not required merely to create another animation.
+
+A completed dice pool produces a generic authoritative `DiceRolled` occurrence containing the semantic dice family, actual faces/results, owning or rolling Unit, relevant source Action and source Unit, and target or door context when applicable. Attack, Defence, and action-check rolls use this same event concept. Presentation-specific instructions such as animation duration, visual dice positions, camera movement, or `ShowDiceAnimation` do not belong in Rules/Game State or Rules/Domain Events.
+
+Derived Passives such as Fury, Aura, and Backstab do not emit an activation event merely because their condition currently affects a rule. Explicitly using an Action, Bonus Action, or Free Action such as Rage, Focus, or Dash is a gameplay occurrence and should be represented by the generic action-use event.
 
 The authoritative state is the Game State itself. v0 does not require event sourcing or reconstruction of Game State from the event history.
 
@@ -805,37 +823,37 @@ Activation order is determined physically by drawing Activation Tokens from a ba
 
 ### Activation Tokens
 
-An Activation Token identifies a Unit Type, not an individual Unit instance.
+An Activation Token identifies a **Unit Type + Side** combination, not an individual Unit instance.
 
-At the start of a Round, the default rule is to place one Activation Token in the bag for each Unit Type that currently has at least one Unit in play.
+At the start of a Round, the default rule is to place one Activation Token in the bag for each distinct Unit Type + Side combination that currently has at least one Unit in play.
 
-Each Hero is a unique Unit Type and therefore normally has its own personal Activation Token.
+Each Hero is a Unique Unit Type and therefore normally has its own personal Activation Token. Monsters are usually grouped by Unit Type and Side. Multiple Units of the same Monster type on the same Side share one Activation Token.
 
-Monsters are usually grouped by Unit Type. Multiple Units of the same Monster type share the same Activation Token. For example, any number of Skeleton Units normally contribute one Skeleton Activation Token to the bag.
+The abstract rules and digital engine may represent the same non-Unique Unit Type on more than one Side. Those combinations have separate Activation Tokens and activate separately. Whether the currently available physical component set contains enough distinguishable tokens and figures to construct such a scenario is a physical scenario-construction constraint, not a universal game rule.
 
-One token per participating Unit Type is the default rather than a structural limit. Abilities and special rules may explicitly modify how many Activation Tokens a Unit Type contributes. A particularly dangerous Monster type could, for example, contribute an additional token and therefore activate more than once during a Round.
+One token per participating Unit Type + Side combination is the default rather than a structural limit. Abilities and special rules may explicitly modify how many Activation Tokens a combination contributes.
 
-Tokens are drawn randomly from the bag without replacement. When a token is drawn, the Unit Type identified by that token activates.
+Tokens are drawn randomly from the bag without replacement. When a token is drawn, the Unit Type + Side combination identified by that token activates.
 
-When the bag is empty, the Round ends. The bag is then populated again for the next Round from the Unit Types that are still in play, applying any rules that modify their number of Activation Tokens.
+When the bag is empty, the Round ends. The bag is then populated again for the next Round from the Unit Type + Side combinations that are still in play, applying any rules that modify their number of Activation Tokens.
 
-If all Units of a type leave play after that type's token has already been placed in the bag, the token remains in the bag. If it is later drawn, the Unit Type activation is valid but affects zero Units and therefore does nothing. The bag does not need to be searched during a Round to remove such tokens.
+The Activation Bag is snapshotted at Round start. If all Units belonging to a token leave play after that token has already been placed in the bag, the token remains. If later drawn, its activation is valid but affects zero Units. Creating, summoning, removing, or killing Units during a Round does not retroactively add or remove bag tokens unless a rule explicitly says so.
 
-Unit Types entering play during an ongoing Round do not add tokens to the already-established bag. They may participate later in the round only if a token for that Unit Type is already present and has not yet resolved. Future rules may explicitly modify bag contents.
+A Unit entering play during an ongoing Round may participate later that Round only if the matching Unit Type + Side token is already present and has not yet resolved. A token for the same Unit Type on another Side does not make it eligible. Future rules may explicitly modify bag contents.
 
 ### Unit Type activation
 
-When a Unit Type activates, all living Units of that type participate in that Unit Type activation.
+When a Unit Type + Side Activation Token activates, all living Units matching **both** that Unit Type and that Side participate in that token activation.
 
-Units activate **one at a time**. One Unit completes its entire activation before another Unit of the same Unit Type is selected. Effects and physical changes produced by an earlier Unit are therefore already part of the board state when the next Unit is selected and activated.
+Units activate **one at a time**. One Unit completes its entire activation before another matching Unit is selected. Effects and physical changes produced by an earlier Unit are therefore already part of the board state when the next Unit is selected and activated.
 
-The order is not fixed at the beginning of the Unit Type activation. Before each Unit activation, the engine determines the Units of the active Unit Type that are currently eligible and have not already completed an activation for this token. This concrete set is the legal decision space for choosing the next Unit.
+The order is not fixed at the beginning of the token activation. Before each Unit activation, the engine determines the matching Units that are currently eligible and have not already completed an activation for this token. This concrete set is the legal decision space for choosing the next Unit.
 
-The responsible Decision Provider selects the next Unit from that set. Default Monster Behavior chooses the currently topmost eligible Unit, breaking ties by choosing the leftmost one, using current board positions. A human or future smarter AI provider may choose a different eligible Unit when the rules permit it. Once a Unit has completed its activation for the current token, it cannot be selected again for that token.
+All Units matching one Unit Type + Side token share one controller. That controller selects the next Unit from the eligible set. Default automated Behavior chooses the currently topmost eligible Unit, breaking ties by choosing the leftmost one, using current board positions. A human or future smarter AI provider may choose a different eligible Unit when the rules permit it. Once a Unit has completed its activation for the current token, it cannot be selected again for that token.
 
-This ordering is intentionally state-dependent. For example, one Zombie may open a door and a later Zombie of the same Unit Type may then move through that now-open door. Conversely, a different deterministic Unit order may produce a less advantageous sequence. Default Monster Behavior is intended to remain simple, deterministic, and manually followable in physical solo play rather than planning the complete group activation. A digital-only smarter provider may plan across several legal choices without changing the underlying game rules.
+This ordering is intentionally state-dependent. For example, one Zombie may open a door and a later Zombie of the same Unit Type and Side may then move through that now-open door. Default automated Behavior is intended to remain simple, deterministic, and manually followable in physical solo play rather than planning the complete group activation. A digital-only smarter provider may plan across several legal choices without changing the underlying game rules.
 
-Units created before their Unit Type token is drawn participate normally when that token later resolves. Eligibility for future content that creates a Unit while its own Unit Type token is already being resolved is deliberately deferred until such content exists.
+Units created before their matching Unit Type + Side token is drawn participate normally when that token later resolves. Eligibility for future content that creates a Unit while its own matching token is already being resolved is deliberately deferred until such content exists.
 
 ## Unit activation
 
