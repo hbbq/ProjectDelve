@@ -7,11 +7,14 @@ namespace ProjectDelve.Engine;
 // Normal Attack is baseline; Behaviors are automated policy, not card mechanics.
 
 // Keep the formatting in this file according to this example:
-// public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitType.Define(id,
-//     "Zombie",
-//     Stats(2, 1, 3, 3, 1),
-//     Ability("Break Door", Unlimited(), TryOpenDoor(successes: 2))
-// ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
+// public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitType.Define(id,
+//     "Red Dragon",
+//     Stats(2, 4, 4, 4, 8),
+//     Unique(),
+//     Footprint2x2(),
+//     Ability("Fire Breath", Unlimited(), FireBreath()),
+//     Ability("Claw Attack", Unlimited(), ClawAttack())
+// ).WithBehaviors(UnitBehavior.PreferFireBreathThenClaw);
 
 public static class UnitRoster
 {
