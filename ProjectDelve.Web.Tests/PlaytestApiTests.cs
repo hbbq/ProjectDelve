@@ -14,6 +14,24 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class PlaytestApiTests
 {
+    // Discover fixture Units by content and initial placement, independent of generated IDs.
+    private static readonly GameState InitialSetup = CourtyardFixture.Create();
+    private static string InitialUnit(string typeId, Cell? anchor = null) => InitialSetup.Units.Single(u =>
+        u.TypeId == typeId && (anchor is null || InitialSetup.Physical.Figures.Single(f => f.Id == u.Id).Position == anchor)).Id;
+    private static readonly string Barbarian = InitialUnit(UnitTypeIds.Barbarian);
+    private static readonly string Rogue = InitialUnit(UnitTypeIds.Rogue);
+    private static readonly string Cleric = InitialUnit(UnitTypeIds.Cleric);
+    private static readonly string Wizard = InitialUnit(UnitTypeIds.Wizard);
+    private static readonly string Grunt1 = InitialUnit(UnitTypeIds.Grunt, new(7, 11));
+    private static readonly string Grunt2 = InitialUnit(UnitTypeIds.Grunt, new(7, 8));
+    private static readonly string Zombie1 = InitialUnit(UnitTypeIds.Zombie, new(2, 3));
+    private static readonly string Zombie2 = InitialUnit(UnitTypeIds.Zombie, new(1, 5));
+    private static readonly string Archer1 = InitialUnit(UnitTypeIds.SkeletonArcher, new(6, 7));
+    private static readonly string Archer2 = InitialUnit(UnitTypeIds.SkeletonArcher, new(9, 3));
+    private static readonly string Shaman = InitialUnit(UnitTypeIds.Shaman);
+    private static readonly string Troll1 = InitialUnit(UnitTypeIds.Troll, new(11, 0));
+    private static readonly string Troll2 = InitialUnit(UnitTypeIds.Troll, new(13, 0));
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
@@ -25,15 +43,15 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start(hit: true);
         using var initialJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var cards = initialJson.RootElement.GetProperty("presentation").GetProperty("cards");
-        Assert.Equal("Cleric", cards.GetProperty("cleric").GetProperty("displayName").GetString());
-        var telekinesis = cards.GetProperty("wizard").GetProperty("entries").EnumerateArray()
+        Assert.Equal("Cleric", cards.GetProperty(Cleric).GetProperty("displayName").GetString());
+        var telekinesis = cards.GetProperty(Wizard).GetProperty("entries").EnumerateArray()
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "telekinesis");
         Assert.Equal("Telekinesis", telekinesis.GetProperty("content").GetProperty("name").GetString());
         Assert.Equal("Action", telekinesis.GetProperty("content").GetProperty("category").GetString());
         Assert.Equal("Lay down an upright enemy within RNG and LOS.", telekinesis.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("uses").ValueKind);
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("content").GetProperty("maxUses").ValueKind);
-        var cardWave = cards.GetProperty("cleric").GetProperty("entries").EnumerateArray()
+        var cardWave = cards.GetProperty(Cleric).GetProperty("entries").EnumerateArray()
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "holy-wave");
         Assert.Equal("Lay down all adjacent upright enemies.\nThen lay down this Unit.", cardWave.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(2, cardWave.GetProperty("uses").GetProperty("remainingUses").GetInt32());
@@ -41,16 +59,16 @@ public sealed class PlaytestApiTests
         preference.EnsureSuccessStatusCode();
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var result = await host.Round(changed.Revision);
-        foreach (var id in new[] { "barbarian", "rogue" })
+        foreach (var id in new[] { Barbarian, Rogue })
         {
             Assert.Equal(id, result.Result.NextInput!.UnitId);
             result = await host.Decide(result.Revision, "stay");
             result = await host.Decide(result.Revision, "end-turn");
         }
-        Assert.Equal("cleric", result.Result.NextInput!.UnitId);
+        Assert.Equal(Cleric, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "6,9");
         var wave = Assert.Single(result.Result.NextInput!.Candidates, c => c.Action == UnitAction.HolyWave);
-        Assert.Equal(new[] { "grunt-2", "shaman-1" }, wave.TargetIds.OrderBy(id => id));
+        Assert.Equal(new[] { Grunt2, Shaman }.OrderBy(id => id), wave.TargetIds.OrderBy(id => id));
         using var choicesJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var projectedWave = choicesJson.RootElement.GetProperty("presentation").GetProperty("decision").GetProperty("candidates")
             .EnumerateArray().Single(c => c.GetProperty("key").GetString() == wave.Key);
@@ -58,20 +76,20 @@ public sealed class PlaytestApiTests
         Assert.Equal(wave.TargetIds, projectedWave.GetProperty("affectedUnitIds").EnumerateArray().Select(t => t.GetString()));
         var resolved = await host.Decide(result.Revision, wave.Key);
         var changes = resolved.Result.Events.Where(e => e.Kind == "PostureChanged" && e.Posture == Posture.Lying).ToArray();
-        Assert.Equal(wave.TargetIds.Append("cleric"), changes.Select(e => e.UnitId));
+        Assert.Equal(wave.TargetIds.Append(Cleric), changes.Select(e => e.UnitId));
         Assert.DoesNotContain(resolved.Result.Events, e => e.AbilityName == "Holy Wave" && e.Attack is not null);
-        Assert.Equal(Posture.Lying, resolved.Result.State.Physical.Figures.Single(f => f.Id == "cleric").Posture);
+        Assert.Equal(Posture.Lying, resolved.Result.State.Physical.Figures.Single(f => f.Id == Cleric).Posture);
         using var resolvedJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var figureJson = resolvedJson.RootElement.GetProperty("result").GetProperty("state")
             .GetProperty("physical").GetProperty("figures").EnumerateArray()
-            .Single(f => f.GetProperty("id").GetString() == "cleric");
+            .Single(f => f.GetProperty("id").GetString() == Cleric);
         Assert.Equal("Lying", figureJson.GetProperty("posture").GetString());
         Assert.Equal(resolved.Result.Events.Count, resolved.Presentation.Events.Count);
         Assert.Equal(resolved.Result.ResolutionSteps.Select(s => s.EventIndex), resolved.Presentation.ResolutionSteps.Select(s => s.EventIndex));
         foreach (var step in resolved.Result.ResolutionSteps)
-            Assert.Equal(BrowserProjection.Cards(step.StateAfter)["cleric"].Entries,
-                resolved.Presentation.ResolutionSteps.Single(s => s.EventIndex == step.EventIndex).Cards["cleric"].Entries);
-        Assert.Equal(1, resolved.Presentation.Cards["cleric"].Entries.Single(e => e.Content.Id == "holy-wave").Uses!.RemainingUses);
+            Assert.Equal(BrowserProjection.Cards(step.StateAfter)[Cleric].Entries,
+                resolved.Presentation.ResolutionSteps.Single(s => s.EventIndex == step.EventIndex).Cards[Cleric].Entries);
+        Assert.Equal(1, resolved.Presentation.Cards[Cleric].Entries.Single(e => e.Content.Id == "holy-wave").Uses!.RemainingUses);
     }
 
     [Fact]
@@ -92,7 +110,7 @@ public sealed class PlaytestApiTests
         var fury = barbarian.GetProperty("passives")[0];
         Assert.Equal("Fury", fury.GetProperty("name").GetString());
         Assert.Equal("ATK +1 while adjacent to 2 or more enemies", fury.GetProperty("displayText").GetString());
-        Assert.Equal(4, state.GetProperty("effectiveAtk").GetProperty("barbarian").GetInt32());
+        Assert.Equal(4, state.GetProperty("effectiveAtk").GetProperty(Barbarian).GetInt32());
         var rogue = types.Single(t => t.GetProperty("id").GetString() == "rogue-type");
         Assert.Equal(new[] { "Dash", "Throwing Knife" }, rogue.GetProperty("bonusActions").EnumerateArray()
             .Select(a => a.GetProperty("name").GetString()));
@@ -104,8 +122,8 @@ public sealed class PlaytestApiTests
         Assert.Equal("Adjacent friendly Units get DEF +1", cleric.GetProperty("passives")[0].GetProperty("displayText").GetString());
         // Rogue starts adjacent to Cleric; base DEF remains unchanged in content.
         Assert.Equal(2, rogue.GetProperty("def").GetInt32());
-        Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty("rogue").GetInt32());
-        Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty("barbarian").GetInt32());
+        Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty(Rogue).GetInt32());
+        Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty(Barbarian).GetInt32());
     }
 
     [Fact]
@@ -122,7 +140,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(15, second.Result.State.Physical.Board.Height);
         Assert.Equal(13, second.Result.State.Physical.Figures.Count);
         var heroes = second.Result.State.Units.Where(u => u.SideId == "blue").ToArray();
-        Assert.Equal(new[] { "barbarian", "rogue", "cleric", "wizard" }, heroes.Select(u => u.Id));
+        Assert.Equal(new[] { Barbarian, Rogue, Cleric, Wizard }, heroes.Select(u => u.Id));
         Assert.Equal(4, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(type.Id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
@@ -183,7 +201,7 @@ public sealed class PlaytestApiTests
         var opened = await host.Decide(next.Revision, beforeMove.Key);
         Assert.Equal(next.Revision + 1, opened.Revision);
         Assert.Equal("DoorOpened", Assert.Single(opened.Result.Events, e => e.Kind == "DoorOpened").Kind);
-        Assert.Equal("barbarian", opened.Result.NextInput!.UnitId);
+        Assert.Equal(Barbarian, opened.Result.NextInput!.UnitId);
         Assert.False(opened.Result.State.MoveDone);
         Assert.False(opened.Result.State.ActionDone);
         Assert.Empty(opened.Result.State.BonusActionsUsedThisActivation);
@@ -193,7 +211,7 @@ public sealed class PlaytestApiTests
         var stayed = await host.Decide(opened.Revision, "stay");
         var attack = Assert.Single(stayed.Result.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
         var attacked = await host.Decide(stayed.Revision, attack.Key);
-        Assert.Contains(attacked.Result.Events, e => e.Kind == "AttackResolved" && e.UnitId == "barbarian");
+        Assert.Contains(attacked.Result.Events, e => e.Kind == "AttackResolved" && e.UnitId == Barbarian);
         var script = await host.Client.GetStringAsync("/app.js");
         Assert.Contains("selection.kind === \"Door\"", script);
         Assert.Contains("Open Door (Free Action)", moved.Presentation.Decision!.Candidates.Single(c => c.Key == afterMove.Key).Label);
@@ -211,7 +229,7 @@ public sealed class PlaytestApiTests
         Assert.True(completed.Result.State.RoundComplete);
         Assert.Null(completed.Result.NextInput);
         var moves = completed.Result.Events.Where(e => e.Kind == "MovementCompleted").ToArray();
-        Assert.Equal(new[] { "barbarian", "rogue", "cleric", "wizard", "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "shaman-1", "troll-1", "troll-2" }, moves.Select(e => e.UnitId));
+        Assert.Equal(new[] { Barbarian, Rogue, Cleric, Wizard, Grunt2, Grunt1, Zombie1, Zombie2, Archer2, Archer1, Shaman, Troll1, Troll2 }, moves.Select(e => e.UnitId));
         Assert.Equal(new[] { "barbarian-type", "rogue-type", "cleric-type", "wizard-type", "grunt-type", "zombie-type", "skeleton-archer-type", "shaman-type", "troll-type" },
             completed.Result.Events.Where(e => e.Kind == "TokenDrawn").Select(e => e.TypeId));
         Assert.Contains(moves, e => e.Path!.Count > 1);
@@ -259,7 +277,7 @@ public sealed class PlaytestApiTests
             UnitType.SkeletonArcher(), UnitType.Goblin(), UnitType.Shaman(), UnitType.Troll() }, Json), JsonSerializer.Serialize(state.Types, Json));
         Assert.Contains(state.Units, u => u.TypeId == "shaman-type");
         Assert.DoesNotContain(state.Units, u => u.TypeId == "goblin-type");
-        var rogue = state.Units.Single(u => u.Id == "rogue");
+        var rogue = state.Units.Single(u => u.Id == Rogue);
         Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Dash"]);
         Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Throwing Knife"]);
         var board = state.Physical.Board;
@@ -278,7 +296,7 @@ public sealed class PlaytestApiTests
             Assert.InRange(f.Position.X, 0, 14); Assert.InRange(f.Position.Y, 0, 14);
             Assert.True(board.TerrainAt(f.Position).Passable());
             var unit = state.Units.Single(u => u.Id == f.Id);
-            Assert.Equal(unit.Id == "wizard" ? 2 : state.Types.Single(t => t.Id == unit.TypeId).Hp, unit.CurrentHp);
+            Assert.Equal(unit.Id == Wizard ? 2 : state.Types.Single(t => t.Id == unit.TypeId).Hp, unit.CurrentHp);
         });
         var started = await host.Round(0);
         var moved = await host.Decide(started.Revision, "4,6");
@@ -338,7 +356,7 @@ public sealed class PlaytestApiTests
             events.AddRange(result.Result.Events);
         }
         var died = events.First(e => e.Kind == "UnitDied");
-        Assert.Contains(died.UnitId, new[] { "barbarian", "rogue" });
+        Assert.Contains(died.UnitId, new[] { Barbarian, Rogue });
         var deathIndex = events.IndexOf(died);
         Assert.Equal("AttackResolved", events[deathIndex - 1].Kind);
         Assert.Equal(died.UnitId, events[deathIndex - 1].TargetId);
@@ -364,13 +382,14 @@ public sealed class PlaytestApiTests
         var next = await host.Round(completed.Revision);
         // Move toward a supplied melee target rather than assuming a specific Monster's route.
         var destination = next.Result.NextInput!.Candidates.First(c => c.Destination is not null &&
-            next.Result.State.Physical.Figures.Any(f => f.Id.StartsWith("grunt-") &&
+            next.Result.State.Physical.Figures.Any(f => next.Result.State.Units.Single(u => u.Id == f.Id).TypeId == UnitTypeIds.Grunt &&
                 Math.Abs(f.Position.X - c.Destination.X) <= 1 && Math.Abs(f.Position.Y - c.Destination.Y) <= 1));
         var moved = await host.Decide(next.Revision, destination.Key);
-        var attack = moved.Result.NextInput!.Candidates.First(c => c.TargetId?.StartsWith("grunt-") == true);
+        var attack = moved.Result.NextInput!.Candidates.First(c => c.Action == UnitAction.NormalAttack &&
+            moved.Result.State.Units.Any(u => u.Id == c.TargetId && u.TypeId == UnitTypeIds.Grunt));
         var result = await host.Decide(moved.Revision, attack.Key);
         Assert.Equal("AttackResolved", result.Result.Events.First(e => e.Kind == "AttackResolved").Kind);
-        Assert.Equal("barbarian", result.Result.Events.First(e => e.Kind == "AttackResolved").UnitId);
+        Assert.Equal(Barbarian, result.Result.Events.First(e => e.Kind == "AttackResolved").UnitId);
         Assert.Equal(4, result.Result.Events.First(e => e.Kind == "AttackResolved").Damage);
         Assert.Equal("UnitDied", result.Result.Events.First(e => e.Kind == "UnitDied").Kind);
         Assert.Equal(attack.TargetId, result.Result.Events.First(e => e.Kind == "UnitDied").UnitId);
@@ -385,7 +404,7 @@ public sealed class PlaytestApiTests
         var result = await host.Round(0);
         Assert.Equal("grunt-type", result.Result.Events.First(e => e.Kind == "TokenDrawn").TypeId);
         Assert.Equal("barbarian-type", result.Result.NextInput!.TypeId);
-        Assert.Equal(new[] { "grunt-2", "grunt-1", "zombie-1", "zombie-2", "archer-2", "archer-1", "shaman-1", "troll-1", "troll-2" }, result.Result.Events
+        Assert.Equal(new[] { Grunt2, Grunt1, Zombie1, Zombie2, Archer2, Archer1, Shaman, Troll1, Troll2 }, result.Result.Events
             .Where(e => e.Kind == "MovementCompleted").Select(e => e.UnitId));
         Assert.Equal("barbarian-type", result.Result.Events.Last(e => e.Kind == "TokenDrawn").Token!.TypeId);
         Assert.False(result.Result.State.RoundComplete);
@@ -411,28 +430,28 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(doorRoll: roll);
         var result = await FinishRound(host, await host.Round(0));
-        var move = Assert.Single(result.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == "zombie-1");
+        var move = Assert.Single(result.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == Zombie1);
         Assert.Equal(new[] { new Cell(2, 3), new Cell(3, 3), new Cell(3, 4) }, move.Path);
-        var attempt = Assert.Single(result.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == "zombie-1");
+        var attempt = Assert.Single(result.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == Zombie1);
         Assert.Equal(roll, attempt.DieRoll);
         Assert.Equal(2, attempt.SuccessCount);
         Assert.Equal(succeeds, attempt.Succeeded);
         Assert.Equal(succeeds ? EdgeKind.OpenDoor : EdgeKind.ClosedDoor,
             result.Result.State.Physical.Board.EdgeBetween(new(3, 4), new(4, 4)));
-        Assert.Equal(succeeds, result.Result.Events.Any(e => e.Kind == "DoorOpened" && e.UnitId == "zombie-1"));
+        Assert.Equal(succeeds, result.Result.Events.Any(e => e.Kind == "DoorOpened" && e.UnitId == Zombie1));
         var next = await FinishRound(host, await host.Round(result.Revision));
         Assert.Equal(succeeds ? EdgeKind.OpenDoor : EdgeKind.ClosedDoor,
             next.Result.State.Physical.Board.EdgeBetween(new(3, 4), new(4, 4)));
-        foreach (var id in new[] { "zombie-1", "zombie-2" })
+        foreach (var id in new[] { Zombie1, Zombie2 })
         {
             var position = next.Result.State.Physical.Figures.Single(f => f.Id == id).Position;
             Assert.Equal(succeeds, position.X >= 4);
         }
         if (!succeeds)
-            Assert.Contains(next.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == "zombie-1");
+            Assert.Contains(next.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == Zombie1);
         var script = await host.Client.GetStringAsync("/app.js");
         Assert.Contains("case \"DoorAttempt\"", script);
-        var projectedAttempt = Assert.Single(result.Presentation.Events, e => e.Role == OutcomeRole.DoorAttempt && e.UnitId == "zombie-1");
+        var projectedAttempt = Assert.Single(result.Presentation.Events, e => e.Role == OutcomeRole.DoorAttempt && e.UnitId == Zombie1);
         Assert.Contains(succeeds ? "success" : "failed; door stays closed", projectedAttempt.Text);
     }
 
@@ -445,12 +464,12 @@ public sealed class PlaytestApiTests
             initial.Result.State.Types.Single(t => t.Id == "skeleton-archer-type"));
         var completed = await FinishRound(host, await host.Round(0));
         var move = Assert.Single(completed.Result.Events,
-            e => e.Kind == "MovementCompleted" && e.UnitId == "archer-1");
+            e => e.Kind == "MovementCompleted" && e.UnitId == Archer1);
         Assert.Equal(new Cell(6, 7), move.Path![0]);
         Assert.True(move.Path.Count > 1);
         var attack = Assert.Single(completed.Result.Events,
-            e => e.Kind == "AttackResolved" && e.UnitId == "archer-1");
-        Assert.Equal("barbarian", attack.TargetId);
+            e => e.Kind == "AttackResolved" && e.UnitId == Archer1);
+        Assert.Equal(Barbarian, attack.TargetId);
         var end = move.Path[^1];
         // The courtyard permits retreat to the full firing range.
         Assert.Equal(4, Math.Abs(end.X - 4) + Math.Abs(end.Y - 7));
@@ -466,7 +485,7 @@ public sealed class PlaytestApiTests
         var started = await host.Round(0);
         Assert.DoesNotContain("goblin-type", started.Result.State.Bag.Select(t => t.TypeId));
         var completed = await FinishRound(host, started);
-        var move = Assert.Single(completed.Result.Events, e => e.UnitId == "shaman-1" && e.Kind == "MovementCompleted");
+        var move = Assert.Single(completed.Result.Events, e => e.UnitId == Shaman && e.Kind == "MovementCompleted");
         Assert.Equal(new Cell(7, 10), move.Path![0]);
         Assert.InRange(move.Path.Count - 1, 1, 2);
         var createdIndex = completed.Result.Events.FindIndex(e => e.Kind == "UnitCreated");
@@ -541,7 +560,7 @@ public sealed class PlaytestApiTests
         var started = await host.Round(changed.Revision);
         Assert.False(started.AutoChooseSingleRelevantChoice);
         Assert.Equal(DecisionKind.Activation, started.Result.NextInput!.Kind);
-        Assert.Equal("barbarian", started.Result.NextInput.UnitId);
+        Assert.Equal(Barbarian, started.Result.NextInput.UnitId);
         Assert.True(started.Result.NextInput.Candidates.Count > 1);
         Assert.All(started.Result.NextInput.Candidates, c =>
             Assert.Equal(c.Kind != ActivationChoiceKind.BonusAction, c.Relevant));
@@ -552,7 +571,7 @@ public sealed class PlaytestApiTests
         var stayed = await host.Decide(raging.Revision, "stay");
         // Sole End Turn and the next sole Unit selection still resolve automatically.
         Assert.Equal(DecisionKind.Activation, stayed.Result.NextInput!.Kind);
-        Assert.Equal("rogue", stayed.Result.NextInput.UnitId);
+        Assert.Equal(Rogue, stayed.Result.NextInput.UnitId);
         Assert.False(stayed.AutoChooseSingleRelevantChoice);
     }
 
@@ -561,7 +580,7 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(hit: true);
         var initial = await host.Read();
-        Assert.Equal(new AbilityUses(2, 2), initial.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 2), initial.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
         using var preference = await host.Post("preferences", new {
             expectedRevision = 0, autoChooseSingleRelevantChoice = false });
         preference.EnsureSuccessStatusCode();
@@ -574,19 +593,19 @@ public sealed class PlaytestApiTests
         rage = Assert.Single(moved.Result.NextInput!.Candidates, c => c.BonusAction is not null);
         Assert.True(rage.Relevant);
         var raging = await host.Decide(moved.Revision, rage.Key);
-        Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
         Assert.Equal("Rage", Assert.Single(raging.Result.State.BonusActionsUsedThisActivation));
-        Assert.Equal(6, raging.Result.State.EffectiveAtk["barbarian"]);
+        Assert.Equal(6, raging.Result.State.EffectiveAtk[Barbarian]);
         Assert.Equal(4, raging.Result.State.Types.Single(t => t.Id == "barbarian-type").Atk);
         Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(raging.Result.State.ModifiersThisTurn));
-        Assert.Equal(6, raging.Result.ResolutionSteps.Last().StateAfter.EffectiveAtk["barbarian"]);
+        Assert.Equal(6, raging.Result.ResolutionSteps.Last().StateAfter.EffectiveAtk[Barbarian]);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new {
             expectedRevision = raging.Revision, candidateKey = rage.Key })).StatusCode);
-        var attacked = await host.Decide(raging.Revision, "attack:archer-1");
+        var attacked = await host.Decide(raging.Revision, $"attack:{Archer1}");
         Assert.Equal(6, Assert.Single(attacked.Result.Events, e => e.Kind == "AttackResolved").Hits);
         Assert.Empty(attacked.Result.State.ModifiersThisTurn);
-        Assert.Equal(4, attacked.Result.State.EffectiveAtk["barbarian"]);
-        Assert.Equal(new AbilityUses(2, 1), attacked.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
+        Assert.Equal(4, attacked.Result.State.EffectiveAtk[Barbarian]);
+        Assert.Equal(new AbilityUses(2, 1), attacked.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
     }
 
     [Fact]
@@ -598,15 +617,15 @@ public sealed class PlaytestApiTests
         preference.EnsureSuccessStatusCode();
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var moved = await host.Decide((await host.Round(changed.Revision)).Revision, "5,7");
-        var attacked = await host.Decide(moved.Revision, "attack:archer-1");
+        var attacked = await host.Decide(moved.Revision, $"attack:{Archer1}");
         var rage = Assert.Single(attacked.Result.NextInput!.Candidates, c => c.BonusAction is not null);
         Assert.True(attacked.Result.State.ActionDone);
         Assert.False(rage.Relevant);
         var used = await host.Decide(attacked.Revision, rage.Key);
         Assert.Contains(used.Result.Events, e => e.Kind == "AbilityUsed" && e.AbilityName == "Rage");
-        Assert.Equal(new AbilityUses(2, 1), used.Result.State.Units.Single(u => u.Id == "barbarian").BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 1), used.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
         Assert.Empty(used.Result.State.ModifiersThisTurn);
-        Assert.Equal("rogue", used.Result.NextInput!.UnitId);
+        Assert.Equal(Rogue, used.Result.NextInput!.UnitId);
     }
 
     [Fact]
@@ -614,13 +633,13 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(hit: true);
         var initial = await host.Read();
-        var wizard = initial.Result.State.Units.Single(u => u.Id == "wizard");
+        var wizard = initial.Result.State.Units.Single(u => u.Id == Wizard);
         var type = initial.Result.State.Types.Single(t => t.Id == wizard.TypeId);
         Assert.Equal((2, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         var position = initial.Result.State.Physical.Figures.Single(f => f.Id == wizard.Id).Position;
         Assert.True(initial.Result.State.Physical.Board.TerrainAt(position).Passable());
         Assert.Single(initial.Result.State.Physical.Figures, f => f.Position == position);
-        var card = initial.Presentation.Cards["wizard"];
+        var card = initial.Presentation.Cards[Wizard];
         Assert.Equal("Wizard", card.DisplayName);
         Assert.Equal(type.CardEntries(), card.Entries.Select(e => e.Content).ToArray());
         var focusCard = Assert.Single(card.Entries, e => e.Content.Name == "Focus");
@@ -633,14 +652,14 @@ public sealed class PlaytestApiTests
         preference.EnsureSuccessStatusCode();
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var result = await host.Round(changed.Revision);
-        foreach (var id in new[] { "barbarian", "rogue", "cleric" })
+        foreach (var id in new[] { Barbarian, Rogue, Cleric })
         {
             Assert.Equal(id, result.Result.NextInput!.UnitId);
             result = await host.Decide(result.Revision, "stay");
             if (result.Result.NextInput?.UnitId == id)
                 result = await host.Decide(result.Revision, "end-turn");
         }
-        Assert.Equal("wizard", result.Result.NextInput!.UnitId);
+        Assert.Equal(Wizard, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "4,8");
         var focus = Assert.Single(result.Result.NextInput!.Candidates, c => c.BonusAction?.Name == "Focus");
         Assert.True(focus.Relevant);
@@ -650,18 +669,18 @@ public sealed class PlaytestApiTests
         Assert.Equal(InteractionKind.Direct, projected.Interaction.Kind);
         Assert.Equal(focus.Relevant, projected.Relevant);
         var focused = await host.Decide(result.Revision, projected.Key);
-        Assert.Equal(4, focused.Result.State.EffectiveAtk["wizard"]);
+        Assert.Equal(4, focused.Result.State.EffectiveAtk[Wizard]);
         Assert.False(focused.Result.State.ActionDone);
-        Assert.Equal(new AbilityUses(2, 1), focused.Presentation.Cards["wizard"].Entries.Single(e => e.Content.Name == "Focus").Uses);
+        Assert.Equal(new AbilityUses(2, 1), focused.Presentation.Cards[Wizard].Entries.Single(e => e.Content.Name == "Focus").Uses);
         Assert.Equal(OutcomeRole.Notice, focused.Presentation.Events.Last().Role);
-        Assert.Equal("wizard used Focus", focused.Presentation.Events.Last().Text);
-        Assert.Equal(new AbilityUses(2, 1), focused.Presentation.ResolutionSteps.Last().Cards["wizard"].Entries.Single(e => e.Content.Name == "Focus").Uses);
+        Assert.Equal($"{Wizard} used Focus", focused.Presentation.Events.Last().Text);
+        Assert.Equal(new AbilityUses(2, 1), focused.Presentation.ResolutionSteps.Last().Cards[Wizard].Entries.Single(e => e.Content.Name == "Focus").Uses);
         Assert.DoesNotContain(focused.Presentation.Decision!.Candidates, c => c.EntryId == focusCard.Content.Id);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new { expectedRevision = focused.Revision, candidateKey = focus.Key })).StatusCode);
         var attack = focused.Result.NextInput!.Candidates.First(c => c.Action == UnitAction.NormalAttack);
         var attacked = await host.Decide(focused.Revision, attack.Key);
-        Assert.Equal(4, attacked.Result.Events.Single(e => e.Kind == "AttackResolved" && e.UnitId == "wizard").Hits);
-        Assert.Equal(3, attacked.Result.State.EffectiveAtk["wizard"]);
+        Assert.Equal(4, attacked.Result.Events.Single(e => e.Kind == "AttackResolved" && e.UnitId == Wizard).Hits);
+        Assert.Equal(3, attacked.Result.State.EffectiveAtk[Wizard]);
         var script = await host.Client.GetStringAsync("/app.js");
         Assert.DoesNotContain("wizard", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Focus", script);
@@ -676,14 +695,14 @@ public sealed class PlaytestApiTests
         preference.EnsureSuccessStatusCode();
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var result = await host.Round(changed.Revision);
-        foreach (var id in new[] { "barbarian", "rogue", "cleric" })
+        foreach (var id in new[] { Barbarian, Rogue, Cleric })
         {
             Assert.Equal(id, result.Result.NextInput!.UnitId);
             result = await host.Decide(result.Revision, "stay");
             if (result.Result.NextInput?.UnitId == id)
                 result = await host.Decide(result.Revision, "end-turn");
         }
-        Assert.Equal("wizard", result.Result.NextInput!.UnitId);
+        Assert.Equal(Wizard, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "4,8");
         var action = result.Result.NextInput!.Candidates.First(c => c.Action == UnitAction.Telekinesis);
         var projected = result.Presentation.Decision!.Candidates.Single(c => c.Key == action.Key);
@@ -693,14 +712,14 @@ public sealed class PlaytestApiTests
         var before = result.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId);
         var hp = result.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp;
         var resolved = await host.Decide(result.Revision, projected.Key);
-        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying) { SourceUnitId = "wizard", ActionId = "telekinesis" }, Assert.Single(resolved.Result.Events, e => e.Kind == "PostureChanged"));
+        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying) { SourceUnitId = Wizard, ActionId = "telekinesis" }, Assert.Single(resolved.Result.Events, e => e.Kind == "PostureChanged"));
         Assert.Equal(before with { Posture = Posture.Lying }, resolved.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId));
         Assert.Equal(hp, resolved.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp);
         Assert.True(resolved.Result.State.ActionDone);
         Assert.DoesNotContain(resolved.Result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
         Assert.Equal(Posture.Lying, resolved.Result.ResolutionSteps.Last().StateAfter.Physical.Figures.Single(f => f.Id == action.TargetId).Posture);
         Assert.Equal(OutcomeRole.Notice, resolved.Presentation.Events.Last().Role);
-        Assert.Null(resolved.Presentation.Cards["wizard"].Entries.Single(e => e.Content.Id == "telekinesis").Uses);
+        Assert.Null(resolved.Presentation.Cards[Wizard].Entries.Single(e => e.Content.Id == "telekinesis").Uses);
         using var repeated = await host.Post("decision", new { expectedRevision = resolved.Revision, candidateKey = projected.Key });
         Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
     }
@@ -711,7 +730,7 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start(doorRoll: 1);
         var result = await host.Read();
         Assert.Equal(UnitType.Troll(), result.Result.State.Types.Single(t => t.Id == "troll-type"));
-        Assert.Equal("Undying", result.Presentation.Cards["troll-1"].Entries.Single(e => e.Content.Id == "undying").Content.Name);
+        Assert.Equal("Undying", result.Presentation.Cards[Troll1].Entries.Single(e => e.Content.Id == "undying").Content.Name);
         var gates = new[] { new Edge(new(11, 1), new(11, 2), EdgeKind.ClosedDoor),
             new Edge(new(11, 2), new(11, 3), EdgeKind.ClosedDoor),
             new Edge(new(11, 4), new(11, 5), EdgeKind.ClosedDoor) };
@@ -727,7 +746,8 @@ public sealed class PlaytestApiTests
         {
             result = await FinishRound(host, await host.Round(result.Revision));
             Assert.Null(result.Result.NextInput); // Trolls are fully automated by the host.
-            var trollEvents = result.Result.Events.Where(e => e.UnitId?.StartsWith("troll-") == true).ToArray();
+            var trollEvents = result.Result.Events.Where(e => result.Result.State.Units.Any(u =>
+                u.Id == e.UnitId && u.TypeId == UnitTypeIds.Troll)).ToArray();
             Assert.All(trollEvents.Where(e => e.Kind == "DoorOpeningAttemptResolved"), e =>
             {
                 Assert.Equal(4, e.SuccessCount);
@@ -736,7 +756,8 @@ public sealed class PlaytestApiTests
             opened.AddRange(trollEvents.Where(e => e.Kind == "DoorOpened").Select(e => e.Door!));
             if (round <= 2)
             {
-                Assert.All(result.Result.State.Physical.Figures.Where(f => f.Id.StartsWith("troll-")), f =>
+                Assert.All(result.Result.State.Physical.Figures.Where(f => result.Result.State.Units.Any(u =>
+                    u.Id == f.Id && u.TypeId == UnitTypeIds.Troll)), f =>
                 {
                     Assert.InRange(f.Position.X, 10, 14);
                     Assert.InRange(f.Position.Y, 0, 4);
@@ -745,7 +766,8 @@ public sealed class PlaytestApiTests
             }
         }
         Assert.Equal(gates.Select(gate => gate with { Kind = EdgeKind.OpenDoor }), opened);
-        Assert.Contains(result.Result.State.Physical.Figures, f => f.Id.StartsWith("troll-") && f.Position.Y >= 5);
+        Assert.Contains(result.Result.State.Physical.Figures, f => f.Position.Y >= 5 && result.Result.State.Units.Any(u =>
+            u.Id == f.Id && u.TypeId == UnitTypeIds.Troll));
     }
 
     [Fact]
@@ -756,11 +778,14 @@ public sealed class PlaytestApiTests
         for (var round = 0; round < 3; round++)
         {
             result = await FinishRound(host, await host.Round(result.Revision));
-            var attempts = result.Result.Events.Where(e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId!.StartsWith("troll-")).ToArray();
+            var attempts = result.Result.Events.Where(e => e.Kind == "DoorOpeningAttemptResolved" && result.Result.State.Units.Any(u =>
+                u.Id == e.UnitId && u.TypeId == UnitTypeIds.Troll)).ToArray();
             Assert.NotEmpty(attempts);
             Assert.All(attempts, e => Assert.False(e.Succeeded));
-            Assert.All(result.Result.State.Physical.Figures.Where(f => f.Id.StartsWith("troll-")), f => Assert.InRange(f.Position.Y, 0, 1));
-            Assert.DoesNotContain(result.Result.Events, e => e.Kind == "DoorOpened" && e.UnitId!.StartsWith("troll-"));
+            Assert.All(result.Result.State.Physical.Figures.Where(f => result.Result.State.Units.Any(u =>
+                u.Id == f.Id && u.TypeId == UnitTypeIds.Troll)), f => Assert.InRange(f.Position.Y, 0, 1));
+            Assert.DoesNotContain(result.Result.Events, e => e.Kind == "DoorOpened" && result.Result.State.Units.Any(u =>
+                u.Id == e.UnitId && u.TypeId == UnitTypeIds.Troll));
         }
     }
 
@@ -770,13 +795,13 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start(hit: true);
         var started = await host.Round(0);
         var moved = await host.Decide(started.Revision, "6,8");
-        Assert.Equal(5, moved.Result.State.EffectiveAtkOf("barbarian"));
-        var attacked = await host.Decide(moved.Revision, "attack:grunt-2");
+        Assert.Equal(5, moved.Result.State.EffectiveAtkOf(Barbarian));
+        var attacked = await host.Decide(moved.Revision, $"attack:{Grunt2}");
         Assert.Equal(5, attacked.Result.Events.First(e => e.Kind == "AttackResolved").Damage);
         Assert.Equal(DecisionKind.Cleave, attacked.Result.NextInput!.Kind);
-        Assert.Contains(attacked.Result.NextInput.Candidates, c => c.Key == "cleave:archer-1");
-        var cleaved = await host.Decide(attacked.Revision, "cleave:archer-1");
-        Assert.Contains(cleaved.Result.Events, e => e.Kind == "CleaveResolved" && e.TargetId == "archer-1");
+        Assert.Contains(attacked.Result.NextInput.Candidates, c => c.Key == $"cleave:{Archer1}");
+        var cleaved = await host.Decide(attacked.Revision, $"cleave:{Archer1}");
+        Assert.Contains(cleaved.Result.Events, e => e.Kind == "CleaveResolved" && e.TargetId == Archer1);
     }
 
     [Fact]
@@ -785,11 +810,11 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         var moved = await host.Decide((await host.Round(0)).Revision, "6,8");
         var rogue = await host.Decide(moved.Revision, "end-turn");
-        Assert.Equal("rogue", rogue.Result.NextInput!.UnitId);
+        Assert.Equal(Rogue, rogue.Result.NextInput!.UnitId);
         var flanked = await host.Decide(rogue.Revision, "6,9");
-        Assert.Contains(flanked.Result.NextInput!.Candidates, c => c.Key == "attack:grunt-2");
-        Assert.Equal(4, flanked.Result.State.EffectiveAtkAgainst("rogue", "grunt-2"));
-        Assert.Equal(3, flanked.Result.State.EffectiveAtkOf("rogue"));
+        Assert.Contains(flanked.Result.NextInput!.Candidates, c => c.Key == $"attack:{Grunt2}");
+        Assert.Equal(4, flanked.Result.State.EffectiveAtkAgainst(Rogue, Grunt2));
+        Assert.Equal(3, flanked.Result.State.EffectiveAtkOf(Rogue));
     }
 
     [Fact]
@@ -799,22 +824,22 @@ public sealed class PlaytestApiTests
         using var preference = await host.Post("preferences", new { expectedRevision = 0, autoChooseSingleRelevantChoice = false });
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var result = await host.Round(changed.Revision);
-        foreach (var id in new[] { "barbarian", "rogue" })
+        foreach (var id in new[] { Barbarian, Rogue })
         {
             Assert.Equal(id, result.Result.NextInput!.UnitId);
             result = await host.Decide(result.Revision, "stay");
             result = await host.Decide(result.Revision, "end-turn");
         }
-        Assert.Equal("cleric", result.Result.NextInput!.UnitId);
+        Assert.Equal(Cleric, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "stay");
-        result = await host.Decide(result.Revision, "heal:wizard");
-        Assert.Contains(result.Result.Events, e => e.Kind == "HealResolved" && e.TargetId == "wizard" && e.Healing == 2);
-        Assert.Equal(4, result.Result.State.Units.Single(u => u.Id == "wizard").CurrentHp);
+        result = await host.Decide(result.Revision, $"heal:{Wizard}");
+        Assert.Contains(result.Result.Events, e => e.Kind == "HealResolved" && e.TargetId == Wizard && e.Healing == 2);
+        Assert.Equal(4, result.Result.State.Units.Single(u => u.Id == Wizard).CurrentHp);
         result = await host.Decide(result.Revision, "4,8");
         var fireball = result.Result.NextInput!.Candidates.Single(c => c.Key == "fireball:6,8");
-        Assert.Equal(new[] { "archer-1", "grunt-2" }, fireball.TargetIds.OrderBy(id => id));
+        Assert.Equal(new[] { Archer1, Grunt2 }.OrderBy(id => id), fireball.TargetIds.OrderBy(id => id));
         var resolved = await host.Decide(result.Revision, fireball.Key);
-        Assert.All(new[] { "archer-1", "grunt-2" }, id => Assert.Contains(resolved.Result.Events, e => e.Kind == "UnitDied" && e.UnitId == id));
+        Assert.All(new[] { Archer1, Grunt2 }, id => Assert.Contains(resolved.Result.Events, e => e.Kind == "UnitDied" && e.UnitId == id));
     }
 
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)

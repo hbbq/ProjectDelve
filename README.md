@@ -77,7 +77,27 @@ The Web host serves a plain HTML/CSS/JavaScript client and six server-owned play
 | `full-party-trolls` | Full Party / Trolls | 15x15 | All four Heroes; Goblins, Skeleton Archers, Zombies and Trolls |
 | `shaman-hunt` | Shaman Hunt | 15x15 | All four Heroes; Shaman, Grunt and a 2x2 Red Dragon, with no initial Goblins |
 
-Basic Combat is the startup default. Select a setup, click **Start selected**, then **Start round**. The scenarios explicitly assign their current Heroes to human control and their Monsters to `DefaultAutomatedProvider`. Confirm each human-owned Attack, Defence, or door check with **Roll Dice**. Completed rounds wait for **Start next round**. These are test content with no victory conditions or progression. Exact maps and placements are editable factories in `ProjectDelve.Web/PlaytestScenarios.cs`; the browser receives catalog metadata and authoritative game snapshots.
+Basic Combat is the startup default. Select a setup, click **Start selected**, then **Start round**. The scenarios explicitly assign their current Heroes to human control and their Monsters to `DefaultAutomatedProvider`. Confirm each human-owned Attack, Defence, or door check with **Roll Dice**. Completed rounds wait for **Start next round**. These are test content with no victory conditions or progression. Exact maps and placements are editable definitions in `ProjectDelve.Web/PlaytestScenarios.cs`; the browser receives catalog metadata and authoritative game snapshots.
+
+Scenarios use a separate initial-setup data boundary: `ScenarioDefinition` contains a `BoardDefinition`, ordered `UnitTypeIds`, anchor-based Unit placements, and explicit agency per Unit Type + Side. The board has a default terrain plus sparse Cell overrides and internal Edges identified by `Position + Direction`, with only `Right` and `Down` directions. Placement supports initial Posture and an optional `InitialHp`; normal HP and all ability uses otherwise come from canonical Unit content. Runtime identity and activation progress are not scenario data.
+
+The small `Scenario` authoring helpers expand groups and map partitions into that concrete definition:
+
+```csharp
+using static ProjectDelve.Engine.Scenario;
+
+var definition = Define(
+    board: Map(8, 8, cells: [Tile(3, 2, TerrainKind.Tree)]),
+    groups: [
+        Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(1, 4)),
+        Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(4, 4), At(4, 3))
+    ]);
+var state = GameEngine.CreateGame(definition);
+```
+
+`Define` derives normal Type order from first group occurrence; its optional `unitTypeIds` argument preserves explicitly authored order and unplaced Types. `GameEngine.CreateGame` resolves canonical IDs, validates data and normal full-footprint setup legality, and returns independent mutable round-zero state with deterministic generated Unit IDs. It does not draw tokens or invoke providers; `StartRound` still initializes the activation bag and advances play. Catalog presentation remains separate. The console detour and courtyard API fixture use the same creation boundary, including the courtyard's wounded Wizard and unplaced Goblin Type. Scenario JSON and import/export are not implemented.
+
+Map authoring uses `Vertical(x, top, bottom, kind)`, `Horizontal(y, left, right, kind)`, and `Room(left, top, right, bottom, kind = EdgeKind.Wall)` to generate complete lines or room sides. Doors and windows are explicit later entries such as `Edge(7, 3, EdgeDirection.Right, EdgeKind.ClosedDoor)`. `Map` applies later entries with the same Position and Direction while retaining the first list position for that identity. `Tiles(TerrainKind.Tree, At(5, 4), At(3, 12))` expands several positions into concrete Cell overrides. The resulting definition contains only concrete Cells and unique Edges; duplicate Edges or Cell overrides in directly constructed definitions remain invalid. Game creation rejects undefined directions, out-of-bounds positions, Right edges in the last column, and Down edges in the last row; there are no exterior-boundary edge definitions.
 
 Across the catalog, the roster includes all twelve current Unit Types (stats in MOV / RNG / ATK / DEF / HP order):
 

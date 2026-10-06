@@ -121,9 +121,9 @@ public sealed class ScenarioTests
         var state = changed.Result.State;
         state.Units[0] = state.Units[0] with { CurrentHp = 1, CleaveUses = new(2, 0),
             BonusActionUses = state.Units[0].BonusActionUses.SetItem("Rage", new(2, 0)) };
-        var clericIndex = state.Units.FindIndex(u => u.Id == "cleric");
+        var clericIndex = state.Units.FindIndex(u => u.TypeId == UnitTypeIds.Cleric);
         state.Units[clericIndex] = state.Units[clericIndex] with { HealUses = new(2, 0), HolyWaveUses = new(2, 0) };
-        var wizardIndex = state.Units.FindIndex(u => u.Id == "wizard");
+        var wizardIndex = state.Units.FindIndex(u => u.TypeId == UnitTypeIds.Wizard);
         state.Units[wizardIndex] = state.Units[wizardIndex] with { FireballUses = new(2, 0) };
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Position = new(0, 0), Posture = Posture.Lying };
         for (var i = 0; i < state.Physical.Board.Edges.Count; i++)
@@ -132,10 +132,11 @@ public sealed class ScenarioTests
         state.Units.Add(UnitType.Goblin().CreateUnit("spawned", "red"));
         state.Physical.Figures.Add(new("spawned", new(0, 1), Posture.Lying));
         state.Round = 9; state.Bag.Add(new("goblin-type", "red")); state.ActiveToken = new("barbarian-type", state.Units.First(u => u.TypeId == "barbarian-type").SideId);
-        state.CurrentUnitId = "barbarian"; state.MoveDone = true; state.ActionDone = true;
-        state.CompletedUnitIds.Add("rogue"); state.CleavePending = true; state.MoveAfterAttackAllowance = 1;
+        var barbarianId = state.Units.Single(u => u.TypeId == UnitTypeIds.Barbarian).Id;
+        state.CurrentUnitId = barbarianId; state.MoveDone = true; state.ActionDone = true;
+        state.CompletedUnitIds.Add(state.Units.Single(u => u.TypeId == UnitTypeIds.Rogue).Id); state.CleavePending = true; state.MoveAfterAttackAllowance = 1;
         state.BonusActionsUsedThisActivation.Add("Rage"); state.ModifiersThisTurn.Add(new(Stat.Atk, 2));
-        state.Pending = new(DecisionKind.Cleave, "barbarian-type", "barbarian", [], true);
+        state.Pending = new(DecisionKind.Cleave, UnitTypeIds.Barbarian, barbarianId, [], true);
         var restored = game.Restart(changed.Revision);
         Assert.Equal(expected, Serialize(restored.Result.State));
         Assert.Null(restored.Result.NextInput);
@@ -154,7 +155,10 @@ public sealed class ScenarioTests
         if (cleave)
         {
             active = game.Decide(active.Revision, "3,4");
-            active = game.Decide(active.Revision, "attack:grunt-1");
+            var target = active.Result.State.Units.Single(u => u.TypeId == UnitTypeIds.Grunt &&
+                active.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(4, 4));
+            active = game.Decide(active.Revision, active.Result.NextInput!.Candidates.Single(c =>
+                c.Action == UnitAction.NormalAttack && c.TargetId == target.Id).Key);
             while (active.Result.NextInput?.Kind == DecisionKind.RollDice) active = game.Decide(active.Revision, "roll-dice");
             Assert.Equal(DecisionKind.Cleave, active.Result.NextInput!.Kind);
             Assert.True(active.Result.State.CleavePending);
@@ -166,7 +170,8 @@ public sealed class ScenarioTests
         Assert.Null(replaced.Result.NextInput);
         Assert.Equal(409, Assert.Throws<PlaytestRequestException>(() => game.Decide(active.Revision, "end-turn")).StatusCode);
         Assert.Equal(409, Assert.Throws<PlaytestRequestException>(() => game.Decide(replaced.Revision, "end-turn")).StatusCode);
-        Assert.Equal("barbarian", game.StartRound(replaced.Revision).Result.NextInput!.UnitId);
+        Assert.Equal(replaced.Result.State.Units.Single(u => u.TypeId == UnitTypeIds.Barbarian).Id,
+            game.StartRound(replaced.Revision).Result.NextInput!.UnitId);
     }
 
     [Fact]
@@ -187,8 +192,9 @@ public sealed class ScenarioTests
         var initial = game.StartScenario(0, "shaman-hunt");
         Assert.DoesNotContain(initial.Result.State.Units, u => u.TypeId == "goblin-type");
         Assert.DoesNotContain(initial.Result.State.Types, t => t.Id == "goblin-type");
+        var shamanId = Assert.Single(initial.Result.State.Units, u => u.TypeId == UnitTypeIds.Shaman).Id;
         var round = game.StartRound(initial.Revision);
-        var move = Assert.Single(round.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == "shaman-1");
+        var move = Assert.Single(round.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == shamanId);
         Assert.NotEqual(move.Path![0], move.Path[^1]);
         var createdIndex = round.Result.Events.FindIndex(e => e.Kind == "UnitCreated");
         Assert.True(createdIndex >= 0);
@@ -216,6 +222,10 @@ public sealed class ScenarioTests
     {
         var game = new PlaytestGame(new Random());
         var initial = game.StartScenario(0, id);
+        var zombieId = initial.Result.State.Units.Single(u => u.TypeId == UnitTypeIds.Zombie &&
+            initial.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(8, 3)).Id;
+        var trollId = initial.Result.State.Units.SingleOrDefault(u => u.TypeId == UnitTypeIds.Troll &&
+            initial.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(9, 11))?.Id;
         var result = game.StartRound(initial.Revision);
         var events = new List<RulesEvent>(result.Result.Events);
         while (result.Result.NextInput is { } pending)
@@ -223,9 +233,9 @@ public sealed class ScenarioTests
             result = game.Decide(result.Revision, pending.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice).Key);
             events.AddRange(result.Result.Events);
         }
-        Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == "zombie-1");
+        Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == zombieId);
         if (id == "full-party-trolls")
-            Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == "troll-1");
+            Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == trollId);
         var earlier = PlaytestScenarios.Create("wizard-doors").Physical.Board.Edges;
         var later = PlaytestScenarios.Create("full-party-trolls").Physical.Board.Edges;
         Assert.True(later.Count(e => e.Kind == EdgeKind.Wall) > earlier.Count(e => e.Kind == EdgeKind.Wall));

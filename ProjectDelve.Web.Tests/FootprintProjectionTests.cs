@@ -46,15 +46,15 @@ public sealed class FootprintProjectionTests
     public void DragonFitsShamanHuntAndUsesOrdinaryMonsterQueries()
     {
         var state = PlaytestScenarios.Create("shaman-hunt");
-        Assert.Single(state.Units.Where(u => u.TypeId == UnitTypeIds.RedDragon));
-        Assert.Single(state.Physical.Figures.Where(f => f.Id == "red-dragon"));
-        Assert.Equal(4, FootprintGeometry.OccupiedCells(state, "red-dragon").Count);
+        var dragonId = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.RedDragon).Id;
+        Assert.Single(state.Physical.Figures.Where(f => f.Id == dragonId));
+        Assert.Equal(4, FootprintGeometry.OccupiedCells(state, dragonId).Count);
         var start = TestGame.StartRound(state, new Dice(), false);
-        Assert.Equal("red-dragon", start.State.CurrentUnitId);
+        Assert.Equal(dragonId, start.State.CurrentUnitId);
         Assert.Contains(start.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Move);
         var move = TestGame.Advance(start.State, new DefaultAutomatedProvider(), new Dice(), false);
-        Assert.Contains(move.Events, e => e.Kind == "MovementCompleted" && e.UnitId == "red-dragon");
-        Assert.Equal(4, BrowserProjection.Create(move).Figures["red-dragon"].OccupiedCells.Count);
+        Assert.Contains(move.Events, e => e.Kind == "MovementCompleted" && e.UnitId == dragonId);
+        Assert.Equal(4, BrowserProjection.Create(move).Figures[dragonId].OccupiedCells.Count);
         Assert.DoesNotContain(state.Units, u => u.TypeId == UnitTypeIds.Goblin);
     }
 
@@ -62,11 +62,12 @@ public sealed class FootprintProjectionTests
     public void DeathSnapshotRemovesOneWholeProjectedFigure()
     {
         var state = PlaytestScenarios.Create("shaman-hunt");
+        var dragonId = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.RedDragon).Id;
         var before = BrowserProjection.Figures(state);
-        state.Physical.Figures.RemoveAll(f => f.Id == "red-dragon");
+        state.Physical.Figures.RemoveAll(f => f.Id == dragonId);
         var after = BrowserProjection.Figures(state);
-        Assert.Equal(4, before["red-dragon"].OccupiedCells.Count);
-        Assert.False(after.ContainsKey("red-dragon"));
+        Assert.Equal(4, before[dragonId].OccupiedCells.Count);
+        Assert.False(after.ContainsKey(dragonId));
         Assert.Equal(before.Count - 1, after.Count);
     }
 

@@ -4,6 +4,9 @@ namespace ProjectDelve.Engine;
 
 public static class GameEngine
 {
+    // Creates validated initial setup only; StartRound owns activation initialization and randomness.
+    public static GameState CreateGame(ScenarioDefinition definition) => ScenarioCreation.Create(definition);
+
     public static EngineResult StartRound(GameState previous, IRandomProvider random, bool autoChooseSingleRelevantChoice = true)
     {
         if (previous.Round != 0 && !previous.RoundComplete)
@@ -801,7 +804,7 @@ public static class GameEngine
         }
     }
 
-    private static void ValidateScenario(GameState state)
+    internal static void ValidateScenario(GameState state)
     {
         var board = state.Physical.Board;
         if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||

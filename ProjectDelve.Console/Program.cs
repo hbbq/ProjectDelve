@@ -1,5 +1,7 @@
 using ProjectDelve.Engine;
 using ProjectDelve.ConsoleHost;
+using static ProjectDelve.Engine.Scenario;
+using static ProjectDelve.Engine.EdgeDirection;
 
 Console.WriteLine("Project Delve: exploratory rounds. Hero decisions are manual; Monster decisions are automatic.");
 Console.WriteLine("Tokens are drawn automatically; controllers continue each dice pool. Coordinates start at top-left (0,0).");
@@ -7,22 +9,20 @@ Console.WriteLine("Detour scenario: walls and a closed door divide the board; ro
 Console.WriteLine("Choose 0 to keep the Hero at (4,2) and observe the Monsters approach over successive rounds.");
 Console.WriteLine("Barbarian faces two Grunts. The closed door blocks both sides; use the open end routes.");
 
-var state = new GameState
-{
-    Physical = new PhysicalState(new Board(6, 5,
-        [new Edge(new Cell(2, 1), new Cell(3, 1), EdgeKind.Wall),
-            new Edge(new Cell(2, 2), new Cell(3, 2), EdgeKind.ClosedDoor),
-            new Edge(new Cell(2, 3), new Cell(3, 3), EdgeKind.Wall),
-            // The tempting cell (2,2) is a dead end, entered only from the left.
-            new Edge(new Cell(2, 1), new Cell(2, 2), EdgeKind.Wall),
-            new Edge(new Cell(2, 2), new Cell(2, 3), EdgeKind.Wall)]),
-        [new Figure("hero", new Cell(4, 2)), new Figure("monster-1", new Cell(1, 2)),
-            new Figure("monster-2", new Cell(1, 3))]),
-    Controllers = [new(new(UnitTypeIds.Barbarian, "blue"), ControllerKind.Human), new(new(UnitTypeIds.Grunt, "red"), ControllerKind.Automated)],
-    Types = [UnitType.Barbarian(), UnitType.Grunt()],
-    Units = [UnitType.Barbarian().CreateUnit("hero", "blue"), new Unit("monster-1", "grunt-type", "red", 1),
-        new Unit("monster-2", "grunt-type", "red", 1)]
-};
+var definition = Define(
+    board: Map(6, 5, edges: [
+        Edge(2, 1, Right, EdgeKind.Wall),
+        Edge(2, 2, Right, EdgeKind.ClosedDoor),
+        Edge(2, 3, Right, EdgeKind.Wall),
+        // The tempting cell (2,2) is a dead end, entered only from the left.
+        Edge(2, 1, Down, EdgeKind.Wall),
+        Edge(2, 2, Down, EdgeKind.Wall)
+    ]),
+    groups: [
+        Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(4, 2)),
+        Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(1, 2), At(1, 3))
+    ]);
+var state = GameEngine.CreateGame(definition);
 var manualDecisions = new ConsoleDecisionProvider();
 var automatedDecisions = new DefaultAutomatedProvider();
 var random = new ConsoleRandomProvider();
@@ -79,11 +79,10 @@ static void ShowState(GameState state)
         for (var x = 0; x < board.Width; x++)
         {
             var figure = state.Physical.Figures.FirstOrDefault(f => FootprintGeometry.OccupiedCells(state, f.Id).Contains(new Cell(x, y)));
-            var symbol = figure?.Id switch
+            var symbol = state.Units.SingleOrDefault(u => u.Id == figure?.Id)?.TypeId switch
             {
-                "hero" => "H",
-                "monster-1" => "M1",
-                "monster-2" => "M2",
+                UnitTypeIds.Barbarian => "H",
+                UnitTypeIds.Grunt => "G",
                 _ => "."
             };
             Console.Write($"{symbol,-3}");
@@ -105,7 +104,7 @@ static void ShowState(GameState state)
         }
         Console.WriteLine();
     }
-    Console.WriteLine("H = hero, M1 = monster-1, M2 = monster-2, . = Floor");
+    Console.WriteLine("H = Barbarian, G = Grunt, . = Floor");
     Console.WriteLine("# = wall, D = closed door (impassable), o = open door; blank edges are open.");
     foreach (var unit in state.Units)
     {

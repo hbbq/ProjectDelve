@@ -16,7 +16,7 @@ public static class UnitTypeIds
     public const string Wizard = "wizard-type";
 }
 
-// Narrow canonical lookup for concrete summoning; existing game definitions take priority.
+// Canonical lookup for initial setup and concrete summoning; existing game definitions take priority.
 internal static class UnitContent
 {
     internal static UnitType? Find(string id, IReadOnlyList<UnitType>? existing = null) =>
