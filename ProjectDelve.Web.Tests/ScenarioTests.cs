@@ -282,5 +282,8 @@ public sealed class ScenarioTests
         Assert.Contains("id=\"scenario\"", html);
         Assert.Contains("id=\"start-scenario\"", html);
         Assert.Contains("id=\"restart-scenario\"", html);
+        Assert.Contains("id=\"scenario-transport\"", html);
+        Assert.Contains("id=\"import-scenario\"", html);
+        Assert.Contains("replaceScenario(\"scenario/import\", { transport: ui[\"scenario-transport\"].value.trim() })", script);
     }
 }

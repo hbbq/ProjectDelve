@@ -1,4 +1,5 @@
 using ProjectDelve.Engine;
+using System.Text.Json;
 
 namespace ProjectDelve.Web;
 
@@ -10,12 +11,13 @@ public sealed class PlaytestGame
     private readonly IRandomProvider random;
     private GameState state;
     private string scenarioId = PlaytestScenarios.DefaultId;
+    private ScenarioDefinition scenarioDefinition = PlaytestScenarios.Definition(PlaytestScenarios.DefaultId);
     private long revision;
     private bool autoChooseSingleRelevantChoice = true;
 
     public PlaytestGame(IRandomProvider random) : this(random, PlaytestScenarios.Create(PlaytestScenarios.DefaultId)) { }
 
-    // Test seam for focused rule fixtures; production setups always come from the catalog.
+    // Test seam for focused rule fixtures.
     internal PlaytestGame(IRandomProvider random, GameState initialState)
     {
         this.random = random;
@@ -29,16 +31,43 @@ public sealed class PlaytestGame
             CheckRevision(expectedRevision);
             if (!PlaytestScenarios.Catalog.Any(s => s.Id == id))
                 throw new PlaytestRequestException(400, "Choose an available scenario.");
-            state = PlaytestScenarios.Create(id);
-            scenarioId = id;
-            revision++;
-            return Snapshot();
+            return StartDefinition(PlaytestScenarios.Definition(id), id);
         }
+    }
+
+    public GameResponse StartTransportScenario(long expectedRevision, string transport)
+    {
+        lock (gate)
+        {
+            CheckRevision(expectedRevision);
+            ScenarioDefinition definition;
+            try { definition = ScenarioDefinitionTransport.Decode(transport); }
+            catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)
+            {
+                throw new PlaytestRequestException(400, "Could not load scenario. Paste a valid DELVE1 scenario string.");
+            }
+            return StartDefinition(definition, "imported");
+        }
+    }
+
+    // Both sources enter the same round-zero creation boundary before replacing the game.
+    private GameResponse StartDefinition(ScenarioDefinition definition, string id)
+    {
+        var initialState = GameEngine.CreateGame(definition);
+        state = initialState;
+        scenarioDefinition = definition;
+        scenarioId = id;
+        revision++;
+        return Snapshot();
     }
 
     public GameResponse Restart(long expectedRevision)
     {
-        lock (gate) return StartScenario(expectedRevision, scenarioId);
+        lock (gate)
+        {
+            CheckRevision(expectedRevision);
+            return StartDefinition(scenarioDefinition, scenarioId);
+        }
     }
 
     public GameResponse Snapshot()

@@ -37,6 +37,114 @@ public sealed class PlaytestApiTests
         Converters = { new JsonStringEnumConverter() }
     };
 
+    [Theory]
+    [InlineData("basic-combat")]
+    [InlineData("full-party-trolls")]
+    public async Task ImportedScenarioUsesNormalCreationGameplayAndRestart(string id)
+    {
+        await using var catalogHost = await Host.Start(hit: true);
+        await using var importHost = await Host.Start(hit: true);
+        var definition = PlaytestScenarios.Definition(id);
+        var catalog = await Start(catalogHost, "scenario", new { expectedRevision = 0, scenarioId = id });
+        var imported = await Start(importHost, "scenario/import", new
+        {
+            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(definition)
+        });
+        Assert.Equal("imported", imported.ScenarioId);
+        Assert.Equal(1, imported.Revision);
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition), imported.Result.State);
+        Assert.Empty(imported.Result.Events);
+        Assert.Empty(imported.Result.ResolutionSteps);
+        Assert.Null(imported.Result.NextInput);
+
+        catalog = await Start(catalogHost, "preferences", new { expectedRevision = catalog.Revision, autoChooseSingleRelevantChoice = false });
+        imported = await Start(importHost, "preferences", new { expectedRevision = imported.Revision, autoChooseSingleRelevantChoice = false });
+        catalog = await Start(catalogHost, "round", new { expectedRevision = catalog.Revision });
+        imported = await Start(importHost, "round", new { expectedRevision = imported.Revision });
+        var sawDice = false;
+        for (var decisions = 0; ; decisions++)
+        {
+            Assert.Equal(JsonSerializer.Serialize(catalog.Result, Json), JsonSerializer.Serialize(imported.Result, Json));
+            Assert.Equal(JsonSerializer.Serialize(catalog.Presentation, Json), JsonSerializer.Serialize(imported.Presentation, Json));
+            Assert.Equal(catalog.Revision, imported.Revision);
+            if (imported.Result.NextInput is not { } pending) break;
+            Assert.True(decisions < 128, "The imported and catalog games must finish a round.");
+            Assert.Equal(ControllerKind.Human, imported.Result.State.ControllerFor(pending));
+            sawDice |= pending.Kind == DecisionKind.RollDice;
+            // Basic Combat walks into range and attacks to exercise explicit dice continuations.
+            var key = id == "basic-combat" ? pending.Candidates.FirstOrDefault(c =>
+                c.Key == "3,4" || c.Action == UnitAction.NormalAttack)?.Key : null;
+            key ??= pending.Candidates.FirstOrDefault(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice)?.Key;
+            catalog = await Start(catalogHost, "decision", new { expectedRevision = catalog.Revision, candidateKey = key });
+            imported = await Start(importHost, "decision", new { expectedRevision = imported.Revision, candidateKey = key });
+        }
+        Assert.True(imported.Result.State.RoundComplete);
+        if (id == "basic-combat") Assert.True(sawDice);
+        var fresh = await Start(importHost, "restart", new { expectedRevision = imported.Revision });
+        Assert.Equal("imported", fresh.ScenarioId);
+        Assert.False(fresh.AutoChooseSingleRelevantChoice);
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition), fresh.Result.State);
+
+        // Switching back to the catalog also replaces the retained restart definition.
+        var selected = await Start(importHost, "scenario", new { expectedRevision = fresh.Revision, scenarioId = "archers" });
+        var restarted = await Start(importHost, "restart", new { expectedRevision = selected.Revision });
+        Assert.Equal("archers", restarted.ScenarioId);
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(PlaytestScenarios.Create("archers"), restarted.Result.State);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not a scenario")]
+    [InlineData("DELVE2:abc")]
+    [InlineData("DELVE1:!")]
+    [InlineData("DELVE1:YWJj")]
+    [InlineData("invalid-definition")]
+    public async Task RejectedImportReturnsClientErrorAndPreservesActiveGame(string? transport)
+    {
+        await using var host = await Host.Start();
+        if (transport == "invalid-definition")
+        {
+            var definition = PlaytestScenarios.Definition("full-party-trolls");
+            transport = ScenarioDefinitionTransport.Encode(definition with { Board = definition.Board with { Width = 0 } });
+        }
+        var initial = await Start(host, "scenario/import", new
+        {
+            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(PlaytestScenarios.Definition("basic-combat"))
+        });
+        var active = await host.Round(initial.Revision);
+        var before = JsonSerializer.Serialize(await host.Read(), Json);
+        using var rejected = await host.Post("scenario/import", new { expectedRevision = active.Revision, transport });
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        using var problem = JsonDocument.Parse(await rejected.Content.ReadAsStringAsync());
+        Assert.Equal("Could not load scenario. Paste a valid DELVE1 scenario string.", problem.RootElement.GetProperty("detail").GetString());
+        Assert.Equal(before, JsonSerializer.Serialize(await host.Read(), Json));
+        var continued = await host.Decide(active.Revision, "stay");
+        Assert.True(continued.Revision > active.Revision);
+        var restarted = await Start(host, "restart", new { expectedRevision = continued.Revision });
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(initial.Result.State, restarted.Result.State);
+    }
+
+    [Fact]
+    public async Task StaleImportKeepsRevisionConflictSemantics()
+    {
+        await using var host = await Host.Start();
+        var active = await host.Round(0);
+        using var rejected = await host.Post("scenario/import", new
+        {
+            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(PlaytestScenarios.Definition("full-party-trolls"))
+        });
+        Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
+        Assert.Equal(JsonSerializer.Serialize(active.Result.State, Json), JsonSerializer.Serialize((await host.Read()).Result.State, Json));
+    }
+
+    private static async Task<GameResponse> Start(Host host, string operation, object body)
+    {
+        using var response = await host.Post(operation, body);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+    }
+
     [Fact]
     public async Task HttpSuppliesDomainCardsAndCompleteDirectChoiceWithProgressivePresentation()
     {

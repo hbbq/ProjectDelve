@@ -26,6 +26,8 @@ public static class PlaytestHost
         });
         app.MapPost("/api/game/scenario", (ScenarioRequest request, PlaytestGame game) =>
             Mutate(() => game.StartScenario(request.ExpectedRevision, request.ScenarioId)));
+        app.MapPost("/api/game/scenario/import", (ScenarioImportRequest request, PlaytestGame game) =>
+            Mutate(() => game.StartTransportScenario(request.ExpectedRevision, request.Transport)));
         app.MapPost("/api/game/restart", (RoundRequest request, PlaytestGame game) =>
             Mutate(() => game.Restart(request.ExpectedRevision)));
         app.MapPost("/api/game/round", (RoundRequest request, PlaytestGame game) =>
@@ -56,6 +58,12 @@ public sealed record ScenarioRequest
 public sealed record RoundRequest
 {
     public required long ExpectedRevision { get; init; }
+}
+
+public sealed record ScenarioImportRequest
+{
+    public required long ExpectedRevision { get; init; }
+    public required string Transport { get; init; }
 }
 
 public sealed record DecisionSubmission

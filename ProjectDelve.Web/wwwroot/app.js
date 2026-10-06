@@ -1,4 +1,4 @@
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -286,7 +286,7 @@ function renderSnapshot() {
       }
     }
     if (renderedScenarioId !== snapshot.scenarioId) {
-      ui.scenario.value = snapshot.scenarioId;
+      if (snapshot.scenarios.some(s => s.id === snapshot.scenarioId)) ui.scenario.value = snapshot.scenarioId;
       latestUnitId = null;
       renderedScenarioId = snapshot.scenarioId;
     }
@@ -386,6 +386,7 @@ function updateControls() {
   ui.scenario.disabled = !snapshot;
   ui["start-scenario"].disabled = !snapshot;
   ui["restart-scenario"].disabled = !snapshot;
+  ui["import-scenario"].disabled = !snapshot;
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
   ui.auto.disabled = busy || !snapshot;
@@ -436,6 +437,7 @@ async function mutate(operation, body = {}) {
   try {
     // Present from the previous visible state, advancing only with engine snapshots.
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
+    if (["scenario", "scenario/import", "restart"].includes(operation)) latestUnitId = null;
     ui.events.replaceChildren();
     const steps = new Map(snapshot.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
     for (const [index, event] of snapshot.presentation.events.entries()) {
@@ -463,7 +465,7 @@ async function mutate(operation, body = {}) {
     }
   } catch (error) {
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
-    ui.dice.replaceChildren();
+    if (operation !== "scenario/import") ui.dice.replaceChildren();
     try { snapshot = await request(""); }
     catch { ui.error.textContent = `${error.message} Refresh to reconnect before choosing again.`; snapshot = null; }
   } finally {
@@ -481,7 +483,7 @@ async function mutate(operation, body = {}) {
 function describeScenario() {
   const current = snapshot?.scenarios?.find(s => s.id === snapshot.scenarioId);
   const selected = snapshot?.scenarios?.find(s => s.id === ui.scenario.value);
-  ui["scenario-description"].textContent = current ? `Current: ${current.name}. ${selected?.description ?? ""}` : "";
+  ui["scenario-description"].textContent = snapshot ? `Current: ${current?.name ?? "Imported scenario"}. ${selected?.description ?? ""}` : "";
 }
 
 async function replaceScenario(operation, body = {}) {
@@ -491,7 +493,6 @@ async function replaceScenario(operation, body = {}) {
     skipEffects = true; cancelPause?.();
     return;
   }
-  latestUnitId = null;
   await mutate(operation, body);
 }
 
@@ -674,6 +675,7 @@ function updateCoordinates() {
 ui.scenario.addEventListener("change", describeScenario);
 ui["start-scenario"].addEventListener("click", () => replaceScenario("scenario", { scenarioId: ui.scenario.value }));
 ui["restart-scenario"].addEventListener("click", () => replaceScenario("restart"));
+ui["import-scenario"].addEventListener("click", () => replaceScenario("scenario/import", { transport: ui["scenario-transport"].value.trim() }));
 ui.filter.addEventListener("change", renderSnapshot);
 ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingleRelevantChoice: ui.auto.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);

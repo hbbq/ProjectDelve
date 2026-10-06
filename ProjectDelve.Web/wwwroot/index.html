@@ -21,6 +21,11 @@
         <button id="start-scenario" disabled>Start selected</button>
         <button id="restart-scenario" disabled>Restart current</button>
       </div>
+      <div class="toolbar scenario-import" aria-label="Import scenario">
+        <label for="scenario-transport">DELVE1 scenario</label>
+        <textarea id="scenario-transport" rows="2" placeholder="Paste DELVE1:..." spellcheck="false"></textarea>
+        <button id="import-scenario" disabled>Load scenario</button>
+      </div>
       <div id="board" aria-label="Dungeon board"></div>
       <details class="board-legend"><summary>Board legend</summary>
       <p class="legend">Figures abbreviate Unit names; hover to inspect. Colour distinguishes Sides; tokens show their Side names. Dark edge: wall | Gold: closed door | Dashed green: open door</p>

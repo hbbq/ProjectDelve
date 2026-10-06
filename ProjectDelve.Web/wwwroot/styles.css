@@ -64,6 +64,10 @@ button:disabled { opacity: .45; cursor: default; }
 .board-chooser small { width: 100%; }
 .card-ability p { white-space: pre-line; }
 .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scenario-import { margin: 8px 0 12px; }
+.scenario-import textarea { flex: 1; min-width: 180px; resize: vertical; background: #35455e;
+  border: 1px solid #7c91af; color: white; padding: 9px 12px; border-radius: 5px; font: inherit; }
+.scenario-import textarea:focus-visible { outline: 3px solid #ffe084; }
 #effect { min-height: 1.5em; color: #ffe084; } #error { color: #ffaaa4; min-height: 1.5em; }
 #events { max-height: 250px; overflow: auto; padding-left: 24px; font-size: .9rem; }
 footer { margin-top: 24px; }
