@@ -60,6 +60,21 @@ Treat these as current capabilities rather than future ideas:
 - The level designer can build, validate, import, export, and play ScenarioDefinition-based scenarios.
 - Sides are arbitrary and controller/agency is separate from Side; scenarios are not inherently limited to two opposing factions.
 
+### Prototyping new automated Units
+
+A new enemy or other eventually-automated Unit Type does **not** need a finished Behavior before it can be proposed, implemented, or playtested.
+
+Use the separation between Side and controller/agency as a prototyping tool:
+
+- put the new Unit on its intended Side but give its `(UnitType, Side)` group Human control;
+- play the Unit manually to test its stats, abilities, movement, interactions, and any new mechanic first;
+- observe what choices make the Unit interesting and what tactical priorities emerge;
+- only then encode those priorities as Behavior and switch the group to Automated control.
+
+When useful, put Human-controlled and Automated groups of the same Unit Type on different Sides and play them against each other. This can expose where the current Behavior differs from how the Unit is naturally played.
+
+Do not reject or complicate a new Unit idea merely because its automated policy is not known yet. Unit design, rule/mechanic design, and Behavior design can be separate experiments.
+
 Ideas may build on these capabilities, stress them in unusual ways, or reveal where they need to grow.
 
 ## Ideation style
