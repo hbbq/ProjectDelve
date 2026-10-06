@@ -1,4 +1,4 @@
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -14,6 +14,9 @@ let displayedFigures;
 const cardChoiceKeys = new Set();
 const boardChoiceKeys = new Set();
 let boardChooser;
+let attackContext;
+let focusedUnitId;
+let focusedDoor;
 const figures = new Map();
 const edges = new Map();
 const cells = new Map();
@@ -107,7 +110,8 @@ function renderBoard(state, preserveNodes = false) {
     node.removeAttribute("aria-label");
     const span = displayedFigures?.[figure.id]?.cellSpan ?? 1;
     node.dataset.cellSpan = span;
-    node.className = `figure${span > 1 ? " large" : ""}${unit?.sideId === "blue" ? " side-blue" : ""}${figure.posture === "Lying" ? " lying" : ""}${state.currentUnitId === figure.id ? " selected" : ""}`;
+    node.className = `figure${span > 1 ? " large" : ""}${figure.posture === "Lying" ? " lying" : ""}${state.currentUnitId === figure.id ? " selected" : ""}`;
+    styleSide(node, unit?.sideId);
     node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
     node.style.pointerEvents = "";
     node.title = `${figure.id} · ${figure.posture}`;
@@ -142,10 +146,10 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   displayedCards = cards;
   displayedFigures = geometry;
   renderBoard(state, preserveNodes);
-  const typeName = state.types.find(type => type.id === state.activeToken?.typeId)?.displayName ?? state.activeToken?.typeId;
-  ui.status.textContent = `Round ${state.round} · ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : `${typeName} (${state.activeToken?.sideId}) · ${state.currentUnitId ?? "Select Unit"}`} · revision ${snapshot.revision}`;
   displayedState = state;
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
+  renderTurn(state);
+  highlightContext();
   renderUnitCard();
 }
 
@@ -173,15 +177,21 @@ function renderUnitCard() {
     stats.append(value);
   }
   card.append(stats);
-  card.append(text("p", `HP ${unit.currentHp} / ${type.hp}`));
+  const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; card.append(hp);
   if (content.footprintLabel) card.append(text("small", content.footprintLabel));
   for (const entry of content.entries) {
     const row = text("div", ""); row.className = "card-ability";
     const ability = entry.content;
-    row.append(text("strong", `${ability.name}${ability.useLimitText == null ? "" : ` [${ability.useLimitText}]`}`));
-    row.append(text("small", ability.category));
+    const heading = text("div", ""); heading.className = "ability-heading";
+    const name = text("strong", ability.name);
+    if (ability.useLimitText != null) {
+      const limit = text("span", ` [${ability.useLimitText}]`); limit.className = "sr-only";
+      name.append(limit); name.title = `${ability.name} [${ability.useLimitText}]`;
+    }
+    heading.append(name); heading.append(text("small", ability.category));
+    if (entry.uses) heading.append(useMarkers(entry.uses));
+    row.append(heading);
     row.append(text("p", ability.description));
-    if (entry.uses) row.append(text("small", `${entry.uses.remainingUses} / ${entry.uses.maxUses} uses`));
     const decision = snapshot?.presentation.decision;
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.candidates.filter(candidate => candidate.entryId === ability.id && candidate.interaction.kind === "Direct") : [];
@@ -198,6 +208,18 @@ function renderUnitCard() {
   }
   // Hover inspection must not strand a Direct choice whose card is no longer shown.
   if (!busy) renderChoicePanel();
+}
+
+function useMarkers(uses) {
+  const label = `${uses.remainingUses} / ${uses.maxUses} uses`;
+  const markers = text("span", ""); markers.className = "use-markers"; markers.title = label;
+  const accessible = text("span", label); accessible.className = "sr-only"; markers.append(accessible);
+  for (let index = 0; index < uses.maxUses; index++) {
+    const circle = text("span", "");
+    circle.className = `use-circle${index < uses.remainingUses ? " filled" : ""}`;
+    circle.setAttribute("aria-hidden", "true"); markers.append(circle);
+  }
+  return markers;
 }
 
 function clearAffectedPreview() {
@@ -228,6 +250,16 @@ function choiceButton(candidate) {
 function renderChoicePanel() {
   ui.choices.replaceChildren();
   const decision = snapshot?.presentation.decision;
+  if (decision?.roll) {
+    const detail = text("p", rollLabel(decision.roll)); detail.className = "roll-detail";
+    ui.choices.append(detail);
+    // Mandatory continuation: only the server-supplied opaque candidate is submitted.
+    for (const candidate of decision.candidates) {
+      const button = choiceButton(candidate); button.textContent = "Roll Dice";
+      button.className = "primary-roll"; ui.choices.append(button);
+    }
+    return;
+  }
   if (boardChooser) {
     const chooser = text("div", ""); chooser.className = "board-chooser";
     chooser.append(text("small", "Choose an option"));
@@ -260,9 +292,14 @@ function renderSnapshot() {
     }
     describeScenario();
   }
+  if (state.round === 0) ui.dice.replaceChildren();
   hoveredUnitId = null;
   boardChooser = null;
   boardChoiceKeys.clear();
+  attackContext = state.attackInProgress ?? null;
+  focusedUnitId = state.currentUnitId;
+  focusedDoor = snapshot.presentation.decision?.roll?.door ?? state.doorInProgress?.door;
+  if (attackContext?.attackRoll && !ui.dice.children.length) renderDice(attackContext.attackRoll);
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   const decision = snapshot.presentation.decision;
@@ -382,7 +419,7 @@ async function refresh() {
   if (busy) return;
   busy = true; updateControls(); ui.error.textContent = "";
   try {
-    snapshot = await request(""); ui.events.replaceChildren(); ui.effect.textContent = ""; renderSnapshot();
+    snapshot = await request(""); ui.events.replaceChildren(); ui.effect.textContent = ""; ui.dice.replaceChildren(); renderSnapshot();
   } catch (error) { ui.error.textContent = error.message; }
   finally {
     busy = false; updateControls();
@@ -403,21 +440,37 @@ async function mutate(operation, body = {}) {
     const steps = new Map(snapshot.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
     for (const [index, event] of snapshot.presentation.events.entries()) {
       ui.events.append(text("li", describe(event)));
-      if (!skipEffects) await present(event);
+      const occurrence = snapshot.result.events[index];
+      prepareOccurrence(occurrence, event);
+      if (["TokenDrawn", "RoundStarted", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
+        renderTurn(steps.get(index));
+      }
+      if (!skipEffects) await present(event, occurrence);
       if (steps.has(index)) {
         const projected = snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index);
-        renderState(steps.get(index), true, projected.cards, projected.figures);
+        const before = displayedState;
+        const after = steps.get(index);
+        renderState(after, true, projected.cards, projected.figures);
+        if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
+          const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
+          const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
+          if (hpBefore != null && hpAfter != null) ui.effect.textContent += ` \u00b7 HP ${hpBefore} \u2192 ${hpAfter}`;
+        }
+        if (!skipEffects && occurrence?.kind === "UnitCreated") figures.get(occurrence.unitId)?.classList.add("created");
+        if (!skipEffects && occurrence?.kind === "PostureChanged") figures.get(occurrence.unitId)?.classList.add("posture-changed");
+        if (["AttackTargetResolved", "PostureChanged", "UnitCreated"].includes(occurrence?.kind)) await pause(380);
       }
     }
   } catch (error) {
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
+    ui.dice.replaceChildren();
     try { snapshot = await request(""); }
     catch { ui.error.textContent = `${error.message} Refresh to reconnect before choosing again.`; snapshot = null; }
   } finally {
     // Events never reconstruct gameplay state. Always finish on the returned authoritative snapshot.
     if (snapshot) renderSnapshot();
     else { ui.choices.replaceChildren(); ui.prompt.textContent = "Refresh to reconnect."; }
-    ui.effect.textContent = ""; busy = false; updateControls();
+    busy = false; updateControls();
     if (queuedScenario) {
       const next = queuedScenario; queuedScenario = null;
       await replaceScenario(next.operation, next.body);
@@ -452,8 +505,19 @@ function pause(ms) {
   });
 }
 
-async function present(event) {
-  ui.effect.textContent = describe(event);
+async function present(event, occurrence) {
+  if (!occurrence) ui.effect.textContent = describe(event);
+  if (occurrence?.kind === "DiceRolled") {
+    ui.dice.classList.add("rolling");
+    await pause(260);
+    ui.dice.classList.remove("rolling");
+    await pause(420);
+    return;
+  }
+  const delay = { TokenDrawn: 520, ActivationStarted: 300, ActivationCompleted: 280,
+    AttackStarted: 420, ActionUsed: 300, RoundStarted: 400, RoundCompleted: 350,
+    PostureChanged: 200, UnitCreated: 200 }[occurrence?.kind];
+  if (delay != null) { await pause(delay); return; }
   switch (event.role) {
     case "Movement": {
       const node = figures.get(event.unitId);
@@ -472,11 +536,11 @@ async function present(event) {
     case "AttackTarget": {
       const attacker = figures.get(event.unitId), target = figures.get(event.targetId);
       attacker?.classList.add("attacking"); target?.classList.add("target");
-      await pause(350);
+      await pause(180);
       ui.effect.textContent = `${event.hits} Hits · ${event.blocks} Blocks`;
-      await pause(450);
+      await pause(180);
       ui.effect.textContent = `${event.damage} Damage`;
-      await pause(400);
+      await pause(180);
       attacker?.classList.remove("attacking"); target?.classList.remove("target");
       break;
     }
@@ -490,7 +554,7 @@ async function present(event) {
     case "DoorAttempt": {
       const node = edges.get(edgeKey(event.door));
       node?.classList.add("target");
-      await pause(1000);
+      await pause(400);
       node?.classList.remove("target");
       break;
     }
@@ -501,6 +565,106 @@ async function present(event) {
     }
     default: await pause(250);
   }
+}
+
+// Generic visual vocabulary only. No content identities, legality or RNG live here.
+function styleSide(node, sideId = "") {
+  let hash = 0;
+  for (const character of sideId) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) | 0;
+  node.style.setProperty("--side-hue", ((hash % 360) + 360) % 360);
+}
+
+function tokenNode(token, state) {
+  const name = state.types.find(type => type.id === token.typeId)?.displayName ?? token.typeId;
+  const node = text("span", `${name} \u00b7 ${token.sideId}`);
+  node.className = "activation-token"; styleSide(node, token.sideId);
+  return node;
+}
+
+function renderTurn(state) {
+  ui.status.textContent = `Round ${state.round} \u00b7 ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
+  ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining`));
+  for (const token of state.bag ?? []) ui.bag.append(tokenNode(token, state));
+  ui["active-token"].replaceChildren(text("small", "Drawn token"));
+  ui["active-token"].className = ui.effect.dataset.kind === "TokenDrawn" ? "token-draw" : "";
+  if (state.activeToken) ui["active-token"].append(tokenNode(state.activeToken, state));
+  else ui["active-token"].append(text("span", "Awaiting draw"));
+  ui["active-unit"].textContent = state.currentUnitId
+    ? `Activating \u00b7 ${displayedCards[state.currentUnitId]?.displayName ?? state.currentUnitId} \u00b7 ${state.currentUnitId}`
+    : "Choose a Unit or start a round";
+}
+
+function actionLabel(pool) {
+  const card = displayedCards?.[pool.sourceUnitId];
+  return card?.entries.find(entry => entry.content.id === pool.sourceActionId)?.content.name ?? pool.sourceActionId;
+}
+function rollLabel(pool) {
+  const owner = displayedCards?.[pool.ownerUnitId]?.displayName ?? pool.ownerUnitId;
+  return `${pool.purpose} \u00b7 ${pool.family === "D6" ? `${pool.count}d6` : `${pool.count} ${pool.family} dice`} \u00b7 ${owner} (${pool.ownerUnitId}) \u00b7 ${actionLabel(pool)}`;
+}
+
+function renderDice(result) {
+  ui.dice.replaceChildren();
+  ui.dice.className = `dice-tray ${result.pool.family.toLowerCase()}`;
+  ui.dice.append(text("small", rollLabel(result.pool)));
+  const faces = text("div", ""); faces.className = "dice-faces";
+  for (const face of result.faces) {
+    const die = text("span", face); die.className = `die ${face === "Miss" ? "miss" : "success"}`;
+    faces.append(die);
+  }
+  ui.dice.append(faces);
+  const label = result.pool.family === "Attack" ? `${result.successes} Hits`
+    : result.pool.family === "Defence" ? `${result.successes} Blocks`
+    : result.successes > 0 ? "Success" : "Failed";
+  ui.dice.append(text("strong", label));
+}
+
+function highlightContext() {
+  for (const [id, node] of figures) {
+    node.classList.remove("attack-source"); node.classList.remove("attack-target"); node.classList.remove("event-focus");
+    if (id === attackContext?.attackerId) node.classList.add("attack-source");
+    if (attackContext?.targets.some(target => target.targetId === id)) node.classList.add("attack-target");
+    if (id === focusedUnitId) node.classList.add("event-focus");
+  }
+  for (const [key, node] of edges) {
+    node.classList.remove("door-focus");
+    if (focusedDoor && key === edgeKey(focusedDoor)) node.classList.add("door-focus");
+  }
+  ui["attack-context"].textContent = attackContext
+    ? `${attackContext.attackerId} \u00b7 ${attackContext.abilityName ?? actionLabel({ sourceUnitId: attackContext.attackerId, sourceActionId: attackContext.actionId })} \u2192 ${attackContext.targets.map(target => target.targetId).join(", ")}` : "";
+}
+
+function prepareOccurrence(occurrence, outcome) {
+  ui.effect.textContent = outcome.text;
+  if (!occurrence) return;
+  ui.effect.dataset.kind = occurrence.kind;
+  focusedUnitId = occurrence.targetId ?? occurrence.unitId;
+  if (occurrence.door) focusedDoor = occurrence.door;
+  switch (occurrence.kind) {
+    case "RoundStarted":
+    case "TokenDrawn":
+      ui.dice.replaceChildren(); attackContext = null; focusedDoor = null;
+      break;
+    case "ActivationStarted":
+      latestUnitId = occurrence.unitId;
+      ui.dice.replaceChildren(); break;
+    case "ActivationCompleted": focusedUnitId = null; attackContext = null; focusedDoor = null; break;
+    case "AttackStarted":
+      attackContext = occurrence.attackContext; ui.dice.replaceChildren(); break;
+    case "AttackResolved": attackContext = null; break;
+    case "DiceRolled": renderDice(occurrence.dice); break;
+    case "PostureChanged":
+      if (occurrence.sourceUnitId) ui.effect.textContent += ` (from ${occurrence.sourceUnitId})`;
+      break;
+    case "ActionUsed":
+      focusedDoor = occurrence.door ?? null;
+      ui.dice.replaceChildren();
+      if (occurrence.targetId) ui.effect.textContent += ` \u2192 ${occurrence.targetId}`;
+      if (occurrence.cell) ui.effect.textContent += ` \u2192 (${occurrence.cell.x},${occurrence.cell.y})`;
+      if (occurrence.door) ui.effect.textContent += ` \u2192 door ${cellKey(occurrence.door.a)} / ${cellKey(occurrence.door.b)}`;
+      break;
+  }
+  highlightContext();
 }
 
 function updateCoordinates() {
@@ -515,5 +679,5 @@ ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingl
 ui.coordinates.addEventListener("change", updateCoordinates);
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
-ui.skip.addEventListener("click", () => { skipEffects = true; cancelPause?.(); updateControls(); });
+ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); cancelPause?.(); updateControls(); });
 await refresh();

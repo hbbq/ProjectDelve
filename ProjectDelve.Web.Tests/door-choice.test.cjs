@@ -529,7 +529,7 @@ for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surf
 }
 
 test("production browser contains no ability identities or concrete rule-counter interpretation", () => {
-  assert.doesNotMatch(script, /Red Dragon|Fire Breath|Claw Attack|Troll|Undying|Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|Heal|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
+  assert.doesNotMatch(script, /Red Dragon|Fire Breath|Claw Attack|Troll|Undying|Telekinesis|Wizard|Fireball|HolyWave|Holy Wave|Cleave|\bHeal\b|Rage|Dash|Throwing Knife|Backstab|Aura|Fury|bonusActionUses|remainingUses\s*[<>]|\.modifiers|readableName|candidate\.action|candidate\.kind|event\.abilityName/);
 });
 
 test("Lying tokens render generic physical posture with readable identity and supplied choices", () => {
@@ -795,7 +795,7 @@ test("dice faces, token Side and arbitrary agency are generic supplied presentat
     requests.push(JSON.parse(options.body)); return { ok: true, json: async () => final };
   });
   h.run("ui.animate.checked = false");
-  assert.match(h.elements.get("status").textContent, /violet/);
+  assert.match(h.elements.get("active-token").textContent, /violet/);
   await click(buttons(h.elements.get("choices"))[0]);
   assert.equal(requests[0].candidateKey, "opaque");
   assert.match(h.elements.get("events").textContent, /Hit, Miss, Hit/);
@@ -820,4 +820,212 @@ test("playback failure recovers pending RollDice without submitting it", async (
   assert.equal(requests[1].body, null);
   assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
   assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
+});
+
+
+test("arbitrary Side tokens and figures have deterministic generic styling", () => {
+  const initial = response();
+  initial.result.state.bag = [
+    { typeId: "opaque-type", sideId: "violet" }, { typeId: "opaque-type", sideId: "amber" }
+  ];
+  initial.result.state.units[0].sideId = "violet";
+  initial.result.state.units[1].sideId = "amber";
+  const h = harness(initial);
+  h.run('styleSide = (node, id) => { node.dataset.side = id; }; renderSnapshot();');
+  const bag = h.elements.get("bag");
+  assert.match(bag.textContent, /2 remaining/);
+  assert.match(bag.textContent, /A printed name \u00b7 violet/);
+  assert.match(bag.textContent, /A printed name \u00b7 amber/);
+  assert.equal(bag.children[1].dataset.side, "violet");
+  assert.equal(bag.children[2].dataset.side, "amber");
+  assert.equal(h.figure("actor").dataset.side, "violet");
+  assert.equal(h.figure("a").dataset.side, "amber");
+  const hues = [];
+  const styled = { style: { setProperty: (key, value) => hues.push(value) } };
+  h.context.styled = styled;
+  // Use the original function in a fresh harness, independent of the spy above.
+  const other = harness(initial); other.context.styled = styled;
+  other.run('styleSide(styled, "arbitrary-side"); styleSide(styled, "arbitrary-side"); styleSide(styled, "another-side");');
+  assert.equal(hues[0], hues[1]); assert.notEqual(hues[0], hues[2]);
+});
+
+test("activation and attack focus uses explicit Unit and fixed target metadata", () => {
+  const h = harness(response());
+  h.run('prepareOccurrence({ kind: "ActivationStarted", unitId: "b" }, { text: "Supplied activation" });');
+  assert.equal(h.figure("b").classList.contains("event-focus"), true);
+  assert.equal(h.run("latestUnitId"), "b");
+  h.run(`prepareOccurrence({ kind: "AttackStarted", unitId: "actor", attackContext: {
+    attackerId: "actor", actionId: "future-action", targets: [{ targetId: "b" }]
+  } }, { text: "Supplied attack" });`);
+  assert.equal(h.figure("actor").classList.contains("attack-source"), true);
+  assert.equal(h.figure("b").classList.contains("attack-target"), true);
+  assert.equal(h.figure("a").classList.contains("attack-target"), false);
+  assert.match(h.elements.get("attack-context").textContent, /future-action \u2192 b/);
+  h.run('renderState(snapshot.result.state);');
+  assert.equal(h.figure("b").classList.contains("attack-target"), true);
+  h.run('prepareOccurrence({ kind: "ActivationCompleted", unitId: "actor" }, { text: "Complete" });');
+  assert.equal(h.figure("b").classList.contains("attack-target"), false);
+});
+
+for (const [family, faces, successes, label] of [
+  ["Attack", ["Hit", "Miss", "Hit"], 7, "7 Hits"],
+  ["Defence", ["Block", "Miss"], 8, "8 Blocks"],
+  ["D6", ["4"], 0, "Failed"], ["D6", ["2"], 1, "Success"]
+]) {
+  test(`${family} graphical dice use supplied faces and interpretation without recounting`, async () => {
+    const h = harness(response());
+    h.context.occurrence = { kind: "DiceRolled", unitId: "actor", dice: {
+      pool: { family, count: faces.length, purpose: "Future check", ownerUnitId: "actor",
+        sourceUnitId: "actor", sourceActionId: "unfamiliar-action" }, faces, successes
+    } };
+    h.run('pause = async () => {}; prepareOccurrence(occurrence, { text: "Authoritative dice" });');
+    await h.run('present({ text: "Authoritative dice" }, occurrence)');
+    const dice = h.elements.get("dice");
+    assert.deepEqual(dice.children[1].children.map(node => node.textContent), faces);
+    assert.equal(dice.children[2].textContent, label);
+    assert.match(dice.textContent, /unfamiliar-action/);
+    assert.equal(dice.classList.contains("rolling"), false);
+  });
+}
+
+test("unknown actions show supplied category and target, Cell and door context", () => {
+  const h = harness(response());
+  h.run(`prepareOccurrence({ kind: "ActionUsed", unitId: "actor", targetId: "b",
+    cell: { x: 3, y: 0 }, door: { a: { x: 2, y: 0 }, b: { x: 3, y: 0 } }
+  }, { text: "actor used Future Magic (Free Action)" });`);
+  assert.match(h.elements.get("effect").textContent, /Future Magic \(Free Action\).*b.*\(3,0\).*door 2,0 \/ 3,0/);
+});
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`multi-target consequences and graphical dice follow authoritative order (${mode})`, async () => {
+    const initial = response(), final = response();
+    const afterA = state(), afterB = state();
+    afterA.units[1].currentHp = 2;
+    afterB.units[1].currentHp = 2; afterB.units[2].currentHp = 1;
+    final.result.state = afterB;
+    const pool = { family: "Defence", count: 1, purpose: "Defence", ownerUnitId: "a", sourceUnitId: "actor", sourceActionId: "future" };
+    final.result.events = [
+      { kind: "AttackStarted", unitId: "actor", attackContext: { attackerId: "actor", actionId: "future", targets: [{ targetId: "a" }, { targetId: "b" }] } },
+      { kind: "DiceRolled", unitId: "a", dice: { pool, faces: ["Block"], successes: 1 } },
+      { kind: "AttackTargetResolved", unitId: "actor", targetId: "a" },
+      { kind: "AttackTargetResolved", unitId: "actor", targetId: "b" }
+    ];
+    final.presentation.events = final.result.events.map(event => ({ role: "Notice", text: event.kind, unitId: event.unitId, targetId: event.targetId }));
+    final.result.resolutionSteps = [initial.result.state, initial.result.state, afterA, afterB].map((stateAfter, eventIndex) => ({ eventIndex, stateAfter }));
+    final.presentation.resolutionSteps = final.result.resolutionSteps.map(step => ({ eventIndex: step.eventIndex, cards: final.presentation.cards }));
+    const calls = [], shown = [];
+    const h = harness(initial, async (url, options) => {
+      calls.push(JSON.parse(options.body)); return { ok: true, json: async () => final };
+    });
+    h.context.shown = shown; h.context.mode = mode;
+    h.run(`ui.animate.checked = mode !== "disabled";
+      pause = async () => { if (mode === "skip") skipEffects = true; };
+      const renderNormally = renderState;
+      renderState = (...args) => { renderNormally(...args); shown.push(args[0].units.slice(1).map(unit => unit.currentHp)); };`);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.deepEqual(shown.map(values => Array.from(values)), [[4,4], [4,4], [2,4], [2,1], [2,1]]);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0], { expectedRevision: 8, candidateKey: "opaque" });
+    assert.match(h.elements.get("dice").textContent, /Block/);
+    assert.equal(h.elements.get("dice").classList.contains("rolling"), false);
+  });
+}
+
+
+test("token draw and Round presentation uses each supplied bag snapshot", async () => {
+  const initial = response(), final = response();
+  const token = { typeId: "opaque-type", sideId: "future-side" };
+  const round = state(), drawn = state();
+  round.bag = [token]; round.activeToken = null;
+  drawn.bag = []; drawn.activeToken = token;
+  final.result.state = drawn;
+  final.result.events = [{ kind: "RoundStarted" }, { kind: "TokenDrawn", token }];
+  final.presentation.events = [{ role: "Notice", text: "Round 1 started" }, { role: "Notice", text: "Token drawn" }];
+  final.result.resolutionSteps = [round, drawn].map((stateAfter, eventIndex) => ({ eventIndex, stateAfter }));
+  final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+  const shown = [], h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  h.context.shown = shown;
+  h.run('pause = async () => shown.push({ bag: ui.bag.textContent, token: ui["active-token"].textContent });');
+  await h.run('mutate("round")');
+  assert.match(shown[0].bag, /1 remaining/);
+  assert.match(shown[1].bag, /0 remaining/);
+  assert.match(shown[1].token, /future-side/);
+});
+
+test("door action, D6 result and outcome share generic supplied door emphasis", async () => {
+  const initial = response();
+  const door = { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: "ClosedDoor" };
+  initial.result.state.physical.board.edges = [door];
+  const h = harness(initial);
+  h.context.door = door;
+  h.run(`prepareOccurrence({ kind: "ActionUsed", unitId: "actor", door }, { text: "Future door action" });`);
+  assert.equal(h.run('edges.get(edgeKey(door)).classList.contains("door-focus")'), true);
+  h.run(`prepareOccurrence({ kind: "DiceRolled", unitId: "actor", door, dice: {
+    pool: { family: "D6", count: 1, purpose: "Door check", sourceActionId: "unknown-check", sourceUnitId: "actor", ownerUnitId: "actor", door },
+    faces: ["6"], successes: 0
+  } }, { text: "Supplied D6" });`);
+  assert.match(h.elements.get("dice").textContent, /1d6.*6.*Failed/);
+  assert.equal(h.run('edges.get(edgeKey(door)).classList.contains("door-focus")'), true);
+});
+
+test("skip immediately settles graphical dice without requests or results", async () => {
+  const requests = [], h = harness(response(), async (url, options) => {
+    requests.push({ url, options }); return { ok: true, json: async () => response() };
+  });
+  h.run(`renderDice({ pool: { family: "Attack", count: 1, purpose: "Attack", sourceUnitId: "actor", ownerUnitId: "actor", sourceActionId: "future" }, faces: ["Hit"], successes: 1 });
+    ui.dice.classList.add("rolling"); busy = true;`);
+  await h.elements.get("skip").listeners.click();
+  assert.equal(h.elements.get("dice").classList.contains("rolling"), false);
+  assert.match(h.elements.get("dice").textContent, /Hit/);
+  assert.equal(requests.length, 0);
+});
+
+for (const animate of [true, false]) {
+  test(`explicit UnitDied follows authoritative removal even with positive HP (animate=${animate})`, async () => {
+    const initial = response(), final = response();
+    final.result.state.physical.figures = final.result.state.physical.figures.filter(figure => figure.id !== "b");
+    final.result.events = [{ kind: "UnitDied", unitId: "b" }];
+    final.presentation.events = [{ role: "Death", text: "b died", unitId: "b" }];
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
+    final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards }];
+    const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    h.context.animate = animate;
+    h.run('ui.animate.checked = animate; pause = async () => {};');
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.equal(h.figure("b"), undefined);
+    assert.equal(h.run('displayedState.units.find(unit => unit.id === "b").currentHp'), 4);
+    assert.match(h.elements.get("effect").textContent, /b died/);
+  });
+}
+
+
+test("compact use circles present supplied remaining and maximum counts accessibly", () => {
+  const limited = entry("unknown-limited", "Unfamiliar action");
+  limited.uses = { remainingUses: 2, maxUses: 4 };
+  const unlimited = entry("unknown-passive", "Unfamiliar passive", "Passive");
+  unlimited.uses = null; unlimited.content.useLimitText = null;
+  const h = harness(response([], [limited, unlimited]));
+  const card = h.elements.get("unit-card");
+  const markers = card.querySelectorAll(".use-markers");
+  assert.equal(markers.length, 1);
+  assert.equal(markers[0].title, "2 / 4 uses");
+  assert.match(markers[0].textContent, /2 \/ 4 uses/);
+  const circles = markers[0].querySelectorAll(".use-circle");
+  assert.equal(circles.length, 4);
+  assert.deepEqual(circles.map(circle => circle.classList.contains("filled")), [true, true, false, false]);
+  assert.ok(circles.every(circle => circle.attributes["aria-hidden"] === "true"));
+});
+
+test("gameplay sections are outside the board column and scenario description is a tooltip", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
+  const boardColumn = html.slice(html.indexOf('<section aria-label="Board">'), html.indexOf('<aside'));
+  const sidebar = html.slice(html.indexOf('<aside'));
+  assert.match(boardColumn, /id="board"/);
+  for (const id of ["status", "active-token", "active-unit", "bag", "attack-context", "effect", "dice", "choices", "unit-card"]) {
+    assert.ok(!boardColumn.includes(`id="${id}"`), `${id} must not shift the board`);
+    assert.ok(sidebar.includes(`id="${id}"`));
+  }
+  assert.match(html, /aria-label="Scenario information" aria-describedby="scenario-description"/);
+  assert.match(html, /id="scenario-description" role="tooltip"/);
+  assert.ok(!html.includes("Start a round to play."));
 });

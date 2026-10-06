@@ -9,36 +9,46 @@
 </head>
 <body>
   <header><h1>Project Delve <small>visual playtest</small></h1>
-    <p>Start a round to play. Inspect any Unit by hovering its figure. Choose a highlighted board object or a supplied choice on the card or in the choice panel.</p>
   </header>
   <main>
     <section aria-label="Board">
       <div class="toolbar" aria-label="Playtest scenarios">
         <label>Scenario <select id="scenario" disabled></select></label>
+        <span class="scenario-info">
+          <button class="info-button" type="button" aria-label="Scenario information" aria-describedby="scenario-description">i</button>
+          <span id="scenario-description" role="tooltip"></span>
+        </span>
         <button id="start-scenario" disabled>Start selected</button>
         <button id="restart-scenario" disabled>Restart current</button>
       </div>
-      <p id="scenario-description" class="legend"></p>
-      <p id="status" aria-live="polite">Loading…</p>
       <div id="board" aria-label="Dungeon board"></div>
-      <p class="legend">Figures abbreviate Unit names; hover to inspect. Blue and red distinguish Sides. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
-      <p id="effect" role="status"></p>
+      <details class="board-legend"><summary>Board legend</summary>
+      <p class="legend">Figures abbreviate Unit names; hover to inspect. Colour distinguishes Sides; tokens show their Side names. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
       <p class="legend">Green: grass; dark green: tree; blue waves: water; brown: table; grey: stone floor. Cyan edges are windows. Highlights show supplied choices.</p>
+      </details>
       <div class="toolbar">
         <button id="round" disabled>Start round</button>
         <button id="refresh" disabled>Refresh</button>
         <button id="skip" disabled>Skip effects</button>
         <label><input id="animate" type="checkbox" checked> Animate events</label>
         <label><input id="filter" type="checkbox" checked> Filter irrelevant choices (display only)</label>
-        <label title="A sole legal choice always resolves automatically. This also auto-chooses one relevant choice among multiple legal choices."><input id="auto" type="checkbox" checked> Auto-choose single relevant choice</label>
+        <label title="Ordinary sole legal choices resolve automatically; Roll Dice waits for input. This also auto-chooses one relevant choice among multiple legal choices."><input id="auto" type="checkbox" checked> Auto-choose single relevant choice</label>
         <label><input id="coordinates" type="checkbox" checked> Show coordinates</label>
       </div>
       <p id="error" role="alert"></p>
     </section>
-    <aside>
-      <h2>Player choice</h2><p id="prompt"></p><div id="choices"></div>
-      <h2>Unit Card</h2><div id="unit-card" aria-label="Unit Card"></div>
-      <h2>Events <small>latest response</small></h2><ol id="events"></ol>
+    <aside aria-label="Gameplay and Unit card">
+      <p id="status" aria-live="polite">Loading…</p>
+      <div class="turn-strip"><div id="active-token"></div><div id="active-unit"></div></div>
+      <div id="bag" aria-label="Remaining Activation Bag"></div>
+      <section class="decision-panel" aria-label="Pending decision">
+        <h2>Player choice</h2><p id="prompt"></p><div id="choices"></div>
+      </section>
+      <div id="attack-context" role="status"></div>
+      <p id="effect" role="status"></p>
+      <div id="dice" aria-label="Authoritative dice results" aria-live="polite"></div>
+      <div id="unit-card" aria-label="Unit Card"></div>
+      <details><summary>Event history &middot; latest response</summary><ol id="events"></ol></details>
     </aside>
   </main>
   <footer>One game lives in this host. Start or restart a scenario to discard the current game. There are no victory conditions.</footer>
