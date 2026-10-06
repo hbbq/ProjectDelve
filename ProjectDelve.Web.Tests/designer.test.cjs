@@ -72,7 +72,8 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
   const details = new Element("details"); details.append(document.getElementById("designer-transport"));
   const context = vm.createContext({ document, catalog, request, play, structuredClone, navigator: { clipboard: { writeText: async () => {} } } });
   vm.runInContext(source("designer-state.js").replace(/^export /gm, ""), context);
-  vm.runInContext(source("designer.js").replace(/^import .*\n/, "").replace(/^export /gm, "").replace(/startDesigner\(\);\s*$/, ""), context);
+  vm.runInContext(source("side-colors.js").replace(/^export /gm, ""), context);
+  vm.runInContext(source("designer.js").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, "").replace(/startDesigner\(\);\s*$/, ""), context);
   vm.runInContext("globalThis.editor = mountDesigner(catalog, request, play)", context);
   const editor = context.editor;
   return {
@@ -87,6 +88,23 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
     submit: node => node.listeners.submit({ preventDefault() {} })
   };
 }
+
+test("designer assigns distinct colors to sequential sides and retains them after edits", () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.place("opaque-large", "side-1", "Human", { x: 1, y: 1 });
+  draft.place("opaque-large", "side-2", "Human", { x: 4, y: 1 });
+  h.editor.render();
+  const hues = () => h.editor.ui.board.querySelectorAll(".figure").map(node => node.style["--side-hue"]);
+  const before = hues(), gap = Math.abs(before[0] - before[1]);
+  assert.ok(Math.min(gap, 360 - gap) >= 90);
+  draft.place("opaque-large", "side-1", "Human", { x: 7, y: 1 });
+  h.editor.render();
+  assert.deepEqual(hues(), [...before, before[0]]);
+  // More sides than palette entries must receive new colors rather than cycling.
+  for (let i = 3; i <= 12; i++) draft.place("opaque-large", `side-${i}`, "Human", { x: 1, y: 4 });
+  h.editor.render();
+  assert.equal(new Set(hues()).size, 12);
+});
 
 test("terrain drag upserts sparse overrides and Use default removes them", () => {
   const h = harness(); h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Tree";

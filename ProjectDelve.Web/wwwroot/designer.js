@@ -1,4 +1,5 @@
 import { DesignerDraft, DesignerRequests, sameCell } from "./designer-state.js";
+import { styleSide } from "./side-colors.js";
 
 const element = (tag, value = "") => {
   const node = document.createElement(tag); node.textContent = value; return node;
@@ -225,8 +226,7 @@ export function mountDesigner(catalog, request, playDesign) {
       node.style.left = `${(unit.anchor.x + span / 2) / board.width * 100}%`;
       node.style.top = `${(unit.anchor.y + span / 2) / board.height * 100}%`;
       node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
-      let hue = 0; for (const character of unit.sideId) hue = (Math.imul(hue, 31) + character.charCodeAt(0)) | 0;
-      node.style.setProperty("--side-hue", ((hue % 360) + 360) % 360);
+      styleSide(node, unit.sideId);
       node.title = `${name} · ${unit.sideId} · ${unit.posture} · HP ${unit.initialHp ?? metadata?.maxHp}`;
       ui.board.append(node);
     }

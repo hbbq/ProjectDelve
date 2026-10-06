@@ -1,3 +1,5 @@
+import { styleSide } from "./side-colors.js";
+
 const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
@@ -576,12 +578,6 @@ async function present(event, occurrence) {
 }
 
 // Generic visual vocabulary only. No content identities, legality or RNG live here.
-function styleSide(node, sideId = "") {
-  let hash = 0;
-  for (const character of sideId) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) | 0;
-  node.style.setProperty("--side-hue", ((hash % 360) + 360) % 360);
-}
-
 function tokenNode(token, state) {
   const name = state.types.find(type => type.id === token.typeId)?.displayName ?? token.typeId;
   const node = text("span", `${name} \u00b7 ${token.sideId}`);

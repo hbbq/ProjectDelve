@@ -57,7 +57,7 @@ for (const mode of ["animate", "disabled", "skip"]) {
 class Element {
   constructor() {
     this.children = []; this.dataset = {}; this.attributes = {}; this.listeners = {};
-    this.style = { setProperty() {} }; this.checked = true; this.className = "";
+    this.style = { setProperty: (key, value) => { this.style[key] = value; } }; this.checked = true; this.className = "";
     this.classList = {
       contains: name => this.className.split(" ").includes(name),
       add: name => { if (!this.classList.contains(name)) this.className += ` ${name}`; },
@@ -127,7 +127,8 @@ function harness(initial, fetchImpl) {
   };
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
     fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })) });
-  vm.runInContext(script.replace(/await refresh\(\);\s*$/, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
   vm.runInContext("snapshot = initial; renderSnapshot();", context);
   return { elements, submitted, run: code => vm.runInContext(code, context), context,
     figure: id => vm.runInContext(`figures.get(${JSON.stringify(id)})`, context) };
@@ -852,6 +853,25 @@ test("playback failure recovers pending RollDice without submitting it", async (
   assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
 });
 
+
+test("side-1 and side-2 use distinct, stable colors on figures and activation tokens", () => {
+  const initial = response();
+  for (const unit of initial.result.state.units) unit.sideId = unit.id === "actor" ? "side-1" : "side-2";
+  initial.result.state.activeToken.sideId = "side-1";
+  initial.result.state.bag = [
+    { typeId: "opaque-type", sideId: "side-1" }, { typeId: "opaque-type", sideId: "side-2" }
+  ];
+  const h = harness(initial);
+  const first = h.figure("actor").style["--side-hue"], second = h.figure("a").style["--side-hue"];
+  const gap = Math.abs(first - second);
+  assert.ok(Math.min(gap, 360 - gap) >= 90);
+  assert.equal(h.elements.get("bag").children[1].style["--side-hue"], first);
+  assert.equal(h.elements.get("bag").children[2].style["--side-hue"], second);
+  assert.equal(h.elements.get("active-token").children[1].style["--side-hue"], first);
+  h.run('snapshot.result.state.units.reverse(); renderSnapshot();');
+  assert.equal(h.figure("actor").style["--side-hue"], first);
+  assert.equal(h.figure("a").style["--side-hue"], second);
+});
 
 test("arbitrary Side tokens and figures have deterministic generic styling", () => {
   const initial = response();
