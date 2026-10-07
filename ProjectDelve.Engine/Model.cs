@@ -260,6 +260,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     public DefeatContext? DefeatContext { get; init; }
     public DiceResult? Dice { get; init; }
     public int? Round { get; init; }
+    public WorldCard? WorldCard { get; init; }
+    public WorldCard? CycledWorldCard { get; init; }
 }
 
 // Old group-phase saves cannot be resumed as per-unit activations.
@@ -290,6 +292,8 @@ public sealed class GameState
         Units.Add(type.CreateUnit(id, sideId));
         Physical.Figures.Add(new(id, cell, posture));
     }
+    public WorldEffectsSettings? WorldEffects { get; set; }
+    public WorldDeck? WorldDeck { get; set; }
     public int Round { get; set; }
     public List<ActivationToken> Bag { get; set; } = [];
     public ActivationToken? ActiveToken { get; set; }
@@ -302,7 +306,21 @@ public sealed class GameState
     // FIFO defeat consequences, retained across dice boundaries only until resolution completes.
     public List<DefeatContext> PendingExplosions { get; set; } = [];
     public bool MoveDone { get; set; }
-    public bool ActionDone { get; set; }
+    // Existing flag records whether an Action has been performed; counts govern opportunities.
+    public bool ActionDone
+    {
+        get => ActionsUsedThisActivation > 0;
+        set => ActionsUsedThisActivation = value ? Math.Max(1, ActionsUsedThisActivation) : 0;
+    }
+    public int ActionsUsedThisActivation { get; set; }
+    public Dictionary<string, int> BonusActionUseCountsThisActivation { get; set; } = [];
+    public int EffectiveActionsPerActivation => Math.Max(0, 1 +
+        (WorldDeck?.Modifier(WorldEffect.Frenzy, WorldEffect.Fatigue) ?? 0));
+    public int EffectiveBonusActionUsesPerActivation => Math.Max(0, 1 +
+        (WorldDeck?.Modifier(WorldEffect.Surge, WorldEffect.Hesitation) ?? 0));
+    public int ActionsRemaining => Math.Max(0, EffectiveActionsPerActivation - ActionsUsedThisActivation);
+    public int BonusActionUsesThisActivation(string name) => Math.Max(
+        BonusActionUseCountsThisActivation.GetValueOrDefault(name), BonusActionsUsedThisActivation.Contains(name) ? 1 : 0);
     // Ability names are the existing content identities, shared with persistent use counters.
     public HashSet<string> BonusActionsUsedThisActivation { get; set; } = [];
     public List<ModifierThisTurn> ModifiersThisTurn { get; set; } = [];
@@ -319,16 +337,16 @@ public sealed class GameState
     {
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var attack = type.Atk + (CurrentUnitId == unitId
+        var attack = type.Atk + (WorldDeck?.Modifier(WorldEffect.Bloodlust, WorldEffect.Weakness) ?? 0) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
-        if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return attack;
+        if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
 
         // Derive Fury solely from the evaluated world, including hypothetical copies.
         var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && u.SideId != unit.SideId)
             .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
                 SpatialRules.AreAdjacent(this, unitId, enemy.Id));
-        return attack + (adjacentEnemies >= fury.AdjacentEnemyThreshold ? fury.AtkBonus : 0);
+        return Math.Max(0, attack + (adjacentEnemies >= fury.AdjacentEnemyThreshold ? fury.AtkBonus : 0));
     }
     // Target-specific Attack Dice, shared by legality, effectiveness and resolution.
     // General EffectiveAtk remains independent of the selected target.
@@ -339,18 +357,19 @@ public sealed class GameState
         var target = Units.Single(u => u.Id == targetId);
         if (Types.Single(t => t.Id == attacker.TypeId).Backstab is not { } backstab ||
             attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || attacker.SideId == target.SideId)
-            return attack;
+            return Math.Max(0, attack);
 
         var targetFigure = Physical.Figures.SingleOrDefault(f => f.Id == targetId);
-        if (targetFigure is null) return attack;
+        if (targetFigure is null) return Math.Max(0, attack);
         var supported = Units.Any(u => u.Id != attackerId && u.CurrentHp > 0 && u.SideId == attacker.SideId &&
             Physical.Figures.SingleOrDefault(f => f.Id == u.Id) is { } friendlyFigure &&
             SpatialRules.AreAdjacent(this, targetId, u.Id));
-        return attack + (supported ? backstab.AtkBonus : 0);
+        return Math.Max(0, attack + (supported ? backstab.AtkBonus : 0));
     }
     public int EffectiveMovOf(string unitId) =>
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
-        (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0);
+        Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
+        (WorldDeck?.Modifier(WorldEffect.Haste, WorldEffect.Sluggishness) ?? 0) +
+        (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) =>
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
@@ -358,10 +377,10 @@ public sealed class GameState
     {
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var defence = type.Def + (CurrentUnitId == unitId
+        var defence = type.Def + (WorldDeck?.Modifier(WorldEffect.IronSkin, WorldEffect.Vulnerability) ?? 0) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
-        if (unit.CurrentHp <= 0 || figure is null) return defence;
+        if (unit.CurrentHp <= 0 || figure is null) return Math.Max(0, defence);
 
         // Derive passives from this state's content and physical situation on every query.
         // No derived state is shared with live, copied or hypothetical worlds.
@@ -373,7 +392,7 @@ public sealed class GameState
             if (sourceFigure is { Posture: Posture.Upright } && SpatialRules.AreAdjacent(this, source.Id, unitId))
                 defence += bonus.Amount;
         }
-        return defence;
+        return Math.Max(0, defence);
     }
     public List<string> CompletedUnitIds { get; set; } = [];
     public string? CurrentUnitId { get; set; }
@@ -389,6 +408,9 @@ public sealed class GameState
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
+        WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
+        ActionsUsedThisActivation = ActionsUsedThisActivation,
+        BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
         ActiveToken = ActiveToken, Controllers = [.. Controllers],
         AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, MoveDone = MoveDone, ActionDone = ActionDone,
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
@@ -415,6 +437,8 @@ public interface IDecisionProvider
 public interface IRandomProvider
 {
     ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag);
+    // Fisher-Yates shuffle selection, replaceable independently of combat dice and token draws.
+    int WorldShuffleIndex(int exclusiveMax) => Random.Shared.Next(exclusiveMax);
     AttackFace RollAttackDie();
     DefenceFace RollDefenceDie();
     int RollD6();

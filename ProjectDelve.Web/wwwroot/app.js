@@ -1,6 +1,6 @@
 import { styleSide } from "./side-colors.js";
 
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -144,13 +144,14 @@ function renderBoard(state, preserveNodes = false) {
   }
 }
 
-function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects) {
   displayedCards = cards;
   displayedFigures = geometry;
   renderBoard(state, preserveNodes);
   displayedState = state;
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
   renderTurn(state);
+  renderWorldEffects(world);
   highlightContext();
   renderUnitCard();
 }
@@ -448,16 +449,17 @@ async function mutate(operation, body = {}) {
     for (const [index, event] of snapshot.presentation.events.entries()) {
       ui.events.append(text("li", describe(event)));
       const occurrence = snapshot.result.events[index];
+      const projected = snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index);
       prepareOccurrence(occurrence, event);
-      if (["TokenDrawn", "RoundStarted", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
+      if (occurrence?.kind === "WorldCardDrawn" && projected) renderWorldEffects(projected.worldEffects);
+      if (["TokenDrawn", "RoundStarted", "ActivationBagPopulated", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
         renderTurn(steps.get(index));
       }
       if (!skipEffects) await present(event, occurrence);
       if (steps.has(index)) {
-        const projected = snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index);
         const before = displayedState;
         const after = steps.get(index);
-        renderState(after, true, projected.cards, projected.figures);
+        renderState(after, true, projected.cards, projected.figures, projected.worldEffects);
         if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
           const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
           const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
@@ -526,6 +528,7 @@ async function present(event, occurrence) {
   }
   const delay = { TokenDrawn: 520, ActivationStarted: 300, ActivationCompleted: 280,
     AttackStarted: 420, ActionUsed: 300, RoundStarted: 400, RoundCompleted: 350,
+    WorldCardDrawn: 1000, WorldContinuousChanged: 700, WorldCardDiscarded: 450, WorldDeckReshuffled: 600,
     PostureChanged: 200, UnitCreated: 200 }[occurrence?.kind];
   if (delay != null) { await pause(delay); return; }
   switch (event.role) {
@@ -568,6 +571,7 @@ async function present(event, occurrence) {
       node?.classList.remove("target");
       break;
     }
+    case "DoorClosed":
     case "DoorOpened": {
       const node = edges.get(edgeKey(event.door));
       if (node) { node.className = `edge ${event.door.kind}`; node.title = event.door.kind; }
@@ -583,6 +587,26 @@ function tokenNode(token, state) {
   const node = text("span", `${name} \u00b7 ${token.sideId}`);
   node.className = "activation-token"; styleSide(node, token.sideId);
   return node;
+}
+
+function renderWorldEffects(world) {
+  const panel = ui["world-effects"];
+  panel.hidden = !world;
+  panel.replaceChildren();
+  if (!world) return;
+  panel.append(text("h2", "World Effects"));
+  panel.append(text("small", `${world.cardsPerRound} cards per Round · Cycling ${world.cycling} · Draw ${world.drawPileCount} · Discard ${world.discardPileCount}`));
+  if (world.resolvingCard) {
+    const drawn = text("div", `${world.resolvingCard.name} · ${world.resolvingCard.continuous ? "Continuous" : "Immediate"}`);
+    drawn.className = "world-card world-draw";
+    drawn.append(text("p", world.resolvingCard.text)); panel.append(drawn);
+  }
+  panel.append(text("small", "Active Continuous cards · oldest first"));
+  if (!world.activeContinuous.length) panel.append(text("p", "None active"));
+  for (const card of world.activeContinuous) {
+    const row = text("div", card.name); row.className = "world-card";
+    row.dataset.cardId = card.id; row.append(text("p", card.text)); panel.append(row);
+  }
 }
 
 function renderTurn(state) {

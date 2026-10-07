@@ -10,6 +10,8 @@ internal static class ScenarioCreation
         if (definition.Board is not { } board || definition.UnitTypeIds is null ||
             definition.Units is null || definition.Agency is null || board.Cells is null || board.Edges is null)
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
+        if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
+            throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
         if (board.Width < 1 || board.Height < 1 || !Enum.IsDefined(board.DefaultTerrain))
             throw ScenarioValidationContext.At(new ArgumentException("Invalid board dimensions or default terrain.", nameof(definition)), "board");
         bool Inside(Cell? cell) => cell is not null && cell.X >= 0 && cell.Y >= 0 && cell.X < board.Width && cell.Y < board.Height;
@@ -79,7 +81,8 @@ internal static class ScenarioCreation
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList()) { Terrain = terrain }, []),
-            Types = types, Units = [],
+            Types = types, Units = [], WorldEffects = definition.WorldEffects,
+            WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };
         // The same validation also remains at round start. Validate content before CreateUnit.

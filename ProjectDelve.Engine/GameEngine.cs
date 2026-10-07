@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace ProjectDelve.Engine;
 
-public static class GameEngine
+public static partial class GameEngine
 {
     // Creates validated initial setup only; StartRound owns activation initialization and randomness.
     public static GameState CreateGame(ScenarioDefinition definition) => ScenarioCreation.Create(definition);
@@ -30,10 +30,7 @@ public static class GameEngine
                         ? uses : uses.Add(ability.Name, new(ability.MaxUses!.Value, ability.MaxUses.Value)))
             }).ToList();
         state.Round++;
-        state.Bag = state.Types.SelectMany(t => state.Units
-            .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
-            .Distinct().OrderBy(side => side, StringComparer.Ordinal)
-            .Select(side => new ActivationToken(t.Id, side))).ToList();
+        state.Bag.Clear();
         state.ActiveToken = null;
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
@@ -43,13 +40,22 @@ public static class GameEngine
         state.PendingExplosions.Clear();
         state.MoveDone = false;
         state.ActionDone = false;
+        state.BonusActionUseCountsThisActivation.Clear();
         state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new ResolutionEvents(state);
-        events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
+        if (state.WorldEffects is not null)
+            events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
+        ResolveRoundStartWorldCards(state, random, events);
+        state.Bag = state.Types.SelectMany(t => state.Units
+            .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
+            .Distinct().OrderBy(side => side, StringComparer.Ordinal)
+            .Select(side => new ActivationToken(t.Id, side))).ToList();
+        // Preserve ordinary RoundStarted presentation; World rounds expose the later bag boundary.
+        events.Add(new RulesEvent(state.WorldEffects is null ? "RoundStarted" : "ActivationBagPopulated") { Round = state.Round });
         RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
@@ -155,6 +161,7 @@ public static class GameEngine
                 state.CurrentUnitId = choice;
                 state.MoveDone = false;
                 state.ActionDone = false;
+                state.BonusActionUseCountsThisActivation.Clear();
                 state.BonusActionsUsedThisActivation.Clear();
                 state.ModifiersThisTurn.Clear();
                 events.Add(new RulesEvent("ActivationStarted", choice) { Token = state.ActiveToken });
@@ -177,6 +184,7 @@ public static class GameEngine
                             new(uses.MaxUses, uses.RemainingUses - 1))
                     };
                 }
+                state.BonusActionUseCountsThisActivation[ability.Name] = state.BonusActionUsesThisActivation(ability.Name) + 1;
                 state.BonusActionsUsedThisActivation.Add(ability.Name);
                 state.ModifiersThisTurn.AddRange(ability.Modifiers);
                 EmitActionUsed(request, choice!, events);
@@ -223,7 +231,7 @@ public static class GameEngine
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
                 break;
             case DecisionKind.Activation:
-                state.ActionDone = true;
+                state.ActionsUsedThisActivation++;
 
                 if (choice is not null)
                 {
@@ -373,6 +381,7 @@ public static class GameEngine
         state.CleavePending = false;
         state.MoveDone = false;
         state.ActionDone = false;
+        state.BonusActionUseCountsThisActivation.Clear();
         state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         events.Add(new RulesEvent("ActivationCompleted", unitId) { Token = state.ActiveToken });
@@ -385,7 +394,7 @@ public static class GameEngine
         events.Add(new RulesEvent("PostureChanged", unitId, Posture: posture) { SourceUnitId = sourceUnitId, ActionId = actionId });
     }
 
-    private static void OpenDoor(GameState state, string unitId, Edge door, ResolutionEvents events, string actionId = "open-door")
+    private static void OpenDoor(GameState state, string? unitId, Edge door, ResolutionEvents events, string actionId = "open-door")
     {
         var index = state.Physical.Board.Edges.FindIndex(e =>
             e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
@@ -533,7 +542,7 @@ public static class GameEngine
     private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
     {
         foreach (var ability in state.Types.Single(t => t.Id == unit.TypeId).BonusActions)
-            if (!state.BonusActionsUsedThisActivation.Contains(ability.Name) &&
+            if (state.BonusActionUsesThisActivation(ability.Name) < state.EffectiveBonusActionUsesPerActivation &&
                 (ability.MaxUses is null || unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0))
             {
                 if (ability.Swap is not null || ability.Displace is not null)
@@ -584,7 +593,7 @@ public static class GameEngine
         if (state.MoveAfterAttackAllowance is { } allowance)
             return MovementCandidates(state, unit, allowance);
         if (!state.MoveDone) return MovementCandidates(state, unit);
-        return state.ActionDone ? [] : ActionCandidates(state, unit);
+        return state.ActionsRemaining == 0 ? [] : ActionCandidates(state, unit);
     }
 
     private static DecisionRequest CreateDecision(GameState state)
@@ -788,14 +797,8 @@ public static class GameEngine
             HealUses = new(uses.MaxUses, uses.RemainingUses - 1)
         };
         EmitActionUsed(request, choice, events);
-        var targetIndex = state.Units.FindIndex(u => u.Id == targetId);
-        var target = state.Units[targetIndex];
-        var heal = state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).Heal!;
-        var healing = Math.Min(heal.Amount, state.Types.Single(t => t.Id == target.TypeId).Hp - target.CurrentHp);
-        state.Units[targetIndex] = target with { CurrentHp = target.CurrentHp + healing };
-        events.Add(new RulesEvent("HealResolved", healerId, targetId,
-            AbilityName: state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId).AbilityNames.Heal ?? "Heal", Healing: healing)
-            { SourceUnitId = healerId, ActionId = "heal" });
+        var type = state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId);
+        RestoreHp(state, targetId, type.Heal!.Amount, healerId, type.AbilityNames.Heal ?? "Heal", "heal", events);
     }
 
     private static List<Candidate> CleaveCandidates(GameState state, Unit unit)
@@ -884,6 +887,8 @@ public static class GameEngine
 
         public void Add(RulesEvent resolved)
         {
+            if (resolved.WorldCard is null && state.WorldDeck?.ResolvingCard is { } card)
+                resolved = resolved with { WorldCard = card };
             Steps.Add(new ResolutionStep(Events.Count, state.Copy()));
             Events.Add(resolved);
         }
@@ -891,6 +896,7 @@ public static class GameEngine
 
     internal static void ValidateScenario(GameState state)
     {
+        ValidateWorldDeck(state);
         var board = state.Physical.Board;
         if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||
             state.Controllers.Any(c => !Enum.IsDefined(c.Controller) || string.IsNullOrWhiteSpace(c.Token.SideId) || string.IsNullOrWhiteSpace(c.Token.TypeId)) ||

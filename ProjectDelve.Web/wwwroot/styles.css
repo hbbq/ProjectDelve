@@ -175,3 +175,8 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .dice-faces { gap: 6px; margin: 4px 0; }
 #active-unit { font-size: .85rem; }
 #active-token { flex-wrap: wrap; }
+
+#world-effects { margin: .8rem 0; padding: .6rem; border: 1px solid #8d7954; border-radius: .4rem; }
+.world-card { margin: .4rem 0; padding: .5rem; background: #332d22; border: 1px solid #887548; border-radius: .3rem; }
+.world-card p { margin: .3rem 0 0; font-size: .9rem; }
+.world-draw { border-color: #eac86d; }

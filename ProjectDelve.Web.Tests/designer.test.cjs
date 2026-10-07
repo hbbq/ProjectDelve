@@ -309,3 +309,40 @@ test("invalid export prevents Play design", async () => {
     async () => { played = true; });
   await h.click("play"); assert.equal(played, false); assert.match(h.editor.ui.errors.textContent, /Invalid HP/);
 });
+
+
+test("World Effects controls enable, configure and disable concrete scenario settings", () => {
+  const h = harness(), ui = h.editor.ui;
+  assert.equal(ui["world-enabled"].checked, false);
+  assert.equal(ui["world-draws"].disabled, true);
+  ui["world-enabled"].checked = true;
+  ui["world-enabled"].listeners.change();
+  assert.equal(ui["world-draws"].disabled, false);
+  ui["world-draws"].value = "3"; ui["world-cycling"].value = "2";
+  ui["world-form"].listeners.submit({ preventDefault() {} });
+  assert.deepEqual(plain(h.editor.draft.snapshot().worldEffects), { cardsPerRound: 3, cycling: 2 });
+  assert.match(ui.status.textContent, /Unchecked/);
+  ui["world-enabled"].checked = false;
+  ui["world-form"].listeners.submit({ preventDefault() {} });
+  assert.equal(h.editor.draft.snapshot().worldEffects, undefined);
+  assert.equal(ui["world-cycling"].disabled, true);
+});
+
+test("World Effects settings survive import, edits, validation, export and play", async () => {
+  const definition = structuredClone(fullParty); definition.worldEffects = { cardsPerRound: 2, cycling: 3 };
+  const submitted = [], played = [];
+  const h = harness(async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === "import" ? structuredClone(definition) : operation === "validate"
+      ? { valid: true, errors: [] } : { transport: "DELVE1:world-fixture" };
+  }, async transport => { played.push(transport); return true; });
+  h.editor.ui.transport.value = "DELVE1:world-fixture"; await h.click("import");
+  assert.equal(h.editor.ui["world-enabled"].checked, true);
+  assert.equal(h.editor.ui["world-draws"].value, "2");
+  assert.equal(h.editor.ui["world-cycling"].value, "3");
+  h.editor.draft.paintTerrain({ x: 0, y: 0 }, "Grass"); h.editor.render();
+  await h.click("validate"); await h.click("export"); await h.click("play");
+  for (const request of submitted.filter(row => row.operation !== "import"))
+    assert.deepEqual(request.body.worldEffects, definition.worldEffects);
+  assert.deepEqual(played, ["DELVE1:world-fixture"]);
+});

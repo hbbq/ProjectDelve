@@ -50,6 +50,7 @@
     <aside aria-label="Gameplay and Unit card">
       <p id="status" aria-live="polite">Loading…</p>
       <div class="turn-strip"><div id="active-token"></div><div id="active-unit"></div></div>
+      <section id="world-effects" aria-label="World Effects" hidden></section>
       <div id="bag" aria-label="Remaining Activation Bag"></div>
       <section class="decision-panel" aria-label="Pending decision">
         <h2>Player choice</h2><p id="prompt"></p><div id="choices"></div>
@@ -68,6 +69,12 @@
         <label>Height <input id="designer-height" type="number" min="1" max="50" value="15" required></label>
         <label>Default terrain <select id="designer-default"></select></label>
         <button>Apply board</button>
+      </form>
+      <form id="designer-world-form" class="toolbar">
+        <label><input id="designer-world-enabled" type="checkbox"> Use World Effects</label>
+        <label>Cards per Round <input id="designer-world-draws" type="number" min="0" step="1" value="1" required disabled></label>
+        <label>Cycling N <input id="designer-world-cycling" type="number" min="1" step="1" value="1" required disabled></label>
+        <button>Apply World Effects</button>
       </form>
       <div id="designer-tools" class="toolbar" aria-label="Designer tools">
         <button data-tool="Select" aria-pressed="true">Select</button>

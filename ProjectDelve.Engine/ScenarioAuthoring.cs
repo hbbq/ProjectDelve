@@ -12,7 +12,8 @@ public static class Scenario
     public static UnitGroup Group(string unitTypeId, string sideId, ControllerKind controller, params Placement[] placements) =>
         new(unitTypeId, sideId, controller, placements);
 
-    public static ScenarioDefinition Define(BoardDefinition board, UnitGroup[] groups, string[]? unitTypeIds = null)
+    public static ScenarioDefinition Define(BoardDefinition board, UnitGroup[] groups, string[]? unitTypeIds = null,
+        WorldEffectsSettings? worldEffects = null)
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(groups);
@@ -34,7 +35,7 @@ public static class Scenario
         }
         return new()
         {
-            Board = board,
+            Board = board, WorldEffects = worldEffects,
             UnitTypeIds = unitTypeIds is null ? groups.Select(g => g.UnitTypeId).Distinct(StringComparer.Ordinal).ToList() : [.. unitTypeIds],
             Units = units,
             Agency = agency

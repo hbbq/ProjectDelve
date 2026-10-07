@@ -22,7 +22,7 @@ function field(form, label, value, { entries, type = "text", list } = {}) {
 
 // A renderer for drafts, deliberately separate from GameState, choices and event playback.
 export function mountDesigner(catalog, request, playDesign) {
-  const ids = ["main", "board", "board-form", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
+  const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
     "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "transport", "validate", "export", "play", "import", "copy"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
@@ -84,6 +84,21 @@ export function mountDesigner(catalog, request, playDesign) {
     // Restore fields after a refused shrink.
     syncBoardFields();
   });
+  ui["world-enabled"].addEventListener("change", () => {
+    ui["world-draws"].disabled = ui["world-cycling"].disabled = !ui["world-enabled"].checked;
+  });
+  ui["world-form"].addEventListener("submit", event => {
+    event.preventDefault();
+    commit(() => draft.setWorldEffects(ui["world-enabled"].checked,
+      Number(ui["world-draws"].value), Number(ui["world-cycling"].value)));
+  });
+  function syncWorldFields() {
+    const world = draft.definition.worldEffects;
+    ui["world-enabled"].checked = !!world;
+    ui["world-draws"].value = world?.cardsPerRound ?? 1;
+    ui["world-cycling"].value = world?.cycling ?? 1;
+    ui["world-draws"].disabled = ui["world-cycling"].disabled = !world;
+  }
   function syncBoardFields() {
     ui.width.value = draft.definition.board.width; ui.height.value = draft.definition.board.height;
     ui.default.value = draft.definition.board.defaultTerrain;
@@ -312,7 +327,7 @@ export function mountDesigner(catalog, request, playDesign) {
     })));
     syncBrushAgency();
   }
-  function render() { renderBoard(); renderProperties(); renderData(); }
+  function render() { syncWorldFields(); renderBoard(); renderProperties(); renderData(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
     draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });

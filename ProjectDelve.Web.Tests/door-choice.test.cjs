@@ -1114,3 +1114,49 @@ test("gameplay sections are outside the board column and scenario description is
   assert.match(html, /id="scenario-description" role="tooltip"/);
   assert.ok(!html.includes("Start a round to play."));
 });
+
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`World playback renders each supplied card and Continuous row in order (${mode})`, async () => {
+    const initial = response(), final = response();
+    const old = { id: "physical-old", name: "Supplied old", text: "Opaque old modifier text", continuous: true };
+    const drawn = { id: "physical-new", name: "Supplied draw", text: "Opaque new modifier text", continuous: true };
+    const world = { cardsPerRound: 2, cycling: 1, drawPileCount: 7, discardPileCount: 4, activeContinuous: [old], resolvingCard: null };
+    initial.presentation.worldEffects = world;
+    const phases = [
+      { ...world, drawPileCount: 6, resolvingCard: drawn },
+      { ...world, drawPileCount: 6, discardPileCount: 5, activeContinuous: [drawn] }
+    ];
+    final.presentation.worldEffects = phases[1];
+    final.result.events = [{ kind: "WorldCardDrawn" }, { kind: "WorldContinuousChanged" }];
+    final.presentation.events = [{ role: "Notice", text: "Supplied World draw" }, { role: "Notice", text: "Supplied atomic replacement" }];
+    final.result.resolutionSteps = phases.map((_, eventIndex) => ({ eventIndex, stateAfter: final.result.state }));
+    final.presentation.resolutionSteps = phases.map((worldEffects, eventIndex) => ({ eventIndex, cards: final.presentation.cards, worldEffects }));
+    const shown = [], paused = [], h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    assert.match(h.elements.get("world-effects").textContent, /Supplied old/);
+    h.context.shownWorld = shown; h.context.pausedWorld = paused; h.context.mode = mode;
+    h.run(`
+      ui.animate.checked = mode !== "disabled";
+      pause = async () => { pausedWorld.push(ui["world-effects"].textContent); if (mode === "skip") ui.skip.listeners.click(); };
+      const originalRenderWorld = renderWorldEffects;
+      renderWorldEffects = world => { originalRenderWorld(world); shownWorld.push(ui["world-effects"].textContent); };
+    `);
+    await h.run('mutate("round")');
+    assert.match(shown[0], /Supplied draw/); assert.match(shown[0], /Supplied old/);
+    assert.ok(shown.some(value => /Supplied draw/.test(value) && !/Supplied old/.test(value)));
+    if (mode !== "disabled") assert.match(paused[0], /Supplied draw/);
+    assert.doesNotMatch(h.elements.get("world-effects").textContent, /Supplied old/);
+    assert.match(h.elements.get("world-effects").textContent, /Opaque new modifier text/);
+    assert.match(h.elements.get("world-effects").textContent, /Discard 5/);
+    h.run('renderWorldEffects(null)'); assert.equal(h.elements.get("world-effects").hidden, true);
+  });
+}
+
+test("World door closure uses the ordinary supplied edge presentation", async () => {
+  const h = harness(response());
+  const door = { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: "ClosedDoor" };
+  h.context.worldDoor = door;
+  h.run('const suppliedEdge = text("div", ""); edges.set(edgeKey(worldDoor), suppliedEdge); pause = async () => {};');
+  await h.run('present({ role: "DoorClosed", door: worldDoor }, { kind: "DoorClosed" })');
+  assert.equal(h.run('edges.get(edgeKey(worldDoor)).className'), "edge ClosedDoor");
+});

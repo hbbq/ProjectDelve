@@ -73,6 +73,10 @@ public sealed class ScenarioDefinitionJsonTests
         }
         Assert.Equal(authoredState.Physical.Figures, loadedState.Physical.Figures);
         Assert.Equal(authoredState.Controllers, loadedState.Controllers);
+        Assert.Equal(authoredState.WorldEffects, loadedState.WorldEffects);
+        Assert.Equal(authoredState.WorldDeck?.DrawPile, loadedState.WorldDeck?.DrawPile);
+        Assert.Equal(authoredState.WorldDeck?.DiscardPile, loadedState.WorldDeck?.DiscardPile);
+        Assert.Equal(authoredState.WorldDeck?.ActiveContinuous, loadedState.WorldDeck?.ActiveContinuous);
         AssertFreshRoundZero(authoredState);
         AssertFreshRoundZero(loadedState);
     }

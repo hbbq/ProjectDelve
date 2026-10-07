@@ -48,10 +48,12 @@ public sealed class DesignerApiTests
     [InlineData("full-party-trolls")]
     [InlineData("shaman-hunt")]
     [InlineData("complete-data")]
+    [InlineData("world-effects")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id == "complete-data" ? CompleteData() : PlaytestScenarios.Definition(id);
+        var definition = id is "complete-data" or "world-effects" ? CompleteData() : PlaytestScenarios.Definition(id);
+        if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
         if (id == "full-party-trolls")
         {
             var fixture = File.ReadAllText(Path.Combine(host.ContentRoot, "../ProjectDelve.Web.Tests/fixtures/full-party.json"));
@@ -90,12 +92,16 @@ public sealed class DesignerApiTests
     [InlineData("cell", "board.cells[0]")]
     [InlineData("edge", "board.edges[0]")]
     [InlineData("unique", "units[1]")]
+    [InlineData("world-cycling", "worldEffects")]
+    [InlineData("world-draws", "worldEffects")]
     public async Task InvalidDraftUsesAuthoritativeFailureAndNeverMutatesGame(string invalid, string path)
     {
         await using var host = await Host.Start();
         var definition = CompleteData();
         definition = invalid switch
         {
+            "world-cycling" => definition with { WorldEffects = new(1, 0) },
+            "world-draws" => definition with { WorldEffects = new(-1, 1) },
             "placement" => definition with { Units = [definition.Units[0], definition.Units[0]] },
             "unique" => definition with { Units = [definition.Units[1], definition.Units[1]] },
             "hp" => definition with { Units = [definition.Units[0] with { InitialHp = 99 }] },

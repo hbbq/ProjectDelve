@@ -3,6 +3,7 @@ namespace ProjectDelve.Engine;
 // Initial setup only. Content and runtime identity are resolved during game creation.
 public sealed record ScenarioDefinition
 {
+    public WorldEffectsSettings? WorldEffects { get; init; }
     public required BoardDefinition Board { get; init; }
     public required List<string> UnitTypeIds { get; init; }
     public required List<UnitPlacement> Units { get; init; }

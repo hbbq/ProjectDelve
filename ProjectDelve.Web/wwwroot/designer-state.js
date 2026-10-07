@@ -14,6 +14,12 @@ export class DesignerDraft {
     this.unitKeys = this.definition.units.map(() => ++this.nextKey);
     this.changed();
   }
+  setWorldEffects(enabled, cardsPerRound, cycling) {
+    // Drafts remain editable; the engine validates these scenario values.
+    if (enabled) this.definition.worldEffects = { cardsPerRound, cycling };
+    else delete this.definition.worldEffects;
+    this.changed();
+  }
   changed() { this.revision++; }
   snapshot() { return structuredClone(this.definition); }
   metadata(id) { return this.catalog.unitTypes.find(type => type.unitTypeId === id); }

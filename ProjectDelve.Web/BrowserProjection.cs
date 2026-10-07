@@ -21,18 +21,23 @@ public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entri
 {
     public string? FootprintLabel { get; init; }
 }
-public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Defeat, DoorAttempt, DoorOpened }
+public sealed record BrowserWorldCard(string Id, string Name, string Text, bool Continuous);
+public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
+    IReadOnlyList<BrowserWorldCard> ActiveContinuous, BrowserWorldCard? ResolvingCard);
+public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Defeat, DoorAttempt, DoorOpened, DoorClosed }
 public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitId = null,
     string? TargetId = null, List<Cell>? Path = null, Edge? Door = null,
     int Hits = 0, int Blocks = 0, int Damage = 0);
 public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
 {
+    public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
 }
 public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> Cards,
     BrowserDecision? Decision, IReadOnlyList<BrowserOutcome> Events,
     IReadOnlyList<BrowserResolutionStep> ResolutionSteps)
 {
+    public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
 }
 
@@ -44,7 +49,18 @@ public static class BrowserProjection
         Cards(result.State), Decision(result.NextInput, result.State),
         result.Events.Select(e => Outcome(e, result.State)).ToArray(),
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))
-            { Figures = Figures(s.StateAfter) }).ToArray()) { Figures = Figures(result.State) };
+            { Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter) }).ToArray())
+        { Figures = Figures(result.State), WorldEffects = WorldEffects(result.State) };
+
+    public static BrowserWorldCard WorldCard(WorldCard card)
+    {
+        var content = WorldCards.Content(card.Effect);
+        return new(card.Id, content.Name, content.Text, content.Continuous);
+    }
+    public static BrowserWorldEffects? WorldEffects(GameState state) =>
+        state.WorldEffects is not { } settings || state.WorldDeck is not { } deck ? null :
+        new(settings.CardsPerRound, settings.Cycling, deck.DrawPile.Count, deck.DiscardPile.Count,
+            deck.ActiveContinuous.Select(WorldCard).ToArray(), deck.ResolvingCard is null ? null : WorldCard(deck.ResolvingCard));
 
     public static IReadOnlyDictionary<string, FigureGeometry> Figures(GameState state) =>
         state.Physical.Figures.ToDictionary(f => f.Id, f =>
@@ -123,7 +139,10 @@ public static class BrowserProjection
     public static BrowserOutcome Outcome(RulesEvent e, GameState state)
     {
         string CellLabel(Cell cell) => $"{cell.X},{cell.Y}";
-        var subject = e.AbilityName is null ? e.UnitId : $"{e.UnitId} · {e.AbilityName}";
+        var subject = e.WorldCard is { } worldCard ? WorldCards.Content(worldCard.Effect).Name
+            : e.AbilityName is null ? e.UnitId : $"{e.UnitId} · {e.AbilityName}";
+        if (e.Kind == "ExplosionDamageResolved" && e.WorldCard is not null)
+            subject = $"{e.UnitId} · {e.AbilityName} (during {subject})";
         var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
         var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
             .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId)?.Name ?? e.ActionId;
@@ -131,8 +150,34 @@ public static class BrowserProjection
         string description;
         switch (e.Kind)
         {
+            case "WorldDeckShuffled":
+                description = "World Deck shuffled";
+                break;
+            case "WorldDeckReshuffled":
+                description = "World discard pile shuffled into the draw pile; active Continuous cards remain in play";
+                break;
+            case "WorldDrawSkipped":
+                description = "No World Card drawn: draw and discard piles are empty";
+                break;
+            case "WorldCardDrawn":
+                var content = WorldCards.Content(e.WorldCard!.Effect);
+                description = $"World Card drawn: {content.Name} ({(content.Continuous ? "Continuous" : "Immediate")}) — {content.Text}";
+                break;
+            case "WorldContinuousChanged":
+                description = $"{subject} is now active" + (e.CycledWorldCard is { } cycled
+                    ? $"; {WorldCards.Content(cycled.Effect).Name} simultaneously cycles out to discard" : "");
+                break;
+            case "WorldCardDiscarded":
+                description = $"{subject} finished resolving, including automatic consequences; card discarded";
+                break;
+            case "AbilityUsesReplenished":
+                description = $"{subject} → {e.UnitId}: replenish 1 use of each limited-use Ability, up to its maximum";
+                break;
             case "RoundStarted":
                 description = $"Round {e.Round} started";
+                break;
+            case "ActivationBagPopulated":
+                description = "Activation Bag populated from Units now in play";
                 break;
             case "RoundCompleted":
                 description = $"Round {e.Round} completed";
@@ -166,7 +211,7 @@ public static class BrowserProjection
                 description = $"{e.SourceUnitId} created {e.UnitId} ({e.SideId}) at {e.Cell?.X},{e.Cell?.Y}, {e.Posture}";
                 break;
             case "PostureChanged":
-                description = $"{e.UnitId}: {e.Posture}";
+                description = $"{e.UnitId}: {e.Posture}" + (e.WorldCard is null ? "" : $" ({subject})");
                 break;
             case "MovementCompleted":
                 role = OutcomeRole.Movement;
@@ -189,6 +234,7 @@ public static class BrowserProjection
                 role = OutcomeRole.AttackTarget;
                 description = $"{subject} → {e.TargetId}: {e.Hits} Hits, {e.Blocks} Blocks, {e.Damage} Damage";
                 break;
+            case "WorldDamageResolved":
             case "ExplosionDamageResolved":
             case "CleaveResolved":
                 role = OutcomeRole.Damage;
@@ -211,7 +257,11 @@ public static class BrowserProjection
                 break;
             case "DoorOpened":
                 role = OutcomeRole.DoorOpened;
-                description = $"{e.UnitId} opened door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
+                description = $"{(e.WorldCard is null ? e.UnitId : subject)} opened door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
+                break;
+            case "DoorClosed":
+                role = OutcomeRole.DoorClosed;
+                description = $"{subject} closed door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
                 break;
             case "TokenDrawn":
                 description = $"Token drawn: {state.Types.Single(t => t.Id == e.TypeId).DisplayName ?? e.TypeId} ({e.Token?.SideId})";
