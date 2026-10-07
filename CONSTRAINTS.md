@@ -64,7 +64,7 @@ An Upright Unit functions normally.
 
 A Lying Unit remains in play, remains a Unit of its Side and Unit Type, occupies its Cell normally, and may be targeted and attacked normally. Its Stats and current HP continue to exist and are used normally, including effective values produced by rules originating elsewhere.
 
-While Lying, the Unit cannot Move, Attack, or use Actions, Bonus Actions, or Free Actions. Its own Passives, Capabilities, and Behavior are inactive and produce no effects or opportunities. Rules originating from other Units or from the scenario may still affect the Lying Unit normally. Merely being Lying does not cause the figure to stop counting as a Unit for occupancy, friendliness/hostility, adjacency, targeting, or conditions on another Unit's rules.
+While Lying, the Unit cannot Move, Attack, or use Actions, Bonus Actions, or Free Actions, and its Behavior supplies no choices. Continuous effects provided by that Unit, such as a Passive stat modifier, are inactive while it is Lying. Triggered consequences and replacement effects are not suppressed merely because their source Unit is Lying; if Posture matters to such a rule, the rule states the required Posture explicitly. Rules originating from other Units or from the scenario may still affect the Lying Unit normally. Merely being Lying does not cause the figure to stop counting as a Unit for occupancy, friendliness/hostility, adjacency, targeting, or conditions on another Unit's rules.
 
 When a Lying Unit would activate, stand its figure Upright and immediately complete that Unit's activation. It receives no Move, Action, Bonus Action, Free Action, or other ordinary activation opportunity from that activation. If one Unit Type activation contains several Units of that type, each Lying Unit is still activated in the normal sequence; its individual activation consists only of standing up.
 
@@ -405,7 +405,7 @@ This is a physical constraint, independently of any gameplay meaning the object 
 
 ## Edges
 
-The boundary between two orthogonally adjacent cells is a single shared edge in the game model.
+The boundary between two orthogonally neighboring Cells is a single shared Edge in the game model. When describing an Edge or Door relative to a Cell, rules use **bordering** rather than the defined Unit/Cell gameplay term **adjacent**.
 
 An edge may contain physical features such as:
 
@@ -644,13 +644,20 @@ Troll is a tougher door-breaking Monster related to the Zombie.
 
 Troll uses the same reusable Approach Through Closed Doors Behavior and Try Open Door mechanic as Zombie, but its printed ability is **Smash Door** and succeeds on 4 of the 6 die faces.
 
-**Undying** changes what happens when this Unit would die. If an Upright Troll's current HP would reach zero, it does not die or leave the board. Instead, set its current HP to 1 and lay it down. This replacement is part of resolving that damage/death outcome; the Troll remains in play in the same Cell.
+**Undying** is a defeat replacement:
 
-If a Lying Troll's current HP reaches zero, normal Death applies and the Troll is removed from the board. Undying therefore does not protect a Troll that is already Lying.
+```text
+Undying
+
+If this Upright Unit would be defeated,
+instead set its current HP to 1 and lay it down.
+```
+
+Undying applies to defeat regardless of what rule would cause that defeat. Because it is a replacement, it is checked immediately before defeat would occur. When it applies, defeat does not occur: the Troll remains in play in the same position, its current HP becomes 1, and it becomes Lying. Consequently, rules triggered by that Unit being defeated do not trigger.
+
+Undying does not protect a Troll that is already Lying because its own text explicitly requires the Unit to be Upright. A Lying Troll that would be defeated therefore follows the normal defeat rules.
 
 Once laid down by Undying, the Troll follows the ordinary Posture rules. When its activation later occurs, that activation only stands it Upright and immediately ends. No separate regeneration timer, resurrection marker, remembered state, or automatic stand-up rule is introduced.
-
-Undying is the first concrete rule that replaces normal Death according to current Posture. Implement only the narrow extension required by this content; it does not establish a general death-replacement, resurrection, trigger-stack, or condition framework.
 
 #### Red Dragon
 
@@ -892,15 +899,15 @@ The Cleric also has the limited-use Action ability **Heal**:
 Heal [2/game]
 Action
 
-Restore up to 2 HP to an adjacent
-damaged friendly Unit.
+Heal one adjacent damaged friendly Unit
+for 2 HP.
 ```
 
 Heal starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity, so using Heal consumes the Cleric's Action for that activation just as a normal Attack would.
 
 A legal Heal target is a friendly Unit other than the Cleric that is adjacent under the same eight-surrounding-cells plus normal Line of Sight rule used by Aura, and whose current HP is below its maximum HP. A Unit at maximum HP is not a legal Heal target. Because the Cleric is not adjacent to itself, Heal cannot target the Cleric.
 
-Resolving Heal immediately spends one use and restores up to 2 current HP to the chosen target, never increasing current HP above that Unit's maximum HP. A Unit missing only 1 HP is therefore a legal target and restores 1 HP. Heal involves no dice roll.
+Resolving Heal immediately spends one use and restores 2 current HP to the chosen Unit, capped by that Unit's maximum HP. The amount is not chosen: a Unit missing only 1 HP restores 1 HP because current HP cannot exceed maximum HP. Heal involves no dice roll.
 
 After Heal resolves, the Cleric's Action is complete and ordinary legal choices are generated again from the resulting state. Heal does not introduce a general healing, targeting, or effect framework beyond the rules required by this concrete ability.
 
@@ -1042,8 +1049,8 @@ The Rogue also has the passive ability **Backstab**:
 ```text
 Backstab
 Passive
-+1 ATK when attacking an enemy
-that is adjacent to another friendly Unit.
+This Unit has ATK +1 for an Attack against
+an enemy adjacent to another friendly Unit.
 ```
 
 Backstab is derived from the current Game State and the specific target of an Attack. It applies when the target is adjacent to at least one friendly Unit other than the attacking Rogue. Friendly is determined by Side relationship rather than Hero classification, controller, Unit Type, or Behavior. Multiple qualifying friendly Units still provide only a single `+1 ATK` bonus.
@@ -1058,9 +1065,13 @@ Any rule that evaluates the effectiveness of a specific Attack, including releva
 
 ### Footprint adjacency
 
-When a rule refers to Units as adjacent, the Units are adjacent when at least one occupied Cell of one Unit has the ordinary eight-cell adjacency relationship, including that adjacency rule's normal geometric board LOS, to at least one occupied Cell of the other Unit. The **same Cell pair** must satisfy both adjacency and its required geometric LOS.
+**Adjacent** is a defined gameplay relationship, not merely geometric proximity. Two distinct Cells are adjacent when they are within one Cell in any of the eight directions (Chebyshev distance exactly 1) and geometric board LOS exists between those same Cells.
 
-A Unit never counts as adjacent to itself merely because Cells inside its own footprint are adjacent. A multi-Cell Unit still counts as one Unit regardless of how many Cell pairs establish adjacency. Effects such as Fury, Backstab, Aura, Heal, Holy Wave, and Cleave therefore count or affect a qualifying Unit once, not once per contacting Cell.
+Two distinct Units are adjacent when at least one occupied Cell of one Unit is adjacent to at least one occupied Cell of the other Unit. The **same Cell pair** must satisfy both the eight-neighbor geometry and its required geometric board LOS. This adjacency check does not add hostile-figure blocking; it uses geometric board LOS.
+
+A Unit never counts as adjacent to itself merely because Cells inside its own footprint are adjacent. A multi-Cell Unit still counts as one Unit regardless of how many Cell pairs establish adjacency. Effects such as Fury, Backstab, Aura, Heal, Holy Wave, Cleave, and future defeat consequences therefore count or affect a qualifying Unit once, not once per contacting Cell.
+
+Edges and Doors are not adjacent Units or Cells. An Edge **borders** each of its two Cells. Door rules therefore refer to a Door bordering an occupied Cell rather than defining a separate Unit-to-Edge adjacency relation.
 
 ### Free Actions
 
@@ -1160,6 +1171,31 @@ The reusable **Try Open Door** Action is available only to Unit Types that have 
 
 The first use of this Action is `TryOpenDoor(2/6)` for Zombies.
 
+### Rules language and resolution timing
+
+Canonical Ability text is the primary player-facing specification of an Ability, interpreted using the shared rules and defined terms. Code implements that meaning; card text is not parsed.
+
+The following words have consistent rules meaning:
+
+- **When X, Y** creates an automatic triggered consequence if X actually occurs. The consequence is appended to the end of the automatic-consequence queue; it does not interrupt the effect currently resolving.
+- **If X would happen, Y instead** is a replacement. Replacement effects are checked and resolved immediately before X would occur because they determine whether X occurs at all.
+- **After X** creates a follow-up at the boundary after X and the automatic consequences caused during its resolution have completely resolved. Follow-ups resolve or are declined before ordinary activation choices resume.
+- **May** marks optional performance. Without `may`, an effect instruction is mandatory.
+- **While** states a continuous condition evaluated from current state; it is not a trigger.
+- **Every** and **all** include every qualifying Unit once without choosing recipients.
+- **Choose** explicitly requires agency among legal alternatives. The word **target** does not itself imply that an object was chosen.
+- **Another** excludes the referenced source Unit.
+- **Up to N**, when specifying a selectable quantity, permits choosing any amount from zero through N. It is not used merely to express an automatic cap such as maximum HP.
+- Instructions resolve in written order. **Then** explicitly separates sequential instructions.
+
+An **Attack target** is a Unit included in that Attack's fixed target set, whether selected individually or included automatically by the Attack. A Unit affected by a non-Attack effect is not a target merely because the effect applies to it. References such as `the targets` refer back to the fixed targets of the relevant Attack; later changes to position, Range, LOS, adjacency, or Posture do not recalculate that set.
+
+When an effect begins resolving over **every/all** qualifying Unit, determine that recipient set at that point. Resolve the effect for those recipients in the rules-defined deterministic order without player-selected ordering. Later changes to position, adjacency, LOS, or other eligibility do not remove a Unit from that already-established set. A Unit that has left play before its pending application is reached can no longer be affected and is skipped unless a rule explicitly says otherwise.
+
+Automatic triggered consequences use a FIFO queue. Finish the currently resolving effect before resolving the queued consequence at the front. A new `When` consequence created while another effect or consequence is resolving is appended to the end of the queue. Continue until the queue is empty before exposing an `After` follow-up or returning to ordinary choices. This is a physical resolution procedure, not a stack, priority system, or opportunity for players to reorder consequences. If future content makes several consequences arise from the exact same event and their relative order matters, that content must define a deterministic order rather than introducing player-selected ordering implicitly.
+
+Defeat-triggered consequences remain valid after their source has left play. They may use the defeated Unit's relevant state and footprint as it existed at the moment of defeat when the consequence needs that information. This is remembered only while the automatic resolution sequence is in progress and therefore does not create persistent hidden game state.
+
 ### Immediate follow-ups
 
 Some rules may create an immediate follow-up after another operation has fully resolved. A follow-up is not a separate Action or Bonus Action category. It is a continuation of the rule that created it and must be resolved or declined, when optional, before ordinary activation choices resume.
@@ -1171,8 +1207,8 @@ The Goblin's Move After Attack is the first mandatory example. The Barbarian abi
 ```text
 Cleave [2/game]
 
-After an Attack deals 2 or more damage to a Unit,
-you may immediately deal 1 damage to an adjacent enemy.
+After this Unit's Attack, if it dealt 2 or more damage
+to a Unit, you may immediately deal 1 damage to an adjacent enemy.
 ```
 
 Cleave starts each game with 2 remaining uses and a maximum of 2. After the Barbarian's Attack has fully resolved, if that Attack dealt at least 2 Damage to at least one Unit, Cleave has at least one use remaining, and at least one legal Cleave target exists, an optional Cleave follow-up is created. Damage dealt to different targets is not added together for this condition. Ordinary activation choices do not resume until the Barbarian either uses Cleave or declines that follow-up.
@@ -1267,13 +1303,17 @@ The defender's current HP is reduced by the resulting Damage, but never below ze
 
 A Unit with effective `ATK 0` cannot make a normal Attack. `DEF 0` is valid and means that the defender rolls zero Defence Dice.
 
-### Death
+### Defeat
 
-Under the normal rules, when a Unit's current HP reaches zero, that Unit dies and its figure is removed from the board.
+A Unit is **defeated** when an unreplaced rules outcome defeats it. Ordinary lethal Damage causes defeat when the Unit's current HP would otherwise reach zero.
 
-This rule applies equally to Heroes and Monsters.
+Before defeat occurs, apply any applicable replacement effect. If a replacement such as Undying applies, the replaced defeat does not occur and no consequence that requires the Unit to have been defeated is created.
 
-Abilities or special rules may explicitly alter what happens when a Unit would die. Troll **Undying** is the current concrete exception to normal Death.
+When defeat does occur, the Unit leaves play and its Figure is removed from the Board as one rules event. There is no playable intermediate state in which a defeated Unit remains on the Board. Retained digital records do not mean that the Unit remains in play.
+
+A `When this Unit is defeated` consequence is created by that defeat event and follows the automatic-consequence queue rules. It may use the Unit's relevant state and footprint from the moment it was defeated even though its Figure has already been removed when the consequence later resolves.
+
+This rule applies equally to Heroes and Monsters. **Defeat** is the rules term for this lifecycle outcome; **remove** describes taking a Figure off the Board and is not a synonym for defeat, because future rules may remove a Figure for another reason.
 
 ## Physical component constraints
 
