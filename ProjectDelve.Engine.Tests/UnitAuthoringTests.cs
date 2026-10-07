@@ -214,6 +214,7 @@ public sealed class UnitAuthoringTests
                 Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" }),
             (UnitType.Goblin, new("goblin-type", 4, 1, 2, 2, 1, MoveAfterAttack: new(1),
                 Behaviors: UnitBehavior.BackAwayAfterAttack) { DisplayName = "Goblin" }),
+            (UnitType.BombImp, new("bomb-imp-type", 3, 1, 2, 2, 1) { DisplayName = "Bomb Imp", Explosion = new() }),
             (UnitType.Troll, new("troll-type", 2, 1, 4, 4, 1, TryOpenDoor: new(4),
                 Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new(), AbilityNames = new() { TryOpenDoor = "Smash Door" } }),
             (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent,

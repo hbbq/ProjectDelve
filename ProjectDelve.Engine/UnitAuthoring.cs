@@ -43,6 +43,7 @@ public static class UnitAuthoring
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
+    public static Explosion Explosion(int damage) => new() { Damage = damage };
     public static SummonAdjacent SummonAdjacent(string unitTypeId, Posture initialPosture) => new(unitTypeId, initialPosture);
     public static Telekinesis Telekinesis() => new();
     public static Fury Fury(int atkBonus, int adjacentEnemies) =>
@@ -75,6 +76,8 @@ public static class UnitAuthoring
         new NamedEntry(new FuryEntry(mechanic), name, NamedMechanic.Fury);
     public static Entry Ability(string name, UnlimitedUsage usage, Backstab mechanic) =>
         new NamedEntry(new BackstabEntry(mechanic), name, NamedMechanic.Backstab);
+    public static Entry Ability(string name, UnlimitedUsage usage, Explosion mechanic) =>
+        new NamedEntry(new ExplosionEntry(mechanic), name, NamedMechanic.Explosion);
     public static Entry Ability(string name, UnlimitedUsage usage, Undying mechanic) =>
         new NamedEntry(new UndyingEntry(), name, NamedMechanic.Undying);
     public static Entry Ability(string name, UnlimitedUsage usage, Telekinesis mechanic) =>
@@ -111,7 +114,7 @@ public static class UnitAuthoring
     public static UnitType WithBehaviors(this UnitType type, params UnitBehavior[] behaviors) =>
         type with { Behaviors = behaviors.Aggregate(type.Behaviors, (combined, behavior) => combined | behavior) };
 
-    private enum NamedMechanic { Heal, Cleave, HolyWave, Fireball, FireBreath, ClawAttack, Aura, Fury, Backstab, Undying, Telekinesis, TryOpenDoor, Summon, MoveAfterAttack }
+    private enum NamedMechanic { Heal, Cleave, HolyWave, Fireball, FireBreath, ClawAttack, Aura, Fury, Backstab, Undying, Explosion, Telekinesis, TryOpenDoor, Summon, MoveAfterAttack }
     private sealed class NamedEntry(Entry mechanic, string name, NamedMechanic kind) : Entry
     {
         internal override Type Slot => mechanic.Slot;
@@ -130,6 +133,7 @@ public static class UnitAuthoring
                 NamedMechanic.Aura => names with { Aura = name == "Aura" ? null : name },
                 NamedMechanic.Fury => names with { Fury = name == "Fury" ? null : name },
                 NamedMechanic.Backstab => names with { Backstab = name == "Backstab" ? null : name },
+                NamedMechanic.Explosion => names with { Explosion = name == "Explosion" ? null : name },
                 NamedMechanic.Undying => names with { Undying = name == "Undying" ? null : name },
                 NamedMechanic.Telekinesis => names with { Telekinesis = name == "Telekinesis" ? null : name },
                 NamedMechanic.TryOpenDoor => names with { TryOpenDoor = name == "Try Open Door" ? null : name },
@@ -168,6 +172,10 @@ public static class UnitAuthoring
     private sealed class MoveEntry(MoveAfterAttack mechanic) : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { MoveAfterAttack = mechanic };
+    }
+    private sealed class ExplosionEntry(Explosion mechanic) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Explosion = mechanic };
     }
     private sealed class UndyingEntry : Entry
     {

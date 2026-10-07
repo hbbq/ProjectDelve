@@ -179,6 +179,7 @@ public static class BrowserProjection
                 role = OutcomeRole.AttackTarget;
                 description = $"{subject} → {e.TargetId}: {e.Hits} Hits, {e.Blocks} Blocks, {e.Damage} Damage";
                 break;
+            case "ExplosionDamageResolved":
             case "CleaveResolved":
                 role = OutcomeRole.Damage;
                 description = $"{subject} → {e.TargetId}: {e.Damage} Damage";

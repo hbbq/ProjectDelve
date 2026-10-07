@@ -54,6 +54,7 @@ public sealed record AbilityPresentationNames
     public string? Fury { get; init; }
     public string? Backstab { get; init; }
     public string? Undying { get; init; }
+    public string? Explosion { get; init; }
     public string? Telekinesis { get; init; }
     public string? TryOpenDoor { get; init; }
     public string? Summon { get; init; }
@@ -62,6 +63,10 @@ public sealed record AbilityPresentationNames
 public sealed record TryOpenDoor(int SuccessCount);
 public sealed record MoveAfterAttack(int MaxSteps);
 public sealed record Undying;
+public sealed record Explosion
+{
+    public int Damage { get; init; } = 1;
+}
 public sealed record Phase;
 public sealed record Cleave(int MaxUses = 2)
 {
@@ -130,6 +135,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
     public Undying? Undying { get; init; }
+    public Explosion? Explosion { get; init; }
     public Phase? Phase { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
@@ -173,6 +179,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitRoster.Zombie(id);
     public static UnitType Ghost(string id = UnitTypeIds.Ghost) => UnitRoster.Ghost(id);
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitRoster.SkeletonArcher(id);
+    public static UnitType BombImp(string id = UnitTypeIds.BombImp) => UnitRoster.BombImp(id);
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);
@@ -228,7 +235,7 @@ public sealed record AttackTargetResult(string TargetId, int DefenceDice, int Bl
 // One roll and separate per-Unit Damage; there is deliberately no total Damage.
 public sealed record AttackResult(int AttackDice, int Hits, ImmutableArray<AttackTargetResult> Targets);
 // Event-local source information remains available after the Figure has left play.
-// This is outcome context, never persistent GameState or an in-play Unit.
+// Retained only for events and the currently resolving automatic sequence, never an in-play Unit.
 public sealed record DefeatContext(Unit Unit, UnitType Type, Figure Figure, ImmutableArray<Cell> OccupiedCells);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
@@ -285,6 +292,8 @@ public sealed class GameState
         ?? throw new InvalidOperationException("Decision has no controlling group."));
     public AttackContinuation? AttackInProgress { get; set; }
     public DoorContinuation? DoorInProgress { get; set; }
+    // FIFO defeat consequences, retained across dice boundaries only until resolution completes.
+    public List<DefeatContext> PendingExplosions { get; set; } = [];
     public bool MoveDone { get; set; }
     public bool ActionDone { get; set; }
     // Ability names are the existing content identities, shared with persistent use counters.
@@ -378,7 +387,7 @@ public sealed class GameState
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
-        CleavePending = CleavePending,
+        CleavePending = CleavePending, PendingExplosions = [.. PendingExplosions],
         Pending = Pending, RoundComplete = RoundComplete
     };
 }

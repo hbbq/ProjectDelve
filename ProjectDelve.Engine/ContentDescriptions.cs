@@ -54,6 +54,9 @@ public static class ContentDescriptions
             entries.Add(new("passive:Fury", names.Fury ?? fury.Name, "Passive", fury.DisplayText));
         if (type.Backstab is { } backstab)
             entries.Add(new("passive:Backstab", names.Backstab ?? backstab.Name, "Passive", backstab.DisplayText));
+        if (type.Explosion is { } explosion)
+            entries.Add(new("explosion", names.Explosion ?? "Explosion", "Capability",
+                $"When this Unit is defeated, deal {explosion.Damage} damage to every adjacent Unit."));
         if (type.Undying is not null)
             entries.Add(new("undying", names.Undying ?? "Undying", "Capability",
                 "If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down."));

@@ -55,6 +55,12 @@ public static class UnitRoster
         Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 1))
     ).WithBehaviors(UnitBehavior.BackAwayAfterAttack);
 
+    public static UnitType BombImp(string id = UnitTypeIds.BombImp) => UnitType.Define(id,
+        "Bomb Imp",
+        Stats(3, 1, 2, 2, 1),
+        Ability("Explosion", Unlimited(), Explosion(damage: 1))
+    );
+
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitType.Define(id, 
         "Troll", 
         Stats(2, 1, 4, 4, 1),

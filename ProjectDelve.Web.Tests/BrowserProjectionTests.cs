@@ -9,6 +9,27 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class BrowserProjectionTests
 {
+    [Fact]
+    public void ExplosionProjectsDirectDamageFromRemovedSource()
+    {
+        var imp = UnitType.BombImp();
+        var target = UnitType.Grunt();
+        var state = new GameState
+        {
+            Physical = new(new Board(4, 4, []), [new("target", new(2, 2))]),
+            Types = [imp, target],
+            Units = [imp.CreateUnit("imp", "red") with { CurrentHp = 0 }, target.CreateUnit("target", "blue")]
+        };
+        var outcome = BrowserProjection.Outcome(new RulesEvent("ExplosionDamageResolved", "imp", "target",
+            Damage: 1, AbilityName: "Explosion") { ActionId = "explosion", SourceUnitId = "imp" }, state);
+        Assert.Equal(OutcomeRole.Damage, outcome.Role);
+        Assert.Equal(1, outcome.Damage);
+        Assert.Contains("Explosion", outcome.Text);
+        Assert.Contains("target", outcome.Text);
+        Assert.DoesNotContain("Dice", outcome.Text);
+        Assert.Contains(BrowserProjection.Cards(state)["imp"].Entries, e => e.Content.Id == "explosion");
+    }
+
     [Theory]
     [InlineData(false)] [InlineData(true)]
     public void DragonActionsUseGenericCardsDirectAndUnitChoicesWithAuthoritativeTargets(bool aliases)

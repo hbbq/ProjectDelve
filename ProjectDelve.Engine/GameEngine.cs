@@ -40,6 +40,7 @@ public static class GameEngine
         state.CleavePending = false;
         state.AttackInProgress = null;
         state.DoorInProgress = null;
+        state.PendingExplosions.Clear();
         state.MoveDone = false;
         state.ActionDone = false;
         state.BonusActionsUsedThisActivation.Clear();
@@ -303,6 +304,7 @@ public static class GameEngine
                 if (state.AttackInProgress is not null) { state.Pending = CreateDecision(state); return; }
                 continue;
             }
+            ResolveExplosions(state, events);
             if (state.DoorInProgress is not null) { state.Pending = CreateDecision(state); return; }
             if (state.ActiveToken is null)
             {
@@ -668,6 +670,7 @@ public static class GameEngine
                 AbilityName: attack.AbilityName, Attack: new(attack.AttackDice, attack.Hits, attack.Results))
                 { ActionId = attack.ActionId });
         state.AttackInProgress = null;
+        ResolveExplosions(state, events);
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
         var type = state.Types.Single(t => t.Id == attacker.TypeId);
         if (attacker.CurrentHp > 0 && state.IsUpright(attacker.Id))
@@ -807,8 +810,33 @@ public static class GameEngine
         // Retained records use zero HP to mark absence; removal and defeat are one outcome.
         state.Units[index] = unit with { CurrentHp = 0 };
         state.Physical.Figures.Remove(figure);
+        if (type.Explosion is not null) state.PendingExplosions.Add(context);
         return new("UnitDefeated", unitId)
             { SourceUnitId = sourceUnitId, ActionId = actionId, DefeatContext = context };
+    }
+
+    // Concrete automatic consequence: finish each recipient set before draining the next defeat.
+    private static void ResolveExplosions(GameState state, ResolutionEvents events)
+    {
+        while (state.PendingExplosions.Count > 0)
+        {
+            var source = state.PendingExplosions[0];
+            state.PendingExplosions.RemoveAt(0);
+            var damage = source.Type.Explosion!.Damage;
+            var recipients = state.Physical.Figures
+                .Where(f => SpatialRules.AreFootprintsAdjacent(state.Physical.Board,
+                    source.OccupiedCells, FootprintGeometry.OccupiedCells(state, f.Id)))
+                .OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X)
+                .Select(f => f.Id).ToArray();
+            foreach (var id in recipients)
+            {
+                if (!state.Physical.Figures.Any(f => f.Id == id)) continue;
+                DealDamage(state, id, damage,
+                    new RulesEvent("ExplosionDamageResolved", source.Unit.Id, id, Damage: damage,
+                        AbilityName: source.Type.AbilityNames.Explosion ?? "Explosion")
+                        { SourceUnitId = source.Unit.Id, ActionId = "explosion", Cell = source.Figure.Position }, events);
+            }
+        }
     }
 
     // Capture at emission time, before later operations mutate this run's working state.
