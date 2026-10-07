@@ -147,7 +147,7 @@ public sealed class UnitAuthoringTests
         var ready = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var restored = Restore(ready.State);
         var heal = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "heal");
-        Assert.Equal("Choose one adjacent damaged friendly Unit. Heal it for 3 HP.", heal.Description);
+        Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", heal.Description);
         Assert.Equal("4/game", heal.UseLimitText);
         var healed = TestGame.Advance(restored, new Choice("heal:target"), new Dice(), false);
         Assert.Equal(4, healed.State.Units[1].CurrentHp);

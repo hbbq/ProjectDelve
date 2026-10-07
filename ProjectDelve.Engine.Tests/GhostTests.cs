@@ -47,7 +47,7 @@ public sealed class GhostTests
         Assert.Equal("Capability", capability.Category);
         Assert.Null(capability.MaxUses);
         Assert.Contains("normally passable", capability.Description);
-        Assert.Contains("Line of Sight", capability.Description);
+        Assert.Equal("Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.", capability.Description);
         var state = State();
         state.Types[0] = UnitType.Define("other-type", "Other phasing content", Stats(2, 1, 3, 3, 1), Phase());
         state.Units[0] = state.Types[0].CreateUnit("ghost", "red");

@@ -60,7 +60,7 @@ public sealed class BackstabTests
         var type = UnitType.Rogue();
         Assert.NotNull(type.Backstab);
         Assert.Equal(new PassiveDescription("Backstab",
-            "+1 ATK when attacking an enemy that is adjacent to another friendly Unit"), Assert.Single(type.Passives));
+            "+1 ATK when attacking an enemy adjacent to another friendly Unit"), Assert.Single(type.Passives));
         Assert.Equal(new[] { "Dash", "Throwing Knife" }, type.CreateUnit("rogue", "blue").BonusActionUses.Keys.Order().ToArray());
         Assert.Null(UnitType.Grunt().Backstab);
     }
@@ -81,7 +81,7 @@ public sealed class BackstabTests
         Assert.Equal(type.Backstab, restored.Types[0].Backstab);
         Assert.Equal(3, restored.EffectiveAtkOf("rogue"));
         Assert.Equal(expected, restored.EffectiveAtkAgainst("rogue", "target"));
-        Assert.Equal("+3 ATK when attacking an enemy that is adjacent to another friendly Unit",
+        Assert.Equal("+3 ATK when attacking an enemy adjacent to another friendly Unit",
             Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "passive:Backstab").Description);
         var ready = Ready(restored);
         var random = new Random();

@@ -27,7 +27,7 @@ public sealed class BrowserProjectionTests
         var presentation = BrowserProjection.Decision(request, state)!;
         var cards = BrowserProjection.Cards(state)["dragon"].Entries.ToDictionary(e => e.Content.Id);
         Assert.Equal("Attack all enemies within RNG.", cards["fire-breath"].Content.Description);
-        Assert.Equal("Choose one adjacent enemy. Attack it with ATK +1.", cards["claw-attack"].Content.Description);
+        Assert.Equal("Attack an adjacent enemy with ATK +1.", cards["claw-attack"].Content.Description);
         Assert.Null(cards["fire-breath"].Uses); Assert.Null(cards["claw-attack"].Uses);
         var breath = Assert.Single(presentation.Candidates, c => c.EntryId == "fire-breath");
         Assert.Equal(InteractionKind.Direct, breath.Interaction.Kind);
@@ -58,7 +58,7 @@ public sealed class BrowserProjectionTests
         var entry = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries);
         Assert.Equal("Call Sage", entry.Content.Name);
         Assert.Equal("Action", entry.Content.Category);
-        Assert.Equal("Choose an adjacent empty Cell. Place one Upright Sage there.", entry.Content.Description);
+        Assert.Equal("Place one Upright Sage in an adjacent empty Cell.", entry.Content.Description);
         Assert.Null(entry.Content.MaxUses);
         Assert.Null(entry.Uses);
         var request = new DecisionRequest(DecisionKind.Activation, summoner.Id, "actor",
@@ -82,10 +82,10 @@ public sealed class BrowserProjectionTests
             UnitAuthoring.Ability("Cleave", UnitAuthoring.Uses(2), UnitAuthoring.Cleave(triggerDamage: 4, damage: 2)));
         var state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(State(type)))!;
         var entries = BrowserProjection.Cards(state)["actor"].Entries.ToDictionary(e => e.Content.Id);
-        Assert.Equal("Choose one adjacent damaged friendly Unit. Heal it for 3 HP.", entries["heal"].Content.Description);
+        Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", entries["heal"].Content.Description);
         Assert.Equal("ATK +2 while adjacent to 3 or more enemies", entries["passive:Fury"].Content.Description);
-        Assert.Equal("+4 ATK when attacking an enemy that is adjacent to another friendly Unit", entries["passive:Backstab"].Content.Description);
-        Assert.Equal("After this Unit's Attack, if it dealt 4 or more damage to a Unit, you may choose an adjacent enemy and immediately deal 2 damage to it.", entries["cleave"].Content.Description);
+        Assert.Equal("+4 ATK when attacking an enemy adjacent to another friendly Unit", entries["passive:Backstab"].Content.Description);
+        Assert.Equal("After this Unit's Attack, if it dealt 4 or more damage to a Unit, you may immediately deal 2 damage to an adjacent enemy.", entries["cleave"].Content.Description);
         Assert.Equal(new AbilityUses(2, 2), entries["heal"].Uses);
         Assert.Equal(new AbilityUses(2, 2), entries["cleave"].Uses);
         Assert.Equal(type.CardEntries(), entries.Values.Select(e => e.Content));
@@ -264,7 +264,7 @@ public sealed class BrowserProjectionTests
         var presentation = BrowserProjection.Create(action);
         var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "telekinesis");
         Assert.Equal(new CardEntryDescription("telekinesis", "Telekinesis", "Action",
-            "Choose an upright enemy within RNG and LOS. Lay it down."), card.Content);
+            "Lay down an upright enemy within RNG and LOS."), card.Content);
         Assert.Null(card.Uses);
         var choice = presentation.Decision!.Candidates.Single(c => c.EntryId == "telekinesis");
         Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: "target"), choice.Interaction);

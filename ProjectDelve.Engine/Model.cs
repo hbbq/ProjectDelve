@@ -89,7 +89,7 @@ public sealed record Backstab
 {
     public int AtkBonus { get; init; } = 1;
     public string Name => "Backstab";
-    public string DisplayText => $"{AtkBonus:+0;-0;0} ATK when attacking an enemy that is adjacent to another friendly Unit";
+    public string DisplayText => $"{AtkBonus:+0;-0;0} ATK when attacking an enemy adjacent to another friendly Unit";
 }
 // Presentation metadata only; passive rules retain their concrete representations.
 public sealed record PassiveDescription(string Name, string DisplayText);

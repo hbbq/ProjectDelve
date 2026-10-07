@@ -156,7 +156,7 @@ public sealed class PlaytestApiTests
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "telekinesis");
         Assert.Equal("Telekinesis", telekinesis.GetProperty("content").GetProperty("name").GetString());
         Assert.Equal("Action", telekinesis.GetProperty("content").GetProperty("category").GetString());
-        Assert.Equal("Choose an upright enemy within RNG and LOS. Lay it down.", telekinesis.GetProperty("content").GetProperty("description").GetString());
+        Assert.Equal("Lay down an upright enemy within RNG and LOS.", telekinesis.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("uses").ValueKind);
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("content").GetProperty("maxUses").ValueKind);
         var cardWave = cards.GetProperty(Cleric).GetProperty("entries").EnumerateArray()

@@ -59,7 +59,7 @@ public sealed class CleaveTests
         var restored = Restore(attack.State);
         Assert.Equal(type.Cleave, restored.Types[0].Cleave);
         var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "cleave");
-        Assert.Equal($"After this Unit's Attack, if it dealt {trigger} or more damage to a Unit, you may choose an adjacent enemy and immediately deal 3 damage to it.", entry.Description);
+        Assert.Equal($"After this Unit's Attack, if it dealt {trigger} or more damage to a Unit, you may immediately deal 3 damage to an adjacent enemy.", entry.Description);
         Assert.Equal("2/game", entry.UseLimitText);
         if (!offered) return;
 

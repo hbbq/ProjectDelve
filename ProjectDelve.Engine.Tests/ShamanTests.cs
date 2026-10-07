@@ -68,7 +68,7 @@ public sealed class ShamanTests
         Assert.Equal("spawn-goblin", entry.Id); // Existing opaque presentation identity is retained.
         Assert.Equal("Call Ally", entry.Name);
         Assert.Null(entry.MaxUses);
-        Assert.Equal($"Choose an adjacent empty Cell. Place one {posture} {expectedType.DisplayName} there.", entry.Description);
+        Assert.Equal($"Place one {posture} {expectedType.DisplayName} in an adjacent empty Cell.", entry.Description);
         var restored = Restore(action.State);
         Assert.Equal(new SummonAdjacent(UnitTypeIds.Wizard, posture), restored.Types[0].SummonAdjacent);
         var result = TestGame.Advance(restored, new DefaultAutomatedProvider(), new Random(), false);

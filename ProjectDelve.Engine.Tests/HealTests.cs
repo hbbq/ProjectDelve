@@ -55,7 +55,7 @@ public sealed class HealTests
         Assert.Equal(healer.Heal, restored.Types[0].Heal);
         var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "heal");
         Assert.Equal("heal", entry.Id);
-        Assert.Equal("Choose one adjacent damaged friendly Unit. Heal it for 3 HP.", entry.Description);
+        Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", entry.Description);
         Assert.Equal("2/game", entry.UseLimitText);
 
         var dice = new Dice();

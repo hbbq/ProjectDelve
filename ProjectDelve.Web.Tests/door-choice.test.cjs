@@ -527,7 +527,7 @@ test("movement retains mounted figures and commits each progressive animation st
 
 for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surface of ["figure", "cell"]) {
   test(`${name} uses generic Unit targeting on ${surface} and authoritative posture after submission`, async () => {
-    const printed = entry("opaque-entry", name, "Action", "Choose an upright enemy within RNG and LOS. Lay it down.");
+    const printed = entry("opaque-entry", name, "Action", "Lay down an upright enemy within RNG and LOS.");
     printed.content.maxUses = null; printed.content.useLimitText = null; printed.uses = null;
     const attack = choice("opaque normal attack", "Unit", { unitId: "a" });
     const action = choice("opaque posture choice", "Unit", { unitId: "a" },
@@ -543,7 +543,7 @@ for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surf
     });
     h.run("pause = async () => {}");
     assert.match(h.elements.get("unit-card").textContent, new RegExp(name));
-    assert.match(h.elements.get("unit-card").textContent, /Choose an upright enemy within RNG and LOS\. Lay it down\./);
+    assert.match(h.elements.get("unit-card").textContent, /Lay down an upright enemy within RNG and LOS\./);
     assert.doesNotMatch(h.elements.get("unit-card").textContent, /\/game|uses/);
     const target = h.figure("a"), left = target.style.left, top = target.style.top;
     // The fixture's same-side distant Unit is selected solely from the supplied interaction.
