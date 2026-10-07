@@ -470,6 +470,8 @@ A figure cannot occupy an intermediate position between Cells. A 2 × 2 figure p
 
 A Lying figure retains its complete footprint. Removing the figure removes the complete footprint.
 
+A Unit with a footprint larger than 1 × 1 cannot be moved, repositioned, or have its position exchanged by another Unit's effect unless that effect explicitly says otherwise. This restriction does not prevent the Unit's ordinary Move or movement/repositioning caused by its own abilities. A rule such as `move an enemy Unit` or `swap places with an enemy Unit` therefore has only 1 × 1 Units as legal affected Units by default.
+
 ### Facing
 
 Figures have no gameplay-facing or orientation.
@@ -698,6 +700,44 @@ A legal Claw Attack target is one adjacent hostile Unit under the ordinary footp
 For automated Red Dragon play, when Fire Breath does not have at least two legal targets and one or more Claw Attack targets exist, prefer Claw Attack. Choose among legal Claw Attack targets using the ordinary Default Monster Behavior target ranking. If no Claw Attack is possible, prefer an ordinary Normal Attack when one is legal. If none of these Actions is currently possible, movement and approach use ordinary Default Monster Behavior rather than Dragon-specific pathfinding.
 
 These preferences choose among authoritative legal Actions and targets. They do not alter Range, Line of Sight, adjacency, movement, or Attack legality.
+
+#### Displacer Demon
+
+Displacer Demon is a positional-control Monster intended to disrupt defensive formations rather than merely attack through them.
+
+- Stats: `MOV 3`, `RNG 1` (Melee), `ATK 4`, `DEF 4`, `HP 1`.
+- Actions: Normal Attack.
+- Bonus Actions: Swap; Displace.
+- Passive abilities: Aura (adjacent friendly Units get `DEF +1`).
+- Behaviors: prioritize Swap when legal; otherwise use ordinary movement; after movement and any Swap, prefer Normal Attack; after the Action opportunity is resolved, prefer Displace before End Turn.
+
+**Swap** is an unlimited-use Bonus Action:
+
+```text
+Swap
+Bonus Action
+
+Swap places with an adjacent enemy Unit.
+```
+
+Swap uses the general swap-places rule. The enemy must be adjacent under the ordinary footprint-aware adjacency rule and must be a legal Unit for external repositioning. Because Displacer Demon is 1 × 1 and Units larger than 1 × 1 cannot normally be repositioned by another Unit's effect, Swap currently exchanges the Cells of Displacer Demon and one adjacent 1 × 1 enemy. The exchange is simultaneous and neither Unit performs a Move.
+
+**Displace** is an unlimited-use Bonus Action:
+
+```text
+Displace
+Bonus Action
+
+Move an adjacent enemy Unit up to 1 Cell.
+```
+
+The chosen enemy must be adjacent when Displace begins and must be a legal Unit for external movement. The Displacer Demon's controller chooses 0 or 1 Cell as permitted by `up to 1`; when moving 1 Cell, it chooses a legal neighboring destination under the external-movement rules. Displace does not spend the affected Unit's `MOV` and is not that Unit's Move. It cannot normally move a Unit whose footprint is larger than 1 × 1.
+
+Swap and Displace have no per-game use limit, but each is still an individual Bonus Action and therefore may be used at most once during each Displacer Demon activation.
+
+Displacer Demon's **Aura** uses the same passive mechanic and adjacency semantics as Cleric's Aura: each adjacent friendly Unit gets `DEF +1`, the source does not affect itself, multiple applicable sources stack, and a Lying source does not provide the continuous effect.
+
+For automated play, choice priority is intended to create the positional tactic from ordinary legal candidates rather than special movement legality. If Swap is legal and has not been used this activation, prefer Swap over the ordinary Move choice. If Swap is not legal, use ordinary movement Behavior. After movement, if Swap has become legal and remains unused, prefer it before choosing the Action. Prefer a legal Normal Attack for the Action. Once the Action opportunity is resolved, if Displace is legal and unused, prefer Displace before End Turn. Target and destination choices use authoritative legal candidates and deterministic Behavior ranking; these preferences do not change Swap, Displace, movement, Attack, or adjacency legality.
 
 #### Ghost
 
@@ -1124,6 +1164,16 @@ A Unit may not pass through any Cell occupied by a hostile Unit. Any footprint i
 A Unit may never end its movement with any part of its footprint overlapping another Unit, whether friendly or hostile.
 
 Whether a destination cell is otherwise passable is determined by the rules for its terrain or fixed object. Those rules are deliberately deferred to the corresponding terrain specification.
+
+### Moving and repositioning Units by effects
+
+An effect may instruct a player to move or reposition a Unit without giving that Unit its ordinary **Move**. This changes the figure's position but is not that Unit performing a Move, does not spend its `MOV`, and does not satisfy or trigger rules that refer to that Unit moving or performing a Move unless the effect explicitly says otherwise.
+
+When an effect moves a 1 × 1 Unit **up to 1 Cell**, choosing 0 Cells leaves it in its current Cell. Choosing 1 Cell moves it to one of the eight neighboring Cells. That one-Cell relocation must obey ordinary terrain, Edge, board-boundary, placement, and Unit-occupancy legality for that step. Movement capabilities belonging to the affected Unit, such as Phase, do not alter an external effect's relocation unless the effect explicitly uses them.
+
+**Swap places** exchanges the Cells occupied by two 1 × 1 Units simultaneously. Neither Unit performs a Move. When a rule requires the Units to be adjacent, the ordinary adjacency rule already establishes the required local geometric relationship between their Cells, including geometric board LOS. The two Units do not block the exchange by occupying each other's destination Cells.
+
+The general large-footprint restriction under Footprint applies to all such external movement and repositioning. A Unit larger than 1 × 1 cannot be affected by another Unit's move, reposition, or swap effect unless that effect explicitly overrides the restriction.
 
 ### Movement and distance queries
 
