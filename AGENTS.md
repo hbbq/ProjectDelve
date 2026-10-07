@@ -75,4 +75,5 @@ Agents may maintain this repository-working-knowledge section without separate p
 
 ### Known repository notes
 
-- No additional repository-specific operational notes have been established here yet.
+- The solution targets .NET 10. Run all C# tests with `dotnet test ProjectDelve.sln`; focused engine tests can use `dotnet test ProjectDelve.Engine.Tests --filter "FullyQualifiedName~TestClassName"`.
+- Browser interaction and scenario-designer tests use Node's built-in runner: `node --test ProjectDelve.Web.Tests/*.test.cjs`. They run without a browser or npm dependency installation.

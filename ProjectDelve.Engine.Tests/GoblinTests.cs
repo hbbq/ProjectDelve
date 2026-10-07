@@ -83,12 +83,12 @@ public sealed class GoblinTests
     }
 
     [Fact]
-    public void DamageAndDeathResolveBeforeMoveCandidatesAreGenerated()
+    public void DamageAndDefeatResolveBeforeMoveCandidatesAreGenerated()
     {
         var state = State();
         state.Units[1] = state.Units[1] with { CurrentHp = 1 };
         var result = Extra(state, hit: true);
-        Assert.Equal(new[] { "AttackResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "AttackResolved", "UnitDefeated" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(2, TestGame.OperationEvents(result)[0].Damage);
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "hero");
@@ -269,7 +269,7 @@ public sealed class GoblinTests
         state.Units.Add(new("survivor", "survivor-type", "blue", 4));
         state.Physical.Figures.Add(new("survivor", new(1, 0)));
         var extra = Extra(state, hit: true);
-        Assert.Equal(new[] { "AttackResolved", "UnitDied" }, TestGame.OperationEvents(extra).Select(e => e.Kind));
+        Assert.Equal(new[] { "AttackResolved", "UnitDefeated" }, TestGame.OperationEvents(extra).Select(e => e.Kind));
         Assert.Equal(0, extra.State.Units.Single(u => u.Id == "hero").CurrentHp);
         Assert.True(new GameplayQueries(extra.State).HasNearbyHostileThreatFrom("goblin", new(2, 1)));
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(extra.State))!;

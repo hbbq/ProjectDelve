@@ -126,9 +126,60 @@ public sealed class ContinuationTests
         Assert.Equal(2, roll.State.Units[0].CleaveUses!.RemainingUses);
     }
 
+    [Fact]
+    public void MultiTargetAttackFinishesReplacementAndDefeatBeforeAfterFollowUp()
+    {
+        var caster = UnitType.Wizard() with { Atk = 2, Cleave = new() };
+        var troll = UnitType.Troll();
+        var ordinary = UnitType.Grunt() with { Def = 1 };
+        var state = new GameState
+        {
+            Physical = new(new(5, 4, []), [new("caster", new(0, 0)), new("troll", new(1, 1)),
+                new("last", new(2, 1)), new("follow", new(0, 1))]),
+            Types = [caster, troll, ordinary],
+            Units = [caster.CreateUnit("caster", "blue"), troll.CreateUnit("troll", "blue"),
+                ordinary.CreateUnit("last", "red"), ordinary.CreateUnit("follow", "red")],
+            Round = 1, ActiveToken = new(caster.Id, "blue"), CurrentUnitId = "caster", MoveDone = true
+        };
+        foreach (var token in state.Units.Select(u => new ActivationToken(u.TypeId, u.SideId)).Distinct())
+            state.Controllers.Add(new(token, ControllerKind.Human));
+        var dice = new Dice();
+        state = GameEngine.RefreshChoices(state, dice, false).State;
+        var commit = Submit(state, "fireball:2,1", dice, false);
+        Assert.Equal(new[] { "troll", "last" }, commit.State.AttackInProgress!.Targets.Select(t => t.TargetId));
+        var attackRoll = Submit(Restore(commit.State), "roll-dice", dice, false);
+        var first = Submit(Restore(attackRoll.State), "roll-dice", dice, false);
+        Assert.Equal(Posture.Lying, first.State.Physical.Figures.Single(f => f.Id == "troll").Posture);
+        Assert.DoesNotContain(first.Events, e => e.Kind == "UnitDefeated");
+        Assert.False(first.State.CleavePending);
+        Assert.Equal("last", first.NextInput!.Roll!.TargetId);
+        var last = Submit(Restore(first.State), "roll-dice", dice, false);
+        Assert.Equal(new[] { "DiceRolled", "AttackTargetResolved", "UnitDefeated", "AttackResolved" },
+            last.Events.Select(e => e.Kind));
+        Assert.Null(last.State.AttackInProgress);
+        Assert.Equal(DecisionKind.Cleave, last.NextInput!.Kind);
+        Assert.Equal("follow", Assert.Single(last.NextInput.Candidates).TargetId);
+        Assert.DoesNotContain(last.State.Physical.Figures, f => f.Id == "last");
+    }
+
+    [Fact]
+    public void FixedAttackRecipientsSkipUnitsThatHaveLeftPlayBeforeTheirApplication()
+    {
+        var dice = new Dice();
+        var commit = Submit(AttackState(), "attack:target", dice, false);
+        // Retained records do not keep a removed Figure in play.
+        commit.State.Physical.Figures.RemoveAll(f => f.Id == "target");
+        var result = Submit(Restore(commit.State), "roll-dice", dice, false);
+        Assert.Equal(0, dice.Defences);
+        Assert.Null(result.State.AttackInProgress);
+        Assert.DoesNotContain(result.Events, e => e.Kind is "AttackResolved" or "UnitDefeated");
+        Assert.Equal(1, result.State.Units.Single(u => u.Id == "target").CurrentHp);
+        Assert.False(result.State.CleavePending);
+    }
+
     [Theory]
     [InlineData(false)] [InlineData(true)]
-    public void FireballFinishesAfterCasterDeathOrLyingWithFixedTargetsDefenceAndSpentUse(bool undying)
+    public void FireballFinishesAfterCasterDefeatOrLyingWithFixedTargetsDefenceAndSpentUse(bool undying)
     {
         var caster = UnitType.Wizard() with { Atk = 2, Def = 0, Hp = 1,
             Undying = undying ? new() : null, AdjacentFriendlyUnitsDefenceBonus = new(1) };
@@ -352,7 +403,7 @@ public sealed class ContinuationTests
         Assert.Equal(1, diceStep.Units.Single(u => u.Id == "target").CurrentHp);
         var damageStep = roll.ResolutionSteps.Single(s => roll.Events[s.EventIndex].Kind == "AttackResolved").StateAfter;
         Assert.Equal(0, damageStep.Units.Single(u => u.Id == "target").CurrentHp);
-        var deathStep = roll.ResolutionSteps.Single(s => roll.Events[s.EventIndex].Kind == "UnitDied").StateAfter;
+        var deathStep = roll.ResolutionSteps.Single(s => roll.Events[s.EventIndex].Kind == "UnitDefeated").StateAfter;
         Assert.DoesNotContain(deathStep.Physical.Figures, f => f.Id == "target");
         var snapshots = roll.ResolutionSteps.Select(s => JsonSerializer.Serialize(s.StateAfter)).ToArray();
         roll.State.Units.Clear(); roll.State.Controllers.Clear(); roll.State.Bag.Clear();

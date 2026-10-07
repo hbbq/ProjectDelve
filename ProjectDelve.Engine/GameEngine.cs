@@ -240,7 +240,8 @@ public static class GameEngine
                             };
                             EmitActionUsed(request, choice!, events);
                             foreach (var targetId in action.TargetIds)
-                                ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ActionIdentity(action));
+                                if (state.Physical.Figures.Any(f => f.Id == targetId))
+                                    ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ActionIdentity(action));
                             ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ActionIdentity(action));
                             break;
                         case UnitAction.Fireball:
@@ -447,7 +448,7 @@ public static class GameEngine
                     Action: UnitAction.Telekinesis, TargetId: target.Id)));
         if (type.TryOpenDoor is not null)
         {
-            foreach (var edge in AdjacentClosedDoors(state, unit))
+            foreach (var edge in BorderingClosedDoors(state, unit))
             {
                 var key = $"{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}";
                 candidates.Add(new Candidate($"try-open-door:{key}", Door: edge, TryOpenDoor: type.TryOpenDoor));
@@ -479,7 +480,7 @@ public static class GameEngine
         }
     }
 
-    private static IEnumerable<Edge> AdjacentClosedDoors(GameState state, Unit unit)
+    private static IEnumerable<Edge> BorderingClosedDoors(GameState state, Unit unit)
     {
         var occupied = FootprintGeometry.OccupiedCells(state, unit.Id);
         return state.Physical.Board.Edges
@@ -494,7 +495,7 @@ public static class GameEngine
     {
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         if (!type.FreeActions.HasFlag(UnitFreeAction.OpenDoor)) return [];
-        return AdjacentClosedDoors(state, unit).Select(edge => new Candidate(
+        return BorderingClosedDoors(state, unit).Select(edge => new Candidate(
             $"open-door:{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}", Door: edge,
             Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor));
     }
@@ -618,7 +619,7 @@ public static class GameEngine
 
     // Every Attack supplies its complete membership and authoritative ATK at Attack start.
     // One shared Attack roll is the general rule, irrespective of target selection.
-    // Resolution snapshots DEF, then resolves per-target damage/death and follow-ups.
+    // Resolution snapshots DEF, then resolves per-target damage/defeat and follow-ups.
     private sealed record SharedRollAttack(ImmutableArray<string> TargetIds, int AttackDice, string? AbilityName = null);
     private static void EmitActionUsed(DecisionRequest request, string choice, ResolutionEvents events)
     {
@@ -652,6 +653,12 @@ public static class GameEngine
         }
         while (attack.TargetIndex < attack.Targets.Length)
         {
+            // Membership stays fixed, but a recipient that has left play is skipped.
+            if (!state.Physical.Figures.Any(f => f.Id == attack.Targets[attack.TargetIndex].TargetId))
+            {
+                state.AttackInProgress = attack = attack with { TargetIndex = attack.TargetIndex + 1 };
+                continue;
+            }
             if (attack.Targets[attack.TargetIndex].DefenceDice > 0) return;
             ResolveAttackTarget(state, 0, events);
             attack = state.AttackInProgress!;
@@ -772,23 +779,36 @@ public static class GameEngine
         var target = state.Units.Single(u => u.Id == targetId);
         var index = state.Units.IndexOf(target);
         var hp = Math.Max(0, target.CurrentHp - damage);
-        var savedByUndying = hp == 0 && state.IsUpright(targetId) &&
-            state.Types.Single(t => t.Id == target.TypeId).Undying is not null;
-        state.Units[index] = target with { CurrentHp = savedByUndying ? 1 : hp };
-        if (savedByUndying)
-        {
-            // Complete the replacement before exposing any damage outcome snapshot.
-            var figureIndex = state.Physical.Figures.FindIndex(f => f.Id == targetId);
-            state.Physical.Figures[figureIndex] = state.Physical.Figures[figureIndex] with { Posture = Posture.Lying };
-        }
+        state.Units[index] = target with { CurrentHp = hp };
+        // Defeat or its replacement completes before any outcome snapshot is exposed.
+        var lifecycle = hp == 0 ? ResolveDefeat(state, targetId, resolved.UnitId, resolved.ActionId) : null;
         events.Add(resolved);
-        if (savedByUndying)
-            events.Add(new RulesEvent("PostureChanged", targetId, Posture: Posture.Lying) { SourceUnitId = resolved.UnitId, ActionId = resolved.ActionId });
-        if (state.Units[index].CurrentHp == 0)
+        if (lifecycle is not null) events.Add(lifecycle);
+    }
+
+    // A single lifecycle boundary for lethal Damage and any direct defeat instruction.
+    // Undying replaces defeat itself, independently of its cause; it is not a continuous effect.
+    internal static RulesEvent ResolveDefeat(GameState state, string unitId,
+        string? sourceUnitId = null, string? actionId = null)
+    {
+        var index = state.Units.FindIndex(u => u.Id == unitId);
+        var unit = state.Units[index];
+        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var figure = state.Physical.Figures.Single(f => f.Id == unitId);
+        if (type.Undying is not null && figure.Posture == Posture.Upright)
         {
-            state.Physical.Figures.RemoveAll(f => f.Id == targetId);
-            events.Add(new RulesEvent("UnitDied", targetId) { SourceUnitId = resolved.UnitId, ActionId = resolved.ActionId });
+            state.Units[index] = unit with { CurrentHp = 1 };
+            state.Physical.Figures[state.Physical.Figures.IndexOf(figure)] = figure with { Posture = Posture.Lying };
+            return new("PostureChanged", unitId, Posture: Posture.Lying)
+                { SourceUnitId = sourceUnitId, ActionId = actionId };
         }
+        var context = new DefeatContext(unit, type, figure,
+            [.. FootprintGeometry.OccupiedCells(type.Footprint, figure.Position)]);
+        // Retained records use zero HP to mark absence; removal and defeat are one outcome.
+        state.Units[index] = unit with { CurrentHp = 0 };
+        state.Physical.Figures.Remove(figure);
+        return new("UnitDefeated", unitId)
+            { SourceUnitId = sourceUnitId, ActionId = actionId, DefeatContext = context };
     }
 
     // Capture at emission time, before later operations mutate this run's working state.

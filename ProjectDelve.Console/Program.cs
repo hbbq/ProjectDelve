@@ -144,7 +144,7 @@ static void ShowEvents(List<RulesEvent> events)
             "MovementCompleted" => $"MovementCompleted: {e.UnitId}, path {string.Join(" -> ", e.Path!.Select(c => $"({c.X},{c.Y})"))}",
             "AttackResolved" => $"AttackResolved: {e.UnitId} -> {e.TargetId}, Hits {e.Hits}, Blocks {e.Blocks}, Damage {e.Damage}",
             "DoorOpened" => $"DoorOpened: {e.UnitId}, ({e.Door!.A.X},{e.Door.A.Y}) <-> ({e.Door.B.X},{e.Door.B.Y})",
-            "UnitDied" => $"UnitDied: {e.UnitId} (figure removed)",
+            "UnitDefeated" => $"UnitDefeated: {e.UnitId} (figure removed)",
             _ => e.Kind
         };
         Console.WriteLine($"  {description}");

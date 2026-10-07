@@ -227,6 +227,9 @@ public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? U
 public sealed record AttackTargetResult(string TargetId, int DefenceDice, int Blocks, int Damage);
 // One roll and separate per-Unit Damage; there is deliberately no total Damage.
 public sealed record AttackResult(int AttackDice, int Hits, ImmutableArray<AttackTargetResult> Targets);
+// Event-local source information remains available after the Figure has left play.
+// This is outcome context, never persistent GameState or an in-play Unit.
+public sealed record DefeatContext(Unit Unit, UnitType Type, Figure Figure, ImmutableArray<Cell> OccupiedCells);
 public sealed record RulesEvent(string Kind, string? UnitId = null, string? TargetId = null,
     string? TypeId = null, List<Cell>? Path = null, int Hits = 0, int Blocks = 0, int Damage = 0,
     Edge? Door = null, int? DieRoll = null, int? SuccessCount = null, bool? Succeeded = null,
@@ -240,6 +243,7 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     public ActivationChoiceKind? Category { get; init; }
     public Cell? Cell { get; init; }
     public AttackContinuation? AttackContext { get; init; }
+    public DefeatContext? DefeatContext { get; init; }
     public DiceResult? Dice { get; init; }
     public int? Round { get; init; }
 }

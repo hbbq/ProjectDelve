@@ -251,7 +251,7 @@ public sealed class ClericTests
         var started = TestGame.StartRound(state, random, false);
         var stayed = Choose(started.State, "stay", random);
         var attacked = Choose(stayed.State, "attack:cleric", random);
-        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "UnitDied" && e.UnitId == "cleric");
+        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "UnitDefeated" && e.UnitId == "cleric");
         Assert.Equal(2, attacked.State.EffectiveDefOf("recipient"));
         Assert.Equal(2, TestGame.OperationSteps(attacked).Last().StateAfter.EffectiveDefOf("recipient"));
         Assert.Equal(3, stayed.State.EffectiveDefOf("recipient"));

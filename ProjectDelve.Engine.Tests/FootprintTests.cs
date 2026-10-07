@@ -402,7 +402,7 @@ public sealed class FootprintTests
     }
 
     [Fact]
-    public void LargeAuraDeathDoesNotChangeCapturedDefenceForLaterLargeTarget()
+    public void LargeAuraDefeatDoesNotChangeCapturedDefenceForLaterLargeTarget()
     {
         var state = World(Large() with { Rng = 8, Actions = UnitAction.Fireball, Fireball = new() }, new(0, 0));
         Add(state, "aura", Large("aura") with { Def = 0, AdjacentFriendlyUnitsDefenceBonus = new(2) }, new(3, 0));
@@ -414,7 +414,7 @@ public sealed class FootprintTests
         Assert.Equal(3, attack.Targets.Single(t => t.TargetId == "recipient").DefenceDice);
         Assert.Equal(1, result.State.EffectiveDefOf("recipient"));
         Assert.Equal(6, result.State.Units.Single(u => u.Id == "recipient").CurrentHp);
-        Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "UnitDied" && e.UnitId == "aura"));
+        Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "UnitDefeated" && e.UnitId == "aura"));
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "aura");
     }
 

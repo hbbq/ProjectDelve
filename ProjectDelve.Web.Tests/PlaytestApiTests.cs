@@ -156,7 +156,7 @@ public sealed class PlaytestApiTests
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "telekinesis");
         Assert.Equal("Telekinesis", telekinesis.GetProperty("content").GetProperty("name").GetString());
         Assert.Equal("Action", telekinesis.GetProperty("content").GetProperty("category").GetString());
-        Assert.Equal("Lay down an upright enemy within RNG and LOS.", telekinesis.GetProperty("content").GetProperty("description").GetString());
+        Assert.Equal("Choose an upright enemy within RNG and LOS. Lay it down.", telekinesis.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("uses").ValueKind);
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("content").GetProperty("maxUses").ValueKind);
         var cardWave = cards.GetProperty(Cleric).GetProperty("entries").EnumerateArray()
@@ -453,17 +453,17 @@ public sealed class PlaytestApiTests
     }
 
     [Fact]
-    public async Task MonsterAttacksAndDeathAreReturnedInOrder_WithAuthoritativeHpAndFigureRemoval()
+    public async Task MonsterAttacksAndDefeatAreReturnedInOrder_WithAuthoritativeHpAndFigureRemoval()
     {
         await using var host = await Host.Start(hit: true);
         var result = await host.Read();
         var events = new List<RulesEvent>();
-        for (var round = 0; round < 10 && events.All(e => e.Kind != "UnitDied"); round++)
+        for (var round = 0; round < 10 && events.All(e => e.Kind != "UnitDefeated"); round++)
         {
             result = await FinishRound(host, await host.Round(result.Revision));
             events.AddRange(result.Result.Events);
         }
-        var died = events.First(e => e.Kind == "UnitDied");
+        var died = events.First(e => e.Kind == "UnitDefeated");
         Assert.Contains(died.UnitId, new[] { Barbarian, Rogue });
         var deathIndex = events.IndexOf(died);
         Assert.Equal("AttackResolved", events[deathIndex - 1].Kind);
@@ -479,7 +479,7 @@ public sealed class PlaytestApiTests
     }
 
     [Fact]
-    public async Task PlayerAttackUsesSuppliedCandidate_AndReturnsDamageThenDeath()
+    public async Task PlayerAttackUsesSuppliedCandidate_AndReturnsDamageThenDefeat()
     {
         await using var host = await Host.Start();
         var started = await host.Round(0);
@@ -499,8 +499,8 @@ public sealed class PlaytestApiTests
         Assert.Equal("AttackResolved", result.Result.Events.First(e => e.Kind == "AttackResolved").Kind);
         Assert.Equal(Barbarian, result.Result.Events.First(e => e.Kind == "AttackResolved").UnitId);
         Assert.Equal(4, result.Result.Events.First(e => e.Kind == "AttackResolved").Damage);
-        Assert.Equal("UnitDied", result.Result.Events.First(e => e.Kind == "UnitDied").Kind);
-        Assert.Equal(attack.TargetId, result.Result.Events.First(e => e.Kind == "UnitDied").UnitId);
+        Assert.Equal("UnitDefeated", result.Result.Events.First(e => e.Kind == "UnitDefeated").Kind);
+        Assert.Equal(attack.TargetId, result.Result.Events.First(e => e.Kind == "UnitDefeated").UnitId);
         Assert.Equal(0, result.Result.State.Units.Single(u => u.Id == attack.TargetId).CurrentHp);
         Assert.DoesNotContain(result.Result.State.Physical.Figures, f => f.Id == attack.TargetId);
     }
@@ -947,7 +947,7 @@ public sealed class PlaytestApiTests
         var fireball = result.Result.NextInput!.Candidates.Single(c => c.Key == "fireball:6,8");
         Assert.Equal(new[] { Archer1, Grunt2 }.OrderBy(id => id), fireball.TargetIds.OrderBy(id => id));
         var resolved = await host.Decide(result.Revision, fireball.Key);
-        Assert.All(new[] { Archer1, Grunt2 }, id => Assert.Contains(resolved.Result.Events, e => e.Kind == "UnitDied" && e.UnitId == id));
+        Assert.All(new[] { Archer1, Grunt2 }, id => Assert.Contains(resolved.Result.Events, e => e.Kind == "UnitDefeated" && e.UnitId == id));
     }
 
     private static async Task<GameResponse> FinishRound(Host host, GameResponse result)

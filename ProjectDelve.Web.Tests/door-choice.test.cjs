@@ -9,7 +9,7 @@ const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot
 for (const mode of ["animate", "disabled", "skip"]) {
   test(`Troll survives lethal playback using generic HP, posture and card content (${mode})`, async () => {
     const printed = { content: { id: "undying", name: "Undying", category: "Capability",
-      description: "When upright and reduced to 0 HP, remain in your Cell at 1 HP and lay down instead of dying.",
+      description: "If this Upright Unit would be defeated, instead set its current HP to 1 and lay it down.",
       maxUses: null, useLimitText: null }, uses: null };
     const initial = response([], [printed]), final = response([], [printed]);
     for (const snapshot of [initial, final]) {
@@ -527,7 +527,7 @@ test("movement retains mounted figures and commits each progressive animation st
 
 for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surface of ["figure", "cell"]) {
   test(`${name} uses generic Unit targeting on ${surface} and authoritative posture after submission`, async () => {
-    const printed = entry("opaque-entry", name, "Action", "Lay down an upright enemy within RNG and LOS.");
+    const printed = entry("opaque-entry", name, "Action", "Choose an upright enemy within RNG and LOS. Lay it down.");
     printed.content.maxUses = null; printed.content.useLimitText = null; printed.uses = null;
     const attack = choice("opaque normal attack", "Unit", { unitId: "a" });
     const action = choice("opaque posture choice", "Unit", { unitId: "a" },
@@ -543,7 +543,7 @@ for (const name of ["Telekinesis", "Unfamiliar posture action"]) for (const surf
     });
     h.run("pause = async () => {}");
     assert.match(h.elements.get("unit-card").textContent, new RegExp(name));
-    assert.match(h.elements.get("unit-card").textContent, /Lay down an upright enemy within RNG and LOS\./);
+    assert.match(h.elements.get("unit-card").textContent, /Choose an upright enemy within RNG and LOS\. Lay it down\./);
     assert.doesNotMatch(h.elements.get("unit-card").textContent, /\/game|uses/);
     const target = h.figure("a"), left = target.style.left, top = target.style.top;
     // The fixture's same-side distant Unit is selected solely from the supplied interaction.
@@ -1031,11 +1031,11 @@ test("skip immediately settles graphical dice without requests or results", asyn
 });
 
 for (const animate of [true, false]) {
-  test(`explicit UnitDied follows authoritative removal even with positive HP (animate=${animate})`, async () => {
+  test(`explicit UnitDefeated follows authoritative removal even with positive HP (animate=${animate})`, async () => {
     const initial = response(), final = response();
     final.result.state.physical.figures = final.result.state.physical.figures.filter(figure => figure.id !== "b");
-    final.result.events = [{ kind: "UnitDied", unitId: "b" }];
-    final.presentation.events = [{ role: "Death", text: "b died", unitId: "b" }];
+    final.result.events = [{ kind: "UnitDefeated", unitId: "b" }];
+    final.presentation.events = [{ role: "Defeat", text: "b was defeated", unitId: "b" }];
     final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
     final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards }];
     const h = harness(initial, async () => ({ ok: true, json: async () => final }));
@@ -1044,7 +1044,7 @@ for (const animate of [true, false]) {
     await h.run('mutate("decision", { candidateKey: "opaque" })');
     assert.equal(h.figure("b"), undefined);
     assert.equal(h.run('displayedState.units.find(unit => unit.id === "b").currentHp'), 4);
-    assert.match(h.elements.get("effect").textContent, /b died/);
+    assert.match(h.elements.get("effect").textContent, /b was defeated/);
   });
 }
 

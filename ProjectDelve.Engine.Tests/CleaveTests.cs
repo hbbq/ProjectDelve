@@ -59,7 +59,7 @@ public sealed class CleaveTests
         var restored = Restore(attack.State);
         Assert.Equal(type.Cleave, restored.Types[0].Cleave);
         var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "cleave");
-        Assert.Equal($"After an Attack deals {trigger} or more damage to a Unit, you may immediately deal 3 damage to an adjacent enemy.", entry.Description);
+        Assert.Equal($"After this Unit's Attack, if it dealt {trigger} or more damage to a Unit, you may choose an adjacent enemy and immediately deal 3 damage to it.", entry.Description);
         Assert.Equal("2/game", entry.UseLimitText);
         if (!offered) return;
 
@@ -70,7 +70,7 @@ public sealed class CleaveTests
         var dice = new Dice();
         var result = Choose(restored, "cleave:other", dice);
         Assert.Equal(0, result.State.Units[2].CurrentHp);
-        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "CleaveResolved", "UnitDefeated" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(3, TestGame.OperationEvents(result)[0].Damage);
         Assert.Equal("Cleave", TestGame.OperationEvents(result)[0].AbilityName);
         Assert.Equal(new AbilityUses(2, 1), Barbarian(result.State).CleaveUses);
@@ -112,17 +112,17 @@ public sealed class CleaveTests
     }
 
     [Fact]
-    public void OverkillAndDeathFinishBeforeOnlyLivingTargetsAreOffered()
+    public void OverkillAndDefeatFinishBeforeOnlyLivingTargetsAreOffered()
     {
         var result = Attack(Scenario(targetHp: 1));
-        Assert.Equal(new[] { "AttackResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "AttackResolved", "UnitDefeated" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(2, TestGame.OperationEvents(result)[0].Damage);
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
         Assert.Equal("other", Assert.Single(result.NextInput!.Candidates).TargetId);
         Assert.True(result.NextInput.AllowsNone); // Even one target requires agency.
         Assert.Null(TestGame.OperationSteps(result)[0].StateAfter.Pending);
-        Assert.Contains(TestGame.OperationSteps(result)[0].StateAfter.Physical.Figures, f => f.Id == "target");
+        Assert.DoesNotContain(TestGame.OperationSteps(result)[0].StateAfter.Physical.Figures, f => f.Id == "target");
         Assert.DoesNotContain(TestGame.OperationSteps(result)[1].StateAfter.Physical.Figures, f => f.Id == "target");
     }
 
@@ -171,7 +171,7 @@ public sealed class CleaveTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void UseSpendsOneAndDealsDirectDamageWithNormalDeathAndSnapshots(bool kill)
+    public void UseSpendsOneAndDealsDirectDamageWithNormalDefeatAndSnapshots(bool kill)
     {
         var scenario = Scenario();
         if (kill) scenario.Units[2] = scenario.Units[2] with { CurrentHp = 1 };
@@ -191,7 +191,7 @@ public sealed class CleaveTests
         Assert.Equal(1, cleave.Damage);
         Assert.Equal("other", cleave.TargetId);
         Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
-        Assert.Equal(kill ? new[] { "CleaveResolved", "UnitDied" } : new[] { "CleaveResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(kill ? new[] { "CleaveResolved", "UnitDefeated" } : new[] { "CleaveResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(new AbilityUses(2, 1), Barbarian(TestGame.OperationSteps(result)[0].StateAfter).CleaveUses);
         Assert.False(TestGame.OperationSteps(result)[0].StateAfter.CleavePending);
         if (kill) Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "other");

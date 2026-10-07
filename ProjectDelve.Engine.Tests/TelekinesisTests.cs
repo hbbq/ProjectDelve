@@ -38,7 +38,7 @@ public sealed class TelekinesisTests
         var type = UnitType.Wizard();
         var entry = Assert.Single(type.CardEntries(), e => e.Id == "telekinesis");
         Assert.Equal(new CardEntryDescription("telekinesis", "Telekinesis", "Action",
-            "Lay down an upright enemy within RNG and LOS."), entry);
+            "Choose an upright enemy within RNG and LOS. Lay it down."), entry);
         Assert.Null(entry.MaxUses);
         Assert.Null(entry.UseLimitText);
         Assert.Null(type.UsesFor(type.CreateUnit("wizard", "blue"), entry.Id));

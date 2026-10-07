@@ -86,7 +86,7 @@ public sealed class HolyWaveTests
         var result = Choose(Restore(action.State), "holy-wave");
         Assert.Equal(new[] { "a", "b", "cleric" }, TestGame.OperationEvents(result).Where(e => e.Posture == Posture.Lying).Select(e => e.UnitId));
         Assert.All(TestGame.OperationEvents(result), e => { Assert.Null(e.Attack); Assert.Equal(0, e.Damage); Assert.Equal(0, e.Hits); Assert.Equal(0, e.Blocks); });
-        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind.Contains("Attack") || e.Kind is "CleaveResolved" or "UnitDied" or "MovementCompleted");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind.Contains("Attack") || e.Kind is "CleaveResolved" or "UnitDefeated" or "MovementCompleted");
         Assert.False(result.State.CleavePending); Assert.Null(result.State.MoveAfterAttackAllowance);
         Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].CleaveUses);
         Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].HealUses);

@@ -61,7 +61,7 @@ public sealed class EngineTests
     }
 
     [Fact]
-    public void SuccessiveAttacksCaptureDetachedProgressiveHp_AndDeathRemovalAtItsStep()
+    public void SuccessiveAttacksCaptureDetachedProgressiveHp_AndDefeatRemovalAtItsStep()
     {
         var state = State(width: 3, height: 1, mov: 0, atk: 0, hp: 2);
         state.Types.Add(new UnitType("monster-type", 0, 1, 1, 0, 1));
@@ -81,9 +81,9 @@ public sealed class EngineTests
         // End Turn, selection of the remaining Monster, and Stay resolve automatically.
         var second = Choose(first, "attack:hero", random);
         var attack = TestGame.OperationSteps(second).Single(s => TestGame.OperationEvents(second)[s.EventIndex].Kind == "AttackResolved");
-        var death = TestGame.OperationSteps(second).Single(s => TestGame.OperationEvents(second)[s.EventIndex].Kind == "UnitDied");
+        var death = TestGame.OperationSteps(second).Single(s => TestGame.OperationEvents(second)[s.EventIndex].Kind == "UnitDefeated");
         Assert.Equal(0, attack.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
-        Assert.Contains(attack.StateAfter.Physical.Figures, f => f.Id == "hero");
+        Assert.DoesNotContain(attack.StateAfter.Physical.Figures, f => f.Id == "hero");
         Assert.DoesNotContain(death.StateAfter.Physical.Figures, f => f.Id == "hero");
         Assert.Equal(1, firstStep.StateAfter.Units.Single(u => u.Id == "hero").CurrentHp);
         Assert.Equal(original, JsonSerializer.Serialize(state));
@@ -114,7 +114,7 @@ public sealed class EngineTests
         result = Choose(result, "attack:monster", random);
         Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved" && e.Hits == 1 &&
             e.Blocks == 0 && e.Damage == 1);
-        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "UnitDied" && e.UnitId == "monster");
+        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "UnitDefeated" && e.UnitId == "monster");
         Assert.True(result.State.RoundComplete);
         Assert.Empty(result.State.Physical.Figures.Where(f => f.Id == "monster"));
         Assert.Equal(0, result.State.Units.Single(u => u.Id == "monster").CurrentHp);

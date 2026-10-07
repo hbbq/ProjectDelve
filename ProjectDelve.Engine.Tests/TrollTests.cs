@@ -54,8 +54,8 @@ public sealed class TrollTests
         Assert.Equal(new TryOpenDoor(2), UnitType.Zombie().TryOpenDoor);
         var entry = Assert.Single(type.CardEntries(), e => e.Id == "undying");
         Assert.Equal("Capability", entry.Category);
-        Assert.Contains("1 HP", entry.Description);
-        Assert.Contains("While lying, die normally", entry.Description);
+        Assert.Contains("current HP to 1", entry.Description);
+        Assert.Equal("If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down.", entry.Description);
         Assert.Null(entry.MaxUses);
         Assert.Null(type.UsesFor(type.CreateUnit("t", "red"), entry.Id));
     }
@@ -108,7 +108,7 @@ public sealed class TrollTests
         var result = Attack(Scenario(type, posture));
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
-        Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "UnitDied" && e.UnitId == "target");
+        Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "UnitDefeated" && e.UnitId == "target");
         Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "PostureChanged");
     }
 
@@ -140,12 +140,19 @@ public sealed class TrollTests
     {
         var attack = Attack(Scenario(cleave: true));
         AssertSaved(attack.State);
+        Assert.DoesNotContain(attack.Events, e => e.Kind == "UnitDefeated");
+        Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, TestGame.OperationEvents(attack).Select(e => e.Kind));
         Assert.Equal(DecisionKind.Cleave, attack.NextInput!.Kind);
         Assert.Contains(attack.NextInput.Candidates, c => c.Key == "cleave:target");
         var result = Choose(Restore(attack.State), "cleave:target");
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
-        Assert.Equal(new[] { "CleaveResolved", "UnitDied" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "CleaveResolved", "UnitDefeated" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        var defeat = Assert.Single(result.Events, e => e.Kind == "UnitDefeated");
+        Assert.Equal(Posture.Lying, defeat.DefeatContext!.Figure.Posture);
+        Assert.Equal(new[] { new Cell(1, 0) }, defeat.DefeatContext.OccupiedCells);
+        Assert.All(TestGame.OperationSteps(result), s =>
+            Assert.DoesNotContain(s.StateAfter.Physical.Figures, f => f.Id == "target"));
     }
 
     [Fact]
@@ -173,7 +180,7 @@ public sealed class TrollTests
         var targetIndex = TestGame.OperationEvents(result).FindIndex(e => e.Kind == "AttackTargetResolved" && e.TargetId == "target");
         Assert.True(targetIndex >= 0);
         Assert.All(TestGame.OperationSteps(result).Where(s => s.EventIndex >= targetIndex), s => AssertSaved(s.StateAfter));
-        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "UnitDied");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "UnitDefeated");
         Assert.Contains(TestGame.OperationEvents(result).Last().Attack!.Targets, t => t.TargetId == "target" && t.Damage == 2);
     }
 
@@ -190,12 +197,12 @@ public sealed class TrollTests
         var action = Choose(start.State, "stay");
         var laidDown = Choose(action.State, holyWave ? "holy-wave" : "telekinesis:target");
         AssertSaved(laidDown.State);
-        Assert.DoesNotContain(TestGame.OperationEvents(laidDown), e => e.Kind is "AttackResolved" or "UnitDied");
+        Assert.DoesNotContain(TestGame.OperationEvents(laidDown), e => e.Kind is "AttackResolved" or "UnitDefeated");
         if (!holyWave) laidDown = Choose(laidDown.State, "end-turn");
         Assert.Equal("attacker", laidDown.NextInput!.UnitId);
         var killed = Choose(Choose(Restore(laidDown.State), "stay").State, "attack:target");
         Assert.Equal(0, killed.State.Units.Single(u => u.Id == "target").CurrentHp);
         Assert.DoesNotContain(killed.State.Physical.Figures, f => f.Id == "target");
-        Assert.Single(TestGame.OperationEvents(killed), e => e.Kind == "UnitDied");
+        Assert.Single(TestGame.OperationEvents(killed), e => e.Kind == "UnitDefeated");
     }
 }

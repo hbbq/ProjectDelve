@@ -44,7 +44,7 @@ aside { overflow-wrap: anywhere; max-height: calc(100dvh - 120px); overflow-y: a
 .figure-hp::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 1px; height: 2px;
   border-radius: 1px; background: linear-gradient(to right, #75d7a6 var(--hp-fill), #475367 var(--hp-fill)); }
 .figure.attacking, .figure.target, .edge.target { box-shadow: 0 0 0 5px #ffe084, 0 0 22px #ffe084; }
-.figure.dying { opacity: 0; transform: translate(-50%, -50%) scale(.3); transition: opacity .3s, transform .3s; }
+.figure.defeated { opacity: 0; transform: translate(-50%, -50%) scale(.3); transition: opacity .3s, transform .3s; }
 .edge { position: absolute; z-index: 2; background: #11151e; transform: translate(-50%, -50%); pointer-events: none; }
 .edge.ClosedDoor { background: #e5b353; }
 .edge.OpenDoor { background: transparent; outline: 2px dashed #75d7a6; }

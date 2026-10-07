@@ -179,7 +179,7 @@ public sealed class FuryTests
     [Theory]
     [InlineData(false, 5)]
     [InlineData(true, 7)]
-    public void NormalAttackAndRageUseEffectiveAtkAndDeathEndsFury(bool rage, int expected)
+    public void NormalAttackAndRageUseEffectiveAtkAndDefeatEndsFury(bool rage, int expected)
     {
         var random = new Random();
         var started = TestGame.StartRound(State(), random, false);
@@ -194,8 +194,8 @@ public sealed class FuryTests
         var attacked = Choose(restored, "attack:enemy-0", random);
         Assert.Equal(expected, random.AttackRolls);
         Assert.Equal(expected, Assert.Single(TestGame.OperationEvents(attacked), e => e.Kind == "AttackResolved").Hits);
-        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
-        var deathIndex = TestGame.OperationEvents(attacked).FindIndex(e => e.Kind == "UnitDied" && e.UnitId == "enemy-0");
+        Assert.Contains(TestGame.OperationEvents(attacked), e => e.Kind == "UnitDefeated" && e.UnitId == "enemy-0");
+        var deathIndex = TestGame.OperationEvents(attacked).FindIndex(e => e.Kind == "UnitDefeated" && e.UnitId == "enemy-0");
         Assert.Equal(rage ? 6 : 4, TestGame.OperationSteps(attacked).Single(s => s.EventIndex == deathIndex)
             .StateAfter.EffectiveAtkOf("hero"));
         Assert.Equal(rage ? 6 : 4, attacked.State.EffectiveAtkOf("hero"));

@@ -21,7 +21,7 @@ public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entri
 {
     public string? FootprintLabel { get; init; }
 }
-public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Death, DoorAttempt, DoorOpened }
+public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Defeat, DoorAttempt, DoorOpened }
 public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitId = null,
     string? TargetId = null, List<Cell>? Path = null, Edge? Door = null,
     int Hits = 0, int Blocks = 0, int Damage = 0);
@@ -187,9 +187,9 @@ public static class BrowserProjection
                 role = OutcomeRole.Healing;
                 description = $"{subject} → {e.TargetId}: {e.Healing} HP restored";
                 break;
-            case "UnitDied":
-                role = OutcomeRole.Death;
-                description = $"{e.UnitId} died";
+            case "UnitDefeated":
+                role = OutcomeRole.Defeat;
+                description = $"{e.UnitId} was defeated";
                 break;
             case "AbilityUsed":
                 description = $"{e.UnitId} used {e.AbilityName}";

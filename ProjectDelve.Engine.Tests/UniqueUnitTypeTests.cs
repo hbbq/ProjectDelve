@@ -83,7 +83,7 @@ public sealed class UniqueUnitTypeTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void PlacementRejectsSecondUniqueButAllowsLaterInstanceAfterDeathOrRemoval(bool removeUnit)
+    public void PlacementRejectsSecondUniqueButAllowsLaterInstanceAfterDefeatOrRemoval(bool removeUnit)
     {
         var type = UnitType.Define("unique", "Unique", Stats(0, 0, 0, 0, 1), Unique());
         var state = Setup(type, "blue");
@@ -99,7 +99,7 @@ public sealed class UniqueUnitTypeTests
     }
 
     [Fact]
-    public void SummoningRechecksUniqueBeforeCreationAndAllowsAnotherAfterDeath()
+    public void SummoningRechecksUniqueBeforeCreationAndAllowsAnotherAfterDefeat()
     {
         var target = UnitType.Define("unique", "Unique", Stats(0, 0, 0, 0, 1), Unique());
         var summoner = UnitType.Define("summoner", "Summoner", Stats(1, 0, 0, 0, 1), CantAttack(), OpenDoor(),

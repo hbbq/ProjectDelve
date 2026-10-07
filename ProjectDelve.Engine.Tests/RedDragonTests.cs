@@ -119,7 +119,7 @@ public sealed class RedDragonTests
 
     [Theory]
     [InlineData(false)] [InlineData(true)]
-    public void SharedRollSnapshotSurvivesAuraDeathOrUndying(bool undying)
+    public void SharedRollSnapshotSurvivesAuraDefeatOrUndying(bool undying)
     {
         var state = World();
         Add(state, "aura", new(3, 1), type: new("aura", 0, 0, 0, 0, 1)
@@ -243,7 +243,7 @@ public sealed class RedDragonTests
     }
 
     [Fact]
-    public void BreathMembershipAndAttackDiceStayFixedWhenFirstDeathChangesFuryAndLos()
+    public void BreathMembershipAndAttackDiceStayFixedWhenFirstDefeatChangesFuryAndLos()
     {
         var state = World(UnitType.RedDragon() with { Fury = new() });
         Add(state, "blocker", new(3, 1), type: new("blocker", 0, 0, 0, 0, 1));

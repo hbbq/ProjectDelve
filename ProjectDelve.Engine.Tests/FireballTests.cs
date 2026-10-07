@@ -207,7 +207,7 @@ public sealed class FireballTests
     }
 
     [Fact]
-    public void FriendlyFireAndSelfAreRelevantAndSelfDeathDoesNotStopFixedTargetResolution()
+    public void FriendlyFireAndSelfAreRelevantAndSelfDefeatDoesNotStopFixedTargetResolution()
     {
         var state = Scenario();
         state.Physical.Figures[1] = new("a", new(2, 2));
@@ -312,7 +312,7 @@ public sealed class FireballTests
     }
 
     [Fact]
-    public void DefenceIsFixedBeforeResolutionAndDeathsRemoveAllFiguresWithFixedMembership()
+    public void DefenceIsFixedBeforeResolutionAndDefeatsRemoveAllFiguresWithFixedMembership()
     {
         var state = Scenario();
         var aura = UnitType.Cleric("aura") with { Def = 0 };
@@ -323,7 +323,7 @@ public sealed class FireballTests
         var action = Action(state);
         action.State.Pending!.Candidates.Clear(); // Informational candidates cannot alter membership.
         var result = Choose(Restore(action.State), "fireball:3,2");
-        Assert.Equal(new[] { "AttackTargetResolved", "UnitDied", "AttackTargetResolved", "UnitDied", "AttackResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "AttackTargetResolved", "UnitDefeated", "AttackTargetResolved", "UnitDefeated", "AttackResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         var attack = TestGame.OperationEvents(result).Last().Attack!;
         Assert.Equal(new[] { "a", "b" }, attack.Targets.Select(t => t.TargetId));
         Assert.Equal(new[] { 0, 2 }, attack.Targets.Select(t => t.DefenceDice));
@@ -331,14 +331,14 @@ public sealed class FireballTests
         Assert.Single(result.State.Physical.Figures);
         Assert.Equal(1, TestGame.OperationSteps(result)[1].StateAfter.Units[2].CurrentHp);
         Assert.DoesNotContain(TestGame.OperationSteps(result)[1].StateAfter.Physical.Figures, f => f.Id == "a");
-        Assert.Contains(TestGame.OperationSteps(result)[2].StateAfter.Physical.Figures, f => f.Id == "b");
+        Assert.DoesNotContain(TestGame.OperationSteps(result)[2].StateAfter.Physical.Figures, f => f.Id == "b");
         Assert.DoesNotContain(TestGame.OperationSteps(result)[3].StateAfter.Physical.Figures, f => f.Id == "b");
     }
 
     [Theory]
     [InlineData(1, false)] [InlineData(1, true)]
     [InlineData(-1, false)] [InlineData(-1, true)]
-    public void DefenceSnapshotSurvivesAuraSourceDeathOrUndyingAndLaterAttackUsesCurrentState(int modifier, bool undying)
+    public void DefenceSnapshotSurvivesAuraSourceDefeatOrUndyingAndLaterAttackUsesCurrentState(int modifier, bool undying)
     {
         var state = Scenario();
         var cleric = UnitRoster.Cleric("cleric") with
@@ -366,7 +366,7 @@ public sealed class FireballTests
         Assert.Equal(3, dice.AttackRolls); // One shared roll even when the first target changes state.
         Assert.Equal(defenceAtStart, dice.DefenceRolls);
         Assert.Equal(Enumerable.Repeat("attack", 3).Concat(Enumerable.Repeat("defence", defenceAtStart)), dice.Order);
-        Assert.Equal(new[] { "AttackTargetResolved", undying ? "PostureChanged" : "UnitDied",
+        Assert.Equal(new[] { "AttackTargetResolved", undying ? "PostureChanged" : "UnitDefeated",
             "AttackTargetResolved", "AttackResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(1, result.State.EffectiveDefOf("b"));
 

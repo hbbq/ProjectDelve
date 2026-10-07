@@ -554,11 +554,11 @@ async function present(event, occurrence) {
       attacker?.classList.remove("attacking"); target?.classList.remove("target");
       break;
     }
-    case "Death": {
+    case "Defeat": {
       const node = figures.get(event.unitId);
       node?.getBoundingClientRect();
       if (node) node.style.transition = "";
-      node?.classList.add("dying");
+      node?.classList.add("defeated");
       await pause(320); node?.remove(); figures.delete(event.unitId); break;
     }
     case "DoorAttempt": {

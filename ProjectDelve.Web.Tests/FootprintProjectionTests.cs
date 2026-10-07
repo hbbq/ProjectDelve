@@ -59,7 +59,7 @@ public sealed class FootprintProjectionTests
     }
 
     [Fact]
-    public void DeathSnapshotRemovesOneWholeProjectedFigure()
+    public void DefeatSnapshotRemovesOneWholeProjectedFigure()
     {
         var state = PlaytestScenarios.Create("shaman-hunt");
         var dragonId = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.RedDragon).Id;
