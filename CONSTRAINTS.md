@@ -1269,6 +1269,100 @@ Declining Cleave spends no use. Whether used or declined, that particular follow
 
 Cleave does not require persistent activation history such as the last choice made or the maximum Damage dealt earlier in the activation. Its eligibility comes directly from the Attack that has just resolved, preserving the physical rule that Cleave is an immediate continuation rather than an opportunity that can be saved for later.
 
+## World Effects
+
+A scenario may use a physical **World Deck** to add global effects at Round Start. A scenario using World Effects specifies how many World Cards are drawn each Round and a **Cycling N** value, where N is at least 1. `Cycling 1` is the normal baseline; larger values deliberately permit more simultaneous and potentially chaotic combinations.
+
+World Cards are individual physical card instances, not weighted random effect definitions. Each card is in exactly one relevant physical location: the draw pile, the discard pile, or, for an active Continuous card, the active World Effect row.
+
+At Round Start, draw the scenario's specified number of World Cards **one at a time**. Completely resolve each draw, including all automatic consequences it creates, before drawing the next card.
+
+If the draw pile is empty when a card is to be drawn, shuffle the discard pile to form a new draw pile, then continue the draw. Active Continuous cards are not part of the discard pile and therefore are not included in that reshuffle. If both draw pile and discard pile are empty, no card is drawn.
+
+World Cards are one of two kinds:
+
+- **Immediate** — resolve the card immediately, including the ordinary automatic-consequence queue, then put it in the discard pile. Continuous World Effects already active remain in effect throughout this resolution.
+- **Continuous** — make the new card active immediately. The active Continuous cards are ordered oldest to newest. If adding the new card would exceed the scenario's Cycling N, the oldest active card simultaneously ceases to be active and moves to the discard pile. This is one atomic state change with no observable intermediate state in which both too many cards, or too few cards, are active.
+
+A Continuous effect applies for exactly as long as its card is active. Multiple active modifiers stack additively. Opposing modifiers therefore cancel numerically while both remain active, but the cards remain distinct physical cards and retain their positions in the Cycling order.
+
+A **No Effect** card is a Continuous World Card. It has no modifier or other effect, but occupies an active Cycling position normally and can therefore cycle out an older Continuous card.
+
+World Effects use the ordinary rules-resolution model even though they resolve outside a Unit activation. An effect over all qualifying Units establishes its recipient set when the effect begins and resolves recipients in deterministic top-to-bottom, then left-to-right Board order. For multi-Cell Units, use the Unit's anchor Cell for this ordering. Consequences such as `When this Unit is defeated` are appended to and drained from the ordinary FIFO automatic-consequence queue. The complete World Card resolution and its automatic consequences finish before the next World Card is drawn.
+
+### World modifiers
+
+World Effects may modify effective `ATK`, `DEF`, `MOV`, Actions per activation, or uses of each unique Bonus Action per activation. These effective numeric values cannot be reduced below 0.
+
+Stat modifiers do not grant capabilities that a Unit does not otherwise have. In particular, effective `ATK 0` prevents a Unit from making a normal Attack, while effective `ATK > 0` does not itself grant a normal Attack or override a rule such as `CantAttack`.
+
+A Unit normally has one Action opportunity per ordinary activation. An Action modifier changes that number. If a Unit has more than one Action opportunity, it may use the same Action more than once unless that Action has another restriction. Each use resolves completely before another Action is performed.
+
+Each unique Bonus Action may normally be used at most once per activation. A Bonus Action use modifier changes that per-unique-Ability limit for every Bonus Action. This does not replenish or bypass a limited-use Ability's remaining uses: every performance still spends a use normally when applicable.
+
+### Initial World Deck
+
+The first World Deck is intended as a roughly 40-card baseline deck balanced primarily around `Cycling 1`. Card names are content and may be revised without changing their mechanics.
+
+Continuous card types:
+
+- **Bloodlust** — All Units have ATK +1.
+- **Weakness** — All Units have ATK -1.
+- **Iron Skin** — All Units have DEF +1.
+- **Vulnerability** — All Units have DEF -1.
+- **Haste** — All Units have MOV +1.
+- **Sluggishness** — All Units have MOV -1.
+- **Frenzy** — All Units have +1 Action per activation.
+- **Fatigue** — All Units have -1 Action per activation.
+- **Surge** — Each unique Bonus Action may be used one additional time per activation.
+- **Hesitation** — Each unique Bonus Action may be used one fewer time per activation.
+- **Calm** — No Effect.
+
+Immediate card types:
+
+- **Earthquake** — Lay down all Units.
+- **Open Sesame!** — Open all Doors.
+- **Lockdown** — Close all Doors.
+- **Miracle** — Fully heal all Units.
+- **Second Wind** — Heal every damaged Unit for 1 HP.
+- **Repulsion** — Deal 1 damage to every Unit adjacent to another Unit.
+- **Loneliness** — Deal 1 damage to every Unit not adjacent to another Unit.
+- **Renewal** — Replenish 1 use of every limited-use Ability.
+
+`Fully heal` restores current HP to maximum HP and does not change Posture. Ordinary healing cannot increase current HP above maximum HP and does not change Posture.
+
+`Replenish 1 use` increases the remaining uses of every limited-use Ability on every Unit by 1, up to that Ability's normal maximum. Unlimited Abilities are unaffected.
+
+For Repulsion and Loneliness, `another Unit` uses ordinary Unit adjacency and ignores Side. A Unit is affected at most once regardless of how many other Units it is adjacent to.
+
+Open Sesame! changes every Closed Door to Open. Lockdown changes every Open Door to Closed. They operate directly on Door state and do not perform a Unit's door Action.
+
+The initial physical composition target is 40 cards:
+
+| Card | Copies |
+| --- | ---: |
+| Bloodlust | 3 |
+| Weakness | 3 |
+| Iron Skin | 3 |
+| Vulnerability | 3 |
+| Haste | 3 |
+| Sluggishness | 3 |
+| Frenzy | 1 |
+| Fatigue | 1 |
+| Surge | 1 |
+| Hesitation | 1 |
+| Earthquake | 1 |
+| Open Sesame! | 1 |
+| Lockdown | 1 |
+| Miracle | 1 |
+| Second Wind | 2 |
+| Repulsion | 1 |
+| Loneliness | 1 |
+| Renewal | 2 |
+| Calm | 8 |
+
+Different future World Decks may use different card compositions and effects. They should be introduced from concrete content needs rather than by creating a speculative generic effect language.
+
 ## Normal attacks
 
 A normal Attack is a basic Action.
