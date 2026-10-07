@@ -1277,6 +1277,8 @@ World Cards are individual physical card instances, not weighted random effect d
 
 At Round Start, draw the scenario's specified number of World Cards **one at a time**. Completely resolve each draw, including all automatic consequences it creates, before drawing the next card.
 
+Round Start World Cards are resolved **before the Activation Bag is populated for that Round**. Completely resolve all World Card draws and all automatic consequences they create first. Only after the final World Card resolution has reached a stable state is the Activation Bag populated from the Unit Type + Side combinations then in play. Units defeated or otherwise removed during Round Start therefore do not contribute Activation Tokens, while Units created during Round Start do contribute according to the ordinary Activation Bag rules.
+
 If the draw pile is empty when a card is to be drawn, shuffle the discard pile to form a new draw pile, then continue the draw. Active Continuous cards are not part of the discard pile and therefore are not included in that reshuffle. If both draw pile and discard pile are empty, no card is drawn.
 
 World Cards are one of two kinds:
