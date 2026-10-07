@@ -29,6 +29,10 @@ Prefer implementing the smallest concrete mechanic required by current content. 
 
 Canonical Ability text should describe the physical game naturally and precisely. Code implements that text and the shared rules; the text is not a programming language and must not be parsed as one.
 
+Keep Unit and other content definitions readable as declarations of the authored game content. Values that meaningfully define a specific Ability instance should normally be explicit at the content-definition site rather than hidden as constants inside the mechanic implementation. For example, prefer content shaped like `Explosion(damage: 1)` when the damage value belongs to that authored Ability, even if only one value currently exists. The mechanic implementation should contain the shared meaning and resolution semantics of Explosion; the content definition should contain the authored value.
+
+This is a content/readability boundary, not a mandate to parameterize everything. Do not expose incidental implementation details or add parameters solely for hypothetical future reuse.
+
 ## Physical-first boundary
 
 Every game mechanic must remain executable and representable in the physical game.
