@@ -465,7 +465,7 @@ async function mutate(operation, body = {}) {
         }
         if (!skipEffects && occurrence?.kind === "UnitCreated") figures.get(occurrence.unitId)?.classList.add("created");
         if (!skipEffects && occurrence?.kind === "PostureChanged") figures.get(occurrence.unitId)?.classList.add("posture-changed");
-        if (["AttackTargetResolved", "PostureChanged", "UnitCreated"].includes(occurrence?.kind)) await pause(380);
+        if (["AttackTargetResolved", "PostureChanged", "UnitCreated", "PlacesSwapped", "UnitRepositioned"].includes(occurrence?.kind)) await pause(380);
       }
     }
   } catch (error) {

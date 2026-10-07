@@ -17,7 +17,9 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
                 candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
                 candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" :
                 candidate.Kind == ActivationChoiceKind.Cleave ? $"Cleave {candidate.TargetId}" :
-                candidate.BonusAction is { } ability ? $"{ability.Name} (Bonus Action)" :
+                candidate.BonusAction is { } ability ? $"{ability.DisplayName ?? ability.Name} (Bonus Action)" +
+                    (candidate.TargetId is null ? "" : $" → {candidate.TargetId}") +
+                    (candidate.Destination is null ? "" : $" to ({candidate.Destination.X},{candidate.Destination.Y})") :
                 candidate.FreeAction == UnitFreeAction.OpenDoor ?
                     $"Open Door ({candidate.Door!.A.X},{candidate.Door.A.Y}) <-> ({candidate.Door.B.X},{candidate.Door.B.Y}) (Free Action)" : candidate.Action switch
             {

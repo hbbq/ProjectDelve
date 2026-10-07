@@ -38,7 +38,10 @@ public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fir
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16, PreferFireBreathThenClaw = 32 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16, PreferFireBreathThenClaw = 32, SwapThenAttackThenDisplace = 64 }
+public sealed record Swap;
+// Current external movement supports zero or one ordinary step only.
+public sealed record Displace(int MaxMove);
 public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
 public sealed record Telekinesis;
 // Presentation only: fixed mechanic/counter identities never depend on these names.
@@ -102,8 +105,10 @@ public sealed record PassiveDescription(string Name, string DisplayText);
 public enum Stat { Atk, Mov, Rng, Def }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
 // Immutable content and per-ability counters may be shared safely by state copies.
-public sealed record BonusActionAbility(string Name, int MaxUses, ImmutableArray<ModifierThisTurn> Modifiers)
+public sealed record BonusActionAbility(string Name, int? MaxUses, ImmutableArray<ModifierThisTurn> Modifiers)
 {
+    public Swap? Swap { get; init; }
+    public Displace? Displace { get; init; }
     // Name remains the existing persisted key; presentation can vary independently.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? DisplayName { get; init; }
@@ -165,7 +170,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
             HealUses = Heal is { } heal ? new(heal.MaxUses, heal.MaxUses) : null,
             HolyWaveUses = HolyWave is { } wave ? new(wave.MaxUses, wave.MaxUses) : null,
             FireballUses = Fireball is { } fireball ? new(fireball.MaxUses, fireball.MaxUses) : null,
-            BonusActionUses = BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, a.MaxUses))
+            BonusActionUses = BonusActions.Where(a => a.MaxUses.HasValue)
+                .ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses!.Value, a.MaxUses.Value))
         };
 
     public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
@@ -180,6 +186,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Ghost(string id = UnitTypeIds.Ghost) => UnitRoster.Ghost(id);
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitRoster.SkeletonArcher(id);
     public static UnitType BombImp(string id = UnitTypeIds.BombImp) => UnitRoster.BombImp(id);
+    public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitRoster.DisplacerDemon(id);
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);

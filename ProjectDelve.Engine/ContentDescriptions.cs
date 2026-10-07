@@ -45,6 +45,8 @@ public static class ContentDescriptions
             entries.Add(new("open-door", "Open Door", "Free Action", "Open a bordering Closed Door."));
         foreach (var ability in type.BonusActions)
             entries.Add(new(BonusEntryId(ability.Name), ability.DisplayName ?? ability.Name, "Bonus Action",
+                ability.Swap is not null ? "Swap places with an adjacent enemy Unit." :
+                ability.Displace is { } displace ? $"Move an adjacent enemy Unit up to {displace.MaxMove} Cell." :
                 string.Join(" & ", ability.Modifiers.Select(m =>
                     $"{(m.Amount >= 0 ? "+" : "")}{m.Amount} {m.Stat.ToString().ToUpperInvariant()}")) + " this turn",
                 ability.MaxUses));

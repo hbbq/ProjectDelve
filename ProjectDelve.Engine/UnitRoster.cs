@@ -18,6 +18,14 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitType.Define(id,
+        "Displacer Demon",
+        Stats(3, 1, 4, 4, 1),
+        Ability("Swap", Unlimited(), Swap(), id: "Swap"),
+        Ability("Displace", Unlimited(), Displace(maxMove: 1), id: "Displace"),
+        Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(+1))
+    ).WithBehaviors(UnitBehavior.SwapThenAttackThenDisplace);
+
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitType.Define(id, 
         "Red Dragon", 
         Stats(2, 4, 4, 4, 8), 

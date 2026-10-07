@@ -2,6 +2,7 @@ namespace ProjectDelve.Engine;
 
 public static class UnitTypeIds
 {
+    public const string DisplacerDemon = "displacer-demon-type";
     public const string RedDragon = "red-dragon-type";
     public const string Grunt = "grunt-type";
     public const string Zombie = "zombie-type";
@@ -30,6 +31,7 @@ public static class CanonicalUnitTypes
     private static readonly IReadOnlyDictionary<string, Func<UnitType>> Factories =
         new Dictionary<string, Func<UnitType>>(StringComparer.Ordinal)
         {
+            [UnitTypeIds.DisplacerDemon] = () => UnitRoster.DisplacerDemon(),
             [UnitTypeIds.RedDragon] = () => UnitRoster.RedDragon(),
             [UnitTypeIds.Grunt] = () => UnitRoster.Grunt(),
             [UnitTypeIds.Zombie] = () => UnitRoster.Zombie(),

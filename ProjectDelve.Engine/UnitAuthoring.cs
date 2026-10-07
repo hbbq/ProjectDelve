@@ -46,6 +46,9 @@ public static class UnitAuthoring
     public static Explosion Explosion(int damage) => new() { Damage = damage };
     public static SummonAdjacent SummonAdjacent(string unitTypeId, Posture initialPosture) => new(unitTypeId, initialPosture);
     public static Telekinesis Telekinesis() => new();
+    public static Swap Swap() => new();
+    public static Displace Displace(int maxMove) => maxMove is >= 0 and <= 1
+        ? new(maxMove) : throw new ArgumentOutOfRangeException(nameof(maxMove));
     public static Fury Fury(int atkBonus, int adjacentEnemies) =>
         new() { AtkBonus = atkBonus, AdjacentEnemyThreshold = adjacentEnemies };
     public static Backstab Backstab(int atkBonus) => new() { AtkBonus = atkBonus };
@@ -90,6 +93,10 @@ public static class UnitAuthoring
         new NamedEntry(new MoveEntry(mechanic), name, NamedMechanic.MoveAfterAttack);
 
     // Bonus ids remain explicit persisted keys, independent of the printed name.
+    public static Entry Ability(string name, UnlimitedUsage usage, Swap mechanic, string id) =>
+        new BonusEntry(new(id, null, []) { Swap = mechanic, DisplayName = name == id ? null : name });
+    public static Entry Ability(string name, UnlimitedUsage usage, Displace mechanic, string id) =>
+        new BonusEntry(new(id, null, []) { Displace = mechanic, DisplayName = name == id ? null : name });
     public static Entry Ability(string name, UseLimit usage, SelfModifiers mechanic, string id) =>
         new BonusEntry(new(id, usage.Count, mechanic.Modifiers) { DisplayName = name == id ? null : name });
 

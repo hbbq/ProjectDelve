@@ -87,7 +87,8 @@ public static class BrowserProjection
                 ActivationChoiceKind.SelectUnit => $"Select {c.Key}",
                 ActivationChoiceKind.Move => $"Move to ({c.Destination!.X},{c.Destination.Y})",
                 _ => entry is null ? "Choose option" : $"{entry.Name} ({entry.Category})" +
-                    (c.TargetId is not null ? $" → {c.TargetId}" :
+                    (c.TargetId is not null && c.Destination is not null ? $" → {c.TargetId} to ({c.Destination.X},{c.Destination.Y})" :
+                     c.TargetId is not null ? $" → {c.TargetId}" :
                      c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" :
                      c.Door is not null ? $" → ({c.Door.A.X},{c.Door.A.Y})–({c.Door.B.X},{c.Door.B.Y})" : "")
             };
@@ -100,6 +101,8 @@ public static class BrowserProjection
                         ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
                         : c.Action == UnitAction.SummonAdjacent
                             ? FootprintGeometry.PlacementCells(state, type.SummonAdjacent!.UnitTypeId, c.Destination)
+                            : c.BonusAction?.Displace is not null
+                                ? FootprintGeometry.OccupiedCells(state, c.TargetId!, c.Destination)
                             : []
             };
         }).ToArray();
@@ -168,6 +171,13 @@ public static class BrowserProjection
             case "MovementCompleted":
                 role = OutcomeRole.Movement;
                 description = $"{e.UnitId} {(e.IsMoveAfterAttack ? "moved after attack" : "moved")}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
+                break;
+            case "UnitRepositioned":
+                role = OutcomeRole.Movement;
+                description = $"{e.SourceUnitId} displaced {e.UnitId}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
+                break;
+            case "PlacesSwapped":
+                description = $"{e.UnitId} swapped places with {e.TargetId}";
                 break;
             case "AttackResolved" when e.TargetId is null && e.Attack is { } attack:
                 role = OutcomeRole.AttackSummary;

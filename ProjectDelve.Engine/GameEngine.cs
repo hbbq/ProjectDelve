@@ -25,9 +25,9 @@ public static class GameEngine
                     ? new(wave.MaxUses, wave.MaxUses) : null),
                 FireballUses = u.FireballUses ?? (state.Types.Single(t => t.Id == u.TypeId).Fireball is { } fireball
                     ? new(fireball.MaxUses, fireball.MaxUses) : null),
-                BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions
+                BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions.Where(a => a.MaxUses.HasValue)
                     .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
-                        ? uses : uses.Add(ability.Name, new(ability.MaxUses, ability.MaxUses)))
+                        ? uses : uses.Add(ability.Name, new(ability.MaxUses!.Value, ability.MaxUses.Value)))
             }).ToList();
         state.Round++;
         state.Bag = state.Types.SelectMany(t => state.Units
@@ -165,18 +165,39 @@ public static class GameEngine
                 }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
-                var ability = request.Candidates.Single(c => c.Key == choice).BonusAction!;
+                var bonusChoice = request.Candidates.Single(c => c.Key == choice);
+                var ability = bonusChoice.BonusAction!;
                 var index = state.Units.FindIndex(u => u.Id == request.UnitId);
-                var uses = state.Units[index].BonusActionUses[ability.Name];
-                state.Units[index] = state.Units[index] with
+                if (ability.MaxUses.HasValue)
                 {
-                    BonusActionUses = state.Units[index].BonusActionUses.SetItem(ability.Name,
-                        new(uses.MaxUses, uses.RemainingUses - 1))
-                };
+                    var uses = state.Units[index].BonusActionUses[ability.Name];
+                    state.Units[index] = state.Units[index] with
+                    {
+                        BonusActionUses = state.Units[index].BonusActionUses.SetItem(ability.Name,
+                            new(uses.MaxUses, uses.RemainingUses - 1))
+                    };
+                }
                 state.BonusActionsUsedThisActivation.Add(ability.Name);
                 state.ModifiersThisTurn.AddRange(ability.Modifiers);
                 EmitActionUsed(request, choice!, events);
-                events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name));
+                if (ability.Swap is not null)
+                {
+                    ExternalMovementRules.SwapPlaces(state, request.UnitId!, bonusChoice.TargetId!);
+                    events.Add(new RulesEvent("PlacesSwapped", request.UnitId, bonusChoice.TargetId,
+                        AbilityName: ability.DisplayName ?? ability.Name)
+                        { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice) });
+                }
+                else if (ability.Displace is not null)
+                {
+                    var affectedIndex = state.Physical.Figures.FindIndex(f => f.Id == bonusChoice.TargetId);
+                    var affected = state.Physical.Figures[affectedIndex];
+                    state.Physical.Figures[affectedIndex] = affected with { Position = bonusChoice.Destination! };
+                    events.Add(new RulesEvent("UnitRepositioned", affected.Id,
+                        Path: affected.Position == bonusChoice.Destination ? [affected.Position] : [affected.Position, bonusChoice.Destination!],
+                        AbilityName: ability.DisplayName ?? ability.Name)
+                        { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice), Cell = bonusChoice.Destination });
+                }
+                else events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name));
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state, events);
@@ -513,9 +534,25 @@ public static class GameEngine
     {
         foreach (var ability in state.Types.Single(t => t.Id == unit.TypeId).BonusActions)
             if (!state.BonusActionsUsedThisActivation.Contains(ability.Name) &&
-                unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0)
-                yield return new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
+                (ability.MaxUses is null || unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0))
+            {
+                if (ability.Swap is not null || ability.Displace is not null)
+                {
+                    foreach (var target in AdjacentHostiles(state, unit))
+                    {
+                        if (ability.Swap is not null && ExternalMovementRules.CanSwap(state, unit.Id, target.Id))
+                            yield return new Candidate($"bonus-action:{ability.Name}:{target.Id}",
+                                TargetId: target.Id, Kind: ActivationChoiceKind.BonusAction, BonusAction: ability);
+                        if (ability.Displace is { } displace)
+                            foreach (var destination in ExternalMovementRules.Destinations(state, unit.Id, target.Id, displace.MaxMove))
+                                yield return new Candidate($"bonus-action:{ability.Name}:{target.Id}:{destination.X},{destination.Y}",
+                                    Destination: destination, TargetId: target.Id,
+                                    Kind: ActivationChoiceKind.BonusAction, BonusAction: ability);
+                    }
+                }
+                else yield return new Candidate($"bonus-action:{ability.Name}", Kind: ActivationChoiceKind.BonusAction,
                     Relevant: BonusActionRelevant(state, unit, ability), BonusAction: ability);
+            }
     }
 
     private static bool BonusActionRelevant(GameState state, Unit unit, BonusActionAbility ability)
@@ -873,6 +910,9 @@ public static class GameEngine
                 t.HolyWave is { MaxUses: < 1 } ||
                 t.Fireball is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
+                    ability.Displace is { MaxMove: < 0 or > 1 } ||
+                    ability.Swap is not null && ability.Displace is not null ||
+                    (ability.Swap is not null || ability.Displace is not null) && !ability.Modifiers.IsEmpty ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");

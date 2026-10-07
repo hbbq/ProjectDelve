@@ -329,7 +329,8 @@ public sealed class BrowserProjectionTests
                 HealUses = type.Heal is null ? null : new(2, 0),
                 HolyWaveUses = type.HolyWave is null ? null : new(2, 1),
                 CleaveUses = type.Cleave is null ? null : new(2, 0),
-                BonusActionUses = type.BonusActions.ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses, 1))
+                BonusActionUses = type.BonusActions.Where(a => a.MaxUses.HasValue)
+                    .ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses!.Value, 1))
             };
             var card = BrowserProjection.Cards(state)["actor"];
             Assert.Equal(type.DisplayName, card.DisplayName);

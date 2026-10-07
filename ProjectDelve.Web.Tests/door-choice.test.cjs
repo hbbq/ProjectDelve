@@ -136,6 +136,41 @@ function harness(initial, fetchImpl) {
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 
+for (const animate of [true, false]) {
+  test(`swap and external movement render supplied positions together (animate=${animate})`, async () => {
+    const initial = response(), swapped = state(), displaced = state();
+    swapped.physical.figures[0].position.x = 4;
+    swapped.physical.figures[1].position.x = 0;
+    displaced.physical.figures[0].position.x = 4;
+    displaced.physical.figures[1].position.x = 1;
+    const final = response();
+    final.result.state = displaced;
+    final.result.events = [
+      { kind: "PlacesSwapped", unitId: "actor", targetId: "a" },
+      { kind: "UnitRepositioned", unitId: "a", sourceUnitId: "actor" }
+    ];
+    final.presentation.events = [
+      { role: "Notice", text: "Supplied simultaneous swap", unitId: "actor", targetId: "a" },
+      { role: "Movement", text: "Supplied external movement", unitId: "a", path: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }
+    ];
+    final.result.resolutionSteps = [swapped, displaced].map((stateAfter, eventIndex) => ({ eventIndex, stateAfter }));
+    final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+    const h = harness(initial, async () => ({ ok: true, json: async () => final })), positions = [];
+    h.context.animate = animate; h.context.positions = positions;
+    h.run(`ui.animate.checked = animate; pause = async () => {};
+      const renderNormally = renderState;
+      renderState = (...args) => {
+        renderNormally(...args);
+        positions.push(args[0].physical.figures.slice(0, 2).map(figure => figure.position.x));
+      };`);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.deepEqual(positions.map(value => Array.from(value)), [[4, 0], [4, 1], [4, 1]]);
+    assert.equal(h.figure("a").style.left, "25%");
+    assert.match(h.elements.get("events").textContent, /Supplied simultaneous swap/);
+    assert.match(h.elements.get("events").textContent, /Supplied external movement/);
+  });
+}
+
 test("designer play hook submits existing revisioned imported-scenario operation", async () => {
   const initial = response(), submitted = [];
   const h = harness(initial, async (url, options) => {

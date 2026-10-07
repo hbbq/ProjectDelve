@@ -15,6 +15,9 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
 
     private static string SelectActivation(DecisionRequest request, IGameplayQueries queries)
     {
+        var positional = queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.SwapThenAttackThenDisplace);
+        if (positional && RankRepositioning(request.Candidates.Where(c => c.BonusAction?.Swap is not null), request, queries) is { } swap)
+            return swap.Key;
         if (request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay))
         {
             var moves = request with { Kind = DecisionKind.Move,
@@ -24,8 +27,35 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         }
         var actions = request with { Kind = DecisionKind.Act,
             Candidates = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action).ToList(), AllowsNone = true };
-        return SelectAction(actions, queries) ?? request.Candidates.Single(c => c.Kind == ActivationChoiceKind.EndTurn).Key;
+        var action = SelectAction(actions, queries);
+        if (action is not null) return action;
+        if (positional && RankDisplace(request.Candidates.Where(c => c.BonusAction?.Displace is not null), request, queries) is { } displace)
+            return displace.Key;
+        return request.Candidates.Single(c => c.Kind == ActivationChoiceKind.EndTurn).Key;
     }
+
+    // Legal candidates already include all targeting/placement restrictions. Rank by the
+    // ordinary nearest-target policy, then destination board order for reproducible play.
+    private static Candidate? RankRepositioning(IEnumerable<Candidate> candidates, DecisionRequest request, IGameplayQueries queries) =>
+        ThenByTargetAndDestination(candidates.OrderBy(c =>
+            queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!)), queries).FirstOrDefault();
+
+    private static Candidate? RankDisplace(IEnumerable<Candidate> candidates, DecisionRequest request, IGameplayQueries queries)
+    {
+        var sourceCells = queries.OccupiedCellsOf(request.UnitId!);
+        // Score the complete supplied target/destination pair, without generating placements.
+        var ranked = candidates.OrderByDescending(c =>
+                SpatialRules.ManhattanDistance(sourceCells, [c.Destination!]) -
+                queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!))
+            .ThenBy(c => c.Destination == queries.PositionOf(c.TargetId!) ? 0 : 1)
+            .ThenBy(c => queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!));
+        return ThenByTargetAndDestination(ranked, queries).FirstOrDefault();
+    }
+
+    private static IOrderedEnumerable<Candidate> ThenByTargetAndDestination(IOrderedEnumerable<Candidate> ranked, IGameplayQueries queries) =>
+        ranked.ThenBy(c => queries.PositionOf(c.TargetId!).Y).ThenBy(c => queries.PositionOf(c.TargetId!).X)
+            .ThenBy(c => c.Destination?.Y).ThenBy(c => c.Destination?.X)
+            .ThenBy(c => c.Key, StringComparer.Ordinal);
 
     private static string? SelectMovement(DecisionRequest request, IGameplayQueries queries)
     {
