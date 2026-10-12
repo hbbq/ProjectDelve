@@ -205,7 +205,12 @@ public static partial class GameEngine
                         AbilityName: ability.DisplayName ?? ability.Name)
                         { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice), Cell = bonusChoice.Destination });
                 }
-                else events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name));
+                else
+                {
+                    if (ability.ReshapeRoom is not null)
+                        ReshapeRoomRules.Apply(state, request.UnitId!);
+                    events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name));
+                }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state, events);
@@ -566,6 +571,7 @@ public static partial class GameEngine
 
     private static bool BonusActionRelevant(GameState state, Unit unit, BonusActionAbility ability)
     {
+        if (ability.ReshapeRoom is not null) return true;
         var modified = state.Copy();
         // Compare gameplay results of the complete effect, regardless of its modifiers.
         modified.ModifiersThisTurn.AddRange(ability.Modifiers);
@@ -917,8 +923,9 @@ public static partial class GameEngine
                 t.Fireball is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
                     ability.Displace is { MaxMove: < 0 or > 1 } ||
-                    ability.Swap is not null && ability.Displace is not null ||
-                    (ability.Swap is not null || ability.Displace is not null) && !ability.Modifiers.IsEmpty ||
+                    (Convert.ToInt32(ability.Swap is not null) + Convert.ToInt32(ability.Displace is not null) +
+                        Convert.ToInt32(ability.ReshapeRoom is not null)) > 1 ||
+                    (ability.Swap is not null || ability.Displace is not null || ability.ReshapeRoom is not null) && !ability.Modifiers.IsEmpty ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
@@ -954,8 +961,7 @@ public static partial class GameEngine
             throw new ArgumentException("Invalid figure placement.");
         if (figures.Any(f => !SpatialRules.CanPlaceUnit(state, FootprintGeometry.FootprintOf(state, f.Id), f.Position, f.Id)))
             throw new ArgumentException("Invalid figure footprint placement.");
-        if (board.Edges.Any(e => !Inside(board, e.A) || !Inside(board, e.B) ||
-            Math.Abs(e.A.X - e.B.X) + Math.Abs(e.A.Y - e.B.Y) != 1 || !Enum.IsDefined(e.Kind)) ||
+        if (board.Edges.Any(e => !EdgeReplacementRules.CanReplace(state, e)) ||
             board.Edges.Select(e => e.A.Y < e.B.Y || e.A.Y == e.B.Y && e.A.X < e.B.X
                 ? (e.A, e.B) : (e.B, e.A)).Distinct().Count() != board.Edges.Count)
             throw new ArgumentException("Invalid edge features.");

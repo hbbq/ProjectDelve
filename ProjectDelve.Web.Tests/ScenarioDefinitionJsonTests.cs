@@ -9,6 +9,7 @@ public sealed class ScenarioDefinitionJsonTests
     [Theory]
     [InlineData("full-party-trolls")]
     [InlineData("shaman-hunt")]
+    [InlineData("labyrinth-shaper")]
     public void AuthoredAndJsonLoadedScenariosProduceEquivalentRoundZeroStates(string id)
     {
         var authoredDefinition = PlaytestScenarios.Definition(id);

@@ -38,7 +38,8 @@ public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fir
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16, PreferFireBreathThenClaw = 32, SwapThenAttackThenDisplace = 64 }
+public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16, PreferFireBreathThenClaw = 32, SwapThenAttackThenDisplace = 64, PreferReshapeRoom = 128 }
+public sealed record ReshapeRoom;
 public sealed record Swap;
 // Current external movement supports zero or one ordinary step only.
 public sealed record Displace(int MaxMove);
@@ -107,6 +108,7 @@ public sealed record ModifierThisTurn(Stat Stat, int Amount);
 // Immutable content and per-ability counters may be shared safely by state copies.
 public sealed record BonusActionAbility(string Name, int? MaxUses, ImmutableArray<ModifierThisTurn> Modifiers)
 {
+    public ReshapeRoom? ReshapeRoom { get; init; }
     public Swap? Swap { get; init; }
     public Displace? Displace { get; init; }
     // Name remains the existing persisted key; presentation can vary independently.
@@ -190,6 +192,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);
+    public static UnitType LabyrinthShaper(string id = UnitTypeIds.LabyrinthShaper) => UnitRoster.LabyrinthShaper(id);
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitRoster.RedDragon(id);
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)

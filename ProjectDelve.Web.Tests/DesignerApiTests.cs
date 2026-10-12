@@ -47,6 +47,7 @@ public sealed class DesignerApiTests
     [Theory]
     [InlineData("full-party-trolls")]
     [InlineData("shaman-hunt")]
+    [InlineData("labyrinth-shaper")]
     [InlineData("complete-data")]
     [InlineData("world-effects")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)

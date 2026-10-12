@@ -1160,3 +1160,28 @@ test("World door closure uses the ordinary supplied edge presentation", async ()
   await h.run('present({ role: "DoorClosed", door: worldDoor }, { kind: "DoorClosed" })');
   assert.equal(h.run('edges.get(edgeKey(worldDoor)).className'), "edge ClosedDoor");
 });
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`edge replacement playback renders supplied board geometry (${mode})`, async () => {
+    const initial = response(), final = response();
+    const replaced = { a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, kind: "ClosedDoor" };
+    const removed = { a: { x: 1, y: 0 }, b: { x: 2, y: 0 }, kind: "OpenDoor" };
+    const created = { a: { x: 3, y: 0 }, b: { x: 4, y: 0 }, kind: "Wall" };
+    initial.result.state.physical.board.edges = [replaced, removed];
+    final.result.state.physical.board.edges = [{ ...replaced, kind: "Wall" }, created];
+    final.result.events = [{ kind: "AbilityUsed", unitId: "actor", abilityName: "Reshape Room" }];
+    final.presentation.events = [{ role: "Notice", text: "actor used Reshape Room", unitId: "actor" }];
+    final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
+    final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards }];
+    const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    h.context.mode = mode; h.context.replaced = replaced; h.context.removed = removed; h.context.created = created;
+    h.run(`ui.animate.checked = mode !== "disabled"; pause = async () => {};
+      const originalPresent = present;
+      present = async (...args) => { await originalPresent(...args); if (mode === "skip") ui.skip.listeners.click(); };`);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.equal(h.run('edges.get(edgeKey(replaced)).className'), "edge Wall");
+    assert.equal(h.run('edges.has(edgeKey(removed))'), false);
+    assert.equal(h.run('edges.get(edgeKey(created)).className'), "edge Wall");
+    assert.match(h.elements.get("events").textContent, /Reshape Room/);
+  });
+}

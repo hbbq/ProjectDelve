@@ -45,6 +45,7 @@ public static class ContentDescriptions
             entries.Add(new("open-door", "Open Door", "Free Action", "Open a bordering Closed Door."));
         foreach (var ability in type.BonusActions)
             entries.Add(new(BonusEntryId(ability.Name), ability.DisplayName ?? ability.Name, "Bonus Action",
+                ability.ReshapeRoom is not null ? "Replace Edges in the 3 \u00D7 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides." :
                 ability.Swap is not null ? "Swap places with an adjacent enemy Unit." :
                 ability.Displace is { } displace ? $"Move an adjacent enemy Unit up to {displace.MaxMove} Cell." :
                 string.Join(" & ", ability.Modifiers.Select(m =>

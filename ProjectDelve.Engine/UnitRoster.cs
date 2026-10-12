@@ -26,6 +26,14 @@ public static class UnitRoster
         Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(+1))
     ).WithBehaviors(UnitBehavior.SwapThenAttackThenDisplace);
 
+    // Digital-only playtest content.
+    public static UnitType LabyrinthShaper(string id = UnitTypeIds.LabyrinthShaper) => UnitType.Define(id,
+        "Labyrinth Shaper",
+        Stats(2, 1, 2, 2, 5),
+        Unique(),
+        Ability("Reshape Room", Unlimited(), ReshapeRoom(), id: "Reshape Room")
+    ).WithBehaviors(UnitBehavior.PreferReshapeRoom);
+
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitType.Define(id, 
         "Red Dragon", 
         Stats(2, 4, 4, 4, 8), 

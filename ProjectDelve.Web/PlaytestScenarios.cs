@@ -16,7 +16,8 @@ public static class PlaytestScenarios
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
-        new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach.")
+        new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach."),
+        new("labyrinth-shaper", "Labyrinth Shaper (digital-only)", "Digital-only encounter: approach the Labyrinth Shaper as it rebuilds a 3x3 room before moving. Old Walls and Doors disappear, four open gaps remain, and Water prevents a Wall on the northeast side.")
     ]);
 
     public static GameState Create(string id) => GameEngine.CreateGame(Definition(id));
@@ -29,6 +30,7 @@ public static class PlaytestScenarios
         "wizard-doors" => WizardDoors(),
         "full-party-trolls" => FullParty(),
         "shaman-hunt" => ShamanHunt(),
+        "labyrinth-shaper" => LabyrinthShaper(),
         _ => throw new ArgumentException("Unknown playtest scenario.", nameof(id))
     };
 
@@ -149,4 +151,19 @@ public static class PlaytestScenarios
             Group(UnitTypeIds.RedDragon, "red", ControllerKind.Automated, At(11, 5))
         ]);
 
+    private static ScenarioDefinition LabyrinthShaper() => Define(
+        board: Map(9, 9, cells: [
+            .. Tiles(TerrainKind.Water, At(5, 3), At(6, 3))
+        ], edges: [
+            Edge(4, 4, Right, EdgeKind.OpenDoor),
+            Edge(3, 4, Down, EdgeKind.Wall),
+            Edge(4, 2, Down, EdgeKind.ClosedDoor),
+            Edge(2, 3, Right, EdgeKind.ClosedDoor),
+            Edge(7, 6, Down, EdgeKind.WallWithWindow)
+        ]),
+        groups: [
+            Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(1, 4)),
+            Group(UnitTypeIds.Cleric, "blue", ControllerKind.Human, At(1, 5)),
+            Group(UnitTypeIds.LabyrinthShaper, "red", ControllerKind.Automated, At(4, 4))
+        ]);
 }

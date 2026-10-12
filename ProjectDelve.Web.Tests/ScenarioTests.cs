@@ -33,14 +33,15 @@ public sealed class ScenarioTests
         { "archers", 12, ["barbarian", "rogue"], ["grunt", "goblin", "skeleton-archer"] },
         { "wizard-doors", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
         { "full-party-trolls", 15, ["barbarian", "rogue", "wizard", "cleric"], ["goblin", "skeleton-archer", "zombie", "troll"] },
-        { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt", "red-dragon"] }
+        { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt", "red-dragon"] },
+        { "labyrinth-shaper", 9, ["barbarian", "cleric"], ["labyrinth-shaper"] }
     };
 
     [Fact]
-    public void CatalogHasSixStableUniqueIdsAndPresentation()
+    public void CatalogHasStableUniqueIdsAndPresentation()
     {
         Assert.Equal(Content.Select(row => (string)row[0]), PlaytestScenarios.Catalog.Select(s => s.Id));
-        Assert.Equal(6, PlaytestScenarios.Catalog.Select(s => s.Id).Distinct().Count());
+        Assert.Equal(Content.Count, PlaytestScenarios.Catalog.Select(s => s.Id).Distinct().Count());
         Assert.All(PlaytestScenarios.Catalog, s =>
         {
             Assert.False(string.IsNullOrWhiteSpace(s.Name));

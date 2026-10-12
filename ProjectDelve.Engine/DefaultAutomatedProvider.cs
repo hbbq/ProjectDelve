@@ -15,6 +15,9 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
 
     private static string SelectActivation(DecisionRequest request, IGameplayQueries queries)
     {
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferReshapeRoom) &&
+            request.Candidates.FirstOrDefault(c => c.BonusAction?.ReshapeRoom is not null) is { } reshape)
+            return reshape.Key;
         var positional = queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.SwapThenAttackThenDisplace);
         if (positional && RankRepositioning(request.Candidates.Where(c => c.BonusAction?.Swap is not null), request, queries) is { } swap)
             return swap.Key;
