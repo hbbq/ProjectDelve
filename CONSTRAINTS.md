@@ -102,7 +102,19 @@ The initial catalog should contain six progressively broader playtest scenarios:
 5. An approximately `15x15` scenario with Barbarian, Rogue, Wizard, and Cleric against Goblins, Skeleton Archers, Zombies, Trolls, and optionally some Grunts. It should contain substantially more Walls and Doors while avoiding excessive one-cell-wide corridors and bottlenecks.
 6. An approximately `15x15` Shaman-focused scenario with all four Heroes, at least one Shaman, and optionally some simpler non-Goblin enemies. Its layout should provide multiple paths and enough maze-like structure for Flee to matter while still allowing the Shaman to be pursued. **No Goblins are present in its initial setup**; Goblins should enter play through Summon Goblin so Unit creation, Lying Posture, and next-round Activation Bag participation can be exercised naturally.
 
-These scenarios currently have no rules-defined victory or defeat conditions. Their purpose is interactive playtesting. Campaign progression, unlocking, difficulty metadata, scoring, objectives, victory/defeat, and other scenario systems are deferred until concrete game content requires them.
+These scenarios are for interactive playtesting. They use the default Side objectives and game-end rules defined below unless a scenario explicitly assigns a different objective to a Side. Campaign progression, unlocking, difficulty metadata, scoring, and additional objective types remain deferred until concrete game content requires them.
+
+## Scenario objectives and game completion
+
+A scenario defines an **Objective** independently for each **Side**. If the scenario does not explicitly specify an Objective for a Side, that Side uses **Eliminate Enemies**. Objectives belong to Sides, not to the Hero/Monster distinction, individual Units, or Decision Providers. An Objective is authoritative game content: clients and automated controllers may use it to plan, but do not decide for themselves whether it has been achieved.
+
+**Eliminate Enemies** is achieved when no living hostile Units remain on the board for that Side. Use the existing Side relationships and in-play Units when evaluating this condition; a defeated or removed Unit does not count. Do not predict Units that might be created later. This first Objective type needs no target selection, counters, or additional persistent per-Unit state.
+
+Evaluate all Sides' Objectives against the same authoritative state at **completed Unit activation boundaries** and after other fully resolved, stable game transitions capable of removing or creating Units, including completed Round Start World Effects. Do not evaluate during a partially resolved Action, Attack, World Effect, follow-up, or Unit activation. The game does not stop halfway through a resolving effect or activation merely because an Objective has become true.
+
+At an evaluation boundary, if any Objective is achieved, record which Side or Sides achieved theirs, publish an authoritative game-completion occurrence, and end the game. If multiple Sides satisfy their Objectives at the same boundary, record each as having achieved its Objective without imposing an arbitrary priority or tiebreaker. The completed game permits no further Unit activations or Round Starts. Its final state, results, and prior resolution events remain available for presentation and playback.
+
+Objective evaluation belongs to the common game rules, not to Resident or the browser. Scenario setup provides Objectives to every controller as part of the authoritative scenario information. Other Objective types and scenario-specific overrides may be introduced when their concrete rules are specified; this establishes the default and the shared evaluation/completion boundary, not a generic Objective scripting language.
 
 ## Reference implementation architecture
 
