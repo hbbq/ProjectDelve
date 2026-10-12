@@ -4,7 +4,11 @@ using static ProjectDelve.Engine.EdgeDirection;
 
 namespace ProjectDelve.Web;
 
-public sealed record ScenarioDescription(string Id, string Name, string Description);
+public sealed record ScenarioDescription(string Id, string Name, string Description)
+{
+    public IReadOnlyDictionary<string,string> Controllers => PlaytestScenarios.Definition(Id).Agency.GroupBy(a => a.SideId).ToDictionary(g => g.Key, g => g.All(a => a.Controller == ControllerKind.Human) ? "Human" : "Default Behavior");
+    public IReadOnlyList<string> SideIds => PlaytestScenarios.Definition(Id).Agency.Select(a => a.SideId).Distinct().ToArray();
+}
 
 // Catalog presentation stays separate from initial setup definitions.
 public static class PlaytestScenarios

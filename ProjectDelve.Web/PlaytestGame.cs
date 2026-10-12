@@ -6,7 +6,7 @@ using System.Threading.Channels;
 namespace ProjectDelve.Web;
 
 // Only the runner touches executable state; the gate protects detached publication and reservations.
-public sealed class PlaytestGame : IDisposable
+public sealed partial class PlaytestGame : IDisposable
 {
     private readonly object gate = new();
     private readonly IRandomProvider random;
@@ -17,6 +17,7 @@ public sealed class PlaytestGame : IDisposable
     private readonly Channel<Work> work = Channel.CreateUnbounded<Work>(new() { SingleReader = true });
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task runner;
+    private readonly Task readiness;
     private readonly Queue<GameUpdate> journal = new();
     private readonly HashSet<Channel<GameUpdate>> subscribers = [];
     private readonly Dictionary<string, (GameCommand Request, CommandAcceptance Ack)> commands = [];
@@ -40,19 +41,22 @@ public sealed class PlaytestGame : IDisposable
     public PlaytestGame(IRandomProvider random) : this(random, PlaytestScenarios.Create(PlaytestScenarios.DefaultId)) { }
     internal PlaytestGame(IRandomProvider random, GameState initialState,
         Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256,
-        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null)
+        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null, IReadOnlyDictionary<string,string>? controllers = null, int historyLimit = 16384, int payloadLimit = 8 * 1024 * 1024)
     {
+        this.historyLimit = historyLimit; this.payloadLimit = payloadLimit;
         this.random = random; this.external = external; this.externalSelection = externalSelection; capacity = Math.Max(1, replayCapacity);
-        state = Detach(initialState); status = StatusFor(state);
+        state = Detach(initialState); ApplyControllers(state, controllers); status = StatusFor(state);
         decisionId = state.Pending is null ? null : Guid.NewGuid().ToString("N");
+        PublishGambitRequest();
         stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
         published = new(sessionId, 0, "baseline", status, revision, decisionId, stable);
         runner = Task.Run(Run);
+        readiness = Task.Run(MonitorControllerReadiness);
     }
     public GameResponse Snapshot()
     {
         GameResponse view;
-        lock (gate) view = published.Snapshot;
+        lock (gate) view = published.Snapshot with { ControllerStatus = CurrentControllerStatus };
         return Detach(view with { Result = new(view.Result.State, [], view.Result.NextInput), Commentaries = [] });
     }
     public GameResponse StartScenario(long revision, string id) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario", ScenarioId = id });
@@ -64,12 +68,13 @@ public sealed class PlaytestGame : IDisposable
 
     public CommandAcceptance Accept(GameCommand request)
     {
+        request = Detach(request);
         lock (gate)
         {
             if (string.IsNullOrWhiteSpace(request.CommandId) || request.CommandId.Length > 128) throw Error(400, "Supply a command ID of at most 128 characters.");
             if (commands.TryGetValue(request.CommandId, out var prior))
             {
-                if (prior.Request != request) throw Error(409, "Command ID was already used with a different request.");
+                if (!EquivalentCommand(prior.Request, request)) throw Error(409, "Command ID was already used with a different request.");
                 return prior.Ack;
             }
             if (request.SessionId != sessionId) throw Error(409, "The game session changed. Refresh before choosing again.");
@@ -82,12 +87,16 @@ public sealed class PlaytestGame : IDisposable
             return ack;
         }
     }
+    private static bool EquivalentCommand(GameCommand left, GameCommand right) =>
+        (left with { Controllers = null }) == (right with { Controllers = null }) &&
+        (left.Controllers is null ? right.Controllers is null : right.Controllers is not null &&
+            left.Controllers.Count == right.Controllers.Count && left.Controllers.All(p => right.Controllers.GetValueOrDefault(p.Key) == p.Value));
     private GameResponse Legacy(GameCommand request)
     {
         Work item;
         lock (gate)
         {
-            request = request with { SessionId = sessionId, DecisionId = decisionId };
+            request = Detach(request with { SessionId = sessionId, DecisionId = decisionId });
             item = Reserve(request, true); work.Writer.TryWrite(item);
         }
         return item.Completion.Task.GetAwaiter().GetResult();
@@ -97,11 +106,18 @@ public sealed class PlaytestGame : IDisposable
         if (disposed) throw Error(503, "The game host is stopping.");
         if (request.ExpectedRevision != revision) throw Error(409, "The game changed. Refresh before choosing again.");
         var reset = request.Operation is "restart" or "scenario" or "scenario/import";
+        if (historyOverflow && !reset) throw Error(409, "Controller history limit exceeded. Restart the match.");
         if (resetQueued || (busy && !reset)) throw Error(409, "The game is still resolving.");
         if (status == "faulted" && !reset) throw Error(409, "Restart the game after the resolution fault.");
         ScenarioDefinition? replacement = null;
         switch (request.Operation)
         {
+            case "controller/retry":
+                if (status != "controller-error" || state.IsCompleted || gambitRequest is null) throw Error(409, "No recoverable controller attempt is pending.");
+                break;
+            case "controller/cancel":
+                if (status is not ("waiting-external" or "controller-error") || gambitRequest is null || state.IsCompleted) throw Error(409, "No controller attempt is pending.");
+                break;
             case "round":
                 if (stable.Result.State.IsCompleted) throw Error(409, "The game is complete. Restart or choose a scenario to play again.");
                 if (stable.Result.State.Round != 0 && !stable.Result.State.RoundComplete) throw Error(409, "The current round is still active.");
@@ -111,6 +127,7 @@ public sealed class PlaytestGame : IDisposable
                 if (!legacy && request.DecisionId != decisionId) throw Error(409, "The pending decision changed.");
                 ValidateKey(pending, request.CandidateKey); NormalizeCommentary(request.Commentary); break;
             case "preferences":
+                if (GambitSide is not null && request.AutoChooseSingleRelevantChoice == true) throw Error(400, "Gambit requires all legal alternatives to remain available.");
                 if (request.AutoChooseSingleRelevantChoice is null) throw Error(400, "Supply the auto-choice preference.");
                 if (status == "waiting-external") throw Error(409, "An external decision is pending.");
                 break;
@@ -123,6 +140,14 @@ public sealed class PlaytestGame : IDisposable
         }
         if (reset)
         {
+            var preview = GameEngine.CreateGame(replacement ?? definition);
+            if (request.Controllers is not null)
+            {
+                var oldBindings = controllerBindings; var oldAuto = autoChoose;
+                try { ApplyControllers(preview, request.Controllers); }
+                finally { controllerBindings = oldBindings; autoChoose = oldAuto; }
+            }
+            gambitRequest = null; gambitAdmitted = false;
             resetQueued = true; decisionId = null;
             // Cancellation callbacks belong to external adapters and must run outside this gate.
             var waiting = externalWait; externalWait = null;
@@ -155,7 +180,9 @@ public sealed class PlaytestGame : IDisposable
                     lock (gate)
                     {
                         if (item.Request.SessionId != sessionId || item.ExternalDecisionId != decisionId || resetQueued || status != "waiting-external")
-                        { item.Completion.TrySetCanceled(); continue; }
+                        { if (item.GambitSubmission is { } stale) FinishReceipt(stale, "rejected", "stale-request"); item.Completion.TrySetCanceled(); continue; }
+                        if (item.GambitSubmission is { } bound && gambitRequest?.Binding != bound.Binding)
+                        { FinishReceipt(bound, "rejected", "stale-request"); item.Completion.TrySetCanceled(); continue; }
                         busy = true;
                     }
                 try { item.Completion.TrySetResult(Execute(item)); }
@@ -163,6 +190,7 @@ public sealed class PlaytestGame : IDisposable
                 {
                     lock (gate)
                     {
+                        if (item.GambitSubmission is { } failed) FinishReceipt(failed, "rejected", "engine-fault");
                         state = Detach(stable.Result.State);
                         autoChoose = stable.AutoChooseSingleRelevantChoice;
                         status = "faulted"; decisionId = null; busy = resetQueued;
@@ -185,12 +213,28 @@ public sealed class PlaytestGame : IDisposable
             var created = GameEngine.CreateGame(replacement);
             lock (gate)
             {
-                state = created; definition = replacement;
+                if (request.Controllers is null && request.Operation is "scenario" or "scenario/import") controllerBindings = [];
+                ApplyControllers(created, request.Controllers);
+                state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; historyOverflow = false;
                 scenarioId = request.Operation == "scenario" ? request.ScenarioId! : request.Operation == "scenario/import" ? "imported" : scenarioId;
                 sessionId = Guid.NewGuid().ToString("N"); sequence = 0; journal.Clear(); revision++;
                 status = "idle"; decisionId = null; busy = resetQueued = false;
                 stable = Detach(Response(state, null)); Publish("baseline", stable, request.CommandId);
                 return Detach(stable);
+            }
+        }
+        if (request.Operation is "controller/retry" or "controller/cancel")
+        {
+            lock (gate)
+            {
+                busy = false; gambitAdmitted = false;
+                if (request.Operation == "controller/retry")
+                {
+                    status = "waiting-external"; controllerError = null;
+                    gambitRequest = gambitRequest! with { Binding = gambitRequest.Binding with { AttemptId = Guid.NewGuid().ToString("N") } };
+                }
+                else { PauseController(); gambitRequest = gambitRequest! with { Binding = gambitRequest.Binding with { AttemptId = Guid.NewGuid().ToString("N") } }; }
+                stable = Detach(Response(state, null)); Publish("boundary", stable, request.CommandId); return Detach(stable);
             }
         }
         var submittedDecisionId = request.DecisionId ?? decisionId ?? Guid.NewGuid().ToString("N");
@@ -233,6 +277,16 @@ public sealed class PlaytestGame : IDisposable
         while (result.NextInput is { } pending && result.State.ControllerFor(pending) == ControllerKind.Automated)
         {
             lock (gate) { if (resetQueued || disposed) break; }
+            if (IsGambit(pending))
+            {
+                var count = pending.Candidates.Count + (pending.AllowsNone ? 1 : 0);
+                if (count == 0) throw new InvalidOperationException("No legal controller alternatives.");
+                if (pending.Kind != DecisionKind.RollDice && count != 1) break;
+                var forcedKey = pending.Candidates.FirstOrDefault()?.Key;
+                result = GameEngine.Advance(result.State, new SubmittedDecisionProvider(forcedKey), random, false, Observe);
+                steps.AddRange(result.ResolutionSteps.Select(s => s with { EventIndex = s.EventIndex + events.Count }));
+                events.AddRange(result.Events); continue;
+            }
             if (HasExternal) break;
             var decisionState = result.State;
             result = GameEngine.Advance(decisionState, new CommentaryDecisionProvider(automated,
@@ -245,12 +299,20 @@ public sealed class PlaytestGame : IDisposable
         GameResponse response;
         lock (gate)
         {
+            if (item.GambitSubmission is { } applied)
+            { acknowledgedCursor = applied.Binding.CursorEnd;
+                var acknowledged = (int)(acknowledgedCursor - historyOffset);
+                committed.RemoveRange(0, acknowledged); historyOffset = acknowledgedCursor;
+                FinishReceipt(applied, "applied"); }
+            if (GambitSide is not null) committed.AddRange(Detach(events));
             state = result.State; revision++; status = resetQueued ? "resolving" : StatusFor(state);
             decisionId = state.Pending is null || resetQueued ? null : Guid.NewGuid().ToString("N");
+            PublishGambitRequest();
+            busy = resetQueued;
             stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
-            busy = resetQueued; Publish("boundary", stable, request.CommandId);
+            Publish("boundary", stable, request.CommandId);
             response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId) { Commentaries = commentaries };
-            if (status == "waiting-external")
+            if (status == "waiting-external" && state.Pending is { } externalPending && !IsGambit(externalPending))
             {
                 externalWait?.Dispose(); externalWait = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
                 cancellation = externalWait.Token;
@@ -259,7 +321,7 @@ public sealed class PlaytestGame : IDisposable
         }
         // Invocation itself may be synchronous/slow: it also runs outside the single writer.
         if (context is not null) _ = Task.Run(() => SelectExternal(context, cancellation, request.CommandId));
-        return Detach(response);
+        return Detach(response with { SessionId = sessionId, Controllers = ControllersFor(state), ControllerStatus = stable.ControllerStatus });
     }
     private async Task SelectExternal(ExternalDecisionContext context, CancellationToken cancellation, string? commandId)
     {
@@ -285,10 +347,13 @@ public sealed class PlaytestGame : IDisposable
     }
     private string StatusFor(GameState current) => current.IsCompleted ? "completed" : current.Pending is null ? "idle"
         : current.ControllerFor(current.Pending) == ControllerKind.Human ? "waiting-human"
-        : HasExternal ? "waiting-external" : "resolving";
-    private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId);
+        : UsesExternal(current.Pending) ? "waiting-external" : "resolving";
+    private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId)
+        { SessionId = sessionId, Controllers = ControllersFor(current), ControllerStatus = CurrentControllerStatus };
     private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null)
     {
+        lastPublishedAvailability = ControllerAvailable;
+        snapshot = snapshot with { SessionId = sessionId, Controllers = ControllersFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus };
         published = new(sessionId, ++sequence, kind, status, revision, decisionId, Detach(snapshot), commandId, error, commentary);
         journal.Enqueue(published); while (journal.Count > capacity) journal.Dequeue();
         foreach (var subscriber in subscribers.ToArray())
@@ -327,6 +392,7 @@ public sealed class PlaytestGame : IDisposable
         }
         _ = lifetime.CancelAsync();
         if (waiting is not null) _ = waiting.CancelAsync().ContinueWith(_ => waiting.Dispose(), TaskScheduler.Default);
+        _ = readiness;
         _ = runner; // Never await an uncooperative external controller during shutdown.
     }
     private sealed class Work(GameCommand request, ScenarioDefinition? definition)
@@ -335,6 +401,7 @@ public sealed class PlaytestGame : IDisposable
         public ScenarioDefinition? Definition { get; } = definition;
         public string? ExternalDecisionId { get; init; }
         public Exception? ExternalError { get; init; }
+        public GambitSubmission? GambitSubmission { get; init; }
         public TaskCompletionSource<GameResponse> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
     private static string? NormalizeCommentary(string? text)

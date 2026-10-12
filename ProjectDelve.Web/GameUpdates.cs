@@ -14,6 +14,7 @@ public sealed record GameCommand
     public string? Commentary { get; init; }
     public string? ScenarioId { get; init; }
     public string? Transport { get; init; }
+    public Dictionary<string,string>? Controllers { get; init; }
     public bool? AutoChooseSingleRelevantChoice { get; init; }
 }
 public sealed record CommandAcceptance(string CommandId, string SessionId, bool Accepted);

@@ -1652,3 +1652,106 @@ test("streamed completion waits for playback and leaves refresh and restart avai
   assert.equal(h.elements.get("refresh").disabled, false);
   assert.equal(h.elements.get("restart-scenario").disabled, false);
 });
+
+
+test("setup sends controller bindings for actual arbitrary Sides and allows reversed Gambit assignment", async () => {
+  for (const gambitSide of ["violet-side", "copper-side"]) {
+    const initial = response(), requests = [];
+    initial.sessionId = "match-setup"; initial.scenarioId = "custom";
+    initial.scenarios = [{ id: "custom", name: "Custom", sideIds: ["violet-side", "copper-side"] }];
+    initial.controllers = { "violet-side": "Human", "copper-side": "Default Behavior" };
+    const h = harness(initial, async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => initial };
+    });
+    h.context.gambitSide = gambitSide;
+    h.run('controllerSelects.get(gambitSide).value = "Gambit"; controllerSelects.get(gambitSide).listeners.change();');
+    await h.elements.get("start-scenario").listeners.click();
+    assert.equal(requests[0].body.controllers[gambitSide], "Gambit");
+    assert.equal(requests[0].body.controllers[gambitSide === "violet-side" ? "copper-side" : "violet-side"], "Human");
+    assert.equal(requests[0].body.scenarioId, "custom");
+    assert.match(h.elements.get("side-controllers").textContent, /Default Monster Behavior/);
+  }
+});
+
+test("Gambit wait preserves playback and enables Cancel; error enables explicit Retry without choosing", async () => {
+  const requests = [], h = streamHarness(async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({}) };
+  });
+  const waiting = response([]);
+  waiting.controllers = { red: "Gambit", blue: "Human" };
+  waiting.controllerStatus = { sideId: "red", status: "waiting-external", available: true };
+  h.emit(update(0, "baseline", "waiting-external", waiting));
+  assert.equal(h.elements.get("auto").disabled, true);
+  assert.equal(h.elements.get("controller-cancel").disabled, false);
+  assert.equal(h.elements.get("controller-retry").disabled, true);
+  assert.equal(h.elements.get("round").disabled, true);
+  await h.elements.get("controller-cancel").listeners.click();
+  assert.equal(requests[0].body.operation, "controller/cancel");
+  assert.equal(requests[0].body.candidateKey, undefined);
+  const failed = response([]);
+  failed.controllers = waiting.controllers;
+  failed.controllerStatus = { sideId: "red", status: "controller-error", available: false, error: "Resident unavailable" };
+  const boundary = update(1, "boundary", "controller-error", failed);
+  boundary.commandId = requests[0].body.commandId;
+  h.emit(boundary); await settleStream();
+  assert.match(h.elements.get("controller-status").textContent, /unavailable/);
+  assert.equal(h.elements.get("controller-retry").disabled, false);
+  await h.elements.get("controller-retry").listeners.click();
+  assert.equal(requests[1].body.operation, "controller/retry");
+  assert.equal(requests[1].body.candidateKey, undefined);
+});
+
+test("authoritative completion disables controller operations before victory playback", async () => {
+  const h = streamHarness(), initial = response([]);
+  initial.controllerStatus = { sideId: "red", status: "waiting-external", available: true };
+  h.emit(update(0, "baseline", "waiting-external", initial));
+  const final = movementView(1);
+  final.result.state.completion = { achievedSideIds: ["red"] };
+  final.controllerStatus = initial.controllerStatus;
+  h.emit(update(1, "event", "resolving", final));
+  assert.equal(h.elements.get("controller-cancel").disabled, true);
+  assert.equal(h.elements.get("controller-retry").disabled, true);
+  assert.equal(h.elements.get("round").disabled, true);
+});
+
+test("ordinary browser stream shows all players commentary with one toggle and no owner workflow", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "waiting-human", response([])));
+  assert.equal(h.sources[0].url, "/api/game/updates");
+  assert.equal(h.elements.get("commentary-panel").hidden, true);
+  assert.equal(h.elements.get("commentary-toggle").textContent, "Show decision commentary");
+  h.elements.get("commentary-toggle").listeners.click();
+  for (const [sequence, sideId, controller, text] of [[1, "amber", "Automated", "Gambit choice"], [2, "violet", "Human", "Human choice"]]) {
+    const cue = commentaryUpdate(sequence, text);
+    cue.commentary.sideId = sideId; cue.commentary.controller = controller;
+    h.emit(cue); await settleStream();
+    assert.equal(h.elements.get("commentary-text").textContent, text);
+    assert.match(h.elements.get("commentary-context").textContent, new RegExp(sideId));
+  }
+  assert.equal(h.elements.get("commentary-panel").hidden, false);
+  assert.equal(h.sources.length, 1);
+});
+
+
+test("imported scenario exposes its actual Side controller assignments for restart", async () => {
+  const initial = response();
+  initial.sessionId = "imported-session"; initial.scenarioId = "imported";
+  initial.controllers = { "side-with-wizard": "Human", "side-with-barbarian": "Default Behavior" };
+  initial.scenarios = [{ id: "built-in", name: "Built in", sideIds: ["blue", "red"] }];
+  const requests = [], h = harness(initial, async (url, options) => {
+    requests.push(JSON.parse(options.body)); return { ok: true, json: async () => initial };
+  });
+  h.run('controllerSelects.get("side-with-wizard").value = "Gambit"; controllerSelects.get("side-with-wizard").listeners.change();');
+  await h.elements.get("restart-scenario").listeners.click();
+  assert.deepEqual(requests[0].controllers, { "side-with-wizard": "Gambit", "side-with-barbarian": "Human" });
+});
+
+
+test("server operation availability disables Retry for restart-only controller errors", () => {
+  const h = streamHarness(), failed = response([]);
+  failed.controllerStatus = { sideId: "red", status: "controller-error", error: "Observation limit exceeded. Restart the match.", canRetry: false, canCancel: false };
+  h.emit(update(0, "baseline", "controller-error", failed));
+  assert.equal(h.elements.get("controller-retry").disabled, true);
+  assert.equal(h.elements.get("controller-cancel").disabled, true);
+  assert.equal(h.elements.get("restart-scenario").disabled, false);
+});

@@ -80,9 +80,16 @@ public sealed class DesignerApiTests
         played.EnsureSuccessStatusCode();
         var game = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         Assert.Equal("imported", game.ScenarioId);
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition), game.Result.State);
+        var publicSetup = GameEngine.CreateGame(definition);
+        if (publicSetup.WorldDeck is not null)
+        {
+            using var publicJson = JsonDocument.Parse(await played.Content.ReadAsStringAsync());
+            Assert.Equal(publicSetup.WorldDeck.DrawPile.Count, publicJson.RootElement.GetProperty("presentation").GetProperty("worldEffects").GetProperty("drawPileCount").GetInt32());
+            publicSetup.WorldDeck.DrawPile = [];
+        }
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(publicSetup, game.Result.State);
         using var restartImported = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = game.Revision });
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition),
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(publicSetup,
             (await restartImported.Content.ReadFromJsonAsync<GameResponse>(Json))!.Result.State);
     }
 

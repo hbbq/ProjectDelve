@@ -47,7 +47,7 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
 }
 
 // An adapter over authoritative engine results; never generates or filters legal choices.
-// The raw EngineResult remains available, including all progressive StateAfter snapshots.
+// Internal engine results remain authoritative; transport boundaries sanitize future draw information.
 public static class BrowserProjection
 {
     public static BrowserPresentation Create(EngineResult result) => new(

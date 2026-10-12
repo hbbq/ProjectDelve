@@ -26,6 +26,8 @@
         <button id="start-scenario" disabled>Start selected</button>
         <button id="restart-scenario" disabled>Restart current</button>
       </div>
+      <div id="side-controllers" class="toolbar" aria-label="Controllers for selected scenario Sides"></div>
+      <p class="legend">Select controllers before starting or restarting. Gambit plays one Side against Human; its dice and sole legal choices resolve automatically.</p>
       <div class="toolbar scenario-import" aria-label="Import scenario">
         <label for="scenario-transport">DELVE1 scenario</label>
         <textarea id="scenario-transport" rows="2" placeholder="Paste DELVE1:..." spellcheck="false"></textarea>
@@ -48,6 +50,10 @@
       <p id="error" role="alert"></p>
     </section>
     <aside aria-label="Gameplay and Unit card">
+      <section aria-label="Resident player status">
+        <p id="controller-status" role="status" aria-live="polite"></p>
+        <div class="toolbar"><button id="controller-retry" hidden disabled>Retry Gambit</button><button id="controller-cancel" hidden disabled>Cancel Gambit decision</button></div>
+      </section>
       <p id="status" aria-live="polite">Loading…</p>
       <section id="game-result" role="status" aria-live="polite" hidden></section>
       <section id="objectives" aria-label="Side objectives"></section>
@@ -59,7 +65,7 @@
         <label class="commentary-input" for="decision-commentary">Optional decision comment</label>
         <textarea id="decision-commentary" rows="2" maxlength="280" placeholder="A short comment for your next choice" disabled></textarea>
       </section>
-      <button id="commentary-toggle" aria-controls="commentary-panel" aria-expanded="false">Show commentary</button>
+      <button id="commentary-toggle" aria-controls="commentary-panel" aria-expanded="false">Show decision commentary</button>
       <section id="commentary-panel" aria-label="Latest decision commentary" hidden>
         <h2>Latest commentary</h2><small id="commentary-context"></small><p id="commentary-text" aria-live="polite"></p>
       </section>

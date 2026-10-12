@@ -28,26 +28,42 @@ public static class PlaytestHost
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            return game.Snapshot();
+            return game.BrowserResponse(game.Snapshot());
         });
         app.MapPost("/api/game/scenario", (ScenarioRequest request, PlaytestGame game) =>
-            Mutate(() => game.StartScenario(request.ExpectedRevision, request.ScenarioId)));
+            Mutate(() => game.BrowserResponse(game.SetupScenario(request.ExpectedRevision, request.ScenarioId, request.Controllers))));
         app.MapPost("/api/game/scenario/import", (ScenarioImportRequest request, PlaytestGame game) =>
-            Mutate(() => game.StartTransportScenario(request.ExpectedRevision, request.Transport)));
+            Mutate(() => game.BrowserResponse(game.SetupImport(request.ExpectedRevision, request.Transport, request.Controllers))));
         app.MapPost("/api/game/restart", (RoundRequest request, PlaytestGame game) =>
-            Mutate(() => game.Restart(request.ExpectedRevision)));
+            Mutate(() => game.BrowserResponse(game.SetupRestart(request.ExpectedRevision, request.Controllers))));
         app.MapPost("/api/game/round", (RoundRequest request, PlaytestGame game) =>
-            Mutate(() => game.StartRound(request.ExpectedRevision)));
+            Mutate(() => game.BrowserResponse(game.StartRound(request.ExpectedRevision))));
         app.MapPost("/api/game/decision", (DecisionSubmission request, PlaytestGame game) =>
-            Mutate(() => game.Decide(request.ExpectedRevision, request.CandidateKey, request.Commentary)));
+            Mutate(() => game.BrowserResponse(game.Decide(request.ExpectedRevision, request.CandidateKey, request.Commentary))));
         app.MapPost("/api/game/preferences", (PreferenceRequest request, PlaytestGame game) =>
-            Mutate(() => game.SetRelevanceAutoChoice(request.ExpectedRevision, request.AutoChooseSingleRelevantChoice)));
+            Mutate(() => game.BrowserResponse(game.SetRelevanceAutoChoice(request.ExpectedRevision, request.AutoChooseSingleRelevantChoice))));
         app.MapPost("/api/game/commands", (GameCommand request, PlaytestGame game) =>
         {
             try { return Results.Accepted(value: game.Accept(request)); }
             catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
         });
         app.MapGet("/api/game/updates", Stream);
+        var controller = app.MapGroup("/api/controllers/gambit");
+        controller.AddEndpointFilter(async (context, next) =>
+        {
+            var authorization = context.HttpContext.Request.Headers.Authorization.ToString();
+            if (!authorization.StartsWith("Bearer ", StringComparison.Ordinal) || !MatchesSecret(authorization[7..], "PROJECTDELVE_GAMBIT_TOKEN")) return Results.Unauthorized();
+            context.HttpContext.Response.Headers.CacheControl = "no-store";
+            context.HttpContext.RequestServices.GetRequiredService<PlaytestGame>().ControllerContact();
+            try { return await next(context); }
+            catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
+        });
+        controller.MapGet("/status", (PlaytestGame game) => game.ControllerState());
+        controller.MapGet("/request", (PlaytestGame game) => Results.Json(game.ControllerRequest()));
+        controller.MapPost("/admit", (GambitBinding binding, PlaytestGame game) => game.AdmitController(binding));
+        controller.MapPost("/selection", (GambitSubmission submission, PlaytestGame game) => game.SubmitController(submission));
+        controller.MapGet("/receipts/{id}", (string id, PlaytestGame game) => game.Receipt(id));
+        controller.MapPost("/error", (GambitError error, PlaytestGame game) => game.ReportControllerError(error));
         return app;
     }
 
@@ -77,7 +93,8 @@ public static class PlaytestHost
                 if (!await ready) break;
                 while (subscription.Reader.TryRead(out var update))
                 {
-                    var json = JsonSerializer.Serialize(update, options.Value.SerializerOptions);
+                    var safeUpdate = game.BrowserUpdate(update);
+                    var json = JsonSerializer.Serialize(safeUpdate, options.Value.SerializerOptions);
                     await context.Response.WriteAsync($"id: {update.SessionId}:{update.Sequence}\nevent: update\ndata: {json}\n\n", cancellation);
                     await context.Response.Body.FlushAsync(cancellation);
                 }
@@ -87,6 +104,12 @@ public static class PlaytestHost
         catch (IOException) when (cancellation.IsCancellationRequested) { }
     }
 
+    private static bool MatchesSecret(string? supplied, string variable)
+    {
+        var expected = Environment.GetEnvironmentVariable(variable);
+        if (string.IsNullOrEmpty(expected) || string.IsNullOrEmpty(supplied)) return false;
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(supplied), System.Text.Encoding.UTF8.GetBytes(expected));
+    }
     private static IResult Mutate(Func<GameResponse> action)
     {
         try { return Results.Ok(action()); }
@@ -99,17 +122,20 @@ public static class PlaytestHost
 
 public sealed record ScenarioRequest
 {
+    public Dictionary<string,string>? Controllers { get; init; }
     public required long ExpectedRevision { get; init; }
     public required string ScenarioId { get; init; }
 }
 
 public sealed record RoundRequest
 {
+    public Dictionary<string,string>? Controllers { get; init; }
     public required long ExpectedRevision { get; init; }
 }
 
 public sealed record ScenarioImportRequest
 {
+    public Dictionary<string,string>? Controllers { get; init; }
     public required long ExpectedRevision { get; init; }
     public required string Transport { get; init; }
 }
@@ -131,5 +157,9 @@ public sealed record GameResponse(long Revision, EngineResult Result, bool AutoC
 {
     public IReadOnlyList<DecisionCommentary> Commentaries { get; init; } = [];
     public IReadOnlyList<ScenarioDescription> Scenarios => PlaytestScenarios.Catalog;
-    public BrowserPresentation Presentation => BrowserProjection.Create(Result);
+    [JsonIgnore] public BrowserPresentation? PresentationOverride { get; init; }
+    public BrowserPresentation Presentation => PresentationOverride ?? BrowserProjection.Create(Result);
+    public IReadOnlyDictionary<string,string> Controllers { get; init; } = new Dictionary<string,string>();
+    public ControllerStatus? ControllerStatus { get; init; }
+    public string? SessionId { get; init; }
 }

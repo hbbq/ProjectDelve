@@ -1,11 +1,57 @@
 import { styleSide } from "./side-colors.js";
 
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
 let renderedScenarioId;
 let busy = false;
+let controllerSetupScenario;
+let controllerSetupSession;
+const controllerSelects = new Map();
+const controllerOptions = ["Human", "Default Behavior", "Gambit"];
+function renderControllerSetup(force = false) {
+  const selected = snapshot?.scenarios?.find(value => value.id === ui.scenario.value);
+  const sideIds = selected?.sideIds ?? (snapshot?.controllers ? Object.keys(snapshot.controllers) : []);
+  const identity = selected?.id ?? snapshot?.scenarioId;
+  if (!force && controllerSetupScenario === identity && controllerSetupSession === snapshot?.sessionId) return;
+  controllerSetupScenario = identity; controllerSetupSession = snapshot?.sessionId;
+  controllerSelects.clear(); ui["side-controllers"].replaceChildren();
+  for (const sideId of sideIds) {
+    const label = text("label", `${sideId} `), select = document.createElement("select");
+    select.setAttribute("aria-label", `Controller for Side ${sideId}`);
+    for (const controller of controllerOptions) {
+      const option = text("option", controller === "Default Behavior" ? "Default Monster Behavior" : controller);
+      option.value = controller; select.append(option);
+    }
+    select.value = (identity === snapshot?.scenarioId ? snapshot.controllers?.[sideId] : selected?.controllers?.[sideId]) ?? "Human";
+    select.addEventListener("change", () => {
+      if (select.value === "Gambit") for (const [otherSide, other] of controllerSelects) if (otherSide !== sideId) other.value = "Human";
+    });
+    controllerSelects.set(sideId, select); label.append(select); ui["side-controllers"].append(label);
+  }
+}
+function setupControllers() {
+  return controllerSelects.size ? { controllers: Object.fromEntries([...controllerSelects].map(([sideId, select]) => [sideId, select.value])) } : {};
+}
+function controllerOperationReady() {
+  const completed = latestUpdate?.snapshot?.result.state.completion ?? snapshot?.result.state.completion;
+  return !completed && !postInFlight && !commandPending && (!streaming || streamConnected);
+}
+function renderControllerStatus() {
+  const view = latestUpdate?.snapshot ?? snapshot;
+  const controller = view?.controllerStatus;
+  const status = latestUpdate?.status ?? controller?.status;
+  const completed = !!view?.result.state.completion;
+  ui["controller-status"].textContent = completed ? "" : controller
+    ? `Gambit: ${controller.sideId ?? ""}; ${controller.available === false ? "unavailable" : controller.status ?? status ?? "ready"}${controller.error ? `; ${controller.error}` : ""}` : "";
+  ui["controller-retry"].hidden = !controller;
+  ui["controller-cancel"].hidden = !controller;
+  const recoverable = ["controller-error", "cancelled", "canceled", "error"].includes(status) || ["controller-error", "cancelled", "canceled", "error"].includes(controller?.status);
+  ui["controller-retry"].disabled = !controllerOperationReady() || !(controller?.canRetry ?? recoverable);
+  ui["controller-cancel"].disabled = !controllerOperationReady() || !(controller?.canCancel ?? (status === "waiting-external" || controller?.status === "waiting-external"));
+  ui.auto.disabled ||= Object.values(view?.controllers ?? {}).includes("Gambit");
+}
 const streaming = typeof EventSource !== "undefined";
 let updateSource;
 let latestUpdate;
@@ -28,7 +74,7 @@ let displayedCommentary;
 let commentaryVisible = false;
 function renderCommentary() {
   ui["commentary-panel"].hidden = !commentaryVisible;
-  ui["commentary-toggle"].textContent = `${commentaryVisible ? "Hide" : "Show"} commentary`;
+  ui["commentary-toggle"].textContent = `${commentaryVisible ? "Hide" : "Show"} decision commentary`;
   ui["commentary-toggle"].setAttribute("aria-expanded", String(commentaryVisible));
   const comment = displayedCommentary;
   const unitName = snapshot?.presentation.cards?.[comment?.unitId]?.displayName;
@@ -329,11 +375,12 @@ function renderSnapshot() {
       }
     }
     if (renderedScenarioId !== snapshot.scenarioId) {
-      if (snapshot.scenarios.some(s => s.id === snapshot.scenarioId)) ui.scenario.value = snapshot.scenarioId;
+      ui.scenario.value = snapshot.scenarios.some(s => s.id === snapshot.scenarioId) ? snapshot.scenarioId : "";
       latestUnitId = null;
       renderedScenarioId = snapshot.scenarioId;
     }
     describeScenario();
+    renderControllerSetup();
   }
   if (state.round === 0) ui.dice.replaceChildren();
   hoveredUnitId = null;
@@ -430,7 +477,8 @@ function updateControls() {
   if (streaming) busy = commandPending || postInFlight || playbackRunning || playbackQueue.length > 0 ||
     !streamConnected || !latestUpdate || !["waiting-human", "idle", "completed"].includes(latestUpdate.status) || displayedSequence !== receivedSequence;
   if (streaming && latestUpdate) {
-    if (latestUpdate.status === "waiting-external") ui.prompt.textContent = "Waiting for an external controller.";
+    if (latestUpdate.status === "waiting-external") ui.prompt.textContent = latestUpdate.snapshot?.controllerStatus ? "Waiting for Gambit. Board updates and playback remain available." : "Waiting for an external controller.";
+    if (latestUpdate.status === "controller-error") ui.prompt.textContent = "Gambit is paused. Retry or cancel its pending decision.";
     if (latestUpdate.status === "resolving") ui.prompt.textContent = "Game resolving.";
     if (latestUpdate.status === "faulted") ui.prompt.textContent = "Game progression stopped after an error.";
   }
@@ -453,6 +501,7 @@ function updateControls() {
     node.tabIndex = disabled ? -1 : 0;
   }
   ui.skip.disabled = !(streaming ? playbackRunning : busy) || skipEffects;
+  renderControllerStatus();
 }
 
 function connectUpdates() {
@@ -573,7 +622,7 @@ function flushQueuedScenario() {
 async function sendCommand(operation, body) {
   const replacement = ["scenario", "scenario/import", "restart"].includes(operation);
   if (!latestUpdate || postInFlight || (commandPending && !replacement) || !streamConnected) return false;
-  if (!replacement && busy) return false;
+  if (!replacement && busy && !(["controller/retry", "controller/cancel"].includes(operation) && controllerOperationReady())) return false;
   const checkpoint = latestUpdate;
   const commandId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}-${++commandNumber}`;
   let completion;
@@ -948,10 +997,12 @@ function updateCoordinates() {
   ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
 }
 
-ui.scenario.addEventListener("change", describeScenario);
-ui["start-scenario"].addEventListener("click", () => replaceScenario("scenario", { scenarioId: ui.scenario.value }));
-ui["restart-scenario"].addEventListener("click", () => replaceScenario("restart"));
+ui.scenario.addEventListener("change", () => { describeScenario(); renderControllerSetup(true); });
+ui["start-scenario"].addEventListener("click", () => replaceScenario("scenario", { scenarioId: ui.scenario.value, ...setupControllers() }));
+ui["restart-scenario"].addEventListener("click", () => replaceScenario("restart", controllerSetupScenario === snapshot?.scenarioId ? setupControllers() : {}));
 ui["import-scenario"].addEventListener("click", () => replaceScenario("scenario/import", { transport: ui["scenario-transport"].value.trim() }));
+ui["controller-retry"].addEventListener("click", () => mutate("controller/retry"));
+ui["controller-cancel"].addEventListener("click", () => mutate("controller/cancel"));
 ui.filter.addEventListener("change", renderSnapshot);
 ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingleRelevantChoice: ui.auto.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);
