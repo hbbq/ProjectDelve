@@ -14,6 +14,8 @@ The digital implementation may automate rules and calculations, but it must not 
 
 The digital representation models the physical game. The physical game must not need to adapt to shortcuts or limitations in the digital implementation.
 
+An explicitly designated **digital-only** scenario or Unit may introduce a mechanic that would be impractical to operate with physical components. Such content is outside the physical-game rules requirement; it must be identified as digital-only and must not silently change the rules or constraints for ordinary physical content. Shared mechanics remain usable by physical content where practical.
+
 ### Explicit rules
 
 Implementation details must not silently become game rules.
@@ -432,6 +434,16 @@ Walls and similar features may physically be attached to one of the adjacent ter
 
 A corner tile may therefore physically carry features on two of its edges.
 
+An Edge exists only between two Cells on the board. The outer boundary of the board is not an Edge where a Wall or Door can be created. A Wall or Wall with window may not be placed between two Water terrain Cells. An impassable Edge cannot be placed inside the occupied footprint of a 2 × 2 figure; doing so would invalidate that figure's placement. These restrictions apply to changes during play as well as initial setup.
+
+### Replace Edges
+
+**Replace Edges** is a reusable operation for changing a specified set of board Edges. An effect supplies an explicit desired value for each affected Edge, using the ordinary Edge types (including **None**, which means no feature on that Edge). An Edge absent from the supplied set is not changed; an Edge explicitly assigned None is considered for removal/replacement like any other value.
+
+For each supplied Edge independently, check whether replacing its current value with the desired value is legal under the ordinary board, terrain, feature, and figure-placement rules. If legal, replace that Edge's current value, whether it is a Wall, Door, Wall with window, or None. If illegal, leave that Edge **exactly as it was**. One failed replacement does not prevent other replacements. All replacements are evaluated against the same pre-operation board state and applied together, so input order does not affect legality or the outcome. The operation does not move figures or alter terrain.
+
+Replace Edges describes the common operation, not a particular shape or pattern. An ability can construct a set of replacements for its own pattern without introducing a separate pattern framework.
+
 ### Doors
 
 Doors are physically capable of being opened and closed.
@@ -700,6 +712,32 @@ A legal Claw Attack target is one adjacent hostile Unit under the ordinary footp
 For automated Red Dragon play, when Fire Breath does not have at least two legal targets and one or more Claw Attack targets exist, prefer Claw Attack. Choose among legal Claw Attack targets using the ordinary Default Monster Behavior target ranking. If no Claw Attack is possible, prefer an ordinary Normal Attack when one is legal. If none of these Actions is currently possible, movement and approach use ordinary Default Monster Behavior rather than Dragon-specific pathfinding.
 
 These preferences choose among authoritative legal Actions and targets. They do not alter Range, Line of Sight, adjacency, movement, or Attack legality.
+
+#### Labyrinth Shaper
+
+Labyrinth Shaper is a **digital-only**, Unique 1 × 1 Monster. Its room-rebuilding ability is not required to be practical on the physical tabletop and does not relax the rules for ordinary physical-game content.
+
+- Unique: yes.
+- Footprint: `1 × 1`.
+- Stats: `MOV 2`, `RNG 1` (Melee), `ATK 2`, `DEF 2`, `HP 5`.
+- Actions: Normal Attack.
+- Bonus Actions: Reshape Room.
+- Behaviors: prefer Reshape Room at the start of its activation when available, then use ordinary Default Monster Behavior for movement and Action.
+
+**Reshape Room** is an unlimited-use Bonus Action:
+
+```text
+Reshape Room
+Bonus Action
+
+Replace Edges in the 3 × 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides.
+```
+
+The desired pattern has **Walls** along the four sides of the 3 × 3 area except for the central Edge on each side, which is **None**. Every Edge strictly inside that area's perimeter is also **None**. All those perimeter and interior Edges are explicitly included in the replacements, even if their desired value is None, so old walls and doors are cleared where legal. The room's openings are open gaps, not Doors. Edges outside the defined area remain unchanged.
+
+If the 3 × 3 area reaches beyond the board, clip the requested replacements to existing Edges between on-board Cells. No feature is created on the board's outer boundary. Resolve the requested replacements through the ordinary Replace Edges operation: a forbidden Wall (for example, between Water Cells or through a 2 × 2 figure) is not created, and that Edge retains its previous value; other replacements still proceed.
+
+Reshape Room neither moves Units nor changes terrain, does not require a target choice, and has no per-game use limit or cooldown. It follows the ordinary rule that each individual Bonus Action ability may be used at most once per Unit activation. For automated play, Labyrinth Shaper prefers using Reshape Room before moving, when it can act; this is a Behavior preference, not a separate timing restriction.
 
 #### Displacer Demon
 
