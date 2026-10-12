@@ -119,14 +119,14 @@ function response(candidates = [], entries = []) {
     presentation: { cards: cards(entries), decision: { unitId: "actor", prompt: "Supplied prompt", candidates, noneChoice: null }, events: [], resolutionSteps: [] }
   };
 }
-function harness(initial, fetchImpl) {
+function harness(initial, fetchImpl, extras = {}) {
   const elements = new Map(), submitted = [];
   const document = {
     getElementById(id) { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); },
     createElement(tag) { const node = new Element(); node.tagName = tag; return node; }
   };
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
-    fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })) });
+    fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })), ...extras });
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
   vm.runInContext("snapshot = initial; renderSnapshot();", context);
@@ -1185,3 +1185,272 @@ for (const mode of ["animate", "disabled", "skip"]) {
     assert.match(h.elements.get("events").textContent, /Reshape Room/);
   });
 }
+// Streaming harness drives actual EventSource reception and native animation timers.
+function streamHarness(fetchImpl) {
+  const sources = [], timers = new Map(); let nextTimer = 0;
+  class FakeEventSource {
+    constructor(url) { this.url = url; this.listeners = {}; sources.push(this); }
+    addEventListener(name, listener) { this.listeners[name] = listener; }
+    close() { this.closed = true; }
+    emit(update) { this.listeners.update({ data: JSON.stringify(update) }); }
+  }
+  const h = harness(response([choice("initial", "Direct")]), fetchImpl, {
+    EventSource: FakeEventSource,
+    setTimeout: callback => { const id = ++nextTimer; timers.set(id, callback); return id; },
+    clearTimeout: id => timers.delete(id)
+  });
+  h.run("connectUpdates();");
+  return { ...h, sources, timers,
+    emit: update => sources.at(-1).emit(update),
+    tick: async () => { const timer = timers.entries().next().value; if (timer) { timers.delete(timer[0]); timer[1](); } await settleStream(); }
+  };
+}
+async function settleStream() { for (let i = 0; i < 20; i++) await Promise.resolve(); }
+function update(sequence, kind, status = "resolving", view = response([]), sessionId = "session-a", commandId) {
+  return { sessionId, sequence, kind, status, revision: view.revision,
+    decisionId: status === "waiting-human" ? `decision-${sequence}` : null, snapshot: view, commandId };
+}
+function movementView(x = 1) {
+  const view = response([]);
+  view.presentation.decision = null; view.result.nextInput = null;
+  view.result.state.physical.figures[0].position.x = x;
+  view.result.events = [{ kind: "UnitMoved", unitId: "actor" }];
+  view.presentation.events = [{ role: "Movement", text: "Supplied streamed movement", unitId: "actor", path: [{ x: x - 1, y: 0 }, { x, y: 0 }] }];
+  view.result.resolutionSteps = [{ eventIndex: 0, stateAfter: view.result.state }];
+  view.presentation.resolutionSteps = [{ eventIndex: 0, cards: view.presentation.cards, figures: view.presentation.figures, worldEffects: view.presentation.worldEffects }];
+  return view;
+}
+
+test("stream receives ahead of playback, drains during external wait, and resumes the same session", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "waiting-human", response([choice("first", "Direct")])));
+  h.emit(update(1, "event", "resolving", movementView(1)));
+  assert.equal(h.run("playbackRunning"), true);
+  assert.equal(h.run("displayedSequence"), 0);
+  h.emit(update(2, "event", "resolving", movementView(2)));
+  const waiting = response([]); waiting.presentation.decision = null;
+  waiting.result.state.physical.figures[0].position.x = 2;
+  h.emit(update(3, "boundary", "waiting-external", waiting));
+  assert.equal(h.run("receivedSequence"), 3);
+  assert.match(h.elements.get("prompt").textContent, /external controller/);
+  assert.equal(h.timers.size, 1);
+  await h.tick(); await h.tick();
+  assert.equal(h.run("displayedSequence"), 3);
+  assert.equal(h.run("playbackRunning"), false);
+  assert.equal(h.run("displayedState.physical.figures[0].position.x"), 2);
+  assert.equal(h.elements.get("events").children.length, 2);
+  h.emit(update(4, "event", "resolving", movementView(3)));
+  const ready = response([choice("resumed", "Direct")]); ready.result.state.physical.figures[0].position.x = 3;
+  h.emit(update(5, "boundary", "waiting-human", ready));
+  assert.equal(h.elements.get("choices").children[0]?.disabled ?? true, true);
+  await h.tick();
+  assert.equal(h.run("displayedSequence"), 5);
+  assert.equal(h.elements.get("choices").children[0].disabled, false);
+  assert.match(h.elements.get("choices").textContent, /resumed/);
+});
+
+test("stream duplicates are ignored and reconnect preserves buffered playback", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "idle"));
+  h.emit(update(1, "event", "resolving", movementView()));
+  h.emit(update(1, "event", "resolving", movementView()));
+  h.sources[0].onerror();
+  assert.equal(h.run("streamConnected"), false);
+  assert.equal(h.sources.length, 1);
+  await h.tick();
+  assert.equal(h.run("displayedSequence"), 1);
+  assert.equal(h.elements.get("events").children.length, 1);
+  h.emit(update(2, "boundary", "waiting-human", response([choice("reconnected", "Direct")])));
+  await settleStream();
+  assert.equal(h.run("busy"), false);
+});
+
+test("gap discards the old drain, requests baseline, and ignores stale source callbacks", async () => {
+  const h = streamHarness(); h.emit(update(0, "baseline", "idle"));
+  h.emit(update(1, "event", "resolving", movementView()));
+  const old = h.sources[0];
+  h.emit(update(3, "boundary", "waiting-human"));
+  assert.equal(h.sources.length, 2);
+  assert.equal(old.closed, true);
+  assert.equal(h.run("playbackRunning"), false);
+  assert.equal(h.timers.size, 0);
+  old.emit(update(2, "boundary", "waiting-human"));
+  assert.equal(h.run("receivedSequence"), 1);
+  const fresh = response([choice("fresh", "Direct")]); fresh.result.state.physical.figures[0].position.x = 4;
+  h.emit(update(3, "baseline", "waiting-human", fresh));
+  await settleStream();
+  assert.equal(h.run("displayedState.physical.figures[0].position.x"), 4);
+  h.emit(update(0, "baseline", "idle"));
+  assert.equal(h.run("receivedSequence"), 3);
+});
+
+test("session reset cancels native animation and old state cannot repaint", async () => {
+  const h = streamHarness(); h.emit(update(0, "baseline", "idle"));
+  h.emit(update(1, "event", "resolving", movementView()));
+  const fresh = response([]); fresh.result.state.physical.figures[0].position.x = 4;
+  h.emit(update(0, "baseline", "idle", fresh, "session-b"));
+  await settleStream();
+  assert.equal(h.run("latestUpdate.sessionId"), "session-b");
+  assert.equal(h.run("displayedState.physical.figures[0].position.x"), 4);
+  assert.equal(h.elements.get("events").children.length, 0);
+  assert.equal(h.timers.size, 0);
+});
+
+test("fault settles immediately on the supplied authoritative recovery snapshot", async () => {
+  const h = streamHarness(); h.emit(update(0, "baseline", "idle"));
+  h.emit(update(1, "event", "resolving", movementView()));
+  const fault = update(2, "fault", "faulted", response([])); fault.error = "Controller failed";
+  h.emit(fault); await settleStream();
+  assert.equal(h.run("displayedState.physical.figures[0].position.x"), 0);
+  assert.equal(h.run("displayedSequence"), 2);
+  assert.equal(h.timers.size, 0);
+  assert.match(h.elements.get("error").textContent, /Controller failed/);
+  assert.equal(h.run("busy"), true);
+});
+
+test("command acknowledgements do not render; decision IDs and uncertain outcomes never retry", async () => {
+  const requests = [];
+  const h = streamHarness(async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, json: async () => ({ accepted: true }) };
+  });
+  h.emit(update(0, "baseline", "waiting-human", response([choice("opaque", "Direct")])));
+  const before = h.run("displayedState");
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.equal(requests[0].url, "/api/game/commands");
+  assert.equal(requests[0].body.sessionId, "session-a");
+  assert.equal(requests[0].body.decisionId, "decision-0");
+  assert.equal(requests[0].body.expectedRevision, 8);
+  assert.equal(requests[0].body.candidateKey, "opaque");
+  assert.equal(h.run("displayedState"), before);
+  assert.equal(h.run("busy"), true);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.equal(requests.length, 1);
+  h.emit(update(1, "boundary", "waiting-human", response([choice("next", "Direct")]), "session-a", requests[0].body.commandId));
+  await settleStream();
+  assert.equal(h.run("busy"), false);
+
+  const failedRequests = [];
+  const failed = streamHarness(async (url, options) => {
+    failedRequests.push(url); throw new Error("Unknown POST outcome");
+  });
+  failed.emit(update(0, "baseline", "waiting-human", response([choice("opaque", "Direct")])));
+  assert.equal(await failed.run('mutate("decision", { candidateKey: "opaque" })'), false);
+  assert.deepEqual(failedRequests, ["/api/game/commands"]);
+  assert.equal(failed.sources.length, 2);
+  failed.emit(update(1, "baseline", "waiting-human", response([choice("recovered", "Direct")])));
+  assert.equal(failed.run("busy"), false);
+  assert.match(failed.elements.get("choices").textContent, /recovered/);
+});
+
+test("bounded queue resynchronizes instead of stalling game progression", async () => {
+  const h = streamHarness(); h.emit(update(0, "baseline", "idle"));
+  h.emit(update(1, "event", "resolving", movementView()));
+  for (let i = 2; i <= 258; i++) h.emit(update(i, "event", "resolving", movementView()));
+  assert.equal(h.sources.length, 2);
+  assert.equal(h.run("playbackQueue.length"), 0);
+  assert.equal(h.timers.size, 0);
+  h.emit(update(258, "baseline", "waiting-external", response([])));
+  await settleStream();
+  assert.equal(h.run("displayedSequence"), 258);
+});
+
+
+test("reset queues only until POST acknowledgement and designer waits for replacement baseline", async () => {
+  const requests = []; let release;
+  const h = streamHarness(async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    if (requests.length === 1) await new Promise(resolve => { release = resolve; });
+    return { ok: true, json: async () => ({ accepted: true }) };
+  });
+  h.emit(update(0, "baseline", "waiting-human", response([choice("opaque", "Direct")])));
+  const decision = h.run('mutate("decision", { candidateKey: "opaque" })');
+  const designed = h.run('globalThis.delvePlayDesign("supplied transport")');
+  assert.equal(requests.length, 1);
+  h.emit(update(1, "event", "resolving", movementView()));
+  release(); await decision; await settleStream();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].body.operation, "scenario/import");
+  assert.equal(requests[1].body.expectedRevision, 8);
+  assert.equal(requests[1].body.sessionId, "session-a");
+  let completed = false; designed.then(() => { completed = true; }); await settleStream();
+  assert.equal(completed, false);
+  const replaced = response([]); replaced.result.state.physical.figures[0].position.x = 4;
+  h.emit(update(0, "baseline", "idle", replaced, "session-b", requests[1].body.commandId));
+  assert.equal(await designed, true);
+  assert.equal(h.run("displayedState.physical.figures[0].position.x"), 4);
+  assert.equal(h.timers.size, 0);
+});
+
+
+test("skip persists across late incremental batches until boundary without sending requests", async () => {
+  const requests = [];
+  const h = streamHarness(async url => { requests.push(url); return { ok: true, json: async () => ({ accepted: true }) }; });
+  h.emit(update(0, "baseline", "idle"));
+  h.emit(update(1, "event", "resolving", movementView()));
+  h.elements.get("skip").listeners.click(); await settleStream();
+  assert.equal(h.run("displayedSequence"), 1);
+  h.emit(update(2, "event", "resolving", movementView(2))); await settleStream();
+  assert.equal(h.run("displayedSequence"), 2);
+  assert.equal(h.timers.size, 0);
+  h.emit(update(3, "boundary", "waiting-external", response([]))); await settleStream();
+  h.emit(update(4, "event", "resolving", movementView(3)));
+  assert.equal(h.timers.size, 1);
+  assert.deepEqual(requests, []);
+  h.elements.get("skip").listeners.click(); await settleStream();
+});
+
+
+test("same-cursor SSE reconnect clears its connection notice without clearing unrelated errors", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "waiting-human", response([choice("current", "Direct")])));
+  const source = h.sources[0]; source.onerror();
+  assert.match(h.elements.get("error").textContent, /Connection interrupted/);
+  assert.equal(h.run("busy"), true);
+  source.listeners.open(); // Server has no newer update to replay.
+  assert.equal(h.elements.get("error").textContent, "");
+  assert.equal(h.run("busy"), false);
+  assert.equal(h.run("receivedSequence"), 0);
+  assert.equal(h.sources.length, 1);
+  h.elements.get("error").textContent = "Supplied validation error";
+  source.listeners.open();
+  assert.equal(h.elements.get("error").textContent, "Supplied validation error");
+  const fault = update(1, "fault", "faulted", response([])); fault.error = "Supplied controller fault";
+  h.emit(fault); source.listeners.open();
+  assert.equal(h.elements.get("error").textContent, "Supplied controller fault");
+});
+
+test("replacement survives same-session recovery baseline and resolves false for fault recovery", async () => {
+  const requests = [];
+  const h = streamHarness(async (url, options) => {
+    requests.push(JSON.parse(options.body)); return { ok: true, json: async () => ({ accepted: true }) };
+  });
+  h.emit(update(0, "baseline", "idle"));
+  const replacement = h.run('globalThis.delvePlayDesign("supplied transport")');
+  await settleStream();
+  let complete = false; replacement.then(() => { complete = true; });
+  h.emit(update(1, "baseline", "resolving", response([]), "session-a", "older-command"));
+  await settleStream();
+  assert.equal(complete, false);
+  const failedBaseline = update(2, "baseline", "faulted", response([]), "session-a", requests[0].commandId);
+  failedBaseline.error = "Reset failed";
+  h.emit(failedBaseline);
+  assert.equal(await replacement, false);
+  assert.equal(h.run("pendingReplacement"), null);
+  assert.match(h.elements.get("error").textContent, /Reset failed/);
+});
+
+test("uncertain replacement POST resolves safely and recovers without retry", async () => {
+  const requests = [];
+  const h = streamHarness(async (url, options) => { requests.push(url); throw new Error("Unknown reset outcome"); });
+  h.emit(update(0, "baseline", "idle"));
+  assert.equal(await h.run('globalThis.delvePlayDesign("supplied transport")'), false);
+  assert.equal(h.run("pendingReplacement"), null);
+  assert.equal(h.run("postInFlight"), false);
+  assert.deepEqual(requests, ["/api/game/commands"]);
+  h.emit(update(0, "baseline", "idle", response([]), "session-b"));
+  await settleStream();
+  assert.equal(h.run("busy"), false);
+  assert.equal(h.run("latestUpdate.sessionId"), "session-b");
+  assert.deepEqual(requests, ["/api/game/commands"]);
+});

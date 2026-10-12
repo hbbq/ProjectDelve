@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
+using Microsoft.Extensions.Options;
 using ProjectDelve.Engine;
 
 namespace ProjectDelve.Web;
@@ -8,15 +10,17 @@ public static class PlaytestHost
     public static WebApplication Build(string[] args, IRandomProvider? random = null)
         => Build(args, random, null);
 
-    internal static WebApplication Build(string[] args, IRandomProvider? random, GameState? initialState)
+    internal static WebApplication Build(string[] args, IRandomProvider? random, GameState? initialState,
+        Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         var randomProvider = random ?? new SystemRandomProvider();
-        builder.Services.AddSingleton(initialState is null
-            ? new PlaytestGame(randomProvider) : new PlaytestGame(randomProvider, initialState));
+        builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
+            initialState ?? PlaytestScenarios.Create(PlaytestScenarios.DefaultId), external, replayCapacity));
         var app = builder.Build();
+        app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
         app.UseStaticFiles();
         DesignerApi.Map(app);
@@ -37,7 +41,49 @@ public static class PlaytestHost
             Mutate(() => game.Decide(request.ExpectedRevision, request.CandidateKey)));
         app.MapPost("/api/game/preferences", (PreferenceRequest request, PlaytestGame game) =>
             Mutate(() => game.SetRelevanceAutoChoice(request.ExpectedRevision, request.AutoChooseSingleRelevantChoice)));
+        app.MapPost("/api/game/commands", (GameCommand request, PlaytestGame game) =>
+        {
+            try { return Results.Accepted(value: game.Accept(request)); }
+            catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
+        });
+        app.MapGet("/api/game/updates", Stream);
         return app;
+    }
+
+    private static async Task Stream(PlaytestGame game, HttpContext context,
+        IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions> options)
+    {
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["X-Accel-Buffering"] = "no";
+        using var subscription = game.Subscribe(context.Request.Headers["Last-Event-ID"].FirstOrDefault());
+        var cancellation = context.RequestAborted;
+        try
+        {
+            await context.Response.WriteAsync(": connected\n\n", cancellation);
+            await context.Response.Body.FlushAsync(cancellation);
+            while (!cancellation.IsCancellationRequested)
+            {
+                var ready = subscription.Reader.WaitToReadAsync(cancellation).AsTask();
+                while (!ready.IsCompleted)
+                {
+                    using var heartbeat = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                    var timer = Task.Delay(TimeSpan.FromSeconds(15), heartbeat.Token);
+                    if (await Task.WhenAny(ready, timer) == ready) { await heartbeat.CancelAsync(); break; }
+                    await context.Response.WriteAsync(": heartbeat\n\n", cancellation);
+                    await context.Response.Body.FlushAsync(cancellation);
+                }
+                if (!await ready) break;
+                while (subscription.Reader.TryRead(out var update))
+                {
+                    var json = JsonSerializer.Serialize(update, options.Value.SerializerOptions);
+                    await context.Response.WriteAsync($"id: {update.SessionId}:{update.Sequence}\nevent: update\ndata: {json}\n\n", cancellation);
+                    await context.Response.Body.FlushAsync(cancellation);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (IOException) when (cancellation.IsCancellationRequested) { }
     }
 
     private static IResult Mutate(Func<GameResponse> action)

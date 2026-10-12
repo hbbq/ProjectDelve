@@ -6,6 +6,23 @@ let snapshot;
 let queuedScenario;
 let renderedScenarioId;
 let busy = false;
+const streaming = typeof EventSource !== "undefined";
+let updateSource;
+let latestUpdate;
+let receivedSequence = -1;
+let displayedSequence = -1;
+let playbackGeneration = 0;
+let playbackRunning = false;
+let playbackOperationActive = false;
+let commandPending = false;
+let pendingCommandId;
+let postInFlight = false;
+let postingCommandId;
+let pendingReplacement;
+let streamConnected = false;
+let commandNumber = 0;
+const playbackQueue = [];
+const maxPlaybackQueue = 256;
 let skipEffects = false;
 let cancelPause;
 let displayedState;
@@ -385,6 +402,13 @@ function bindBoardChoice(node, candidates) {
 }
 
 function updateControls() {
+  if (streaming) busy = commandPending || postInFlight || playbackRunning || playbackQueue.length > 0 ||
+    !streamConnected || !latestUpdate || !["waiting-human", "idle"].includes(latestUpdate.status) || displayedSequence !== receivedSequence;
+  if (streaming && latestUpdate) {
+    if (latestUpdate.status === "waiting-external") ui.prompt.textContent = "Waiting for an external controller.";
+    if (latestUpdate.status === "resolving") ui.prompt.textContent = "Game resolving.";
+    if (latestUpdate.status === "faulted") ui.prompt.textContent = "Game progression stopped after an error.";
+  }
   if (busy) clearAffectedPreview();
   ui.scenario.disabled = !snapshot;
   ui["start-scenario"].disabled = !snapshot;
@@ -402,7 +426,153 @@ function updateControls() {
     node.setAttribute("aria-disabled", String(disabled));
     node.tabIndex = disabled ? -1 : 0;
   }
-  ui.skip.disabled = !busy || skipEffects;
+  ui.skip.disabled = !(streaming ? playbackRunning : busy) || skipEffects;
+}
+
+function connectUpdates() {
+  updateSource?.close();
+  streamConnected = false;
+  updateControls();
+  const source = new EventSource("/api/game/updates");
+  updateSource = source;
+  source.addEventListener("open", () => {
+    if (source !== updateSource) return;
+    streamConnected = true;
+    if (ui.error.textContent === "Connection interrupted. Reconnecting to the game.") ui.error.textContent = "";
+    updateControls();
+  });
+  source.addEventListener("update", message => {
+    if (source !== updateSource) return;
+    try { receiveUpdate(JSON.parse(message.data)); }
+    catch (error) { ui.error.textContent = error.message; connectUpdates(); }
+  });
+  source.onerror = () => {
+    if (source !== updateSource) return;
+    streamConnected = false; updateControls();
+    ui.error.textContent = "Connection interrupted. Reconnecting to the game.";
+    // The same EventSource retains Last-Event-ID during automatic reconnect.
+  };
+}
+
+function cancelPlayback() {
+  playbackGeneration++;
+  cancelPause?.();
+  playbackQueue.length = 0;
+  playbackRunning = false;
+  playbackOperationActive = false;
+}
+
+function receiveUpdate(update) {
+  if (!Number.isSafeInteger(update.sequence) || !update.sessionId || !update.snapshot) throw new Error("Invalid game update.");
+  const sameSession = latestUpdate?.sessionId === update.sessionId;
+  if (sameSession && (update.sequence < receivedSequence || (update.sequence === receivedSequence && update.kind !== "baseline"))) return;
+  streamConnected = true;
+  if (update.kind === "baseline" || (update.commandId === pendingCommandId && ["boundary", "fault"].includes(update.kind))) {
+    commandPending = false; pendingCommandId = null;
+  }
+  if (update.kind === "baseline" || (update.kind === "fault" && sameSession && update.sequence === receivedSequence + 1)) {
+    cancelPlayback();
+    latestUpdate = update;
+    receivedSequence = displayedSequence = update.sequence;
+    snapshot = update.snapshot;
+    latestUnitId = null;
+    attackContext = null;
+    focusedDoor = null;
+    ui.dice.classList.remove("rolling");
+    ui.dice.replaceChildren(); ui.events.replaceChildren(); ui.effect.textContent = "";
+    ui.error.textContent = update.error ?? "";
+    renderSnapshot(); updateControls();
+    if (pendingReplacement && (update.commandId === pendingReplacement.commandId || update.sessionId !== pendingReplacement.sessionId)) {
+      const replacement = pendingReplacement; pendingReplacement = null;
+      replacement.resolve(update.kind === "baseline" && update.status !== "faulted");
+    }
+    flushQueuedScenario();
+    return;
+  }
+  if (!sameSession || update.sequence !== receivedSequence + 1 || playbackQueue.length >= maxPlaybackQueue) {
+    cancelPlayback();
+    connectUpdates(); // A new connection requests an authoritative baseline.
+    return;
+  }
+  latestUpdate = update;
+  receivedSequence = update.sequence;
+  playbackQueue.push(update);
+  updateControls();
+  void drainUpdates();
+}
+
+async function drainUpdates() {
+  if (playbackRunning) return;
+  playbackRunning = true;
+  const generation = playbackGeneration;
+  updateControls();
+  try {
+    while (playbackQueue.length && generation === playbackGeneration) {
+      const update = playbackQueue.shift();
+      snapshot = update.snapshot;
+      if (update.kind === "event") {
+        if (!playbackOperationActive) { skipEffects = !ui.animate.checked; playbackOperationActive = true; }
+        await playEvents(snapshot, generation);
+      }
+      if (generation !== playbackGeneration) return;
+      displayedSequence = update.sequence;
+      if (update.kind !== "event") {
+        playbackOperationActive = false;
+        ui.error.textContent = update.error ?? "";
+        renderSnapshot();
+      }
+    }
+    if (generation === playbackGeneration && latestUpdate && displayedSequence === receivedSequence) {
+      snapshot = latestUpdate.snapshot;
+      renderSnapshot();
+    }
+  } catch (error) {
+    if (generation !== playbackGeneration) return;
+    ui.error.textContent = `${error.message} Reconnecting to the game.`;
+    cancelPlayback();
+    connectUpdates();
+  } finally {
+    if (generation === playbackGeneration) { playbackRunning = false; updateControls(); }
+  }
+}
+
+function flushQueuedScenario() {
+  if (!streaming || postInFlight || pendingReplacement || !streamConnected || !queuedScenario) return;
+  const next = queuedScenario; queuedScenario = null;
+  void replaceScenario(next.operation, next.body, true).then(next.resolve);
+}
+
+async function sendCommand(operation, body) {
+  const replacement = ["scenario", "scenario/import", "restart"].includes(operation);
+  if (!latestUpdate || postInFlight || (commandPending && !replacement) || !streamConnected) return false;
+  if (!replacement && busy) return false;
+  const checkpoint = latestUpdate;
+  const commandId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}-${++commandNumber}`;
+  let completion;
+  if (replacement) completion = new Promise(resolve => { pendingReplacement = { commandId, sessionId: checkpoint.sessionId, resolve }; });
+  pendingCommandId = commandId;
+  postInFlight = true; postingCommandId = commandId;
+  commandPending = true; updateControls(); ui.error.textContent = "";
+  try {
+    await request("/commands", { commandId, sessionId: checkpoint.sessionId,
+      expectedRevision: checkpoint.revision, decisionId: checkpoint.decisionId, operation, ...body });
+    // Acknowledgements carry no authoritative view. Updates own rendering.
+    if (postingCommandId === commandId) { postInFlight = false; postingCommandId = null; }
+    flushQueuedScenario();
+    return completion ? await completion : true;
+  } catch (error) {
+    if (pendingReplacement?.commandId === commandId) {
+      pendingReplacement.resolve(false); pendingReplacement = null;
+    }
+    if (latestUpdate?.sessionId === checkpoint.sessionId && pendingCommandId === commandId) {
+      ui.error.textContent = `${error.message} Reconnecting to synchronize the game.`;
+      connectUpdates(); // Never retry a decision with an uncertain outcome.
+    }
+    return false;
+  } finally {
+    if (postingCommandId === commandId) { postInFlight = false; postingCommandId = null; }
+    updateControls(); flushQueuedScenario();
+  }
 }
 
 async function request(path, body) {
@@ -420,6 +590,7 @@ async function request(path, body) {
 }
 
 async function refresh() {
+  if (streaming) { connectUpdates(); return; }
   if (busy) return;
   busy = true; updateControls(); ui.error.textContent = "";
   try {
@@ -436,6 +607,7 @@ async function refresh() {
 }
 
 async function mutate(operation, body = {}) {
+  if (streaming) return sendCommand(operation, body);
   if (busy || !snapshot) return false;
   let succeeded = false;
   busy = true; skipEffects = !ui.animate.checked; updateControls(); ui.error.textContent = "";
@@ -445,31 +617,7 @@ async function mutate(operation, body = {}) {
     succeeded = true;
     if (["scenario", "scenario/import", "restart"].includes(operation)) latestUnitId = null;
     ui.events.replaceChildren();
-    const steps = new Map(snapshot.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
-    for (const [index, event] of snapshot.presentation.events.entries()) {
-      ui.events.append(text("li", describe(event)));
-      const occurrence = snapshot.result.events[index];
-      const projected = snapshot.presentation.resolutionSteps.find(step => step.eventIndex === index);
-      prepareOccurrence(occurrence, event);
-      if (occurrence?.kind === "WorldCardDrawn" && projected) renderWorldEffects(projected.worldEffects);
-      if (["TokenDrawn", "RoundStarted", "ActivationBagPopulated", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
-        renderTurn(steps.get(index));
-      }
-      if (!skipEffects) await present(event, occurrence);
-      if (steps.has(index)) {
-        const before = displayedState;
-        const after = steps.get(index);
-        renderState(after, true, projected.cards, projected.figures, projected.worldEffects);
-        if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
-          const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
-          const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
-          if (hpBefore != null && hpAfter != null) ui.effect.textContent += ` \u00b7 HP ${hpBefore} \u2192 ${hpAfter}`;
-        }
-        if (!skipEffects && occurrence?.kind === "UnitCreated") figures.get(occurrence.unitId)?.classList.add("created");
-        if (!skipEffects && occurrence?.kind === "PostureChanged") figures.get(occurrence.unitId)?.classList.add("posture-changed");
-        if (["AttackTargetResolved", "PostureChanged", "UnitCreated", "PlacesSwapped", "UnitRepositioned"].includes(occurrence?.kind)) await pause(380);
-      }
-    }
+    await playEvents(snapshot);
   } catch (error) {
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
     if (operation !== "scenario/import") ui.dice.replaceChildren();
@@ -489,6 +637,36 @@ async function mutate(operation, body = {}) {
   return succeeded;
 }
 
+async function playEvents(view, generation = playbackGeneration) {
+    const steps = new Map(view.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
+    for (const [index, event] of view.presentation.events.entries()) {
+      if (generation !== playbackGeneration) return;
+      ui.events.append(text("li", describe(event)));
+      const occurrence = view.result.events[index];
+      const projected = view.presentation.resolutionSteps.find(step => step.eventIndex === index);
+      prepareOccurrence(occurrence, event);
+      if (occurrence?.kind === "WorldCardDrawn" && projected) renderWorldEffects(projected.worldEffects);
+      if (["TokenDrawn", "RoundStarted", "ActivationBagPopulated", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
+        renderTurn(steps.get(index));
+      }
+      if (!skipEffects) await present(event, occurrence);
+      if (generation !== playbackGeneration) return;
+      if (steps.has(index)) {
+        const before = displayedState;
+        const after = steps.get(index);
+        renderState(after, true, projected.cards, projected.figures, projected.worldEffects);
+        if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
+          const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
+          const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
+          if (hpBefore != null && hpAfter != null) ui.effect.textContent += ` \u00b7 HP ${hpBefore} \u2192 ${hpAfter}`;
+        }
+        if (!skipEffects && occurrence?.kind === "UnitCreated") figures.get(occurrence.unitId)?.classList.add("created");
+        if (!skipEffects && occurrence?.kind === "PostureChanged") figures.get(occurrence.unitId)?.classList.add("posture-changed");
+        if (["AttackTargetResolved", "PostureChanged", "UnitCreated", "PlacesSwapped", "UnitRepositioned"].includes(occurrence?.kind)) await guardedPause(380);
+      }
+    }
+}
+
 function describeScenario() {
   const current = snapshot?.scenarios?.find(s => s.id === snapshot.scenarioId);
   const selected = snapshot?.scenarios?.find(s => s.id === ui.scenario.value);
@@ -496,6 +674,15 @@ function describeScenario() {
 }
 
 async function replaceScenario(operation, body = {}, waitForReplacement = false) {
+  if (streaming) {
+    if (!latestUpdate) return false;
+    if (postInFlight || pendingReplacement) {
+      queuedScenario?.resolve?.(false);
+      const completion = new Promise(resolve => { queuedScenario = { operation, body, resolve }; });
+      return waitForReplacement ? completion : undefined;
+    }
+    return sendCommand(operation, body);
+  }
   if (!snapshot) return false;
   if (busy) {
     queuedScenario?.resolve?.(false);
@@ -511,26 +698,37 @@ function describe(event) { return event.text; }
 
 function pause(ms) {
   if (skipEffects) return Promise.resolve();
-  return new Promise(resolve => {
-    const finish = () => { clearTimeout(timer); cancelPause = null; resolve(); };
+  const generation = playbackGeneration;
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      clearTimeout(timer); cancelPause = null;
+      if (generation !== playbackGeneration) reject(new Error("Playback replaced."));
+      else resolve();
+    };
     const timer = setTimeout(finish, ms); cancelPause = finish;
   });
+}
+
+async function guardedPause(ms) {
+  const generation = playbackGeneration;
+  await pause(ms);
+  if (generation !== playbackGeneration) throw new Error("Playback replaced.");
 }
 
 async function present(event, occurrence) {
   if (!occurrence) ui.effect.textContent = describe(event);
   if (occurrence?.kind === "DiceRolled") {
     ui.dice.classList.add("rolling");
-    await pause(260);
+    await guardedPause(260);
     ui.dice.classList.remove("rolling");
-    await pause(420);
+    await guardedPause(420);
     return;
   }
   const delay = { TokenDrawn: 520, ActivationStarted: 300, ActivationCompleted: 280,
     AttackStarted: 420, ActionUsed: 300, RoundStarted: 400, RoundCompleted: 350,
     WorldCardDrawn: 1000, WorldContinuousChanged: 700, WorldCardDiscarded: 450, WorldDeckReshuffled: 600,
     PostureChanged: 200, UnitCreated: 200 }[occurrence?.kind];
-  if (delay != null) { await pause(delay); return; }
+  if (delay != null) { await guardedPause(delay); return; }
   switch (event.role) {
     case "Movement": {
       const node = figures.get(event.unitId);
@@ -541,19 +739,19 @@ async function present(event, occurrence) {
         if (skipEffects) break;
         node.style.transition = "left .22s linear, top .22s linear";
         placeFigure(node, cell, snapshot.result.state.physical.board);
-        await pause(250);
+        await guardedPause(250);
       }
       break;
     }
-    case "AttackSummary": await pause(450); break;
+    case "AttackSummary": await guardedPause(450); break;
     case "AttackTarget": {
       const attacker = figures.get(event.unitId), target = figures.get(event.targetId);
       attacker?.classList.add("attacking"); target?.classList.add("target");
-      await pause(180);
+      await guardedPause(180);
       ui.effect.textContent = `${event.hits} Hits · ${event.blocks} Blocks`;
-      await pause(180);
+      await guardedPause(180);
       ui.effect.textContent = `${event.damage} Damage`;
-      await pause(180);
+      await guardedPause(180);
       attacker?.classList.remove("attacking"); target?.classList.remove("target");
       break;
     }
@@ -562,12 +760,12 @@ async function present(event, occurrence) {
       node?.getBoundingClientRect();
       if (node) node.style.transition = "";
       node?.classList.add("defeated");
-      await pause(320); node?.remove(); figures.delete(event.unitId); break;
+      await guardedPause(320); node?.remove(); figures.delete(event.unitId); break;
     }
     case "DoorAttempt": {
       const node = edges.get(edgeKey(event.door));
       node?.classList.add("target");
-      await pause(400);
+      await guardedPause(400);
       node?.classList.remove("target");
       break;
     }
@@ -575,9 +773,9 @@ async function present(event, occurrence) {
     case "DoorOpened": {
       const node = edges.get(edgeKey(event.door));
       if (node) { node.className = `edge ${event.door.kind}`; node.title = event.door.kind; }
-      await pause(300); break;
+      await guardedPause(300); break;
     }
-    default: await pause(250);
+    default: await guardedPause(250);
   }
 }
 

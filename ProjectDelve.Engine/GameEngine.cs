@@ -7,7 +7,10 @@ public static partial class GameEngine
     // Creates validated initial setup only; StartRound owns activation initialization and randomness.
     public static GameState CreateGame(ScenarioDefinition definition) => ScenarioCreation.Create(definition);
 
-    public static EngineResult StartRound(GameState previous, IRandomProvider random, bool autoChooseSingleRelevantChoice = true)
+    // Observation runs synchronously at event production. It must not wait for a client.
+    // Observer exceptions propagate; no result is committed, but consumed randomness is not undone.
+    public static EngineResult StartRound(GameState previous, IRandomProvider random, bool autoChooseSingleRelevantChoice = true,
+        Action<RulesEvent, ResolutionStep>? observe = null)
     {
         if (previous.Round != 0 && !previous.RoundComplete)
             throw new InvalidOperationException("The current round is still active.");
@@ -46,7 +49,7 @@ public static partial class GameEngine
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
-        var events = new ResolutionEvents(state);
+        var events = new ResolutionEvents(state, observe);
         if (state.WorldEffects is not null)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
@@ -60,11 +63,13 @@ public static partial class GameEngine
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
 
-    public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool autoChooseSingleRelevantChoice = true)
+    // The observer contract and exception behavior are the same as StartRound.
+    public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool autoChooseSingleRelevantChoice = true,
+        Action<RulesEvent, ResolutionStep>? observe = null)
     {
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
-        var events = new ResolutionEvents(state);
+        var events = new ResolutionEvents(state, observe);
         if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
             (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
              !state.IsUpright(state.CurrentUnitId)))
@@ -662,11 +667,11 @@ public static partial class GameEngine
     // Rebuild all legal choices when a host changes relevance-based auto-choice.
     // Continue any newly automatic choices through the same resolution path.
     public static EngineResult RefreshChoices(GameState previous, IRandomProvider random,
-        bool autoChooseSingleRelevantChoice = true)
+        bool autoChooseSingleRelevantChoice = true, Action<RulesEvent, ResolutionStep>? observe = null)
     {
         var state = previous.Copy();
         state.Pending = null;
-        var events = new ResolutionEvents(state);
+        var events = new ResolutionEvents(state, observe);
         if (state.Round > 0) RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
@@ -886,7 +891,7 @@ public static partial class GameEngine
     }
 
     // Capture at emission time, before later operations mutate this run's working state.
-    private sealed class ResolutionEvents(GameState state)
+    private sealed class ResolutionEvents(GameState state, Action<RulesEvent, ResolutionStep>? observe)
     {
         public List<RulesEvent> Events { get; } = [];
         public List<ResolutionStep> Steps { get; } = [];
@@ -897,6 +902,21 @@ public static partial class GameEngine
                 resolved = resolved with { WorldCard = card };
             Steps.Add(new ResolutionStep(Events.Count, state.Copy()));
             Events.Add(resolved);
+            if (observe is not null)
+            {
+                // The consumer owns these copies; mutation must not affect resolution or results.
+                var observedState = state.Copy();
+                if (observedState.Pending is { } pending)
+                    observedState.Pending = pending with
+                    {
+                        Candidates = pending.Candidates.Select(c => c with
+                        {
+                            Path = c.Path is null ? null : [.. c.Path]
+                        }).ToList()
+                    };
+                observe(resolved with { Path = resolved.Path is null ? null : [.. resolved.Path] },
+                    new ResolutionStep(Events.Count - 1, observedState));
+            }
         }
     }
 
