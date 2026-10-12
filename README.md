@@ -70,6 +70,8 @@ Hero decisions use numbered engine-supplied choices. Choose the supplied Stay or
 
 ## Browser playtest host
 
+Decision Commentary is optional presentation metadata on a selected legal decision. Both decision submissions and commands accept a trimmed `commentary` string of at most 280 characters. Streaming updates publish `kind: "commentary"` before that decision's rules events; legacy responses carry `commentaries` with `eventIndex` counting preceding rules events. Each entry identifies the decision, acting Unit, controller, Side and candidate key. Fresh baselines omit historical commentary. The host has an optional enriched external-controller selection callback alongside the existing key-only callback; no Resident integration is included. Automated flavor text uses fixed wording and consumes no gameplay randomness. Browser commentary starts hidden and follows event playback.
+
 Run `dotnet run --project ProjectDelve.Web -- --urls http://localhost:5080`, then open [localhost:5080](http://localhost:5080).
 
 The Web host serves a plain HTML/CSS/JavaScript client and six server-owned playtest setups. One authoritative game lives in memory. **Start selected** replaces it with the selected scenario; **Restart current** recreates the current scenario. Both discard the previous state, including pending activations and follow-ups. During effects, either control requests replacement immediately; playback switches to the replacement when its baseline arrives. The host finishes its current synchronous engine call, skips subsequent automatic decisions, and publishes the replacement baseline; an external decision wait is invalidated immediately. Revision checks still protect concurrent clients.

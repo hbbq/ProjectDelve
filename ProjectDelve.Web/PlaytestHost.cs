@@ -11,14 +11,15 @@ public static class PlaytestHost
         => Build(args, random, null);
 
     internal static WebApplication Build(string[] args, IRandomProvider? random, GameState? initialState,
-        Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256)
+        Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256,
+        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         var randomProvider = random ?? new SystemRandomProvider();
         builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
-            initialState ?? PlaytestScenarios.Create(PlaytestScenarios.DefaultId), external, replayCapacity));
+            initialState ?? PlaytestScenarios.Create(PlaytestScenarios.DefaultId), external, replayCapacity, externalSelection));
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
@@ -38,7 +39,7 @@ public static class PlaytestHost
         app.MapPost("/api/game/round", (RoundRequest request, PlaytestGame game) =>
             Mutate(() => game.StartRound(request.ExpectedRevision)));
         app.MapPost("/api/game/decision", (DecisionSubmission request, PlaytestGame game) =>
-            Mutate(() => game.Decide(request.ExpectedRevision, request.CandidateKey)));
+            Mutate(() => game.Decide(request.ExpectedRevision, request.CandidateKey, request.Commentary)));
         app.MapPost("/api/game/preferences", (PreferenceRequest request, PlaytestGame game) =>
             Mutate(() => game.SetRelevanceAutoChoice(request.ExpectedRevision, request.AutoChooseSingleRelevantChoice)));
         app.MapPost("/api/game/commands", (GameCommand request, PlaytestGame game) =>
@@ -117,6 +118,7 @@ public sealed record DecisionSubmission
 {
     public required long ExpectedRevision { get; init; }
     public required string? CandidateKey { get; init; }
+    public string? Commentary { get; init; }
 }
 
 public sealed record PreferenceRequest
@@ -127,6 +129,7 @@ public sealed record PreferenceRequest
 
 public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true, string ScenarioId = PlaytestScenarios.DefaultId)
 {
+    public IReadOnlyList<DecisionCommentary> Commentaries { get; init; } = [];
     public IReadOnlyList<ScenarioDescription> Scenarios => PlaytestScenarios.Catalog;
     public BrowserPresentation Presentation => BrowserProjection.Create(Result);
 }

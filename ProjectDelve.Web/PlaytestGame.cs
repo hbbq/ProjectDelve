@@ -12,6 +12,8 @@ public sealed class PlaytestGame : IDisposable
     private readonly IRandomProvider random;
     private readonly DefaultAutomatedProvider automated = new();
     private readonly Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external;
+    private readonly Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection;
+    private bool HasExternal => external is not null || externalSelection is not null;
     private readonly Channel<Work> work = Channel.CreateUnbounded<Work>(new() { SingleReader = true });
     private readonly CancellationTokenSource lifetime = new();
     private readonly Task runner;
@@ -37,9 +39,10 @@ public sealed class PlaytestGame : IDisposable
 
     public PlaytestGame(IRandomProvider random) : this(random, PlaytestScenarios.Create(PlaytestScenarios.DefaultId)) { }
     internal PlaytestGame(IRandomProvider random, GameState initialState,
-        Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256)
+        Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256,
+        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null)
     {
-        this.random = random; this.external = external; capacity = Math.Max(1, replayCapacity);
+        this.random = random; this.external = external; this.externalSelection = externalSelection; capacity = Math.Max(1, replayCapacity);
         state = Detach(initialState); status = StatusFor(state);
         decisionId = state.Pending is null ? null : Guid.NewGuid().ToString("N");
         stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
@@ -50,13 +53,13 @@ public sealed class PlaytestGame : IDisposable
     {
         GameResponse view;
         lock (gate) view = published.Snapshot;
-        return Detach(view with { Result = new(view.Result.State, [], view.Result.NextInput) });
+        return Detach(view with { Result = new(view.Result.State, [], view.Result.NextInput), Commentaries = [] });
     }
     public GameResponse StartScenario(long revision, string id) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario", ScenarioId = id });
     public GameResponse StartTransportScenario(long revision, string transport) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario/import", Transport = transport });
     public GameResponse Restart(long revision) => Legacy(new() { ExpectedRevision = revision, Operation = "restart" });
     public GameResponse StartRound(long revision) => Legacy(new() { ExpectedRevision = revision, Operation = "round" });
-    public GameResponse Decide(long revision, string? key) => Legacy(new() { ExpectedRevision = revision, Operation = "decision", CandidateKey = key });
+    public GameResponse Decide(long revision, string? key, string? commentary = null) => Legacy(new() { ExpectedRevision = revision, Operation = "decision", CandidateKey = key, Commentary = commentary });
     public GameResponse SetRelevanceAutoChoice(long revision, bool enabled) => Legacy(new() { ExpectedRevision = revision, Operation = "preferences", AutoChooseSingleRelevantChoice = enabled });
 
     public CommandAcceptance Accept(GameCommand request)
@@ -105,7 +108,7 @@ public sealed class PlaytestGame : IDisposable
             case "decision":
                 if (status != "waiting-human" || stable.Result.NextInput is not { } pending) throw Error(409, "No player decision is pending.");
                 if (!legacy && request.DecisionId != decisionId) throw Error(409, "The pending decision changed.");
-                ValidateKey(pending, request.CandidateKey); break;
+                ValidateKey(pending, request.CandidateKey); NormalizeCommentary(request.Commentary); break;
             case "preferences":
                 if (request.AutoChooseSingleRelevantChoice is null) throw Error(400, "Supply the auto-choice preference.");
                 if (status == "waiting-external") throw Error(409, "An external decision is pending.");
@@ -189,9 +192,24 @@ public sealed class PlaytestGame : IDisposable
                 return Detach(stable);
             }
         }
+        var submittedDecisionId = request.DecisionId ?? decisionId ?? Guid.NewGuid().ToString("N");
+        var commentaries = new List<DecisionCommentary>();
+        var eventCount = 0;
+        void Comment(DecisionRequest pending, string? key, string? text, string id, GameState current)
+        {
+            ValidateKey(pending, key);
+            text = NormalizeCommentary(text);
+            if (text is null) return;
+            var unitId = pending.Kind == DecisionKind.SelectUnit ? key : pending.UnitId;
+            var side = pending.Token?.SideId ?? current.Units.Single(u => u.Id == unitId).SideId;
+            var comment = new DecisionCommentary(id, unitId, current.ControllerFor(pending), side, pending.Kind, key, text, eventCount);
+            commentaries.Add(comment);
+            lock (gate) Publish("commentary", Response(current, null), request.CommandId, commentary: comment with { EventIndex = 0 });
+        }
         lock (gate) { status = "resolving"; decisionId = null; Publish("boundary", Response(state, null), request.CommandId); }
         void Observe(RulesEvent occurrence, ResolutionStep step)
         {
+            eventCount++;
             var emission = new EngineResult(step.StateAfter, [occurrence], null) { ResolutionSteps = [step with { EventIndex = 0 }] };
             lock (gate) Publish("event", new(revision, emission, autoChoose, scenarioId), request.CommandId);
         }
@@ -206,15 +224,19 @@ public sealed class PlaytestGame : IDisposable
         {
             if (item.ExternalError is not null) throw item.ExternalError;
             ValidateKey(state.Pending!, request.CandidateKey);
-            result = GameEngine.Advance(state, new SubmittedDecisionProvider(request.CandidateKey), random, autoChoose, Observe);
+            result = GameEngine.Advance(state, new CommentaryDecisionProvider(new SubmittedDecisionProvider(request.CandidateKey),
+                (pending, key, queries) => Comment(pending, key, request.Commentary, submittedDecisionId, state)), random, autoChoose, Observe);
         }
         var events = new List<RulesEvent>(result.Events);
         var steps = new List<ResolutionStep>(result.ResolutionSteps);
         while (result.NextInput is { } pending && result.State.ControllerFor(pending) == ControllerKind.Automated)
         {
             lock (gate) { if (resetQueued || disposed) break; }
-            if (external is not null) break;
-            result = GameEngine.Advance(result.State, automated, random, autoChoose, Observe);
+            if (HasExternal) break;
+            var decisionState = result.State;
+            result = GameEngine.Advance(decisionState, new CommentaryDecisionProvider(automated,
+                (choice, key, queries) => Comment(choice, key, AutomatedDecisionCommentary.For(choice, key, queries, decisionState),
+                    Guid.NewGuid().ToString("N"), decisionState)), random, autoChoose, Observe);
             steps.AddRange(result.ResolutionSteps.Select(s => s with { EventIndex = s.EventIndex + events.Count }));
             events.AddRange(result.Events);
         }
@@ -226,7 +248,7 @@ public sealed class PlaytestGame : IDisposable
             decisionId = state.Pending is null || resetQueued ? null : Guid.NewGuid().ToString("N");
             stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
             busy = resetQueued; Publish("boundary", stable, request.CommandId);
-            response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId);
+            response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId) { Commentaries = commentaries };
             if (status == "waiting-external")
             {
                 externalWait?.Dispose(); externalWait = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
@@ -240,25 +262,33 @@ public sealed class PlaytestGame : IDisposable
     }
     private async Task SelectExternal(ExternalDecisionContext context, CancellationToken cancellation, string? commandId)
     {
-        string? key = null; Exception? error = null;
-        try { key = await external!(context, cancellation); }
+        string? key = null, commentary = null; Exception? error = null;
+        try
+        {
+            if (externalSelection is not null)
+            {
+                var selection = await externalSelection(context, cancellation);
+                key = selection.CandidateKey; commentary = selection.Commentary;
+            }
+            else key = await external!(context, cancellation);
+        }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return; }
         catch (Exception caught) { error = caught; }
         lock (gate)
         {
             if (disposed || cancellation.IsCancellationRequested || context.SessionId != sessionId || context.DecisionId != decisionId || resetQueued) return;
             work.Writer.TryWrite(new(new GameCommand { Operation = "decision", SessionId = context.SessionId,
-                ExpectedRevision = context.Revision, DecisionId = context.DecisionId, CandidateKey = key, CommandId = commandId }, null)
+                ExpectedRevision = context.Revision, DecisionId = context.DecisionId, CandidateKey = key, Commentary = commentary, CommandId = commandId }, null)
                 { ExternalDecisionId = context.DecisionId, ExternalError = error });
         }
     }
     private string StatusFor(GameState current) => current.Pending is null ? "idle"
         : current.ControllerFor(current.Pending) == ControllerKind.Human ? "waiting-human"
-        : external is not null ? "waiting-external" : "resolving";
+        : HasExternal ? "waiting-external" : "resolving";
     private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId);
-    private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null)
+    private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null)
     {
-        published = new(sessionId, ++sequence, kind, status, revision, decisionId, Detach(snapshot), commandId, error);
+        published = new(sessionId, ++sequence, kind, status, revision, decisionId, Detach(snapshot), commandId, error, commentary);
         journal.Enqueue(published); while (journal.Count > capacity) journal.Dequeue();
         foreach (var subscriber in subscribers.ToArray())
             if (!subscriber.Writer.TryWrite(published)) { subscribers.Remove(subscriber); subscriber.Writer.TryComplete(); }
@@ -276,8 +306,8 @@ public sealed class PlaytestGame : IDisposable
             if (retained) foreach (var update in journal.Where(u => u.Sequence > after)) channel.Writer.TryWrite(update);
             else
             {
-                var view = published.Snapshot with { Result = new(published.Snapshot.Result.State, [], published.Snapshot.Result.NextInput) };
-                channel.Writer.TryWrite(published with { Kind = "baseline", Snapshot = view });
+                var view = published.Snapshot with { Result = new(published.Snapshot.Result.State, [], published.Snapshot.Result.NextInput), Commentaries = [] };
+                channel.Writer.TryWrite(published with { Kind = "baseline", Snapshot = view, Commentary = null });
             }
             subscribers.Add(channel);
             return new(channel.Reader, () => { lock (gate) { subscribers.Remove(channel); channel.Writer.TryComplete(); } });
@@ -305,6 +335,24 @@ public sealed class PlaytestGame : IDisposable
         public string? ExternalDecisionId { get; init; }
         public Exception? ExternalError { get; init; }
         public TaskCompletionSource<GameResponse> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+    private static string? NormalizeCommentary(string? text)
+    {
+        text = text?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        if (text.Length > 280) throw Error(400, "Decision commentary must be at most 280 characters.");
+        return text;
+    }
+    private sealed class CommentaryDecisionProvider(IDecisionProvider provider,
+        Action<DecisionRequest, string?, IGameplayQueries> selected) : IDecisionProvider
+    {
+        public string? Choose(DecisionRequest request, IGameplayQueries queries)
+        {
+            var key = provider.Choose(request, queries);
+            ValidateKey(request, key);
+            selected(request, key, queries);
+            return key;
+        }
     }
     private sealed class SubmittedDecisionProvider(string? key) : IDecisionProvider
     { public string? Choose(DecisionRequest request, IGameplayQueries queries) => key; }

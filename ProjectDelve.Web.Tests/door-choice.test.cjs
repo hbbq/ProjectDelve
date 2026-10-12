@@ -1454,3 +1454,141 @@ test("uncertain replacement POST resolves safely and recovers without retry", as
   assert.equal(h.run("latestUpdate.sessionId"), "session-b");
   assert.deepEqual(requests, ["/api/game/commands"]);
 });
+
+
+const decisionComment = (text, eventIndex = 0) => ({ decisionId: "decision-comment", unitId: "actor",
+  controller: "External", sideId: "amber", decisionKind: "ChooseAction", candidateKey: "opaque", text, eventIndex });
+const commentaryUpdate = (sequence, text, view = response()) => ({
+  ...update(sequence, "commentary", "resolving", view), commentary: decisionComment(text)
+});
+
+test("commentary defaults hidden and streams at its playback cue, never network reception", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "waiting-human"));
+  assert.equal(h.elements.get("commentary-panel").hidden, true);
+  assert.equal(h.elements.get("commentary-toggle").attributes["aria-expanded"], "false");
+  h.emit(commentaryUpdate(1, "Already played"));
+  h.emit(update(2, "event", "resolving", movementView(1)));
+  const laterView = movementView(2);
+  laterView.commentaries = [decisionComment("Must not duplicate streaming cue")];
+  h.emit(commentaryUpdate(3, "Future intention"));
+  h.emit(update(4, "event", "resolving", laterView));
+  h.emit(update(5, "boundary", "waiting-human"));
+  assert.equal(h.run("receivedSequence"), 5);
+  assert.equal(h.run("displayedSequence"), 1);
+  h.elements.get("commentary-toggle").listeners.click();
+  assert.equal(h.elements.get("commentary-panel").hidden, false);
+  assert.equal(h.elements.get("commentary-text").textContent, "Already played");
+  assert.match(h.elements.get("commentary-context").textContent, /actor.*External.*amber.*Choose Action/);
+  await h.tick();
+  assert.equal(h.elements.get("commentary-text").textContent, "Future intention");
+  await h.tick(); await settleStream();
+  assert.equal(h.run("displayedSequence"), 5);
+  assert.equal(h.elements.get("commentary-text").textContent, "Future intention");
+  assert.equal(h.run("displayedCommentary.candidateKey"), "opaque");
+  h.elements.get("commentary-toggle").listeners.click();
+  assert.equal(h.elements.get("commentary-panel").hidden, true);
+});
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`legacy commentary is ordered before events and at trailing zero-event decisions (${mode})`, async () => {
+    const final = movementView();
+    final.result.events.push({ kind: "NoOp" });
+    final.presentation.events.push({ role: "Notice", text: "Second event" });
+    final.commentaries = [decisionComment("First", 0), decisionComment("Second", 1), decisionComment("Trailing", 2)];
+    const seen = [], h = harness(response(), async () => ({ ok: true, json: async () => final }));
+    h.context.mode = mode; h.context.seenComments = seen;
+    h.run(`ui.animate.checked = mode !== "disabled"; pause = async () => {};
+      const normalAppend = ui.events.append.bind(ui.events);
+      ui.events.append = node => { seenComments.push(displayedCommentary?.text); normalAppend(node); };
+      const normalPresent = present;
+      present = async (...args) => { await normalPresent(...args); if (mode === "skip") ui.skip.listeners.click(); };`);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.deepEqual(seen, ["First", "Second"]);
+    assert.equal(h.elements.get("commentary-text").textContent, "Trailing");
+    assert.equal(h.figure("actor").style.left, "25%");
+    assert.equal(h.elements.get("commentary-panel").hidden, true);
+    const empty = response(); empty.commentaries = [decisionComment("No resulting events")];
+    h.context.emptyCommentView = empty;
+    await h.run("playEvents(emptyCommentView)");
+    assert.equal(h.elements.get("commentary-text").textContent, "No resulting events");
+    await h.run("playEvents(initial)"); // Older responses omit commentary entirely.
+    assert.equal(h.elements.get("commentary-text").textContent, "No resulting events");
+  });
+}
+
+test("baseline and fault clear stale or queued commentary without resetting spectator visibility", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "waiting-human"));
+  h.elements.get("commentary-toggle").listeners.click();
+  h.emit(commentaryUpdate(1, "Old intention"));
+  h.emit(update(2, "event", "resolving", movementView()));
+  h.emit(commentaryUpdate(3, "Cancelled intention"));
+  h.run('ui["decision-commentary"].value = "Old draft"');
+  h.emit(update(0, "baseline", "waiting-human", response(), "session-b"));
+  await h.tick();
+  assert.equal(h.elements.get("commentary-panel").hidden, false);
+  assert.equal(h.run("displayedCommentary"), undefined);
+  assert.equal(h.elements.get("decision-commentary").value, "");
+  assert.doesNotMatch(h.elements.get("commentary-text").textContent, /intention/);
+  h.emit({ ...commentaryUpdate(1, "New intention"), sessionId: "session-b" });
+  assert.equal(h.elements.get("commentary-text").textContent, "New intention");
+  h.emit(update(2, "fault", "faulted", response(), "session-b"));
+  assert.equal(h.run("displayedCommentary"), undefined);
+  assert.equal(h.elements.get("commentary-panel").hidden, false);
+});
+
+test("commentary renders untrusted controller text as plain text", () => {
+  const h = harness(response());
+  h.context.untrustedComment = decisionComment('<img src=x onerror="alert(1)">');
+  h.run("showCommentary(untrustedComment)");
+  assert.equal(h.elements.get("commentary-text").textContent, '<img src=x onerror="alert(1)">');
+  assert.equal(h.elements.get("commentary-text").children.length, 0);
+  assert.equal(h.elements.get("commentary-panel").hidden, true);
+  assert.doesNotMatch(h.elements.get("commentary-toggle").textContent, /alert/);
+});
+
+for (const transport of ["legacy", "stream"]) {
+  test(`optional human commentary preserves selected candidate and submits only on decision (${transport})`, async () => {
+    const requests = [];
+    const fetchImpl = async (url, options) => { requests.push({ url, body: JSON.parse(options.body) });
+      return { ok: true, json: async () => transport === "stream" ? { accepted: true } : response() }; };
+    const h = transport === "stream" ? streamHarness(fetchImpl) : harness(response(), fetchImpl);
+    if (transport === "stream") h.emit(update(0, "baseline", "waiting-human"));
+    h.run('ui.animate.checked = false; ui["decision-commentary"].value = "  My intention  "');
+    assert.equal(await h.run('chooseCandidate("opaque-a")'), true);
+    assert.equal(requests[0].body.candidateKey, "opaque-a");
+    assert.equal(requests[0].body.commentary, "My intention");
+    assert.equal(h.elements.get("decision-commentary").value, "");
+    if (transport === "stream") h.emit(update(1, "boundary", "waiting-human", response(), "session-a", requests[0].body.commandId));
+    h.run('ui["decision-commentary"].value = "  "');
+    assert.equal(await h.run('chooseCandidate("opaque-b")'), true);
+    assert.equal(requests[1].body.candidateKey, "opaque-b");
+    assert.equal(Object.hasOwn(requests[1].body, "commentary"), false);
+    if (transport === "stream") h.emit(update(2, "boundary", "waiting-human", response(), "session-a", requests[1].body.commandId));
+    h.run('ui["decision-commentary"].value = "Draft for later"');
+    await h.run('mutate("preferences", { autoChooseSingleRelevantChoice: false })');
+    assert.equal(Object.hasOwn(requests[2].body, "commentary"), false);
+    assert.equal(h.elements.get("decision-commentary").value, "Draft for later");
+  });
+}
+
+
+for (const mode of ["disabled", "skip"]) {
+  test(`stream commentary retains sequence and candidate context when effects are ${mode}`, async () => {
+    const h = streamHarness();
+    h.emit(update(0, "baseline", "waiting-human"));
+    h.run(`ui.animate.checked = ${mode !== "disabled"}`);
+    h.emit(commentaryUpdate(1, "Before movement"));
+    h.emit(update(2, "event", "resolving", movementView()));
+    h.emit(commentaryUpdate(3, "After movement", movementView()));
+    h.emit(update(4, "boundary", "waiting-human", movementView()));
+    if (mode === "skip") h.elements.get("skip").listeners.click();
+    await settleStream();
+    assert.equal(h.run("displayedSequence"), 4);
+    assert.equal(h.elements.get("commentary-text").textContent, "After movement");
+    assert.equal(h.figure("actor").style.left, "25%");
+    assert.equal(h.run("displayedCommentary.decisionId"), "decision-comment");
+    assert.equal(h.elements.get("commentary-panel").hidden, true);
+  });
+}

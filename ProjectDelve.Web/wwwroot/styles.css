@@ -180,3 +180,10 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .world-card { margin: .4rem 0; padding: .5rem; background: #332d22; border: 1px solid #887548; border-radius: .3rem; }
 .world-card p { margin: .3rem 0 0; font-size: .9rem; }
 .world-draw { border-color: #eac86d; }
+
+#commentary-toggle { margin-top: .7rem; }
+#commentary-panel { margin: .6rem 0; padding: .7rem; border-left: 3px solid #829cbe; background: #222d3f; }
+#commentary-panel h2 { margin: 0 0 .4rem; font-size: .95rem; }
+#commentary-panel p { margin: .4rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.commentary-input { display: block; font-size: .8rem; margin: .6rem 0 .3rem; }
+#decision-commentary { width: 100%; resize: vertical; }

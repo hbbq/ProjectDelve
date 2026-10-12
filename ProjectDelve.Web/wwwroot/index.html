@@ -54,6 +54,12 @@
       <div id="bag" aria-label="Remaining Activation Bag"></div>
       <section class="decision-panel" aria-label="Pending decision">
         <h2>Player choice</h2><p id="prompt"></p><div id="choices"></div>
+        <label class="commentary-input" for="decision-commentary">Optional decision comment</label>
+        <textarea id="decision-commentary" rows="2" maxlength="280" placeholder="A short comment for your next choice" disabled></textarea>
+      </section>
+      <button id="commentary-toggle" aria-controls="commentary-panel" aria-expanded="false">Show commentary</button>
+      <section id="commentary-panel" aria-label="Latest decision commentary" hidden>
+        <h2>Latest commentary</h2><small id="commentary-context"></small><p id="commentary-text" aria-live="polite"></p>
       </section>
       <div id="attack-context" role="status"></div>
       <p id="effect" role="status"></p>

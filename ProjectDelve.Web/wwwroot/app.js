@@ -1,6 +1,6 @@
 import { styleSide } from "./side-colors.js";
 
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -23,6 +23,29 @@ let streamConnected = false;
 let commandNumber = 0;
 const playbackQueue = [];
 const maxPlaybackQueue = 256;
+// Presentation metadata remains separate from authoritative state and rules events.
+let displayedCommentary;
+let commentaryVisible = false;
+function renderCommentary() {
+  ui["commentary-panel"].hidden = !commentaryVisible;
+  ui["commentary-toggle"].textContent = `${commentaryVisible ? "Hide" : "Show"} commentary`;
+  ui["commentary-toggle"].setAttribute("aria-expanded", String(commentaryVisible));
+  const comment = displayedCommentary;
+  const unitName = snapshot?.presentation.cards?.[comment?.unitId]?.displayName;
+  ui["commentary-context"].textContent = comment
+    ? [unitName ? `${unitName} (${comment.unitId})` : comment.unitId, comment.controller, comment.sideId,
+      comment.decisionKind?.replace(/([a-z])([A-Z])/g, "$1 $2")].filter(Boolean).join(" \u00b7 ") : "";
+  ui["commentary-text"].textContent = comment?.text ?? "No commentary at this point in playback.";
+}
+function showCommentary(comment) {
+  displayedCommentary = comment; // Keep Unit/decision identity available for future figure anchors.
+  renderCommentary();
+}
+function clearCommentary() {
+  displayedCommentary = undefined;
+  ui["decision-commentary"].value = "";
+  renderCommentary();
+}
 let skipEffects = false;
 let cancelPause;
 let displayedState;
@@ -362,7 +385,9 @@ function renderSnapshot() {
 
 function chooseCandidate(key) {
   if (busy) return;
-  return mutate("decision", { candidateKey: key });
+  const commentary = (ui["decision-commentary"].value ?? "").trim().slice(0, 280);
+  return mutate("decision", { candidateKey: key, ...(commentary ? { commentary } : {}) })
+    .then(succeeded => { if (succeeded) ui["decision-commentary"].value = ""; return succeeded; });
 }
 
 function bindBoardChoice(node, candidates) {
@@ -417,6 +442,7 @@ function updateControls() {
   ui.refresh.disabled = busy;
   ui.filter.disabled = busy || !snapshot;
   ui.auto.disabled = busy || !snapshot;
+  ui["decision-commentary"].disabled = busy || !snapshot?.presentation.decision;
   ui.round.disabled = busy || !snapshot || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
   ui.round.textContent = snapshot?.result.state.round ? "Start next round" : "Start round";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
@@ -460,6 +486,7 @@ function cancelPlayback() {
   playbackQueue.length = 0;
   playbackRunning = false;
   playbackOperationActive = false;
+  clearCommentary();
 }
 
 function receiveUpdate(update) {
@@ -510,13 +537,14 @@ async function drainUpdates() {
     while (playbackQueue.length && generation === playbackGeneration) {
       const update = playbackQueue.shift();
       snapshot = update.snapshot;
+      if (update.kind === "commentary") showCommentary(update.commentary);
       if (update.kind === "event") {
         if (!playbackOperationActive) { skipEffects = !ui.animate.checked; playbackOperationActive = true; }
-        await playEvents(snapshot, generation);
+        await playEvents(snapshot, generation, false);
       }
       if (generation !== playbackGeneration) return;
       displayedSequence = update.sequence;
-      if (update.kind !== "event") {
+      if (update.kind !== "event" && update.kind !== "commentary") {
         playbackOperationActive = false;
         ui.error.textContent = update.error ?? "";
         renderSnapshot();
@@ -594,7 +622,7 @@ async function refresh() {
   if (busy) return;
   busy = true; updateControls(); ui.error.textContent = "";
   try {
-    snapshot = await request(""); ui.events.replaceChildren(); ui.effect.textContent = ""; ui.dice.replaceChildren(); renderSnapshot();
+    snapshot = await request(""); clearCommentary(); ui.events.replaceChildren(); ui.effect.textContent = ""; ui.dice.replaceChildren(); renderSnapshot();
   } catch (error) { ui.error.textContent = error.message; }
   finally {
     busy = false; updateControls();
@@ -615,10 +643,11 @@ async function mutate(operation, body = {}) {
     // Present from the previous visible state, advancing only with engine snapshots.
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
     succeeded = true;
-    if (["scenario", "scenario/import", "restart"].includes(operation)) latestUnitId = null;
+    if (["scenario", "scenario/import", "restart"].includes(operation)) { latestUnitId = null; clearCommentary(); }
     ui.events.replaceChildren();
     await playEvents(snapshot);
   } catch (error) {
+    clearCommentary();
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
     if (operation !== "scenario/import") ui.dice.replaceChildren();
     try { snapshot = await request(""); }
@@ -637,10 +666,15 @@ async function mutate(operation, body = {}) {
   return succeeded;
 }
 
-async function playEvents(view, generation = playbackGeneration) {
+async function playEvents(view, generation = playbackGeneration, includeCommentaries = true) {
     const steps = new Map(view.result.resolutionSteps.map(step => [step.eventIndex, step.stateAfter]));
+    const comments = includeCommentaries ? view.commentaries ?? [] : [];
+    const commentsAt = index => {
+      for (const comment of comments) if (comment.eventIndex === index) showCommentary(comment);
+    };
     for (const [index, event] of view.presentation.events.entries()) {
       if (generation !== playbackGeneration) return;
+      commentsAt(index);
       ui.events.append(text("li", describe(event)));
       const occurrence = view.result.events[index];
       const projected = view.presentation.resolutionSteps.find(step => step.eventIndex === index);
@@ -665,6 +699,7 @@ async function playEvents(view, generation = playbackGeneration) {
         if (["AttackTargetResolved", "PostureChanged", "UnitCreated", "PlacesSwapped", "UnitRepositioned"].includes(occurrence?.kind)) await guardedPause(380);
       }
     }
+    if (generation === playbackGeneration) commentsAt(view.presentation.events.length);
 }
 
 function describeScenario() {
@@ -909,4 +944,7 @@ ui.refresh.addEventListener("click", refresh);
 ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); cancelPause?.(); updateControls(); });
 // Designer exports enter the same revisioned scenario replacement operation as pasted imports.
 globalThis.delvePlayDesign = transport => replaceScenario("scenario/import", { transport }, true);
+ui["commentary-toggle"].addEventListener("click", () => { commentaryVisible = !commentaryVisible; renderCommentary(); });
+renderCommentary();
+
 await refresh();
