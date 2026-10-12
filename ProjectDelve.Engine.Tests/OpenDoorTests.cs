@@ -129,7 +129,7 @@ public sealed class OpenDoorTests
         var moved = Choose(opened.State, move.Key);
         var second = Choose(moved.State, DoorChoice(moved).Key);
         Assert.Equal(2, second.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.OpenDoor));
-        Assert.True(second.State.RoundComplete); // Only End Turn remains; resolves normally.
+        Assert.True(second.State.IsCompleted); // Only End Turn remains; resolves normally.
     }
 
     [Fact]
@@ -154,12 +154,12 @@ public sealed class OpenDoorTests
         Assert.DoesNotContain(pending.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
         var stayed = Choose(pending.State, "stay");
         var ended = Choose(stayed.State, "end-turn");
-        Assert.True(ended.State.RoundComplete);
+        Assert.True(ended.State.IsCompleted);
         Assert.Equal(Door, Assert.Single(ended.State.Physical.Board.Edges));
         Assert.DoesNotContain(TestGame.OperationEvents(ended), e => e.Kind == "DoorOpened");
         Assert.Throws<InvalidOperationException>(() => Choose(ended.State, DoorChoice(stayed).Key));
         var automatic = TestGame.Advance(stayed.State, new DefaultAutomatedProvider(), new Random());
-        Assert.True(automatic.State.RoundComplete);
+        Assert.True(automatic.State.IsCompleted);
         Assert.DoesNotContain(TestGame.OperationEvents(automatic), e => e.Kind == "DoorOpened");
     }
 

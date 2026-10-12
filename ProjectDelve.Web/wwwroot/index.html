@@ -49,6 +49,8 @@
     </section>
     <aside aria-label="Gameplay and Unit card">
       <p id="status" aria-live="polite">Loading…</p>
+      <section id="game-result" role="status" aria-live="polite" hidden></section>
+      <section id="objectives" aria-label="Side objectives"></section>
       <div class="turn-strip"><div id="active-token"></div><div id="active-unit"></div></div>
       <section id="world-effects" aria-label="World Effects" hidden></section>
       <div id="bag" aria-label="Remaining Activation Bag"></div>
@@ -133,6 +135,6 @@
       <p class="legend">Boards: 1..50 × 1..50, a host/editor limit. Drafts may be invalid. Reload discards this draft; export to keep it.</p>
     </aside>
   </main>
-  <footer>One game lives in this host. Start or restart a scenario to discard the current game. There are no victory conditions.</footer>
+  <footer>One game lives in this host. Start or restart a scenario to discard the current game.</footer>
 </body>
 </html>

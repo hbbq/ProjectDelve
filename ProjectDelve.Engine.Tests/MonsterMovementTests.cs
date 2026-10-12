@@ -142,6 +142,7 @@ public sealed class MonsterMovementTests
     // Supply query answers directly to isolate ranking priorities from geometry.
     private sealed class RankingQueries : IGameplayQueries
     {
+        public IReadOnlyList<SideObjective> Objectives => [];
         public Cell Current { get; init; } = new(0, 0);
         public HashSet<Cell> AttackPositions { get; } = [];
         public Dictionary<Cell, int?> Distances { get; } = [];

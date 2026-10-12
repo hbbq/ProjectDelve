@@ -351,6 +351,7 @@ public sealed class ContinuationTests
             Types = [shaman, goblin], Units = [shaman.CreateUnit("source", "gold"), goblin.CreateUnit("old", "gold"), goblin.CreateUnit("other", "silver")],
             Controllers = [new(new(shaman.Id, "gold"), ControllerKind.Human), new(new(goblin.Id, "gold"), ControllerKind.Human), new(new(goblin.Id, "silver"), ControllerKind.Automated)]
         };
+        TestGame.WithIsolatedOpponent(state, "silver");
         var dice = new Dice { Draw = alreadyResolved ? new(goblin.Id, "gold") : null };
         var result = GameEngine.StartRound(state, dice, false);
         while (result.NextInput!.Token != new ActivationToken(shaman.Id, "gold"))

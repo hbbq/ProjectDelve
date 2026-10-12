@@ -34,7 +34,7 @@ public sealed class UniqueUnitTypeTests
         var type = UnitType.Define("test-type", "Test", Stats(0, 0, 0, 0, hp), Unique());
         Assert.True(type.Unique);
         Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
-        Assert.True(TestGame.StartRound(Setup(type, "side"), new Random(), false).State.RoundComplete);
+        Assert.True(TestGame.StartRound(Setup(type, "side"), new Random(), false).State.IsCompleted);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class UniqueUnitTypeTests
         else state.Units[0] = state.Units[0] with { CurrentHp = 0 };
         state.PlaceUnit(type.Id, "later", "red", new(1, 0), Posture.Lying);
         Assert.Single(state.Units.Where(u => u.CurrentHp > 0));
-        Assert.True(TestGame.StartRound(state, new Random(), false).State.RoundComplete);
+        Assert.True(TestGame.StartRound(state, new Random(), false).State.IsCompleted);
     }
 
     [Fact]

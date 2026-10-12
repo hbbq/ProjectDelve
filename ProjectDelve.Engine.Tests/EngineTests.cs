@@ -115,10 +115,11 @@ public sealed class EngineTests
         Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved" && e.Hits == 1 &&
             e.Blocks == 0 && e.Damage == 1);
         Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "UnitDefeated" && e.UnitId == "monster");
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
+        Assert.Equal(new[] { "blue" }, result.State.Completion!.AchievedSideIds);
         Assert.Empty(result.State.Physical.Figures.Where(f => f.Id == "monster"));
         Assert.Equal(0, result.State.Units.Single(u => u.Id == "monster").CurrentHp);
-        Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "TokenDrawn" && e.TypeId == "monster-type");
+        Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "TokenDrawn" && e.TypeId == "monster-type");
     }
 
     [Fact]
@@ -167,7 +168,7 @@ public sealed class EngineTests
         Assert.Throws<ArgumentException>(() => TestGame.Advance(restored, new Choice("invented"), random));
         Assert.Equal(DecisionKind.Activation, restored.Pending!.Kind);
         result = TestGame.Advance(restored, new Choice("1,0"), random);
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
     }
 
     [Fact]
@@ -246,7 +247,7 @@ public sealed class EngineTests
         state.Physical.Figures.Add(new Figure("other", new Cell(1, 0)));
         var random = new ScriptedRandom("hero-type", "other");
         var result = TestGame.StartRound(state, random);
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
         Assert.Null(result.NextInput);
     }
 

@@ -2,6 +2,10 @@ using System.Collections.Immutable;
 
 namespace ProjectDelve.Engine;
 
+public enum ScenarioObjective { EliminateEnemies }
+public sealed record SideObjective(string SideId, ScenarioObjective Objective = ScenarioObjective.EliminateEnemies);
+public sealed record GameCompletion(ImmutableArray<string> AchievedSideIds);
+
 public sealed record ActivationToken(string TypeId, string SideId);
 public enum ControllerKind { Human, Automated }
 public sealed record ControllerAssignment(ActivationToken Token, ControllerKind Controller);
@@ -253,6 +257,7 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    public GameCompletion? Completion { get; init; }
     public ActivationToken? Token { get; init; }
     public string? SideId { get; init; }
     public string? SourceUnitId { get; init; }
@@ -295,6 +300,9 @@ public sealed class GameState
         Units.Add(type.CreateUnit(id, sideId));
         Physical.Figures.Add(new(id, cell, posture));
     }
+    public List<SideObjective> Objectives { get; set; } = [];
+    public GameCompletion? Completion { get; set; }
+    public bool IsCompleted => Completion is not null;
     public WorldEffectsSettings? WorldEffects { get; set; }
     public WorldDeck? WorldDeck { get; set; }
     public int Round { get; set; }
@@ -411,6 +419,7 @@ public sealed class GameState
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
+        Objectives = [.. Objectives], Completion = Completion,
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),

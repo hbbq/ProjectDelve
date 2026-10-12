@@ -1,6 +1,6 @@
 import { styleSide } from "./side-colors.js";
 
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -353,7 +353,7 @@ function renderSnapshot() {
     if (!boardChoices.has(node)) boardChoices.set(node, new Map());
     boardChoices.get(node).set(candidate.key, candidate);
   };
-  ui.prompt.textContent = decision ? `${decision.prompt} · ${decision.unitId ?? ""}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? `${decision.prompt} · ${decision.unitId ?? ""}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
   for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
     if (!visibleChoice(candidate)) continue;
     const selection = candidate.interaction;
@@ -428,7 +428,7 @@ function bindBoardChoice(node, candidates) {
 
 function updateControls() {
   if (streaming) busy = commandPending || postInFlight || playbackRunning || playbackQueue.length > 0 ||
-    !streamConnected || !latestUpdate || !["waiting-human", "idle"].includes(latestUpdate.status) || displayedSequence !== receivedSequence;
+    !streamConnected || !latestUpdate || !["waiting-human", "idle", "completed"].includes(latestUpdate.status) || displayedSequence !== receivedSequence;
   if (streaming && latestUpdate) {
     if (latestUpdate.status === "waiting-external") ui.prompt.textContent = "Waiting for an external controller.";
     if (latestUpdate.status === "resolving") ui.prompt.textContent = "Game resolving.";
@@ -443,7 +443,7 @@ function updateControls() {
   ui.filter.disabled = busy || !snapshot;
   ui.auto.disabled = busy || !snapshot;
   ui["decision-commentary"].disabled = busy || !snapshot?.presentation.decision;
-  ui.round.disabled = busy || !snapshot || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
+  ui.round.disabled = busy || !snapshot || !!snapshot.result.state.completion || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
   ui.round.textContent = snapshot?.result.state.round ? "Start next round" : "Start round";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
   for (const button of ui["unit-card"].querySelectorAll("button")) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
@@ -843,7 +843,23 @@ function renderWorldEffects(world) {
 }
 
 function renderTurn(state) {
-  ui.status.textContent = `Round ${state.round} \u00b7 ${state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
+  const completion = state.completion;
+  const result = ui["game-result"];
+  result.hidden = !completion;
+  result.replaceChildren();
+  if (completion) {
+    const sides = completion.achievedSideIds;
+    result.append(text("h2", sides.length === 1 ? `Victory: ${sides[0]}` : "Simultaneous victory"));
+    result.append(text("p", `Game over. ${sides.join(", ")} ${sides.length === 1 ? "achieved its Objective." : "each achieved their Objective."}`));
+  }
+  ui.objectives.replaceChildren(text("h2", "Side objectives"));
+  for (const objective of snapshot?.presentation.objectives ?? []) {
+    const row = text("p", `${objective.sideId}: ${objective.name}`);
+    styleSide(row, objective.sideId);
+    if (completion) row.append(text("strong", completion.achievedSideIds.includes(objective.sideId) ? " - Achieved" : " - Not achieved"));
+    ui.objectives.append(row);
+  }
+  ui.status.textContent = `Round ${state.round} \u00b7 ${state.completion ? "Game over" : state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
   ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining`));
   for (const token of state.bag ?? []) ui.bag.append(tokenNode(token, state));
   ui["active-token"].replaceChildren(text("small", "Drawn token"));
@@ -852,7 +868,7 @@ function renderTurn(state) {
   else ui["active-token"].append(text("span", "Awaiting draw"));
   ui["active-unit"].textContent = state.currentUnitId
     ? `Activating \u00b7 ${displayedCards[state.currentUnitId]?.displayName ?? state.currentUnitId} \u00b7 ${state.currentUnitId}`
-    : "Choose a Unit or start a round";
+    : state.completion ? "Game complete" : "Choose a Unit or start a round";
 }
 
 function actionLabel(pool) {

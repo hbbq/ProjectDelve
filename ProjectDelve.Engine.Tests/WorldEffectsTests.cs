@@ -142,8 +142,9 @@ public sealed class WorldEffectsTests
         Assert.Single(result.State.WorldDeck!.ActiveContinuous);
         var healed = After(result, "HealResolved", "hero");
         Assert.Equal(state.Types[0].Hp - 2, healed.Units.Single(u => u.Id == "hero").CurrentHp);
-        var token = Assert.Single(result.Events, e => e.Kind == "TokenDrawn");
-        Assert.Equal(UnitTypeIds.Barbarian, token.Token!.TypeId);
+        Assert.DoesNotContain(result.Events, e => e.Kind == "TokenDrawn");
+        Assert.True(result.State.IsCompleted);
+        Assert.Equal(new[] { "red" }, result.State.Completion!.AchievedSideIds);
         Assert.DoesNotContain(result.State.Bag, t => t.TypeId is UnitTypeIds.BombImp or UnitTypeIds.Grunt);
         Assert.Empty(result.State.PendingExplosions);
     }
@@ -158,7 +159,8 @@ public sealed class WorldEffectsTests
         var result = Start(state);
         Assert.Equal(new[] { "grunt", "other" }, result.Events.Where(e => e.Kind == "WorldDamageResolved").Select(e => e.TargetId));
         Assert.Empty(result.State.Physical.Figures);
-        Assert.Empty(result.State.Bag); Assert.True(result.State.RoundComplete);
+        Assert.Empty(result.State.Bag); Assert.True(result.State.IsCompleted);
+        Assert.Equal(new[] { "blue", "red" }, result.State.Completion!.AchievedSideIds);
         Assert.DoesNotContain(result.Events, e => e.Kind == "TokenDrawn");
     }
 

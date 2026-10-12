@@ -56,7 +56,7 @@ public sealed class DashTests
     [Fact]
     public void DashSpendsUseAndBonusActionAndExpandsAuthoritativeMovementAfterSerialization()
     {
-        var started = Start(State());
+        var started = Start(TestGame.WithIsolatedOpponent(State()));
         Assert.True(Dash(started).Relevant);
         Assert.DoesNotContain(Moves(started), c => c.Destination == new Cell(6, 0));
         Assert.Throws<ArgumentException>(() => Choose(started.State, "6,0"));
@@ -127,7 +127,7 @@ public sealed class DashTests
         Assert.Equal(6, snapshot.EffectiveMovOf("rogue"));
         Assert.Equal(new AbilityUses(2, 1), Uses(dashed.State));
         dashed = Choose(dashed.State, "end-turn");
-        Assert.True(dashed.State.RoundComplete);
+        Assert.True(dashed.State.IsCompleted);
         Assert.Empty(dashed.State.ModifiersThisTurn);
     }
 
@@ -184,14 +184,14 @@ public sealed class DashTests
     {
         var started = Start(State(), true);
         var automatic = Choose(started.State, "stay", true);
-        Assert.True(automatic.State.RoundComplete);
+        Assert.True(automatic.State.IsCompleted);
         Assert.Equal(new AbilityUses(2, 2), Uses(automatic.State));
         var exposed = Choose(started.State, "stay");
         Assert.False(Dash(exposed).Relevant);
         Assert.Contains(exposed.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn && c.Relevant);
         Assert.Equal(new AbilityUses(2, 1), Uses(Choose(exposed.State, Dash(exposed).Key).State));
         var refreshed = GameEngine.RefreshChoices(exposed.State, new Random());
-        Assert.True(refreshed.State.RoundComplete);
+        Assert.True(refreshed.State.IsCompleted);
         Assert.Equal(new AbilityUses(2, 2), Uses(refreshed.State));
     }
 
@@ -203,6 +203,7 @@ public sealed class DashTests
         state.Units[0] = state.Units[0] with { CurrentHp = 1 };
         state.Units.Add(state.Types[0].CreateUnit("ally", "blue"));
         state.Physical.Figures.Add(new("ally", new(0, 1)));
+        TestGame.WithIsolatedOpponent(state);
         var started = Choose(Start(state).State, "rogue");
         var dashed = Choose(started.State, Dash(started).Key);
         Assert.Equal(4, dashed.State.EffectiveMovOf("ally"));

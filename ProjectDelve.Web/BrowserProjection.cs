@@ -21,6 +21,7 @@ public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entri
 {
     public string? FootprintLabel { get; init; }
 }
+public sealed record BrowserObjective(string SideId, string Name);
 public sealed record BrowserWorldCard(string Id, string Name, string Text, bool Continuous);
 public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
     IReadOnlyList<BrowserWorldCard> ActiveContinuous, BrowserWorldCard? ResolvingCard);
@@ -30,6 +31,8 @@ public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitI
     int Hits = 0, int Blocks = 0, int Damage = 0);
 public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
 {
+    public GameCompletion? Completion { get; init; }
+    public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
 }
@@ -37,6 +40,8 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
     BrowserDecision? Decision, IReadOnlyList<BrowserOutcome> Events,
     IReadOnlyList<BrowserResolutionStep> ResolutionSteps)
 {
+    public GameCompletion? Completion { get; init; }
+    public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
 }
@@ -49,8 +54,15 @@ public static class BrowserProjection
         Cards(result.State), Decision(result.NextInput, result.State),
         result.Events.Select(e => Outcome(e, result.State)).ToArray(),
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))
-            { Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter) }).ToArray())
-        { Figures = Figures(result.State), WorldEffects = WorldEffects(result.State) };
+            { Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter), Completion = s.StateAfter.Completion }).ToArray())
+        { Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion };
+
+    public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
+        new BrowserObjective(o.SideId, o.Objective switch
+        {
+            ScenarioObjective.EliminateEnemies => "Eliminate Enemies",
+            _ => throw new ArgumentOutOfRangeException(nameof(o.Objective))
+        })).ToArray();
 
     public static BrowserWorldCard WorldCard(WorldCard card)
     {
@@ -150,6 +162,11 @@ public static class BrowserProjection
         string description;
         switch (e.Kind)
         {
+            case "GameCompleted":
+                description = "Game over - " + (e.Completion!.AchievedSideIds.Length == 1
+                    ? $"Victory: {e.Completion.AchievedSideIds[0]} achieved its Objective"
+                    : $"Simultaneous victory: {string.Join(", ", e.Completion.AchievedSideIds)} each achieved their Objective");
+                break;
             case "WorldDeckShuffled":
                 description = "World Deck shuffled";
                 break;

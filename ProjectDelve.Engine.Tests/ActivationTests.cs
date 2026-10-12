@@ -101,7 +101,8 @@ public sealed class ActivationTests
         state.Units = [new("first", "idle", "red", 1)];
         state.Physical.Figures.RemoveAll(f => f.Id != "first");
         var result = TestGame.StartRound(state, new Random(), relevanceAutoChoice);
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
+        Assert.Equal(new[] { "red" }, result.State.Completion!.AchievedSideIds);
         Assert.Null(result.NextInput);
         Assert.Equal(new[] { new Cell(1, 0) }, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "MovementCompleted").Path);
     }

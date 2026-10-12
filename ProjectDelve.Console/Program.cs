@@ -35,6 +35,11 @@ try
     {
         ShowEvents(result.Events);
         ShowState(result.State);
+        if (result.State.Completion is { } completion)
+        {
+            Console.WriteLine($"Game over. Objective achieved by Side(s): {string.Join(", ", completion.AchievedSideIds)}.");
+            break;
+        }
         if (result.State.RoundComplete)
         {
             Console.WriteLine("Round complete.");
@@ -68,6 +73,8 @@ static void ShowState(GameState state)
     if (state.ActiveToken is not null)
         Console.WriteLine($"Move done: {state.MoveDone} | Action done: {state.ActionDone} | Current Unit: {state.CurrentUnitId ?? "-"} | Completed Units: {string.Join(", ", state.CompletedUnitIds)}");
     Console.WriteLine($"Bag: [{string.Join(", ", state.Bag)}]");
+    foreach (var objective in state.Objectives)
+        Console.WriteLine($"Side {objective.SideId} objective: {ObjectiveLabel(objective.Objective)}");
     var board = state.Physical.Board;
     Console.Write("     ");
     for (var x = 0; x < board.Width; x++) Console.Write($"{x,-4}");
@@ -118,6 +125,12 @@ static void ShowState(GameState state)
     }
     Console.WriteLine();
 }
+
+static string ObjectiveLabel(ScenarioObjective objective) => objective switch
+{
+    ScenarioObjective.EliminateEnemies => "Eliminate Enemies",
+    _ => objective.ToString()
+};
 
 static char EdgeMarker(Board board, Cell a, Cell b) =>
     board.Edges.FirstOrDefault(e => e.A == a && e.B == b || e.A == b && e.B == a)?.Kind switch

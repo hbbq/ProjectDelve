@@ -94,7 +94,8 @@ public sealed class GoblinTests
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "hero");
         Assert.Contains(result.NextInput!.Candidates, c => c.Key == "1,1");
         var done = TestGame.Advance(result.State, new Choice(null), new Random());
-        Assert.True(done.State.RoundComplete);
+        Assert.True(done.State.IsCompleted);
+        Assert.Equal(new[] { "red" }, done.State.Completion!.AchievedSideIds);
         Assert.True(TestGame.OperationEvents(done)[0].IsMoveAfterAttack);
         Assert.Single(TestGame.OperationEvents(done)[0].Path!);
     }
@@ -402,10 +403,12 @@ public sealed class GoblinTests
         Assert.Null(stayed.State.MoveAfterAttackAllowance);
         Assert.Null(stayed.State.CurrentUnitId);
         Assert.Null(stayed.NextInput);
-        Assert.True(stayed.State.RoundComplete);
+        Assert.Equal(noHostiles, stayed.State.IsCompleted);
+        Assert.Equal(!noHostiles, stayed.State.RoundComplete);
         // The fallback is only a provider preference; other providers can still move.
         var moved = TestGame.Advance(extra.State, new Choice("3,1"), new Random());
         Assert.Equal(new Cell(3, 1), moved.State.Physical.Figures[0].Position);
-        Assert.True(moved.State.RoundComplete);
+        Assert.Equal(noHostiles, moved.State.IsCompleted);
+        Assert.Equal(!noHostiles, moved.State.RoundComplete);
     }
 }

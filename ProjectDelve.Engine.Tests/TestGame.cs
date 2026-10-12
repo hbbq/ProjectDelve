@@ -6,6 +6,19 @@ namespace ProjectDelve.Engine.Tests;
 // and explicitly submit every intervening dice continuation through the normal API.
 internal static class TestGame
 {
+    internal static GameState WithIsolatedOpponent(GameState state, string sideId = "red")
+    {
+        var board = state.Physical.Board;
+        var expanded = board with { Height = board.Height + 2, Edges = [.. board.Edges] };
+        for (var x = 0; x < board.Width; x++)
+            expanded.Edges.Add(new(new(x, board.Height - 1), new(x, board.Height), EdgeKind.Wall));
+        state.Physical = state.Physical with { Board = expanded };
+        state.Types.Add(new("isolated-type", 0, 0, 0, 0, 1));
+        state.Units.Add(new("isolated", "isolated-type", sideId, 1));
+        state.Physical.Figures.Add(new("isolated", new(0, board.Height + 1)));
+        Author(state);
+        return state;
+    }
     internal static void Author(GameState state)
     {
         foreach (var group in state.Units.Select(u => new ActivationToken(u.TypeId, u.SideId)).Distinct())

@@ -142,10 +142,24 @@ public sealed class LabyrinthShaperTests
     }
 
     [Fact]
-    public void FullyClippedNoOpStillConsumesBonusOpportunityAndIsAvailableNextRound()
+    public void FullyClippedNoOpConsumesBonusOpportunityAndNoOpIsAvailableNextRound()
     {
-        var world = World(new(0, 0)); world.Physical = world.Physical with { Board = new Board(1, 1, []) };
-        world.Units.RemoveAt(1); world.Physical.Figures.RemoveAt(1);
+        var world = World(new(0, 0));
+        var clipped = World(new(0, 0));
+        clipped.Physical = clipped.Physical with { Board = new Board(1, 1, []) };
+        clipped.Units.RemoveAt(1); clipped.Physical.Figures.RemoveAt(1);
+        var completed = Pick(Start(clipped), Key);
+        Assert.Empty(completed.State.Physical.Board.Edges);
+        Assert.Equal(1, completed.ResolutionSteps.Single(step => completed.Events[step.EventIndex].Kind == "AbilityUsed")
+            .StateAfter.BonusActionUsesThisActivation("Reshape Room"));
+        Assert.True(completed.State.IsCompleted);
+
+        // Keep a living hostile beyond impassable Cells so a no-op can also be exercised next Round.
+        world.Physical = world.Physical with { Board = new Board(1, 4, [])
+            { Terrain = [new(new(0, 1), TerrainKind.Water), new(new(0, 2), TerrainKind.Water)] } };
+        world.Types[1] = new("idle-enemy", 0, 0, 0, 0, 1);
+        world.Units[1] = new("enemy", "idle-enemy", "blue", 1);
+        world.Physical.Figures[1] = new("enemy", new(0, 3));
         var result = Pick(Start(world), Key);
         Assert.Empty(result.State.Physical.Board.Edges);
         var used = result.ResolutionSteps.Single(step => result.Events[step.EventIndex].Kind == "AbilityUsed").StateAfter;

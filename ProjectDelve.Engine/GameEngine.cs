@@ -12,10 +12,12 @@ public static partial class GameEngine
     public static EngineResult StartRound(GameState previous, IRandomProvider random, bool autoChooseSingleRelevantChoice = true,
         Action<RulesEvent, ResolutionStep>? observe = null)
     {
+        if (previous.IsCompleted) throw new InvalidOperationException("The game is complete.");
         if (previous.Round != 0 && !previous.RoundComplete)
             throw new InvalidOperationException("The current round is still active.");
         ValidateScenario(previous);
         var state = previous.Copy();
+        EnsureObjectives(state);
         // Scenario constructors may supply bare Units; initialize content once at game start.
         if (state.Round == 0)
             state.Units = state.Units.Select(u => u with
@@ -53,6 +55,11 @@ public static partial class GameEngine
         if (state.WorldEffects is not null)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
+        if (state.WorldEffects is { CardsPerRound: > 0 })
+        {
+            EvaluateObjectives(state, events);
+            if (state.IsCompleted) return new(state, events.Events, null) { ResolutionSteps = events.Steps };
+        }
         state.Bag = state.Types.SelectMany(t => state.Units
             .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
             .Distinct().OrderBy(side => side, StringComparer.Ordinal)
@@ -67,8 +74,10 @@ public static partial class GameEngine
     public static EngineResult Advance(GameState previous, IDecisionProvider decisions, IRandomProvider random, bool autoChooseSingleRelevantChoice = true,
         Action<RulesEvent, ResolutionStep>? observe = null)
     {
+        if (previous.IsCompleted) throw new InvalidOperationException("The game is complete.");
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
+        EnsureObjectives(state);
         var events = new ResolutionEvents(state, observe);
         if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
             (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
@@ -335,7 +344,7 @@ public static partial class GameEngine
     private static void RunUntilDecision(GameState state, IRandomProvider random, ResolutionEvents events,
         bool autoChooseSingleRelevantChoice)
     {
-        while (state.Pending is null && !state.RoundComplete)
+        while (state.Pending is null && !state.RoundComplete && !state.IsCompleted)
         {
             if (state.AttackInProgress is not null)
             {
@@ -366,6 +375,7 @@ public static partial class GameEngine
                 (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
                  !state.IsUpright(state.CurrentUnitId)))
                 CompleteUnit(state, events);
+            if (state.IsCompleted) return;
             if (state.CurrentUnitId is null && EligibleUnits(state).Count == 0)
             {
                 state.CompletedUnitIds.Clear();
@@ -395,6 +405,7 @@ public static partial class GameEngine
         state.BonusActionsUsedThisActivation.Clear();
         state.ModifiersThisTurn.Clear();
         events.Add(new RulesEvent("ActivationCompleted", unitId) { Token = state.ActiveToken });
+        EvaluateObjectives(state, events);
     }
 
     private static void ChangePosture(GameState state, string unitId, Posture posture, ResolutionEvents events, string? sourceUnitId = null, string? actionId = null)
@@ -670,6 +681,7 @@ public static partial class GameEngine
         bool autoChooseSingleRelevantChoice = true, Action<RulesEvent, ResolutionStep>? observe = null)
     {
         var state = previous.Copy();
+        EnsureObjectives(state);
         state.Pending = null;
         var events = new ResolutionEvents(state, observe);
         if (state.Round > 0) RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);

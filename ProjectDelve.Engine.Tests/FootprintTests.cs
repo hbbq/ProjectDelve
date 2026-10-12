@@ -468,7 +468,7 @@ public sealed class FootprintTests
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Lying };
         var result = TestGame.StartRound(state, new Dice(), false);
         Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "PostureChanged"));
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
         Assert.Single(TestGame.OperationEvents(result).Where(e => e.Kind == "TokenDrawn"));
         Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind is "MovementCompleted" or "AttackResolved");
         Assert.Equal(4, FootprintGeometry.OccupiedCells(result.State, "actor").Count);

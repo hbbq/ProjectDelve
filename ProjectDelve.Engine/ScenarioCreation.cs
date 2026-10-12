@@ -63,6 +63,18 @@ internal static class ScenarioCreation
             if (!definition.Agency.Any(a => a.UnitTypeId == definition.Units[index].UnitTypeId && a.SideId == definition.Units[index].SideId))
                 throw ScenarioValidationContext.At(new ArgumentException("Every initial Unit Type + Side needs an explicit agency assignment.", nameof(definition)), $"units[{index}]");
 
+        var sides = definition.Units.Select(u => u.SideId).Concat(definition.Agency.Select(a => a.SideId))
+            .Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
+        var objectives = definition.Objectives ?? [];
+        HashSet<string> objectiveSides = new(StringComparer.Ordinal);
+        for (var index = 0; index < objectives.Count; index++)
+        {
+            var objective = objectives[index];
+            if (objective is null || !sides.Contains(objective.SideId) || !Enum.IsDefined(objective.Objective) ||
+                !objectiveSides.Add(objective.SideId))
+                throw ScenarioValidationContext.At(new ArgumentException("Invalid or duplicate Side Objective.", nameof(definition)), $"objectives[{index}]");
+        }
+
         var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id)
             ?? throw new ArgumentException($"Unknown Unit Type ID '{id}'.", nameof(definition))).ToList();
         var overrides = board.Cells.ToDictionary(c => c.Position, c => c.Terrain);
@@ -82,6 +94,8 @@ internal static class ScenarioCreation
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList()) { Terrain = terrain }, []),
             Types = types, Units = [], WorldEffects = definition.WorldEffects,
+            Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
+                .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };

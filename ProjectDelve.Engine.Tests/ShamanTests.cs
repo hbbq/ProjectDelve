@@ -58,7 +58,7 @@ public sealed class ShamanTests
             UnitAuthoring.Ability("Call Ally", UnitAuthoring.Unlimited(),
                 UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, posture)))
             .WithBehaviors(UnitBehavior.UseSummon);
-        var initial = State();
+        var initial = State(enemy: new(4, 4));
         initial.Types[0] = summoner;
         initial.Units[0] = summoner.CreateUnit("shaman", "red");
         var expectedType = existing ? UnitType.Wizard() with { Hp = 7, DisplayName = "Learned Wizard" } : UnitType.Wizard();
@@ -147,7 +147,7 @@ public sealed class ShamanTests
     [Fact]
     public void SpawnCreatesOrdinaryLyingGoblinConsumesActionAndPreservesBagSnapshot()
     {
-        var initial = State();
+        var initial = State(enemy: new(4, 4));
         var action = Action(initial);
         Assert.DoesNotContain("goblin-type", action.State.Bag.Select(t => t.TypeId));
         var result = TestGame.Advance(Restore(action.State), new DefaultAutomatedProvider(), new Random(), false);
@@ -158,7 +158,7 @@ public sealed class ShamanTests
         Assert.Equal(UnitType.Goblin(), step.Types.Single(t => t.Id == goblin.TypeId));
         Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red"), goblin);
         Assert.Equal(new Figure(goblin.Id, new(1, 1), Posture.Lying), step.Physical.Figures.Single(f => f.Id == goblin.Id));
-        Assert.Single(initial.Units);
+        Assert.Equal(2, initial.Units.Count);
         Assert.True(result.State.RoundComplete);
         Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.TypeId == "goblin-type" && e.Kind == "TokenDrawn");
 
@@ -191,7 +191,7 @@ public sealed class ShamanTests
             for (var x = 1; x <= 3; x++)
                 if ((x != 2 || y != 2) && (x != 1 || y != 1))
                     state.Physical.Board.Terrain.Add(new(new(x, y), TerrainKind.Water));
-        Assert.True(TestGame.StartRound(state, new Random(), false).State.RoundComplete);
+        Assert.True(TestGame.StartRound(state, new Random(), false).State.IsCompleted);
         Assert.Null(provider.Choose(new(DecisionKind.Act, "shaman-type", "shaman", [], true), new GameplayQueries(state)));
     }
 
@@ -270,6 +270,7 @@ public sealed class ShamanTests
     }
     private sealed class FleeRankingQueries(IGameplayQueries real, Dictionary<Cell, int?> distances) : IGameplayQueries
     {
+        public IReadOnlyList<SideObjective> Objectives => real.Objectives;
         public IReadOnlyList<Cell> OccupiedCellsOf(string unitId) => real.OccupiedCellsOf(unitId);
         public Cell PositionOf(string id) => real.PositionOf(id);
         public UnitBehavior BehaviorsOf(string id) => real.BehaviorsOf(id);

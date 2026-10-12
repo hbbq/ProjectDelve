@@ -103,6 +103,7 @@ public sealed class PlaytestGame : IDisposable
         switch (request.Operation)
         {
             case "round":
+                if (stable.Result.State.IsCompleted) throw Error(409, "The game is complete. Restart or choose a scenario to play again.");
                 if (stable.Result.State.Round != 0 && !stable.Result.State.RoundComplete) throw Error(409, "The current round is still active.");
                 break;
             case "decision":
@@ -282,7 +283,7 @@ public sealed class PlaytestGame : IDisposable
                 { ExternalDecisionId = context.DecisionId, ExternalError = error });
         }
     }
-    private string StatusFor(GameState current) => current.Pending is null ? "idle"
+    private string StatusFor(GameState current) => current.IsCompleted ? "completed" : current.Pending is null ? "idle"
         : current.ControllerFor(current.Pending) == ControllerKind.Human ? "waiting-human"
         : HasExternal ? "waiting-external" : "resolving";
     private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId);

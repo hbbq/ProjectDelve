@@ -43,7 +43,7 @@ public sealed class RandomMutationTests
             Types = [new UnitType("a", 0, 0, 0, 0, 1), new UnitType("b", 0, 0, 0, 0, 1),
                 new UnitType("c", 0, 0, 0, 0, 1)],
             Units = [new Unit("a", "a", "blue", 1), new Unit("b", "b", "blue", 1),
-                new Unit("c", "c", "blue", 1)]
+                new Unit("c", "c", "red", 1)]
         };
         var original = JsonSerializer.Serialize(state);
         var random = new MutatingRandom();

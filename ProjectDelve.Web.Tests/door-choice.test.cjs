@@ -1592,3 +1592,63 @@ for (const mode of ["disabled", "skip"]) {
     assert.equal(h.elements.get("commentary-panel").hidden, true);
   });
 }
+
+for (const mode of ["animate", "disabled", "skip"]) {
+  test(`objective results appear only at authoritative completion playback (${mode})`, async () => {
+    const initial = response(), final = response();
+    initial.presentation.objectives = final.presentation.objectives = [
+      { sideId: "red", name: "Eliminate Enemies" }, { sideId: "blue", name: "Eliminate Enemies" }
+    ];
+    const before = state(), after = state();
+    after.completion = { achievedSideIds: ["red", "blue"] };
+    after.currentUnitId = null; after.activeToken = null;
+    final.result.state = after; final.presentation.decision = null;
+    final.result.nextInput = null;
+    final.result.events = [{ kind: "UnitDefeated" }, { kind: "GameCompleted", completion: after.completion }];
+    final.presentation.events = [{ role: "Defeat", text: "Defeated" }, { role: "Notice", text: "Game over" }];
+    final.result.resolutionSteps = [before, after].map((stateAfter, eventIndex) => ({ eventIndex, stateAfter }));
+    final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+    const h = harness(initial, async () => ({ ok: true, json: async () => final })), shown = [];
+    h.context.mode = mode; h.context.shown = shown;
+    h.run(`ui.animate.checked = mode !== "disabled"; pause = async () => {};
+      const renderOriginal = renderState;
+      renderState = (...args) => { renderOriginal(...args); shown.push(ui["game-result"].hidden); };
+      const presentOriginal = present;
+      present = async (...args) => { await presentOriginal(...args); if (mode === "skip") ui.skip.listeners.click(); };`);
+    assert.match(h.elements.get("objectives").textContent, /red: Eliminate Enemies.*blue: Eliminate Enemies/);
+    assert.equal(h.elements.get("game-result").hidden, true);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.deepEqual(shown, [true, false, false]);
+    assert.match(h.elements.get("game-result").textContent, /Simultaneous victory.*red, blue.*each achieved/);
+    assert.match(h.elements.get("objectives").textContent, /red:.*Achieved.*blue:.*Achieved/);
+    assert.equal(h.elements.get("round").disabled, true);
+    assert.match(h.elements.get("prompt").textContent, /Game over/);
+    assert.equal(h.elements.get("restart-scenario").disabled, false);
+  });
+}
+
+test("streamed completion waits for playback and leaves refresh and restart available", async () => {
+  const h = streamHarness();
+  h.emit(update(0, "baseline", "waiting-human"));
+  h.emit(update(1, "event", "resolving", movementView(1)));
+  const completed = response([]);
+  completed.presentation.decision = null; completed.result.nextInput = null;
+  completed.result.state.completion = { achievedSideIds: ["purple"] };
+  completed.presentation.objectives = [{ sideId: "purple", name: "Eliminate Enemies" },
+    { sideId: "gold", name: "Eliminate Enemies" }];
+  completed.result.events = [{ kind: "GameCompleted", completion: completed.result.state.completion }];
+  completed.presentation.events = [{ role: "Notice", text: "Game over" }];
+  completed.result.resolutionSteps = [{ eventIndex: 0, stateAfter: completed.result.state }];
+  completed.presentation.resolutionSteps = [{ eventIndex: 0, cards: completed.presentation.cards }];
+  h.emit(update(2, "event", "resolving", completed));
+  h.emit(update(3, "boundary", "completed", completed));
+  assert.equal(h.run("receivedSequence"), 3);
+  assert.equal(h.elements.get("game-result").hidden, true);
+  while (h.timers.size || h.run("playbackRunning")) await h.tick();
+  assert.equal(h.run("displayedSequence"), 3);
+  assert.match(h.elements.get("game-result").textContent, /Victory: purple/);
+  assert.match(h.elements.get("objectives").textContent, /gold: Eliminate Enemies\s+- Not achieved/);
+  assert.equal(h.elements.get("round").disabled, true);
+  assert.equal(h.elements.get("refresh").disabled, false);
+  assert.equal(h.elements.get("restart-scenario").disabled, false);
+});

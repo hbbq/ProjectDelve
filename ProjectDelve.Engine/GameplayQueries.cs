@@ -2,6 +2,7 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    IReadOnlyList<SideObjective> Objectives { get; }
     Cell PositionOf(string unitId);
     IReadOnlyList<Cell> OccupiedCellsOf(string unitId);
     // Content metadata only; the provider decides whether to use these preferences.
@@ -32,6 +33,8 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
+
+    public IReadOnlyList<SideObjective> Objectives => world.Objectives.AsReadOnly();
 
     public Cell PositionOf(string unitId) =>
         world.Physical.Figures.Single(f => f.Id == unitId).Position;

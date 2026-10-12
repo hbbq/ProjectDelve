@@ -51,9 +51,9 @@ public sealed class AutomaticDecisionTests
     {
         var random = new Random();
         var result = TestGame.StartRound(State(mov: 0), random, autoChooseSingleRelevantChoice: enabled);
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
         Assert.Null(result.NextInput);
-        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "GameCompleted" }, TestGame.OperationEvents(result).Select(e => e.Kind));
     }
 
     [Theory]
@@ -188,10 +188,10 @@ public sealed class AutomaticDecisionTests
         var state = State(mov: 0, rng: 1, atk: 1);
         var result = TestGame.StartRound(state, new Random());
 
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
         Assert.Null(result.NextInput);
         Assert.Null(result.State.Pending);
-        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "RoundCompleted" }, TestGame.OperationEvents(result).Select(e => e.Kind));
+        Assert.Equal(new[] { "TokenDrawn", "MovementCompleted", "GameCompleted" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal(new[] { new Cell(0, 0) }, TestGame.OperationEvents(result)[1].Path);
         Assert.Equal(2, result.State.Units.Single().CurrentHp);
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
@@ -215,10 +215,10 @@ public sealed class AutomaticDecisionTests
         result = TestGame.Advance(result.State, provider, random);
 
         Assert.Equal(1, provider.Calls);
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
         Assert.Equal(new Cell(choice is null ? 0 : 1, 0), result.State.Physical.Figures.Single().Position);
         Assert.Equal("MovementCompleted", TestGame.OperationEvents(result)[0].Kind);
-        Assert.Equal("RoundCompleted", TestGame.OperationEvents(result)[^1].Kind);
+        Assert.Equal("GameCompleted", TestGame.OperationEvents(result)[^1].Kind);
     }
 
     [Theory]
@@ -241,7 +241,8 @@ public sealed class AutomaticDecisionTests
         result = TestGame.Advance(result.State, provider, random);
 
         Assert.Equal(1, provider.Calls);
-        Assert.True(result.State.RoundComplete);
+        Assert.Equal(choice is not null, result.State.IsCompleted);
+        Assert.Equal(choice is null, result.State.RoundComplete);
         Assert.Equal(choice is null ? 1 : 0, result.State.Units.Single(u => u.Id == "enemy").CurrentHp);
         Assert.Equal(choice is not null, TestGame.OperationEvents(result).Any(e => e.Kind == "AttackResolved"));
     }
@@ -290,6 +291,7 @@ public sealed class AutomaticDecisionTests
             Board = new Board(3, 2, []),
             Figures = [.. state.Physical.Figures, new Figure("idle", new Cell(2, 1)), new Figure("next", new Cell(2, 0))]
         };
+        TestGame.WithIsolatedOpponent(state);
         var random = new Random();
         var result = TestGame.StartRound(state, random);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(result.State))!;
@@ -325,7 +327,7 @@ public sealed class AutomaticDecisionTests
 
         var result = TestGame.Advance(restored, new UnexpectedChoice(), new Random(), enabled);
 
-        Assert.True(result.State.RoundComplete);
+        Assert.True(result.State.IsCompleted);
         Assert.Null(result.NextInput);
         Assert.Equal(new Cell(0, 0), result.State.Physical.Figures.Single().Position);
         Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
