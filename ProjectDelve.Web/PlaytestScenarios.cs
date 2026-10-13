@@ -7,6 +7,12 @@ namespace ProjectDelve.Web;
 public sealed record ScenarioDescription(string Id, string Name, string Description)
 {
     public IReadOnlyDictionary<string,string> Controllers => PlaytestScenarios.Definition(Id).Agency.GroupBy(a => a.SideId).ToDictionary(g => g.Key, g => g.All(a => a.Controller == ControllerKind.Human) ? "Human" : "Default Behavior");
+    public IReadOnlyList<ControllerSelection> ControllerAssignments => PlaytestScenarios.Definition(Id).Agency
+        .Select(a => new ControllerSelection(a.UnitTypeId, a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior")).ToArray();
+    public IReadOnlyDictionary<string,string> UnitTypeNames => PlaytestScenarios.Create(Id).Types
+        .ToDictionary(type => type.Id, type => type.DisplayName ?? type.Id);
+    public IReadOnlyList<ActivationToken> InitiallyPresentTokens => PlaytestScenarios.Definition(Id).Units
+        .Select(unit => new ActivationToken(unit.UnitTypeId, unit.SideId)).Distinct().ToArray();
     public IReadOnlyList<string> SideIds => PlaytestScenarios.Definition(Id).Agency.Select(a => a.SideId).Distinct().ToArray();
 }
 
@@ -151,6 +157,7 @@ public static class PlaytestScenarios
             Group(UnitTypeIds.Wizard, "blue", ControllerKind.Human, At(2, 7)),
             Group(UnitTypeIds.Cleric, "blue", ControllerKind.Human, At(1, 7)),
             Group(UnitTypeIds.Shaman, "red", ControllerKind.Automated, At(7, 5)),
+            Group(UnitTypeIds.Goblin, "red", ControllerKind.Automated),
             Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(5, 8)),
             Group(UnitTypeIds.RedDragon, "red", ControllerKind.Automated, At(11, 5))
         ]);

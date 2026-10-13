@@ -34,7 +34,7 @@ public sealed class GambitHttpTests
             var round=await http.PostAsJsonAsync("/api/game/round",new { expectedRevision=setup.Revision }); round.EnsureSuccessStatusCode();
             http.DefaultRequestHeaders.Authorization=new("Bearer","isolated-gambit-test");
             var request=(await http.GetFromJsonAsync<GambitRequest>("/api/controllers/gambit/request",Gambit))!;
-            Assert.Equal(1,request.SchemaVersion); Assert.Equal("gambit",request.Binding.BindingId);
+            Assert.Equal(2,request.SchemaVersion); Assert.Equal("gambit",request.Binding.BindingId);
             Assert.True(request.Request.Candidates.Count+(request.Request.AllowsNone ? 1:0)>1);
             Assert.NotNull(request.Objective); Assert.NotEmpty(request.Events);
             var serialized=await http.GetStringAsync("/api/controllers/gambit/request");

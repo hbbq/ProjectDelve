@@ -31,11 +31,11 @@ public static class PlaytestHost
             return game.BrowserResponse(game.Snapshot());
         });
         app.MapPost("/api/game/scenario", (ScenarioRequest request, PlaytestGame game) =>
-            Mutate(() => game.BrowserResponse(game.SetupScenario(request.ExpectedRevision, request.ScenarioId, request.Controllers))));
+            Mutate(() => game.BrowserResponse(game.SetupScenario(request.ExpectedRevision, request.ScenarioId, request.Controllers, request.ControllerAssignments))));
         app.MapPost("/api/game/scenario/import", (ScenarioImportRequest request, PlaytestGame game) =>
-            Mutate(() => game.BrowserResponse(game.SetupImport(request.ExpectedRevision, request.Transport, request.Controllers))));
+            Mutate(() => game.BrowserResponse(game.SetupImport(request.ExpectedRevision, request.Transport, request.Controllers, request.ControllerAssignments))));
         app.MapPost("/api/game/restart", (RoundRequest request, PlaytestGame game) =>
-            Mutate(() => game.BrowserResponse(game.SetupRestart(request.ExpectedRevision, request.Controllers))));
+            Mutate(() => game.BrowserResponse(game.SetupRestart(request.ExpectedRevision, request.Controllers, request.ControllerAssignments))));
         app.MapPost("/api/game/round", (RoundRequest request, PlaytestGame game) =>
             Mutate(() => game.BrowserResponse(game.StartRound(request.ExpectedRevision))));
         app.MapPost("/api/game/decision", (DecisionSubmission request, PlaytestGame game) =>
@@ -123,6 +123,7 @@ public static class PlaytestHost
 public sealed record ScenarioRequest
 {
     public Dictionary<string,string>? Controllers { get; init; }
+    public List<ControllerSelection>? ControllerAssignments { get; init; }
     public required long ExpectedRevision { get; init; }
     public required string ScenarioId { get; init; }
 }
@@ -130,12 +131,14 @@ public sealed record ScenarioRequest
 public sealed record RoundRequest
 {
     public Dictionary<string,string>? Controllers { get; init; }
+    public List<ControllerSelection>? ControllerAssignments { get; init; }
     public required long ExpectedRevision { get; init; }
 }
 
 public sealed record ScenarioImportRequest
 {
     public Dictionary<string,string>? Controllers { get; init; }
+    public List<ControllerSelection>? ControllerAssignments { get; init; }
     public required long ExpectedRevision { get; init; }
     public required string Transport { get; init; }
 }
@@ -160,6 +163,7 @@ public sealed record GameResponse(long Revision, EngineResult Result, bool AutoC
     [JsonIgnore] public BrowserPresentation? PresentationOverride { get; init; }
     public BrowserPresentation Presentation => PresentationOverride ?? BrowserProjection.Create(Result);
     public IReadOnlyDictionary<string,string> Controllers { get; init; } = new Dictionary<string,string>();
+    public IReadOnlyList<ControllerSelection> ControllerAssignments { get; init; } = [];
     public ControllerStatus? ControllerStatus { get; init; }
     public string? SessionId { get; init; }
 }

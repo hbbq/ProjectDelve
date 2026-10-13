@@ -192,3 +192,8 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 #game-result h2 { margin: 0 0 .4rem; color: #b7f7d8; }
 #game-result p { margin: 0; }
 #objectives p { margin: .4rem 0; padding-left: .5rem; border-left: 3px solid hsl(var(--side-hue) 70% 65%); }
+
+#side-controllers { align-items: stretch; }
+.controller-side { display: flex; flex-wrap: wrap; gap: 8px 12px; border: 1px solid #475367; padding: 8px 10px; }
+.controller-side legend { color: #aeb9cb; padding: 0 4px; }
+.controller-side-default { font-weight: 600; }

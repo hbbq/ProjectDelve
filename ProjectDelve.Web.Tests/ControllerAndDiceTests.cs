@@ -84,11 +84,17 @@ public sealed class ControllerAndDiceTests
         foreach (var scenario in PlaytestScenarios.Catalog)
         {
             var state = PlaytestScenarios.Create(scenario.Id);
-            Assert.Equal(state.Units.Select(u => new ActivationToken(u.TypeId, u.SideId)).Distinct().OrderBy(t => t.TypeId),
-                state.Controllers.Select(c => c.Token).OrderBy(t => t.TypeId));
+            var authored = PlaytestScenarios.Definition(scenario.Id).Agency.Select(a => new ActivationToken(a.UnitTypeId, a.SideId));
+            Assert.Equal(authored.OrderBy(t => t.TypeId).ThenBy(t => t.SideId),
+                state.Controllers.Select(c => c.Token).OrderBy(t => t.TypeId).ThenBy(t => t.SideId));
             foreach (var id in new[] { UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric })
                 Assert.All(state.Controllers.Where(c => c.Token.TypeId == id), c => Assert.Equal(ControllerKind.Human, c.Controller));
             Assert.All(state.Controllers.Where(c => c.Token.SideId == "red"), c => Assert.Equal(ControllerKind.Automated, c.Controller));
+            if (scenario.Id == "shaman-hunt")
+            {
+                Assert.Contains(state.Controllers, c => c.Token == new ActivationToken(UnitTypeIds.Goblin, "red"));
+                Assert.DoesNotContain(state.Units, u => u.TypeId == UnitTypeIds.Goblin && u.SideId == "red");
+            }
             state.Controllers.Clear();
             Assert.NotEmpty(PlaytestScenarios.Create(scenario.Id).Controllers);
         }

@@ -450,4 +450,140 @@ public sealed class GambitControllerTests
         Assert.True(status.CanRetry); Assert.True(status.CanCancel);
         Assert.NotNull(game.Snapshot().Result.State.Pending);
     }
+    private sealed class ShamanFirstDice : IRandomProvider
+    {
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) =>
+            bag.FirstOrDefault(token => token.TypeId == UnitTypeIds.Shaman)
+            ?? bag.FirstOrDefault(token => token.TypeId == UnitTypeIds.Goblin)
+            ?? bag[0];
+        public AttackFace RollAttackDie() => AttackFace.Miss;
+        public DefenceFace RollDefenceDie() => DefenceFace.Block;
+        public int RollD6() => 6;
+    }
+
+    private static async Task<GambitRequest> ReachShamanAction(PlaytestGame game, string submissionId)
+    {
+        var request = Assert.IsType<GambitRequest>(game.ControllerRequest());
+        if (request.Request.Candidates.Any(candidate => candidate.Action == UnitAction.SummonAdjacent)) return request;
+        var stay = request.Request.Candidates.FirstOrDefault(candidate => candidate.Kind == ActivationChoiceKind.Stay);
+        Assert.True(stay is not null || request.Request.AllowsNone);
+        game.AdmitController(request.Binding);
+        game.SubmitController(new(submissionId, request.Binding, stay?.Key));
+        await Wait(game, g => g.Receipt(submissionId).Status == "applied");
+        return Assert.IsType<GambitRequest>(game.ControllerRequest());
+    }
+    [Fact]
+    public void ExactAssignmentsRequireCompleteUniqueAuthoredTokensAndOneGambitSide()
+    {
+        using var game = new PlaytestGame(new Dice());
+        var authored = PlaytestScenarios.Catalog.Single(s => s.Id == "shaman-hunt").ControllerAssignments.ToList();
+        var exact = authored.Select(a => a with { Controller = a.TypeId == UnitTypeIds.Shaman ? "Gambit" : a.Controller }).ToList();
+        var configured = game.SetupScenario(0, "shaman-hunt", null, exact);
+        Assert.Equal(exact.OrderBy(a => a.TypeId), configured.ControllerAssignments.OrderBy(a => a.TypeId));
+        Assert.Equal("Mixed", configured.Controllers["red"]);
+        Assert.Equal(ControllerKind.Automated, configured.Result.State.ControllerFor(new ActivationToken(UnitTypeIds.Shaman, "red")));
+        Assert.Equal(ControllerKind.Automated, configured.Result.State.ControllerFor(new ActivationToken(UnitTypeIds.Goblin, "red")));
+
+        Assert.Throws<PlaytestRequestException>(() => game.SetupRestart(configured.Revision, new() { ["blue"] = "Human", ["red"] = "Human" }, exact));
+        Assert.Throws<PlaytestRequestException>(() => game.SetupRestart(configured.Revision, null, exact.Skip(1).ToList()));
+        Assert.Throws<PlaytestRequestException>(() => game.SetupRestart(configured.Revision, null, [.. exact, exact[0]]));
+        var twoSides = exact.Select(a => a with { Controller = a.TypeId is UnitTypeIds.Shaman or UnitTypeIds.Barbarian ? "Gambit" : a.Controller }).ToList();
+        Assert.Throws<PlaytestRequestException>(() => game.SetupRestart(configured.Revision, null, twoSides));
+    }
+
+    [Fact]
+    public void ProjectionMarksDirectAlliedAndHostileUnitsWithoutExposingProviderMap()
+    {
+        var state = Setup();
+        var ally = new UnitType("ally", 1, 1, 1, 1, 1);
+        state.Types.Add(ally); state.Units.Add(ally.CreateUnit("friend", "amber"));
+        state.Controllers.Add(new(new("ally", "amber"), ControllerKind.Automated));
+        var bindings = new Dictionary<ActivationToken, string>
+        {
+            [new("ordinary", "amber")] = "Gambit",
+            [new("ally", "amber")] = "Default Behavior",
+            [new("ordinary", "violet")] = "Human"
+        };
+        var observation = GambitProjection.Observation(state, "amber", bindings);
+        Assert.Equal(GambitAgency.Direct, observation.Units.Single(u => u.Id == "one").Agency);
+        Assert.Equal(GambitAgency.Allied, observation.Units.Single(u => u.Id == "friend").Agency);
+        Assert.Equal(GambitAgency.Hostile, observation.Units.Single(u => u.Id == "two").Agency);
+        var json = JsonSerializer.Serialize(observation, GambitJson.Options);
+        Assert.Contains("\"agency\":\"Direct\"", json); Assert.DoesNotContain("controllerBindings", json);
+    }
+
+    [Fact]
+    public async Task ShamanGambitSummonsPreassignedDefaultGoblinAsAllied()
+    {
+        using var game = new PlaytestGame(new ShamanFirstDice());
+        var authored = PlaytestScenarios.Catalog.Single(s => s.Id == "shaman-hunt").ControllerAssignments;
+        var exact = authored.Select(a => a with { Controller = a.TypeId == UnitTypeIds.Shaman ? "Gambit" : a.Controller }).ToList();
+        var configured = game.SetupScenario(0, "shaman-hunt", null, exact);
+        game.StartRound(configured.Revision);
+        var request = await ReachShamanAction(game, "stay-before-default-summon");
+        Assert.Equal(2, request.SchemaVersion); Assert.Equal(UnitTypeIds.Shaman, request.Request.TypeId);
+        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
+        game.AdmitController(request.Binding);
+        game.SubmitController(new("summon-default-goblin", request.Binding, summon.Key));
+        await Wait(game, g => g.Receipt("summon-default-goblin").Status == "applied");
+        var snapshot = game.Snapshot();
+        var providers = snapshot.ControllerAssignments.ToDictionary(a => new ActivationToken(a.TypeId, a.SideId), a => a.Controller);
+        var goblin = Assert.Single(GambitProjection.Observation(snapshot.Result.State, "red", providers).Units, unit => unit.TypeId == UnitTypeIds.Goblin);
+        Assert.Equal(GambitAgency.Allied, goblin.Agency);
+        Assert.Equal("Default Behavior", snapshot.ControllerAssignments.Single(a => a.TypeId == UnitTypeIds.Goblin && a.SideId == "red").Controller);
+    }
+
+    [Fact]
+    public async Task UnauthoredSpawnedTokenInheritsTheSummonersExactProvider()
+    {
+        var definition = Scenario.Define(Scenario.Map(6, 4),
+        [
+            Scenario.Group(UnitTypeIds.Shaman, "red", ControllerKind.Automated, Scenario.At(2, 1)),
+            Scenario.Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, Scenario.At(5, 3))
+        ], [UnitTypeIds.Shaman, UnitTypeIds.Goblin, UnitTypeIds.Barbarian]);
+        using var game = new PlaytestGame(new ShamanFirstDice());
+        var configured = game.SetupImport(0, ScenarioDefinitionTransport.Encode(definition), null,
+        [
+            new(UnitTypeIds.Shaman, "red", "Gambit"),
+            new(UnitTypeIds.Barbarian, "blue", "Human")
+        ]);
+        game.StartRound(configured.Revision);
+        var request = await ReachShamanAction(game, "stay-before-inherited-summon");
+        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
+        game.AdmitController(request.Binding);
+        game.SubmitController(new("summon-inherited-goblin", request.Binding, summon.Key));
+        await Wait(game, g => g.Receipt("summon-inherited-goblin").Status == "applied");
+        var snapshot = game.Snapshot();
+        var inherited = Assert.Single(snapshot.ControllerAssignments, a => a.TypeId == UnitTypeIds.Goblin && a.SideId == "red");
+        Assert.Equal("Gambit", inherited.Controller);
+        var providers = snapshot.ControllerAssignments.ToDictionary(a => new ActivationToken(a.TypeId, a.SideId), a => a.Controller);
+        Assert.Equal(GambitAgency.Direct, Assert.Single(GambitProjection.Observation(snapshot.Result.State, "red", providers).Units, u => u.TypeId == UnitTypeIds.Goblin).Agency);
+    }
+    [Fact]
+    public void MixedSameSideRoutingUsesTheExactDecisionTokenIncludingDice()
+    {
+        var shaman = UnitType.Shaman(); var goblin = UnitType.Goblin(); var hero = UnitType.Barbarian();
+        var state = new GameState
+        {
+            Physical = new(new(4, 2, []), [new("shaman", new(0, 0)), new("goblin", new(1, 0)), new("hero", new(3, 1))]),
+            Types = [shaman, goblin, hero],
+            Units = [shaman.CreateUnit("shaman", "red"), goblin.CreateUnit("goblin", "red"), hero.CreateUnit("hero", "blue")],
+            Controllers = [new(new(shaman.Id, "red"), ControllerKind.Automated), new(new(goblin.Id, "red"), ControllerKind.Automated), new(new(hero.Id, "blue"), ControllerKind.Human)],
+            Objectives = [new("red"), new("blue")]
+        };
+        var exact = new ControllerSelection[] { new(shaman.Id, "red", "Gambit"), new(goblin.Id, "red", "Default Behavior"), new(hero.Id, "blue", "Human") };
+        var goblinPool = new DicePool(DiceFamily.Attack, 1, "goblin", "goblin", "attack", "Attack", "hero");
+        state.Pending = new(DecisionKind.RollDice, goblin.Id, "goblin", [new("roll-dice", Kind: ActivationChoiceKind.RollDice)], false)
+            { Token = new(goblin.Id, "red"), Roll = goblinPool };
+        using var defaultGame = new PlaytestGame(new Dice(), state, controllerAssignments: exact);
+        Assert.Null(defaultGame.ControllerRequest()); Assert.Equal("resolving", defaultGame.ControllerState().Status);
+
+        var shamanPool = new DicePool(DiceFamily.Defence, 1, "shaman", "hero", "attack", "Defence", "shaman");
+        state.Pending = new(DecisionKind.RollDice, shaman.Id, "shaman", [new("roll-dice", Kind: ActivationChoiceKind.RollDice)], false)
+            { Token = new(shaman.Id, "red"), Roll = shamanPool };
+        using var gambitGame = new PlaytestGame(new Dice(), state, controllerAssignments: exact);
+        var request = Assert.IsType<GambitRequest>(gambitGame.ControllerRequest());
+        Assert.Equal(new ActivationToken(shaman.Id, "red"), request.Request.Token);
+        Assert.Equal(DiceFamily.Defence, request.Request.Roll!.Family);
+    }
 }

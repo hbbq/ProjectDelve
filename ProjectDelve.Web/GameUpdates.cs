@@ -15,8 +15,10 @@ public sealed record GameCommand
     public string? ScenarioId { get; init; }
     public string? Transport { get; init; }
     public Dictionary<string,string>? Controllers { get; init; }
+    public List<ControllerSelection>? ControllerAssignments { get; init; }
     public bool? AutoChooseSingleRelevantChoice { get; init; }
 }
+public sealed record ControllerSelection(string TypeId, string SideId, string Controller);
 public sealed record CommandAcceptance(string CommandId, string SessionId, bool Accepted);
 public sealed record GameUpdate(string SessionId, long Sequence, string Kind, string Status,
     long Revision, string? DecisionId, GameResponse Snapshot, string? CommandId = null, string? Error = null,

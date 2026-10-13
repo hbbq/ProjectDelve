@@ -1669,10 +1669,31 @@ test("setup sends controller bindings for actual arbitrary Sides and allows reve
     assert.equal(requests[0].body.controllers[gambitSide], "Gambit");
     assert.equal(requests[0].body.controllers[gambitSide === "violet-side" ? "copper-side" : "violet-side"], "Human");
     assert.equal(requests[0].body.scenarioId, "custom");
-    assert.match(h.elements.get("side-controllers").textContent, /Default Monster Behavior/);
+    assert.match(h.elements.get("side-controllers").textContent, /Default Behavior/);
   }
 });
 
+test("per-Type Side controller selectors support Side defaults and mixed Gambit allies", async () => {
+  const initial = response(), requests = [];
+  initial.sessionId = "selective-session"; initial.scenarioId = "selective";
+  initial.controllerAssignments = [
+    { typeId: "barbarian", sideId: "blue", controller: "Human" },
+    { typeId: "shaman", sideId: "red", controller: "Default Behavior" },
+    { typeId: "goblin", sideId: "red", controller: "Default Behavior" }
+  ];
+  initial.scenarios = [{ id: "selective", name: "Selective", controllerAssignments: initial.controllerAssignments }];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => initial };
+  });
+  h.run('controllerSideDefaults.get("red").value = "Gambit"; controllerSideDefaults.get("red").listeners.change();');
+  h.run('controllerSelects.get("goblin\\0red").value = "Default Behavior"; controllerSelects.get("goblin\\0red").listeners.change();');
+  await h.elements.get("start-scenario").listeners.click();
+  const assignments = requests[0].body.controllerAssignments;
+  assert.equal(assignments.find(value => value.typeId === "shaman" && value.sideId === "red").controller, "Gambit");
+  assert.equal(assignments.find(value => value.typeId === "goblin" && value.sideId === "red").controller, "Default Behavior");
+  assert.equal(assignments.find(value => value.typeId === "barbarian" && value.sideId === "blue").controller, "Human");
+  assert.match(h.elements.get("side-controllers").textContent, /All Unit Types/);
+});
 test("Gambit wait preserves playback and enables Cancel; error enables explicit Retry without choosing", async () => {
   const requests = [], h = streamHarness(async (url, options) => {
     requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({}) };

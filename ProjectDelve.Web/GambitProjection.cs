@@ -5,9 +5,10 @@ using System.Text.Json.Serialization;
 namespace ProjectDelve.Web;
 
 // Purpose-built allowlist for model consumption. Engine model growth cannot silently expand it.
+public enum GambitAgency { Direct, Allied, Hostile }
 public sealed record GambitStats(int Mov, int Rng, int Atk, int Def);
 public sealed record GambitAbilityUse(string EntryId, int Remaining, int Maximum);
-public sealed record GambitUnit(string Id, string TypeId, string SideId, int CurrentHp, int MaximumHp,
+public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitAgency Agency, int CurrentHp, int MaximumHp,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Cell? Position,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<Cell>? OccupiedCells,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? CellSpan,
@@ -130,7 +131,12 @@ internal static class GambitProjection
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
         pool.SelectedCell, pool.Door, pool.SuccessCount);
 
-    internal static GambitObservation Observation(GameState state)
+    internal static GambitObservation Observation(GameState state) => Observation(state,
+        state.Pending?.Token?.SideId ?? state.Objectives.FirstOrDefault()?.SideId ?? "",
+        state.Controllers.ToDictionary(c => c.Token, c => c.Controller == ControllerKind.Automated ? "Gambit" : "Human"));
+
+    internal static GambitObservation Observation(GameState state, string bindingSide,
+        IReadOnlyDictionary<ActivationToken, string> controllerBindings)
     {
         var geometries = BrowserProjection.Figures(state);
         var units = state.Units.Select(unit =>
@@ -141,7 +147,10 @@ internal static class GambitProjection
             var uses = type.CardEntries(state.Types).Select(entry => (entry, uses: type.UsesFor(unit, entry.Id)))
                 .Where(pair => pair.uses is not null)
                 .Select(pair => new GambitAbilityUse(pair.entry.Id, pair.uses!.RemainingUses, pair.uses.MaxUses)).ToArray();
-            return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, unit.CurrentHp, type.Hp,
+            var token = new ActivationToken(unit.TypeId, unit.SideId);
+            var agency = unit.SideId != bindingSide ? GambitAgency.Hostile
+                : controllerBindings.GetValueOrDefault(token) == "Gambit" ? GambitAgency.Direct : GambitAgency.Allied;
+            return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, agency, unit.CurrentHp, type.Hp,
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses);

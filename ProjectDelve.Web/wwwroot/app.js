@@ -9,31 +9,91 @@ let busy = false;
 let controllerSetupScenario;
 let controllerSetupSession;
 const controllerSelects = new Map();
+const controllerSideDefaults = new Map();
 const controllerOptions = ["Human", "Default Behavior", "Gambit"];
+function controllerOptionSelect(label, includeMixed = false) {
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", label);
+  if (includeMixed) { const mixed = text("option", "Mixed"); mixed.value = ""; mixed.disabled = true; select.append(mixed); }
+  for (const controller of controllerOptions) {
+    const option = text("option", controller);
+    option.value = controller; select.append(option);
+  }
+  return select;
+}
+
+function syncControllerSideDefaults() {
+  for (const [sideId, select] of controllerSideDefaults) {
+    const values = [...controllerSelects.values()].filter(entry => entry.sideId === sideId).map(entry => entry.value);
+    select.value = new Set(values).size === 1 ? values[0] : "";
+  }
+}
+
 function renderControllerSetup(force = false) {
   const selected = snapshot?.scenarios?.find(value => value.id === ui.scenario.value);
-  const sideIds = selected?.sideIds ?? (snapshot?.controllers ? Object.keys(snapshot.controllers) : []);
   const identity = selected?.id ?? snapshot?.scenarioId;
   if (!force && controllerSetupScenario === identity && controllerSetupSession === snapshot?.sessionId) return;
   controllerSetupScenario = identity; controllerSetupSession = snapshot?.sessionId;
-  controllerSelects.clear(); ui["side-controllers"].replaceChildren();
-  for (const sideId of sideIds) {
-    const label = text("label", `${sideId} `), select = document.createElement("select");
-    select.setAttribute("aria-label", `Controller for Side ${sideId}`);
-    for (const controller of controllerOptions) {
-      const option = text("option", controller === "Default Behavior" ? "Default Monster Behavior" : controller);
-      option.value = controller; select.append(option);
-    }
-    select.value = (identity === snapshot?.scenarioId ? snapshot.controllers?.[sideId] : selected?.controllers?.[sideId]) ?? "Human";
-    select.addEventListener("change", () => {
-      if (select.value === "Gambit") for (const [otherSide, other] of controllerSelects) if (otherSide !== sideId) other.value = "Human";
-    });
-    controllerSelects.set(sideId, select); label.append(select); ui["side-controllers"].append(label);
+  controllerSelects.clear(); controllerSideDefaults.clear(); ui["side-controllers"].replaceChildren();
+  let assignments = identity === snapshot?.scenarioId ? snapshot?.controllerAssignments : selected?.controllerAssignments;
+  if (!assignments?.length) {
+    const controllers = identity === snapshot?.scenarioId ? snapshot?.controllers : selected?.controllers;
+    assignments = (selected?.sideIds ?? Object.keys(controllers ?? {})).map(sideId => ({ sideId, controller: controllers?.[sideId] ?? "Human" }));
   }
+  const currentTypes = new Map((snapshot?.result.state.types ?? []).map(type => [type.id, type.displayName ?? type.id]));
+  if (identity !== snapshot?.scenarioId) for (const [typeId, name] of Object.entries(selected?.unitTypeNames ?? {})) currentTypes.set(typeId, name);
+  const initiallyPresent = new Set((identity === snapshot?.scenarioId
+    ? snapshot?.result.state.units?.map(unit => ({ typeId: unit.typeId, sideId: unit.sideId }))
+    : selected?.initiallyPresentTokens ?? []).map(token => `${token.typeId}\0${token.sideId}`));
+  const assignmentsBySide = new Map();
+  for (const assignment of assignments) {
+    const side = assignmentsBySide.get(assignment.sideId) ?? [];
+    side.push(assignment); assignmentsBySide.set(assignment.sideId, side);
+  }
+  for (const [sideId, sideAssignments] of assignmentsBySide) {
+    const group = document.createElement("fieldset"); group.className = "controller-side";
+    const legend = text("legend", `Side ${sideId}`); group.append(legend);
+    const sideDefault = controllerOptionSelect(`Set every controller for Side ${sideId}`, true);
+    controllerSideDefaults.set(sideId, sideDefault);
+    const distinct = new Set(sideAssignments.map(assignment => assignment.controller));
+    sideDefault.value = distinct.size === 1 ? sideAssignments[0].controller : "";
+    const sideLabel = text("label", "All Unit Types "); sideLabel.className = "controller-side-default";
+    sideDefault.addEventListener("change", () => {
+      for (const entry of controllerSelects.values()) {
+        if (entry.sideId === sideId) entry.value = sideDefault.value;
+        else if (sideDefault.value === "Gambit" && entry.value === "Gambit") entry.value = "Human";
+      }
+      syncControllerSideDefaults();
+    });
+    sideLabel.append(sideDefault); group.append(sideLabel);
+    for (const assignment of sideAssignments) {
+      const typeName = currentTypes.get(assignment.typeId) ?? assignment.typeId ?? "Controller";
+      const absent = assignment.typeId && !initiallyPresent.has(`${assignment.typeId}\0${sideId}`) ? " (not initially present)" : "";
+      const label = text("label", `${typeName}${absent} `), select = controllerOptionSelect(`Controller for ${typeName} on Side ${sideId}`);
+      select.value = assignment.controller ?? "Human";
+      select.addEventListener("change", () => {
+        if (select.value === "Gambit") for (const entry of controllerSelects.values())
+          if (entry.sideId !== sideId && entry.value === "Gambit") entry.value = "Human";
+        syncControllerSideDefaults();
+      });
+      const key = assignment.typeId ? `${assignment.typeId}\0${sideId}` : sideId;
+      select.typeId = assignment.typeId; select.sideId = sideId;
+      controllerSelects.set(key, select);
+      label.append(select); group.append(label);
+    }
+    ui["side-controllers"].append(group);
+  }
+  syncControllerSideDefaults();
 }
+
 function setupControllers() {
-  return controllerSelects.size ? { controllers: Object.fromEntries([...controllerSelects].map(([sideId, select]) => [sideId, select.value])) } : {};
+  const entries = [...controllerSelects.values()];
+  if (!entries.length) return {};
+  if (entries.every(entry => entry.typeId)) return { controllerAssignments: entries.map(entry =>
+    ({ typeId: entry.typeId, sideId: entry.sideId, controller: entry.value })) };
+  return { controllers: Object.fromEntries(entries.map(entry => [entry.sideId, entry.value])) };
 }
+
 function controllerOperationReady() {
   const completed = latestUpdate?.snapshot?.result.state.completion ?? snapshot?.result.state.completion;
   return !completed && !postInFlight && !commandPending && (!streaming || streamConnected);
@@ -50,7 +110,7 @@ function renderControllerStatus() {
   const recoverable = ["controller-error", "cancelled", "canceled", "error"].includes(status) || ["controller-error", "cancelled", "canceled", "error"].includes(controller?.status);
   ui["controller-retry"].disabled = !controllerOperationReady() || !(controller?.canRetry ?? recoverable);
   ui["controller-cancel"].disabled = !controllerOperationReady() || !(controller?.canCancel ?? (status === "waiting-external" || controller?.status === "waiting-external"));
-  ui.auto.disabled ||= Object.values(view?.controllers ?? {}).includes("Gambit");
+  ui.auto.disabled ||= (view?.controllerAssignments ?? []).some(assignment => assignment.controller === "Gambit") || Object.values(view?.controllers ?? {}).includes("Gambit");
 }
 const streaming = typeof EventSource !== "undefined";
 let updateSource;

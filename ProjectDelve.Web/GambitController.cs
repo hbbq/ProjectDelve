@@ -28,10 +28,10 @@ public sealed record ControllerStatus(string BindingId, string? SideId, string S
 
 public sealed partial class PlaytestGame
 {
-    public GameResponse SetupScenario(long revision, string id, Dictionary<string,string>? controllers) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario", ScenarioId = id, Controllers = controllers });
-    public GameResponse SetupImport(long revision, string transport, Dictionary<string,string>? controllers) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario/import", Transport = transport, Controllers = controllers });
-    public GameResponse SetupRestart(long revision, Dictionary<string,string>? controllers) => Legacy(new() { ExpectedRevision = revision, Operation = "restart", Controllers = controllers });
-    private Dictionary<string, string> controllerBindings = [];
+    public GameResponse SetupScenario(long revision, string id, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario", ScenarioId = id, Controllers = controllers, ControllerAssignments = assignments });
+    public GameResponse SetupImport(long revision, string transport, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario/import", Transport = transport, Controllers = controllers, ControllerAssignments = assignments });
+    public GameResponse SetupRestart(long revision, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null) => Legacy(new() { ExpectedRevision = revision, Operation = "restart", Controllers = controllers, ControllerAssignments = assignments });
+    private Dictionary<ActivationToken, string> controllerBindings = [];
     private readonly List<RulesEvent> committed = [];
     private long acknowledgedCursor, historyOffset;
     private bool historyOverflow;
@@ -73,24 +73,72 @@ public sealed partial class PlaytestGame
     private readonly Queue<string> receiptOrder = [];
     private readonly int historyLimit;
     private readonly int payloadLimit;
-    private string? GambitSide => controllerBindings.FirstOrDefault(p => p.Value == "Gambit").Key;
-    private bool IsGambit(DecisionRequest request) => request.Token is { } token && controllerBindings.GetValueOrDefault(token.SideId) == "Gambit";
+    private string? GambitSide => controllerBindings.FirstOrDefault(p => p.Value == "Gambit").Key?.SideId;
+    private bool IsGambit(DecisionRequest request) => request.Token is { } token && controllerBindings.GetValueOrDefault(token) == "Gambit";
     private bool UsesExternal(DecisionRequest request) => IsGambit(request) || HasExternal;
-    private IReadOnlyDictionary<string, string> ControllersFor(GameState current) => controllerBindings.Count > 0 ? new Dictionary<string,string>(controllerBindings)
-        : current.Controllers.GroupBy(c => c.Token.SideId).ToDictionary(g => g.Key, g => g.All(c => c.Controller == ControllerKind.Human) ? "Human" : "Default Behavior");
-    private void ApplyControllers(GameState created, IReadOnlyDictionary<string,string>? supplied)
+    private IReadOnlyDictionary<string, string> ControllersFor(GameState current) => ControllerAssignmentsFor(current)
+        .GroupBy(c => c.SideId).ToDictionary(g => g.Key, g => g.Select(c => c.Controller).Distinct().Count() == 1 ? g.First().Controller : "Mixed");
+    private IReadOnlyList<ControllerSelection> ControllerAssignmentsFor(GameState current) => current.Controllers
+        .Select(c => new ControllerSelection(c.Token.TypeId, c.Token.SideId,
+            controllerBindings.GetValueOrDefault(c.Token, c.Controller == ControllerKind.Human ? "Human" : "Default Behavior"))).ToArray();
+    private void ApplyControllers(GameState created, IReadOnlyDictionary<string,string>? supplied, IReadOnlyList<ControllerSelection>? explicitAssignments = null)
     {
-        var assignments = supplied ?? (controllerBindings.Count == 0 ? null : controllerBindings);
-        if (assignments is null) return;
-        var sides = created.Objectives.Select(o => o.SideId).ToHashSet();
-        if (assignments.Count != sides.Count || assignments.Keys.Any(s => !sides.Contains(s)) || assignments.Values.Any(v => v is not ("Human" or "Default Behavior" or "Gambit")))
-            throw Error(400, "Assign an available controller to every scenario Side.");
-        if (assignments.Values.Count(v => v == "Gambit") > 1 || assignments.Values.Contains("Gambit") && (sides.Count != 2 || assignments.Values.Any(v => v == "Default Behavior")))
-            throw Error(400, "Gambit supports one Side against Human controllers.");
-        controllerBindings = assignments.ToDictionary(p => p.Key, p => p.Value);
-        created.Controllers = created.Controllers.Select(c => c with { Controller = controllerBindings[c.Token.SideId] == "Human" ? ControllerKind.Human : ControllerKind.Automated }).ToList();
+        if (supplied is not null && explicitAssignments is not null)
+            throw Error(400, "Supply either Side controllers or Unit Type + Side controller assignments, not both.");
+        var tokens = created.Controllers.Select(c => c.Token).ToArray();
+        Dictionary<ActivationToken, string> assignments;
+        if (explicitAssignments is not null)
+        {
+            assignments = [];
+            foreach (var item in explicitAssignments)
+            {
+                if (item is null || string.IsNullOrWhiteSpace(item.TypeId) || string.IsNullOrWhiteSpace(item.SideId) || string.IsNullOrWhiteSpace(item.Controller))
+                    throw Error(400, "Controller assignments require Unit Type, Side and controller values.");
+                var token = new ActivationToken(item.TypeId, item.SideId);
+                if (!assignments.TryAdd(token, item.Controller))
+                    throw Error(400, "Controller assignments must not contain duplicate Unit Type + Side entries.");
+            }
+            if (assignments.Count != tokens.Length || assignments.Keys.Any(token => !tokens.Contains(token)) || tokens.Any(token => !assignments.ContainsKey(token)))
+                throw Error(400, "Assign an available controller to every authored Unit Type + Side.");
+        }
+        else if (supplied is not null)
+        {
+            var sides = tokens.Select(token => token.SideId).Distinct().ToArray();
+            if (supplied.Count != sides.Length || supplied.Keys.Any(side => !sides.Contains(side)))
+                throw Error(400, "Assign an available controller to every scenario Side.");
+            assignments = tokens.ToDictionary(token => token, token => supplied[token.SideId]);
+        }
+        else if (controllerBindings.Count > 0 && tokens.All(controllerBindings.ContainsKey) && controllerBindings.Keys.All(tokens.Contains))
+            assignments = new(controllerBindings);
+        else
+            assignments = created.Controllers.ToDictionary(c => c.Token, c => c.Controller == ControllerKind.Human ? "Human" : "Default Behavior");
+        if (assignments.Values.Any(value => value is not ("Human" or "Default Behavior" or "Gambit")))
+            throw Error(400, "Choose Human, Default Behavior or Gambit for every controller assignment.");
+        var gambitSides = assignments.Where(pair => pair.Value == "Gambit").Select(pair => pair.Key.SideId).Distinct().ToArray();
+        if (gambitSides.Length > 1)
+            throw Error(400, "All Gambit controller assignments must belong to one Side.");
+        controllerBindings = assignments;
+        created.Controllers = created.Controllers.Select(c => c with { Controller = assignments[c.Token] == "Human" ? ControllerKind.Human : ControllerKind.Automated }).ToList();
         if (GambitSide is not null) autoChoose = false;
     }
+
+    private void SynchronizeInheritedControllerBindings(GameState previous, EngineResult result)
+    {
+        var additions = result.State.Controllers.Where(c => !controllerBindings.ContainsKey(c.Token)).ToArray();
+        if (additions.Length == 0) return;
+        var updated = new Dictionary<ActivationToken, string>(controllerBindings);
+        foreach (var assignment in additions)
+        {
+            var created = result.State.Units.FirstOrDefault(unit => unit.TypeId == assignment.Token.TypeId && unit.SideId == assignment.Token.SideId);
+            var occurrence = created is null ? null : result.Events.LastOrDefault(e => e.Kind == "UnitCreated" && e.UnitId == created.Id);
+            var source = occurrence?.SourceUnitId is null ? null : result.State.Units.FirstOrDefault(unit => unit.Id == occurrence.SourceUnitId)
+                ?? previous.Units.FirstOrDefault(unit => unit.Id == occurrence.SourceUnitId);
+            var inherited = source is null ? null : updated.GetValueOrDefault(new ActivationToken(source.TypeId, source.SideId));
+            updated[assignment.Token] = inherited ?? (assignment.Controller == ControllerKind.Human ? "Human" : "Default Behavior");
+        }
+        controllerBindings = updated;
+    }
+
     private void PublishGambitRequest()
     {
         gambitRequest = null; gambitAdmitted = false;
@@ -98,10 +146,10 @@ public sealed partial class PlaytestGame
         if (historyOffset + committed.Count - acknowledgedCursor > historyLimit)
         { historyOverflow = true; status = "controller-error"; controllerError = "Controller history limit exceeded. Restart the match."; return; }
         if (state.Pending is not { } pending || !IsGambit(pending)) return;
-        var observation = GambitProjection.Observation(state);
+        var observation = GambitProjection.Observation(state, GambitSide!, controllerBindings);
         var binding = new GambitBinding(sessionId, "gambit", pending.Token!.SideId, decisionId!, revision,
             Guid.NewGuid().ToString("N"), acknowledgedCursor, historyOffset + committed.Count);
-        var candidate = new GambitRequest(1, binding, state.Objectives.Single(o => o.SideId == binding.SideId),
+        var candidate = new GambitRequest(2, binding, state.Objectives.Single(o => o.SideId == binding.SideId),
             "waiting-external", null, GambitProjection.Decision(pending), observation,
             committed.Skip((int)(acknowledgedCursor - historyOffset)).Select(GambitProjection.Event).ToArray());
         if (System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(candidate, GambitJson.Options).Length > payloadLimit)
@@ -110,7 +158,7 @@ public sealed partial class PlaytestGame
     }
     public GambitStatus ControllerState()
     {
-        lock (gate) return new(1, sessionId, "gambit", GambitSide, status, Detach(state.Completion), gambitRequest?.Binding) { Objective = state.Objectives.FirstOrDefault(o => o.SideId == GambitSide) };
+        lock (gate) return new(2, sessionId, "gambit", GambitSide, status, Detach(state.Completion), gambitRequest?.Binding) { Objective = state.Objectives.FirstOrDefault(o => o.SideId == GambitSide) };
     }
     public GambitRequest? ControllerRequest()
     {
