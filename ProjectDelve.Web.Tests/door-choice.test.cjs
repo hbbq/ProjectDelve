@@ -1776,3 +1776,28 @@ test("server operation availability disables Retry for restart-only controller e
   assert.equal(h.elements.get("controller-cancel").disabled, true);
   assert.equal(h.elements.get("restart-scenario").disabled, false);
 });
+
+test("standing Orders render projected labels and playback values without an editor", () => {
+  const initial = response();
+  initial.result.state.types = [
+    ...initial.result.state.types,
+    { ...initial.result.state.types[0], id: "grunt-type", displayName: "Grunt" },
+    { ...initial.result.state.types[0], id: "skeleton-archer-type", displayName: "Skeleton Archer" },
+    { ...initial.result.state.types[0], id: "zombie-type", displayName: "Zombie" }
+  ];
+  initial.presentation.orders = [
+    { token: { typeId: "grunt-type", sideId: "red" }, kind: "DoNothing", destination: null },
+    { token: { typeId: "skeleton-archer-type", sideId: "red" }, kind: "HoldPosition", destination: null },
+    { token: { typeId: "zombie-type", sideId: "red" }, kind: "MoveTo", destination: { x: 5, y: 9 } }
+  ];
+  const h = harness(initial);
+  assert.equal(h.elements.get("orders").hidden, false);
+  assert.match(h.elements.get("orders").textContent,
+    /Standing Orders.*Grunt · red: Do Nothing.*Skeleton Archer · red: Hold Position.*Zombie · red: Move To \(5,9\)/);
+  assert.equal(h.elements.get("orders").querySelectorAll("button").length, 0);
+
+  h.context.playbackOrders = [{ token: { typeId: "zombie-type", sideId: "red" },
+    kind: "MoveTo", destination: { x: 4, y: 8 } }];
+  h.run("renderState(snapshot.result.state, true, snapshot.presentation.cards, snapshot.presentation.figures, snapshot.presentation.worldEffects, playbackOrders)");
+  assert.match(h.elements.get("orders").textContent, /Zombie · red: Move To \(4,8\)/);
+});

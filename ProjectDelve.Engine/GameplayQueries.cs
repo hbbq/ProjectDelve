@@ -14,6 +14,8 @@ public interface IGameplayQueries
     int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position);
     // Eight-cell adjacency and ordinary geometric LOS, independent of hostile attack legality.
     bool HasNearbyHostileThreatFrom(string unitId, Cell position);
+    GroupOrder EffectiveOrderFor(string unitId) => throw new NotSupportedException();
+    int? RouteDistanceTo(string unitId, Cell position, Cell destination) => throw new NotSupportedException();
 
     // Approach distance ignores Units and this activation's MOV. null means no supported attack
     // position is reachable under the Unit's supported Attack targeting rules.
@@ -45,6 +47,21 @@ internal sealed class GameplayQueries : IGameplayQueries
         world.IsUpright(unitId)
             ? world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Behaviors
             : UnitBehavior.None;
+
+    public GroupOrder EffectiveOrderFor(string unitId)
+    {
+        var unit = world.Units.Single(u => u.Id == unitId);
+        return world.OrderFor(new(unit.TypeId, unit.SideId));
+    }
+
+    public int? RouteDistanceTo(string unitId, Cell position, Cell destination)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        var distances = ApproachRules.Distances(world.Physical.Board, position, destination,
+            traversal: MovementTraversal.For(world, unitId),
+            footprint: FootprintGeometry.FootprintOf(world, unitId));
+        return distances.TryGetValue(destination, out var distance) ? distance : null;
+    }
 
     public int ManhattanDistanceBetweenUnits(string firstUnitId, string secondUnitId)
     {

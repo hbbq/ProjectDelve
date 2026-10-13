@@ -63,6 +63,20 @@ internal static class ScenarioCreation
             if (!definition.Agency.Any(a => a.UnitTypeId == definition.Units[index].UnitTypeId && a.SideId == definition.Units[index].SideId))
                 throw ScenarioValidationContext.At(new ArgumentException("Every initial Unit Type + Side needs an explicit agency assignment.", nameof(definition)), $"units[{index}]");
 
+        var orders = definition.Orders ?? [];
+        HashSet<(string, string)> seenOrders = [];
+        for (var index = 0; index < orders.Count; index++)
+        {
+            var order = orders[index];
+            if (order is null || string.IsNullOrWhiteSpace(order.UnitTypeId) || string.IsNullOrWhiteSpace(order.SideId) ||
+                !Enum.IsDefined(order.Kind) || order.Kind == OrderKind.MoveTo != (order.Destination is not null) ||
+                order.Destination is not null && !Inside(order.Destination) ||
+                !definition.Agency.Any(a => a.UnitTypeId == order.UnitTypeId && a.SideId == order.SideId))
+                throw ScenarioValidationContext.At(new ArgumentException("Invalid Order assignment; its group, kind and destination must be valid.", nameof(definition)), $"orders[{index}]");
+            if (!seenOrders.Add((order.UnitTypeId, order.SideId)))
+                throw ScenarioValidationContext.At(new ArgumentException("Duplicate Order assignment for Unit Type + Side.", nameof(definition)), $"orders[{index}]");
+        }
+
         var sides = definition.Units.Select(u => u.SideId).Concat(definition.Agency.Select(a => a.SideId))
             .Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
         var objectives = definition.Objectives ?? [];
@@ -99,6 +113,8 @@ internal static class ScenarioCreation
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };
+        foreach (var order in orders)
+            state.AssignOrder(new(order.UnitTypeId, order.SideId), order.Kind, order.Destination);
         // The same validation also remains at round start. Validate content before CreateUnit.
         GameEngine.ValidateScenario(state);
         for (var index = 0; index < definition.Units.Count; index++)

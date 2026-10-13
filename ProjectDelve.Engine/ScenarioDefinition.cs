@@ -9,6 +9,7 @@ public sealed record ScenarioDefinition
     public required List<string> UnitTypeIds { get; init; }
     public required List<UnitPlacement> Units { get; init; }
     public required List<AgencyAssignment> Agency { get; init; }
+    public List<InitialGroupOrder>? Orders { get; init; }
 }
 
 public sealed record BoardDefinition
@@ -26,3 +27,4 @@ public sealed record EdgeDefinition(Cell Position, EdgeDirection Direction, Edge
 public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor,
     Posture Posture = Posture.Upright, int? InitialHp = null);
 public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller);
+public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null);

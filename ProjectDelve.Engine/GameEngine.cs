@@ -936,6 +936,13 @@ public static partial class GameEngine
     {
         ValidateWorldDeck(state);
         var board = state.Physical.Board;
+        if (state.Orders.Any(order => order is null) ||
+            state.Orders.Where(order => order is not null).GroupBy(order => order.Token).Any(group => group.Count() != 1) ||
+            state.Orders.Any(order => order is not null && (order.Kind == OrderKind.Normal || !Enum.IsDefined(order.Kind) ||
+                order.Kind == OrderKind.MoveTo != (order.Destination is not null) ||
+                order.Destination is not null && !MovementRules.Inside(board, order.Destination) ||
+                !state.Controllers.Any(controller => controller.Token == order.Token))))
+            throw new ArgumentException("Orders must be sparse, unique, valid assignments for participating groups.");
         if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||
             state.Controllers.Any(c => !Enum.IsDefined(c.Controller) || string.IsNullOrWhiteSpace(c.Token.SideId) || string.IsNullOrWhiteSpace(c.Token.TypeId)) ||
             state.Units.Any(u => u.CurrentHp > 0 && !state.Controllers.Any(c => c.Token == new ActivationToken(u.TypeId, u.SideId))))

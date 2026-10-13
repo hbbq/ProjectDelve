@@ -24,7 +24,7 @@ var definition = Define(
     ]);
 var state = GameEngine.CreateGame(definition);
 var manualDecisions = new ConsoleDecisionProvider();
-var automatedDecisions = new DefaultAutomatedProvider();
+var automatedDecisions = new OrderAwareAutomatedProvider();
 var random = new ConsoleRandomProvider();
 ShowState(state);
 

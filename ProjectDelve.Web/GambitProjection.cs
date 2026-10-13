@@ -39,7 +39,10 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitWorldEffects? WorldEffects,
     IReadOnlyList<SideObjective> Objectives,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GameCompletion? Completion,
-    int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard);
+    int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard)
+{
+    public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
+}
 
 public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool Relevant,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AbilityId,
@@ -170,7 +173,8 @@ internal static class GambitProjection
         return new(state.Physical.Board, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
-            state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units));
+            state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
+            { Orders = state.Orders.ToArray() };
     }
 
     private const string UnitSymbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

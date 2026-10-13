@@ -7,6 +7,8 @@ public sealed record SideObjective(string SideId, ScenarioObjective Objective = 
 public sealed record GameCompletion(ImmutableArray<string> AchievedSideIds);
 
 public sealed record ActivationToken(string TypeId, string SideId);
+public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo }
+public sealed record GroupOrder(ActivationToken Token, OrderKind Kind, Cell? Destination = null);
 public enum ControllerKind { Human, Automated }
 public sealed record ControllerAssignment(ActivationToken Token, ControllerKind Controller);
 public enum DiceFamily { Attack, Defence, D6 }
@@ -309,6 +311,21 @@ public sealed class GameState
     public List<ActivationToken> Bag { get; set; } = [];
     public ActivationToken? ActiveToken { get; set; }
     public List<ControllerAssignment> Controllers { get; set; } = [];
+    // Sparse authoritative assignments: absence means Normal.
+    public List<GroupOrder> Orders { get; set; } = [];
+    public GroupOrder OrderFor(ActivationToken token) =>
+        Orders.SingleOrDefault(order => order.Token == token) ?? new(token, OrderKind.Normal);
+    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+        if (!Controllers.Any(assignment => assignment.Token == token))
+            throw new ArgumentException("The Order group is not part of the game.", nameof(token));
+        if (!Enum.IsDefined(kind) || kind == OrderKind.MoveTo != (destination is not null) ||
+            destination is not null && !MovementRules.Inside(Physical.Board, destination))
+            throw new ArgumentException("Invalid Order kind or destination.", nameof(kind));
+        Orders.RemoveAll(order => order.Token == token);
+        if (kind != OrderKind.Normal) Orders.Add(new(token, kind, destination));
+    }
     public ControllerKind ControllerFor(ActivationToken token) => Controllers.Single(c => c.Token == token).Controller;
     public ControllerKind ControllerFor(DecisionRequest request) => ControllerFor(request.Token
         ?? throw new InvalidOperationException("Decision has no controlling group."));
@@ -423,7 +440,7 @@ public sealed class GameState
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
-        ActiveToken = ActiveToken, Controllers = [.. Controllers],
+        ActiveToken = ActiveToken, Controllers = [.. Controllers], Orders = [.. Orders],
         AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, MoveDone = MoveDone, ActionDone = ActionDone,
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],

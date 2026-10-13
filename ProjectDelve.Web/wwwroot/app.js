@@ -1,6 +1,6 @@
 import { styleSide } from "./side-colors.js";
 
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
+const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -290,7 +290,7 @@ function renderBoard(state, preserveNodes = false) {
   }
 }
 
-function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders) {
   displayedCards = cards;
   displayedFigures = geometry;
   renderBoard(state, preserveNodes);
@@ -298,6 +298,7 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
   renderTurn(state);
   renderWorldEffects(world);
+  renderOrders(orders, state);
   highlightContext();
   renderUnitCard();
 }
@@ -797,7 +798,7 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
       if (steps.has(index)) {
         const before = displayedState;
         const after = steps.get(index);
-        renderState(after, true, projected.cards, projected.figures, projected.worldEffects);
+        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders);
         if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
           const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
           const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
@@ -929,6 +930,23 @@ function tokenNode(token, state) {
   const node = text("span", `${name} \u00b7 ${token.sideId}`);
   node.className = "activation-token"; styleSide(node, token.sideId);
   return node;
+}
+
+function renderOrders(orders, state) {
+  const panel = ui.orders;
+  panel.replaceChildren();
+  panel.hidden = !orders?.length;
+  if (!orders?.length) return;
+  panel.append(text("h2", "Standing Orders"));
+  for (const order of orders) {
+    const name = state.types.find(type => type.id === order.token.typeId)?.displayName ?? order.token.typeId;
+    const label = order.kind === "DoNothing" ? "Do Nothing"
+      : order.kind === "HoldPosition" ? "Hold Position"
+      : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
+      : order.kind;
+    const row = text("p", `${name} · ${order.token.sideId}: ${label}`);
+    styleSide(row, order.token.sideId); panel.append(row);
+  }
 }
 
 function renderWorldEffects(world) {

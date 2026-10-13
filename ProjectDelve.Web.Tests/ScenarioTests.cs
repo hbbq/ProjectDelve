@@ -34,6 +34,7 @@ public sealed class ScenarioTests
         { "wizard-doors", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
         { "full-party-trolls", 15, ["barbarian", "rogue", "wizard", "cleric"], ["goblin", "skeleton-archer", "zombie", "troll"] },
         { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt", "red-dragon"] },
+        { "orders-playground", 10, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie", "goblin"] },
         { "labyrinth-shaper", 9, ["barbarian", "cleric"], ["labyrinth-shaper"] }
     };
 

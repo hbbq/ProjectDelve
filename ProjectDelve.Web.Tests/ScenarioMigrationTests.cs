@@ -57,6 +57,14 @@ public sealed class ScenarioMigrationTests
             "4,0>5,0:Wall;4,1>5,1:Wall;4,2>5,2:OpenDoor;4,3>5,3:Wall;4,4>5,4:Wall;9,8>10,8:Wall;9,9>10,9:Wall;9,10>10,10:Wall;9,11>10,11:OpenDoor;9,12>10,12:Wall;9,13>10,13:Wall;9,14>10,14:Wall;7,4>7,5:Wall;8,4>8,5:Wall;9,4>9,5:Wall;10,4>10,5:OpenDoor;11,4>11,5:Wall;12,4>12,5:Wall;13,4>13,5:Wall;0,10>0,11:Wall;1,10>1,11:Wall;2,10>2,11:OpenDoor;3,10>3,11:Wall;4,10>4,11:Wall;5,10>5,11:Wall;6,10>6,11:Wall",
             "barbarian-type:blue@2,6:Upright:5;rogue-type:blue@3,7:Upright:4;wizard-type:blue@2,7:Upright:4;cleric-type:blue@1,7:Upright:4;shaman-type:red@7,5:Upright:1;grunt-type:red@5,8:Upright:1;red-dragon-type:red@11,5:Upright:8",
             "barbarian-type:blue:Human;rogue-type:blue:Human;wizard-type:blue:Human;cleric-type:blue:Human;shaman-type:red:Automated;grunt-type:red:Automated;red-dragon-type:red:Automated" },
+        { "orders-playground",
+            10,
+            10,
+            "barbarian-type,rogue-type,grunt-type,skeleton-archer-type,zombie-type,goblin-type",
+            "5,6:Grass;5,9:Grass",
+            "7,4>8,4:Wall;7,5>8,5:Wall;7,6>8,6:Wall;7,7>8,7:Wall;7,8>8,8:Wall",
+            "barbarian-type:blue@3,2:Upright:5;rogue-type:blue@5,5:Upright:4;grunt-type:red@3,3:Upright:1;skeleton-archer-type:red@7,2:Upright:1;zombie-type:red@9,6:Upright:1;goblin-type:red@1,6:Upright:1",
+            "barbarian-type:blue:Human;rogue-type:blue:Human;grunt-type:red:Automated;skeleton-archer-type:red:Automated;zombie-type:red:Automated;goblin-type:red:Automated" },
     };
 
     [Theory, MemberData(nameof(Setups))]

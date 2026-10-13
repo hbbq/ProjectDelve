@@ -182,4 +182,33 @@ public sealed class GambitDelegationTests
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         Assert.NotNull(lease);
         Assert.Null(lease.GetValue(game));
-    }}
+    }
+    [Fact]
+    public async Task DelegationAndPreviewUseStandingOrderWithoutChangingOwnership()
+    {
+        var dice = new Dice();
+        var state = SingleAlliedUnit();
+        var token = new ActivationToken("ordinary", "amber");
+        state.AssignOrder(token, OrderKind.DoNothing);
+        using var game = new PlaytestGame(dice, state, controllers: Bindings());
+        var ownership = game.Snapshot().ControllerAssignments.ToArray();
+
+        game.StartRound(0);
+        var request = Assert.IsType<GambitRequest>(game.ControllerRequest());
+        Assert.Equal(DecisionKind.Activation, request.Request.Kind);
+        Assert.Equal(OrderKind.DoNothing, Assert.Single(request.Observation.Orders).Kind);
+        var preview = Assert.Single(request.DefaultBehaviorPreviews);
+        Assert.Equal(new[] { "end-turn" }, preview.Steps.Select(step => step.CandidateKey));
+
+        game.AdmitController(request.Binding);
+        game.SubmitController(new("delegate-do-nothing", request.Binding, null,
+            ActivationControl: GambitActivationControl.Delegate));
+        await Wait(game, current => current.Receipt("delegate-do-nothing").Status == "applied");
+
+        var snapshot = game.Snapshot();
+        Assert.Equal(new Cell(0, 0), snapshot.Result.State.Physical.Figures.Single(f => f.Id == "one").Position);
+        Assert.Equal(ownership, snapshot.ControllerAssignments);
+        Assert.Equal(0, dice.Attacks);
+        Assert.Equal(OrderKind.DoNothing, Assert.Single(snapshot.Presentation.Orders).Kind);
+    }
+}

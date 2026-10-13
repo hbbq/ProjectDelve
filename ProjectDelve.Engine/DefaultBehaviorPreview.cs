@@ -23,7 +23,7 @@ public static partial class GameEngine
         var selected = authoritative.Units.SingleOrDefault(unit => unit.Id == unitId)
             ?? throw new ArgumentException("The Unit does not exist.", nameof(unitId));
         var token = new ActivationToken(selected.TypeId, selected.SideId);
-        var provider = new DefaultAutomatedProvider();
+        var provider = new OrderAwareAutomatedProvider();
         var random = new PreviewRandomProvider();
         var steps = new List<DefaultBehaviorPreviewStep>();
         EngineResult result;

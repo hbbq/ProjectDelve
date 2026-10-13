@@ -35,6 +35,7 @@ public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<s
     public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
+    public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
 }
 public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> Cards,
     BrowserDecision? Decision, IReadOnlyList<BrowserOutcome> Events,
@@ -44,6 +45,7 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
     public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
+    public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
 }
 
 // An adapter over authoritative engine results; never generates or filters legal choices.
@@ -54,8 +56,10 @@ public static class BrowserProjection
         Cards(result.State), Decision(result.NextInput, result.State),
         result.Events.Select(e => Outcome(e, result.State)).ToArray(),
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))
-            { Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter), Completion = s.StateAfter.Completion }).ToArray())
-        { Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion };
+            { Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
+                Completion = s.StateAfter.Completion, Orders = s.StateAfter.Orders.ToArray() }).ToArray())
+        { Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
+            Orders = result.State.Orders.ToArray() };
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
         new BrowserObjective(o.SideId, o.Objective switch

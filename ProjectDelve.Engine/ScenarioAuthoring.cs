@@ -13,7 +13,7 @@ public static class Scenario
         new(unitTypeId, sideId, controller, placements);
 
     public static ScenarioDefinition Define(BoardDefinition board, UnitGroup[] groups, string[]? unitTypeIds = null,
-        WorldEffectsSettings? worldEffects = null)
+        WorldEffectsSettings? worldEffects = null, InitialGroupOrder[]? orders = null)
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(groups);
@@ -38,7 +38,8 @@ public static class Scenario
             Board = board, WorldEffects = worldEffects,
             UnitTypeIds = unitTypeIds is null ? groups.Select(g => g.UnitTypeId).Distinct(StringComparer.Ordinal).ToList() : [.. unitTypeIds],
             Units = units,
-            Agency = agency
+            Agency = agency,
+            Orders = orders is null ? null : [.. orders]
         };
     }
 

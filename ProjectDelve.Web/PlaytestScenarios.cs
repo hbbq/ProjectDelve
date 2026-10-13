@@ -27,6 +27,7 @@ public static class PlaytestScenarios
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
         new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach."),
+        new("orders-playground", "Orders Playground", "Compare standing Orders: an idle Grunt, a holding Archer, and Zombie and Goblin groups moving toward marked Cells."),
         new("labyrinth-shaper", "Labyrinth Shaper (digital-only)", "Digital-only encounter: approach the Labyrinth Shaper as it rebuilds a 3x3 room before moving. Old Walls and Doors disappear, four open gaps remain, and Water prevents a Wall on the northeast side.")
     ]);
 
@@ -40,6 +41,7 @@ public static class PlaytestScenarios
         "wizard-doors" => WizardDoors(),
         "full-party-trolls" => FullParty(),
         "shaman-hunt" => ShamanHunt(),
+        "orders-playground" => OrdersPlayground(),
         "labyrinth-shaper" => LabyrinthShaper(),
         _ => throw new ArgumentException("Unknown playtest scenario.", nameof(id))
     };
@@ -160,6 +162,28 @@ public static class PlaytestScenarios
             Group(UnitTypeIds.Goblin, "red", ControllerKind.Automated),
             Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(5, 8)),
             Group(UnitTypeIds.RedDragon, "red", ControllerKind.Automated, At(11, 5))
+        ]);
+
+    private static ScenarioDefinition OrdersPlayground() => Define(
+        board: Map(10, 10, cells: [
+            Tile(5, 6, TerrainKind.Grass),
+            Tile(5, 9, TerrainKind.Grass)
+        ], edges: [
+            .. Vertical(7, 4, 8, EdgeKind.Wall)
+        ]),
+        groups: [
+            Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(3, 2)),
+            Group(UnitTypeIds.Rogue, "blue", ControllerKind.Human, At(5, 5)),
+            Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(3, 3)),
+            Group(UnitTypeIds.SkeletonArcher, "red", ControllerKind.Automated, At(7, 2)),
+            Group(UnitTypeIds.Zombie, "red", ControllerKind.Automated, At(9, 6)),
+            Group(UnitTypeIds.Goblin, "red", ControllerKind.Automated, At(1, 6))
+        ],
+        orders: [
+            new(UnitTypeIds.Grunt, "red", OrderKind.DoNothing),
+            new(UnitTypeIds.SkeletonArcher, "red", OrderKind.HoldPosition),
+            new(UnitTypeIds.Zombie, "red", OrderKind.MoveTo, new(5, 9)),
+            new(UnitTypeIds.Goblin, "red", OrderKind.MoveTo, new(5, 6))
         ]);
 
     private static ScenarioDefinition LabyrinthShaper() => Define(

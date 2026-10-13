@@ -10,7 +10,7 @@ public sealed partial class PlaytestGame : IDisposable
 {
     private readonly object gate = new();
     private readonly IRandomProvider random;
-    private readonly DefaultAutomatedProvider automated = new();
+    private readonly OrderAwareAutomatedProvider automated = new();
     private readonly Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external;
     private readonly Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection;
     private bool HasExternal => external is not null || externalSelection is not null;
