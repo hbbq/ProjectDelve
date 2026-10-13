@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Collections.Immutable;
 using ProjectDelve.Engine;
 using ProjectDelve.Web;
 using Xunit;
@@ -62,6 +63,7 @@ public sealed class GambitControllerTests
         game.StartRound(0); var request=game.ControllerRequest()!; game.AdmitController(request.Binding);
         Assert.Equal("rejected",game.SubmitController(new("invalid",request.Binding,"not-legal")).Status);
         Assert.Equal("controller-error",game.ControllerState().Status); Assert.Null(game.ControllerRequest());
+        Assert.Contains("invalid decision", game.Snapshot().ControllerStatus!.Error!, StringComparison.OrdinalIgnoreCase);
         var state=game.ControllerState();
         game.Accept(new() { CommandId="retry",SessionId=state.SessionId,ExpectedRevision=request.Binding.Revision,Operation="controller/retry" });
         await Wait(game,g=>g.ControllerRequest()!=null);
@@ -135,7 +137,7 @@ public sealed class GambitControllerTests
         Assert.Equal(0,request.Binding.CursorStart);
         Assert.Equal(request.Binding,game.ControllerRequest()!.Binding);
         Assert.Equal(request.Events.Count,game.ControllerRequest()!.Events.Count);
-        Assert.Equal(130,request.Observation.Units.Count(u=>u.Unit.SideId=="amber"));
+        Assert.Equal(130,request.Observation.Units.Count(u=>u.SideId=="amber"));
         Assert.DoesNotContain("opposing-human-strategy-marker", JsonSerializer.Serialize(request));
         Assert.DoesNotContain("commentar", JsonSerializer.Serialize(request), StringComparison.OrdinalIgnoreCase);
     }
@@ -212,5 +214,124 @@ public sealed class GambitControllerTests
         Assert.Equal(1,player.Presentation.WorldEffects!.DrawPileCount);
         Assert.DoesNotContain("future-secret",JsonSerializer.Serialize(player));
         Assert.Single(game.Snapshot().Result.State.WorldDeck!.DrawPile);
+    }
+    [Fact]
+    public void ProjectionIsDeterministicCompactAndPreservesBoardUnitsTypesBagAndChoices()
+    {
+        var state = Setup();
+        state.Physical = new(new(3, 1, [new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor)])
+        {
+            Terrain = [new(new(2, 0), TerrainKind.Water)]
+        }, state.Physical.Figures);
+        state.Bag = [new("ordinary", "violet"), new("ordinary", "amber"), new("ordinary", "amber")];
+        state.Pending = new(DecisionKind.Act, "ordinary", "one",
+        [
+            new("exact-choice", new(2, 0), [new(0, 0), new(1, 0), new(2, 0)], UnitAction.NormalAttack,
+                "two", new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor), new(4), ActivationChoiceKind.Action)
+                { TargetIds = ["two"] },
+            new("stay", Kind: ActivationChoiceKind.Stay)
+        ], false) { Token = new("ordinary", "amber") };
+
+        var first = GambitProjection.Observation(state);
+        var second = GambitProjection.Observation(state);
+        Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(second));
+        Assert.Equal(EdgeKind.ClosedDoor, Assert.Single(first.Board.Edges).Kind);
+        Assert.Equal(TerrainKind.Water, Assert.Single(first.Board.Terrain).Kind);
+        var unit = Assert.Single(first.Units, unit => unit.Id == "one");
+        Assert.Equal(1, unit.MaximumHp); Assert.Equal(new GambitStats(1, 1, 2, 1), unit.EffectiveStats);
+        Assert.Null(unit.OccupiedCells); Assert.Null(unit.CellSpan);
+        var type = Assert.Single(first.Types);
+        Assert.Equal(1, type.Hp); Assert.Contains(type.Abilities, ability => ability.Id == "attack");
+        Assert.Equal([new GambitBagEntry("ordinary", "amber", 2), new GambitBagEntry("ordinary", "violet", 1)], first.Bag);
+        Assert.Contains("Attack dice", first.Glossary.ATK); Assert.Contains("StoneFloor", first.Glossary.Board);
+
+        var decision = GambitProjection.Decision(state.Pending);
+        var choice = Assert.Single(decision.Candidates, candidate => candidate.Key == "exact-choice");
+        Assert.Equal(new Cell(2, 0), choice.Destination);
+        Assert.Equal([new(0, 0), new(1, 0), new(2, 0)], choice.Path);
+        Assert.Equal("two", choice.TargetId); Assert.Equal(["two"], choice.TargetIds);
+        Assert.Equal(EdgeKind.ClosedDoor, choice.Door!.Kind); Assert.Equal(4, choice.DoorSuccessCount);
+        Assert.Equal(["exact-choice", "stay"], decision.Candidates.Select(candidate => candidate.Key));
+
+        var json = JsonSerializer.Serialize(first);
+        Assert.DoesNotContain("controllers", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("worldDeck", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(":null", json);
+    }
+
+    [Fact]
+    public void ProjectionHidesWorldOrderAndRetainsPublicWorldStateAndEventConsequences()
+    {
+        var state = Setup();
+        state.WorldEffects = new(1, 2);
+        state.WorldDeck = new()
+        {
+            DrawPile = [new("future-secret-a", WorldEffect.Haste), new("future-secret-b", WorldEffect.Weakness)],
+            DiscardPile = [new("known-discard", WorldEffect.Fatigue)],
+            ActiveContinuous = [new("active-public", WorldEffect.Bloodlust)]
+        };
+        var observation = GambitProjection.Observation(state);
+        var json = JsonSerializer.Serialize(observation);
+        Assert.DoesNotContain("future-secret", json); Assert.Contains("active-public", json);
+        Assert.Equal(2, observation.WorldEffects!.DrawPileCount);
+        Assert.Equal(1, observation.WorldEffects.DiscardPileCount);
+
+        var attack = new RulesEvent("AttackResolved", "one", "two", Hits: 2, Blocks: 1, Damage: 1,
+            Attack: new(2, 2, [new("two", 1, 1, 1)]));
+        var projectedAttack = GambitProjection.Event(attack);
+        Assert.Equal(2, projectedAttack.Hits); Assert.Equal(1, projectedAttack.Blocks);
+        Assert.Equal(1, projectedAttack.Damage); Assert.Equal("two", Assert.Single(projectedAttack.Attack!.Targets).TargetId);
+        var door = GambitProjection.Event(new("DoorOpeningAttemptResolved", "one",
+            Door: new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor), DieRoll: 5, SuccessCount: 4, Succeeded: true));
+        Assert.Equal(5, door.DieRoll); Assert.Equal(4, door.SuccessCount); Assert.True(door.Succeeded);
+        var roll = new DiceResult(new(DiceFamily.Attack, 2, "one", "one", "attack", "Attack", "two"),
+            ImmutableArray.Create("Hit", "Miss"), 1);
+        var dice = GambitProjection.Event(new("DiceRolled", "one") { Dice = roll });
+        Assert.Equal(1, dice.Dice!.Successes); Assert.Equal(["Hit", "Miss"], dice.Dice.Faces);
+    }
+
+    [Fact]
+    public void RepresentativeRequestIsAtLeastFortyPercentSmallerThanRecordedBaseline()
+    {
+        using var game = new PlaytestGame(new Dice());
+        var sides = game.Snapshot().Result.State.Objectives.Select(objective => objective.SideId).ToArray();
+        var setup = game.SetupRestart(0, new() { [sides[0]] = "Gambit", [sides[1]] = "Human" });
+        game.StartRound(setup.Revision);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(game.ControllerRequest()).Length;
+        const int RecordedBaselineBytes = 12302;
+        Assert.True(bytes <= RecordedBaselineBytes * 0.60, $"Expected <= 60% of {RecordedBaselineBytes} bytes, got {bytes}.");
+    }
+
+    [Fact]
+    public void LargeCandidateSetsRemainComplete()
+    {
+        var state = Setup();
+        state.Pending = new(DecisionKind.Activation, "ordinary", "one",
+            Enumerable.Range(0, 2000).Select(index => new Candidate($"choice-{index}", Kind: ActivationChoiceKind.Stay)).ToList(), false)
+            { Token = new("ordinary", "amber") };
+        using var game = new PlaytestGame(new Dice(), state, controllers: Bindings());
+        var request = Assert.IsType<GambitRequest>(game.ControllerRequest());
+        Assert.Equal(2000, request.Request.Candidates.Count);
+        Assert.Equal("choice-0", request.Request.Candidates[0].Key);
+        Assert.Equal("choice-1999", request.Request.Candidates[^1].Key);
+    }
+
+    [Theory]
+    [InlineData("model-unavailable", "unavailable or rate limited")]
+    [InlineData("invalid-decision", "invalid decision")]
+    [InlineData("controller-failure", "controller failed")]
+    [InlineData("unexpected-detail", "controller failed")]
+    [InlineData(null, "controller failed")]
+    public void ControllerErrorsExposeSafeUsefulCategories(string? reason, string expected)
+    {
+        using var game = new PlaytestGame(new Dice(), Setup(), controllers: Bindings());
+        game.StartRound(0);
+        var request = Assert.IsType<GambitRequest>(game.ControllerRequest());
+        game.ReportControllerError(new(request.Binding, reason));
+        var status = game.Snapshot().ControllerStatus!;
+        Assert.Equal("controller-error", status.Status);
+        Assert.Contains(expected, status.Error!, StringComparison.OrdinalIgnoreCase);
+        Assert.True(status.CanRetry); Assert.True(status.CanCancel);
+        Assert.NotNull(game.Snapshot().Result.State.Pending);
     }
 }

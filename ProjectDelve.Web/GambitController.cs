@@ -1,25 +1,16 @@
 using ProjectDelve.Engine;
+using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Web;
 
 public sealed record GambitBinding(string SessionId, string BindingId, string SideId, string DecisionId,
     long Revision, string AttemptId, long CursorStart, long CursorEnd);
 public sealed record GambitRequest(int SchemaVersion, GambitBinding Binding, SideObjective Objective,
-    string Status, GameCompletion? Completion, DecisionRequest Request, GambitObservation Observation,
-    IReadOnlyList<RulesEvent> Events)
+    string Status, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GameCompletion? Completion, GambitDecision Request, GambitObservation Observation,
+    IReadOnlyList<GambitEvent> Events)
 {
     public string ObjectiveMeaning => "Eliminate Enemies: no living hostile Units remain on the board; ProjectDelve evaluates achievement at completed activation and fully resolved stable transition boundaries.";
 }
-// Allowlisted player contract; adding engine state fields cannot expand the observation.
-public sealed record GambitUnit(Unit Unit, FigureGeometry? Geometry, Posture? Posture, int EffectiveAtk, int EffectiveMov, int EffectiveRng, int EffectiveDef);
-public sealed record GambitType(UnitType Definition, IReadOnlyList<CardEntryDescription> Entries);
-public sealed record GambitActivation(ActivationToken? ActiveToken, string? CurrentUnitId, IReadOnlyList<string> CompletedUnitIds,
-    bool MoveDone, int ActionsUsed, int ActionsRemaining, IReadOnlyDictionary<string,int> BonusActionUseCounts,
-    IReadOnlyList<ModifierThisTurn> Modifiers, int? MoveAfterAttackAllowance, bool CleavePending,
-    AttackContinuation? Attack, DoorContinuation? Door, IReadOnlyList<DefeatContext> PendingExplosions);
-public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Units, IReadOnlyList<GambitType> Types,
-    IReadOnlyList<ControllerAssignment> Controllers, IReadOnlyList<ActivationToken> Bag, GambitActivation Activation,
-    BrowserWorldEffects? WorldEffects, IReadOnlyList<SideObjective> Objectives, GameCompletion? Completion, int Round, bool RoundComplete);
 public sealed record GambitStatus(int SchemaVersion, string SessionId, string BindingId, string? SideId,
     string Status, GameCompletion? Completion, GambitBinding? Request)
 {
@@ -107,22 +98,12 @@ public sealed partial class PlaytestGame
         if (historyOffset + committed.Count - acknowledgedCursor > historyLimit)
         { historyOverflow = true; status = "controller-error"; controllerError = "Controller history limit exceeded. Restart the match."; return; }
         if (state.Pending is not { } pending || !IsGambit(pending)) return;
-        var geometries = BrowserProjection.Figures(state);
-        var observation = new GambitObservation(Detach(state.Physical.Board),
-            state.Units.Select(u => new GambitUnit(Detach(u), geometries.GetValueOrDefault(u.Id),
-                state.Physical.Figures.FirstOrDefault(f => f.Id == u.Id)?.Posture,
-                state.EffectiveAtkOf(u.Id), state.EffectiveMovOf(u.Id), state.EffectiveRngOf(u.Id), state.EffectiveDefOf(u.Id))).ToArray(),
-            state.Types.Select(t => new GambitType(Detach(t), t.CardEntries(state.Types).ToArray())).ToArray(),
-            Detach(state.Controllers), state.Bag.OrderBy(t => t.SideId).ThenBy(t => t.TypeId).ToArray(),
-            new(state.ActiveToken, state.CurrentUnitId, Detach(state.CompletedUnitIds), state.MoveDone,
-                state.ActionsUsedThisActivation, state.ActionsRemaining, Detach(state.BonusActionUseCountsThisActivation),
-                Detach(state.ModifiersThisTurn), state.MoveAfterAttackAllowance, state.CleavePending,
-                Detach(state.AttackInProgress), Detach(state.DoorInProgress), Detach(state.PendingExplosions)),
-            BrowserProjection.WorldEffects(state), Detach(state.Objectives), Detach(state.Completion), state.Round, state.RoundComplete);
+        var observation = GambitProjection.Observation(state);
         var binding = new GambitBinding(sessionId, "gambit", pending.Token!.SideId, decisionId!, revision,
             Guid.NewGuid().ToString("N"), acknowledgedCursor, historyOffset + committed.Count);
         var candidate = new GambitRequest(1, binding, state.Objectives.Single(o => o.SideId == binding.SideId),
-            "waiting-external", null, Detach(pending), observation, Detach(committed.Skip((int)(acknowledgedCursor - historyOffset)).ToArray()));
+            "waiting-external", null, GambitProjection.Decision(pending), observation,
+            committed.Skip((int)(acknowledgedCursor - historyOffset)).Select(GambitProjection.Event).ToArray());
         if (System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(candidate, Json).Length > payloadLimit)
         { historyOverflow = true; status = "controller-error"; controllerError = "Controller observation limit exceeded. Restart the match."; return; }
         gambitRequest = candidate; controllerError = null;
@@ -164,7 +145,7 @@ public sealed partial class PlaytestGame
             {
                 var rejected = new GambitReceipt(submission.SubmissionId, "rejected", error.StatusCode == 409 ? "stale-request" : "invalid-selection");
                 RememberReceipt(submission, rejected);
-                if (gambitRequest?.Binding == submission.Binding && !state.IsCompleted && !resetQueued) PauseController();
+                if (gambitRequest?.Binding == submission.Binding && !state.IsCompleted && !resetQueued) PauseController("invalid-decision");
                 return rejected;
             }
             var receipt = new GambitReceipt(submission.SubmissionId, "queued"); RememberReceipt(submission, receipt);
@@ -186,15 +167,27 @@ public sealed partial class PlaytestGame
         if (receipts.ContainsKey(submission.SubmissionId)) receipts[submission.SubmissionId] = (submission, new(submission.SubmissionId, outcome, error));
     }
     public GambitReceipt Receipt(string id) { lock (gate) return receipts.TryGetValue(id, out var prior) ? prior.Receipt : new(id, "unknown"); }
-    private void PauseController()
+    private void PauseController(string reason = "controller-failure")
     {
-        status = "controller-error"; controllerError = "Gambit could not supply a valid decision. Retry or cancel the controller attempt.";
+        status = "controller-error";
+        controllerError = reason switch
+        {
+            "model-unavailable" => "Gambit's model is unavailable or rate limited. Retry or cancel the controller attempt.",
+            "invalid-decision" => "Gambit returned an invalid decision. Retry or cancel the controller attempt.",
+            _ => "Gambit controller failed. Retry or cancel the controller attempt."
+        };
         gambitAdmitted = false; busy = false;
         Publish("boundary", Response(state, null));
     }
     public object ReportControllerError(GambitError error)
     {
-        lock (gate) { CheckBinding(error.Binding); PauseController(); return new { accepted = true }; }
+        lock (gate)
+        {
+            CheckBinding(error.Binding);
+            PauseController(error.Error is "model-unavailable" or "invalid-decision" or "controller-failure"
+                ? error.Error : "controller-failure");
+            return new { accepted = true };
+        }
     }
     private static GameState SanitizeState(GameState source)
     {
