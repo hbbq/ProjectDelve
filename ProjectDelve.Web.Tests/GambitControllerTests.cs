@@ -260,6 +260,78 @@ public sealed class GambitControllerTests
     }
 
     [Fact]
+    public void AsciiBoardShowsCoordinatesTerrainEdgesAndEveryCellOfTwoByTwoUnits()
+    {
+        var ordinary = new UnitType("ordinary", 1, 1, 1, 1, 1);
+        var large = new UnitType("large", 1, 1, 1, 1, 2) { Unique = true, Footprint = Footprint.TwoByTwo };
+        var board = new Board(4, 3,
+        [
+            new(new(0, 0), new(1, 0), EdgeKind.Wall),
+            new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor),
+            new(new(2, 0), new(3, 0), EdgeKind.OpenDoor),
+            new(new(0, 1), new(1, 1), EdgeKind.WallWithWindow),
+            new(new(0, 0), new(0, 1), EdgeKind.Wall),
+            new(new(1, 0), new(1, 1), EdgeKind.ClosedDoor),
+            new(new(2, 0), new(2, 1), EdgeKind.OpenDoor),
+            new(new(3, 0), new(3, 1), EdgeKind.WallWithWindow)
+        ])
+        {
+            Terrain =
+            [
+                new(new(0, 0), TerrainKind.Grass),
+                new(new(1, 0), TerrainKind.Tree),
+                new(new(2, 0), TerrainKind.Water),
+                new(new(3, 0), TerrainKind.StoneFloorWithTable)
+            ]
+        };
+        var state = new GameState
+        {
+            Physical = new(board, [new("unit-exact", new(0, 0)), new("large-exact", new(2, 1))]),
+            Types = [ordinary, large],
+            Units = [ordinary.CreateUnit("unit-exact", "amber"), large.CreateUnit("large-exact", "violet")],
+            Controllers = [new(new("ordinary", "amber"), ControllerKind.Human), new(new("large", "violet"), ControllerKind.Human)],
+            Objectives = [new("amber"), new("violet")]
+        };
+
+        var observation = GambitProjection.Observation(state);
+        var map = observation.AsciiBoard;
+        var lines = map.Split("\r\n");
+
+        Assert.Contains("x->right; y->down", map);
+        Assert.Contains("repeated unit symbol=2x2 footprint", map);
+        Assert.Equal("x>  0  1  2  3", lines[3]);
+        Assert.Equal("y0> gB|t-C~-O#-", lines[4]);
+        Assert.Equal("    -- CC OO XX", lines[5]);
+        Assert.Equal("y1> .-X.-:.A:.A", lines[6]);
+        Assert.Equal("    :: :: :: ::", lines[7]);
+        Assert.Equal("y2> .-:.-:.A:.A", lines[8]);
+        Assert.Equal("units: A=large-exact; B=unit-exact", lines[9]);
+        Assert.Equal(4, lines[6].Count(character => character == 'A') + lines[8].Count(character => character == 'A'));
+        Assert.DoesNotContain("[0,0", map);
+        const int LegacyFocusedMapCharacters = 824;
+        Console.WriteLine($"Compact focused 4x3 ASCII map is {map.Length} characters.");
+        Assert.True(map.Length < LegacyFocusedMapCharacters * 0.70,
+            $"Expected compact map below 70% of {LegacyFocusedMapCharacters} characters, got {map.Length}.");
+        Assert.Equal("large-exact", observation.Units.Single(unit => unit.Id == "large-exact").Id);
+        Assert.Equal(new Cell(2, 1), observation.Units.Single(unit => unit.Id == "large-exact").Position);
+    }
+
+    [Fact]
+    public void AsciiBoardPayloadDeltaIsMeasuredAgainstTheSameStructuredObservation()
+    {
+        var observation = GambitProjection.Observation(Setup());
+        var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(observation).Length;
+        var withoutMap = JsonSerializer.SerializeToNode(observation)!.AsObject();
+        Assert.True(withoutMap.Remove(nameof(GambitObservation.AsciiBoard)));
+        var bytesWithoutMap = JsonSerializer.SerializeToUtf8Bytes(withoutMap).Length;
+        var delta = bytesWithMap - bytesWithoutMap;
+
+        Console.WriteLine($"ASCII board adds {delta} serialized UTF-8 bytes to the focused 3x1 observation.");
+        Assert.True(delta > observation.AsciiBoard.Length,
+            $"Expected the JSON property and newline escaping to exceed {observation.AsciiBoard.Length} text characters; got {delta} bytes.");
+    }
+
+    [Fact]
     public void ProjectionHidesWorldOrderAndRetainsPublicWorldStateAndEventConsequences()
     {
         var state = Setup();
@@ -291,15 +363,26 @@ public sealed class GambitControllerTests
     }
 
     [Fact]
-    public void RepresentativeRequestIsAtLeastFortyPercentSmallerThanRecordedBaseline()
+    public void RepresentativeRequestKeepsStructuredSavingsAndFullPayloadBelowRecordedBaseline()
     {
         using var game = new PlaytestGame(new Dice());
         var sides = game.Snapshot().Result.State.Objectives.Select(objective => objective.SideId).ToArray();
         var setup = game.SetupRestart(0, new() { [sides[0]] = "Gambit", [sides[1]] = "Human" });
         game.StartRound(setup.Revision);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(game.ControllerRequest()).Length;
+        var withMap = JsonSerializer.SerializeToNode(game.ControllerRequest())!.AsObject();
+        var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(withMap).Length;
+        var observation = withMap[nameof(GambitRequest.Observation)]!.AsObject();
+        var mapCharacters = observation[nameof(GambitObservation.AsciiBoard)]!.GetValue<string>().Length;
+        Assert.True(mapCharacters < 3594 / 2, $"Expected compact map below half of the legacy 3594 characters, got {mapCharacters}.");
+        Assert.True(observation.Remove(nameof(GambitObservation.AsciiBoard)));
+        var structuredBytes = JsonSerializer.SerializeToUtf8Bytes(withMap).Length;
+        var mapDelta = bytesWithMap - structuredBytes;
         const int RecordedBaselineBytes = 12302;
-        Assert.True(bytes <= RecordedBaselineBytes * 0.60, $"Expected <= 60% of {RecordedBaselineBytes} bytes, got {bytes}.");
+        Console.WriteLine($"ASCII board is {mapCharacters} characters and adds {mapDelta} serialized UTF-8 bytes to the representative request.");
+        Assert.True(bytesWithMap < RecordedBaselineBytes,
+            $"Expected full request < {RecordedBaselineBytes} bytes, got {bytesWithMap}; map adds {mapDelta} bytes.");
+        Assert.True(structuredBytes <= RecordedBaselineBytes * 0.60,
+            $"Expected structured request <= 60% of {RecordedBaselineBytes} bytes, got {structuredBytes}; map adds {mapDelta} bytes.");
     }
 
     [Fact]

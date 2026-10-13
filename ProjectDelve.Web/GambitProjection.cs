@@ -1,4 +1,5 @@
 using ProjectDelve.Engine;
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Web;
@@ -37,7 +38,7 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitWorldEffects? WorldEffects,
     IReadOnlyList<SideObjective> Objectives,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GameCompletion? Completion,
-    int Round, bool RoundComplete, GambitGlossary Glossary);
+    int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard);
 
 public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool Relevant,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AbilityId,
@@ -160,8 +161,126 @@ internal static class GambitProjection
         return new(state.Physical.Board, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
-            state.Round, state.RoundComplete, Glossary);
+            state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units));
     }
+
+    private const string UnitSymbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    private static string RenderAsciiBoard(Board board, IReadOnlyList<GambitUnit> units)
+    {
+        var positioned = units.Where(unit => unit.Position is not null)
+            .OrderBy(unit => unit.Id, StringComparer.Ordinal).ToArray();
+        var symbols = positioned.Select((unit, index) => (unit.Id, SymbolFor(index)))
+            .ToDictionary(item => item.Id, item => item.Item2, StringComparer.Ordinal);
+        var occupants = positioned.SelectMany(unit => (unit.OccupiedCells ?? [unit.Position!])
+                .Select(cell => (Cell: cell, Symbol: symbols[unit.Id])))
+            .ToDictionary(item => item.Cell, item => item.Symbol);
+        var symbolWidth = positioned.Length == 0 ? 1 : symbols.Values.Max(symbol => symbol.Length);
+        var cellWidth = Math.Max(1 + symbolWidth, Math.Max(1, (board.Width - 1).ToString().Length));
+        var axisWidth = Math.Max(4, (board.Height - 1).ToString().Length + 3);
+
+        var result = new StringBuilder();
+        result.AppendLine("ASCII map (derived; structured Board/Units authoritative). x->right; y->down.");
+        result.AppendLine("cell=terrain+unit: .=StoneFloor g=Grass t=Tree ~=Water #=StoneFloorWithTable; -=empty; repeated unit symbol=2x2 footprint.");
+        result.AppendLine("edge between cells: V |/C/O/X/:; H -/C/O/X/:; Wall/ClosedDoor/OpenDoor/WallWithWindow/None(open).");
+
+        var line = new StringBuilder("x>".PadRight(axisWidth));
+        for (var x = 0; x < board.Width; x++)
+        {
+            if (x > 0) line.Append(' ');
+            line.Append(Center(x.ToString(), cellWidth));
+        }
+        result.AppendLine(line.ToString().TrimEnd());
+
+        for (var y = 0; y < board.Height; y++)
+        {
+            line.Clear();
+            line.Append($"y{y}>".PadRight(axisWidth));
+            for (var x = 0; x < board.Width; x++)
+            {
+                var cell = new Cell(x, y);
+                var symbol = occupants.GetValueOrDefault(cell) ?? "-";
+                var content = $"{Terrain(board.TerrainAt(cell))}{symbol.PadRight(symbolWidth)}";
+                line.Append(content.PadRight(cellWidth));
+                if (x < board.Width - 1)
+                    line.Append(VerticalEdge(board.EdgeBetween(cell, new(x + 1, y))));
+            }
+            result.AppendLine(line.ToString().TrimEnd());
+            if (y == board.Height - 1) continue;
+
+            line.Clear();
+            line.Append(' ', axisWidth);
+            for (var x = 0; x < board.Width; x++)
+            {
+                if (x > 0) line.Append(' ');
+                var marker = HorizontalEdge(board.EdgeBetween(new(x, y), new(x, y + 1)));
+                line.Append(marker, cellWidth);
+            }
+            result.AppendLine(line.ToString().TrimEnd());
+        }
+
+        result.Append("units:");
+        if (positioned.Length == 0) result.Append(" none");
+        foreach (var unit in positioned)
+            result.Append(' ').Append(symbols[unit.Id]).Append('=').Append(EscapeAscii(unit.Id)).Append(';');
+        return result.ToString().TrimEnd(';', '\r', '\n');
+    }
+
+    private static string SymbolFor(int index)
+    {
+        var result = new StringBuilder();
+        do
+        {
+            result.Insert(0, UnitSymbols[index % UnitSymbols.Length]);
+            index = index / UnitSymbols.Length - 1;
+        } while (index >= 0);
+        return result.ToString();
+    }
+
+    private static string EscapeAscii(string value)
+    {
+        var result = new StringBuilder(value.Length);
+        foreach (var character in value)
+            if (character is >= ' ' and <= '~' and not ('\\' or ';' or '=')) result.Append(character);
+            else result.Append("\\u").Append(((int)character).ToString("X4"));
+        return result.ToString();
+    }
+
+    private static string Center(string value, int width)
+    {
+        var left = (width - value.Length) / 2;
+        return new string(' ', left) + value + new string(' ', width - left - value.Length);
+    }
+
+    private static char Terrain(TerrainKind kind) => kind switch
+    {
+        TerrainKind.StoneFloor => '.',
+        TerrainKind.Grass => 'g',
+        TerrainKind.Tree => 't',
+        TerrainKind.Water => '~',
+        TerrainKind.StoneFloorWithTable => '#',
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
+
+    private static char VerticalEdge(EdgeKind kind) => kind switch
+    {
+        EdgeKind.Wall => '|',
+        EdgeKind.ClosedDoor => 'C',
+        EdgeKind.OpenDoor => 'O',
+        EdgeKind.WallWithWindow => 'X',
+        EdgeKind.None => ':',
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
+
+    private static char HorizontalEdge(EdgeKind kind) => kind switch
+    {
+        EdgeKind.Wall => '-',
+        EdgeKind.ClosedDoor => 'C',
+        EdgeKind.OpenDoor => 'O',
+        EdgeKind.WallWithWindow => 'X',
+        EdgeKind.None => ':',
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
 
     internal static GambitEvent Event(RulesEvent value)
     {
