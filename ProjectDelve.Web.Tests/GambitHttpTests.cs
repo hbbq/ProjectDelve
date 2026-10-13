@@ -34,7 +34,7 @@ public sealed class GambitHttpTests
             var round=await http.PostAsJsonAsync("/api/game/round",new { expectedRevision=setup.Revision }); round.EnsureSuccessStatusCode();
             http.DefaultRequestHeaders.Authorization=new("Bearer","isolated-gambit-test");
             var request=(await http.GetFromJsonAsync<GambitRequest>("/api/controllers/gambit/request",Gambit))!;
-            Assert.Equal(2,request.SchemaVersion); Assert.Equal("gambit",request.Binding.BindingId);
+            Assert.Equal(3,request.SchemaVersion); Assert.Equal("gambit",request.Binding.BindingId);
             Assert.True(request.Request.Candidates.Count+(request.Request.AllowsNone ? 1:0)>1);
             Assert.NotNull(request.Objective); Assert.NotEmpty(request.Events);
             var serialized=await http.GetStringAsync("/api/controllers/gambit/request");
@@ -46,9 +46,11 @@ public sealed class GambitHttpTests
                 Assert.Equal(JsonValueKind.Array, observation.GetProperty("units")[0].GetProperty("position").ValueKind);
                 Assert.Equal(request.Request.Candidates.Count,
                     root.GetProperty("request").GetProperty("candidates").GetArrayLength());
+                Assert.Equal(request.DefaultBehaviorPreviews.Count, root.GetProperty("defaultBehaviorPreviews").GetArrayLength());
             }
             Assert.True((await http.PostAsJsonAsync("/api/controllers/gambit/admit",request.Binding)).IsSuccessStatusCode);
             var selection=new GambitSubmission("http-stable",request.Binding,request.Request.Candidates.First().Key,"gambit-private-marker");
+            Assert.Contains("\"activationControl\":\"Direct\"", JsonSerializer.Serialize(selection, Gambit));
             var receipt=(await (await http.PostAsJsonAsync("/api/controllers/gambit/selection",selection,Json)).Content.ReadFromJsonAsync<GambitReceipt>(Json))!;
             Assert.Equal("queued",receipt.Status);
             for(var n=0;n<200;n++)

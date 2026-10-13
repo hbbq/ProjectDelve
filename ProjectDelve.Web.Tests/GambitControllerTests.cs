@@ -521,7 +521,7 @@ public sealed class GambitControllerTests
         var configured = game.SetupScenario(0, "shaman-hunt", null, exact);
         game.StartRound(configured.Revision);
         var request = await ReachShamanAction(game, "stay-before-default-summon");
-        Assert.Equal(2, request.SchemaVersion); Assert.Equal(UnitTypeIds.Shaman, request.Request.TypeId);
+        Assert.Equal(3, request.SchemaVersion); Assert.Equal(UnitTypeIds.Shaman, request.Request.TypeId);
         var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
         game.AdmitController(request.Binding);
         game.SubmitController(new("summon-default-goblin", request.Binding, summon.Key));

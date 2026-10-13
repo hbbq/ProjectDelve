@@ -7,7 +7,7 @@ public sealed record GambitBinding(string SessionId, string BindingId, string Si
     long Revision, string AttemptId, long CursorStart, long CursorEnd);
 public sealed record GambitRequest(int SchemaVersion, GambitBinding Binding, SideObjective Objective,
     string Status, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GameCompletion? Completion, GambitDecision Request, GambitObservation Observation,
-    IReadOnlyList<GambitEvent> Events)
+    IReadOnlyList<GambitEvent> Events, IReadOnlyList<DefaultBehaviorPreview> DefaultBehaviorPreviews)
 {
     public string ObjectiveMeaning => "Eliminate Enemies: no living hostile Units remain on the board; ProjectDelve evaluates achievement at completed activation and fully resolved stable transition boundaries.";
 }
@@ -17,7 +17,9 @@ public sealed record GambitStatus(int SchemaVersion, string SessionId, string Bi
     public SideObjective? Objective { get; init; }
     public string ObjectiveMeaning => "Eliminate Enemies: no living hostile Units remain on the board; achievement is evaluated by ProjectDelve at completed activation and fully resolved stable transition boundaries.";
 }
-public sealed record GambitSubmission(string SubmissionId, GambitBinding Binding, string? CandidateKey, string? Commentary = null);
+public enum GambitActivationControl { Direct, Delegate }
+public sealed record GambitSubmission(string SubmissionId, GambitBinding Binding, string? CandidateKey,
+    string? Commentary = null, GambitActivationControl ActivationControl = GambitActivationControl.Direct);
 public sealed record GambitReceipt(string SubmissionId, string Status, string? Error = null);
 public sealed record GambitError(GambitBinding Binding, string? Error = null);
 public sealed record ControllerStatus(string BindingId, string? SideId, string Status, string? Error, bool Available)
@@ -73,9 +75,14 @@ public sealed partial class PlaytestGame
     private readonly Queue<string> receiptOrder = [];
     private readonly int historyLimit;
     private readonly int payloadLimit;
+    private DelegatedActivation? delegatedActivation;
+    private sealed record DelegatedActivation(string SessionId, string UnitId, ActivationToken Token);
     private string? GambitSide => controllerBindings.FirstOrDefault(p => p.Value == "Gambit").Key?.SideId;
     private bool IsGambit(DecisionRequest request) => request.Token is { } token && controllerBindings.GetValueOrDefault(token) == "Gambit";
-    private bool UsesExternal(DecisionRequest request) => IsGambit(request) || HasExternal;
+    private bool IsDelegated(GameState current, DecisionRequest request) => delegatedActivation is { } delegation &&
+        delegation.SessionId == sessionId && request.Token == delegation.Token && current.CurrentUnitId == delegation.UnitId &&
+        (request.Roll is { } roll ? roll.OwnerUnitId == delegation.UnitId : request.UnitId == delegation.UnitId);
+    private bool UsesExternal(GameState current, DecisionRequest request) => !IsDelegated(current, request) && (IsGambit(request) || HasExternal);
     private IReadOnlyDictionary<string, string> ControllersFor(GameState current) => ControllerAssignmentsFor(current)
         .GroupBy(c => c.SideId).ToDictionary(g => g.Key, g => g.Select(c => c.Controller).Distinct().Count() == 1 ? g.First().Controller : "Mixed");
     private IReadOnlyList<ControllerSelection> ControllerAssignmentsFor(GameState current) => current.Controllers
@@ -145,20 +152,32 @@ public sealed partial class PlaytestGame
         if (resetQueued || state.IsCompleted || GambitSide is null) return;
         if (historyOffset + committed.Count - acknowledgedCursor > historyLimit)
         { historyOverflow = true; status = "controller-error"; controllerError = "Controller history limit exceeded. Restart the match."; return; }
-        if (state.Pending is not { } pending || !IsGambit(pending)) return;
+        if (state.Pending is not { } pending || !IsGambit(pending) || IsDelegated(state, pending)) return;
         var observation = GambitProjection.Observation(state, GambitSide!, controllerBindings);
         var binding = new GambitBinding(sessionId, "gambit", pending.Token!.SideId, decisionId!, revision,
             Guid.NewGuid().ToString("N"), acknowledgedCursor, historyOffset + committed.Count);
-        var candidate = new GambitRequest(2, binding, state.Objectives.Single(o => o.SideId == binding.SideId),
+        var previews = pending.Kind == DecisionKind.SelectUnit
+            ? pending.Candidates.Where(choice => choice.Kind == ActivationChoiceKind.SelectUnit)
+                .Select(PreviewDefaultBehavior).ToArray()
+            : state.CurrentUnitId is { } activeUnit && pending.Kind != DecisionKind.RollDice &&
+                pending.Candidates.Count + (pending.AllowsNone ? 1 : 0) > 1
+                ? [PreviewDefaultBehavior(new(activeUnit, Kind: ActivationChoiceKind.SelectUnit))]
+                : [];
+        var candidate = new GambitRequest(3, binding, state.Objectives.Single(o => o.SideId == binding.SideId),
             "waiting-external", null, GambitProjection.Decision(pending), observation,
-            committed.Skip((int)(acknowledgedCursor - historyOffset)).Select(GambitProjection.Event).ToArray());
+            committed.Skip((int)(acknowledgedCursor - historyOffset)).Select(GambitProjection.Event).ToArray(), previews);
         if (System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(candidate, GambitJson.Options).Length > payloadLimit)
         { historyOverflow = true; status = "controller-error"; controllerError = "Controller observation limit exceeded. Restart the match."; return; }
         gambitRequest = candidate; controllerError = null;
     }
+    private DefaultBehaviorPreview PreviewDefaultBehavior(Candidate choice)
+    {
+        try { return GameEngine.PreviewDefaultBehaviorActivation(state, choice.Key); }
+        catch (Exception) { return new(choice.Key, true, [], DefaultBehaviorPreviewStopReason.NoDecision); }
+    }
     public GambitStatus ControllerState()
     {
-        lock (gate) return new(2, sessionId, "gambit", GambitSide, status, Detach(state.Completion), gambitRequest?.Binding) { Objective = state.Objectives.FirstOrDefault(o => o.SideId == GambitSide) };
+        lock (gate) return new(3, sessionId, "gambit", GambitSide, status, Detach(state.Completion), gambitRequest?.Binding) { Objective = state.Objectives.FirstOrDefault(o => o.SideId == GambitSide) };
     }
     public GambitRequest? ControllerRequest()
     {
@@ -187,7 +206,15 @@ public sealed partial class PlaytestGame
             {
                 CheckBinding(submission.Binding);
                 if (!gambitAdmitted) throw Error(409, "Admit the controller request before submitting.");
-                ValidateKey(state.Pending!, submission.CandidateKey); NormalizeCommentary(submission.Commentary);
+                var pending = state.Pending!;
+                if (!Enum.IsDefined(submission.ActivationControl)) throw Error(400, "Choose Direct or Delegate activation control.");
+                if (submission.ActivationControl == GambitActivationControl.Direct || pending.Kind == DecisionKind.SelectUnit)
+                    ValidateKey(pending, submission.CandidateKey);
+                else if (submission.CandidateKey is not null || pending.Kind == DecisionKind.RollDice ||
+                    pending.UnitId is null || state.CurrentUnitId != pending.UnitId ||
+                    pending.Candidates.Count + (pending.AllowsNone ? 1 : 0) <= 1)
+                    throw Error(400, "Mid-activation delegation requires no candidate and a current multi-choice Unit decision.");
+                NormalizeCommentary(submission.Commentary);
             }
             catch (PlaytestRequestException error)
             {

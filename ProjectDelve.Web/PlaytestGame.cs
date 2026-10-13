@@ -150,7 +150,7 @@ public sealed partial class PlaytestGame : IDisposable
                 try { ApplyControllers(preview, request.Controllers, request.ControllerAssignments); }
                 finally { controllerBindings = oldBindings; autoChoose = oldAuto; }
             }
-            gambitRequest = null; gambitAdmitted = false;
+            gambitRequest = null; gambitAdmitted = false; delegatedActivation = null;
             resetQueued = true; decisionId = null;
             // Cancellation callbacks belong to external adapters and must run outside this gate.
             var waiting = externalWait; externalWait = null;
@@ -196,7 +196,7 @@ public sealed partial class PlaytestGame : IDisposable
                         if (item.GambitSubmission is { } failed) FinishReceipt(failed, "rejected", "engine-fault");
                         state = Detach(stable.Result.State);
                         autoChoose = stable.AutoChooseSingleRelevantChoice;
-                        status = "faulted"; decisionId = null; busy = resetQueued;
+                        status = "faulted"; decisionId = null; delegatedActivation = null; busy = resetQueued;
                         Publish("fault", Response(state, null), item.Request.CommandId, error.Message);
                     }
                     item.Completion.TrySetException(error);
@@ -218,7 +218,7 @@ public sealed partial class PlaytestGame : IDisposable
             {
                 if (request.Controllers is null && request.ControllerAssignments is null && request.Operation is "scenario" or "scenario/import") controllerBindings = [];
                 ApplyControllers(created, request.Controllers, request.ControllerAssignments);
-                state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; historyOverflow = false;
+                state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; delegatedActivation = null; historyOverflow = false;
                 scenarioId = request.Operation == "scenario" ? request.ScenarioId! : request.Operation == "scenario/import" ? "imported" : scenarioId;
                 sessionId = Guid.NewGuid().ToString("N"); sequence = 0; journal.Clear(); revision++;
                 status = "idle"; decisionId = null; busy = resetQueued = false;
@@ -262,6 +262,8 @@ public sealed partial class PlaytestGame : IDisposable
             lock (gate) Publish("event", new(revision, emission, autoChoose, scenarioId), request.CommandId);
         }
         EngineResult result;
+        var submittedState = state;
+        var submittedPending = state.Pending;
         if (request.Operation == "round") result = GameEngine.StartRound(state, random, autoChoose, Observe);
         else if (request.Operation == "preferences")
         {
@@ -271,11 +273,31 @@ public sealed partial class PlaytestGame : IDisposable
         else
         {
             if (item.ExternalError is not null) throw item.ExternalError;
-            ValidateKey(state.Pending!, request.CandidateKey);
-            result = GameEngine.Advance(state, new CommentaryDecisionProvider(new SubmittedDecisionProvider(request.CandidateKey),
-                (pending, key, queries) => Comment(pending, key, request.Commentary, submittedDecisionId, state)), random, autoChoose, Observe);
+            if (item.GambitSubmission is { ActivationControl: GambitActivationControl.Delegate } &&
+                submittedPending is { Kind: not DecisionKind.SelectUnit, Token: { } activeToken })
+            {
+                delegatedActivation = new(sessionId, submittedPending.UnitId!, activeToken);
+                result = GameEngine.Advance(state, new CommentaryDecisionProvider(automated,
+                    (pending, key, queries) =>
+                    {
+                        Comment(pending, key, request.Commentary, submittedDecisionId, state);
+                        Comment(pending, key, AutomatedDecisionCommentary.For(pending, key, queries, state),
+                            Guid.NewGuid().ToString("N"), state);
+                    }), random, false, Observe);
+            }
+            else
+            {
+                ValidateKey(state.Pending!, request.CandidateKey);
+                result = GameEngine.Advance(state, new CommentaryDecisionProvider(new SubmittedDecisionProvider(request.CandidateKey),
+                    (pending, key, queries) => Comment(pending, key, request.Commentary, submittedDecisionId, state)), random, autoChoose, Observe);
+            }
         }
-        SynchronizeInheritedControllerBindings(state, result);
+        if (item.GambitSubmission is { ActivationControl: GambitActivationControl.Delegate } delegated &&
+            submittedPending is { Kind: DecisionKind.SelectUnit, Token: { } selectedToken } &&
+            result.State.CurrentUnitId == delegated.CandidateKey)
+            delegatedActivation = new(sessionId, delegated.CandidateKey!, selectedToken);
+        SynchronizeInheritedControllerBindings(submittedState, result);
+        UpdateDelegation(result);
         var events = new List<RulesEvent>(result.Events);
         var steps = new List<ResolutionStep>(result.ResolutionSteps);
         while (result.NextInput is { } pending && result.State.ControllerFor(pending) == ControllerKind.Automated)
@@ -285,13 +307,26 @@ public sealed partial class PlaytestGame : IDisposable
             {
                 var count = pending.Candidates.Count + (pending.AllowsNone ? 1 : 0);
                 if (count == 0) throw new InvalidOperationException("No legal controller alternatives.");
-                if (pending.Kind != DecisionKind.RollDice && count != 1) break;
-                var forcedKey = pending.Candidates.FirstOrDefault()?.Key;
-                var gambitDecisionState = result.State;
-                result = GameEngine.Advance(gambitDecisionState, new SubmittedDecisionProvider(forcedKey), random, false, Observe);
-                SynchronizeInheritedControllerBindings(gambitDecisionState, result);
+                if (count == 1)
+                {
+                    var forcedKey = pending.Candidates.FirstOrDefault()?.Key;
+                    var gambitDecisionState = result.State;
+                    result = GameEngine.Advance(gambitDecisionState, new SubmittedDecisionProvider(forcedKey), random, false, Observe);
+                    SynchronizeInheritedControllerBindings(gambitDecisionState, result);
+                    steps.AddRange(result.ResolutionSteps.Select(s => s with { EventIndex = s.EventIndex + events.Count }));
+                    events.AddRange(result.Events); UpdateDelegation(result); continue;
+                }
+                if (!IsDelegated(result.State, pending)) break;
+            }
+            if (IsDelegated(result.State, pending))
+            {
+                var delegatedState = result.State;
+                result = GameEngine.Advance(delegatedState, new CommentaryDecisionProvider(automated,
+                    (choice, key, queries) => Comment(choice, key, AutomatedDecisionCommentary.For(choice, key, queries, delegatedState),
+                        Guid.NewGuid().ToString("N"), delegatedState)), random, false, Observe);
+                SynchronizeInheritedControllerBindings(delegatedState, result);
                 steps.AddRange(result.ResolutionSteps.Select(s => s with { EventIndex = s.EventIndex + events.Count }));
-                events.AddRange(result.Events); continue;
+                events.AddRange(result.Events); UpdateDelegation(result); continue;
             }
             if (HasExternal) break;
             var decisionState = result.State;
@@ -302,6 +337,7 @@ public sealed partial class PlaytestGame : IDisposable
             steps.AddRange(result.ResolutionSteps.Select(s => s with { EventIndex = s.EventIndex + events.Count }));
             events.AddRange(result.Events);
         }
+        UpdateDelegation(result);
         ExternalDecisionContext? context = null; CancellationToken cancellation = default;
         GameResponse response;
         lock (gate)
@@ -352,9 +388,17 @@ public sealed partial class PlaytestGame : IDisposable
                 { ExternalDecisionId = context.DecisionId, ExternalError = error });
         }
     }
+    private void UpdateDelegation(EngineResult result)
+    {
+        if (delegatedActivation is not { } delegation) return;
+        if (result.State.IsCompleted ||
+            result.Events.Any(occurrence => occurrence.Kind == "ActivationCompleted" &&
+                occurrence.UnitId == delegation.UnitId && occurrence.Token == delegation.Token))
+            delegatedActivation = null;
+    }
     private string StatusFor(GameState current) => current.IsCompleted ? "completed" : current.Pending is null ? "idle"
         : current.ControllerFor(current.Pending) == ControllerKind.Human ? "waiting-human"
-        : UsesExternal(current.Pending) ? "waiting-external" : "resolving";
+        : UsesExternal(current, current.Pending) ? "waiting-external" : "resolving";
     private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId)
         { SessionId = sessionId, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus };
     private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null)
