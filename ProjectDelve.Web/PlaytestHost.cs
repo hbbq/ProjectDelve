@@ -59,7 +59,7 @@ public static class PlaytestHost
             catch (PlaytestRequestException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
         });
         controller.MapGet("/status", (PlaytestGame game) => game.ControllerState());
-        controller.MapGet("/request", (PlaytestGame game) => Results.Json(game.ControllerRequest()));
+        controller.MapGet("/request", (PlaytestGame game) => Results.Json(game.ControllerRequest(), GambitJson.Options));
         controller.MapPost("/admit", (GambitBinding binding, PlaytestGame game) => game.AdmitController(binding));
         controller.MapPost("/selection", (GambitSubmission submission, PlaytestGame game) => game.SubmitController(submission));
         controller.MapGet("/receipts/{id}", (string id, PlaytestGame game) => game.Receipt(id));

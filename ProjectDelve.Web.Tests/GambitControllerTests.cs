@@ -253,10 +253,28 @@ public sealed class GambitControllerTests
         Assert.Equal(EdgeKind.ClosedDoor, choice.Door!.Kind); Assert.Equal(4, choice.DoorSuccessCount);
         Assert.Equal(["exact-choice", "stay"], decision.Candidates.Select(candidate => candidate.Key));
 
-        var json = JsonSerializer.Serialize(first);
+        var json = JsonSerializer.Serialize(first, GambitJson.Options);
+        Assert.Contains("\"a\":[0,0]", json);
+        Assert.Contains("\"b\":[1,0]", json);
+        Assert.Contains("\"position\":[2,0]", json);
+        Assert.DoesNotContain("\"x\":", json);
+        Assert.DoesNotContain("\"y\":", json);
+        var roundTrip = JsonSerializer.Deserialize<GambitObservation>(json, GambitJson.Options)!;
+        Assert.Equal(new Cell(2, 0), Assert.Single(roundTrip.Board.Terrain).Position);
+        Assert.Equal(new Cell(0, 0), Assert.Single(roundTrip.Board.Edges).A);
         Assert.DoesNotContain("controllers", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("worldDeck", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(":null", json);
+
+        var decisionJson = JsonSerializer.Serialize(decision, GambitJson.Options);
+        Assert.Contains("\"destination\":[2,0]", decisionJson);
+        Assert.Contains("\"path\":[[0,0],[1,0],[2,0]]", decisionJson);
+        Assert.Contains("\"door\":{\"a\":[0,0],\"b\":[1,0]", decisionJson);
+        var decisionRoundTrip = JsonSerializer.Deserialize<GambitDecision>(decisionJson, GambitJson.Options)!;
+        var roundTripChoice = Assert.Single(decisionRoundTrip.Candidates, candidate => candidate.Key == "exact-choice");
+        Assert.Equal(choice.Destination, roundTripChoice.Destination);
+        Assert.Equal(choice.Path, roundTripChoice.Path);
+        Assert.Equal(choice.Door, roundTripChoice.Door);
     }
 
     [Fact]
@@ -320,10 +338,10 @@ public sealed class GambitControllerTests
     public void AsciiBoardPayloadDeltaIsMeasuredAgainstTheSameStructuredObservation()
     {
         var observation = GambitProjection.Observation(Setup());
-        var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(observation).Length;
-        var withoutMap = JsonSerializer.SerializeToNode(observation)!.AsObject();
-        Assert.True(withoutMap.Remove(nameof(GambitObservation.AsciiBoard)));
-        var bytesWithoutMap = JsonSerializer.SerializeToUtf8Bytes(withoutMap).Length;
+        var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(observation, GambitJson.Options).Length;
+        var withoutMap = JsonSerializer.SerializeToNode(observation, GambitJson.Options)!.AsObject();
+        Assert.True(withoutMap.Remove(JsonNamingPolicy.CamelCase.ConvertName(nameof(GambitObservation.AsciiBoard))));
+        var bytesWithoutMap = JsonSerializer.SerializeToUtf8Bytes(withoutMap, GambitJson.Options).Length;
         var delta = bytesWithMap - bytesWithoutMap;
 
         Console.WriteLine($"ASCII board adds {delta} serialized UTF-8 bytes to the focused 3x1 observation.");
@@ -356,6 +374,16 @@ public sealed class GambitControllerTests
         var door = GambitProjection.Event(new("DoorOpeningAttemptResolved", "one",
             Door: new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor), DieRoll: 5, SuccessCount: 4, Succeeded: true));
         Assert.Equal(5, door.DieRoll); Assert.Equal(4, door.SuccessCount); Assert.True(door.Succeeded);
+        var movement = GambitProjection.Event(new RulesEvent("UnitMoved", "one", Path: [new(0, 0), new(1, 0)])
+            { Cell = new(1, 0) });
+        var eventsJson = JsonSerializer.Serialize(new[] { door, movement }, GambitJson.Options);
+        Assert.Contains("\"door\":{\"a\":[0,0],\"b\":[1,0]", eventsJson);
+        Assert.Contains("\"path\":[[0,0],[1,0]]", eventsJson);
+        Assert.Contains("\"cell\":[1,0]", eventsJson);
+        var eventsRoundTrip = JsonSerializer.Deserialize<GambitEvent[]>(eventsJson, GambitJson.Options)!;
+        Assert.Equal(door.Door, eventsRoundTrip[0].Door);
+        Assert.Equal(movement.Path, eventsRoundTrip[1].Path);
+        Assert.Equal(movement.Cell, eventsRoundTrip[1].Cell);
         var roll = new DiceResult(new(DiceFamily.Attack, 2, "one", "one", "attack", "Attack", "two"),
             ImmutableArray.Create("Hit", "Miss"), 1);
         var dice = GambitProjection.Event(new("DiceRolled", "one") { Dice = roll });
@@ -369,13 +397,13 @@ public sealed class GambitControllerTests
         var sides = game.Snapshot().Result.State.Objectives.Select(objective => objective.SideId).ToArray();
         var setup = game.SetupRestart(0, new() { [sides[0]] = "Gambit", [sides[1]] = "Human" });
         game.StartRound(setup.Revision);
-        var withMap = JsonSerializer.SerializeToNode(game.ControllerRequest())!.AsObject();
-        var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(withMap).Length;
-        var observation = withMap[nameof(GambitRequest.Observation)]!.AsObject();
-        var mapCharacters = observation[nameof(GambitObservation.AsciiBoard)]!.GetValue<string>().Length;
+        var withMap = JsonSerializer.SerializeToNode(game.ControllerRequest(), GambitJson.Options)!.AsObject();
+        var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(withMap, GambitJson.Options).Length;
+        var observation = withMap[JsonNamingPolicy.CamelCase.ConvertName(nameof(GambitRequest.Observation))]!.AsObject();
+        var mapCharacters = observation[JsonNamingPolicy.CamelCase.ConvertName(nameof(GambitObservation.AsciiBoard))]!.GetValue<string>().Length;
         Assert.True(mapCharacters < 3594 / 2, $"Expected compact map below half of the legacy 3594 characters, got {mapCharacters}.");
-        Assert.True(observation.Remove(nameof(GambitObservation.AsciiBoard)));
-        var structuredBytes = JsonSerializer.SerializeToUtf8Bytes(withMap).Length;
+        Assert.True(observation.Remove(JsonNamingPolicy.CamelCase.ConvertName(nameof(GambitObservation.AsciiBoard))));
+        var structuredBytes = JsonSerializer.SerializeToUtf8Bytes(withMap, GambitJson.Options).Length;
         var mapDelta = bytesWithMap - structuredBytes;
         const int RecordedBaselineBytes = 12302;
         Console.WriteLine($"ASCII board is {mapCharacters} characters and adds {mapDelta} serialized UTF-8 bytes to the representative request.");
@@ -397,6 +425,11 @@ public sealed class GambitControllerTests
         Assert.Equal(2000, request.Request.Candidates.Count);
         Assert.Equal("choice-0", request.Request.Candidates[0].Key);
         Assert.Equal("choice-1999", request.Request.Candidates[^1].Key);
+        var serialized = JsonSerializer.Serialize(request, GambitJson.Options);
+        var roundTrip = JsonSerializer.Deserialize<GambitRequest>(serialized, GambitJson.Options)!;
+        Assert.Equal(request.Request.Candidates.Select(candidate => candidate.Key),
+            roundTrip.Request.Candidates.Select(candidate => candidate.Key));
+        Assert.DoesNotContain("commentar", serialized, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
