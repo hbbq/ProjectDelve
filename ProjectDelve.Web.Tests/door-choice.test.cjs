@@ -1783,17 +1783,31 @@ test("standing Orders render projected labels and playback values without an edi
     ...initial.result.state.types,
     { ...initial.result.state.types[0], id: "grunt-type", displayName: "Grunt" },
     { ...initial.result.state.types[0], id: "skeleton-archer-type", displayName: "Skeleton Archer" },
-    { ...initial.result.state.types[0], id: "zombie-type", displayName: "Zombie" }
+    { ...initial.result.state.types[0], id: "zombie-type", displayName: "Zombie" },
+    { ...initial.result.state.types[0], id: "goblin-type", displayName: "Goblin" },
+    { ...initial.result.state.types[0], id: "rogue-type", displayName: "Rogue" }
   ];
   initial.presentation.orders = [
     { token: { typeId: "grunt-type", sideId: "red" }, kind: "DoNothing", destination: null },
     { token: { typeId: "skeleton-archer-type", sideId: "red" }, kind: "HoldPosition", destination: null },
-    { token: { typeId: "zombie-type", sideId: "red" }, kind: "MoveTo", destination: { x: 5, y: 9 } }
+    { token: { typeId: "zombie-type", sideId: "red" }, kind: "MoveTo", destination: { x: 5, y: 9 } },
+    { token: { typeId: "grunt-type", sideId: "red" }, kind: "Attack", target: { kind: "Unit", unitId: "hero-alpha" } },
+    { token: { typeId: "skeleton-archer-type", sideId: "red" }, kind: "Attack", target: { kind: "Group", group: { typeId: "rogue-type", sideId: "blue" } } },
+    { token: { typeId: "goblin-type", sideId: "red" }, kind: "Attack", target: { kind: "Side", sideId: "blue" } },
+    { token: { typeId: "zombie-type", sideId: "red" }, kind: "Protect", target: { kind: "Unit", unitId: "escort-leader" } },
+    { token: { typeId: "goblin-type", sideId: "red" }, kind: "Retreat", target: null },
+    { token: { typeId: "zombie-type", sideId: "red" }, kind: "InteractWith", target: { kind: "Door", door: { a: { x: 5, y: 4 }, b: { x: 6, y: 4 } } } }
   ];
   const h = harness(initial);
   assert.equal(h.elements.get("orders").hidden, false);
   assert.match(h.elements.get("orders").textContent,
     /Standing Orders.*Grunt · red: Do Nothing.*Skeleton Archer · red: Hold Position.*Zombie · red: Move To \(5,9\)/);
+  assert.match(h.elements.get("orders").textContent, /Grunt .* red: Attack .* Unit hero-alpha/);
+  assert.match(h.elements.get("orders").textContent, /Skeleton Archer .* red: Attack .* Rogue .* blue/);
+  assert.match(h.elements.get("orders").textContent, /Goblin .* red: Attack .* Side blue/);
+  assert.match(h.elements.get("orders").textContent, /Zombie .* red: Protect .* Unit escort-leader/);
+  assert.match(h.elements.get("orders").textContent, /Goblin .* red: Retreat/);
+  assert.match(h.elements.get("orders").textContent, /Zombie .* red: Interact With .* Door \(5,4\).\(6,4\)/);
   assert.equal(h.elements.get("orders").querySelectorAll("button").length, 0);
 
   h.context.playbackOrders = [{ token: { typeId: "zombie-type", sideId: "red" },

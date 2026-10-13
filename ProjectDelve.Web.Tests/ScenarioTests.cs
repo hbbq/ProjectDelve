@@ -35,6 +35,8 @@ public sealed class ScenarioTests
         { "full-party-trolls", 15, ["barbarian", "rogue", "wizard", "cleric"], ["goblin", "skeleton-archer", "zombie", "troll"] },
         { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt", "red-dragon"] },
         { "orders-playground", 10, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie", "goblin"] },
+        { "orders-assault", 11, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie"] },
+        { "orders-escort-retreat", 12, ["barbarian", "rogue"], ["grunt", "zombie", "goblin"] },
         { "labyrinth-shaper", 9, ["barbarian", "cleric"], ["labyrinth-shaper"] }
     };
 
@@ -255,7 +257,8 @@ public sealed class ScenarioTests
         var initial = (await client.GetFromJsonAsync<GameResponse>("/api/game", Json))!;
         Assert.Equal("basic-combat", initial.ScenarioId);
         using var payload = JsonDocument.Parse(await client.GetStringAsync("/api/game"));
-        Assert.Equal(JsonSerializer.Serialize(PlaytestScenarios.Catalog, Json), payload.RootElement.GetProperty("scenarios").GetRawText());
+        var expectedCatalog = JsonSerializer.SerializeToElement(PlaytestScenarios.Catalog, Json);
+        Assert.True(JsonElement.DeepEquals(expectedCatalog, payload.RootElement.GetProperty("scenarios")));
         using var started = await client.PostAsJsonAsync("/api/game/scenario", new { expectedRevision = 0, scenarioId = "wizard-doors" });
         started.EnsureSuccessStatusCode();
         var selected = (await started.Content.ReadFromJsonAsync<GameResponse>(Json))!;

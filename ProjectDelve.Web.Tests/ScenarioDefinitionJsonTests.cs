@@ -10,6 +10,8 @@ public sealed class ScenarioDefinitionJsonTests
     [InlineData("full-party-trolls")]
     [InlineData("shaman-hunt")]
     [InlineData("labyrinth-shaper")]
+    [InlineData("orders-assault")]
+    [InlineData("orders-escort-retreat")]
     public void AuthoredAndJsonLoadedScenariosProduceEquivalentRoundZeroStates(string id)
     {
         var authoredDefinition = PlaytestScenarios.Definition(id);
@@ -24,6 +26,7 @@ public sealed class ScenarioDefinitionJsonTests
         Assert.Equal(authoredDefinition.Board.Edges, loadedDefinition.Board.Edges);
         Assert.Equal(authoredDefinition.Units, loadedDefinition.Units);
         Assert.Equal(authoredDefinition.Agency, loadedDefinition.Agency);
+        Assert.Equal(authoredDefinition.Orders, loadedDefinition.Orders);
 
         AssertEquivalentRoundZeroStates(authoredState, loadedState);
     }
@@ -74,6 +77,7 @@ public sealed class ScenarioDefinitionJsonTests
         }
         Assert.Equal(authoredState.Physical.Figures, loadedState.Physical.Figures);
         Assert.Equal(authoredState.Controllers, loadedState.Controllers);
+        Assert.Equal(authoredState.Orders, loadedState.Orders);
         Assert.Equal(authoredState.WorldEffects, loadedState.WorldEffects);
         Assert.Equal(authoredState.WorldDeck?.DrawPile, loadedState.WorldDeck?.DrawPile);
         Assert.Equal(authoredState.WorldDeck?.DiscardPile, loadedState.WorldDeck?.DiscardPile);

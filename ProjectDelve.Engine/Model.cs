@@ -7,8 +7,29 @@ public sealed record SideObjective(string SideId, ScenarioObjective Objective = 
 public sealed record GameCompletion(ImmutableArray<string> AchievedSideIds);
 
 public sealed record ActivationToken(string TypeId, string SideId);
-public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo }
-public sealed record GroupOrder(ActivationToken Token, OrderKind Kind, Cell? Destination = null);
+public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo, Attack, Protect, Retreat, InteractWith }
+public enum OrderTargetKind { Unit, Group, Side, Door }
+public sealed record DoorTarget(Cell A, Cell B)
+{
+    public static DoorTarget Canonical(Cell a, Cell b) => Compare(a, b) <= 0 ? new(a, b) : new(b, a);
+    internal bool IsCanonical => A is not null && B is not null && Compare(A, B) <= 0;
+    private static int Compare(Cell a, Cell b)
+    {
+        var byY = a.Y.CompareTo(b.Y);
+        return byY != 0 ? byY : a.X.CompareTo(b.X);
+    }
+}
+public sealed record OrderTarget(OrderTargetKind Kind, string? UnitId = null, ActivationToken? Group = null,
+    string? SideId = null, DoorTarget? Door = null)
+{
+    public static OrderTarget ForUnit(string unitId) => new(OrderTargetKind.Unit, UnitId: unitId);
+    public static OrderTarget ForGroup(string unitTypeId, string sideId) =>
+        new(OrderTargetKind.Group, Group: new(unitTypeId, sideId));
+    public static OrderTarget ForSide(string sideId) => new(OrderTargetKind.Side, SideId: sideId);
+    public static OrderTarget ForDoor(Cell a, Cell b) => new(OrderTargetKind.Door, Door: DoorTarget.Canonical(a, b));
+}
+public sealed record GroupOrder(ActivationToken Token, OrderKind Kind, Cell? Destination = null,
+    OrderTarget? Target = null);
 public enum ControllerKind { Human, Automated }
 public sealed record ControllerAssignment(ActivationToken Token, ControllerKind Controller);
 public enum DiceFamily { Attack, Defence, D6 }
@@ -315,16 +336,16 @@ public sealed class GameState
     public List<GroupOrder> Orders { get; set; } = [];
     public GroupOrder OrderFor(ActivationToken token) =>
         Orders.SingleOrDefault(order => order.Token == token) ?? new(token, OrderKind.Normal);
-    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null)
+    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null, OrderTarget? target = null)
     {
         ArgumentNullException.ThrowIfNull(token);
         if (!Controllers.Any(assignment => assignment.Token == token))
             throw new ArgumentException("The Order group is not part of the game.", nameof(token));
-        if (!Enum.IsDefined(kind) || kind == OrderKind.MoveTo != (destination is not null) ||
-            destination is not null && !MovementRules.Inside(Physical.Board, destination))
-            throw new ArgumentException("Invalid Order kind or destination.", nameof(kind));
+        var order = new GroupOrder(token, kind, destination, target);
+        if (!OrderValidation.IsValidAssignment(order, this))
+            throw new ArgumentException("Invalid Order kind, destination, target, or target relationship.", nameof(kind));
         Orders.RemoveAll(order => order.Token == token);
-        if (kind != OrderKind.Normal) Orders.Add(new(token, kind, destination));
+        if (kind != OrderKind.Normal) Orders.Add(order);
     }
     public ControllerKind ControllerFor(ActivationToken token) => Controllers.Single(c => c.Token == token).Controller;
     public ControllerKind ControllerFor(DecisionRequest request) => ControllerFor(request.Token

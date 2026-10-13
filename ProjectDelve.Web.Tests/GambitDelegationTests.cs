@@ -183,6 +183,62 @@ public sealed class GambitDelegationTests
         Assert.NotNull(lease);
         Assert.Null(lease.GetValue(game));
     }
+    private sealed class OrderedDice : IRandomProvider
+    {
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) =>
+            bag.FirstOrDefault(token => token.TypeId == "ordered-actor" && token.SideId == "amber") ?? bag[0];
+        public AttackFace RollAttackDie() => AttackFace.Miss;
+        public DefenceFace RollDefenceDie() => DefenceFace.Block;
+        public int RollD6() => 6;
+    }
+
+    private sealed class RecordingProvider(IDecisionProvider inner) : IDecisionProvider
+    {
+        public List<string?> Keys { get; } = [];
+        public string? Choose(DecisionRequest request, IGameplayQueries queries)
+        {
+            var key = inner.Choose(request, queries);
+            Keys.Add(key);
+            return key;
+        }
+    }
+
+    private static GameState NewOrderState(OrderKind kind)
+    {
+        var actorType = new UnitType("ordered-actor", 2, 1, 2, 1, 1,
+            FreeActions: UnitFreeAction.OpenDoor);
+        var friendType = new UnitType("ordered-friend", 1, 1, 1, 1, 1);
+        var enemyType = new UnitType("ordered-enemy", 1, 1, 1, 1, 1);
+        var actorPosition = kind == OrderKind.Retreat ? new Cell(2, 0) : new(0, 0);
+        var friendPosition = kind == OrderKind.Protect ? new Cell(4, 0) : new(4, 1);
+        var enemyPosition = kind == OrderKind.Attack ? new Cell(3, 0) :
+            kind == OrderKind.Retreat ? new(1, 0) : new(5, 0);
+        var edges = kind == OrderKind.InteractWith
+            ? new List<Edge> { new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor) }
+            : [];
+        var state = new GameState
+        {
+            Physical = new(new(6, 2, edges),
+                [new("ordered-unit", actorPosition), new("protected-unit", friendPosition), new("ordered-enemy", enemyPosition)]),
+            Types = [actorType, friendType, enemyType],
+            Units = [actorType.CreateUnit("ordered-unit", "amber"), friendType.CreateUnit("protected-unit", "amber"),
+                enemyType.CreateUnit("ordered-enemy", "violet")],
+            Controllers = [new(new(actorType.Id, "amber"), ControllerKind.Human),
+                new(new(friendType.Id, "amber"), ControllerKind.Human),
+                new(new(enemyType.Id, "violet"), ControllerKind.Human)],
+            Objectives = [new("amber"), new("violet")]
+        };
+        var target = kind switch
+        {
+            OrderKind.Attack => OrderTarget.ForUnit("ordered-enemy"),
+            OrderKind.Protect => OrderTarget.ForUnit("protected-unit"),
+            OrderKind.InteractWith => OrderTarget.ForDoor(new(0, 0), new(1, 0)),
+            _ => null
+        };
+        state.AssignOrder(new(actorType.Id, "amber"), kind, target: target);
+        return state;
+    }
+
     [Fact]
     public async Task DelegationAndPreviewUseStandingOrderWithoutChangingOwnership()
     {
@@ -210,5 +266,59 @@ public sealed class GambitDelegationTests
         Assert.Equal(ownership, snapshot.ControllerAssignments);
         Assert.Equal(0, dice.Attacks);
         Assert.Equal(OrderKind.DoNothing, Assert.Single(snapshot.Presentation.Orders).Kind);
+    }
+
+    [Theory]
+    [InlineData(OrderKind.Attack)]
+    [InlineData(OrderKind.Protect)]
+    [InlineData(OrderKind.Retreat)]
+    [InlineData(OrderKind.InteractWith)]
+    public async Task NewOrderDelegationMatchesOrderAwareExecutionOnCopiedState(OrderKind kind)
+    {
+        var source = NewOrderState(kind);
+        var referenceState = System.Text.Json.JsonSerializer.Deserialize<GameState>(
+            System.Text.Json.JsonSerializer.Serialize(source))!;
+        var referenceDice = new OrderedDice();
+        var recorder = new RecordingProvider(new OrderAwareAutomatedProvider());
+        var expected = GameEngine.StartRound(referenceState, referenceDice, false);
+        var actorCompleted = false;
+        while (!actorCompleted)
+        {
+            Assert.NotNull(expected.NextInput);
+            expected = GameEngine.Advance(expected.State, recorder, referenceDice, false);
+            actorCompleted = expected.Events.Any(occurrence =>
+                occurrence.Kind == "ActivationCompleted" && occurrence.UnitId == "ordered-unit");
+        }
+
+        var hostDice = new OrderedDice();
+        using var game = new PlaytestGame(hostDice, source, controllers: Bindings());
+        var ownership = game.Snapshot().ControllerAssignments.ToArray();
+        game.StartRound(0);
+        var request = Assert.IsType<GambitRequest>(game.ControllerRequest());
+        Assert.Equal("ordered-unit", request.Request.UnitId);
+        Assert.Equal(kind, Assert.Single(request.Observation.Orders).Kind);
+        var preview = Assert.Single(request.DefaultBehaviorPreviews);
+        Assert.Equal(recorder.Keys.Take(preview.Steps.Count), preview.Steps.Select(step => step.CandidateKey));
+
+        var commandId = "delegate-" + kind;
+        game.AdmitController(request.Binding);
+        game.SubmitController(new(commandId, request.Binding, null,
+            ActivationControl: GambitActivationControl.Delegate));
+        await Wait(game, current => current.Receipt(commandId).Status == "applied");
+
+        var delegated = game.Snapshot();
+        if (delegated.Result.NextInput is { Kind: DecisionKind.RollDice, Roll.OwnerUnitId: "ordered-enemy" })
+            delegated = game.Decide(delegated.Revision, "roll-dice");
+        await Wait(game, current => current.Snapshot().Result.State.CurrentUnitId != "ordered-unit");
+        delegated = game.Snapshot();
+
+        Assert.Equal(expected.State.Physical.Figures.Single(figure => figure.Id == "ordered-unit").Position,
+            delegated.Result.State.Physical.Figures.Single(figure => figure.Id == "ordered-unit").Position);
+        Assert.Equal(expected.State.Units.Select(unit => (unit.Id, unit.CurrentHp)),
+            delegated.Result.State.Units.Select(unit => (unit.Id, unit.CurrentHp)));
+        Assert.Equal(expected.State.Physical.Board.Edges, delegated.Result.State.Physical.Board.Edges);
+        Assert.NotEqual("ordered-unit", delegated.Result.State.CurrentUnitId);
+        Assert.Equal(source.Orders, delegated.Result.State.Orders);
+        Assert.Equal(ownership, delegated.ControllerAssignments);
     }
 }

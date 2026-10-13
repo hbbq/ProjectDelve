@@ -25,6 +25,7 @@ public sealed record CellDefinition(Cell Position, TerrainKind Terrain);
 public enum EdgeDirection { Right, Down }
 public sealed record EdgeDefinition(Cell Position, EdgeDirection Direction, EdgeKind Kind);
 public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor,
-    Posture Posture = Posture.Upright, int? InitialHp = null);
+    Posture Posture = Posture.Upright, int? InitialHp = null, string? UnitId = null);
 public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller);
-public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null);
+public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null,
+    OrderTarget? Target = null);

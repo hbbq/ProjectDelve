@@ -3,11 +3,12 @@ namespace ProjectDelve.Engine;
 // These temporary authoring values expand into concrete definition data, never GameState.
 public static class Scenario
 {
-    public sealed record Placement(Cell Anchor, Posture Posture = Posture.Upright, int? InitialHp = null);
+    public sealed record Placement(Cell Anchor, Posture Posture = Posture.Upright, int? InitialHp = null,
+        string? UnitId = null);
     public sealed record UnitGroup(string UnitTypeId, string SideId, ControllerKind Controller, Placement[] Placements);
 
-    public static Placement At(int x, int y, Posture posture = Posture.Upright, int? initialHp = null) =>
-        new(new(x, y), posture, initialHp);
+    public static Placement At(int x, int y, Posture posture = Posture.Upright, int? initialHp = null,
+        string? unitId = null) => new(new(x, y), posture, initialHp, unitId);
 
     public static UnitGroup Group(string unitTypeId, string sideId, ControllerKind controller, params Placement[] placements) =>
         new(unitTypeId, sideId, controller, placements);
@@ -30,7 +31,8 @@ public static class Scenario
             foreach (var placement in group.Placements)
             {
                 ArgumentNullException.ThrowIfNull(placement);
-                units.Add(new(group.UnitTypeId, group.SideId, placement.Anchor, placement.Posture, placement.InitialHp));
+                units.Add(new(group.UnitTypeId, group.SideId, placement.Anchor, placement.Posture, placement.InitialHp,
+                    placement.UnitId));
             }
         }
         return new()

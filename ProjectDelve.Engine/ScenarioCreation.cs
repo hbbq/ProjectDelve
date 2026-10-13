@@ -44,11 +44,16 @@ internal static class ScenarioCreation
         {
             var unit = definition.Units[index];
             if (unit is null || string.IsNullOrWhiteSpace(unit.UnitTypeId) || string.IsNullOrWhiteSpace(unit.SideId) ||
-                unit.Anchor is null || !Enum.IsDefined(unit.Posture))
+                unit.Anchor is null || !Enum.IsDefined(unit.Posture) ||
+                unit.UnitId is not null && string.IsNullOrWhiteSpace(unit.UnitId))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Unit placement data.", nameof(definition)), $"units[{index}]");
             if (!declared.Contains(unit.UnitTypeId))
                 throw ScenarioValidationContext.At(new ArgumentException($"Placement Unit Type '{unit.UnitTypeId}' is not declared.", nameof(definition)), $"units[{index}]");
         }
+        var authoredUnitIds = definition.Units.Where(unit => unit.UnitId is not null)
+            .Select(unit => unit.UnitId!).ToHashSet(StringComparer.Ordinal);
+        if (authoredUnitIds.Count != definition.Units.Count(unit => unit.UnitId is not null))
+            throw new ArgumentException("Authored Unit IDs must be unique.", nameof(definition));
         HashSet<(string, string)> seenAgency = [];
         for (var index = 0; index < definition.Agency.Count; index++)
         {
@@ -69,10 +74,8 @@ internal static class ScenarioCreation
         {
             var order = orders[index];
             if (order is null || string.IsNullOrWhiteSpace(order.UnitTypeId) || string.IsNullOrWhiteSpace(order.SideId) ||
-                !Enum.IsDefined(order.Kind) || order.Kind == OrderKind.MoveTo != (order.Destination is not null) ||
-                order.Destination is not null && !Inside(order.Destination) ||
                 !definition.Agency.Any(a => a.UnitTypeId == order.UnitTypeId && a.SideId == order.SideId))
-                throw ScenarioValidationContext.At(new ArgumentException("Invalid Order assignment; its group, kind and destination must be valid.", nameof(definition)), $"orders[{index}]");
+                throw ScenarioValidationContext.At(new ArgumentException("Invalid Order assignment or group.", nameof(definition)), $"orders[{index}]");
             if (!seenOrders.Add((order.UnitTypeId, order.SideId)))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate Order assignment for Unit Type + Side.", nameof(definition)), $"orders[{index}]");
         }
@@ -113,8 +116,6 @@ internal static class ScenarioCreation
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };
-        foreach (var order in orders)
-            state.AssignOrder(new(order.UnitTypeId, order.SideId), order.Kind, order.Destination);
         // The same validation also remains at round start. Validate content before CreateUnit.
         GameEngine.ValidateScenario(state);
         for (var index = 0; index < definition.Units.Count; index++)
@@ -123,13 +124,30 @@ internal static class ScenarioCreation
             var type = types.Single(t => t.Id == placement.UnitTypeId);
             if (placement.InitialHp is { } hp && (hp < 1 || hp > type.Hp))
                 throw ScenarioValidationContext.At(new ArgumentException($"InitialHp for placement {index} must be between 1 and {type.Hp}.", nameof(definition)), $"units[{index}]");
-            // A separate namespace from current canonical summoning prefixes; runtime creation also checks collisions.
-            var id = "scenario-unit-" + (index + 1).ToString(CultureInfo.InvariantCulture);
+            // Preserve existing deterministic IDs when free, while reserving every authored identity first.
+            var id = placement.UnitId;
+            if (id is null)
+            {
+                var number = index + 1;
+                do id = "scenario-unit-" + (number++).ToString(CultureInfo.InvariantCulture);
+                while (authoredUnitIds.Contains(id) || state.Units.Any(unit => unit.Id == id));
+            }
             try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
             if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };
         }
+        for (var index = 0; index < orders.Count; index++)
+        {
+            var order = orders[index];
+            var runtimeOrder = new GroupOrder(new(order.UnitTypeId, order.SideId), order.Kind,
+                order.Destination, order.Target);
+            if (!OrderValidation.IsValidAssignment(runtimeOrder, state))
+                throw ScenarioValidationContext.At(new ArgumentException(
+                    "Invalid Order kind, target, destination, or target relationship.", nameof(definition)), $"orders[{index}]");
+            state.AssignOrder(runtimeOrder.Token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target);
+        }
         GameEngine.ValidateScenario(state);
         return state;
     }
+
 }

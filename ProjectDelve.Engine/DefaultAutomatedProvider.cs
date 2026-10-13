@@ -65,22 +65,8 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         var unitId = request.UnitId!;
         var behaviors = queries.BehaviorsOf(unitId);
         if (behaviors.HasFlag(UnitBehavior.Flee))
-        {
-            var closedDoorsTraversable = behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors);
-            if (queries.DistanceToNearestHostileFrom(unitId, queries.PositionOf(unitId), closedDoorsTraversable) is null)
-                return NoCandidate(request);
-            var positions = request.Candidates.Select(c => (
-                Key: (string?)c.Key, Position: c.Destination!, MovementLength: c.Path!.Count - 1));
-            if (request.AllowsNone)
-                positions = positions.Append((null, queries.PositionOf(unitId), 0));
-            return positions.Select(p => new { p.Key, p.Position, p.MovementLength,
-                    Distance = queries.DistanceToNearestHostileFrom(unitId, p.Position, closedDoorsTraversable) })
-                .Where(p => p.Distance.HasValue)
-                .OrderByDescending(p => p.Distance!.Value)
-                .ThenBy(p => p.MovementLength)
-                .ThenBy(p => p.Position.Y).ThenBy(p => p.Position.X)
-                .FirstOrDefault()?.Key ?? NoCandidate(request);
-        }
+            return SelectFleeMovement(request, queries,
+                behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors));
         if (request.IsMoveAfterAttack && behaviors.HasFlag(UnitBehavior.BackAwayAfterAttack))
         {
             if (!queries.HasNearbyHostileThreatFrom(unitId, queries.PositionOf(unitId)))
@@ -113,6 +99,34 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
 
         return ApproachMovementProvider.ChooseMovement(request, queries,
             closedDoorsTraversable: behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors));
+    }
+
+    internal static string? SelectFleeMovement(DecisionRequest request, IGameplayQueries queries,
+        bool closedDoorsTraversable = false)
+    {
+        var unitId = request.UnitId!;
+        var current = queries.PositionOf(unitId);
+        var currentDistance = queries.DistanceToNearestHostileFrom(unitId, current, closedDoorsTraversable);
+        var stay = request.Kind == DecisionKind.Activation
+            ? request.Candidates.FirstOrDefault(c => c.Kind == ActivationChoiceKind.Stay)?.Key
+            : null;
+        if (!currentDistance.HasValue) return stay ?? NoCandidate(request);
+
+        var preferred = request.Candidates.Where(c => request.Kind == DecisionKind.Move || c.Kind == ActivationChoiceKind.Move)
+            .Select(c => new
+            {
+                Candidate = c,
+                Distance = queries.DistanceToNearestHostileFrom(unitId, c.Destination!, closedDoorsTraversable),
+                MovementLength = c.Path!.Count - 1
+            })
+            .Where(item => item.Distance > currentDistance)
+            .OrderByDescending(item => item.Distance)
+            .ThenBy(item => item.MovementLength)
+            .ThenBy(item => item.Candidate.Destination!.Y)
+            .ThenBy(item => item.Candidate.Destination!.X)
+            .ThenBy(item => item.Candidate.Key, StringComparer.Ordinal)
+            .FirstOrDefault();
+        return preferred?.Candidate.Key ?? stay ?? NoCandidate(request);
     }
 
     private static string? SelectUnit(DecisionRequest request, IGameplayQueries queries)

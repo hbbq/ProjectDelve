@@ -940,9 +940,17 @@ function renderOrders(orders, state) {
   panel.append(text("h2", "Standing Orders"));
   for (const order of orders) {
     const name = state.types.find(type => type.id === order.token.typeId)?.displayName ?? order.token.typeId;
+    const target = order.target;
+    const targetLabel = target?.kind === "Unit" ? `Unit ${target.unitId}`
+      : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}`
+      : target?.kind === "Side" ? `Side ${target.sideId}`
+      : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
+      : null;
     const label = order.kind === "DoNothing" ? "Do Nothing"
       : order.kind === "HoldPosition" ? "Hold Position"
       : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
+      : order.kind === "InteractWith" ? `Interact With · ${targetLabel}`
+      : order.kind === "Attack" || order.kind === "Protect" ? `${order.kind} · ${targetLabel}`
       : order.kind;
     const row = text("p", `${name} · ${order.token.sideId}: ${label}`);
     styleSide(row, order.token.sideId); panel.append(row);

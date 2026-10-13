@@ -88,6 +88,20 @@ public sealed class ScenarioMigrationTests
         Assert.Equal(definition.UnitTypeIds, state.Types.Select(t => t.Id));
     }
 
+    [Theory]
+    [InlineData("orders-assault", "assault-hero,assault-rogue", "Grunt:red:Attack;Skeleton Archer:red:Attack;Zombie:red:InteractWith")]
+    [InlineData("orders-escort-retreat", "escort-leader", "Grunt:red:MoveTo;Zombie:red:Protect;Goblin:red:Retreat")]
+    public void InitialOrderScenarioMigrationPreservesAuthoredIdentityAndOrderSetup(
+        string id, string authoredIds, string orders)
+    {
+        var definition = PlaytestScenarios.Definition(id);
+        var state = GameEngine.CreateGame(definition);
+
+        Assert.Equal(authoredIds, string.Join(",", definition.Units
+            .Where(unit => unit.UnitId is not null).Select(unit => unit.UnitId)));
+        Assert.Equal(orders, string.Join(";", state.Orders.Select(order =>
+            $"{state.Types.Single(type => type.Id == order.Token.TypeId).DisplayName}:{order.Token.SideId}:{order.Kind}")));
+    }
     [Fact]
     public void CourtyardMapRetainsEveryOriginalEdgeAfterAuthoringCleanup()
     {

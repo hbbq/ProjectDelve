@@ -938,9 +938,8 @@ public static partial class GameEngine
         var board = state.Physical.Board;
         if (state.Orders.Any(order => order is null) ||
             state.Orders.Where(order => order is not null).GroupBy(order => order.Token).Any(group => group.Count() != 1) ||
-            state.Orders.Any(order => order is not null && (order.Kind == OrderKind.Normal || !Enum.IsDefined(order.Kind) ||
-                order.Kind == OrderKind.MoveTo != (order.Destination is not null) ||
-                order.Destination is not null && !MovementRules.Inside(board, order.Destination) ||
+            state.Orders.Any(order => order is not null && (order.Kind == OrderKind.Normal ||
+                !OrderValidation.IsStructurallyValid(order, board) ||
                 !state.Controllers.Any(controller => controller.Token == order.Token))))
             throw new ArgumentException("Orders must be sparse, unique, valid assignments for participating groups.");
         if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||
