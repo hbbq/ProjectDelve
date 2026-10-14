@@ -704,6 +704,32 @@ Zombie is the first Monster Unit Type used to establish the reusable Action/Beha
 
 Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
 
+#### Bomb Imp
+
+Bomb Imp is a fast, fragile melee Monster with a defeat-triggered explosion.
+
+- Stats: `MOV 3`, `RNG 1` (Melee), `ATK 2`, `DEF 2`, `HP 1`.
+- Actions: Normal Attack.
+- Capability: **Explosion**, with 1 Damage.
+- Behavior: ordinary Default Behavior, with the Order-related movement preferences described below.
+
+**Explosion** is a reusable defeat-triggered Capability, authored for Bomb Imp as `Explosion(damage: 1)`:
+
+```text
+Explosion
+
+When this Unit is defeated, deal 1 Damage to every adjacent Unit.
+```
+
+Explosion applies regardless of which Side defeated Bomb Imp and affects **all** adjacent Units, including friendly Units. Adjacent uses the ordinary rules-defined adjacency (including the relevant Line of Sight requirement), not geometric proximity alone. Determine recipients from the Bomb Imp's footprint at defeat, before its figure was removed; resolve the defeat and its queued automatic consequence using the ordinary defeat and automatic-consequence rules. Each qualifying Unit is affected once. Further defeats and their consequences follow normal resolution.
+
+**Order-related movement preferences (design for a future Behavior implementation; not yet implemented):**
+
+- For ordinary Move decisions under **Normal** or another Order that permits voluntary movement, first apply the Order's movement ranking. If multiple legal destinations remain equally preferred, including Stay where legal, prefer the destination **adjacent to the greatest number of hostile Units**. This is a tie-breaker, not a reason to abandon progress toward a `Move To` destination or otherwise override the Order. Do not penalize proximity to friendly Units in this tie-breaker. Resolve remaining ties using established deterministic rules.
+- Under **Protect (Unit ID)**, replace the vanilla preference for adjacency to the protected Unit: prefer to get **as close as possible to the protected Unit without becoming adjacent** to it, when at least one suitable legal destination exists. Consider Stay among legal destinations. If no non-adjacent destination can be selected, use the closest legal destination even if it is adjacent; being boxed in does not prevent the Unit from following Protect. Apply the hostile-adjacency tie-breaker only after these Protect priorities, followed by normal deterministic ties.
+- **Do Nothing** still forbids voluntary movement and actions. Explosion itself is not voluntary and resolves upon defeat even under Do Nothing.
+- Other Actions and the Explosion consequence retain their established rules and ordinary Behavior. This movement preference does not evaluate other Units' special abilities or their future actions.
+
 #### Troll
 
 Troll is a tougher door-breaking Monster related to the Zombie.
