@@ -36,7 +36,8 @@ public static class DesignerApi
             terrains = Enum.GetNames<TerrainKind>(),
             edgeKinds = Enum.GetNames<EdgeKind>(),
             postures = Enum.GetNames<Posture>(),
-            controllers = Enum.GetNames<ControllerKind>()
+            controllers = Enum.GetNames<ControllerKind>(),
+            orderKinds = Enum.GetNames<OrderKind>()
         }));
         app.MapPost("/api/designer/import", (DesignerImportRequest request) => Execute(() =>
         {

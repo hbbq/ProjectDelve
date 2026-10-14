@@ -7,6 +7,7 @@ const vm = require("node:vm");
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 const fullParty = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/full-party.json"), "utf8"));
 const plain = value => JSON.parse(JSON.stringify(value));
+const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const catalog = {
   maxBoardSize: 50,
   unitTypes: [...fullParty.unitTypeIds, "opaque-large", "unplaced"].map(id => ({
@@ -16,7 +17,8 @@ const catalog = {
   })),
   terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
-  postures: ["Upright", "Lying"], controllers: ["Human", "Automated"]
+  postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
+  orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith"]
 };
 
 // Extends the existing playtest's small DOM approach with delegated pointer events and forms.
@@ -88,6 +90,80 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
     submit: node => node.listeners.submit({ preventDefault() {} })
   };
 }
+
+test("designer edits optional stable Unit IDs independently of temporary selection keys", () => {
+  const h = harness(), draft = h.editor.draft;
+  const key = draft.place("goblin-type", "A", "Human", { x: 0, y: 0 }); h.editor.render(); h.down(h.cell(0, 0));
+  let form = h.editor.ui.properties.children[0];
+  inputField(form, "Unit ID (optional; blank = generated)").value = "escort-leader"; h.submit(form);
+  assert.equal(draft.definition.units[0].unitId, "escort-leader");
+  assert.equal(draft.unitKeys[0], key);
+  assert.match(h.editor.ui.placements.textContent, /escort-leader/);
+  form = h.editor.ui.properties.children[0];
+  inputField(form, "Unit ID (optional; blank = generated)").value = ""; h.submit(form);
+  assert.equal(draft.definition.units[0].unitId, null);
+});
+
+test("group editor authors every starting Order and removes irrelevant target fields", () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.setAgency("goblin-type", "A", "Automated"); h.editor.render();
+  const apply = (kind, fill = () => {}) => {
+    const form = h.editor.ui.agency.children[0], select = inputField(form, "Starting Order");
+    select.value = kind; select.listeners.change(); fill(form); h.submit(form);
+    return draft.definition.orders?.[0] ? plain(draft.definition.orders[0]) : undefined;
+  };
+  const group = { unitTypeId: "goblin-type", sideId: "A" };
+  for (const kind of ["DoNothing", "HoldPosition", "Retreat"])
+    assert.deepEqual(apply(kind), { ...group, kind });
+  assert.deepEqual(apply("MoveTo", form => {
+    inputField(form, "Destination X").value = "4"; inputField(form, "Destination Y").value = "7";
+  }), { ...group, kind: "MoveTo", destination: { x: 4, y: 7 } });
+  for (const kind of ["Attack", "Protect"])
+    assert.deepEqual(apply(kind, form => { inputField(form, "Target Unit ID").value = "leader"; }),
+      { ...group, kind, target: { kind: "Unit", unitId: "leader" } });
+  assert.deepEqual(apply("Attack", form => {
+    const scope = inputField(form, "Target scope"); scope.value = "Group"; scope.listeners.change();
+    inputField(form, "Target Unit Type").value = "wizard-type"; inputField(form, "Target SideId").value = "B";
+  }), { ...group, kind: "Attack", target: { kind: "Group", group: { typeId: "wizard-type", sideId: "B" } } });
+  assert.deepEqual(apply("Attack", form => {
+    const scope = inputField(form, "Target scope"); scope.value = "Side"; scope.listeners.change();
+    inputField(form, "Target SideId").value = "B";
+  }), { ...group, kind: "Attack", target: { kind: "Side", sideId: "B" } });
+  assert.deepEqual(apply("InteractWith", form => {
+    inputField(form, "Door endpoint A X").value = "5"; inputField(form, "Door endpoint A Y").value = "3";
+    inputField(form, "Door endpoint B X").value = "4"; inputField(form, "Door endpoint B Y").value = "3";
+  }), { ...group, kind: "InteractWith", target: { kind: "Door", door: { a: { x: 4, y: 3 }, b: { x: 5, y: 3 } } } });
+  apply("Normal"); assert.equal(draft.definition.orders, undefined);
+});
+
+test("editing or removing a group carries or removes its starting Order", () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.setAgency("goblin-type", "A", "Automated"); draft.setOrder("goblin-type", "A", { kind: "HoldPosition" });
+  h.editor.render(); const form = h.editor.ui.agency.children[0]; inputField(form, "SideId").value = "B"; h.submit(form);
+  assert.deepEqual(plain(draft.definition.orders), [{ unitTypeId: "goblin-type", sideId: "B", kind: "HoldPosition" }]);
+  draft.removeAgency(0); assert.equal(draft.definition.orders, undefined);
+});
+
+test("imported Orders and IDs survive unrelated editing, validation, export and play", async () => {
+  const definition = structuredClone(fullParty), submitted = [], played = [];
+  definition.units[0].unitId = "stable-leader";
+  definition.orders = [{ unitTypeId: definition.agency[0].unitTypeId, sideId: definition.agency[0].sideId,
+    kind: "Protect", target: { kind: "Unit", unitId: "stable-leader" } }];
+  const h = harness(async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === "import" ? structuredClone(definition) : operation === "validate"
+      ? { valid: true, errors: [] } : { transport: "DELVE1:orders-fixture" };
+  }, async transport => { played.push(transport); return true; });
+  h.editor.ui.transport.value = "DELVE1:orders-fixture"; await h.click("import");
+  assert.equal(inputField(h.editor.ui.agency.children[0], "Starting Order").value, "Protect");
+  h.submit(h.editor.ui.agency.children[0]);
+  h.editor.draft.paintTerrain({ x: 0, y: 0 }, "Grass"); h.editor.render();
+  await h.click("validate"); await h.click("export"); await h.click("play");
+  for (const { body } of submitted.filter(row => row.operation !== "import")) {
+    assert.deepEqual(body.orders, definition.orders); assert.equal(body.units[0].unitId, "stable-leader");
+  }
+  assert.deepEqual(played, ["DELVE1:orders-fixture"]);
+});
 
 test("designer assigns distinct colors to sequential sides and retains them after edits", () => {
   const h = harness(), draft = h.editor.draft;

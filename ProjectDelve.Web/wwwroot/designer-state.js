@@ -97,7 +97,26 @@ export class DesignerDraft {
       { unitTypeId, sideId, controller });
     this.changed();
   }
-  removeAgency(index) { this.definition.agency.splice(index, 1); this.changed(); }
+  setOrder(unitTypeId, sideId, order) {
+    const orders = this.definition.orders ?? [];
+    upsert(orders, row => row.unitTypeId === unitTypeId && row.sideId === sideId,
+      order.kind === "Normal" ? null : { unitTypeId, sideId, ...order });
+    if (orders.length) this.definition.orders = orders;
+    else delete this.definition.orders;
+    this.changed();
+  }
+  editAgency(index, assignment, order) {
+    const previous = this.definition.agency[index];
+    this.setOrder(previous.unitTypeId, previous.sideId, { kind: "Normal" });
+    this.declare(assignment.unitTypeId);
+    this.definition.agency[index] = assignment;
+    this.setOrder(assignment.unitTypeId, assignment.sideId, order);
+  }
+  removeAgency(index) {
+    const row = this.definition.agency[index];
+    this.setOrder(row.unitTypeId, row.sideId, { kind: "Normal" });
+    this.definition.agency.splice(index, 1); this.changed();
+  }
 }
 
 export const sameCell = (a, b) => a.x === b.x && a.y === b.y;

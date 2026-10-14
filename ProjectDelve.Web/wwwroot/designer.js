@@ -24,7 +24,7 @@ function field(form, label, value, { entries, type = "text", list } = {}) {
 export function mountDesigner(catalog, request, playDesign) {
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
-    "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "transport", "validate", "export", "play", "import", "copy"];
+    "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
   let tool = "Select", selection = null, painting = false, lastPaint = null, pendingPlay = false;
@@ -182,7 +182,7 @@ export function mountDesigner(catalog, request, playDesign) {
     render();
   }
   function selectPath(path) {
-    const match = path.replace(/^\$\.?/, "").match(/^(units|board.cells|board.edges|agency)\[(\d+)\]/);
+    const match = path.replace(/^\$\.?/, "").match(/^(units|board.cells|board.edges|agency|orders)\[(\d+)\]/);
     if (!match) return;
     const index = Number(match[2]);
     if (match[1] === "units" && draft.unitKeys[index]) selection = { kind: "unit", key: draft.unitKeys[index] };
@@ -191,6 +191,11 @@ export function mountDesigner(catalog, request, playDesign) {
     if (match[1] === "board.edges" && draft.definition.board.edges[index])
       selection = { kind: "edge", ...draft.definition.board.edges[index] };
     if (match[1] === "agency") ui.agency.children[index]?.scrollIntoView?.({ block: "nearest" });
+    if (match[1] === "orders") {
+      const order = draft.definition.orders?.[index];
+      const groupIndex = draft.definition.agency.findIndex(row => row.unitTypeId === order?.unitTypeId && row.sideId === order?.sideId);
+      ui.agency.children[groupIndex]?.scrollIntoView?.({ block: "nearest" });
+    }
     setTool("Select"); renderBoard(); renderProperties();
   }
 
@@ -269,6 +274,7 @@ export function mountDesigner(catalog, request, playDesign) {
       const hp = field(form, `Initial HP (blank = full; max ${draft.metadata(unit.unitTypeId)?.maxHp ?? "?"})`, unit.initialHp, { type: "number" });
       const agency = draft.definition.agency.find(row => row.unitTypeId === unit.unitTypeId && row.sideId === unit.sideId);
       const controller = field(form, "Controller for new Type + Side", agency?.controller ?? ui.controller.value, { entries: catalog.controllers });
+      const unitId = field(form, "Unit ID (optional; blank = generated)", unit.unitId);
       const sync = () => {
         const existing = draft.definition.agency.find(row => row.unitTypeId === type.value && row.sideId === side.value);
         controller.disabled = !!existing; if (existing) controller.value = existing.controller;
@@ -276,7 +282,8 @@ export function mountDesigner(catalog, request, playDesign) {
       type.addEventListener("change", sync); side.addEventListener("input", sync); sync();
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editUnit(key,
         { unitTypeId: type.value, sideId: side.value, anchor: { x: Number(x.value), y: Number(y.value) },
-          posture: posture.value, initialHp: hp.value === "" ? null : Number(hp.value) }, controller.value)); });
+          posture: posture.value, initialHp: hp.value === "" ? null : Number(hp.value),
+          unitId: unitId.value.trim() ? unitId.value : null }, controller.value)); });
       form.append(element("button", "Apply Unit"));
       form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; })));
       form.append(button("Edit terrain at anchor", () => { selection = { kind: "cell", position: unit.anchor }; render(); }));
@@ -300,25 +307,85 @@ export function mountDesigner(catalog, request, playDesign) {
   }
   function unitLabel(index) {
     const unit = draft.definition.units[index];
-    return `${index + 1}. ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · ${unit.sideId} @ ${unit.anchor.x},${unit.anchor.y}`;
+    return `${index + 1}. ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · ${unit.sideId} @ ${unit.anchor.x},${unit.anchor.y}${unit.unitId ? ` · ID ${unit.unitId}` : ""}`;
+  }
+  function orderFields(form, initial) {
+    const kind = field(form, "Starting Order", initial?.kind ?? "Normal", {
+      entries: catalog.orderKinds.map(value => ({ value, label: value.replace(/([a-z])([A-Z])/g, "$1 $2") }))
+    });
+    const details = element("div"); details.className = "designer-property-form"; form.append(details);
+    let readDetails = () => ({});
+    function update() {
+      details.replaceChildren();
+      const saved = kind.value === initial?.kind ? initial : null;
+      const cellFields = (label, cell) => {
+        const x = field(details, `${label} X`, cell?.x ?? 0, { type: "number" });
+        const y = field(details, `${label} Y`, cell?.y ?? 0, { type: "number" });
+        x.step = y.step = "1";
+        return () => ({ x: Number(x.value), y: Number(y.value) });
+      };
+      readDetails = () => ({});
+      if (kind.value === "MoveTo") {
+        const destination = cellFields("Destination", saved?.destination);
+        readDetails = () => ({ destination: destination() });
+      } else if (["Attack", "Protect"].includes(kind.value)) {
+        const scope = field(details, "Target scope", saved?.target?.kind ?? "Unit", {
+          entries: kind.value === "Protect" ? ["Unit"] : ["Unit", "Group", "Side"]
+        });
+        const targetFields = element("div"); targetFields.className = "designer-property-form"; details.append(targetFields);
+        let readTarget;
+        function updateTarget() {
+          targetFields.replaceChildren();
+          const target = scope.value === saved?.target?.kind ? saved.target : null;
+          if (scope.value === "Unit") {
+            const id = field(targetFields, "Target Unit ID", target?.unitId, { list: "designer-unit-ids" });
+            const suggestions = element("p", "Assign a stable Unit ID in the selected Unit's properties first.");
+            targetFields.append(suggestions);
+            readTarget = () => ({ kind: "Unit", unitId: id.value });
+          } else if (scope.value === "Group") {
+            const type = field(targetFields, "Target Unit Type", target?.group?.typeId ?? typeOptions[0].value, { entries: typeOptions });
+            const side = field(targetFields, "Target SideId", target?.group?.sideId, { list: "designer-sides" });
+            readTarget = () => ({ kind: "Group", group: { typeId: type.value, sideId: side.value } });
+          } else {
+            const side = field(targetFields, "Target SideId", target?.sideId, { list: "designer-sides" });
+            readTarget = () => ({ kind: "Side", sideId: side.value });
+          }
+        }
+        scope.addEventListener("change", updateTarget); updateTarget();
+        readDetails = () => ({ target: readTarget() });
+      } else if (kind.value === "InteractWith") {
+        const a = cellFields("Door endpoint A", saved?.target?.door?.a);
+        const b = cellFields("Door endpoint B", saved?.target?.door?.b);
+        readDetails = () => {
+          const endpoints = [a(), b()].sort((left, right) => left.y - right.y || left.x - right.x);
+          return { target: { kind: "Door", door: { a: endpoints[0], b: endpoints[1] } } };
+        };
+      }
+    }
+    kind.addEventListener("change", update); update();
+    return () => ({ kind: kind.value, ...readDetails() });
   }
   function renderData() {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));
     const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
     ui.sides.replaceChildren(...sides.map(side => { const option = element("option"); option.value = side; return option; }));
+    ui["unit-ids"].replaceChildren(...draft.definition.units.filter(unit => unit.unitId).map(unit => {
+      const option = element("option", `${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · ${unit.sideId}`);
+      option.value = unit.unitId; return option;
+    }));
     ui.agency.replaceChildren(...draft.definition.agency.map((row, index) => {
       const form = element("form"); form.className = "designer-agency-row designer-property-form";
       const type = field(form, "Type", row.unitTypeId, { entries: typeOptions });
       const side = field(form, "SideId", row.sideId, { list: "designer-sides" });
       const controller = field(form, "Controller", row.controller, { entries: catalog.controllers });
+      const readOrder = orderFields(form, draft.definition.orders?.find(order =>
+        order.unitTypeId === row.unitTypeId && order.sideId === row.sideId));
       const count = draft.definition.units.filter(unit => unit.unitTypeId === row.unitTypeId && unit.sideId === row.sideId).length;
       form.append(element("small", `${count} initial Units`));
       form.append(element("button", "Apply pair"));
       form.append(button("Remove pair", () => commit(() => draft.removeAgency(index))));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
-        draft.declare(type.value);
-        draft.definition.agency[index] = { unitTypeId: type.value, sideId: side.value, controller: controller.value };
-        draft.changed();
+        draft.editAgency(index, { unitTypeId: type.value, sideId: side.value, controller: controller.value }, readOrder());
       }); });
       return form;
     }));

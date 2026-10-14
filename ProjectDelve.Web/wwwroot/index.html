@@ -137,6 +137,7 @@
       <h2>Agency: Type + Side</h2>
       <p class="legend">Each pair has one controller. Rows without initial Units are retained.</p>
       <div id="designer-agency"></div>
+      <p class="legend">Set starting Orders per Type + Side and apply the pair. Normal means no assigned Order. Validate checks destinations and targets.</p>
       <form id="designer-agency-form" class="designer-property-form">
         <label>Unit Type <select id="designer-agency-type"></select></label>
         <label>SideId <input id="designer-agency-side" list="designer-sides" value="side-1"></label>
@@ -145,6 +146,7 @@
       </form>
       <details><summary>All placements (including overlaps)</summary><div id="designer-placements"></div></details>
       <datalist id="designer-sides"></datalist>
+      <datalist id="designer-unit-ids"></datalist>
       <p class="legend">Boards: 1..50 × 1..50, a host/editor limit. Drafts may be invalid. Reload discards this draft; export to keep it.</p>
     </aside>
   </main>

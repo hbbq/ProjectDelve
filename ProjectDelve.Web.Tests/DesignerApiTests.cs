@@ -27,6 +27,7 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var catalog = (await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog"));
         Assert.Equal(50, catalog.GetProperty("maxBoardSize").GetInt32());
+        Assert.Equal(Enum.GetNames<OrderKind>(), catalog.GetProperty("orderKinds").Deserialize<string[]>());
         var projected = catalog.GetProperty("unitTypes").EnumerateArray().ToArray();
         Assert.Equal(CanonicalUnitTypes.All.Select(type => type.Id).Order(),
             projected.Select(type => type.GetProperty("unitTypeId").GetString()).Order());
