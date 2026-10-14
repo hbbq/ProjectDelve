@@ -62,7 +62,9 @@ class Element {
       contains: name => this.className.split(" ").includes(name),
       add: name => { if (!this.classList.contains(name)) this.className += ` ${name}`; },
       remove: name => { this.className = this.className.split(" ").filter(value => value !== name).join(" "); },
-      toggle: () => {}
+      toggle: (name, force) => force === undefined
+        ? (this.classList.contains(name) ? this.classList.remove(name) : this.classList.add(name))
+        : (force ? this.classList.add(name) : this.classList.remove(name))
     };
   }
   append(child) { child.remove(); child.parent = this; this.children.push(child); }
@@ -125,6 +127,7 @@ function harness(initial, fetchImpl, extras = {}) {
     getElementById(id) { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); },
     createElement(tag) { const node = new Element(); node.tagName = tag; return node; }
   };
+  document.getElementById("coordinates").checked = false;
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
     fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })), ...extras });
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
@@ -1112,6 +1115,10 @@ test("gameplay sections are outside the board column and scenario description is
   }
   assert.match(html, /aria-label="Scenario information" aria-describedby="scenario-description"/);
   assert.match(html, /id="scenario-description" role="tooltip"/);
+  assert.match(boardColumn, /<details id="game-setup"[\s\S]*id="scenario"[\s\S]*id="side-controllers"[\s\S]*id="import-scenario"[\s\S]*<\/details>/);
+  assert.match(sidebar, /<details class="sidebar-reference">[\s\S]*id="objectives"[\s\S]*id="orders"[\s\S]*<\/details>/);
+  assert.match(html, /id="coordinates" type="checkbox"> Show coordinates/);
+  assert.doesNotMatch(html, /id="coordinates"[^>]*checked/);
   assert.ok(!html.includes("Start a round to play."));
 });
 
@@ -1814,4 +1821,34 @@ test("standing Orders render projected labels and playback values without an edi
     kind: "MoveTo", destination: { x: 4, y: 8 } }];
   h.run("renderState(snapshot.result.state, true, snapshot.presentation.cards, snapshot.presentation.figures, snapshot.presentation.worldEffects, playbackOrders)");
   assert.match(h.elements.get("orders").textContent, /Zombie · red: Move To \(4,8\)/);
+});
+
+test("a Unit card shows the standing Order for its Unit Type and Side", () => {
+  const initial = response();
+  initial.presentation.orders = [{ token: { typeId: "opaque-type", sideId: "same" },
+    kind: "Attack", target: { kind: "Unit", unitId: "target-alpha" } }];
+  const h = harness(initial);
+  assert.match(h.elements.get("unit-card").textContent, /Standing Order.*Attack .* Unit target-alpha/);
+
+  initial.presentation.orders[0] = { token: { typeId: "opaque-type", sideId: "other" }, kind: "Retreat" };
+  h.run("renderState(snapshot.result.state)");
+  assert.doesNotMatch(h.elements.get("unit-card").textContent, /Standing Order|Retreat/);
+});
+
+test("game setup is expanded before play and collapses when play begins", () => {
+  const initial = response();
+  initial.result.state.round = 0;
+  const h = harness(initial);
+  assert.equal(h.elements.get("game-setup").open, true);
+  initial.result.state.round = 1;
+  h.run("renderState(snapshot.result.state)");
+  assert.equal(h.elements.get("game-setup").open, false);
+});
+
+test("board coordinates start hidden and follow the display checkbox", () => {
+  const h = harness(response());
+  assert.equal(h.elements.get("board").classList.contains("hide-coordinates"), true);
+  h.elements.get("coordinates").checked = true;
+  h.elements.get("coordinates").listeners.change();
+  assert.equal(h.elements.get("board").classList.contains("hide-coordinates"), false);
 });

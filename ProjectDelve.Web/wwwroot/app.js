@@ -1,6 +1,6 @@
 import { styleSide } from "./side-colors.js";
 
-const ui = Object.fromEntries(["scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
+const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
 let snapshot;
 let queuedScenario;
@@ -159,6 +159,8 @@ let latestUnitId;
 let hoveredUnitId;
 let displayedCards;
 let displayedFigures;
+let displayedOrders;
+let setupPhase;
 const cardChoiceKeys = new Set();
 const boardChoiceKeys = new Set();
 let boardChooser;
@@ -293,6 +295,10 @@ function renderBoard(state, preserveNodes = false) {
 function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders) {
   displayedCards = cards;
   displayedFigures = geometry;
+  displayedOrders = orders;
+  const isSetup = state.round === 0;
+  if (setupPhase === undefined || setupPhase !== isSetup) ui["game-setup"].open = isSetup;
+  setupPhase = isSetup;
   renderBoard(state, preserveNodes);
   displayedState = state;
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
@@ -329,6 +335,13 @@ function renderUnitCard() {
   card.append(stats);
   const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; card.append(hp);
   if (content.footprintLabel) card.append(text("small", content.footprintLabel));
+  const order = displayedOrders?.find(order => order.token.typeId === unit.typeId && order.token.sideId === unit.sideId);
+  if (order) {
+    const row = text("div", ""); row.className = "card-order"; styleSide(row, unit.sideId);
+    row.append(text("small", "Standing Order"));
+    row.append(text("p", orderLabel(order, state)));
+    card.append(row);
+  }
   for (const entry of content.entries) {
     const row = text("div", ""); row.className = "card-ability";
     const ability = entry.content;
@@ -940,21 +953,24 @@ function renderOrders(orders, state) {
   panel.append(text("h2", "Standing Orders"));
   for (const order of orders) {
     const name = state.types.find(type => type.id === order.token.typeId)?.displayName ?? order.token.typeId;
-    const target = order.target;
-    const targetLabel = target?.kind === "Unit" ? `Unit ${target.unitId}`
-      : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}`
-      : target?.kind === "Side" ? `Side ${target.sideId}`
-      : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
-      : null;
-    const label = order.kind === "DoNothing" ? "Do Nothing"
-      : order.kind === "HoldPosition" ? "Hold Position"
-      : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
-      : order.kind === "InteractWith" ? `Interact With · ${targetLabel}`
-      : order.kind === "Attack" || order.kind === "Protect" ? `${order.kind} · ${targetLabel}`
-      : order.kind;
-    const row = text("p", `${name} · ${order.token.sideId}: ${label}`);
+    const row = text("p", `${name} · ${order.token.sideId}: ${orderLabel(order, state)}`);
     styleSide(row, order.token.sideId); panel.append(row);
   }
+}
+
+function orderLabel(order, state) {
+  const target = order.target;
+  const targetLabel = target?.kind === "Unit" ? `Unit ${target.unitId}`
+    : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}`
+    : target?.kind === "Side" ? `Side ${target.sideId}`
+    : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
+    : null;
+  return order.kind === "DoNothing" ? "Do Nothing"
+    : order.kind === "HoldPosition" ? "Hold Position"
+    : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
+    : order.kind === "InteractWith" ? `Interact With · ${targetLabel}`
+    : order.kind === "Attack" || order.kind === "Protect" ? `${order.kind} · ${targetLabel}`
+    : order.kind;
 }
 
 function renderWorldEffects(world) {

@@ -69,6 +69,11 @@ button:disabled { opacity: .45; cursor: default; }
 .scenario-import textarea { flex: 1; min-width: 180px; resize: vertical; background: #35455e;
   border: 1px solid #7c91af; color: white; padding: 9px 12px; border-radius: 5px; font: inherit; }
 .scenario-import textarea:focus-visible { outline: 3px solid #ffe084; }
+.game-setup { margin: 0 0 12px; padding: 8px 10px; border: 1px solid #475367; border-radius: 6px; }
+.game-setup > summary, .sidebar-reference > summary { cursor: pointer; color: #d5e4f5; font-weight: 650; }
+.game-setup[open] > summary { margin-bottom: 10px; }
+.sidebar-reference { margin: 8px 0; padding: 8px 10px; border: 1px solid #475367; border-radius: 6px; }
+.sidebar-reference[open] > summary { margin-bottom: 8px; }
 .mode-switch { margin: 12px 0; }
 .mode-switch [aria-pressed="true"], #designer-tools [aria-pressed="true"] { background: #496282; outline: 2px solid #90c8e8; }
 #designer-tools, #designer-brushes { margin-top: 12px; }
@@ -109,6 +114,8 @@ footer { margin-top: 24px; }
 .card-stats { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; white-space: nowrap; }
 #unit-card .card-stats p { font-size: .75rem; font-weight: 650; }
 #unit-card .card-health { margin: 4px 0 6px; font-weight: 650; }
+.card-order { margin: 8px 0; padding: 7px 9px; border-left: 3px solid hsl(var(--side-hue) 70% 65%); background: #2b3749; }
+#unit-card .card-order small { color: #a5daff; font-weight: 650; }
 .modified-stat { color: #ffe084; }
 .card-ability { padding: 7px 0; border-bottom: 1px solid #475367; }
 .card-ability button { margin-top: 6px; }
@@ -192,7 +199,7 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 #game-result h2 { margin: 0 0 .4rem; color: #b7f7d8; }
 #game-result p { margin: 0; }
 #objectives p { margin: .4rem 0; padding-left: .5rem; border-left: 3px solid hsl(var(--side-hue) 70% 65%); }
-#orders { margin: .8rem 0; padding: .6rem; border: 1px solid #71809a; border-radius: .4rem; }
+#orders { margin: .8rem 0 0; }
 #orders h2 { margin: 0 0 .4rem; }
 #orders p { margin: .3rem 0; padding-left: .5rem; border-left: 3px solid hsl(var(--side-hue) 70% 65%); font-size: .85rem; }
 

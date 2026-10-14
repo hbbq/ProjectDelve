@@ -17,22 +17,25 @@
   </nav>
   <main id="playtest-main">
     <section aria-label="Board">
-      <div class="toolbar" aria-label="Playtest scenarios">
-        <label>Scenario <select id="scenario" disabled></select></label>
-        <span class="scenario-info">
-          <button class="info-button" type="button" aria-label="Scenario information" aria-describedby="scenario-description">i</button>
-          <span id="scenario-description" role="tooltip"></span>
-        </span>
-        <button id="start-scenario" disabled>Start selected</button>
-        <button id="restart-scenario" disabled>Restart current</button>
-      </div>
-      <div id="side-controllers" class="toolbar" aria-label="Controllers for selected scenario Sides"></div>
-      <p class="legend">Assign each Unit Type + Side before starting or restarting. Side defaults are shortcuts; Gambit assignments must stay on one Side. Gambit dice and sole legal choices resolve automatically.</p>
-      <div class="toolbar scenario-import" aria-label="Import scenario">
-        <label for="scenario-transport">DELVE1 scenario</label>
-        <textarea id="scenario-transport" rows="2" placeholder="Paste DELVE1:..." spellcheck="false"></textarea>
-        <button id="import-scenario" disabled>Load scenario</button>
-      </div>
+      <details id="game-setup" class="game-setup" open>
+        <summary>Game setup</summary>
+        <div class="toolbar" aria-label="Playtest scenarios">
+          <label>Scenario <select id="scenario" disabled></select></label>
+          <span class="scenario-info">
+            <button class="info-button" type="button" aria-label="Scenario information" aria-describedby="scenario-description">i</button>
+            <span id="scenario-description" role="tooltip"></span>
+          </span>
+          <button id="start-scenario" disabled>Start selected</button>
+          <button id="restart-scenario" disabled>Restart current</button>
+        </div>
+        <div id="side-controllers" class="toolbar" aria-label="Controllers for selected scenario Sides"></div>
+        <p class="legend">Assign each Unit Type + Side before starting or restarting. Side defaults are shortcuts; Gambit assignments must stay on one Side. Gambit dice and sole legal choices resolve automatically.</p>
+        <div class="toolbar scenario-import" aria-label="Import scenario">
+          <label for="scenario-transport">DELVE1 scenario</label>
+          <textarea id="scenario-transport" rows="2" placeholder="Paste DELVE1:..." spellcheck="false"></textarea>
+          <button id="import-scenario" disabled>Load scenario</button>
+        </div>
+      </details>
       <div id="board" aria-label="Dungeon board"></div>
       <details class="board-legend"><summary>Board legend</summary>
       <p class="legend">Figures abbreviate Unit names; hover to inspect. Colour distinguishes Sides; tokens show their Side names. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
@@ -45,7 +48,7 @@
         <label><input id="animate" type="checkbox" checked> Animate events</label>
         <label><input id="filter" type="checkbox" checked> Filter irrelevant choices (display only)</label>
         <label title="Ordinary sole legal choices resolve automatically; Roll Dice waits for input. This also auto-chooses one relevant choice among multiple legal choices."><input id="auto" type="checkbox" checked> Auto-choose single relevant choice</label>
-        <label><input id="coordinates" type="checkbox" checked> Show coordinates</label>
+        <label><input id="coordinates" type="checkbox"> Show coordinates</label>
       </div>
       <p id="error" role="alert"></p>
     </section>
@@ -56,8 +59,11 @@
       </section>
       <p id="status" aria-live="polite">Loading…</p>
       <section id="game-result" role="status" aria-live="polite" hidden></section>
-      <section id="objectives" aria-label="Side objectives"></section>
-      <section id="orders" aria-label="Standing Orders" hidden></section>
+      <details class="sidebar-reference">
+        <summary>Objectives &amp; Orders</summary>
+        <section id="objectives" aria-label="Side objectives"></section>
+        <section id="orders" aria-label="Standing Orders" hidden></section>
+      </details>
       <div class="turn-strip"><div id="active-token"></div><div id="active-unit"></div></div>
       <section id="world-effects" aria-label="World Effects" hidden></section>
       <div id="bag" aria-label="Remaining Activation Bag"></div>
