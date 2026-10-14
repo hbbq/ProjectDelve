@@ -1,4 +1,4 @@
-import { styleSide } from "./side-colors.js";
+import { styleSide, applySideHues } from "./side-colors.js";
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
@@ -293,6 +293,7 @@ function renderBoard(state, preserveNodes = false) {
 }
 
 function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders) {
+  applySideHues(snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.sideHues);
   displayedCards = cards;
   displayedFigures = geometry;
   displayedOrders = orders;
@@ -1007,6 +1008,7 @@ function renderTurn(state) {
   for (const objective of snapshot?.presentation.objectives ?? []) {
     const row = text("p", `${objective.sideId}: ${objective.name}`);
     styleSide(row, objective.sideId);
+    if (objective.meaning) row.append(text("small", objective.meaning));
     if (completion) row.append(text("strong", completion.achievedSideIds.includes(objective.sideId) ? " - Achieved" : " - Not achieved"));
     ui.objectives.append(row);
   }

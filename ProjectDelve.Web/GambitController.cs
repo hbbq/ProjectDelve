@@ -9,13 +9,13 @@ public sealed record GambitRequest(int SchemaVersion, GambitBinding Binding, Sid
     string Status, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GameCompletion? Completion, GambitDecision Request, GambitObservation Observation,
     IReadOnlyList<GambitEvent> Events, IReadOnlyList<DefaultBehaviorPreview> DefaultBehaviorPreviews)
 {
-    public string ObjectiveMeaning => "Eliminate Enemies: no living hostile Units remain on the board; ProjectDelve evaluates achievement at completed activation and fully resolved stable transition boundaries.";
+    public string ObjectiveMeaning => Objective is null ? "" : $"{ObjectivePresentation.Name(Objective)}: {ObjectivePresentation.Meaning(Objective)} ProjectDelve evaluates achievement at completed activation and fully resolved stable transition boundaries.";
 }
 public sealed record GambitStatus(int SchemaVersion, string SessionId, string BindingId, string? SideId,
     string Status, GameCompletion? Completion, GambitBinding? Request)
 {
     public SideObjective? Objective { get; init; }
-    public string ObjectiveMeaning => "Eliminate Enemies: no living hostile Units remain on the board; achievement is evaluated by ProjectDelve at completed activation and fully resolved stable transition boundaries.";
+    public string ObjectiveMeaning => Objective is null ? "" : $"{ObjectivePresentation.Name(Objective)}: {ObjectivePresentation.Meaning(Objective)} ProjectDelve evaluates achievement at completed activation and fully resolved stable transition boundaries.";
 }
 public enum GambitActivationControl { Direct, Delegate }
 public sealed record GambitSubmission(string SubmissionId, GambitBinding Binding, string? CandidateKey,

@@ -42,6 +42,8 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard)
 {
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> ObjectiveStartUnitIds { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
+    public IReadOnlyList<string> DefeatedUnitIds { get; init; } = [];
 }
 
 public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool Relevant,
@@ -174,7 +176,9 @@ internal static class GambitProjection
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
-            { Orders = state.Orders.ToArray() };
+            { Orders = state.Orders.ToArray(),
+                ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
+                DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray() };
     }
 
     private const string UnitSymbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

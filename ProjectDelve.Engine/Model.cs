@@ -1,9 +1,27 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Engine;
 
-public enum ScenarioObjective { EliminateEnemies }
-public sealed record SideObjective(string SideId, ScenarioObjective Objective = ScenarioObjective.EliminateEnemies);
+public enum ScenarioObjective { EliminateEnemies, ReachArea, DefeatUnits }
+public enum UnitSelectorKind { Unit, SideAtStart, Group }
+public sealed record UnitSelector(UnitSelectorKind Kind,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SideId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitTypeId = null)
+{
+    public static UnitSelector ForUnit(string unitId) => new(UnitSelectorKind.Unit, UnitId: unitId);
+    public static UnitSelector SideAtStart(string sideId) => new(UnitSelectorKind.SideAtStart, SideId: sideId);
+    public static UnitSelector Group(string unitTypeId, string sideId) => new(UnitSelectorKind.Group, SideId: sideId, UnitTypeId: unitTypeId);
+}
+public sealed record ObjectiveArea(int X, int Y, int W, int H);
+public sealed record SideObjective(string SideId, ScenarioObjective Objective = ScenarioObjective.EliminateEnemies)
+{
+    public int Count { get; init; }
+    public ImmutableArray<UnitSelector> Selectors { get; init; } = [];
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ObjectiveArea? Area { get; init; }
+}
 public sealed record GameCompletion(ImmutableArray<string> AchievedSideIds);
 
 public sealed record ActivationToken(string TypeId, string SideId);
@@ -337,6 +355,8 @@ public sealed class GameState
         Physical.Figures.Add(new(id, cell, posture));
     }
     public List<SideObjective> Objectives { get; set; } = [];
+    public Dictionary<string, ImmutableArray<string>> ObjectiveStartUnitIds { get; set; } = new(StringComparer.Ordinal);
+    public HashSet<string> DefeatedUnitIds { get; set; } = new(StringComparer.Ordinal);
     public GameCompletion? Completion { get; set; }
     public bool IsCompleted => Completion is not null;
     public WorldEffectsSettings? WorldEffects { get; set; }
@@ -471,6 +491,8 @@ public sealed class GameState
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
         Objectives = [.. Objectives], Completion = Completion,
+        ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
+        DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),

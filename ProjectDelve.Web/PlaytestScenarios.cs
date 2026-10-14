@@ -6,6 +6,7 @@ namespace ProjectDelve.Web;
 
 public sealed record ScenarioDescription(string Id, string Name, string Description)
 {
+    public IReadOnlyDictionary<string, int> SideHues => Id == "genombrottet" ? new Dictionary<string, int> { ["side-1"] = 210, ["side-2"] = 0 } : new Dictionary<string, int>();
     public IReadOnlyDictionary<string,string> Controllers => PlaytestScenarios.Definition(Id).Agency.GroupBy(a => a.SideId).ToDictionary(g => g.Key, g => g.All(a => a.Controller == ControllerKind.Human) ? "Human" : "Default Behavior");
     public IReadOnlyList<ControllerSelection> ControllerAssignments => PlaytestScenarios.Definition(Id).Agency
         .Select(a => new ControllerSelection(a.UnitTypeId, a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior")).ToArray();
@@ -30,7 +31,8 @@ public static class PlaytestScenarios
         new("orders-playground", "Orders Playground", "Compare standing Orders: an idle Grunt, a holding Archer, and Zombie and Goblin groups moving toward marked Cells."),
         new("orders-assault", "Orders: Assault", "Observe a specific-Hero Attack, a Side-wide Attack, and a Zombie completing a standing Door Order."),
         new("orders-escort-retreat", "Orders: Escort & Retreat", "Observe a moving escort target, its following protector, and a group retreating from nearby Heroes."),
-        new("labyrinth-shaper", "Labyrinth Shaper (digital-only)", "Digital-only encounter: approach the Labyrinth Shaper as it rebuilds a 3x3 room before moving. Old Walls and Doors disappear, four open gaps remain, and Water prevents a Wall on the northeast side.")
+        new("labyrinth-shaper", "Labyrinth Shaper (digital-only)", "Digital-only encounter: approach the Labyrinth Shaper as it rebuilds a 3x3 room before moving. Old Walls and Doors disappear, four open gaps remain, and Water prevents a Wall on the northeast side."),
+        new("genombrottet", "Genombrottet (The Breakthrough)", "Get all three Blue Heroes into the eastern exit area together. Red wins by defeating one initial Hero.")
     ]);
 
     public static GameState Create(string id) => GameEngine.CreateGame(Definition(id));
@@ -47,6 +49,7 @@ public static class PlaytestScenarios
         "orders-assault" => OrdersAssault(),
         "orders-escort-retreat" => OrdersEscortRetreat(),
         "labyrinth-shaper" => LabyrinthShaper(),
+        "genombrottet" => GenombrottetScenario.Definition(),
         _ => throw new ArgumentException("Unknown playtest scenario.", nameof(id))
     };
 

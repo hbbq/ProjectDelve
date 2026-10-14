@@ -872,7 +872,8 @@ public static partial class GameEngine
             [.. FootprintGeometry.OccupiedCells(type.Footprint, figure.Position)]);
         // Retained records use zero HP to mark absence; removal and defeat are one outcome.
         state.Units[index] = unit with { CurrentHp = 0 };
-        state.Physical.Figures.Remove(figure);
+        state.DefeatedUnitIds.Add(unitId);
+        state.Physical.Figures.RemoveAll(f => f.Id == unitId);
         if (type.Explosion is not null) state.PendingExplosions.Add(context);
         return new("UnitDefeated", unitId)
             { SourceUnitId = sourceUnitId, ActionId = actionId, DefeatContext = context };

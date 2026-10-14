@@ -1852,3 +1852,31 @@ test("board coordinates start hidden and follow the display checkbox", () => {
   h.elements.get("coordinates").listeners.change();
   assert.equal(h.elements.get("board").classList.contains("hide-coordinates"), false);
 });
+
+test("objective panel renders authoritative count, selector and area meanings", () => {
+  const initial = response([]);
+  initial.presentation.objectives = [
+    { sideId: "side-1", name: "Reach Area", meaning: "All fixed initial Blue Units: simultaneously inside (13, 5), 2 x 5, all Cells of all figures." },
+    { sideId: "side-2", name: "Defeat Units", meaning: "At least 1 fixed initial Blue Unit must actually be defeated." }
+  ];
+  const h = harness(initial);
+  const panel = h.elements.get("objectives").textContent;
+  assert.match(panel, /Reach Area.*All fixed initial Blue Units.*simultaneously.*\(13, 5\), 2 x 5.*all Cells/);
+  assert.match(panel, /Defeat Units.*At least 1.*actually be defeated/);
+});
+test("authored Blue and Red colors apply before figures on fresh start and scenario switch", () => {
+  for (const switched of [false, true]) {
+    const initial = response([]);
+    const h = harness(initial);
+    h.context.authored = { id: "genombrottet", sideHues: { "side-1": 210, "side-2": 0 } };
+    h.run(`
+      if (${switched}) { styleSide(ui.status, "blue"); styleSide(ui.status, "red"); }
+      snapshot.scenarioId = "genombrottet"; snapshot.scenarios = [authored];
+      snapshot.result.state.units[0].sideId = "side-2";
+      snapshot.result.state.units[1].sideId = "side-1";
+      renderState(snapshot.result.state);
+    `);
+    assert.equal(h.figure("actor").style["--side-hue"], 0);
+    assert.equal(h.figure("b").style["--side-hue"], 210);
+  }
+});

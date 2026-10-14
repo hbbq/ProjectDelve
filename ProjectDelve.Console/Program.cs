@@ -74,7 +74,7 @@ static void ShowState(GameState state)
         Console.WriteLine($"Move done: {state.MoveDone} | Action done: {state.ActionDone} | Current Unit: {state.CurrentUnitId ?? "-"} | Completed Units: {string.Join(", ", state.CompletedUnitIds)}");
     Console.WriteLine($"Bag: [{string.Join(", ", state.Bag)}]");
     foreach (var objective in state.Objectives)
-        Console.WriteLine($"Side {objective.SideId} objective: {ObjectiveLabel(objective.Objective)}");
+        Console.WriteLine($"Side {objective.SideId} objective: {ObjectivePresentation.Name(objective)}. {ObjectivePresentation.Meaning(objective)}");
     var board = state.Physical.Board;
     Console.Write("     ");
     for (var x = 0; x < board.Width; x++) Console.Write($"{x,-4}");
@@ -125,12 +125,6 @@ static void ShowState(GameState state)
     }
     Console.WriteLine();
 }
-
-static string ObjectiveLabel(ScenarioObjective objective) => objective switch
-{
-    ScenarioObjective.EliminateEnemies => "Eliminate Enemies",
-    _ => objective.ToString()
-};
 
 static char EdgeMarker(Board board, Cell a, Cell b) =>
     board.Edges.FirstOrDefault(e => e.A == a && e.B == b || e.A == b && e.B == a)?.Kind switch

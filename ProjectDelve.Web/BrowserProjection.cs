@@ -21,7 +21,10 @@ public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entri
 {
     public string? FootprintLabel { get; init; }
 }
-public sealed record BrowserObjective(string SideId, string Name);
+public sealed record BrowserObjective(string SideId, string Name)
+{
+    public string Meaning { get; init; } = "";
+}
 public sealed record BrowserWorldCard(string Id, string Name, string Text, bool Continuous);
 public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
     IReadOnlyList<BrowserWorldCard> ActiveContinuous, BrowserWorldCard? ResolvingCard);
@@ -62,11 +65,7 @@ public static class BrowserProjection
             Orders = result.State.Orders.ToArray() };
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
-        new BrowserObjective(o.SideId, o.Objective switch
-        {
-            ScenarioObjective.EliminateEnemies => "Eliminate Enemies",
-            _ => throw new ArgumentOutOfRangeException(nameof(o.Objective))
-        })).ToArray();
+        new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o) }).ToArray();
 
     public static BrowserWorldCard WorldCard(WorldCard card)
     {

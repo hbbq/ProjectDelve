@@ -37,7 +37,8 @@ public sealed class ScenarioTests
         { "orders-playground", 10, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie", "goblin"] },
         { "orders-assault", 11, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie"] },
         { "orders-escort-retreat", 12, ["barbarian", "rogue"], ["grunt", "zombie", "goblin"] },
-        { "labyrinth-shaper", 9, ["barbarian", "cleric"], ["labyrinth-shaper"] }
+        { "labyrinth-shaper", 9, ["barbarian", "cleric"], ["labyrinth-shaper"] },
+        { "genombrottet", 15, ["barbarian", "rogue", "wizard"], ["grunt", "zombie", "troll", "skeleton-archer", "goblin"] }
     };
 
     [Fact]
@@ -57,9 +58,9 @@ public sealed class ScenarioTests
     {
         var first = PlaytestScenarios.Create(id);
         var second = PlaytestScenarios.Create(id);
-        Assert.Equal((size, size), (first.Physical.Board.Width, first.Physical.Board.Height));
-        Assert.Equal(heroes.Select(h => h + "-type").Order(), first.Units.Where(u => u.SideId == "blue").Select(u => u.TypeId).Distinct().Order());
-        Assert.Equal(monsters.Select(m => m + "-type").Order(), first.Units.Where(u => u.SideId == "red").Select(u => u.TypeId).Distinct().Order());
+        Assert.Equal((size, id == "genombrottet" ? 10 : size), (first.Physical.Board.Width, first.Physical.Board.Height));
+        Assert.Equal(heroes.Select(h => h + "-type").Order(), first.Units.Where(u => u.SideId == (id == "genombrottet" ? "side-1" : "blue")).Select(u => u.TypeId).Distinct().Order());
+        Assert.Equal(monsters.Select(m => m + "-type").Order(), first.Units.Where(u => u.SideId == (id == "genombrottet" ? "side-2" : "red")).Select(u => u.TypeId).Distinct().Order());
         Assert.Equal(heroes.Concat(monsters).Select(t => t + "-type").Order(), first.Types.Select(t => t.Id).Order());
         Assert.All(first.Physical.Figures, f => Assert.True(first.Physical.Board.TerrainAt(f.Position).Passable()));
         var expected = Serialize(second);

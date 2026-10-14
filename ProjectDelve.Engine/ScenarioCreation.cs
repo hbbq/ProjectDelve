@@ -146,8 +146,35 @@ internal static class ScenarioCreation
                     "Invalid Order kind, target, destination, or target relationship.", nameof(definition)), $"orders[{index}]");
             state.AssignOrder(runtimeOrder.Token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target);
         }
+        ValidateObjectiveSelections(state, definition);
+        GameEngine.CaptureObjectiveStartUnits(state);
         GameEngine.ValidateScenario(state);
         return state;
     }
 
+    private static void ValidateObjectiveSelections(GameState state, ScenarioDefinition definition)
+    {
+        foreach (var objective in state.Objectives)
+        {
+            if (objective.Objective == ScenarioObjective.EliminateEnemies) continue;
+            var valid = objective.Count >= 0 && !objective.Selectors.IsDefaultOrEmpty;
+            if (objective.Objective == ScenarioObjective.ReachArea)
+                valid &= objective.Area is { X: >= 0, Y: >= 0, W: > 0, H: > 0 } area &&
+                         (long)area.X + area.W <= state.Physical.Board.Width && (long)area.Y + area.H <= state.Physical.Board.Height;
+            else valid &= objective.Area is null;
+            foreach (var selector in objective.Selectors.IsDefault ? [] : objective.Selectors)
+                valid &= selector is not null && (selector.Kind switch
+                {
+                    UnitSelectorKind.Unit => selector.SideId is null && selector.UnitTypeId is null &&
+                                             state.Units.Any(u => u.Id == selector.UnitId),
+                    UnitSelectorKind.SideAtStart => selector.UnitId is null && selector.UnitTypeId is null &&
+                                                    state.Controllers.Any(c => c.Token.SideId == selector.SideId),
+                    UnitSelectorKind.Group => selector.UnitId is null &&
+                                             state.Controllers.Any(c => c.Token.SideId == selector.SideId && c.Token.TypeId == selector.UnitTypeId),
+                    _ => false
+                });
+            if (!valid) throw ScenarioValidationContext.At(new ArgumentException("Invalid Objective count, selectors, references, or area.", nameof(definition)),
+                $"objectives[{definition.Objectives!.FindIndex(o => o.SideId == objective.SideId)}]");
+        }
+    }
 }

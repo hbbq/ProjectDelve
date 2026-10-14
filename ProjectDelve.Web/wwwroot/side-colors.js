@@ -2,6 +2,10 @@
 const sideHues = new Map();
 const sidePalette = [210, 0, 140, 45, 280, 180, 325, 85];
 
+export function applySideHues(preferences = {}) {
+  for (const [sideId, hue] of Object.entries(preferences)) sideHues.set(sideId, hue);
+}
+
 export function styleSide(node, sideId = "") {
   if (!sideHues.has(sideId)) {
     let hue = sidePalette[sideHues.size];
