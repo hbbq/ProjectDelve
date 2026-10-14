@@ -590,7 +590,15 @@ For **Attack**, an eligible ordered target is a living, in-play hostile Unit mat
 
 At an Action decision, an Attack candidate matches the Order when at least one Unit in its authoritative `TargetId` or `TargetIds` is an eligible ordered target. This includes every currently established Action that the rules classify as an Attack: Normal Attack, Claw Attack, Fire Breath, and Fireball. It does not include hostile-target Actions that are not Attacks, such as Telekinesis or Holy Wave. Fireball may affect Units outside the ordered scope as required by its normal all-Units target rule; including an eligible ordered target makes the candidate match but does not change Fireball's target set.
 
-Prefer a matching engine-supplied legal Attack candidate. First retain an established Unit Type's Attack preference when that preference yields a matching candidate, such as the Red Dragon's Fire Breath, Claw Attack, then Normal Attack priority. This preserves existing Behavior rather than adding a new Unit-Type-specific Order policy. Otherwise rank matching candidates by the closest matching ordered Unit's minimum Unit-to-Unit distance, then that Unit's anchor Cell in top-left order (ascending `y`, then `x`), then canonical candidate key. If there is no matching Attack candidate, Actions and abilities use Normal Behavior.
+When selecting among **legal Attack candidates**, under either **Normal** or **Attack**, use the same reusable, deterministic ranking. Apply these successive filters; each step considers only candidates remaining after the previous step:
+
+1. **Greatest number of eligible ordered target Units hit by this Attack.** Under Normal, or when no living ordered targets remain, every candidate receives zero. When no candidate hits an ordered target, the maximum is zero and all candidates continue to the next filter; it does not prevent an Attack on other hostile Units.
+2. **Highest effective ATK for this Attack**, using authoritative Attack Dice counts rather than the Unit's printed base ATK. If a multi-target Attack has different target-specific ATK counts, use the greatest authoritative count among its targets for this ranking; this ranking does not change the counts actually rolled.
+3. **Greatest number of hostile Units hit by this Attack in total.** The count of ordered target Units is already tied at this stage.
+4. **Unlimited use preferred** over a limited-use Attack when otherwise tied.
+5. **Earlier Action/Ability in the Unit Type's authored definition**, with ordinary Normal Attack treated according to its established declaration position; use canonical candidate ordering as a final deterministic tie-breaker among candidates of the same definition entry.
+
+An Attack candidate's target set is the authoritative set affected by that specific candidate, not an assumed single primary target. These preferences rank Attack candidates only; they do not make an Attack legal, alter its effects, or outrank a separately established non-Attack ability preference such as Use Summon, Swap, or Displace. Where no legal Attack exists, continue to established Normal Action/ability Behavior. This generic ranking replaces any special Fire Breath-versus-Claw-versus-Normal Attack priority, including under Normal.
 
 For Attack's ordinary Move, stay when allowed if the current position permits any established Attack Action to legally attack an eligible ordered target. Otherwise prefer a legal destination that permits one, ranked by shortest canonical movement path, then destination anchor `y`, `x`, and canonical candidate key. If no such destination exists, prefer the legal destination with the smallest remaining traversable distance to any position from which an established Attack Action could legally attack an eligible ordered target; break ties by current canonical movement-path length, destination anchor `y`, `x`, and canonical candidate key. This remaining-distance analysis ignores figures as traversal obstacles while respecting the moving Unit's traversal permissions and the existing Range, LOS, targeting, and Action rules of the Attack being considered, consistently with the established approach query. If eligible living targets exist but no destination has a reachable attack position, stay when allowed rather than treating the Order as completed or falling back to Normal movement. After the ordinary Move, and for special movement, follow-ups, abilities, and other decisions not explicitly overridden here, use Normal Behavior. Attack does not redefine established Attacks, targeting, or Unit-specific abilities.
 
@@ -605,6 +613,30 @@ Canonical candidate keys are used only as a final digital determinism tie-breake
 An Order may be obeyed only when its relevant choices are legal. The rules engine and automatic resolution still handle forced single choices, dice, mandatory consequences, and completion as before. Gambit's temporary Delegate control, where available in the digital client, should execute the group's effective Order-aware Behavior for the remainder of the selected Unit's activation; its advisory preview must use the same effective Behavior on copied state rather than always assuming Normal.
 
 **Deferred Order design, not yet established gameplay rules:** ordered target lists, arbitrary target filters, custom priority expressions, and any general Order language. Future scenarios may change Orders using specified triggers, and Human or Gambit may assign hidden Orders at Round Start before World Cards in scenarios that adopt such planning rules. Warfare may additionally use locked activation sequences. None of these prospective mechanics introduces a new phase, controller, trigger system, or target grammar until its concrete rules are separately established.
+
+### Reusable Behavior preferences under Orders — design for the next implementation
+
+These rules refine automated choice priorities without changing legal candidates, ability effects, controller ownership, or mandatory resolution. They are specified Behavior configuration, not Unit-Type identity checks: do not implement `if Zombie`, `if Shaman`, `if RedDragon`, or `if BombImp` branches. New or existing `UnitBehavior` entries can be reused by any Unit Type that declares them.
+
+- **Approach Through Closed Doors:** apply the Unit's existing traversal preference in *all* order-oriented path and remaining-route analysis (including Move To, Attack, Protect and Retreat), while preserving ordinary physical movement legality: a Closed Door does not become passable. A separate `TryOpenDoor` ability governs whether the Unit can attempt to open it. For available Actions, first rank relevant ordered Attacks, then use Normal Action fallback (other legal Attacks, then any legal Try Open Door); opening a nearby door does not need to help the Order. Zombie and Troll get the same behavior through their existing configuration, not through identity checks.
+- **Maximize Attack Distance with Attack:** among legal Move destinations that permit an Attack on *any* eligible ordered target, choose the one maximizing distance to the **nearest legally attackable hostile Unit**, not only to an ordered target. Ties use existing movement-path length and top-left ranking. If no legal Move destination can attack an ordered target, use ordered-target approach/pathfinding. The Attack's Action selection uses the common Attack ranking.
+- **Maximize Attack Distance with Protect:** among legal Move destinations that keep the protected Unit within effective RNG and normal LOS **and** permit an Attack on at least one hostile Unit, choose the one maximizing distance to the **nearest legally attackable hostile Unit**, then use normal deterministic ties. If no destination qualifies, use vanilla Protect approach: become adjacent to the protected Unit if possible, or approach it. The effective RNG is the Unit's current RNG, not a hardcoded 4. This preference can be used by any Unit Type with Maximize Attack Distance.
+- **Back Away After Attack:** retains full priority for the special Move After Attack follow-up, regardless of any standing Order; ordinary Move remains Order-aware. Do Nothing prohibits voluntary Attacks and therefore ordinarily never initiates the follow-up.
+- **Phase:** use the Unit's actual phasing traversal for all order-oriented route analysis while retaining normal Attack LOS and legal end-position rules.
+- **Swap, Displace, Reshape Room:** keep their established special voluntary ability preferences under all Orders where such actions are permitted, even when they interfere with Move To or Hold Position. Do Nothing suppresses voluntary uses. Passives continue to apply normally.
+
+**Flee-related Order behavior** is defined by reusable Flee-based preference rules; Shaman is their initial user:
+
+- **Normal** and **Retreat:** ordinary established Flee.
+- **Do Nothing** and **Hold Position:** their explicit Stay restrictions override Flee; Hold Position still permits regular Actions/abilities.
+- **Move To:** select legal destinations minimizing remaining traversable route distance to the ordered Cell; among equally good destinations prefer the greatest `DistanceToNearestHostileFrom` under existing Flee distance semantics, then deterministic ties.
+- **Protect:** if any legal destination is within a traversable distance no greater than the Unit's **effective MOV** of the protected Unit, choose among those the destination with greatest `DistanceToNearestHostileFrom`; break ties deterministically. Otherwise approach the protected Unit as under Move To, using safety to break equally good progress.
+- **Interact With:** Flee continues to govern movement, even where that delays reaching the Door. If an applicable interaction Action becomes legally available, the existing Action/Order priority may use it. An otherwise impossible interaction does not make an illegal Action available.
+- **Attack:** consider legal Move destinations (including Stay where legal) from which at least one living ordered target is reachable along an **open, currently traversable** route within `effective MOV × 3`. If such destinations exist, choose the one maximizing `DistanceToNearestHostileFrom`, then the established Flee deterministic ties. If none qualifies but some eligible ordered target is reachable via an open route, approach the nearest reachable ordered target as in Move To, with safety breaking equal progress. If no ordered target can be reached by open routes, use Normal Flee movement. This evaluation must not treat Closed Doors as open for a Unit that lacks the relevant traversal permission.
+
+**Use Summon with Attack:** when a legal Summon placement exists, use the existing Summon Action. With an Attack Order and living targets, prefer the legal placement with the shortest traversable open route distance to an eligible ordered target; use normal deterministic ties. When no ordered target is reachable from a legal summon placement, retain the existing top-left summon-placement preference. This does not assign Shamans' Order to the spawned Unit: it uses the summoned Unit's own group's current Order, or Normal. Priorities between multiple different Summon Actions remain deferred until such content exists.
+
+The common Attack-candidate ranking also applies under **Normal** to all Unit Types, replacing Red Dragon's former dedicated Fire Breath/Claw behavior. Decisions remain mechanically simple and physically followable. The remaining per-order refinements described here are new Behavior rules to implement and verify; they do not imply that existing builds already implement them.
 
 ### Default Monster Behavior
 
@@ -767,7 +799,7 @@ Red Dragon is a Unique 2 × 2 Monster. Its large footprint uses the ordinary foo
 - Footprint: `2 × 2`.
 - Stats: `MOV 2`, `RNG 4`, `ATK 4`, `DEF 4`, `HP 8`.
 - Actions: Normal Attack; Fire Breath; Claw Attack.
-- Behaviors: prefer Fire Breath when it has at least 2 legal targets; otherwise prefer Claw Attack when possible; otherwise prefer Normal Attack; otherwise use ordinary Default Monster Behavior movement/approach.
+- Behaviors: general Attack-candidate ranking for all its Attacks; ordinary Default Behavior movement/approach. No special Fire Breath/Claw ordering.
 
 **Fire Breath** is an Action:
 
@@ -782,8 +814,6 @@ Fire Breath targets every hostile Unit that is a legal target under the ordinary
 
 Fire Breath has no usage limit or additional area shape. It attacks Units directly; it does not select an explosion Cell and does not use Fireball's explosion rules.
 
-For automated Red Dragon play, Fire Breath is preferred as the Action only when it currently has at least two legal targets. With fewer than two legal targets, continue to the next Action preference.
-
 **Claw Attack** is an Action:
 
 ```text
@@ -795,9 +825,7 @@ Attack one adjacent enemy with ATK +1.
 
 A legal Claw Attack target is one adjacent hostile Unit under the ordinary footprint-aware adjacency rule. Claw Attack is an Attack and uses the Red Dragon's authoritative `ATK` with an additional `+1 ATK` for that Attack. With the current base stats it therefore normally rolls 5 Attack Dice. It otherwise uses ordinary single-target Attack resolution.
 
-For automated Red Dragon play, when Fire Breath does not have at least two legal targets and one or more Claw Attack targets exist, prefer Claw Attack. Choose among legal Claw Attack targets using the ordinary Default Monster Behavior target ranking. If no Claw Attack is possible, prefer an ordinary Normal Attack when one is legal. If none of these Actions is currently possible, movement and approach use ordinary Default Monster Behavior rather than Dragon-specific pathfinding.
-
-These preferences choose among authoritative legal Actions and targets. They do not alter Range, Line of Sight, adjacency, movement, or Attack legality.
+Automated Red Dragon play uses the common Attack-candidate ranking defined under Standing group Orders, under both Normal and Attack Orders. Its movement and approach use the ordinary Behavior unless the Order changes them. This intentionally replaces the former preference for Fire Breath against two or more targets, even where the resulting Action choice differs.
 
 #### Labyrinth Shaper
 
