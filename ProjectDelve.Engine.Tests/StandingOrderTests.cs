@@ -106,9 +106,15 @@ public sealed class StandingOrderTests
         state.AssignOrder(state.Controllers[0].Token, OrderKind.DoNothing);
         var queries = new GameplayQueries(state);
         var provider = new OrderAwareAutomatedProvider();
+        var reshape = UnitType.LabyrinthShaper().BonusActions.Single(a => a.ReshapeRoom is not null);
+        var swap = UnitType.DisplacerDemon().BonusActions.Single(a => a.Swap is not null);
         var activation = new DecisionRequest(DecisionKind.Activation, state.Units[0].TypeId, "actor",
         [
             new("attack:enemy", Action: UnitAction.NormalAttack, TargetId: "enemy", Kind: ActivationChoiceKind.Action),
+            new("reshape", Kind: ActivationChoiceKind.BonusAction, BonusAction: reshape),
+            new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction, BonusAction: swap),
+            new("open", Door: new(new(0, 1), new(1, 1), EdgeKind.ClosedDoor),
+                Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor),
             new("move", new(1, 0), [new(0, 1), new(1, 1)], Kind: ActivationChoiceKind.Move),
             new("stay", Kind: ActivationChoiceKind.Stay)
         ], false);
@@ -131,7 +137,7 @@ public sealed class StandingOrderTests
     }
 
     [Fact]
-    public void HoldOverridesOrdinaryMoveButRetainsAttackAndDisplacerSwap()
+    public void HoldOverridesOrdinaryMoveButRetainsActions()
     {
         var state = State(enemy: new(1, 1));
         state.AssignOrder(state.Controllers[0].Token, OrderKind.HoldPosition);
@@ -210,6 +216,42 @@ public sealed class StandingOrderTests
     }
 
     [Fact]
+    public void AttackRetainsReshapeSwapAndDisplaceActivationPriorities()
+    {
+        var provider = new OrderAwareAutomatedProvider();
+        var demon = State(UnitType.DisplacerDemon(), enemy: new(1, 1));
+        demon.AssignOrder(demon.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+        var swap = UnitType.DisplacerDemon().BonusActions.Single(a => a.Swap is not null);
+        var displace = UnitType.DisplacerDemon().BonusActions.Single(a => a.Displace is not null);
+        var beforeAction = new DecisionRequest(DecisionKind.Activation, demon.Units[0].TypeId, "actor",
+        [
+            new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction, BonusAction: swap),
+            new("attack", Action: UnitAction.NormalAttack, TargetId: "enemy", Kind: ActivationChoiceKind.Action),
+            new("end", Kind: ActivationChoiceKind.EndTurn)
+        ], false);
+        Assert.Equal("swap", provider.Choose(beforeAction, new GameplayQueries(demon)));
+
+        var afterAction = beforeAction with { Candidates =
+        [
+            new("displace", new(2, 1), TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction,
+                BonusAction: displace),
+            new("end", Kind: ActivationChoiceKind.EndTurn)
+        ] };
+        Assert.Equal("displace", provider.Choose(afterAction, new GameplayQueries(demon)));
+
+        var shaper = State(UnitType.LabyrinthShaper(), enemy: new(1, 1));
+        shaper.AssignOrder(shaper.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+        var reshape = UnitType.LabyrinthShaper().BonusActions.Single(a => a.ReshapeRoom is not null);
+        var reshapeActivation = new DecisionRequest(DecisionKind.Activation, shaper.Units[0].TypeId, "actor",
+        [
+            new("reshape", Kind: ActivationChoiceKind.BonusAction, BonusAction: reshape),
+            new("attack", Action: UnitAction.NormalAttack, TargetId: "enemy", Kind: ActivationChoiceKind.Action),
+            new("end", Kind: ActivationChoiceKind.EndTurn)
+        ], false);
+        Assert.Equal("reshape", provider.Choose(reshapeActivation, new GameplayQueries(shaper)));
+    }
+
+    [Fact]
     public void DoNothingDoesNotSuppressCommittedMandatoryDoorRoll()
     {
         var state = State(UnitType.Troll(), actor: new(0, 0), enemy: new(4, 0),
@@ -256,7 +298,8 @@ public sealed class StandingOrderTests
     [Fact]
     public void AttackMatchesExactAttackActionsAndFallsBackOnlyAfterTargetDisappears()
     {
-        var wizard = State(UnitType.Wizard(), enemy: new(3, 1));
+        var wizard = State(UnitType.Wizard() with
+            { AttackDefinitionOrder = [UnitAction.Fireball, UnitAction.NormalAttack] }, enemy: new(3, 1));
         wizard.AssignOrder(wizard.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
         var request = new DecisionRequest(DecisionKind.Act, wizard.Units[0].TypeId, "actor",
         [
@@ -473,5 +516,285 @@ public sealed class StandingOrderTests
 
         Assert.Equal(new OrderAwareAutomatedProvider().Choose(started.Pending!, new GameplayQueries(started)),
             preview.Steps[0].CandidateKey);
+    }
+
+    [Fact]
+    public void SharedAttackRankingUsesOrderedHitsEffectiveAtkHostileHitsUsageAndDefinitionOrder()
+    {
+        var dragon = State(UnitType.RedDragon(), actor: new(0, 0), enemy: new(2, 0), board: new Board(7, 4, []));
+        dragon.PlaceUnit("enemy", "other", "blue", new(4, 0));
+        var candidates = new DecisionRequest(DecisionKind.Act, dragon.Units[0].TypeId, "actor",
+        [
+            new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
+            new("claw", Action: UnitAction.ClawAttack, TargetId: "enemy"),
+            new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy", "other"] }
+        ], true);
+        var provider = new OrderAwareAutomatedProvider();
+        Assert.Equal("claw", provider.Choose(candidates, new GameplayQueries(dragon)));
+
+        dragon.AssignOrder(dragon.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("other"));
+        Assert.Equal("breath", provider.Choose(candidates, new GameplayQueries(dragon)));
+
+        dragon.AssignOrder(dragon.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+        var missesOrderedTarget = candidates with { Candidates = [
+            new("normal-other", Action: UnitAction.NormalAttack, TargetId: "other"),
+            new("claw-other", Action: UnitAction.ClawAttack, TargetId: "other") ] };
+        Assert.Equal("claw-other", provider.Choose(missesOrderedTarget, new GameplayQueries(dragon)));
+
+        var wizard = State(UnitType.Wizard(), enemy: new(3, 1));
+        var usageTie = new DecisionRequest(DecisionKind.Act, wizard.Units[0].TypeId, "actor",
+        [
+            new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
+            new Candidate("fireball", Action: UnitAction.Fireball) { TargetIds = ["enemy"] }
+        ], true);
+        Assert.Equal("normal", new DefaultAutomatedProvider().Choose(usageTie, new GameplayQueries(wizard)));
+
+        var authored = UnitType.RedDragon() with { ClawAttack = new(0) };
+        var definitionTie = State(authored, enemy: new(2, 0), board: new Board(7, 4, []));
+        var tied = new DecisionRequest(DecisionKind.Act, authored.Id, "actor",
+        [new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
+         new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy"] }], true);
+        Assert.Equal("normal", new DefaultAutomatedProvider().Choose(tied, new GameplayQueries(definitionTie)));
+
+        var custom = UnitType.Define("custom-attacker", "Custom Attacker", UnitAuthoring.Stats(2, 4, 3, 3, 1),
+            UnitAuthoring.Ability("Claw", UnitAuthoring.Unlimited(), UnitAuthoring.ClawAttack(0)),
+            UnitAuthoring.Ability("Breath", UnitAuthoring.Unlimited(), UnitAuthoring.FireBreath()));
+        var restored = JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(custom))!;
+        Assert.Equal(new[] { UnitAction.NormalAttack, UnitAction.ClawAttack, UnitAction.FireBreath },
+            restored.AttackDefinitionOrder.ToArray());
+        Assert.Equal(custom.AttackDefinitionOrder, (custom with { DisplayName = "Clone" }).AttackDefinitionOrder);
+        var customState = State(restored, enemy: new(1, 1));
+        var customTie = new DecisionRequest(DecisionKind.Act, restored.Id, "actor",
+        [
+            new("claw", Action: UnitAction.ClawAttack, TargetId: "enemy"),
+            new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy"] }
+        ], true);
+        Assert.Equal("claw", new DefaultAutomatedProvider().Choose(customTie, new GameplayQueries(customState)));
+    }
+
+    [Fact]
+    public void ApproachThroughClosedDoorsChangesOrderAnalysisButNotMoveLegality()
+    {
+        var door = new Edge(new(1, 0), new(2, 0), EdgeKind.ClosedDoor);
+        var board = new Board(5, 2,
+        [
+            door,
+            new(new(1, 1), new(2, 1), EdgeKind.Wall)
+        ]);
+        var zombie = State(UnitType.Zombie(), actor: new(0, 0), enemy: new(4, 0), board: board);
+        zombie.AssignOrder(zombie.Controllers[0].Token, OrderKind.MoveTo, new(4, 0));
+        var move = Movement(zombie,
+            new("toward-door", new(1, 0), [new(0, 0), new(1, 0)], Kind: ActivationChoiceKind.Move),
+            new("down", new(0, 1), [new(0, 0), new(0, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("toward-door", new OrderAwareAutomatedProvider().Choose(move, new GameplayQueries(zombie)));
+        Assert.DoesNotContain(MovementRules.FindPaths(zombie, "actor", new(0, 0), 4), pair => pair.Key == new Cell(2, 0));
+
+        var troll = State(UnitType.Troll(), actor: new(0, 0), enemy: new(4, 0), board: board);
+        troll.AssignOrder(troll.Controllers[0].Token, OrderKind.MoveTo, new(4, 0));
+        Assert.Equal("toward-door", new OrderAwareAutomatedProvider().Choose(move, new GameplayQueries(troll)));
+    }
+
+    [Fact]
+    public void ReusableTraversalAppliesToAttackProtectRetreatAndPhaseOrders()
+    {
+        var door = new Edge(new(1, 0), new(2, 0), EdgeKind.ClosedDoor);
+        var board = new Board(5, 2, [door, new(new(1, 1), new(2, 1), EdgeKind.Wall)]);
+        foreach (var type in new[] { UnitType.Zombie(), UnitType.Troll() })
+        {
+            var attack = State(type, actor: new(0, 0), enemy: new(4, 0), board: board);
+            attack.AssignOrder(attack.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+            var choices = Movement(attack,
+                new("toward", new(1, 0), [new(0, 0), new(1, 0)], Kind: ActivationChoiceKind.Move),
+                new("away", new(0, 1), [new(0, 0), new(0, 1)], Kind: ActivationChoiceKind.Move));
+            Assert.Equal("toward", new OrderAwareAutomatedProvider().Choose(choices, new GameplayQueries(attack)));
+
+            attack.Units[1] = attack.Units[1] with { SideId = "red" };
+            attack.AssignOrder(attack.Controllers[0].Token, OrderKind.Protect, target: OrderTarget.ForUnit("enemy"));
+            Assert.Equal("toward", new OrderAwareAutomatedProvider().Choose(choices, new GameplayQueries(attack)));
+
+            attack.Units[1] = attack.Units[1] with { SideId = "blue" };
+            attack.AssignOrder(attack.Controllers[0].Token, OrderKind.Retreat);
+            Assert.Equal("away", new OrderAwareAutomatedProvider().Choose(choices, new GameplayQueries(attack)));
+        }
+
+        var wall = new Edge(new(1, 0), new(2, 0), EdgeKind.Wall);
+        var ghost = State(UnitType.Ghost(), actor: new(0, 0), enemy: new(4, 0),
+            board: new Board(5, 2, [wall, new(new(1, 1), new(2, 1), EdgeKind.Wall)]));
+        ghost.AssignOrder(ghost.Controllers[0].Token, OrderKind.MoveTo, new(4, 0));
+        var phaseChoices = Movement(ghost,
+            new("through-wall", new(2, 0), [new(0, 0), new(1, 0), new(2, 0)], Kind: ActivationChoiceKind.Move),
+            new("down", new(0, 1), [new(0, 0), new(0, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("through-wall", new OrderAwareAutomatedProvider().Choose(phaseChoices,
+            new GameplayQueries(ghost)));
+    }
+
+    [Fact]
+    public void BombImpOrderTiesPreferHostileAdjacencyAndProtectAvoidsAdjacency()
+    {
+        var state = State(UnitType.BombImp(), actor: new(1, 2), enemy: new(2, 0), board: new Board(6, 4, []));
+        state.AssignOrder(state.Controllers[0].Token, OrderKind.MoveTo, new(4, 1));
+        var tied = Movement(state,
+            new("safe", new(3, 2), [new(1, 2), new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move),
+            new("adjacent", new(2, 1), [new(1, 2), new(2, 2), new(2, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("adjacent", new OrderAwareAutomatedProvider().Choose(tied, new GameplayQueries(state)));
+
+        state.Units[1] = state.Units[1] with { SideId = "red" };
+        state.AssignOrder(state.Controllers[0].Token, OrderKind.Protect, target: OrderTarget.ForUnit("enemy"));
+        var protect = Movement(state,
+            new("adjacent", new(2, 1), [new(1, 2), new(2, 2), new(2, 1)], Kind: ActivationChoiceKind.Move),
+            new("not-adjacent", new(2, 2), [new(1, 2), new(2, 2)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("not-adjacent", new OrderAwareAutomatedProvider().Choose(protect, new GameplayQueries(state)));
+
+        state.Physical.Figures[0] = state.Physical.Figures[0] with { Position = new(1, 1) };
+        var boxed = Movement(state,
+            new("a", new(2, 1), [new(1, 1), new(2, 1)], Kind: ActivationChoiceKind.Move),
+            new("b", new(1, 0), [new(1, 1), new(1, 0)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("b", new OrderAwareAutomatedProvider().Choose(boxed, new GameplayQueries(state)));
+    }
+
+    [Fact]
+    public void MaximizeAttackDistanceRefinesAttackAndProtectMovement()
+    {
+        var attack = State(UnitType.SkeletonArcher(), actor: new(2, 2), enemy: new(4, 2),
+            board: new Board(6, 5, []));
+        attack.PlaceUnit("enemy", "other", "blue", new(0, 2));
+        attack.AssignOrder(attack.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+        var spread = Movement(attack,
+            new("up", new(2, 1), [new(2, 2), new(2, 1)], Kind: ActivationChoiceKind.Move),
+            new("right", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("up", new OrderAwareAutomatedProvider().Choose(spread, new GameplayQueries(attack)));
+
+        var protect = State(UnitType.SkeletonArcher(), actor: new(2, 2), enemy: new(4, 2),
+            board: new Board(6, 5, []));
+        protect.Units[1] = protect.Units[1] with { SideId = "red" };
+        protect.PlaceUnit("enemy", "hostile", "blue", new(0, 2));
+        protect.AssignOrder(protect.Controllers[0].Token, OrderKind.Protect, target: OrderTarget.ForUnit("enemy"));
+        var positions = Movement(protect,
+            new("toward-protected", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move),
+            new("keep-range", new(2, 1), [new(2, 2), new(2, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("keep-range", new OrderAwareAutomatedProvider().Choose(positions, new GameplayQueries(protect)));
+
+        var fireballOnly = UnitType.Wizard() with
+        {
+            Actions = UnitAction.Fireball,
+            Behaviors = UnitBehavior.MaximizeAttackDistance
+        };
+        var fireballProtect = State(fireballOnly, actor: new(2, 2), enemy: new(4, 2),
+            board: new Board(6, 5, []));
+        fireballProtect.Units[1] = fireballProtect.Units[1] with { SideId = "red" };
+        fireballProtect.PlaceUnit("enemy", "hostile", "blue", new(0, 2));
+        fireballProtect.AssignOrder(fireballProtect.Controllers[0].Token, OrderKind.Protect,
+            target: OrderTarget.ForUnit("enemy"));
+        var fireballPositions = Movement(fireballProtect,
+            new("vanilla-protect", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move),
+            new("fireball-distance", new(2, 1), [new(2, 2), new(2, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("fireball-distance", new OrderAwareAutomatedProvider().Choose(fireballPositions,
+            new GameplayQueries(fireballProtect)));
+
+        var noHostile = State(fireballOnly, actor: new(1, 2), enemy: new(2, 2),
+            board: new Board(6, 5, []));
+        noHostile.Units[1] = noHostile.Units[1] with { SideId = "red" };
+        noHostile.PlaceUnit("enemy", "dead-hostile", "blue", new(3, 2));
+        noHostile.Units[^1] = noHostile.Units[^1] with { CurrentHp = 0 };
+        var noHostileQueries = new GameplayQueries(noHostile);
+        Assert.False(noHostileQueries.CanAttackHostileFrom("actor", new(1, 2)));
+        Assert.Null(noHostileQueries.DistanceToNearestAttackableHostileFrom("actor", new(1, 2)));
+
+        var friendlyBetween = State(fireballOnly, actor: new(1, 2), enemy: new(4, 2),
+            board: new Board(6, 5, []));
+        friendlyBetween.PlaceUnit("enemy", "friendly", "red", new(2, 2));
+        Assert.Equal(3, new GameplayQueries(friendlyBetween)
+            .DistanceToNearestAttackableHostileFrom("actor", new(1, 2)));
+
+        var shortRange = UnitType.SkeletonArcher() with { Rng = 2 };
+        var fallback = State(shortRange, actor: new(0, 2), enemy: new(5, 2), board: new Board(6, 5, []));
+        fallback.AssignOrder(fallback.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+        var fallbackMoves = Movement(fallback,
+            new("approach", new(1, 2), [new(0, 2), new(1, 2)], Kind: ActivationChoiceKind.Move),
+            new("not-progress", new(0, 1), [new(0, 2), new(0, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("approach", new OrderAwareAutomatedProvider().Choose(fallbackMoves,
+            new GameplayQueries(fallback)));
+
+        var effectiveRange = State(shortRange, actor: new(2, 2), enemy: new(4, 2), board: new Board(6, 5, []));
+        effectiveRange.Units[1] = effectiveRange.Units[1] with { SideId = "red" };
+        effectiveRange.PlaceUnit("enemy", "hostile", "blue", new(2, 1));
+        effectiveRange.AssignOrder(effectiveRange.Controllers[0].Token, OrderKind.Protect,
+            target: OrderTarget.ForUnit("enemy"));
+        var rangeMoves = Movement(effectiveRange,
+            new("outside-effective-range", new(1, 2), [new(2, 2), new(1, 2)], Kind: ActivationChoiceKind.Move),
+            new("vanilla-protect", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move));
+        Assert.True(new GameplayQueries(effectiveRange).IsWithinEffectiveRangeAndLos("actor", new(2, 2), "enemy"));
+        Assert.True(new GameplayQueries(effectiveRange).CanAttackHostileFrom("actor", new(2, 2)));
+        Assert.Equal(1, new GameplayQueries(effectiveRange).DistanceToNearestAttackableHostileFrom("actor", new(2, 2)));
+        Assert.Equal("vanilla-protect", new OrderAwareAutomatedProvider().Choose(rangeMoves,
+            new GameplayQueries(effectiveRange)));
+    }
+
+    [Fact]
+    public void FleeRefinesMoveToProtectAttackAndSummonPlacement()
+    {
+        var shaman = State(UnitType.Shaman(), actor: new(1, 1), enemy: new(3, 1), board: new Board(7, 5, []));
+        shaman.AssignOrder(shaman.Controllers[0].Token, OrderKind.MoveTo, new(4, 2));
+        var moveTo = Movement(shaman,
+            new("unsafe", new(2, 1), [new(1, 1), new(2, 1)], Kind: ActivationChoiceKind.Move),
+            new("safe", new(1, 2), [new(1, 1), new(1, 2)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("safe", new OrderAwareAutomatedProvider().Choose(moveTo, new GameplayQueries(shaman)));
+
+        shaman.Physical.Figures[0] = shaman.Physical.Figures[0] with { Position = new(2, 2) };
+        shaman.Physical.Figures[1] = shaman.Physical.Figures[1] with { Position = new(4, 2) };
+        shaman.Units[1] = shaman.Units[1] with { SideId = "red" };
+        shaman.PlaceUnit("enemy", "hostile", "blue", new(2, 1));
+        shaman.AssignOrder(shaman.Controllers[0].Token, OrderKind.Protect, target: OrderTarget.ForUnit("enemy"));
+        var protect = Movement(shaman,
+            new("unsafe", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move),
+            new("safe", new(3, 3), [new(2, 2), new(2, 3), new(3, 3)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("safe", new OrderAwareAutomatedProvider().Choose(protect, new GameplayQueries(shaman)));
+
+        shaman.Units[1] = shaman.Units[1] with { SideId = "blue" };
+        shaman.AssignOrder(shaman.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
+        var attack = Movement(shaman,
+            new("away", new(1, 2), [new(2, 2), new(1, 2)], Kind: ActivationChoiceKind.Move),
+            new("toward", new(3, 2), [new(2, 2), new(3, 2)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("away", new OrderAwareAutomatedProvider().Choose(attack, new GameplayQueries(shaman)));
+
+        var summon = new DecisionRequest(DecisionKind.Act, shaman.Units[0].TypeId, "actor",
+        [
+            new("top-left", new(1, 1), Action: UnitAction.SummonAdjacent),
+            new("toward", new(3, 2), Action: UnitAction.SummonAdjacent)
+        ], true);
+        Assert.Equal("toward", new OrderAwareAutomatedProvider().Choose(summon, new GameplayQueries(shaman)));
+
+        var door = new Edge(new(4, 0), new(5, 0), EdgeKind.ClosedDoor);
+        var interact = State(UnitType.Shaman(), actor: new(1, 1), enemy: new(3, 1),
+            board: new Board(6, 3, [door]));
+        interact.AssignOrder(interact.Controllers[0].Token, OrderKind.InteractWith,
+            target: OrderTarget.ForDoor(door.A, door.B));
+        var doorMovement = Movement(interact,
+            new("toward-door", new(2, 1), [new(1, 1), new(2, 1)], Kind: ActivationChoiceKind.Move),
+            new("flee", new(0, 1), [new(1, 1), new(0, 1)], Kind: ActivationChoiceKind.Move));
+        Assert.Equal("flee", new OrderAwareAutomatedProvider().Choose(doorMovement,
+            new GameplayQueries(interact)));
+        interact.AssignOrder(interact.Controllers[0].Token, OrderKind.Retreat);
+        Assert.Equal("flee", new OrderAwareAutomatedProvider().Choose(doorMovement,
+            new GameplayQueries(interact)));
+
+        var largeFlee = State(UnitType.RedDragon() with { Behaviors = UnitBehavior.Flee, Actions = UnitAction.None },
+            actor: new(0, 0), enemy: new(3, 0), board: new Board(6, 3,
+                [new(new(1, 1), new(2, 1), EdgeKind.Wall)]));
+        Assert.Null(new GameplayQueries(largeFlee).DistanceToUnitFrom("actor", new(0, 0), "enemy"));
+
+        var fleeType = UnitType.Grunt() with { Behaviors = UnitBehavior.Flee, Actions = UnitAction.None, Mov = 1 };
+        var largeTarget = State(fleeType, actor: new(5, 0), enemy: new(1, 0), board: new Board(7, 3, []));
+        var dragonTarget = UnitType.RedDragon("enemy");
+        largeTarget.Types[1] = dragonTarget;
+        largeTarget.Units[1] = dragonTarget.CreateUnit("enemy", "blue");
+        largeTarget.AssignOrder(largeTarget.Controllers[0].Token, OrderKind.Attack,
+            target: OrderTarget.ForUnit("enemy"));
+        var largeTargetQueries = new GameplayQueries(largeTarget);
+        Assert.Equal(3, largeTargetQueries.DistanceToUnitFrom("actor", new(5, 0), "enemy"));
+        var thresholdMoves = Movement(largeTarget,
+            new("toward", new(4, 0), [new(5, 0), new(4, 0)], Kind: ActivationChoiceKind.Move),
+            new("away", new(6, 0), [new(5, 0), new(6, 0)], Kind: ActivationChoiceKind.Move));
+        Assert.Null(new OrderAwareAutomatedProvider().Choose(thresholdMoves, largeTargetQueries));
     }
 }

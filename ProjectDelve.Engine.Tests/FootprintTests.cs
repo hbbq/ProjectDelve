@@ -383,7 +383,7 @@ public sealed class FootprintTests
         Assert.Equal(Footprint.TwoByTwo, dragon.Footprint);
         Assert.Equal(UnitAction.NormalAttack | UnitAction.FireBreath | UnitAction.ClawAttack, dragon.Actions);
         Assert.Equal(UnitFreeAction.None, dragon.FreeActions);
-        Assert.Equal(UnitBehavior.PreferFireBreathThenClaw, dragon.Behaviors);
+        Assert.Equal(UnitBehavior.None, dragon.Behaviors);
         Assert.Equal(3, dragon.CardEntries().Count);
         Assert.Empty(dragon.BonusActions);
         Assert.Empty(dragon.Passives);

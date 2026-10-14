@@ -24,7 +24,8 @@ public sealed class ApproachMovementProvider(IDecisionProvider otherDecisions) :
         //    then break ties in top-left board order (Y, X).
         var attackDestination = request.Candidates
             .Where(c => queries.CanAttackHostileFrom(unitId, c.Destination!))
-            .OrderBy(c => c.Path!.Count - 1)
+            .OrderByDescending(c => HostileAdjacency(c.Destination!))
+            .ThenBy(c => c.Path!.Count - 1)
             .ThenBy(c => c.Destination!.Y)
             .ThenBy(c => c.Destination!.X)
             .FirstOrDefault();
@@ -47,6 +48,7 @@ public sealed class ApproachMovementProvider(IDecisionProvider otherDecisions) :
         var approachingDestination = approachOptions
             .Where(x => x.RemainingDistance.HasValue)
             .OrderBy(x => x.RemainingDistance!.Value)
+            .ThenByDescending(x => HostileAdjacency(x.Position))
             .ThenBy(x => x.MovementLength)
             .ThenBy(x => x.Position.Y)
             .ThenBy(x => x.Position.X)
@@ -59,5 +61,9 @@ public sealed class ApproachMovementProvider(IDecisionProvider otherDecisions) :
         if (request.AllowsNone) return null;
         throw new InvalidOperationException(
             "No legal movement destination has a reachable attack position, and staying is not allowed.");
+
+        int HostileAdjacency(Cell position) => queries.BehaviorsOf(unitId)
+            .HasFlag(UnitBehavior.PreferHostileAdjacency)
+            ? queries.CountAdjacentHostilesFrom(unitId, position) : 0;
     }
 }

@@ -88,7 +88,7 @@ public sealed class DefaultAutomatedProviderTests
     }
 
     [Fact]
-    public void AttackChoosesNearestLegalTargetBeforeTopLeftBoardOrder()
+    public void AttackUsesStableCandidateOrderingAfterSharedRankingTies()
     {
         var state = State();
         AddUnit(state, "far", new Cell(0, 3));
@@ -98,7 +98,7 @@ public sealed class DefaultAutomatedProviderTests
         Assert.Equal(2, request.Candidates.Count(c => c.Kind is not (ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn)));
         Assert.DoesNotContain(request.Candidates, c => c.TargetId == "friendly");
 
-        Assert.Equal("attack:near", new DefaultAutomatedProvider().Choose(request, new GameplayQueries(state)));
+        Assert.Equal("attack:far", new DefaultAutomatedProvider().Choose(request, new GameplayQueries(state)));
     }
 
     [Theory]
@@ -116,7 +116,7 @@ public sealed class DefaultAutomatedProviderTests
     }
 
     [Fact]
-    public void MeleePrefersOrthogonalTargetOverEarlierDiagonalTargetByManhattanDistance()
+    public void MeleeUsesStableCandidateOrderingAfterSharedRankingTies()
     {
         var state = State(rng: 1);
         AddUnit(state, "diagonal", new Cell(2, 2));
@@ -127,7 +127,7 @@ public sealed class DefaultAutomatedProviderTests
         Assert.Equal(2, queries.ManhattanDistanceBetweenUnits("monster", "diagonal"));
         Assert.Equal(1, queries.ManhattanDistanceBetweenUnits("monster", "orthogonal"));
 
-        Assert.Equal("attack:orthogonal", new DefaultAutomatedProvider().Choose(request, queries));
+        Assert.Equal("attack:diagonal", new DefaultAutomatedProvider().Choose(request, queries));
     }
 
     [Fact]

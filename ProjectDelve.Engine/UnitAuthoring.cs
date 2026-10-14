@@ -26,6 +26,7 @@ public static class UnitAuthoring
     {
         private protected Entry() { }
         internal virtual Type Slot => GetType();
+        internal virtual UnitAction? AttackAction => null;
         internal abstract UnitType Apply(UnitType type);
     }
 
@@ -118,7 +119,11 @@ public static class UnitAuthoring
             throw new ArgumentException("Bonus ability ids must be unique.", nameof(entries));
         if (type.Hp > 1 && !type.Unique)
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(entries));
-        return type;
+        var attackOrder = (type.Actions.HasFlag(UnitAction.NormalAttack)
+                ? new[] { UnitAction.NormalAttack } : [])
+            .Concat(entries.Select(entry => entry.AttackAction).Where(action => action.HasValue)
+                .Select(action => action!.Value)).ToImmutableArray();
+        return type with { AttackDefinitionOrder = attackOrder.Length > 1 ? attackOrder : [] };
     }
 
     public static UnitType WithBehaviors(this UnitType type, params UnitBehavior[] behaviors) =>
@@ -128,6 +133,7 @@ public static class UnitAuthoring
     private sealed class NamedEntry(Entry mechanic, string name, NamedMechanic kind) : Entry
     {
         internal override Type Slot => mechanic.Slot;
+        internal override UnitAction? AttackAction => mechanic.AttackAction;
         internal override UnitType Apply(UnitType type)
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Ability printed name is required.", nameof(name));
@@ -221,14 +227,17 @@ public static class UnitAuthoring
     }
     private sealed class FireballEntry(Fireball mechanic) : Entry
     {
+        internal override UnitAction? AttackAction => UnitAction.Fireball;
         internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Fireball, Fireball = mechanic };
     }
     private sealed class BreathEntry : Entry
     {
+        internal override UnitAction? AttackAction => UnitAction.FireBreath;
         internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.FireBreath };
     }
     private sealed class ClawEntry(ClawAttack mechanic) : Entry
     {
+        internal override UnitAction? AttackAction => UnitAction.ClawAttack;
         internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.ClawAttack, ClawAttack = mechanic };
     }
     private sealed class AuraEntry(AdjacentFriendlyUnitsDefenceBonus mechanic) : Entry

@@ -65,7 +65,19 @@ public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fir
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
-public enum UnitBehavior { None = 0, ApproachThroughClosedDoors = 1, MaximizeAttackDistance = 2, BackAwayAfterAttack = 4, Flee = 8, UseSummon = 16, PreferFireBreathThenClaw = 32, SwapThenAttackThenDisplace = 64, PreferReshapeRoom = 128 }
+public enum UnitBehavior
+{
+    None = 0,
+    ApproachThroughClosedDoors = 1,
+    MaximizeAttackDistance = 2,
+    BackAwayAfterAttack = 4,
+    Flee = 8,
+    UseSummon = 16,
+    SwapThenAttackThenDisplace = 64,
+    PreferReshapeRoom = 128,
+    PreferHostileAdjacency = 256,
+    ProtectWithoutAdjacency = 512
+}
 public sealed record ReshapeRoom;
 public sealed record Swap;
 // Current external movement supports zero or one ordinary step only.
@@ -160,6 +172,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
+    public ImmutableArray<UnitAction> AttackDefinitionOrder { get; init; } = [];
     public bool Unique { get; init; }
     public Footprint Footprint { get; init; } = Footprint.OneByOne;
     public string? DisplayName { get; init; }

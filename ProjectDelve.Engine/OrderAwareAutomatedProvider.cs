@@ -6,6 +6,7 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
 {
     private readonly DefaultAutomatedProvider normal = new();
     private sealed record RankedMove(Candidate Candidate, int? Remaining, int Length);
+    private sealed record MoveOption(Candidate? Candidate, string? Key, Cell Position, int Length);
 
     public string? Choose(DecisionRequest request, IGameplayQueries queries)
     {
@@ -61,29 +62,11 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
         var targetIds = queries.EligibleAttackOrderTargets(request.UnitId!, target);
         if (targetIds.Count == 0) return normal.Choose(request, queries);
 
-        if (request.Kind == DecisionKind.Act || request.Kind == DecisionKind.Activation &&
+        if (request.Kind == DecisionKind.Act)
+            return DefaultAutomatedProvider.SelectAction(request, queries, targetIds);
+        if (request.Kind == DecisionKind.Activation &&
             !request.Candidates.Any(candidate => candidate.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay))
-        {
-            var matching = request.Candidates.Where(candidate => IsMatchingAttack(candidate, targetIds)).ToList();
-            if (matching.Count > 0)
-            {
-                var normalChoice = normal.Choose(request, queries);
-                if (normalChoice is not null && matching.Any(candidate => candidate.Key == normalChoice))
-                    return normalChoice;
-                return matching.Select(candidate => new
-                    {
-                        Candidate = candidate,
-                        Target = MatchingTargetIds(candidate, targetIds)
-                            .Select(id => new { Id = id, Distance = queries.ManhattanDistanceBetweenUnits(request.UnitId!, id),
-                                Position = queries.PositionOf(id) })
-                            .OrderBy(item => item.Distance).ThenBy(item => item.Position.Y).ThenBy(item => item.Position.X)
-                            .ThenBy(item => item.Id, StringComparer.Ordinal).First()
-                    })
-                    .OrderBy(item => item.Target.Distance)
-                    .ThenBy(item => item.Target.Position.Y).ThenBy(item => item.Target.Position.X)
-                    .ThenBy(item => item.Candidate.Key, StringComparer.Ordinal).First().Candidate.Key;
-            }
-        }
+            return DefaultAutomatedProvider.SelectActivation(request, queries, targetIds);
 
         return ChooseOrdinaryMovement(request, queries,
             (position, current) => SelectAttackMove(request, queries, targetIds, position, current));
@@ -92,13 +75,79 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
     private string? ChooseProtect(DecisionRequest request, IGameplayQueries queries, string protectedId)
     {
         if (!queries.IsLivingFriendlyUnit(request.UnitId!, protectedId)) return normal.Choose(request, queries);
-        return ChooseOrdinaryMovement(request, queries, (position, current) =>
+        var closedDoors = Has(request, queries, UnitBehavior.ApproachThroughClosedDoors);
+        return ChooseOrdinaryMovement(request, queries, (_, current) =>
         {
+            var unitId = request.UnitId!;
             var stay = StayChoice(request);
-            if (queries.AreUnitsAdjacent(request.UnitId!, protectedId)) return stay ?? NoneOrForced(request);
-            var currentDistance = queries.DistanceToAdjacentPositionFrom(request.UnitId!, current, protectedId);
-            var preferred = RankedMoves(request, candidate =>
-                    queries.DistanceToAdjacentPositionFrom(request.UnitId!, candidate.Destination!, protectedId))
+            var options = MovementOptions(request, queries).ToList();
+
+            if (Has(request, queries, UnitBehavior.Flee))
+            {
+                var near = options.Select(option => new
+                    {
+                        Option = option,
+                        Distance = queries.DistanceToUnitFrom(unitId, option.Position, protectedId, closedDoors),
+                        Safety = queries.DistanceToNearestHostileFrom(unitId, option.Position, closedDoors)
+                    })
+                    .Where(item => item.Distance <= queries.EffectiveMovOf(unitId))
+                    .OrderByDescending(item => item.Safety)
+                    .ThenByDescending(item => HostileAdjacency(request, queries, item.Option.Position))
+                    .ThenBy(item => item.Option.Length)
+                    .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+                    .ThenBy(item => item.Option.Key, StringComparer.Ordinal).FirstOrDefault();
+                if (near is not null) return near.Option.Key;
+
+                var approach = RankApproachToUnit(request, options, queries, unitId, protectedId, closedDoors,
+                    safetyFirstOnTie: true);
+                return approach?.Key ?? stay ?? NoneOrForced(request);
+            }
+
+            if (Has(request, queries, UnitBehavior.MaximizeAttackDistance))
+            {
+                var ranged = options.Where(option =>
+                        queries.IsWithinEffectiveRangeAndLos(unitId, option.Position, protectedId) &&
+                        queries.CanAttackHostileFrom(unitId, option.Position))
+                    .Select(option => new
+                    {
+                        Option = option,
+                        Distance = queries.DistanceToNearestAttackableHostileFrom(unitId, option.Position)
+                    })
+                    .Where(item => item.Distance.HasValue)
+                    .OrderByDescending(item => item.Distance)
+                    .ThenByDescending(item => HostileAdjacency(request, queries, item.Option.Position))
+                    .ThenBy(item => item.Option.Length)
+                    .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+                    .ThenBy(item => item.Option.Key, StringComparer.Ordinal).FirstOrDefault();
+                if (ranged is not null) return ranged.Option.Key;
+            }
+
+            if (Has(request, queries, UnitBehavior.ProtectWithoutAdjacency))
+            {
+                var scored = options.Select(option => new
+                    {
+                        Option = option,
+                        Distance = queries.DistanceToUnitFrom(unitId, option.Position, protectedId, closedDoors),
+                        IsAdjacent = queries.AreUnitsAdjacentFrom(unitId, option.Position, protectedId),
+                        Adjacency = queries.CountAdjacentHostilesFrom(unitId, option.Position)
+                    })
+                    .Where(item => item.Distance.HasValue).ToList();
+                var nonAdjacent = scored.Where(item => !item.IsAdjacent).ToList();
+                var pool = nonAdjacent.Count > 0 ? nonAdjacent : scored;
+                var protectedChoice = pool
+                    .OrderBy(item => item.Distance)
+                    .ThenByDescending(item => Has(request, queries, UnitBehavior.PreferHostileAdjacency)
+                        ? item.Adjacency : 0)
+                    .ThenBy(item => item.Option.Length)
+                    .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+                    .ThenBy(item => item.Option.Key, StringComparer.Ordinal).FirstOrDefault();
+                return protectedChoice?.Option.Key ?? stay ?? NoneOrForced(request);
+            }
+
+            if (queries.AreUnitsAdjacent(unitId, protectedId)) return stay ?? NoneOrForced(request);
+            var currentDistance = queries.DistanceToAdjacentPositionFrom(unitId, current, protectedId, closedDoors);
+            var preferred = RankedMoves(request, queries, candidate =>
+                    queries.DistanceToAdjacentPositionFrom(unitId, candidate.Destination!, protectedId, closedDoors))
                 .Where(item => item.Remaining.HasValue &&
                     (!currentDistance.HasValue || item.Remaining.Value < currentDistance.Value))
                 .FirstOrDefault();
@@ -119,14 +168,19 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
                 (candidate.FreeAction == UnitFreeAction.OpenDoor || candidate.TryOpenDoor is not null))
             .OrderBy(candidate => candidate.Key, StringComparer.Ordinal).FirstOrDefault();
         if (interaction is not null) return interaction.Key;
-        if (!queries.DistanceToDoorInteractionPositionFrom(request.UnitId!, queries.PositionOf(request.UnitId!), door).HasValue)
+        if (Has(request, queries, UnitBehavior.Flee))
+            return ChooseOrdinaryMovement(request, queries, (_, _) =>
+                DefaultAutomatedProvider.SelectFleeMovement(request, queries));
+        var closedDoors = Has(request, queries, UnitBehavior.ApproachThroughClosedDoors);
+        if (!queries.DistanceToDoorInteractionPositionFrom(request.UnitId!, queries.PositionOf(request.UnitId!), door,
+                closedDoors).HasValue)
             return normal.Choose(request, queries);
         return ChooseOrdinaryMovement(request, queries, (_, current) =>
         {
             var stay = StayChoice(request);
-            var currentDistance = queries.DistanceToDoorInteractionPositionFrom(request.UnitId!, current, door);
-            var preferred = RankedMoves(request, candidate =>
-                    queries.DistanceToDoorInteractionPositionFrom(request.UnitId!, candidate.Destination!, door))
+            var currentDistance = queries.DistanceToDoorInteractionPositionFrom(request.UnitId!, current, door, closedDoors);
+            var preferred = RankedMoves(request, queries, candidate =>
+                    queries.DistanceToDoorInteractionPositionFrom(request.UnitId!, candidate.Destination!, door, closedDoors))
                 .Where(item => item.Remaining.HasValue &&
                     (!currentDistance.HasValue || item.Remaining.Value < currentDistance.Value))
                 .FirstOrDefault();
@@ -157,35 +211,53 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
     private static string? SelectAttackMove(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string> targetIds, Cell _, Cell current)
     {
+        if (Has(request, queries, UnitBehavior.Flee))
+            return SelectFleeAttackMove(request, queries, targetIds);
+
+        var closedDoors = Has(request, queries, UnitBehavior.ApproachThroughClosedDoors);
         var stay = StayChoice(request);
+        if (Has(request, queries, UnitBehavior.MaximizeAttackDistance))
+        {
+            var ranged = MovementOptions(request, queries)
+                .Where(option => queries.CanAttackAnyFrom(request.UnitId!, option.Position, targetIds))
+                .Select(option => new
+                {
+                    Option = option,
+                    Distance = queries.DistanceToNearestAttackableHostileFrom(request.UnitId!, option.Position)
+                })
+                .Where(item => item.Distance.HasValue)
+                .OrderByDescending(item => item.Distance)
+                .ThenByDescending(item => HostileAdjacency(request, queries, item.Option.Position))
+                .ThenBy(item => item.Option.Length)
+                .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+                .ThenBy(item => item.Option.Key, StringComparer.Ordinal)
+                .FirstOrDefault();
+            if (ranged is not null) return ranged.Option.Key;
+        }
         if (queries.CanAttackAnyFrom(request.UnitId!, current, targetIds)) return stay ?? NoneOrForced(request);
         var immediatelyAttackable = request.Candidates.Where(candidate =>
                 (request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move) &&
                 queries.CanAttackAnyFrom(request.UnitId!, candidate.Destination!, targetIds))
-            .OrderBy(candidate => candidate.Path!.Count - 1)
+            .OrderByDescending(candidate => HostileAdjacency(request, queries, candidate.Destination!))
+            .ThenBy(candidate => candidate.Path!.Count - 1)
             .ThenBy(candidate => candidate.Destination!.Y).ThenBy(candidate => candidate.Destination!.X)
             .ThenBy(candidate => candidate.Key, StringComparer.Ordinal).FirstOrDefault();
         if (immediatelyAttackable is not null) return immediatelyAttackable.Key;
-        var preferred = RankedMoves(request, candidate =>
-                queries.DistanceToAttackPositionFrom(request.UnitId!, candidate.Destination!, targetIds))
+        var preferred = RankedMoves(request, queries, candidate =>
+                queries.DistanceToAttackPositionFrom(request.UnitId!, candidate.Destination!, targetIds, closedDoors))
             .Where(item => item.Remaining.HasValue).FirstOrDefault();
         return preferred?.Candidate.Key ?? stay ?? NoneOrForced(request);
     }
 
-    private static IOrderedEnumerable<RankedMove> RankedMoves(DecisionRequest request, Func<Candidate, int?> remaining) =>
+    private static IOrderedEnumerable<RankedMove> RankedMoves(DecisionRequest request, IGameplayQueries queries,
+        Func<Candidate, int?> remaining) =>
         request.Candidates.Where(candidate => request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move)
             .Select(candidate => new RankedMove(candidate, remaining(candidate), candidate.Path!.Count - 1))
-            .OrderBy(item => item.Remaining).ThenBy(item => item.Length)
+            .OrderBy(item => item.Remaining)
+            .ThenByDescending(item => HostileAdjacency(request, queries, item.Candidate.Destination!))
+            .ThenBy(item => item.Length)
             .ThenBy(item => item.Candidate.Destination!.Y).ThenBy(item => item.Candidate.Destination!.X)
             .ThenBy(item => item.Candidate.Key, StringComparer.Ordinal);
-
-    private static bool IsMatchingAttack(Candidate candidate, IReadOnlyCollection<string> targetIds) =>
-        candidate.Action is UnitAction.NormalAttack or UnitAction.ClawAttack or UnitAction.FireBreath or UnitAction.Fireball &&
-        MatchingTargetIds(candidate, targetIds).Any();
-
-    private static IEnumerable<string> MatchingTargetIds(Candidate candidate, IReadOnlyCollection<string> targetIds) =>
-        (candidate.TargetId is null ? candidate.TargetIds : candidate.TargetIds.Prepend(candidate.TargetId))
-            .Where(targetIds.Contains).Distinct(StringComparer.Ordinal);
 
     private static DoorTarget Canonical(Edge edge) => DoorTarget.Canonical(edge.A, edge.B);
 
@@ -204,17 +276,26 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
 
         var current = queries.PositionOf(request.UnitId!);
         if (current == destination) return stay ?? (request.AllowsNone ? null : Forced(request));
-        var currentDistance = queries.RouteDistanceTo(request.UnitId!, current, destination);
+        var closedDoors = Has(request, queries, UnitBehavior.ApproachThroughClosedDoors);
+        var currentDistance = queries.RouteDistanceTo(request.UnitId!, current, destination, closedDoors);
+        var flee = Has(request, queries, UnitBehavior.Flee);
+        var adjacency = Has(request, queries, UnitBehavior.PreferHostileAdjacency);
         var ranked = request.Candidates
-            .Where(candidate => candidate.Kind == ActivationChoiceKind.Move)
+            .Where(candidate => request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move)
             .Select(candidate => new
             {
                 Candidate = candidate,
-                Remaining = queries.RouteDistanceTo(request.UnitId!, candidate.Destination!, destination),
-                Length = candidate.Path!.Count - 1
+                Remaining = queries.RouteDistanceTo(request.UnitId!, candidate.Destination!, destination, closedDoors),
+                Length = candidate.Path!.Count - 1,
+                Safety = flee
+                    ? queries.DistanceToNearestHostileFrom(request.UnitId!, candidate.Destination!, closedDoors) : null,
+                Adjacency = adjacency
+                    ? queries.CountAdjacentHostilesFrom(request.UnitId!, candidate.Destination!) : 0
             })
             .Where(item => item.Remaining.HasValue && (!currentDistance.HasValue || item.Remaining.Value < currentDistance.Value))
             .OrderBy(item => item.Remaining)
+            .ThenByDescending(item => flee ? item.Safety : null)
+            .ThenByDescending(item => adjacency ? item.Adjacency : 0)
             .ThenBy(item => item.Length)
             .ThenBy(item => item.Candidate.Destination!.Y)
             .ThenBy(item => item.Candidate.Destination!.X)
@@ -226,4 +307,93 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
     private static string Forced(DecisionRequest request) => request.Candidates.Count == 1
         ? request.Candidates[0].Key
         : throw new InvalidOperationException("The Order could not choose a legal Stay candidate.");
+
+    private static bool Has(DecisionRequest request, IGameplayQueries queries, UnitBehavior behavior) =>
+        queries.BehaviorsOf(request.UnitId!).HasFlag(behavior);
+
+    private static int HostileAdjacency(DecisionRequest request, IGameplayQueries queries, Cell position) =>
+        Has(request, queries, UnitBehavior.PreferHostileAdjacency)
+            ? queries.CountAdjacentHostilesFrom(request.UnitId!, position) : 0;
+
+    private static IEnumerable<MoveOption> MovementOptions(DecisionRequest request, IGameplayQueries queries)
+    {
+        foreach (var candidate in request.Candidates.Where(candidate =>
+                     request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move))
+            yield return new(candidate, candidate.Key, candidate.Destination!, candidate.Path!.Count - 1);
+        if (request.Kind == DecisionKind.Activation && StayChoice(request) is { } stay)
+            yield return new(null, stay, queries.PositionOf(request.UnitId!), 0);
+        else if (request.Kind == DecisionKind.Move && request.AllowsNone)
+            yield return new(null, null, queries.PositionOf(request.UnitId!), 0);
+    }
+
+    private static MoveOption? RankApproachToUnit(DecisionRequest request, IEnumerable<MoveOption> options,
+        IGameplayQueries queries,
+        string unitId, string targetId, bool closedDoorsTraversable, bool safetyFirstOnTie)
+    {
+        var current = queries.PositionOf(unitId);
+        var currentDistance = queries.DistanceToUnitFrom(unitId, current, targetId, closedDoorsTraversable);
+        return options.Where(option => option.Candidate is not null)
+            .Select(option => new
+            {
+                Option = option,
+                Remaining = queries.DistanceToUnitFrom(unitId, option.Position, targetId, closedDoorsTraversable),
+                Safety = queries.DistanceToNearestHostileFrom(unitId, option.Position, closedDoorsTraversable)
+            })
+            .Where(item => item.Remaining.HasValue &&
+                (!currentDistance.HasValue || item.Remaining < currentDistance))
+            .OrderBy(item => item.Remaining)
+            .ThenByDescending(item => safetyFirstOnTie ? item.Safety : null)
+            .ThenByDescending(item => HostileAdjacency(request, queries, item.Option.Position))
+            .ThenBy(item => item.Option.Length)
+            .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+            .ThenBy(item => item.Option.Key, StringComparer.Ordinal)
+            .Select(item => item.Option).FirstOrDefault();
+    }
+
+    private static string? SelectFleeAttackMove(DecisionRequest request, IGameplayQueries queries,
+        IReadOnlyCollection<string> targetIds)
+    {
+        var unitId = request.UnitId!;
+        var reach = queries.EffectiveMovOf(unitId) * 3;
+        var qualifying = MovementOptions(request, queries)
+            .Select(option => new
+            {
+                Option = option,
+                TargetDistance = targetIds.Select(id => queries.DistanceToUnitFrom(unitId, option.Position, id))
+                    .Where(distance => distance.HasValue).Min(),
+                Safety = queries.DistanceToNearestHostileFrom(unitId, option.Position)
+            })
+            .Where(item => item.TargetDistance <= reach)
+            .OrderByDescending(item => item.Safety)
+            .ThenByDescending(item => HostileAdjacency(request, queries, item.Option.Position))
+            .ThenBy(item => item.Option.Length)
+            .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+            .ThenBy(item => item.Option.Key, StringComparer.Ordinal)
+            .FirstOrDefault();
+        if (qualifying is not null) return qualifying.Option.Key;
+
+        var current = queries.PositionOf(unitId);
+        var currentDistance = targetIds.Select(id => queries.DistanceToUnitFrom(unitId, current, id))
+            .Where(distance => distance.HasValue).Min();
+        if (currentDistance.HasValue)
+        {
+            var approach = MovementOptions(request, queries).Where(option => option.Candidate is not null)
+                .Select(option => new
+                {
+                    Option = option,
+                    Remaining = targetIds.Select(id => queries.DistanceToUnitFrom(unitId, option.Position, id))
+                        .Where(distance => distance.HasValue).Min(),
+                    Safety = queries.DistanceToNearestHostileFrom(unitId, option.Position)
+                })
+                .Where(item => item.Remaining.HasValue && item.Remaining < currentDistance)
+                .OrderBy(item => item.Remaining)
+                .ThenByDescending(item => item.Safety)
+                .ThenByDescending(item => HostileAdjacency(request, queries, item.Option.Position))
+                .ThenBy(item => item.Option.Length)
+                .ThenBy(item => item.Option.Position.Y).ThenBy(item => item.Option.Position.X)
+                .ThenBy(item => item.Option.Key, StringComparer.Ordinal).FirstOrDefault();
+            if (approach is not null) return approach.Option.Key;
+        }
+        return DefaultAutomatedProvider.SelectFleeMovement(request, queries);
+    }
 }

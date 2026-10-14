@@ -190,7 +190,7 @@ public sealed class RedDragonTests
     [Theory]
     [InlineData(3, 1, false, "claw-attack:a")]
     [InlineData(5, 1, false, "attack:a")]
-    [InlineData(3, 1, true, "fire-breath")]
+    [InlineData(3, 1, true, "claw-attack:a")]
     [InlineData(5, 1, true, "fire-breath")]
     public void BehaviorPrioritizesAuthoritativeActions(int x, int y, bool second, string expected)
     {
@@ -200,7 +200,7 @@ public sealed class RedDragonTests
     }
 
     [Fact]
-    public void ClawUsesOrdinaryDistanceThenBoardOrderRanking()
+    public void ClawUsesStableCandidateOrderingAfterSharedRankingTies()
     {
         var state = World(UnitType.RedDragon() with { Rng = 0 });
         Add(state, "diagonal", new(0, 0));
@@ -208,7 +208,7 @@ public sealed class RedDragonTests
         Add(state, "right", new(3, 1));
         Add(state, "top", new(2, 0));
         Assert.Null(Breath(state));
-        Assert.Equal("claw-attack:top", Behavior(state));
+        Assert.Equal("claw-attack:bottom", Behavior(state));
     }
 
     [Fact]

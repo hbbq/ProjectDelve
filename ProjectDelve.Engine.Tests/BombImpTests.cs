@@ -47,7 +47,7 @@ public sealed class BombImpTests
         var type = CanonicalUnitTypes.Find(UnitTypeIds.BombImp)!;
         Assert.Equal((3, 1, 2, 2, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
-        Assert.Equal(UnitBehavior.None, type.Behaviors);
+        Assert.Equal(UnitBehavior.PreferHostileAdjacency | UnitBehavior.ProtectWithoutAdjacency, type.Behaviors);
         Assert.False(type.Unique);
         Assert.Equal(1, type.Explosion!.Damage);
         Assert.NotNull(UnitType.BombImp("custom").Explosion);

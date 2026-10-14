@@ -14,7 +14,7 @@ namespace ProjectDelve.Engine;
 //     Footprint2x2(),
 //     Ability("Fire Breath", Unlimited(), FireBreath()),
 //     Ability("Claw Attack", Unlimited(), ClawAttack())
-// ).WithBehaviors(UnitBehavior.PreferFireBreathThenClaw);
+// );
 
 public static class UnitRoster
 {
@@ -41,7 +41,7 @@ public static class UnitRoster
         Footprint2x2(),
         Ability("Fire Breath", Unlimited(), FireBreath()),
         Ability("Claw Attack", Unlimited(), ClawAttack())
-    ).WithBehaviors(UnitBehavior.PreferFireBreathThenClaw);
+    );
 
     public static UnitType Ghost(string id = UnitTypeIds.Ghost) => UnitType.Define(id, 
         "Ghost", 
@@ -75,7 +75,7 @@ public static class UnitRoster
         "Bomb Imp",
         Stats(3, 1, 2, 2, 1),
         Ability("Explosion", Unlimited(), Explosion(damage: 1))
-    );
+    ).WithBehaviors(UnitBehavior.PreferHostileAdjacency, UnitBehavior.ProtectWithoutAdjacency);
 
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitType.Define(id, 
         "Troll", 
