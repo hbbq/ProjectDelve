@@ -85,6 +85,12 @@ public static class UnitRoster
         Ability("Undying", Unlimited(), Undying())
     ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
+    public static UnitType Worker(string id = UnitTypeIds.Worker) => UnitType.Define(id,
+        "Worker",
+        Stats(4, 0, 0, 2, 1),
+        CantAttack(), TransportResource(), GiveResource(), Operate()
+    ).WithBehaviors(UnitBehavior.Worker);
+
     public static UnitType Geomancer(string id = UnitTypeIds.Geomancer) => UnitType.Define(id,
         "Geomancer",
         Stats(2, 0, 0, 3, 1),

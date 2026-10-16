@@ -4,6 +4,12 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    IReadOnlyList<Resource> Resources => throw new NotSupportedException();
+    bool CanTransportResource(string unitId) => throw new NotSupportedException();
+    IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) => throw new NotSupportedException();
+    // Analyze existing Resource Actions at a legal placement with the supplied source marker.
+    IReadOnlyList<Candidate> ResourceActionsFrom(string unitId, Cell position, ResourceType? source) => throw new NotSupportedException();
+    Cell ResourceRecipientPosition(Candidate action) => throw new NotSupportedException();
     IReadOnlyList<SideObjective> Objectives { get; }
     Cell PositionOf(string unitId);
     IReadOnlyList<Cell> OccupiedCellsOf(string unitId);
@@ -64,6 +70,32 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
+
+    public IReadOnlyList<Resource> Resources => world.Resources.AsReadOnly();
+
+    public bool CanTransportResource(string unitId) =>
+        world.IsUpright(unitId) && FootprintGeometry.FootprintOf(world, unitId) == Footprint.OneByOne &&
+        world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).TransportResource is not null;
+
+    public IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) =>
+        MovementRules.FindPaths(world, unitId, position);
+
+    public IReadOnlyList<Candidate> ResourceActionsFrom(string unitId, Cell position, ResourceType? source)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        if (!world.IsUpright(unitId)) return [];
+        var projected = world.Copy();
+        var index = projected.Physical.Figures.FindIndex(f => f.Id == unitId);
+        projected.Physical.Figures[index] = projected.Physical.Figures[index] with { Position = position };
+        projected.Resources.RemoveAll(r => r.Position == position);
+        if (source is not null) projected.Resources.Add(new(source, position));
+        var actor = projected.Units.Single(u => u.Id == unitId);
+        return ResourceRules.Candidates(projected, actor).Concat(MachineRules.Candidates(projected, actor)).ToList().AsReadOnly();
+    }
+
+    public Cell ResourceRecipientPosition(Candidate action) => action.MachineId is { } machineId
+        ? world.Physical.Board.Machines.Single(m => m.Id == machineId).Position
+        : PositionOf(action.TargetId!);
 
     public IReadOnlyList<SideObjective> Objectives => world.Objectives.AsReadOnly();
 

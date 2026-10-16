@@ -27,6 +27,7 @@ public static class PlaytestScenarios
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
         new("resource-storage", "Resource Pickup / Give", "Manually control a Coal Collector and Coal Courier to exercise Pickup and Give with shared Unit Type storage."),
+        new("autonomous-production", "Autonomous Production", "Workers collect Coal, supply and operate the Diamond Press, then deliver Diamond to the Geomancer."),
         new("diamond-press", "Diamond Press", "Manual production: transport Coal with the Courier and Give it to the Press. Operate from an empty Cell, then move away so Geomancer can collect the Diamond. The Closed Door blocks the western operating position until opened."),
         new("resource-transport", "Resource Transport", "Wizard / Doors with Coal under Zombies, along their routes and near Doors to playtest atomic Resource transport."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
@@ -47,6 +48,7 @@ public static class PlaytestScenarios
         "archers" => Archers(),
         "wizard-doors" => WizardDoors(),
         "resource-storage" => ResourceStoragePlaytest(),
+        "autonomous-production" => AutonomousProduction(),
         "diamond-press" => DiamondPressPlaytest(),
         "resource-transport" => WizardDoors() with
         {
@@ -75,6 +77,22 @@ public static class PlaytestScenarios
             new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
         Resources = [new(ResourceTypes.Coal, new(2, 2)), new(ResourceTypes.Coal, new(3, 2)),
             new(ResourceTypes.Coal, new(3, 1)), new(ResourceTypes.Coal, new(2, 3)), new(ResourceTypes.Coal, new(1, 2))]
+    };
+
+    private static ScenarioDefinition AutonomousProduction() => new()
+    {
+        Board = new() { Width = 10, Height = 7 },
+        Machines = [new("press", new(5, 3), MachineTypes.DiamondPress)],
+        UnitTypeIds = [UnitTypeIds.Worker, UnitTypeIds.Geomancer, UnitTypeIds.Grunt],
+        Units = [new(UnitTypeIds.Worker, "blue", new(1, 1)),
+            new(UnitTypeIds.Worker, "blue", new(1, 3)), new(UnitTypeIds.Worker, "blue", new(1, 5)),
+            new(UnitTypeIds.Geomancer, "blue", new(8, 3)), new(UnitTypeIds.Grunt, "red", new(9, 6))],
+        Agency = [new(UnitTypeIds.Worker, "blue", ControllerKind.Automated),
+            new(UnitTypeIds.Geomancer, "blue", ControllerKind.Human), new(UnitTypeIds.Grunt, "red", ControllerKind.Automated)],
+        Orders = [new(UnitTypeIds.Grunt, "red", OrderKind.DoNothing)],
+        Resources = [new(ResourceTypes.Coal, new(2, 1)), new(ResourceTypes.Coal, new(2, 3)),
+            new(ResourceTypes.Coal, new(2, 5)), new(ResourceTypes.Coal, new(3, 0)),
+            new(ResourceTypes.Coal, new(3, 6)), new(ResourceTypes.Coal, new(0, 3))]
     };
 
     private static ScenarioDefinition DiamondPressPlaytest() => new()

@@ -14,6 +14,8 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
             return normal.Choose(request, queries);
 
         var order = queries.EffectiveOrderFor(request.UnitId);
+        if (order.Kind != OrderKind.DoNothing && queries.BehaviorsOf(request.UnitId).HasFlag(UnitBehavior.Worker))
+            return normal.Choose(request, queries);
         return order.Kind switch
         {
             OrderKind.Normal => normal.Choose(request, queries),

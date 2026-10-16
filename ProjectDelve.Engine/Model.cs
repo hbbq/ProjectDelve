@@ -94,7 +94,8 @@ public enum UnitBehavior
     SwapThenAttackThenDisplace = 64,
     PreferReshapeRoom = 128,
     PreferHostileAdjacency = 256,
-    ProtectWithoutAdjacency = 512
+    ProtectWithoutAdjacency = 512,
+    Worker = 1024
 }
 public sealed record ReshapeRoom;
 public sealed record Swap;
@@ -252,6 +253,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitRoster.DisplacerDemon(id);
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
+    public static UnitType Worker(string id = UnitTypeIds.Worker) => UnitRoster.Worker(id);
     public static UnitType Geomancer(string id = UnitTypeIds.Geomancer) => UnitRoster.Geomancer(id);
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);
     public static UnitType LabyrinthShaper(string id = UnitTypeIds.LabyrinthShaper) => UnitRoster.LabyrinthShaper(id);

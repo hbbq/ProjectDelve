@@ -16,6 +16,8 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
+            return WorkerBehavior.Choose(request, queries)!;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferReshapeRoom) &&
             request.Candidates.FirstOrDefault(c => c.BonusAction?.ReshapeRoom is not null) is { } reshape)
             return reshape.Key;
@@ -65,6 +67,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     {
         var unitId = request.UnitId!;
         var behaviors = queries.BehaviorsOf(unitId);
+        if (behaviors.HasFlag(UnitBehavior.Worker)) return WorkerBehavior.Choose(request, queries);
         if (behaviors.HasFlag(UnitBehavior.Flee))
             return SelectFleeMovement(request, queries,
                 behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors));
@@ -149,6 +152,8 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string? SelectAction(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
+            return WorkerBehavior.Choose(request, queries);
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.UseSummon))
         {
             var summons = request.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent).ToList();
