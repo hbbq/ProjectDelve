@@ -1381,6 +1381,23 @@ The canonical Shaman retains its original Summon Goblin Action and Flee/Summon B
 
 **Geomancer** is a separate non-attacking Monster Unit Type with stats `MOV 2, RNG 0, ATK 0, DEF 3, HP 1`, `ResourceStorage(Diamond, 1)`, and the **Pickup Resource** Action. Geomancer uses the existing Flee Behavior. Its proposed resource-consuming summon actions and worker-summoning Behavior are deferred; they are not required or implied by this initial content. **Diamond** is an additional Resource Type.
 
+### Worker and Worker Behavior
+
+Worker is a canonical Unit Type with MOV 4, RNG 0, ATK 0, DEF 2, HP 1; CantAttack, Transport Resource, Give Resource, and Operate. It has no Resource Storage.
+
+Worker Behavior is reusable by other Unit Types and has no hardcoded Worker type check. It selects among existing legal decisions and does not alter legality. Each Unit completes its activation before the next grouped Unit. No task reservation or persistent work plan exists.
+
+Its priorities are:
+1. If standing on a Resource with a viable recipient with available capacity, move toward the nearest reachable position from which it can Give that Resource; Give when legal. Do not choose a resource-occupied destination that would leave this deliverable Resource behind.
+2. Otherwise, Operate an adjacent Machine if that Action is legal.
+3. Otherwise, approach the closest reachable Resource with a potential recipient that has capacity. If the starting Resource is not useful, intentionally moving onto another useful Resource is allowed: the old Resource stays on its starting Cell.
+4. Otherwise, approach the nearest ready Machine that offers a reachable operating position.
+5. Otherwise, Stay and Skip.
+
+Work preferences are reconsidered at each decision opportunity using current Game State. Use deterministic tie-breaking: shortest relevant path, then top-left position, then stable target identity where required. Do not choose inaccessible targets. Legality of Operate already excludes a Resource on the operator's Cell.
+
+Worker Behavior honors Do Nothing Standing Order. All other Orders allow its normal work preferences; this is a Behavior-specific interpretation, not a general rules change. Worker Behavior does not attack, plan downstream production, or grant Actions.
+
 ### Machines as terrain objects
 
 A **Machine** is an individually identifiable fixed terrain object occupying one Board Cell. Its Cell blocks Unit movement/placement and Line of Sight, like other obstructing terrain objects. A Machine does not act, activate, or have a Unit Type, Side, Activation Token, or Unit HP/DEF under these initial rules. Machine destruction is deferred.
@@ -1400,7 +1417,7 @@ When Operate resolves, its Resource costs are removed from that Machine and the 
 
 Machines must be allowed next to Walls and other Edge features, including an Edge immediately between the Machine Cell and an adjacent Cell. An impassable Edge prevents a Unit on that side from Operating the Machine, even when geometrically adjacent. No new general LOS rule for Machine interaction is implied.
 
-Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Resource-aware automated Worker Behavior, machine construction, machine ownership, combat against Machines, Geomancer summoning, and other recipes are deferred.
+Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Machine construction, machine ownership, combat against Machines, Geomancer summoning, and other recipes are deferred.
 
 ### Moving and repositioning Units by effects
 
