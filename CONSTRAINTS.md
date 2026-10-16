@@ -757,6 +757,7 @@ Zombie is the first Monster Unit Type used to establish the reusable Action/Beha
 - Stats: `MOV 2`, `RNG 1` (Melee), `ATK 3`, `DEF 3`, `HP 1`.
 - Actions: Normal Attack; **Break Door**, using `TryOpenDoor(2/6)`.
 - Behaviors: Approach Through Closed Doors.
+- Capabilities: Transport Resource.
 
 Zombie itself has no bespoke pathfinding or Decision Provider implementation. Its door-oriented play emerges from the reusable Approach Through Closed Doors Behavior, the reusable Try Open Door Action, shared gameplay queries, and Default Monster Behavior's normal Action priorities. Approach Through Closed Doors affects only automated decision analysis; it does not make Closed Doors traversable under the movement rules.
 
@@ -1341,6 +1342,29 @@ A Unit may never end its movement with any part of its footprint overlapping ano
 
 Whether a destination cell is otherwise passable is determined by the rules for its terrain or fixed object. Those rules are deliberately deferred to the corresponding terrain specification.
 
+### Resources and Transport Resource
+
+A **Resource** is a loose physical marker on a Board Cell, not a Unit, Figure, Terrain Tile, or fixed object. Each Resource has a Resource Type. The initial authored Resource Type is **Coal**; additional types use the same rules.
+
+- A Cell may contain at most one Resource, regardless of Resource Type.
+- A Resource on the Board has no Side or controller.
+- A Resource does not occupy a Unit's space, prevent placement or movement through or onto its Cell, change terrain or Edge passability, or affect Line of Sight. Units may stand on Resources.
+- Resource Type and Cell are authoritative state, representable by a distinguishable physical marker on the Board. A Resource remains where it is until a rule explicitly moves or removes it.
+
+**Transport Resource** is an optional Unit Type Capability. During a Unit's *own Move* (including a Move provided by `MoveAfterAttack`), if the Unit has Transport Resource and its starting Cell contains a Resource, that Resource accompanies the Unit to its final destination Cell **only if that destination does not already contain a Resource**.
+
+- The Unit's complete Move and any Resource relocation are a single atomic rules operation. There is no intermediate Cell at which the Resource can be picked up, dropped, or affected.
+- If the destination already contains a Resource of any type, the Unit still performs its otherwise legal Move, but the Resource on its starting Cell remains there. Neither Resource is replaced or displaced.
+- Resources on intermediate Cells of the movement path are not picked up, transported, or otherwise affected.
+- Stay (a Move of zero steps) does not change any Resource.
+- Transport Resource does not itself change legal movement paths or destinations. It does not require or cause the Unit's Behavior to seek Resources.
+- A Unit without Transport Resource does not relocate Resources by moving.
+- External repositioning of a Unit, including effects that move another Unit, push, pull, or Swap Places, does not transport Resources. Such effects are not the affected Unit performing its own Move, even when the Unit has Transport Resource.
+
+This initial transport rule concerns a one-Cell Unit and the Resource on that Unit's starting Cell. Transport by a larger-footprint Unit is not specified and must not be inferred from this rule.
+
+The canonical Zombie Unit Type has **Transport Resource**; its Behavior and other abilities remain unchanged. There are not yet rules for collecting Resources into storage, spending Resources, crafting, machines, or resource-aware Behavior.
+
 ### Moving and repositioning Units by effects
 
 An effect may instruct a player to move or reposition a Unit without giving that Unit its ordinary **Move**. This changes the figure's position but is not that Unit performing a Move, does not spend its `MOV`, and does not satisfy or trigger rules that refer to that Unit moving or performing a Move unless the effect explicitly says otherwise.
@@ -1651,9 +1675,7 @@ This separation also allows the physical component set to grow without requiring
 
 ## Loose tokens and markers
 
-No loose tokens or markers are currently planned as part of the board representation.
-
-They may be introduced later. The architecture should not unnecessarily prevent their addition, but v0 does not need a generic token system.
+Resources are the initial loose Board markers, as defined under **Resources and Transport Resource**. A Resource marker has a type and occupies one Cell without affecting the Unit or terrain occupancy rules. No generic loose-token framework is required by this rule.
 
 ## Explicitly deferred
 
@@ -1663,7 +1685,7 @@ The following are intentionally not specified yet:
 - LOS effects beyond the currently defined terrain and edge properties,
 - stat modifier rules beyond the currently defined additive `ModifierThisTurn(stat, amount)` behavior,
 - edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
-- loose tokens and markers,
+- other loose tokens and markers beyond Resources,
 - exact terrain and edge-feature taxonomies,
 - scenario validation against an inventory of physical components.
 
