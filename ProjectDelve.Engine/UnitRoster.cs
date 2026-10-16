@@ -89,6 +89,8 @@ public static class UnitRoster
         "Shaman", 
         Stats(2, 0, 0, 3, 1),
         CantAttack(),
+        ResourceStorage(ResourceTypes.Coal, 3),
+        PickupResource(),
         Ability("Summon Goblin", Unlimited(), SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))
     ).WithBehaviors(UnitBehavior.Flee, UnitBehavior.UseSummon);
 

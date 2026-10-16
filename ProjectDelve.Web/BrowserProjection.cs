@@ -17,8 +17,10 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
     public DicePool? Roll { get; init; }
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses);
+public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, int Quantity, int Capacity);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
+    public IReadOnlyList<StoredResourceDisplay> ResourceStorage { get; init; } = [];
     public string? FootprintLabel { get; init; }
 }
 public sealed record BrowserObjective(string SideId, string Name)
@@ -90,6 +92,8 @@ public static class BrowserProjection
         return new UnitCard(type.DisplayName ?? type.Id,
             type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray())
         {
+            ResourceStorage = type.ResourceStorage?.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name,
+                state.StoredQuantity(u.SideId, u.TypeId, c.Type.Id), c.Capacity)).ToArray() ?? [],
             FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : "Footprint 1 × 1"
         };
     });
@@ -107,6 +111,7 @@ public static class BrowserProjection
                 ? new ChoiceInteraction(InteractionKind.Unit, UnitId: c.Key)
                 : c.Door is not null ? new(InteractionKind.Door, Door: c.Door)
                 : c.Kind == ActivationChoiceKind.Stay ? new(InteractionKind.Unit, UnitId: request.UnitId)
+                : c.Action == UnitAction.GiveResource ? new(InteractionKind.Unit, UnitId: c.TargetId)
                 : c.Destination is not null ? new(InteractionKind.Position, Position: c.Destination)
                 : c.TargetId is not null ? new(InteractionKind.Unit, UnitId: c.TargetId)
                 : new ChoiceInteraction(InteractionKind.Direct);
@@ -117,6 +122,9 @@ public static class BrowserProjection
                 ActivationChoiceKind.EndTurn => "End Turn",
                 ActivationChoiceKind.SelectUnit => $"Select {c.Key}",
                 ActivationChoiceKind.Move => $"Move to ({c.Destination!.X},{c.Destination.Y})",
+                _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource =>
+                    $"{entry!.Name} ({entry.Category})" + (c.TargetId is null ? "" : $" to {c.TargetId}") +
+                    (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
                 _ => entry is null ? "Choose option" : $"{entry.Name} ({entry.Category})" +
                     (c.TargetId is not null && c.Destination is not null ? $" → {c.TargetId} to ({c.Destination.X},{c.Destination.Y})" :
                      c.TargetId is not null ? $" → {c.TargetId}" :
@@ -226,6 +234,9 @@ public static class BrowserProjection
                     _ => "successes"
                 };
                 description = $"{e.UnitId}: {e.Dice.Pool.Family} dice [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} {resultLabel} ({e.Dice.Pool.SourceUnitId}, {e.ActionId})";
+                break;
+            case "ResourceStored":
+                description = $"{e.UnitId}: {e.ResourceType?.Name} from {e.Cell?.X},{e.Cell?.Y} stored for {e.SideId} / {e.TypeId} ({e.StoredQuantity} stored)";
                 break;
             case "UnitCreated":
                 description = $"{e.SourceUnitId} created {e.UnitId} ({e.SideId}) at {e.Cell?.X},{e.Cell?.Y}, {e.Posture}";

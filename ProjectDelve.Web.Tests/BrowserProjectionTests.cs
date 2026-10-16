@@ -149,7 +149,7 @@ public sealed class BrowserProjectionTests
         Assert.Equal(new ChoiceInteraction(InteractionKind.Position, Position: new(0, 0)), spawn.Interaction);
         Assert.Contains("Summon Goblin (Action)", spawn.Label);
         Assert.Empty(spawn.AffectedUnitIds);
-        Assert.Equal("spawn-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries).Content.Id);
+        Assert.Equal("spawn-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries, e => e.Content.Id == "spawn-goblin").Content.Id);
         var result = TestGame.Advance(action.State, new Choice(spawn.Key!), new Dice(), false);
         var presentation = BrowserProjection.Create(result);
         var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated");

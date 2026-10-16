@@ -1900,3 +1900,14 @@ test("Resources render by authoritative Type and Cell, including under Units, an
   assert.equal(markers(2).length, 1);
   assert.equal(h.figure("actor").style.left, `${.5 / 6 * 100}%`);
 });
+
+
+test("Unit cards render authoritative shared storage quantities and refresh after a transfer", () => {
+  const initial = response([]);
+  initial.presentation.cards.actor.resourceStorage = [{ resourceTypeId: "coal", name: "Coal", quantity: 1, capacity: 3 }];
+  const h = harness(initial);
+  assert.match(h.elements.get("unit-card").textContent, /Coal: 1 \/ 3 \(shared by/);
+  initial.presentation.cards.actor.resourceStorage[0].quantity = 2;
+  h.run("renderState(snapshot.result.state)");
+  assert.match(h.elements.get("unit-card").textContent, /Coal: 2 \/ 3 \(shared by/);
+});

@@ -92,7 +92,11 @@ internal static class ScenarioCreation
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid or duplicate Side Objective.", nameof(definition)), $"objectives[{index}]");
         }
 
-        var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id)
+        var customTypes = definition.UnitTypes ?? [];
+        if (customTypes.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id) || !declared.Contains(t.Id)) ||
+            customTypes.Select(t => t.Id).Distinct().Count() != customTypes.Count)
+            throw new ArgumentException("Scenario Unit Types must be unique and declared.", nameof(definition));
+        var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id, customTypes)
             ?? throw new ArgumentException($"Unknown Unit Type ID '{id}'.", nameof(definition))).ToList();
         var overrides = board.Cells.ToDictionary(c => c.Position, c => c.Terrain);
         List<TerrainTile> terrain = [];
@@ -110,7 +114,7 @@ internal static class ScenarioCreation
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList()) { Terrain = terrain }, []),
-            Types = types, Units = [], WorldEffects = definition.WorldEffects,
+            Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects,
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),

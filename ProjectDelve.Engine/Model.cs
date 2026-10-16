@@ -79,7 +79,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -204,6 +204,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Explosion? Explosion { get; init; }
     public Phase? Phase { get; init; }
     public TransportResource? TransportResource { get; init; }
+    public ResourceStorage? ResourceStorage { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
     public HolyWave? HolyWave { get; init; }
@@ -313,6 +314,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    public ResourceType? ResourceType { get; init; }
+    public int? StoredQuantity { get; init; }
     public GameCompletion? Completion { get; init; }
     public ActivationToken? Token { get; init; }
     public string? SideId { get; init; }
@@ -488,6 +491,10 @@ public sealed class GameState
     public bool RoundComplete { get; set; }
 
     public List<Resource> Resources { get; set; } = [];
+    public List<StoredResource> StoredResources { get; set; } = [];
+
+    public int StoredQuantity(string sideId, string typeId, string resourceTypeId) =>
+        StoredResources.SingleOrDefault(r => r.SideId == sideId && r.UnitTypeId == typeId && r.Type.Id == resourceTypeId)?.Quantity ?? 0;
 
     public void PlaceResource(ResourceType type, Cell position)
     {
@@ -501,7 +508,7 @@ public sealed class GameState
     {
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
-        Types = [.. Types], Units = [.. Units], Resources = [.. Resources], Round = Round, Bag = [.. Bag],
+        Types = [.. Types], Units = [.. Units], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         Objectives = [.. Objectives], Completion = Completion,
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),

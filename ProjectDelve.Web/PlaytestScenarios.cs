@@ -26,6 +26,7 @@ public static class PlaytestScenarios
         new("goblins", "Goblins", "Two Heroes, flanking opportunities and space for Goblins to retreat."),
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
+        new("resource-storage", "Resource Pickup / Give", "Manually control a Shaman and Coal Courier: Pickup Coal under the Shaman, or Give Coal under the adjacent Courier to the shared Shaman store. Both groups are human controlled."),
         new("resource-transport", "Resource Transport", "Wizard / Doors with Coal under Zombies, along their routes and near Doors to playtest atomic Resource transport."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
         new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach."),
@@ -44,6 +45,7 @@ public static class PlaytestScenarios
         "goblins" => Goblins(),
         "archers" => Archers(),
         "wizard-doors" => WizardDoors(),
+        "resource-storage" => ResourceStoragePlaytest(),
         "resource-transport" => WizardDoors() with
         {
             Resources = [new(ResourceTypes.Coal, new(8, 3)), new(ResourceTypes.Coal, new(10, 5)),
@@ -58,6 +60,19 @@ public static class PlaytestScenarios
         "labyrinth-shaper" => LabyrinthShaper(),
         "genombrottet" => GenombrottetScenario.Definition(),
         _ => throw new ArgumentException("Unknown playtest scenario.", nameof(id))
+    };
+
+    private static ScenarioDefinition ResourceStoragePlaytest() => new()
+    {
+        Board = new() { Width = 7, Height = 5 },
+        UnitTypeIds = [UnitTypeIds.Shaman, UnitTypeIds.Goblin, UnitTypeIds.Zombie, UnitTypeIds.Grunt],
+        UnitTypes = [UnitRoster.Zombie() with { Actions = UnitAction.NormalAttack | UnitAction.GiveResource, DisplayName = "Coal Courier" }],
+        Units = [new(UnitTypeIds.Shaman, "blue", new(2, 2)), new(UnitTypeIds.Zombie, "blue", new(3, 2)),
+            new(UnitTypeIds.Grunt, "red", new(6, 4))],
+        Agency = [new(UnitTypeIds.Shaman, "blue", ControllerKind.Human), new(UnitTypeIds.Zombie, "blue", ControllerKind.Human),
+            new(UnitTypeIds.Goblin, "blue", ControllerKind.Human), new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
+        Resources = [new(ResourceTypes.Coal, new(2, 2)), new(ResourceTypes.Coal, new(3, 2)),
+            new(ResourceTypes.Coal, new(3, 1)), new(ResourceTypes.Coal, new(2, 3)), new(ResourceTypes.Coal, new(1, 2))]
     };
 
     private static ScenarioDefinition BasicCombat() => Define(

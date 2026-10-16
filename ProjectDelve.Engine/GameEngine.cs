@@ -263,6 +263,11 @@ public static partial class GameEngine
                     }
                     else switch (action.Action)
                     {
+                        case UnitAction.PickupResource:
+                        case UnitAction.GiveResource:
+                            EmitActionUsed(request, choice!, events);
+                            events.Add(ResourceRules.Transfer(state, request.UnitId!, action));
+                            break;
                         case UnitAction.NormalAttack:
                             EmitActionUsed(request, choice!, events);
                             BeginAttack(state, request.UnitId!,
@@ -444,6 +449,7 @@ public static partial class GameEngine
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var actions = type.Actions;
         var candidates = new List<Candidate>();
+        candidates.AddRange(ResourceRules.Candidates(state, unit));
         if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon &&
             UnitContent.Find(summon.UnitTypeId, state.Types) is { } summonedType && state.CanPlaceUnitType(summonedType))
             for (var y = 0; y < state.Physical.Board.Height; y++)
@@ -937,6 +943,7 @@ public static partial class GameEngine
     internal static void ValidateScenario(GameState state)
     {
         ValidateWorldDeck(state);
+        ResourceRules.ValidateStorage(state);
         var board = state.Physical.Board;
         foreach (var resource in state.Resources) ResourceRules.Validate(resource, board);
         if (state.Resources.Select(resource => resource.Position).Distinct().Count() != state.Resources.Count)

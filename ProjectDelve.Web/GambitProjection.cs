@@ -42,6 +42,7 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard)
 {
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
+    public IReadOnlyList<StoredResource> StoredResources { get; init; } = [];
     public IReadOnlyList<Resource> Resources { get; init; } = [];
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ObjectiveStartUnitIds { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
     public IReadOnlyList<string> DefeatedUnitIds { get; init; } = [];
@@ -111,7 +112,9 @@ public sealed record GambitEvent(string Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitDefeatContext? DefeatContext = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitDice? Dice = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WorldCard? WorldCard = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WorldCard? CycledWorldCard = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WorldCard? CycledWorldCard = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ResourceType? ResourceType = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? StoredQuantity = null);
 
 internal static class GambitProjection
 {
@@ -177,7 +180,7 @@ internal static class GambitProjection
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
-            { Orders = state.Orders.ToArray(), Resources = state.Resources.ToArray(),
+            { Orders = state.Orders.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
                 DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray() };
     }
@@ -314,7 +317,7 @@ internal static class GambitProjection
                 value.Attack.Targets.Select(t => new GambitAttackTargetResult(t.TargetId, t.DefenceDice, t.Blocks, t.Damage)).ToArray()),
             Context(value.AttackContext), value.DefeatContext is null ? null : Defeat(value.DefeatContext),
             value.Dice is null ? null : new(Roll(value.Dice.Pool), value.Dice.Faces, value.Dice.Successes),
-            value.WorldCard, value.CycledWorldCard);
+            value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity);
     }
 
     private static GambitAttackContext? Context(AttackContinuation? value) => value is null ? null : new(value.AttackerId,

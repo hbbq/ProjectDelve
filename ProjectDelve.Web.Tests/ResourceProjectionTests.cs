@@ -35,4 +35,59 @@ public sealed class ResourceProjectionTests
             [Scenario.Group(UnitTypeIds.Zombie, "red", ControllerKind.Human, Scenario.At(0, 0, unitId: "carrier"))]));
         Assert.Contains(BrowserProjection.Cards(carrierSetup)["carrier"].Entries, entry => entry.Content.Id == "transport-resource");
     }
+    [Fact]
+    public void StorageChoicesCardsEventsAndSnapshotsProjectAuthoritativeState()
+    {
+        var shaman = UnitRoster.Shaman();
+        var courier = new UnitType("courier", 2, 1, 0, 0, 1, UnitAction.GiveResource);
+        var state = new GameState
+        {
+            Types = [courier, shaman],
+            Units = [courier.CreateUnit("giver", "blue"), shaman.CreateUnit("one", "blue"),
+                shaman.CreateUnit("two", "blue"), shaman.CreateUnit("enemy", "red")],
+            Physical = new(new Board(6, 5, []), [new("giver", new(1, 1)), new("one", new(2, 1)),
+                new("two", new(2, 2)), new("enemy", new(5, 4))]),
+            Controllers = [new(new(courier.Id, "blue"), ControllerKind.Human),
+                new(new(shaman.Id, "blue"), ControllerKind.Human), new(new(shaman.Id, "red"), ControllerKind.Human)],
+            Resources = [new(ResourceTypes.Coal, new(1, 1))]
+        };
+        var start = GameEngine.StartRound(state, new FirstDice(), false);
+        var active = start.NextInput!.Kind == DecisionKind.SelectUnit
+            ? GameEngine.Advance(start.State, new Select("giver"), new FirstDice(), false) : start;
+        var choices = GameEngine.Advance(active.State, new Select("stay"), new FirstDice(), false);
+        var decision = BrowserProjection.Create(choices).Decision!;
+        var give = decision.Candidates.Single(c => c.Key == "give-resource:one");
+        Assert.Equal("give-resource", give.EntryId);
+        Assert.Equal(InteractionKind.Unit, give.Interaction.Kind);
+        Assert.Equal("one", give.Interaction.UnitId);
+        var given = GameEngine.Advance(choices.State, new Select(give.Key!), new FirstDice(), false);
+        var browser = BrowserProjection.Create(given);
+        Assert.Equal(1, browser.Cards["one"].ResourceStorage.Single().Quantity);
+        Assert.Equal(1, browser.Cards["two"].ResourceStorage.Single().Quantity);
+        Assert.Equal(0, browser.Cards["enemy"].ResourceStorage.Single().Quantity);
+        Assert.Equal(3, browser.Cards["one"].ResourceStorage.Single().Capacity);
+        Assert.Contains(browser.Events, e => e.Text.Contains("Coal") && e.Text.Contains("1 stored"));
+        var snapshot = browser.ResolutionSteps.Single(s => given.Events[s.EventIndex].Kind == "ResourceStored");
+        Assert.Equal(1, snapshot.Cards["two"].ResourceStorage.Single().Quantity);
+        var observed = GambitProjection.Observation(given.State);
+        Assert.Equal(given.State.StoredResources, observed.StoredResources);
+        var ev = GambitProjection.Event(given.Events.Single(e => e.Kind == "ResourceStored"));
+        Assert.Equal(ResourceTypes.Coal, ev.ResourceType);
+        Assert.Equal(1, ev.StoredQuantity);
+        given.State.StoredResources.Clear();
+        Assert.Single(observed.StoredResources);
+        Assert.Equal(1, snapshot.Cards["two"].ResourceStorage.Single().Quantity);
+    }
+
+    private sealed class FirstDice : IRandomProvider
+    {
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
+        public AttackFace RollAttackDie() => AttackFace.Miss;
+        public DefenceFace RollDefenceDie() => DefenceFace.Miss;
+        public int RollD6() => 1;
+    }
+    private sealed class Select(string key) : IDecisionProvider
+    {
+        public string Choose(DecisionRequest request, IGameplayQueries queries) => key;
+    }
 }

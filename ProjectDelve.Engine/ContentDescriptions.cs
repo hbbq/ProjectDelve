@@ -38,6 +38,13 @@ public static class ContentDescriptions
             entries.Add(new("spawn-goblin", names.Summon ?? "Summon Adjacent", "Action",
                 $"Place one {summon.InitialPosture} {summonedName} in an adjacent empty Cell."));
         }
+        if (type.Actions.HasFlag(UnitAction.PickupResource))
+            entries.Add(new("pickup-resource", "Pickup Resource", "Action", "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room."));
+        if (type.Actions.HasFlag(UnitAction.GiveResource))
+            entries.Add(new("give-resource", "Give Resource", "Action", "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage, if it accepts its Type and has room."));
+        if (type.ResourceStorage is { } storage)
+            entries.Add(new("resource-storage", "Resource Storage", "Capability", "Shared by all Units of this Type on this Side: " +
+                string.Join(", ", storage.Capacities.Select(c => $"{c.Type.Name} capacity {c.Capacity}")) + "."));
         if (type.TryOpenDoor is { } attempt)
             entries.Add(new("try-open-door", names.TryOpenDoor ?? "Try Open Door", "Action",
                 $"Try to open a bordering Closed Door. Roll a D6: success on {attempt.SuccessCount} of 6 faces."));
@@ -86,6 +93,8 @@ public static class ContentDescriptions
         { Kind: ActivationChoiceKind.Cleave } => "cleave",
         { TryOpenDoor: not null } => "try-open-door",
         { FreeAction: UnitFreeAction.OpenDoor } => "open-door",
+        { Action: UnitAction.PickupResource } => "pickup-resource",
+        { Action: UnitAction.GiveResource } => "give-resource",
         { Action: UnitAction.NormalAttack } => "attack",
         { Action: UnitAction.FireBreath } => "fire-breath",
         { Action: UnitAction.ClawAttack } => "claw-attack",

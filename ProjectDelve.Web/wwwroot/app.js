@@ -345,6 +345,8 @@ function renderUnitCard() {
   }
   card.append(stats);
   const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; card.append(hp);
+  for (const stored of content.resourceStorage ?? [])
+    card.append(text("p", `${stored.name}: ${stored.quantity} / ${stored.capacity} (shared by ${unit.sideId} / ${content.displayName})`));
   if (content.footprintLabel) card.append(text("small", content.footprintLabel));
   const order = displayedOrders?.find(order => order.token.typeId === unit.typeId && order.token.sideId === unit.sideId);
   if (order) {

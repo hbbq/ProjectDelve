@@ -42,6 +42,10 @@ public static class UnitAuthoring
     public static Entry OpenDoor() => new OpenDoorEntry();
     public static Entry Phase() => new PhaseEntry();
     public static Entry TransportResource() => new TransportResourceEntry();
+    public static Entry ResourceStorage(ResourceType type, int capacity) => new StorageEntry(new([new(type, capacity)]));
+    public static Entry ResourceStorage(params ResourceStorageCapacity[] capacities) => new StorageEntry(new([.. capacities]));
+    public static Entry PickupResource() => new PickupEntry();
+    public static Entry GiveResource() => new GiveEntry();
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
@@ -177,6 +181,18 @@ public static class UnitAuthoring
     private sealed class OpenDoorEntry : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { FreeActions = type.FreeActions | UnitFreeAction.OpenDoor };
+    }
+    private sealed class StorageEntry(ResourceStorage storage) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { ResourceStorage = storage };
+    }
+    private sealed class PickupEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.PickupResource };
+    }
+    private sealed class GiveEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.GiveResource };
     }
     private sealed class TransportResourceEntry : Entry
     {
