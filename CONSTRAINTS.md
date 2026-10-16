@@ -1388,7 +1388,7 @@ Both Actions use the existing Shaman Summon Goblin placement rules for adjacency
 
 **Geomancer Behavior** is a reusable composition of Resource-seeking movement, Flee, and Action preferences, not special legal-move or summon rules:
 
-- **Move:** If Geomancer's shared Diamond storage is empty and a Cell containing Diamond is a legal reachable Move destination **this activation**, prefer the nearest such Cell (shortest actual movement path; then top-to-bottom, left-to-right). Otherwise use normal **Flee**. This does not authorize pursuit of a Diamond beyond the current Move range.
+- **Move:** If Geomancer's shared Diamond storage is empty and a Cell containing Diamond is a legal reachable Move destination **this activation**, including its current Cell through **Stay**, prefer the nearest such Cell (shortest actual movement path; then top-to-bottom, left-to-right). If Geomancer already stands on a Diamond, prefer Stay (distance 0), allowing Pickup Resource in its Action phase. Otherwise use normal **Flee**. This does not authorize pursuit of a Diamond beyond the current Move range.
 - **Action:** Prefer, in order, (1) Summon Troll if legal; (2) Pickup Resource if legal **for Diamond**; (3) Summon Worker if legal; (4) Skip. For automated target placement choose the top-left legal Cell, as with Shaman. Ordinary legality governs every option.
 - As with other Behaviors, these are automated preferences only; they do not grant Actions or restrict choices for human-controlled Geomancers.
 
