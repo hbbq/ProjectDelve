@@ -939,8 +939,7 @@ Phase does not alter Range, Line of Sight, targeting, or Attack rules. A Ghost's
 Shaman is a non-attacking Monster that creates Goblins and tries to keep away from reachable enemies.
 
 - Stats: `MOV 2`, `RNG 0`, `ATK 0`, `DEF 3`, `HP 1`.
-- Actions: Summon Goblin; Pickup Resource.
-- Capabilities: ResourceStorage(Coal, 3).
+- Actions: Summon Goblin.
 - Behaviors: Flee; use Summon Goblin when possible, choosing the top-left legal placement Cell.
 - Shaman does not have the Normal Attack Action.
 
@@ -1378,9 +1377,30 @@ Storage and Resource-handling Actions are independent. Resource Storage does not
 
 Pickup Resource and Give Resource are ordinary Actions and use the Unit's normal single Action opportunity. They do not constitute movement and do not invoke Transport Resource.
 
-The canonical Shaman has **ResourceStorage(Coal, 3)** and the **Pickup Resource** Action, in addition to its existing Summon Goblin Action. Shaman's existing automated Behavior is unchanged; adding Pickup Resource does not establish an automated preference to seek or collect Coal.
+The canonical Shaman retains its original Summon Goblin Action and Flee/Summon Behavior; it has neither Resource Storage nor Pickup Resource.
 
-No Resource-spending Actions, production recipes, machines, or Resource-aware Worker Behavior are established yet.
+**Geomancer** is a separate non-attacking Monster Unit Type with stats `MOV 2, RNG 0, ATK 0, DEF 3, HP 1`, `ResourceStorage(Diamond, 1)`, and the **Pickup Resource** Action. Geomancer uses the existing Flee Behavior. Its proposed resource-consuming summon actions and worker-summoning Behavior are deferred; they are not required or implied by this initial content. **Diamond** is an additional Resource Type.
+
+### Machines as terrain objects
+
+A **Machine** is an individually identifiable fixed terrain object occupying one Board Cell. Its Cell blocks Unit movement/placement and Line of Sight, like other obstructing terrain objects. A Machine does not act, activate, or have a Unit Type, Side, Activation Token, or Unit HP/DEF under these initial rules. Machine destruction is deferred.
+
+Unlike shared Unit Type storage, **each Machine instance has its own Resource Storage**, with accepted Resource Type(s), capacity per type, and current quantities. Place stored Resource markers on or beside the individual Machine's physical component so its state is identifiable. The Game State and scenario definitions preserve each Machine's individual location, type/operation, and storage.
+
+**Give Resource** may target an adjacent Machine in place of a friendly Unit if the Machine accepts the Resource on the acting Unit's Cell and has available capacity. Machine storage has no Side or hostility requirement. Giving removes the Cell Resource and adds one to the specific Machine's store atomically, consuming the acting Unit's normal Action opportunity.
+
+A Machine defines one **Operation** with specific Resource costs and an output Resource Type and quantity. For the initial concrete operation, **Diamond Press** has `ResourceStorage(Coal, 3)` and `Spend 3 Coal → Output 1 Diamond`. The Operation consumes the stated inputs from that specific Machine's storage, not from another Machine or a Unit's shared storage.
+
+**Operate** is an optional Unit Type Action. An acting Unit adjacent to a Machine may choose it as the Operate target if:
+- a normal wall, closed door, or other impassable Edge does not separate the Unit's Cell from the Machine Cell; ordinary adjacency by itself does not override a blocking Edge;
+- that Machine has all Resources required by its Operation;
+- the acting Unit's Cell contains no Resource, so the output has room.
+
+When Operate resolves, its Resource costs are removed from that Machine and the output Resource is placed on the operator's Cell as one atomic operation. The initial Operation produces exactly one Resource. Machines with outputs of other quantities or additional output-placement rules are deferred.
+
+Machines must be allowed next to Walls and other Edge features, including an Edge immediately between the Machine Cell and an adjacent Cell. An impassable Edge prevents a Unit on that side from Operating the Machine, even when geometrically adjacent. No new general LOS rule for Machine interaction is implied.
+
+Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Resource-aware automated Worker Behavior, machine construction, machine ownership, combat against Machines, Geomancer summoning, and other recipes are deferred.
 
 ### Moving and repositioning Units by effects
 
