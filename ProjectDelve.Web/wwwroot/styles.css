@@ -209,3 +209,6 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .controller-side-default { font-weight: 600; }
 
 #objectives small { display: block; }
+
+.cell:has(.resource-marker) { position: relative; }
+.cell .resource-marker { position: absolute; right: 3%; bottom: 0; z-index: 5; color: #252932; background: #e0c795; border-radius: 50%; padding: 0 .2em; font-size: clamp(10px, 1.25vw, 20px); line-height: 1.2; pointer-events: none; text-shadow: 0 1px #fff8; }

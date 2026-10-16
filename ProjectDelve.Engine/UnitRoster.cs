@@ -57,6 +57,7 @@ public static class UnitRoster
     public static UnitType Zombie(string id = UnitTypeIds.Zombie) => UnitType.Define(id, 
         "Zombie", 
         Stats(2, 1, 3, 3, 1),
+        TransportResource(),
         Ability("Break Door", Unlimited(), TryOpenDoor(successes: 2))
     ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 

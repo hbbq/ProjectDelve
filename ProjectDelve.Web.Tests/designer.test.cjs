@@ -422,3 +422,20 @@ test("World Effects settings survive import, edits, validation, export and play"
     assert.deepEqual(request.body.worldEffects, definition.worldEffects);
   assert.deepEqual(played, ["DELVE1:world-fixture"]);
 });
+
+
+test("imported Resources render, survive export and prevent shrinking off their Cells", async () => {
+  const definition = structuredClone(fullParty);
+  definition.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 14, y: 14 } }];
+  const submitted = [];
+  const h = harness(async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === "import" ? structuredClone(definition) : { transport: "DELVE1:resources" };
+  });
+  h.editor.ui.transport.value = "DELVE1:resources"; await h.click("import");
+  const marker = h.editor.ui.board.querySelectorAll(".resource-marker")[0];
+  assert.equal(marker.title, "Coal");
+  assert.throws(() => h.editor.draft.resize(14, 14), /Shrinking/);
+  await h.click("export");
+  assert.deepEqual(submitted.find(row => row.operation === "export").body.resources, definition.resources);
+});

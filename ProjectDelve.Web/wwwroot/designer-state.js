@@ -45,7 +45,8 @@ export class DesignerDraft {
     if (board.cells.some(cell => hidden(cell.position)) || board.edges.some(edge =>
       hidden(edge.position) || hidden({ x: edge.position.x + (edge.direction === "Right" ? 1 : 0),
         y: edge.position.y + (edge.direction === "Down" ? 1 : 0) })) ||
-      this.definition.units.some(unit => this.occupied(unit).some(hidden)))
+      this.definition.units.some(unit => this.occupied(unit).some(hidden)) ||
+      (this.definition.resources ?? []).some(resource => hidden(resource.position)))
       throw new Error("Shrinking would hide authored terrain, edges or Units. Remove or reposition them first.");
     board.width = width; board.height = height; this.changed();
   }

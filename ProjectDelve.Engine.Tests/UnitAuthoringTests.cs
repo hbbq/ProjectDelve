@@ -209,7 +209,7 @@ public sealed class UnitAuthoringTests
         [
             (UnitType.Grunt, new("grunt-type", 3, 1, 3, 3, 1) { DisplayName = "Grunt" }),
             (UnitType.Zombie, new("zombie-type", 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Zombie", AbilityNames = new() { TryOpenDoor = "Break Door" } }),
+                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { TransportResource = new(), DisplayName = "Zombie", AbilityNames = new() { TryOpenDoor = "Break Door" } }),
             (UnitType.SkeletonArcher, new("skeleton-archer-type", 3, 4, 3, 3, 1,
                 Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" }),
             (UnitType.Goblin, new("goblin-type", 4, 1, 2, 2, 1, MoveAfterAttack: new(1),

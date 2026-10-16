@@ -26,6 +26,7 @@ public static class PlaytestScenarios
         new("goblins", "Goblins", "Two Heroes, flanking opportunities and space for Goblins to retreat."),
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
+        new("resource-transport", "Resource Transport", "Wizard / Doors with Coal under Zombies, along their routes and near Doors to playtest atomic Resource transport."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
         new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach."),
         new("orders-playground", "Orders Playground", "Compare standing Orders: an idle Grunt, a holding Archer, and Zombie and Goblin groups moving toward marked Cells."),
@@ -43,6 +44,12 @@ public static class PlaytestScenarios
         "goblins" => Goblins(),
         "archers" => Archers(),
         "wizard-doors" => WizardDoors(),
+        "resource-transport" => WizardDoors() with
+        {
+            Resources = [new(ResourceTypes.Coal, new(8, 3)), new(ResourceTypes.Coal, new(10, 5)),
+                new(ResourceTypes.Coal, new(9, 3)), new(ResourceTypes.Coal, new(7, 3)),
+                new(ResourceTypes.Coal, new(10, 6)), new(ResourceTypes.Coal, new(8, 6))]
+        },
         "full-party-trolls" => FullParty(),
         "shaman-hunt" => ShamanHunt(),
         "orders-playground" => OrdersPlayground(),

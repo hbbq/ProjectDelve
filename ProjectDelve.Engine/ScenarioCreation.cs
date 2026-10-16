@@ -116,6 +116,16 @@ internal static class ScenarioCreation
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };
+        for (var index = 0; index < (definition.Resources?.Count ?? 0); index++)
+        {
+            try
+            {
+                var resource = definition.Resources![index];
+                ResourceRules.Validate(resource, state.Physical.Board);
+                state.PlaceResource(resource.Type, resource.Position);
+            }
+            catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"resources[{index}]"); }
+        }
         // The same validation also remains at round start. Validate content before CreateUnit.
         GameEngine.ValidateScenario(state);
         for (var index = 0; index < definition.Units.Count; index++)

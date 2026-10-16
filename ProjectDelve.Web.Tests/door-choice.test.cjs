@@ -1880,3 +1880,18 @@ test("authored Blue and Red colors apply before figures on fresh start and scena
     assert.equal(h.figure("b").style["--side-hue"], 210);
   }
 });
+
+test("Resources render by authoritative Type and Cell, including under Units, and update without client transport rules", () => {
+  const initial = response();
+  initial.result.state.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 0, y: 0 } },
+    { type: { id: "other", name: "Other Resource" }, position: { x: 2, y: 0 } }];
+  const h = harness(initial);
+  const markers = x => h.run(`cells.get("${x},0").querySelectorAll(".resource-marker")`);
+  assert.equal(markers(0)[0].attributes["aria-label"], "Coal");
+  assert.equal(markers(2)[0].title, "Other Resource");
+  h.run('snapshot.result.state.resources[0].position = { x: 3, y: 0 }; renderSnapshot();');
+  assert.equal(markers(0).length, 0);
+  assert.equal(markers(3)[0].title, "Coal");
+  assert.equal(markers(2).length, 1);
+  assert.equal(h.figure("actor").style.left, `${.5 / 6 * 100}%`);
+});

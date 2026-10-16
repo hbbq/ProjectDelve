@@ -229,6 +229,16 @@ function renderBoard(state, preserveNodes = false) {
     }
     cells.set(key, node);
   }
+  for (const resource of state.resources ?? []) {
+    const node = cells.get(cellKey(resource.position));
+    if (!node) continue;
+    const marker = text("span", "?");
+    marker.className = "resource-marker";
+    marker.title = resource.type.name;
+    marker.setAttribute("aria-label", resource.type.name);
+    node.append(marker);
+    node.title += ` ? ${resource.type.name}`;
+  }
   for (const edge of board.edges) {
     if (edge.kind === "None") continue;
     const key = edgeKey(edge);

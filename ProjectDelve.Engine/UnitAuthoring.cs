@@ -41,6 +41,7 @@ public static class UnitAuthoring
     public static Entry Footprint2x2() => new FootprintEntry();
     public static Entry OpenDoor() => new OpenDoorEntry();
     public static Entry Phase() => new PhaseEntry();
+    public static Entry TransportResource() => new TransportResourceEntry();
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
@@ -176,6 +177,10 @@ public static class UnitAuthoring
     private sealed class OpenDoorEntry : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { FreeActions = type.FreeActions | UnitFreeAction.OpenDoor };
+    }
+    private sealed class TransportResourceEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { TransportResource = new() };
     }
     private sealed class PhaseEntry : Entry
     {

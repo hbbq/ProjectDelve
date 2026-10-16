@@ -32,6 +32,7 @@ public sealed class ScenarioTests
         { "goblins", 10, ["barbarian", "rogue"], ["grunt", "goblin"] },
         { "archers", 12, ["barbarian", "rogue"], ["grunt", "goblin", "skeleton-archer"] },
         { "wizard-doors", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
+        { "resource-transport", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
         { "full-party-trolls", 15, ["barbarian", "rogue", "wizard", "cleric"], ["goblin", "skeleton-archer", "zombie", "troll"] },
         { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt", "red-dragon"] },
         { "orders-playground", 10, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie", "goblin"] },

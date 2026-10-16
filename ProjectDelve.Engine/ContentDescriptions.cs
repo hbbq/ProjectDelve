@@ -63,6 +63,9 @@ public static class ContentDescriptions
         if (type.Undying is not null)
             entries.Add(new("undying", names.Undying ?? "Undying", "Capability",
                 "If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down."));
+        if (type.TransportResource is not null)
+            entries.Add(new("transport-resource", "Transport Resource", "Capability",
+                "During this Unit?s own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources."));
         if (type.Phase is not null)
             entries.Add(new("phase", "Phase", "Capability",
                 "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell."));

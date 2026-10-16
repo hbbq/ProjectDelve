@@ -42,6 +42,7 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard)
 {
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
+    public IReadOnlyList<Resource> Resources { get; init; } = [];
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ObjectiveStartUnitIds { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
     public IReadOnlyList<string> DefeatedUnitIds { get; init; } = [];
 }
@@ -176,7 +177,7 @@ internal static class GambitProjection
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
-            { Orders = state.Orders.ToArray(),
+            { Orders = state.Orders.ToArray(), Resources = state.Resources.ToArray(),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
                 DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray() };
     }

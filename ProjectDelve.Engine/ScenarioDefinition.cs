@@ -10,6 +10,7 @@ public sealed record ScenarioDefinition
     public required List<UnitPlacement> Units { get; init; }
     public required List<AgencyAssignment> Agency { get; init; }
     public List<InitialGroupOrder>? Orders { get; init; }
+    public List<Resource>? Resources { get; init; }
 }
 
 public sealed record BoardDefinition

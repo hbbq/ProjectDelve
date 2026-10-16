@@ -216,6 +216,12 @@ export function mountDesigner(catalog, request, playDesign) {
       node.title = `${x},${y} · ${draft.terrainAt(cell)}`;
       node.append(element("span", `${x},${y}`));
       if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
+      const resource = (draft.definition.resources ?? []).find(resource => sameCell(resource.position, cell));
+      if (resource) {
+        const marker = element("span", "?"); marker.className = "resource-marker";
+        marker.title = resource.type.name; marker.setAttribute("aria-label", resource.type.name);
+        node.append(marker); node.title += ` ? ${resource.type.name}`;
+      }
       ui.board.append(node); cellNodes.set(`${x},${y}`, node);
     }
     const edges = new Map(board.edges.map(edge => [`${edge.position.x},${edge.position.y},${edge.direction}`, edge]));

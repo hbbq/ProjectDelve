@@ -241,6 +241,7 @@ public static partial class GameEngine
                 if (choice is not null)
                     state.Physical.Figures[state.Physical.Figures.IndexOf(figure)] =
                         figure with { Position = path[^1] };
+                ResourceRules.TransportDuringOwnMove(state, request.UnitId!, figure.Position, path[^1]);
                 if (request.IsMoveAfterAttack)
                 {
                     state.MoveAfterAttackAllowance = null;
@@ -937,6 +938,9 @@ public static partial class GameEngine
     {
         ValidateWorldDeck(state);
         var board = state.Physical.Board;
+        foreach (var resource in state.Resources) ResourceRules.Validate(resource, board);
+        if (state.Resources.Select(resource => resource.Position).Distinct().Count() != state.Resources.Count)
+            throw new ArgumentException("A Cell may contain at most one Resource.");
         if (state.Orders.Any(order => order is null) ||
             state.Orders.Where(order => order is not null).GroupBy(order => order.Token).Any(group => group.Count() != 1) ||
             state.Orders.Any(order => order is not null && (order.Kind == OrderKind.Normal ||

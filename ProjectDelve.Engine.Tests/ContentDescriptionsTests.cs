@@ -16,7 +16,7 @@ public sealed class ContentDescriptionsTests
         Assert.Equal(new[] { "Attack", "Open Door", "Dash", "Throwing Knife", "Backstab" }, types[1].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Heal", "Holy Wave", "Open Door", "Aura" }, types[2].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[3].CardEntries().Select(e => e.Name));
-        Assert.Equal(new[] { "Attack", "Break Door" }, types[4].CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Break Door", "Transport Resource" }, types[4].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack" }, types[5].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Move After Attack" }, types[6].CardEntries().Select(e => e.Name));
         Assert.Equal(new[] { "Attack", "Smash Door", "Undying" }, types[7].CardEntries().Select(e => e.Name));

@@ -82,10 +82,15 @@ The Web host serves a plain HTML/CSS/JavaScript client and six server-owned play
 | `goblins` | Goblins | 10x10 | Barbarian, Rogue; Grunts and Goblins |
 | `archers` | Archers | 12x12 | Barbarian, Rogue; Grunts, Goblins and Skeleton Archers |
 | `wizard-doors` | Wizard / Doors | 15x15 | Barbarian, Rogue, Wizard; Goblins, Skeleton Archers, Zombies and a Ghost |
+| `resource-transport` | Resource Transport | 15x15 | Wizard / Doors setup with six Coal markers under Zombies and along routes near Doors |
 | `full-party-trolls` | Full Party / Trolls | 15x15 | All four Heroes; Goblins, Skeleton Archers, Zombies and Trolls |
 | `shaman-hunt` | Shaman Hunt | 15x15 | All four Heroes; Shaman, Grunt and a 2x2 Red Dragon, with no initial Goblins |
 
 Basic Combat is the startup default. Select a setup, click **Start selected**, then **Start round**. The scenarios explicitly assign their current Heroes to human control and their Monsters to `DefaultAutomatedProvider`. Confirm each human-owned Attack, Defence, or door check with **Roll Dice**. Completed rounds wait for **Start next round**. These are test content with no victory conditions or progression. Exact maps and placements are editable definitions in `ProjectDelve.Web/PlaytestScenarios.cs`; the browser receives catalog metadata and authoritative game snapshots.
+
+Resources are authoritative `GameState.Resources` entries, each containing a `ResourceType` (stable `Id` and presentation `Name`) and a `Position`. `ResourceTypes.Coal` is the initial content. `PlaceResource` validates the Board Cell and the one-Resource-per-Cell limit; markers may share Cells with Units or any terrain. Scenario definitions accept an optional `Resources` list, preserved by JSON and DELVE1 transport. The playtest board and imported designer layouts display the markers, and Gambit observations include their Types and Cells.
+
+Canonical Zombies declare `TransportResource()` independently of their unchanged Behavior. A one-Cell Unit with this capability transports its starting Resource during its own Move, including MoveAfterAttack, when the destination has no Resource. The relocation is included in the same movement snapshot. Stay, intermediate Resources, occupied Resource destinations, and external repositioning leave those markers in place.
 
 Scenarios use a separate initial-setup data boundary: `ScenarioDefinition` contains a `BoardDefinition`, ordered `UnitTypeIds`, anchor-based Unit placements, and explicit agency per Unit Type + Side. The board has a default terrain plus sparse Cell overrides and internal Edges identified by `Position + Direction`, with only `Right` and `Down` directions. Placement supports initial Posture and an optional `InitialHp`; normal HP and all ability uses otherwise come from canonical Unit content. Runtime identity and activation progress are not scenario data.
 

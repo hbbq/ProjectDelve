@@ -129,6 +129,7 @@ public sealed record Explosion
     public int Damage { get; init; } = 1;
 }
 public sealed record Phase;
+public sealed record TransportResource;
 public sealed record Cleave(int MaxUses = 2)
 {
     public int TriggerDamage { get; init; } = 2;
@@ -202,6 +203,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Undying? Undying { get; init; }
     public Explosion? Explosion { get; init; }
     public Phase? Phase { get; init; }
+    public TransportResource? TransportResource { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
     public HolyWave? HolyWave { get; init; }
@@ -485,11 +487,21 @@ public sealed class GameState
     public DecisionRequest? Pending { get; set; }
     public bool RoundComplete { get; set; }
 
+    public List<Resource> Resources { get; set; } = [];
+
+    public void PlaceResource(ResourceType type, Cell position)
+    {
+        ResourceRules.Validate(new Resource(type, position), Physical.Board);
+        if (Resources.Any(resource => resource.Position == position))
+            throw new ArgumentException("A Cell may contain at most one Resource.", nameof(position));
+        Resources.Add(new(type, position));
+    }
+
     internal GameState Copy() => new()
     {
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
-        Types = [.. Types], Units = [.. Units], Round = Round, Bag = [.. Bag],
+        Types = [.. Types], Units = [.. Units], Resources = [.. Resources], Round = Round, Bag = [.. Bag],
         Objectives = [.. Objectives], Completion = Completion,
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),
