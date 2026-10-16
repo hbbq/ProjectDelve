@@ -263,10 +263,16 @@ public static partial class GameEngine
                     }
                     else switch (action.Action)
                     {
+                        case UnitAction.Operate:
+                            EmitActionUsed(request, choice!, events);
+                            events.Add(MachineRules.Resolve(state, request.UnitId!, action));
+                            break;
                         case UnitAction.PickupResource:
                         case UnitAction.GiveResource:
                             EmitActionUsed(request, choice!, events);
-                            events.Add(ResourceRules.Transfer(state, request.UnitId!, action));
+                            events.Add(action.MachineId is not null
+                                ? MachineRules.Resolve(state, request.UnitId!, action)
+                                : ResourceRules.Transfer(state, request.UnitId!, action));
                             break;
                         case UnitAction.NormalAttack:
                             EmitActionUsed(request, choice!, events);
@@ -450,6 +456,7 @@ public static partial class GameEngine
         var actions = type.Actions;
         var candidates = new List<Candidate>();
         candidates.AddRange(ResourceRules.Candidates(state, unit));
+        candidates.AddRange(MachineRules.Candidates(state, unit));
         if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon &&
             UnitContent.Find(summon.UnitTypeId, state.Types) is { } summonedType && state.CanPlaceUnitType(summonedType))
             for (var y = 0; y < state.Physical.Board.Height; y++)
@@ -704,7 +711,7 @@ public static partial class GameEngine
         var used = request.Candidates.Single(c => c.Key == choice);
         events.Add(new RulesEvent("ActionUsed", request.UnitId, used.TargetId, Door: used.Door,
             AbilityName: used.BonusAction?.DisplayName ?? used.BonusAction?.Name)
-            { ActionId = ActionIdentity(used), Category = used.Kind, Cell = used.Destination, SourceUnitId = request.UnitId });
+            { MachineId = used.MachineId, ActionId = ActionIdentity(used), Category = used.Kind, Cell = used.Destination, SourceUnitId = request.UnitId });
     }
 
     private static string ActionIdentity(Candidate candidate) => ContentDescriptions.EntryId(candidate)
@@ -944,6 +951,7 @@ public static partial class GameEngine
     {
         ValidateWorldDeck(state);
         ResourceRules.ValidateStorage(state);
+        MachineRules.Validate(state);
         var board = state.Physical.Board;
         foreach (var resource in state.Resources) ResourceRules.Validate(resource, board);
         if (state.Resources.Select(resource => resource.Position).Distinct().Count() != state.Resources.Count)

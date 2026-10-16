@@ -79,7 +79,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -252,6 +252,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitRoster.DisplacerDemon(id);
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitRoster.Troll(id);
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitRoster.Goblin(id);
+    public static UnitType Geomancer(string id = UnitTypeIds.Geomancer) => UnitRoster.Geomancer(id);
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitRoster.Shaman(id);
     public static UnitType LabyrinthShaper(string id = UnitTypeIds.LabyrinthShaper) => UnitRoster.LabyrinthShaper(id);
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitRoster.RedDragon(id);
@@ -268,6 +269,7 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
 public sealed record Board(int Width, int Height, List<Edge> Edges)
 {
     // Unlisted cells contain stone floor; absent edges have kind None.
+    public List<Machine> Machines { get; init; } = [];
     public List<TerrainTile> Terrain { get; init; } = [];
     public TerrainKind TerrainAt(Cell cell) =>
         Terrain.FirstOrDefault(tile => tile.Position == cell)?.Kind ?? TerrainKind.StoneFloor;
@@ -294,6 +296,7 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
     bool Relevant = true, BonusActionAbility? BonusAction = null)
 {
+    public string? MachineId { get; init; }
     public ImmutableArray<string> TargetIds { get; init; } = [];
 }
 public sealed record DecisionRequest(DecisionKind Kind, string TypeId, string? UnitId, List<Candidate> Candidates, bool AllowsNone,
@@ -314,6 +317,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    public string? MachineId { get; init; }
+    public ImmutableArray<MachineResource> ConsumedResources { get; init; } = [];
     public ResourceType? ResourceType { get; init; }
     public int? StoredQuantity { get; init; }
     public GameCompletion? Completion { get; init; }
@@ -352,7 +357,7 @@ public sealed class GameState
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
         if (!CanPlaceUnitType(type))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play.", nameof(typeId));
-        if (Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
+        if (Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
             !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell))
             throw new ArgumentException("Invalid Unit placement.");
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
@@ -507,7 +512,7 @@ public sealed class GameState
     internal GameState Copy() => new()
     {
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
-            [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain] }, [.. Physical.Figures]),
+            [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         Objectives = [.. Objectives], Completion = Completion,
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),

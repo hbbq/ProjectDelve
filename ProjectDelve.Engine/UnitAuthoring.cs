@@ -45,6 +45,7 @@ public static class UnitAuthoring
     public static Entry ResourceStorage(ResourceType type, int capacity) => new StorageEntry(new([new(type, capacity)]));
     public static Entry ResourceStorage(params ResourceStorageCapacity[] capacities) => new StorageEntry(new([.. capacities]));
     public static Entry PickupResource() => new PickupEntry();
+    public static Entry Operate() => new OperateEntry();
     public static Entry GiveResource() => new GiveEntry();
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
@@ -189,6 +190,10 @@ public static class UnitAuthoring
     private sealed class PickupEntry : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.PickupResource };
+    }
+    private sealed class OperateEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Operate };
     }
     private sealed class GiveEntry : Entry
     {

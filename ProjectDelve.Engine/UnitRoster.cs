@@ -85,12 +85,18 @@ public static class UnitRoster
         Ability("Undying", Unlimited(), Undying())
     ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
+    public static UnitType Geomancer(string id = UnitTypeIds.Geomancer) => UnitType.Define(id,
+        "Geomancer",
+        Stats(2, 0, 0, 3, 1),
+        CantAttack(),
+        ResourceStorage(ResourceTypes.Diamond, 1),
+        PickupResource()
+    ).WithBehaviors(UnitBehavior.Flee);
+
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitType.Define(id, 
         "Shaman", 
         Stats(2, 0, 0, 3, 1),
         CantAttack(),
-        ResourceStorage(ResourceTypes.Coal, 3),
-        PickupResource(),
         Ability("Summon Goblin", Unlimited(), SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))
     ).WithBehaviors(UnitBehavior.Flee, UnitBehavior.UseSummon);
 

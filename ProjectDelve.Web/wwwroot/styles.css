@@ -212,3 +212,6 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 
 .cell:has(.resource-marker) { position: relative; }
 .cell .resource-marker { position: absolute; right: 3%; bottom: 0; z-index: 5; color: #252932; background: #e0c795; border-radius: 50%; padding: 0 .2em; font-size: clamp(10px, 1.25vw, 20px); line-height: 1.2; pointer-events: none; text-shadow: 0 1px #fff8; }
+
+.cell.machine-cell { background: #465363; color: #fff0bc; box-shadow: inset 0 0 0 3px #b49b63; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .15em; font-size: clamp(8px, .9vw, 14px); }
+.cell.machine-cell small { display: block; color: #fff; }

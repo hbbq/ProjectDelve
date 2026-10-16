@@ -13,6 +13,7 @@ public sealed record ScenarioDefinition
     // Optional concrete scenario content; declared IDs without an entry use canonical content.
     public List<UnitType>? UnitTypes { get; init; }
     public List<StoredResource>? StoredResources { get; init; }
+    public List<Machine>? Machines { get; init; }
     public List<Resource>? Resources { get; init; }
 }
 

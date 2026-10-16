@@ -38,7 +38,8 @@ public sealed class ResourceProjectionTests
     [Fact]
     public void StorageChoicesCardsEventsAndSnapshotsProjectAuthoritativeState()
     {
-        var shaman = UnitRoster.Shaman();
+        var shaman = new UnitType("store", 2, 0, 0, 3, 1, UnitAction.PickupResource)
+        { ResourceStorage = new([new(ResourceTypes.Coal, 3)]) };
         var courier = new UnitType("courier", 2, 1, 0, 0, 1, UnitAction.GiveResource);
         var state = new GameState
         {

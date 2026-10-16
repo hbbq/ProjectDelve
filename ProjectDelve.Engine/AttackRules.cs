@@ -99,9 +99,10 @@ internal static class AttackRules
             FootprintGeometry.OccupiedCells(state, targetId).Any(to => HasUnitLineOfSight(state, sourceId, from, to, targetId)));
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.
-    internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to) =>
+    internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to, string? interactionMachineId = null) =>
         !HasBlockingEdgeLos(board, from, to) &&
-        !board.Terrain.Any(tile => tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position));
+        !board.Terrain.Any(tile => tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)) &&
+        !board.Machines.Any(m => m.Id != interactionMachineId && CrossesInterior(from, to, m.Position));
 
     private static bool HasBlockingEdgeLos(Board board, Cell from, Cell to)
     {

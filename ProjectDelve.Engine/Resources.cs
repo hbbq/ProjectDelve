@@ -4,6 +4,7 @@ namespace ProjectDelve.Engine;
 public sealed record ResourceType(string Id, string Name);
 public static class ResourceTypes
 {
+    public static ResourceType Diamond { get; } = new("diamond", "Diamond");
     public static ResourceType Coal { get; } = new("coal", "Coal");
 }
 public sealed record Resource(ResourceType Type, Cell Position);
@@ -28,16 +29,21 @@ public sealed record StoredResource(string SideId, string UnitTypeId, ResourceTy
 
 internal static class ResourceRules
 {
-    private static bool ValidType(ResourceType? type) => type is not null &&
+    internal static bool ValidType(ResourceType? type) => type is not null &&
         !string.IsNullOrWhiteSpace(type.Id) && !string.IsNullOrWhiteSpace(type.Name);
+
+    internal static void ValidateCapacity(ResourceStorage storage)
+    {
+        if (storage is null || storage.Capacities.IsDefaultOrEmpty ||
+            storage.Capacities.Any(c => c is null || !ValidType(c.Type) || c.Capacity < 0) ||
+            storage.Capacities.Select(c => c.Type.Id).Distinct().Count() != storage.Capacities.Length)
+            throw new ArgumentException("Resource Storage requires unique Resource Types and nonnegative capacities.");
+    }
 
     internal static void ValidateStorage(GameState state)
     {
         foreach (var type in state.Types)
-            if (type.ResourceStorage is { } storage && (storage.Capacities.IsDefaultOrEmpty ||
-                storage.Capacities.Any(c => c is null || !ValidType(c.Type) || c.Capacity < 0) ||
-                storage.Capacities.Select(c => c.Type.Id).Distinct().Count() != storage.Capacities.Length))
-                throw new ArgumentException("Resource Storage requires unique Resource Types and nonnegative capacities.");
+            if (type.ResourceStorage is { } storage) ValidateCapacity(storage);
         if (state.StoredResources.Any(r => r is null || !ValidType(r.Type) || r.Quantity < 0 ||
                 !state.Controllers.Any(c => c.Token.SideId == r.SideId && c.Token.TypeId == r.UnitTypeId) ||
                 r.Quantity > (Capacity(state, r.UnitTypeId, r.Type.Id) ?? -1)) ||

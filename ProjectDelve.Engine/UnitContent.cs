@@ -12,6 +12,7 @@ public static class UnitTypeIds
     public const string Goblin = "goblin-type";
     public const string BombImp = "bomb-imp-type";
     public const string Troll = "troll-type";
+    public const string Geomancer = "geomancer-type";
     public const string Shaman = "shaman-type";
     public const string Barbarian = "barbarian-type";
     public const string Rogue = "rogue-type";
@@ -42,6 +43,7 @@ public static class CanonicalUnitTypes
             [UnitTypeIds.Goblin] = () => UnitRoster.Goblin(),
             [UnitTypeIds.BombImp] = () => UnitRoster.BombImp(),
             [UnitTypeIds.Troll] = () => UnitRoster.Troll(),
+            [UnitTypeIds.Geomancer] = () => UnitRoster.Geomancer(),
             [UnitTypeIds.Shaman] = () => UnitRoster.Shaman(),
             [UnitTypeIds.Barbarian] = () => UnitRoster.Barbarian(),
             [UnitTypeIds.Rogue] = () => UnitRoster.Rogue(),

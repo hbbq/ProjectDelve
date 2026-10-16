@@ -93,7 +93,7 @@ public sealed class UnitAuthoringTests
         var choices = GameEngine.GameplayCandidates(restored, restored.Units[0]).ToArray();
         Assert.DoesNotContain(choices, c => c.Action == UnitAction.NormalAttack);
         Assert.Contains(choices, c => c.Action == UnitAction.Telekinesis);
-        Assert.Equal(UnitAction.SummonAdjacent | UnitAction.PickupResource, UnitRoster.Shaman().Actions);
+        Assert.Equal(UnitAction.SummonAdjacent, UnitRoster.Shaman().Actions);
     }
 
     [Fact]
@@ -217,9 +217,11 @@ public sealed class UnitAuthoringTests
             (UnitType.BombImp, new("bomb-imp-type", 3, 1, 2, 2, 1, Behaviors: UnitBehavior.PreferHostileAdjacency | UnitBehavior.ProtectWithoutAdjacency) { DisplayName = "Bomb Imp", Explosion = new() }),
             (UnitType.Troll, new("troll-type", 2, 1, 4, 4, 1, TryOpenDoor: new(4),
                 Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new(), AbilityNames = new() { TryOpenDoor = "Smash Door" } }),
-            (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent | UnitAction.PickupResource,
-                Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { ResourceStorage = new([new(ResourceTypes.Coal, 3)]), DisplayName = "Shaman", SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
+            (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent,
+                Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { DisplayName = "Shaman", SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
                 AbilityNames = new() { Summon = "Summon Goblin" } }),
+            (UnitType.Geomancer, new("geomancer-type", 2, 0, 0, 3, 1, Actions: UnitAction.PickupResource,
+                Behaviors: UnitBehavior.Flee) { ResourceStorage = new([new(ResourceTypes.Diamond, 1)]), DisplayName = "Geomancer" }),
             (UnitType.Barbarian, new("barbarian-type", 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
             {
                 Unique = true, DisplayName = "Barbarian", Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },

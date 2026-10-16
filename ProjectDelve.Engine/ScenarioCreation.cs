@@ -113,7 +113,7 @@ internal static class ScenarioCreation
         {
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
-                e.Kind)).ToList()) { Terrain = terrain }, []),
+                e.Kind)).ToList()) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
             Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects,
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
@@ -144,7 +144,7 @@ internal static class ScenarioCreation
             {
                 var number = index + 1;
                 do id = "scenario-unit-" + (number++).ToString(CultureInfo.InvariantCulture);
-                while (authoredUnitIds.Contains(id) || state.Units.Any(unit => unit.Id == id));
+                while (authoredUnitIds.Contains(id) || state.Units.Any(unit => unit.Id == id) || state.Physical.Board.Machines.Any(m => m.Id == id));
             }
             try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }

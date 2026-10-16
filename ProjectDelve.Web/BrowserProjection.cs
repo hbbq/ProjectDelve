@@ -17,6 +17,7 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
     public DicePool? Roll { get; init; }
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses);
+public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage);
 public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, int Quantity, int Capacity);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
@@ -40,6 +41,7 @@ public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<s
     public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
+    public IReadOnlyList<MachineDisplay> Machines { get; init; } = [];
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
 }
 public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> Cards,
@@ -50,6 +52,7 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
     public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
     public IReadOnlyDictionary<string, FigureGeometry> Figures { get; init; } = new Dictionary<string, FigureGeometry>();
+    public IReadOnlyList<MachineDisplay> Machines { get; init; } = [];
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
 }
 
@@ -61,10 +64,16 @@ public static class BrowserProjection
         Cards(result.State), Decision(result.NextInput, result.State),
         result.Events.Select(e => Outcome(e, result.State)).ToArray(),
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))
-            { Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
+            { Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
                 Completion = s.StateAfter.Completion, Orders = s.StateAfter.Orders.ToArray() }).ToArray())
-        { Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
+        { Machines = Machines(result.State), Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
             Orders = result.State.Orders.ToArray() };
+
+    public static IReadOnlyList<MachineDisplay> Machines(GameState state) => state.Physical.Board.Machines.Select(m =>
+        new MachineDisplay(m.Id, m.Position, m.Type.Name,
+            "Spend " + string.Join(", ", m.Type.Operation.Costs.Select(c => $"{c.Quantity} {c.Type.Name}")) +
+            $" -> Output {m.Type.Operation.OutputQuantity} {m.Type.Operation.OutputType.Name} on the operator's Cell",
+            m.Type.Storage.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray())).ToArray();
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
         new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o) }).ToArray();
@@ -111,6 +120,7 @@ public static class BrowserProjection
                 ? new ChoiceInteraction(InteractionKind.Unit, UnitId: c.Key)
                 : c.Door is not null ? new(InteractionKind.Door, Door: c.Door)
                 : c.Kind == ActivationChoiceKind.Stay ? new(InteractionKind.Unit, UnitId: request.UnitId)
+                : c.MachineId is not null ? new(InteractionKind.Position, Position: state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Position)
                 : c.Action == UnitAction.GiveResource ? new(InteractionKind.Unit, UnitId: c.TargetId)
                 : c.Destination is not null ? new(InteractionKind.Position, Position: c.Destination)
                 : c.TargetId is not null ? new(InteractionKind.Unit, UnitId: c.TargetId)
@@ -122,8 +132,8 @@ public static class BrowserProjection
                 ActivationChoiceKind.EndTurn => "End Turn",
                 ActivationChoiceKind.SelectUnit => $"Select {c.Key}",
                 ActivationChoiceKind.Move => $"Move to ({c.Destination!.X},{c.Destination.Y})",
-                _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource =>
-                    $"{entry!.Name} ({entry.Category})" + (c.TargetId is null ? "" : $" to {c.TargetId}") +
+                _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource or UnitAction.Operate =>
+                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {c.TargetId}") +
                     (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
                 _ => entry is null ? "Choose option" : $"{entry.Name} ({entry.Category})" +
                     (c.TargetId is not null && c.Destination is not null ? $" → {c.TargetId} to ({c.Destination.X},{c.Destination.Y})" :
@@ -234,6 +244,12 @@ public static class BrowserProjection
                     _ => "successes"
                 };
                 description = $"{e.UnitId}: {e.Dice.Pool.Family} dice [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} {resultLabel} ({e.Dice.Pool.SourceUnitId}, {e.ActionId})";
+                break;
+            case "MachineOperated":
+                description = $"{e.UnitId}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                break;
+            case "ResourceStored" when e.MachineId is not null:
+                description = $"{e.UnitId}: {e.ResourceType?.Name} stored in {e.MachineId} ({e.StoredQuantity} stored)";
                 break;
             case "ResourceStored":
                 description = $"{e.UnitId}: {e.ResourceType?.Name} from {e.Cell?.X},{e.Cell?.Y} stored for {e.SideId} / {e.TypeId} ({e.StoredQuantity} stored)";

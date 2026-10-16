@@ -57,7 +57,8 @@ public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? TargetIds,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Edge? Door,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? DoorSuccessCount,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] UnitFreeAction? FreeAction);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] UnitFreeAction? FreeAction,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null);
 public sealed record GambitRoll(DiceFamily Family, int Count, string OwnerUnitId, string SourceUnitId,
     string SourceActionId, string Purpose,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TargetId,
@@ -114,7 +115,9 @@ public sealed record GambitEvent(string Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WorldCard? WorldCard = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WorldCard? CycledWorldCard = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ResourceType? ResourceType = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? StoredQuantity = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? StoredQuantity = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MachineResource>? ConsumedResources = null);
 
 internal static class GambitProjection
 {
@@ -123,7 +126,7 @@ internal static class GambitProjection
         "Attack dice rolled; Hits are reduced by the target's Blocks.", "Defence dice rolled to produce Blocks.",
         "Current/maximum health; a Unit at 0 HP is defeated.",
         "Upright Units act normally; Lying Units have restricted options defined by legal candidates.",
-        "Line of Sight; Trees, Walls and Closed Doors block it.",
+        "Line of Sight; Trees, Machines, Walls and Closed Doors block it.",
         "A Unit normally has one Move and one Action per activation; legal candidates are authoritative.",
         "Unlisted terrain is StoneFloor; absent Edges are open (None). Walls and Closed Doors block movement; Open Doors do not.");
 
@@ -134,7 +137,7 @@ internal static class GambitProjection
     private static GambitCandidate Candidate(Candidate candidate) => new(candidate.Key, candidate.Kind, candidate.Relevant,
         ContentDescriptions.EntryId(candidate), candidate.Destination, candidate.Path,
         candidate.Action, candidate.TargetId, candidate.TargetIds.IsDefaultOrEmpty ? null : candidate.TargetIds,
-        candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction);
+        candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId);
 
     private static GambitRoll Roll(DicePool pool) => new(pool.Family, pool.Count, pool.OwnerUnitId, pool.SourceUnitId,
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
@@ -176,7 +179,7 @@ internal static class GambitProjection
             state.MoveAfterAttackAllowance, state.CleavePending, Context(state.AttackInProgress), state.DoorInProgress,
             state.PendingExplosions.Select(Defeat).ToArray());
         var world = BrowserProjection.WorldEffects(state);
-        return new(state.Physical.Board, units, types, bag, activation,
+        return new(state.Physical.Board with { Edges = [.. state.Physical.Board.Edges], Terrain = [.. state.Physical.Board.Terrain], Machines = [.. state.Physical.Board.Machines] }, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
@@ -220,7 +223,7 @@ internal static class GambitProjection
             for (var x = 0; x < board.Width; x++)
             {
                 var cell = new Cell(x, y);
-                var symbol = occupants.GetValueOrDefault(cell) ?? "-";
+                var symbol = occupants.GetValueOrDefault(cell) ?? (board.Machines.Any(m => m.Position == cell) ? "M" : "-");
                 var content = $"{Terrain(board.TerrainAt(cell))}{symbol.PadRight(symbolWidth)}";
                 line.Append(content.PadRight(cellWidth));
                 if (x < board.Width - 1)
@@ -317,7 +320,8 @@ internal static class GambitProjection
                 value.Attack.Targets.Select(t => new GambitAttackTargetResult(t.TargetId, t.DefenceDice, t.Blocks, t.Damage)).ToArray()),
             Context(value.AttackContext), value.DefeatContext is null ? null : Defeat(value.DefeatContext),
             value.Dice is null ? null : new(Roll(value.Dice.Pool), value.Dice.Faces, value.Dice.Successes),
-            value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity);
+            value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity, value.MachineId,
+            value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray());
     }
 
     private static GambitAttackContext? Context(AttackContinuation? value) => value is null ? null : new(value.AttackerId,

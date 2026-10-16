@@ -1911,3 +1911,55 @@ test("Unit cards render authoritative shared storage quantities and refresh afte
   h.run("renderState(snapshot.result.state)");
   assert.match(h.elements.get("unit-card").textContent, /Coal: 2 \/ 3 \(shared by/);
 });
+
+
+test("Machines render individual supplied storage and bind Give and Operate to their Cell", async () => {
+  const initial = response([
+    choice("opaque-operate", "Position", { position: { x: 2, y: 0 } }),
+    choice("opaque-give", "Position", { position: { x: 3, y: 0 } })
+  ]);
+  initial.presentation.machines = [
+    { id: "press-a", position: { x: 2, y: 0 }, name: "Diamond Press", operation: "Spend 3 Coal -> Output 1 Diamond",
+      resourceStorage: [{ name: "Coal", quantity: 3, capacity: 3 }] },
+    { id: "press-b", position: { x: 3, y: 0 }, name: "Diamond Press", operation: "Spend 3 Coal -> Output 1 Diamond",
+      resourceStorage: [{ name: "Coal", quantity: 1, capacity: 3 }] }
+  ];
+  initial.result.state.physical.board.edges = [{ a: { x: 1, y: 0 }, b: { x: 2, y: 0 }, kind: "ClosedDoor" }];
+  const submitted = [];
+  const h = harness(initial, async (url, options) => { submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial }; });
+  const machine = x => h.run(`cells.get("${x},0")`);
+  assert.match(machine(2).textContent, /Diamond Press.*Coal: 3\/3/s);
+  assert.match(machine(3).textContent, /Coal: 1\/3/);
+  assert.match(machine(2).title, /Spend 3 Coal.*1 Diamond/);
+  assert.equal(machine(2).classList.contains("legal"), true);
+  assert.equal(h.run("edges.size"), 1);
+  // Supplied choices remain selectable even when local stats/Edge appearances suggest otherwise.
+  await click(machine(2));
+  assert.equal(submitted.at(-1).candidateKey, "opaque-operate");
+  await click(machine(3));
+  assert.equal(submitted.at(-1).candidateKey, "opaque-give");
+});
+
+test("Machine conversion playback shows changed storage and Diamond output in the same supplied snapshot", async () => {
+  const initial = response();
+  initial.presentation.machines = [{ id: "press", position: { x: 2, y: 0 }, name: "Diamond Press", operation: "Supplied operation",
+    resourceStorage: [{ name: "Coal", quantity: 3, capacity: 3 }] }];
+  const final = structuredClone(initial);
+  final.presentation.machines[0].resourceStorage[0].quantity = 0;
+  final.result.state.resources = [{ type: { id: "diamond", name: "Diamond" }, position: { x: 0, y: 0 } }];
+  final.result.events = [{ kind: "MachineOperated", machineId: "press" }];
+  final.presentation.events = [{ role: "Notice", text: "Supplied conversion" }];
+  final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
+  final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards, machines: final.presentation.machines }];
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  const shown = []; h.context.shown = shown;
+  h.run(`ui.animate.checked = false; const originalRender = renderState;
+    renderState = (...args) => { originalRender(...args); shown.push({
+      storage: cells.get("2,0").textContent,
+      output: cells.get("0,0").querySelectorAll(".resource-marker").map(node => node.title),
+      symbol: cells.get("0,0").querySelectorAll(".resource-marker")[0]?.textContent
+    }); };`);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.ok(shown.length > 0);
+  assert.ok(shown.every(frame => /Coal: 0\/3/.test(frame.storage) && frame.output[0] === "Diamond" && frame.symbol === "\u25c6"));
+});

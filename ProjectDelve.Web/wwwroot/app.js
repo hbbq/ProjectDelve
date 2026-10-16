@@ -195,7 +195,7 @@ function inspectCell(key) {
   renderUnitCard();
 }
 
-function renderBoard(state, preserveNodes = false) {
+function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines) {
   const board = state.physical.board;
   updateCoordinates();
   if (!preserveNodes) {
@@ -214,6 +214,7 @@ function renderBoard(state, preserveNodes = false) {
     const key = cellKey({ x, y });
     const node = cells.get(key) ?? document.createElement("div");
     node.replaceChildren();
+    node.removeAttribute("aria-label");
     node.className = `cell ${kind}`; node.dataset.cell = key;
     retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);
@@ -229,10 +230,20 @@ function renderBoard(state, preserveNodes = false) {
     }
     cells.set(key, node);
   }
+  for (const machine of machines ?? []) {
+    const node = cells.get(cellKey(machine.position));
+    if (!node) continue;
+    node.classList.add("machine-cell");
+    node.append(text("span", machine.name));
+    for (const stored of machine.resourceStorage)
+      node.append(text("small", `${stored.name}: ${stored.quantity}/${stored.capacity}`));
+    node.title = `${machine.name} (${machine.id}): ${machine.operation}`;
+    node.setAttribute("aria-label", `${node.title}. ${machine.resourceStorage.map(r => `${r.name}: ${r.quantity}/${r.capacity}`).join(", ")}`);
+  }
   for (const resource of state.resources ?? []) {
     const node = cells.get(cellKey(resource.position));
     if (!node) continue;
-    const marker = text("span", "?");
+    const marker = text("span", resource.type.id === "diamond" ? "\u25c6" : "\u25cf");
     marker.className = "resource-marker";
     marker.title = resource.type.name;
     marker.setAttribute("aria-label", resource.type.name);
@@ -302,7 +313,7 @@ function renderBoard(state, preserveNodes = false) {
   }
 }
 
-function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders, machines = snapshot.presentation.machines) {
   applySideHues(snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.sideHues);
   displayedCards = cards;
   displayedFigures = geometry;
@@ -310,7 +321,7 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   const isSetup = state.round === 0;
   if (setupPhase === undefined || setupPhase !== isSetup) ui["game-setup"].open = isSetup;
   setupPhase = isSetup;
-  renderBoard(state, preserveNodes);
+  renderBoard(state, preserveNodes, machines);
   displayedState = state;
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
   renderTurn(state);
@@ -545,7 +556,7 @@ function bindBoardChoice(node, candidates) {
     node.addEventListener("blur", clearAffectedPreview);
   }
   if (node.classList.contains("cell")) node.classList.add("legal");
-  const accessibleLabel = [label, node.dataset.postureLabel, node.dataset.hpLabel].filter(Boolean).join(" · ");
+  const accessibleLabel = [label, node.classList.contains("machine-cell") ? node.title : null, node.dataset.postureLabel, node.dataset.hpLabel].filter(Boolean).join(" · ");
   node.title = accessibleLabel;
   node.setAttribute("role", "button");
   node.setAttribute("aria-label", accessibleLabel);
@@ -824,7 +835,7 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
       if (steps.has(index)) {
         const before = displayedState;
         const after = steps.get(index);
-        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders);
+        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders, projected.machines);
         if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
           const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
           const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;

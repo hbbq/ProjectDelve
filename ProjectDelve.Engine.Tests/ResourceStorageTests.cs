@@ -257,7 +257,7 @@ public sealed class ResourceStorageTests
     public void AutomatedSummonerDoesNotCollectWhenNoSummonPlacementExists()
     {
         var world = World();
-        world.Types[0] = UnitRoster.Shaman() with { Id = "store" };
+        world.Types[0] = UnitRoster.Shaman() with { Id = "store", Actions = UnitAction.SummonAdjacent | UnitAction.PickupResource, ResourceStorage = new([new(ResourceTypes.Coal, 3)]) };
         // Surround the actor with Water while leaving its own Cell legal.
         for (var y = 0; y <= 2; y++)
         for (var x = 0; x <= 2; x++)
@@ -270,13 +270,13 @@ public sealed class ResourceStorageTests
     }
 
     [Fact]
-    public void ShamanKeepsExistingBehaviorAndSummonAlongsidePickup()
+    public void ShamanRetainsSummonAndFleeWithoutResourceHandling()
     {
         var shaman = UnitRoster.Shaman();
-        Assert.Equal(3, shaman.ResourceStorage!.Capacities.Single().Capacity);
-        Assert.Equal(UnitAction.SummonAdjacent | UnitAction.PickupResource, shaman.Actions);
+        Assert.Null(shaman.ResourceStorage);
+        Assert.Equal(UnitAction.SummonAdjacent, shaman.Actions);
         Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, shaman.Behaviors);
-        Assert.Contains(shaman.CardEntries(), e => e.Id == "pickup-resource");
+        Assert.DoesNotContain(shaman.CardEntries(), e => e.Id == "pickup-resource");
         var world = World();
         world.Types[0] = shaman with { Id = "store" };
         var start = Actor(world);

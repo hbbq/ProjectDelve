@@ -26,7 +26,8 @@ public static class PlaytestScenarios
         new("goblins", "Goblins", "Two Heroes, flanking opportunities and space for Goblins to retreat."),
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
-        new("resource-storage", "Resource Pickup / Give", "Manually control a Shaman and Coal Courier: Pickup Coal under the Shaman, or Give Coal under the adjacent Courier to the shared Shaman store. Both groups are human controlled."),
+        new("resource-storage", "Resource Pickup / Give", "Manually control a Coal Collector and Coal Courier to exercise Pickup and Give with shared Unit Type storage."),
+        new("diamond-press", "Diamond Press", "Manual production: transport Coal with the Courier and Give it to the Press. Operate from an empty Cell, then move away so Geomancer can collect the Diamond. The Closed Door blocks the western operating position until opened."),
         new("resource-transport", "Resource Transport", "Wizard / Doors with Coal under Zombies, along their routes and near Doors to playtest atomic Resource transport."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
         new("shaman-hunt", "Shaman Hunt", "Pursue a fleeing Shaman as it spawns Goblins, with a 2x2 Red Dragon guarding the broad eastern approach."),
@@ -46,6 +47,7 @@ public static class PlaytestScenarios
         "archers" => Archers(),
         "wizard-doors" => WizardDoors(),
         "resource-storage" => ResourceStoragePlaytest(),
+        "diamond-press" => DiamondPressPlaytest(),
         "resource-transport" => WizardDoors() with
         {
             Resources = [new(ResourceTypes.Coal, new(8, 3)), new(ResourceTypes.Coal, new(10, 5)),
@@ -65,14 +67,31 @@ public static class PlaytestScenarios
     private static ScenarioDefinition ResourceStoragePlaytest() => new()
     {
         Board = new() { Width = 7, Height = 5 },
-        UnitTypeIds = [UnitTypeIds.Shaman, UnitTypeIds.Goblin, UnitTypeIds.Zombie, UnitTypeIds.Grunt],
-        UnitTypes = [UnitRoster.Zombie() with { Actions = UnitAction.NormalAttack | UnitAction.GiveResource, DisplayName = "Coal Courier" }],
-        Units = [new(UnitTypeIds.Shaman, "blue", new(2, 2)), new(UnitTypeIds.Zombie, "blue", new(3, 2)),
+        UnitTypeIds = ["coal-collector", UnitTypeIds.Zombie, UnitTypeIds.Grunt],
+        UnitTypes = [UnitType.Define("coal-collector", "Coal Collector", UnitAuthoring.Stats(2, 0, 0, 3, 1), UnitAuthoring.CantAttack(), UnitAuthoring.ResourceStorage(ResourceTypes.Coal, 3), UnitAuthoring.PickupResource()), UnitRoster.Zombie() with { Actions = UnitAction.NormalAttack | UnitAction.GiveResource, DisplayName = "Coal Courier" }],
+        Units = [new("coal-collector", "blue", new(2, 2)), new(UnitTypeIds.Zombie, "blue", new(3, 2)),
             new(UnitTypeIds.Grunt, "red", new(6, 4))],
-        Agency = [new(UnitTypeIds.Shaman, "blue", ControllerKind.Human), new(UnitTypeIds.Zombie, "blue", ControllerKind.Human),
-            new(UnitTypeIds.Goblin, "blue", ControllerKind.Human), new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
+        Agency = [new("coal-collector", "blue", ControllerKind.Human), new(UnitTypeIds.Zombie, "blue", ControllerKind.Human),
+            new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
         Resources = [new(ResourceTypes.Coal, new(2, 2)), new(ResourceTypes.Coal, new(3, 2)),
             new(ResourceTypes.Coal, new(3, 1)), new(ResourceTypes.Coal, new(2, 3)), new(ResourceTypes.Coal, new(1, 2))]
+    };
+
+    private static ScenarioDefinition DiamondPressPlaytest() => new()
+    {
+        Board = new() { Width = 8, Height = 6, Edges = [new(new(3, 2), Right, EdgeKind.ClosedDoor)] },
+        Machines = [new("press", new(4, 2), MachineTypes.DiamondPress)],
+        UnitTypeIds = ["coal-courier", "operator", UnitTypeIds.Geomancer, UnitTypeIds.Grunt],
+        UnitTypes = [
+            UnitType.Define("coal-courier", "Coal Courier", UnitAuthoring.Stats(3, 0, 0, 1, 1),
+                UnitAuthoring.CantAttack(), UnitAuthoring.TransportResource(), UnitAuthoring.GiveResource()),
+            UnitType.Define("operator", "Press Operator", UnitAuthoring.Stats(3, 0, 0, 1, 1),
+                UnitAuthoring.CantAttack(), UnitAuthoring.Operate(), UnitAuthoring.OpenDoor())],
+        Units = [new("coal-courier", "blue", new(2, 2)), new("operator", "blue", new(3, 2)),
+            new(UnitTypeIds.Geomancer, "blue", new(3, 4)), new(UnitTypeIds.Grunt, "red", new(7, 5))],
+        Agency = [new("coal-courier", "blue", ControllerKind.Human), new("operator", "blue", ControllerKind.Human),
+            new(UnitTypeIds.Geomancer, "blue", ControllerKind.Human), new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
+        Resources = [new(ResourceTypes.Coal, new(2, 2)), new(ResourceTypes.Coal, new(2, 1)), new(ResourceTypes.Coal, new(2, 3))]
     };
 
     private static ScenarioDefinition BasicCombat() => Define(

@@ -41,7 +41,9 @@ public static class ContentDescriptions
         if (type.Actions.HasFlag(UnitAction.PickupResource))
             entries.Add(new("pickup-resource", "Pickup Resource", "Action", "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room."));
         if (type.Actions.HasFlag(UnitAction.GiveResource))
-            entries.Add(new("give-resource", "Give Resource", "Action", "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage, if it accepts its Type and has room."));
+            entries.Add(new("give-resource", "Give Resource", "Action", "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room."));
+        if (type.Actions.HasFlag(UnitAction.Operate))
+            entries.Add(new("operate", "Operate", "Action", "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource."));
         if (type.ResourceStorage is { } storage)
             entries.Add(new("resource-storage", "Resource Storage", "Capability", "Shared by all Units of this Type on this Side: " +
                 string.Join(", ", storage.Capacities.Select(c => $"{c.Type.Name} capacity {c.Capacity}")) + "."));
@@ -95,6 +97,7 @@ public static class ContentDescriptions
         { FreeAction: UnitFreeAction.OpenDoor } => "open-door",
         { Action: UnitAction.PickupResource } => "pickup-resource",
         { Action: UnitAction.GiveResource } => "give-resource",
+        { Action: UnitAction.Operate } => "operate",
         { Action: UnitAction.NormalAttack } => "attack",
         { Action: UnitAction.FireBreath } => "fire-breath",
         { Action: UnitAction.ClawAttack } => "claw-attack",

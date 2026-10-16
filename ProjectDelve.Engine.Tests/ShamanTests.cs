@@ -32,14 +32,15 @@ public sealed class ShamanTests
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
-    public void ContentExplicitlyOmitsAttackAndHasSummonPickupAndStorage()
+    public void ContentExplicitlyOmitsAttackAndResourceHandling()
     {
         var type = UnitType.Shaman();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.SummonAdjacent | UnitAction.PickupResource, type.Actions);
+        Assert.Equal(UnitAction.SummonAdjacent, type.Actions);
+        Assert.Null(type.ResourceStorage);
         Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, type.Behaviors);
         Assert.Null(type.TryOpenDoor);
-        Assert.Equal(new[] { "Summon Goblin", "Pickup Resource", "Resource Storage" }, type.CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Summon Goblin" }, type.CardEntries().Select(e => e.Name));
         Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
         var state = State(enemy: new(3, 2));
         state.Types[0] = type with { Atk = 10, Rng = 10 };
