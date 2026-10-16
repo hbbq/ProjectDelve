@@ -1379,7 +1379,20 @@ Pickup Resource and Give Resource are ordinary Actions and use the Unit's normal
 
 The canonical Shaman retains its original Summon Goblin Action and Flee/Summon Behavior; it has neither Resource Storage nor Pickup Resource.
 
-**Geomancer** is a separate non-attacking Monster Unit Type with stats `MOV 2, RNG 0, ATK 0, DEF 3, HP 1`, `ResourceStorage(Diamond, 1)`, and the **Pickup Resource** Action. Geomancer uses the existing Flee Behavior. Its proposed resource-consuming summon actions and worker-summoning Behavior are deferred; they are not required or implied by this initial content. **Diamond** is an additional Resource Type.
+**Geomancer** is a separate non-attacking Monster Unit Type with stats `MOV 2, RNG 0, ATK 0, DEF 3, HP 1`, `ResourceStorage(Diamond, 1)`, and three Actions: **Pickup Resource**, **Summon Worker**, and **Summon Troll**. **Diamond** is a Resource Type. Geomancer has no normal Attack.
+
+- **Summon Worker — Action:** If fewer than three living Workers of the canonical Worker Unit Type are currently in play on Geomancer's own Side, place one **Upright Worker** in a legal adjacent empty Cell. This cap is per Side and counts Workers regardless of their controller. A Worker summoned this way has Geomancer's Side and the canonical Worker's normal stats and abilities.
+- **Summon Troll — Action:** Spend one Diamond from Geomancer's shared Side + Unit Type Resource Storage and place one **Upright Troll** in a legal adjacent empty Cell on Geomancer's Side. The Action is available only when at least one Diamond is stored and at least one legal placement exists. The spending and placement are atomic; no Diamond is consumed if the Action cannot resolve.
+
+Both Actions use the existing Shaman Summon Goblin placement rules for adjacency, LOS, terrain, Edge and Unit occupancy, except for the summoned Unit Type, the extra prerequisites and **Upright** starting Posture. Summoned Units follow the existing activation-bag snapshot semantics and do not add tokens to the current bag.
+
+**Geomancer Behavior** is a reusable composition of Resource-seeking movement, Flee, and Action preferences, not special legal-move or summon rules:
+
+- **Move:** If Geomancer's shared Diamond storage is empty and a Cell containing Diamond is a legal reachable Move destination **this activation**, prefer the nearest such Cell (shortest actual movement path; then top-to-bottom, left-to-right). Otherwise use normal **Flee**. This does not authorize pursuit of a Diamond beyond the current Move range.
+- **Action:** Prefer, in order, (1) Summon Troll if legal; (2) Pickup Resource if legal **for Diamond**; (3) Summon Worker if legal; (4) Skip. For automated target placement choose the top-left legal Cell, as with Shaman. Ordinary legality governs every option.
+- As with other Behaviors, these are automated preferences only; they do not grant Actions or restrict choices for human-controlled Geomancers.
+
+In particular, a Geomancer may summon a Troll using a Diamond it already held even if it moved away from a Diamond on the Board.
 
 ### Worker and Worker Behavior
 
@@ -1417,7 +1430,7 @@ When Operate resolves, its Resource costs are removed from that Machine and the 
 
 Machines must be allowed next to Walls and other Edge features, including an Edge immediately between the Machine Cell and an adjacent Cell. An impassable Edge prevents a Unit on that side from Operating the Machine, even when geometrically adjacent. No new general LOS rule for Machine interaction is implied.
 
-Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Machine construction, machine ownership, combat against Machines, Geomancer summoning, and other recipes are deferred.
+Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Machine construction, machine ownership, combat against Machines, and other recipes are deferred.
 
 ### Moving and repositioning Units by effects
 
