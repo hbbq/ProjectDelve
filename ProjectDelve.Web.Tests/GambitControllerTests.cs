@@ -83,7 +83,7 @@ public sealed class GambitControllerTests
         using var game = new PlaytestGame(new Dice(),Setup(),controllers:Bindings());
         game.StartRound(0); var request=game.ControllerRequest()!; game.AdmitController(request.Binding);
         Assert.Throws<PlaytestRequestException>(()=>game.SetRelevanceAutoChoice(request.Binding.Revision,true));
-        game.StartScenario(request.Binding.Revision,PlaytestScenarios.DefaultId);
+        game.StartTransportScenario(request.Binding.Revision, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()));
         Assert.NotEqual(request.Binding.SessionId,game.ControllerState().SessionId);
         Assert.Null(game.ControllerRequest());
         Assert.Equal("rejected",game.SubmitController(new("late",request.Binding,"attack:two")).Status);
@@ -153,7 +153,7 @@ public sealed class GambitControllerTests
         Assert.False(game.Snapshot().ControllerStatus!.CanRetry); Assert.False(game.Snapshot().ControllerStatus!.CanCancel);
         Assert.NotNull(game.Snapshot().Result.State.Pending);
         Assert.Throws<PlaytestRequestException>(()=>game.SetRelevanceAutoChoice(game.Snapshot().Revision,false));
-        game.StartScenario(game.Snapshot().Revision,PlaytestScenarios.DefaultId);
+        game.StartTransportScenario(game.Snapshot().Revision, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()));
         Assert.Equal("idle",game.ControllerState().Status);
     }
     [Fact]
@@ -175,10 +175,10 @@ public sealed class GambitControllerTests
     [Fact]
     public async Task SetupCommandMapsAreDetachedAndEqualPayloadRetryIsDeduplicated()
     {
-        using var game=new PlaytestGame(new Dice());
+        using var game=new PlaytestGame(new Dice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         var map=game.Snapshot().Result.State.Objectives.ToDictionary(o=>o.SideId,o=>"Human");
         var original=new Dictionary<string,string>(map);
-        var command=new GameCommand { CommandId="setup-once",SessionId=game.ControllerState().SessionId,ExpectedRevision=0,Operation="restart",Controllers=map };
+        var command=new GameCommand { CommandId="setup-once",SessionId=game.ControllerState().SessionId,ExpectedRevision=0,Operation="scenario/import",Transport=ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()),Controllers=map };
         var first=game.Accept(command);
         Assert.Equal(first,game.Accept(command with { Controllers=new(original) }));
         map[map.Keys.First()]="Default Behavior";
@@ -189,9 +189,9 @@ public sealed class GambitControllerTests
     [Fact]
     public void BrowserReplayPreservesCommentaryAndOriginalIdentityAcrossSideSwap()
     {
-        using var game=new PlaytestGame(new Dice());
+        using var game=new PlaytestGame(new Dice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         var sides=game.Snapshot().Result.State.Objectives.Select(o=>o.SideId).ToArray();
-        var first=game.SetupRestart(0,new() { [sides[0]]="Gambit",[sides[1]]="Human" });
+        var first=game.SetupImport(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()),new() { [sides[0]]="Gambit",[sides[1]]="Human" });
         var old=new GameUpdate(game.ControllerState().SessionId,1,"commentary","waiting-external",first.Revision,null,first,
             Commentary:new("old",null,ControllerKind.Automated,sides[0],DecisionKind.Activation,"stay","private-marker",0));
         game.SetupRestart(first.Revision,new() { [sides[0]]="Human",[sides[1]]="Gambit" });
@@ -393,9 +393,9 @@ public sealed class GambitControllerTests
     [Fact]
     public void RepresentativeRequestKeepsStructuredSavingsAndFullPayloadBelowRecordedBaseline()
     {
-        using var game = new PlaytestGame(new Dice());
+        using var game = new PlaytestGame(new Dice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         var sides = game.Snapshot().Result.State.Objectives.Select(objective => objective.SideId).ToArray();
-        var setup = game.SetupRestart(0, new() { [sides[0]] = "Gambit", [sides[1]] = "Human" });
+        var setup = game.SetupImport(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()), new() { [sides[0]] = "Gambit", [sides[1]] = "Human" });
         game.StartRound(setup.Revision);
         var withMap = JsonSerializer.SerializeToNode(game.ControllerRequest(), GambitJson.Options)!.AsObject();
         var bytesWithMap = JsonSerializer.SerializeToUtf8Bytes(withMap, GambitJson.Options).Length;
@@ -475,10 +475,10 @@ public sealed class GambitControllerTests
     [Fact]
     public void ExactAssignmentsRequireCompleteUniqueAuthoredTokensAndOneGambitSide()
     {
-        using var game = new PlaytestGame(new Dice());
-        var authored = PlaytestScenarios.Catalog.Single(s => s.Id == "shaman-hunt").ControllerAssignments.ToList();
+        using var game = new PlaytestGame(new Dice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var authored = WebScenarioFixtures.Shaman().Agency.Select(a => new ControllerSelection(a.UnitTypeId, a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior")).ToList();
         var exact = authored.Select(a => a with { Controller = a.TypeId == UnitTypeIds.Shaman ? "Gambit" : a.Controller }).ToList();
-        var configured = game.SetupScenario(0, "shaman-hunt", null, exact);
+        var configured = game.SetupImport(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Shaman()), null, exact);
         Assert.Equal(exact.OrderBy(a => a.TypeId), configured.ControllerAssignments.OrderBy(a => a.TypeId));
         Assert.Equal("Mixed", configured.Controllers["red"]);
         Assert.Equal(ControllerKind.Automated, configured.Result.State.ControllerFor(new ActivationToken(UnitTypeIds.Shaman, "red")));
@@ -515,10 +515,10 @@ public sealed class GambitControllerTests
     [Fact]
     public async Task ShamanGambitSummonsPreassignedDefaultGoblinAsAllied()
     {
-        using var game = new PlaytestGame(new ShamanFirstDice());
-        var authored = PlaytestScenarios.Catalog.Single(s => s.Id == "shaman-hunt").ControllerAssignments;
+        using var game = new PlaytestGame(new ShamanFirstDice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var authored = WebScenarioFixtures.Shaman().Agency.Select(a => new ControllerSelection(a.UnitTypeId, a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior"));
         var exact = authored.Select(a => a with { Controller = a.TypeId == UnitTypeIds.Shaman ? "Gambit" : a.Controller }).ToList();
-        var configured = game.SetupScenario(0, "shaman-hunt", null, exact);
+        var configured = game.SetupImport(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Shaman()), null, exact);
         game.StartRound(configured.Revision);
         var request = await ReachShamanAction(game, "stay-before-default-summon");
         Assert.Equal(3, request.SchemaVersion); Assert.Equal(UnitTypeIds.Shaman, request.Request.TypeId);
@@ -541,7 +541,7 @@ public sealed class GambitControllerTests
             Scenario.Group(UnitTypeIds.Shaman, "red", ControllerKind.Automated, Scenario.At(2, 1)),
             Scenario.Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, Scenario.At(5, 3))
         ], [UnitTypeIds.Shaman, UnitTypeIds.Goblin, UnitTypeIds.Barbarian]);
-        using var game = new PlaytestGame(new ShamanFirstDice());
+        using var game = new PlaytestGame(new ShamanFirstDice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         var configured = game.SetupImport(0, ScenarioDefinitionTransport.Encode(definition), null,
         [
             new(UnitTypeIds.Shaman, "red", "Gambit"),

@@ -1,0 +1,63 @@
+{
+  "board": {
+    "width": 6,
+    "height": 5,
+    "defaultTerrain": "StoneFloor",
+    "cells": [
+      {
+        "position": {
+          "x": 4,
+          "y": 3
+        },
+        "terrain": "Tree"
+      }
+    ],
+    "edges": [
+      {
+        "position": {
+          "x": 3,
+          "y": 1
+        },
+        "direction": "Right",
+        "kind": "ClosedDoor"
+      }
+    ]
+  },
+  "unitTypeIds": [
+    "goblin-type",
+    "wizard-type"
+  ],
+  "units": [
+    {
+      "unitTypeId": "goblin-type",
+      "sideId": "amber",
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "posture": "Upright"
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "sideId": "amber",
+      "anchor": {
+        "x": 2,
+        "y": 2
+      },
+      "posture": "Lying",
+      "initialHp": 2
+    }
+  ],
+  "agency": [
+    {
+      "unitTypeId": "goblin-type",
+      "sideId": "amber",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "sideId": "amber",
+      "controller": "Automated"
+    }
+  ]
+}

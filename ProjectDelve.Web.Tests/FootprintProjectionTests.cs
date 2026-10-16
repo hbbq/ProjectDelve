@@ -43,9 +43,9 @@ public sealed class FootprintProjectionTests
     }
 
     [Fact]
-    public void DragonFitsShamanHuntAndUsesOrdinaryMonsterQueries()
+    public void DragonFixtureUsesOrdinaryMonsterQueries()
     {
-        var state = PlaytestScenarios.Create("shaman-hunt");
+        var state = GameEngine.CreateGame(WebScenarioFixtures.Dragon());
         var dragonId = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.RedDragon).Id;
         Assert.Single(state.Physical.Figures.Where(f => f.Id == dragonId));
         Assert.Equal(4, FootprintGeometry.OccupiedCells(state, dragonId).Count);
@@ -55,13 +55,12 @@ public sealed class FootprintProjectionTests
         var move = TestGame.Advance(start.State, new DefaultAutomatedProvider(), new Dice(), false);
         Assert.Contains(move.Events, e => e.Kind == "MovementCompleted" && e.UnitId == dragonId);
         Assert.Equal(4, BrowserProjection.Create(move).Figures[dragonId].OccupiedCells.Count);
-        Assert.DoesNotContain(state.Units, u => u.TypeId == UnitTypeIds.Goblin);
     }
 
     [Fact]
     public void DefeatSnapshotRemovesOneWholeProjectedFigure()
     {
-        var state = PlaytestScenarios.Create("shaman-hunt");
+        var state = GameEngine.CreateGame(WebScenarioFixtures.Dragon());
         var dragonId = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.RedDragon).Id;
         var before = BrowserProjection.Figures(state);
         state.Physical.Figures.RemoveAll(f => f.Id == dragonId);

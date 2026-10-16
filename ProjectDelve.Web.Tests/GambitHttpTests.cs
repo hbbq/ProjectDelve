@@ -20,7 +20,7 @@ public sealed class GambitHttpTests
     {
         var old = Environment.GetEnvironmentVariable("PROJECTDELVE_GAMBIT_TOKEN");
         Environment.SetEnvironmentVariable("PROJECTDELVE_GAMBIT_TOKEN","isolated-gambit-test");
-        await using var host=PlaytestHost.Build(["--urls","http://127.0.0.1:0","--contentRoot",Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../ProjectDelve.Web"))],new First());
+        await using var host=PlaytestHost.Build(["--urls","http://127.0.0.1:0","--contentRoot",Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../ProjectDelve.Web"))],new First(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         try
         {
             await host.StartAsync();
@@ -29,7 +29,7 @@ public sealed class GambitHttpTests
             var initial=(await http.GetFromJsonAsync<GameResponse>("/api/game",Json))!;
             var sides=initial.Result.State.Objectives.Select(o=>o.SideId).ToArray();
             var bindings=new Dictionary<string,string> { [sides[0]]="Gambit",[sides[1]]="Human" };
-            var setup=(await (await http.PostAsJsonAsync("/api/game/restart",new { expectedRevision=initial.Revision,controllers=bindings })).Content.ReadFromJsonAsync<GameResponse>(Json))!;
+            var setup=(await (await http.PostAsJsonAsync("/api/game/scenario/import",new { expectedRevision=initial.Revision,transport=ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()),controllers=bindings })).Content.ReadFromJsonAsync<GameResponse>(Json))!;
             Assert.False(setup.AutoChooseSingleRelevantChoice);
             var round=await http.PostAsJsonAsync("/api/game/round",new { expectedRevision=setup.Revision }); round.EnsureSuccessStatusCode();
             http.DefaultRequestHeaders.Authorization=new("Bearer","isolated-gambit-test");

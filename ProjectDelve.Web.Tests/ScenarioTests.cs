@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ProjectDelve.Engine;
 using ProjectDelve.Web;
 using Xunit;
+using static ProjectDelve.Engine.Scenario;
 
 namespace ProjectDelve.Web.Tests;
 
@@ -26,60 +27,16 @@ public sealed class ScenarioTests
         public int RollD6() => 1;
     }
 
-    public static TheoryData<string, int, string[], string[]> Content => new()
-    {
-        { "basic-combat", 8, ["barbarian"], ["grunt"] },
-        { "goblins", 10, ["barbarian", "rogue"], ["grunt", "goblin"] },
-        { "archers", 12, ["barbarian", "rogue"], ["grunt", "goblin", "skeleton-archer"] },
-        { "wizard-doors", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
-        { "resource-transport", 15, ["barbarian", "rogue", "wizard"], ["goblin", "skeleton-archer", "zombie", "ghost"] },
-        { "full-party-trolls", 15, ["barbarian", "rogue", "wizard", "cleric"], ["goblin", "skeleton-archer", "zombie", "troll"] },
-        { "shaman-hunt", 15, ["barbarian", "rogue", "wizard", "cleric"], ["shaman", "grunt", "red-dragon"] },
-        { "orders-playground", 10, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie", "goblin"] },
-        { "orders-assault", 11, ["barbarian", "rogue"], ["grunt", "skeleton-archer", "zombie"] },
-        { "orders-escort-retreat", 12, ["barbarian", "rogue"], ["grunt", "zombie", "goblin"] },
-        { "labyrinth-shaper", 9, ["barbarian", "cleric"], ["labyrinth-shaper"] },
-        { "genombrottet", 15, ["barbarian", "rogue", "wizard"], ["grunt", "zombie", "troll", "skeleton-archer", "goblin"] }
-    };
-
     [Fact]
-    public void CatalogHasStableUniqueIdsAndPresentation()
+    public void GhostFixturePhasesThroughWallUsingGenericPresentationAndBehavior()
     {
-        Assert.Equal(Content.Select(row => (string)row[0]), PlaytestScenarios.Catalog.Select(s => s.Id));
-        Assert.Equal(Content.Count, PlaytestScenarios.Catalog.Select(s => s.Id).Distinct().Count());
-        Assert.All(PlaytestScenarios.Catalog, s =>
-        {
-            Assert.False(string.IsNullOrWhiteSpace(s.Name));
-            Assert.False(string.IsNullOrWhiteSpace(s.Description));
-        });
-    }
-
-    [Theory, MemberData(nameof(Content))]
-    public void ContentIsValidAndFresh(string id, int size, string[] heroes, string[] monsters)
-    {
-        var first = PlaytestScenarios.Create(id);
-        var second = PlaytestScenarios.Create(id);
-        Assert.Equal((size, id == "genombrottet" ? 10 : size), (first.Physical.Board.Width, first.Physical.Board.Height));
-        Assert.Equal(heroes.Select(h => h + "-type").Order(), first.Units.Where(u => u.SideId == (id == "genombrottet" ? "side-1" : "blue")).Select(u => u.TypeId).Distinct().Order());
-        Assert.Equal(monsters.Select(m => m + "-type").Order(), first.Units.Where(u => u.SideId == (id == "genombrottet" ? "side-2" : "red")).Select(u => u.TypeId).Distinct().Order());
-        Assert.Equal(heroes.Concat(monsters).Select(t => t + "-type").Order(), first.Types.Select(t => t.Id).Order());
-        Assert.All(first.Physical.Figures, f => Assert.True(first.Physical.Board.TerrainAt(f.Position).Passable()));
-        var expected = Serialize(second);
-        // Starting a round runs the engine's existing complete scenario validation.
-        Assert.NotNull(TestGame.StartRound(first, new Random(), false).NextInput);
-        first.Units.Clear(); first.Types.Clear(); first.Physical.Figures.Clear();
-        first.Physical.Board.Terrain.Clear(); first.Physical.Board.Edges.Clear(); first.Bag.Add(new("leak", "leak"));
-        Assert.Equal(expected, Serialize(second));
-        Assert.Equal(expected, Serialize(PlaytestScenarios.Create(id)));
-    }
-
-    [Fact]
-    public void WizardRoomGhostPhasesThroughWallUsingGenericPresentationAndBehavior()
-    {
-        var state = PlaytestScenarios.Create("wizard-doors");
+        var definition = Define(Map(6, 1, edges: [Edge(4, 0, EdgeDirection.Right, EdgeKind.Wall)]),
+            [Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human, At(0, 0)),
+             Group(UnitTypeIds.Ghost, "red", ControllerKind.Automated, At(5, 0))]);
+        var state = GameEngine.CreateGame(definition);
         var ghost = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.Ghost);
         var start = state.Physical.Figures.Single(f => f.Id == ghost.Id).Position;
-        Assert.Equal(new Cell(8, 5), start);
+        Assert.Equal(new Cell(5, 0), start);
         Assert.True(state.Physical.Board.TerrainAt(start).Passable());
         var card = BrowserProjection.Cards(state)[ghost.Id];
         Assert.Equal("Ghost", card.DisplayName);
@@ -94,16 +51,15 @@ public sealed class ScenarioTests
         Assert.Equal(ghost.Id, pending.NextInput!.UnitId);
         var moved = TestGame.Advance(pending.State, new DefaultAutomatedProvider(), random, false);
         var movement = Assert.Single(moved.Events, e => e.Kind == "MovementCompleted");
-        Assert.Equal(new Cell[] { new(8, 5), new(7, 5), new(6, 5) }, movement.Path);
+        Assert.Equal(new Cell[] { new(5, 0), new(4, 0), new(3, 0) }, movement.Path);
         Assert.Equal(EdgeKind.Wall, state.Physical.Board.EdgeBetween(movement.Path![0], movement.Path[1]));
         Assert.True(moved.State.Physical.Board.TerrainAt(movement.Path[^1]).Passable());
         Assert.Equal(state.Physical.Board.Edges, moved.State.Physical.Board.Edges);
         Assert.DoesNotContain(moved.Events, e => e.Kind is "DoorOpened" or "DoorOpeningAttemptResolved");
         Assert.DoesNotContain(moved.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
-        Assert.Contains("Ghost", PlaytestScenarios.Catalog.Single(s => s.Id == "wizard-doors").Description);
 
-        var game = new PlaytestGame(random);
-        var initial = game.StartScenario(0, "wizard-doors");
+        var game = new PlaytestGame(random, GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var initial = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(definition));
         var round = game.StartRound(initial.Revision);
         Assert.Contains(round.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == ghost.Id);
         Assert.NotEqual(UnitTypeIds.Ghost, round.Result.NextInput?.TypeId);
@@ -120,8 +76,8 @@ public sealed class ScenarioTests
     [Fact]
     public void RestartRestoresEveryMutableStateAndKeepsSessionPreference()
     {
-        var game = new PlaytestGame(new Random());
-        var initial = game.StartScenario(0, "full-party-trolls");
+        var game = new PlaytestGame(new Random(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var initial = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(CourtyardFixture.Definition()));
         var expected = Serialize(initial.Result.State);
         var changed = game.SetRelevanceAutoChoice(initial.Revision, false);
         var state = changed.Result.State;
@@ -156,13 +112,17 @@ public sealed class ScenarioTests
     [InlineData(true)]
     public void SwitchDiscardsActualActivationOrCleaveContinuation(bool cleave)
     {
-        var game = new PlaytestGame(new Random());
-        var active = game.StartRound(0);
+        var game = new PlaytestGame(new Random(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var definition = Define(Map(5, 4),
+            [Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(1, 1)),
+             Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(3, 1), At(3, 2))]);
+        var setup = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(definition));
+        var active = game.StartRound(setup.Revision);
         if (cleave)
         {
-            active = game.Decide(active.Revision, "3,4");
+            active = game.Decide(active.Revision, "2,1");
             var target = active.Result.State.Units.Single(u => u.TypeId == UnitTypeIds.Grunt &&
-                active.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(4, 4));
+                active.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(3, 1));
             active = game.Decide(active.Revision, active.Result.NextInput!.Candidates.Single(c =>
                 c.Action == UnitAction.NormalAttack && c.TargetId == target.Id).Key);
             while (active.Result.NextInput?.Kind == DecisionKind.RollDice) active = game.Decide(active.Revision, "roll-dice");
@@ -170,20 +130,19 @@ public sealed class ScenarioTests
             Assert.True(active.Result.State.CleavePending);
         }
         Assert.NotNull(active.Result.State.CurrentUnitId);
-        var replaced = game.StartScenario(active.Revision, "archers");
-        Assert.Equal("archers", replaced.ScenarioId);
-        Assert.Equal(Serialize(PlaytestScenarios.Create("archers")), Serialize(replaced.Result.State));
+        var replaced = game.StartTransportScenario(active.Revision, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Serialization()));
+        Assert.Equal("imported", replaced.ScenarioId);
+        Assert.Equal(Serialize(GameEngine.CreateGame(WebScenarioFixtures.Serialization())), Serialize(replaced.Result.State));
         Assert.Null(replaced.Result.NextInput);
         Assert.Equal(409, Assert.Throws<PlaytestRequestException>(() => game.Decide(active.Revision, "end-turn")).StatusCode);
         Assert.Equal(409, Assert.Throws<PlaytestRequestException>(() => game.Decide(replaced.Revision, "end-turn")).StatusCode);
-        Assert.Equal(replaced.Result.State.Units.Single(u => u.TypeId == UnitTypeIds.Barbarian).Id,
-            game.StartRound(replaced.Revision).Result.NextInput!.UnitId);
+        Assert.Equal(1, game.StartRound(replaced.Revision).Result.State.Round);
     }
 
     [Fact]
     public void InvalidSelectionAndStaleRestartLeaveStateUntouched()
     {
-        var game = new PlaytestGame(new Random());
+        var game = new PlaytestGame(new Random(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         Assert.Equal(400, Assert.Throws<PlaytestRequestException>(() => game.StartScenario(0, "missing")).StatusCode);
         var active = game.StartRound(0);
         Assert.Equal(409, Assert.Throws<PlaytestRequestException>(() => game.Restart(0)).StatusCode);
@@ -194,10 +153,16 @@ public sealed class ScenarioTests
     [Fact]
     public void ShamanFleesAndSpawnsThroughNormalRulesAndNextRoundBagSnapshot()
     {
-        var game = new PlaytestGame(new Random(shamanFirst: true));
-        var initial = game.StartScenario(0, "shaman-hunt");
+        var game = new PlaytestGame(new Random(shamanFirst: true), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var definition = Define(Map(10, 8),
+            [Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(0, 4)),
+             Group(UnitTypeIds.Shaman, "red", ControllerKind.Automated, At(5, 4)),
+             Group(UnitTypeIds.Goblin, "red", ControllerKind.Automated)]);
+        var initial = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(definition));
         Assert.DoesNotContain(initial.Result.State.Units, u => u.TypeId == "goblin-type");
-        Assert.DoesNotContain(initial.Result.State.Types, t => t.Id == "goblin-type");
+        Assert.Contains(initial.Result.State.Types, t => t.Id == UnitTypeIds.Goblin);
+        Assert.Contains(initial.Result.State.Controllers, c => c.Token == new ActivationToken(UnitTypeIds.Goblin, "red"));
+        Assert.DoesNotContain(initial.Result.State.Bag, token => token.TypeId == UnitTypeIds.Goblin);
         var shamanId = Assert.Single(initial.Result.State.Units, u => u.TypeId == UnitTypeIds.Shaman).Id;
         var round = game.StartRound(initial.Revision);
         var move = Assert.Single(round.Result.Events, e => e.Kind == "MovementCompleted" && e.UnitId == shamanId);
@@ -218,20 +183,21 @@ public sealed class ScenarioTests
         Assert.Contains("goblin-type", next.Result.State.Bag.Select(t => t.TypeId));
         var restarted = game.Restart(next.Revision);
         Assert.DoesNotContain(restarted.Result.State.Units, u => u.TypeId == "goblin-type");
-        Assert.Equal(Serialize(PlaytestScenarios.Create("shaman-hunt")), Serialize(restarted.Result.State));
+        Assert.Equal(Serialize(GameEngine.CreateGame(definition)), Serialize(restarted.Result.State));
     }
 
     [Theory]
-    [InlineData("wizard-doors")]
-    [InlineData("full-party-trolls")]
-    public void GatedRoomsNaturallyExerciseMonsterDoorAttempts(string id)
+    [InlineData(UnitTypeIds.Zombie)]
+    [InlineData(UnitTypeIds.Troll)]
+    public void GatedFixtureExercisesMonsterDoorAttempts(string typeId)
     {
-        var game = new PlaytestGame(new Random());
-        var initial = game.StartScenario(0, id);
-        var zombieId = initial.Result.State.Units.Single(u => u.TypeId == UnitTypeIds.Zombie &&
-            initial.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(8, 3)).Id;
-        var trollId = initial.Result.State.Units.SingleOrDefault(u => u.TypeId == UnitTypeIds.Troll &&
-            initial.Result.State.Physical.Figures.Single(f => f.Id == u.Id).Position == new Cell(9, 11))?.Id;
+        var definition = Define(Map(7, 3, edges: [.. Vertical(2, 0, 2, EdgeKind.Wall),
+            Edge(2, 1, EdgeDirection.Right, EdgeKind.ClosedDoor)]),
+            [Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human, At(0, 1)),
+             Group(typeId, "red", ControllerKind.Automated, At(4, 1))]);
+        using var game = new PlaytestGame(new Random(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var initial = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(definition));
+        var monster = Assert.Single(initial.Result.State.Units, unit => unit.TypeId == typeId);
         var result = game.StartRound(initial.Revision);
         var events = new List<RulesEvent>(result.Result.Events);
         while (result.Result.NextInput is { } pending)
@@ -239,33 +205,26 @@ public sealed class ScenarioTests
             result = game.Decide(result.Revision, pending.Candidates.Single(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice).Key);
             events.AddRange(result.Result.Events);
         }
-        Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == zombieId);
-        if (id == "full-party-trolls")
-            Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == trollId);
-        var earlier = PlaytestScenarios.Create("wizard-doors").Physical.Board.Edges;
-        var later = PlaytestScenarios.Create("full-party-trolls").Physical.Board.Edges;
-        Assert.True(later.Count(e => e.Kind == EdgeKind.Wall) > earlier.Count(e => e.Kind == EdgeKind.Wall));
-        Assert.True(later.Count(e => e.Kind == EdgeKind.ClosedDoor) > earlier.Count(e => e.Kind == EdgeKind.ClosedDoor));
+        Assert.Contains(events, e => e.Kind == "DoorOpeningAttemptResolved" && e.UnitId == monster.Id);
     }
 
     [Fact]
-    public async Task HttpExposesAuthoritativeCatalogAndReplacesBoardOnStartAndRestart()
+    public async Task HttpImportsFixtureAndRestartsItAndServesRuleIndependentClient()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root], new Random());
+        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root], new Random(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
         using var client = new HttpClient { BaseAddress = new(address) };
         var initial = (await client.GetFromJsonAsync<GameResponse>("/api/game", Json))!;
-        Assert.Equal("basic-combat", initial.ScenarioId);
-        using var payload = JsonDocument.Parse(await client.GetStringAsync("/api/game"));
-        var expectedCatalog = JsonSerializer.SerializeToElement(PlaytestScenarios.Catalog, Json);
-        Assert.True(JsonElement.DeepEquals(expectedCatalog, payload.RootElement.GetProperty("scenarios")));
-        using var started = await client.PostAsJsonAsync("/api/game/scenario", new { expectedRevision = 0, scenarioId = "wizard-doors" });
+        var definition = WebScenarioFixtures.Combat();
+        using var started = await client.PostAsJsonAsync("/api/game/scenario/import",
+            new { expectedRevision = initial.Revision, transport = ScenarioDefinitionTransport.Encode(definition) });
         started.EnsureSuccessStatusCode();
         var selected = (await started.Content.ReadFromJsonAsync<GameResponse>(Json))!;
-        Assert.Equal("wizard-doors", selected.ScenarioId);
-        Assert.Equal(15, selected.Result.State.Physical.Board.Width);
+        Assert.Equal("imported", selected.ScenarioId);
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(
+            GameEngine.CreateGame(definition), selected.Result.State);
         using var round = await client.PostAsJsonAsync("/api/game/round", new { expectedRevision = selected.Revision });
         round.EnsureSuccessStatusCode();
         var active = (await round.Content.ReadFromJsonAsync<GameResponse>(Json))!;
@@ -277,10 +236,6 @@ public sealed class ScenarioTests
         using var invalid = await client.PostAsJsonAsync("/api/game/scenario", new { expectedRevision = fresh.Revision, scenarioId = "unknown" });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         var script = await client.GetStringAsync("/app.js");
-        Assert.All(PlaytestScenarios.Catalog, scenario =>
-        {
-            Assert.DoesNotContain(scenario.Id, script); Assert.DoesNotContain(scenario.Name, script);
-        });
         Assert.DoesNotContain("grunt", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("shaman", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ghost", script, StringComparison.OrdinalIgnoreCase);

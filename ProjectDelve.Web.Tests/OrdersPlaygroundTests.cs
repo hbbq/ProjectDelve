@@ -1,6 +1,7 @@
 using ProjectDelve.Engine;
 using ProjectDelve.Web;
 using Xunit;
+using static ProjectDelve.Engine.Scenario;
 
 namespace ProjectDelve.Web.Tests;
 
@@ -8,33 +9,22 @@ public sealed class OrdersPlaygroundTests
 {
     private static readonly OrderAwareAutomatedProvider Behavior = new();
 
-    [Fact]
-    public void CatalogDefinitionIsFreshAndCarriesExactSparseOrdersAndControllers()
+    [Theory]
+    [InlineData(UnitTypeIds.Grunt, OrderKind.DoNothing)]
+    [InlineData(UnitTypeIds.SkeletonArcher, OrderKind.HoldPosition)]
+    [InlineData(UnitTypeIds.Zombie, OrderKind.MoveTo)]
+    [InlineData(UnitTypeIds.Goblin, OrderKind.MoveTo)]
+    public void OrderFixtureLoadsSparseOrderAndCreatesIndependentState(string typeId, OrderKind kind)
     {
-        var description = Assert.Single(PlaytestScenarios.Catalog, scenario => scenario.Id == "orders-playground");
-        Assert.Equal("Orders Playground", description.Name);
-        var definition = PlaytestScenarios.Definition(description.Id);
-        var state = PlaytestScenarios.Create(description.Id);
-
-        Assert.Equal((10, 10), (state.Physical.Board.Width, state.Physical.Board.Height));
-        Assert.Equal(new[]
-        {
-            new GroupOrder(new(UnitTypeIds.Grunt, "red"), OrderKind.DoNothing),
-            new GroupOrder(new(UnitTypeIds.SkeletonArcher, "red"), OrderKind.HoldPosition),
-            new GroupOrder(new(UnitTypeIds.Zombie, "red"), OrderKind.MoveTo, new(5, 9)),
-            new GroupOrder(new(UnitTypeIds.Goblin, "red"), OrderKind.MoveTo, new(5, 6))
-        }, state.Orders);
-        Assert.All(state.Controllers.Where(binding => binding.Token.SideId == "red"),
-            binding => Assert.Equal(ControllerKind.Automated, binding.Controller));
-        Assert.All(state.Controllers.Where(binding => binding.Token.SideId == "blue"),
-            binding => Assert.Equal(ControllerKind.Human, binding.Controller));
-        Assert.Equal(4, state.Controllers.Count(binding => binding.Token.SideId == "red"));
-        Assert.Equal(2, state.Controllers.Count(binding => binding.Token.SideId == "blue"));
-
-        var another = PlaytestScenarios.Create(description.Id);
+        var definition = Definition(typeId);
+        var state = GameEngine.CreateGame(definition);
+        var another = GameEngine.CreateGame(definition);
+        Assert.Equal(kind, Assert.Single(state.Orders).Kind);
+        Assert.Equal(ControllerKind.Automated, state.ControllerFor(new ActivationToken(typeId, "red")));
+        Assert.Equal(ControllerKind.Human, state.ControllerFor(new ActivationToken(UnitTypeIds.Barbarian, "blue")));
         state.Orders.Clear();
-        Assert.Equal(4, another.Orders.Count);
-        Assert.Equal(definition.Orders, PlaytestScenarios.Definition(description.Id).Orders);
+        Assert.Equal(kind, Assert.Single(another.Orders).Kind);
+        Assert.Equal(kind, Assert.Single(definition.Orders!).Kind);
     }
 
     [Fact]
@@ -72,10 +62,10 @@ public sealed class OrdersPlaygroundTests
         _ = GameEngine.Advance(state, choice, new FixedRandom(UnitTypeIds.Zombie), false);
         var move = Assert.Single(request.Candidates, candidate => candidate.Key == choice.Key);
 
-        Assert.Equal(new Cell(8, 7), move.Destination);
-        Assert.Equal(new Cell[] { new(9, 6), new(8, 6), new(8, 7) }, move.Path);
-        Assert.Equal(EdgeKind.Wall, state.Physical.Board.EdgeBetween(new(7, 6), new(8, 6)));
-        Assert.DoesNotContain(request.Candidates, candidate => candidate.Destination == new Cell(7, 6));
+        Assert.Equal(new Cell(3, 2), move.Destination);
+        Assert.Equal(new Cell[] { new(4, 1), new(3, 1), new(3, 2) }, move.Path);
+        Assert.Equal(EdgeKind.Wall, state.Physical.Board.EdgeBetween(new(2, 1), new(3, 1)));
+        Assert.DoesNotContain(request.Candidates, candidate => candidate.Destination == new Cell(2, 1));
     }
 
     [Fact]
@@ -85,8 +75,8 @@ public sealed class OrdersPlaygroundTests
         var moveChoice = new Capture(Behavior);
         var result = GameEngine.Advance(state, moveChoice, new FixedRandom(UnitTypeIds.Goblin), false);
         var move = Assert.Single(request.Candidates, candidate => candidate.Key == moveChoice.Key);
-        Assert.Equal(new Cell(5, 6), move.Destination);
-        Assert.Equal(new Cell[] { new(1, 6), new(2, 6), new(3, 6), new(4, 6), new(5, 6) }, move.Path);
+        Assert.Equal(new Cell(4, 2), move.Destination);
+        Assert.Equal(new Cell[] { new(0, 2), new(1, 2), new(2, 2), new(3, 2), new(4, 2) }, move.Path);
 
         var random = new FixedRandom(UnitTypeIds.Goblin);
         var attack = Assert.Single(result.NextInput!.Candidates, candidate => candidate.Action == UnitAction.NormalAttack);
@@ -104,24 +94,41 @@ public sealed class OrdersPlaygroundTests
         var normalChoice = new Capture(new DefaultAutomatedProvider());
         _ = GameEngine.Advance(copy, normalChoice, random, false);
         Assert.Equal(normalChoice.Key, orderedChoice.Key);
-        Assert.Equal("5,7", orderedChoice.Key);
+        Assert.Equal("4,3", orderedChoice.Key);
         Assert.Contains(backedAway.Events, occurrence => occurrence.Kind == "MovementCompleted" && occurrence.IsMoveAfterAttack);
     }
 
     [Fact]
     public void BrowserProjectionCarriesOrdersInCurrentAndResolutionState()
     {
-        var state = PlaytestScenarios.Create("orders-playground");
+        var state = GameEngine.CreateGame(Definition(UnitTypeIds.Zombie));
         var result = new EngineResult(state, [new("Notice")], null) { ResolutionSteps = [new(0, state)] };
         var presentation = BrowserProjection.Create(result);
         Assert.Equal(state.Orders, presentation.Orders);
         Assert.Equal(state.Orders, Assert.Single(presentation.ResolutionSteps).Orders);
     }
 
+    // Each rules question gets a compact board; no dependency on the catalog's Orders Playground.
+    private static ScenarioDefinition Definition(string typeId)
+    {
+        var (board, hero, actor, order) = typeId switch
+        {
+            UnitTypeIds.Grunt => (Map(5, 3), At(1, 1), At(2, 1), new InitialGroupOrder(typeId, "red", OrderKind.DoNothing)),
+            UnitTypeIds.SkeletonArcher => (Map(7, 3), At(1, 1), At(4, 1), new InitialGroupOrder(typeId, "red", OrderKind.HoldPosition)),
+            UnitTypeIds.Zombie => (Map(6, 4, edges: [.. Vertical(2, 1, 2, EdgeKind.Wall)]), At(0, 0), At(4, 1),
+                new InitialGroupOrder(typeId, "red", OrderKind.MoveTo, new(0, 3))),
+            UnitTypeIds.Goblin => (Map(7, 4), At(4, 1), At(0, 2), new InitialGroupOrder(typeId, "red", OrderKind.MoveTo, new(4, 2))),
+            _ => throw new ArgumentException("Unknown Order test fixture.", nameof(typeId))
+        };
+        return Define(board,
+            [Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, hero),
+             Group(typeId, "red", ControllerKind.Automated, actor)], orders: [order]);
+    }
+
     private static (GameState State, DecisionRequest Request, string UnitId) Begin(string typeId)
     {
         var random = new FixedRandom(typeId);
-        var started = GameEngine.StartRound(PlaytestScenarios.Create("orders-playground"), random, false);
+        var started = GameEngine.StartRound(GameEngine.CreateGame(Definition(typeId)), random, false);
         Assert.Equal(new ActivationToken(typeId, "red"), started.State.ActiveToken);
         var unit = Assert.Single(started.State.Units, candidate => candidate.TypeId == typeId && candidate.SideId == "red");
         if (started.NextInput!.Kind != DecisionKind.SelectUnit)

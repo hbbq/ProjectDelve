@@ -38,14 +38,14 @@ public sealed class PlaytestApiTests
     };
 
     [Theory]
-    [InlineData("basic-combat")]
-    [InlineData("full-party-trolls")]
-    public async Task ImportedScenarioUsesNormalCreationGameplayAndRestart(string id)
+    [InlineData("combat")]
+    [InlineData("serialization")]
+    public async Task ImportedFixtureMatchesDirectGameplayAndRetainsRestartDefinition(string id)
     {
-        await using var catalogHost = await Host.Start(hit: true);
         await using var importHost = await Host.Start(hit: true);
-        var definition = PlaytestScenarios.Definition(id);
-        var catalog = await Start(catalogHost, "scenario", new { expectedRevision = 0, scenarioId = id });
+        var definition = WebScenarioFixtures.Named(id);
+        using var direct = new PlaytestGame(new FixedRandom(true, false, 6), GameEngine.CreateGame(definition));
+        var directResponse = direct.Snapshot();
         var imported = await Start(importHost, "scenario/import", new
         {
             expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(definition)
@@ -57,39 +57,50 @@ public sealed class PlaytestApiTests
         Assert.Empty(imported.Result.ResolutionSteps);
         Assert.Null(imported.Result.NextInput);
 
-        catalog = await Start(catalogHost, "preferences", new { expectedRevision = catalog.Revision, autoChooseSingleRelevantChoice = false });
+        directResponse = direct.SetRelevanceAutoChoice(directResponse.Revision, false);
         imported = await Start(importHost, "preferences", new { expectedRevision = imported.Revision, autoChooseSingleRelevantChoice = false });
-        catalog = await Start(catalogHost, "round", new { expectedRevision = catalog.Revision });
+        directResponse = direct.StartRound(directResponse.Revision);
         imported = await Start(importHost, "round", new { expectedRevision = imported.Revision });
         var sawDice = false;
         for (var decisions = 0; ; decisions++)
         {
-            Assert.Equal(JsonSerializer.Serialize(catalog.Result, Json), JsonSerializer.Serialize(imported.Result, Json));
-            Assert.Equal(JsonSerializer.Serialize(catalog.Presentation, Json), JsonSerializer.Serialize(imported.Presentation, Json));
-            Assert.Equal(catalog.Revision, imported.Revision);
+            var directView = direct.BrowserResponse(directResponse);
+            Assert.Equal(JsonSerializer.Serialize(directView.Result, Json), JsonSerializer.Serialize(imported.Result, Json));
+            Assert.Equal(JsonSerializer.Serialize(directView.Presentation, Json), JsonSerializer.Serialize(imported.Presentation, Json));
+            Assert.Equal(directResponse.Revision + 1, imported.Revision);
             if (imported.Result.NextInput is not { } pending) break;
-            Assert.True(decisions < 128, "The imported and catalog games must finish a round.");
+            Assert.True(decisions < 128, "The imported and directly instantiated games must finish a round.");
             Assert.Equal(ControllerKind.Human, imported.Result.State.ControllerFor(pending));
             sawDice |= pending.Kind == DecisionKind.RollDice;
-            // Basic Combat walks into range and attacks to exercise explicit dice continuations.
-            var key = id == "basic-combat" ? pending.Candidates.FirstOrDefault(c =>
-                c.Key == "3,4" || c.Action == UnitAction.NormalAttack)?.Key : null;
+            // The combat fixture walks into range and attacks to exercise explicit dice continuations.
+            var key = id == "combat" ? pending.Candidates.FirstOrDefault(c =>
+                c.Key == "2,1" || c.Action == UnitAction.NormalAttack)?.Key : null;
             key ??= pending.Candidates.FirstOrDefault(c => c.Kind is ActivationChoiceKind.Stay or ActivationChoiceKind.EndTurn or ActivationChoiceKind.RollDice)?.Key;
-            catalog = await Start(catalogHost, "decision", new { expectedRevision = catalog.Revision, candidateKey = key });
+            directResponse = direct.Decide(directResponse.Revision, key);
             imported = await Start(importHost, "decision", new { expectedRevision = imported.Revision, candidateKey = key });
         }
-        Assert.True(imported.Result.State.RoundComplete);
-        if (id == "basic-combat") Assert.True(sawDice);
+        if (id == "serialization")
+        {
+            // This fixture's Attack Order defeats its selected scout and ends the game mid-round.
+            Assert.Equal(new[] { "red" }, imported.Result.State.Completion!.AchievedSideIds);
+        }
+        else
+        {
+            Assert.True(imported.Result.State.RoundComplete);
+            Assert.True(sawDice);
+        }
         var fresh = await Start(importHost, "restart", new { expectedRevision = imported.Revision });
         Assert.Equal("imported", fresh.ScenarioId);
         Assert.False(fresh.AutoChooseSingleRelevantChoice);
         ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition), fresh.Result.State);
 
-        // Switching back to the catalog also replaces the retained restart definition.
-        var selected = await Start(importHost, "scenario", new { expectedRevision = fresh.Revision, scenarioId = "archers" });
+        // A replacement setup must replace the retained restart definition as well.
+        var replacement = id == "combat" ? WebScenarioFixtures.Serialization() : WebScenarioFixtures.Combat();
+        var selected = await Start(importHost, "scenario/import", new { expectedRevision = fresh.Revision,
+            transport = ScenarioDefinitionTransport.Encode(replacement) });
         var restarted = await Start(importHost, "restart", new { expectedRevision = selected.Revision });
-        Assert.Equal("archers", restarted.ScenarioId);
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(PlaytestScenarios.Create("archers"), restarted.Result.State);
+        Assert.Equal("imported", restarted.ScenarioId);
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(replacement), restarted.Result.State);
     }
 
     [Theory]
@@ -105,12 +116,12 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         if (transport == "invalid-definition")
         {
-            var definition = PlaytestScenarios.Definition("full-party-trolls");
+            var definition = WebScenarioFixtures.Serialization();
             transport = ScenarioDefinitionTransport.Encode(definition with { Board = definition.Board with { Width = 0 } });
         }
         var initial = await Start(host, "scenario/import", new
         {
-            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(PlaytestScenarios.Definition("basic-combat"))
+            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat())
         });
         var active = await host.Round(initial.Revision);
         var before = JsonSerializer.Serialize(await host.Read(), Json);
@@ -132,7 +143,7 @@ public sealed class PlaytestApiTests
         var active = await host.Round(0);
         using var rejected = await host.Post("scenario/import", new
         {
-            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(PlaytestScenarios.Definition("full-party-trolls"))
+            expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Serialization())
         });
         Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
         Assert.Equal(JsonSerializer.Serialize(active.Result.State, Json), JsonSerializer.Serialize((await host.Read()).Result.State, Json));

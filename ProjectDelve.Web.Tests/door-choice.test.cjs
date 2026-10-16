@@ -1674,9 +1674,14 @@ test("setup sends controller bindings for actual arbitrary Sides and allows reve
     h.run('controllerSelects.get(gambitSide).value = "Gambit"; controllerSelects.get(gambitSide).listeners.change();');
     await h.elements.get("start-scenario").listeners.click();
     assert.equal(requests[0].body.controllers[gambitSide], "Gambit");
-    assert.equal(requests[0].body.controllers[gambitSide === "violet-side" ? "copper-side" : "violet-side"], "Human");
+    const otherSide = gambitSide === "violet-side" ? "copper-side" : "violet-side";
+    assert.equal(requests[0].body.controllers[otherSide], initial.controllers[otherSide]);
     assert.equal(requests[0].body.scenarioId, "custom");
     assert.match(h.elements.get("side-controllers").textContent, /Default Behavior/);
+    h.context.otherSide = otherSide;
+    h.run('controllerSelects.get(otherSide).value = "Gambit"; controllerSelects.get(otherSide).listeners.change();');
+    assert.equal(h.run("controllerSelects.get(gambitSide).value"), "Human");
+    assert.equal(h.run("controllerSelects.get(otherSide).value"), "Gambit");
   }
 });
 
@@ -1771,7 +1776,7 @@ test("imported scenario exposes its actual Side controller assignments for resta
   });
   h.run('controllerSelects.get("side-with-wizard").value = "Gambit"; controllerSelects.get("side-with-wizard").listeners.change();');
   await h.elements.get("restart-scenario").listeners.click();
-  assert.deepEqual(requests[0].controllers, { "side-with-wizard": "Gambit", "side-with-barbarian": "Human" });
+  assert.deepEqual(requests[0].controllers, { "side-with-wizard": "Gambit", "side-with-barbarian": "Default Behavior" });
 });
 
 
@@ -1868,10 +1873,10 @@ test("authored Blue and Red colors apply before figures on fresh start and scena
   for (const switched of [false, true]) {
     const initial = response([]);
     const h = harness(initial);
-    h.context.authored = { id: "genombrottet", sideHues: { "side-1": 210, "side-2": 0 } };
+    h.context.authored = { id: "fixture-colors", sideHues: { "side-1": 210, "side-2": 0 } };
     h.run(`
       if (${switched}) { styleSide(ui.status, "blue"); styleSide(ui.status, "red"); }
-      snapshot.scenarioId = "genombrottet"; snapshot.scenarios = [authored];
+      snapshot.scenarioId = "fixture-colors"; snapshot.scenarios = [authored];
       snapshot.result.state.units[0].sideId = "side-2";
       snapshot.result.state.units[1].sideId = "side-1";
       renderState(snapshot.result.state);

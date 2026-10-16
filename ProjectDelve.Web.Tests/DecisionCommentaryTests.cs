@@ -169,8 +169,8 @@ public sealed class DecisionCommentaryTests
         Assert.Equal("ActionUsed", smashed.Result.Events[door.EventIndex].Kind);
         Assert.Contains(smashed.Result.Events, e => e.Kind == "DoorOpeningAttemptResolved");
 
-        using var shaper = new PlaytestGame(new Dice { PreferredType = UnitTypeIds.LabyrinthShaper });
-        var scenario = shaper.StartScenario(0, "labyrinth-shaper"); var reshaped = shaper.StartRound(scenario.Revision);
+        using var shaper = new PlaytestGame(new Dice { PreferredType = UnitTypeIds.LabyrinthShaper }, GameEngine.CreateGame(WebScenarioFixtures.Shaper()));
+        var scenario = shaper.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Shaper())); var reshaped = shaper.StartRound(scenario.Revision);
         var reshape = Assert.Single(reshaped.Commentaries);
         Assert.Equal("The room shall take a new shape.", reshape.Text);
         Assert.Equal("ActionUsed", reshaped.Result.Events[reshape.EventIndex].Kind);

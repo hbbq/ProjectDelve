@@ -59,6 +59,10 @@ Run the relevant focused tests first, then the broadest practical existing verif
 
 If a required verification cannot be run in the current environment, state exactly what was attempted, what prevented it, and what remains unverified.
 
+### Authored scenarios and test fixtures
+
+Real/playtest scenarios are mutable content, not test fixtures. Tests using them may only check engine validity and successful loading/instantiation; do not assert or depend on their layout, Units, Objectives, Orders, controllers, or other authored configuration. Test mechanics, serialization, projections, and web behavior with small, dedicated test-owned scenarios instead, retaining strict assertions where they protect a behavioral contract. Consolidate real-scenario loading checks and migrate valuable regression coverage to fixtures rather than deleting it. Do not change scenario content or weaken validation to satisfy tests.
+
 ## Repository working knowledge
 
 Agents may update **this section** of `AGENTS.md` when they discover stable, verified repository knowledge that would otherwise need to be rediscovered in future sessions.

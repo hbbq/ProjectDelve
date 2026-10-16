@@ -6,15 +6,12 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class ScenarioDefinitionJsonTests
 {
-    [Theory]
-    [InlineData("full-party-trolls")]
-    [InlineData("shaman-hunt")]
-    [InlineData("labyrinth-shaper")]
-    [InlineData("orders-assault")]
-    [InlineData("orders-escort-retreat")]
+    public static TheoryData<string> Fixtures => new() { "combat", "serialization", "resources", "dragon", "shaper", "shaman" };
+
+    [Theory, MemberData(nameof(Fixtures))]
     public void AuthoredAndJsonLoadedScenariosProduceEquivalentRoundZeroStates(string id)
     {
-        var authoredDefinition = PlaytestScenarios.Definition(id);
+        var authoredDefinition = WebScenarioFixtures.Named(id);
         var authoredState = GameEngine.CreateGame(authoredDefinition);
         var json = ScenarioDefinitionJson.ToJson(authoredDefinition);
         var loadedDefinition = ScenarioDefinitionJson.FromJson(json);
@@ -27,6 +24,7 @@ public sealed class ScenarioDefinitionJsonTests
         Assert.Equal(authoredDefinition.Units, loadedDefinition.Units);
         Assert.Equal(authoredDefinition.Agency, loadedDefinition.Agency);
         Assert.Equal(authoredDefinition.Orders, loadedDefinition.Orders);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(authoredDefinition), ScenarioDefinitionJson.ToJson(loadedDefinition));
 
         AssertEquivalentRoundZeroStates(authoredState, loadedState);
     }
@@ -54,7 +52,11 @@ public sealed class ScenarioDefinitionJsonTests
         foreach (var (expected, actual) in authoredState.Types.Zip(loadedState.Types))
         {
             // Record fields compare by value; ImmutableArray needs explicit sequence comparison.
-            Assert.Equal(expected with { BonusActions = actual.BonusActions }, actual);
+            Assert.Equal(expected.AttackDefinitionOrder.ToArray(), actual.AttackDefinitionOrder.ToArray());
+            Assert.Equal(expected with
+            {
+                BonusActions = actual.BonusActions, AttackDefinitionOrder = actual.AttackDefinitionOrder
+            }, actual);
             Assert.Equal(expected.BonusActions.Length, actual.BonusActions.Length);
             foreach (var (expectedAbility, actualAbility) in expected.BonusActions.Zip(actual.BonusActions))
             {
@@ -78,6 +80,18 @@ public sealed class ScenarioDefinitionJsonTests
         Assert.Equal(authoredState.Physical.Figures, loadedState.Physical.Figures);
         Assert.Equal(authoredState.Controllers, loadedState.Controllers);
         Assert.Equal(authoredState.Orders, loadedState.Orders);
+        Assert.Equal(authoredState.Resources, loadedState.Resources);
+        Assert.Equal(authoredState.Objectives.Count, loadedState.Objectives.Count);
+        foreach (var (expected, actual) in authoredState.Objectives.Zip(loadedState.Objectives))
+        {
+            Assert.Equal(expected.Selectors.ToArray(), actual.Selectors.ToArray());
+            Assert.Equal(expected with { Selectors = actual.Selectors }, actual);
+        }
+        Assert.Equal(authoredState.ObjectiveStartUnitIds.Keys.Order(), loadedState.ObjectiveStartUnitIds.Keys.Order());
+        foreach (var side in authoredState.ObjectiveStartUnitIds.Keys)
+            Assert.Equal(authoredState.ObjectiveStartUnitIds[side].ToArray(), loadedState.ObjectiveStartUnitIds[side].ToArray());
+        Assert.Equal(authoredState.DefeatedUnitIds.Order(), loadedState.DefeatedUnitIds.Order());
+        Assert.Equal(authoredState.Completion, loadedState.Completion);
         Assert.Equal(authoredState.WorldEffects, loadedState.WorldEffects);
         Assert.Equal(authoredState.WorldDeck?.DrawPile, loadedState.WorldDeck?.DrawPile);
         Assert.Equal(authoredState.WorldDeck?.DiscardPile, loadedState.WorldDeck?.DiscardPile);

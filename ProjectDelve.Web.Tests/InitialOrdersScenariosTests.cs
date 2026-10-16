@@ -1,6 +1,7 @@
 using ProjectDelve.Engine;
 using ProjectDelve.Web;
 using Xunit;
+using static ProjectDelve.Engine.Scenario;
 
 namespace ProjectDelve.Web.Tests;
 
@@ -9,14 +10,12 @@ public sealed class InitialOrdersScenariosTests
     private static readonly OrderAwareAutomatedProvider Behavior = new();
 
     [Fact]
-    public void AssaultAuthorsStableTargetsControllersAndCanonicalDoor()
+    public void DoorAndAttackFixtureLoadsStableTargetsControllersAndCanonicalDoor()
     {
-        var description = Assert.Single(PlaytestScenarios.Catalog, scenario => scenario.Id == "orders-assault");
-        Assert.Equal("Orders: Assault", description.Name);
-        var definition = PlaytestScenarios.Definition(description.Id);
-        var state = PlaytestScenarios.Create(description.Id);
+        var definition = FixtureDefinition("attack-door");
+        var state = GameEngine.CreateGame(definition);
 
-        Assert.Equal((11, 11), (state.Physical.Board.Width, state.Physical.Board.Height));
+        Assert.Equal((9, 7), (state.Physical.Board.Width, state.Physical.Board.Height));
         Assert.Equal("assault-hero", Assert.Single(definition.Units, unit => unit.UnitId == "assault-hero").UnitId);
         Assert.Contains(state.Units, unit => unit.Id == "assault-hero" && unit.TypeId == UnitTypeIds.Barbarian);
         Assert.Contains(state.Units, unit => unit.Id == "assault-rogue" && unit.TypeId == UnitTypeIds.Rogue);
@@ -37,14 +36,12 @@ public sealed class InitialOrdersScenariosTests
     }
 
     [Fact]
-    public void EscortAuthorsMovingProtectAndRetreatGroups()
+    public void EscortFixtureLoadsMoveProtectAndRetreatGroups()
     {
-        var description = Assert.Single(PlaytestScenarios.Catalog, scenario => scenario.Id == "orders-escort-retreat");
-        Assert.Equal("Orders: Escort & Retreat", description.Name);
-        var definition = PlaytestScenarios.Definition(description.Id);
-        var state = PlaytestScenarios.Create(description.Id);
+        var definition = FixtureDefinition("escort-retreat");
+        var state = GameEngine.CreateGame(definition);
 
-        Assert.Equal((12, 12), (state.Physical.Board.Width, state.Physical.Board.Height));
+        Assert.Equal((11, 8), (state.Physical.Board.Width, state.Physical.Board.Height));
         Assert.Equal("escort-leader", Assert.Single(definition.Units, unit => unit.UnitId == "escort-leader").UnitId);
         Assert.Contains(state.Units, unit => unit.Id == "escort-leader" && unit.TypeId == UnitTypeIds.Grunt);
         Assert.Equal(new[]
@@ -61,7 +58,7 @@ public sealed class InitialOrdersScenariosTests
     [Fact]
     public void AssaultDoorOrderApproachesThenChoosesTheExistingDoorInteraction()
     {
-        var (state, request) = Begin("orders-assault", UnitTypeIds.Zombie);
+        var (state, request) = Begin("attack-door", UnitTypeIds.Zombie);
         var moveChoice = new Capture(Behavior);
         var moved = GameEngine.Advance(state, moveChoice, new FixedRandom(UnitTypeIds.Zombie), false);
         var move = Assert.Single(request.Candidates, candidate => candidate.Key == moveChoice.Key);
@@ -78,13 +75,13 @@ public sealed class InitialOrdersScenariosTests
     [Fact]
     public void EscortMovementProtectResponseAndRetreatAreObservableAndDeterministic()
     {
-        var (moveState, moveRequest) = Begin("orders-escort-retreat", UnitTypeIds.Grunt);
+        var (moveState, moveRequest) = Begin("escort-retreat", UnitTypeIds.Grunt);
         var moveChoice = new Capture(Behavior);
         _ = GameEngine.Advance(moveState, moveChoice, new FixedRandom(UnitTypeIds.Grunt), false);
         Assert.Equal(new Cell(6, 3), Assert.Single(moveRequest.Candidates,
             candidate => candidate.Key == moveChoice.Key).Destination);
 
-        var protectSetup = PlaytestScenarios.Create("orders-escort-retreat");
+        var protectSetup = Fixture("escort-retreat");
         var leaderFigure = protectSetup.Physical.Figures.Single(figure => figure.Id == "escort-leader");
         protectSetup.Physical.Figures[protectSetup.Physical.Figures.IndexOf(leaderFigure)] =
             leaderFigure with { Position = new(6, 3) };
@@ -94,7 +91,7 @@ public sealed class InitialOrdersScenariosTests
         var protectMove = Assert.Single(protectRequest.Candidates, candidate => candidate.Key == protectChoice.Key);
         Assert.Equal(new Cell(8, 4), protectMove.Destination);
 
-        var (retreatState, retreatRequest) = Begin("orders-escort-retreat", UnitTypeIds.Goblin);
+        var (retreatState, retreatRequest) = Begin("escort-retreat", UnitTypeIds.Goblin);
         var retreatChoice = new Capture(Behavior);
         _ = GameEngine.Advance(retreatState, retreatChoice, new FixedRandom(UnitTypeIds.Goblin), false);
         var retreatMove = Assert.Single(retreatRequest.Candidates, candidate => candidate.Key == retreatChoice.Key);
@@ -102,10 +99,10 @@ public sealed class InitialOrdersScenariosTests
     }
 
     [Theory]
-    [InlineData("orders-assault", UnitTypeIds.Zombie)]
-    [InlineData("orders-escort-retreat", UnitTypeIds.Grunt)]
-    [InlineData("orders-escort-retreat", UnitTypeIds.Zombie)]
-    [InlineData("orders-escort-retreat", UnitTypeIds.Goblin)]
+    [InlineData("attack-door", UnitTypeIds.Zombie)]
+    [InlineData("escort-retreat", UnitTypeIds.Grunt)]
+    [InlineData("escort-retreat", UnitTypeIds.Zombie)]
+    [InlineData("escort-retreat", UnitTypeIds.Goblin)]
     public void DefaultBehaviorPreviewUsesTheSameOrderAwareFirstChoice(string id, string typeId)
     {
         var (state, request) = Begin(id, typeId);
@@ -118,36 +115,36 @@ public sealed class InitialOrdersScenariosTests
     [Fact]
     public void CompletedOrDefeatedScenarioTargetsFallBackToNormalWithoutClearingOrders()
     {
-        var attackOrdered = PlaytestScenarios.Create("orders-assault");
+        var attackOrdered = Fixture("attack-door");
         DefeatAndRemove(attackOrdered, "assault-hero");
-        var attackNormal = PlaytestScenarios.Create("orders-assault");
+        var attackNormal = Fixture("attack-door");
         DefeatAndRemove(attackNormal, "assault-hero");
         attackNormal.Orders.RemoveAll(order => order.Token == new ActivationToken(UnitTypeIds.Grunt, "red"));
         AssertSameFirstChoice(attackOrdered, attackNormal, UnitTypeIds.Grunt);
         Assert.Contains(attackOrdered.Orders, order => order.Kind == OrderKind.Attack && order.Target?.UnitId == "assault-hero");
 
-        var protectOrdered = PlaytestScenarios.Create("orders-escort-retreat");
+        var protectOrdered = Fixture("escort-retreat");
         DefeatAndRemove(protectOrdered, "escort-leader");
-        var protectNormal = PlaytestScenarios.Create("orders-escort-retreat");
+        var protectNormal = Fixture("escort-retreat");
         DefeatAndRemove(protectNormal, "escort-leader");
         protectNormal.Orders.RemoveAll(order => order.Token == new ActivationToken(UnitTypeIds.Zombie, "red"));
         AssertSameFirstChoice(protectOrdered, protectNormal, UnitTypeIds.Zombie);
         Assert.Contains(protectOrdered.Orders, order => order.Kind == OrderKind.Protect && order.Target?.UnitId == "escort-leader");
 
-        var doorOrdered = PlaytestScenarios.Create("orders-assault");
+        var doorOrdered = Fixture("attack-door");
         OpenAssaultDoor(doorOrdered);
-        var doorNormal = PlaytestScenarios.Create("orders-assault");
+        var doorNormal = Fixture("attack-door");
         OpenAssaultDoor(doorNormal);
         doorNormal.Orders.RemoveAll(order => order.Token == new ActivationToken(UnitTypeIds.Zombie, "red"));
         AssertSameFirstChoice(doorOrdered, doorNormal, UnitTypeIds.Zombie);
         Assert.Contains(doorOrdered.Orders, order => order.Kind == OrderKind.InteractWith);
     }
     [Theory]
-    [InlineData("orders-assault")]
-    [InlineData("orders-escort-retreat")]
+    [InlineData("attack-door")]
+    [InlineData("escort-retreat")]
     public void ProjectionAndDetachedCopyPreserveStandingOrders(string id)
     {
-        var state = PlaytestScenarios.Create(id);
+        var state = Fixture(id);
         var copy = System.Text.Json.JsonSerializer.Deserialize<GameState>(
             System.Text.Json.JsonSerializer.Serialize(state))!;
         Assert.Equal(state.Orders, copy.Orders);
@@ -158,6 +155,33 @@ public sealed class InitialOrdersScenariosTests
         Assert.Equal(state.Orders, presentation.Orders);
         Assert.Equal(copy.Orders, Assert.Single(presentation.ResolutionSteps).Orders);
     }
+
+    // Deliberately small mechanic fixtures, independent of every editable catalog scenario.
+    private static GameState Fixture(string id) => GameEngine.CreateGame(FixtureDefinition(id));
+    private static ScenarioDefinition FixtureDefinition(string id) => id switch
+    {
+        "attack-door" => Define(Map(9, 7, edges: [
+            .. Vertical(5, 0, 3, EdgeKind.Wall), .. Vertical(5, 5, 6, EdgeKind.Wall),
+            Edge(5, 4, EdgeDirection.Right, EdgeKind.ClosedDoor)]),
+            [Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(2, 2, unitId: "assault-hero")),
+             Group(UnitTypeIds.Rogue, "blue", ControllerKind.Human, At(2, 5, unitId: "assault-rogue")),
+             Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(8, 2)),
+             Group(UnitTypeIds.SkeletonArcher, "red", ControllerKind.Automated, At(8, 6)),
+             Group(UnitTypeIds.Zombie, "red", ControllerKind.Automated, At(8, 4))],
+            orders: [new(UnitTypeIds.Grunt, "red", OrderKind.Attack, Target: OrderTarget.ForUnit("assault-hero")),
+                new(UnitTypeIds.SkeletonArcher, "red", OrderKind.Attack, Target: OrderTarget.ForSide("blue")),
+                new(UnitTypeIds.Zombie, "red", OrderKind.InteractWith, Target: OrderTarget.ForDoor(new(5, 4), new(6, 4)))]),
+        "escort-retreat" => Define(Map(11, 8),
+            [Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, At(2, 5)),
+             Group(UnitTypeIds.Rogue, "blue", ControllerKind.Human, At(3, 6)),
+             Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, At(9, 3, unitId: "escort-leader")),
+             Group(UnitTypeIds.Zombie, "red", ControllerKind.Automated, At(10, 4)),
+             Group(UnitTypeIds.Goblin, "red", ControllerKind.Automated, At(5, 5), At(6, 6))],
+            orders: [new(UnitTypeIds.Grunt, "red", OrderKind.MoveTo, new(3, 3)),
+                new(UnitTypeIds.Zombie, "red", OrderKind.Protect, Target: OrderTarget.ForUnit("escort-leader")),
+                new(UnitTypeIds.Goblin, "red", OrderKind.Retreat)]),
+        _ => throw new ArgumentException("Unknown Order test fixture.", nameof(id))
+    };
 
     private static void AssertSameFirstChoice(GameState ordered, GameState normal, string typeId)
     {
@@ -184,7 +208,7 @@ public sealed class InitialOrdersScenariosTests
         state.Physical.Board.Edges[index] = state.Physical.Board.Edges[index] with { Kind = EdgeKind.OpenDoor };
     }
     private static (GameState State, DecisionRequest Request) Begin(string scenarioId, string typeId) =>
-        Begin(PlaytestScenarios.Create(scenarioId), typeId);
+        Begin(Fixture(scenarioId), typeId);
 
     private static (GameState State, DecisionRequest Request) Begin(GameState state, string typeId)
     {

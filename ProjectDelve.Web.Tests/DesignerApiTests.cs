@@ -46,21 +46,16 @@ public sealed class DesignerApiTests
     }
 
     [Theory]
-    [InlineData("full-party-trolls")]
-    [InlineData("shaman-hunt")]
-    [InlineData("labyrinth-shaper")]
+    [InlineData("serialization")]
+    [InlineData("shaman")]
+    [InlineData("shaper")]
     [InlineData("complete-data")]
     [InlineData("world-effects")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id is "complete-data" or "world-effects" ? CompleteData() : PlaytestScenarios.Definition(id);
+        var definition = id is "complete-data" or "world-effects" ? CompleteData() : WebScenarioFixtures.Named(id);
         if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
-        if (id == "full-party-trolls")
-        {
-            var fixture = File.ReadAllText(Path.Combine(host.ContentRoot, "../ProjectDelve.Web.Tests/fixtures/full-party.json"));
-            Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(ScenarioDefinitionJson.FromJson(fixture)));
-        }
         var before = await host.Client.GetStringAsync("/api/game");
         using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = ScenarioDefinitionTransport.Encode(definition) });
         imported.EnsureSuccessStatusCode();
@@ -74,9 +69,9 @@ public sealed class DesignerApiTests
         var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
         Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(ScenarioDefinitionTransport.Decode(transport)));
         Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
-        using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = 0 });
+        using var restarted = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()) });
         var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(PlaytestScenarios.Create(PlaytestScenarios.DefaultId), fresh.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(WebScenarioFixtures.Combat()), fresh.Result.State);
         using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = fresh.Revision, transport });
         played.EnsureSuccessStatusCode();
         var game = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
@@ -185,7 +180,7 @@ public sealed class DesignerApiTests
         public static async Task<Host> Start()
         {
             var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-            var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root]);
+            var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root], random: null, initialState: GameEngine.CreateGame(WebScenarioFixtures.Combat()));
             await app.StartAsync();
             var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
             return new(app, new HttpClient { BaseAddress = new Uri(address) }, root);

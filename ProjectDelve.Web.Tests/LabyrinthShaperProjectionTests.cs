@@ -23,7 +23,7 @@ public sealed class LabyrinthShaperProjectionTests
     public void ImportedBossHasUnlimitedUntargetedBonusActionWithCanonicalPresentation()
     {
         var definition = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(
-            PlaytestScenarios.Definition("labyrinth-shaper")));
+            WebScenarioFixtures.Shaper()));
         var started = TestGame.StartRound(GameEngine.CreateGame(definition), new ShaperFirstRandom(), false);
         var presentation = BrowserProjection.Create(started);
         var card = presentation.Cards[started.State.CurrentUnitId!];
@@ -43,8 +43,8 @@ public sealed class LabyrinthShaperProjectionTests
     [Fact]
     public void AutomatedScenarioReshapesBeforeMovingAndSuppliesAuthoritativeBoardSnapshot()
     {
-        var game = new PlaytestGame(new ShaperFirstRandom());
-        var initial = game.StartScenario(0, "labyrinth-shaper");
+        var game = new PlaytestGame(new ShaperFirstRandom(), GameEngine.CreateGame(WebScenarioFixtures.Shaper()));
+        var initial = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Shaper()));
         var boss = Assert.Single(initial.Result.State.Units, u => u.TypeId == UnitTypeIds.LabyrinthShaper);
         var round = game.StartRound(initial.Revision);
         var occurrence = Assert.Single(round.Result.Events, e => e.Kind == "AbilityUsed" && e.UnitId == boss.Id);
@@ -63,9 +63,6 @@ public sealed class LabyrinthShaperProjectionTests
         Assert.Equal(EdgeKind.None, board.EdgeBetween(new(5, 3), new(6, 3)));
         Assert.Equal(EdgeKind.WallWithWindow, board.EdgeBetween(new(7, 6), new(7, 7)));
         Assert.Contains("Reshape Room", round.Presentation.Events[reshapeIndex].Text);
-        var description = PlaytestScenarios.Catalog.Single(s => s.Id == "labyrinth-shaper");
-        Assert.Contains("digital-only", description.Name);
-        Assert.Contains("Digital-only", description.Description);
         var restarted = game.Restart(round.Revision);
         ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(initial.Result.State, restarted.Result.State);
     }

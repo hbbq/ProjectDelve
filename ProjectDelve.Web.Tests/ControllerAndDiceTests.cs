@@ -79,25 +79,13 @@ public sealed class ControllerAndDiceTests
     }
 
     [Fact]
-    public void CanonicalScenarioControllersAreAuthoredAndIndependentAcrossFreshCopies()
+    public void FixtureControllersPreserveAuthoredAgencyAndAreIndependentAcrossCopies()
     {
-        foreach (var scenario in PlaytestScenarios.Catalog)
-        {
-            var state = PlaytestScenarios.Create(scenario.Id);
-            var authored = PlaytestScenarios.Definition(scenario.Id).Agency.Select(a => new ActivationToken(a.UnitTypeId, a.SideId));
-            Assert.Equal(authored.OrderBy(t => t.TypeId).ThenBy(t => t.SideId),
-                state.Controllers.Select(c => c.Token).OrderBy(t => t.TypeId).ThenBy(t => t.SideId));
-            foreach (var id in new[] { UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric })
-                Assert.All(state.Controllers.Where(c => c.Token.TypeId == id), c => Assert.Equal(ControllerKind.Human, c.Controller));
-            Assert.All(state.Controllers.Where(c => c.Token.SideId == "red"), c => Assert.Equal(ControllerKind.Automated, c.Controller));
-            if (scenario.Id == "shaman-hunt")
-            {
-                Assert.Contains(state.Controllers, c => c.Token == new ActivationToken(UnitTypeIds.Goblin, "red"));
-                Assert.DoesNotContain(state.Units, u => u.TypeId == UnitTypeIds.Goblin && u.SideId == "red");
-            }
-            state.Controllers.Clear();
-            Assert.NotEmpty(PlaytestScenarios.Create(scenario.Id).Controllers);
-        }
+        var definition = WebScenarioFixtures.Shaman();
+        var state = GameEngine.CreateGame(definition);
+        Assert.Equal(definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)), state.Controllers);
+        state.Controllers.Clear();
+        Assert.Equal(3, GameEngine.CreateGame(definition).Controllers.Count);
     }
 
     [Fact]

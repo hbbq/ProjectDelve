@@ -158,7 +158,7 @@ public sealed class GambitDelegationTests
         stale.StartRound(0);
         var old = Assert.IsType<GambitRequest>(stale.ControllerRequest());
         stale.AdmitController(old.Binding);
-        stale.StartScenario(old.Binding.Revision, PlaytestScenarios.DefaultId);
+        stale.StartTransportScenario(old.Binding.Revision, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()));
         Assert.Equal("rejected", stale.SubmitController(new("stale-delegate", old.Binding, "two",
             ActivationControl: GambitActivationControl.Delegate)).Status);
         Assert.Equal("idle", stale.ControllerState().Status);

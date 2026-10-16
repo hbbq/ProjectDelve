@@ -5,12 +5,12 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
-const fullParty = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/full-party.json"), "utf8"));
+const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
 const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const catalog = {
   maxBoardSize: 50,
-  unitTypes: [...fullParty.unitTypeIds, "opaque-large", "unplaced"].map(id => ({
+  unitTypes: [...designerSetup.unitTypeIds, "opaque-large", "unplaced"].map(id => ({
     unitTypeId: id, displayName: `Printed ${id}`, maxHp: 8,
     cellSpan: id === "opaque-large" ? 2 : 1,
     footprintOffsets: id === "opaque-large" ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] : [{ x: 0, y: 0 }]
@@ -145,7 +145,7 @@ test("editing or removing a group carries or removes its starting Order", () => 
 });
 
 test("imported Orders and IDs survive unrelated editing, validation, export and play", async () => {
-  const definition = structuredClone(fullParty), submitted = [], played = [];
+  const definition = structuredClone(designerSetup), submitted = [], played = [];
   definition.units[0].unitId = "stable-leader";
   definition.orders = [{ unitTypeId: definition.agency[0].unitTypeId, sideId: definition.agency[0].sideId,
     kind: "Protect", target: { kind: "Unit", unitId: "stable-leader" } }];
@@ -313,7 +313,7 @@ test("first-use declarations preserve order, unplaced declarations and imported 
   const key = draft.place("goblin-type", "A", "Human", { x: 0, y: 0 });
   draft.place("wizard-type", "A", "Human", { x: 1, y: 0 }); draft.removeUnit(key);
   assert.deepEqual(plain(draft.definition.unitTypeIds), ["unplaced", "goblin-type", "wizard-type"]);
-  const imported = structuredClone(fullParty);
+  const imported = structuredClone(designerSetup);
   imported.unitTypeIds.unshift("unplaced"); imported.unitTypeIds.reverse();
   imported.agency.push({ unitTypeId: "unplaced", sideId: "future", controller: "Automated" });
   imported.board.edges.push({ position: { x: 0, y: 0 }, direction: "Right", kind: "None" });
@@ -324,15 +324,15 @@ test("first-use declarations preserve order, unplaced declarations and imported 
   assert.match(h.editor.ui.order.textContent, /unplaced/);
 });
 
-test("successful FullParty import renders concrete cells, edges, placements and order faithfully", async () => {
-  const h = harness(async operation => operation === "import" ? structuredClone(fullParty) : { valid: true, errors: [] });
+test("successful test-fixture import renders concrete cells, edges, placements and order faithfully", async () => {
+  const h = harness(async operation => operation === "import" ? structuredClone(designerSetup) : { valid: true, errors: [] });
   h.editor.ui.transport.value = "DELVE1:server-decoded-fixture"; await h.click("import");
-  assert.deepEqual(plain(h.editor.draft.snapshot()), fullParty);
-  assert.equal(h.editor.ui.board.querySelectorAll(".cell").length, 225);
-  assert.equal(h.editor.ui.board.querySelectorAll(".figure").length, fullParty.units.length);
-  assert.match(h.cell(5, 4).className, /Tree/);
-  assert.match(h.edge(7, 3, "Right").className, /ClosedDoor/);
-  assert.equal(h.editor.ui.order.children.length, fullParty.unitTypeIds.length);
+  assert.deepEqual(plain(h.editor.draft.snapshot()), designerSetup);
+  assert.equal(h.editor.ui.board.querySelectorAll(".cell").length, 30);
+  assert.equal(h.editor.ui.board.querySelectorAll(".figure").length, designerSetup.units.length);
+  assert.match(h.cell(4, 3).className, /Tree/);
+  assert.match(h.edge(3, 1, "Right").className, /ClosedDoor/);
+  assert.equal(h.editor.ui.order.children.length, designerSetup.unitTypeIds.length);
   assert.match(h.editor.ui.status.textContent, /Valid/);
 });
 
@@ -353,7 +353,7 @@ for (const operation of ["validate", "export", "import", "play"]) {
     const h = harness(() => new Promise(done => { resolve = done; }), async () => { played++; return true; });
     const pending = h.click(operation);
     h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Tree"; h.down(h.cell(1, 1)); h.up();
-    resolve(operation === "import" ? structuredClone(fullParty) : operation === "validate" ? { valid: true, errors: [] } : { transport: "DELVE1:old" });
+    resolve(operation === "import" ? structuredClone(designerSetup) : operation === "validate" ? { valid: true, errors: [] } : { transport: "DELVE1:old" });
     await pending;
     assert.match(h.editor.ui.status.textContent, /Unchecked/); assert.equal(h.editor.ui.transport.value, ""); assert.equal(played, 0);
     assert.equal(h.editor.draft.definition.units.length, 0);
@@ -372,7 +372,7 @@ test("Play design exports through server, passes DELVE1 to existing client hook,
   const operations = [], plays = [];
   const h = harness(async (operation, body) => { operations.push([operation, plain(body)]); return { transport: "DELVE1:authoritative" }; },
     async transport => { plays.push(transport); return true; });
-  h.editor.draft.replace(fullParty); h.editor.render(); const before = plain(h.editor.draft.snapshot());
+  h.editor.draft.replace(designerSetup); h.editor.render(); const before = plain(h.editor.draft.snapshot());
   await h.click("play"); assert.deepEqual(operations, [["export", before]]); assert.deepEqual(plays, ["DELVE1:authoritative"]);
   assert.deepEqual(plain(h.editor.draft.snapshot()), before);
   h.editor.setMode(true); assert.deepEqual(plain(h.editor.draft.snapshot()), before);
@@ -405,7 +405,7 @@ test("World Effects controls enable, configure and disable concrete scenario set
 });
 
 test("World Effects settings survive import, edits, validation, export and play", async () => {
-  const definition = structuredClone(fullParty); definition.worldEffects = { cardsPerRound: 2, cycling: 3 };
+  const definition = structuredClone(designerSetup); definition.worldEffects = { cardsPerRound: 2, cycling: 3 };
   const submitted = [], played = [];
   const h = harness(async (operation, body) => {
     submitted.push({ operation, body: plain(body) });
@@ -425,8 +425,8 @@ test("World Effects settings survive import, edits, validation, export and play"
 
 
 test("imported Resources render, survive export and prevent shrinking off their Cells", async () => {
-  const definition = structuredClone(fullParty);
-  definition.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 14, y: 14 } }];
+  const definition = structuredClone(designerSetup);
+  definition.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 5, y: 4 } }];
   const submitted = [];
   const h = harness(async (operation, body) => {
     submitted.push({ operation, body: plain(body) });
@@ -435,7 +435,7 @@ test("imported Resources render, survive export and prevent shrinking off their 
   h.editor.ui.transport.value = "DELVE1:resources"; await h.click("import");
   const marker = h.editor.ui.board.querySelectorAll(".resource-marker")[0];
   assert.equal(marker.title, "Coal");
-  assert.throws(() => h.editor.draft.resize(14, 14), /Shrinking/);
+  assert.throws(() => h.editor.draft.resize(5, 4), /Shrinking/);
   await h.click("export");
   assert.deepEqual(submitted.find(row => row.operation === "export").body.resources, definition.resources);
 });

@@ -9,9 +9,9 @@ namespace ProjectDelve.Web.Tests;
 public sealed class ScenarioDefinitionTransportTests(ITestOutputHelper output)
 {
     [Fact]
-    public void FullPartyTransportPreservesSemanticRoundZeroStateAndEncodesDeterministically()
+    public void FixtureTransportPreservesSemanticRoundZeroStateAndEncodesDeterministically()
     {
-        var authoredDefinition = PlaytestScenarios.Definition("full-party-trolls");
+        var authoredDefinition = WebScenarioFixtures.Serialization();
         var encoded = ScenarioDefinitionTransport.Encode(authoredDefinition);
         var decodedDefinition = ScenarioDefinitionTransport.Decode(encoded);
         ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(
@@ -28,7 +28,7 @@ public sealed class ScenarioDefinitionTransportTests(ITestOutputHelper output)
 
         var payload = encoded["DELVE1:".Length..].Replace('-', '+').Replace('_', '/');
         var gzip = Convert.FromBase64String(payload.PadRight((payload.Length + 3) / 4 * 4, '='));
-        output.WriteLine($"FullParty: JSON UTF-8 bytes = {Encoding.UTF8.GetByteCount(ScenarioDefinitionJson.ToJson(authoredDefinition))}; " +
+        output.WriteLine($"Fixture: JSON UTF-8 bytes = {Encoding.UTF8.GetByteCount(ScenarioDefinitionJson.ToJson(authoredDefinition))}; " +
             $"gzip bytes = {gzip.Length}; DELVE1 characters = {encoded.Length}");
     }
 }
