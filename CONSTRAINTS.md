@@ -939,7 +939,8 @@ Phase does not alter Range, Line of Sight, targeting, or Attack rules. A Ghost's
 Shaman is a non-attacking Monster that creates Goblins and tries to keep away from reachable enemies.
 
 - Stats: `MOV 2`, `RNG 0`, `ATK 0`, `DEF 3`, `HP 1`.
-- Actions: Summon Goblin.
+- Actions: Summon Goblin; Pickup Resource.
+- Capabilities: ResourceStorage(Coal, 3).
 - Behaviors: Flee; use Summon Goblin when possible, choosing the top-left legal placement Cell.
 - Shaman does not have the Normal Attack Action.
 
@@ -1363,7 +1364,23 @@ A **Resource** is a loose physical marker on a Board Cell, not a Unit, Figure, T
 
 This initial transport rule concerns a one-Cell Unit and the Resource on that Unit's starting Cell. Transport by a larger-footprint Unit is not specified and must not be inferred from this rule.
 
-The canonical Zombie Unit Type has **Transport Resource**; its Behavior and other abilities remain unchanged. There are not yet rules for collecting Resources into storage, spending Resources, crafting, machines, or resource-aware Behavior.
+The canonical Zombie Unit Type has **Transport Resource**; its Behavior and other abilities remain unchanged.
+
+### Resource Storage, Pickup Resource, and Give Resource
+
+**Resource Storage** is an optional Unit Type Capability specifying accepted Resource Types and a maximum stored quantity for each. Stored Resources are represented by physical markers on the Unit Type's card. Storage belongs to the combination of **Side + Unit Type**, not to an individual figure: all Units of that Type on that Side share the same stored quantities and capacities. Different Sides and Unit Types have independent stores. Stored quantities are authoritative Game State and must remain representable in the physical game.
+
+Storage and Resource-handling Actions are independent. Resource Storage does not automatically grant any Action, and an Action cannot deposit a Resource into a recipient that has no capacity for its Type. A Resource cannot be deposited beyond the receiving store's capacity. Transferring one Resource from a Cell into storage removes its Board marker and increases the stored quantity by one, as a single atomic rules operation. Failed or unavailable transfers do not change either location.
+
+**Pickup Resource** is a Unit Type Action. The acting Unit may take one Resource from the Cell it currently occupies and place it in its own shared Side + Unit Type storage, provided that storage accepts the Resource Type and has room.
+
+**Give Resource** is a Unit Type Action. The acting Unit may take one Resource from the Cell it currently occupies and give it to an adjacent friendly Unit whose shared Side + Unit Type storage accepts that Resource Type and has room. The recipient does not need Pickup Resource. The acting Unit does not need Resource Storage. If multiple eligible recipients exist, the acting controller chooses a recipient through the normal Action decision rules.
+
+Pickup Resource and Give Resource are ordinary Actions and use the Unit's normal single Action opportunity. They do not constitute movement and do not invoke Transport Resource.
+
+The canonical Shaman has **ResourceStorage(Coal, 3)** and the **Pickup Resource** Action, in addition to its existing Summon Goblin Action. Shaman's existing automated Behavior is unchanged; adding Pickup Resource does not establish an automated preference to seek or collect Coal.
+
+No Resource-spending Actions, production recipes, machines, or Resource-aware Worker Behavior are established yet.
 
 ### Moving and repositioning Units by effects
 
