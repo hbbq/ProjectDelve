@@ -406,8 +406,15 @@ The initial terrain types are:
 | Grass | yes | no |
 | Tree | no | yes |
 | Water | no | no |
+| Lava | no | no |
 | Stone floor | yes | no |
 | Stone floor with table | no | no |
+
+**Lava** is an additional Terrain type: **Passable = no**, **Blocks LOS = no**. A Lava Cell is a source of Coal at Round Start, but does not itself hold a Resource.
+
+**Lava Coal generation:** At the start of every Round, each Lava Cell rolls one d6 and creates up to that many Coal markers on distinct eligible adjacent Cells. Adjacent means the existing eight-neighbor geometry plus geometric Line of Sight from the Lava Cell to the destination Cell. A destination is eligible if it is on the Board, passable terrain, has no Machine or Resource, and can hold a Resource marker. The presence of a Unit does not disqualify the Cell. If fewer eligible destinations exist than the die result, place one Coal on every eligible destination; no additional Coal is created. Use top-left Cell order (ascending y then x) to select destinations so no separate random placement decision is needed.
+
+Resolve Lava Cells in top-left order, recalculating eligible destination Cells after each placement. Lava generation occurs once per Round **after Round Start World Cards and all their consequences have resolved, but before Activation Bag population**. It is an automatic world operation, requires no Unit activation or Decision Provider, and does not move or overwrite existing Resources. Initial Round Start follows the same timing. Resulting placements are authoritative State changes and should have presentation events.
 
 There is no separate terrain-level distinction between being passable and being occupiable. Under the base rules, terrain that is passable may also be occupied; whether a particular Unit may actually end movement there is determined separately, including Unit occupancy.
 
