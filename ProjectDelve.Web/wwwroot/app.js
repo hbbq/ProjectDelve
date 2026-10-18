@@ -221,7 +221,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
     node.title = kind;
-    const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", StoneFloorWithTable: "Table" }[kind];
+    const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) node.append(text("span", symbol));
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));

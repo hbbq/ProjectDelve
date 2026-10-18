@@ -22,6 +22,7 @@ aside { overflow-wrap: anywhere; max-height: calc(100dvh - 120px); overflow-y: a
 .cell.Grass { background: #365b3d; }
 .cell.Tree { background: #1a4028; color: #b2d5a0; }
 .cell.Water { background: repeating-linear-gradient(165deg, #225374 0 9px, #2d6488 9px 12px); color: #c5e6f8; }
+.cell.Lava { background: repeating-linear-gradient(25deg, #782c1c 0 8px, #ee6427 8px 12px); color: #fff0b3; }
 .cell.StoneFloorWithTable { background: #614731; color: #ecd5b5; }
 .cell span { display: block; font-size: .85em; }
 .cell .cell-coordinates { font-size: inherit; }

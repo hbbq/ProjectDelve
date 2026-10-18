@@ -73,7 +73,7 @@ public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
-public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable }
+public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava }
 public sealed record TerrainTile(Cell Position, TerrainKind Kind);
 public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
@@ -559,6 +559,7 @@ public interface IRandomProvider
     AttackFace RollAttackDie();
     DefenceFace RollDefenceDie();
     int RollD6();
+    int RollD8() => throw new NotSupportedException("This Random Provider does not support d8 rolls.");
 }
 
 public enum AttackFace { Hit, Miss }

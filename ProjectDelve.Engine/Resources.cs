@@ -29,6 +29,11 @@ public sealed record StoredResource(string SideId, string UnitTypeId, ResourceTy
 
 internal static class ResourceRules
 {
+    internal static bool CanCreateAt(GameState state, Cell cell) =>
+        MovementRules.Inside(state.Physical.Board, cell) && state.Physical.Board.TerrainAt(cell).Passable() &&
+        !state.Physical.Board.Machines.Any(m => m.Position == cell) &&
+        !state.Resources.Any(r => r.Position == cell);
+
     internal static bool ValidType(ResourceType? type) => type is not null &&
         !string.IsNullOrWhiteSpace(type.Id) && !string.IsNullOrWhiteSpace(type.Name);
 
@@ -103,8 +108,8 @@ internal static class ResourceRules
     {
         if (resource is null || resource.Type is null || string.IsNullOrWhiteSpace(resource.Type.Id) ||
             string.IsNullOrWhiteSpace(resource.Type.Name) || resource.Position is null ||
-            !MovementRules.Inside(board, resource.Position))
-            throw new ArgumentException("A Resource requires a Resource Type and a Cell on the Board.");
+            !MovementRules.Inside(board, resource.Position) || board.TerrainAt(resource.Position) == TerrainKind.Lava)
+            throw new ArgumentException("A Resource requires a Resource Type and a Cell on the Board that is not Lava.");
     }
 
     internal static void TransportDuringOwnMove(GameState state, string unitId, Cell from, Cell to)

@@ -245,6 +245,12 @@ public static class BrowserProjection
                 };
                 description = $"{e.UnitId}: {e.Dice.Pool.Family} dice [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} {resultLabel} ({e.Dice.Pool.SourceUnitId}, {e.ActionId})";
                 break;
+            case "LavaCoalRolled":
+                description = $"Lava at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Coal direction";
+                break;
+            case "ResourceCreated":
+                description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
+                break;
             case "MachineOperated":
                 description = $"{e.UnitId}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
                 break;

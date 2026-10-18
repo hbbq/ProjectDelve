@@ -114,6 +114,7 @@ public static partial class GameEngine
         public AttackFace RollAttackDie() => throw new PreviewRandomnessException();
         public DefenceFace RollDefenceDie() => throw new PreviewRandomnessException();
         public int RollD6() => throw new PreviewRandomnessException();
+        public int RollD8() => throw new PreviewRandomnessException();
     }
 
     private sealed class PreviewRandomnessException : Exception { }

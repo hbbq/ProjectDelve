@@ -1963,3 +1963,26 @@ test("Machine conversion playback shows changed storage and Diamond output in th
   assert.ok(shown.length > 0);
   assert.ok(shown.every(frame => /Coal: 0\/3/.test(frame.storage) && frame.output[0] === "Diamond" && frame.symbol === "\u25c6"));
 });
+
+for (const animate of [true, false]) test(`Lava playback renders each authoritative Coal placement (animate=${animate})`, async () => {
+  const initial = response();
+  initial.result.state.physical.board.terrain = [{ position: { x: 1, y: 0 }, kind: "Lava" }];
+  initial.result.state.resources = [];
+  const final = structuredClone(initial);
+  const coal = x => ({ type: { id: "coal", name: "Coal" }, position: { x, y: 0 } });
+  const first = structuredClone(initial.result.state); first.resources = [coal(0)];
+  final.result.state.resources = [coal(0), coal(2)];
+  final.result.events = [{ kind: "LavaCoalRolled", dieRoll: 7 }, { kind: "ResourceCreated" },
+    { kind: "LavaCoalRolled", dieRoll: 3 }, { kind: "ResourceCreated" }];
+  final.presentation.events = ["Lava rolled d8 7", "Coal at 0,0", "Lava rolled d8 3", "Coal at 2,0"].map(text => ({ role: "Notice", text }));
+  final.result.resolutionSteps = [initial.result.state, first, first, final.result.state].map((stateAfter, eventIndex) => ({ eventIndex, stateAfter }));
+  final.presentation.resolutionSteps = final.result.resolutionSteps.map(({ eventIndex }) => ({ eventIndex, cards: final.presentation.cards }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  const shown = []; h.context.shown = shown;
+  h.run(`ui.animate.checked = ${animate}; pause = async () => {}; const originalRender = renderState;
+    renderState = (...args) => { originalRender(...args); shown.push([0, 2].filter(x => cells.get(x + ",0").querySelectorAll(".resource-marker").length).length); };`);
+  assert.match(h.run('cells.get("1,0").className'), /Lava/);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.deepEqual(shown.slice(0, 4), [0, 1, 1, 2]);
+  assert.equal(h.run('cells.get("0,0").querySelectorAll(".resource-marker")[0].title'), "Coal");
+});

@@ -27,6 +27,7 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var catalog = (await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog"));
         Assert.Equal(50, catalog.GetProperty("maxBoardSize").GetInt32());
+        Assert.Contains("Lava", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Equal(Enum.GetNames<OrderKind>(), catalog.GetProperty("orderKinds").Deserialize<string[]>());
         var projected = catalog.GetProperty("unitTypes").EnumerateArray().ToArray();
         Assert.Equal(CanonicalUnitTypes.All.Select(type => type.Id).Order(),
@@ -51,11 +52,13 @@ public sealed class DesignerApiTests
     [InlineData("shaper")]
     [InlineData("complete-data")]
     [InlineData("world-effects")]
+    [InlineData("lava")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id is "complete-data" or "world-effects" ? CompleteData() : WebScenarioFixtures.Named(id);
+        var definition = id is "complete-data" or "world-effects" or "lava" ? CompleteData() : WebScenarioFixtures.Named(id);
         if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
+        if (id == "lava") definition = definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Lava)] } };
         var before = await host.Client.GetStringAsync("/api/game");
         using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = ScenarioDefinitionTransport.Encode(definition) });
         imported.EnsureSuccessStatusCode();
@@ -98,12 +101,17 @@ public sealed class DesignerApiTests
     [InlineData("unique", "units[1]")]
     [InlineData("world-cycling", "worldEffects")]
     [InlineData("world-draws", "worldEffects")]
+    [InlineData("lava-unit", "units[0]")]
+    [InlineData("lava-resource", "resources[0]")]
     public async Task InvalidDraftUsesAuthoritativeFailureAndNeverMutatesGame(string invalid, string path)
     {
         await using var host = await Host.Start();
         var definition = CompleteData();
         definition = invalid switch
         {
+            "lava-unit" => definition with { Board = definition.Board with { Cells = [new(definition.Units[0].Anchor, TerrainKind.Lava)] } },
+            "lava-resource" => definition with { Board = definition.Board with { Cells = [new(new(0, 0), TerrainKind.Lava)] },
+                Resources = [new(ResourceTypes.Coal, new(0, 0))] },
             "world-cycling" => definition with { WorldEffects = new(1, 0) },
             "world-draws" => definition with { WorldEffects = new(-1, 1) },
             "placement" => definition with { Units = [definition.Units[0], definition.Units[0]] },

@@ -15,7 +15,7 @@ const catalog = {
     cellSpan: id === "opaque-large" ? 2 : 1,
     footprintOffsets: id === "opaque-large" ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] : [{ x: 0, y: 0 }]
   })),
-  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable"],
+  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
   postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
   orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith"]
@@ -193,6 +193,17 @@ test("terrain drag upserts sparse overrides and Use default removes them", () =>
   h.editor.ui.terrain.value = ""; h.down(h.cell(1, 1)); h.up();
   assert.equal(h.editor.draft.definition.board.cells.length, 1);
   assert.match(h.cell(1, 1).className, /StoneFloor/);
+});
+
+test("Lava paints and renders from the terrain catalog and survives export", async () => {
+  const submitted = [];
+  const h = harness(async (operation, body) => { submitted.push(plain(body)); return { transport: "DELVE1:lava" }; });
+  assert.ok(h.editor.ui.terrain.children.some(option => option.value === "Lava"));
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Lava";
+  h.down(h.cell(1, 1)); h.up();
+  assert.match(h.cell(1, 1).className, /Lava/);
+  await h.click("export");
+  assert.equal(submitted[0].board.cells.find(cell => cell.position.x === 1 && cell.position.y === 1).terrain, "Lava");
 });
 
 test("all empty internal boundaries support canonical Right/Down upsert and removal", () => {

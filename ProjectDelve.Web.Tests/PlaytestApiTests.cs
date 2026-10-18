@@ -271,7 +271,8 @@ public sealed class PlaytestApiTests
         Assert.Contains(second.Result.State.Physical.Board.Edges, e => e.Kind == EdgeKind.OpenDoor);
         var board = second.Result.State.Physical.Board;
         Assert.Contains(board.Edges, e => e.Kind == EdgeKind.WallWithWindow);
-        Assert.Equal(Enum.GetValues<TerrainKind>().OrderBy(kind => kind),
+        Assert.Equal(new[] { TerrainKind.Grass, TerrainKind.Tree, TerrainKind.Water,
+                TerrainKind.StoneFloor, TerrainKind.StoneFloorWithTable }.OrderBy(kind => kind),
             Enumerable.Range(0, board.Height).SelectMany(y => Enumerable.Range(0, board.Width)
                 .Select(x => board.TerrainAt(new Cell(x, y)))).Distinct().OrderBy(kind => kind));
         Assert.All(second.Result.State.Physical.Figures, figure => Assert.True(board.TerrainAt(figure.Position).Passable()));

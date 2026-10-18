@@ -205,7 +205,7 @@ internal static class GambitProjection
 
         var result = new StringBuilder();
         result.AppendLine("ASCII map (derived; structured Board/Units authoritative). x->right; y->down.");
-        result.AppendLine("cell=terrain+unit: .=StoneFloor g=Grass t=Tree ~=Water #=StoneFloorWithTable; -=empty; repeated unit symbol=2x2 footprint.");
+        result.AppendLine("cell=terrain+unit: .=StoneFloor g=Grass t=Tree ~=Water #=StoneFloorWithTable ^=Lava; -=empty; repeated unit symbol=2x2 footprint.");
         result.AppendLine("edge between cells: V |/C/O/X/:; H -/C/O/X/:; Wall/ClosedDoor/OpenDoor/WallWithWindow/None(open).");
 
         var line = new StringBuilder("x>".PadRight(axisWidth));
@@ -282,6 +282,7 @@ internal static class GambitProjection
         TerrainKind.Grass => 'g',
         TerrainKind.Tree => 't',
         TerrainKind.Water => '~',
+        TerrainKind.Lava => '^',
         TerrainKind.StoneFloorWithTable => '#',
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };

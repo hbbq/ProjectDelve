@@ -16,6 +16,7 @@ public sealed class TerrainAndApproachTests
     [InlineData(TerrainKind.Grass, true, false)]
     [InlineData(TerrainKind.Tree, false, true)]
     [InlineData(TerrainKind.Water, false, false)]
+    [InlineData(TerrainKind.Lava, false, false)]
     [InlineData(TerrainKind.StoneFloor, true, false)]
     [InlineData(TerrainKind.StoneFloorWithTable, false, false)]
     public void TerrainSeparatesMovementAndSight(TerrainKind kind, bool passable, bool blocksLos)

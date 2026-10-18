@@ -8,6 +8,31 @@ namespace ProjectDelve.Web.Tests;
 public sealed class ResourceProjectionTests
 {
     [Fact]
+    public void LavaGenerationProjectsRollPlacementsAndDetachedPlaybackStates()
+    {
+        var definition = Scenario.Define(Scenario.Map(5, 4, cells: [Scenario.Tile(1, 1, TerrainKind.Lava)]),
+            [Scenario.Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human, Scenario.At(0, 0)),
+                Scenario.Group(UnitTypeIds.Grunt, "red", ControllerKind.Human, Scenario.At(4, 3))]);
+        var result = GameEngine.StartRound(GameEngine.CreateGame(definition), new FirstDice(), false);
+        var browser = BrowserProjection.Create(result);
+        Assert.Equal(2, result.Events.Count(e => e.Kind == "LavaCoalRolled"));
+        Assert.Contains(browser.Events, e => e.Text.Contains("Lava at 1,1: rolled d8 8"));
+        Assert.Contains(browser.Events, e => e.Text.Contains("Coal created at 0,0"));
+        var occurrence = Assert.Single(result.Events, e => e.Kind == "ResourceCreated");
+        var projected = GambitProjection.Event(occurrence);
+        Assert.Equal(ResourceTypes.Coal, projected.ResourceType);
+        Assert.Equal(new Cell(0, 0), projected.Cell);
+        var snapshot = result.ResolutionSteps.Single(s => result.Events[s.EventIndex].Kind == "ResourceCreated");
+        Assert.Single(snapshot.StateAfter.Resources);
+        Assert.Empty(snapshot.StateAfter.Bag);
+        var observation = GambitProjection.Observation(result.State);
+        Assert.Equal(result.State.Resources, observation.Resources);
+        result.State.Resources.Clear();
+        Assert.Single(snapshot.StateAfter.Resources);
+        Assert.Single(observation.Resources);
+    }
+
+    [Fact]
     public void GeomancerSummonsProjectChoicesPlacementsCardsAndAtomicStorageSnapshots()
     {
         var definition = new ScenarioDefinition
@@ -121,6 +146,7 @@ public sealed class ResourceProjectionTests
         public AttackFace RollAttackDie() => AttackFace.Miss;
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 1;
+        public int RollD8() => 8;
     }
     private sealed class Select(string key) : IDecisionProvider
     {

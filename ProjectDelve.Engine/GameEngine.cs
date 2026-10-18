@@ -52,9 +52,11 @@ public static partial class GameEngine
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new ResolutionEvents(state, observe);
-        if (state.WorldEffects is not null)
+        var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind == TerrainKind.Lava);
+        if (state.WorldEffects is not null || hasLava)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
+        ResolveLavaCoalGeneration(state, random, events);
         if (state.WorldEffects is { CardsPerRound: > 0 })
         {
             EvaluateObjectives(state, events);
@@ -64,8 +66,8 @@ public static partial class GameEngine
             .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
             .Distinct().OrderBy(side => side, StringComparer.Ordinal)
             .Select(side => new ActivationToken(t.Id, side))).ToList();
-        // Preserve ordinary RoundStarted presentation; World rounds expose the later bag boundary.
-        events.Add(new RulesEvent(state.WorldEffects is null ? "RoundStarted" : "ActivationBagPopulated") { Round = state.Round });
+        // Automatic Round Start operations expose a separate bag-population boundary.
+        events.Add(new RulesEvent(state.WorldEffects is null && !hasLava ? "RoundStarted" : "ActivationBagPopulated") { Round = state.Round });
         RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
