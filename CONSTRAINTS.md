@@ -424,6 +424,23 @@ There is no separate terrain-level distinction between being passable and being 
 
 Terrain tiles currently fall into two broad physical categories.
 
+### Directional railway terrain and Locomotive
+
+**Rail** is passable terrain that does not block Line of Sight, and has one authored outgoing orthogonal direction (North, East, South or West). Ordinary Units may enter, cross, and occupy Rail Cells under their usual rules. Rail direction has no effect on their ordinary movement.
+
+**Locomotive** is a 1 × 1 Unit Type with `MOV 0`, no Attack Action, and an automatic **Run Rails (4)** effect when its activation begins while Upright. Its Side and controller are assigned normally, including the option of a neutral Side with **No Objective**. The Locomotive requires no controller choices for its movement. A Lying Locomotive follows the ordinary Lying activation rule instead of running rails.
+
+Run Rails consists of **up to four consecutive, separately resolved one-Cell steps**, rather than one ordinary atomic Move. At each step, read the outgoing direction of the Rail Cell the Locomotive currently occupies and attempt to move into the neighboring Cell in that direction. Every destination must also be Rail terrain. Ordinary Board boundaries, blocking Edges, terrain and placement constraints apply. If the Locomotive is not on Rail, the next Cell is not Rail, or the step is blocked, **stop the remaining sequence**. Run Rails does not spend or use the Unit's ordinary MOV; it does not activate Transport Resource. Each successful step and collision is resolved before the next step, allowing normal consequences to resolve using the updated state.
+
+**Rail collision:** A 1 × 1 Unit on the destination Cell, regardless of Side or hostility, does not block the step:
+- If the occupying Unit is Upright, the Locomotive and that Unit simultaneously **swap Cells**, and the struck Unit is then **laid down**.
+- If the occupying Unit is already Lying, it is **defeated** and removed through the ordinary defeat lifecycle, then the Locomotive enters its former Cell.
+- A Unit occupying any part of the destination with a footprint larger than 1 × 1 blocks the Locomotive's step; the sequence stops without moving either Unit.
+
+Collision is **not an Attack**, uses no Attack or Defence dice, and requires no hostility. It does not cause Resources on either Cell to move: swapping/externally repositioning a Unit and these special rail steps are not ordinary voluntary Moves. Use the existing physical Posture and defeat rules and their normal consequences; do not introduce a separate collision damage/stat system. An ordinary blocking Edge prevents collision because the Locomotive cannot enter the destination.
+
+Run Rails ends after four successful steps or the first blocked step, whichever occurs first. There is no Facing requirement, wagon, switch, signalling, schedule, or cargo mechanic in this initial railway content.
+
 ### Flat tiles
 
 A flat tile has no physical geometry preventing a figure from being placed on it.
