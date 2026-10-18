@@ -1407,7 +1407,7 @@ In particular, a Geomancer may summon a Troll using a Diamond it already held ev
 
 Worker is a canonical Unit Type with MOV 4, RNG 0, ATK 0, DEF 2, HP 1; CantAttack, Transport Resource, Give Resource, and Operate. It has no Resource Storage.
 
-Worker Behavior is reusable by other Unit Types and has no hardcoded Worker type check. It selects among existing legal decisions and does not alter legality. Each Unit completes its activation before the next grouped Unit. No task reservation or persistent work plan exists.
+Worker Behavior is reusable by other Unit Types and has no hardcoded Worker type check. It selects among existing legal decisions and does not alter legality. When evaluating potential Machine recipients and operating opportunities, it must respect Machine ownership (own Side or public); inaccessible machines are not viable work targets. Each Unit completes its activation before the next grouped Unit. No task reservation or persistent work plan exists.
 
 Its priorities are:
 1. If standing on a Resource with a viable recipient with available capacity, move toward the nearest reachable position from which it can Give that Resource; Give when legal. Do not choose a resource-occupied destination that would leave this deliverable Resource behind.
@@ -1422,16 +1422,19 @@ Worker Behavior honors Do Nothing Standing Order. All other Orders allow its nor
 
 ### Machines as terrain objects
 
-A **Machine** is an individually identifiable fixed terrain object occupying one Board Cell. Its Cell blocks Unit movement/placement and Line of Sight, like other obstructing terrain objects. A Machine does not act, activate, or have a Unit Type, Side, Activation Token, or Unit HP/DEF under these initial rules. Machine destruction is deferred.
+A **Machine** is an individually identifiable fixed terrain object occupying one Board Cell. Its Cell blocks Unit movement/placement and Line of Sight, like other obstructing terrain objects. A Machine does not act, activate, or have a Unit Type, Activation Token, or Unit HP/DEF under these initial rules. It may optionally have a permanent Owner Side, as specified below. Machine destruction is deferred.
 
 Unlike shared Unit Type storage, **each Machine instance has its own Resource Storage**, with accepted Resource Type(s), capacity per type, and current quantities. Place stored Resource markers on or beside the individual Machine's physical component so its state is identifiable. The Game State and scenario definitions preserve each Machine's individual location, type/operation, and storage.
 
-**Give Resource** may target an adjacent Machine in place of a friendly Unit if the Machine accepts the Resource on the acting Unit's Cell and has available capacity. Machine storage has no Side or hostility requirement. Giving removes the Cell Resource and adds one to the specific Machine's store atomically, consuming the acting Unit's normal Action opportunity.
+**Machine ownership** is optional per individual Machine instance: either no Owner Side (public, usable by all Sides) or a permanent Owner Side identifying a Side in the scenario. Ownership is set by scenario content, is authoritative and physically identifiable, and cannot change during play under these rules. A Machine's ownership restricts Give Resource and Operate to acting Units belonging to its Owner Side; a public Machine accepts those Actions from any Side. No hostility or friendly-alliance exception grants other Sides access to an owned Machine. Resources on Cells, including a Machine's output on an operator's Cell, remain unowned. Ownership does not change Machine storage, terrain, LOS, or resource transport rules.
+
+**Give Resource** may target an adjacent Machine in place of a friendly Unit if the Machine accepts the Resource on the acting Unit's Cell, has available capacity, and its ownership allows the acting Unit's Side. Giving removes the Cell Resource and adds one to the specific Machine's store atomically, consuming the acting Unit's normal Action opportunity.
 
 A Machine defines one **Operation** with specific Resource costs and an output Resource Type and quantity. For the initial concrete operation, **Diamond Press** has `ResourceStorage(Coal, 3)` and `Spend 3 Coal → Output 1 Diamond`. The Operation consumes the stated inputs from that specific Machine's storage, not from another Machine or a Unit's shared storage.
 
 **Operate** is an optional Unit Type Action. An acting Unit adjacent to a Machine may choose it as the Operate target if:
 - a normal wall, closed door, or other impassable Edge does not separate the Unit's Cell from the Machine Cell; ordinary adjacency by itself does not override a blocking Edge;
+- the Machine is public or its Owner Side matches the acting Unit's Side;
 - that Machine has all Resources required by its Operation;
 - the acting Unit's Cell contains no Resource, so the output has room.
 
@@ -1439,7 +1442,7 @@ When Operate resolves, its Resource costs are removed from that Machine and the 
 
 Machines must be allowed next to Walls and other Edge features, including an Edge immediately between the Machine Cell and an adjacent Cell. An impassable Edge prevents a Unit on that side from Operating the Machine, even when geometrically adjacent. No new general LOS rule for Machine interaction is implied.
 
-Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Machine construction, machine ownership, combat against Machines, and other recipes are deferred.
+Giving to a Machine and Operating it are distinct ordinary Actions, so a Unit cannot do both within its normal single Action opportunity. Machine construction, changing Machine ownership, combat against Machines, and other recipes are deferred.
 
 ### Moving and repositioning Units by effects
 
