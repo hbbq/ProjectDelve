@@ -148,8 +148,8 @@ public static class BrowserProjection
                 PlacementCells = c.Destination is null ? [] :
                     c.Kind == ActivationChoiceKind.Move
                         ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
-                        : c.Action == UnitAction.SummonAdjacent
-                            ? FootprintGeometry.PlacementCells(state, type.SummonAdjacent!.UnitTypeId, c.Destination)
+                        : c.Action is { } summonAction && SummoningRules.Placement(type, summonAction) is { } summon
+                            ? FootprintGeometry.PlacementCells(state, summon.UnitTypeId, c.Destination)
                             : c.BonusAction?.Displace is not null
                                 ? FootprintGeometry.OccupiedCells(state, c.TargetId!, c.Destination)
                             : []
@@ -250,6 +250,9 @@ public static class BrowserProjection
                 break;
             case "ResourceStored" when e.MachineId is not null:
                 description = $"{e.UnitId}: {e.ResourceType?.Name} stored in {e.MachineId} ({e.StoredQuantity} stored)";
+                break;
+            case "ResourceSpent":
+                description = $"{e.UnitId}: spent {e.ResourceType?.Name} for Summon Troll ({e.StoredQuantity} stored)";
                 break;
             case "ResourceStored":
                 description = $"{e.UnitId}: {e.ResourceType?.Name} from {e.Cell?.X},{e.Cell?.Y} stored for {e.SideId} / {e.TypeId} ({e.StoredQuantity} stored)";

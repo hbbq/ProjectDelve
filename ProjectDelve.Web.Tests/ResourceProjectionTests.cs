@@ -8,6 +8,41 @@ namespace ProjectDelve.Web.Tests;
 public sealed class ResourceProjectionTests
 {
     [Fact]
+    public void GeomancerSummonsProjectChoicesPlacementsCardsAndAtomicStorageSnapshots()
+    {
+        var definition = new ScenarioDefinition
+        {
+            Board = new() { Width = 5, Height = 5 },
+            UnitTypeIds = [UnitTypeIds.Geomancer, UnitTypeIds.Grunt],
+            Units = [new(UnitTypeIds.Geomancer, "blue", new(2, 2), UnitId: "geo"),
+                new(UnitTypeIds.Grunt, "red", new(4, 4), UnitId: "enemy")],
+            Agency = [new(UnitTypeIds.Geomancer, "blue", ControllerKind.Human),
+                new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
+            StoredResources = [new("blue", UnitTypeIds.Geomancer, ResourceTypes.Diamond, 1)]
+        };
+        var decoded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(definition));
+        var start = GameEngine.StartRound(GameEngine.CreateGame(decoded), new FirstDice(), false);
+        var ready = GameEngine.Advance(start.State, new Select("stay"), new FirstDice(), false);
+        var browser = BrowserProjection.Create(ready);
+        foreach (var id in new[] { "summon-worker", "summon-troll" })
+        {
+            Assert.Contains(browser.Cards["geo"].Entries, e => e.Content.Id == id);
+            var choice = browser.Decision!.Candidates.Single(c => c.Key == $"{id}:1,1");
+            Assert.Equal(id, choice.EntryId);
+            Assert.Equal(InteractionKind.Position, choice.Interaction.Kind);
+            Assert.Equal(new Cell(1, 1), choice.Interaction.Position);
+            Assert.Equal(new[] { new Cell(1, 1) }, choice.PlacementCells);
+        }
+        var summoned = GameEngine.Advance(ready.State, new Select("summon-troll:1,1"), new FirstDice(), false);
+        var projected = BrowserProjection.Create(summoned);
+        var snapshot = projected.ResolutionSteps.Single(s => summoned.Events[s.EventIndex].Kind == "ResourceSpent");
+        Assert.Equal(0, snapshot.Cards["geo"].ResourceStorage.Single().Quantity);
+        var createdId = Assert.Single(summoned.Events, e => e.Kind == "UnitCreated").UnitId!;
+        Assert.Contains(createdId, snapshot.Cards.Keys);
+        Assert.Contains(projected.Events, e => e.Text.Contains("spent Diamond"));
+    }
+
+    [Fact]
     public void ResourceScenarioPreservesAuthoredMarkersAndRestartsFresh()
     {
         var definition = WebScenarioFixtures.Resources();

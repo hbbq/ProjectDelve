@@ -38,6 +38,12 @@ public static class ContentDescriptions
             entries.Add(new("spawn-goblin", names.Summon ?? "Summon Adjacent", "Action",
                 $"Place one {summon.InitialPosture} {summonedName} in an adjacent empty Cell."));
         }
+        if (type.Actions.HasFlag(UnitAction.SummonWorker) && type.SummonWorker is { } worker)
+            entries.Add(new("summon-worker", "Summon Worker", "Action",
+                $"If fewer than {worker.SideLimit} living Workers are on this Unit's Side, place one Upright Worker in an adjacent empty Cell on this Unit's Side."));
+        if (type.Actions.HasFlag(UnitAction.SummonTroll) && type.SummonTroll is { } troll)
+            entries.Add(new("summon-troll", "Summon Troll", "Action",
+                $"Spend {troll.DiamondCost} Diamond from this Unit's shared Resource Storage and place one Upright Troll in an adjacent empty Cell on this Unit's Side."));
         if (type.Actions.HasFlag(UnitAction.PickupResource))
             entries.Add(new("pickup-resource", "Pickup Resource", "Action", "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room."));
         if (type.Actions.HasFlag(UnitAction.GiveResource))
@@ -106,6 +112,8 @@ public static class ContentDescriptions
         { Action: UnitAction.Fireball } => "fireball",
         { Action: UnitAction.Telekinesis } => "telekinesis",
         { Action: UnitAction.SummonAdjacent } => "spawn-goblin",
+        { Action: UnitAction.SummonWorker } => "summon-worker",
+        { Action: UnitAction.SummonTroll } => "summon-troll",
         _ => null
     };
 

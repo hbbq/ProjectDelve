@@ -27,6 +27,7 @@ public static class PlaytestScenarios
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
         new("wizard-doors", "Wizard / Doors", "Wizard control and ranged encounters beside a sealed room: Zombies try Doors while a Ghost phases through Walls to reach normal attack positions."),
         new("resource-storage", "Resource Pickup / Give", "Manually control a Coal Collector and Coal Courier to exercise Pickup and Give with shared Unit Type storage."),
+        new("geomancer-production", "Geomancer Production", "Autonomous Coal to Troll production: Geomancer summons Workers, Workers supply the Diamond Press and deliver Diamonds, then Geomancer summons Trolls."),
         new("autonomous-production", "Autonomous Production", "Workers collect Coal, supply and operate the Diamond Press, then deliver Diamond to the Geomancer."),
         new("diamond-press", "Diamond Press", "Manual production: transport Coal with the Courier and Give it to the Press. Operate from an empty Cell, then move away so Geomancer can collect the Diamond. The Closed Door blocks the western operating position until opened."),
         new("resource-transport", "Resource Transport", "Wizard / Doors with Coal under Zombies, along their routes and near Doors to playtest atomic Resource transport."),
@@ -48,6 +49,7 @@ public static class PlaytestScenarios
         "archers" => Archers(),
         "wizard-doors" => WizardDoors(),
         "resource-storage" => ResourceStoragePlaytest(),
+        "geomancer-production" => GeomancerProduction(),
         "autonomous-production" => AutonomousProduction(),
         "diamond-press" => DiamondPressPlaytest(),
         "resource-transport" => WizardDoors() with
@@ -77,6 +79,29 @@ public static class PlaytestScenarios
             new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
         Resources = [new(ResourceTypes.Coal, new(2, 2)), new(ResourceTypes.Coal, new(3, 2)),
             new(ResourceTypes.Coal, new(3, 1)), new(ResourceTypes.Coal, new(2, 3)), new(ResourceTypes.Coal, new(1, 2))]
+    };
+
+    private static ScenarioDefinition GeomancerProduction() => new()
+    {
+        Board = new() { Width = 14, Height = 10 },
+        Machines = [new("press", new(4, 3), MachineTypes.DiamondPress)],
+        UnitTypeIds = [UnitTypeIds.Worker, UnitTypeIds.Geomancer, UnitTypeIds.Troll,
+            UnitTypeIds.Grunt, UnitTypeIds.SkeletonArcher],
+        Units = [new(UnitTypeIds.Worker, "blue", new(2, 3)),
+            new(UnitTypeIds.Geomancer, "blue", new(1, 1)),
+            new(UnitTypeIds.Grunt, "red", new(12, 7)), new(UnitTypeIds.Grunt, "red", new(11, 8)),
+            new(UnitTypeIds.SkeletonArcher, "red", new(12, 9))],
+        Agency = [new(UnitTypeIds.Worker, "blue", ControllerKind.Automated),
+            new(UnitTypeIds.Geomancer, "blue", ControllerKind.Automated),
+            new(UnitTypeIds.Troll, "blue", ControllerKind.Automated),
+            new(UnitTypeIds.Grunt, "red", ControllerKind.Automated),
+            new(UnitTypeIds.SkeletonArcher, "red", ControllerKind.Automated)],
+        Orders = [new(UnitTypeIds.Grunt, "red", OrderKind.HoldPosition),
+            new(UnitTypeIds.SkeletonArcher, "red", OrderKind.HoldPosition)],
+        Resources = [new(ResourceTypes.Coal, new(2, 3)), new(ResourceTypes.Coal, new(3, 2)),
+            new(ResourceTypes.Coal, new(3, 4)), new(ResourceTypes.Coal, new(5, 2)),
+            new(ResourceTypes.Coal, new(5, 4)), new(ResourceTypes.Coal, new(4, 5)),
+            new(ResourceTypes.Coal, new(6, 3)), new(ResourceTypes.Coal, new(2, 5))]
     };
 
     private static ScenarioDefinition AutonomousProduction() => new()

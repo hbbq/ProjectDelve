@@ -68,6 +68,18 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         var unitId = request.UnitId!;
         var behaviors = queries.BehaviorsOf(unitId);
         if (behaviors.HasFlag(UnitBehavior.Worker)) return WorkerBehavior.Choose(request, queries);
+        if (behaviors.HasFlag(UnitBehavior.SeekDiamond) && !request.IsMoveAfterAttack &&
+            queries.StoredQuantityFor(unitId, ResourceTypes.Diamond) == 0)
+        {
+            var diamonds = queries.Resources.Where(r => r.Type.Id == ResourceTypes.Diamond.Id)
+                .Select(r => r.Position).ToHashSet();
+            if (request.AllowsNone && diamonds.Contains(queries.PositionOf(unitId))) return null;
+            var resourceMove = request.Candidates.Where(c => diamonds.Contains(c.Destination!))
+                .OrderBy(c => c.Path!.Count - 1)
+                .ThenBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
+                .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();
+            if (resourceMove is not null) return resourceMove.Key;
+        }
         if (behaviors.HasFlag(UnitBehavior.Flee))
             return SelectFleeMovement(request, queries,
                 behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors));
@@ -154,6 +166,19 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     {
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
             return WorkerBehavior.Choose(request, queries);
+        if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferTrollThenDiamondThenWorker))
+        {
+            foreach (var action in new[] { UnitAction.SummonTroll, UnitAction.PickupResource, UnitAction.SummonWorker })
+            {
+                if (action == UnitAction.PickupResource && !queries.Resources.Any(r =>
+                        r.Position == queries.PositionOf(request.UnitId!) && r.Type.Id == ResourceTypes.Diamond.Id)) continue;
+                var preferred = request.Candidates.Where(c => c.Action == action)
+                    .OrderBy(c => c.Destination?.Y).ThenBy(c => c.Destination?.X)
+                    .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();
+                if (preferred is not null) return preferred.Key;
+            }
+            return NoCandidate(request);
+        }
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.UseSummon))
         {
             var summons = request.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent).ToList();

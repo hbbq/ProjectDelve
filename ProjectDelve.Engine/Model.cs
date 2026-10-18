@@ -79,7 +79,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, SummonWorker = 2048, SummonTroll = 4096 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -95,13 +95,17 @@ public enum UnitBehavior
     PreferReshapeRoom = 128,
     PreferHostileAdjacency = 256,
     ProtectWithoutAdjacency = 512,
-    Worker = 1024
+    Worker = 1024,
+    SeekDiamond = 2048,
+    PreferTrollThenDiamondThenWorker = 4096
 }
 public sealed record ReshapeRoom;
 public sealed record Swap;
 // Current external movement supports zero or one ordinary step only.
 public sealed record Displace(int MaxMove);
 public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
+public sealed record SummonWorker(int SideLimit);
+public sealed record SummonTroll(int DiamondCost);
 public sealed record Telekinesis;
 // Presentation only: fixed mechanic/counter identities never depend on these names.
 public sealed record AbilityPresentationNames
@@ -198,6 +202,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public string? DisplayName { get; init; }
     public AbilityPresentationNames AbilityNames { get; init; } = new();
     public SummonAdjacent? SummonAdjacent { get; init; }
+    public SummonWorker? SummonWorker { get; init; }
+    public SummonTroll? SummonTroll { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }

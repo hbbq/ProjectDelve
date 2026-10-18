@@ -321,9 +321,11 @@ public static partial class GameEngine
                             EmitActionUsed(request, choice!, events);
                             ChangePosture(state, action.TargetId!, Posture.Lying, events, request.UnitId, ActionIdentity(action));
                             break;
+                        case UnitAction.SummonWorker:
+                        case UnitAction.SummonTroll:
                         case UnitAction.SummonAdjacent:
                             var summoner = state.Types.Single(t => t.Id == request.TypeId);
-                            var summon = summoner.SummonAdjacent!;
+                            var summon = SummoningRules.Placement(summoner, action.Action!.Value)!;
                             var summonedType = UnitContent.Find(summon.UnitTypeId, state.Types)
                                 ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
                             var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal)
@@ -332,14 +334,19 @@ public static partial class GameEngine
                             while (state.Units.Any(u => u.Id == $"{prefix}-{number}")) number++;
                             var summonedId = $"{prefix}-{number}";
                             var source = state.Units.Single(u => u.Id == request.UnitId);
+                            if (!SummoningRules.Candidates(state, source).Contains(action))
+                                throw new InvalidOperationException("Summoning is unavailable.");
                             var group = new ActivationToken(summonedType.Id, source.SideId);
                             if (!state.Controllers.Any(c => c.Token == group))
                                 state.Controllers.Add(new(group, state.ControllerFor(new ActivationToken(source.TypeId, source.SideId))));
                             EmitActionUsed(request, choice!, events);
+                            var spending = action.Action == UnitAction.SummonTroll
+                                ? SummoningRules.SpendDiamond(state, source, summoner.SummonTroll!) : null;
                             state.PlaceUnit(summonedType.Id, summonedId, source.SideId,
                                 action.Destination!, summon.InitialPosture);
+                            if (spending is not null) events.Add(spending);
                             events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
-                                AbilityName: summoner.AbilityNames.Summon ?? "Summon Adjacent", Posture: summon.InitialPosture)
+                                AbilityName: summoner.CardEntries(state.Types).Single(e => e.Id == ActionIdentity(action)).Name, Posture: summon.InitialPosture)
                                 { SourceUnitId = source.Id, SideId = source.SideId, Cell = action.Destination, ActionId = ActionIdentity(action) });
                             break;
                         case UnitAction.Heal:
@@ -457,17 +464,7 @@ public static partial class GameEngine
         var candidates = new List<Candidate>();
         candidates.AddRange(ResourceRules.Candidates(state, unit));
         candidates.AddRange(MachineRules.Candidates(state, unit));
-        if (actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon &&
-            UnitContent.Find(summon.UnitTypeId, state.Types) is { } summonedType && state.CanPlaceUnitType(summonedType))
-            for (var y = 0; y < state.Physical.Board.Height; y++)
-                for (var x = 0; x < state.Physical.Board.Width; x++)
-                {
-                    var cell = new Cell(x, y);
-                    if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell) &&
-                        SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id),
-                            FootprintGeometry.OccupiedCells(summonedType.Footprint, cell)))
-                        candidates.Add(new($"spawn-goblin:{x},{y}", Destination: cell, Action: UnitAction.SummonAdjacent));
-                }
+        candidates.AddRange(SummoningRules.Candidates(state, unit));
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
                 .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
@@ -973,6 +970,9 @@ public static partial class GameEngine
                 t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
                 t.Fury is { AdjacentEnemyThreshold: < 1 } ||
+                (t.Actions.HasFlag(UnitAction.SummonWorker) && t.SummonWorker is null) ||
+                (t.Actions.HasFlag(UnitAction.SummonTroll) && t.SummonTroll is null) ||
+                t.SummonWorker is { SideLimit: < 1 } || t.SummonTroll is { DiamondCost: < 1 } ||
                 (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
                 (t.Actions.HasFlag(UnitAction.ClawAttack) && t.ClawAttack is null) ||
                 (t.SummonAdjacent is { } summon && (string.IsNullOrWhiteSpace(summon.UnitTypeId) ||

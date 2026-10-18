@@ -96,8 +96,10 @@ public static class UnitRoster
         Stats(2, 0, 0, 3, 1),
         CantAttack(),
         ResourceStorage(ResourceTypes.Diamond, 1),
-        PickupResource()
-    ).WithBehaviors(UnitBehavior.Flee);
+        PickupResource(),
+        SummonWorker(sideLimit: 3),
+        SummonTroll(diamondCost: 1)
+    ).WithBehaviors(UnitBehavior.SeekDiamond, UnitBehavior.Flee, UnitBehavior.PreferTrollThenDiamondThenWorker);
 
     public static UnitType Shaman(string id = UnitTypeIds.Shaman) => UnitType.Define(id, 
         "Shaman", 

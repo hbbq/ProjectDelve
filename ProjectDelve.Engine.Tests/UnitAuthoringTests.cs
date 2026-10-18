@@ -220,8 +220,8 @@ public sealed class UnitAuthoringTests
             (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent,
                 Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { DisplayName = "Shaman", SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
                 AbilityNames = new() { Summon = "Summon Goblin" } }),
-            (UnitType.Geomancer, new("geomancer-type", 2, 0, 0, 3, 1, Actions: UnitAction.PickupResource,
-                Behaviors: UnitBehavior.Flee) { ResourceStorage = new([new(ResourceTypes.Diamond, 1)]), DisplayName = "Geomancer" }),
+            (UnitType.Geomancer, new("geomancer-type", 2, 0, 0, 3, 1, Actions: UnitAction.PickupResource | UnitAction.SummonWorker | UnitAction.SummonTroll,
+                Behaviors: UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker) { SummonWorker = new(3), SummonTroll = new(1), ResourceStorage = new([new(ResourceTypes.Diamond, 1)]), DisplayName = "Geomancer" }),
             (UnitType.Barbarian, new("barbarian-type", 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
             {
                 Unique = true, DisplayName = "Barbarian", Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },

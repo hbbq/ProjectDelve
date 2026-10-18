@@ -47,6 +47,8 @@ public static class UnitAuthoring
     public static Entry PickupResource() => new PickupEntry();
     public static Entry Operate() => new OperateEntry();
     public static Entry GiveResource() => new GiveEntry();
+    public static Entry SummonWorker(int sideLimit) => new WorkerSummonEntry(new(sideLimit));
+    public static Entry SummonTroll(int diamondCost) => new TrollSummonEntry(new(diamondCost));
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
@@ -134,6 +136,15 @@ public static class UnitAuthoring
 
     public static UnitType WithBehaviors(this UnitType type, params UnitBehavior[] behaviors) =>
         type with { Behaviors = behaviors.Aggregate(type.Behaviors, (combined, behavior) => combined | behavior) };
+
+    private sealed class WorkerSummonEntry(SummonWorker mechanic) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.SummonWorker, SummonWorker = mechanic };
+    }
+    private sealed class TrollSummonEntry(SummonTroll mechanic) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.SummonTroll, SummonTroll = mechanic };
+    }
 
     private enum NamedMechanic { Heal, Cleave, HolyWave, Fireball, FireBreath, ClawAttack, Aura, Fury, Backstab, Undying, Explosion, Telekinesis, TryOpenDoor, Summon, MoveAfterAttack }
     private sealed class NamedEntry(Entry mechanic, string name, NamedMechanic kind) : Entry

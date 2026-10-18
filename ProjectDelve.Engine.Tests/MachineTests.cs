@@ -190,18 +190,19 @@ public sealed class MachineTests
     }
 
     [Fact]
-    public void GeomancerCollectsDiamondIntoSharedStorageAndCannotAttackOrSummon()
+    public void GeomancerCollectsDiamondIntoSharedStorageAndCannotAttack()
     {
         var type = UnitRoster.Geomancer();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.PickupResource, type.Actions);
-        Assert.Equal(UnitBehavior.Flee, type.Behaviors);
+        Assert.Equal(UnitAction.PickupResource | UnitAction.SummonWorker | UnitAction.SummonTroll, type.Actions);
+        Assert.Equal(UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker, type.Behaviors);
         Assert.Null(type.SummonAdjacent);
         var fixture = Fixture();
         fixture = fixture with { UnitTypes = [fixture.UnitTypes![0] with { TransportResource = null }] };
         var result = Pick(Start(fixture), "operate:press");
         // Finish the first round. The operator can vacate its output Cell on its next Move.
-        while (!result.State.RoundComplete) result = Pick(result, "stay");
+        while (!result.State.RoundComplete) result = Pick(result,
+            result.NextInput!.Candidates.Any(c => c.Key == "stay") ? "stay" : "end-turn");
         result = GameEngine.StartRound(result.State, new Dice(), false);
         result = Pick(result, "0,1");
         result = Pick(result, "1,1");

@@ -4,6 +4,7 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    int StoredQuantityFor(string unitId, ResourceType resource) => throw new NotSupportedException();
     IReadOnlyList<Resource> Resources => throw new NotSupportedException();
     bool CanTransportResource(string unitId) => throw new NotSupportedException();
     IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) => throw new NotSupportedException();
@@ -72,6 +73,11 @@ internal sealed class GameplayQueries : IGameplayQueries
     internal GameplayQueries(GameState state) => world = state.Copy();
 
     public IReadOnlyList<Resource> Resources => world.Resources.AsReadOnly();
+    public int StoredQuantityFor(string unitId, ResourceType resource)
+    {
+        var unit = world.Units.Single(u => u.Id == unitId);
+        return world.StoredQuantity(unit.SideId, unit.TypeId, resource.Id);
+    }
 
     public bool CanTransportResource(string unitId) =>
         world.IsUpright(unitId) && FootprintGeometry.FootprintOf(world, unitId) == Footprint.OneByOne &&
