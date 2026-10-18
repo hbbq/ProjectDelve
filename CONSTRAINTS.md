@@ -106,9 +106,11 @@ These scenarios are for interactive playtesting. They use the default Side objec
 
 ## Scenario objectives and game completion
 
-A scenario defines an **Objective** independently for each **Side**. If the scenario does not explicitly specify an Objective for a Side, that Side uses **Eliminate Enemies**. Objectives belong to Sides, not to the Hero/Monster distinction, individual Units, or Decision Providers. An Objective is authoritative game content: clients and automated controllers may use it to plan, but do not decide for themselves whether it has been achieved.
+A scenario defines an **Objective** independently for each **Side**. If the scenario does not explicitly specify an Objective for a Side, that Side uses **Eliminate Enemies**. A scenario may explicitly set **No Objective** for a Side. No Objective is never achieved; that Side cannot win or cause game completion through its own Objective, but its Units still participate normally in activation and gameplay. Objectives belong to Sides, not to the Hero/Monster distinction, individual Units, or Decision Providers. An Objective is authoritative game content: clients and automated controllers may use it to plan, but do not decide for themselves whether it has been achieved.
 
-**Eliminate Enemies** is achieved when no living hostile Units remain on the board for that Side. Use the existing Side relationships and in-play Units when evaluating this condition; a defeated or removed Unit does not count. Do not predict Units that might be created later. This first Objective type needs no target selection, counters, or additional persistent per-Unit state.
+A **neutral Side** has no hostile relationships in either direction with the other Sides. Neutrality affects relationships, not activation or action eligibility unrelated to hostility. A neutral Side may be assigned No Objective to make it a non-winning world participant, or a concrete Objective if a scenario specifically wants that Side to be able to win. Neutrality alone does not imply No Objective, and No Objective alone does not imply neutrality.
+
+**Eliminate Enemies** is achieved when no living hostile Units remain on the board for that Side. Use only the evaluating Side's actual hostile relationships and in-play Units when evaluating this condition; neutral, non-hostile Units do not count as enemies and never prevent completion. a defeated or removed Unit does not count. Do not predict Units that might be created later. This first Objective type needs no target selection, counters, or additional persistent per-Unit state.
 
 ### Reach Area and Defeat Units Objectives
 
