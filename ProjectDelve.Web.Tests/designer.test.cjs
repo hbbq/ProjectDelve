@@ -103,7 +103,7 @@ test("Machine tool places catalog content by pointer and keyboard, edits and del
   h.down(h.cell(2, 1));
   const firstKey = draft.machineKeys[0];
   assert.equal(draft.definition.machines[0].type.id, "diamond-press");
-  assert.match(h.cell(2, 1).textContent, /Diamond PressCoal: 0\/3/);
+  assert.match(h.cell(2, 1).textContent, /Diamond PressPublicCoal: 0\/3/);
   assert.equal(draft.definition.units.length, 0); assert.equal(draft.definition.agency.length, 0);
   h.editor.ui.board.listeners.keydown({ key: "Enter", target: h.cell(4, 2), preventDefault() {} });
   assert.notEqual(draft.definition.machines[0].id, draft.definition.machines[1].id);
@@ -506,4 +506,79 @@ test("imported Resources render, survive export and prevent shrinking off their 
   assert.throws(() => h.editor.draft.resize(5, 4), /Shrinking/);
   await h.click("export");
   assert.deepEqual(submitted.find(row => row.operation === "export").body.resources, definition.resources);
+});
+
+
+test("Machine ownership selector defaults to public, lists scenario Sides, edits and clears ownership", () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.setAgency("goblin-type", "blue", "Human");
+  draft.setAgency("goblin-type", "red", "Automated");
+  draft.setAgency("wizard-type", "blue", "Human");
+  draft.place("goblin-type", "unit-only", "Human", { x: 0, y: 0 });
+  h.editor.render(); h.editor.setTool("Machine"); h.down(h.cell(2, 1));
+  assert.equal(draft.definition.machines[0].ownerSide, null);
+  let form = h.editor.ui.properties.children[0], owner = inputField(form, "Owner Side");
+  assert.equal(owner.tagName, "select"); assert.equal(owner.value, "");
+  assert.deepEqual(owner.children.map(option => option.textContent), ["None / Public", "unit-only", "blue", "red"]);
+  owner.value = "blue"; h.submit(form);
+  assert.equal(draft.snapshot().machines[0].ownerSide, "blue");
+  assert.match(h.cell(2, 1).textContent, /Owner: blue/);
+  assert.match(h.editor.ui.placements.textContent, /Owner: blue/);
+  form = h.editor.ui.properties.children[0];
+  assert.equal(inputField(form, "Owner Side").value, "blue");
+  inputField(form, "Owner Side").value = "red"; h.submit(form);
+  assert.equal(draft.snapshot().machines[0].ownerSide, "red");
+  form = h.editor.ui.properties.children[0]; inputField(form, "Owner Side").value = ""; h.submit(form);
+  assert.equal(draft.snapshot().machines[0].ownerSide, null);
+  assert.match(h.cell(2, 1).textContent, /Public/);
+});
+
+for (const ownerSide of [undefined, null, "blue"]) {
+  test(`Machine owner ${ownerSide} survives designer load, save, export and reload`, async () => {
+    const definition = structuredClone(designerSetup);
+    definition.agency.push({ unitTypeId: "goblin-type", sideId: "blue", controller: "Human" });
+    definition.machines = [{ id: "press", position: { x: 5, y: 4 }, type: structuredClone(catalog.machineTypes[0]), storedResources: [] }];
+    if (ownerSide !== undefined) definition.machines[0].ownerSide = ownerSide;
+    let saved;
+    const h = harness(async (operation, body) => {
+      if (operation === "import") return structuredClone(saved ?? definition);
+      if (operation === "export") { saved = plain(body); return { transport: "DELVE1:ownership" }; }
+      return { valid: true, errors: [] };
+    });
+    await h.click("import"); h.down(h.cell(5, 4));
+    let form = h.editor.ui.properties.children[0];
+    assert.equal(inputField(form, "Owner Side").value, ownerSide ?? "");
+    assert.deepEqual(plain(h.editor.draft.snapshot()), definition);
+    inputField(form, "Machine ID").value = "renamed-press"; h.submit(form);
+    await h.click("validate"); await h.click("export");
+    assert.equal(saved.machines[0].ownerSide, ownerSide ?? null);
+    h.editor.draft.removeMachine(h.editor.draft.machineKeys[0]);
+    await h.click("import"); h.down(h.cell(5, 4));
+    assert.deepEqual(plain(h.editor.draft.snapshot()), saved);
+    form = h.editor.ui.properties.children[0];
+    assert.equal(inputField(form, "Owner Side").value, ownerSide ?? "");
+    assert.equal(inputField(form, "Machine ID").value, "renamed-press");
+  });
+}
+
+test("removing or renaming last Side reference preserves dangling ownership for validation and repair", async () => {
+  const h = harness(async () => ({ valid: false, errors: [{ message: "Machine OwnerSide must reference a valid Side.", path: "machines[0].ownerSide" }] }));
+  const draft = h.editor.draft;
+  draft.setAgency("goblin-type", "old-side", "Human");
+  h.editor.render(); h.editor.setTool("Machine"); h.down(h.cell(2, 1));
+  let form = h.editor.ui.properties.children[0]; inputField(form, "Owner Side").value = "old-side"; h.submit(form);
+  draft.editAgency(0, { unitTypeId: "goblin-type", sideId: "new-side", controller: "Human" }, { kind: "Normal" });
+  h.editor.render(); form = h.editor.ui.properties.children[0];
+  assert.equal(inputField(form, "Owner Side").value, "old-side");
+  assert.match(inputField(form, "Owner Side").textContent, /old-side \(invalid Side\)/);
+  assert.equal(draft.definition.machines[0].ownerSide, "old-side");
+  await h.click("validate");
+  h.editor.ui.errors.querySelectorAll("button")[0].listeners.click();
+  assert.match(h.editor.ui.properties.textContent, /Owner Side/);
+  form = h.editor.ui.properties.children[0]; inputField(form, "Owner Side").value = "new-side"; h.submit(form);
+  draft.removeAgency(0); h.editor.render();
+  assert.equal(draft.definition.machines[0].ownerSide, "new-side");
+  assert.match(inputField(h.editor.ui.properties.children[0], "Owner Side").textContent, /new-side \(invalid Side\)/);
+  form = h.editor.ui.properties.children[0]; inputField(form, "Owner Side").value = ""; h.submit(form);
+  assert.equal(draft.definition.machines[0].ownerSide, null);
 });

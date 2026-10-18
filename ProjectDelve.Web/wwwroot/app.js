@@ -235,9 +235,10 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     if (!node) continue;
     node.classList.add("machine-cell");
     node.append(text("span", machine.name));
+    node.append(text("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
     for (const stored of machine.resourceStorage)
       node.append(text("small", `${stored.name}: ${stored.quantity}/${stored.capacity}`));
-    node.title = `${machine.name} (${machine.id}): ${machine.operation}`;
+    node.title = `${machine.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}: ${machine.operation}`;
     node.setAttribute("aria-label", `${node.title}. ${machine.resourceStorage.map(r => `${r.name}: ${r.quantity}/${r.capacity}`).join(", ")}`);
   }
   for (const resource of state.resources ?? []) {

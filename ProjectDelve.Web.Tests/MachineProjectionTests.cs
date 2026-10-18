@@ -38,6 +38,7 @@ public sealed class MachineProjectionTests
         var ready = Ready(Fixture());
         var presentation = BrowserProjection.Create(ready);
         var machine = Assert.Single(presentation.Machines);
+        Assert.Null(machine.OwnerSide);
         Assert.Equal("Diamond Press", machine.Name);
         Assert.Contains("3 Coal", machine.Operation);
         Assert.Contains("1 Diamond", machine.Operation);
@@ -71,6 +72,18 @@ public sealed class MachineProjectionTests
     }
 
     [Fact]
+    public void OwnershipIsProjectedInStateObservationAndEveryResolutionSnapshot()
+    {
+        var ready = Ready(Fixture() with { Machines = [Fixture().Machines![0] with { OwnerSide = "blue" }] });
+        Assert.Equal("blue", BrowserProjection.Create(ready).Machines.Single().OwnerSide);
+        Assert.Equal("blue", GambitProjection.Observation(ready.State).Board.Machines.Single().OwnerSide);
+        var operated = GameEngine.Advance(ready.State, new Choice("operate:press"), new Dice(), false);
+        Assert.Equal("blue", BrowserProjection.Create(operated).Machines.Single().OwnerSide);
+        Assert.All(BrowserProjection.Create(operated).ResolutionSteps,
+            step => Assert.Equal("blue", step.Machines.Single().OwnerSide));
+    }
+
+    [Fact]
     public void GiveTargetsMachineWithoutPretendingItIsAUnitAndProjectsResult()
     {
         var ready = Ready(Fixture(2) with { Resources = [new(ResourceTypes.Coal, new(1, 1))] });
@@ -88,9 +101,11 @@ public sealed class MachineProjectionTests
     [Fact]
     public void WebImportAndRestartPreserveMachineSetupAndDetachItsStorage()
     {
-        var definition = Fixture();
+        var definition = Fixture() with { Machines = [Fixture().Machines![0] with { OwnerSide = "blue" }] };
         using var game = new PlaytestGame(new Dice(), GameEngine.CreateGame(definition));
         var imported = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(definition));
+        Assert.Equal("blue", imported.Presentation.Machines.Single().OwnerSide);
+        Assert.Equal("blue", imported.Result.State.Physical.Board.Machines.Single().OwnerSide);
         Assert.Equal(3, imported.Presentation.Machines.Single().ResourceStorage.Single().Quantity);
         var moved = game.StartRound(imported.Revision);
         var ready = game.Decide(moved.Revision, "stay");
@@ -98,6 +113,7 @@ public sealed class MachineProjectionTests
         Assert.Equal(0, operated.Presentation.Machines.Single().ResourceStorage.Single().Quantity);
         Assert.Equal(ResourceTypes.Diamond, operated.Result.State.Resources.Single().Type);
         var restarted = game.Restart(operated.Revision);
+        Assert.Equal("blue", restarted.Presentation.Machines.Single().OwnerSide);
         Assert.Equal(3, restarted.Presentation.Machines.Single().ResourceStorage.Single().Quantity);
         Assert.Empty(restarted.Result.State.Resources);
     }

@@ -44,6 +44,59 @@ public sealed class WorkerBehaviorTests
         return (result.State, events);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("blue")]
+    public void DeliveryIgnoresCloserOpposingStoreWithCapacity(string? accessibleOwner)
+    {
+        var (state, events) = Activate(Fixture() with {
+            Machines = [Press(new(1, 2), 0, "opposing") with { OwnerSide = "red" },
+                Press(new(4, 2), 0, "accessible") with { OwnerSide = accessibleOwner }],
+            Resources = [new(ResourceTypes.Coal, new(0, 2))] });
+        Assert.Contains(events, e => e.Kind == "ResourceStored" && e.MachineId == "accessible");
+        Assert.DoesNotContain(events, e => e.MachineId == "opposing");
+        Assert.Equal(0, state.Physical.Board.Machines[0].StoredQuantity("coal"));
+        Assert.Equal(1, state.Physical.Board.Machines[1].StoredQuantity("coal"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("blue")]
+    public void OperatingIgnoresAdjacentOpposingMachineAndApproachesAccessibleOne(string? accessibleOwner)
+    {
+        var (state, events) = Activate(Fixture() with {
+            Machines = [Press(new(1, 2), 3, "opposing") with { OwnerSide = "red" },
+                Press(new(4, 2), 3, "accessible") with { OwnerSide = accessibleOwner }] });
+        Assert.Contains(events, e => e.Kind == "MachineOperated" && e.MachineId == "accessible");
+        Assert.DoesNotContain(events, e => e.MachineId == "opposing");
+        Assert.Equal(3, state.Physical.Board.Machines[0].StoredQuantity("coal"));
+        Assert.Equal(0, state.Physical.Board.Machines[1].StoredQuantity("coal"));
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(3, false)]
+    [InlineData(3, true)]
+    public void OnlyOpposingMachinesDoNotCreateDeliveryResourceOrOperatingGoals(int coal, bool cargo)
+    {
+        var definition = Fixture() with { Machines = [Press(new(3, 2), coal) with { OwnerSide = "red" }],
+            Resources = [new(ResourceTypes.Coal, cargo ? new(0, 2) : new(1, 2))] };
+        Assert.Equal("stay", Choice(Start(definition)));
+        var (state, events) = Activate(definition);
+        Assert.Equal(new Cell(0, 2), state.Physical.Figures.Single(f => f.Id == "actor").Position);
+        Assert.DoesNotContain(events, e => e.Kind is "ResourceStored" or "MachineOperated");
+        Assert.Equal(definition.Resources, state.Resources);
+    }
+
+    [Fact]
+    public void ResourceSeekingIgnoresCoalForInaccessibleStoreButStillSeeksUsefulDiamond()
+    {
+        var start = Start(Fixture() with { Machines = [Press(new(1, 2)) with { OwnerSide = "red" }],
+            Resources = [new(ResourceTypes.Coal, new(0, 1)), new(ResourceTypes.Diamond, new(0, 4))] });
+        Assert.Equal(new Cell(0, 4), start.NextInput!.Candidates.Single(c => c.Key == Choice(start)).Destination);
+    }
+
     [Fact]
     public void CanonicalWorkerDeclaresStatsAndIndependentMechanics()
     {

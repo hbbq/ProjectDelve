@@ -30,6 +30,7 @@ public static class PlaytestScenarios
         new("geomancer-production", "Geomancer Production", "Autonomous Coal to Troll production: Geomancer summons Workers, Workers supply the Diamond Press and deliver Diamonds, then Geomancer summons Trolls."),
         new("lava-production", "Lava Production", "Renewable autonomous production: Lava creates Coal, Workers supply and operate the Diamond Press, and Geomancer summons Workers and Trolls. Eastern defenders guard the approach."),
         new("autonomous-production", "Autonomous Production", "Workers collect Coal, supply and operate the Diamond Press, then deliver Diamond to the Geomancer."),
+        new("machine-ownership", "Machine Ownership", "Blue and Red Workers ignore opposing owned Presses. Each Side has its own Press; the central public Press is usable by both. Watch deliveries and operations across rounds."),
         new("diamond-press", "Diamond Press", "Manual production: transport Coal with the Courier and Give it to the Press. Operate from an empty Cell, then move away so Geomancer can collect the Diamond. The Closed Door blocks the western operating position until opened."),
         new("resource-transport", "Resource Transport", "Wizard / Doors with Coal under Zombies, along their routes and near Doors to playtest atomic Resource transport."),
         new("full-party-trolls", "Full Party / Trolls", "All four Heroes, Undying Trolls and encounters across rooms and Doors."),
@@ -53,6 +54,7 @@ public static class PlaytestScenarios
         "geomancer-production" => GeomancerProduction(),
         "lava-production" => LavaProduction(),
         "autonomous-production" => AutonomousProduction(),
+        "machine-ownership" => MachineOwnership(),
         "diamond-press" => DiamondPressPlaytest(),
         "resource-transport" => WizardDoors() with
         {
@@ -68,6 +70,24 @@ public static class PlaytestScenarios
         "labyrinth-shaper" => LabyrinthShaper(),
         "genombrottet" => GenombrottetScenario.Definition(),
         _ => throw new ArgumentException("Unknown playtest scenario.", nameof(id))
+    };
+
+    private static ScenarioDefinition MachineOwnership() => new()
+    {
+        Board = new() { Width = 11, Height = 7 },
+        UnitTypeIds = [UnitTypeIds.Worker],
+        Units = [new(UnitTypeIds.Worker, "blue", new(7, 2)), new(UnitTypeIds.Worker, "blue", new(1, 5)),
+            new(UnitTypeIds.Worker, "red", new(3, 4)), new(UnitTypeIds.Worker, "red", new(9, 1))],
+        Agency = [new(UnitTypeIds.Worker, "blue", ControllerKind.Automated),
+            new(UnitTypeIds.Worker, "red", ControllerKind.Automated)],
+        Machines = [new("blue-press", new(2, 3), MachineTypes.DiamondPress) { OwnerSide = "blue" },
+            new("red-press", new(8, 3), MachineTypes.DiamondPress) { OwnerSide = "red" },
+            new("public-press", new(5, 3), MachineTypes.DiamondPress)],
+        Resources = [new(ResourceTypes.Coal, new(7, 2)), new(ResourceTypes.Coal, new(1, 5)),
+            new(ResourceTypes.Coal, new(3, 4)), new(ResourceTypes.Coal, new(9, 1)),
+            new(ResourceTypes.Coal, new(1, 1)), new(ResourceTypes.Coal, new(9, 5)),
+            new(ResourceTypes.Coal, new(5, 1)), new(ResourceTypes.Coal, new(5, 5)),
+            new(ResourceTypes.Coal, new(4, 3))]
     };
 
     private static ScenarioDefinition ResourceStoragePlaytest() => new()

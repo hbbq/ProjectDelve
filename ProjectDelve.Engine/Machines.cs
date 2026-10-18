@@ -7,6 +7,7 @@ public sealed record MachineOperation(ImmutableArray<MachineResource> Costs, Res
 public sealed record MachineType(string Id, string Name, ResourceStorage Storage, MachineOperation Operation);
 public sealed record Machine(string Id, Cell Position, MachineType Type)
 {
+    public string? OwnerSide { get; init; }
     public ImmutableArray<MachineResource> StoredResources { get; init; } = [];
     public int StoredQuantity(string resourceTypeId) => StoredResources.SingleOrDefault(r => r.Type.Id == resourceTypeId)?.Quantity ?? 0;
 }
@@ -31,6 +32,9 @@ internal static class MachineRules
             throw new ArgumentException("Machines require unique identities and distinct Cells on the Board.");
         foreach (var machine in board.Machines)
         {
+            if (machine.OwnerSide is not null && !state.Objectives.Any(side => side.SideId == machine.OwnerSide))
+                throw ScenarioValidationContext.At(new ArgumentException("Machine OwnerSide must reference a valid Side."),
+                    $"machines[{board.Machines.IndexOf(machine)}].ownerSide");
             ResourceRules.ValidateCapacity(machine.Type.Storage);
             var operation = machine.Type.Operation;
             if (operation is null || operation.Costs.IsDefaultOrEmpty || operation.OutputQuantity != 1 ||
@@ -58,7 +62,7 @@ internal static class MachineRules
         var type = state.Types.Single(t => t.Id == actor.TypeId);
         var board = state.Physical.Board;
         foreach (var cell in FootprintGeometry.OccupiedCells(state, actor.Id))
-        foreach (var machine in board.Machines.Where(m => Adjacent(board, cell, m)))
+        foreach (var machine in board.Machines.Where(m => (m.OwnerSide is null || m.OwnerSide == actor.SideId) && Adjacent(board, cell, m)))
         {
             var source = type.Footprint == Footprint.OneByOne ? null : cell;
             var suffix = source is null ? "" : $":{cell.X},{cell.Y}";

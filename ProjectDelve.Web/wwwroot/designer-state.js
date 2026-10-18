@@ -80,7 +80,7 @@ export class DesignerDraft {
     const used = new Set([...machines.map(machine => machine.id),
       ...this.definition.units.map(unit => unit.unitId)]);
     while (used.has(`machine-${number}`)) number++;
-    machines.push({ id: `machine-${number}`, position: { ...position }, type: structuredClone(type), storedResources: [] });
+    machines.push({ id: `machine-${number}`, position: { ...position }, type: structuredClone(type), ownerSide: null, storedResources: [] });
     const key = ++this.nextKey; this.machineKeys.push(key); this.changed(); return key;
   }
   editMachine(key, changes) {

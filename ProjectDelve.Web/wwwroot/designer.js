@@ -116,7 +116,7 @@ export function mountDesigner(catalog, request, playDesign) {
       Terrain: "Click or drag cells to paint. Use default removes the explicit override.",
       Edge: "Click or drag internal boundaries. The highlighted segment is the paint target; Remove erases it.",
       Unit: "Click the top-left anchor to place. Supplied footprint geometry is a preview; Validate checks legality.",
-      Machine: "Click a cell to place a Machine. Select it to edit its ID, position and starting Resources. Validate checks legality."
+      Machine: "Click a cell to place a Machine. Select it to edit its ID, position, Owner Side and starting Resources. Validate checks legality."
     }[tool];
   }
   for (const node of ui.tools.querySelectorAll("button")) node.addEventListener("click", () => setTool(node.dataset.tool));
@@ -233,11 +233,12 @@ export function mountDesigner(catalog, request, playDesign) {
         if (!sameCell(machine.position, cell)) continue;
         node.classList.add("machine-cell");
         node.append(element("span", machine.type.name));
+        node.append(element("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
         for (const capacity of machine.type.storage.capacities) {
           const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
           node.append(element("small", `${capacity.type.name}: ${quantity}/${capacity.capacity}`));
         }
-        node.title += ` · ${machine.type.name} (${machine.id})`;
+        node.title += ` · ${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}`;
         node.setAttribute("aria-label", node.title);
         if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
       }
@@ -326,6 +327,12 @@ export function mountDesigner(catalog, request, playDesign) {
       if (!machine) { selection = null; renderProperties(); return; }
       form.append(element("p", machine.type.name));
       const id = field(form, "Machine ID", machine.id);
+      const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
+      const ownerEntries = [{ value: "", label: "None / Public" }, ...sides.map(value => ({ value, label: value }))];
+      // Preserve dangling references for authoritative validation, just like Orders and Unit Side references.
+      if (machine.ownerSide != null && !sides.includes(machine.ownerSide))
+        ownerEntries.push({ value: machine.ownerSide, label: `${machine.ownerSide} (invalid Side)` });
+      const owner = field(form, "Owner Side", machine.ownerSide, { entries: ownerEntries });
       const x = field(form, "Position X", machine.position.x, { type: "number" });
       const y = field(form, "Position Y", machine.position.y, { type: "number" });
       const quantities = machine.type.storage.capacities.map(capacity => {
@@ -334,7 +341,7 @@ export function mountDesigner(catalog, request, playDesign) {
         input.step = "1"; return { type: capacity.type, input };
       });
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editMachine(key, {
-        id: id.value, position: { x: Number(x.value), y: Number(y.value) },
+        id: id.value, ownerSide: owner.value === "" ? null : owner.value, position: { x: Number(x.value), y: Number(y.value) },
         storedResources: [...(machine.storedResources ?? []).filter(row => !quantities.some(q => q.type.id === row.type.id)),
           ...quantities.map(q => ({ type: q.type, quantity: Number(q.input.value) }))]
       })); });
@@ -421,7 +428,7 @@ export function mountDesigner(catalog, request, playDesign) {
   }
   function machineLabel(index) {
     const machine = draft.definition.machines[index];
-    return `${machine.type.name} (${machine.id}) · (${machine.position.x}, ${machine.position.y})`;
+    return `${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`} · (${machine.position.x}, ${machine.position.y})`;
   }
   function renderData() {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));

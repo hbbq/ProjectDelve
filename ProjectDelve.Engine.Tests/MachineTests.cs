@@ -37,6 +37,62 @@ public sealed class MachineTests
     private static EngineResult Pick(EngineResult result, string key) => GameEngine.Advance(result.State, new Choice(key), new Dice(), false);
     private static Machine Machine(GameState state, string id = "press") => state.Physical.Board.Machines.Single(m => m.Id == id);
 
+    [Theory]
+    [InlineData(null, false, true)]
+    [InlineData("blue", false, true)]
+    [InlineData("red", false, false)]
+    [InlineData(null, true, true)]
+    [InlineData("blue", true, true)]
+    [InlineData("red", true, false)]
+    public void OwnershipGatesGiveAndOperateWithoutChangingTheirEffects(string? owner, bool give, bool allowed)
+    {
+        var definition = Fixture(give ? 2 : 3);
+        definition = definition with { Machines = [definition.Machines![0] with { OwnerSide = owner }],
+            Resources = give ? [new(ResourceTypes.Coal, new(1, 1))] : [] };
+        var start = Start(definition);
+        var key = give ? "give-resource-machine:press" : "operate:press";
+        Assert.Equal(allowed, start.NextInput!.Candidates.Any(c => c.Key == key));
+        if (!allowed)
+        {
+            Assert.Throws<ArgumentException>(() => Pick(start, key));
+            Assert.Equal(give ? 2 : 3, Machine(start.State).StoredQuantity("coal"));
+            Assert.Equal(give ? 1 : 0, start.State.Resources.Count);
+            return;
+        }
+        var result = Pick(start, key);
+        Assert.Equal(owner, Machine(result.State).OwnerSide);
+        Assert.All(result.ResolutionSteps, step => Assert.Equal(owner, Machine(step.StateAfter).OwnerSide));
+        Assert.Equal(give ? 3 : 0, Machine(result.State).StoredQuantity("coal"));
+        if (give) Assert.Empty(result.State.Resources);
+        else Assert.Equal(new Resource(ResourceTypes.Diamond, new(1, 1)), Assert.Single(result.State.Resources));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("missing")]
+    [InlineData("Blue")]
+    public void OwnerMustReferenceAnExistingSideInScenarioAndRestoredState(string owner)
+    {
+        var definition = Fixture();
+        var error = Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition with {
+            Machines = [definition.Machines![0] with { OwnerSide = owner }] }));
+        Assert.Equal("machines[0].ownerSide", ScenarioValidationContext.PathOf(error));
+        var state = GameEngine.CreateGame(definition);
+        state.Physical.Board.Machines[0] = state.Physical.Board.Machines[0] with { OwnerSide = owner };
+        Assert.Throws<ArgumentException>(() => GameEngine.StartRound(state, new Dice(), false));
+    }
+
+    [Fact]
+    public void OwnershipCanReferenceAnUnplacedScenarioSide()
+    {
+        var definition = Fixture();
+        var state = GameEngine.CreateGame(definition with {
+            Agency = [.. definition.Agency, new("worker", "future", ControllerKind.Human)],
+            Machines = [definition.Machines![0] with { OwnerSide = "future" }] });
+        Assert.Equal("future", Machine(state).OwnerSide);
+    }
+
     [Fact]
     public void OperateConsumesOnlyTargetStoreAndOutputsAtomicallyAtOperator()
     {
@@ -144,10 +200,16 @@ public sealed class MachineTests
     [Fact]
     public void ScenarioAndStateSerializationPreserveEachMachineAndOperation()
     {
-        var definition = Fixture();
+        var definition = Fixture() with { Machines = [Fixture().Machines![0] with { OwnerSide = "blue" }, Fixture().Machines![1]] };
+        var json = ScenarioDefinitionJson.ToJson(definition);
+        definition = ScenarioDefinitionJson.FromJson(json);
+        Assert.Equal("blue", definition.Machines![0].OwnerSide);
+        Assert.Null(definition.Machines[1].OwnerSide);
         var decoded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(definition));
         var original = GameEngine.CreateGame(decoded);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(original))!;
+        Assert.Equal("blue", Machine(restored).OwnerSide);
+        Assert.Null(Machine(restored, "other-press").OwnerSide);
         Assert.Equal(3, Machine(restored).StoredQuantity("coal"));
         Assert.Equal(1, Machine(restored, "other-press").StoredQuantity("coal"));
         Assert.Equal(new Cell(2, 1), Machine(restored).Position);
@@ -189,8 +251,10 @@ public sealed class MachineTests
         Assert.Equal(3, Machine(start.State).StoredQuantity("coal"));
     }
 
-    [Fact]
-    public void GeomancerCollectsDiamondIntoSharedStorageAndCannotAttack()
+    [Theory]
+    [InlineData(null, "blue")]
+    [InlineData("blue", "red")]
+    public void GeomancerCollectsDiamondIntoSharedStorageAndCannotAttack(string? owner, string collectorSide)
     {
         var type = UnitRoster.Geomancer();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
@@ -198,7 +262,10 @@ public sealed class MachineTests
         Assert.Equal(UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker, type.Behaviors);
         Assert.Null(type.SummonAdjacent);
         var fixture = Fixture();
-        fixture = fixture with { UnitTypes = [fixture.UnitTypes![0] with { TransportResource = null }] };
+        fixture = fixture with { UnitTypes = [fixture.UnitTypes![0] with { TransportResource = null }],
+            Machines = [fixture.Machines![0] with { OwnerSide = owner }, fixture.Machines[1]],
+            Units = [fixture.Units[0], fixture.Units[1] with { SideId = collectorSide }, fixture.Units[2]],
+            Agency = [fixture.Agency[0], fixture.Agency[1] with { SideId = collectorSide }, fixture.Agency[2]] };
         var result = Pick(Start(fixture), "operate:press");
         // Finish the first round. The operator can vacate its output Cell on its next Move.
         while (!result.State.RoundComplete) result = Pick(result,
@@ -208,7 +275,8 @@ public sealed class MachineTests
         result = Pick(result, "1,1");
         result = Pick(result, "pickup-resource");
         Assert.Empty(result.State.Resources);
-        Assert.Equal(1, result.State.StoredQuantity("blue", UnitTypeIds.Geomancer, "diamond"));
+        Assert.Equal(1, result.State.StoredQuantity(collectorSide, UnitTypeIds.Geomancer, "diamond"));
+        Assert.Equal(owner, Machine(result.State).OwnerSide);
         Assert.Equal(0, Machine(result.State).StoredQuantity("coal"));
     }
 }

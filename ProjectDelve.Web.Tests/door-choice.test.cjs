@@ -1921,7 +1921,7 @@ test("Machines render individual supplied storage and bind Give and Operate to t
   initial.presentation.machines = [
     { id: "press-a", position: { x: 2, y: 0 }, name: "Diamond Press", operation: "Spend 3 Coal -> Output 1 Diamond",
       resourceStorage: [{ name: "Coal", quantity: 3, capacity: 3 }] },
-    { id: "press-b", position: { x: 3, y: 0 }, name: "Diamond Press", operation: "Spend 3 Coal -> Output 1 Diamond",
+    { id: "press-b", position: { x: 3, y: 0 }, name: "Diamond Press", ownerSide: "blue", operation: "Spend 3 Coal -> Output 1 Diamond",
       resourceStorage: [{ name: "Coal", quantity: 1, capacity: 3 }] }
   ];
   initial.result.state.physical.board.edges = [{ a: { x: 1, y: 0 }, b: { x: 2, y: 0 }, kind: "ClosedDoor" }];
@@ -1929,6 +1929,10 @@ test("Machines render individual supplied storage and bind Give and Operate to t
   const h = harness(initial, async (url, options) => { submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial }; });
   const machine = x => h.run(`cells.get("${x},0")`);
   assert.match(machine(2).textContent, /Diamond Press.*Coal: 3\/3/s);
+  assert.match(machine(2).textContent, /Public/);
+  assert.match(machine(3).textContent, /Owner: blue/);
+  assert.match(machine(3).title, /Owner: blue/);
+  assert.match(machine(3).attributes["aria-label"], /Owner: blue/);
   assert.match(machine(3).textContent, /Coal: 1\/3/);
   assert.match(machine(2).title, /Spend 3 Coal.*1 Diamond/);
   assert.equal(machine(2).classList.contains("legal"), true);

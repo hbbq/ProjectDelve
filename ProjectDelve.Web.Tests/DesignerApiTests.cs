@@ -177,6 +177,42 @@ public sealed class DesignerApiTests
         Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("future / side")]
+    public async Task MachineOwnershipSurvivesDesignerImportValidateExportAndReload(string? owner)
+    {
+        await using var host = await Host.Start();
+        var definition = CompleteData() with { Machines = [new("press", new(4, 0), MachineTypes.DiamondPress) { OwnerSide = owner }] };
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import",
+            new { transport = ScenarioDefinitionTransport.Encode(definition) });
+        imported.EnsureSuccessStatusCode();
+        var json = await imported.Content.ReadAsStringAsync();
+        Assert.Equal(owner, ScenarioDefinitionJson.FromJson(json).Machines!.Single().OwnerSide);
+        using var validated = await host.PostDraft("validate", json);
+        Assert.True((await validated.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", json);
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        var restored = ScenarioDefinitionTransport.Decode(transport);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(restored));
+        Assert.Equal(owner, GameEngine.CreateGame(restored).Physical.Board.Machines.Single().OwnerSide);
+    }
+
+    [Fact]
+    public async Task DanglingMachineOwnerIsReportedAtEditablePropertyAndCannotBeExported()
+    {
+        await using var host = await Host.Start();
+        var definition = CompleteData() with { Machines = [new("press", new(4, 0), MachineTypes.DiamondPress) { OwnerSide = "removed-side" }] };
+        var json = ScenarioDefinitionJson.ToJson(definition);
+        using var validated = await host.PostDraft("validate", json);
+        var validation = (await validated.Content.ReadFromJsonAsync<DesignerValidation>())!;
+        Assert.False(validation.Valid);
+        Assert.Contains(validation.Errors, error => error.Path == "machines[0].ownerSide" && error.Message.Contains("OwnerSide"));
+        using var exported = await host.PostDraft("export", json);
+        Assert.Equal(HttpStatusCode.BadRequest, exported.StatusCode);
+    }
+
     private static ScenarioDefinition CompleteData() => Scenario.Define(
         Scenario.Map(5, 5, defaultTerrain: TerrainKind.Grass,
             cells: [Scenario.Tile(4, 4, TerrainKind.Grass), Scenario.Tile(3, 3, TerrainKind.StoneFloor)],
