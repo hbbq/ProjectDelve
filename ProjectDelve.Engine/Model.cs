@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Engine;
 
-public enum ScenarioObjective { EliminateEnemies, ReachArea, DefeatUnits }
+public enum ScenarioObjective { EliminateEnemies, ReachArea, DefeatUnits, NoObjective }
 public enum UnitSelectorKind { Unit, SideAtStart, Group }
 public sealed record UnitSelector(UnitSelectorKind Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitId = null,
@@ -73,8 +73,10 @@ public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
-public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava }
-public sealed record TerrainTile(Cell Position, TerrainKind Kind);
+public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail }
+public enum RailDirection { North, East, South, West }
+public sealed record TerrainTile(Cell Position, TerrainKind Kind,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null);
 public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
@@ -133,6 +135,7 @@ public sealed record Explosion
 {
     public int Damage { get; init; } = 1;
 }
+public sealed record RunRails(int Steps);
 public sealed record Phase;
 public sealed record TransportResource;
 public sealed record Cleave(int MaxUses = 2)
@@ -209,6 +212,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Backstab? Backstab { get; init; }
     public Undying? Undying { get; init; }
     public Explosion? Explosion { get; init; }
+    public RunRails? RunRails { get; init; }
     public Phase? Phase { get; init; }
     public TransportResource? TransportResource { get; init; }
     public ResourceStorage? ResourceStorage { get; init; }
@@ -247,6 +251,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
         UnitAuthoring.Define(id, name, stats, entries);
 
+    public static UnitType Locomotive(string id = UnitTypeIds.Locomotive) => UnitRoster.Locomotive(id);
     public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) => UnitRoster.Barbarian(id);
     public static UnitType Rogue(string id = UnitTypeIds.Rogue) => UnitRoster.Rogue(id);
     public static UnitType Cleric(string id = UnitTypeIds.Cleric) => UnitRoster.Cleric(id);
@@ -287,7 +292,7 @@ public sealed record Board(int Width, int Height, List<Edge> Edges)
 
 public static class BoardProperties
 {
-    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor;
+    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail;
     public static bool BlocksLos(this TerrainKind kind) => kind == TerrainKind.Tree;
     public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
@@ -372,6 +377,9 @@ public sealed class GameState
         Units.Add(type.CreateUnit(id, sideId));
         Physical.Figures.Add(new(id, cell, posture));
     }
+    public List<string> NeutralSides { get; set; } = [];
+    public bool AreHostile(string firstSide, string secondSide) =>
+        firstSide != secondSide && !NeutralSides.Contains(firstSide) && !NeutralSides.Contains(secondSide);
     public List<SideObjective> Objectives { get; set; } = [];
     public Dictionary<string, ImmutableArray<string>> ObjectiveStartUnitIds { get; set; } = new(StringComparer.Ordinal);
     public HashSet<string> DefeatedUnitIds { get; set; } = new(StringComparer.Ordinal);
@@ -443,7 +451,7 @@ public sealed class GameState
         if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
 
         // Derive Fury solely from the evaluated world, including hypothetical copies.
-        var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && u.SideId != unit.SideId)
+        var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && AreHostile(unit.SideId, u.SideId))
             .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
                 SpatialRules.AreAdjacent(this, unitId, enemy.Id));
         return Math.Max(0, attack + (adjacentEnemies >= fury.AdjacentEnemyThreshold ? fury.AtkBonus : 0));
@@ -456,7 +464,7 @@ public sealed class GameState
         var attacker = Units.Single(u => u.Id == attackerId);
         var target = Units.Single(u => u.Id == targetId);
         if (Types.Single(t => t.Id == attacker.TypeId).Backstab is not { } backstab ||
-            attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || attacker.SideId == target.SideId)
+            attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || !AreHostile(attacker.SideId, target.SideId))
             return Math.Max(0, attack);
 
         var targetFigure = Physical.Figures.SingleOrDefault(f => f.Id == targetId);
@@ -522,7 +530,7 @@ public sealed class GameState
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
-        Objectives = [.. Objectives], Completion = Completion,
+        NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),

@@ -12,14 +12,15 @@ internal static class ScenarioCreation
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
-        if (board.Width < 1 || board.Height < 1 || !Enum.IsDefined(board.DefaultTerrain))
+        if (board.Width < 1 || board.Height < 1 || !Enum.IsDefined(board.DefaultTerrain) || board.DefaultTerrain == TerrainKind.Rail)
             throw ScenarioValidationContext.At(new ArgumentException("Invalid board dimensions or default terrain.", nameof(definition)), "board");
         bool Inside(Cell? cell) => cell is not null && cell.X >= 0 && cell.Y >= 0 && cell.X < board.Width && cell.Y < board.Height;
         HashSet<Cell> seenCells = [];
         for (var index = 0; index < board.Cells.Count; index++)
         {
             var cell = board.Cells[index];
-            if (cell is null || !Inside(cell.Position) || !Enum.IsDefined(cell.Terrain))
+            if (cell is null || !Inside(cell.Position) || !Enum.IsDefined(cell.Terrain) ||
+                (cell.Terrain == TerrainKind.Rail ? cell.Direction is null || !Enum.IsDefined(cell.Direction.Value) : cell.Direction is not null))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Cell override.", nameof(definition)), $"board.cells[{index}]");
             if (!seenCells.Add(cell.Position))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate Cell override.", nameof(definition)), $"board.cells[{index}]");
@@ -82,6 +83,9 @@ internal static class ScenarioCreation
 
         var sides = definition.Units.Select(u => u.SideId).Concat(definition.Agency.Select(a => a.SideId))
             .Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
+        if (definition.NeutralSides is { } neutral &&
+            (neutral.Any(s => s is null || !sides.Contains(s)) || neutral.Distinct().Count() != neutral.Count))
+            throw new ArgumentException("Neutral Sides must be unique, known Sides.", nameof(definition));
         var objectives = definition.Objectives ?? [];
         HashSet<string> objectiveSides = new(StringComparer.Ordinal);
         for (var index = 0; index < objectives.Count; index++)
@@ -98,23 +102,24 @@ internal static class ScenarioCreation
             throw new ArgumentException("Scenario Unit Types must be unique and declared.", nameof(definition));
         var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id, customTypes)
             ?? throw new ArgumentException($"Unknown Unit Type ID '{id}'.", nameof(definition))).ToList();
-        var overrides = board.Cells.ToDictionary(c => c.Position, c => c.Terrain);
+        var overrides = board.Cells.ToDictionary(c => c.Position);
         List<TerrainTile> terrain = [];
         if (board.DefaultTerrain == TerrainKind.StoneFloor)
-            terrain.AddRange(board.Cells.Select(c => new TerrainTile(c.Position, c.Terrain)));
+            terrain.AddRange(board.Cells.Select(c => new TerrainTile(c.Position, c.Terrain, c.Direction)));
         else
             for (var y = 0; y < board.Height; y++)
             for (var x = 0; x < board.Width; x++)
             {
                 var cell = new Cell(x, y);
-                terrain.Add(new(cell, overrides.GetValueOrDefault(cell, board.DefaultTerrain)));
+                var authored = overrides.GetValueOrDefault(cell);
+                terrain.Add(new(cell, authored?.Terrain ?? board.DefaultTerrain, authored?.Direction));
             }
         var state = new GameState
         {
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList()) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
-            Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects,
+            NeutralSides = [.. definition.NeutralSides ?? []], Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects,
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
@@ -170,7 +175,7 @@ internal static class ScenarioCreation
     {
         foreach (var objective in state.Objectives)
         {
-            if (objective.Objective == ScenarioObjective.EliminateEnemies) continue;
+            if (objective.Objective is ScenarioObjective.EliminateEnemies or ScenarioObjective.NoObjective) continue;
             var valid = objective.Count >= 0 && !objective.Selectors.IsDefaultOrEmpty;
             if (objective.Objective == ScenarioObjective.ReachArea)
                 valid &= objective.Area is { X: >= 0, Y: >= 0, W: > 0, H: > 0 } area &&

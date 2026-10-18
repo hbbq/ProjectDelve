@@ -275,7 +275,9 @@ public static class BrowserProjection
                 break;
             case "UnitRepositioned":
                 role = OutcomeRole.Movement;
-                description = $"{e.SourceUnitId} displaced {e.UnitId}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
+                description = e.ActionId == "run-rails"
+                    ? $"{e.UnitId} ran Rails: {string.Join(" -> ", e.Path!.Select(CellLabel))}"
+                    : $"{e.SourceUnitId} displaced {e.UnitId}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
                 break;
             case "PlacesSwapped":
                 description = $"{e.UnitId} swapped places with {e.TargetId}";

@@ -4,6 +4,7 @@ public static class ObjectivePresentation
 {
     public static string Name(SideObjective objective) => objective.Objective switch
     {
+        ScenarioObjective.NoObjective => "No Objective",
         ScenarioObjective.EliminateEnemies => "Eliminate Enemies",
         ScenarioObjective.ReachArea => "Reach Area",
         ScenarioObjective.DefeatUnits => "Defeat Units",
@@ -12,6 +13,8 @@ public static class ObjectivePresentation
 
     public static string Meaning(SideObjective objective)
     {
+        if (objective.Objective == ScenarioObjective.NoObjective)
+            return "Never achieved. This Side participates normally but cannot win through its own Objective.";
         if (objective.Objective == ScenarioObjective.EliminateEnemies)
             return "No living hostile Units remain on the board.";
         var count = objective.Count == 0 ? "All" : $"At least {objective.Count}";

@@ -208,19 +208,21 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   ui.board.style.setProperty("--columns", board.width);
   ui.board.style.setProperty("--board-ratio", board.width / board.height);
   ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
-  const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile.kind]));
+  const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile]));
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
-    const kind = terrain.get(cellKey({ x, y })) ?? "StoneFloor";
+    const tile = terrain.get(cellKey({ x, y }));
+    const kind = tile?.kind ?? "StoneFloor";
     const key = cellKey({ x, y });
     const node = cells.get(key) ?? document.createElement("div");
     node.replaceChildren();
     node.removeAttribute("aria-label");
     node.className = `cell ${kind}`; node.dataset.cell = key;
+    node.dataset.railDirection = tile?.direction ?? "";
     retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
-    node.title = kind;
+    node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
     const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) node.append(text("span", symbol));
     if (!cells.has(key)) {

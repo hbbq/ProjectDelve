@@ -186,6 +186,11 @@ public static partial class GameEngine
                     ChangePosture(state, choice!, Posture.Upright, events);
                     CompleteUnit(state, events);
                 }
+                else if (state.Types.Single(t => t.Id == request.TypeId).RunRails is { } rails)
+                {
+                    ResolveRunRails(state, choice!, rails, events);
+                    CompleteUnit(state, events);
+                }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
                 var bonusChoice = request.Candidates.Single(c => c.Key == choice);
@@ -848,7 +853,7 @@ public static partial class GameEngine
 
     private static IEnumerable<Unit> AdjacentHostiles(GameState state, Unit unit)
     {
-        return state.Units.Where(target => target.CurrentHp > 0 && target.SideId != unit.SideId &&
+        return state.Units.Where(target => target.CurrentHp > 0 && state.AreHostile(unit.SideId, target.SideId) &&
                 SpatialRules.AreAdjacent(state, unit.Id, target.Id));
     }
 
@@ -968,6 +973,7 @@ public static partial class GameEngine
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(t => !Enum.IsDefined(t.Footprint) || t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
+                (t.RunRails is { } rails && (rails.Steps < 1 || t.Footprint != Footprint.OneByOne)) ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
                 t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
@@ -1012,7 +1018,8 @@ public static partial class GameEngine
             state.Types.Single(t => t.Id == u.TypeId).Fireball?.MaxUses != uses.MaxUses))
             throw new ArgumentException("Fireball uses must match Unit Type content.");
         var figures = state.Physical.Figures;
-        if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind)) ||
+        if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind) ||
+                (tile.Kind == TerrainKind.Rail ? tile.Direction is null || !Enum.IsDefined(tile.Direction.Value) : tile.Direction is not null)) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
             throw new ArgumentException("Invalid terrain tiles.");
         if (figures.Any(f => !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||

@@ -22,6 +22,7 @@ public static class PlaytestScenarios
 {
     public const string DefaultId = "basic-combat";
     public static IReadOnlyList<ScenarioDescription> Catalog { get; } = Array.AsReadOnly<ScenarioDescription>([
+        new("railway", "Railway", "A neutral Locomotive runs four Rail steps each activation. Upright and Lying figures demonstrate collisions; move the Dragon to clear the loop and watch across rounds."),
         new(DefaultId, "Basic Combat", "Barbarian against Grunts: movement, Normal Attack and activation flow."),
         new("goblins", "Goblins", "Two Heroes, flanking opportunities and space for Goblins to retreat."),
         new("archers", "Archers", "Mixed melee and ranged enemies around broken sight lines."),
@@ -46,6 +47,7 @@ public static class PlaytestScenarios
 
     public static ScenarioDefinition Definition(string id) => id switch
     {
+        "railway" => RailwayScenario.Definition(),
         DefaultId => BasicCombat(),
         "goblins" => Goblins(),
         "archers" => Archers(),

@@ -34,7 +34,7 @@ internal static class AttackRules
         if (action == UnitAction.ClawAttack)
         {
             var target = state.Units.Single(u => u.Id == targetId);
-            return stats.ClawAttack is not null && target.CurrentHp > 0 && target.SideId != attacker.SideId &&
+            return stats.ClawAttack is not null && target.CurrentHp > 0 && state.AreHostile(attacker.SideId, target.SideId) &&
                 SpatialRules.AreAdjacent(state, attackerId, targetId)
                 ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
         }
@@ -66,7 +66,7 @@ internal static class AttackRules
         var attacker = state.Units.Single(u => u.Id == sourceId);
         var target = state.Units.Single(u => u.Id == targetId);
         var range = state.EffectiveRngOf(sourceId);
-        if (range <= 0 || target.CurrentHp == 0 || target.SideId == attacker.SideId)
+        if (range <= 0 || target.CurrentHp == 0 || !state.AreHostile(attacker.SideId, target.SideId))
             return UnitTargetEvaluation.NotPossible;
 
         return FootprintGeometry.OccupiedCells(state, sourceId, from).Any(source =>
@@ -89,7 +89,7 @@ internal static class AttackRules
         if (!HasGeometricLineOfSight(state.Physical.Board, from, to)) return false;
         targetId ??= FootprintGeometry.UnitAtCell(state, to);
         var side = state.Units.Single(u => u.Id == sourceId).SideId;
-        return !state.Units.Where(u => u.CurrentHp > 0 && u.SideId != side && u.Id != sourceId && u.Id != targetId)
+        return !state.Units.Where(u => u.CurrentHp > 0 && state.AreHostile(side, u.SideId) && u.Id != sourceId && u.Id != targetId)
             .Any(u => FootprintGeometry.OccupiedCells(state, u.Id)
                 .Any(position => position != from && position != to && CrossesInterior(from, to, position)));
     }

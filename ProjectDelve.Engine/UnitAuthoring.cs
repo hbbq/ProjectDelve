@@ -36,6 +36,11 @@ public static class UnitAuthoring
     public static ModifierThisTurn Modifier(Stat stat, int amount) => new(stat, amount);
     public static SelfModifiers BonusActionSelfModifier(params ModifierThisTurn[] modifiers) => new([.. modifiers]);
 
+    public static Entry RunRails(int steps) => steps > 0 ? new RailEntry(new(steps)) : throw new ArgumentOutOfRangeException(nameof(steps));
+    private sealed class RailEntry(RunRails mechanic) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { RunRails = mechanic };
+    }
     public static Entry CantAttack() => new CantAttackEntry();
     public static Entry Unique() => new UniqueEntry();
     public static Entry Footprint2x2() => new FootprintEntry();

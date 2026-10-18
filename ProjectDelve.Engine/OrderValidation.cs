@@ -33,12 +33,12 @@ internal static class OrderValidation
             OrderTargetKind.Unit when target.UnitId is { } id =>
                 state.Units.SingleOrDefault(unit => unit.Id == id) is { CurrentHp: > 0 } unit &&
                 state.Physical.Figures.Any(figure => figure.Id == id) &&
-                (order.Kind == OrderKind.Attack ? unit.SideId != order.Token.SideId :
+                (order.Kind == OrderKind.Attack ? state.AreHostile(order.Token.SideId, unit.SideId) :
                     order.Kind == OrderKind.Protect && unit.SideId == order.Token.SideId),
             OrderTargetKind.Group when target.Group is { } group => order.Kind == OrderKind.Attack &&
-                group.SideId != order.Token.SideId && state.Controllers.Any(controller => controller.Token == group),
+                state.AreHostile(order.Token.SideId, group.SideId) && state.Controllers.Any(controller => controller.Token == group),
             OrderTargetKind.Side when target.SideId is { } side => order.Kind == OrderKind.Attack &&
-                side != order.Token.SideId && state.Objectives.Any(objective => objective.SideId == side),
+                state.AreHostile(order.Token.SideId, side) && state.Objectives.Any(objective => objective.SideId == side),
             OrderTargetKind.Door when target.Door is { } door => order.Kind == OrderKind.InteractWith &&
                 state.Physical.Board.EdgeBetween(door.A, door.B) is EdgeKind.OpenDoor or EdgeKind.ClosedDoor,
             _ => false

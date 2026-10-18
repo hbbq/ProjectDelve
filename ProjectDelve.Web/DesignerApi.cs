@@ -35,6 +35,7 @@ public static class DesignerApi
                     offsets, offsets.Max(cell => cell.X) + 1);
             }).ToArray(),
             terrains = Enum.GetNames<TerrainKind>(),
+            railDirections = Enum.GetNames<RailDirection>(),
             edgeKinds = Enum.GetNames<EdgeKind>(),
             postures = Enum.GetNames<Posture>(),
             controllers = Enum.GetNames<ControllerKind>(),

@@ -16,6 +16,9 @@ public static class ContentDescriptions
     {
         List<CardEntryDescription> entries = [];
         var names = type.AbilityNames;
+        if (type.RunRails is { } rails)
+            entries.Add(new("run-rails", $"Run Rails ({rails.Steps})", "Automatic",
+                $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place."));
         if (type.Actions.HasFlag(UnitAction.NormalAttack))
             entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight."));
         if (type.Actions.HasFlag(UnitAction.FireBreath))

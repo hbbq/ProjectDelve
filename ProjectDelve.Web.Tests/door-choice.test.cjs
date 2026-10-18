@@ -1990,3 +1990,28 @@ for (const animate of [true, false]) test(`Lava playback renders each authoritat
   assert.deepEqual(shown.slice(0, 4), [0, 1, 1, 2]);
   assert.equal(h.run('cells.get("0,0").querySelectorAll(".resource-marker")[0].title'), "Coal");
 });
+
+
+for (const animate of [true, false]) test(`Rail directions and separate step snapshots render during playback (animate=${animate})`, async () => {
+  const initial = response();
+  initial.result.state.physical.board.terrain = ["North", "East", "South", "West"].map((direction, x) => ({ position: { x, y: 0 }, kind: "Rail", direction }));
+  const final = structuredClone(initial);
+  final.result.events = [1, 2, 3].map(x => ({ kind: "UnitRepositioned", unitId: "actor", actionId: "run-rails", path: [{ x: x - 1, y: 0 }, { x, y: 0 }] }));
+  final.presentation.events = final.result.events.map(event => ({ role: "Movement", text: "Supplied rail step", unitId: "actor", path: event.path }));
+  final.result.resolutionSteps = [1, 2, 3].map((x, eventIndex) => {
+    const stateAfter = structuredClone(initial.result.state); stateAfter.physical.figures[0].position.x = x;
+    return { eventIndex, stateAfter };
+  });
+  final.result.state = final.result.resolutionSteps[2].stateAfter;
+  final.presentation.resolutionSteps = final.result.resolutionSteps.map(({ eventIndex }) => ({ eventIndex, cards: final.presentation.cards }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  for (const [x, direction] of ["North", "East", "South", "West"].entries()) {
+    assert.equal(h.run(`cells.get("${x},0").dataset.railDirection`), direction);
+    assert.match(h.run(`cells.get("${x},0").title`), new RegExp(direction));
+  }
+  const shown = []; h.context.shown = shown;
+  h.run(`ui.animate.checked = ${animate}; pause = async () => {}; const originalRender = renderState;
+    renderState = (...args) => { originalRender(...args); shown.push(displayedState.physical.figures[0].position.x); };`);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.deepEqual(shown.slice(0, 3), [1, 2, 3]);
+});

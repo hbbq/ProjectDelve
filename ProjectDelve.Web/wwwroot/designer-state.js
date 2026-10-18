@@ -55,9 +55,22 @@ export class DesignerDraft {
   terrainAt(cell) {
     return this.definition.board.cells.find(entry => sameCell(entry.position, cell))?.terrain ?? this.definition.board.defaultTerrain;
   }
-  paintTerrain(position, terrain) {
+  railDirectionAt(cell) {
+    return this.definition.board.cells.find(entry => sameCell(entry.position, cell))?.direction;
+  }
+  setNeutral(side, neutral) {
+    const sides = (this.definition.neutralSides ?? []).filter(value => value !== side);
+    if (neutral) sides.push(side);
+    this.definition.neutralSides = sides; this.changed();
+  }
+  setObjective(side, objective) {
+    const objectives = (this.definition.objectives ?? []).filter(value => value.sideId !== side);
+    if (objective) objectives.push({ sideId: side, objective });
+    this.definition.objectives = objectives; this.changed();
+  }
+  paintTerrain(position, terrain, direction = "East") {
     upsert(this.definition.board.cells, entry => sameCell(entry.position, position),
-      terrain === null ? null : { position: { ...position }, terrain });
+      terrain === null ? null : { position: { ...position }, terrain, ...(terrain === "Rail" ? { direction } : {}) });
     this.changed();
   }
   paintEdge(position, direction, kind) {

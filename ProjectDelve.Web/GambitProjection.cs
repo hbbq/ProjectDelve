@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace ProjectDelve.Web;
 
 // Purpose-built allowlist for model consumption. Engine model growth cannot silently expand it.
-public enum GambitAgency { Direct, Allied, Hostile }
+public enum GambitAgency { Direct, Allied, Hostile, Neutral }
 public sealed record GambitStats(int Mov, int Rng, int Atk, int Def);
 public sealed record GambitAbilityUse(string EntryId, int Remaining, int Maximum);
 public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitAgency Agency, int CurrentHp, int MaximumHp,
@@ -160,7 +160,7 @@ internal static class GambitProjection
                 .Where(pair => pair.uses is not null)
                 .Select(pair => new GambitAbilityUse(pair.entry.Id, pair.uses!.RemainingUses, pair.uses.MaxUses)).ToArray();
             var token = new ActivationToken(unit.TypeId, unit.SideId);
-            var agency = unit.SideId != bindingSide ? GambitAgency.Hostile
+            var agency = unit.SideId != bindingSide ? (state.AreHostile(bindingSide, unit.SideId) ? GambitAgency.Hostile : GambitAgency.Neutral)
                 : controllerBindings.GetValueOrDefault(token) == "Gambit" ? GambitAgency.Direct : GambitAgency.Allied;
             return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, agency, unit.CurrentHp, type.Hp,
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
@@ -205,7 +205,7 @@ internal static class GambitProjection
 
         var result = new StringBuilder();
         result.AppendLine("ASCII map (derived; structured Board/Units authoritative). x->right; y->down.");
-        result.AppendLine("cell=terrain+unit: .=StoneFloor g=Grass t=Tree ~=Water #=StoneFloorWithTable ^=Lava; -=empty; repeated unit symbol=2x2 footprint.");
+        result.AppendLine("cell=terrain+unit: .=StoneFloor g=Grass t=Tree ~=Water #=StoneFloorWithTable ^=Lava R=Rail (outgoing direction in terrain data); -=empty; repeated unit symbol=2x2 footprint.");
         result.AppendLine("edge between cells: V |/C/O/X/:; H -/C/O/X/:; Wall/ClosedDoor/OpenDoor/WallWithWindow/None(open).");
 
         var line = new StringBuilder("x>".PadRight(axisWidth));
@@ -283,6 +283,7 @@ internal static class GambitProjection
         TerrainKind.Tree => 't',
         TerrainKind.Water => '~',
         TerrainKind.Lava => '^',
+        TerrainKind.Rail => 'R',
         TerrainKind.StoneFloorWithTable => '#',
         _ => throw new ArgumentOutOfRangeException(nameof(kind))
     };

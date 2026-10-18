@@ -59,8 +59,9 @@ public static partial class GameEngine
         if (state.IsCompleted) return;
         var achieved = state.Objectives.Where(objective => objective.Objective switch
         {
+            ScenarioObjective.NoObjective => false,
             ScenarioObjective.EliminateEnemies => !state.Units.Any(unit => unit.CurrentHp > 0 &&
-                unit.SideId != objective.SideId && state.Physical.Figures.Any(figure => figure.Id == unit.Id)),
+                state.AreHostile(objective.SideId, unit.SideId) && state.Physical.Figures.Any(figure => figure.Id == unit.Id)),
             ScenarioObjective.ReachArea or ScenarioObjective.DefeatUnits => SelectedObjectiveAchieved(state, objective),
             _ => throw new InvalidOperationException("Unsupported Scenario Objective.")
         }).Select(objective => objective.SideId).ToImmutableArray();

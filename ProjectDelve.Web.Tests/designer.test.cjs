@@ -19,7 +19,8 @@ const catalog = {
     cellSpan: id === "opaque-large" ? 2 : 1,
     footprintOffsets: id === "opaque-large" ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] : [{ x: 0, y: 0 }]
   })),
-  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava"],
+  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava", "Rail"],
+  railDirections: ["North", "East", "South", "West"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
   postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
   orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith"]
@@ -581,4 +582,44 @@ test("removing or renaming last Side reference preserves dangling ownership for 
   assert.match(inputField(h.editor.ui.properties.children[0], "Owner Side").textContent, /new-side \(invalid Side\)/);
   form = h.editor.ui.properties.children[0]; inputField(form, "Owner Side").value = ""; h.submit(form);
   assert.equal(draft.definition.machines[0].ownerSide, null);
+});
+
+
+test("Rail brush authors every outgoing direction, renders arrows, edits and clears direction", () => {
+  const h = harness(), draft = h.editor.draft;
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Rail";
+  for (const [x, direction] of catalog.railDirections.entries()) {
+    h.editor.ui["rail-direction"].value = direction;
+    h.down(h.cell(x, 0)); h.up();
+    assert.equal(draft.railDirectionAt({ x, y: 0 }), direction);
+    assert.equal(h.cell(x, 0).dataset.railDirection, direction);
+  }
+  h.editor.setTool("Select"); h.down(h.cell(0, 0));
+  const form = h.editor.ui.properties.children[0];
+  inputField(form, "Rail outgoing direction").value = "West"; h.submit(form);
+  assert.equal(draft.railDirectionAt({ x: 0, y: 0 }), "West");
+  draft.paintTerrain({ x: 0, y: 0 }, "Grass"); h.editor.render();
+  assert.equal(draft.definition.board.cells[0].direction, undefined);
+  assert.equal(h.cell(0, 0).dataset.railDirection, "");
+  assert.ok(!h.editor.ui.default.children.some(option => option.value === "Rail"));
+});
+
+test("Neutrality and No Objective edit independently and survive designer roundtrip", () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.place("grunt-type", "Railway", "Automated", { x: 0, y: 0 });
+  draft.paintTerrain({ x: 0, y: 0 }, "Rail", "South"); h.editor.render();
+  let form = h.editor.ui["side-settings"].children[0];
+  inputField(form, "Neutral (no hostility in either direction)").value = "Yes";
+  inputField(form, "Objective").value = "NoObjective"; h.submit(form);
+  assert.deepEqual(plain(draft.definition.neutralSides), ["Railway"]);
+  assert.deepEqual(plain(draft.definition.objectives), [{ sideId: "Railway", objective: "NoObjective" }]);
+  const exported = draft.snapshot(); draft.replace(JSON.parse(JSON.stringify(exported))); h.editor.render();
+  assert.deepEqual(plain(draft.snapshot()), plain(exported));
+  form = h.editor.ui["side-settings"].children[0];
+  inputField(form, "Neutral (no hostility in either direction)").value = "No"; h.submit(form);
+  assert.deepEqual(plain(draft.definition.neutralSides), []);
+  assert.equal(draft.definition.objectives[0].objective, "NoObjective");
+  form = h.editor.ui["side-settings"].children[0]; inputField(form, "Objective").value = ""; h.submit(form);
+  assert.deepEqual(plain(draft.definition.objectives), []);
+  assert.equal(draft.railDirectionAt({ x: 0, y: 0 }), "South");
 });

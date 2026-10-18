@@ -18,6 +18,13 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType Locomotive(string id = UnitTypeIds.Locomotive) => UnitType.Define(id,
+        "Locomotive",
+        Stats(0, 0, 0, 0, 1),
+        CantAttack(),
+        RunRails(steps: 4)
+    );
+
     public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitType.Define(id,
         "Displacer Demon",
         Stats(3, 1, 4, 4, 1),

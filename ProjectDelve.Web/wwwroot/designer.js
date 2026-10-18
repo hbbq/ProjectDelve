@@ -24,14 +24,15 @@ function field(form, label, value, { entries, type = "text", list } = {}) {
 export function mountDesigner(catalog, request, playDesign) {
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
-    "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
+    "rail-direction", "side-settings", "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
   let tool = "Select", selection = null, painting = false, lastPaint = null, pendingPlay = false;
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
   const terrainOptions = [{ value: "", label: "Use default (remove override)" }, ...catalog.terrains];
   const edgeOptions = [{ value: "", label: "Remove" }, ...catalog.edgeKinds.filter(kind => kind !== "None")];
-  options(ui.default, catalog.terrains); ui.default.value = draft.definition.board.defaultTerrain;
+  options(ui["rail-direction"], catalog.railDirections ?? ["North", "East", "South", "West"]); ui["rail-direction"].value = "East";
+  options(ui.default, catalog.terrains.filter(kind => kind !== "Rail")); ui.default.value = draft.definition.board.defaultTerrain;
   options(ui.terrain, terrainOptions); options(ui.edge, edgeOptions); ui.edge.value = "Wall";
   options(ui["machine-type"], catalog.machineTypes.map(type => ({ value: type.id, label: type.name })));
   for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) options(select, typeOptions);
@@ -130,8 +131,9 @@ export function mountDesigner(catalog, request, playDesign) {
     const key = `${target.position.x},${target.position.y},${target.direction ?? ""}`;
     if (lastPaint === key) return;
     if (tool === "Terrain" && !target.direction) {
-      draft.paintTerrain(target.position, ui.terrain.value || null);
+      draft.paintTerrain(target.position, ui.terrain.value || null, ui["rail-direction"].value);
       target.node.className = `cell ${draft.terrainAt(target.position)}`;
+      target.node.dataset.railDirection = draft.railDirectionAt(target.position) ?? "";
     } else if (tool === "Edge" && target.direction) {
       draft.paintEdge(target.position, target.direction, ui.edge.value || null);
       target.node.className = `edge designer-edge-hit ${ui.edge.value || "None"}`;
@@ -223,9 +225,10 @@ export function mountDesigner(catalog, request, playDesign) {
     for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
       const cell = { x, y }, node = element("div");
       node.className = `cell ${draft.terrainAt(cell)}`;
+      node.dataset.railDirection = draft.railDirectionAt(cell) ?? "";
       node.dataset.editorHit = "cell"; node.dataset.x = x; node.dataset.y = y;
       node.tabIndex = 0; node.setAttribute("role", "button");
-      node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainAt(cell)}`);
+      node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainAt(cell)} ${draft.railDirectionAt(cell) ?? ""}`);
       node.title = `${x},${y} · ${draft.terrainAt(cell)}`;
       node.append(element("span", `${x},${y}`));
       if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
@@ -353,7 +356,8 @@ export function mountDesigner(catalog, request, playDesign) {
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrain ?? "", { entries: terrainOptions });
-      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.paintTerrain(position, terrain.value || null)); });
+      const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.paintTerrain(position, terrain.value || null, direction.value)); });
       form.append(element("button", "Apply terrain"));
     } else if (selection.kind === "edge") {
       const position = { ...selection.position }, direction = selection.direction;
@@ -433,6 +437,20 @@ export function mountDesigner(catalog, request, playDesign) {
   function renderData() {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));
     const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
+    ui["side-settings"].replaceChildren(...sides.map(side => {
+      const form = element("form"); form.className = "designer-property-form";
+      form.append(element("strong", side));
+      const neutral = field(form, "Neutral (no hostility in either direction)", (draft.definition.neutralSides ?? []).includes(side) ? "Yes" : "No", { entries: ["No", "Yes"] });
+      const current = draft.definition.objectives?.find(row => row.sideId === side);
+      const entries = [{ value: "", label: "Default (Eliminate Enemies)" }, { value: "EliminateEnemies", label: "Eliminate Enemies" }, { value: "NoObjective", label: "No Objective" }];
+      if (current && !entries.some(entry => entry.value === current.objective)) entries.push({ value: current.objective, label: current.objective });
+      const objective = field(form, "Objective", current?.objective ?? "", { entries });
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
+        draft.setNeutral(side, neutral.value === "Yes");
+        if (objective.value !== (current?.objective ?? "")) draft.setObjective(side, objective.value || null);
+      }); });
+      form.append(element("button", "Apply Side")); return form;
+    }));
     ui.sides.replaceChildren(...sides.map(side => { const option = element("option"); option.value = side; return option; }));
     ui["unit-ids"].replaceChildren(...draft.definition.units.filter(unit => unit.unitId).map(unit => {
       const option = element("option", `${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · ${unit.sideId}`);

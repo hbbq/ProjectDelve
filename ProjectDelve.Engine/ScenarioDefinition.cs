@@ -3,6 +3,7 @@ namespace ProjectDelve.Engine;
 // Initial setup only. Content and runtime identity are resolved during game creation.
 public sealed record ScenarioDefinition
 {
+    public List<string>? NeutralSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }
     public WorldEffectsSettings? WorldEffects { get; init; }
     public required BoardDefinition Board { get; init; }
@@ -26,7 +27,7 @@ public sealed record BoardDefinition
     public List<EdgeDefinition> Edges { get; init; } = [];
 }
 
-public sealed record CellDefinition(Cell Position, TerrainKind Terrain);
+public sealed record CellDefinition(Cell Position, TerrainKind Terrain, RailDirection? Direction = null);
 public enum EdgeDirection { Right, Down }
 public sealed record EdgeDefinition(Cell Position, EdgeDirection Direction, EdgeKind Kind);
 public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor,
