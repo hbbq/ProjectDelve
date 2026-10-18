@@ -23,7 +23,7 @@ function field(form, label, value, { entries, type = "text", list } = {}) {
 // A renderer for drafts, deliberately separate from GameState, choices and event playback.
 export function mountDesigner(catalog, request, playDesign) {
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
-    "terrain-label", "edge-label", "unit-brush", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
+    "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
     "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
@@ -33,6 +33,7 @@ export function mountDesigner(catalog, request, playDesign) {
   const edgeOptions = [{ value: "", label: "Remove" }, ...catalog.edgeKinds.filter(kind => kind !== "None")];
   options(ui.default, catalog.terrains); ui.default.value = draft.definition.board.defaultTerrain;
   options(ui.terrain, terrainOptions); options(ui.edge, edgeOptions); ui.edge.value = "Wall";
+  options(ui["machine-type"], catalog.machineTypes.map(type => ({ value: type.id, label: type.name })));
   for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) options(select, typeOptions);
   for (const select of [ui.controller, ui["agency-controller"]]) options(select, catalog.controllers);
 
@@ -109,11 +110,13 @@ export function mountDesigner(catalog, request, playDesign) {
     for (const node of ui.tools.querySelectorAll("button")) node.setAttribute("aria-pressed", String(node.dataset.tool === tool));
     ui["terrain-label"].hidden = tool !== "Terrain"; ui["edge-label"].hidden = tool !== "Edge";
     ui["unit-brush"].hidden = tool !== "Unit";
+    ui["machine-label"].hidden = tool !== "Machine";
     ui.help.textContent = {
-      Select: "Select a cell, edge or Unit to edit. Overlapping Units appear in a chooser and placement list.",
+      Select: "Select a cell, edge, Unit or Machine to edit. Overlapping placements appear in a chooser and placement list.",
       Terrain: "Click or drag cells to paint. Use default removes the explicit override.",
       Edge: "Click or drag internal boundaries. The highlighted segment is the paint target; Remove erases it.",
-      Unit: "Click the top-left anchor to place. Supplied footprint geometry is a preview; Validate checks legality."
+      Unit: "Click the top-left anchor to place. Supplied footprint geometry is a preview; Validate checks legality.",
+      Machine: "Click a cell to place a Machine. Select it to edit its ID, position and starting Resources. Validate checks legality."
     }[tool];
   }
   for (const node of ui.tools.querySelectorAll("button")) node.addEventListener("click", () => setTool(node.dataset.tool));
@@ -143,6 +146,7 @@ export function mountDesigner(catalog, request, playDesign) {
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
     });
+    else if (tool === "Machine" && !target.direction) placeMachine(target.position);
     else if (tool === "Select") selectTarget(target);
   });
   ui.board.addEventListener("pointermove", event => {
@@ -155,6 +159,7 @@ export function mountDesigner(catalog, request, playDesign) {
       const preview = draft.occupied({ unitTypeId: ui.type.value, anchor: target.position });
       for (const cell of preview) cellNodes.get(`${cell.x},${cell.y}`)?.classList.add("placement-preview");
     }
+    if (tool === "Machine" && !target.direction) target.node.classList.add("placement-preview");
     if (painting && event.buttons === 1) paint(target);
   });
   document.addEventListener("pointerup", () => {
@@ -169,23 +174,31 @@ export function mountDesigner(catalog, request, playDesign) {
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
     });
+    else if (tool === "Machine" && !target.direction) placeMachine(target.position);
     else { lastPaint = null; paint(target); render(); }
   });
+  function placeMachine(position) {
+    commit(() => { selection = { kind: "machine", key: draft.placeMachine(ui["machine-type"].value, position) }; });
+  }
   function selectTarget(target) {
     if (target.direction) selection = { kind: "edge", position: target.position, direction: target.direction };
     else {
       const units = draft.unitsAt(target.position);
-      selection = units.length === 1 ? { kind: "unit", key: units[0] }
-        : units.length > 1 ? { kind: "overlap", keys: units, position: target.position }
+      const machines = (draft.definition.machines ?? []).flatMap((machine, index) =>
+        sameCell(machine.position, target.position) ? [draft.machineKeys[index]] : []);
+      const count = units.length + machines.length;
+      selection = count === 1 ? (units.length ? { kind: "unit", key: units[0] } : { kind: "machine", key: machines[0] })
+        : count > 1 ? { kind: "overlap", keys: units, machineKeys: machines, position: target.position }
         : { kind: "cell", position: target.position };
     }
     render();
   }
   function selectPath(path) {
-    const match = path.replace(/^\$\.?/, "").match(/^(units|board.cells|board.edges|agency|orders)\[(\d+)\]/);
+    const match = path.replace(/^\$\.?/, "").match(/^(units|machines|board.cells|board.edges|agency|orders)\[(\d+)\]/);
     if (!match) return;
     const index = Number(match[2]);
     if (match[1] === "units" && draft.unitKeys[index]) selection = { kind: "unit", key: draft.unitKeys[index] };
+    if (match[1] === "machines" && draft.machineKeys[index]) selection = { kind: "machine", key: draft.machineKeys[index] };
     if (match[1] === "board.cells" && draft.definition.board.cells[index])
       selection = { kind: "cell", position: draft.definition.board.cells[index].position };
     if (match[1] === "board.edges" && draft.definition.board.edges[index])
@@ -216,6 +229,18 @@ export function mountDesigner(catalog, request, playDesign) {
       node.title = `${x},${y} · ${draft.terrainAt(cell)}`;
       node.append(element("span", `${x},${y}`));
       if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
+      for (const [index, machine] of (draft.definition.machines ?? []).entries()) {
+        if (!sameCell(machine.position, cell)) continue;
+        node.classList.add("machine-cell");
+        node.append(element("span", machine.type.name));
+        for (const capacity of machine.type.storage.capacities) {
+          const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
+          node.append(element("small", `${capacity.type.name}: ${quantity}/${capacity.capacity}`));
+        }
+        node.title += ` · ${machine.type.name} (${machine.id})`;
+        node.setAttribute("aria-label", node.title);
+        if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
+      }
       const resource = (draft.definition.resources ?? []).find(resource => sameCell(resource.position, cell));
       if (resource) {
         const marker = element("span", "?"); marker.className = "resource-marker";
@@ -261,9 +286,12 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.properties.replaceChildren();
     if (!selection) { ui.properties.textContent = "Nothing selected."; return; }
     if (selection.kind === "overlap") {
-      ui.properties.append(element("p", "Overlapping placements: choose a Unit."));
+      ui.properties.append(element("p", "Overlapping placements: choose an object."));
       for (const key of selection.keys) ui.properties.append(button(unitLabel(draft.unitIndex(key)), () => {
         selection = { kind: "unit", key }; render();
+      }));
+      for (const key of selection.machineKeys ?? []) ui.properties.append(button(machineLabel(draft.machineKeys.indexOf(key)), () => {
+        selection = { kind: "machine", key }; render();
       }));
       ui.properties.append(button("Edit terrain below", () => { selection = { kind: "cell", position: selection.position }; render(); }));
       return;
@@ -293,6 +321,26 @@ export function mountDesigner(catalog, request, playDesign) {
       form.append(element("button", "Apply Unit"));
       form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; })));
       form.append(button("Edit terrain at anchor", () => { selection = { kind: "cell", position: unit.anchor }; render(); }));
+    } else if (selection.kind === "machine") {
+      const key = selection.key, machine = draft.definition.machines?.[draft.machineKeys.indexOf(key)];
+      if (!machine) { selection = null; renderProperties(); return; }
+      form.append(element("p", machine.type.name));
+      const id = field(form, "Machine ID", machine.id);
+      const x = field(form, "Position X", machine.position.x, { type: "number" });
+      const y = field(form, "Position Y", machine.position.y, { type: "number" });
+      const quantities = machine.type.storage.capacities.map(capacity => {
+        const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
+        const input = field(form, `Initial ${capacity.type.name} (capacity ${capacity.capacity})`, quantity, { type: "number" });
+        input.step = "1"; return { type: capacity.type, input };
+      });
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editMachine(key, {
+        id: id.value, position: { x: Number(x.value), y: Number(y.value) },
+        storedResources: [...(machine.storedResources ?? []).filter(row => !quantities.some(q => q.type.id === row.type.id)),
+          ...quantities.map(q => ({ type: q.type, quantity: Number(q.input.value) }))]
+      })); });
+      form.append(element("button", "Apply Machine"));
+      form.append(button("Delete Machine", () => commit(() => { draft.removeMachine(key); selection = null; })));
+      form.append(button("Edit terrain below", () => { selection = { kind: "cell", position: machine.position }; render(); }));
     } else if (selection.kind === "cell") {
       const position = { ...selection.position };
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
@@ -371,6 +419,10 @@ export function mountDesigner(catalog, request, playDesign) {
     kind.addEventListener("change", update); update();
     return () => ({ kind: kind.value, ...readDetails() });
   }
+  function machineLabel(index) {
+    const machine = draft.definition.machines[index];
+    return `${machine.type.name} (${machine.id}) · (${machine.position.x}, ${machine.position.y})`;
+  }
   function renderData() {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));
     const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
@@ -397,6 +449,9 @@ export function mountDesigner(catalog, request, playDesign) {
     }));
     ui.placements.replaceChildren(...draft.unitKeys.map((key, index) => button(unitLabel(index), () => {
       selection = { kind: "unit", key }; setTool("Select"); render();
+    })));
+    ui.placements.append(...draft.machineKeys.map((key, index) => button(machineLabel(index), () => {
+      selection = { kind: "machine", key }; setTool("Select"); render();
     })));
     syncBrushAgency();
   }

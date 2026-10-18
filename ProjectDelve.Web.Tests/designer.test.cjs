@@ -10,6 +10,10 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const catalog = {
   maxBoardSize: 50,
+  machineTypes: [{ id: "diamond-press", name: "Diamond Press",
+    storage: { capacities: [{ type: { id: "coal", name: "Coal" }, capacity: 3 }] },
+    operation: { costs: [{ type: { id: "coal", name: "Coal" }, quantity: 3 }],
+      outputType: { id: "diamond", name: "Diamond" }, outputQuantity: 1 } }],
   unitTypes: [...designerSetup.unitTypeIds, "opaque-large", "unplaced"].map(id => ({
     unitTypeId: id, displayName: `Printed ${id}`, maxHp: 8,
     cellSpan: id === "opaque-large" ? 2 : 1,
@@ -66,7 +70,7 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
     addEventListener(name, callback) { documentListeners[name] = callback; }
   };
   const tools = document.getElementById("designer-tools");
-  for (const tool of ["Select", "Terrain", "Edge", "Unit"]) {
+  for (const tool of ["Select", "Terrain", "Edge", "Unit", "Machine"]) {
     const node = new Element("button"); node.dataset.tool = tool; tools.append(node);
   }
   document.getElementById("designer-side").value = "side-1";
@@ -90,6 +94,59 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
     submit: node => node.listeners.submit({ preventDefault() {} })
   };
 }
+
+test("Machine tool places catalog content by pointer and keyboard, edits and deletes individual storage", () => {
+  const h = harness(), draft = h.editor.draft;
+  h.editor.setTool("Machine");
+  assert.equal(h.editor.ui["machine-label"].hidden, false);
+  h.move(h.cell(2, 1)); assert.match(h.cell(2, 1).className, /placement-preview/);
+  h.down(h.cell(2, 1));
+  const firstKey = draft.machineKeys[0];
+  assert.equal(draft.definition.machines[0].type.id, "diamond-press");
+  assert.match(h.cell(2, 1).textContent, /Diamond PressCoal: 0\/3/);
+  assert.equal(draft.definition.units.length, 0); assert.equal(draft.definition.agency.length, 0);
+  h.editor.ui.board.listeners.keydown({ key: "Enter", target: h.cell(4, 2), preventDefault() {} });
+  assert.notEqual(draft.definition.machines[0].id, draft.definition.machines[1].id);
+  h.editor.setTool("Select"); h.down(h.cell(2, 1));
+  let form = h.editor.ui.properties.children[0];
+  inputField(form, "Machine ID").value = "press-a";
+  inputField(form, "Position X").value = "3";
+  inputField(form, "Initial Coal (capacity 3)").value = "2"; h.submit(form);
+  assert.equal(draft.machineKeys[0], firstKey);
+  assert.equal(draft.definition.machines[0].id, "press-a");
+  assert.match(h.cell(3, 1).textContent, /Coal: 2\/3/);
+  assert.match(h.cell(4, 2).textContent, /Coal: 0\/3/);
+  assert.match(h.editor.ui.placements.textContent, /press-a/);
+  form = h.editor.ui.properties.children[0];
+  form.querySelectorAll("button").find(node => node.textContent === "Delete Machine").listeners.click();
+  assert.equal(draft.definition.machines.length, 1);
+  assert.throws(() => draft.resize(4, 2), /Shrinking/);
+});
+
+test("imported Machines survive validation, export and play and remain selectable in invalid overlaps", async () => {
+  const definition = structuredClone(designerSetup);
+  definition.machines = [{ id: "press", position: { ...definition.units[0].anchor },
+    type: structuredClone(catalog.machineTypes[0]), storedResources: [{ type: { id: "coal", name: "Coal" }, quantity: 3 }] }];
+  const submitted = [], played = [];
+  const h = harness(async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === "import" ? structuredClone(definition) : operation === "validate"
+      ? { valid: false, errors: [{ message: "Machine overlap", path: "machines[0]" }] } : { transport: "DELVE1:machines" };
+  }, async transport => { played.push(transport); return true; });
+  await h.click("import");
+  assert.deepEqual(plain(h.editor.draft.snapshot()), definition);
+  h.down(h.cell(definition.units[0].anchor.x, definition.units[0].anchor.y));
+  const chooser = h.editor.ui.properties.querySelectorAll("button");
+  chooser.find(node => node.textContent.includes("Diamond Press")).listeners.click();
+  assert.match(h.editor.ui.properties.textContent, /Apply Machine/);
+  await h.click("validate");
+  h.editor.ui.errors.querySelectorAll("button")[0].listeners.click();
+  assert.match(h.editor.ui.properties.textContent, /Apply Machine/);
+  await h.click("export"); await h.click("play");
+  for (const request of submitted.filter(row => row.operation !== "import"))
+    assert.deepEqual(request.body.machines, definition.machines);
+  assert.deepEqual(played, ["DELVE1:machines"]);
+});
 
 test("designer edits optional stable Unit IDs independently of temporary selection keys", () => {
   const h = harness(), draft = h.editor.draft;

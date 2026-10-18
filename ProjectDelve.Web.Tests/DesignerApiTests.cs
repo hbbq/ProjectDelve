@@ -27,6 +27,8 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var catalog = (await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog"));
         Assert.Equal(50, catalog.GetProperty("maxBoardSize").GetInt32());
+        var machineType = Assert.Single(catalog.GetProperty("machineTypes").EnumerateArray());
+        Assert.Equal(JsonSerializer.SerializeToElement(MachineTypes.DiamondPress, Json).GetRawText(), machineType.GetRawText());
         Assert.Contains("Lava", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Equal(Enum.GetNames<OrderKind>(), catalog.GetProperty("orderKinds").Deserialize<string[]>());
         var projected = catalog.GetProperty("unitTypes").EnumerateArray().ToArray();
@@ -53,10 +55,13 @@ public sealed class DesignerApiTests
     [InlineData("complete-data")]
     [InlineData("world-effects")]
     [InlineData("lava")]
+    [InlineData("machines")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id is "complete-data" or "world-effects" or "lava" ? CompleteData() : WebScenarioFixtures.Named(id);
+        var definition = id is "complete-data" or "world-effects" or "lava" or "machines" ? CompleteData() : WebScenarioFixtures.Named(id);
+        if (id == "machines") definition = definition with { Machines = [new("press", new(3, 0), MachineTypes.DiamondPress)
+            { StoredResources = [new(ResourceTypes.Coal, 2)] }] };
         if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
         if (id == "lava") definition = definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Lava)] } };
         var before = await host.Client.GetStringAsync("/api/game");

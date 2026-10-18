@@ -27,6 +27,7 @@ public static class DesignerApi
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
             maxBoardSize = MaxBoardSize,
+            machineTypes = new[] { MachineTypes.DiamondPress },
             unitTypes = CanonicalUnitTypes.All.Select(type =>
             {
                 var offsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0));

@@ -12,6 +12,7 @@ export class DesignerDraft {
       throw new Error(`Designer boards must be 1..${this.catalog.maxBoardSize} cells in each dimension.`);
     this.definition = structuredClone(definition);
     this.unitKeys = this.definition.units.map(() => ++this.nextKey);
+    this.machineKeys = (this.definition.machines ?? []).map(() => ++this.nextKey);
     this.changed();
   }
   setWorldEffects(enabled, cardsPerRound, cycling) {
@@ -46,8 +47,9 @@ export class DesignerDraft {
       hidden(edge.position) || hidden({ x: edge.position.x + (edge.direction === "Right" ? 1 : 0),
         y: edge.position.y + (edge.direction === "Down" ? 1 : 0) })) ||
       this.definition.units.some(unit => this.occupied(unit).some(hidden)) ||
-      (this.definition.resources ?? []).some(resource => hidden(resource.position)))
-      throw new Error("Shrinking would hide authored terrain, edges or Units. Remove or reposition them first.");
+      (this.definition.resources ?? []).some(resource => hidden(resource.position)) ||
+      (this.definition.machines ?? []).some(machine => hidden(machine.position)))
+      throw new Error("Shrinking would hide authored terrain, edges, Units, Resources or Machines. Remove or reposition them first.");
     board.width = width; board.height = height; this.changed();
   }
   terrainAt(cell) {
@@ -69,6 +71,27 @@ export class DesignerDraft {
   }
   declare(id) {
     if (!this.definition.unitTypeIds.includes(id)) this.definition.unitTypeIds.push(id);
+  }
+  placeMachine(typeId, position) {
+    const type = this.catalog.machineTypes.find(type => type.id === typeId);
+    if (!type) throw new Error("Select a Machine Type from the catalog.");
+    const machines = this.definition.machines ??= [];
+    let number = 1;
+    const used = new Set([...machines.map(machine => machine.id),
+      ...this.definition.units.map(unit => unit.unitId)]);
+    while (used.has(`machine-${number}`)) number++;
+    machines.push({ id: `machine-${number}`, position: { ...position }, type: structuredClone(type), storedResources: [] });
+    const key = ++this.nextKey; this.machineKeys.push(key); this.changed(); return key;
+  }
+  editMachine(key, changes) {
+    const index = this.machineKeys.indexOf(key);
+    if (index < 0) return;
+    this.definition.machines[index] = { ...this.definition.machines[index], ...changes }; this.changed();
+  }
+  removeMachine(key) {
+    const index = this.machineKeys.indexOf(key);
+    if (index < 0) return;
+    this.definition.machines.splice(index, 1); this.machineKeys.splice(index, 1); this.changed();
   }
   ensureAgency(unitTypeId, sideId, controller) {
     this.declare(unitTypeId);
