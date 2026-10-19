@@ -208,6 +208,77 @@ Readable at small board scale, same lighting and material palette as the closed 
 
 **Integration note:** Open Door must read as passable and Closed Door as blocked. Keep their state legible independently of the precise artwork. Review transparency and repeat seams in the actual game before accepting the assets.
 
+## Additional terrain prompts: Grass, Water and Lava
+
+Generate 5–6 candidates using **one base prompt per terrain type**, then select three visually consistent variants. These are ordinary terrain cells; scenario/objective overlays are separate presentation features.
+
+Selected original files:
+
+```text
+assets/source/terrain/
+  grass-01.png
+  grass-02.png
+  grass-03.png
+  water-01.png
+  water-02.png
+  water-03.png
+  lava-01.png
+  lava-02.png
+  lava-03.png
+```
+
+Use the existing artwork preparation pipeline to produce 256×256 WebP runtime textures. Preserve original files, and keep deterministic terrain variant selection.
+
+### Grass — base prompt
+
+```text
+Premium fantasy tabletop board game terrain artwork. Hand-painted top-down grass tile for a polished tactical fantasy board game.
+
+Create a square top-down grass terrain tile representing one normal grass cell in a board game. The entire tile should read as one continuous patch of short natural grass, not as many small internal tiles or repeated decorative clusters.
+
+Use a calm medium green base with subtle natural variation, soft uneven color shifts, a little dryness and light wear, and restrained texture detail. The grass should look believable and pleasant, but remain visually quiet so unit tokens, grid lines, and gameplay highlights stay easy to read on top of it.
+
+Strictly overhead view. No internal grid, no paving-like divisions, no strong repeated patterns, no flowers, no rocks, no paths, no borders, no text, no symbols, no interface elements, and no watermarks.
+
+The tile should be visually quiet and suitable for repeated use across many adjacent board cells.
+```
+
+### Water — base prompt
+
+```text
+Premium fantasy tabletop board game terrain artwork. Hand-painted top-down water tile for a polished tactical fantasy board game.
+
+Create a square top-down water terrain tile representing one normal water cell in a board game. The entire tile should read as one continuous patch of water, not as many small internal tiles or decorative clusters.
+
+Use a calm blue-green water surface with subtle tonal variation, soft ripples, and gentle natural movement. Keep the texture readable and visually quiet so unit tokens, grid lines, and gameplay highlights remain easy to read on top of it.
+
+The water should feel like a premium fantasy board game terrain tile: slightly stylized, cohesive, and attractive, but not overly dramatic or visually busy.
+
+Strictly overhead view. No internal grid, no paving-like divisions, no shore, no rocks, no plants, no fish, no foam splashes, no boats, no objects, no borders, no text, no symbols, no interface elements, and no watermarks.
+
+The tile should be visually quiet and suitable for repeated use across many adjacent board cells.
+```
+
+### Lava — base prompt
+
+```text
+Premium fantasy tabletop board game terrain artwork. Hand-painted top-down lava tile for a polished tactical fantasy board game.
+
+Create a square top-down lava terrain tile representing one normal lava cell in a board game. The entire tile should read as one continuous patch of molten lava, not as many small internal tiles or decorative clusters.
+
+Use glowing orange-red molten lava with darker cooled areas, subtle natural flow patterns, and restrained surface variation. The tile should feel hot and dangerous, but remain readable and visually controlled so unit tokens, grid lines, and gameplay highlights stay easy to read on top of it.
+
+The lava should feel like a premium fantasy board game terrain tile: slightly stylized, cohesive, and dramatic without becoming chaotic or overly bright.
+
+Strictly overhead view. No internal grid, no separate stone border, no rocks protruding from the surface, no objects, no symbols, no interface elements, no text, and no watermarks.
+
+The tile should be visually quiet and suitable for repeated use across many adjacent board cells.
+```
+
+### Selecting the three variants
+
+Choose three that read as variations of the same terrain, with similar lighting and scale. Avoid strong central highlights, noisy patterns, unintended internal grids and decorative features that distract from unit tokens or gameplay highlights. Inspect them together on a real board.
+
 ## Future prompt candidates
 
 Coal, Diamond, Diamond Press and further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
