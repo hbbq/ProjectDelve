@@ -405,6 +405,55 @@ No sleepers, gravel, wheels, locomotive, bolts scattered around it, scenery, sha
 - The arrow indicating the Rail Cell's outgoing direction is drawn separately in the client. Do not include arrows in these images.
 - The first implementation should verify connected straight/curve/T/cross tracks on a sample board before considering the kit complete.
 
+## Resource and Machine artwork — Coal, Diamond, Diamond Press
+
+Generate several candidates for each subject and choose one cohesive image. Follow the approved **Premium Tabletop** hand-painted style. All assets are strictly overhead, square originals with **genuine alpha transparency** outside the object. The client owns labels, storage counts, machine ownership, highlights and interaction indicators: do not paint these into the image.
+
+### Coal — resource marker
+
+Source: `assets/source/resources/coal.png`
+
+```text
+Premium fantasy tabletop board game resource artwork. Hand-painted digital illustration matching a polished tactical fantasy board game.
+
+Create one compact, recognizable small pile of irregular coal chunks viewed strictly from directly overhead. Several rough black and charcoal-gray pieces with angular fractured surfaces, restrained cool highlights, a hint of dusty texture and clear separation between the chunks. The silhouette should remain immediately identifiable at very small marker size on stone, grass or gravel terrain.
+
+Center the pile within a square 1:1 composition with generous transparent margins. Real transparent alpha background, no painted ground, floor, container, sack, mine cart, shadow cast onto a floor, or decorative tile. No text, labels, numbers, border, UI, logos or watermark.
+```
+
+### Diamond — resource marker
+
+Source: `assets/source/resources/diamond.png`
+
+```text
+Premium fantasy tabletop board game resource artwork. Hand-painted digital illustration matching a polished tactical fantasy board game.
+
+Create one distinctive faceted diamond gemstone viewed from directly overhead or very slightly tilted so its facets remain recognizable. Clear icy pale-blue and white crystalline material with restrained bright glints and cool gray-blue facet shadows. Strong clean silhouette, unmistakably a valuable gem when displayed as a small resource marker. Avoid excessive glow, bloom or tiny scattered sparkles.
+
+Center the single gemstone in a square 1:1 composition with generous transparent margins. Real transparent alpha background. No floor, pedestal, container, pile of gems, frame, text, labels, numbers, UI, logos or watermark.
+```
+
+### Diamond Press — Machine occupying one Cell
+
+Source: `assets/source/machines/diamond-press.png`
+
+```text
+Premium fantasy-industrial tabletop board game machine artwork. Hand-painted digital illustration matching the existing fantasy board game unit portraits and terrain materials.
+
+Create a single compact, heavy mechanical diamond press viewed strictly from directly overhead. A sturdy industrial apparatus with a square iron-and-brass chassis, thick metal press jaws or rollers, reinforced plates, visible bolts, restrained dark steel wear, and a small hint of coal-fed machinery. It should look like a practical fantasy workshop machine that compresses coal into diamonds, not a modern factory building.
+
+The entire machine fits within a square 1:1 composition with safe margins, a strong readable silhouette and enough detail to remain identifiable at one board Cell in size. Real transparent alpha background outside the machine, without floor, room, tracks or scenery.
+
+No produced diamond lying on the ground, no loose coal piles, no built-in resource counter, no owner color, text, letters, symbols, UI, borders, logos or watermark.
+```
+
+### Integration notes
+
+- Verify actual alpha transparency, framing and visibility at normal game Cell/marker size before conversion.
+- Resources are small, separately rendered markers and should not include terrain or UI decoration.
+- The Machine is a full-cell object; storage and Owner Side remain separate dynamic presentation elements.
+- Preserve original images under `assets/source/`. Let the artwork skill determine runtime dimensions and register canonical content IDs from the current repository; do not infer game content from filenames.
+
 ## Future prompt candidates
 
-Coal, Diamond, Diamond Press and further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
+Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
