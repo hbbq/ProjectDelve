@@ -2297,3 +2297,66 @@ test("terrain variants use the host seed during rerender, view changes and reloa
   const other = structuredClone(initial); other.visualSeed = "other-board";
   assert.notEqual(harness(other).run(distribution), first);
 });
+
+for (const view of ["classic", "enhanced"]) test(`${view}: composite artwork survives rerenders, loading failures, selection and clicking`, async () => {
+  const initial = response([choice("cell-key", "Position", {position:{x:1,y:0}})]);
+  initial.visualSeed = "composite-fixture";
+  initial.result.state.physical.board.terrain = [
+    {kind:"Tree", position:{x:1,y:0}}, {kind:"StoneFloorWithTable", position:{x:0,y:0}}
+  ];
+  initial.result.state.resources = [{type:{id:"coal",name:"Coal"},position:{x:0,y:0}}];
+  const h = harness(initial);
+  h.elements.get("board-view").value = view; h.elements.get("board-view").listeners.change();
+  const cell = h.run('cells.get("1,0")'), image = cell.terrainObjectArtwork;
+  const distribution = 'JSON.stringify([...cells.values()].map(n => [n.dataset.visualVariant,n.dataset.visualRotation,n.dataset.objectVariant,n.dataset.objectRotation]))';
+  const first = h.run(distribution);
+  assert.equal(cell.dataset.objectArtwork, "loading");
+  image.listeners.error(); assert.equal(cell.dataset.objectArtwork, "missing");
+  image.listeners.load(); assert.equal(cell.dataset.objectArtwork, "ready");
+  h.run('renderState(snapshot.result.state, true, snapshot.presentation.cards);');
+  assert.equal(h.run('cells.get("1,0")'), cell);
+  assert.ok(cell.children.includes(image));
+  assert.equal(cell.dataset.objectArtwork, "ready");
+  assert.equal(h.run(distribution), first);
+  assert.equal(harness(structuredClone(initial)).run(distribution), first);
+  assert.equal(h.run('cells.get("0,0").querySelectorAll(".resource-marker")[0].title'), "Coal");
+  assert.ok(h.figure("actor"));
+  assert.equal(image.alt, ""); assert.equal(image.draggable, false);
+  assert.equal(image.attributes["aria-hidden"], "true");
+  h.run('chooseCandidate = key => submitted.push(key);');
+  await click(cell); assert.equal(h.submitted.at(-1), "cell-key");
+  h.run('boardVisuals.terrain.Tree.object.variants = []; delete boardVisuals.terrain.Tree.object.image; renderSnapshot();');
+  assert.equal(h.run('cells.get("1,0").dataset.objectArtwork'), "missing");
+  const current = h.run('cells.get("1,0")'), currentImage = current.terrainObjectArtwork;
+  h.run('snapshot.result.state.physical.board.terrain = []; renderState(snapshot.result.state, true);');
+  assert.equal(current.dataset.terrainObject, undefined);
+  assert.equal(current.terrainObjectArtwork, null);
+  assert.ok(!current.children.includes(currentImage));
+  currentImage.listeners.load(); currentImage.listeners.error();
+  assert.equal(current.dataset.objectArtwork, undefined);
+});
+
+for (const mode of ["animate", "disabled", "skip"]) test(`composite decoration stays stable through supplied movement playback (${mode})`, async () => {
+  const initial = response(), final = structuredClone(initial);
+  initial.visualSeed = final.visualSeed = "composite-playback";
+  const terrain = [{kind:"Tree",position:{x:0,y:0}}, {kind:"StoneFloorWithTable",position:{x:1,y:0}}];
+  initial.result.state.physical.board.terrain = structuredClone(terrain);
+  final.result.state.physical.board.terrain = structuredClone(terrain);
+  final.result.state.physical.figures[0].position.x = 1;
+  final.result.events = [{kind:"UnitMoved",unitId:"actor"}];
+  final.presentation.events = [{role:"Movement",text:"Supplied move",unitId:"actor",path:[{x:0,y:0},{x:1,y:0}]}];
+  final.result.resolutionSteps = [{eventIndex:0,stateAfter:final.result.state}];
+  final.presentation.resolutionSteps = [{eventIndex:0,cards:final.presentation.cards}];
+  const h = harness(initial, async () => ({ok:true,json:async () => final}));
+  h.elements.get("board-view").value = "enhanced"; h.elements.get("board-view").listeners.change();
+  const distribution = 'JSON.stringify([...cells.values()].map(n => [n.dataset.visualVariant,n.dataset.visualRotation,n.dataset.objectVariant,n.dataset.objectRotation]))';
+  const before = h.run(distribution);
+  h.context.mode = mode;
+  h.run(`ui.animate.checked = mode !== "disabled"; pause = async () => {};
+    const originalPresent = present;
+    present = async event => { await originalPresent(event); if (mode === "skip") ui.skip.listeners.click(); };`);
+  await h.run('mutate("decision", {candidateKey:"opaque"})');
+  assert.equal(h.run(distribution), before);
+  assert.ok(h.run('cells.get("0,0").children.includes(cells.get("0,0").terrainObjectArtwork)'));
+  assert.equal(h.figure("actor").style.left, `${1.5 / 6 * 100}%`);
+});

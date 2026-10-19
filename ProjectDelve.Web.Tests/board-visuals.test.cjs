@@ -77,4 +77,51 @@ test("directional artwork overrides variants without rotating the authored Rail 
   assert.equal(run('node.style["--visual-image"]'), 'url("north.webp")');
   run('applyBoardVisual(node, "terrain", "Rail", {seed: "a", x: 0, y: 0, direction: "East"});');
   assert.equal(run('node.style["--visual-image"]'), 'url("east.webp")');
+  assert.equal(run('node.dataset.visualRotation'), "0");
+});
+
+test("composite mappings reuse base slots and choose object slots independently", () => {
+  const run = catalog();
+  for (const [id, base, folder] of [["Tree", "Grass", "tree"], ["StoneFloorWithTable", "StoneFloor", "table"]]) {
+    const pairs = new Set();
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const layers = JSON.parse(run(`JSON.stringify(terrainLayers("${id}", {seed:"fixture", x:${x}, y:${y}}))`));
+      assert.equal(layers.index, run(`terrainVariantIndex("fixture", "${base}", ${x}, ${y}, 3)`));
+      assert.equal(layers.base.image, run(`boardVisuals.terrain.${base}.variants[${layers.index}].image`));
+      assert.equal(layers.object.image, `./art/terrain/objects/${folder}/0${layers.objectIndex + 1}.webp`);
+      assert.ok(fs.existsSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", layers.object.image)));
+      pairs.add(`${layers.index},${layers.objectIndex}`);
+    }
+    assert.equal(pairs.size, 9);
+  }
+});
+
+test("quarter turns are opt-in, deterministic and independent of variants and the other layer", () => {
+  const run = catalog(), reload = catalog();
+  for (const id of ["StoneFloor", "Grass", "Water", "Lava", "Tree", "StoneFloorWithTable"]) {
+    const distribution = seed => `JSON.stringify(Array.from({length:256}, (_,i) => terrainLayers("${id}", {seed:"${seed}", x:i%16, y:Math.floor(i/16)})))`;
+    const first = run(distribution("fixture"));
+    assert.equal(first, reload(distribution("fixture")));
+    assert.notEqual(first, run(distribution("other")));
+    const samples = JSON.parse(first);
+    assert.deepEqual([...new Set(samples.map(s => s.rotation))].sort((a,b) => a-b), [0,90,180,270]);
+    if (samples[0].object) {
+      assert.equal(new Set(samples.map(s => `${s.rotation},${s.objectRotation}`)).size, 16);
+      assert.equal(new Set(samples.map(s => `${s.objectIndex},${s.objectRotation}`)).size, 12);
+    }
+    assert.equal(new Set(samples.map(s => `${s.index},${s.rotation}`)).size, 12);
+  }
+  const before = run('JSON.stringify(terrainLayers("Tree", {seed:"fixture", x:3, y:5}))');
+  run('boardVisuals.terrain.Tree.object.variants.push({image:"test-owned.webp"});');
+  const after = run('JSON.stringify(terrainLayers("Tree", {seed:"fixture", x:3, y:5}))');
+  assert.equal(JSON.parse(before).rotation, JSON.parse(after).rotation);
+  assert.equal(JSON.parse(before).objectRotation, JSON.parse(after).objectRotation);
+  assert.equal(JSON.parse(before).base.image, JSON.parse(after).base.image);
+  for (const category of ["unit", "edge", "machine", "resource"])
+    assert.equal(run(`Object.values(boardVisuals.${category}).some(v => v.rotation)`), false);
+  assert.equal(run('terrainLayers("Rail").rotation'), 0);
+  assert.equal(run('terrainLayers("MissingFixture").rotation'), 0);
+  run('boardVisuals.terrain.Tree.object.rotation = false; boardVisuals.terrain.Grass.rotation = false;');
+  assert.equal(run('terrainLayers("Tree").rotation'), 0);
+  assert.equal(run('terrainLayers("Tree").objectRotation'), 0);
 });

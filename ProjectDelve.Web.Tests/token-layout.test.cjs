@@ -16,6 +16,28 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body
 const enhanced = selector => `#board[data-view="enhanced"] ${selector}`;
 const style = selector => Object.assign({}, ...rules.filter(r => r.selectors.includes(selector)).map(r => r.declarations));
 
+test("terrain decoration fills square Cells, rotates independently and stays below feedback/content in Enhanced only", () => {
+  assert.equal(style("#board .terrain-object-artwork").display, "none");
+  assert.equal(style("#board .terrain-object-artwork")["pointer-events"], "none");
+  assert.equal(style(enhanced(".cell")).isolation, "isolate");
+  assert.equal(style(enhanced(".cell")).transform, undefined);
+  const base = style(enhanced(".cell::before"));
+  assert.equal(base.inset, "0");
+  assert.equal(base["background-size"], "cover");
+  assert.equal(base.transform, "rotate(var(--visual-rotation, 0deg))");
+  assert.equal(base["pointer-events"], "none");
+  assert.equal(base["z-index"], "-2");
+  const object = style(enhanced('.cell[data-object-artwork="ready"] .terrain-object-artwork'));
+  assert.equal(object.width, "100%"); assert.equal(object.height, "100%");
+  assert.equal(object["object-fit"], "contain"); assert.equal(object["object-position"], "center");
+  assert.equal(object.transform, "rotate(var(--object-rotation, 0deg))");
+  assert.equal(object["z-index"], "-1");
+  assert.equal(style(enhanced('.cell[data-object-artwork="ready"]::after')).display, "none");
+  assert.equal(style(enhanced('.cell[data-terrain-object]::after'))["background-image"], "var(--object-detail)");
+  assert.ok(style(enhanced(".cell.legal")).outline);
+  assert.ok(style(enhanced(".cell.placement-preview")).outline);
+});
+
 test("Edge art rotates independently of geometry, hides in Classic, and clears the fallback only after loading", () => {
   assert.equal(style("#board .edge-artwork").display, "none");
   assert.equal(style("#board .edge-artwork")["pointer-events"], "none");

@@ -347,6 +347,10 @@ The tile should be visually quiet and suitable for repeated use across many adja
 
 Choose three that read as variations of the same terrain, with similar lighting and scale. Avoid strong central highlights, noisy patterns, unintended internal grids and decorative features that distract from unit tokens or gameplay highlights. Inspect them together on a real board.
 
+## Integrated transparent terrain objects
+
+The supplied `assets/source/terrain/objects/tree-01.png` through `tree-03.png` and `table-01.png` through `table-03.png` are centered 1254 × 1254 RGBA originals with proper transparency. Preserve the entire square composition and original alpha; no background removal, crop or retouching is needed. The existing preparation pipeline exports optimized 256 × 256 sRGB WebP files under `art/terrain/objects/tree/` and `art/terrain/objects/table/`, in the same numeric slot order. Enhanced 2D composes them over the existing Grass and Stone Floor catalogs, respectively, with independent variant and quarter-turn choices. Review the generated composite and catalog previews and then the actual board at Cell size. This integration adds no new generation prompts or gameplay content.
+
 ## Future prompt candidates
 
 Coal, Diamond, Diamond Press and further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.

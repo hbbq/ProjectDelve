@@ -67,6 +67,10 @@ These names are examples, not a demand to rename current content identifiers. Pr
 - The variant selection algorithm and hash must be stable across browsers and runtime versions. Avoid nondeterministic JavaScript hashes or `Math.random()`.
 - The visual seed must not change the engine's RNG, rules, or authoritative scenario state.
 
+The implemented catalog also supports explicit `rotation: true` on terrain base and object descriptors. Stone Floor, Grass, Water and Lava bases and Tree/Table objects opt into stable quarter turns using a separate `terrain-rotation-v1` hash domain and separate base/object salts. The existing `terrain-v1` variant algorithm and host seed lifecycle remain unchanged. Portraits, Edges, directional Rail, Machines and Resources do not opt in.
+
+Tree composes the existing Grass texture catalog with a transparent Tree object; Stone Floor with Table composes the existing Stone Floor catalog with a transparent Table object. Each object has three independently selected variants. Centered decoration rotates within the square Cell while geometry and hit targets stay fixed. Failed object loads retain the previous material silhouette; transparent pixels in successfully loaded images reveal the base. Units, Resources and feedback remain above decoration. Classic and the Level Designer retain their existing rendering. See README for source/export mappings and exact hash inputs.
+
 ## Asset-generation workflow (planned, not yet implemented)
 
 1. Start with a **small coherent pilot set**: Stone Floor variants, Wall, Door, Barbarian and Zombie portraits.

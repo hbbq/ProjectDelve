@@ -4,32 +4,34 @@
 export const boardVisuals = {
   terrain: {
     default: { fill: "#666a68", detail: "repeating-linear-gradient(0deg, transparent 0 48%, #242d3040 49% 51%, transparent 52% 100%)" },
-    StoneFloor: { fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)",
+    StoneFloor: { rotation: true, fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)",
       variants: [
         { fill: "#666a68", image: "./art/terrain/stone-floor/01.webp" },
         { fill: "#626864", image: "./art/terrain/stone-floor/02.webp" },
         { fill: "#6b6c65", image: "./art/terrain/stone-floor/03.webp" }
       ] },
-    Grass: { fill: "#476947", detail: "repeating-linear-gradient(115deg, transparent 0 7px, #abc27825 8px, transparent 10px)",
+    Grass: { rotation: true, fill: "#476947", detail: "repeating-linear-gradient(115deg, transparent 0 7px, #abc27825 8px, transparent 10px)",
       variants: [
         { image: "./art/terrain/grass/01.webp" },
         { image: "./art/terrain/grass/02.webp" },
         { image: "./art/terrain/grass/03.webp" }
       ] },
-    Tree: { fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
-    Water: { fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)",
+    Tree: { baseTerrain: "Grass", object: { rotation: true,
+      variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/tree/0${i}.webp` })) }, fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
+    Water: { rotation: true, fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)",
       variants: [
         { image: "./art/terrain/water/01.webp" },
         { image: "./art/terrain/water/02.webp" },
         { image: "./art/terrain/water/03.webp" }
       ] },
-    Lava: { fill: "#a64420", detail: "repeating-linear-gradient(32deg, #352b2a 0 5px, transparent 7px 13px, #ffb349 15px 17px, transparent 19px 25px)",
+    Lava: { rotation: true, fill: "#a64420", detail: "repeating-linear-gradient(32deg, #352b2a 0 5px, transparent 7px 13px, #ffb349 15px 17px, transparent 19px 25px)",
       variants: [
         { image: "./art/terrain/lava/01.webp" },
         { image: "./art/terrain/lava/02.webp" },
         { image: "./art/terrain/lava/03.webp" }
       ] },
-    StoneFloorWithTable: { fill: "#636665", detail: "linear-gradient(90deg, transparent 16%, #291d17 17% 20%, #997049 21% 46%, #63462d 47% 50%, #997049 51% 79%, #291d17 80% 83%, transparent 84%)" },
+    StoneFloorWithTable: { baseTerrain: "StoneFloor", object: { rotation: true,
+      variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/table/0${i}.webp` })) }, fill: "#636665", detail: "linear-gradient(90deg, transparent 16%, #291d17 17% 20%, #997049 21% 46%, #63462d 47% 50%, #997049 51% 79%, #291d17 80% 83%, transparent 84%)" },
     Rail: { fill: "#766d5d", detail: "repeating-linear-gradient(0deg, transparent 0 7px, #342e29 8px 12px, transparent 13px 18px)" }
   },
   unit: {
@@ -81,19 +83,55 @@ export function terrainVariantIndex(seed, id, x, y, count) {
   return count > 0 ? hash % count : 0;
 }
 
+// Independent FNV-1a domain for quarter turns. Never change terrain-v1.
+export function terrainRotation(seed, id, x, y, layer = "base") {
+  const input = JSON.stringify(["terrain-rotation-v1", String(seed), id, x, y, layer]);
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    hash = Math.imul(hash ^ (code & 255), 16777619) >>> 0;
+    hash = Math.imul(hash ^ (code >>> 8), 16777619) >>> 0;
+  }
+  // Mix upper bits into the low bits before choosing one of four turns.
+  return ((hash ^ (hash >>> 16)) >>> 0) % 4 * 90;
+}
+
+export function terrainLayers(id, context = {}) {
+  const entry = Object.hasOwn(boardVisuals.terrain, id) ? boardVisuals.terrain[id] : {};
+  const seed = context.seed ?? "legacy", x = context.x ?? 0, y = context.y ?? 0;
+  const baseId = entry.baseTerrain ?? id;
+  const baseEntry = entry.baseTerrain ? (boardVisuals.terrain[baseId] ?? {}) : entry;
+  const variants = baseEntry.variants ?? [];
+  const index = terrainVariantIndex(seed, baseId, x, y, variants.length);
+  const base = { ...boardVisuals.terrain.default, ...baseEntry, ...variants[index], ...baseEntry.directions?.[context.direction] };
+  const objectVariants = entry.object?.variants ?? [];
+  const objectIndex = terrainVariantIndex(seed, `${id}:object`, x, y, objectVariants.length);
+  return {
+    base, index,
+    rotation: base.rotation ? terrainRotation(seed, id, x, y, "base") : 0,
+    object: entry.object ? { ...entry.object, ...objectVariants[objectIndex] } : null,
+    objectIndex,
+    objectRotation: entry.object?.rotation ? terrainRotation(seed, id, x, y, "object") : 0,
+    objectDetail: entry.detail ?? "none"
+  };
+}
+
 export function applyBoardVisual(node, category, id, context = {}) {
   const entries = boardVisuals[category];
   const entry = Object.hasOwn(entries, id) ? entries[id] : {};
-  const variants = entry.variants ?? [];
-  const index = category === "terrain" && variants.length
-    ? terrainVariantIndex(context.seed ?? "legacy", id, context.x ?? 0, context.y ?? 0, variants.length) : 0;
+  const layers = category === "terrain" ? terrainLayers(id, context) : null;
   // A directional image may override a variant without rotating directional Rail.
-  const visual = { ...entries.default, ...entry, ...variants[index], ...entry.directions?.[context.direction] };
+  const visual = layers?.base ?? { ...entries.default, ...entry, ...entry.variants?.[0], ...entry.directions?.[context.direction] };
   node.dataset.visualId = id ?? "";
-  node.dataset.visualVariant = String(index);
+  node.dataset.visualVariant = String(layers?.index ?? 0);
   node.style.setProperty("--visual-image", visual.image ? `url(${JSON.stringify(visual.image)})` : "none");
   node.style.setProperty("--visual-fill", visual.fill ?? "transparent");
   node.style.setProperty("--visual-detail", visual.detail ?? "none");
+  if (layers) {
+    node.dataset.visualRotation = String(layers.rotation);
+    node.style.setProperty("--visual-rotation", `${layers.rotation}deg`);
+    applyTerrainObject(node, layers);
+  }
   if (category === "edge") applyEdgeArtwork(node, visual.image);
   return visual;
 }
@@ -120,6 +158,50 @@ function applyEdgeArtwork(node, source) {
   }
   if (image.dataset.source !== source) {
     node.dataset.edgeArtwork = "loading";
+    image.dataset.source = source;
+    image.src = source;
+  }
+}
+
+function applyTerrainObject(node, layers) {
+  let image = node.terrainObjectArtwork;
+  if (!layers.object) {
+    image?.remove();
+    node.terrainObjectArtwork = null;
+    delete node.dataset.terrainObject;
+    delete node.dataset.objectArtwork;
+    delete node.dataset.objectVariant;
+    delete node.dataset.objectRotation;
+    return;
+  }
+  node.dataset.terrainObject = "true";
+  node.dataset.objectVariant = String(layers.objectIndex);
+  node.dataset.objectRotation = String(layers.objectRotation);
+  node.style.setProperty("--object-rotation", `${layers.objectRotation}deg`);
+  node.style.setProperty("--object-detail", layers.objectDetail);
+  if (!image) {
+    image = document.createElement("img");
+    image.className = "terrain-object-artwork";
+    image.alt = "";
+    image.draggable = false;
+    image.setAttribute("aria-hidden", "true");
+    node.terrainObjectArtwork = image;
+    image.addEventListener("load", () => {
+      if (node.terrainObjectArtwork === image) node.dataset.objectArtwork = "ready";
+    });
+    image.addEventListener("error", () => {
+      if (node.terrainObjectArtwork === image) node.dataset.objectArtwork = "missing";
+    });
+  }
+  // renderState clears Cell children even when it retains the Cell itself.
+  node.append(image);
+  const source = layers.object.image;
+  if (!source) {
+    node.dataset.objectArtwork = "missing";
+    image.removeAttribute("src");
+    delete image.dataset.source;
+  } else if (image.dataset.source !== source) {
+    node.dataset.objectArtwork = "loading";
     image.dataset.source = source;
     image.src = source;
   }

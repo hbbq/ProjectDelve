@@ -28,6 +28,8 @@ ASSETS = [
                    "labyrinth-shaper", "red-dragon", "locomotive")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
       for name in ("stone-floor", "grass", "water", "lava") for i in range(1, 4)],
+    *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
+      for name in ("tree", "table") for i in range(1, 4)],
     *[(f"edges/{name}.png", f"edges/{name}.webp", (512, 80)) for name in EDGE_CROPS],
 ]
 
@@ -47,12 +49,15 @@ def main():
             print(f"Source {name}: {original.size}, {original.mode}, {original.format}")
             if not name.startswith("edges/"):
                 assert original.width == original.height, f"Review non-square source: {name}"
-                if name.startswith("terrain/"):
+                if name.startswith("terrain/") and not name.startswith("terrain/objects/"):
                     assert original.convert("RGBA").getchannel("A").getextrema() == (255, 255), f"Review transparent terrain: {name}"
             else:
                 assert original.size == (1774, 887) and original.mode == "RGBA", f"Review changed Edge source: {name}"
                 bounds = original.getchannel("A").point(lambda a: 255 if a >= 8 else 0).getbbox()
                 assert bounds == EDGE_CROPS[Path(name).stem], f"Review changed Edge composition: {name}"
+            if name.startswith("terrain/objects/"):
+                alpha = original.convert("RGBA").getchannel("A")
+                assert alpha.getextrema()[0] == 0 and alpha.getextrema()[1] > 0, f"Review object alpha: {name}"
             assert getattr(original, "n_frames", 1) == 1, f"Review animated source: {name}"
 
     srgb = ImageCms.createProfile("sRGB")
@@ -88,7 +93,7 @@ def main():
             assert result.format == "WEBP"
             assert result.size == dimensions
             assert result.info.get("icc_profile") == profile
-            if name.startswith("terrain/"):
+            if name.startswith("terrain/") and not name.startswith("terrain/objects/"):
                 assert result.convert("RGBA").getchannel("A").getextrema() == (255, 255)
             if image.mode == "RGBA":
                 assert result.getchannel("A").tobytes() == image.getchannel("A").tobytes()
@@ -104,7 +109,9 @@ def main():
         print(f"Export {destination}: {dimensions[0]}x{dimensions[1]}, {target.stat().st_size:,} bytes")
 
     # Roughly 50px portraits (circular UI clip) and 60px Cells, plus larger references.
-    edge_preview(decoded[-3:])
+    edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
+    if not args.edges_only:
+        composite_preview(assets, decoded)
     assert all(sha256(path.read_bytes()).digest() == digest
                for path, digest in hashes.items()), "Source images changed"
     if args.edges_only:
@@ -117,10 +124,11 @@ def main():
         x, y = 16 + (i % 4) * 176, 40 + (i // 4) * 150
         label = Path(destination).with_suffix("").as_posix().replace("terrain/", "").replace("units/", "")
         draw.text((x, y), label, fill="white")
-        sheet.paste(image.resize((100, 100), Image.Resampling.LANCZOS), (x, y + 20))
+        reference = image.resize((100, 100), Image.Resampling.LANCZOS)
+        sheet.paste(reference, (x, y + 20), reference)
         is_portrait = Path(destination).parts[0] == "units"
         thumb = image.resize((50, 50) if is_portrait else (60, 60), Image.Resampling.LANCZOS)
-        mask = None
+        mask = thumb
         if is_portrait:
             mask = Image.new("L", (200, 200))
             ImageDraw.Draw(mask).ellipse((0, 0, 199, 199), fill=255)
@@ -129,6 +137,26 @@ def main():
     preview = ROOT / "assets/previews/artwork-pack-01.png"
     preview.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(preview, optimize=True)
+
+
+def composite_preview(assets, images):
+    """Test-owned samples at minimum Cell scale, all base/object slots and turns."""
+    catalog = {asset[1]: image for asset, image in zip(assets, images)}
+    sheet = Image.new("RGB", (768, 520), "#202630")
+    draw = ImageDraw.Draw(sheet)
+    draw.text((12, 8), "Composite terrain | 60px Cells | base/object variants + independent turns", fill="white")
+    for row, (obj, base) in enumerate((("tree", "grass"), ("table", "stone-floor"))):
+        for variant in range(3):
+            for turn in range(4):
+                x = 12 + (variant * 4 + turn) * 62
+                y = 40 + row * 232
+                tile = catalog[f"terrain/{base}/{variant + 1:02}.webp"].rotate(turn * 90)
+                overlay = catalog[f"terrain/objects/{obj}/{(variant + turn) % 3 + 1:02}.webp"].rotate((turn + 1) * 90)
+                tile = Image.alpha_composite(tile, overlay)
+                sheet.paste(tile.resize((60, 60), Image.Resampling.LANCZOS), (x, y))
+                if turn == 0:
+                    sheet.paste(tile.resize((160, 160), Image.Resampling.LANCZOS), (12 + variant * 248, y + 64))
+    sheet.save(ROOT / "assets/previews/composite-terrain.png", optimize=True)
 
 
 def edge_preview(images):
