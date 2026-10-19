@@ -2183,7 +2183,7 @@ test("portrait assets use the content catalog and retain fallback on image failu
   assert.equal(h.figure("actor").children.find(n => n.className === "token-nameplate").textContent, "Custom Type");
 });
 
-for (const name of ["barbarian", "zombie", "worker", "geomancer"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
+for (const name of ["barbarian", "zombie", "worker", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
   const initial = response();
   initial.result.state.types[0].id = `${name}-type`;
   initial.result.state.units[0].typeId = `${name}-type`;
@@ -2199,6 +2199,9 @@ for (const name of ["barbarian", "zombie", "worker", "geomancer"]) test(`${name}
   assert.equal(portrait.children[1].src, `./art/units/${name}.webp`);
   portrait.children[1].listeners.load();
   assert.equal(portrait.children[0].hidden, true);
+  portrait.children[1].listeners.error();
+  assert.equal(portrait.children[1].hidden, true);
+  assert.equal(portrait.children[0].hidden, false);
   assert.equal(named("token-nameplate").textContent, "Artwork fixture");
   assert.equal(named("figure-hp").textContent, "2/6");
   assert.equal(named("token-side").textContent, "same");

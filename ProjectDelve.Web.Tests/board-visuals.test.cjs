@@ -6,10 +6,11 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
-test("first artwork pack resolves all seven local files while other content retains fallbacks", () => {
+test("artwork catalog resolves all thirteen local files while other content retains fallbacks", () => {
   const run = catalog();
-  const expected = ["barbarian", "zombie", "worker", "geomancer"].map(name => `./art/units/${name}.webp`);
-  const portraits = JSON.parse(run('JSON.stringify(["barbarian", "zombie", "worker", "geomancer"].map(name => boardVisuals.unit[`${name}-type`].image))'));
+  const names = ["barbarian", "zombie", "worker", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll"];
+  const expected = names.map(name => `./art/units/${name}.webp`);
+  const portraits = JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => boardVisuals.unit[name + "-type"].image))`));
   assert.deepEqual(portraits, expected);
   const terrain = JSON.parse(run('JSON.stringify(boardVisuals.terrain.StoneFloor.variants.map(v => v.image))'));
   assert.deepEqual(terrain, [1, 2, 3].map(i => `./art/terrain/stone-floor/0${i}.webp`));
@@ -20,7 +21,7 @@ test("first artwork pack resolves all seven local files while other content reta
     assert.equal(file.readUInt32LE(4) + 8, file.length, url);
   }
   run('const node = { dataset: {}, style: { setProperty(key, value) { this[key] = value; } } };');
-  for (const [category, id] of [["unit", "wizard-type"], ["unit", "custom-type"], ["terrain", "Grass"], ["terrain", "Unknown"]]) {
+  for (const [category, id] of [["unit", "cleric-type"], ["unit", "custom-type"], ["unit", "scenario:wizard"], ["terrain", "Grass"], ["terrain", "Unknown"]]) {
     run(`applyBoardVisual(node, ${JSON.stringify(category)}, ${JSON.stringify(id)});`);
     assert.equal(run('node.style["--visual-image"]'), "none");
     assert.match(run('node.style["--visual-detail"]'), /gradient/);

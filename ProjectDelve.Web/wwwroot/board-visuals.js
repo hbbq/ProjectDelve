@@ -22,7 +22,13 @@ export const boardVisuals = {
     "barbarian-type": { image: "./art/units/barbarian.webp" },
     "zombie-type": { image: "./art/units/zombie.webp" },
     "worker-type": { image: "./art/units/worker.webp" },
-    "geomancer-type": { image: "./art/units/geomancer.webp" }
+    "geomancer-type": { image: "./art/units/geomancer.webp" },
+    "wizard-type": { image: "./art/units/wizard.webp" },
+    "rogue-type": { image: "./art/units/rogue.webp" },
+    "grunt-type": { image: "./art/units/grunt.webp" },
+    "skeleton-archer-type": { image: "./art/units/skeleton-archer.webp" },
+    "goblin-type": { image: "./art/units/goblin.webp" },
+    "troll-type": { image: "./art/units/troll.webp" }
   },
   machine: { default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" } },
   resource: {
