@@ -2062,9 +2062,10 @@ for (const view of ["classic", "enhanced"]) {
     }
   });
 
-  for (const mode of ["animate", "disabled", "skip"]) test(`${view}: movement and door playback survive switching views (${mode})`, async () => {
+  for (const vertical of [false, true]) for (const mode of ["animate", "disabled", "skip"]) test(`${view}: movement and ${vertical ? "vertical" : "horizontal"} door playback survive switching views (${mode})`, async () => {
     const initial = response();
-    const door = { a: { x: 1, y: 0 }, b: { x: 2, y: 0 }, kind: "ClosedDoor" };
+    initial.result.state.physical.board.height = 2;
+    const door = { a: { x: 1, y: 0 }, b: vertical ? { x: 2, y: 0 } : { x: 1, y: 1 }, kind: "ClosedDoor" };
     initial.result.state.physical.board.edges = [door];
     const final = structuredClone(initial);
     final.result.state.physical.figures[0].position.x = 2;
@@ -2078,6 +2079,8 @@ for (const view of ["classic", "enhanced"]) {
     final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
     const h = harness(initial, async () => ({ ok: true, json: async () => final }));
     const actor = h.figure("actor");
+    const mountedEdge = h.run('[...edges.values()][0]');
+    mountedEdge.edgeArtwork.listeners.load();
     h.elements.get("board-view").value = view; h.elements.get("board-view").listeners.change();
     h.context.playbackMode = mode;
     h.run(`ui.animate.checked = playbackMode !== "disabled";
@@ -2092,13 +2095,41 @@ for (const view of ["classic", "enhanced"]) {
     await h.run('mutate("decision", { candidateKey: "opaque" })');
     assert.equal(h.figure("actor").style.left, `${2.5 / 6 * 100}%`);
     const edge = h.run('[...edges.values()][0]');
+    assert.equal(edge.dataset.orientation, vertical ? "Vertical" : "Horizontal");
     assert.equal(edge.dataset.visualId, "OpenDoor");
     assert.ok(edge.classList.contains("OpenDoor"));
+    assert.equal(edge.classList.contains("ClosedDoor"), false);
     assert.equal(edge.edgeArtwork.src, "./art/edges/door-open.webp");
+    assert.equal(edge.dataset.edgeArtwork, "loading");
     edge.edgeArtwork.listeners.load();
     assert.equal(edge.dataset.edgeArtwork, "ready");
   });
 }
+
+for (const size of [6, 50]) test(`connected Wall runs meet at a corner on a ${size} by ${size} board`, () => {
+  const initial = response();
+  Object.assign(initial.result.state.physical.board, { width: size, height: size, edges: [
+    { a: { x: 1, y: 0 }, b: { x: 1, y: 1 }, kind: "Wall" },
+    { a: { x: 2, y: 0 }, b: { x: 2, y: 1 }, kind: "Wall" },
+    { a: { x: 2, y: 1 }, b: { x: 3, y: 1 }, kind: "Wall" },
+    { a: { x: 2, y: 2 }, b: { x: 3, y: 2 }, kind: "Wall" }
+  ] });
+  const h = harness(initial);
+  h.elements.get("board-view").value = "enhanced"; h.elements.get("board-view").listeners.change();
+  const nodes = Array.from(h.run('[...edges.values()]'));
+  const [first, second, third, fourth] = nodes;
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`);
+  close(parseFloat(first.style.left) + parseFloat(first.style.width), parseFloat(second.style.left));
+  close(parseFloat(second.style.left) + parseFloat(second.style.width) / 2, parseFloat(third.style.left));
+  close(parseFloat(second.style.top), parseFloat(third.style.top) - parseFloat(third.style.height) / 2);
+  close(parseFloat(third.style.top) + parseFloat(third.style.height), parseFloat(fourth.style.top));
+  for (const node of nodes) {
+    node.edgeArtwork.listeners.load();
+    assert.equal(node.dataset.edgeArtwork, "ready");
+  }
+  h.run('renderState(snapshot.result.state, true);');
+  assert.deepEqual(Array.from(h.run('[...edges.values()]')), nodes);
+});
 
 for (const [kind, file] of [["Wall", "wall"], ["ClosedDoor", "door-closed"], ["OpenDoor", "door-open"]]) {
   for (const vertical of [false, true]) test(`${kind}: ${vertical ? "vertical" : "horizontal"} artwork stays centered on the authoritative Edge with load/error fallback`, () => {

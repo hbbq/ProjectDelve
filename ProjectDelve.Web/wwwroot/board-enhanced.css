@@ -44,13 +44,47 @@
 #board[data-view="enhanced"] .edge[data-edge-artwork="ready"] {
   background: transparent; border: 0; box-shadow: none;
 }
+/* Structural silhouettes use the same local horizontal axis as the artwork.
+   Only decoration extends past the Edge; its geometry and click area stay intact.
+   A one-pixel overlap closes seams along runs and at perpendicular joins. */
+#board[data-view="enhanced"] .edge.Wall::before,
+#board[data-view="enhanced"] .edge.ClosedDoor::before,
+#board[data-view="enhanced"] .edge.OpenDoor::before {
+  content: ""; position: absolute; left: 50%; top: 50%; z-index: 0;
+  width: calc(var(--cell-size) + 1px); height: clamp(8px, calc(var(--cell-size) * .14), 14px);
+  transform: translate(-50%, -50%); pointer-events: none;
+}
+#board[data-view="enhanced"] .edge.Wall::before {
+  background: #252a2c;
+  box-shadow: inset 0 1px #a99d7d60, inset 0 -1px #101719, 0 1px 2px #0009;
+}
+#board[data-view="enhanced"] .edge.ClosedDoor::before {
+  background: linear-gradient(#c49a58, #64401e 25% 75%, #291c12);
+  border: 1px solid #38291b;
+  box-shadow: 0 1px 2px #000a;
+}
+#board[data-view="enhanced"] .edge.OpenDoor::before {
+  /* End supports only: never put a strip or shadow across the passage.
+     The clear middle follows the opening in the existing painted master. */
+  background: linear-gradient(90deg, #493321 0 27%, transparent 27% 73%, #493321 73% 100%);
+}
+#board[data-view="enhanced"] .edge[data-orientation="Vertical"]::before {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+/* Keep specificity below hover/keyboard feedback on the original Edge. */
+#board[data-view="enhanced"] .edge:where(.OpenDoor[data-edge-artwork="ready"]) { outline: none; }
 #board[data-view="enhanced"] .edge[data-edge-artwork="ready"] .edge-artwork {
-  display: block; position: absolute; left: 50%; top: 50%;
+  display: block; position: absolute; left: 50%; top: 50%; z-index: 1;
   width: var(--cell-size); height: auto; max-width: none;
   transform: translate(-50%, -50%);
 }
 #board[data-view="enhanced"] .edge[data-orientation="Vertical"] .edge-artwork {
   transform: translate(-50%, -50%) rotate(90deg);
+}
+#board[data-view="enhanced"] .edge.Wall .edge-artwork { filter: brightness(.62) contrast(1.2); }
+#board[data-view="enhanced"] .edge.ClosedDoor .edge-artwork,
+#board[data-view="enhanced"] .edge.OpenDoor .edge-artwork {
+  filter: brightness(1.15) saturate(1.3) drop-shadow(0 1px 1px #0009);
 }
 /* Feedback stays above every material/artwork. */
 #board[data-view="enhanced"] .cell.legal { outline: 3px solid #9bdfff; outline-offset: -4px; box-shadow: inset 0 0 0 5px #153a51c0; }

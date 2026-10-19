@@ -40,6 +40,41 @@ test("Edge art rotates independently of geometry, hides in Classic, and clears t
   }
 });
 
+test("Enhanced structural bases join at Cell boundaries and rotate with the painted layer", () => {
+  for (const kind of ["Wall", "ClosedDoor", "OpenDoor"]) {
+    const base = style(enhanced(`.edge.${kind}::before`));
+    assert.equal(base.content, '""');
+    assert.equal(base["pointer-events"], "none");
+    assert.equal(base.width, "calc(var(--cell-size) + 1px)");
+    assert.equal(base.height, "clamp(8px, calc(var(--cell-size) * .14), 14px)");
+    assert.equal(base.left, "50%");
+    assert.equal(base.top, "50%");
+    assert.equal(base.transform, "translate(-50%, -50%)");
+    assert.equal(base["z-index"], "0");
+  }
+  assert.equal(style(enhanced('.edge[data-orientation="Vertical"]::before')).transform,
+    style(enhanced('.edge[data-orientation="Vertical"] .edge-artwork')).transform);
+  assert.equal(style(enhanced('.edge[data-edge-artwork="ready"] .edge-artwork'))["z-index"], "1");
+  assert.ok(style(enhanced(".edge.Wall::before")).background);
+  assert.match(style(enhanced(".edge.Wall .edge-artwork")).filter, /brightness\(\.62\)/);
+  assert.notEqual(style(enhanced(".edge.ClosedDoor::before")).background, style(enhanced(".edge.Wall::before")).background);
+  // Use ::before only; ::after remains the existing enlarged interaction target.
+  assert.ok(!rules.some(r => r.selectors.some(s => s.includes(".edge") && s.endsWith("::after"))));
+});
+
+test("Open Door keeps a clear central passage in loading, missing and ready states", () => {
+  const supports = style(enhanced(".edge.OpenDoor::before"));
+  assert.equal(supports.background, "linear-gradient(90deg, #493321 0 27%, transparent 27% 73%, #493321 73% 100%)");
+  assert.equal(supports["box-shadow"], undefined);
+  assert.equal(supports.border, undefined);
+  assert.equal(style(enhanced(".edge.OpenDoor"))["box-shadow"], "none");
+  assert.equal(style(enhanced('.edge:where(.OpenDoor[data-edge-artwork="ready"])')).outline, "none");
+  // Do not remove the dashed missing-image fallback or shared hover/focus feedback.
+  assert.equal(style(enhanced(".edge.OpenDoor")).outline, undefined);
+  assert.ok(style(enhanced('.board-choice[aria-disabled="false"]:hover')).outline);
+  assert.ok(style(enhanced(".cell.legal")).outline);
+});
+
 test("Enhanced names stay on one line with ellipsis inside the token at minimum Cell size", () => {
   const name = style(enhanced(".token-nameplate"));
   assert.equal(name.display, "block");
