@@ -83,6 +83,10 @@ Originals are immutable: never edit, rename, move, delete or overwrite source fi
 Do not modify game rules, scenarios or `CONSTRAINTS.md`. Do not introduce engine
 state, legality or game content for artwork. Preserve unrelated user work.
 
+Use normal sandbox execution for repository-local operations. Artwork preparation, local reads and tests do not inherently require elevated permissions. If the command runner fails during initialization (for example, `helper_unknown_error: setup refresh had errors`), treat this as an infrastructure blocker, not a permissions denial. Do not repeatedly request elevated execution to work around it; report the failure and stop when normal execution remains unavailable.
+
+Batch related read-only inspections when practical. For substantial Python inspection prefer a small repository-local temporary script over fragile inline Python/PowerShell quoting, and remove only the temporary files created by this workflow after review.
+
 Check `py -c "import PIL"` first per `AGENTS.md`. If unavailable, check installed
 Python and an existing `.artwork-venv` for Pillow with WebP before considering
 installation. Use the working interpreter to run `tools/prepare-artwork.py`.
@@ -131,7 +135,7 @@ Check deterministic variant vectors/reloads, unknown/custom-content and load-err
 fallbacks, both Edge orientations, Open Door gaps and door-state playback changes.
 Check token/name/HP/Posture, overlays, keyboard/pointer feedback and Classic.
 
-Run focused checks first, then the suites and build from the root:
+Run focused checks first, then the suites and build from the root. When the running web app locks normal Debug output, use the verified repository-root `.artwork-qa` directory with `dotnet test ... --artifacts-path .artwork-qa` and `dotnet build ... --artifacts-path .artwork-qa`. Avoid deeper nested artifact directories: existing test fixtures rely on relative content-root resolution. **Run .NET tests and builds sequentially**, waiting for each process to finish before starting the next, to avoid competing output locks:
 
 ```powershell
 node --test ProjectDelve.Web.Tests/board-visuals.test.cjs ProjectDelve.Web.Tests/token-layout.test.cjs ProjectDelve.Web.Tests/door-choice.test.cjs
