@@ -93,11 +93,17 @@ Render two independent layers:
 
 The connection mask is derived afresh from current board geometry and outgoing directions, so a change to one Rail Cell can change its neighbors' visual shapes. Never use random rotation for Rail, and do not change Run Rails, game rules, or authoritative state. Use the existing board/terrain presentation layering and fallbacks.
 
-### Rail artwork consistency
+### Gravel terrain and rail composition
+
+**Gravel** is a standalone, ordinary terrain type with the same passability and LOS behavior as Stone Floor (no special gameplay effect). Author it in the canonical terrain model and Level Designer, with validation/serialization and existing terrain coverage as appropriate. It uses three selectable, deterministically distributed, independently rotated, opaque gravel artwork variants, like Grass and Stone Floor.
+
+**Rail** is visually composed from the same Gravel base, plus a track-geometry overlay and a separate outgoing-direction arrow. Rail retains its existing directional gameplay behavior; Gravel does not acquire any railway rules. The visual catalog should reuse the Gravel material assets rather than duplicating them for Rail.
+
+### Procedural rail geometry and artwork
 
 The four track shapes **must share exactly matching edge ports**: identical track gauge, rail widths, sleeper scale, material palette, centerline placement, and entry/exit geometry at the middle of each connected Cell edge. Rotation must preserve seamless joins. Avoid perspective, baked-in floor/background, directional arrows, and asymmetrical edge-end decorations.
 
-Preferred production method: **generate one master track segment/style reference**, then build the four shapes from a common geometric template using compositing or vector drawing with hand-painted texture overlays. If using image generation, one coordinated four-shape sheet can establish a consistent style, but it should be treated as a reference unless alignment and alpha are verified. Four independent text prompts alone do not guarantee matching connection points.
+Generate/source a small material kit: **Gravel** (three opaque square variants), **one wooden sleeper** (transparent background) and **one steel rail material/reference**. Use shared, exact geometric parameters to assemble straight, curve, T-junction and cross from sleepers and two continuous rails. Draw/bend rail geometry with SVG/vector paths or generate transparent 256×256 shape overlays offline; do **not** stretch a straight rail PNG into curves or rely on AI-generated track-piece geometry for exact joins. Prefer pre-generated shape overlays from a reproducible script if practical, while keeping Gravel and the direction arrow separate at runtime.
 
 Acceptance check: arrange straight, curve, T and cross pieces in a sample track network with rotations, verify all connected boundaries visually at actual board scale, and verify the separate arrows agree with outgoing directions. If ports do not match, fix the shared geometry instead of patching each image by eye.
 
