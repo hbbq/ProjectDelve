@@ -81,6 +81,26 @@ Tree composes the existing Grass texture catalog with a transparent Tree object;
 
 Art direction is intentionally flexible until the pilot assets have been integrated and visually reviewed. The current mockup is the reference for mood; actual shipped assets should be a consistent, original set.
 
+## Directional rail presentation
+
+Rail's **outgoing direction** is authoritative gameplay/scenario data. Enhanced 2D derives a **visual connection mask** from the outgoing edge plus every orthogonally adjacent Rail Cell whose outgoing direction points into this Cell. A neighboring Rail Cell counts only when its outgoing direction points toward the current Cell; proximity alone does not connect it.
+
+If **no** neighboring Rail Cell points in, add a *visual-only* incoming connection on the edge opposite the outgoing direction. This fallback changes no movement or rules.
+
+Render two independent layers:
+- **Track geometry:** choose one of four orientation-free base shapes based on the resulting set of connected sides: straight (two opposite sides), curve (two adjacent sides), T-junction (three sides), cross (four sides). Rotate the base shape by 0/90/180/270 degrees to align its exits. There is no need for separate 2-in/1-out track artwork: both are represented by the same undirected T-junction.
+- **Direction arrow:** a separate, clear but unobtrusive overlay pointing toward the Cell's outgoing direction. Do not bake arrows into the track artwork.
+
+The connection mask is derived afresh from current board geometry and outgoing directions, so a change to one Rail Cell can change its neighbors' visual shapes. Never use random rotation for Rail, and do not change Run Rails, game rules, or authoritative state. Use the existing board/terrain presentation layering and fallbacks.
+
+### Rail artwork consistency
+
+The four track shapes **must share exactly matching edge ports**: identical track gauge, rail widths, sleeper scale, material palette, centerline placement, and entry/exit geometry at the middle of each connected Cell edge. Rotation must preserve seamless joins. Avoid perspective, baked-in floor/background, directional arrows, and asymmetrical edge-end decorations.
+
+Preferred production method: **generate one master track segment/style reference**, then build the four shapes from a common geometric template using compositing or vector drawing with hand-painted texture overlays. If using image generation, one coordinated four-shape sheet can establish a consistent style, but it should be treated as a reference unless alignment and alpha are verified. Four independent text prompts alone do not guarantee matching connection points.
+
+Acceptance check: arrange straight, curve, T and cross pieces in a sample track network with rotations, verify all connected boundaries visually at actual board scale, and verify the separate arrows agree with outgoing directions. If ports do not match, fix the shared geometry instead of patching each image by eye.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.
