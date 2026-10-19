@@ -23,9 +23,11 @@ EDGE_CROPS = {
 ASSETS = [
     *[(f"units/{name}.png", f"units/{name}.webp", 512)
       for name in ("barbarian", "zombie", "worker", "geomancer",
-                   "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll")],
-    *[(f"terrain/stone-floor-{i:02}.png", f"terrain/stone-floor/{i:02}.webp", 256)
-      for i in range(1, 4)],
+                   "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
+                   "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
+                   "labyrinth-shaper", "red-dragon", "locomotive")],
+    *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
+      for name in ("stone-floor", "grass", "water", "lava") for i in range(1, 4)],
     *[(f"edges/{name}.png", f"edges/{name}.webp", (512, 80)) for name in EDGE_CROPS],
 ]
 
@@ -36,13 +38,17 @@ def main():
     args = parser.parse_args()
     assets = [asset for asset in ASSETS if not args.edges_only or asset[0].startswith("edges/")]
     assert features.check("webp"), "Pillow requires WebP support"
-    hashes = {name: sha256((SOURCE / name).read_bytes()).digest() for name, _, _ in assets}
+    hashes = {path: sha256(path.read_bytes()).digest()
+              for path in SOURCE.rglob("*") if path.is_file()}
     # Inspect every original before exporting anything; require review if composition changes.
     for name, _, _ in assets:
         with Image.open(SOURCE / name) as original:
+            original.load()
             print(f"Source {name}: {original.size}, {original.mode}, {original.format}")
             if not name.startswith("edges/"):
                 assert original.width == original.height, f"Review non-square source: {name}"
+                if name.startswith("terrain/"):
+                    assert original.convert("RGBA").getchannel("A").getextrema() == (255, 255), f"Review transparent terrain: {name}"
             else:
                 assert original.size == (1774, 887) and original.mode == "RGBA", f"Review changed Edge source: {name}"
                 bounds = original.getchannel("A").point(lambda a: 255 if a >= 8 else 0).getbbox()
@@ -82,6 +88,8 @@ def main():
             assert result.format == "WEBP"
             assert result.size == dimensions
             assert result.info.get("icc_profile") == profile
+            if name.startswith("terrain/"):
+                assert result.convert("RGBA").getchannel("A").getextrema() == (255, 255)
             if image.mode == "RGBA":
                 assert result.getchannel("A").tobytes() == image.getchannel("A").tobytes()
             if name.startswith("edges/"):
@@ -97,8 +105,8 @@ def main():
 
     # Roughly 50px portraits (circular UI clip) and 60px Cells, plus larger references.
     edge_preview(decoded[-3:])
-    assert all(sha256((SOURCE / name).read_bytes()).digest() == digest
-               for name, digest in hashes.items()), "Source images changed"
+    assert all(sha256(path.read_bytes()).digest() == digest
+               for path, digest in hashes.items()), "Source images changed"
     if args.edges_only:
         return
     square_assets = [(asset, image) for asset, image in zip(assets, decoded) if not asset[0].startswith("edges/")]
@@ -107,7 +115,8 @@ def main():
     draw.text((16, 12), "Artwork catalog | 50px portrait / 60px Cell + larger references", fill="white")
     for i, ((_, destination, _), image) in enumerate(square_assets):
         x, y = 16 + (i % 4) * 176, 40 + (i // 4) * 150
-        draw.text((x, y), Path(destination).stem, fill="white")
+        label = Path(destination).with_suffix("").as_posix().replace("terrain/", "").replace("units/", "")
+        draw.text((x, y), label, fill="white")
         sheet.paste(image.resize((100, 100), Image.Resampling.LANCZOS), (x, y + 20))
         is_portrait = Path(destination).parts[0] == "units"
         thumb = image.resize((50, 50) if is_portrait else (60, 60), Image.Resampling.LANCZOS)

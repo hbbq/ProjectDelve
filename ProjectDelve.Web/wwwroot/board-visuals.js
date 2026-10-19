@@ -10,10 +10,25 @@ export const boardVisuals = {
         { fill: "#626864", image: "./art/terrain/stone-floor/02.webp" },
         { fill: "#6b6c65", image: "./art/terrain/stone-floor/03.webp" }
       ] },
-    Grass: { fill: "#476947", detail: "repeating-linear-gradient(115deg, transparent 0 7px, #abc27825 8px, transparent 10px)" },
+    Grass: { fill: "#476947", detail: "repeating-linear-gradient(115deg, transparent 0 7px, #abc27825 8px, transparent 10px)",
+      variants: [
+        { image: "./art/terrain/grass/01.webp" },
+        { image: "./art/terrain/grass/02.webp" },
+        { image: "./art/terrain/grass/03.webp" }
+      ] },
     Tree: { fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
-    Water: { fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)" },
-    Lava: { fill: "#a64420", detail: "repeating-linear-gradient(32deg, #352b2a 0 5px, transparent 7px 13px, #ffb349 15px 17px, transparent 19px 25px)" },
+    Water: { fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)",
+      variants: [
+        { image: "./art/terrain/water/01.webp" },
+        { image: "./art/terrain/water/02.webp" },
+        { image: "./art/terrain/water/03.webp" }
+      ] },
+    Lava: { fill: "#a64420", detail: "repeating-linear-gradient(32deg, #352b2a 0 5px, transparent 7px 13px, #ffb349 15px 17px, transparent 19px 25px)",
+      variants: [
+        { image: "./art/terrain/lava/01.webp" },
+        { image: "./art/terrain/lava/02.webp" },
+        { image: "./art/terrain/lava/03.webp" }
+      ] },
     StoneFloorWithTable: { fill: "#636665", detail: "linear-gradient(90deg, transparent 16%, #291d17 17% 20%, #997049 21% 46%, #63462d 47% 50%, #997049 51% 79%, #291d17 80% 83%, transparent 84%)" },
     Rail: { fill: "#766d5d", detail: "repeating-linear-gradient(0deg, transparent 0 7px, #342e29 8px 12px, transparent 13px 18px)" }
   },
@@ -28,7 +43,15 @@ export const boardVisuals = {
     "grunt-type": { image: "./art/units/grunt.webp" },
     "skeleton-archer-type": { image: "./art/units/skeleton-archer.webp" },
     "goblin-type": { image: "./art/units/goblin.webp" },
-    "troll-type": { image: "./art/units/troll.webp" }
+    "troll-type": { image: "./art/units/troll.webp" },
+    "cleric-type": { image: "./art/units/cleric.webp" },
+    "shaman-type": { image: "./art/units/shaman.webp" },
+    "ghost-type": { image: "./art/units/ghost.webp" },
+    "bomb-imp-type": { image: "./art/units/bomb-imp.webp" },
+    "displacer-demon-type": { image: "./art/units/displacer-demon.webp" },
+    "labyrinth-shaper-type": { image: "./art/units/labyrinth-shaper.webp" },
+    "red-dragon-type": { image: "./art/units/red-dragon.webp" },
+    "locomotive-type": { image: "./art/units/locomotive.webp" }
   },
   machine: { default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" } },
   resource: {

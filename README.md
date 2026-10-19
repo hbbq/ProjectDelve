@@ -68,6 +68,27 @@ Run `dotnet run --project ProjectDelve.Console` to play successive Rounds on a h
 
 Hero decisions use numbered engine-supplied choices. Choose the supplied Stay or End Turn option, or `q` to quit. An optional follow-up Move still uses `0` to stay. The authored Grunt group uses DefaultAutomatedProvider. Tokens draw automatically; the Barbarian controller confirms each owned dice pool through the numbered Roll Dice option. Positions, HP, deaths, and door state persist between Rounds. The host shows canonical movement paths and resulting rules events. There are no victory conditions.
 
+## Repository artwork skill
+
+Add new originals or replace existing originals under `assets/source/`, then
+invoke `/artwork` in Codex for this repository. The reusable skill lives at
+[.agents/skills/artwork/SKILL.md](.agents/skills/artwork/SKILL.md). In Codex clients
+that use skill mentions, invoke `$artwork` or select it through `/skills`.
+If it does not appear, restart Codex in this repository. This uses Codex's
+[repository skill discovery](https://learn.chatgpt.com/docs/build-skills).
+
+The skill inventories new, replaced and unregistered artwork, maps it to canonical
+content, runs the existing preparation pipeline, updates Enhanced 2D catalog entries,
+previews and relevant documentation/tests, and verifies the result. It recognizes
+numbered terrain variants and supports Units, Terrain, Edges, and future categories
+using their own rendering requirements. Originals, Classic View, fallbacks and the
+deterministic terrain selection algorithm are preserved.
+
+It asks about exact files before ambiguous mappings, competing portraits,
+unexpected dimensions/composition, destructive cropping/distortion, conflicting
+documentation or missing rendering support. Missing sources never trigger automatic
+runtime deletion. Unresolved files and any unverified visual behavior are reported.
+
 ## Browser playtest host
 
 Decision Commentary is optional presentation metadata on a selected legal decision. Both decision submissions and commands accept a trimmed `commentary` string of at most 280 characters. Streaming updates publish `kind: "commentary"` before that decision's rules events; legacy responses carry `commentaries` with `eventIndex` counting preceding rules events. Each entry identifies the decision, acting Unit, controller, Side and candidate key. Fresh baselines omit historical commentary. The host retains its enriched and key-only external selection callbacks for isolated adapter tests; the production Gambit broker uses the authenticated Resident polling contract described below. All browser transports present decision commentary from every player separately from gameplay events. Resident observations exclude commentary entirely. Automated flavor text uses fixed wording and consumes no gameplay randomness. Browser commentary starts hidden and follows event playback.
@@ -76,7 +97,7 @@ Run `dotnet run --project ProjectDelve.Web -- --urls http://localhost:5080`, the
 
 The playtest **Board view** selector offers **Classic View** (the default) and **Enhanced 2D View**. Both use the same DOM board, supplied legal choices, selection and event playback. Switching changes only a board data attribute, so it also works during playback. The Level Designer keeps its existing rendering. Enhanced boards retain a minimum 60-pixel Cell size for readable names/HP and scroll when they exceed the available width.
 
-Board appearance follows `VISUAL_STYLE.md` and lives in `ProjectDelve.Web/wwwroot/board-visuals.js` (content-ID mappings and fallback materials) and `board-enhanced.css` (scoped appearance and feedback layers). Add optional `image` entries under terrain kind, Unit Type ID, Machine Type ID, resource Type ID, or Edge kind. Paths are relative to the web root; the recommended destination is `wwwroot/art/`. Entries inherit category defaults, and unknown custom Unit Types retain portrait abbreviations and Type names. Machine Type IDs are included in final and intermediate browser projections. Artwork does not supply geometry, Side, Posture, ownership, legality or event semantics. The artwork catalog supplies Barbarian, Zombie, Worker, Geomancer, Wizard, Rogue, Grunt, Skeleton Archer, Goblin and Troll portraits and three ordered Stone Floor textures; all other content retains its existing fallback graphics.
+Board appearance follows `VISUAL_STYLE.md` and lives in `ProjectDelve.Web/wwwroot/board-visuals.js` (content-ID mappings and fallback materials) and `board-enhanced.css` (scoped appearance and feedback layers). Add optional `image` entries under terrain kind, Unit Type ID, Machine Type ID, resource Type ID, or Edge kind. Paths are relative to the web root; the recommended destination is `wwwroot/art/`. Entries inherit category defaults, and unknown custom Unit Types retain portrait abbreviations and Type names. Machine Type IDs are included in final and intermediate browser projections. Artwork does not supply geometry, Side, Posture, ownership, legality or event semantics. The artwork catalog supplies all eighteen canonical Unit portraits, three ordered textures each for Stone Floor, Grass, Water and Lava, and Wall/Closed Door/Open Door masters. Other content retains its existing fallback graphics.
 
 Enhanced tokens compose a circular Side-colored ring, portrait, compact bottom nameplate and compact top HP badge. Side text is hidden on the token; the full Side remains available through the token tooltip, accessible label and Unit details. The nameplate uses nonblank `presentation.cards[unitId].individualName`, then the card's Type display name, then the scenario Type's display name/Type ID. Generated Unit IDs are only inspection identifiers. The existing game model has no individual-name authoring field: browser hosts may supply an explicit presentation-only name map to `BrowserProjection.Create(result, individualNames)`, which applies names to final and playback cards without modifying game state. This phase adds no naming editor or scenario schema. HP appears only for Max HP > 1. The active Unit has a triangle marker; the selected/focused Unit has a cyan outline; hover/focus, event targeting and Lying have separate treatments. Lying tilts only the portrait, adds a dashed ring and a `Lying` label, and keeps HP/name level. Nameplates use a consistent 9-pixel font on one line within the token width, truncating overflow with an ellipsis; full names remain in the tooltip and accessible label. Resources occupy the top-right Cell corner, clear of nameplates. Classic retains its original abbreviation, posture and HP layout.
 
@@ -120,9 +141,9 @@ For each terrain Cell, `terrainVariantIndex` hashes `JSON.stringify(["terrain-v1
 | `units/zombie.webp` | 512 × 512 | 45,764 |
 | `units/worker.webp` | 512 × 512 | 44,096 |
 | `units/geomancer.webp` | 512 × 512 | 51,430 |
-| `terrain/stone-floor/01.webp` | 256 × 256 | 14,796 |
-| `terrain/stone-floor/02.webp` | 256 × 256 | 15,346 |
-| `terrain/stone-floor/03.webp` | 256 × 256 | 15,100 |
+| `terrain/stone-floor/01.webp` | 256 × 256 | 16,426 |
+| `terrain/stone-floor/02.webp` | 256 × 256 | 16,080 |
+| `terrain/stone-floor/03.webp` | 256 × 256 | 15,890 |
 
 **Second portrait batch:** the six additional originals are also opaque 1254 × 1254 RGB PNGs without embedded color profiles, stored as `wizard.png`, `rogue.png`, `grunt.png`, `skeleton-archer.png`, `goblin.png` and `troll.png` under `assets/source/units/`. The same script and encoding settings above export them without cropping or composition changes. Catalog keys are their canonical `wizard-type`, `rogue-type`, `grunt-type`, `skeleton-archer-type`, `goblin-type` and `troll-type` IDs.
 
@@ -135,7 +156,28 @@ For each terrain Cell, `terrainVariantIndex` hashes `JSON.stringify(["terrain-v1
 | `units/goblin.webp` | 512 × 512 | 47,576 |
 | `units/troll.webp` | 512 × 512 | 63,150 |
 
-The [contact sheet](assets/previews/artwork-pack-01.png) shows the thirteen portrait/terrain exports with 50-pixel circular portraits and 60-pixel terrain Cells beside larger references; its height adjusts to the catalog size. It is an asset composition preview, not a browser screenshot. Stone Floor retains the same three variant slots, fallback fills and seed/hash algorithm. CSS token composition is unchanged.
+**Remaining portraits and terrain integration:** eight new portraits and nine new terrain originals are opaque 1254 × 1254 RGB PNGs, without EXIF orientation, embedded profiles or animation. All use the same sRGB/Lanczos/WebP conversion without cropping. Each portrait source below is `assets/source/units/<name>.png`, resolves through the explicitly registered canonical `<name>-type` ID, and exports to `wwwroot/art/units/<name>.webp` at 512 × 512.
+
+| Portrait source name | Runtime bytes |
+| --- | ---: |
+| `cleric` | 56,922 |
+| `shaman` | 74,386 |
+| `ghost` | 41,296 |
+| `bomb-imp` | 35,876 |
+| `displacer-demon` | 33,314 |
+| `labyrinth-shaper` | 53,234 |
+| `red-dragon` | 44,118 |
+| `locomotive` | 45,448 |
+
+| Sources under `assets/source/terrain/` | Catalog Terrain kind | Runtime paths under `wwwroot/art/` | Bytes in numeric order |
+| --- | --- | --- | --- |
+| `grass-01.png` through `grass-03.png` | `Grass` | `terrain/grass/01.webp` through `03.webp` | 18,984 / 17,766 / 18,308 |
+| `water-01.png` through `water-03.png` | `Water` | `terrain/water/01.webp` through `03.webp` | 7,056 / 7,186 / 7,790 |
+| `lava-01.png` through `lava-03.png` | `Lava` | `terrain/lava/01.webp` through `03.webp` | 15,768 / 15,302 / 15,146 |
+
+Terrain exports are opaque 256 × 256 full-bleed textures. The full export reproduced the existing sixteen exports' decoded pixels and sRGB profiles, apart from ICC creation dates; existing runtime bytes were preserved. The Stone Floor byte counts above correct outdated documentation. All 33 originals have registered pipeline exports and catalog mappings; no runtime assets lack sources. There are no competing or blocked files in this batch. Grass/Water/Lava now select among three images using the existing hash; their former material-only presentation therefore gains per-Cell variation. Stone Floor keeps its three slots/order, and seed derivation, hash/version and gameplay RNG are unchanged.
+
+The [contact sheet](assets/previews/artwork-pack-01.png) shows the portrait/terrain exports with 50-pixel circular portraits and 60-pixel terrain Cells beside larger references, labeled by portrait or terrain/slot; its height adjusts to the catalog size. It is an asset composition preview, not a browser screenshot. The pipeline fully decodes sources and exports, checks opaque terrain and lossless Edge alpha, and compares hashes for all source files, including unregistered files. CSS token composition and renderer consumers are unchanged. Lava is intentionally more vivid than the other materials; highlight readability over it still requires browser review.
 
 **Edge artwork:** the three originals in `assets/source/edges/` are 1774 × 887 RGBA PNGs with no embedded color profile. Their visible strips occupy only the middle of the source canvas. `python tools/prepare-artwork.py --edges-only` exports this batch and its [orientation/contact preview](assets/previews/edges.png) without rewriting Unit or terrain files. The full pipeline also includes Edges. Pillow with WebP support is required; an optional local `.artwork-venv` can hold this build-time dependency.
 
@@ -149,7 +191,7 @@ The reviewed crop rectangles (left, top, right, bottom, exclusive) are Wall `(15
 
 The existing `Wall`, `ClosedDoor` and `OpenDoor` catalog keys resolve these masters. A decorative image child is centered on the authoritative Edge, scales proportionally to one Cell's length, and rotates clockwise 90° for `Vertical`. Edge geometry, hit targets and events are unchanged. Only Enhanced 2D displays the child; Classic and the Level Designer retain their existing rendering. Loading failures retain each Edge's fallback material, including Open Door's dashed outline. Successfully loaded artwork clears the material beneath its transparent pixels, keeping the opening visible. Artwork stays below Units/nameplates/HP and ignores pointer input; existing legal-choice, hover and door/event focus remain on the original Edge node. The preview includes all six orientations on a checkerboard and a small test-owned connected-wall/door sample. The Open Door source has stone rails above and below its transparent opening; review its readability at minimum Cell size in the browser.
 
-Browser screenshot and performance baselines remain pending. Inspect long/truncated names, all Side colors, HP + Resource crowding, Lying and large bases, Machine storage labels, edge artwork in both orientations, keyboard outlines, and horizontal/vertical scrolling on narrow screens and 50 × 50 boards. For this pack, confirm face visibility under the compact HP badge and seamless Cell coverage with the four-stone-wide floor pattern. No screenshot approval is implied by the DOM tests.
+Browser screenshot and performance baselines remain pending. Inspect long/truncated names, all Side colors, HP + Resource crowding, Lying and large bases, Machine storage labels, edge artwork in both orientations, keyboard outlines, and horizontal/vertical scrolling on narrow screens and 50 × 50 boards. Confirm face visibility under the compact HP badge, full Cell coverage, repeated terrain seams, and feedback contrast over Lava. No screenshot approval is implied by the DOM tests.
 
 The Web host serves a plain HTML/CSS/JavaScript client and six server-owned playtest setups. One authoritative game lives in memory. **Start selected** replaces it with the selected scenario; **Restart current** recreates the current scenario. Both discard the previous state, including pending activations and follow-ups. During effects, either control requests replacement immediately; playback switches to the replacement when its baseline arrives. The host finishes its current synchronous engine call, skips subsequent automatic decisions, and publishes the replacement baseline; an external decision wait is invalidated immediately. Revision checks still protect concurrent clients.
 

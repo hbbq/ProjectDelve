@@ -2249,7 +2249,8 @@ test("portrait assets use the content catalog and retain fallback on image failu
   assert.equal(h.figure("actor").children.find(n => n.className === "token-nameplate").textContent, "Custom Type");
 });
 
-for (const name of ["barbarian", "zombie", "worker", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
+for (const name of ["barbarian", "zombie", "worker", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
+  "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
   const initial = response();
   initial.result.state.types[0].id = `${name}-type`;
   initial.result.state.units[0].typeId = `${name}-type`;
