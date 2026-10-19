@@ -172,6 +172,42 @@ Readable, clean, slightly stylized, and suitable for repeated tiling on a square
 No perspective, no objects, no text, no borders, no interface elements, no watermarks.
 ```
 
+## Edge assets — next art batch
+
+Generate one **horizontal master asset** for each kind; rotate for vertical use. Keep the three assets in a consistent hand-painted premium tabletop style matching the approved stone floor. Strict overhead view, no perspective, no baked-in UI/text. Prefer transparent surroundings; keep object silhouettes readable at board scale. Original images may be large, but the pipeline should prepare a horizontal runtime export (approximately 512×64), with rotation supplying the vertical version. Check visual alignment with the actual Edge renderer before batch generation.
+
+### Wall
+
+```text
+Premium fantasy tabletop board game edge asset. Hand-painted digital illustration in the same polished fantasy board game style as the existing stone floor textures.
+
+Create a long, horizontal dungeon stone wall segment intended to lie precisely along the boundary between two square board cells. Strictly top-down overhead view, not an isometric wall or a landscape scene. Weathered gray masonry, restrained cracks, slight highlights and shadows showing physical thickness. Keep the segment centered, uniform across its length, with clean edges suitable for repeated placement and 90-degree rotation.
+
+The wall must be legible at very small board scale. Use a transparent background outside the physical wall silhouette where appropriate. No figures, scenery, text, UI, symbols, borders, logos or watermarks.
+```
+
+### Closed Door
+
+```text
+Premium fantasy tabletop board game edge asset, matching the same painted stone-and-wood material language as the wall artwork.
+
+Create a long horizontal CLOSED medieval dungeon door or gate lying along the boundary between two board cells, viewed strictly from directly overhead. Solid wooden planks with subtle wood grain, modest iron braces and a restrained stone threshold or jambs. The middle must visibly close the passage, unlike an open doorway. Keep the silhouette centered and narrow enough for an edge overlay, with clear transparent surroundings and no perspective.
+
+The component should work at small size and when rotated 90 degrees. No characters, text, UI, symbols, logos or watermarks.
+```
+
+### Open Door
+
+```text
+Premium fantasy tabletop board game edge asset, matching the closed wooden door and the stone wall illustration in the same set.
+
+Create a long horizontal OPEN medieval dungeon doorway along the boundary between two board cells, viewed strictly from directly overhead. Show a restrained stone threshold or short frame and wooden door leaves moved to the sides so the center is an unmistakably clear passage. The open central gap must stay transparent; do not fill it with opaque floor or dark painted background. Keep the edge component centered and suitable for 90-degree rotation.
+
+Readable at small board scale, same lighting and material palette as the closed door. Transparent surroundings. No characters, text, UI, symbols, logos or watermarks.
+```
+
+**Integration note:** Open Door must read as passable and Closed Door as blocked. Keep their state legible independently of the precise artwork. Review transparency and repeat seams in the actual game before accepting the assets.
+
 ## Future prompt candidates
 
-Wall, Closed Door, Open Door, Coal, Diamond, Diamond Press and further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
+Coal, Diamond, Diamond Press and further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
