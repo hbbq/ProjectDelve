@@ -38,8 +38,9 @@ export const boardVisuals = {
   },
   edge: {
     default: { fill: "#45494b", detail: "repeating-linear-gradient(45deg, transparent 0 8px, #e3dcc53a 9px 10px, transparent 11px 18px)" },
-    ClosedDoor: { fill: "#bd914c", detail: "repeating-linear-gradient(90deg, transparent 0 5px, #392c2855 6px 7px)" },
-    OpenDoor: { fill: "transparent", detail: "none" },
+    Wall: { image: "./art/edges/wall.webp" },
+    ClosedDoor: { image: "./art/edges/door-closed.webp", fill: "#bd914c", detail: "repeating-linear-gradient(90deg, transparent 0 5px, #392c2855 6px 7px)" },
+    OpenDoor: { image: "./art/edges/door-open.webp", fill: "transparent", detail: "none" },
     WallWithWindow: { fill: "#8ad9eb", detail: "linear-gradient(90deg, #253743, #a7e9ed 45% 55%, #253743)" }
   }
 };
@@ -70,5 +71,33 @@ export function applyBoardVisual(node, category, id, context = {}) {
   node.style.setProperty("--visual-image", visual.image ? `url(${JSON.stringify(visual.image)})` : "none");
   node.style.setProperty("--visual-fill", visual.fill ?? "transparent");
   node.style.setProperty("--visual-detail", visual.detail ?? "none");
+  if (category === "edge") applyEdgeArtwork(node, visual.image);
   return visual;
+}
+
+function applyEdgeArtwork(node, source) {
+  // Keep the original Edge as the hit/feedback target. Only the decorative child
+  // rotates; Classic hides it. Fallback materials remain until decoding succeeds.
+  let image = node.edgeArtwork;
+  if (!source) {
+    image?.remove();
+    node.edgeArtwork = null;
+    delete node.dataset.edgeArtwork;
+    return;
+  }
+  if (!image) {
+    image = document.createElement("img");
+    image.className = "edge-artwork";
+    image.alt = "";
+    image.draggable = false;
+    node.append(image);
+    node.edgeArtwork = image;
+    image.addEventListener("load", () => { node.dataset.edgeArtwork = "ready"; });
+    image.addEventListener("error", () => { node.dataset.edgeArtwork = "missing"; });
+  }
+  if (image.dataset.source !== source) {
+    node.dataset.edgeArtwork = "loading";
+    image.dataset.source = source;
+    image.src = source;
+  }
 }

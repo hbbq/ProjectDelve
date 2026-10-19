@@ -4,6 +4,7 @@ Run from any directory: python tools/prepare-artwork.py
 Sources are read only. Preview is for composition review, not a browser screenshot.
 """
 from hashlib import sha256
+import argparse
 from io import BytesIO
 from pathlib import Path
 
@@ -12,36 +13,64 @@ from PIL import Image, ImageCms, ImageDraw, ImageOps, features
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/source"
 OUTPUT = ROOT / "ProjectDelve.Web/wwwroot/art"
+# Reviewed source rectangles (left, top, right, bottom). Outside these bounds
+# there are only empty margins and stray alpha < 8/255 pixels, not object detail.
+EDGE_CROPS = {
+    "wall": (15, 325, 1766, 555),
+    "door-closed": (16, 299, 1764, 573),
+    "door-open": (16, 295, 1763, 569),
+}
 ASSETS = [
     *[(f"units/{name}.png", f"units/{name}.webp", 512)
       for name in ("barbarian", "zombie", "worker", "geomancer",
                    "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll")],
     *[(f"terrain/stone-floor-{i:02}.png", f"terrain/stone-floor/{i:02}.webp", 256)
       for i in range(1, 4)],
+    *[(f"edges/{name}.png", f"edges/{name}.webp", (512, 80)) for name in EDGE_CROPS],
 ]
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--edges-only", action="store_true", help="Export only the reviewed Edge batch")
+    args = parser.parse_args()
+    assets = [asset for asset in ASSETS if not args.edges_only or asset[0].startswith("edges/")]
     assert features.check("webp"), "Pillow requires WebP support"
-    hashes = {name: sha256((SOURCE / name).read_bytes()).digest() for name, _, _ in ASSETS}
+    hashes = {name: sha256((SOURCE / name).read_bytes()).digest() for name, _, _ in assets}
     # Inspect every original before exporting anything; require review if composition changes.
-    for name, _, _ in ASSETS:
+    for name, _, _ in assets:
         with Image.open(SOURCE / name) as original:
             print(f"Source {name}: {original.size}, {original.mode}, {original.format}")
-            assert original.width == original.height, f"Review non-square source: {name}"
+            if not name.startswith("edges/"):
+                assert original.width == original.height, f"Review non-square source: {name}"
+            else:
+                assert original.size == (1774, 887) and original.mode == "RGBA", f"Review changed Edge source: {name}"
+                bounds = original.getchannel("A").point(lambda a: 255 if a >= 8 else 0).getbbox()
+                assert bounds == EDGE_CROPS[Path(name).stem], f"Review changed Edge composition: {name}"
             assert getattr(original, "n_frames", 1) == 1, f"Review animated source: {name}"
 
     srgb = ImageCms.createProfile("sRGB")
     profile = ImageCms.ImageCmsProfile(srgb).tobytes()
     decoded = []
-    for name, destination, size in ASSETS:
+    for name, destination, size in assets:
         with Image.open(SOURCE / name) as original:
             image = ImageOps.exif_transpose(original).convert("RGBA")
             if original.info.get("icc_profile"):
                 image = ImageCms.profileToProfile(image, ImageCms.ImageCmsProfile(
                     BytesIO(original.info["icc_profile"])), srgb, outputMode="RGBA")
-            # Untagged generated sources are treated as sRGB. No crop or retouching.
-            image = image.resize((size, size), Image.Resampling.LANCZOS)
+            # Untagged generated sources are treated as sRGB.
+            dimensions = size if isinstance(size, tuple) else (size, size)
+            if name.startswith("edges/"):
+                # Preserve the full visible object and its aspect ratio. The 80px
+                # canvas accommodates the Doors without cutting off posts/leaves.
+                image = ImageOps.contain(image.crop(EDGE_CROPS[Path(name).stem]),
+                                         dimensions, Image.Resampling.LANCZOS)
+                canvas = Image.new("RGBA", dimensions)
+                canvas.paste(image, ((dimensions[0] - image.width) // 2,
+                                     (dimensions[1] - image.height) // 2))
+                image = canvas
+            else:
+                image = image.resize(dimensions, Image.Resampling.LANCZOS)
             if image.getchannel("A").getextrema() == (255, 255):
                 image = image.convert("RGB")
             target = OUTPUT / destination
@@ -51,18 +80,32 @@ def main():
         with Image.open(target) as result:
             result.load()  # Verify complete decoding, dimensions and alpha after encoding.
             assert result.format == "WEBP"
-            assert result.size == (size, size)
+            assert result.size == dimensions
             assert result.info.get("icc_profile") == profile
             if image.mode == "RGBA":
                 assert result.getchannel("A").tobytes() == image.getchannel("A").tobytes()
-            decoded.append(result.convert("RGB"))
-        print(f"Export {destination}: {size}x{size}, {target.stat().st_size:,} bytes")
+            if name.startswith("edges/"):
+                assert result.getchannel("A").getextrema() == (0, 255)
+                assert target.stat().st_size < 100_000, f"Review oversized Edge: {destination}"
+                if Path(name).stem == "door-open":
+                    # The middle of the passage must remain transparent, with
+                    # neither a painted background nor a fallback bar beneath it.
+                    gap = result.getchannel("A").crop((200, 28, 312, 52))
+                    assert gap.getextrema()[1] < 8, "Review Open Door central opening"
+            decoded.append(result.convert("RGBA"))
+        print(f"Export {destination}: {dimensions[0]}x{dimensions[1]}, {target.stat().st_size:,} bytes")
 
     # Roughly 50px portraits (circular UI clip) and 60px Cells, plus larger references.
-    sheet = Image.new("RGB", (720, 50 + ((len(ASSETS) + 3) // 4) * 150), "#202630")
+    edge_preview(decoded[-3:])
+    assert all(sha256((SOURCE / name).read_bytes()).digest() == digest
+               for name, digest in hashes.items()), "Source images changed"
+    if args.edges_only:
+        return
+    square_assets = [(asset, image) for asset, image in zip(assets, decoded) if not asset[0].startswith("edges/")]
+    sheet = Image.new("RGB", (720, 50 + ((len(square_assets) + 3) // 4) * 150), "#202630")
     draw = ImageDraw.Draw(sheet)
     draw.text((16, 12), "Artwork catalog | 50px portrait / 60px Cell + larger references", fill="white")
-    for i, ((_, destination, _), image) in enumerate(zip(ASSETS, decoded)):
+    for i, ((_, destination, _), image) in enumerate(square_assets):
         x, y = 16 + (i % 4) * 176, 40 + (i // 4) * 150
         draw.text((x, y), Path(destination).stem, fill="white")
         sheet.paste(image.resize((100, 100), Image.Resampling.LANCZOS), (x, y + 20))
@@ -77,8 +120,35 @@ def main():
     preview = ROOT / "assets/previews/artwork-pack-01.png"
     preview.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(preview, optimize=True)
-    assert all(sha256((SOURCE / name).read_bytes()).digest() == digest
-               for name, digest in hashes.items()), "Source images changed"
+
+
+def edge_preview(images):
+    """Both orientations over a checkerboard, plus a test-owned sample layout."""
+    preview = ROOT / "assets/previews/edges.png"
+    preview.parent.mkdir(parents=True, exist_ok=True)
+    sheet = Image.new("RGBA", (1000, 760), "#303a42")
+    draw = ImageDraw.Draw(sheet)
+    for y in range(30, 760, 12):
+        for x in range(0, 1000, 12):
+            if (x // 12 + y // 12) % 2:
+                draw.rectangle((x, y, x + 11, y + 11), fill="#46515a")
+    draw.text((16, 8), "Edge masters | horizontal + clockwise vertical | transparency checkerboard", fill="white")
+    for i, (name, image) in enumerate(zip(EDGE_CROPS, images)):
+        draw.text((16, 44 + i * 120), f"Horizontal {name}", fill="white")
+        sheet.alpha_composite(image, (16, 64 + i * 120))
+        draw.text((550 + i * 146, 44), name, fill="white")
+        sheet.alpha_composite(image.transpose(Image.Transpose.ROTATE_270), (570 + i * 146, 70))
+    draw.text((16, 426), "Sample: connected walls / closed + open doors (120px Cells)", fill="white")
+    for y in range(2):
+        for x in range(4):
+            draw.rectangle((20 + x * 120, 460 + y * 120, 140 + x * 120, 580 + y * 120),
+                           fill="#666a68", outline="#293238")
+    for x, image in enumerate([images[0], images[0], images[1], images[2]]):
+        thumb = image.resize((120, 19), Image.Resampling.LANCZOS)
+        sheet.alpha_composite(thumb, (20 + x * 120, 570))
+    sheet.alpha_composite(images[0].resize((120, 19), Image.Resampling.LANCZOS)
+                          .transpose(Image.Transpose.ROTATE_270), (251, 460))
+    sheet.convert("RGB").save(preview, optimize=True)
 
 
 if __name__ == "__main__":

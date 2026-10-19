@@ -2094,6 +2094,41 @@ for (const view of ["classic", "enhanced"]) {
     const edge = h.run('[...edges.values()][0]');
     assert.equal(edge.dataset.visualId, "OpenDoor");
     assert.ok(edge.classList.contains("OpenDoor"));
+    assert.equal(edge.edgeArtwork.src, "./art/edges/door-open.webp");
+    edge.edgeArtwork.listeners.load();
+    assert.equal(edge.dataset.edgeArtwork, "ready");
+  });
+}
+
+for (const [kind, file] of [["Wall", "wall"], ["ClosedDoor", "door-closed"], ["OpenDoor", "door-open"]]) {
+  for (const vertical of [false, true]) test(`${kind}: ${vertical ? "vertical" : "horizontal"} artwork stays centered on the authoritative Edge with load/error fallback`, () => {
+    const initial = response();
+    initial.result.state.physical.board.height = 4;
+    initial.result.state.physical.board.edges = [{ a: { x: 1, y: 1 }, b: vertical ? { x: 2, y: 1 } : { x: 1, y: 2 }, kind }];
+    const h = harness(initial);
+    const edge = h.run('[...edges.values()][0]'), image = edge.edgeArtwork;
+    assert.equal(edge.dataset.orientation, vertical ? "Vertical" : "Horizontal");
+    assert.equal(edge.style.left, `${(vertical ? 2 : 1.5) / 6 * 100}%`);
+    assert.equal(edge.style.top, `${(vertical ? 1.5 : 2) / 4 * 100}%`);
+    assert.equal(edge.style.width, vertical ? "var(--edge-thickness)" : `${100 / 6}%`);
+    assert.equal(edge.style.height, vertical ? "25%" : "var(--edge-thickness)");
+    assert.equal(image.src, `./art/edges/${file}.webp`);
+    assert.equal(image.alt, "");
+    assert.equal(edge.dataset.edgeArtwork, "loading");
+    image.listeners.load(); assert.equal(edge.dataset.edgeArtwork, "ready");
+    h.run('renderState(snapshot.result.state, true);');
+    assert.equal(edge.edgeArtwork, image); // Retained image and no redundant loads.
+    assert.equal(edge.dataset.edgeArtwork, "ready");
+    image.listeners.error(); assert.equal(edge.dataset.edgeArtwork, "missing");
+    assert.equal(edge.style["--visual-fill"], kind === "Wall" ? "#45494b" : kind === "ClosedDoor" ? "#bd914c" : "transparent");
+    h.run(`delete boardVisuals.edge.${kind}.image; renderState(snapshot.result.state, true);`);
+    assert.equal(edge.edgeArtwork, null);
+    assert.equal(edge.style["--visual-image"], "none");
+    assert.equal(edge.children.length, 0);
+    h.run('snapshot.result.state.physical.board.width = 50; snapshot.result.state.physical.board.height = 50; renderState(snapshot.result.state, true);');
+    assert.equal(h.run('cells.size'), 2500);
+    assert.equal(edge.style.left, `${(vertical ? 2 : 1.5) / 50 * 100}%`);
+    assert.equal(edge.style.top, `${(vertical ? 1.5 : 2) / 50 * 100}%`);
   });
 }
 

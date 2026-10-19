@@ -80,7 +80,7 @@ Board appearance follows `VISUAL_STYLE.md` and lives in `ProjectDelve.Web/wwwroo
 
 Enhanced tokens compose a circular Side-colored ring, portrait, compact bottom nameplate and compact top HP badge. Side text is hidden on the token; the full Side remains available through the token tooltip, accessible label and Unit details. The nameplate uses nonblank `presentation.cards[unitId].individualName`, then the card's Type display name, then the scenario Type's display name/Type ID. Generated Unit IDs are only inspection identifiers. The existing game model has no individual-name authoring field: browser hosts may supply an explicit presentation-only name map to `BrowserProjection.Create(result, individualNames)`, which applies names to final and playback cards without modifying game state. This phase adds no naming editor or scenario schema. HP appears only for Max HP > 1. The active Unit has a triangle marker; the selected/focused Unit has a cyan outline; hover/focus, event targeting and Lying have separate treatments. Lying tilts only the portrait, adds a dashed ring and a `Lying` label, and keeps HP/name level. Nameplates use a consistent 9-pixel font on one line within the token width, truncating overflow with an ellipsis; full names remain in the tooltip and accessible label. Resources occupy the top-right Cell corner, clear of nameplates. Classic retains its original abbreviation, posture and HP layout.
 
-Catalog examples (portraits and Stone Floor are shipped; Rail and Wall paths are illustrative):
+Catalog examples (portraits, Stone Floor and Edges are shipped; Rail paths are illustrative):
 
 ```js
 boardVisuals.unit["barbarian-type"] = { image: "./art/units/barbarian.webp" };
@@ -90,13 +90,10 @@ boardVisuals.terrain.StoneFloor.variants = [
   { image: "./art/terrain/stone-floor/03.webp" }
 ];
 boardVisuals.terrain.Rail.directions = { North: { image: "./art/terrain/rail/north.webp" } };
-boardVisuals.edge.Wall = { directions: {
-  Horizontal: { image: "./art/edges/wall-horizontal.webp" },
-  Vertical: { image: "./art/edges/wall-vertical.webp" }
-} };
+boardVisuals.edge.Wall = { image: "./art/edges/wall.webp" };
 ```
 
-Portrait images use `object-fit: cover` in a circular clip; load failures preserve the abbreviation/icon. Other artwork layers use CSS `background-size: cover` over the fallback material. Resource/Machine glyphs remain overlaid unless the catalog explicitly sets `glyph: ""`. Do not embed paths or image-loading logic in interactions. Variants are ordered arrays of descriptor overrides (`image`, `fill`, `detail`, `glyph`); category default, content entry, chosen variant, then optional direction overrides are merged in that order. Rail uses North/East/South/West; Edges use Horizontal/Vertical. No automatic image rotations change a Rail arrow.
+Portrait images use `object-fit: cover` in a circular clip; load failures preserve the abbreviation/icon. Terrain, Resource and Machine artwork layers use CSS `background-size: cover` over the fallback material. Edge artwork uses a proportional image child with loading/error fallbacks and 90° rotation for vertical use, as detailed below. Resource/Machine glyphs remain overlaid unless the catalog explicitly sets `glyph: ""`. Do not embed paths or image-loading logic in interactions. Variants are ordered arrays of descriptor overrides (`image`, `fill`, `detail`, `glyph`); category default, content entry, chosen variant, then optional direction overrides are merged in that order. Rail uses North/East/South/West; Edges use Horizontal/Vertical. No automatic image rotations change a Rail arrow.
 
 **Deterministic variants:** the host emits optional top-level `visualSeed` as browser presentation metadata in HTTP responses, streaming baselines, events and boundaries. `BoardAppearance.DeriveSeed` runs once at initial setup and each scenario replacement/restart. It computes `"board-v1:" + lowercaseHex(SHA256(UTF8(canonicalJSON)))`. Canonical JSON is the compact array `[1, scenarioId, width, height, cells, edges]`. Cells cover the full Board in y-then-x order as `[x,y,terrainKindName,railDirectionNameOrNull]`, treating omitted terrain as StoneFloor. None Edges are omitted; endpoints are normalized in y-then-x order, then Edges are sorted by first endpoint y/x and second endpoint y/x, and stored as `[ax,ay,bx,by,edgeKindName]`. Property/list insertion order and explicit default terrain do not affect the seed. Resources, Units, Machines, controllers, sessions and gameplay RNG are excluded. Imports use scenario ID `imported`, so different imported board materials/geometries can have different seeds; identical initial boards intentionally share distributions. Initial terrain/Edge edits can reroll the distribution, but runtime board changes never recompute the seed.
 
@@ -107,9 +104,9 @@ For each terrain Cell, `terrainVariantIndex` hashes `JSON.stringify(["terrain-v1
 | Asset | Exact export size / ratio | Alpha and composition | Pilot quantity |
 | --- | --- | --- | --- |
 | Stone Floor | 256 × 256, 1:1 | Opaque, full bleed, strictly top-down, subtle variation and compatible tile boundaries | 3 ordered variants |
-| Wall | 512 × 64 horizontal, 64 × 512 vertical (8:1 / 1:8) | Top-down strip, full length; alpha allowed outside the material; same artwork rotated into a second export | 1 material, 2 orientations |
-| Closed Door | 512 × 64 horizontal, 64 × 512 vertical | Same strip alignment; clear closed slab, no embedded UI frame | 1 design, 2 orientations |
-| Open Door | 512 × 64 horizontal, 64 × 512 vertical | Transparent center/gap, unobtrusive posts/threshold; must not resemble a closed blocking bar | 1 design, 2 orientations |
+| Wall | 512 × 80 horizontal master | Full-length stone strip; transparent exterior; renderer rotates 90° for vertical Edges | 1 material, 2 orientations |
+| Closed Door | 512 × 80 horizontal master | Same strip alignment; clear wooden slab; renderer rotates for vertical Edges | 1 design, 2 orientations |
+| Open Door | 512 × 80 horizontal master | Transparent central gap with posts/threshold; renderer rotates for vertical Edges | 1 design, 2 orientations |
 | Barbarian and Zombie portraits | 512 × 512 each, 1:1 | Square source, UI applies circular crop; opaque painted background preferred, alpha supported over the dark fallback; face/focal detail inside central 70%, reserve lower 30% for nameplate and upper 20% for HP | 2 portraits |
 | Later terrain / Rail | 256 × 256, 1:1 | Opaque top-down material; Rail needs four explicit directional exports with visible outgoing arrow; no random rotation | After pilot review |
 | Later Coal / Diamond | 256 × 256, 1:1 | Transparent exterior, object centered within 80%, readable at 14–20 pixels | After pilot review |
@@ -138,7 +135,19 @@ For each terrain Cell, `terrainVariantIndex` hashes `JSON.stringify(["terrain-v1
 | `units/goblin.webp` | 512 × 512 | 47,576 |
 | `units/troll.webp` | 512 × 512 | 63,150 |
 
-The [contact sheet](assets/previews/artwork-pack-01.png) now shows all thirteen exports with 50-pixel circular portraits and 60-pixel terrain Cells beside larger references; its height adjusts to the catalog size. It is an asset composition preview, not a browser screenshot. Stone Floor retains the same three variant slots, fallback fills and seed/hash algorithm. The renderer and CSS token composition are unchanged.
+The [contact sheet](assets/previews/artwork-pack-01.png) shows the thirteen portrait/terrain exports with 50-pixel circular portraits and 60-pixel terrain Cells beside larger references; its height adjusts to the catalog size. It is an asset composition preview, not a browser screenshot. Stone Floor retains the same three variant slots, fallback fills and seed/hash algorithm. CSS token composition is unchanged.
+
+**Edge artwork:** the three originals in `assets/source/edges/` are 1774 × 887 RGBA PNGs with no embedded color profile. Their visible strips occupy only the middle of the source canvas. `python tools/prepare-artwork.py --edges-only` exports this batch and its [orientation/contact preview](assets/previews/edges.png) without rewriting Unit or terrain files. The full pipeline also includes Edges. Pillow with WebP support is required; an optional local `.artwork-venv` can hold this build-time dependency.
+
+The reviewed crop rectangles (left, top, right, bottom, exclusive) are Wall `(15, 325, 1766, 555)`, Closed Door `(16, 299, 1764, 573)`, and Open Door `(16, 295, 1763, 569)`. Outside these rectangles, source pixels are empty or stray alpha below 8/255; no visible masonry, posts or door leaves are removed. The script rejects changed source dimensions/composition for renewed review. Each crop is uniformly reduced with Lanczos and centered on a transparent 512 × 80 canvas. The Doors need this slightly taller master than the nominal 512 × 64 brief to preserve their proportions. There is no stretching, replacement painting or removal of the Open Door's stone rails. Encoding uses the same sRGB profile, WebP quality 85, method 6 and lossless alpha as the earlier packs; complete decoding, dimensions, profile, alpha and unchanged source hashes are checked.
+
+| Runtime path under `wwwroot/art/` | Dimensions | Bytes |
+| --- | --- | ---: |
+| `edges/wall.webp` | 512 × 80 | 17,368 |
+| `edges/door-closed.webp` | 512 × 80 | 17,294 |
+| `edges/door-open.webp` | 512 × 80 | 14,888 |
+
+The existing `Wall`, `ClosedDoor` and `OpenDoor` catalog keys resolve these masters. A decorative image child is centered on the authoritative Edge, scales proportionally to one Cell's length, and rotates clockwise 90° for `Vertical`. Edge geometry, hit targets and events are unchanged. Only Enhanced 2D displays the child; Classic and the Level Designer retain their existing rendering. Loading failures retain each Edge's fallback material, including Open Door's dashed outline. Successfully loaded artwork clears the material beneath its transparent pixels, keeping the opening visible. Artwork stays below Units/nameplates/HP and ignores pointer input; existing legal-choice, hover and door/event focus remain on the original Edge node. The preview includes all six orientations on a checkerboard and a small test-owned connected-wall/door sample. The Open Door source has stone rails above and below its transparent opening; review its readability at minimum Cell size in the browser.
 
 Browser screenshot and performance baselines remain pending. Inspect long/truncated names, all Side colors, HP + Resource crowding, Lying and large bases, Machine storage labels, edge artwork in both orientations, keyboard outlines, and horizontal/vertical scrolling on narrow screens and 50 × 50 boards. For this pack, confirm face visibility under the compact HP badge and seamless Cell coverage with the four-stone-wide floor pattern. No screenshot approval is implied by the DOM tests.
 

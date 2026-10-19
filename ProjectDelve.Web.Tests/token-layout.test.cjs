@@ -16,6 +16,30 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body
 const enhanced = selector => `#board[data-view="enhanced"] ${selector}`;
 const style = selector => Object.assign({}, ...rules.filter(r => r.selectors.includes(selector)).map(r => r.declarations));
 
+test("Edge art rotates independently of geometry, hides in Classic, and clears the fallback only after loading", () => {
+  assert.equal(style("#board .edge-artwork").display, "none");
+  assert.equal(style("#board .edge-artwork")["pointer-events"], "none");
+  const ready = style(enhanced('.edge[data-edge-artwork="ready"]'));
+  assert.equal(ready.background, "transparent");
+  assert.equal(ready.border, "0");
+  const image = style(enhanced('.edge[data-edge-artwork="ready"] .edge-artwork'));
+  assert.equal(image.display, "block");
+  assert.equal(image.width, "var(--cell-size)");
+  assert.equal(image.height, "auto");
+  assert.equal(image.left, "50%");
+  assert.equal(image.top, "50%");
+  assert.equal(image.transform, "translate(-50%, -50%)");
+  assert.equal(style(enhanced('.edge[data-orientation="Vertical"] .edge-artwork')).transform, "translate(-50%, -50%) rotate(90deg)");
+  for (const rule of rules.filter(r => r.selectors.some(s => s.includes(".edge")))) {
+    assert.ok(rule.selectors.every(s => s.startsWith('#board[data-view="enhanced"]') || s === "#board .edge-artwork"));
+  }
+  // Keep missing-image materials and the existing legal/hover/playback feedback.
+  assert.equal(style(enhanced(".edge"))["background-image"], "var(--visual-detail)");
+  for (const selector of ['.edge.board-choice[aria-disabled="false"]', ".edge.target", ".edge.door-focus"]) {
+    assert.ok(style(enhanced(selector))["box-shadow"]);
+  }
+});
+
 test("Enhanced names stay on one line with ellipsis inside the token at minimum Cell size", () => {
   const name = style(enhanced(".token-nameplate"));
   assert.equal(name.display, "block");

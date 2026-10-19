@@ -6,7 +6,7 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
-test("artwork catalog resolves all thirteen local files while other content retains fallbacks", () => {
+test("artwork catalog resolves all sixteen local files while other content retains fallbacks", () => {
   const run = catalog();
   const names = ["barbarian", "zombie", "worker", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll"];
   const expected = names.map(name => `./art/units/${name}.webp`);
@@ -14,7 +14,9 @@ test("artwork catalog resolves all thirteen local files while other content reta
   assert.deepEqual(portraits, expected);
   const terrain = JSON.parse(run('JSON.stringify(boardVisuals.terrain.StoneFloor.variants.map(v => v.image))'));
   assert.deepEqual(terrain, [1, 2, 3].map(i => `./art/terrain/stone-floor/0${i}.webp`));
-  for (const url of [...portraits, ...terrain]) {
+  const edges = JSON.parse(run('JSON.stringify(["Wall", "ClosedDoor", "OpenDoor"].map(id => boardVisuals.edge[id].image))'));
+  assert.deepEqual(edges, ["wall", "door-closed", "door-open"].map(name => `./art/edges/${name}.webp`));
+  for (const url of [...portraits, ...terrain, ...edges]) {
     const file = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", url));
     assert.equal(file.toString("ascii", 0, 4), "RIFF", url);
     assert.equal(file.toString("ascii", 8, 12), "WEBP", url);
