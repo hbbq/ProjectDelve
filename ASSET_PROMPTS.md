@@ -351,6 +351,60 @@ Choose three that read as variations of the same terrain, with similar lighting 
 
 The supplied `assets/source/terrain/objects/tree-01.png` through `tree-03.png` and `table-01.png` through `table-03.png` are centered 1254 × 1254 RGBA originals with proper transparency. Preserve the entire square composition and original alpha; no background removal, crop or retouching is needed. The existing preparation pipeline exports optimized 256 × 256 sRGB WebP files under `art/terrain/objects/tree/` and `art/terrain/objects/table/`, in the same numeric slot order. Enhanced 2D composes them over the existing Grass and Stone Floor catalogs, respectively, with independent variant and quarter-turn choices. Review the generated composite and catalog previews and then the actual board at Cell size. This integration adds no new generation prompts or gameplay content.
 
+## Railway material kit — generation prompts
+
+The track geometry is **not** AI-generated. It will be constructed with exact, shared dimensions and connection points as described in [VISUAL_STYLE.md](VISUAL_STYLE.md). Generate only the materials below. Match the existing hand-painted Premium Tabletop style and strictly overhead perspective.
+
+### Gravel — base prompt
+
+Generate 5–6 candidates from this **same prompt**, then choose three with similar scale, brightness and color. Save as `assets/source/terrain/gravel-01.png`, `gravel-02.png`, `gravel-03.png`. Gravel is an ordinary standalone terrain as well as Rail's base layer.
+
+```text
+Premium fantasy tabletop board game terrain artwork. Hand-painted top-down gravel texture for a polished tactical fantasy board game.
+
+Create one square terrain tile consisting entirely of compacted railway gravel and small crushed stones, seen strictly from directly overhead. Neutral warm gray and dusty brown aggregate, fine irregular pebbles, subtle natural color variation and restrained surface wear. The texture should feel tactile and slightly stylized, consistent with premium illustrated fantasy dungeon floor artwork.
+
+This is a full-bleed ground texture, not a railway track scene. Keep it evenly detailed and visually quiet, without a central focal point or dramatic directional lighting, so character tokens, rails, arrows and grid highlights remain clearly readable on top.
+
+No rails, wooden sleepers, train, path, grass, soil patches, borders, internal grid, square paving stones, perspective, text, symbols, UI or watermarks. Suitable for repeating across adjacent board cells.
+```
+
+### Wooden sleeper — single component
+
+Generate a few candidates and select one. Save the chosen **original** as `assets/source/railway/sleeper.png`. It will be resized and placed repeatedly at precise intervals by the track generator. Do not bake ballast or rails into this image.
+
+```text
+Premium fantasy tabletop board game component artwork, hand-painted and consistent with a polished fantasy railway tabletop.
+
+A SINGLE old wooden railway sleeper (railroad tie), viewed strictly from directly overhead, lying horizontally across the image. One solid rectangular timber beam with subtle irregular worn edges, visible oak grain, weathering and restrained dark iron fixing marks. Medium-dark warm brown wood with readable natural highlights and shadows, matching the painterly detail level of the game's dungeon and industrial assets.
+
+Center the full sleeper in a square 1:1 image with generous empty margins, keeping both ends visible. It must be a single isolated piece with a genuinely transparent alpha background, not a row of sleepers, and no painted ground shadow or gravel. The sleeper must remain recognizable when reduced to a small strip.
+
+No steel rails, tracks, ballast, surrounding scenery, text, letters, UI, borders, logos or watermarks. Strict overhead, no perspective.
+```
+
+### Steel rail — material/style reference
+
+Generate a few candidates and select one. Save the chosen **original** as `assets/source/railway/rail.png`. This image is a **material/reference component**: Codex should construct geometrically precise curved and straight rail paths rather than stretching the image into bends.
+
+```text
+Premium fantasy tabletop board game component artwork, hand-painted and consistent with a polished fantasy railway tabletop.
+
+A SINGLE long straight steel railway rail viewed strictly from directly overhead, lying vertically through the center of a square 1:1 composition. Weathered dark iron-gray metal with a slim brighter polished steel running surface and subtle edge shading. Consistent thickness from one end to the other, simple uninterrupted straight silhouette, restrained realistic material detail that remains legible at small size.
+
+The rail is one isolated metal component on a genuinely transparent alpha background with generous clear margins. Show the full length without perspective or vanishing point. It is NOT a pair of rails and NOT a completed railway track.
+
+No sleepers, gravel, wheels, locomotive, bolts scattered around it, scenery, shadows on the ground, text, letters, UI, borders, logos or watermarks.
+```
+
+### Integration and selection notes
+
+- Gravel originals are opaque square textures; the three selected variants should look like the same material, not different biomes.
+- Sleeper and rail originals must retain real alpha transparency. Verify alpha in the files, not just from a checkerboard-looking image.
+- Do not assume generated proportions establish the track gauge or sleeper spacing. The track generator owns those parameters and must produce exact edge-to-edge connections.
+- The arrow indicating the Rail Cell's outgoing direction is drawn separately in the client. Do not include arrows in these images.
+- The first implementation should verify connected straight/curve/T/cross tracks on a sample board before considering the kit complete.
+
 ## Future prompt candidates
 
 Coal, Diamond, Diamond Press and further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
