@@ -225,7 +225,8 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.replaceChildren();
     node.removeAttribute("aria-label");
     node.className = `cell ${kind}`; node.dataset.cell = key;
-    applyBoardVisual(node, "terrain", kind);
+    applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
+      x, y, direction: tile?.direction });
     node.dataset.railDirection = tile?.direction ?? "";
     retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);
@@ -272,8 +273,9 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const node = edges.get(key) ?? document.createElement("div");
     retainedEdges.add(key);
     node.className = `edge ${edge.kind}`;
-    applyBoardVisual(node, "edge", edge.kind);
     const vertical = edge.a.y === edge.b.y;
+    node.dataset.orientation = vertical ? "Vertical" : "Horizontal";
+    applyBoardVisual(node, "edge", edge.kind, { direction: node.dataset.orientation });
     node.style.left = `${((edge.a.x + edge.b.x) / 2 + .5) / board.width * 100}%`;
     node.style.top = `${((edge.a.y + edge.b.y) / 2 + .5) / board.height * 100}%`;
     node.style.width = vertical ? "var(--edge-thickness)" : `${100 / board.width}%`;
@@ -292,6 +294,10 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const label = text("span", abbreviatedName(name) + (peers.length > 1 ? peers.findIndex(peer => peer.id === figure.id) + 1 : ""));
     label.className = "figure-name";
     node.replaceChildren(label);
+    const tokenName = displayedCards[figure.id]?.individualName?.trim()
+      || displayedCards[figure.id]?.displayName?.trim() || type?.displayName?.trim() || unit?.typeId || "Unit";
+    const nameplate = text("span", tokenName); nameplate.className = "token-nameplate";
+    nameplate.title = tokenName; node.append(nameplate);
     // Snapshot positions settle any skipped movement without animating a state correction.
     node.style.transition = "none";
     delete node.dataset.hpLabel;
@@ -299,11 +305,31 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const span = displayedFigures?.[figure.id]?.cellSpan ?? 1;
     node.dataset.cellSpan = span;
     node.className = `figure${span > 1 ? " large" : ""}${figure.posture === "Lying" ? " lying" : ""}${state.currentUnitId === figure.id ? " selected" : ""}`;
-    applyBoardVisual(node, "unit", unit?.typeId);
+    node.classList.toggle("active", state.currentUnitId === figure.id);
+    node.dataset.posture = figure.posture;
+    node.style.setProperty("--token-span", span);
+    const unitVisual = applyBoardVisual(node, "unit", unit?.typeId);
+    const portrait = text("span", ""); portrait.className = "token-portrait";
+    portrait.setAttribute("aria-hidden", "true");
+    const fallback = text("span", unitVisual.glyph ?? abbreviatedName(tokenName)); portrait.append(fallback);
+    if (unitVisual.image) {
+      const image = document.createElement("img"); image.alt = ""; image.draggable = false;
+      image.addEventListener("load", () => { image.hidden = false; fallback.hidden = true; });
+      image.addEventListener("error", () => { image.hidden = true; fallback.hidden = false; });
+      image.src = unitVisual.image; portrait.append(image);
+    }
+    node.append(portrait);
+    const active = text("span", "\u25b6"); active.className = "token-active";
+    active.setAttribute("aria-hidden", "true"); active.title = "Active Unit"; node.append(active);
+    const side = text("span", unit?.sideId ?? ""); side.className = "token-side";
+    side.setAttribute("aria-hidden", "true"); side.title = `Side ${unit?.sideId ?? ""}`; node.append(side);
+    const posture = text("span", figure.posture); posture.className = "token-posture";
+    posture.setAttribute("aria-hidden", "true"); node.append(posture);
     styleSide(node, unit?.sideId);
     node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
     node.style.pointerEvents = "";
     node.title = `${figure.id} · ${figure.posture}`;
+    node.title += ` · ${tokenName} · Side ${unit?.sideId ?? ""}`;
     node.dataset.postureLabel = node.title;
     if (type?.hp > 1) {
       const hp = text("span", `${unit.currentHp}/${type.hp}`);
@@ -974,7 +1000,7 @@ async function present(event, occurrence) {
       const node = edges.get(edgeKey(event.door));
       if (node) {
         node.className = `edge ${event.door.kind}`; node.title = event.door.kind;
-        applyBoardVisual(node, "edge", event.door.kind);
+        applyBoardVisual(node, "edge", event.door.kind, { direction: node.dataset.orientation });
       }
       await guardedPause(300); break;
     }
@@ -1095,6 +1121,7 @@ function renderDice(result) {
 
 function highlightContext() {
   for (const [id, node] of figures) {
+    node.classList.toggle("token-selected", id === focusedUnitId);
     node.classList.remove("attack-source"); node.classList.remove("attack-target"); node.classList.remove("event-focus");
     if (id === attackContext?.attackerId) node.classList.add("attack-source");
     if (attackContext?.targets.some(target => target.targetId === id)) node.classList.add("attack-target");

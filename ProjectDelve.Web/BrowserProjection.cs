@@ -24,6 +24,7 @@ public sealed record MachineDisplay(string Id, Cell Position, string Name, strin
 public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, int Quantity, int Capacity);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
+    public string? IndividualName { get; init; }
     public IReadOnlyList<StoredResourceDisplay> ResourceStorage { get; init; } = [];
     public string? FootprintLabel { get; init; }
 }
@@ -63,10 +64,10 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
 // Internal engine results remain authoritative; transport boundaries sanitize future draw information.
 public static class BrowserProjection
 {
-    public static BrowserPresentation Create(EngineResult result) => new(
-        Cards(result.State), Decision(result.NextInput, result.State),
+    public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null) => new(
+        Cards(result.State, individualNames), Decision(result.NextInput, result.State),
         result.Events.Select(e => Outcome(e, result.State)).ToArray(),
-        result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter))
+        result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter, individualNames))
             { Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
                 Completion = s.StateAfter.Completion, Orders = s.StateAfter.Orders.ToArray() }).ToArray())
         { Machines = Machines(result.State), Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
@@ -98,12 +99,13 @@ public static class BrowserProjection
             return new FigureGeometry(f.Position, cells, cells.Max(c => c.X) - f.Position.X + 1);
         });
 
-    public static IReadOnlyDictionary<string, UnitCard> Cards(GameState state) => state.Units.ToDictionary(u => u.Id, u =>
+    public static IReadOnlyDictionary<string, UnitCard> Cards(GameState state, IReadOnlyDictionary<string, string>? individualNames = null) => state.Units.ToDictionary(u => u.Id, u =>
     {
         var type = state.Types.Single(t => t.Id == u.TypeId);
         return new UnitCard(type.DisplayName ?? type.Id,
             type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray())
         {
+            IndividualName = individualNames?.GetValueOrDefault(u.Id),
             ResourceStorage = type.ResourceStorage?.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name,
                 state.StoredQuantity(u.SideId, u.TypeId, c.Type.Id), c.Capacity)).ToArray() ?? [],
             FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : "Footprint 1 × 1"

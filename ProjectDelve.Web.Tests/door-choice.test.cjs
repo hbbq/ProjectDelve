@@ -2113,3 +2113,70 @@ test("visual catalog resolves content IDs, optional images and missing-art fallb
   assert.equal(h.run('cells.get("49,49")'), first);
   assert.equal(h.elements.get("board").style.gridTemplateColumns, "repeat(50, minmax(0, 1fr))");
 });
+
+for (const view of ["classic", "enhanced"]) test(`${view}: composited token names, HP, Side and posture use supplied presentation`, () => {
+  const initial = response();
+  initial.result.state.types[0].displayName = "Custom Cartographer";
+  initial.presentation.cards.actor.displayName = "Custom Cartographer";
+  initial.presentation.cards.actor.individualName = "Mira";
+  initial.result.state.types[0].hp = 6;
+  initial.result.state.units[0].currentHp = 2;
+  initial.result.state.physical.figures[0].posture = "Lying";
+  const h = harness(initial);
+  h.elements.get("board-view").value = view; h.elements.get("board-view").listeners.change();
+  const actor = h.figure("actor"), named = className => actor.children.find(n => n.className === className);
+  assert.equal(named("token-nameplate").textContent, "Mira");
+  assert.equal(named("figure-name").textContent, "CC1"); // Classic's existing label stays independent.
+  assert.equal(named("figure-hp").textContent, "2/6");
+  assert.equal(actor.style["--side-hue"], h.figure("a").style["--side-hue"]);
+  assert.ok(actor.classList.contains("active"));
+  assert.ok(actor.classList.contains("token-selected"));
+  assert.ok(actor.classList.contains("lying"));
+  assert.equal(actor.dataset.posture, "Lying");
+  assert.equal(named("token-posture").textContent, "Lying");
+  assert.equal(named("token-side").textContent, "same");
+  assert.match(actor.attributes["aria-label"], /Mira.*Side same.*HP 2\/6/);
+  assert.equal(named("token-portrait").textContent.trim(), "Mi");
+  h.run('snapshot.presentation.cards.actor.individualName = "  "; snapshot.result.state.physical.figures[0].posture = "Upright"; snapshot.result.state.types[0].hp = 1; renderSnapshot();');
+  const updated = h.figure("actor");
+  assert.equal(updated.children.find(n => n.className === "token-nameplate").textContent, "Custom Cartographer");
+  assert.equal(updated.children.some(n => n.className === "figure-hp"), false);
+  assert.equal(updated.dataset.posture, "Upright");
+  assert.equal(updated.classList.contains("lying"), false);
+  h.run('focusedUnitId = "a"; highlightContext();');
+  assert.equal(h.figure("actor").classList.contains("active"), true);
+  assert.equal(h.figure("actor").classList.contains("token-selected"), false);
+  assert.equal(h.figure("a").classList.contains("token-selected"), true);
+});
+
+test("portrait assets use the content catalog and retain fallback on image failure", () => {
+  const h = harness(response());
+  h.run('boardVisuals.unit["opaque-type"] = { image: "./art/units/fixture.webp" }; renderSnapshot();');
+  const portrait = h.figure("actor").children.find(n => n.className === "token-portrait");
+  const fallback = portrait.children[0], img = portrait.children[1];
+  assert.equal(img.src, "./art/units/fixture.webp");
+  assert.equal(img.alt, "");
+  img.listeners.load(); assert.equal(fallback.hidden, true);
+  img.listeners.error(); assert.equal(img.hidden, true); assert.equal(fallback.hidden, false);
+  h.run('delete boardVisuals.unit["opaque-type"]; renderSnapshot();');
+  assert.equal(h.figure("actor").children.find(n => n.className === "token-portrait").children.length, 1);
+  // A missing card uses the scenario's custom Type name, never a generated Unit ID.
+  h.run('displayedCards = {}; snapshot.result.state.types[0].displayName = "Custom Type"; renderBoard(snapshot.result.state, false);');
+  assert.equal(h.figure("actor").children.find(n => n.className === "token-nameplate").textContent, "Custom Type");
+});
+
+test("terrain variants use the host seed during rerender, view changes and reload, not runtime board changes", () => {
+  const initial = response(); initial.visualSeed = "fixture-board";
+  initial.result.state.physical.board.height = 4;
+  const h = harness(initial);
+  const distribution = 'JSON.stringify([...cells.values()].map(n => [n.dataset.cell, n.dataset.visualVariant, n.style["--visual-fill"]]))';
+  const first = h.run(distribution);
+  h.run('renderSnapshot();'); assert.equal(h.run(distribution), first);
+  h.elements.get("board-view").value = "enhanced"; h.elements.get("board-view").listeners.change();
+  assert.equal(h.run(distribution), first);
+  assert.equal(harness(structuredClone(initial)).run(distribution), first);
+  h.run('snapshot.result.state.physical.board.edges.push({a:{x:0,y:0},b:{x:1,y:0},kind:"Wall"}); renderSnapshot();');
+  assert.equal(h.run(distribution), first);
+  const other = structuredClone(initial); other.visualSeed = "other-board";
+  assert.notEqual(harness(other).run(distribution), first);
+});

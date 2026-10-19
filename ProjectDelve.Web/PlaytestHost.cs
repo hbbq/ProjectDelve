@@ -158,6 +158,8 @@ public sealed record PreferenceRequest
 
 public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true, string ScenarioId = PlaytestScenarios.DefaultId)
 {
+    // Presentation metadata, persisted with detached responses, independent of session/RNG.
+    public string? VisualSeed { get; init; }
     public IReadOnlyList<DecisionCommentary> Commentaries { get; init; } = [];
     public IReadOnlyList<ScenarioDescription> Scenarios => PlaytestScenarios.Catalog;
     [JsonIgnore] public BrowserPresentation? PresentationOverride { get; init; }

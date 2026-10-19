@@ -4,7 +4,7 @@
 .machine-art { display: none !important; }
 #board[data-view="enhanced"] {
   /* Pan large boards instead of shrinking tokens and hit targets indefinitely. */
-  min-width: calc(var(--columns) * 30px);
+  min-width: calc(var(--columns) * 60px);
   outline: 3px solid #887c65;
   background: #363f40;
 }
@@ -32,10 +32,8 @@
   font-size: clamp(10px, calc(var(--cell-size) * .28), 22px); box-shadow: 0 2px 3px #0008;
 }
 #board[data-view="enhanced"] .figure {
-  background-image: var(--visual-image), var(--visual-detail);
-  background-size: cover; box-shadow: inset 0 0 0 2px #0004, 0 3px 4px #0008;
+  box-shadow: inset 0 0 0 2px #0004, 0 3px 4px #0008;
 }
-#board[data-view="enhanced"] .figure-name { text-shadow: 0 1px 2px #000, 1px 0 2px #000; }
 #board[data-view="enhanced"] .edge {
   background-color: var(--visual-fill); background-image: var(--visual-image), var(--visual-detail);
   background-size: cover; border: 1px solid #141b24; box-shadow: 1px 2px 2px #0008;
@@ -45,7 +43,6 @@
 /* Feedback stays above every material/artwork. */
 #board[data-view="enhanced"] .cell.legal { outline: 3px solid #9bdfff; outline-offset: -4px; box-shadow: inset 0 0 0 5px #153a51c0; }
 #board[data-view="enhanced"] .cell.placement-preview { box-shadow: inset 0 0 0 3px #ffe084; }
-#board[data-view="enhanced"] .figure.selected { outline: 3px solid #b4e6ff; outline-offset: 2px; }
 #board[data-view="enhanced"] .board-choice[aria-disabled="false"]:hover,
 #board[data-view="enhanced"] .board-choice:focus-visible,
 #board[data-view="enhanced"] .figure.affected-preview { outline: 3px solid #ffe084; outline-offset: -3px; }
@@ -55,3 +52,62 @@
 #board[data-view="enhanced"] .figure.target,
 #board[data-view="enhanced"] .edge.target,
 #board[data-view="enhanced"] .edge.door-focus { box-shadow: 0 0 0 4px #ffe084, 0 0 18px #ffe084; }
+
+/* Phase 2 composited tokens. Classic keeps its existing abbreviation and HP layout. */
+#board .token-nameplate, #board .token-portrait, #board .token-active, #board .token-side, #board .token-posture { display: none; pointer-events: none; }
+#board[data-view="enhanced"] .figure {
+  width: calc(var(--cell-size) * var(--token-span, 1) * .84) !important;
+  aspect-ratio: 1; border-radius: 50%; border-width: clamp(3px, calc(var(--cell-size) * .055), 5px);
+  border-color: hsl(var(--side-hue, 0) 70% 70%); background-image: none;
+  transform: translate(-50%, -50%); opacity: 1;
+}
+#board[data-view="enhanced"] .figure-name { display: none; }
+#board[data-view="enhanced"] .token-portrait {
+  display: grid; place-items: center; position: absolute; inset: 3%; overflow: hidden; border-radius: 50%;
+  background: var(--visual-detail), #25323d; border: 1px solid #e2d6b470;
+  font-size: clamp(13px, calc(var(--cell-size) * .3), 28px); text-shadow: 0 1px 2px #000;
+}
+#board[data-view="enhanced"] .token-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#board[data-view="enhanced"] .token-nameplate {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  position: absolute; bottom: -3%; left: -5%; width: 110%; overflow: hidden; overflow-wrap: anywhere;
+  z-index: 2; border-radius: 5px; border: 1px solid #d6bd86; padding: 2px;
+  background: #19232cf5; color: #fff2d4; text-align: center;
+  font-size: clamp(10px, calc(var(--cell-size) * .17), 13px); line-height: 1.1; font-weight: 650;
+}
+#board[data-view="enhanced"] .figure-hp {
+  top: -9%; bottom: auto; left: 50%; transform: translateX(-50%); min-width: 0; width: max-content;
+  z-index: 3; padding: 1px 4px 3px; border-radius: 6px; border-color: #f1d392;
+  font-size: clamp(10px, calc(var(--cell-size) * .18), 13px); background: #15212cf5;
+}
+#board[data-view="enhanced"] .figure.lying,
+#board[data-view="enhanced"] .figure.large.lying { aspect-ratio: 1; transform: translate(-50%, -50%); border-style: dashed; opacity: 1; }
+#board[data-view="enhanced"] .figure.lying .figure-hp { transform: translateX(-50%); }
+#board[data-view="enhanced"] .figure.lying .token-portrait { transform: rotate(-18deg); filter: grayscale(.55); }
+#board[data-view="enhanced"] .figure.lying .token-posture {
+  display: block; position: absolute; top: 43%; left: 10%; width: 80%; z-index: 2;
+  font-size: clamp(9px, calc(var(--cell-size) * .15), 12px); line-height: 1.1;
+  text-align: center; color: #fff2d4; background: #171c26e8; border-radius: 3px;
+}
+#board[data-view="enhanced"] .figure.active .token-active {
+  display: block; position: absolute; top: 12%; left: -7%; z-index: 3;
+  padding: 1px 2px; border-radius: 3px; background: #ffe1a1; color: #262b30; font-size: 11px; line-height: 1;
+}
+#board[data-view="enhanced"] .token-side {
+  display: block; position: absolute; top: 22%; right: -5%; max-width: 75%; z-index: 2;
+  padding: 1px 3px; border-radius: 3px; border: 1px solid hsl(var(--side-hue, 0) 70% 70%);
+  font-size: 9px; line-height: 1; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: #19232cf5; color: #fff2d4;
+}
+#board[data-view="enhanced"] .figure.selected { outline: none; }
+#board[data-view="enhanced"] .figure.token-selected { outline: 3px solid #b4e6ff; outline-offset: 2px; }
+#board[data-view="enhanced"] .figure:hover,
+#board[data-view="enhanced"] .figure:focus-visible { outline: 3px dotted #ffe084; outline-offset: 2px; }
+#board[data-view="enhanced"] .figure.affected-preview { outline: 3px dashed #ffe084; outline-offset: 2px; }
+/* Reserve the top-right Cell corner for Resources, clear of the bottom nameplate. */
+#board[data-view="enhanced"] .resource-marker { top: 2%; bottom: auto; right: 2%; font-size: clamp(12px, calc(var(--cell-size) * .23), 20px); }
+/* Specific token appearance must not mask shared playback feedback. */
+#board[data-view="enhanced"] .figure.attack-source { box-shadow: 0 0 0 4px #7edfe6; }
+#board[data-view="enhanced"] .figure.attack-target { outline: 3px solid #ffad8e; outline-offset: 3px; }
+#board[data-view="enhanced"] .figure.event-focus { box-shadow: 0 0 0 5px #ffe084, 0 0 18px #ffe08480; }
+#board[data-view="enhanced"] .figure.defeated { opacity: 0; transform: translate(-50%, -50%) scale(.3); }

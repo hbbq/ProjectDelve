@@ -4,7 +4,8 @@
 export const boardVisuals = {
   terrain: {
     default: { fill: "#666a68", detail: "repeating-linear-gradient(0deg, transparent 0 48%, #242d3040 49% 51%, transparent 52% 100%)" },
-    StoneFloor: { fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)" },
+    StoneFloor: { fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)",
+      variants: [{ fill: "#666a68" }, { fill: "#626864" }, { fill: "#6b6c65" }] },
     Grass: { fill: "#476947", detail: "repeating-linear-gradient(115deg, transparent 0 7px, #abc27825 8px, transparent 10px)" },
     Tree: { fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
     Water: { fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)" },
@@ -27,10 +28,29 @@ export const boardVisuals = {
   }
 };
 
-export function applyBoardVisual(node, category, id) {
+// FNV-1a over UTF-16LE bytes. Math.imul and >>> keep unsigned 32-bit results
+// identical across browsers. Version the input so a future algorithm is explicit.
+export function terrainVariantIndex(seed, id, x, y, count) {
+  const input = JSON.stringify(["terrain-v1", String(seed), id, x, y]);
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    hash = Math.imul(hash ^ (code & 255), 16777619) >>> 0;
+    hash = Math.imul(hash ^ (code >>> 8), 16777619) >>> 0;
+  }
+  return count > 0 ? hash % count : 0;
+}
+
+export function applyBoardVisual(node, category, id, context = {}) {
   const entries = boardVisuals[category];
-  const visual = { ...entries.default, ...entries[id] };
+  const entry = Object.hasOwn(entries, id) ? entries[id] : {};
+  const variants = entry.variants ?? [];
+  const index = category === "terrain" && variants.length
+    ? terrainVariantIndex(context.seed ?? "legacy", id, context.x ?? 0, context.y ?? 0, variants.length) : 0;
+  // A directional image may override a variant without rotating directional Rail.
+  const visual = { ...entries.default, ...entry, ...variants[index], ...entry.directions?.[context.direction] };
   node.dataset.visualId = id ?? "";
+  node.dataset.visualVariant = String(index);
   node.style.setProperty("--visual-image", visual.image ? `url(${JSON.stringify(visual.image)})` : "none");
   node.style.setProperty("--visual-fill", visual.fill ?? "transparent");
   node.style.setProperty("--visual-detail", visual.detail ?? "none");

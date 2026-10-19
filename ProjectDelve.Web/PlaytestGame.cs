@@ -28,6 +28,7 @@ public sealed partial class PlaytestGame : IDisposable
     private GameResponse stable;
     private GameUpdate published;
     private string scenarioId = PlaytestScenarios.DefaultId;
+    private string visualSeed;
     private ScenarioDefinition definition = PlaytestScenarios.Definition(PlaytestScenarios.DefaultId);
     private string sessionId = Guid.NewGuid().ToString("N");
     private string? decisionId;
@@ -46,6 +47,7 @@ public sealed partial class PlaytestGame : IDisposable
         this.historyLimit = historyLimit; this.payloadLimit = payloadLimit;
         this.random = random; this.external = external; this.externalSelection = externalSelection; capacity = Math.Max(1, replayCapacity);
         state = Detach(initialState); ApplyControllers(state, controllers, controllerAssignments); status = StatusFor(state);
+        visualSeed = BoardAppearance.DeriveSeed(scenarioId, state.Physical.Board);
         decisionId = state.Pending is null ? null : Guid.NewGuid().ToString("N");
         PublishGambitRequest();
         stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
@@ -220,6 +222,7 @@ public sealed partial class PlaytestGame : IDisposable
                 ApplyControllers(created, request.Controllers, request.ControllerAssignments);
                 state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; delegatedActivation = null; historyOverflow = false;
                 scenarioId = request.Operation == "scenario" ? request.ScenarioId! : request.Operation == "scenario/import" ? "imported" : scenarioId;
+                visualSeed = BoardAppearance.DeriveSeed(scenarioId, created.Physical.Board);
                 sessionId = Guid.NewGuid().ToString("N"); sequence = 0; journal.Clear(); revision++;
                 status = "idle"; decisionId = null; busy = resetQueued = false;
                 stable = Detach(Response(state, null)); Publish("baseline", stable, request.CommandId);
@@ -354,7 +357,7 @@ public sealed partial class PlaytestGame : IDisposable
             busy = resetQueued;
             stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
             Publish("boundary", stable, request.CommandId);
-            response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId) { Commentaries = commentaries };
+            response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId) { Commentaries = commentaries, VisualSeed = visualSeed };
             if (status == "waiting-external" && state.Pending is { } externalPending && !IsGambit(externalPending))
             {
                 externalWait?.Dispose(); externalWait = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
@@ -400,11 +403,11 @@ public sealed partial class PlaytestGame : IDisposable
         : current.ControllerFor(current.Pending) == ControllerKind.Human ? "waiting-human"
         : UsesExternal(current, current.Pending) ? "waiting-external" : "resolving";
     private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId)
-        { SessionId = sessionId, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus };
+        { SessionId = sessionId, VisualSeed = visualSeed, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus };
     private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null)
     {
         lastPublishedAvailability = ControllerAvailable;
-        snapshot = snapshot with { SessionId = sessionId, Controllers = ControllersFor(snapshot.Result.State), ControllerAssignments = ControllerAssignmentsFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus };
+        snapshot = snapshot with { SessionId = sessionId, VisualSeed = visualSeed, Controllers = ControllersFor(snapshot.Result.State), ControllerAssignments = ControllerAssignmentsFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus };
         published = new(sessionId, ++sequence, kind, status, revision, decisionId, Detach(snapshot), commandId, error, commentary);
         journal.Enqueue(published); while (journal.Count > capacity) journal.Dequeue();
         foreach (var subscriber in subscribers.ToArray())
