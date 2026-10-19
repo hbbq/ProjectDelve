@@ -1,0 +1,57 @@
+/* Opt-in appearance only; app.js/styles.css retain geometry and hit targets. */
+.board-view-toolbar { margin-bottom: 12px; }
+.board-scroll:has(#board[data-view="enhanced"]) { overflow: auto; padding: 5px; }
+.machine-art { display: none !important; }
+#board[data-view="enhanced"] {
+  /* Pan large boards instead of shrinking tokens and hit targets indefinitely. */
+  min-width: calc(var(--columns) * 30px);
+  outline: 3px solid #887c65;
+  background: #363f40;
+}
+#board[data-view="enhanced"] .cell {
+  position: relative; border-color: #202c32a0;
+  background-color: var(--visual-fill);
+  background-image: var(--visual-image), var(--visual-detail), linear-gradient(145deg, #ffffff12, #00000026);
+  background-size: cover; box-shadow: inset 0 1px #ffffff20, inset 1px 0 #ffffff12; color: #f3efdf;
+}
+#board[data-view="enhanced"] .terrain-label { display: none; }
+#board[data-view="enhanced"] .cell-coordinates { position: absolute; top: 2%; left: 4%; z-index: 1; text-shadow: 0 1px 2px #000; }
+#board[data-view="enhanced"] .cell.Rail::after { inset: 0; display: grid; place-items: center; color: #f4e5b6; text-shadow: 0 1px 2px #000; }
+#board[data-view="enhanced"] .machine-cell { gap: 0; box-shadow: inset 0 0 0 2px #dbc18a; font-size: clamp(7px, calc(var(--cell-size) * .16), 12px); }
+#board[data-view="enhanced"] .machine-art {
+  display: grid !important; place-items: center; flex: 1; min-height: 0; width: 65%;
+  background-color: var(--visual-fill); background-image: var(--visual-image), var(--visual-detail);
+  background-size: cover; border: 1px solid #e1ca8a; border-radius: 15%;
+  font-size: clamp(10px, calc(var(--cell-size) * .32), 26px); line-height: 1;
+  text-shadow: 0 1px 2px #000; pointer-events: none;
+}
+#board[data-view="enhanced"] .resource-marker {
+  right: 3%; bottom: 3%; background-color: var(--visual-fill);
+  background-image: var(--visual-image), linear-gradient(145deg, #fff9, #0002);
+  background-size: cover; border: 1px solid #fff8; border-radius: 25%;
+  font-size: clamp(10px, calc(var(--cell-size) * .28), 22px); box-shadow: 0 2px 3px #0008;
+}
+#board[data-view="enhanced"] .figure {
+  background-image: var(--visual-image), var(--visual-detail);
+  background-size: cover; box-shadow: inset 0 0 0 2px #0004, 0 3px 4px #0008;
+}
+#board[data-view="enhanced"] .figure-name { text-shadow: 0 1px 2px #000, 1px 0 2px #000; }
+#board[data-view="enhanced"] .edge {
+  background-color: var(--visual-fill); background-image: var(--visual-image), var(--visual-detail);
+  background-size: cover; border: 1px solid #141b24; box-shadow: 1px 2px 2px #0008;
+}
+#board[data-view="enhanced"] .edge.ClosedDoor { border-color: #ffe1a1; }
+#board[data-view="enhanced"] .edge.OpenDoor { border: 0; box-shadow: none; }
+/* Feedback stays above every material/artwork. */
+#board[data-view="enhanced"] .cell.legal { outline: 3px solid #9bdfff; outline-offset: -4px; box-shadow: inset 0 0 0 5px #153a51c0; }
+#board[data-view="enhanced"] .cell.placement-preview { box-shadow: inset 0 0 0 3px #ffe084; }
+#board[data-view="enhanced"] .figure.selected { outline: 3px solid #b4e6ff; outline-offset: 2px; }
+#board[data-view="enhanced"] .board-choice[aria-disabled="false"]:hover,
+#board[data-view="enhanced"] .board-choice:focus-visible,
+#board[data-view="enhanced"] .figure.affected-preview { outline: 3px solid #ffe084; outline-offset: -3px; }
+#board[data-view="enhanced"] .figure.board-choice[aria-disabled="false"],
+#board[data-view="enhanced"] .edge.board-choice[aria-disabled="false"] { box-shadow: 0 0 0 3px #90c8e8; }
+#board[data-view="enhanced"] .figure.attacking,
+#board[data-view="enhanced"] .figure.target,
+#board[data-view="enhanced"] .edge.target,
+#board[data-view="enhanced"] .edge.door-focus { box-shadow: 0 0 0 4px #ffe084, 0 0 18px #ffe084; }

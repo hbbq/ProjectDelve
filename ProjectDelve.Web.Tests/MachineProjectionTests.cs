@@ -40,6 +40,7 @@ public sealed class MachineProjectionTests
         var machine = Assert.Single(presentation.Machines);
         Assert.Null(machine.OwnerSide);
         Assert.Equal("Diamond Press", machine.Name);
+        Assert.Equal(MachineTypes.DiamondPress.Id, machine.TypeId);
         Assert.Contains("3 Coal", machine.Operation);
         Assert.Contains("1 Diamond", machine.Operation);
         Assert.Equal(new StoredResourceDisplay("coal", "Coal", 3, 3), Assert.Single(machine.ResourceStorage));
@@ -60,6 +61,7 @@ public sealed class MachineProjectionTests
         Assert.Equal(ResourceTypes.Diamond, projected.ResourceType);
         Assert.Equal(new MachineResource(ResourceTypes.Coal, 3), Assert.Single(projected.ConsumedResources!));
         var step = converted.ResolutionSteps.Single(s => result.Events[s.EventIndex].Kind == "MachineOperated");
+        Assert.Equal(machine.TypeId, step.Machines.Single().TypeId);
         Assert.Equal(0, step.Machines.Single().ResourceStorage.Single().Quantity);
         Assert.Equal(ResourceTypes.Diamond, result.ResolutionSteps[step.EventIndex].StateAfter.Resources.Single().Type);
         Assert.Equal(3, presentation.Machines.Single().ResourceStorage.Single().Quantity);

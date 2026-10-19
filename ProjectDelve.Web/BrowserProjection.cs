@@ -17,7 +17,10 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
     public DicePool? Roll { get; init; }
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses);
-public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null);
+public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null)
+{
+    public string? TypeId { get; init; }
+}
 public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, int Quantity, int Capacity);
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
@@ -73,7 +76,7 @@ public static class BrowserProjection
         new MachineDisplay(m.Id, m.Position, m.Type.Name,
             "Spend " + string.Join(", ", m.Type.Operation.Costs.Select(c => $"{c.Quantity} {c.Type.Name}")) +
             $" -> Output {m.Type.Operation.OutputQuantity} {m.Type.Operation.OutputType.Name} on the operator's Cell",
-            m.Type.Storage.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray(), m.OwnerSide)).ToArray();
+            m.Type.Storage.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray(), m.OwnerSide) { TypeId = m.Type.Id }).ToArray();
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
         new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o) }).ToArray();

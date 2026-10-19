@@ -131,6 +131,7 @@ function harness(initial, fetchImpl, extras = {}) {
   const context = vm.createContext({ document, initial, submitted, setTimeout, clearTimeout,
     fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })), ...extras });
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
   vm.runInContext("snapshot = initial; renderSnapshot();", context);
   return { elements, submitted, run: code => vm.runInContext(code, context), context,
@@ -2014,4 +2015,101 @@ for (const animate of [true, false]) test(`Rail directions and separate step sna
     renderState = (...args) => { originalRender(...args); shown.push(displayedState.physical.figures[0].position.x); };`);
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.deepEqual(shown.slice(0, 3), [1, 2, 3]);
+});
+
+for (const view of ["classic", "enhanced"]) {
+  test(`${view}: view switches preserve mounted interactions, selection and authoritative positions`, async () => {
+    const door = { a: { x: 1, y: 0 }, b: { x: 2, y: 0 }, kind: "ClosedDoor" };
+    const initial = response([
+      choice("unit-key", "Unit", { unitId: "a" }),
+      choice("cell-key", "Position", { position: { x: 1, y: 0 } }),
+      choice("machine-key", "Position", { position: { x: 2, y: 0 } }),
+      choice("door-key", "Door", { door })
+    ]);
+    initial.result.state.physical.board.edges = [door];
+    initial.result.state.physical.board.terrain = [{ position: { x: 1, y: 0 }, kind: "Water" }];
+    initial.result.state.resources = [{ type: { id: "diamond", name: "Diamond" }, position: { x: 0, y: 0 } }];
+    initial.presentation.machines = [{ id: "m", typeId: "test-machine", name: "Fixture", operation: "Supplied", position: { x: 2, y: 0 }, resourceStorage: [] }];
+    const submitted = [];
+    const h = harness(initial, async (url, options) => { submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial }; });
+    const actor = h.figure("actor"), cell = h.run('cells.get("1,0")'), machine = h.run('cells.get("2,0")'), edge = h.run('[...edges.values()][0]');
+    const before = JSON.stringify(initial);
+    h.run('focusedUnitId = "a"; hoveredUnitId = "b"; boardChooser = snapshot.presentation.decision.candidates;');
+    for (const next of ["enhanced", "classic", view]) {
+      h.elements.get("board-view").value = next;
+      h.elements.get("board-view").listeners.change();
+      assert.equal(h.elements.get("board").dataset.view, next);
+      assert.equal(h.figure("actor"), actor);
+      assert.equal(h.run('cells.get("1,0")'), cell);
+      assert.equal(h.run('cells.get("2,0")'), machine);
+      assert.equal(h.run('[...edges.values()][0]'), edge);
+      assert.equal(h.run('focusedUnitId'), "a");
+      assert.equal(h.run('hoveredUnitId'), "b");
+      assert.equal(h.run('boardChooser.length'), 4);
+    }
+    assert.equal(JSON.stringify(initial), before);
+    assert.equal(submitted.length, 0);
+    assert.ok(actor.classList.contains("selected"));
+    assert.equal(actor.style.left, `${.5 / 6 * 100}%`);
+    assert.equal(edge.style.left, `${2 / 6 * 100}%`);
+    assert.equal(machine.dataset.cell, "2,0");
+    assert.equal(machine.children.find(n => n.className === "machine-art").dataset.visualId, "test-machine");
+    assert.equal(cell.dataset.visualId, "Water");
+    assert.equal(h.run('cells.get("0,0").querySelectorAll(".resource-marker")[0].title'), "Diamond");
+    for (const [node, key] of [[h.figure("a"), "unit-key"], [cell, "cell-key"], [machine, "machine-key"], [edge, "door-key"]]) {
+      await click(node);
+      assert.equal(submitted.at(-1).candidateKey, key);
+    }
+  });
+
+  for (const mode of ["animate", "disabled", "skip"]) test(`${view}: movement and door playback survive switching views (${mode})`, async () => {
+    const initial = response();
+    const door = { a: { x: 1, y: 0 }, b: { x: 2, y: 0 }, kind: "ClosedDoor" };
+    initial.result.state.physical.board.edges = [door];
+    const final = structuredClone(initial);
+    final.result.state.physical.figures[0].position.x = 2;
+    final.result.state.physical.board.edges[0].kind = "OpenDoor";
+    final.result.events = [{ kind: "UnitMoved", unitId: "actor" }, { kind: "DoorOpened" }];
+    final.presentation.events = [
+      { role: "Movement", text: "Supplied", unitId: "actor", path: [{ x: 0, y: 0 }, { x: 2, y: 0 }] },
+      { role: "DoorOpened", text: "Supplied", door: final.result.state.physical.board.edges[0] }
+    ];
+    final.result.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, stateAfter: final.result.state }));
+    final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+    const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+    const actor = h.figure("actor");
+    h.elements.get("board-view").value = view; h.elements.get("board-view").listeners.change();
+    h.context.playbackMode = mode;
+    h.run(`ui.animate.checked = playbackMode !== "disabled";
+      pause = async () => {};
+      const originalPresent = present;
+      present = async (...args) => {
+        boardView.value = boardView.value === "enhanced" ? "classic" : "enhanced";
+        boardView.listeners.change();
+        if (playbackMode === "skip") ui.skip.listeners.click();
+        await originalPresent(...args);
+      };`);
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.equal(h.figure("actor").style.left, `${2.5 / 6 * 100}%`);
+    const edge = h.run('[...edges.values()][0]');
+    assert.equal(edge.dataset.visualId, "OpenDoor");
+    assert.ok(edge.classList.contains("OpenDoor"));
+  });
+}
+
+test("visual catalog resolves content IDs, optional images and missing-art fallbacks without touching state", () => {
+  const h = harness(response());
+  h.run(`boardVisuals.unit["opaque-type"] = { image: "./assets/missing.webp" };
+    renderSnapshot();`);
+  assert.equal(h.figure("actor").style["--visual-image"], 'url("./assets/missing.webp")');
+  assert.match(h.figure("actor").style["--visual-detail"], /radial-gradient/);
+  h.run('delete boardVisuals.unit["opaque-type"]; renderSnapshot();');
+  assert.equal(h.figure("actor").style["--visual-image"], "none");
+  assert.equal(h.figure("actor").dataset.visualId, "opaque-type");
+  h.run('snapshot.result.state.physical.board.width = 50; snapshot.result.state.physical.board.height = 50; renderSnapshot();');
+  const first = h.run('cells.get("49,49")');
+  assert.equal(h.run('cells.size'), 2500);
+  h.run('renderState(snapshot.result.state, true);');
+  assert.equal(h.run('cells.get("49,49")'), first);
+  assert.equal(h.elements.get("board").style.gridTemplateColumns, "repeat(50, minmax(0, 1fr))");
 });

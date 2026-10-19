@@ -1,7 +1,15 @@
 import { styleSide, applySideHues } from "./side-colors.js";
+import { applyBoardVisual } from "./board-visuals.js";
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
+const boardView = document.getElementById("board-view");
+function updateBoardView() {
+  // Do not rerender: mounted choices, selection, hover and in-flight playback survive.
+  ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
+}
+boardView.addEventListener("change", updateBoardView);
+updateBoardView();
 let snapshot;
 let queuedScenario;
 let renderedScenarioId;
@@ -217,6 +225,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.replaceChildren();
     node.removeAttribute("aria-label");
     node.className = `cell ${kind}`; node.dataset.cell = key;
+    applyBoardVisual(node, "terrain", kind);
     node.dataset.railDirection = tile?.direction ?? "";
     retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);
@@ -224,7 +233,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.append(coordinates);
     node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
     const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
-    if (symbol) node.append(text("span", symbol));
+    if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));
       node.addEventListener("mouseleave", () => { hoveredUnitId = null; renderUnitCard(); });
@@ -236,6 +245,9 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const node = cells.get(cellKey(machine.position));
     if (!node) continue;
     node.classList.add("machine-cell");
+    const art = text("span", ""); art.className = "machine-art";
+    art.textContent = applyBoardVisual(art, "machine", machine.typeId).glyph;
+    art.setAttribute("aria-hidden", "true"); node.append(art);
     node.append(text("span", machine.name));
     node.append(text("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
     for (const stored of machine.resourceStorage)
@@ -246,8 +258,9 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   for (const resource of state.resources ?? []) {
     const node = cells.get(cellKey(resource.position));
     if (!node) continue;
-    const marker = text("span", resource.type.id === "diamond" ? "\u25c6" : "\u25cf");
+    const marker = text("span", "");
     marker.className = "resource-marker";
+    marker.textContent = applyBoardVisual(marker, "resource", resource.type.id).glyph;
     marker.title = resource.type.name;
     marker.setAttribute("aria-label", resource.type.name);
     node.append(marker);
@@ -259,6 +272,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const node = edges.get(key) ?? document.createElement("div");
     retainedEdges.add(key);
     node.className = `edge ${edge.kind}`;
+    applyBoardVisual(node, "edge", edge.kind);
     const vertical = edge.a.y === edge.b.y;
     node.style.left = `${((edge.a.x + edge.b.x) / 2 + .5) / board.width * 100}%`;
     node.style.top = `${((edge.a.y + edge.b.y) / 2 + .5) / board.height * 100}%`;
@@ -285,6 +299,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const span = displayedFigures?.[figure.id]?.cellSpan ?? 1;
     node.dataset.cellSpan = span;
     node.className = `figure${span > 1 ? " large" : ""}${figure.posture === "Lying" ? " lying" : ""}${state.currentUnitId === figure.id ? " selected" : ""}`;
+    applyBoardVisual(node, "unit", unit?.typeId);
     styleSide(node, unit?.sideId);
     node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
     node.style.pointerEvents = "";
@@ -957,7 +972,10 @@ async function present(event, occurrence) {
     case "DoorClosed":
     case "DoorOpened": {
       const node = edges.get(edgeKey(event.door));
-      if (node) { node.className = `edge ${event.door.kind}`; node.title = event.door.kind; }
+      if (node) {
+        node.className = `edge ${event.door.kind}`; node.title = event.door.kind;
+        applyBoardVisual(node, "edge", event.door.kind);
+      }
       await guardedPause(300); break;
     }
     default: await guardedPause(250);
