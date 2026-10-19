@@ -69,16 +69,16 @@
 }
 #board[data-view="enhanced"] .token-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 #board[data-view="enhanced"] .token-nameplate {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  position: absolute; bottom: -3%; left: -5%; width: 110%; overflow: hidden; overflow-wrap: anywhere;
-  z-index: 2; border-radius: 5px; border: 1px solid #d6bd86; padding: 2px;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  position: absolute; bottom: -3%; left: 0; width: 100%; box-sizing: border-box;
+  z-index: 2; border-radius: 3px; border: 1px solid #d6bd86; padding: 0 3px;
   background: #19232cf5; color: #fff2d4; text-align: center;
-  font-size: clamp(10px, calc(var(--cell-size) * .17), 13px); line-height: 1.1; font-weight: 650;
+  font-size: 9px; line-height: 12px; font-weight: 650;
 }
 #board[data-view="enhanced"] .figure-hp {
-  top: -9%; bottom: auto; left: 50%; transform: translateX(-50%); min-width: 0; width: max-content;
-  z-index: 3; padding: 1px 4px 3px; border-radius: 6px; border-color: #f1d392;
-  font-size: clamp(10px, calc(var(--cell-size) * .18), 13px); background: #15212cf5;
+  top: -12%; bottom: auto; left: 50%; transform: translateX(-50%); min-width: 0; width: max-content;
+  z-index: 3; padding: 0 3px 3px; border-radius: 4px; border-color: #f1d392;
+  font-size: 9px; line-height: 10px; white-space: nowrap; background: #15212cf5;
 }
 #board[data-view="enhanced"] .figure.lying,
 #board[data-view="enhanced"] .figure.large.lying { aspect-ratio: 1; transform: translate(-50%, -50%); border-style: dashed; opacity: 1; }
@@ -94,10 +94,8 @@
   padding: 1px 2px; border-radius: 3px; background: #ffe1a1; color: #262b30; font-size: 11px; line-height: 1;
 }
 #board[data-view="enhanced"] .token-side {
-  display: block; position: absolute; top: 22%; right: -5%; max-width: 75%; z-index: 2;
-  padding: 1px 3px; border-radius: 3px; border: 1px solid hsl(var(--side-hue, 0) 70% 70%);
-  font-size: 9px; line-height: 1; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  background: #19232cf5; color: #fff2d4;
+  /* Side remains in the token tooltip, accessible label and Unit details. */
+  display: none;
 }
 #board[data-view="enhanced"] .figure.selected { outline: none; }
 #board[data-view="enhanced"] .figure.token-selected { outline: 3px solid #b4e6ff; outline-offset: 2px; }

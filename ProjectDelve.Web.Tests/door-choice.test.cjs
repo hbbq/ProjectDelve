@@ -2137,6 +2137,24 @@ for (const view of ["classic", "enhanced"]) test(`${view}: composited token name
   assert.equal(named("token-side").textContent, "same");
   assert.match(actor.attributes["aria-label"], /Mira.*Side same.*HP 2\/6/);
   assert.equal(named("token-portrait").textContent.trim(), "Mi");
+  // CSS truncates the visual name only; full names and Side remain discoverable.
+  const fullName = "Mira the Cartographer of the Far Northern Mountains — ExpeditionLeader";
+  h.context.fullName = fullName;
+  h.run('snapshot.presentation.cards.actor.individualName = fullName; renderSnapshot();');
+  const longNameActor = h.figure("actor");
+  const longNameplate = longNameActor.children.find(n => n.className === "token-nameplate");
+  assert.equal(longNameplate.textContent, fullName);
+  assert.equal(longNameplate.title, fullName);
+  assert.ok(longNameActor.title.includes(fullName));
+  assert.ok(longNameActor.attributes["aria-label"].includes(fullName));
+  assert.match(longNameActor.title, /Side same/);
+  assert.match(longNameActor.attributes["aria-label"], /Side same/);
+  assert.match(h.elements.get("unit-card").textContent, /same/);
+  assert.equal(longNameActor.children.find(n => n.className === "token-side").attributes["aria-hidden"], "true");
+  assert.ok(longNameActor.classList.contains("active"));
+  assert.ok(longNameActor.classList.contains("token-selected"));
+  assert.ok(longNameActor.classList.contains("lying"));
+  assert.equal(longNameActor.children.find(n => n.className === "figure-name").textContent, "CC1");
   h.run('snapshot.presentation.cards.actor.individualName = "  "; snapshot.result.state.physical.figures[0].posture = "Upright"; snapshot.result.state.types[0].hp = 1; renderSnapshot();');
   const updated = h.figure("actor");
   assert.equal(updated.children.find(n => n.className === "token-nameplate").textContent, "Custom Cartographer");
@@ -2165,11 +2183,40 @@ test("portrait assets use the content catalog and retain fallback on image failu
   assert.equal(h.figure("actor").children.find(n => n.className === "token-nameplate").textContent, "Custom Type");
 });
 
+for (const name of ["barbarian", "zombie", "worker", "geomancer"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
+  const initial = response();
+  initial.result.state.types[0].id = `${name}-type`;
+  initial.result.state.units[0].typeId = `${name}-type`;
+  initial.result.state.types[0].hp = 6;
+  initial.result.state.units[0].currentHp = 2;
+  initial.result.state.physical.figures[0].posture = "Lying";
+  initial.presentation.cards.actor.individualName = "Artwork fixture";
+  const h = harness(initial);
+  h.elements.get("board-view").value = "enhanced"; h.elements.get("board-view").listeners.change();
+  const actor = h.figure("actor"), named = c => actor.children.find(n => n.className === c);
+  const classicLabel = named("figure-name").textContent;
+  const portrait = named("token-portrait");
+  assert.equal(portrait.children[1].src, `./art/units/${name}.webp`);
+  portrait.children[1].listeners.load();
+  assert.equal(portrait.children[0].hidden, true);
+  assert.equal(named("token-nameplate").textContent, "Artwork fixture");
+  assert.equal(named("figure-hp").textContent, "2/6");
+  assert.equal(named("token-side").textContent, "same");
+  assert.ok(actor.classList.contains("active"));
+  assert.ok(actor.classList.contains("lying"));
+  assert.ok(actor.classList.contains("token-selected"));
+  h.run('focusedUnitId = "a"; highlightContext();');
+  assert.equal(actor.classList.contains("token-selected"), false);
+  h.elements.get("board-view").value = "classic"; h.elements.get("board-view").listeners.change();
+  assert.equal(named("figure-name").textContent, classicLabel);
+  assert.equal(h.elements.get("board").dataset.view, "classic");
+});
+
 test("terrain variants use the host seed during rerender, view changes and reload, not runtime board changes", () => {
   const initial = response(); initial.visualSeed = "fixture-board";
   initial.result.state.physical.board.height = 4;
   const h = harness(initial);
-  const distribution = 'JSON.stringify([...cells.values()].map(n => [n.dataset.cell, n.dataset.visualVariant, n.style["--visual-fill"]]))';
+  const distribution = 'JSON.stringify([...cells.values()].map(n => [n.dataset.cell, n.dataset.visualVariant, n.style["--visual-fill"], n.style["--visual-image"]]))';
   const first = h.run(distribution);
   h.run('renderSnapshot();'); assert.equal(h.run(distribution), first);
   h.elements.get("board-view").value = "enhanced"; h.elements.get("board-view").listeners.change();

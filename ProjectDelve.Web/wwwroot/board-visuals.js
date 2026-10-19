@@ -1,11 +1,15 @@
 // Presentation only. Keys are content IDs, never display names or legality checks.
-// Add optional image: "./assets/board/example.webp" to any entry. CSS keeps the
+// Add optional image: "./art/example.webp" to any entry. CSS keeps the
 // fallback beneath artwork, including while loading or when an image is missing.
 export const boardVisuals = {
   terrain: {
     default: { fill: "#666a68", detail: "repeating-linear-gradient(0deg, transparent 0 48%, #242d3040 49% 51%, transparent 52% 100%)" },
     StoneFloor: { fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)",
-      variants: [{ fill: "#666a68" }, { fill: "#626864" }, { fill: "#6b6c65" }] },
+      variants: [
+        { fill: "#666a68", image: "./art/terrain/stone-floor/01.webp" },
+        { fill: "#626864", image: "./art/terrain/stone-floor/02.webp" },
+        { fill: "#6b6c65", image: "./art/terrain/stone-floor/03.webp" }
+      ] },
     Grass: { fill: "#476947", detail: "repeating-linear-gradient(115deg, transparent 0 7px, #abc27825 8px, transparent 10px)" },
     Tree: { fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
     Water: { fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)" },
@@ -13,7 +17,13 @@ export const boardVisuals = {
     StoneFloorWithTable: { fill: "#636665", detail: "linear-gradient(90deg, transparent 16%, #291d17 17% 20%, #997049 21% 46%, #63462d 47% 50%, #997049 51% 79%, #291d17 80% 83%, transparent 84%)" },
     Rail: { fill: "#766d5d", detail: "repeating-linear-gradient(0deg, transparent 0 7px, #342e29 8px 12px, transparent 13px 18px)" }
   },
-  unit: { default: { detail: "radial-gradient(circle at 35% 25%, #ffffff45, transparent 65%)" } },
+  unit: {
+    default: { detail: "radial-gradient(circle at 35% 25%, #ffffff45, transparent 65%)" },
+    "barbarian-type": { image: "./art/units/barbarian.webp" },
+    "zombie-type": { image: "./art/units/zombie.webp" },
+    "worker-type": { image: "./art/units/worker.webp" },
+    "geomancer-type": { image: "./art/units/geomancer.webp" }
+  },
   machine: { default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" } },
   resource: {
     default: { fill: "#e0c795", glyph: "●" },

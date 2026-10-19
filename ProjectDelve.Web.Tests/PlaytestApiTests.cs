@@ -14,6 +14,25 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class PlaytestApiTests
 {
+    [Theory]
+    [InlineData("units/barbarian.webp")]
+    [InlineData("units/zombie.webp")]
+    [InlineData("units/worker.webp")]
+    [InlineData("units/geomancer.webp")]
+    [InlineData("terrain/stone-floor/01.webp")]
+    [InlineData("terrain/stone-floor/02.webp")]
+    [InlineData("terrain/stone-floor/03.webp")]
+    public async Task ArtworkPackIsServedAsStaticWebP(string path)
+    {
+        await using var host = await Host.Start();
+        using var response = await host.Client.GetAsync($"/art/{path}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("image/webp", response.Content.Headers.ContentType?.MediaType);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(bytes, 0, 4));
+        Assert.Equal("WEBP", System.Text.Encoding.ASCII.GetString(bytes, 8, 4));
+    }
+
     // Discover fixture Units by content and initial placement, independent of generated IDs.
     private static readonly GameState InitialSetup = CourtyardFixture.Create();
     private static string InitialUnit(string typeId, Cell? anchor = null) => InitialSetup.Units.Single(u =>
