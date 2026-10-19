@@ -16,6 +16,21 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body
 const enhanced = selector => `#board[data-view="enhanced"] ${selector}`;
 const style = selector => Object.assign({}, ...rules.filter(r => r.selectors.includes(selector)).map(r => r.declarations));
 
+test("Rail layers hide in Classic, join across borders, and keep arrows above track but below feedback", () => {
+  for (const child of [".rail-artwork", ".rail-arrow"]) {
+    assert.equal(style(`#board ${child}`).display, "none");
+    assert.equal(style(`#board ${child}`)["pointer-events"], "none");
+  }
+  assert.equal(style(enhanced(".cell.Rail"))["border-width"], "0");
+  const track = style(enhanced('.cell[data-rail-artwork="ready"] .rail-artwork'));
+  assert.equal(track.width, "100%"); assert.equal(track.height, "100%");
+  assert.equal(track.transform, "rotate(var(--rail-rotation))"); assert.equal(track["z-index"], "-2");
+  const arrow = style(enhanced(".rail-arrow"));
+  assert.equal(arrow["z-index"], "-1"); assert.equal(arrow.transform, "rotate(var(--arrow-rotation))");
+  assert.equal(style(enhanced(".cell.Rail::before"))["z-index"], "-3");
+  assert.match(style(enhanced(".cell.Rail::after"))["background-image"], /rail-fallback/);
+});
+
 test("terrain decoration fills square Cells, rotates independently and stays below feedback/content in Enhanced only", () => {
   assert.equal(style("#board .terrain-object-artwork").display, "none");
   assert.equal(style("#board .terrain-object-artwork")["pointer-events"], "none");

@@ -2,4 +2,6 @@
 **/obj/
 .dotnet-local/
 .artwork-venv/
+.artwork-qa/
+tools/__pycache__/
 .vs/

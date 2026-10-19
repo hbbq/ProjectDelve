@@ -73,7 +73,7 @@ public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
-public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail }
+public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel }
 public enum RailDirection { North, East, South, West }
 public sealed record TerrainTile(Cell Position, TerrainKind Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null);
@@ -292,7 +292,7 @@ public sealed record Board(int Width, int Height, List<Edge> Edges)
 
 public static class BoardProperties
 {
-    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail;
+    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail or TerrainKind.Gravel;
     public static bool BlocksLos(this TerrainKind kind) => kind == TerrainKind.Tree;
     public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;

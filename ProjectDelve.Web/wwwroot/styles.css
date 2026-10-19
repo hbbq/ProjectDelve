@@ -220,6 +220,7 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .designer-board .machine-cell.editor-selected { box-shadow: inset 0 0 0 3px #ffe084; }
 
 .cell.Rail { background: repeating-linear-gradient(0deg, #827668 0 3px, #c4baaa 3px 10px); }
+.cell.Gravel { background: #827a6c; color: #eee2cd; }
 .cell.Rail::after { position: absolute; inset: 20%; text-align: center; font-size: 1.6em; font-weight: bold; color: #242b32; pointer-events: none; }
 .cell.Rail[data-rail-direction="North"]::after { content: "\2191"; }
 .cell.Rail[data-rail-direction="East"]::after { content: "\2192"; }

@@ -14,7 +14,7 @@ test("artwork catalog resolves registered local files while other content retain
   const portraits = JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => boardVisuals.unit[name + "-type"].image))`));
   assert.deepEqual(portraits, expected);
   const terrain = [];
-  for (const [id, folder] of [["StoneFloor", "stone-floor"], ["Grass", "grass"], ["Water", "water"], ["Lava", "lava"]]) {
+  for (const [id, folder] of [["StoneFloor", "stone-floor"], ["Gravel", "gravel"], ["Grass", "grass"], ["Water", "water"], ["Lava", "lava"]]) {
     const variants = JSON.parse(run(`JSON.stringify(boardVisuals.terrain.${id}.variants.map(v => v.image))`));
     assert.deepEqual(variants, [1, 2, 3].map(i => `./art/terrain/${folder}/0${i}.webp`));
     terrain.push(...variants);
@@ -47,7 +47,7 @@ test("terrain hash has fixed cross-runtime vectors and does not use random state
 
 test("terrain variants survive reload, differ across seeds, and preserve category fallbacks", () => {
   const run = catalog(), reload = catalog();
-  for (const id of ["StoneFloor", "Grass", "Water", "Lava"]) {
+  for (const id of ["StoneFloor", "Gravel", "Grass", "Water", "Lava"]) {
     const distribution = seed => `JSON.stringify(Array.from({length: 64}, (_, i) => terrainVariantIndex("${seed}", "${id}", i % 8, Math.floor(i / 8), 3)))`;
     assert.equal(run(distribution("a")), reload(distribution("a")));
     assert.notEqual(run(distribution("a")), run(distribution("b")));
@@ -69,13 +69,13 @@ test("terrain variants survive reload, differ across seeds, and preserve categor
   assert.equal(run('node.style["--visual-fill"]'), "#666a68");
 });
 
-test("directional artwork overrides variants without rotating the authored Rail direction", () => {
+test("explicit directional overrides remain supported for test-owned terrain", () => {
   const run = catalog();
   run(`const node = { dataset: {}, style: { setProperty(key, value) { this[key] = value; } } };
-    boardVisuals.terrain.Rail.directions = { North: { image: "north.webp" }, East: { image: "east.webp" } };
-    applyBoardVisual(node, "terrain", "Rail", {seed: "a", x: 0, y: 0, direction: "North"});`);
+    boardVisuals.terrain.FixtureDirectional = { directions: { North: { image: "north.webp" }, East: { image: "east.webp" } } };
+    applyBoardVisual(node, "terrain", "FixtureDirectional", {seed: "a", x: 0, y: 0, direction: "North"});`);
   assert.equal(run('node.style["--visual-image"]'), 'url("north.webp")');
-  run('applyBoardVisual(node, "terrain", "Rail", {seed: "a", x: 0, y: 0, direction: "East"});');
+  run('applyBoardVisual(node, "terrain", "FixtureDirectional", {seed: "a", x: 0, y: 0, direction: "East"});');
   assert.equal(run('node.style["--visual-image"]'), 'url("east.webp")');
   assert.equal(run('node.dataset.visualRotation'), "0");
 });
@@ -98,7 +98,7 @@ test("composite mappings reuse base slots and choose object slots independently"
 
 test("quarter turns are opt-in, deterministic and independent of variants and the other layer", () => {
   const run = catalog(), reload = catalog();
-  for (const id of ["StoneFloor", "Grass", "Water", "Lava", "Tree", "StoneFloorWithTable"]) {
+  for (const id of ["StoneFloor", "Gravel", "Rail", "Grass", "Water", "Lava", "Tree", "StoneFloorWithTable"]) {
     const distribution = seed => `JSON.stringify(Array.from({length:256}, (_,i) => terrainLayers("${id}", {seed:"${seed}", x:i%16, y:Math.floor(i/16)})))`;
     const first = run(distribution("fixture"));
     assert.equal(first, reload(distribution("fixture")));
@@ -119,9 +119,43 @@ test("quarter turns are opt-in, deterministic and independent of variants and th
   assert.equal(JSON.parse(before).base.image, JSON.parse(after).base.image);
   for (const category of ["unit", "edge", "machine", "resource"])
     assert.equal(run(`Object.values(boardVisuals.${category}).some(v => v.rotation)`), false);
-  assert.equal(run('terrainLayers("Rail").rotation'), 0);
+  assert.equal(run('terrainLayers("Rail").base.image'), run('terrainLayers("Gravel").base.image'));
   assert.equal(run('terrainLayers("MissingFixture").rotation'), 0);
   run('boardVisuals.terrain.Tree.object.rotation = false; boardVisuals.terrain.Grass.rotation = false;');
   assert.equal(run('terrainLayers("Tree").rotation'), 0);
   assert.equal(run('terrainLayers("Tree").objectRotation'), 0);
+});
+
+test("Rail derives incoming ports from pointing neighbors and has only a visual opposite fallback", () => {
+  const run = catalog();
+  run('var tiles = new Map();');
+  for (const [direction, ports] of [["North", [0,2]], ["East", [1,3]], ["South", [0,2]], ["West", [1,3]]])
+    assert.deepEqual(JSON.parse(run(`JSON.stringify(railConnections(tiles, 2, 2, "${direction}"))`)), ports);
+  run(`tiles.set("2,1", {kind:"Rail", direction:"South"});
+    tiles.set("3,2", {kind:"Rail", direction:"East"});
+    tiles.set("2,3", {kind:"Gravel", direction:"North"});
+    tiles.set("1,1", {kind:"Rail", direction:"East"});`);
+  assert.equal(run('JSON.stringify(railConnections(tiles,2,2,"East"))'), '[0,1]');
+  run('tiles.set("1,2", {kind:"Rail", direction:"East"});');
+  assert.equal(run('JSON.stringify(railConnections(tiles,2,2,"East"))'), '[0,1,3]');
+  run('tiles.set("2,3", {kind:"Rail", direction:"North"});');
+  assert.equal(run('JSON.stringify(railConnections(tiles,2,2,"East"))'), '[0,1,2,3]');
+  run('tiles.get("2,1").direction = "North";');
+  assert.equal(run('JSON.stringify(railConnections(tiles,2,2,"East"))'), '[1,2,3]');
+  run('tiles = new Map([["3,2", {kind:"Rail",direction:"West"}]]);');
+  assert.equal(run('JSON.stringify(railConnections(tiles,2,2,"East"))'), '[1,3]');
+});
+
+test("all four undirected rail shapes align every distinct mask by quarter turns", () => {
+  const run = catalog();
+  const shapes = {straight:[0,2], curve:[0,1], tee:[0,1,2], cross:[0,1,2,3]};
+  const covered = new Set();
+  for (const [shape, ports] of Object.entries(shapes)) for (let turn=0; turn<4; turn++) {
+    const mask = ports.map(p => (p+turn)%4).sort(); covered.add(mask.join());
+    const actual = JSON.parse(run(`JSON.stringify(railGeometry(${JSON.stringify(mask)}))`));
+    assert.equal(actual.shape, shape);
+    assert.deepEqual(ports.map(p => (p+actual.rotation/90)%4).sort(), mask);
+    assert.ok(fs.existsSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", run(`boardVisuals.terrain.Rail.tracks.${shape}`))));
+  }
+  assert.equal(covered.size, 11);
 });

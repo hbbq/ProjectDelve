@@ -9,6 +9,7 @@ from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageCms, ImageDraw, ImageOps, features
+from railway_geometry import export_tracks, preview_tracks
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/source"
@@ -27,7 +28,7 @@ ASSETS = [
                    "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
                    "labyrinth-shaper", "red-dragon", "locomotive")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
-      for name in ("stone-floor", "grass", "water", "lava") for i in range(1, 4)],
+      for name in ("stone-floor", "grass", "water", "lava", "gravel") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
       for name in ("tree", "table") for i in range(1, 4)],
     *[(f"edges/{name}.png", f"edges/{name}.webp", (512, 80)) for name in EDGE_CROPS],
@@ -42,6 +43,13 @@ def main():
     assert features.check("webp"), "Pillow requires WebP support"
     hashes = {path: sha256(path.read_bytes()).digest()
               for path in SOURCE.rglob("*") if path.is_file()}
+    if not args.edges_only:
+        for name in ("sleeper", "rail"):
+            with Image.open(SOURCE / f"railway/{name}.png") as original:
+                original.load()
+                assert original.width == original.height and original.mode == "RGBA"
+                assert original.getchannel("A").getextrema() == (0, 255)
+                assert getattr(original, "n_frames", 1) == 1
     # Inspect every original before exporting anything; require review if composition changes.
     for name, _, _ in assets:
         with Image.open(SOURCE / name) as original:
@@ -112,6 +120,8 @@ def main():
     edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
     if not args.edges_only:
         composite_preview(assets, decoded)
+        export_tracks(SOURCE, OUTPUT / "railway")
+        preview_tracks(SOURCE, OUTPUT, ROOT / "assets/previews/railway.png")
     assert all(sha256(path.read_bytes()).digest() == digest
                for path, digest in hashes.items()), "Source images changed"
     if args.edges_only:

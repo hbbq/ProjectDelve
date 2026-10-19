@@ -2009,12 +2009,47 @@ for (const animate of [true, false]) test(`Rail directions and separate step sna
   for (const [x, direction] of ["North", "East", "South", "West"].entries()) {
     assert.equal(h.run(`cells.get("${x},0").dataset.railDirection`), direction);
     assert.match(h.run(`cells.get("${x},0").title`), new RegExp(direction));
+    assert.equal(h.run(`cells.get("${x},0").railArrow.dataset.direction`), direction);
+    assert.equal(h.run(`cells.get("${x},0").railArrow.style["--arrow-rotation"]`), `${x*90}deg`);
   }
   const shown = []; h.context.shown = shown;
   h.run(`ui.animate.checked = ${animate}; pause = async () => {}; const originalRender = renderState;
     renderState = (...args) => { originalRender(...args); shown.push(displayedState.physical.figures[0].position.x); };`);
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.deepEqual(shown.slice(0, 3), [1, 2, 3]);
+});
+
+for (const view of ["classic", "enhanced"]) test(`${view}: Rail neighbor changes refresh shape while preserving arrow, hits and material fallbacks`, async () => {
+  const initial = response([choice("rail-cell", "Position", {position:{x:1,y:1}})]);
+  initial.visualSeed = "rail-render-fixture";
+  initial.result.state.physical.board.height = 3;
+  initial.result.state.physical.board.terrain = [
+    {kind:"Rail",position:{x:1,y:1},direction:"East"},
+    {kind:"Rail",position:{x:1,y:0},direction:"South"}
+  ];
+  const h = harness(initial);
+  h.elements.get("board-view").value = view; h.elements.get("board-view").listeners.change();
+  const cell = h.run('cells.get("1,1")'), image = cell.railArtwork, arrow = cell.railArrow;
+  assert.equal(cell.dataset.railShape, "curve"); assert.equal(cell.dataset.railRotation, "0");
+  const base = cell.style["--visual-image"], rotation = cell.style["--visual-rotation"];
+  image.listeners.error(); assert.equal(cell.dataset.railArtwork, "missing");
+  image.listeners.load(); assert.equal(cell.dataset.railArtwork, "ready");
+  h.run('snapshot.result.state.physical.board.terrain[1].direction = "North"; renderState(snapshot.result.state, true);');
+  assert.equal(cell.dataset.railShape, "straight"); assert.equal(cell.dataset.railRotation, "90");
+  assert.equal(cell.railArrow, arrow); assert.equal(arrow.dataset.direction, "East");
+  assert.ok(cell.children.includes(image)); assert.ok(cell.children.includes(arrow));
+  assert.equal(cell.style["--visual-image"], base); assert.equal(cell.style["--visual-rotation"], rotation);
+  h.run('chooseCandidate = key => submitted.push(key);');
+  await click(cell); assert.equal(h.submitted.at(-1), "rail-cell");
+  h.run('snapshot.result.state.physical.board.terrain[0].direction = "South"; renderState(snapshot.result.state, true);');
+  assert.equal(cell.railArrow, arrow); assert.equal(arrow.dataset.direction, "South");
+  assert.equal(arrow.style["--arrow-rotation"], "180deg");
+  assert.equal(cell.dataset.railShape, "straight"); assert.equal(cell.dataset.railRotation, "0");
+  h.run('delete boardVisuals.terrain.Rail.tracks.straight; renderState(snapshot.result.state, true);');
+  assert.equal(cell.dataset.railArtwork, "missing"); assert.ok(cell.children.includes(arrow));
+  h.run('snapshot.result.state.physical.board.terrain[0].kind = "Gravel"; delete snapshot.result.state.physical.board.terrain[0].direction; renderState(snapshot.result.state, true);');
+  assert.equal(cell.railArtwork, null); assert.equal(cell.railArrow, null);
+  image.listeners.load(); image.listeners.error(); assert.equal(cell.dataset.railArtwork, undefined);
 });
 
 for (const view of ["classic", "enhanced"]) {

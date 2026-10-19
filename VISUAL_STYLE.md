@@ -67,7 +67,7 @@ These names are examples, not a demand to rename current content identifiers. Pr
 - The variant selection algorithm and hash must be stable across browsers and runtime versions. Avoid nondeterministic JavaScript hashes or `Math.random()`.
 - The visual seed must not change the engine's RNG, rules, or authoritative scenario state.
 
-The implemented catalog also supports explicit `rotation: true` on terrain base and object descriptors. Stone Floor, Grass, Water and Lava bases and Tree/Table objects opt into stable quarter turns using a separate `terrain-rotation-v1` hash domain and separate base/object salts. The existing `terrain-v1` variant algorithm and host seed lifecycle remain unchanged. Portraits, Edges, directional Rail, Machines and Resources do not opt in.
+The implemented catalog also supports explicit `rotation: true` on terrain base and object descriptors. Stone Floor, Grass, Water, Lava and Gravel bases (including Rail's Gravel base) and Tree/Table objects opt into stable quarter turns using a separate `terrain-rotation-v1` hash domain and separate base/object salts. The existing `terrain-v1` variant algorithm and host seed lifecycle remain unchanged. Portraits, Edges, Rail track geometry/arrows, Machines and Resources do not opt in.
 
 Tree composes the existing Grass texture catalog with a transparent Tree object; Stone Floor with Table composes the existing Stone Floor catalog with a transparent Table object. Each object has three independently selected variants. Centered decoration rotates within the square Cell while geometry and hit targets stay fixed. Failed object loads retain the previous material silhouette; transparent pixels in successfully loaded images reveal the base. Units, Resources and feedback remain above decoration. Classic and the Level Designer retain their existing rendering. See README for source/export mappings and exact hash inputs.
 
@@ -86,6 +86,8 @@ Art direction is intentionally flexible until the pilot assets have been integra
 Rail's **outgoing direction** is authoritative gameplay/scenario data. Enhanced 2D derives a **visual connection mask** from the outgoing edge plus every orthogonally adjacent Rail Cell whose outgoing direction points into this Cell. A neighboring Rail Cell counts only when its outgoing direction points toward the current Cell; proximity alone does not connect it.
 
 If **no** neighboring Rail Cell points in, add a *visual-only* incoming connection on the edge opposite the outgoing direction. This fallback changes no movement or rules.
+
+If reciprocal outgoing arrows leave only one distinct connected side, also add the opposite visual connection and show a straight track. The outgoing arrow retains its authoritative direction.
 
 Render two independent layers:
 - **Track geometry:** choose one of four orientation-free base shapes based on the resulting set of connected sides: straight (two opposite sides), curve (two adjacent sides), T-junction (three sides), cross (four sides). Rotate the base shape by 0/90/180/270 degrees to align its exits. There is no need for separate 2-in/1-out track artwork: both are represented by the same undirected T-junction.

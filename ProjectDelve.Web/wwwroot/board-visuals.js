@@ -32,7 +32,9 @@ export const boardVisuals = {
       ] },
     StoneFloorWithTable: { baseTerrain: "StoneFloor", object: { rotation: true,
       variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/table/0${i}.webp` })) }, fill: "#636665", detail: "linear-gradient(90deg, transparent 16%, #291d17 17% 20%, #997049 21% 46%, #63462d 47% 50%, #997049 51% 79%, #291d17 80% 83%, transparent 84%)" },
-    Rail: { fill: "#766d5d", detail: "repeating-linear-gradient(0deg, transparent 0 7px, #342e29 8px 12px, transparent 13px 18px)" }
+    Gravel: { rotation: true, fill: "#766d62", detail: "radial-gradient(ellipse, #b0a59360, transparent)",
+      variants: [1, 2, 3].map(i => ({ image: `./art/terrain/gravel/0${i}.webp` })) },
+    Rail: { baseTerrain: "Gravel", tracks: Object.fromEntries(["straight", "curve", "tee", "cross"].map(shape => [shape, `./art/railway/${shape}.svg`])) }
   },
   unit: {
     default: { detail: "radial-gradient(circle at 35% 25%, #ffffff45, transparent 65%)" },
@@ -116,6 +118,36 @@ export function terrainLayers(id, context = {}) {
   };
 }
 
+const railDirections = ["North", "East", "South", "West"];
+const railOffsets = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+const railShapes = { straight: [0, 2], curve: [0, 1], tee: [0, 1, 2], cross: [0, 1, 2, 3] };
+
+// Presentation only. The Map is rebuilt from each current authoritative board.
+export function railConnections(terrain, x, y, direction) {
+  const outgoing = railDirections.indexOf(direction);
+  if (outgoing < 0) return [];
+  const incoming = railOffsets.flatMap(([dx, dy], side) => {
+    const neighbor = terrain?.get(`${x + dx},${y + dy}`);
+    return neighbor?.kind === "Rail" && neighbor.direction === railDirections[(side + 2) % 4] ? [side] : [];
+  });
+  if (!incoming.length) incoming.push((outgoing + 2) % 4);
+  const connections = [...new Set([outgoing, ...incoming])];
+  // Reciprocal arrows can supply an incoming edge identical to the outgoing one.
+  if (connections.length === 1) connections.push((outgoing + 2) % 4);
+  return connections.sort();
+}
+
+export function railGeometry(connections) {
+  for (const [shape, sides] of Object.entries(railShapes)) {
+    for (let turn = 0; turn < 4; turn++) {
+      const rotated = sides.map(side => (side + turn) % 4).sort();
+      if (rotated.length === connections.length && rotated.every((side, i) => side === connections[i]))
+        return { shape, rotation: turn * 90 };
+    }
+  }
+  return null;
+}
+
 export function applyBoardVisual(node, category, id, context = {}) {
   const entries = boardVisuals[category];
   const entry = Object.hasOwn(entries, id) ? entries[id] : {};
@@ -131,9 +163,46 @@ export function applyBoardVisual(node, category, id, context = {}) {
     node.dataset.visualRotation = String(layers.rotation);
     node.style.setProperty("--visual-rotation", `${layers.rotation}deg`);
     applyTerrainObject(node, layers);
+    applyRailArtwork(node, id === "Rail" ? context : null);
   }
   if (category === "edge") applyEdgeArtwork(node, visual.image);
   return visual;
+}
+
+function applyRailArtwork(node, context) {
+  if (!context) {
+    node.railArtwork?.remove(); node.railArrow?.remove();
+    node.railArtwork = node.railArrow = null;
+    delete node.dataset.railShape; delete node.dataset.railRotation; delete node.dataset.railArtwork;
+    return;
+  }
+  const geometry = railGeometry(railConnections(context.terrain, context.x ?? 0, context.y ?? 0, context.direction));
+  let image = node.railArtwork;
+  if (!image) {
+    image = document.createElement("img"); image.className = "rail-artwork";
+    image.alt = ""; image.draggable = false; image.setAttribute("aria-hidden", "true");
+    node.railArtwork = image;
+    image.addEventListener("load", () => { if (node.railArtwork === image) node.dataset.railArtwork = "ready"; });
+    image.addEventListener("error", () => { if (node.railArtwork === image) node.dataset.railArtwork = "missing"; });
+  }
+  node.dataset.railShape = geometry?.shape ?? "";
+  node.dataset.railRotation = String(geometry?.rotation ?? 0);
+  node.style.setProperty("--rail-rotation", `${geometry?.rotation ?? 0}deg`);
+  const source = boardVisuals.terrain.Rail.tracks?.[geometry?.shape];
+  if (source && image.dataset.source !== source) {
+    node.dataset.railArtwork = "loading"; image.dataset.source = source; image.src = source;
+  } else if (!source) {
+    node.dataset.railArtwork = "missing"; image.removeAttribute("src"); delete image.dataset.source;
+  }
+  // CSS builds an arrow independently of track artwork and base rotation.
+  let arrow = node.railArrow;
+  if (!arrow) {
+    arrow = document.createElement("span"); arrow.className = "rail-arrow";
+    arrow.setAttribute("aria-hidden", "true"); node.railArrow = arrow;
+  }
+  arrow.dataset.direction = context.direction;
+  arrow.style.setProperty("--arrow-rotation", `${railDirections.indexOf(context.direction) * 90}deg`);
+  node.append(image); node.append(arrow);
 }
 
 function applyEdgeArtwork(node, source) {

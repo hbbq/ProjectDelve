@@ -226,14 +226,14 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.removeAttribute("aria-label");
     node.className = `cell ${kind}`; node.dataset.cell = key;
     applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
-      x, y, direction: tile?.direction });
+      x, y, direction: tile?.direction, terrain });
     node.dataset.railDirection = tile?.direction ?? "";
     retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
     node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
-    const symbol = { Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
+    const symbol = { Gravel: "Gravel", Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));

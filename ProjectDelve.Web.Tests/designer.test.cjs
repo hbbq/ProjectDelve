@@ -19,7 +19,7 @@ const catalog = {
     cellSpan: id === "opaque-large" ? 2 : 1,
     footprintOffsets: id === "opaque-large" ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] : [{ x: 0, y: 0 }]
   })),
-  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava", "Rail"],
+  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava", "Rail", "Gravel"],
   railDirections: ["North", "East", "South", "West"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
   postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
@@ -602,6 +602,21 @@ test("Rail brush authors every outgoing direction, renders arrows, edits and cle
   assert.equal(draft.definition.board.cells[0].direction, undefined);
   assert.equal(h.cell(0, 0).dataset.railDirection, "");
   assert.ok(!h.editor.ui.default.children.some(option => option.value === "Rail"));
+});
+
+test("Gravel is a standalone brush and default, clears Rail direction and roundtrips", () => {
+  const h = harness(), draft = h.editor.draft;
+  assert.ok(h.editor.ui.default.children.some(option => option.value === "Gravel"));
+  draft.paintTerrain({x:0,y:0}, "Rail", "North");
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Gravel";
+  h.down(h.cell(0, 0)); h.up();
+  assert.equal(draft.terrainAt({x:0,y:0}), "Gravel");
+  assert.equal(draft.railDirectionAt({x:0,y:0}), undefined);
+  draft.definition.board.defaultTerrain = "Gravel";
+  const exported = draft.snapshot(); draft.replace(JSON.parse(JSON.stringify(exported))); h.editor.render();
+  assert.deepEqual(plain(draft.snapshot()), plain(exported));
+  assert.equal(draft.terrainAt({x:1,y:1}), "Gravel");
+  assert.ok(h.cell(0,0).classList.contains("Gravel"));
 });
 
 test("Neutrality and No Objective edit independently and survive designer roundtrip", () => {

@@ -1,3 +1,4 @@
+@import url("./art/railway/fallbacks.css");
 /* Opt-in appearance only; app.js/styles.css retain geometry and hit targets. */
 .board-view-toolbar { margin-bottom: 12px; }
 .board-scroll:has(#board[data-view="enhanced"]) { overflow: auto; padding: 5px; }
@@ -37,7 +38,26 @@
 }
 #board[data-view="enhanced"] .terrain-label { display: none; }
 #board[data-view="enhanced"] .cell-coordinates { position: absolute; top: 2%; left: 4%; z-index: 1; text-shadow: 0 1px 2px #000; }
-#board[data-view="enhanced"] .cell.Rail::after { inset: 0; display: grid; place-items: center; color: #f4e5b6; text-shadow: 0 1px 2px #000; }
+#board .rail-artwork, #board .rail-arrow { display: none; pointer-events: none; }
+#board[data-view="enhanced"] .cell.Rail::before { z-index: -3; }
+#board[data-view="enhanced"] .cell.Rail::after {
+  content: ""; position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background-image: var(--rail-fallback); background-size: 100% 100%;
+  transform: rotate(var(--rail-rotation));
+}
+#board[data-view="enhanced"] .cell.Rail[data-rail-artwork="ready"]::after { display: none; }
+/* Paint the grid inside Rail Cells: artwork must reach the actual Cell boundary,
+   rather than stopping at the inner edge of a pair of 1px borders. */
+#board[data-view="enhanced"] .cell.Rail { border-width: 0; box-shadow: inset 0 0 0 1px #202c32a0; }
+#board[data-view="enhanced"] .cell[data-rail-artwork="ready"] .rail-artwork {
+  display: block; position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2;
+  transform: rotate(var(--rail-rotation));
+}
+#board[data-view="enhanced"] .rail-arrow {
+  display: block; position: absolute; width: 16%; height: 25%; left: 42%; top: 37.5%; z-index: -1;
+  background: #f3deaa; clip-path: polygon(50% 0, 100% 45%, 68% 45%, 68% 100%, 32% 100%, 32% 45%, 0 45%);
+  transform: rotate(var(--arrow-rotation)); filter: drop-shadow(0 1px 1px #111);
+}
 #board[data-view="enhanced"] .machine-cell { gap: 0; box-shadow: inset 0 0 0 2px #dbc18a; font-size: clamp(7px, calc(var(--cell-size) * .16), 12px); }
 #board[data-view="enhanced"] .machine-art {
   display: grid !important; place-items: center; flex: 1; min-height: 0; width: 65%;

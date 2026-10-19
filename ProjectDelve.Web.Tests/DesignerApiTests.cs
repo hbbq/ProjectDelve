@@ -31,6 +31,7 @@ public sealed class DesignerApiTests
         Assert.Equal(JsonSerializer.SerializeToElement(MachineTypes.DiamondPress, Json).GetRawText(), machineType.GetRawText());
         Assert.Equal(Enum.GetNames<RailDirection>(), catalog.GetProperty("railDirections").Deserialize<string[]>());
         Assert.Contains("Rail", catalog.GetProperty("terrains").Deserialize<string[]>()!);
+        Assert.Contains("Gravel", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Contains("Lava", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Equal(Enum.GetNames<OrderKind>(), catalog.GetProperty("orderKinds").Deserialize<string[]>());
         var projected = catalog.GetProperty("unitTypes").EnumerateArray().ToArray();
@@ -58,11 +59,13 @@ public sealed class DesignerApiTests
     [InlineData("complete-data")]
     [InlineData("world-effects")]
     [InlineData("lava")]
+    [InlineData("gravel")]
     [InlineData("machines")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "machines" ? CompleteData() : WebScenarioFixtures.Named(id);
+        var definition = id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "gravel" or "machines" ? CompleteData() : WebScenarioFixtures.Named(id);
+        if (id == "gravel") definition = definition with { Board = definition.Board with { DefaultTerrain = TerrainKind.Gravel, Cells = [new(new(4, 4), TerrainKind.Gravel)] } };
         if (id == "machines") definition = definition with { Machines = [new("press", new(3, 0), MachineTypes.DiamondPress)
             { StoredResources = [new(ResourceTypes.Coal, 2)] }] };
         if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
