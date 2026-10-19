@@ -1902,6 +1902,52 @@ test("Resources render by authoritative Type and Cell, including under Units, an
   assert.equal(h.figure("actor").style.left, `${.5 / 6 * 100}%`);
 });
 
+test("Machine and Resource artwork keeps labels, choices and glyph fallbacks through loads and rerenders", async () => {
+  const initial = response([choice("operate-fixture", "Position", { position: { x: 2, y: 0 } })]);
+  initial.result.state.physical.board.terrain = [{ position: { x: 2, y: 0 }, kind: "Grass" }];
+  initial.result.state.resources = ["coal", "diamond", "fixture-resource"].map((id, x) => ({
+    type: { id, name: id }, position: { x, y: 0 }
+  }));
+  initial.presentation.machines = [{ id: "fixture-press", typeId: "diamond-press", name: "Fixture Press",
+    position: { x: 2, y: 0 }, ownerSide: "amber", operation: "Supplied operation",
+    resourceStorage: [{ name: "Coal", quantity: 2, capacity: 3 }] }];
+  const submitted = [];
+  const h = harness(initial, async (url, options) => {
+    submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial };
+  });
+  const press = h.run('cells.get("2,0")');
+  const art = press.querySelectorAll(".machine-art")[0];
+  assert.equal(press.dataset.visualId, "StoneFloor");
+  assert.match(press.style["--visual-image"], /stone-floor/);
+  assert.equal(press.classList.contains("Grass"), true); // Classic retains its terrain class.
+  assert.equal(art.objectArtwork.src, "./art/machines/diamond-press.webp");
+  assert.equal(art.dataset.artwork, "loading");
+  art.objectArtwork.listeners.load();
+  assert.equal(art.dataset.artwork, "ready");
+  assert.match(press.textContent, /Fixture Press.*Owner: amber.*Coal: 2\/3/s);
+  assert.equal(art.visualGlyph.textContent, "⚙");
+  art.objectArtwork.listeners.error();
+  assert.equal(art.dataset.artwork, "missing");
+  for (const [x, id] of [[0, "coal"], [1, "diamond"]]) {
+    const marker = h.run(`cells.get("${x},0").querySelectorAll(".resource-marker")[0]`);
+    assert.equal(marker.objectArtwork.src, `./art/resources/${id}.webp`);
+    assert.equal(marker.attributes["aria-label"], id);
+    marker.objectArtwork.listeners.load(); assert.equal(marker.dataset.artwork, "ready");
+    marker.objectArtwork.listeners.error(); assert.equal(marker.dataset.artwork, "missing");
+    assert.ok(marker.visualGlyph.textContent);
+  }
+  const missing = press.querySelectorAll(".resource-marker")[0];
+  assert.equal(missing.objectArtwork, null);
+  assert.equal(missing.visualGlyph.textContent, "●");
+  await click(press);
+  assert.equal(submitted.at(-1).candidateKey, "operate-fixture");
+  h.run('boardView.value = "enhanced"; updateBoardView(); renderSnapshot();');
+  assert.equal(h.run('cells.get("2,0").querySelectorAll(".machine-art")[0].objectArtwork.src'), "./art/machines/diamond-press.webp");
+  h.run('snapshot.presentation.machines = []; renderSnapshot();');
+  assert.equal(h.run('cells.get("2,0").dataset.visualId'), "Grass");
+  assert.equal(h.run('cells.get("2,0").querySelectorAll(".machine-art").length'), 0);
+});
+
 
 test("Unit cards render authoritative shared storage quantities and refresh after a transfer", () => {
   const initial = response([]);
@@ -1962,7 +2008,7 @@ test("Machine conversion playback shows changed storage and Diamond output in th
     renderState = (...args) => { originalRender(...args); shown.push({
       storage: cells.get("2,0").textContent,
       output: cells.get("0,0").querySelectorAll(".resource-marker").map(node => node.title),
-      symbol: cells.get("0,0").querySelectorAll(".resource-marker")[0]?.textContent
+      symbol: cells.get("0,0").querySelectorAll(".resource-marker")[0]?.visualGlyph.textContent
     }); };`);
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.ok(shown.length > 0);

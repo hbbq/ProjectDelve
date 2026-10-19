@@ -21,7 +21,9 @@ test("artwork catalog resolves registered local files while other content retain
   }
   const edges = JSON.parse(run('JSON.stringify(["Wall", "ClosedDoor", "OpenDoor"].map(id => boardVisuals.edge[id].image))'));
   assert.deepEqual(edges, ["wall", "door-closed", "door-open"].map(name => `./art/edges/${name}.webp`));
-  for (const url of [...portraits, ...terrain, ...edges]) {
+  const objects = JSON.parse(run('JSON.stringify([boardVisuals.machine["diamond-press"].image, boardVisuals.resource.coal.image, boardVisuals.resource.diamond.image])'));
+  assert.deepEqual(objects, ["./art/machines/diamond-press.webp", "./art/resources/coal.webp", "./art/resources/diamond.webp"]);
+  for (const url of [...portraits, ...terrain, ...edges, ...objects]) {
     const file = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", url));
     assert.equal(file.toString("ascii", 0, 4), "RIFF", url);
     assert.equal(file.toString("ascii", 8, 12), "WEBP", url);

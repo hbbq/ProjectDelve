@@ -57,11 +57,14 @@ export const boardVisuals = {
     "red-dragon-type": { image: "./art/units/red-dragon.webp" },
     "locomotive-type": { image: "./art/units/locomotive.webp" }
   },
-  machine: { default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" } },
+  machine: {
+    default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" },
+    "diamond-press": { image: "./art/machines/diamond-press.webp", baseTerrain: "StoneFloor" }
+  },
   resource: {
     default: { fill: "#e0c795", glyph: "●" },
-    diamond: { fill: "#b8ecf4", glyph: "◆" },
-    coal: { fill: "#ccc2af", glyph: "●" }
+    diamond: { fill: "#b8ecf4", glyph: "◆", image: "./art/resources/diamond.webp" },
+    coal: { fill: "#ccc2af", glyph: "●", image: "./art/resources/coal.webp" }
   },
   edge: {
     default: { fill: "#45494b", detail: "repeating-linear-gradient(45deg, transparent 0 8px, #e3dcc53a 9px 10px, transparent 11px 18px)" },
@@ -166,7 +169,34 @@ export function applyBoardVisual(node, category, id, context = {}) {
     applyRailArtwork(node, id === "Rail" ? context : null);
   }
   if (category === "edge") applyEdgeArtwork(node, visual.image);
+  if (category === "machine" || category === "resource") applyObjectArtwork(node, visual);
   return visual;
+}
+
+function applyObjectArtwork(node, visual) {
+  // Glyphs remain the Classic presentation and the loading/error fallback.
+  let glyph = node.visualGlyph;
+  if (!glyph) {
+    glyph = document.createElement("span"); glyph.className = "visual-glyph";
+    glyph.setAttribute("aria-hidden", "true"); node.visualGlyph = glyph;
+  }
+  glyph.textContent = visual.glyph ?? ""; node.append(glyph);
+  let image = node.objectArtwork;
+  if (!visual.image) {
+    image?.remove(); node.objectArtwork = null; delete node.dataset.artwork;
+    return;
+  }
+  if (!image) {
+    image = document.createElement("img"); image.className = "object-artwork";
+    image.alt = ""; image.draggable = false; image.setAttribute("aria-hidden", "true");
+    node.objectArtwork = image;
+    image.addEventListener("load", () => { if (node.objectArtwork === image) node.dataset.artwork = "ready"; });
+    image.addEventListener("error", () => { if (node.objectArtwork === image) node.dataset.artwork = "missing"; });
+  }
+  node.append(image);
+  if (image.dataset.source !== visual.image) {
+    node.dataset.artwork = "loading"; image.dataset.source = visual.image; image.src = visual.image;
+  }
 }
 
 function applyRailArtwork(node, context) {

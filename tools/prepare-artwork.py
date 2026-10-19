@@ -31,6 +31,8 @@ ASSETS = [
       for name in ("stone-floor", "grass", "water", "lava", "gravel") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
       for name in ("tree", "table") for i in range(1, 4)],
+    *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond")],
+    ("machines/diamond-press.png", "machines/diamond-press.webp", 256),
     *[(f"edges/{name}.png", f"edges/{name}.webp", (512, 80)) for name in EDGE_CROPS],
 ]
 
@@ -63,7 +65,7 @@ def main():
                 assert original.size == (1774, 887) and original.mode == "RGBA", f"Review changed Edge source: {name}"
                 bounds = original.getchannel("A").point(lambda a: 255 if a >= 8 else 0).getbbox()
                 assert bounds == EDGE_CROPS[Path(name).stem], f"Review changed Edge composition: {name}"
-            if name.startswith("terrain/objects/"):
+            if name.startswith(("terrain/objects/", "resources/", "machines/")):
                 alpha = original.convert("RGBA").getchannel("A")
                 assert alpha.getextrema()[0] == 0 and alpha.getextrema()[1] > 0, f"Review object alpha: {name}"
             assert getattr(original, "n_frames", 1) == 1, f"Review animated source: {name}"
@@ -120,6 +122,7 @@ def main():
     edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
     if not args.edges_only:
         composite_preview(assets, decoded)
+        object_preview(assets, decoded)
         export_tracks(SOURCE, OUTPUT / "railway")
         preview_tracks(SOURCE, OUTPUT, ROOT / "assets/previews/railway.png")
     assert all(sha256(path.read_bytes()).digest() == digest
@@ -167,6 +170,31 @@ def composite_preview(assets, images):
                 if turn == 0:
                     sheet.paste(tile.resize((160, 160), Image.Resampling.LANCZOS), (12 + variant * 248, y + 64))
     sheet.save(ROOT / "assets/previews/composite-terrain.png", optimize=True)
+
+
+def object_preview(assets, images):
+    """Test-owned Machine/Resource samples at minimum and normal Cell sizes."""
+    catalog = {asset[1]: image for asset, image in zip(assets, images)}
+    sheet = Image.new("RGB", (720, 300), "#202630")
+    draw = ImageDraw.Draw(sheet)
+    draw.text((12, 10), "Machines / Resources | 24px markers | 60px + 100px Cells", fill="white")
+    for row, size in enumerate((60, 100)):
+        for col, base in enumerate(("stone-floor", "grass", "gravel")):
+            for i, resource in enumerate(("coal", "diamond")):
+                x, y = 12 + col * 232 + i * 108, 46 + row * 116
+                tile = catalog[f"terrain/{base}/01.webp"].resize((size, size), Image.Resampling.LANCZOS)
+                if col == 0:
+                    machine = catalog["machines/diamond-press.webp"].resize((size, size), Image.Resampling.LANCZOS)
+                    tile = Image.alpha_composite(tile, machine)
+                    label = ImageDraw.Draw(tile)
+                    label.rectangle((1, size-27, size-1, size-1), fill="#18232cdd")
+                    for line, text in enumerate(("Press", "Public", "Coal: 3/3")):
+                        label.text((2, size-27 + line*9), text, fill="white", font_size=8)
+                marker = catalog[f"resources/{resource}.webp"].resize((24, 24), Image.Resampling.LANCZOS)
+                tile.alpha_composite(marker, (size-25, 1))
+                sheet.paste(tile, (x, y))
+                draw.text((x, y+size+2), resource, fill="white")
+    sheet.save(ROOT / "assets/previews/machines-resources.png", optimize=True)
 
 
 def edge_preview(images):

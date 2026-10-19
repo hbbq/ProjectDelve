@@ -145,8 +145,8 @@ All 39 source originals are registered; every runtime asset has a source. Existi
 | Open Door | 512 × 80 horizontal master | Transparent central gap with posts/threshold; renderer rotates for vertical Edges | 1 design, 2 orientations |
 | Barbarian and Zombie portraits | 512 × 512 each, 1:1 | Square source, UI applies circular crop; opaque painted background preferred, alpha supported over the dark fallback; face/focal detail inside central 70%, reserve lower 30% for nameplate and upper 20% for HP | 2 portraits |
 | Gravel / Rail | 256 × 256, 1:1 | Three opaque Gravel variants; four transparent SVG track shapes with exact edge ports and separate procedural arrow | Integrated; browser review pending |
-| Later Coal / Diamond | 256 × 256, 1:1 | Transparent exterior, object centered within 80%, readable at 14–20 pixels | After pilot review |
-| Later Diamond Press | 512 × 512, 1:1 | Transparent exterior, centered within 80%; no ownership labels or storage text | After pilot review |
+| Coal / Diamond | 128 × 128, 1:1 | Transparent exterior and original margins; displayed in 24px top-right markers | Integrated; browser review pending |
+| Diamond Press | 256 × 256, 1:1 | Transparent exterior; full-Cell object over Stone Floor; ownership and storage text composed separately | Integrated; browser review pending |
 
 **Artwork pack 01 exports:** the user-supplied generated originals in `assets/source/` are seven opaque RGB PNGs, each 1254 × 1254 with no embedded color profile. `tools/prepare-artwork.py` uses build-time Pillow with WebP support (`python -m pip install Pillow`, then `python tools/prepare-artwork.py`). It treats untagged sources as sRGB, exports with an sRGB profile, uses Lanczos resampling, WebP quality 85 / method 6, and preserves any alpha losslessly. There is no crop, padding, retouching or runtime image dependency. The script checks complete decoding, exact dimensions and unchanged source hashes.
 
@@ -247,6 +247,20 @@ var state = GameEngine.CreateGame(definition);
 ```
 
 `Define` derives normal Type order from first group occurrence; its optional `unitTypeIds` argument preserves explicitly authored order and unplaced Types. `GameEngine.CreateGame` resolves canonical IDs, validates data and normal full-footprint setup legality, and returns independent mutable round-zero state with deterministic generated Unit IDs. It does not draw tokens or invoke providers; `StartRound` still initializes the activation bag and advances play. Catalog presentation remains separate. The console detour and courtyard API fixture use the same creation boundary, including the courtyard's wounded Wizard and unplaced Goblin Type. `ScenarioDefinitionJson` serializes concrete initial setup; `ScenarioDefinitionTransport` wraps that JSON in portable `DELVE1:` strings. Browser imports enter the same creation boundary and restart retains the imported definition.
+
+### Resource and Machine artwork
+
+Coal and Diamond render as 24px top-right markers in Enhanced 2D. Diamond Press fills its Cell over the existing Stone Floor texture catalog, with its name, Owner Side and storage labels layered separately along the bottom. This base is presentation only; scenario terrain and Classic View remain unchanged. Images use `object-fit: contain` without cropping or distortion. Glyphs remain visible while loading and after errors; Classic retains glyphs. Unknown Machine/Resource IDs retain category fallbacks. Decorative images ignore pointer input, and choices remain on the authoritative Cell.
+
+| Original under `assets/source/` | Catalog key | Runtime under `wwwroot/art/` | Export / bytes |
+|---|---|---|---|
+| `resources/coal.png` | `resource.coal` | `resources/coal.webp` | 128 × 128 / 3,598 |
+| `resources/diamond.png` | `resource.diamond` | `resources/diamond.webp` | 128 × 128 / 4,786 |
+| `machines/diamond-press.png` | `machine["diamond-press"]` | `machines/diamond-press.webp` | 256 × 256 / 21,962 |
+
+These three new originals are 1254 × 1254 RGBA PNGs with genuine alpha, no embedded profiles, EXIF orientation or animation. The full `tools/prepare-artwork.py` pipeline exports them with the existing sRGB/Lanczos/WebP quality 85/method 6 settings and verifies lossless resized alpha. Originals keep their transparent margins. All 47 source files are accounted for: 45 direct exports plus the two railway material components. No runtime assets lack sources. Full re-export confirmed identical decoded pixels/profiles for all 42 previous WebPs apart from ICC creation dates, and their original bytes were retained. No variant counts, ordering, hash algorithms or seed lifecycle changed.
+
+The updated [catalog sheet](assets/previews/artwork-pack-01.png) includes all three assets. The [Machine/Resource composition preview](assets/previews/machines-resources.png) shows 24px markers over Stone Floor, Grass and Gravel, plus full-Cell Press compositions at 60px and 100px. The preview uses test-owned samples and approximate labels; it is not browser approval. No connected browser was available for actual layout review; label crowding, overlays and image visibility still need that review.
 
 ### Gravel and procedural railway artwork
 

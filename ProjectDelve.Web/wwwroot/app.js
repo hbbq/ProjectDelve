@@ -247,12 +247,17 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     if (!node) continue;
     node.classList.add("machine-cell");
     const art = text("span", ""); art.className = "machine-art";
-    art.textContent = applyBoardVisual(art, "machine", machine.typeId).glyph;
+    const visual = applyBoardVisual(art, "machine", machine.typeId);
+    if (visual.baseTerrain) applyBoardVisual(node, "terrain", visual.baseTerrain, {
+      seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
+      x: machine.position.x, y: machine.position.y });
     art.setAttribute("aria-hidden", "true"); node.append(art);
-    node.append(text("span", machine.name));
-    node.append(text("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
+    const labels = text("span", ""); labels.className = "machine-labels";
+    labels.append(text("span", machine.name));
+    labels.append(text("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
     for (const stored of machine.resourceStorage)
-      node.append(text("small", `${stored.name}: ${stored.quantity}/${stored.capacity}`));
+      labels.append(text("small", `${stored.name}: ${stored.quantity}/${stored.capacity}`));
+    node.append(labels);
     node.title = `${machine.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}: ${machine.operation}`;
     node.setAttribute("aria-label", `${node.title}. ${machine.resourceStorage.map(r => `${r.name}: ${r.quantity}/${r.capacity}`).join(", ")}`);
   }
@@ -261,7 +266,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     if (!node) continue;
     const marker = text("span", "");
     marker.className = "resource-marker";
-    marker.textContent = applyBoardVisual(marker, "resource", resource.type.id).glyph;
+    applyBoardVisual(marker, "resource", resource.type.id);
     marker.title = resource.type.name;
     marker.setAttribute("aria-label", resource.type.name);
     node.append(marker);

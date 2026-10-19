@@ -21,6 +21,21 @@ spec.loader.exec_module(pipeline)
 
 
 class CompositeArtworkTests(unittest.TestCase):
+    def test_machine_and_resource_alpha_survives_export_without_crop(self):
+        for category, name, size in (("machines", "diamond-press", 256),
+                                     ("resources", "coal", 128), ("resources", "diamond", 128)):
+            source, destination = f"{category}/{name}.png", f"{category}/{name}.webp"
+            with self.subTest(source=source):
+                self.assertIn((source, destination, size), pipeline.ASSETS)
+                with Image.open(pipeline.SOURCE / source) as original:
+                    original.load()
+                    expected = ImageOps.exif_transpose(original).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+                with Image.open(pipeline.OUTPUT / destination) as exported:
+                    exported.load()
+                    self.assertEqual(exported.size, (size, size))
+                    self.assertEqual(exported.getchannel("A").tobytes(), expected.getchannel("A").tobytes())
+                    self.assertEqual(exported.getchannel("A").getextrema(), (0, 255))
+
     def test_track_generation_reproduces_committed_assets(self):
         with tempfile.TemporaryDirectory() as directory:
             generated = Path(directory)

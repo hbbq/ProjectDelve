@@ -16,6 +16,24 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body
 const enhanced = selector => `#board[data-view="enhanced"] ${selector}`;
 const style = selector => Object.assign({}, ...rules.filter(r => r.selectors.includes(selector)).map(r => r.declarations));
 
+test("object artwork uses 24px markers and full-Cell Machines while Classic and failed loads retain glyphs", () => {
+  assert.equal(style("#board .object-artwork").display, "none");
+  assert.equal(style("#board .object-artwork")["pointer-events"], "none");
+  const image = style(enhanced('[data-artwork="ready"] > .object-artwork'));
+  assert.equal(image.display, "block"); assert.equal(image["object-fit"], "contain");
+  assert.equal(image.width, "100%"); assert.equal(image.height, "100%");
+  assert.equal(style(enhanced('[data-artwork="ready"] > .visual-glyph')).visibility, "hidden");
+  const marker = style(enhanced('.resource-marker:has(.object-artwork)'));
+  assert.equal(marker.width, "24px"); assert.equal(marker.height, "24px");
+  assert.equal(style(enhanced('.resource-marker')).top, "2%");
+  assert.equal(style(enhanced('.resource-marker')).right, "2%");
+  assert.equal(style(enhanced('.machine-cell:has(.object-artwork) .machine-art')).inset, "0");
+  assert.equal(style(enhanced('.machine-cell:has(.object-artwork) .machine-labels'))["z-index"], "1");
+  assert.equal(style("#board .machine-labels").display, "contents");
+  assert.equal(style("#board .machine-labels")["font-size"], "inherit");
+  assert.equal(style("#board .visual-glyph")["font-size"], "inherit");
+});
+
 test("Rail layers hide in Classic, join across borders, and keep arrows above track but below feedback", () => {
   for (const child of [".rail-artwork", ".rail-arrow"]) {
     assert.equal(style(`#board ${child}`).display, "none");
