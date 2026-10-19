@@ -134,6 +134,74 @@ Create a classic fantasy Goblin portrait. Wiry green-skinned creature with overs
 Create a fantasy Troll portrait. Enormous hulking monster with thick rough stone-gray to mossy olive skin, heavy jaw, prominent brow, wide nose, coarse hair and a threatening but slightly dim expression. Crude hide and leather at the shoulders; the top of a huge wooden club may appear alongside one shoulder. Distinctly bulkier than a Grunt, clearly readable face, subtle upper-left lighting. No gore, text or UI.
 ```
 
+## Remaining canonical Unit Type portraits
+
+The following subjects complete the currently canonical Unit Roster (beyond the portraits already covered above). For each, combine the **Shared portrait style** block with the subject prompt. For Locomotive, follow its special camera guidance while keeping consistent painting and lighting. Generate multiple candidates and select one that reads clearly in the circular token at small size.
+
+### Cleric
+
+Suggested source file: `assets/source/units/cleric.png`
+
+```text
+Create a fantasy Cleric portrait, a compassionate but battle-hardened human healer and priest in practical ivory robes and worn steel-and-brass shoulder armor. A modest sun-shaped religious medallion and a simple healing staff are visible but do not cover the face. Warm, calm expression, clear eyes, muted ivory, burgundy and antique gold. Not a Wizard, not excessively radiant; readable facial silhouette for a small circular tabletop token. No legible writing or symbols resembling text.
+```
+
+### Bomb Imp
+
+Suggested source file: `assets/source/units/bomb imp.png`
+
+```text
+Create a mischievous fantasy Bomb Imp portrait, a small impish creature with pointed ears, tiny swept-back horns, soot-dark reddish skin and an excited, reckless grin. Its shoulder and one small smoking alchemical bomb are hinted at near the edge of the image, not covering the face. Distinct from the green Goblin. Warm ember orange, dark maroon and charcoal accents, painterly rather than explosive spectacle; a clear expressive face at small token size. No flames covering the subject, blood or text.
+```
+
+### Red Dragon
+
+Suggested source file: `assets/source/units/red dragon.png`
+
+```text
+Create a red fantasy Dragon portrait for a tabletop board game. A majestic but threatening dragon head and upper neck, rich crimson scales, two dark swept-back horns, amber eyes and restrained gold highlights. A broad recognizable silhouette that fits a circular crop; the face points slightly toward the viewer, with horns safely within crop margins. Show detailed scales without excessive visual noise. No full-body scene, fire breath obscuring the head, text or UI.
+```
+
+### Labyrinth Shaper
+
+Suggested source file: `assets/source/units/labyrinth shaper.png`
+
+```text
+Create a mysterious fantasy Labyrinth Shaper portrait: an eccentric ancient arcane architect who bends dungeon stone to their will. Humanoid figure with an enigmatic masked or deeply hooded face, weathered geometric stone armor and subtly floating masonry fragments around the shoulders. A distinctive face area remains readable, with slate, sandstone, deep teal and muted gold tones. Hint at maze-like forms in carved material, but no actual writing or maze diagram, no elaborate background, and no UI.
+```
+
+### Displacer Demon
+
+Suggested source file: `assets/source/units/displacer demon.png`
+
+```text
+Create a fantasy Displacer Demon portrait: an unsettling supernatural demon with curved dark horns, angular face, glowing pale-violet eyes and a slightly distorted shifting silhouette, as though it can teleport or exchange places. Deep purple-black skin, restrained silver-gray accents, subtle violet atmospheric glow. Keep the face crisp and the displacement effect only at outer edges so the portrait remains readable at small size. No gore, text or dramatic full-body battle scene.
+```
+
+### Ghost
+
+Suggested source file: `assets/source/units/ghost.png`
+
+```text
+Create a fantasy Ghost portrait: spectral humanoid face and shoulders emerging from translucent pale blue-gray mist, haunting but not gruesome. An antique hood or remnants of old robes frame a clearly recognizable sorrowful face with softly luminous eyes. Restrained icy cyan, desaturated silver and smoke gray, with darker background contrast so the spirit remains visible at tiny token size. Keep the facial features sharply readable, not dissolved into abstract fog. No gore or text.
+```
+
+### Shaman
+
+Suggested source file: `assets/source/units/shaman.png`
+
+```text
+Create a fantasy Shaman portrait: a cunning, slightly sinister tribal spellcaster with a rugged weathered face, bone-and-wood ornaments, rough layered robes, and a crooked staff with charms beside one shoulder. Earthy olive, umber, ochre and muted turquoise details, confident intense eyes, and a distinct silhouette. Differ visually from the refined crystal-focused Geomancer and the blue-robed Wizard. Avoid face-obscuring masks, excessive skull clutter, gore and text.
+```
+
+### Locomotive
+
+Suggested source file: `assets/source/units/locomotive.png`
+
+```text
+Create a compact locomotive portrait illustration for a small circular tabletop unit token, matching the hand-painted material texture and overhead-game aesthetic of the existing fantasy board game portraits. A charming but heavy industrial steam locomotive front shown from a slightly elevated frontal three-quarter angle, with a sturdy smokestack, metal boiler nose, headlamp and dark iron wheels partly visible. Warm weathered steel, deep charcoal, brass accents, a touch of steam behind, and a simple muted backdrop. Center the locomotive body and keep its silhouette inside the circular crop-safe region. This is a vehicle portrait rather than an overhead terrain tile. No railway logos, text, labels, UI or token frame.
+```
+
 ## First batch — original terrain prompts
 
 ### Stone Floor 1
