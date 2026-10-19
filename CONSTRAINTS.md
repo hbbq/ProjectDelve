@@ -409,8 +409,11 @@ The initial terrain types are:
 | Tree | no | yes |
 | Water | no | no |
 | Lava | no | no |
+| Gravel | yes | no |
 | Stone floor | yes | no |
 | Stone floor with table | no | no |
+
+**Gravel** is an ordinary Terrain type with **Passable = yes** and **Blocks LOS = no**, identical to Stone Floor in its base mechanical properties. It has no special effects, directions, railway behavior, or additional movement rules. Gravel may be authored and occupied independently of Rail; any use of gravel artwork as Rail's visual base is presentation-only and does not change either Terrain type's rules.
 
 **Lava** is an additional Terrain type: **Passable = no**, **Blocks LOS = no**. A Lava Cell is a source of Coal at Round Start, but does not itself hold a Resource.
 
