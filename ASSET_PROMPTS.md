@@ -454,6 +454,52 @@ No produced diamond lying on the ground, no loose coal piles, no built-in resour
 - The Machine is a full-cell object; storage and Owner Side remain separate dynamic presentation elements.
 - Preserve original images under `assets/source/`. Let the artwork skill determine runtime dimensions and register canonical content IDs from the current repository; do not infer game content from filenames.
 
+## Racing and workshop artwork — Asphalt, Chief Mechanic, Banana Peel
+
+These are **generation prompts**, not game-rule definitions. Match the existing Project Delve hand-painted Premium Tabletop art direction. Generate several candidates and select the most suitable images at actual board scale.
+
+### Asphalt — base prompt (three variants)
+
+Use **one prompt** for 5–6 candidates; select three with similar brightness, texture scale and material character. Save selected square opaque originals as `assets/source/terrain/asphalt-01.png`, `asphalt-02.png`, `asphalt-03.png`. Asphalt is ordinary Terrain; do not paint a racetrack's lines, kerbs or arrows into the texture.
+
+```text
+Premium tabletop board game terrain artwork. Hand-painted top-down asphalt surface tile for a polished tactical board game with a cohesive fantasy-industrial aesthetic.
+
+Create a square, seamless-looking full-bleed patch of weathered dark gray asphalt viewed strictly from directly overhead. Fine compacted aggregate, restrained grain, tiny natural tonal irregularities and subtle wear. Medium-dark charcoal gray, but light enough for dark units, resource markers, selection highlights and track markings to remain readable. Even illumination with no strong central highlight or directional shadow.
+
+This is one ordinary board Cell's neutral ground material, not a road scene. Visually quiet, consistent scale, and suitable for placing many adjacent cells together with deterministic rotation. No road markings, painted lines, kerbs, tire tracks, cracks forming strong lines, puddles, debris, borders, internal grid, perspective, vehicles, text, symbols, UI or watermarks.
+```
+
+### Chief Mechanic — portrait
+
+Save chosen square original as `assets/source/units/chief-mechanic.png`. Use the **Shared portrait style** section above together with this subject prompt, and preferably attach an approved Worker portrait as a style reference.
+
+```text
+Create a fantasy-industrial Chief Mechanic portrait for a premium hand-painted tabletop board game. An experienced workshop foreman and master technician, confident and slightly stern, with a weathered expressive face, practical heavy leather work apron over sturdy dark clothes, brass-rimmed goggles resting on the forehead, sturdy gloves and a few carefully arranged tools visible at the shoulders. Subtle iron, copper and worn brass details suggest responsibility for a busy workshop and mechanical production line.
+
+Distinct from an ordinary Worker: more authoritative, seasoned and capable, but still a hands-on craftsperson rather than a noble or soldier. Warm browns, muted brass and dark slate accents, soft upper-left lighting, subdued background. Square 1:1 head-and-upper-torso composition with all important details in the central 75% for circular cropping; face legible at tiny token size.
+
+No text, numbers, logos, token frame, Side-colored ring, HP indicator, UI, watermarks or face-obscuring equipment.
+```
+
+### Banana Peel — Cell Marker
+
+This prompt records the original Banana Peel generation specification for reproducibility. If an approved source image already exists at `assets/source/markers/banana-peel.png`, **keep it**; do not regenerate merely because this prompt was added.
+
+```text
+Premium fantasy tabletop board game object artwork. Hand-painted digital illustration matching the established Project Delve visual style.
+
+Create a single discarded yellow banana peel, lying open on the ground, viewed strictly from directly overhead. Three or four curved peel sections spread outward from a small central point, forming a recognizable and slightly comical slipping hazard.
+
+Bright warm yellow with subtle brown spots, natural folds, soft painted highlights and restrained shadows. Strong recognizable silhouette, clearly identifiable as a banana peel even when displayed at approximately 32×32 pixels.
+
+Center the entire banana peel within a square 1:1 composition, occupying approximately 75–85% of the image. Leave transparent margins around it.
+
+Genuinely transparent alpha background. No ground, grass, stone floor, asphalt, plate, whole banana, characters, text, labels, borders, UI elements, logos or watermarks.
+
+Strict overhead view, not isometric or side perspective.
+```
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
