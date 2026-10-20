@@ -408,6 +408,7 @@ The initial terrain types are:
 | Grass | yes | no |
 | Asphalt | yes | no |
 | Tree | no | yes |
+| Fruit Tree | no | yes |
 | Water | no | no |
 | Lava | no | no |
 | Gravel | yes | no |
@@ -1135,7 +1136,7 @@ A Unit activation is driven by what the Unit has already done rather than by man
 
 A living Unit normally has:
 
-- one Move opportunity,
+- one Move opportunity (subject to Move opportunity modifiers),
 - one Action opportunity after its Move has been completed,
 - each applicable Bonus Action ability at most once during the activation, subject to that ability's own rules and remaining uses,
 - any applicable Free Actions, subject to their own rules and usage limits.
@@ -1471,15 +1472,31 @@ For ordinary Move decisions under Follow Route, evaluate existing legal destinat
 
 **Route Lookahead** is a reusable optional movement preference layered onto Follow Route, not a separate route state or Unit Type-specific pathfinder. When multiple legal Move destinations reach the current waypoint, choose the one with the shortest hypothetical traversable distance to the **next** waypoint area in the route's actual Once/Loop/Ping-pong sequence. If there is no next waypoint (terminal Once), use ordinary deterministic tie-breaking. Lookahead does not advance progress early, examine intermediate cells for waypoint completion, grant extra movement, or change legality. Route orders remain applicable to grouped Units such as Zombies and single-Unit groups such as a Unique Diamond Kart.
 
-### Diamond Kart and Place Banana Peel
+### Racing Resources, Diamond Kart, and racing abilities
 
-**Diamond Kart** is a canonical Unique Unit Type with `MOV 5, RNG 0, ATK 0, DEF 3, HP 4`, `CantAttack`, `ResourceStorage(Diamond, 1)`, and the normal Action **Place Banana Peel (Diamond cost 1)**. It uses Follow Route with Route Lookahead when assigned that Order; it does not own a special waypoint counter, racing movement phase, or separate route controller. It is not Indestructible. Its ordinary movement is restricted to Asphalt Cells through a reusable terrain-restricted movement capability; this restriction applies to ordinary voluntary movement and planning with that capability, not automatically to external forced relocation. Scenario setup must respect ordinary placement legality. No other Unit Type acquires an Asphalt restriction.
+**Banana**, **Mushroom**, and **Shell** are distinct Resource Types, separate from Diamond. **Banana** is a stored/loose Resource; **Banana Peel** is a Cell Marker created by an ability, not a Resource. The shared Unit Type + Side Resource Storage and existing transfer rules apply.
 
-**Place Banana Peel** consumes one Diamond from the acting Unit Type + Side's shared Resource Storage and places one Banana Peel Cell Marker on a chosen adjacent Cell (eight-neighbor adjacency, respecting the ordinary geometric LOS requirements for adjacent targeting). The target must be an existing passable Cell without a Unit, Machine, or Cell Marker; a loose Resource does not prevent placement. The target is **not** required to be Asphalt. Spending and placement are atomic: no Diamond is spent if placement is not legal. It uses the normal Action opportunity and existing Banana Peel arrival/consumption rules.
+**Diamond Kart** remains a canonical Unique Unit Type with `MOV 5, RNG 0, ATK 0, DEF 3, HP 4`, `CantAttack`, and Asphalt-restricted ordinary movement. Replace its former Diamond storage and Diamond-cost Place Banana Peel Action with `ResourceStorage(Banana, 1)`, `ResourceStorage(Mushroom, 1)`, `ResourceStorage(Shell, 1)`, **Place Banana Peel (Banana cost 1)** as a Bonus Action, **Boost (Mushroom cost 1)** as a Bonus Action, and **Shoot Shell (Shell cost 1, RNG 4, ATK 3)** as a normal Action. Its assigned Follow Route/Route Lookahead remains responsible for movement; no Kart-specific route state is introduced.
 
-**Prefer Banana Peel** is reusable automated Action behavior: if Place Banana Peel is legal, choose an Asphalt target if any are legal; among equally preferred targets choose one with greatest hypothetical traversable distance from the group's next waypoint area when a Follow Route Order is present, then canonical deterministic Cell ordering. Without a route or reachable waypoint-distance comparison, use deterministic Cell ordering. Otherwise use normal Action fallback. This behavior does not change human choices or grant Actions. The Diamond Kart's movement is governed by its Follow Route Order when present; without one, it follows existing normal decision rules.
+**Place Banana Peel** consumes one stored Banana and places a Banana Peel marker on a legal adjacent Cell using the existing placement restrictions (passable Cell, no Unit/Machine/Cell Marker; Resources allowed). Asphalt is not a legality requirement. The spending and placement are atomic. It is now a **Bonus Action** and therefore does not consume the normal Action opportunity. Automated Kart behavior uses it after all available Moves (including Boost-granted Moves) have been completed, whenever a legal placement exists. Prefer Asphalt targets and the previously specified route-distance/tie-breaking priorities; no tactical avoidance of friendly slips is required.
 
-The initial racing scenario is a **playtest**, not a new objective or lap-scoring system: an Asphalt circuit with a cyclic group route, Diamond Karts on opposing Sides, a central Lava source of Coal, and Diamond Press production outside the circuit. Workers must be able to cross the circuit to supply the presses and deliver Diamonds to their Side's Karts, creating ordinary occupancy and Banana Peel interactions. Exact layout, number of Workers, production balancing, waypoint rectangles and scenario objectives remain editable authored content. Waypoint rewards, race placement scoring, lap rewards, and new racing-specific victory rules are deferred.
+**Boost** consumes one stored Mushroom and grants **one additional Move opportunity during the current activation**. It is a Bonus Action, legal while the Unit is active and has not yet used any normal Action; it does not require the additional Move to be useful or have a non-Stay destination. It may be used even after an earlier Move has completed, reopening Move availability. Automated Kart behavior uses Boost as soon as legal, regardless of benefit. The extra Move obeys ordinary movement, terrain restriction, Banana Peel arrival and Follow Route progress rules.
+
+**Shoot Shell** consumes one stored Shell and performs a separate targeted attack effect with `RNG 4` and `ATK 3`, using the ordinary attack-range, LOS, hit/defense and damage resolution for a legal hostile Unit target. It is a normal Action and is legal only with a valid target and stored Shell. `CantAttack` prohibits the normal Attack Action but does not prohibit this explicit ability. The cost and attack resolution form one ability use. Automated Kart behavior selects the nearest legal hostile target, using deterministic existing distance/tie-breaking conventions; it does not reserve Shell for a more valuable target. Without a valid target, it keeps its Shell.
+
+**Move opportunities per activation:** A living Unit normally has one Move opportunity; rules may add or subtract opportunities, with an effective minimum of zero, analogously to existing Action opportunity modifiers. Track completed Moves against the currently effective number of available Moves. **All available Move opportunities must be completed (Move or Stay) before any normal Action becomes legal.** Bonus Actions and Free Actions retain their existing flexible timing and individual legality/use limits. An ability that adds a Move after an earlier Move has been completed makes that additional Move available; such a Move-granting ability is not legal after a normal Action has been used. End Turn requires all available Moves to be completed, as well as the existing mandatory-resolution conditions. Each completed ordinary Move can advance at most one Follow Route waypoint, including when it is an additional Move.
+
+**Kart automated choice priority:** Use Boost immediately when legal; choose available Moves according to Follow Route and Route Lookahead; once all Moves are completed, use Place Banana Peel when legal; use Shoot Shell at the normal Action opportunity when a legal target exists. Existing generic action/bonus legality and Do Nothing behavior remain authoritative; human controllers may choose other legal timings/targets.
+
+### Racing Slot Machine and Fruit Tree
+
+**Fruit** is a Resource Type, represented thematically by cherries; the name does not specify a botanical species. **Fruit Tree** is Terrain with the same base properties as Tree: `Passable = no`, `Blocks LOS = yes`. At Round Start, each Fruit Tree generates Fruit using the **same two d8 attempts, directional numbering, Cell eligibility, LOS, resolution ordering and timing as Lava generating Coal**, substituting Fruit for Coal. Fruit Tree and Lava are independent sources and do not alter each other's rules.
+
+The reusable **Racing Slot Table (d6)** yields: **1–3 Banana; 4–5 Mushroom; 6 Shell**. Roll once per award/operation; if the selected output cannot be stored or placed, do not reroll or substitute another result.
+
+**Waypoint Slot Machine** is a Kart automatic end-of-activation reward: if that Kart's own completed Move advanced its group's Follow Route waypoint at least once during this activation, roll once on the Racing Slot Table at the end of its activation and attempt to add one resulting Resource to its shared Unit Type + Side storage. If that Resource's capacity is already full, nothing is added. The award cannot be spent earlier in that same activation. Merely benefiting from another group member's route advance does not qualify the Kart. Multiple waypoint advances in one activation still grant only one roll.
+
+**Slot Machine** is a fixed Machine with `ResourceStorage(Fruit, 3)`. Its Operate action consumes three stored Fruit and produces one Resource selected by the same Racing Slot Table, on the operating Worker's Cell under the existing Machine output placement rules. It uses the existing Machine ownership, Give Resource and Operate mechanisms. A failed output placement does not consume input under the normal atomic operation requirements.
 
 ### Chief Mechanic and Prefer Summon Worker Behavior
 
@@ -1644,7 +1661,7 @@ World Effects may modify effective `ATK`, `DEF`, `MOV`, Actions per activation, 
 
 Stat modifiers do not grant capabilities that a Unit does not otherwise have. In particular, effective `ATK 0` prevents a Unit from making a normal Attack, while effective `ATK > 0` does not itself grant a normal Attack or override a rule such as `CantAttack`.
 
-A Unit normally has one Action opportunity per ordinary activation. An Action modifier changes that number. If a Unit has more than one Action opportunity, it may use the same Action more than once unless that Action has another restriction. Each use resolves completely before another Action is performed.
+A Unit normally has one Move opportunity per ordinary activation; Move opportunity modifiers change that number without reducing it below zero. All effective Move opportunities must be completed before normal Actions are legal, as specified under Racing Resources and Diamond Kart. A Unit normally has one Action opportunity per ordinary activation. An Action modifier changes that number. If a Unit has more than one Action opportunity, it may use the same Action more than once unless that Action has another restriction. Each use resolves completely before another Action is performed.
 
 Each unique Bonus Action may normally be used at most once per activation. A Bonus Action use modifier changes that per-unique-Ability limit for every Bonus Action. This does not replenish or bypass a limited-use Ability's remaining uses: every performance still spends a use normally when applicable.
 
