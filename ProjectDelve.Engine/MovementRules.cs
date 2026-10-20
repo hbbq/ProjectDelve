@@ -4,14 +4,16 @@ namespace ProjectDelve.Engine;
 
 // Shared terrain/edge traversal parameters. Occupancy and stopping legality stay separate.
 internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = false,
-    bool ClosedDoorsTraversable = false)
+    bool ClosedDoorsTraversable = false, TerrainKind? RequiredTerrain = null)
 {
     internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
         new(state.IsUpright(unitId) &&
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).Phase is not null,
-            closedDoorsTraversable);
+            closedDoorsTraversable,
+            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain);
 
-    internal bool CanTraverse(TerrainKind terrain) => IgnoreTerrainAndEdges || terrain.Passable();
+    internal bool CanTraverse(TerrainKind terrain) => (!RequiredTerrain.HasValue || terrain == RequiredTerrain) &&
+        (IgnoreTerrainAndEdges || terrain.Passable());
     internal bool CanTraverse(EdgeKind edge) => IgnoreTerrainAndEdges || edge.Passable() ||
         ClosedDoorsTraversable && edge == EdgeKind.ClosedDoor;
 }

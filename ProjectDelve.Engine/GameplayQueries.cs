@@ -4,6 +4,8 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    TerrainKind TerrainAt(Cell cell) => throw new NotSupportedException();
+    int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false) => throw new NotSupportedException();
     int StoredQuantityFor(string unitId, ResourceType resource) => throw new NotSupportedException();
     IReadOnlyList<Resource> Resources => throw new NotSupportedException();
     bool CanTransportResource(string unitId) => throw new NotSupportedException();
@@ -70,6 +72,17 @@ public interface IGameplayQueries
 
 internal sealed class GameplayQueries : IGameplayQueries
 {
+    public TerrainKind TerrainAt(Cell cell) => world.Physical.Board.TerrainAt(cell);
+    public int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        var footprint = FootprintGeometry.FootprintOf(world, unitId);
+        var distances = ApproachRules.Distances(world.Physical.Board, position,
+            traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint: footprint);
+        return distances.Where(p => FootprintGeometry.OccupiedCells(footprint, p.Key)
+                .Any(c => RouteRules.Contains(area, c)))
+            .Select(p => (int?)p.Value).Min();
+    }
     private readonly GameState world;
 
     // Keep a detached decision-time snapshot; expose no mutable world data.

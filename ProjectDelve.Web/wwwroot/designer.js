@@ -414,7 +414,27 @@ export function mountDesigner(catalog, request, playDesign) {
         return () => ({ x: Number(x.value), y: Number(y.value) });
       };
       readDetails = () => ({});
-      if (kind.value === "MoveTo") {
+      if (kind.value === "FollowRoute") {
+        const route = saved?.route;
+        const mode = field(details, "Route mode", route?.mode ?? "Once", { entries: ["Once", "Loop", "PingPong"] });
+        const current = field(details, "Current waypoint index (0-based)", route?.currentIndex ?? 0, { type: "number" });
+        const direction = field(details, "Ping-pong direction", String(route?.direction ?? 1), { entries: ["1", "-1"] });
+        const rows = element("div"); details.append(rows);
+        const readers = [];
+        const addWaypoint = area => {
+          const row = element("div"); row.className = "designer-property-form"; rows.append(row);
+          const fields = ["x", "y", "w", "h"].map(key => field(row, `Waypoint ${readers.length + 1} ${key.toUpperCase()}`,
+            area?.[key] ?? (key === "w" || key === "h" ? 1 : 0), { type: "number" }));
+          let removed = false;
+          const remove = element("button", "Remove waypoint"); remove.type = "button";
+          remove.addEventListener("click", () => { removed = true; row.remove(); }); row.append(remove);
+          readers.push(() => removed ? null : Object.fromEntries(["x", "y", "w", "h"].map((key, i) => [key, Number(fields[i].value)])));
+        };
+        (route?.waypoints ?? [{ x: 0, y: 0, w: 1, h: 1 }]).forEach(addWaypoint);
+        const add = element("button", "Add waypoint"); add.type = "button"; add.addEventListener("click", () => addWaypoint()); details.append(add);
+        readDetails = () => ({ route: { mode: mode.value, currentIndex: Number(current.value),
+          direction: mode.value === "PingPong" ? Number(direction.value) : 1, waypoints: readers.map(read => read()).filter(Boolean) } });
+      } else if (kind.value === "MoveTo") {
         const destination = cellFields("Destination", saved?.destination);
         readDetails = () => ({ destination: destination() });
       } else if (["Attack", "Protect"].includes(kind.value)) {

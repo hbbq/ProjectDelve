@@ -2330,7 +2330,7 @@ test("portrait assets use the content catalog and retain fallback on image failu
   assert.equal(h.figure("actor").children.find(n => n.className === "token-nameplate").textContent, "Custom Type");
 });
 
-for (const name of ["barbarian", "zombie", "worker", "chief-mechanic", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
+for (const name of ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
   "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
   const initial = response();
   initial.result.state.types[0].id = `${name}-type`;
@@ -2547,4 +2547,33 @@ for (const view of ["classic", "enhanced"]) test(`Asphalt retains Cell choices a
   assert.equal(cell.style["--visual-rotation"], rotation);
   h.run('chooseCandidate = key => submitted.push(key)');
   await click(cell); assert.equal(h.submitted.at(-1), "asphalt-choice");
+});
+
+for (const mode of ["animate", "disabled", "skip"]) test(`route playback uses supplied shared progress and atomic Peel snapshots (${mode})`, async () => {
+  const initial = response();
+  const order = { token: { typeId: "opaque-type", sideId: "same" }, kind: "FollowRoute", route: {
+    mode: "PingPong", currentIndex: 0, direction: 1, waypoints: [{ x: 1, y: 0, w: 2, h: 1 }, { x: 0, y: 1, w: 2, h: 1 }] } };
+  initial.presentation.orders = [order];
+  initial.result.state.orders = [order];
+  const advanced = structuredClone(initial.result.state);
+  advanced.orders[0].route.currentIndex = 1; advanced.orders[0].route.direction = -1;
+  const placed = structuredClone(advanced);
+  placed.cellMarkers = [{ type: { id: "banana-peel", name: "Banana Peel" }, position: { x: 1, y: 0 } }];
+  const final = structuredClone(initial); final.result.state = placed; final.presentation.orders = placed.orders;
+  final.result.events = [{ kind: "RouteAdvanced", unitId: "actor" }, { kind: "ResourceSpent", unitId: "actor" },
+    { kind: "CellMarkerPlaced", unitId: "actor", cell: { x: 1, y: 0 } }];
+  final.presentation.events = final.result.events.map(e => ({ role: "Notice", text: e.kind, unitId: "actor" }));
+  const states = [advanced, placed, placed];
+  final.result.resolutionSteps = states.map((stateAfter, eventIndex) => ({ stateAfter, eventIndex }));
+  final.presentation.resolutionSteps = states.map((state, eventIndex) => ({ eventIndex, cards: final.presentation.cards, orders: state.orders }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  assert.match(h.elements.get("unit-card").textContent, /Follow Route.*Ping-pong.*waypoint 1\/2/);
+  const shown = []; h.context.shown = shown;
+  h.run(`ui.animate.checked = ${mode !== 'disabled'}; pause = async () => {};
+    const originalRender = renderState; renderState = (...args) => { originalRender(...args);
+      shown.push({ order: ui.orders.textContent, markers: cells.get("1,0").querySelectorAll(".cell-marker").length }); };
+    const originalPresent = present; present = async event => { if (${mode === 'skip'}) skipEffects = true; await originalPresent(event); };`);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.match(shown[0].order, /waypoint 2\/2.*←/); assert.equal(shown[0].markers, 0);
+  assert.equal(shown[1].markers, 1); assert.equal(shown[2].markers, 1);
 });

@@ -35,4 +35,4 @@ public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor
     Posture Posture = Posture.Upright, int? InitialHp = null, string? UnitId = null);
 public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller);
 public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null,
-    OrderTarget? Target = null);
+    OrderTarget? Target = null, FollowRoute? Route = null);

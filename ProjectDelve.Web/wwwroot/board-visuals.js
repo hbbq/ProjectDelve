@@ -44,6 +44,7 @@ export const boardVisuals = {
     "zombie-type": { image: "./art/units/zombie.webp" },
     "worker-type": { image: "./art/units/worker.webp" },
     "chief-mechanic-type": { image: "./art/units/chief-mechanic.webp" },
+    "diamond-kart-type": { image: "./art/units/diamond-kart.webp" },
     "geomancer-type": { image: "./art/units/geomancer.webp" },
     "wizard-type": { image: "./art/units/wizard.webp" },
     "rogue-type": { image: "./art/units/rogue.webp" },

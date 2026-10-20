@@ -54,6 +54,17 @@ public static class UnitAuthoring
     public static Entry GiveResource() => new GiveEntry();
     public static Entry SummonWorker(int sideLimit) => new WorkerSummonEntry(new(sideLimit));
     public static Entry SummonTroll(int diamondCost) => new TrollSummonEntry(new(diamondCost));
+    public static Entry PlaceBananaPeel(int diamondCost) => new BananaEntry(new(diamondCost));
+    public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
+    private sealed class BananaEntry(PlaceBananaPeel ability) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with
+            { PlaceBananaPeel = ability, Actions = type.Actions | UnitAction.PlaceBananaPeel };
+    }
+    private sealed class TerrainMovementEntry(TerrainRestrictedMovement capability) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { TerrainRestrictedMovement = capability };
+    }
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();

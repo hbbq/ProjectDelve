@@ -18,6 +18,12 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType DiamondKart(string id = UnitTypeIds.DiamondKart) => UnitType.Define(
+        id, "Diamond Kart", Stats(5, 0, 0, 3, 4), Unique(), CantAttack(),
+        ResourceStorage(ResourceTypes.Diamond, 1), PlaceBananaPeel(diamondCost: 1),
+        TerrainRestrictedMovement(TerrainKind.Asphalt)
+    ).WithBehaviors(UnitBehavior.RouteLookahead, UnitBehavior.PreferBananaPeel);
+
     public static UnitType ChiefMechanic(string id = UnitTypeIds.ChiefMechanic) => UnitType.Define(
         id, "Chief Mechanic", Stats(3, 0, 0, 4, 3),
         Unique(), CantAttack(), TransportResource(), GiveResource(), Operate(), SummonWorker(sideLimit: 3)

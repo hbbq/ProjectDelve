@@ -256,6 +256,15 @@ public static class BrowserProjection
             case "CellMarkerConsumed":
                 description = $"{e.UnitId}: consumed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
                 break;
+            case "CellMarkerPlaced":
+                description = $"{e.UnitId}: placed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                break;
+            case "RouteAdvanced":
+                description = $"{e.UnitId}: advanced the group's route waypoint";
+                break;
+            case "RouteCompleted":
+                description = $"{e.UnitId}: completed the group's route";
+                break;
             case "ResourceCreated":
                 description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
                 break;
@@ -266,7 +275,7 @@ public static class BrowserProjection
                 description = $"{e.UnitId}: {e.ResourceType?.Name} stored in {e.MachineId} ({e.StoredQuantity} stored)";
                 break;
             case "ResourceSpent":
-                description = $"{e.UnitId}: spent {e.ResourceType?.Name} for Summon Troll ({e.StoredQuantity} stored)";
+                description = $"{e.UnitId}: spent {e.ResourceType?.Name} for {actionName} ({e.StoredQuantity} stored)";
                 break;
             case "ResourceStored":
                 description = $"{e.UnitId}: {e.ResourceType?.Name} from {e.Cell?.X},{e.Cell?.Y} stored for {e.SideId} / {e.TypeId} ({e.StoredQuantity} stored)";

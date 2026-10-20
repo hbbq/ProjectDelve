@@ -24,7 +24,7 @@ const catalog = {
   railDirections: ["North", "East", "South", "West"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
   postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
-  orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith"]
+  orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith", "FollowRoute"]
 };
 
 // Extends the existing playtest's small DOM approach with delegated pointer events and forms.
@@ -201,6 +201,33 @@ test("editing or removing a group carries or removes its starting Order", () => 
   h.editor.render(); const form = h.editor.ui.agency.children[0]; inputField(form, "SideId").value = "B"; h.submit(form);
   assert.deepEqual(plain(draft.definition.orders), [{ unitTypeId: "goblin-type", sideId: "B", kind: "HoldPosition" }]);
   draft.removeAgency(0); assert.equal(draft.definition.orders, undefined);
+});
+
+test("route editor authors ordered rectangles, mode and shared progress and roundtrips through export/play", async () => {
+  const submitted = [], h = harness(async (operation, body) => {
+    submitted.push(plain(body)); return operation === "validate" ? { valid: true, errors: [] } : { transport: "DELVE1:route" };
+  });
+  const draft = h.editor.draft;
+  draft.setAgency("goblin-type", "A", "Automated"); h.editor.render();
+  let form = h.editor.ui.agency.children[0];
+  const kind = inputField(form, "Starting Order"); kind.value = "FollowRoute"; kind.listeners.change();
+  inputField(form, "Route mode").value = "PingPong";
+  inputField(form, "Current waypoint index (0-based)").value = "1";
+  inputField(form, "Ping-pong direction").value = "-1";
+  inputField(form, "Waypoint 1 X").value = "2"; inputField(form, "Waypoint 1 W").value = "3";
+  form.querySelectorAll("button").find(b => b.textContent === "Add waypoint").listeners.click();
+  inputField(form, "Waypoint 2 Y").value = "4"; inputField(form, "Waypoint 2 H").value = "2";
+  h.submit(form);
+  const expected = { unitTypeId: "goblin-type", sideId: "A", kind: "FollowRoute", route: {
+    mode: "PingPong", currentIndex: 1, direction: -1, waypoints: [{ x: 2, y: 0, w: 3, h: 1 }, { x: 0, y: 4, w: 1, h: 2 }] } };
+  assert.deepEqual(plain(draft.definition.orders[0]), expected);
+  form = h.editor.ui.agency.children[0]; h.submit(form);
+  assert.deepEqual(plain(draft.definition.orders[0]), expected);
+  await h.click("validate"); await h.click("export"); await h.click("play");
+  for (const body of submitted) assert.deepEqual(body.orders, [expected]);
+  form = h.editor.ui.agency.children[0];
+  form.querySelectorAll("button").find(b => b.textContent === "Remove waypoint").listeners.click(); h.submit(form);
+  assert.equal(draft.definition.orders[0].route.waypoints.length, 1);
 });
 
 test("imported Orders and IDs survive unrelated editing, validation, export and play", async () => {

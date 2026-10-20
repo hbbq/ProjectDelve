@@ -169,11 +169,11 @@ internal static class ScenarioCreation
         {
             var order = orders[index];
             var runtimeOrder = new GroupOrder(new(order.UnitTypeId, order.SideId), order.Kind,
-                order.Destination, order.Target);
+                order.Destination, order.Target, order.Route);
             if (!OrderValidation.IsValidAssignment(runtimeOrder, state))
                 throw ScenarioValidationContext.At(new ArgumentException(
                     "Invalid Order kind, target, destination, or target relationship.", nameof(definition)), $"orders[{index}]");
-            state.AssignOrder(runtimeOrder.Token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target);
+            state.AssignOrder(runtimeOrder.Token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target, runtimeOrder.Route);
         }
         ValidateObjectiveSelections(state, definition);
         GameEngine.CaptureObjectiveStartUnits(state);

@@ -25,7 +25,7 @@ public sealed record SideObjective(string SideId, ScenarioObjective Objective = 
 public sealed record GameCompletion(ImmutableArray<string> AchievedSideIds);
 
 public sealed record ActivationToken(string TypeId, string SideId);
-public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo, Attack, Protect, Retreat, InteractWith }
+public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo, Attack, Protect, Retreat, InteractWith, FollowRoute }
 public enum OrderTargetKind { Unit, Group, Side, Door }
 public sealed record DoorTarget(Cell A, Cell B)
 {
@@ -47,7 +47,7 @@ public sealed record OrderTarget(OrderTargetKind Kind, string? UnitId = null, Ac
     public static OrderTarget ForDoor(Cell a, Cell b) => new(OrderTargetKind.Door, Door: DoorTarget.Canonical(a, b));
 }
 public sealed record GroupOrder(ActivationToken Token, OrderKind Kind, Cell? Destination = null,
-    OrderTarget? Target = null);
+    OrderTarget? Target = null, FollowRoute? Route = null);
 public enum ControllerKind { Human, Automated }
 public sealed record ControllerAssignment(ActivationToken Token, ControllerKind Controller);
 public enum DiceFamily { Attack, Defence, D6 }
@@ -81,7 +81,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, SummonWorker = 2048, SummonTroll = 4096 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, SummonWorker = 2048, SummonTroll = 4096, PlaceBananaPeel = 8192 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -100,7 +100,9 @@ public enum UnitBehavior
     Worker = 1024,
     SeekDiamond = 2048,
     PreferTrollThenDiamondThenWorker = 4096,
-    PreferSummonWorker = 8192
+    PreferSummonWorker = 8192,
+    RouteLookahead = 16384,
+    PreferBananaPeel = 32768
 }
 public sealed record ReshapeRoom;
 public sealed record Swap;
@@ -109,6 +111,8 @@ public sealed record Displace(int MaxMove);
 public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
 public sealed record SummonWorker(int SideLimit);
 public sealed record SummonTroll(int DiamondCost);
+public sealed record PlaceBananaPeel(int DiamondCost);
+public sealed record TerrainRestrictedMovement(TerrainKind Terrain);
 public sealed record Telekinesis;
 // Presentation only: fixed mechanic/counter identities never depend on these names.
 public sealed record AbilityPresentationNames
@@ -208,6 +212,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public SummonAdjacent? SummonAdjacent { get; init; }
     public SummonWorker? SummonWorker { get; init; }
     public SummonTroll? SummonTroll { get; init; }
+    public PlaceBananaPeel? PlaceBananaPeel { get; init; }
+    public TerrainRestrictedMovement? TerrainRestrictedMovement { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
@@ -373,7 +379,9 @@ public sealed class GameState
         if (!CanPlaceUnitType(type, sideId))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
         if (Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
-            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell))
+            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell) ||
+            type.TerrainRestrictedMovement is { } restriction && FootprintGeometry.OccupiedCells(type.Footprint, cell)
+                .Any(c => Physical.Board.TerrainAt(c) != restriction.Terrain))
             throw new ArgumentException("Invalid Unit placement.");
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
         Units.Add(type.CreateUnit(id, sideId));
@@ -397,12 +405,12 @@ public sealed class GameState
     public List<GroupOrder> Orders { get; set; } = [];
     public GroupOrder OrderFor(ActivationToken token) =>
         Orders.SingleOrDefault(order => order.Token == token) ?? new(token, OrderKind.Normal);
-    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null, OrderTarget? target = null)
+    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null, OrderTarget? target = null, FollowRoute? route = null)
     {
         ArgumentNullException.ThrowIfNull(token);
         if (!Controllers.Any(assignment => assignment.Token == token))
             throw new ArgumentException("The Order group is not part of the game.", nameof(token));
-        var order = new GroupOrder(token, kind, destination, target);
+        var order = new GroupOrder(token, kind, destination, target, route);
         if (!OrderValidation.IsValidAssignment(order, this))
             throw new ArgumentException("Invalid Order kind, destination, target, or target relationship.", nameof(kind));
         Orders.RemoveAll(order => order.Token == token);

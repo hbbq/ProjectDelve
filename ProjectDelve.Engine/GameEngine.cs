@@ -259,6 +259,7 @@ public static partial class GameEngine
                 else state.MoveDone = true;
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
+                if (!request.IsMoveAfterAttack) RouteRules.CompleteMove(state, request.UnitId!, events.Add);
                 if (path.Count > 1) ResolveArrival(state, request.UnitId!, events);
                 break;
             case DecisionKind.Activation:
@@ -274,6 +275,10 @@ public static partial class GameEngine
                     }
                     else switch (action.Action)
                     {
+                        case UnitAction.PlaceBananaPeel:
+                            EmitActionUsed(request, choice!, events);
+                            BananaPlacementRules.Resolve(state, request.UnitId!, action, events.Add);
+                            break;
                         case UnitAction.Operate:
                             EmitActionUsed(request, choice!, events);
                             events.Add(MachineRules.Resolve(state, request.UnitId!, action));
@@ -477,6 +482,7 @@ public static partial class GameEngine
         candidates.AddRange(ResourceRules.Candidates(state, unit));
         candidates.AddRange(MachineRules.Candidates(state, unit));
         candidates.AddRange(SummoningRules.Candidates(state, unit));
+        candidates.AddRange(BananaPlacementRules.Candidates(state, unit));
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
                 .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
@@ -989,6 +995,9 @@ public static partial class GameEngine
                 (t.Actions.HasFlag(UnitAction.SummonWorker) && t.SummonWorker is null) ||
                 (t.Actions.HasFlag(UnitAction.SummonTroll) && t.SummonTroll is null) ||
                 t.SummonWorker is { SideLimit: < 1 } || t.SummonTroll is { DiamondCost: < 1 } ||
+                t.PlaceBananaPeel is { DiamondCost: < 1 } ||
+                (t.Actions.HasFlag(UnitAction.PlaceBananaPeel) && t.PlaceBananaPeel is null) ||
+                (t.TerrainRestrictedMovement is { } restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
                 (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
                 (t.Actions.HasFlag(UnitAction.ClawAttack) && t.ClawAttack is null) ||
                 (t.SummonAdjacent is { } summon && (string.IsNullOrWhiteSpace(summon.UnitTypeId) ||

@@ -3,7 +3,9 @@ namespace ProjectDelve.Engine;
 internal static class OrderValidation
 {
     internal static bool IsStructurallyValid(GroupOrder order, Board board) =>
-        order is not null && IsStructurallyValid(order.Kind, order.Destination, order.Target, board);
+        order is not null && (order.Kind == OrderKind.FollowRoute
+            ? order.Destination is null && order.Target is null && RouteRules.IsValid(order.Route, board)
+            : order.Route is null && IsStructurallyValid(order.Kind, order.Destination, order.Target, board));
 
     internal static bool IsStructurallyValid(OrderKind kind, Cell? destination, OrderTarget? target, Board board)
     {

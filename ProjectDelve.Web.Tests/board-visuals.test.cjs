@@ -8,7 +8,7 @@ const catalog = () => { const context = vm.createContext({}); vm.runInContext(sc
 
 test("artwork catalog resolves registered local files while other content retains fallbacks", () => {
   const run = catalog();
-  const names = ["barbarian", "zombie", "worker", "chief-mechanic", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
+  const names = ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
     "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive"];
   const expected = names.map(name => `./art/units/${name}.webp`);
   const portraits = JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => boardVisuals.unit[name + "-type"].image))`));

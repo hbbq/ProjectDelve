@@ -16,6 +16,12 @@ public static class ContentDescriptions
     {
         List<CardEntryDescription> entries = [];
         var names = type.AbilityNames;
+        if (type.TerrainRestrictedMovement is { } restriction)
+            entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
+                $"Ordinary Moves may only enter {restriction.Terrain} Cells."));
+        if (type.Actions.HasFlag(UnitAction.PlaceBananaPeel) && type.PlaceBananaPeel is { } banana)
+            entries.Add(new("place-banana-peel", "Place Banana Peel", "Action",
+                $"Spend {banana.DiamondCost} Diamond from this Unit's shared Resource Storage to place a Banana Peel in an adjacent passable Cell with no Unit, Machine or Cell Marker. Loose Resources may remain there."));
         if (type.RunRails is { } rails)
             entries.Add(new("run-rails", $"Run Rails ({rails.Steps})", "Automatic",
                 $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place."));
@@ -117,6 +123,7 @@ public static class ContentDescriptions
         { Action: UnitAction.SummonAdjacent } => "spawn-goblin",
         { Action: UnitAction.SummonWorker } => "summon-worker",
         { Action: UnitAction.SummonTroll } => "summon-troll",
+        { Action: UnitAction.PlaceBananaPeel } => "place-banana-peel",
         _ => null
     };
 

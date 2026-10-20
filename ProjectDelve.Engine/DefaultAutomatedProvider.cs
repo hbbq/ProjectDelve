@@ -173,6 +173,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string? SelectAction(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        if (BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;
         if (PreferredWorkerSummon(request, queries) is { } summon) return summon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
             return WorkerBehavior.Choose(request, queries);

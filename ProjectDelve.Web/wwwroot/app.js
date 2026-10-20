@@ -1065,6 +1065,7 @@ function orderLabel(order, state) {
     : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
     : null;
   return order.kind === "DoNothing" ? "Do Nothing"
+    : order.kind === "FollowRoute" ? `Follow Route · ${order.route.mode === "PingPong" ? "Ping-pong" : order.route.mode} · waypoint ${order.route.currentIndex + 1}/${order.route.waypoints.length}${order.route.mode === "PingPong" ? (order.route.direction === 1 ? " →" : " ←") : ""}`
     : order.kind === "HoldPosition" ? "Hold Position"
     : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
     : order.kind === "InteractWith" ? `Interact With · ${targetLabel}`

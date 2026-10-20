@@ -23,7 +23,7 @@ EDGE_CROPS = {
 }
 ASSETS = [
     *[(f"units/{name}.png", f"units/{name}.webp", 512)
-      for name in ("barbarian", "zombie", "worker", "chief-mechanic", "geomancer",
+      for name in ("barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer",
                    "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
                    "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
                    "labyrinth-shaper", "red-dragon", "locomotive")],
