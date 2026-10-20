@@ -427,6 +427,18 @@ There is no separate terrain-level distinction between being passable and being 
 
 Terrain tiles currently fall into two broad physical categories.
 
+### Cell Markers and Banana Peel
+
+A **Cell Marker** is an individually typed marker attached to one Board Cell. It is neither Terrain, a Resource, a Unit nor a Machine. Cell Markers do not replace the Cell's Terrain and do not intrinsically change Line of Sight. The initial marker type is **Banana Peel**. Under the initial rules, a Cell holds at most one Cell Marker; additional marker types and stacking behavior are deferred.
+
+A Banana Peel can occupy an otherwise passable Cell, including one holding a loose Resource, but not a Cell occupied by a Unit or Machine when newly placed. Its presence does not block Line of Sight or change the Cell's underlying Terrain passability. A Banana Peel Cell is a legal **movement destination** but may not be traversed as an intermediate Cell on an ordinary movement path. This restriction is applied when determining legal paths/destinations, including automated behavior's ordinary movement choices; behavior does not need to evaluate or anticipate slipping.
+
+**Arrival trigger:** Whenever a Unit actually arrives on a Banana Peel Cell through an ordinary Move or an effect that relocates/places the Unit, immediately remove that Banana Peel, set the arriving Unit's Posture to **Lying**, and end that Unit's remaining activation if it is currently activating. The trigger is caused by arrival, not merely by starting an activation already on a marker. Emit authoritative state/presentation events for consumption and Posture changes. The marker is consumed once, before further arrival consequences can re-trigger it.
+
+An ordinary Move remains **atomic**: path validation prevents crossing a Banana Peel Cell as an intermediate Cell, then the trigger resolves after arrival at its destination. A special sequence of individually resolved relocations, including **Run Rails**, resolves arrival after **each** successful step. If a Locomotive arrives on a Banana Peel at step 2 of Run Rails (4), it becomes Lying and the remaining rail steps and activation cease. External placement/relocation triggers the same slip; if no activation is currently underway for that Unit, it does not retroactively cancel another Unit's activation.
+
+Banana Peels are not inherently restricted to Asphalt or any other specific passable Terrain. Placement by an ability must require an existing passable Cell with no Unit, Machine or existing Cell Marker; loose Resources do not prevent placement. An ability may impose further target requirements, but an automated Unit's preference for Asphalt is a **Behavior choice**, not a general Banana Peel rule.
+
 ### Directional railway terrain and Locomotive
 
 **Rail** is passable terrain that does not block Line of Sight, and has one authored outgoing orthogonal direction (North, East, South or West). Ordinary Units may enter, cross, and occupy Rail Cells under their usual rules. Rail direction has no effect on their ordinary movement.
