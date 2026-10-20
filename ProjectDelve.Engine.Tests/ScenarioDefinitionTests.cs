@@ -298,7 +298,7 @@ public sealed class ScenarioDefinitionTests
     }
 
     [Fact]
-    public void FootprintOverlapAndGlobalUniqueAreRejectedAcrossSidesAndPostures()
+    public void FootprintOverlapAndSameSideUniqueAreRejectedAcrossPostures()
     {
         Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(Define(Map(5, 5), [
             Group(UnitTypeIds.RedDragon, "amber", ControllerKind.Human, At(1, 1)),
@@ -306,7 +306,7 @@ public sealed class ScenarioDefinitionTests
         ])));
         Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(Define(Map(5, 5), [
             Group(UnitTypeIds.Barbarian, "amber", ControllerKind.Human, At(0, 0)),
-            Group(UnitTypeIds.Barbarian, "violet", ControllerKind.Automated, At(3, 3, Posture.Lying))
+            Group(UnitTypeIds.Barbarian, "amber", ControllerKind.Human, At(3, 3, Posture.Lying))
         ])));
         // Phase affects traversal, never initial stopping legality.
         Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(Define(Map(3, 3, cells: [Tile(0, 0, TerrainKind.Tree)]), [

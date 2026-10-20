@@ -2330,7 +2330,7 @@ test("portrait assets use the content catalog and retain fallback on image failu
   assert.equal(h.figure("actor").children.find(n => n.className === "token-nameplate").textContent, "Custom Type");
 });
 
-for (const name of ["barbarian", "zombie", "worker", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
+for (const name of ["barbarian", "zombie", "worker", "chief-mechanic", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
   "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
   const initial = response();
   initial.result.state.types[0].id = `${name}-type`;
@@ -2488,4 +2488,22 @@ for (const mode of ["animate", "disabled", "skip"]) test(`Banana Peel playback p
     const originalPresent = present; present = async event => { if (${mode === 'skip'}) skipEffects = true; await originalPresent(event); };`);
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.deepEqual(JSON.parse(JSON.stringify(shown.slice(0, 3))), [{ marker: 1, lying: false }, { marker: 0, lying: false }, { marker: 0, lying: true }]);
+});
+
+for (const view of ["classic", "enhanced"]) test(`Asphalt retains Cell choices and stable decoration (${view})`, async () => {
+  const initial = response([choice("asphalt-choice", "Position", {position:{x:1,y:0}})]);
+  initial.result.state.physical.board.terrain = [{kind:"Asphalt",position:{x:1,y:0}}];
+  initial.visualSeed = "asphalt-fixture";
+  const h = harness(initial);
+  h.elements.get("board-view").value = view; h.elements.get("board-view").listeners.change();
+  const cell = h.run('cells.get("1,0")');
+  assert.ok(cell.classList.contains("Asphalt"));
+  assert.match(cell.textContent, /Asphalt/);
+  assert.match(cell.style["--visual-image"], /terrain\/asphalt\/0[123]\.webp/);
+  const image = cell.style["--visual-image"], rotation = cell.style["--visual-rotation"];
+  h.run('renderSnapshot()');
+  assert.equal(cell.style["--visual-image"], image);
+  assert.equal(cell.style["--visual-rotation"], rotation);
+  h.run('chooseCandidate = key => submitted.push(key)');
+  await click(cell); assert.equal(h.submitted.at(-1), "asphalt-choice");
 });

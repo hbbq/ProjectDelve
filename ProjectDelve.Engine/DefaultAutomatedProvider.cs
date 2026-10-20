@@ -2,6 +2,13 @@ namespace ProjectDelve.Engine;
 
 public sealed class DefaultAutomatedProvider : IDecisionProvider
 {
+    private static string? PreferredWorkerSummon(DecisionRequest request, IGameplayQueries queries) =>
+        queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferSummonWorker)
+            ? request.Candidates.Where(c => c.Action == UnitAction.SummonWorker)
+                .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
+                .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault()?.Key
+            : null;
+
     public string? Choose(DecisionRequest request, IGameplayQueries queries) => request.Kind switch
     {
         DecisionKind.RollDice => request.Candidates.Single().Key,
@@ -16,6 +23,8 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
+            PreferredWorkerSummon(request, queries) is { } summon) return summon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
             return WorkerBehavior.Choose(request, queries)!;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferReshapeRoom) &&
@@ -164,6 +173,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string? SelectAction(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        if (PreferredWorkerSummon(request, queries) is { } summon) return summon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
             return WorkerBehavior.Choose(request, queries);
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferTrollThenDiamondThenWorker))

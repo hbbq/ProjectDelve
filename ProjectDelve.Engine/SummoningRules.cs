@@ -22,7 +22,7 @@ public static class SummoningRules
             if (action == UnitAction.SummonTroll && state.StoredQuantity(unit.SideId, unit.TypeId,
                     ResourceTypes.Diamond.Id) < type.SummonTroll!.DiamondCost) continue;
             if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
-                !state.CanPlaceUnitType(summonedType)) continue;
+                !state.CanPlaceUnitType(summonedType, unit.SideId)) continue;
             for (var y = 0; y < state.Physical.Board.Height; y++)
                 for (var x = 0; x < state.Physical.Board.Width; x++)
                 {

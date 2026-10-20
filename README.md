@@ -280,6 +280,21 @@ All 44 originals were decoded and hashed; the five new sources have no profiles,
 
 Verification uses `python -m unittest discover -s tools -p test_prepare_artwork.py`, `node --test ProjectDelve.Web.Tests/*.test.cjs`, then sequential `dotnet test ProjectDelve.sln --artifacts-path .artwork-qa` and `dotnet build ProjectDelve.sln --artifacts-path .artwork-qa`. The isolated root output avoids locks held by a running web app.
 
+### Asphalt and Chief Mechanic
+
+Asphalt is ordinary passable terrain that does not block LOS, with no direction or intrinsic effects. Scenario JSON, DELVE1, browser projections and the Level Designer preserve it as `Asphalt`. Classic shows its dark surface and terrain label; Enhanced 2D uses three stable variants and independent deterministic quarter turns. Existing terrain hash algorithms, seeds and variant assignments remain unchanged.
+
+Chief Mechanic (`chief-mechanic-type`) uses the canonical stats MOV 3, RNG 0, ATK 0, DEF 4, HP 3, Unique, CantAttack, Transport Resource, Give Resource, Operate and Summon Worker (Side limit 3). Its reusable Prefer Summon Worker preference selects the top-left legal summon placement during Action selection, before ordinary Worker priorities. Worker movement, Do Nothing and human choices retain their existing behavior. Unique validation and runtime placement/summoning allow one living instance of each Unique Type on each Side; Activation Tokens still group by Type + Side.
+
+Select **Chief Mechanic Production** (`chief-mechanic-production`) for a small 8 × 5 Asphalt workshop with two automated Sides, one Chief Mechanic and an owned Diamond Press each. Blue starts on Coal beside an empty Press; Red starts beside a supplied Press. Summon Worker competes with Give Resource and Operate until the per-Side Worker cap is reached. Both Sides have No Objective. Controllers can be changed for manual choices.
+
+| Original under `assets/source/` | Catalog key | Runtime under `wwwroot/art/` |
+| --- | --- | --- |
+| `terrain/asphalt-01.png` … `asphalt-03.png` | `terrain.Asphalt` | `terrain/asphalt/01.webp` … `03.webp`, 256 × 256 |
+| `units/chief-mechanic.png` | `unit["chief-mechanic-type"]` | `units/chief-mechanic.webp`, 512 × 512 |
+
+All four originals are opaque 1254 × 1254 RGB PNGs without embedded profiles, EXIF orientation or animation. The existing `tools/prepare-artwork.py` pipeline exports sRGB WebPs with Lanczos resizing, quality 85 and method 6. All 52 originals were fully decoded and their SHA-256 hashes verified unchanged. The source catalog now comprises 50 direct exports and two railway material components, with no missing sources. Full re-export confirmed identical decoded pixels for the previous WebPs, whose existing bytes were retained. The regenerated [catalog preview](assets/previews/artwork-pack-01.png) includes the four additions at Cell/token scale. No artwork was regenerated. Preview inspection and automated Classic/Enhanced interaction, fallback and playback tests do not constitute browser visual approval; no browser surface was connected for actual-board visual QA.
+
 ### Level Designer V1
 
 Click **Designer** in the browser host to author the same `ScenarioDefinition` format visually. The browser retains a local draft, including temporarily invalid placements, and uses only generic grid editing and server-supplied Unit geometry. It does not evaluate Delve placement, terrain, Unique, HP, or agency legality. Reload discards the draft; export a DELVE1 string to keep it. Switching to Playtest and back retains it.

@@ -73,7 +73,7 @@ public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
-public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel }
+public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel, Asphalt }
 public enum RailDirection { North, East, South, West }
 public sealed record TerrainTile(Cell Position, TerrainKind Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null);
@@ -99,7 +99,8 @@ public enum UnitBehavior
     ProtectWithoutAdjacency = 512,
     Worker = 1024,
     SeekDiamond = 2048,
-    PreferTrollThenDiamondThenWorker = 4096
+    PreferTrollThenDiamondThenWorker = 4096,
+    PreferSummonWorker = 8192
 }
 public sealed record ReshapeRoom;
 public sealed record Swap;
@@ -292,7 +293,7 @@ public sealed record Board(int Width, int Height, List<Edge> Edges)
 
 public static class BoardProperties
 {
-    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail or TerrainKind.Gravel;
+    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail or TerrainKind.Gravel or TerrainKind.Asphalt;
     public static bool BlocksLos(this TerrainKind kind) => kind == TerrainKind.Tree;
     public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
@@ -359,8 +360,8 @@ public sealed class GameState
     public required List<UnitType> Types { get; set; }
     public required List<Unit> Units { get; set; }
 
-    internal bool CanPlaceUnitType(UnitType type) =>
-        !type.Unique || !Units.Any(u => u.TypeId == type.Id && u.CurrentHp > 0);
+    internal bool CanPlaceUnitType(UnitType type, string sideId) =>
+        !type.Unique || !Units.Any(u => u.TypeId == type.Id && u.SideId == sideId && u.CurrentHp > 0);
 
     // Creating detached Unit data does not enter play; placement is the runtime entry boundary.
     public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright)
@@ -369,8 +370,8 @@ public sealed class GameState
             ?? throw new ArgumentException("Unit Type is not defined.", nameof(typeId));
         if (type.Hp > 1 && !type.Unique)
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
-        if (!CanPlaceUnitType(type))
-            throw new ArgumentException("A Unit of this Unique Unit Type is already in play.", nameof(typeId));
+        if (!CanPlaceUnitType(type, sideId))
+            throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
         if (Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
             !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell))
             throw new ArgumentException("Invalid Unit placement.");

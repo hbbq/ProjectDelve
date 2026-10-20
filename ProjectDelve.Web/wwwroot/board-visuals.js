@@ -32,6 +32,8 @@ export const boardVisuals = {
       ] },
     StoneFloorWithTable: { baseTerrain: "StoneFloor", object: { rotation: true,
       variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/table/0${i}.webp` })) }, fill: "#636665", detail: "linear-gradient(90deg, transparent 16%, #291d17 17% 20%, #997049 21% 46%, #63462d 47% 50%, #997049 51% 79%, #291d17 80% 83%, transparent 84%)" },
+    Asphalt: { rotation: true, fill: "#303133", detail: "radial-gradient(ellipse, #67686a20, transparent)",
+      variants: [1, 2, 3].map(i => ({ image: `./art/terrain/asphalt/0${i}.webp` })) },
     Gravel: { rotation: true, fill: "#766d62", detail: "radial-gradient(ellipse, #b0a59360, transparent)",
       variants: [1, 2, 3].map(i => ({ image: `./art/terrain/gravel/0${i}.webp` })) },
     Rail: { baseTerrain: "Gravel", tracks: Object.fromEntries(["straight", "curve", "tee", "cross"].map(shape => [shape, `./art/railway/${shape}.svg`])) }
@@ -41,6 +43,7 @@ export const boardVisuals = {
     "barbarian-type": { image: "./art/units/barbarian.webp" },
     "zombie-type": { image: "./art/units/zombie.webp" },
     "worker-type": { image: "./art/units/worker.webp" },
+    "chief-mechanic-type": { image: "./art/units/chief-mechanic.webp" },
     "geomancer-type": { image: "./art/units/geomancer.webp" },
     "wizard-type": { image: "./art/units/wizard.webp" },
     "rogue-type": { image: "./art/units/rogue.webp" },

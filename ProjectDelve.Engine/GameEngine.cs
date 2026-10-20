@@ -1007,8 +1007,9 @@ public static partial class GameEngine
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");
-        if (state.Types.Any(t => t.Unique && state.Units.Count(u => u.TypeId == t.Id && u.CurrentHp > 0) > 1))
-            throw new ArgumentException("Only one Unit of a Unique Unit Type may be in play.");
+        if (state.Types.Any(t => t.Unique && state.Units.Where(u => u.TypeId == t.Id && u.CurrentHp > 0)
+                .GroupBy(u => u.SideId).Any(g => g.Count() > 1)))
+            throw new ArgumentException("Only one Unit of a Unique Unit Type per Side may be in play.");
         if (state.Units.Any(u => u.BonusActionUses.Any(entry =>
                 state.Types.Single(t => t.Id == u.TypeId).BonusActions
                     .SingleOrDefault(a => a.Name == entry.Key)?.MaxUses != entry.Value.MaxUses)))

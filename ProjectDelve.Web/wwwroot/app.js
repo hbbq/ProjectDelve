@@ -233,7 +233,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
     node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
-    const symbol = { Gravel: "Gravel", Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
+    const symbol = { Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));

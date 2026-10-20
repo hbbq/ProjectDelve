@@ -23,12 +23,12 @@ EDGE_CROPS = {
 }
 ASSETS = [
     *[(f"units/{name}.png", f"units/{name}.webp", 512)
-      for name in ("barbarian", "zombie", "worker", "geomancer",
+      for name in ("barbarian", "zombie", "worker", "chief-mechanic", "geomancer",
                    "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
                    "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
                    "labyrinth-shaper", "red-dragon", "locomotive")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
-      for name in ("stone-floor", "grass", "water", "lava", "gravel") for i in range(1, 4)],
+      for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
       for name in ("tree", "table") for i in range(1, 4)],
     *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond")],

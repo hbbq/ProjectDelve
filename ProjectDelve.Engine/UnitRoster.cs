@@ -18,6 +18,11 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType ChiefMechanic(string id = UnitTypeIds.ChiefMechanic) => UnitType.Define(
+        id, "Chief Mechanic", Stats(3, 0, 0, 4, 3),
+        Unique(), CantAttack(), TransportResource(), GiveResource(), Operate(), SummonWorker(sideLimit: 3)
+    ).WithBehaviors(UnitBehavior.Worker, UnitBehavior.PreferSummonWorker);
+
     public static UnitType Locomotive(string id = UnitTypeIds.Locomotive) => UnitType.Define(id,
         "Locomotive",
         Stats(0, 0, 0, 0, 1),

@@ -6,6 +6,25 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class UniqueUnitTypeTests
 {
+    [Fact]
+    public void DifferentSidesMayEachSetUpAndPlaceTheSameUniqueTypeWithSeparateTokens()
+    {
+        var type = UnitRoster.ChiefMechanic();
+        var definition = Scenario.Define(Scenario.Map(5, 5), [
+            Scenario.Group(type.Id, "blue", ControllerKind.Human, Scenario.At(0, 0)),
+            Scenario.Group(type.Id, "red", ControllerKind.Automated, Scenario.At(4, 4))]);
+        var state = GameEngine.CreateGame(definition);
+        var round = GameEngine.StartRound(state, new Random(), false);
+        Assert.Contains(new ActivationToken(type.Id, "blue"), round.State.Bag.Append(round.State.ActiveToken!));
+        Assert.Contains(new ActivationToken(type.Id, "red"), round.State.Bag.Append(round.State.ActiveToken!));
+        var other = Setup(type, "blue");
+        other.PlaceUnit(type.Id, "red-unit", "red", new(1, 0));
+        Assert.Equal(2, other.Units.Count);
+        Assert.Throws<ArgumentException>(() => other.PlaceUnit(type.Id, "third", "red", new(2, 0)));
+        Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition with
+        { Units = [.. definition.Units, new(type.Id, "blue", new(2, 2))] }));
+    }
+
     private sealed class Random : IRandomProvider
     {
         public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
@@ -57,13 +76,11 @@ public sealed class UniqueUnitTypeTests
             UnitRoster.Ghost(), UnitRoster.Troll(), UnitRoster.Shaman() }, type => Assert.False(type.Unique));
     }
 
-    [Theory]
-    [InlineData("blue")]
-    [InlineData("red")]
-    public void DuplicateUniqueSetupIsRejectedRegardlessOfSidePostureOrProvider(string secondSide)
+    [Fact]
+    public void DuplicateUniqueSetupOnSameSideIsRejectedRegardlessOfPostureOrProvider()
     {
         var type = UnitType.Define("unique", "Unique", Stats(0, 0, 0, 0, 1), Unique());
-        var state = Setup(type, "blue", secondSide);
+        var state = Setup(type, "blue", "blue");
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Upright };
         // Validation precedes any controller decision; no provider can accept this setup.
         Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random(), false));
@@ -88,14 +105,34 @@ public sealed class UniqueUnitTypeTests
         var type = UnitType.Define("unique", "Unique", Stats(0, 0, 0, 0, 1), Unique());
         var state = Setup(type, "blue");
         var before = JsonSerializer.Serialize(state);
-        Assert.Throws<ArgumentException>(() => state.PlaceUnit(type.Id, "second", "red", new(1, 0)));
+        Assert.Throws<ArgumentException>(() => state.PlaceUnit(type.Id, "second", "blue", new(1, 0)));
         Assert.Equal(before, JsonSerializer.Serialize(state));
         state.Physical.Figures.Clear();
         if (removeUnit) state.Units.Clear();
         else state.Units[0] = state.Units[0] with { CurrentHp = 0 };
-        state.PlaceUnit(type.Id, "later", "red", new(1, 0), Posture.Lying);
+        state.PlaceUnit(type.Id, "later", "blue", new(1, 0), Posture.Lying);
         Assert.Single(state.Units.Where(u => u.CurrentHp > 0));
         Assert.True(TestGame.StartRound(state, new Random(), false).State.IsCompleted);
+    }
+
+    [Fact]
+    public void OpposingUniqueDoesNotBlockSummoningOnOwnSide()
+    {
+        var target = UnitRoster.ChiefMechanic();
+        var summoner = UnitType.Define("summoner", "Summoner", Stats(1, 0, 0, 0, 1), CantAttack(),
+            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying)));
+        var state = Setup(summoner, "blue");
+        state.Types.Add(target);
+        state.Physical.Figures[0] = new("unit-0", new(2, 2));
+        state.PlaceUnit(target.Id, "opponent", "red", new(4, 4));
+        var ready = TestGame.StartRound(state, new Random(), false);
+        if (ready.NextInput?.Kind == DecisionKind.SelectUnit)
+            ready = TestGame.Advance(ready.State, new Choice("unit-0"), new Random(), false);
+        ready = TestGame.Advance(ready.State, new Choice("stay"), new Random(), false);
+        var summon = ready.NextInput!.Candidates.First(c => c.Action == UnitAction.SummonAdjacent);
+        var result = TestGame.Advance(ready.State, new Choice(summon.Key), new Random(), false);
+        Assert.Equal(2, result.State.Units.Count(u => u.TypeId == target.Id));
+        Assert.Equal(new[] { "blue", "red" }, result.State.Units.Where(u => u.TypeId == target.Id).Select(u => u.SideId).Order());
     }
 
     [Fact]
@@ -112,7 +149,7 @@ public sealed class UniqueUnitTypeTests
         ready = TestGame.Advance(ready.State, new Choice("stay"), new Random(), false);
         Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.SummonAdjacent);
         // A saved candidate cannot bypass legality if another Unit has since entered play.
-        ready.State.PlaceUnit(target.Id, "existing", "red", new(0, 0), Posture.Lying);
+        ready.State.PlaceUnit(target.Id, "existing", "blue", new(0, 0), Posture.Lying);
         Assert.DoesNotContain(GameEngine.GameplayCandidates(ready.State, ready.State.Units[0]),
             c => c.Action == UnitAction.SummonAdjacent);
         Assert.Throws<ArgumentException>(() => TestGame.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false));

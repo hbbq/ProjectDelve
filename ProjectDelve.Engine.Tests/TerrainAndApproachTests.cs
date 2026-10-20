@@ -15,6 +15,7 @@ public sealed class TerrainAndApproachTests
     [Theory]
     [InlineData(TerrainKind.Grass, true, false)]
     [InlineData(TerrainKind.Gravel, true, false)]
+    [InlineData(TerrainKind.Asphalt, true, false)]
     [InlineData(TerrainKind.Tree, false, true)]
     [InlineData(TerrainKind.Water, false, false)]
     [InlineData(TerrainKind.Lava, false, false)]

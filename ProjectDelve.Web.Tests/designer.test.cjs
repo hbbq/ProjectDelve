@@ -20,7 +20,7 @@ const catalog = {
     cellSpan: id === "opaque-large" ? 2 : 1,
     footprintOffsets: id === "opaque-large" ? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] : [{ x: 0, y: 0 }]
   })),
-  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava", "Rail", "Gravel"],
+  terrains: ["Grass", "Tree", "Water", "StoneFloor", "StoneFloorWithTable", "Lava", "Rail", "Gravel", "Asphalt"],
   railDirections: ["North", "East", "South", "West"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
   postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
@@ -661,4 +661,19 @@ test("Cell Marker brushes place and remove by pointer/keyboard, roundtrip and gu
   assert.match(form.textContent, /Cell Marker: Banana Peel/);
   form.querySelectorAll("button").find(node => node.textContent === "Remove Cell Marker").listeners.click();
   assert.equal(draft.definition.cellMarkers.length, 0);
+});
+
+test("Asphalt is a standalone brush and default, clears Rail direction and roundtrips", () => {
+  const h = harness(), draft = h.editor.draft;
+  assert.ok(h.editor.ui.default.children.some(option => option.value === "Asphalt"));
+  draft.paintTerrain({x:0,y:0}, "Rail", "North");
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Asphalt";
+  h.down(h.cell(0, 0)); h.up();
+  assert.equal(draft.terrainAt({x:0,y:0}), "Asphalt");
+  assert.equal(draft.railDirectionAt({x:0,y:0}), undefined);
+  draft.definition.board.defaultTerrain = "Asphalt";
+  const exported = draft.snapshot(); draft.replace(JSON.parse(JSON.stringify(exported))); h.editor.render();
+  assert.deepEqual(plain(draft.snapshot()), plain(exported));
+  assert.equal(draft.terrainAt({x:1,y:1}), "Asphalt");
+  assert.ok(h.cell(0,0).classList.contains("Asphalt"));
 });

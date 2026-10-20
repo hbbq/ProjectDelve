@@ -21,6 +21,11 @@ spec.loader.exec_module(pipeline)
 
 
 class CompositeArtworkTests(unittest.TestCase):
+    def test_asphalt_and_chief_mechanic_registrations(self):
+        for slot in range(1, 4):
+            self.assertIn((f'terrain/asphalt-{slot:02}.png', f'terrain/asphalt/{slot:02}.webp', 256), pipeline.ASSETS)
+        self.assertIn(('units/chief-mechanic.png', 'units/chief-mechanic.webp', 512), pipeline.ASSETS)
+
     def test_machine_and_resource_alpha_survives_export_without_crop(self):
         for category, name, size in (("machines", "diamond-press", 256),
                                      ("markers", "banana-peel", 128), ("resources", "coal", 128), ("resources", "diamond", 128)):
