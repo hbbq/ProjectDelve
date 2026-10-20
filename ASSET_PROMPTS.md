@@ -522,6 +522,20 @@ Genuinely transparent alpha background. No ground, grass, stone floor, asphalt, 
 Strict overhead view, not isometric or side perspective.
 ```
 
+## Diamond Kart — racing unit portrait
+
+Save the selected square original as `assets/source/units/diamond-kart.png`. Use the shared portrait style as a painterly/material reference, but compose this as a **vehicle token illustration** rather than a humanoid face. Generate several candidates and select one readable in the circular token. Do not generate a full racetrack or bake in a Side-colored ring.
+
+```text
+Premium fantasy-industrial tabletop board game artwork. Hand-painted digital illustration matching the established Project Delve unit portraits and machine assets.
+
+Create one charming, compact fantasy go-kart racing vehicle, viewed from a slightly elevated three-quarter overhead angle so its silhouette, four wheels, seat, steering wheel and small brass-and-steel engine are instantly recognizable. A playful mechanical kart assembled from painted metal, weathered steel, leather and brass, combining old workshop engineering with energetic racing. A small diamond-shaped ornament on the body is acceptable, but no loose resource diamond or banana peel. Bold readable silhouette, restrained warm highlights, dark tires, a modest bright red painted body with neutral metal details. No driver is necessary.
+
+Square 1:1 composition with the entire vehicle centered and comfortably within the central 75% safe area for a circular board-game token crop. Simple subdued atmospheric background matching the existing painted unit portraits. Ensure the vehicle remains recognizable when displayed very small.
+
+No track, road markings, text, racing number, brand logo, token frame, Side color ring, HP badge, UI or watermark.
+```
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
