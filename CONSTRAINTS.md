@@ -406,12 +406,15 @@ The initial terrain types are:
 | Terrain | Passable | Blocks LOS |
 | --- | --- | --- |
 | Grass | yes | no |
+| Asphalt | yes | no |
 | Tree | no | yes |
 | Water | no | no |
 | Lava | no | no |
 | Gravel | yes | no |
 | Stone floor | yes | no |
 | Stone floor with table | no | no |
+
+**Asphalt** is ordinary, non-directional Terrain with **Passable = yes** and **Blocks LOS = no**, and no intrinsic special effects. Any future restriction to Asphalt-only traversal belongs to the Unit's movement capability, not to Asphalt itself.
 
 **Gravel** is an ordinary Terrain type with **Passable = yes** and **Blocks LOS = no**, identical to Stone Floor in its base mechanical properties. It has no special effects, directions, railway behavior, or additional movement rules. Gravel may be authored and occupied independently of Rail; any use of gravel artwork as Rail's visual base is presentation-only and does not change either Terrain type's rules.
 
@@ -595,13 +598,13 @@ Heroes and Monsters should not have parallel implementations of the same mechani
 
 ### Unique Unit Types
 
-A Unit Type may be **Unique**. At most one Unit of a Unique Unit Type may be in play at a time.
+A Unit Type may be **Unique**. At most one Unit of a Unique Unit Type **per Side** may be in play at a time.
 
-Unique is a physical tracking constraint, not a Hero, Monster, controller, or Side distinction. A Unit Type may have maximum `HP` greater than 1 only if that Unit Type is Unique. This keeps damage physically attributable to a single identifiable figure/card instead of requiring players to distinguish several otherwise interchangeable figures of the same Unit Type with different remaining HP values.
+Unique is a physical tracking constraint within each Side, not a Hero, Monster, or controller distinction. A Unit Type may have maximum `HP` greater than 1 only if that Unit Type is Unique. This keeps damage physically attributable to a single identifiable figure/card instead of requiring players to distinguish several otherwise interchangeable figures of the same Unit Type with different remaining HP values.
 
 Unique does not require maximum `HP` greater than 1; a Unique Unit Type may still have `HP 1`.
 
-Unique constrains simultaneous in-play Units, not how many times that Unit Type may ever enter play during a game. Future rules may therefore remove and later return or recreate a Unique Unit, provided no more than one Unit of that Unit Type is in play at the same time.
+Unique constrains simultaneous in-play Units, not how many times that Unit Type may ever enter play during a game. Future rules may therefore remove and later return or recreate a Unique Unit, provided no more than one Unit of that Unit Type is in play on the same Side at the same time.
 
 Scenario setup and any rule that creates or places Units must preserve this invariant.
 
@@ -1453,6 +1456,12 @@ Its priorities are:
 Work preferences are reconsidered at each decision opportunity using current Game State. Use deterministic tie-breaking: shortest relevant path, then top-left position, then stable target identity where required. Do not choose inaccessible targets. Legality of Operate already excludes a Resource on the operator's Cell.
 
 Worker Behavior honors Do Nothing Standing Order. All other Orders allow its normal work preferences; this is a Behavior-specific interpretation, not a general rules change. Worker Behavior does not attack, plan downstream production, or grant Actions.
+
+### Chief Mechanic and Prefer Summon Worker Behavior
+
+**Chief Mechanic** is a canonical **Unique** Unit Type with stats `MOV 3, RNG 0, ATK 0, DEF 4, HP 3`. It has `CantAttack`, `TransportResource`, `GiveResource`, `Operate`, and `SummonWorker(sideLimit: 3)`. It has no Resource Storage. Its Unique constraint is per Side, so opposing Sides may each field one Chief Mechanic.
+
+Chief Mechanic combines the reusable **Worker** Behavior with a reusable **Prefer Summon Worker** Action preference. Its ordinary Move decisions use Worker Behavior unchanged. When selecting an Action, prefer **Summon Worker** whenever it is legal, before Worker Behavior's normal Give Resource / Operate / other Action preferences; otherwise use Worker Behavior unchanged. This preference does not grant an Action, change legality, or override Do Nothing Standing Order. For multiple legal Summon Worker placements, use the existing deterministic Summon Worker target selection convention. The summoned Unit is the canonical Worker, and the Side limit counts living canonical Workers on the Chief Mechanic's own Side, consistently with Geomancer.
 
 ### Machines as terrain objects
 
