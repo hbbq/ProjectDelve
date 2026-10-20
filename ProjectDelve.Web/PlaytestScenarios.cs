@@ -22,6 +22,7 @@ public static class PlaytestScenarios
 {
     public const string DefaultId = "basic-combat";
     public static IReadOnlyList<ScenarioDescription> Catalog { get; } = Array.AsReadOnly<ScenarioDescription>([
+        new("a-day-at-the-race-track", "A day at the race track", "Two autonomous Diamond Karts follow the same looping route around a winding Asphalt track. Chief Mechanics and Geomancers support each Side beside owned Diamond Presses."),
         new("diamond-kart-racing", "Köra runt banan och kasta banan", "Autonomous Diamond Karts loop around a broad Asphalt circuit. Workers cross the track with Lava Coal, supply outside Diamond Presses and deliver Diamonds for Banana Peels. No scoring or victory objectives."),
         new("chief-mechanic-production", "Chief Mechanic Production", "Two Sides each field a Chief Mechanic. Watch Summon Worker take priority over delivery and operation until each Side reaches three Workers. Asphalt workshop; no victory objectives."),
         new("banana-peel", "Banana Peel", "Move along the top corridor: the Peel is a legal destination but cannot be crossed. The Locomotive slips on its second Run Rails step. No victory objectives."),
@@ -50,6 +51,7 @@ public static class PlaytestScenarios
 
     public static ScenarioDefinition Definition(string id) => id switch
     {
+        "a-day-at-the-race-track" => ADayAtTheRaceTrackScenario.Definition(),
         "diamond-kart-racing" => RacingScenario.Definition(),
         "chief-mechanic-production" => ChiefMechanicProductionScenario.Definition(),
         "banana-peel" => BananaPeelScenario.Definition(),
