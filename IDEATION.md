@@ -22,6 +22,29 @@ Interesting directions include:
 
 The browser and level designer are tools for discovering and testing the game, not the main product goal. Rules, Units, scenarios, objectives, physical components, automated behavior, engine boundaries, testing, and playtest workflow are all valid areas.
 
+## Deliberately seek unexpected combinations
+
+**Actively and explicitly search for surprising interactions between mechanics that were designed for different purposes.** This is a core ideation goal, not an occasional bonus. Project Delve has grown into a composable rules sandbox: an idea can be worthwhile simply because combining two existing systems produces an amusing, emergent, tactically interesting, or revealing situation.
+
+Do not limit exploration to the newest feature or to conventional fantasy dungeon play. Look across the **entire current repository**, including old and new Units, abilities, Standing Orders, Sides/hostility, objectives, terrain, Cell Markers, Resources, Machines, automatic world effects, summons, movement, collisions, and behaviors. Ask: *What happens if these unrelated mechanics meet in the same scenario?* Prefer cross-system combinations that the original feature designers would not have anticipated.
+
+**Make this a recurring, visible part of every ideation pass:**
+- Propose at least one concrete **unexpected combination of existing mechanics**, even when the primary ideation topic is something else.
+- Prefer combinations of **three or more** independently useful systems when they create a new kind of gameplay, but a particularly good two-system interaction is enough.
+- Explain the causal chain: which existing rules interact, what surprising result might emerge, and what tiny scenario would test it.
+- Seek interactions with meaningful consequences, including productive synergies, interference, accidental sabotage, unintended incentives, chain reactions, and physically funny outcomes.
+- Treat strange-but-legal results as discoveries to investigate, **not bugs to fix automatically**. Distinguish actual rule conflicts from legitimate emergent behavior.
+- If a combination is currently impossible, identify the **one smallest missing rule** that would unlock it rather than silently assuming it works.
+- Do not require balance, strategic optimality, commercial plausibility, or even conventional good sense. **“It sounds fun to try” is a sufficient reason to propose a small experiment.**
+
+Examples of the *kind of thinking* desired, not a fixed list to repeat:
+- A Locomotive follows its Rail steps into a Banana Peel, falls Lying, and stops mid-run; meanwhile Workers are trying to cross the track with Resources.
+- Summoning a Unit onto a Banana Peel immediately triggers its arrival effect, potentially producing a freshly summoned but Lying Unit.
+- Racing Karts follow shared Routes while Workers cross Asphalt to move Fruit from Fruit Trees into Slot Machines, generating items that feed back into racing, attacks and slips.
+- A Wizard's relocation ability might interact with a train, a route-following patrol, or a resource carrier in ways neither mechanic was designed for.
+
+These are **inspiration, not preferred recurring proposals**. Invent new combinations from the current mechanics rather than continually recycling the examples. Surprise is more important than staying within a genre. Keep the idea grounded in real rules and verify assumptions against `CONSTRAINTS.md` before asserting a particular interaction is legal.
+
 ## Design principles
 
 Prefer ideas that:
