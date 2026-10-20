@@ -1494,7 +1494,7 @@ For ordinary Move decisions under Follow Route, evaluate existing legal destinat
 
 ### Racing Slot Machine and Fruit Tree
 
-**Fruit** is a Resource Type, represented thematically by cherries; the name does not specify a botanical species. **Fruit Tree** is Terrain with the same base properties as Tree: `Passable = no`, `Blocks LOS = yes`. At Round Start, each Fruit Tree generates Fruit using the **same two d8 attempts, directional numbering, Cell eligibility, LOS, resolution ordering and timing as Lava generating Coal**, substituting Fruit for Coal. Fruit Tree and Lava are independent sources and do not alter each other's rules.
+**Fruit** is a Resource Type, represented thematically by cherries; the name does not specify a botanical species. **Fruit Tree** is Terrain with the same base properties as Tree: `Passable = no`, `Blocks LOS = yes`. At Round Start, each Fruit Tree generates Fruit using the **same two d8 attempts, directional numbering, Cell eligibility, LOS, resolution ordering and timing as Lava generating Coal**, substituting Fruit for Coal. **For this generation LOS check only, ignore the producing Fruit Tree Cell's own LOS-blocking property; retain all other terrain, Edge, corner and geometric LOS restrictions.** This exception does not change the Fruit Tree's normal LOS blocking for any other purpose. Fruit Tree and Lava are independent sources and do not alter each other's rules.
 
 The reusable **Racing Slot Table (d6)** yields: **1–3 Banana; 4–5 Mushroom; 6 Shell**. Roll once per award/operation; if the selected output cannot be stored or placed, do not reroll or substitute another result.
 
