@@ -21,8 +21,9 @@ internal static class MovementRules
     // Paths include the origin, so movement distance is path.Count - 1.
     // Only valid stopping cells are returned, including the origin at distance 0.
     // null searches the current board without an activation's MOV limit.
+    // Planning may ignore Cell Markers; paths from that analysis are not legal Move paths.
     internal static IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> FindPaths(
-        GameState state, string moverId, Cell from, int? maxSteps = null)
+        GameState state, string moverId, Cell from, int? maxSteps = null, bool ignoreCellMarkers = false)
     {
         HypotheticalPosition.Validate(state, moverId, from);
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
@@ -40,7 +41,7 @@ internal static class MovementRules
         {
             var current = queue.Dequeue();
             if (paths[current].Count - 1 == maxSteps ||
-                current != from && CellMarkerRules.ContainsBananaPeel(state, footprint, current)) continue;
+                !ignoreCellMarkers && current != from && CellMarkerRules.ContainsBananaPeel(state, footprint, current)) continue;
             foreach (var to in Neighbors(current)) // top, left, right, bottom
             {
                 if (paths.ContainsKey(to) || !CanStep(state.Physical.Board, footprint, current, to, traversal))

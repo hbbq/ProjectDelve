@@ -10,7 +10,7 @@ internal static class WorkerBehavior
         var unitId = request.UnitId!;
         var current = queries.PositionOf(unitId);
         var cargo = queries.Resources.SingleOrDefault(r => r.Position == current);
-        var paths = queries.MovementPathsFrom(unitId, current);
+        var paths = queries.PlanningPathsFrom(unitId, current);
         var transport = queries.CanTransportResource(unitId);
         var moves = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move ||
             request.Kind == DecisionKind.Move).ToList();
@@ -20,7 +20,7 @@ internal static class WorkerBehavior
 
         List<Goal> DeliveryGoals(Resource resource, Cell origin)
         {
-            var routes = origin == current ? paths : queries.MovementPathsFrom(unitId, origin);
+            var routes = origin == current ? paths : queries.PlanningPathsFrom(unitId, origin);
             return routes.Where(p => p.Key == origin || transport &&
                     !queries.Resources.Any(r => r.Position == p.Key))
                 .SelectMany(p => queries.ResourceActionsFrom(unitId, p.Key, resource.Type)
@@ -40,7 +40,7 @@ internal static class WorkerBehavior
         {
             if (goal.Distance == 0) return stay;
             return moves.Where(c => !preserveCargo || !queries.Resources.Any(r => r.Position == c.Destination))
-                .Select(c => new { Candidate = c, Remaining = queries.MovementPathsFrom(unitId, c.Destination!)
+                .Select(c => new { Candidate = c, Remaining = queries.PlanningPathsFrom(unitId, c.Destination!)
                     .GetValueOrDefault(goal.Position)?.Count - 1 })
                 .Where(p => p.Remaining.HasValue && p.Remaining < goal.Distance)
                 .OrderBy(p => p.Remaining).ThenBy(p => p.Candidate.Path!.Count)

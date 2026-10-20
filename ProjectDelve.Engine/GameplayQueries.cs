@@ -8,6 +8,9 @@ public interface IGameplayQueries
     IReadOnlyList<Resource> Resources => throw new NotSupportedException();
     bool CanTransportResource(string unitId) => throw new NotSupportedException();
     IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) => throw new NotSupportedException();
+    // Hypothetical routes ignore Cell Markers, retaining movement's other traversal and placement checks.
+    // These paths are for planning only; actual Move choices come from authoritative candidates.
+    IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> PlanningPathsFrom(string unitId, Cell position) => throw new NotSupportedException();
     // Analyze existing Resource Actions at a legal placement with the supplied source marker.
     IReadOnlyList<Candidate> ResourceActionsFrom(string unitId, Cell position, ResourceType? source) => throw new NotSupportedException();
     Cell ResourceRecipientPosition(Candidate action) => throw new NotSupportedException();
@@ -85,6 +88,9 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) =>
         MovementRules.FindPaths(world, unitId, position);
+
+    public IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> PlanningPathsFrom(string unitId, Cell position) =>
+        MovementRules.FindPaths(world, unitId, position, ignoreCellMarkers: true);
 
     public IReadOnlyList<Candidate> ResourceActionsFrom(string unitId, Cell position, ResourceType? source)
     {
