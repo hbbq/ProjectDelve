@@ -178,6 +178,7 @@ let focusedDoor;
 const figures = new Map();
 const edges = new Map();
 const cells = new Map();
+let boardObjects = new Map();
 
 // These helpers describe geometry and presentation only. Legal choices arrive from the engine.
 const cellKey = cell => `${cell.x},${cell.y}`;
@@ -205,6 +206,19 @@ function inspectCell(key) {
 
 function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines) {
   const board = state.physical.board;
+  const nextObjects = new Map(), objectCounts = new Map();
+  // Retain decoded artwork through both playback steps and snapshot redraws.
+  // Prune absent objects every render and isolate artwork by game identity.
+  const objectNode = (category, id, identity, className) => {
+    const base = JSON.stringify([snapshot.sessionId, snapshot.scenarioId, snapshot.visualSeed, category, identity, id]);
+    const occurrence = objectCounts.get(base) ?? 0;
+    objectCounts.set(base, occurrence + 1);
+    const key = JSON.stringify([base, occurrence]);
+    const node = boardObjects.get(key) ?? text("span", "");
+    node.className = className;
+    nextObjects.set(key, node);
+    return node;
+  };
   updateCoordinates();
   if (!preserveNodes) {
     ui.board.replaceChildren(); figures.clear(); edges.clear(); cells.clear();
@@ -246,7 +260,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const node = cells.get(cellKey(machine.position));
     if (!node) continue;
     node.classList.add("machine-cell");
-    const art = text("span", ""); art.className = "machine-art";
+    const art = objectNode("machine", machine.typeId, machine.id, "machine-art");
     const visual = applyBoardVisual(art, "machine", machine.typeId);
     if (visual.baseTerrain) applyBoardVisual(node, "terrain", visual.baseTerrain, {
       seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
@@ -264,7 +278,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   for (const cellMarker of state.cellMarkers ?? []) {
     const node = cells.get(cellKey(cellMarker.position));
     if (!node) continue;
-    const marker = text("span", ""); marker.className = "cell-marker";
+    const marker = objectNode("cellMarker", cellMarker.type.id, cellKey(cellMarker.position), "cell-marker");
     applyBoardVisual(marker, "cellMarker", cellMarker.type.id);
     marker.title = cellMarker.type.name; marker.setAttribute("aria-label", cellMarker.type.name);
     node.append(marker); node.title += ` · ${cellMarker.type.name}`;
@@ -273,14 +287,14 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   for (const resource of state.resources ?? []) {
     const node = cells.get(cellKey(resource.position));
     if (!node) continue;
-    const marker = text("span", "");
-    marker.className = "resource-marker";
+    const marker = objectNode("resource", resource.type.id, cellKey(resource.position), "resource-marker");
     applyBoardVisual(marker, "resource", resource.type.id);
     marker.title = resource.type.name;
     marker.setAttribute("aria-label", resource.type.name);
     node.append(marker);
     node.title += ` ? ${resource.type.name}`;
   }
+  boardObjects = nextObjects;
   for (const edge of board.edges) {
     if (edge.kind === "None") continue;
     const key = edgeKey(edge);

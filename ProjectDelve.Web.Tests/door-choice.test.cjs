@@ -2467,6 +2467,47 @@ for (const view of ["classic", "enhanced"]) test(`${view}: Cell Markers render i
   assert.equal(h.run('cells.get("2,0").querySelectorAll(".cell-marker").length'), 0);
 });
 
+for (const mode of ["animate", "disabled", "skip"]) test(`loaded board objects survive playback and final snapshot redraw (${mode})`, async () => {
+  const initial = response();
+  initial.sessionId = "artwork-fixture";
+  initial.result.state.cellMarkers = [{ type: { id: "banana-peel", name: "Banana Peel" }, position: { x: 2, y: 0 } }];
+  initial.result.state.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 2, y: 0 } }];
+  initial.presentation.machines = [{ id: "press", typeId: "diamond-press", name: "Press", operation: "Supplied",
+    position: { x: 3, y: 0 }, resourceStorage: [] }];
+  const final = structuredClone(initial);
+  final.result.events = [{ kind: "FixtureNotice" }, { kind: "FixtureNotice" }];
+  final.presentation.events = final.result.events.map(() => ({ role: "Notice", text: "Supplied notice" }));
+  final.result.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, stateAfter: final.result.state }));
+  final.presentation.resolutionSteps = [0, 1].map(eventIndex => ({ eventIndex, cards: final.presentation.cards, machines: final.presentation.machines }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  const objects = () => h.run('[cells.get("2,0").querySelectorAll(".cell-marker")[0], cells.get("2,0").querySelectorAll(".resource-marker")[0], cells.get("3,0").querySelectorAll(".machine-art")[0]]');
+  const original = objects();
+  for (const node of original) node.objectArtwork.listeners.load();
+  const shown = []; h.context.shown = shown;
+  h.run(`ui.animate.checked = ${mode !== "disabled"}; pause = async () => {};
+    const originalRender = renderState; renderState = (...args) => { originalRender(...args);
+      shown.push([cells.get("2,0").querySelectorAll(".cell-marker")[0], cells.get("2,0").querySelectorAll(".resource-marker")[0], cells.get("3,0").querySelectorAll(".machine-art")[0]]); };
+    const originalPresent = present; present = async event => { if (${mode === "skip"}) skipEffects = true; await originalPresent(event); };`);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.equal(shown.length, 3);
+  for (const nodes of shown) for (let i = 0; i < original.length; i++) {
+    assert.equal(nodes[i], original[i]);
+    assert.equal(nodes[i].dataset.artwork, "ready");
+    assert.equal(nodes[i].objectArtwork, original[i].objectArtwork);
+  }
+  // A changed resource loads its own art; removed objects cannot leave stale art.
+  h.run('snapshot.result.state.resources[0].type = { id: "diamond", name: "Diamond" }; renderSnapshot();');
+  assert.notEqual(objects()[1], original[1]);
+  assert.equal(objects()[1].objectArtwork.src, "./art/resources/diamond.webp");
+  assert.equal(h.elements.get("board").querySelectorAll(".resource-marker").includes(original[1]), false);
+  h.run('snapshot.result.state.cellMarkers = []; snapshot.result.state.resources = []; snapshot.presentation.machines = []; renderSnapshot();');
+  assert.equal(h.run('boardObjects.size'), 0);
+  assert.equal(h.run('ui.board.querySelectorAll(".cell-marker").length + ui.board.querySelectorAll(".resource-marker").length + ui.board.querySelectorAll(".machine-art").length'), 0);
+  h.run('snapshot = initial; snapshot.sessionId = "replacement-game"; renderSnapshot();');
+  assert.notEqual(objects()[0], original[0]);
+  assert.equal(objects()[0].dataset.artwork, "loading");
+});
+
 for (const mode of ["animate", "disabled", "skip"]) test(`Banana Peel playback preserves Move, consumption and Posture order (${mode})`, async () => {
   const initial = response();
   initial.result.state.cellMarkers = [{ type: { id: "banana-peel", name: "Banana Peel" }, position: { x: 2, y: 0 } }];
