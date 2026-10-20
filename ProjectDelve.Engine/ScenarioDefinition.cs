@@ -16,6 +16,7 @@ public sealed record ScenarioDefinition
     public List<StoredResource>? StoredResources { get; init; }
     public List<Machine>? Machines { get; init; }
     public List<Resource>? Resources { get; init; }
+    public List<CellMarker>? CellMarkers { get; init; }
 }
 
 public sealed record BoardDefinition

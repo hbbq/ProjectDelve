@@ -332,6 +332,7 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
 {
     public string? MachineId { get; init; }
     public ImmutableArray<MachineResource> ConsumedResources { get; init; } = [];
+    public CellMarkerType? CellMarkerType { get; init; }
     public ResourceType? ResourceType { get; init; }
     public int? StoredQuantity { get; init; }
     public GameCompletion? Completion { get; init; }
@@ -511,6 +512,15 @@ public sealed class GameState
     public DecisionRequest? Pending { get; set; }
     public bool RoundComplete { get; set; }
 
+    public List<CellMarker> CellMarkers { get; set; } = [];
+    public void PlaceCellMarker(CellMarkerType type, Cell position)
+    {
+        var marker = new CellMarker(type, position);
+        CellMarkerRules.Validate(marker, Physical.Board);
+        if (CellMarkers.Any(m => m.Position == position) || FootprintGeometry.UnitAtCell(this, position) is not null)
+            throw new ArgumentException("A Cell Marker requires a Cell without a Unit or another Cell Marker.");
+        CellMarkers.Add(marker);
+    }
     public List<Resource> Resources { get; set; } = [];
     public List<StoredResource> StoredResources { get; set; } = [];
 
@@ -529,7 +539,7 @@ public sealed class GameState
     {
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
-        Types = [.. Types], Units = [.. Units], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
+        Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),

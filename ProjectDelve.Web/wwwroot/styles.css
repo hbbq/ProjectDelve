@@ -226,3 +226,6 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .cell.Rail[data-rail-direction="East"]::after { content: "\2192"; }
 .cell.Rail[data-rail-direction="South"]::after { content: "\2193"; }
 .cell.Rail[data-rail-direction="West"]::after { content: "\2190"; }
+/* Cell Markers are separate from Terrain and do not intercept Cell interaction. */
+.cell:has(.cell-marker) { position: relative; }
+.cell .cell-marker { position: absolute; width: 62%; height: 62%; left: 19%; top: 19%; z-index: 0; display: grid; place-items: center; pointer-events: none; font-size: clamp(16px, calc(var(--cell-size, 60px) * .4), 32px); }

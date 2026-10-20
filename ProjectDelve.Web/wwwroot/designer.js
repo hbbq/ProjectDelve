@@ -117,6 +117,8 @@ export function mountDesigner(catalog, request, playDesign) {
       Terrain: "Click or drag cells to paint. Use default removes the explicit override.",
       Edge: "Click or drag internal boundaries. The highlighted segment is the paint target; Remove erases it.",
       Unit: "Click the top-left anchor to place. Supplied footprint geometry is a preview; Validate checks legality.",
+      BananaPeel: "Click a Cell to place a Banana Peel. Validate checks placement legality.",
+      RemoveMarker: "Click a Cell to remove its Cell Marker.",
       Machine: "Click a cell to place a Machine. Select it to edit its ID, position, Owner Side and starting Resources. Validate checks legality."
     }[tool];
   }
@@ -148,6 +150,10 @@ export function mountDesigner(catalog, request, playDesign) {
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
     });
+    else if ((tool === "BananaPeel" || tool === "RemoveMarker") && !target.direction) commit(() => {
+      draft.setCellMarker(target.position, tool === "RemoveMarker" ? null :
+        catalog.cellMarkerTypes.find(type => type.id === "banana-peel"));
+    });
     else if (tool === "Machine" && !target.direction) placeMachine(target.position);
     else if (tool === "Select") selectTarget(target);
   });
@@ -176,6 +182,10 @@ export function mountDesigner(catalog, request, playDesign) {
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
     });
+    else if ((tool === "BananaPeel" || tool === "RemoveMarker") && !target.direction) commit(() => {
+      draft.setCellMarker(target.position, tool === "RemoveMarker" ? null :
+        catalog.cellMarkerTypes.find(type => type.id === "banana-peel"));
+    });
     else if (tool === "Machine" && !target.direction) placeMachine(target.position);
     else { lastPaint = null; paint(target); render(); }
   });
@@ -196,11 +206,13 @@ export function mountDesigner(catalog, request, playDesign) {
     render();
   }
   function selectPath(path) {
-    const match = path.replace(/^\$\.?/, "").match(/^(units|machines|board.cells|board.edges|agency|orders)\[(\d+)\]/);
+    const match = path.replace(/^\$\.?/, "").match(/^(units|machines|cellMarkers|board.cells|board.edges|agency|orders)\[(\d+)\]/);
     if (!match) return;
     const index = Number(match[2]);
     if (match[1] === "units" && draft.unitKeys[index]) selection = { kind: "unit", key: draft.unitKeys[index] };
     if (match[1] === "machines" && draft.machineKeys[index]) selection = { kind: "machine", key: draft.machineKeys[index] };
+    if (match[1] === "cellMarkers" && draft.definition.cellMarkers?.[index])
+      selection = { kind: "cell", position: draft.definition.cellMarkers[index].position };
     if (match[1] === "board.cells" && draft.definition.board.cells[index])
       selection = { kind: "cell", position: draft.definition.board.cells[index].position };
     if (match[1] === "board.edges" && draft.definition.board.edges[index])
@@ -244,6 +256,13 @@ export function mountDesigner(catalog, request, playDesign) {
         node.title += ` · ${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}`;
         node.setAttribute("aria-label", node.title);
         if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
+      }
+      const cellMarker = (draft.definition.cellMarkers ?? []).find(marker => sameCell(marker.position, cell));
+      if (cellMarker) {
+        const marker = element("span", "\u{1F34C}"); marker.className = "cell-marker";
+        marker.title = cellMarker.type.name; marker.setAttribute("aria-label", cellMarker.type.name);
+        node.append(marker); node.title += ` · ${cellMarker.type.name}`;
+        node.setAttribute("aria-label", node.title);
       }
       const resource = (draft.definition.resources ?? []).find(resource => sameCell(resource.position, cell));
       if (resource) {
@@ -354,6 +373,11 @@ export function mountDesigner(catalog, request, playDesign) {
     } else if (selection.kind === "cell") {
       const position = { ...selection.position };
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
+      const marker = draft.definition.cellMarkers?.find(marker => sameCell(marker.position, position));
+      if (marker) {
+        form.append(element("p", `Cell Marker: ${marker.type.name}`));
+        form.append(button("Remove Cell Marker", () => commit(() => draft.setCellMarker(position, null))));
+      }
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrain ?? "", { entries: terrainOptions });
       const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });

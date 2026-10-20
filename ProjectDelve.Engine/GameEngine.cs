@@ -215,6 +215,8 @@ public static partial class GameEngine
                     events.Add(new RulesEvent("PlacesSwapped", request.UnitId, bonusChoice.TargetId,
                         AbilityName: ability.DisplayName ?? ability.Name)
                         { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice) });
+                    ResolveArrival(state, request.UnitId!, events);
+                    ResolveArrival(state, bonusChoice.TargetId!, events);
                 }
                 else if (ability.Displace is not null)
                 {
@@ -225,6 +227,7 @@ public static partial class GameEngine
                         Path: affected.Position == bonusChoice.Destination ? [affected.Position] : [affected.Position, bonusChoice.Destination!],
                         AbilityName: ability.DisplayName ?? ability.Name)
                         { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice), Cell = bonusChoice.Destination });
+                    if (affected.Position != bonusChoice.Destination) ResolveArrival(state, affected.Id, events);
                 }
                 else
                 {
@@ -256,6 +259,7 @@ public static partial class GameEngine
                 else state.MoveDone = true;
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
+                if (path.Count > 1) ResolveArrival(state, request.UnitId!, events);
                 break;
             case DecisionKind.Activation:
                 state.ActionsUsedThisActivation++;
@@ -355,6 +359,7 @@ public static partial class GameEngine
                             events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
                                 AbilityName: summoner.CardEntries(state.Types).Single(e => e.Id == ActionIdentity(action)).Name, Posture: summon.InitialPosture)
                                 { SourceUnitId = source.Id, SideId = source.SideId, Cell = action.Destination, ActionId = ActionIdentity(action) });
+                            ResolveArrival(state, summonedId, events);
                             break;
                         case UnitAction.Heal:
                             ResolveHeal(state, request, choice!, action.TargetId!, events);
@@ -956,6 +961,9 @@ public static partial class GameEngine
         ValidateWorldDeck(state);
         ResourceRules.ValidateStorage(state);
         MachineRules.Validate(state);
+        foreach (var marker in state.CellMarkers) CellMarkerRules.Validate(marker, state.Physical.Board);
+        if (state.CellMarkers.Select(m => m.Position).Distinct().Count() != state.CellMarkers.Count)
+            throw new ArgumentException("A Cell may contain at most one Cell Marker.");
         var board = state.Physical.Board;
         foreach (var resource in state.Resources) ResourceRules.Validate(resource, board);
         if (state.Resources.Select(resource => resource.Position).Distinct().Count() != state.Resources.Count)

@@ -253,6 +253,9 @@ public static class BrowserProjection
             case "LavaCoalRolled":
                 description = $"Lava at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Coal direction";
                 break;
+            case "CellMarkerConsumed":
+                description = $"{e.UnitId}: consumed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                break;
             case "ResourceCreated":
                 description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
                 break;

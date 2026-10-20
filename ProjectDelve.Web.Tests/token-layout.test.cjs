@@ -179,3 +179,14 @@ test("compact labels are scoped to Enhanced and keep portrait, posture and feedb
   assert.ok(style(enhanced(".figure.token-selected")).outline);
   assert.ok(style(enhanced(".figure:hover")).outline);
 });
+
+test("Cell Marker layers remain below figures, above terrain and leave Cell feedback interactive", () => {
+  const base = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  const marker = base.match(/\.cell \.cell-marker\s*\{([^}]+)\}/)[1];
+  assert.match(marker, /pointer-events:\s*none/);
+  assert.match(marker, /z-index:\s*0/);
+  assert.match(marker, /width:\s*62%/);
+  assert.equal(style(enhanced(".cell::before"))["z-index"], "-2");
+  assert.equal(style("#board .object-artwork").display, "none");
+  assert.equal(style(enhanced('[data-artwork="ready"] > .visual-glyph')).visibility, "hidden");
+});

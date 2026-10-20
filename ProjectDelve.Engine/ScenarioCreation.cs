@@ -155,6 +155,16 @@ internal static class ScenarioCreation
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
             if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };
         }
+        for (var index = 0; index < (definition.CellMarkers?.Count ?? 0); index++)
+        {
+            try
+            {
+                var marker = definition.CellMarkers![index];
+                CellMarkerRules.Validate(marker, state.Physical.Board);
+                state.PlaceCellMarker(marker.Type, marker.Position);
+            }
+            catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"cellMarkers[{index}]"); }
+        }
         for (var index = 0; index < orders.Count; index++)
         {
             var order = orders[index];

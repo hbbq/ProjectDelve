@@ -27,6 +27,7 @@ public static class DesignerApi
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
             maxBoardSize = MaxBoardSize,
+            cellMarkerTypes = new[] { CellMarkerTypes.BananaPeel },
             machineTypes = new[] { MachineTypes.DiamondPress },
             unitTypes = CanonicalUnitTypes.All.Select(type =>
             {

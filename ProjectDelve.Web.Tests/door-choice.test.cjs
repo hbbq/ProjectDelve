@@ -2441,3 +2441,51 @@ for (const mode of ["animate", "disabled", "skip"]) test(`composite decoration s
   assert.ok(h.run('cells.get("0,0").children.includes(cells.get("0,0").terrainObjectArtwork)'));
   assert.equal(h.figure("actor").style.left, `${1.5 / 6 * 100}%`);
 });
+
+for (const view of ["classic", "enhanced"]) test(`${view}: Cell Markers render independently, preserve choices and fall back on missing artwork`, async () => {
+  const initial = response([choice("peel-destination", "Position", { position: { x: 2, y: 0 } })]);
+  initial.result.state.cellMarkers = [{ type: { id: "banana-peel", name: "Banana Peel" }, position: { x: 2, y: 0 } },
+    { type: { id: "fixture-missing-marker", name: "Fixture marker" }, position: { x: 3, y: 0 } }];
+  initial.result.state.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 2, y: 0 } }];
+  const submitted = [];
+  const h = harness(initial, async (url, options) => {
+    submitted.push(JSON.parse(options.body)); return { ok: true, json: async () => initial };
+  });
+  h.run(`boardView.value = "${view}"; updateBoardView(); renderSnapshot();`);
+  const cell = h.run('cells.get("2,0")'), marker = cell.querySelectorAll(".cell-marker")[0];
+  assert.equal(marker.attributes["aria-label"], "Banana Peel");
+  assert.equal(marker.objectArtwork.src, "./art/markers/banana-peel.webp");
+  assert.equal(marker.visualGlyph.textContent, "\u{1F34C}");
+  marker.objectArtwork.listeners.load(); assert.equal(marker.dataset.artwork, "ready");
+  marker.objectArtwork.listeners.error(); assert.equal(marker.dataset.artwork, "missing");
+  assert.ok(marker.visualGlyph.textContent);
+  assert.equal(cell.querySelectorAll(".resource-marker").length, 1);
+  const missing = h.run('cells.get("3,0").querySelectorAll(".cell-marker")[0]');
+  assert.equal(missing.objectArtwork, null); assert.equal(missing.visualGlyph.textContent, "?");
+  await click(cell); assert.equal(submitted.at(-1).candidateKey, "peel-destination");
+  h.run('snapshot.result.state.cellMarkers = []; renderSnapshot();');
+  assert.equal(h.run('cells.get("2,0").querySelectorAll(".cell-marker").length'), 0);
+});
+
+for (const mode of ["animate", "disabled", "skip"]) test(`Banana Peel playback preserves Move, consumption and Posture order (${mode})`, async () => {
+  const initial = response();
+  initial.result.state.cellMarkers = [{ type: { id: "banana-peel", name: "Banana Peel" }, position: { x: 2, y: 0 } }];
+  const arrived = structuredClone(initial.result.state); arrived.physical.figures[0].position = { x: 2, y: 0 };
+  const consumed = structuredClone(arrived); consumed.cellMarkers = [];
+  const lying = structuredClone(consumed); lying.physical.figures[0].posture = "Lying";
+  const final = structuredClone(initial); final.result.state = lying;
+  final.result.events = [{ kind: "MovementCompleted", unitId: "actor", path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] },
+    { kind: "CellMarkerConsumed", unitId: "actor", cell: { x: 2, y: 0 } }, { kind: "PostureChanged", unitId: "actor", posture: "Lying" }];
+  final.presentation.events = [{ role: "Movement", text: "Moved", unitId: "actor", path: final.result.events[0].path },
+    { role: "Notice", text: "Consumed Banana Peel", unitId: "actor" }, { role: "Notice", text: "Lying", unitId: "actor" }];
+  final.result.resolutionSteps = [arrived, consumed, lying].map((stateAfter, eventIndex) => ({ stateAfter, eventIndex }));
+  final.presentation.resolutionSteps = [0, 1, 2].map(eventIndex => ({ eventIndex, cards: final.presentation.cards }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  const shown = []; h.context.shown = shown;
+  h.run(`ui.animate.checked = ${mode !== 'disabled'}; pause = async () => {};
+    const originalRender = renderState; renderState = (...args) => { originalRender(...args);
+      shown.push({ marker: cells.get("2,0").querySelectorAll(".cell-marker").length, lying: figures.get("actor").classList.contains("lying") }); };
+    const originalPresent = present; present = async event => { if (${mode === 'skip'}) skipEffects = true; await originalPresent(event); };`);
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  assert.deepEqual(JSON.parse(JSON.stringify(shown.slice(0, 3))), [{ marker: 1, lying: false }, { marker: 0, lying: false }, { marker: 0, lying: true }]);
+});

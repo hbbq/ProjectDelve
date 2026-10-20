@@ -30,6 +30,8 @@ public static partial class GameEngine
                 {
                     ExternalMovementRules.SwapPlaces(state, unitId, occupant);
                     events.Add(new RulesEvent("PlacesSwapped", unitId, occupant) { ActionId = "run-rails" });
+                    ResolveArrival(state, unitId, events);
+                    ResolveArrival(state, occupant, events);
                     ChangePosture(state, occupant, Posture.Lying, events, unitId, "run-rails");
                 }
                 else
@@ -47,6 +49,7 @@ public static partial class GameEngine
                 state.Physical.Figures[index] = figure with { Position = destination };
                 events.Add(new RulesEvent("UnitRepositioned", unitId)
                     { ActionId = "run-rails", Path = [figure.Position, destination] });
+                ResolveArrival(state, unitId, events);
             }
         }
     }

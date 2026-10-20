@@ -39,7 +39,8 @@ internal static class MovementRules
         while (queue.Count > 0)
         {
             var current = queue.Dequeue();
-            if (paths[current].Count - 1 == maxSteps) continue;
+            if (paths[current].Count - 1 == maxSteps ||
+                current != from && CellMarkerRules.ContainsBananaPeel(state, footprint, current)) continue;
             foreach (var to in Neighbors(current)) // top, left, right, bottom
             {
                 if (paths.ContainsKey(to) || !CanStep(state.Physical.Board, footprint, current, to, traversal))

@@ -47,9 +47,10 @@ export class DesignerDraft {
       hidden(edge.position) || hidden({ x: edge.position.x + (edge.direction === "Right" ? 1 : 0),
         y: edge.position.y + (edge.direction === "Down" ? 1 : 0) })) ||
       this.definition.units.some(unit => this.occupied(unit).some(hidden)) ||
+      (this.definition.cellMarkers ?? []).some(marker => hidden(marker.position)) ||
       (this.definition.resources ?? []).some(resource => hidden(resource.position)) ||
       (this.definition.machines ?? []).some(machine => hidden(machine.position)))
-      throw new Error("Shrinking would hide authored terrain, edges, Units, Resources or Machines. Remove or reposition them first.");
+      throw new Error("Shrinking would hide authored terrain, edges, Units, Resources, Cell Markers or Machines. Remove or reposition them first.");
     board.width = width; board.height = height; this.changed();
   }
   terrainAt(cell) {
@@ -84,6 +85,12 @@ export class DesignerDraft {
   }
   declare(id) {
     if (!this.definition.unitTypeIds.includes(id)) this.definition.unitTypeIds.push(id);
+  }
+  setCellMarker(position, type) {
+    const markers = this.definition.cellMarkers ??= [];
+    upsert(markers, marker => sameCell(marker.position, position),
+      type === null ? null : { type: structuredClone(type), position: { ...position } });
+    this.changed();
   }
   placeMachine(typeId, position) {
     const type = this.catalog.machineTypes.find(type => type.id === typeId);

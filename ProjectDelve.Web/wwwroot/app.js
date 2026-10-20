@@ -261,6 +261,15 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.title = `${machine.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}: ${machine.operation}`;
     node.setAttribute("aria-label", `${node.title}. ${machine.resourceStorage.map(r => `${r.name}: ${r.quantity}/${r.capacity}`).join(", ")}`);
   }
+  for (const cellMarker of state.cellMarkers ?? []) {
+    const node = cells.get(cellKey(cellMarker.position));
+    if (!node) continue;
+    const marker = text("span", ""); marker.className = "cell-marker";
+    applyBoardVisual(marker, "cellMarker", cellMarker.type.id);
+    marker.title = cellMarker.type.name; marker.setAttribute("aria-label", cellMarker.type.name);
+    node.append(marker); node.title += ` · ${cellMarker.type.name}`;
+    node.setAttribute("aria-label", node.title);
+  }
   for (const resource of state.resources ?? []) {
     const node = cells.get(cellKey(resource.position));
     if (!node) continue;

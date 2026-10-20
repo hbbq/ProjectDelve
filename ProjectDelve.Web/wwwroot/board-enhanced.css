@@ -221,3 +221,4 @@
 #board[data-view="enhanced"] .figure.attack-target { outline: 3px solid #ffad8e; outline-offset: 3px; }
 #board[data-view="enhanced"] .figure.event-focus { box-shadow: 0 0 0 5px #ffe084, 0 0 18px #ffe08480; }
 #board[data-view="enhanced"] .figure.defeated { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
+#board[data-view="enhanced"] .cell-marker[data-artwork="ready"] { filter: drop-shadow(0 1px 1px #111); }

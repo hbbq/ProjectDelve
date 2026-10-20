@@ -10,6 +10,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const catalog = {
   maxBoardSize: 50,
+  cellMarkerTypes: [{ id: "banana-peel", name: "Banana Peel" }],
   machineTypes: [{ id: "diamond-press", name: "Diamond Press",
     storage: { capacities: [{ type: { id: "coal", name: "Coal" }, capacity: 3 }] },
     operation: { costs: [{ type: { id: "coal", name: "Coal" }, quantity: 3 }],
@@ -71,7 +72,7 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
     addEventListener(name, callback) { documentListeners[name] = callback; }
   };
   const tools = document.getElementById("designer-tools");
-  for (const tool of ["Select", "Terrain", "Edge", "Unit", "Machine"]) {
+  for (const tool of ["Select", "Terrain", "Edge", "Unit", "Machine", "BananaPeel", "RemoveMarker"]) {
     const node = new Element("button"); node.dataset.tool = tool; tools.append(node);
   }
   document.getElementById("designer-side").value = "side-1";
@@ -637,4 +638,27 @@ test("Neutrality and No Objective edit independently and survive designer roundt
   form = h.editor.ui["side-settings"].children[0]; inputField(form, "Objective").value = ""; h.submit(form);
   assert.deepEqual(plain(draft.definition.objectives), []);
   assert.equal(draft.railDirectionAt({ x: 0, y: 0 }), "South");
+});
+
+test("Cell Marker brushes place and remove by pointer/keyboard, roundtrip and guard shrinking", () => {
+  const h = harness(), draft = h.editor.draft;
+  h.editor.setTool("BananaPeel"); h.down(h.cell(4, 2));
+  assert.equal(draft.definition.cellMarkers[0].type.id, "banana-peel");
+  assert.equal(h.cell(4, 2).querySelectorAll(".cell-marker")[0].title, "Banana Peel");
+  assert.equal(h.cell(4, 2).attributes["aria-label"].includes("Banana Peel"), true);
+  h.editor.ui.board.listeners.keydown({ key: "Enter", target: h.cell(3, 1), preventDefault() {} });
+  assert.equal(draft.definition.cellMarkers.length, 2);
+  const saved = plain(draft.snapshot()); draft.replace(saved);
+  assert.deepEqual(plain(draft.definition), saved);
+  assert.throws(() => draft.resize(3, 2), /Cell Markers/);
+  h.editor.setTool("RemoveMarker"); h.down(h.cell(4, 2));
+  assert.equal(draft.definition.cellMarkers.length, 1);
+  h.editor.ui.board.listeners.keydown({ key: "Enter", target: h.cell(3, 1), preventDefault() {} });
+  assert.equal(draft.definition.cellMarkers.length, 0);
+  h.editor.setTool("BananaPeel"); h.down(h.cell(2, 1));
+  h.editor.setTool("Select"); h.down(h.cell(2, 1));
+  const form = h.editor.ui.properties.children[0];
+  assert.match(form.textContent, /Cell Marker: Banana Peel/);
+  form.querySelectorAll("button").find(node => node.textContent === "Remove Cell Marker").listeners.click();
+  assert.equal(draft.definition.cellMarkers.length, 0);
 });

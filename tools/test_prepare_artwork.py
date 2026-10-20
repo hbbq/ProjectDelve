@@ -23,7 +23,7 @@ spec.loader.exec_module(pipeline)
 class CompositeArtworkTests(unittest.TestCase):
     def test_machine_and_resource_alpha_survives_export_without_crop(self):
         for category, name, size in (("machines", "diamond-press", 256),
-                                     ("resources", "coal", 128), ("resources", "diamond", 128)):
+                                     ("markers", "banana-peel", 128), ("resources", "coal", 128), ("resources", "diamond", 128)):
             source, destination = f"{category}/{name}.png", f"{category}/{name}.webp"
             with self.subTest(source=source):
                 self.assertIn((source, destination, size), pipeline.ASSETS)

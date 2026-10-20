@@ -61,6 +61,10 @@ export const boardVisuals = {
     default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" },
     "diamond-press": { image: "./art/machines/diamond-press.webp", baseTerrain: "StoneFloor" }
   },
+  cellMarker: {
+    default: { fill: "#e5c14d", glyph: "?" },
+    "banana-peel": { glyph: "\u{1F34C}", image: "./art/markers/banana-peel.webp" }
+  },
   resource: {
     default: { fill: "#e0c795", glyph: "●" },
     diamond: { fill: "#b8ecf4", glyph: "◆", image: "./art/resources/diamond.webp" },
@@ -169,7 +173,7 @@ export function applyBoardVisual(node, category, id, context = {}) {
     applyRailArtwork(node, id === "Rail" ? context : null);
   }
   if (category === "edge") applyEdgeArtwork(node, visual.image);
-  if (category === "machine" || category === "resource") applyObjectArtwork(node, visual);
+  if (category === "machine" || category === "resource" || category === "cellMarker") applyObjectArtwork(node, visual);
   return visual;
 }
 
