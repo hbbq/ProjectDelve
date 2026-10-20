@@ -19,9 +19,10 @@ public static class ContentDescriptions
         if (type.TerrainRestrictedMovement is { } restriction)
             entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
                 $"Ordinary Moves may only enter {restriction.Terrain} Cells."));
-        if (type.Actions.HasFlag(UnitAction.PlaceBananaPeel) && type.PlaceBananaPeel is { } banana)
-            entries.Add(new("place-banana-peel", "Place Banana Peel", "Action",
-                $"Spend {banana.DiamondCost} Diamond from this Unit's shared Resource Storage to place a Banana Peel in an adjacent passable Cell with no Unit, Machine or Cell Marker. Loose Resources may remain there."));
+        if (type.ShootShell is { } shell)
+            entries.Add(new("shoot-shell", "Shoot Shell", "Action", $"Spend {shell.ShellCost} Shell to attack an enemy with RNG {shell.Rng} and ATK {shell.Atk}."));
+        if (type.WaypointSlotMachine is not null)
+            entries.Add(new("waypoint-slot-machine", "Waypoint Slot Machine", "Automatic", "At the end of this Unit's activation, if its own Move advanced its group's waypoint, roll once: d6 1–3 Banana, 4–5 Mushroom, 6 Shell. Add one to shared Resource Storage; discard if full."));
         if (type.RunRails is { } rails)
             entries.Add(new("run-rails", $"Run Rails ({rails.Steps})", "Automatic",
                 $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place."));
@@ -69,6 +70,8 @@ public static class ContentDescriptions
             entries.Add(new("open-door", "Open Door", "Free Action", "Open a bordering Closed Door."));
         foreach (var ability in type.BonusActions)
             entries.Add(new(BonusEntryId(ability.Name), ability.DisplayName ?? ability.Name, "Bonus Action",
+                ability.PlaceBananaPeel is { } banana ? $"Spend {banana.BananaCost} Banana from shared Resource Storage to place a Banana Peel in an adjacent passable Cell with no Unit, Machine or Cell Marker. Loose Resources may remain there." :
+                ability.Boost is { } boost ? $"Spend {boost.MushroomCost} Mushroom to gain one additional Move this activation. Use before any normal Action, even after an earlier Move." :
                 ability.ReshapeRoom is not null ? "Replace Edges in the 3 \u00D7 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides." :
                 ability.Swap is not null ? "Swap places with an adjacent enemy Unit." :
                 ability.Displace is { } displace ? $"Move an adjacent enemy Unit up to {displace.MaxMove} Cell." :
@@ -124,6 +127,7 @@ public static class ContentDescriptions
         { Action: UnitAction.SummonWorker } => "summon-worker",
         { Action: UnitAction.SummonTroll } => "summon-troll",
         { Action: UnitAction.PlaceBananaPeel } => "place-banana-peel",
+        { Action: UnitAction.ShootShell } => "shoot-shell",
         _ => null
     };
 

@@ -2,11 +2,9 @@ namespace ProjectDelve.Engine;
 
 internal static class BananaPlacementRules
 {
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, PlaceBananaPeel ability)
     {
-        var type = state.Types.Single(t => t.Id == unit.TypeId);
-        if (!type.Actions.HasFlag(UnitAction.PlaceBananaPeel) || type.PlaceBananaPeel is not { } ability ||
-            state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Diamond.Id) < ability.DiamondCost) yield break;
+        if (state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Banana.Id) < ability.BananaCost) yield break;
         var board = state.Physical.Board;
         for (var y = 0; y < board.Height; y++)
         for (var x = 0; x < board.Width; x++)
@@ -22,10 +20,11 @@ internal static class BananaPlacementRules
     internal static void Resolve(GameState state, string unitId, Candidate action, Action<RulesEvent> emit)
     {
         var unit = state.Units.Single(u => u.Id == unitId);
-        if (!Candidates(state, unit).Contains(action)) throw new InvalidOperationException("Banana Peel placement is unavailable.");
-        var cost = state.Types.Single(t => t.Id == unit.TypeId).PlaceBananaPeel!.DiamondCost;
+        var ability = action.BonusAction!.PlaceBananaPeel!;
+        if (!Candidates(state, unit, ability).Any(c => c.Destination == action.Destination)) throw new InvalidOperationException("Banana Peel placement is unavailable.");
+        var cost = ability.BananaCost;
         var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId &&
-            r.Type.Id == ResourceTypes.Diamond.Id);
+            r.Type.Id == ResourceTypes.Banana.Id);
         var stored = state.StoredResources[index];
         state.StoredResources[index] = stored with { Quantity = stored.Quantity - cost };
         state.PlaceCellMarker(CellMarkerTypes.BananaPeel, action.Destination!);
@@ -46,10 +45,11 @@ internal static class BananaPlacementRules
         var asphalt = candidates.Where(c => queries.TerrainAt(c.Destination!) == TerrainKind.Asphalt).ToList();
         if (asphalt.Count > 0) candidates = asphalt;
         var route = queries.EffectiveOrderFor(request.UnitId!).Route;
-        var next = route is null ? null : RouteRules.Next(route);
+        var definition = route is null ? null : queries.RouteDefinition(route.RouteId);
+        var next = route is null ? null : RouteRules.Next(route, definition!);
         var closedDoors = queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.ApproachThroughClosedDoors);
         var ranked = candidates.Select(c => new { Candidate = c,
-            Distance = next is null ? null : queries.RouteDistanceToArea(request.UnitId!, c.Destination!, next.Waypoints[next.CurrentIndex], closedDoors) }).ToList();
+            Distance = next is null ? null : queries.RouteDistanceToArea(request.UnitId!, c.Destination!, queries.WaypointArea(definition!.WaypointIds[next.CurrentIndex]), closedDoors) }).ToList();
         // Unreachable targets do not acquire an artificial preference over comparable routes.
         var compare = ranked.All(x => x.Distance.HasValue);
         return ranked.OrderByDescending(x => compare ? x.Distance : null)

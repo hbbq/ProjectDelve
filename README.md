@@ -422,18 +422,67 @@ The new original is 1254 × 1254 RGBA with genuine alpha (0–255), no embedded 
 
 `board-visuals.js` resolves marker art through the `cellMarker` catalog. Markers render centered at 62% of a Cell above Terrain/rail decoration and below Units, with Resources in their separate corner. They ignore pointer input and leave Cell highlights and choices intact. Classic uses a Banana glyph with the marker's accessible name; Enhanced uses the image after successful decoding and retains the glyph for missing or failed artwork. No rotation, terrain variant/hash or seed lifecycle changes were introduced. The full pipeline regenerates the [catalog sheet](assets/previews/artwork-pack-01.png) and [marker composition preview](assets/previews/cell-markers.png), including 60px and 100px Cells on Stone Floor, Grass and Gravel. Contact-sheet/DOM verification is not browser visual approval.
 
-### Follow Route and Diamond Kart
+### Shared Waypoints, Routes and racing items
 
-`FollowRoute` Standing Orders store ordered `waypoints` rectangles (`x`, `y`, `w`, `h`), `mode` (`Once`, `Loop`, `PingPong`), `currentIndex` and `direction` on the Unit Type + Side group. Scenario `orders[].route`, runtime Orders, JSON/DELVE1, observations and playback snapshots carry the same shared progress. The Level Designer's group editor adds/removes ordered waypoint rectangles and edits traversal mode and initial progress. Validation rejects empty/off-board rectangles and invalid indices/directions. `AssignOrder(..., route: ...)` uses the existing Order assignment boundary.
+Scenario `waypoints` contain stable `id` and rectangular `area` (`x`, `y`, `w`, `h`). Scenario `routes` contain stable `id`, ordered `waypointIds` (including repeated references), and `mode` (`Once`, `Loop`, `PingPong`). Multiple Routes may reuse Waypoints; multiple groups may reuse a Route. `orders[].route` contains only `routeId`, `currentIndex` and `direction`. Runtime state, JSON/DELVE1, browser playback and Gambit observations retain these shared definitions and independent group progress. The former embedded-rectangle Order model is replaced; old route-bearing exports must be reauthored in the shared format.
 
-Only an ordinary Move endpoint, including Stay, completes the current waypoint; one Move advances at most one area. Larger Units count any occupied destination Cell. Forced movement and post-Attack movement do not advance routes. Once clears at its final waypoint; Loop wraps; Ping-pong reverses without repeating endpoints. Automated movement uses shared terrain-route distance queries and authoritative legal Move candidates. `UnitBehavior.RouteLookahead` optionally ranks destinations inside the current area by distance to the next area. Planning ignores Banana Peels while actual paths still stop at them. Normal Actions remain available.
+The Level Designer has a **Shared Waypoints and Routes** panel. Create/edit rectangle identities and geometry, assemble Routes using existing Waypoint selectors in order, reorder/remove entries, choose traversal mode, then assign a Route in each Type + Side group editor. Renaming a Waypoint updates Route references. Editing/replacing a Route resets assigned initial progress; deleting a referenced Waypoint or assigned Route is refused until its references are removed. Board shrinking cannot hide Waypoints. The board shows subtle, non-interactive rectangle outlines; **Show Waypoints** toggles them in play. Classic retains labels, outlines and glyph fallbacks.
 
-The Unique **Diamond Kart** has MOV 5 / RNG 0 / ATK 0 / DEF 3 / HP 4, cannot Attack, accepts one Diamond in shared storage and uses the reusable Asphalt ordinary-movement restriction. Workers supply it through normal Give Resource. **Place Banana Peel** spends its authored Diamond cost and places the marker atomically in a legal adjacent passable Cell; loose Resources are allowed and Asphalt is optional. `UnitBehavior.PreferBananaPeel` prefers Asphalt targets, then the greatest comparable route distance to the next waypoint, then deterministic Cell order. Humans retain every legal choice.
+Only an ordinary Move endpoint, including Stay, reaches the current Waypoint; one Move advances at most one Waypoint. Larger Units count any occupied destination Cell. Forced movement and post-Attack movement do not advance Routes. Once clears at its final Waypoint, Loop wraps, and Ping-pong reverses without repeating endpoints. `WaypointReached` identifies the arriving Unit, group, Route and Waypoint; the existing RouteAdvanced/RouteCompleted events remain available. Route Lookahead uses shared terrain-route queries and the next Waypoint in the actual traversal sequence. Planning ignores Peels; actual movement still stops and slips on them.
 
-Select **Köra runt banan och kasta banan** (`diamond-kart-racing`) to inspect two autonomous opposing Karts on a broad Loop circuit. Central Lava renews Coal; Workers cross the circuit to outside owned Diamond Presses and carry Diamonds back to Karts. Chief Mechanics replenish Workers up to their existing Side limit. Each Kart begins with one Diamond so throwing is visible immediately. There are no victory objectives, rankings or rewards. The authored layout can be adjusted in the Level Designer.
+Activations count completed Moves against effective Move opportunities, with a minimum of zero. All available Moves must finish before normal Actions or End Turn. Bonus Actions and Free Actions retain flexible timing. Boost adds a Move after spending its Mushroom, including after an earlier Move, but cannot be used after any normal Action. Each extra Move resolves normal movement, transport, arrival and Route advancement independently.
 
-| Canonical ID | Immutable source | Runtime | Format |
+The canonical Unique **Diamond Kart** retains MOV 5 / RNG 0 / ATK 0 / DEF 3 / HP 4, CantAttack, Asphalt ordinary movement and Route Lookahead. Its shared storage accepts one each of **Banana**, **Mushroom** and **Shell**. Workers deliver through ordinary Give Resource. Diamond and Coal remain separate Resources; Banana Peel remains a Cell Marker.
+
+- **Place Banana Peel (Bonus Action):** spend 1 Banana to place a marker in a legal adjacent passable Cell, including off Asphalt or on loose Resources. Automation waits until all Moves are complete, prefers Asphalt, then uses existing route-distance and deterministic Cell ranking.
+- **Boost (Bonus Action):** spend 1 Mushroom for one extra Move this activation. Automation uses it immediately whenever legal, even without a useful destination.
+- **Shoot Shell (Action):** spend 1 Shell to attack a legal hostile target with RNG 4 / ATK 3 through ordinary LOS, dice, defense and damage resolution. CantAttack does not suppress this explicit ability. Automation picks the nearest legal target, then top-left board order and stable key. Without a target it retains the Shell.
+- **Waypoint Slot Machine (automatic):** at activation end, a Kart whose own ordinary Move advanced its group's Waypoint rolls once: d6 1–3 Banana, 4–5 Mushroom, 6 Shell. Store one if capacity allows; otherwise discard. Multiple advances still give one roll, and the item cannot be spent earlier in that activation.
+
+**Fruit Tree** is impassable and blocks LOS like Tree. It shares Lava's two ordered directional d8 attempts and Round Start placement logic, producing **Fruit**. Per the confirmed rules clarification, generation ignores only the source Fruit Tree's own terrain blocker; other terrain, Walls, Doors and corner LOS rules remain in force. Ordinary LOS is unchanged. Generation occurs after World Cards and before the Activation Bag.
+
+**Slot Machine** accepts 3 Fruit; Operate consumes all 3 and produces one item on the operator's Cell from the same Racing Slot Table. The Machine Operation model supports either a fixed Resource or an authored six-face Resource table. Ownership, transfer, output occupancy, Worker planning and atomic costs use the existing Machine system. No rerolls or substitutions occur. Diamond Press remains available.
+
+### Focused racing playtests
+
+- **Simple Racing** (`simple-racing`): two automated opposing Karts, a three-Cell-wide Asphalt ring, four shared rectangular Waypoints, independent group progress, and one starting Banana/Mushroom/Shell per Side. No industry or victory objective.
+- **Racing and Industry** (`racing-and-industry`): the same circuit and shared Route, four inside Fruit Trees, outside Side-owned Slot Machines, Chief Mechanics and Workers. Inside starting Fruit and outside preloaded Machines expose both collection and item delivery early. Workers must cross Asphalt between orchard and workshop; ordinary behavior supplies all movement and delivery choices. No scripted paths or racing-specific Worker logic.
+
+The earlier racing scenarios retain their authored layouts and now reference shared definitions. Their Diamond Press economies remain historical playtest content; use Racing and Industry for the Fruit-to-item economy.
+
+Run repeatable autonomous diagnostics with:
+
+```powershell
+dotnet run --project tools/RacingSimulation --artifacts-path .artwork-qa -- 40 20261020
+```
+
+The optional arguments are rounds, seed, then scenario IDs. The tool counts authoritative events without changing game rules. Detailed mechanics use test-owned fixtures; authored scenario tests only validate loading/instantiation.
+
+One seeded 40-round run of each scenario completed with no game completion:
+
+| Metric | Simple Racing | Racing and Industry |
+| --- | ---: | ---: |
+| Waypoint advances | 39 | 40 |
+| Waypoint rolls / stored awards | 39 / 37 | 40 / 38 |
+| Boosts / Shell attacks | 14 / 4 | 19 / 12 |
+| Peels / slips | 22 / 8 | 27 / 12 |
+| Fruit created | 0 | 66 |
+| Fruit deliveries to Machines / operations | 0 / 0 | 48 / 18 |
+| Item deliveries to Karts | 0 | 15 |
+
+These are diagnostics from seed 20261020, not balance guarantees. Shells can defeat participants; the scenarios intentionally add no special resurrection or racing victory system.
+
+### Fruit Tree, item and Slot Machine artwork
+
+All eight new originals are 1254 × 1254 RGBA PNGs with genuine transparency, no embedded color profiles, EXIF orientation or animation. The full existing pipeline exports uncropped sRGB WebPs using Lanczos, quality 85/method 6, and verifies exact resized alpha. The current source inventory has 61 originals: 59 direct exports plus two railway components. Original SHA-256 hashes are unchanged.
+
+| Original under `assets/source/` | Catalog key | Runtime under `wwwroot/art/` | Size |
 | --- | --- | --- | --- |
-| `diamond-kart-type` | `assets/source/units/diamond-kart.png` | `ProjectDelve.Web/wwwroot/art/units/diamond-kart.webp` | 512 × 512 sRGB WebP |
+| `terrain/objects/fruit-tree-01.png` … `03.png` | `terrain.FruitTree` | `terrain/objects/fruit-tree/01.webp` … `03.webp` | 256 × 256 |
+| `resources/fruit.png` | `resource.fruit` | `resources/fruit.webp` | 128 × 128 |
+| `resources/banana.png` | `resource.banana` | `resources/banana.webp` | 128 × 128 |
+| `resources/mushroom.png` | `resource.mushroom` | `resources/mushroom.webp` | 128 × 128 |
+| `resources/shell.png` | `resource.shell` | `resources/shell.webp` | 128 × 128 |
+| `machines/slot-machine.png` | `machine.slot-machine` | `machines/slot-machine.webp` | 256 × 256 |
 
-The Kart's new 1254 × 1254 RGB original has no embedded profile, EXIF orientation or animation. The existing pipeline exports the entire square with Lanczos and quality 85/method 6, without cropping or altering the original. The catalog now covers 53 originals: 51 direct exports and two railway material sources. Full re-export/decoding checks confirmed all originals' SHA-256 hashes unchanged; existing exports with identical decoded pixels retain their previous bytes. The regenerated catalog preview includes the Kart at circular token scale. Classic, missing-image fallbacks, terrain variant/rotation hashes and seed lifecycle are preserved. Browser visual approval remains pending when no browser surface is connected.
+Fruit Tree composes existing Grass with three independent deterministic object variants and quarter turns. Existing terrain hashes, variant counts/order and seed lifecycle are unchanged. Resource and Machine images retain transparent margins, glyph/error fallbacks and non-interactive decoration; ownership, storage and labels remain separate UI. The catalog, composite terrain and Machine/Resource contact sheets are generated by `tools/prepare-artwork.py`. No browser surface was connected for actual-board visual QA; previews and automated Classic/Enhanced DOM tests are not visual approval.

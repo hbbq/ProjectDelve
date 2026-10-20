@@ -11,6 +11,8 @@ public sealed record ScenarioDefinition
     public required List<UnitPlacement> Units { get; init; }
     public required List<AgencyAssignment> Agency { get; init; }
     public List<InitialGroupOrder>? Orders { get; init; }
+    public List<Waypoint>? Waypoints { get; init; }
+    public List<Route>? Routes { get; init; }
     // Optional concrete scenario content; declared IDs without an entry use canonical content.
     public List<UnitType>? UnitTypes { get; init; }
     public List<StoredResource>? StoredResources { get; init; }

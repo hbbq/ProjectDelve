@@ -26,8 +26,10 @@ public sealed class RouteProjectionTests
         Agency = [new(UnitTypeIds.DiamondKart, "blue", ControllerKind.Human)],
         Objectives = [new("blue", ScenarioObjective.NoObjective)],
         Orders = [new(UnitTypeIds.DiamondKart, "blue", OrderKind.FollowRoute,
-            Route: new([new(2, 0, 1, 3), new(5, 0, 2, 3)], RouteMode.Loop))],
-        StoredResources = [new("blue", UnitTypeIds.DiamondKart, ResourceTypes.Diamond, 1)]
+            Route: new("test-route"))],
+        Waypoints = [new("first", new(2, 0, 1, 3)), new("second", new(5, 0, 2, 3))],
+        Routes = [new("test-route", ["first", "second"], RouteMode.Loop)],
+        StoredResources = [new("blue", UnitTypeIds.DiamondKart, ResourceTypes.Banana, 1)]
     };
 
     [Fact]
@@ -38,14 +40,14 @@ public sealed class RouteProjectionTests
         var moved = GameEngine.Advance(start.State, new Pick("2,1"), new Dice(), false);
         var view = BrowserProjection.Create(moved);
         Assert.Equal(1, Assert.Single(view.Orders).Route!.CurrentIndex);
-        var index = moved.Events.ToList().FindIndex(e => e.Kind == "RouteAdvanced");
+        var index = moved.Events.ToList().FindIndex(e => e.Kind == "WaypointReached");
         Assert.Equal(0, moved.ResolutionSteps[index - 1].StateAfter.Orders[0].Route!.CurrentIndex);
         Assert.Equal(1, moved.ResolutionSteps[index].StateAfter.Orders[0].Route!.CurrentIndex);
         Assert.Equal(1, view.ResolutionSteps.Single(s => s.EventIndex == index).Orders[0].Route!.CurrentIndex);
         Assert.Contains(view.Events, e => e.Text.Contains("advanced the group's route"));
         var target = moved.NextInput!.Candidates.First(c => c.Action == UnitAction.PlaceBananaPeel);
         var choice = view.Decision!.Candidates.Single(c => c.Key == target.Key);
-        Assert.Equal("place-banana-peel", choice.EntryId);
+        Assert.Equal("bonus:place-banana-peel", choice.EntryId);
         Assert.Equal(InteractionKind.Position, choice.Interaction.Kind);
         Assert.Equal(target.Destination, choice.Interaction.Position);
         var placed = GameEngine.Advance(moved.State, new Pick(target.Key), new Dice(), false);

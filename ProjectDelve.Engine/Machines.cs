@@ -3,7 +3,12 @@ using System.Collections.Immutable;
 namespace ProjectDelve.Engine;
 
 public sealed record MachineResource(ResourceType Type, int Quantity);
-public sealed record MachineOperation(ImmutableArray<MachineResource> Costs, ResourceType OutputType, int OutputQuantity = 1);
+public sealed record MachineOperation(ImmutableArray<MachineResource> Costs, ResourceType? OutputType = null, int OutputQuantity = 1)
+{
+    public ResourceOutputTable? OutputTable { get; init; }
+    public string OutputDescription => OutputTable is null ? OutputType!.Name :
+        "d6: " + string.Join(", ", OutputTable.Faces.Select((type, i) => $"{i + 1} {type.Name}"));
+}
 public sealed record MachineType(string Id, string Name, ResourceStorage Storage, MachineOperation Operation);
 public sealed record Machine(string Id, Cell Position, MachineType Type)
 {
@@ -16,6 +21,8 @@ public static class MachineTypes
 {
     public static MachineType DiamondPress { get; } = new("diamond-press", "Diamond Press",
         new([new(ResourceTypes.Coal, 3)]), new([new(ResourceTypes.Coal, 3)], ResourceTypes.Diamond, OutputQuantity: 1));
+    public static MachineType SlotMachine { get; } = new("slot-machine", "Slot Machine",
+        new([new(ResourceTypes.Fruit, 3)]), new([new(ResourceTypes.Fruit, 3)], null) { OutputTable = RacingSlotTable.Table });
 }
 
 internal static class MachineRules
@@ -38,7 +45,9 @@ internal static class MachineRules
             ResourceRules.ValidateCapacity(machine.Type.Storage);
             var operation = machine.Type.Operation;
             if (operation is null || operation.Costs.IsDefaultOrEmpty || operation.OutputQuantity != 1 ||
-                !ResourceRules.ValidType(operation.OutputType) ||
+                (operation.OutputTable is null ? !ResourceRules.ValidType(operation.OutputType) :
+                    operation.OutputType is not null || operation.OutputTable.Faces.IsDefault || operation.OutputTable.Faces.Length != 6 ||
+                    operation.OutputTable.Faces.Any(t => !ResourceRules.ValidType(t))) ||
                 operation.Costs.Any(c => c is null || !ResourceRules.ValidType(c.Type) || c.Quantity < 1 ||
                     c.Quantity > Capacity(machine, c.Type.Id)) ||
                 operation.Costs.Select(c => c.Type.Id).Distinct().Count() != operation.Costs.Length ||
@@ -79,7 +88,7 @@ internal static class MachineRules
         }
     }
 
-    internal static RulesEvent Resolve(GameState state, string actorId, Candidate action)
+    internal static RulesEvent Resolve(GameState state, string actorId, Candidate action, IRandomProvider random)
     {
         if (!Candidates(state, state.Units.Single(u => u.Id == actorId)).Contains(action))
             throw new InvalidOperationException("Machine interaction is unavailable.");
@@ -97,10 +106,12 @@ internal static class MachineRules
                 ActionId = "give-resource", ResourceType = resource.Type, StoredQuantity = quantity };
         }
         var operation = machine.Type.Operation;
+        int? roll = operation.OutputTable is null ? null : random.RollD6();
+        var output = roll is { } value ? operation.OutputTable!.Result(value) : operation.OutputType!;
         machines[index] = machine with { StoredResources = [.. machine.StoredResources.Select(r => r with
             { Quantity = r.Quantity - (operation.Costs.SingleOrDefault(c => c.Type.Id == r.Type.Id)?.Quantity ?? 0) })] };
-        state.Resources.Add(new(operation.OutputType, cell));
+        state.Resources.Add(new(output, cell));
         return new("MachineOperated", actorId) { MachineId = machine.Id, SourceUnitId = actorId, Cell = cell, ActionId = "operate",
-            ResourceType = operation.OutputType, ConsumedResources = operation.Costs };
+            ResourceType = output, DieRoll = roll, ConsumedResources = operation.Costs };
     }
 }

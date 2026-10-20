@@ -73,7 +73,7 @@ public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
-public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel, Asphalt }
+public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel, Asphalt, FruitTree }
 public enum RailDirection { North, East, South, West }
 public sealed record TerrainTile(Cell Position, TerrainKind Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null);
@@ -81,7 +81,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, SummonWorker = 2048, SummonTroll = 4096, PlaceBananaPeel = 8192 }
+public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, SummonWorker = 2048, SummonTroll = 4096, PlaceBananaPeel = 8192, ShootShell = 16384 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -111,7 +111,10 @@ public sealed record Displace(int MaxMove);
 public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
 public sealed record SummonWorker(int SideLimit);
 public sealed record SummonTroll(int DiamondCost);
-public sealed record PlaceBananaPeel(int DiamondCost);
+public sealed record PlaceBananaPeel(int BananaCost);
+public sealed record Boost(int MushroomCost);
+public sealed record ShootShell(int ShellCost, int Rng, int Atk);
+public sealed record WaypointSlotMachine;
 public sealed record TerrainRestrictedMovement(TerrainKind Terrain);
 public sealed record Telekinesis;
 // Presentation only: fixed mechanic/counter identities never depend on these names.
@@ -179,6 +182,8 @@ public sealed record ModifierThisTurn(Stat Stat, int Amount);
 // Immutable content and per-ability counters may be shared safely by state copies.
 public sealed record BonusActionAbility(string Name, int? MaxUses, ImmutableArray<ModifierThisTurn> Modifiers)
 {
+    public PlaceBananaPeel? PlaceBananaPeel { get; init; }
+    public Boost? Boost { get; init; }
     public ReshapeRoom? ReshapeRoom { get; init; }
     public Swap? Swap { get; init; }
     public Displace? Displace { get; init; }
@@ -212,7 +217,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public SummonAdjacent? SummonAdjacent { get; init; }
     public SummonWorker? SummonWorker { get; init; }
     public SummonTroll? SummonTroll { get; init; }
-    public PlaceBananaPeel? PlaceBananaPeel { get; init; }
+    public ShootShell? ShootShell { get; init; }
+    public WaypointSlotMachine? WaypointSlotMachine { get; init; }
     public TerrainRestrictedMovement? TerrainRestrictedMovement { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
@@ -300,7 +306,7 @@ public sealed record Board(int Width, int Height, List<Edge> Edges)
 public static class BoardProperties
 {
     public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail or TerrainKind.Gravel or TerrainKind.Asphalt;
-    public static bool BlocksLos(this TerrainKind kind) => kind == TerrainKind.Tree;
+    public static bool BlocksLos(this TerrainKind kind) => kind is TerrainKind.Tree or TerrainKind.FruitTree;
     public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
 }
@@ -337,6 +343,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    public string? RouteId { get; init; }
+    public string? WaypointId { get; init; }
     public string? MachineId { get; init; }
     public ImmutableArray<MachineResource> ConsumedResources { get; init; } = [];
     public CellMarkerType? CellMarkerType { get; init; }
@@ -403,6 +411,8 @@ public sealed class GameState
     public List<ControllerAssignment> Controllers { get; set; } = [];
     // Sparse authoritative assignments: absence means Normal.
     public List<GroupOrder> Orders { get; set; } = [];
+    public List<Waypoint> Waypoints { get; set; } = [];
+    public List<Route> Routes { get; set; } = [];
     public GroupOrder OrderFor(ActivationToken token) =>
         Orders.SingleOrDefault(order => order.Token == token) ?? new(token, OrderKind.Normal);
     public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null, OrderTarget? target = null, FollowRoute? route = null)
@@ -423,7 +433,15 @@ public sealed class GameState
     public DoorContinuation? DoorInProgress { get; set; }
     // FIFO defeat consequences, retained across dice boundaries only until resolution completes.
     public List<DefeatContext> PendingExplosions { get; set; } = [];
-    public bool MoveDone { get; set; }
+    public int MovesCompletedThisActivation { get; set; }
+    public int MoveOpportunityModifierThisActivation { get; set; }
+    public int EffectiveMovesPerActivation => Math.Max(0, 1 + MoveOpportunityModifierThisActivation);
+    public bool MoveDone
+    {
+        get => MovesCompletedThisActivation >= EffectiveMovesPerActivation;
+        set { if (value != MoveDone) MovesCompletedThisActivation = value ? EffectiveMovesPerActivation : 0; }
+    }
+    public bool WaypointAdvancedThisActivation { get; set; }
     // Existing flag records whether an Action has been performed; counts govern opportunities.
     public bool ActionDone
     {
@@ -555,8 +573,10 @@ public sealed class GameState
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
-        ActiveToken = ActiveToken, Controllers = [.. Controllers], Orders = [.. Orders],
-        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, MoveDone = MoveDone, ActionDone = ActionDone,
+        ActiveToken = ActiveToken, Controllers = [.. Controllers], Orders = [.. Orders], Waypoints = [.. Waypoints], Routes = [.. Routes],
+        MovesCompletedThisActivation = MovesCompletedThisActivation, MoveOpportunityModifierThisActivation = MoveOpportunityModifierThisActivation,
+        WaypointAdvancedThisActivation = WaypointAdvancedThisActivation,
+        AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, ActionDone = ActionDone,
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,

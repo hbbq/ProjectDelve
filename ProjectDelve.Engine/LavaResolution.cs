@@ -5,9 +5,13 @@ public static partial class GameEngine
     private static void ResolveLavaCoalGeneration(GameState state, IRandomProvider random, ResolutionEvents events)
     {
         var board = state.Physical.Board;
-        foreach (var lava in board.Terrain.Where(t => t.Kind == TerrainKind.Lava)
+        // Both sources share the exact attempt order, d8 geometry and placement checks.
+        foreach (var lava in board.Terrain.Where(t => t.Kind is TerrainKind.Lava or TerrainKind.FruitTree)
             .OrderBy(t => t.Position.Y).ThenBy(t => t.Position.X))
         {
+            var fruit = lava.Kind == TerrainKind.FruitTree;
+            var resource = fruit ? ResourceTypes.Fruit : ResourceTypes.Coal;
+            var actionId = fruit ? "fruit-tree" : "lava-coal";
             for (var attempt = 0; attempt < 2; attempt++)
             {
                 var roll = random.RollD8();
@@ -17,14 +21,14 @@ public static partial class GameEngine
                     5 => (0, 1), 6 => (-1, 1), 7 => (-1, 0), 8 => (-1, -1),
                     _ => throw new ArgumentException("Lava generation requires a d8 result from 1 to 8.", nameof(random))
                 };
-                events.Add(new RulesEvent("LavaCoalRolled", DieRoll: roll) { Cell = lava.Position, ActionId = "lava-coal" });
+                events.Add(new RulesEvent(fruit ? "FruitTreeRolled" : "LavaCoalRolled", DieRoll: roll) { Cell = lava.Position, ActionId = actionId });
                 var destination = new Cell(lava.Position.X + dx, lava.Position.Y + dy);
                 if (!ResourceRules.CanCreateAt(state, destination) ||
-                    !SpatialRules.AreAdjacent(board, lava.Position, destination)) continue;
-                state.PlaceResource(ResourceTypes.Coal, destination);
+                    !AttackRules.HasGeometricLineOfSight(board, lava.Position, destination, ignoredTerrainCell: lava.Position)) continue;
+                state.PlaceResource(resource, destination);
                 events.Add(new RulesEvent("ResourceCreated")
                 {
-                    Cell = destination, ResourceType = ResourceTypes.Coal, ActionId = "lava-coal"
+                    Cell = destination, ResourceType = resource, ActionId = actionId
                 });
             }
         }

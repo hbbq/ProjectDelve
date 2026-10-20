@@ -27,8 +27,9 @@ class CompositeArtworkTests(unittest.TestCase):
         self.assertIn(('units/chief-mechanic.png', 'units/chief-mechanic.webp', 512), pipeline.ASSETS)
 
     def test_machine_and_resource_alpha_survives_export_without_crop(self):
-        for category, name, size in (("machines", "diamond-press", 256),
-                                     ("markers", "banana-peel", 128), ("resources", "coal", 128), ("resources", "diamond", 128)):
+        for category, name, size in (("machines", "diamond-press", 256), ("machines", "slot-machine", 256),
+                                     ("markers", "banana-peel", 128), ("resources", "coal", 128), ("resources", "diamond", 128),
+                                     *[("resources", name, 128) for name in ("fruit", "banana", "mushroom", "shell")]):
             source, destination = f"{category}/{name}.png", f"{category}/{name}.webp"
             with self.subTest(source=source):
                 self.assertIn((source, destination, size), pipeline.ASSETS)
@@ -104,7 +105,7 @@ class CompositeArtworkTests(unittest.TestCase):
 
     def test_transparent_object_registrations_and_lossless_resized_alpha(self):
         registrations = {source: (destination, size) for source, destination, size in pipeline.ASSETS}
-        for name in ("tree", "table"):
+        for name in ("tree", "table", "fruit-tree"):
             for slot in range(1, 4):
                 source = f"terrain/objects/{name}-{slot:02}.png"
                 with self.subTest(source=source):

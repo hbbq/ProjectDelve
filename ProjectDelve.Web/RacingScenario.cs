@@ -14,11 +14,13 @@ internal static class RacingScenario
             if (x <= 3 || x >= 12 || y <= 4 || y >= 8)
                 cells.Add(new(new(x, y), TerrainKind.Asphalt));
         cells.Add(new(new(8, 6), TerrainKind.Lava));
-        var route = new FollowRoute([new(10, 2, 4, 3), new(9, 8, 4, 3),
-            new(3, 8, 4, 3), new(3, 2, 4, 3)], RouteMode.Loop);
+        var route = new FollowRoute("circuit");
         return new()
         {
             Board = new() { Width = 17, Height = 13, Cells = cells, DefaultTerrain = TerrainKind.Grass },
+            Waypoints = [new("east-north", new(10, 2, 4, 3)), new("east-south", new(9, 8, 4, 3)),
+                new("west-south", new(3, 8, 4, 3)), new("west-north", new(3, 2, 4, 3))],
+            Routes = [new("circuit", ["east-north", "east-south", "west-south", "west-north"], RouteMode.Loop)],
             UnitTypeIds = [UnitTypeIds.DiamondKart, UnitTypeIds.ChiefMechanic, UnitTypeIds.Worker],
             Units = [new(UnitTypeIds.DiamondKart, "Blue", new(7, 3)),
                 new(UnitTypeIds.DiamondKart, "Red", new(6, 4)),

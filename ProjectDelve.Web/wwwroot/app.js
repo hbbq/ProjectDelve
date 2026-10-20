@@ -206,6 +206,7 @@ function inspectCell(key) {
 
 function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines) {
   const board = state.physical.board;
+  for (const node of ui.board.querySelectorAll(".waypoint-area")) node.remove();
   const nextObjects = new Map(), objectCounts = new Map();
   // Retain decoded artwork through both playback steps and snapshot redraws.
   // Prune absent objects every render and isolate artwork by game identity.
@@ -230,6 +231,13 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   ui.board.style.setProperty("--columns", board.width);
   ui.board.style.setProperty("--board-ratio", board.width / board.height);
   ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
+  for (const waypoint of state.waypoints ?? []) {
+    const area = waypoint.area, node = text("span", waypoint.id);
+    node.className = "waypoint-area"; node.setAttribute("aria-hidden", "true");
+    Object.assign(node.style, { left: `${area.x / board.width * 100}%`, top: `${area.y / board.height * 100}%`,
+      width: `${area.w / board.width * 100}%`, height: `${area.h / board.height * 100}%` });
+    ui.board.append(node);
+  }
   const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile]));
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const tile = terrain.get(cellKey({ x, y }));
@@ -247,7 +255,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
     node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
-    const symbol = { Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
+    const symbol = { Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));
@@ -1058,6 +1066,7 @@ function renderOrders(orders, state) {
 }
 
 function orderLabel(order, state) {
+  const route = state.routes?.find(r => r.id === order.route?.routeId);
   const target = order.target;
   const targetLabel = target?.kind === "Unit" ? `Unit ${target.unitId}`
     : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}`
@@ -1065,7 +1074,7 @@ function orderLabel(order, state) {
     : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
     : null;
   return order.kind === "DoNothing" ? "Do Nothing"
-    : order.kind === "FollowRoute" ? `Follow Route · ${order.route.mode === "PingPong" ? "Ping-pong" : order.route.mode} · waypoint ${order.route.currentIndex + 1}/${order.route.waypoints.length}${order.route.mode === "PingPong" ? (order.route.direction === 1 ? " →" : " ←") : ""}`
+    : order.kind === "FollowRoute" ? `Follow Route · ${order.route.routeId} · ${route?.mode === "PingPong" ? "Ping-pong" : route?.mode ?? ""} · waypoint ${order.route.currentIndex + 1}/${route?.waypointIds.length ?? "?"}${route?.mode === "PingPong" ? (order.route.direction === 1 ? " →" : " ←") : ""}`
     : order.kind === "HoldPosition" ? "Hold Position"
     : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
     : order.kind === "InteractWith" ? `Interact With · ${targetLabel}`
@@ -1119,7 +1128,8 @@ function renderTurn(state) {
   if (state.activeToken) ui["active-token"].append(tokenNode(state.activeToken, state));
   else ui["active-token"].append(text("span", "Awaiting draw"));
   ui["active-unit"].textContent = state.currentUnitId
-    ? `Activating \u00b7 ${displayedCards[state.currentUnitId]?.displayName ?? state.currentUnitId} \u00b7 ${state.currentUnitId}`
+    ? `Activating \u00b7 ${displayedCards[state.currentUnitId]?.displayName ?? state.currentUnitId} \u00b7 ${state.currentUnitId}` +
+      (Number.isInteger(state.effectiveMovesPerActivation) ? ` · Moves ${state.movesCompletedThisActivation}/${state.effectiveMovesPerActivation}` : "")
     : state.completion ? "Game complete" : "Choose a Unit or start a round";
 }
 
@@ -1210,6 +1220,8 @@ ui["controller-cancel"].addEventListener("click", () => mutate("controller/cance
 ui.filter.addEventListener("change", renderSnapshot);
 ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingleRelevantChoice: ui.auto.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);
+const waypointToggle = document.getElementById("waypoints");
+waypointToggle.addEventListener("change", () => ui.board.classList.toggle("hide-waypoints", !waypointToggle.checked));
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
 ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); cancelPause?.(); updateControls(); });

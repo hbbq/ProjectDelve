@@ -24,7 +24,7 @@ function field(form, label, value, { entries, type = "text", list } = {}) {
 export function mountDesigner(catalog, request, playDesign) {
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
-    "rail-direction", "side-settings", "agency", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
+    "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
   let tool = "Select", selection = null, painting = false, lastPaint = null, pendingPlay = false;
@@ -234,6 +234,12 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.board.style.setProperty("--columns", board.width);
     ui.board.style.setProperty("--board-ratio", board.width / board.height);
     ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
+    for (const waypoint of draft.definition.waypoints ?? []) {
+      const area = waypoint.area, node = element("span", waypoint.id); node.className = "waypoint-area";
+      Object.assign(node.style, { left: `${area.x / board.width * 100}%`, top: `${area.y / board.height * 100}%`,
+        width: `${area.w / board.width * 100}%`, height: `${area.h / board.height * 100}%` });
+      ui.board.append(node);
+    }
     for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
       const cell = { x, y }, node = element("div");
       node.className = `cell ${draft.terrainAt(cell)}`;
@@ -416,25 +422,12 @@ export function mountDesigner(catalog, request, playDesign) {
       readDetails = () => ({});
       if (kind.value === "FollowRoute") {
         const route = saved?.route;
-        const mode = field(details, "Route mode", route?.mode ?? "Once", { entries: ["Once", "Loop", "PingPong"] });
+        const routeId = field(details, "Shared Route", route?.routeId, {
+          entries: (draft.definition.routes ?? []).map(r => ({ value: r.id, label: `${r.id} (${r.mode})` })) });
         const current = field(details, "Current waypoint index (0-based)", route?.currentIndex ?? 0, { type: "number" });
         const direction = field(details, "Ping-pong direction", String(route?.direction ?? 1), { entries: ["1", "-1"] });
-        const rows = element("div"); details.append(rows);
-        const readers = [];
-        const addWaypoint = area => {
-          const row = element("div"); row.className = "designer-property-form"; rows.append(row);
-          const fields = ["x", "y", "w", "h"].map(key => field(row, `Waypoint ${readers.length + 1} ${key.toUpperCase()}`,
-            area?.[key] ?? (key === "w" || key === "h" ? 1 : 0), { type: "number" }));
-          let removed = false;
-          const remove = element("button", "Remove waypoint"); remove.type = "button";
-          remove.addEventListener("click", () => { removed = true; row.remove(); }); row.append(remove);
-          readers.push(() => removed ? null : Object.fromEntries(["x", "y", "w", "h"].map((key, i) => [key, Number(fields[i].value)])));
-        };
-        (route?.waypoints ?? [{ x: 0, y: 0, w: 1, h: 1 }]).forEach(addWaypoint);
-        const add = element("button", "Add waypoint"); add.type = "button"; add.addEventListener("click", () => addWaypoint()); details.append(add);
-        readDetails = () => ({ route: { mode: mode.value, currentIndex: Number(current.value),
-          direction: mode.value === "PingPong" ? Number(direction.value) : 1, waypoints: readers.map(read => read()).filter(Boolean) } });
-      } else if (kind.value === "MoveTo") {
+        routeId.addEventListener("change", () => { current.value = "0"; direction.value = "1"; });
+        readDetails = () => ({ route: { routeId: routeId.value, currentIndex: Number(current.value), direction: Number(direction.value) } });      } else if (kind.value === "MoveTo") {
         const destination = cellFields("Destination", saved?.destination);
         readDetails = () => ({ destination: destination() });
       } else if (["Attack", "Protect"].includes(kind.value)) {
@@ -524,7 +517,45 @@ export function mountDesigner(catalog, request, playDesign) {
     })));
     syncBrushAgency();
   }
-  function render() { syncWorldFields(); renderBoard(); renderProperties(); renderData(); }
+  function renderRoutes() {
+    ui.routes.replaceChildren();
+    ui.routes.append(element("h3", "Waypoints"));
+    for (const waypoint of [...(draft.definition.waypoints ?? []), null]) {
+      const form = element("form"); form.className = "designer-property-form";
+      const id = field(form, "Waypoint ID", waypoint?.id ?? "");
+      const geometry = ["x", "y", "w", "h"].map(key => field(form, key.toUpperCase(), waypoint?.area[key] ?? (key === "w" || key === "h" ? 1 : 0), { type: "number" }));
+      form.append(element("button", waypoint ? "Save Waypoint" : "Create Waypoint"));
+      if (waypoint) form.append(button("Delete Waypoint", () => commit(() => draft.removeWaypoint(waypoint.id))));
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveWaypoint(waypoint?.id, {
+        id: id.value, area: Object.fromEntries(["x", "y", "w", "h"].map((key, i) => [key, Number(geometry[i].value)])) })); });
+      ui.routes.append(form);
+    }
+    ui.routes.append(element("h3", "Routes"));
+    for (const route of [...(draft.definition.routes ?? []), null]) {
+      const form = element("form"); form.className = "designer-property-form";
+      const id = field(form, "Route ID", route?.id ?? "");
+      const mode = field(form, "Route mode", route?.mode ?? "Loop", { entries: ["Once", "Loop", { value: "PingPong", label: "Ping-pong" }] });
+      const sequence = [...(route?.waypointIds ?? [])], rows = element("div"); form.append(rows);
+      function renderSequence() {
+        rows.replaceChildren();
+        sequence.forEach((value, i) => {
+          const row = element("div");
+          const select = field(row, `Waypoint ${i + 1}`, value, { entries: (draft.definition.waypoints ?? []).map(w => w.id) });
+          select.addEventListener("change", () => { sequence[i] = select.value; });
+          row.append(button("Up", () => { if (i > 0) [sequence[i-1], sequence[i]] = [sequence[i], sequence[i-1]]; renderSequence(); }));
+          row.append(button("Down", () => { if (i+1 < sequence.length) [sequence[i+1], sequence[i]] = [sequence[i], sequence[i+1]]; renderSequence(); }));
+          row.append(button("Remove", () => { sequence.splice(i, 1); renderSequence(); })); rows.append(row);
+        });
+      }
+      form.append(button("Add existing Waypoint", () => { if (draft.definition.waypoints?.length) { sequence.push(draft.definition.waypoints[0].id); renderSequence(); } }));
+      renderSequence();
+      form.append(element("button", route ? "Save Route" : "Create Route"));
+      if (route) form.append(button("Delete Route", () => commit(() => draft.removeRoute(route.id))));
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveRoute(route?.id, { id: id.value, mode: mode.value, waypointIds: sequence })); });
+      ui.routes.append(form);
+    }
+  }
+  function render() { renderRoutes(); syncWorldFields(); renderBoard(); renderProperties(); renderData(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
     draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });

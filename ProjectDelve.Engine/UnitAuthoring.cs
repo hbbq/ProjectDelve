@@ -54,12 +54,23 @@ public static class UnitAuthoring
     public static Entry GiveResource() => new GiveEntry();
     public static Entry SummonWorker(int sideLimit) => new WorkerSummonEntry(new(sideLimit));
     public static Entry SummonTroll(int diamondCost) => new TrollSummonEntry(new(diamondCost));
-    public static Entry PlaceBananaPeel(int diamondCost) => new BananaEntry(new(diamondCost));
+    public static Entry PlaceBananaPeel(int bananaCost) => new BananaEntry(new(bananaCost));
+    public static Entry Boost(int mushroomCost) => new BonusEntry(new("boost", null, []) { Boost = new(mushroomCost), DisplayName = "Boost" });
+    public static Entry ShootShell(int shellCost, int rng, int atk) => new ShellEntry(new(shellCost, rng, atk));
+    public static Entry WaypointSlotMachine() => new SlotRewardEntry();
+    private sealed class ShellEntry(ShootShell ability) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { ShootShell = ability, Actions = type.Actions | UnitAction.ShootShell };
+    }
+    private sealed class SlotRewardEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { WaypointSlotMachine = new() };
+    }
     public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
     private sealed class BananaEntry(PlaceBananaPeel ability) : Entry
     {
         internal override UnitType Apply(UnitType type) => type with
-            { PlaceBananaPeel = ability, Actions = type.Actions | UnitAction.PlaceBananaPeel };
+            { BonusActions = type.BonusActions.Add(new("place-banana-peel", null, []) { PlaceBananaPeel = ability, DisplayName = "Place Banana Peel" }) };
     }
     private sealed class TerrainMovementEntry(TerrainRestrictedMovement capability) : Entry
     {

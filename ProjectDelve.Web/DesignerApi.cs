@@ -28,7 +28,8 @@ public static class DesignerApi
         {
             maxBoardSize = MaxBoardSize,
             cellMarkerTypes = new[] { CellMarkerTypes.BananaPeel },
-            machineTypes = new[] { MachineTypes.DiamondPress },
+            machineTypes = new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine },
+            resourceTypes = new[] { ResourceTypes.Coal, ResourceTypes.Diamond, ResourceTypes.Fruit, ResourceTypes.Banana, ResourceTypes.Mushroom, ResourceTypes.Shell },
             unitTypes = CanonicalUnitTypes.All.Select(type =>
             {
                 var offsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0));

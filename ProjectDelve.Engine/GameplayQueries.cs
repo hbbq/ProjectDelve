@@ -4,6 +4,8 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    Route RouteDefinition(string id) => throw new NotSupportedException();
+    ObjectiveArea WaypointArea(string id) => throw new NotSupportedException();
     TerrainKind TerrainAt(Cell cell) => throw new NotSupportedException();
     int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false) => throw new NotSupportedException();
     int StoredQuantityFor(string unitId, ResourceType resource) => throw new NotSupportedException();
@@ -72,6 +74,8 @@ public interface IGameplayQueries
 
 internal sealed class GameplayQueries : IGameplayQueries
 {
+    public Route RouteDefinition(string id) => world.Routes.Single(r => r.Id == id);
+    public ObjectiveArea WaypointArea(string id) => world.Waypoints.Single(w => w.Id == id).Area;
     public TerrainKind TerrainAt(Cell cell) => world.Physical.Board.TerrainAt(cell);
     public int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false)
     {
@@ -300,6 +304,7 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public int EffectiveAttackDice(string unitId, Candidate candidate)
     {
+        if (candidate.Action == UnitAction.ShootShell) return world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).ShootShell!.Atk;
         if (candidate.Action is not (UnitAction.NormalAttack or UnitAction.ClawAttack or
             UnitAction.FireBreath or UnitAction.Fireball)) return -1;
         var targets = CandidateTargets(candidate).Where(id => IsHostileTo(unitId, id)).ToList();

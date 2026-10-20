@@ -2,10 +2,10 @@ namespace ProjectDelve.Engine;
 
 internal static class OrderValidation
 {
-    internal static bool IsStructurallyValid(GroupOrder order, Board board) =>
+    internal static bool IsStructurallyValid(GroupOrder order, GameState state) =>
         order is not null && (order.Kind == OrderKind.FollowRoute
-            ? order.Destination is null && order.Target is null && RouteRules.IsValid(order.Route, board)
-            : order.Route is null && IsStructurallyValid(order.Kind, order.Destination, order.Target, board));
+            ? order.Destination is null && order.Target is null && RouteRules.IsValid(order.Route, state)
+            : order.Route is null && IsStructurallyValid(order.Kind, order.Destination, order.Target, state.Physical.Board));
 
     internal static bool IsStructurallyValid(OrderKind kind, Cell? destination, OrderTarget? target, Board board)
     {
@@ -28,7 +28,7 @@ internal static class OrderValidation
 
     internal static bool IsValidAssignment(GroupOrder order, GameState state)
     {
-        if (!IsStructurallyValid(order, state.Physical.Board)) return false;
+        if (!IsStructurallyValid(order, state)) return false;
         if (order.Target is not { } target) return true;
         return target.Kind switch
         {

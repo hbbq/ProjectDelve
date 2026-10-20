@@ -6,6 +6,10 @@ public static class ResourceTypes
 {
     public static ResourceType Diamond { get; } = new("diamond", "Diamond");
     public static ResourceType Coal { get; } = new("coal", "Coal");
+    public static ResourceType Fruit { get; } = new("fruit", "Fruit");
+    public static ResourceType Banana { get; } = new("banana", "Banana");
+    public static ResourceType Mushroom { get; } = new("mushroom", "Mushroom");
+    public static ResourceType Shell { get; } = new("shell", "Shell");
 }
 public sealed record Resource(ResourceType Type, Cell Position);
 

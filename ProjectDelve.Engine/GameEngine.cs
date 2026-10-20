@@ -43,7 +43,9 @@ public static partial class GameEngine
         state.AttackInProgress = null;
         state.DoorInProgress = null;
         state.PendingExplosions.Clear();
-        state.MoveDone = false;
+        state.MoveOpportunityModifierThisActivation = 0;
+        state.MovesCompletedThisActivation = 0;
+        state.WaypointAdvancedThisActivation = false;
         state.ActionDone = false;
         state.BonusActionUseCountsThisActivation.Clear();
         state.BonusActionsUsedThisActivation.Clear();
@@ -52,7 +54,7 @@ public static partial class GameEngine
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
         var events = new ResolutionEvents(state, observe);
-        var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind == TerrainKind.Lava);
+        var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind is TerrainKind.Lava or TerrainKind.FruitTree);
         if (state.WorldEffects is not null || hasLava)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
@@ -175,7 +177,9 @@ public static partial class GameEngine
                 break;
             case DecisionKind.SelectUnit:
                 state.CurrentUnitId = choice;
-                state.MoveDone = false;
+                state.MoveOpportunityModifierThisActivation = 0;
+                state.MovesCompletedThisActivation = 0;
+                state.WaypointAdvancedThisActivation = false;
                 state.ActionDone = false;
                 state.BonusActionUseCountsThisActivation.Clear();
                 state.BonusActionsUsedThisActivation.Clear();
@@ -184,12 +188,12 @@ public static partial class GameEngine
                 if (!state.IsUpright(choice!))
                 {
                     ChangePosture(state, choice!, Posture.Upright, events);
-                    CompleteUnit(state, events);
+                    CompleteUnit(state, random, events);
                 }
                 else if (state.Types.Single(t => t.Id == request.TypeId).RunRails is { } rails)
                 {
                     ResolveRunRails(state, choice!, rails, events);
-                    CompleteUnit(state, events);
+                    CompleteUnit(state, random, events);
                 }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
@@ -209,7 +213,15 @@ public static partial class GameEngine
                 state.BonusActionsUsedThisActivation.Add(ability.Name);
                 state.ModifiersThisTurn.AddRange(ability.Modifiers);
                 EmitActionUsed(request, choice!, events);
-                if (ability.Swap is not null)
+                if (ability.PlaceBananaPeel is not null)
+                    BananaPlacementRules.Resolve(state, request.UnitId!, bonusChoice, events.Add);
+                else if (ability.Boost is { } boost)
+                {
+                    state.MoveOpportunityModifierThisActivation++;
+                    RacingRules.Spend(state, request.UnitId!, ResourceTypes.Mushroom, boost.MushroomCost, "boost", events.Add);
+                    events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: ability.DisplayName ?? ability.Name) { ActionId = "boost" });
+                }
+                else if (ability.Swap is not null)
                 {
                     ExternalMovementRules.SwapPlaces(state, request.UnitId!, bonusChoice.TargetId!);
                     events.Add(new RulesEvent("PlacesSwapped", request.UnitId, bonusChoice.TargetId,
@@ -237,7 +249,7 @@ public static partial class GameEngine
                 }
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
-                CompleteUnit(state, events);
+                CompleteUnit(state, random, events);
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).FreeAction == UnitFreeAction.OpenDoor:
                 EmitActionUsed(request, choice!, events);
@@ -256,7 +268,7 @@ public static partial class GameEngine
                 {
                     state.MoveAfterAttackAllowance = null;
                 }
-                else state.MoveDone = true;
+                else state.MovesCompletedThisActivation++;
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
                 if (!request.IsMoveAfterAttack) RouteRules.CompleteMove(state, request.UnitId!, events.Add);
@@ -275,20 +287,22 @@ public static partial class GameEngine
                     }
                     else switch (action.Action)
                     {
-                        case UnitAction.PlaceBananaPeel:
-                            EmitActionUsed(request, choice!, events);
-                            BananaPlacementRules.Resolve(state, request.UnitId!, action, events.Add);
-                            break;
                         case UnitAction.Operate:
                             EmitActionUsed(request, choice!, events);
-                            events.Add(MachineRules.Resolve(state, request.UnitId!, action));
+                            events.Add(MachineRules.Resolve(state, request.UnitId!, action, random));
                             break;
                         case UnitAction.PickupResource:
                         case UnitAction.GiveResource:
                             EmitActionUsed(request, choice!, events);
                             events.Add(action.MachineId is not null
-                                ? MachineRules.Resolve(state, request.UnitId!, action)
+                                ? MachineRules.Resolve(state, request.UnitId!, action, random)
                                 : ResourceRules.Transfer(state, request.UnitId!, action));
+                            break;
+                        case UnitAction.ShootShell:
+                            EmitActionUsed(request, choice!, events);
+                            var shell = state.Types.Single(t => t.Id == request.TypeId).ShootShell!;
+                            RacingRules.Spend(state, request.UnitId!, ResourceTypes.Shell, shell.ShellCost, "shoot-shell", events.Add);
+                            BeginAttack(state, request.UnitId!, new([action.TargetId!], shell.Atk, "Shoot Shell"), events, "shoot-shell", null);
                             break;
                         case UnitAction.NormalAttack:
                             EmitActionUsed(request, choice!, events);
@@ -410,7 +424,7 @@ public static partial class GameEngine
             if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
                 (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
                  !state.IsUpright(state.CurrentUnitId)))
-                CompleteUnit(state, events);
+                CompleteUnit(state, random, events);
             if (state.IsCompleted) return;
             if (state.CurrentUnitId is null && EligibleUnits(state).Count == 0)
             {
@@ -428,14 +442,17 @@ public static partial class GameEngine
         }
     }
 
-    private static void CompleteUnit(GameState state, ResolutionEvents events)
+    private static void CompleteUnit(GameState state, IRandomProvider random, ResolutionEvents events)
     {
         var unitId = state.CurrentUnitId;
+        RacingRules.AwardWaypoint(state, unitId!, random, events.Add);
         state.CompletedUnitIds.Add(state.CurrentUnitId!);
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
         state.CleavePending = false;
-        state.MoveDone = false;
+        state.MoveOpportunityModifierThisActivation = 0;
+        state.MovesCompletedThisActivation = 0;
+        state.WaypointAdvancedThisActivation = false;
         state.ActionDone = false;
         state.BonusActionUseCountsThisActivation.Clear();
         state.BonusActionsUsedThisActivation.Clear();
@@ -482,7 +499,10 @@ public static partial class GameEngine
         candidates.AddRange(ResourceRules.Candidates(state, unit));
         candidates.AddRange(MachineRules.Candidates(state, unit));
         candidates.AddRange(SummoningRules.Candidates(state, unit));
-        candidates.AddRange(BananaPlacementRules.Candidates(state, unit));
+        if (actions.HasFlag(UnitAction.ShootShell) && type.ShootShell is { } shell &&
+            state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Shell.Id) >= shell.ShellCost)
+            candidates.AddRange(state.Units.Where(target => AttackRules.EvaluateHostileTargetFrom(state, unit.Id, from, target.Id, shell.Rng)
+                == UnitTargetEvaluation.Possible).Select(target => new Candidate($"shoot-shell:{target.Id}", Action: UnitAction.ShootShell, TargetId: target.Id)));
         if (actions.HasFlag(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
                 .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
@@ -595,7 +615,17 @@ public static partial class GameEngine
             if (state.BonusActionUsesThisActivation(ability.Name) < state.EffectiveBonusActionUsesPerActivation &&
                 (ability.MaxUses is null || unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0))
             {
-                if (ability.Swap is not null || ability.Displace is not null)
+                if (ability.Boost is { } boost)
+                {
+                    if (!state.ActionDone && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Mushroom.Id) >= boost.MushroomCost)
+                        yield return new("bonus-action:boost", Kind: ActivationChoiceKind.BonusAction, BonusAction: ability);
+                }
+                else if (ability.PlaceBananaPeel is { } banana)
+                {
+                    foreach (var candidate in BananaPlacementRules.Candidates(state, unit, banana))
+                        yield return candidate with { Kind = ActivationChoiceKind.BonusAction, BonusAction = ability };
+                }
+                else if (ability.Swap is not null || ability.Displace is not null)
                 {
                     foreach (var target in AdjacentHostiles(state, unit))
                     {
@@ -965,6 +995,7 @@ public static partial class GameEngine
     internal static void ValidateScenario(GameState state)
     {
         ValidateWorldDeck(state);
+        RouteRules.ValidateDefinitions(state);
         ResourceRules.ValidateStorage(state);
         MachineRules.Validate(state);
         foreach (var marker in state.CellMarkers) CellMarkerRules.Validate(marker, state.Physical.Board);
@@ -977,7 +1008,7 @@ public static partial class GameEngine
         if (state.Orders.Any(order => order is null) ||
             state.Orders.Where(order => order is not null).GroupBy(order => order.Token).Any(group => group.Count() != 1) ||
             state.Orders.Any(order => order is not null && (order.Kind == OrderKind.Normal ||
-                !OrderValidation.IsStructurallyValid(order, board) ||
+                !OrderValidation.IsStructurallyValid(order, state) ||
                 !state.Controllers.Any(controller => controller.Token == order.Token))))
             throw new ArgumentException("Orders must be sparse, unique, valid assignments for participating groups.");
         if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||
@@ -995,8 +1026,9 @@ public static partial class GameEngine
                 (t.Actions.HasFlag(UnitAction.SummonWorker) && t.SummonWorker is null) ||
                 (t.Actions.HasFlag(UnitAction.SummonTroll) && t.SummonTroll is null) ||
                 t.SummonWorker is { SideLimit: < 1 } || t.SummonTroll is { DiamondCost: < 1 } ||
-                t.PlaceBananaPeel is { DiamondCost: < 1 } ||
-                (t.Actions.HasFlag(UnitAction.PlaceBananaPeel) && t.PlaceBananaPeel is null) ||
+                t.ShootShell is { ShellCost: < 1 } or { Rng: < 1 } or { Atk: < 1 } ||
+                (t.Actions.HasFlag(UnitAction.ShootShell) && t.ShootShell is null) ||
+                t.Actions.HasFlag(UnitAction.PlaceBananaPeel) ||
                 (t.TerrainRestrictedMovement is { } restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
                 (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
                 (t.Actions.HasFlag(UnitAction.ClawAttack) && t.ClawAttack is null) ||
@@ -1005,10 +1037,13 @@ public static partial class GameEngine
                 t.HolyWave is { MaxUses: < 1 } ||
                 t.Fireball is { MaxUses: < 1 } ||
                 t.BonusActions.Any(ability => ability.MaxUses < 1 || string.IsNullOrWhiteSpace(ability.Name) ||
+                    ability.Boost is { MushroomCost: < 1 } || ability.PlaceBananaPeel is { BananaCost: < 1 } ||
                     ability.Displace is { MaxMove: < 0 or > 1 } ||
                     (Convert.ToInt32(ability.Swap is not null) + Convert.ToInt32(ability.Displace is not null) +
-                        Convert.ToInt32(ability.ReshapeRoom is not null)) > 1 ||
-                    (ability.Swap is not null || ability.Displace is not null || ability.ReshapeRoom is not null) && !ability.Modifiers.IsEmpty ||
+                        Convert.ToInt32(ability.ReshapeRoom is not null) + Convert.ToInt32(ability.Boost is not null) +
+                        Convert.ToInt32(ability.PlaceBananaPeel is not null)) > 1 ||
+                    (ability.Swap is not null || ability.Displace is not null || ability.ReshapeRoom is not null ||
+                        ability.Boost is not null || ability.PlaceBananaPeel is not null) && !ability.Modifiers.IsEmpty ||
                     ability.Modifiers.Any(m => !Enum.IsDefined(m.Stat))) ||
                 t.BonusActions.Select(a => a.Name).Distinct().Count() != t.BonusActions.Length))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");

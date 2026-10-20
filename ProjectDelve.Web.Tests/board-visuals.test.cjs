@@ -6,6 +6,25 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
+test("racing assets use shared Grass, three stable rotating Fruit Tree objects and separate item icons", () => {
+  const run = catalog();
+  assert.equal(run('boardVisuals.terrain.FruitTree.baseTerrain'), "Grass");
+  assert.equal(run('boardVisuals.terrain.FruitTree.object.rotation'), true);
+  const objects = JSON.parse(run('JSON.stringify(boardVisuals.terrain.FruitTree.object.variants.map(v => v.image))'));
+  assert.deepEqual(objects, [1,2,3].map(i => `./art/terrain/objects/fruit-tree/0${i}.webp`));
+  const items = ["fruit", "banana", "mushroom", "shell"];
+  for (const id of items) {
+    assert.equal(run(`boardVisuals.resource.${id}.image`), `./art/resources/${id}.webp`);
+    assert.ok(run(`boardVisuals.resource.${id}.glyph`));
+  }
+  assert.notEqual(run('boardVisuals.resource.banana.image'), run('boardVisuals.cellMarker["banana-peel"].image'));
+  assert.equal(run('boardVisuals.machine["slot-machine"].baseTerrain'), "StoneFloor");
+  for (const file of [...objects, ...items.map(id => `./art/resources/${id}.webp`), "./art/machines/slot-machine.webp"])
+    assert.ok(fs.existsSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", file)));
+  assert.equal(run('JSON.stringify(terrainLayers("FruitTree", {seed:"fixture",x:2,y:3}))'),
+    run('JSON.stringify(terrainLayers("FruitTree", {seed:"fixture",x:2,y:3}))'));
+});
+
 test("artwork catalog resolves registered local files while other content retains fallbacks", () => {
   const run = catalog();
   const names = ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
@@ -84,7 +103,7 @@ test("explicit directional overrides remain supported for test-owned terrain", (
 
 test("composite mappings reuse base slots and choose object slots independently", () => {
   const run = catalog();
-  for (const [id, base, folder] of [["Tree", "Grass", "tree"], ["StoneFloorWithTable", "StoneFloor", "table"]]) {
+  for (const [id, base, folder] of [["Tree", "Grass", "tree"], ["FruitTree", "Grass", "fruit-tree"], ["StoneFloorWithTable", "StoneFloor", "table"]]) {
     const pairs = new Set();
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
       const layers = JSON.parse(run(`JSON.stringify(terrainLayers("${id}", {seed:"fixture", x:${x}, y:${y}}))`));
@@ -100,7 +119,7 @@ test("composite mappings reuse base slots and choose object slots independently"
 
 test("quarter turns are opt-in, deterministic and independent of variants and the other layer", () => {
   const run = catalog(), reload = catalog();
-  for (const id of ["StoneFloor", "Asphalt", "Gravel", "Rail", "Grass", "Water", "Lava", "Tree", "StoneFloorWithTable"]) {
+  for (const id of ["StoneFloor", "Asphalt", "Gravel", "Rail", "Grass", "Water", "Lava", "Tree", "FruitTree", "StoneFloorWithTable"]) {
     const distribution = seed => `JSON.stringify(Array.from({length:256}, (_,i) => terrainLayers("${id}", {seed:"${seed}", x:i%16, y:Math.floor(i/16)})))`;
     const first = run(distribution("fixture"));
     assert.equal(first, reload(distribution("fixture")));

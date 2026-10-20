@@ -49,6 +49,7 @@ export class DesignerDraft {
       this.definition.units.some(unit => this.occupied(unit).some(hidden)) ||
       (this.definition.cellMarkers ?? []).some(marker => hidden(marker.position)) ||
       (this.definition.resources ?? []).some(resource => hidden(resource.position)) ||
+      (this.definition.waypoints ?? []).some(w => hidden({ x: w.area.x + w.area.w - 1, y: w.area.y + w.area.h - 1 })) ||
       (this.definition.machines ?? []).some(machine => hidden(machine.position)))
       throw new Error("Shrinking would hide authored terrain, edges, Units, Resources, Cell Markers or Machines. Remove or reposition them first.");
     board.width = width; board.height = height; this.changed();
@@ -142,6 +143,8 @@ export class DesignerDraft {
     this.changed();
   }
   setOrder(unitTypeId, sideId, order) {
+    if (order.kind === "FollowRoute" && !(this.definition.routes ?? []).some(r => r.id === order.route?.routeId))
+      throw new Error("Select an existing Route first.");
     const orders = this.definition.orders ?? [];
     upsert(orders, row => row.unitTypeId === unitTypeId && row.sideId === sideId,
       order.kind === "Normal" ? null : { unitTypeId, sideId, ...order });
@@ -160,6 +163,35 @@ export class DesignerDraft {
     const row = this.definition.agency[index];
     this.setOrder(row.unitTypeId, row.sideId, { kind: "Normal" });
     this.definition.agency.splice(index, 1); this.changed();
+  }
+  saveWaypoint(previousId, waypoint) {
+    const rows = this.definition.waypoints ??= [];
+    if (!waypoint.id.trim() || rows.some(w => w.id === waypoint.id && w.id !== previousId)) throw new Error("Waypoint ID must be unique and nonempty.");
+    const index = rows.findIndex(w => w.id === previousId);
+    if (index < 0) rows.push(structuredClone(waypoint)); else rows[index] = structuredClone(waypoint);
+    for (const route of this.definition.routes ?? []) route.waypointIds = route.waypointIds.map(id => id === previousId ? waypoint.id : id);
+    this.changed();
+  }
+  removeWaypoint(id) {
+    if ((this.definition.routes ?? []).some(r => r.waypointIds.includes(id))) throw new Error("Remove this Waypoint from its Routes before deleting it.");
+    this.definition.waypoints = (this.definition.waypoints ?? []).filter(w => w.id !== id); this.changed();
+  }
+  saveRoute(previousId, route) {
+    const rows = this.definition.routes ??= [];
+    if (!route.id.trim() || rows.some(r => r.id === route.id && r.id !== previousId)) throw new Error("Route ID must be unique and nonempty.");
+    if (!route.waypointIds.length || route.waypointIds.some(id => !(this.definition.waypoints ?? []).some(w => w.id === id)))
+      throw new Error("A Route needs existing Waypoints in order.");
+    const index = rows.findIndex(r => r.id === previousId);
+    if (index < 0) rows.push(structuredClone(route)); else rows[index] = structuredClone(route);
+    for (const order of this.definition.orders ?? []) if (order.route?.routeId === previousId) {
+      // Replacing a Route resets each assigned group's initial progress.
+      order.route = { routeId: route.id, currentIndex: 0, direction: 1 };
+    }
+    this.changed();
+  }
+  removeRoute(id) {
+    if ((this.definition.orders ?? []).some(o => o.route?.routeId === id)) throw new Error("Unassign this Route from its groups before deleting it.");
+    this.definition.routes = (this.definition.routes ?? []).filter(r => r.id !== id); this.changed();
   }
 }
 

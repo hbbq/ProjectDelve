@@ -56,6 +56,7 @@
         <label><input id="filter" type="checkbox" checked> Filter irrelevant choices (display only)</label>
         <label title="Ordinary sole legal choices resolve automatically; Roll Dice waits for input. This also auto-chooses one relevant choice among multiple legal choices."><input id="auto" type="checkbox" checked> Auto-choose single relevant choice</label>
         <label><input id="coordinates" type="checkbox"> Show coordinates</label>
+        <label><input id="waypoints" type="checkbox" checked> Show Waypoints</label>
       </div>
       <p id="error" role="alert"></p>
     </section>
@@ -150,6 +151,7 @@
       <h2>Agency: Type + Side</h2>
       <p class="legend">Each pair has one controller. Rows without initial Units are retained.</p>
       <div id="designer-agency"></div>
+      <details><summary>Shared Waypoints and Routes</summary><div id="designer-routes"></div></details>
       <p class="legend">Set starting Orders per Type + Side and apply the pair. Normal means no assigned Order. Validate checks destinations and targets.</p>
       <form id="designer-agency-form" class="designer-property-form">
         <label>Unit Type <select id="designer-agency-type"></select></label>

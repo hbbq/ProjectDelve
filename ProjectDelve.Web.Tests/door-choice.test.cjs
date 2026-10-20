@@ -2552,7 +2552,9 @@ for (const view of ["classic", "enhanced"]) test(`Asphalt retains Cell choices a
 for (const mode of ["animate", "disabled", "skip"]) test(`route playback uses supplied shared progress and atomic Peel snapshots (${mode})`, async () => {
   const initial = response();
   const order = { token: { typeId: "opaque-type", sideId: "same" }, kind: "FollowRoute", route: {
-    mode: "PingPong", currentIndex: 0, direction: 1, waypoints: [{ x: 1, y: 0, w: 2, h: 1 }, { x: 0, y: 1, w: 2, h: 1 }] } };
+    routeId: "shared-track", currentIndex: 0, direction: 1 } };
+  initial.result.state.waypoints = [{ id: "north", area: { x: 1, y: 0, w: 2, h: 1 } }, { id: "south", area: { x: 0, y: 1, w: 2, h: 1 } }];
+  initial.result.state.routes = [{ id: "shared-track", mode: "PingPong", waypointIds: ["north", "south"] }];
   initial.presentation.orders = [order];
   initial.result.state.orders = [order];
   const advanced = structuredClone(initial.result.state);
@@ -2567,6 +2569,13 @@ for (const mode of ["animate", "disabled", "skip"]) test(`route playback uses su
   final.result.resolutionSteps = states.map((stateAfter, eventIndex) => ({ stateAfter, eventIndex }));
   final.presentation.resolutionSteps = states.map((state, eventIndex) => ({ eventIndex, cards: final.presentation.cards, orders: state.orders }));
   const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  assert.equal(h.elements.get("board").querySelectorAll(".waypoint-area").length, 2);
+  const outline = h.elements.get("board").querySelectorAll(".waypoint-area")[0];
+  assert.equal(outline.style.left, `${1 / initial.result.state.physical.board.width * 100}%`);
+  const toggle = h.elements.get("waypoints"); toggle.checked = false; toggle.listeners.change();
+  assert.ok(h.elements.get("board").classList.contains("hide-waypoints"));
+  toggle.checked = true; toggle.listeners.change();
+  assert.equal(h.elements.get("board").classList.contains("hide-waypoints"), false);
   assert.match(h.elements.get("unit-card").textContent, /Follow Route.*Ping-pong.*waypoint 1\/2/);
   const shown = []; h.context.shown = shown;
   h.run(`ui.animate.checked = ${mode !== 'disabled'}; pause = async () => {};
@@ -2576,4 +2585,31 @@ for (const mode of ["animate", "disabled", "skip"]) test(`route playback uses su
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.match(shown[0].order, /waypoint 2\/2.*←/); assert.equal(shown[0].markers, 0);
   assert.equal(shown[1].markers, 1); assert.equal(shown[2].markers, 1);
+});
+
+test("racing resources, Fruit Tree and Slot Machine retain Classic/Enhanced interaction and load fallbacks", async () => {
+  const initial = response([choice("slot-choice", "Position", {position:{x:5,y:0}})]);
+  initial.result.state.physical.board.terrain = [{position:{x:4,y:0},kind:"FruitTree"}];
+  initial.result.state.resources = ["fruit","banana","mushroom","shell"].map((id,x) => ({type:{id,name:id},position:{x,y:0}}));
+  initial.presentation.machines = [{id:"slot",typeId:"slot-machine",position:{x:5,y:0},name:"Slot Machine",ownerSide:"blue",
+    operation:"Supplied random operation",resourceStorage:[{name:"Fruit",quantity:3,capacity:3}]}];
+  initial.result.state.movesCompletedThisActivation = 1; initial.result.state.effectiveMovesPerActivation = 2;
+  const h = harness(initial); h.run('chooseCandidate = key => submitted.push(key)');
+  for (const view of ["classic","enhanced"]) {
+    h.run(`boardView.value = "${view}"; updateBoardView(); renderSnapshot();`);
+    const slot = h.run('cells.get("5,0")'), tree = h.run('cells.get("4,0")');
+    assert.match(slot.textContent, /Slot Machine.*Owner: blue.*Fruit: 3\/3/s);
+    assert.equal(slot.querySelectorAll(".machine-art")[0].objectArtwork.src, "./art/machines/slot-machine.webp");
+    assert.ok(tree.classList.contains("FruitTree"));
+    assert.match(tree.style["--visual-image"], /grass/);
+    for (const [x,id] of ["fruit","banana","mushroom","shell"].entries()) {
+      const marker = h.run(`cells.get("${x},0").querySelectorAll(".resource-marker")[0]`);
+      assert.equal(marker.objectArtwork.src, `./art/resources/${id}.webp`);
+      marker.objectArtwork.listeners.load(); assert.equal(marker.dataset.artwork,"ready");
+      marker.objectArtwork.listeners.error(); assert.equal(marker.dataset.artwork,"missing");
+      assert.ok(marker.visualGlyph.textContent);
+    }
+    await click(slot); assert.equal(h.submitted.at(-1),"slot-choice");
+    assert.match(h.elements.get("active-unit").textContent, /Moves 1\/2/);
+  }
 });

@@ -18,8 +18,8 @@ public sealed class FollowRouteTests
         public string? Choose(DecisionRequest request, IGameplayQueries queries) => key;
     }
     private static readonly ActivationToken Token = new("runner", "blue");
-    private static FollowRoute Route(RouteMode mode = RouteMode.Once) => new([new(2, 0, 1, 3), new(5, 0, 2, 3)], mode);
-    internal static ScenarioDefinition Fixture(FollowRoute? route = null, bool multiple = false, UnitType? type = null) => new()
+    private static TestRoute Route(RouteMode mode = RouteMode.Once) => new([new(2, 0, 1, 3), new(5, 0, 2, 3)], mode);
+    internal static ScenarioDefinition Fixture(TestRoute? route = null, bool multiple = false, UnitType? type = null) => new()
     {
         Board = new() { Width = 8, Height = 3, DefaultTerrain = TerrainKind.Asphalt },
         UnitTypeIds = ["runner"], UnitTypes = [type ?? UnitRoster.Zombie("runner") with { Mov = 6 }],
@@ -27,7 +27,9 @@ public sealed class FollowRouteTests
             : [new("runner", "blue", new(0, 1), UnitId: "a")],
         Agency = [new("runner", "blue", ControllerKind.Human)],
         Objectives = [new("blue", ScenarioObjective.NoObjective)],
-        Orders = [new("runner", "blue", OrderKind.FollowRoute, Route: route ?? Route())]
+        Waypoints = (route ?? Route()).Definitions(),
+        Routes = [(route ?? Route()).Definition()],
+        Orders = [new("runner", "blue", OrderKind.FollowRoute, Route: (route ?? Route()).Progress())]
     };
     private static EngineResult Start(ScenarioDefinition definition) => GameEngine.StartRound(GameEngine.CreateGame(definition), new Dice(), false);
     private static EngineResult Step(EngineResult result, string? key) => GameEngine.Advance(result.State, new Pick(key), new Dice(), false);
@@ -38,7 +40,8 @@ public sealed class FollowRouteTests
     {
         var route = Route(RouteMode.PingPong) with { CurrentIndex = 1, Direction = -1 };
         var state = GameEngine.CreateGame(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(Fixture(route))));
-        Assert.Equal(route.Waypoints.ToArray(), state.Orders[0].Route!.Waypoints.ToArray());
+        Assert.Equal(route.Definitions(), state.Waypoints);
+        Assert.Equal("test-route", state.Orders[0].Route!.RouteId);
         Assert.Equal(-1, state.Orders[0].Route!.Direction);
         var copy = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
         copy.AssignOrder(Token, OrderKind.Normal);
@@ -49,8 +52,8 @@ public sealed class FollowRouteTests
             route with { Waypoints = [new(7, 0, 2, 1)] }, route with { Waypoints = [new(0, 0, int.MaxValue, 1)] } })
             Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(Fixture(invalid)));
         Assert.Throws<ArgumentException>(() => state.AssignOrder(Token, OrderKind.FollowRoute));
-        Assert.Throws<ArgumentException>(() => state.AssignOrder(Token, OrderKind.FollowRoute, new(1, 1), route: route));
-        Assert.Throws<ArgumentException>(() => state.AssignOrder(Token, OrderKind.HoldPosition, route: route));
+        Assert.Throws<ArgumentException>(() => state.AssignOrder(Token, OrderKind.FollowRoute, new(1, 1), route: route.Progress()));
+        Assert.Throws<ArgumentException>(() => state.AssignOrder(Token, OrderKind.HoldPosition, route: route.Progress()));
     }
 
     [Theory]
@@ -59,19 +62,19 @@ public sealed class FollowRouteTests
     [InlineData(RouteMode.PingPong, new[] { 0, 1, 0, 1, 0 })]
     public void TraversalModes(RouteMode mode, int[] expected)
     {
-        FollowRoute? route = Route(mode);
-        foreach (var index in expected) { Assert.Equal(index, route?.CurrentIndex ?? -1); if (route is not null) route = RouteRules.Next(route); }
+        TestRoute? route = Route(mode);
+        foreach (var index in expected) { Assert.Equal(index, route?.CurrentIndex ?? -1); if (route is not null) route = route.Next(); }
     }
 
     [Fact]
     public void PingPongReversesWithoutRepeatingEndpointsAndSingleAreaPersists()
     {
-        FollowRoute? route = new([new(0, 0, 1, 1), new(1, 0, 1, 1), new(2, 0, 1, 1)], RouteMode.PingPong);
-        foreach (var index in new[] { 0, 1, 2, 1, 0, 1 }) { Assert.Equal(index, route!.CurrentIndex); route = RouteRules.Next(route); }
+        TestRoute? route = new([new(0, 0, 1, 1), new(1, 0, 1, 1), new(2, 0, 1, 1)], RouteMode.PingPong);
+        foreach (var index in new[] { 0, 1, 2, 1, 0, 1 }) { Assert.Equal(index, route!.CurrentIndex); route = route.Next(); }
         foreach (var mode in new[] { RouteMode.Loop, RouteMode.PingPong })
         {
-            var single = new FollowRoute([new(0, 0, 1, 1)], mode);
-            Assert.Equal(single, RouteRules.Next(single));
+            var single = new TestRoute([new(0, 0, 1, 1)], mode);
+            Assert.Equal(single, single.Next());
         }
     }
 
@@ -83,7 +86,7 @@ public sealed class FollowRouteTests
         result = Step(Start(Fixture()), "2,1");
         Assert.Equal(1, result.State.Orders[0].Route!.CurrentIndex);
         Assert.Single(result.Events, e => e.Kind == "RouteAdvanced");
-        var overlap = new FollowRoute([new(0, 0, 8, 3), new(0, 0, 8, 3)], RouteMode.Once);
+        var overlap = new TestRoute([new(0, 0, 8, 3), new(0, 0, 8, 3)], RouteMode.Once);
         result = Step(Start(Fixture(overlap)), "stay");
         Assert.Equal(1, result.State.Orders[0].Route!.CurrentIndex); // At most one per Move, even overlapping.
         var terminal = overlap with { CurrentIndex = 1 };
@@ -114,7 +117,7 @@ public sealed class FollowRouteTests
     [InlineData(RouteMode.PingPong, 1, -1)]
     public void LookaheadFollowsTheActualSequence(RouteMode mode, int index, int direction)
     {
-        var route = new FollowRoute([new(0, 0, 2, 3), new(3, 0, 2, 3)], mode, index, direction);
+        var route = new TestRoute([new(0, 0, 2, 3), new(3, 0, 2, 3)], mode, index, direction);
         var type = UnitRoster.Zombie("runner") with { Mov = 6, Behaviors = UnitBehavior.RouteLookahead };
         var definition = Fixture(route, type: type) with { Units = [new("runner", "blue", new(2, 1), UnitId: "a")] };
         var result = Start(definition);
@@ -126,7 +129,7 @@ public sealed class FollowRouteTests
     [Fact]
     public void TerminalOnceUsesShortestMoveThenBoardOrder()
     {
-        var route = new FollowRoute([new(2, 0, 1, 3)], RouteMode.Once);
+        var route = new TestRoute([new(2, 0, 1, 3)], RouteMode.Once);
         var result = Start(Fixture(route, type: UnitRoster.Zombie("runner") with { Behaviors = UnitBehavior.RouteLookahead }));
         Assert.Equal("2,1", Choose(result));
         Assert.Equal(Choose(result), Choose(result));
@@ -135,7 +138,7 @@ public sealed class FollowRouteTests
     [Fact]
     public void LookaheadUsesTraversableDistanceAndCanonicalTies()
     {
-        var route = new FollowRoute([new(3, 1, 1, 3), new(7, 2, 1, 1)], RouteMode.Loop);
+        var route = new TestRoute([new(3, 1, 1, 3), new(7, 2, 1, 1)], RouteMode.Loop);
         var definition = Fixture(route, type: UnitRoster.Zombie("runner") with
             { Mov = 5, Behaviors = UnitBehavior.RouteLookahead }) with
         {
@@ -156,7 +159,8 @@ public sealed class FollowRouteTests
         {
             Board = new() { Width = 8, Height = 1, Edges = [new(new(2, 0), EdgeDirection.Right, EdgeKind.ClosedDoor)] },
             Units = [new("runner", "blue", new(0, 0), UnitId: "a")],
-            Orders = [new("runner", "blue", OrderKind.FollowRoute, Route: new([new(7, 0, 1, 1)]))]
+            Orders = [new("runner", "blue", OrderKind.FollowRoute, Route: new("test-route"))],
+            Waypoints = [new("w0", new(7, 0, 1, 1))], Routes = [new("test-route", ["w0"])]
         };
         Assert.Equal("2,0", Choose(Start(definition)));
         Assert.Equal("stay", Choose(Start(definition with
@@ -181,12 +185,13 @@ public sealed class FollowRouteTests
     [Fact]
     public void PlanningIgnoresPeelButActualMoveStopsAndSlipsAtIt()
     {
-        var route = new FollowRoute([new(7, 1, 1, 1)]);
+        var route = new TestRoute([new(7, 1, 1, 1)]);
         var definition = Fixture(route) with
         {
             Board = new() { Width = 8, Height = 1, DefaultTerrain = TerrainKind.Asphalt },
             Units = [new("runner", "blue", new(0, 0), UnitId: "a")],
-            Orders = [new("runner", "blue", OrderKind.FollowRoute, Route: new([new(7, 0, 1, 1)]))],
+            Orders = [new("runner", "blue", OrderKind.FollowRoute, Route: new("test-route"))],
+            Waypoints = [new("w0", new(7, 0, 1, 1))], Routes = [new("test-route", ["w0"])],
             CellMarkers = [new(CellMarkerTypes.BananaPeel, new(2, 0))]
         };
         var result = Start(definition);

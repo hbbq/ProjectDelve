@@ -76,7 +76,7 @@ public static class BrowserProjection
     public static IReadOnlyList<MachineDisplay> Machines(GameState state) => state.Physical.Board.Machines.Select(m =>
         new MachineDisplay(m.Id, m.Position, m.Type.Name,
             "Spend " + string.Join(", ", m.Type.Operation.Costs.Select(c => $"{c.Quantity} {c.Type.Name}")) +
-            $" -> Output {m.Type.Operation.OutputQuantity} {m.Type.Operation.OutputType.Name} on the operator's Cell",
+            $" -> Output {m.Type.Operation.OutputQuantity} {m.Type.Operation.OutputDescription} on the operator's Cell",
             m.Type.Storage.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray(), m.OwnerSide) { TypeId = m.Type.Id }).ToArray();
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
@@ -183,7 +183,7 @@ public static class BrowserProjection
             subject = $"{e.UnitId} · {e.AbilityName} (during {subject})";
         var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
         var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
-            .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId)?.Name ?? e.ActionId;
+            .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId || entry.Id == $"bonus:{e.ActionId}")?.Name ?? e.ActionId;
         var role = OutcomeRole.Notice;
         string description;
         switch (e.Kind)
@@ -252,6 +252,15 @@ public static class BrowserProjection
                 break;
             case "LavaCoalRolled":
                 description = $"Lava at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Coal direction";
+                break;
+            case "FruitTreeRolled":
+                description = $"Fruit Tree at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Fruit direction";
+                break;
+            case "WaypointReached":
+                description = $"{e.UnitId}: reached {e.WaypointId} on Route {e.RouteId}";
+                break;
+            case "RacingSlotRolled":
+                description = $"{e.UnitId}: waypoint slot d6 {e.DieRoll}: {e.ResourceType?.Name}" + (e.Succeeded == true ? " awarded" : " discarded (storage full)");
                 break;
             case "CellMarkerConsumed":
                 description = $"{e.UnitId}: consumed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";

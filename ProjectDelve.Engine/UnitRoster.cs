@@ -20,7 +20,8 @@ public static class UnitRoster
 {
     public static UnitType DiamondKart(string id = UnitTypeIds.DiamondKart) => UnitType.Define(
         id, "Diamond Kart", Stats(5, 0, 0, 3, 4), Unique(), CantAttack(),
-        ResourceStorage(ResourceTypes.Diamond, 1), PlaceBananaPeel(diamondCost: 1),
+        ResourceStorage(new(ResourceTypes.Banana, 1), new(ResourceTypes.Mushroom, 1), new(ResourceTypes.Shell, 1)),
+        PlaceBananaPeel(bananaCost: 1), Boost(mushroomCost: 1), ShootShell(shellCost: 1, rng: 4, atk: 3), WaypointSlotMachine(),
         TerrainRestrictedMovement(TerrainKind.Asphalt)
     ).WithBehaviors(UnitBehavior.RouteLookahead, UnitBehavior.PreferBananaPeel);
 

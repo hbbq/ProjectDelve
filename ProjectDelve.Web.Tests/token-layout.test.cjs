@@ -190,3 +190,11 @@ test("Cell Marker layers remain below figures, above terrain and leave Cell feed
   assert.equal(style("#board .object-artwork").display, "none");
   assert.equal(style(enhanced('[data-artwork="ready"] > .visual-glyph')).visibility, "hidden");
 });
+
+test("Waypoint rectangles ignore pointer input, stay below figures, and support visibility toggle", () => {
+  const base = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  const outline = base.match(/\.waypoint-area\s*\{([^}]+)\}/)[1];
+  assert.match(outline, /pointer-events:\s*none/);
+  assert.match(outline, /z-index:\s*1/);
+  assert.match(base, /#board\.hide-waypoints \.waypoint-area\s*\{\s*display:\s*none/);
+});

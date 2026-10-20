@@ -203,33 +203,45 @@ test("editing or removing a group carries or removes its starting Order", () => 
   draft.removeAgency(0); assert.equal(draft.definition.orders, undefined);
 });
 
-test("route editor authors ordered rectangles, mode and shared progress and roundtrips through export/play", async () => {
+test("shared Waypoint/Route editor preserves references, ordering, group progress and export/play", async () => {
   const submitted = [], h = harness(async (operation, body) => {
     submitted.push(plain(body)); return operation === "validate" ? { valid: true, errors: [] } : { transport: "DELVE1:route" };
   });
   const draft = h.editor.draft;
   draft.setAgency("goblin-type", "A", "Automated"); h.editor.render();
-  let form = h.editor.ui.agency.children[0];
+  let form = h.editor.ui.routes.querySelectorAll("form")[0];
+  inputField(form, "Waypoint ID").value = "north";
+  inputField(form, "X").value = "2"; inputField(form, "W").value = "3"; h.submit(form);
+  form = h.editor.ui.routes.querySelectorAll("form")[1];
+  inputField(form, "Waypoint ID").value = "south";
+  inputField(form, "Y").value = "4"; inputField(form, "H").value = "2"; h.submit(form);
+  form = h.editor.ui.routes.querySelectorAll("form").find(f => inputField(f, "Route ID"));
+  inputField(form, "Route ID").value = "track"; inputField(form, "Route mode").value = "PingPong";
+  const add = form.querySelectorAll("button").find(b => b.textContent === "Add existing Waypoint");
+  add.listeners.click(); add.listeners.click();
+  inputField(form, "Waypoint 2").value = "south"; inputField(form, "Waypoint 2").listeners.change(); h.submit(form);
+  form = h.editor.ui.agency.children[0];
   const kind = inputField(form, "Starting Order"); kind.value = "FollowRoute"; kind.listeners.change();
-  inputField(form, "Route mode").value = "PingPong";
-  inputField(form, "Current waypoint index (0-based)").value = "1";
-  inputField(form, "Ping-pong direction").value = "-1";
-  inputField(form, "Waypoint 1 X").value = "2"; inputField(form, "Waypoint 1 W").value = "3";
-  form.querySelectorAll("button").find(b => b.textContent === "Add waypoint").listeners.click();
-  inputField(form, "Waypoint 2 Y").value = "4"; inputField(form, "Waypoint 2 H").value = "2";
-  h.submit(form);
-  const expected = { unitTypeId: "goblin-type", sideId: "A", kind: "FollowRoute", route: {
-    mode: "PingPong", currentIndex: 1, direction: -1, waypoints: [{ x: 2, y: 0, w: 3, h: 1 }, { x: 0, y: 4, w: 1, h: 2 }] } };
+  inputField(form, "Shared Route").value = "track";
+  inputField(form, "Current waypoint index (0-based)").value = "1"; inputField(form, "Ping-pong direction").value = "-1"; h.submit(form);
+  const expected = { unitTypeId: "goblin-type", sideId: "A", kind: "FollowRoute", route: { routeId: "track", currentIndex: 1, direction: -1 } };
   assert.deepEqual(plain(draft.definition.orders[0]), expected);
-  form = h.editor.ui.agency.children[0]; h.submit(form);
-  assert.deepEqual(plain(draft.definition.orders[0]), expected);
+  assert.deepEqual(plain(draft.definition.routes[0]), {id:"track", mode:"PingPong", waypointIds:["north","south"]});
+  assert.equal(h.editor.ui.board.querySelectorAll(".waypoint-area").length, 2);
+  assert.throws(() => draft.removeWaypoint("north"), /Routes/);
+  assert.throws(() => draft.removeRoute("track"), /groups/);
+  assert.throws(() => draft.resize(2, 2), /Remove or reposition/);
   await h.click("validate"); await h.click("export"); await h.click("play");
   for (const body of submitted) assert.deepEqual(body.orders, [expected]);
-  form = h.editor.ui.agency.children[0];
-  form.querySelectorAll("button").find(b => b.textContent === "Remove waypoint").listeners.click(); h.submit(form);
-  assert.equal(draft.definition.orders[0].route.waypoints.length, 1);
+  draft.saveWaypoint("north", {id:"renamed", area:{x:2,y:0,w:3,h:1}});
+  assert.deepEqual(plain(draft.definition.routes[0].waypointIds), ["renamed","south"]);
+  draft.saveRoute("track", {id:"new-track", mode:"Once", waypointIds:["south", "renamed", "south"]});
+  assert.deepEqual(plain(draft.definition.orders[0].route), {routeId:"new-track",currentIndex:0,direction:1});
+  const saved = plain(draft.snapshot()); draft.replace(saved); h.editor.render();
+  assert.deepEqual(plain(draft.snapshot()), saved);
+  draft.setOrder("goblin-type", "A", {kind:"Normal"}); draft.removeRoute("new-track"); draft.removeWaypoint("renamed");
+  assert.equal(draft.definition.waypoints.length, 1);
 });
-
 test("imported Orders and IDs survive unrelated editing, validation, export and play", async () => {
   const definition = structuredClone(designerSetup), submitted = [], played = [];
   definition.units[0].unitId = "stable-leader";

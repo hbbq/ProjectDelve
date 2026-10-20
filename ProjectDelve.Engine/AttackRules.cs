@@ -61,11 +61,11 @@ internal static class AttackRules
 
     // Shared Unit targeting geometry for ranged Attacks and Telekinesis, independent of ATK or Action content.
     internal static UnitTargetEvaluation EvaluateHostileTargetFrom(
-        GameState state, string sourceId, Cell from, string targetId)
+        GameState state, string sourceId, Cell from, string targetId, int? rangeOverride = null)
     {
         var attacker = state.Units.Single(u => u.Id == sourceId);
         var target = state.Units.Single(u => u.Id == targetId);
-        var range = state.EffectiveRngOf(sourceId);
+        var range = rangeOverride ?? state.EffectiveRngOf(sourceId);
         if (range <= 0 || target.CurrentHp == 0 || !state.AreHostile(attacker.SideId, target.SideId))
             return UnitTargetEvaluation.NotPossible;
 
@@ -99,9 +99,10 @@ internal static class AttackRules
             FootprintGeometry.OccupiedCells(state, targetId).Any(to => HasUnitLineOfSight(state, sourceId, from, to, targetId)));
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.
-    internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to, string? interactionMachineId = null) =>
+    internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to, string? interactionMachineId = null,
+        Cell? ignoredTerrainCell = null) =>
         !HasBlockingEdgeLos(board, from, to) &&
-        !board.Terrain.Any(tile => tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)) &&
+        !board.Terrain.Any(tile => tile.Position != ignoredTerrainCell && tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)) &&
         !board.Machines.Any(m => m.Id != interactionMachineId && CrossesInterior(from, to, m.Position));
 
     private static bool HasBlockingEdgeLos(Board board, Cell from, Cell to)

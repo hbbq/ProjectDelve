@@ -33,7 +33,12 @@ public sealed record GambitActivation(
     bool CleavePending,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitAttackContext? Attack,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DoorContinuation? Door,
-    IReadOnlyList<GambitDefeatContext> PendingExplosions);
+    IReadOnlyList<GambitDefeatContext> PendingExplosions)
+{
+    public int MovesCompleted { get; init; }
+    public int MovesAvailable { get; init; }
+    public bool WaypointAdvanced { get; init; }
+}
 public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Units, IReadOnlyList<GambitType> Types,
     IReadOnlyList<GambitBagEntry> Bag, GambitActivation Activation,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitWorldEffects? WorldEffects,
@@ -42,6 +47,8 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard)
 {
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
+    public IReadOnlyList<Waypoint> Waypoints { get; init; } = [];
+    public IReadOnlyList<ProjectDelve.Engine.Route> Routes { get; init; } = [];
     public IReadOnlyList<StoredResource> StoredResources { get; init; } = [];
     public IReadOnlyList<Resource> Resources { get; init; } = [];
     public IReadOnlyList<CellMarker> CellMarkers { get; init; } = [];
@@ -179,13 +186,15 @@ internal static class GambitProjection
             state.ActionsUsedThisActivation, state.ActionsRemaining,
             new SortedDictionary<string, int>(state.BonusActionUseCountsThisActivation), state.ModifiersThisTurn.ToArray(),
             state.MoveAfterAttackAllowance, state.CleavePending, Context(state.AttackInProgress), state.DoorInProgress,
-            state.PendingExplosions.Select(Defeat).ToArray());
+            state.PendingExplosions.Select(Defeat).ToArray())
+            { MovesCompleted = state.MovesCompletedThisActivation, MovesAvailable = state.EffectiveMovesPerActivation,
+                WaypointAdvanced = state.WaypointAdvancedThisActivation };
         var world = BrowserProjection.WorldEffects(state);
         return new(state.Physical.Board with { Edges = [.. state.Physical.Board.Edges], Terrain = [.. state.Physical.Board.Terrain], Machines = [.. state.Physical.Board.Machines] }, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
-            { Orders = state.Orders.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
+            { Orders = state.Orders.ToArray(), Waypoints = state.Waypoints.ToArray(), Routes = state.Routes.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
                 DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray() };
     }
@@ -285,6 +294,7 @@ internal static class GambitProjection
         TerrainKind.Asphalt => 'a',
         TerrainKind.Grass => 'g',
         TerrainKind.Tree => 't',
+        TerrainKind.FruitTree => 'f',
         TerrainKind.Water => '~',
         TerrainKind.Lava => '^',
         TerrainKind.Rail => 'R',

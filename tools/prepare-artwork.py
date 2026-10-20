@@ -30,10 +30,11 @@ ASSETS = [
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
       for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
-      for name in ("tree", "table") for i in range(1, 4)],
-    *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond")],
+      for name in ("tree", "table", "fruit-tree") for i in range(1, 4)],
+    *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond", "fruit", "banana", "mushroom", "shell")],
     ("markers/banana-peel.png", "markers/banana-peel.webp", 128),
     ("machines/diamond-press.png", "machines/diamond-press.webp", 256),
+    ("machines/slot-machine.png", "machines/slot-machine.webp", 256),
     *[(f"edges/{name}.png", f"edges/{name}.webp", (512, 80)) for name in EDGE_CROPS],
 ]
 
@@ -157,10 +158,10 @@ def main():
 def composite_preview(assets, images):
     """Test-owned samples at minimum Cell scale, all base/object slots and turns."""
     catalog = {asset[1]: image for asset, image in zip(assets, images)}
-    sheet = Image.new("RGB", (768, 520), "#202630")
+    sheet = Image.new("RGB", (768, 752), "#202630")
     draw = ImageDraw.Draw(sheet)
     draw.text((12, 8), "Composite terrain | 60px Cells | base/object variants + independent turns", fill="white")
-    for row, (obj, base) in enumerate((("tree", "grass"), ("table", "stone-floor"))):
+    for row, (obj, base) in enumerate((("tree", "grass"), ("table", "stone-floor"), ("fruit-tree", "grass"))):
         for variant in range(3):
             for turn in range(4):
                 x = 12 + (variant * 4 + turn) * 62
@@ -193,25 +194,29 @@ def marker_preview(assets, images):
 def object_preview(assets, images):
     """Test-owned Machine/Resource samples at minimum and normal Cell sizes."""
     catalog = {asset[1]: image for asset, image in zip(assets, images)}
-    sheet = Image.new("RGB", (720, 300), "#202630")
+    sheet = Image.new("RGB", (720, 920), "#202630")
     draw = ImageDraw.Draw(sheet)
     draw.text((12, 10), "Machines / Resources | 24px markers | 60px + 100px Cells", fill="white")
-    for row, size in enumerate((60, 100)):
-        for col, base in enumerate(("stone-floor", "grass", "gravel")):
-            for i, resource in enumerate(("coal", "diamond")):
-                x, y = 12 + col * 232 + i * 108, 46 + row * 116
+    for size_index, size in enumerate((60, 100)):
+        for base_index, base in enumerate(("stone-floor", "grass", "gravel")):
+            for i, resource in enumerate(("coal", "diamond", "fruit", "banana", "mushroom", "shell")):
+                x, y = 12 + i * 116, 46 + (size_index * 3 + base_index) * 116
                 tile = catalog[f"terrain/{base}/01.webp"].resize((size, size), Image.Resampling.LANCZOS)
-                if col == 0:
-                    machine = catalog["machines/diamond-press.webp"].resize((size, size), Image.Resampling.LANCZOS)
-                    tile = Image.alpha_composite(tile, machine)
-                    label = ImageDraw.Draw(tile)
-                    label.rectangle((1, size-27, size-1, size-1), fill="#18232cdd")
-                    for line, text in enumerate(("Press", "Public", "Coal: 3/3")):
-                        label.text((2, size-27 + line*9), text, fill="white", font_size=8)
                 marker = catalog[f"resources/{resource}.webp"].resize((24, 24), Image.Resampling.LANCZOS)
                 tile.alpha_composite(marker, (size-25, 1))
                 sheet.paste(tile, (x, y))
                 draw.text((x, y+size+2), resource, fill="white")
+    for i, (machine, name, resource) in enumerate((("diamond-press", "Press", "Coal"), ("slot-machine", "Slot", "Fruit"))):
+        for j, size in enumerate((60, 100)):
+            x, y = 12 + i * 350 + j * 150, 780
+            tile = catalog["terrain/stone-floor/01.webp"].resize((size, size), Image.Resampling.LANCZOS)
+            tile = Image.alpha_composite(tile, catalog[f"machines/{machine}.webp"].resize((size, size), Image.Resampling.LANCZOS))
+            label = ImageDraw.Draw(tile)
+            label.rectangle((1, size-27, size-1, size-1), fill="#18232cdd")
+            for line, text in enumerate((name, "Blue", f"{resource}: 3/3")):
+                label.text((2, size-27 + line*9), text, fill="white", font_size=8)
+            sheet.paste(tile, (x, y))
+            draw.text((x, y+size+2), machine, fill="white")
     sheet.save(ROOT / "assets/previews/machines-resources.png", optimize=True)
 
 

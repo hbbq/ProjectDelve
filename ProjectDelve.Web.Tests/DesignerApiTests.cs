@@ -27,8 +27,9 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var catalog = (await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog"));
         Assert.Equal(50, catalog.GetProperty("maxBoardSize").GetInt32());
-        var machineType = Assert.Single(catalog.GetProperty("machineTypes").EnumerateArray());
+        var machineType = Assert.Single(catalog.GetProperty("machineTypes").EnumerateArray(), m => m.GetProperty("id").GetString() == "diamond-press");
         Assert.Equal(JsonSerializer.SerializeToElement(MachineTypes.DiamondPress, Json).GetRawText(), machineType.GetRawText());
+        Assert.Contains(catalog.GetProperty("machineTypes").EnumerateArray(), m => m.GetProperty("id").GetString() == "slot-machine");
         Assert.Equal(Enum.GetNames<RailDirection>(), catalog.GetProperty("railDirections").Deserialize<string[]>());
         Assert.Contains("Rail", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Contains("Asphalt", catalog.GetProperty("terrains").Deserialize<string[]>()!);
@@ -70,7 +71,9 @@ public sealed class DesignerApiTests
         var definition = id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
         if (id == "route") definition = definition with { Orders = [new(definition.Agency[0].UnitTypeId,
             definition.Agency[0].SideId, OrderKind.FollowRoute,
-            Route: new([new(0, 0, 2, 2), new(3, 3, 2, 2)], RouteMode.PingPong, 1, -1))] };
+            Route: new("test-route", 1, -1))],
+            Waypoints = [new("first", new(0, 0, 2, 2)), new("second", new(3, 3, 2, 2))],
+            Routes = [new("test-route", ["first", "second"], RouteMode.PingPong)] };
         if (id == "asphalt") definition = definition with { Board = definition.Board with { DefaultTerrain = TerrainKind.Asphalt, Cells = [new(new(4, 4), TerrainKind.Asphalt)] } };
         if (id == "gravel") definition = definition with { Board = definition.Board with { DefaultTerrain = TerrainKind.Gravel, Cells = [new(new(4, 4), TerrainKind.Gravel)] } };
         if (id == "machines") definition = definition with { Machines = [new("press", new(3, 0), MachineTypes.DiamondPress)
@@ -230,8 +233,8 @@ public sealed class DesignerApiTests
         Scenario.Map(5, 5, defaultTerrain: TerrainKind.Grass,
             cells: [Scenario.Tile(4, 4, TerrainKind.Grass), Scenario.Tile(3, 3, TerrainKind.StoneFloor)],
             edges: [Scenario.Edge(1, 1, EdgeDirection.Right, EdgeKind.None), Scenario.Edge(2, 1, EdgeDirection.Down, EdgeKind.OpenDoor)]),
-        [Scenario.Group(UnitTypeIds.Grunt, "side / amber — blÅ", ControllerKind.Human, Scenario.At(0, 0)),
-         Scenario.Group(UnitTypeIds.Wizard, "side / amber — blÅ", ControllerKind.Automated, Scenario.At(2, 2, Posture.Lying, 2)),
+        [Scenario.Group(UnitTypeIds.Grunt, "side / amber â€” blÃ…", ControllerKind.Human, Scenario.At(0, 0)),
+         Scenario.Group(UnitTypeIds.Wizard, "side / amber â€” blÃ…", ControllerKind.Automated, Scenario.At(2, 2, Posture.Lying, 2)),
          Scenario.Group(UnitTypeIds.Goblin, "future / side", ControllerKind.Automated)],
         [UnitTypeIds.Goblin, UnitTypeIds.Wizard, UnitTypeIds.Grunt]);
 

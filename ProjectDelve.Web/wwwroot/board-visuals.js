@@ -18,6 +18,8 @@ export const boardVisuals = {
       ] },
     Tree: { baseTerrain: "Grass", object: { rotation: true,
       variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/tree/0${i}.webp` })) }, fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
+    FruitTree: { baseTerrain: "Grass", object: { rotation: true,
+      variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/fruit-tree/0${i}.webp` })) }, fill: "#305331", detail: "radial-gradient(circle at 35% 35%, #e53b31 0 5%, #355b37 7% 43%, transparent 46%)" },
     Water: { rotation: true, fill: "#266382", detail: "repeating-radial-gradient(ellipse at 15% 0%, transparent 0 8px, #9edce64a 9px 10px, transparent 12px 18px)",
       variants: [
         { image: "./art/terrain/water/01.webp" },
@@ -63,7 +65,8 @@ export const boardVisuals = {
   },
   machine: {
     default: { fill: "#566776", detail: "linear-gradient(135deg, #c8bb8d, #3b4955 45%, #182b36)", glyph: "⚙" },
-    "diamond-press": { image: "./art/machines/diamond-press.webp", baseTerrain: "StoneFloor" }
+    "diamond-press": { image: "./art/machines/diamond-press.webp", baseTerrain: "StoneFloor" },
+    "slot-machine": { image: "./art/machines/slot-machine.webp", baseTerrain: "StoneFloor" }
   },
   cellMarker: {
     default: { fill: "#e5c14d", glyph: "?" },
@@ -72,6 +75,10 @@ export const boardVisuals = {
   resource: {
     default: { fill: "#e0c795", glyph: "●" },
     diamond: { fill: "#b8ecf4", glyph: "◆", image: "./art/resources/diamond.webp" },
+    fruit: { fill: "#e94242", glyph: "\u{1F352}", image: "./art/resources/fruit.webp" },
+    banana: { fill: "#f2d558", glyph: "\u{1F34C}", image: "./art/resources/banana.webp" },
+    mushroom: { fill: "#df5345", glyph: "\u{1F344}", image: "./art/resources/mushroom.webp" },
+    shell: { fill: "#57b367", glyph: "\u{1F41A}", image: "./art/resources/shell.webp" },
     coal: { fill: "#ccc2af", glyph: "●", image: "./art/resources/coal.webp" }
   },
   edge: {

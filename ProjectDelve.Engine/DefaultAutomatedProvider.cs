@@ -23,6 +23,9 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        if (request.Candidates.FirstOrDefault(c => c.BonusAction?.Boost is not null) is { } boost) return boost.Key;
+        if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
+            BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
             PreferredWorkerSummon(request, queries) is { } summon) return summon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
@@ -173,6 +176,11 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string? SelectAction(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        var shell = request.Candidates.Where(c => c.Action == UnitAction.ShootShell)
+            .OrderBy(c => queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!))
+            .ThenBy(c => queries.PositionOf(c.TargetId!).Y).ThenBy(c => queries.PositionOf(c.TargetId!).X)
+            .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();
+        if (shell is not null) return shell.Key;
         if (BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;
         if (PreferredWorkerSummon(request, queries) is { } summon) return summon;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
@@ -237,7 +245,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     }
 
     internal static bool IsAttack(Candidate candidate) => candidate.Action is
-        UnitAction.NormalAttack or UnitAction.ClawAttack or UnitAction.FireBreath or UnitAction.Fireball;
+        UnitAction.NormalAttack or UnitAction.ClawAttack or UnitAction.FireBreath or UnitAction.Fireball or UnitAction.ShootShell;
 
     internal static IEnumerable<string> CandidateTargets(Candidate candidate) =>
         (candidate.TargetId is null ? candidate.TargetIds : candidate.TargetIds.Prepend(candidate.TargetId))
