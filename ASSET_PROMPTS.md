@@ -540,6 +540,88 @@ Square 1:1 composition with the complete kart and driver centered comfortably in
 No track, road markings, text, racing number, brand logo, token frame, Side color ring, HP badge, UI or watermark.
 ```
 
+## Fruit Tree and racing item artwork
+
+Use the established hand-painted Premium Tabletop style. Generate multiple candidates and choose those readable at normal board size.
+
+### Fruit Tree — three transparent variants
+
+Generate 5–6 candidates from one prompt and choose three. Save as `assets/source/terrain/objects/fruit-tree-01.png` through `fruit-tree-03.png`. These are overlays on existing Grass, like the ordinary Tree overlays.
+
+```text
+Premium fantasy tabletop board game object artwork. Hand-painted digital illustration matching the existing Project Delve top-down tree canopy overlays.
+
+Create one mature fruit tree seen strictly from directly overhead, showing a dense irregular leafy green canopy with many clearly visible vivid red cherries among the leaves. The cherries should be slightly exaggerated in size and contrast, so the tree is unmistakably a fruit tree at one-cell size. Rich natural greens, darker foliage clusters, subtle highlights and a strong organic silhouette.
+
+Center the canopy in a square 1:1 composition, occupying approximately 75–85% of the image width. Genuinely transparent alpha outside the canopy. No grass, dirt, ground, tile, other trees, cast shadow on ground, border, text, UI or watermark.
+
+Strictly overhead, no isometric perspective. Suitable for deterministic quarter-turn rotation over a separate grass texture.
+```
+
+### Fruit — cherry resource
+
+Source: `assets/source/resources/fruit.png`
+
+```text
+Premium fantasy tabletop board game resource artwork. Hand-painted digital illustration matching Project Delve's Coal and Diamond resource markers.
+
+Create a classic retro-arcade-style pair of ripe bright red cherries joined by curved green stems with a small leaf. Bold unmistakable silhouette, restrained glossy highlights, simple readable forms, strictly overhead or slight overhead tilt. This is the generic resource named Fruit, represented visually by cherries.
+
+Centered square 1:1 composition with generous genuine transparent alpha margins. Immediately recognizable at approximately 32x32 pixels. No basket, bowl, tree, floor, text, UI, border or watermark.
+```
+
+### Banana — whole fruit resource
+
+Source: `assets/source/resources/banana.png`
+
+```text
+Premium fantasy tabletop board game resource artwork. Hand-painted digital illustration matching Project Delve's small resource icons.
+
+Create one intact ripe yellow banana, gently curved, with a clear bold silhouette, subtle warm shading, tiny brown freckles and restrained painted highlights. Strict overhead or very slight overhead tilt. Clearly a whole unpeeled banana, not a discarded banana peel. Readable at 32x32 pixels.
+
+Centered square 1:1 composition with generous genuine transparent alpha margins. No ground, plate, banana bunch, text, UI, border or watermark.
+```
+
+### Mushroom — Boost resource
+
+Source: `assets/source/resources/mushroom.png`
+
+```text
+Premium fantasy tabletop board game collectible item artwork. Hand-painted digital illustration matching Project Delve's small resource icons.
+
+Create one cheerful fantasy power-up mushroom with a rounded bright red cap, a few large cream-white spots and a short pale stem. Slight overhead angle to keep cap and stem visible. Bold compact silhouette and restrained painterly highlights. Original arcade-fantasy design without copying any existing branded character. Readable at 32x32 pixels.
+
+Centered square 1:1 composition with generous genuine transparent alpha margins. No face, eyes, scenery, text, UI, border or watermark.
+```
+
+### Shell — racing projectile resource
+
+Source: `assets/source/resources/shell.png`
+
+```text
+Premium fantasy tabletop board game collectible item artwork. Hand-painted digital illustration matching Project Delve's small resource icons.
+
+Create one compact green fantasy racing shell projectile, viewed from a three-quarter overhead angle. Rounded domed emerald-green segmented shell plates, muted pale rim, subtle highlights, clear geometric silhouette and painterly material texture. An original unbranded design. No creature, head, legs or branded-character details. Readable at 32x32 pixels.
+
+Centered square 1:1 composition with generous genuine transparent alpha margins. No floor, track, motion effects, text, UI, border or watermark.
+```
+
+### Slot Machine — one-cell Machine
+
+Source: `assets/source/machines/slot-machine.png`
+
+```text
+Premium fantasy-industrial tabletop board game machine artwork. Hand-painted digital illustration matching Project Delve's Diamond Press and workshop assets.
+
+Create one whimsical mechanical slot machine viewed strictly from directly overhead, designed as a compact one-cell tabletop board game machine. Sturdy iron-and-brass cabinet, three distinct mechanical reel windows with simple fruit, mushroom and shell motifs, a prominent side lever, small warm indicator lamps, rivets, worn metal edges and playful clockwork engineering. Immediately recognizable as a slot machine even from above. Weathered brass, dark steel and muted cherry-red colors, restrained highlights and readable large forms.
+
+Center the entire machine in a square 1:1 composition with genuine transparent alpha margins. No workshop floor, loose resources, Workers, road, labels, numbers, owner colors, storage counter, UI, frame, logo or watermark. Strict overhead, no isometric perspective.
+```
+
+### Integration guidance
+
+Preserve originals. Fruit Tree is Grass plus three transparent, deterministically varied and rotated canopy overlays, using the existing Tree artwork mechanism. Banana is a Resource distinct from the Banana Peel Cell Marker. Resource icons should remain legible at small size; Machine storage and ownership indicators remain client-rendered. Verify real alpha transparency and in-board appearance.
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
