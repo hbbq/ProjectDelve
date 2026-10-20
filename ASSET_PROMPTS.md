@@ -462,12 +462,24 @@ These are **generation prompts**, not game-rule definitions. Match the existing 
 
 Use **one prompt** for 5–6 candidates; select three with similar brightness, texture scale and material character. Save selected square opaque originals as `assets/source/terrain/asphalt-01.png`, `asphalt-02.png`, `asphalt-03.png`. Asphalt is ordinary Terrain; do not paint a racetrack's lines, kerbs or arrows into the texture.
 
+**Art-direction correction:** Earlier candidates looked too similar to Gravel. Asphalt must be noticeably **darker, smoother and more uniform**. The approved Gravel artwork should not be used as a texture reference for Asphalt.
+
 ```text
 Premium tabletop board game terrain artwork. Hand-painted top-down asphalt surface tile for a polished tactical board game with a cohesive fantasy-industrial aesthetic.
 
-Create a square, seamless-looking full-bleed patch of weathered dark gray asphalt viewed strictly from directly overhead. Fine compacted aggregate, restrained grain, tiny natural tonal irregularities and subtle wear. Medium-dark charcoal gray, but light enough for dark units, resource markers, selection highlights and track markings to remain readable. Even illumination with no strong central highlight or directional shadow.
+Create a square, full-bleed surface of smooth, densely compacted dark asphalt, viewed strictly from directly overhead.
 
-This is one ordinary board Cell's neutral ground material, not a road scene. Visually quiet, consistent scale, and suitable for placing many adjacent cells together with deterministic rotation. No road markings, painted lines, kerbs, tire tracks, cracks forming strong lines, puddles, debris, borders, internal grid, perspective, vehicles, text, symbols, UI or watermarks.
+The asphalt should be deep charcoal gray, almost black, with a subtle fine-grained matte texture. The surface is relatively smooth and uniform, like a maintained paved racing circuit rather than a gravel road.
+
+Use restrained tonal variation, faint natural wear and very fine surface grain. Individual stones and pebbles must NOT be visible. Avoid coarse aggregate, rough gravel texture, large cracks, patches and strong discoloration.
+
+The result should be visibly darker, smoother and more uniform than the game's existing gray-brown Gravel terrain, while remaining readable beneath unit tokens, resource markers and gameplay highlights.
+
+Soft, even illumination. No strong directional lighting, central highlight or vignette.
+
+Strictly overhead view. No road markings, painted lines, kerbs, tire tracks, puddles, debris, borders, internal grid, perspective, vehicles, text, symbols, UI or watermarks.
+
+The texture should be visually quiet and suitable for repeated use across many adjacent board cells, including deterministic quarter-turn rotation.
 ```
 
 ### Chief Mechanic — portrait
