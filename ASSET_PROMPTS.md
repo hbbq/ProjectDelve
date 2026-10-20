@@ -475,11 +475,21 @@ This is one ordinary board Cell's neutral ground material, not a road scene. Vis
 Save chosen square original as `assets/source/units/chief-mechanic.png`. Use the **Shared portrait style** section above together with this subject prompt, and preferably attach an approved Worker portrait as a style reference.
 
 ```text
-Create a fantasy-industrial Chief Mechanic portrait for a premium hand-painted tabletop board game. An experienced workshop foreman and master technician, confident and slightly stern, with a weathered expressive face, practical heavy leather work apron over sturdy dark clothes, brass-rimmed goggles resting on the forehead, sturdy gloves and a few carefully arranged tools visible at the shoulders. Subtle iron, copper and worn brass details suggest responsibility for a busy workshop and mechanical production line.
+Premium tabletop board game terrain artwork. Hand-painted top-down asphalt surface tile for a polished tactical board game with a cohesive fantasy-industrial aesthetic.
 
-Distinct from an ordinary Worker: more authoritative, seasoned and capable, but still a hands-on craftsperson rather than a noble or soldier. Warm browns, muted brass and dark slate accents, soft upper-left lighting, subdued background. Square 1:1 head-and-upper-torso composition with all important details in the central 75% for circular cropping; face legible at tiny token size.
+Create a square, full-bleed surface of smooth, densely compacted dark asphalt, viewed strictly from directly overhead.
 
-No text, numbers, logos, token frame, Side-colored ring, HP indicator, UI, watermarks or face-obscuring equipment.
+The asphalt should be deep charcoal gray, almost black, with a subtle fine-grained matte texture. The surface is relatively smooth and uniform, like a maintained paved racing circuit rather than a gravel road.
+
+Use restrained tonal variation, faint natural wear and very fine surface grain. Individual stones and pebbles must NOT be visible. Avoid coarse aggregate, rough gravel texture, large cracks, patches and strong discoloration.
+
+The result should be visibly darker, smoother and more uniform than the game's existing gray-brown Gravel terrain, while remaining readable beneath unit tokens, resource markers and gameplay highlights.
+
+Soft, even illumination. No strong directional lighting, central highlight or vignette.
+
+Strictly overhead view. No road markings, painted lines, kerbs, tire tracks, puddles, debris, borders, internal grid, perspective, vehicles, text, symbols, UI or watermarks.
+
+The texture should be visually quiet and suitable for repeated use across many adjacent board cells, including deterministic quarter-turn rotation.
 ```
 
 ### Banana Peel — Cell Marker
