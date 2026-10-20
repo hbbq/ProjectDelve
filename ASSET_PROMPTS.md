@@ -524,14 +524,18 @@ Strict overhead view, not isometric or side perspective.
 
 ## Diamond Kart — racing unit portrait
 
-Save the selected square original as `assets/source/units/diamond-kart.png`. Use the shared portrait style as a painterly/material reference, but compose this as a **vehicle token illustration** rather than a humanoid face. Generate several candidates and select one readable in the circular token. Do not generate a full racetrack or bake in a Side-colored ring.
+Save the selected square original as `assets/source/units/diamond-kart.png`. Use the shared portrait style as a painterly/material reference, but compose this as a **vehicle-and-driver token illustration** rather than a humanoid portrait. Generate several candidates and select one readable in the circular token. Do not generate a full racetrack or bake in a Side-colored ring.
 
 ```text
 Premium fantasy-industrial tabletop board game artwork. Hand-painted digital illustration matching the established Project Delve unit portraits and machine assets.
 
-Create one charming, compact fantasy go-kart racing vehicle, viewed from a slightly elevated three-quarter overhead angle so its silhouette, four wheels, seat, steering wheel and small brass-and-steel engine are instantly recognizable. A playful mechanical kart assembled from painted metal, weathered steel, leather and brass, combining old workshop engineering with energetic racing. A small diamond-shaped ornament on the body is acceptable, but no loose resource diamond or banana peel. Bold readable silhouette, restrained warm highlights, dark tires, a modest bright red painted body with neutral metal details. No driver is necessary.
+Create one charming, compact fantasy go-kart racing vehicle WITH A GOBLIN DRIVER seated behind the steering wheel, viewed from a slightly elevated three-quarter overhead angle. The kart's silhouette, four wheels, seat, steering wheel and small brass-and-steel engine should be instantly recognizable. A playful mechanical kart assembled from painted metal, weathered steel, leather and brass, combining old workshop engineering with energetic racing.
 
-Square 1:1 composition with the entire vehicle centered and comfortably within the central 75% safe area for a circular board-game token crop. Simple subdued atmospheric background matching the existing painted unit portraits. Ensure the vehicle remains recognizable when displayed very small.
+The driver is a mischievous green-skinned fantasy goblin with pointed ears, an expressive determined grin, and simple driving goggles or a leather cap. Make the goblin visibly seated in and actually driving the kart, with hands on the steering wheel. Keep the face, ears and driving pose readable at small token size, without hiding the vehicle's recognizable outline.
+
+Bold readable combined silhouette, restrained warm highlights, dark tires, a modest bright red painted body with neutral metal details. A small diamond-shaped ornament on the kart is acceptable, but no loose resource diamond or banana peel.
+
+Square 1:1 composition with the complete kart and driver centered comfortably inside the central 75% safe area for a circular board-game token crop. Simple subdued atmospheric background matching the existing painted unit portraits. Ensure both kart and goblin remain recognizable when displayed very small.
 
 No track, road markings, text, racing number, brand logo, token frame, Side color ring, HP badge, UI or watermark.
 ```
