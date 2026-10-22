@@ -6,6 +6,22 @@ const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description",
 const boardView = document.getElementById("board-view");
 for (const id of ["end-turn", "start-round", "bag-count", "decision-panel", "board-overlays", "move-overlay", "board-hint"]) ui[id] = document.getElementById(id);
 const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+const portraitViewer = document.getElementById("portrait-viewer");
+const portraitImage = document.getElementById("portrait-image");
+const portraitError = document.getElementById("portrait-error");
+document.getElementById("close-portrait").addEventListener("click", () => portraitViewer.close());
+portraitViewer.addEventListener("close", () => {
+  const portrait = document.getElementById("unit-portrait");
+  (portrait && !portrait.disabled ? portrait : ui["unit-card"]).focus();
+});
+portraitImage.addEventListener("error", () => { portraitImage.hidden = true; portraitError.hidden = false; });
+// Native modal dialog supplies focus containment, Escape dismissal and inert board input.
+function openPortrait(source, name) {
+  portraitImage.hidden = false; portraitError.hidden = true;
+  portraitImage.alt = name; portraitImage.src = source;
+  document.getElementById("portrait-caption").textContent = name;
+  portraitViewer.showModal();
+}
 let diceDismissal;
 let diceGeneration = 0;
 let diceSession;
@@ -445,14 +461,24 @@ function renderUnitCard() {
   const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
   const card = ui["unit-card"];
   card.replaceChildren();
+  const debug = document.getElementById("unit-debug"); debug.replaceChildren();
   if (!unit) { card.append(text("p", "Start a round or hover a Unit to inspect it.")); return; }
   const type = state.types.find(type => type.id === unit.typeId);
   const content = displayedCards[unit.id];
-  card.append(text("small", hoveredUnitId ? "Inspecting" : state.currentUnitId === unit.id ? "Active Unit" : "Most recently active"));
-  card.append(text("h3", unitName(unit.id)));
-  card.append(text("small", unit.sideId ?? ""));
-  const debug = text("details", ""); debug.className = "card-debug";
-  debug.append(text("summary", "Unit debug information")); debug.append(text("small", unit.id)); card.append(debug);
+  const name = unitName(unit.id);
+  debug.append(text("p", `${name} · ${unit.id} · ${unit.typeId}`));
+  const header = text("div", ""); header.className = "card-identity";
+  header.append(unitPortrait(unit.typeId, name));
+  const identity = text("div", ""); identity.className = "card-name";
+  if (hoveredUnitId || state.currentUnitId !== unit.id)
+    identity.append(text("small", hoveredUnitId ? "Inspecting" : "Most recently active"));
+  identity.append(text("h3", name));
+  identity.append(text("small", `Side ${unit.sideId ?? "—"}`));
+  const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; identity.append(hp);
+  const posture = state.physical.figures.find(figure => figure.id === unit.id)?.posture;
+  if (posture && posture !== "Upright") identity.append(text("small", posture));
+  if (content.footprintLabel) identity.append(text("small", content.footprintLabel));
+  header.append(identity); card.append(header);
   const stats = text("div", ""); stats.className = "card-stats";
   for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
     const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
@@ -461,10 +487,8 @@ function renderUnitCard() {
     stats.append(value);
   }
   card.append(stats);
-  const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; card.append(hp);
   for (const stored of content.resourceStorage ?? [])
     card.append(text("p", `${stored.name}: ${stored.quantity} / ${stored.capacity} (shared by ${unit.sideId} / ${content.displayName})`));
-  if (content.footprintLabel) card.append(text("small", content.footprintLabel));
   const order = displayedOrders?.find(order => order.token.typeId === unit.typeId && order.token.sideId === unit.sideId);
   if (order) {
     const row = text("div", ""); row.className = "card-order"; styleSide(row, unit.sideId);
@@ -477,6 +501,7 @@ function renderUnitCard() {
     const ability = entry.content;
     const heading = text("div", ""); heading.className = "ability-heading";
     const name = text("strong", ability.name);
+    name.title = ability.description || ability.name;
     if (ability.useLimitText != null) {
       const limit = text("span", ` [${ability.useLimitText}]`); limit.className = "sr-only";
       name.append(limit); name.title = `${ability.name} [${ability.useLimitText}]`;
@@ -505,14 +530,44 @@ function renderUnitCard() {
 
 function abilityDescription(ability) {
   const description = text("div", ""); description.className = "ability-description";
-  const short = text("p", ability.shortDescription || ability.description || ability.name);
+  const short = text("p", ability.shortDescription ?? ability.description ?? ability.name);
+  short.hidden = short.textContent === "";
   short.title = ability.description || ability.name;
   description.append(short);
   const full = text("details", "");
-  full.append(text("summary", `Full description · ${ability.name}`));
+  const summary = text("summary", "");
+  summary.title = ability.description || ability.name;
+  summary.append(text("span", `Full description: ${ability.name}`));
+  summary.children[0].className = "sr-only";
+  full.append(summary);
   full.append(text("p", ability.description || ability.name));
   description.append(full);
   return description;
+}
+
+function unitPortrait(typeId, name) {
+  const frame = text("div", ""); frame.className = "card-portrait";
+  const visual = applyBoardVisual(frame, "unit", typeId);
+  const fallback = text("span", visual.glyph ?? abbreviatedName(name));
+  fallback.setAttribute("aria-hidden", "true"); frame.append(fallback);
+  frame.setAttribute("role", "img"); frame.setAttribute("aria-label", `${name}: portrait unavailable`);
+  if (!visual.image) return frame;
+  const button = text("button", ""); button.type = "button"; button.id = "unit-portrait";
+  button.className = "portrait-button"; button.setAttribute("aria-label", `Enlarge portrait of ${name}`);
+  button.setAttribute("aria-haspopup", "dialog");
+  button.disabled = true;
+  const image = document.createElement("img"); image.alt = ""; image.hidden = true;
+  image.addEventListener("load", () => {
+    image.hidden = false; fallback.hidden = true; button.disabled = false;
+    frame.removeAttribute("role"); frame.removeAttribute("aria-label");
+  });
+  image.addEventListener("error", () => {
+    image.hidden = true; fallback.hidden = false; button.disabled = true;
+    frame.setAttribute("role", "img"); frame.setAttribute("aria-label", `${name}: portrait unavailable`);
+  });
+  button.addEventListener("click", () => { if (!button.disabled) openPortrait(visual.image, name); });
+  image.src = visual.image; button.append(image); frame.append(button);
+  return frame;
 }
 
 function useMarkers(uses) {
@@ -724,7 +779,8 @@ function updateControls() {
   ui["end-turn"].disabled = busy || !endTurn;
   ui["end-turn"].textContent = endTurn?.label ?? "End Turn";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
-  for (const button of ui["unit-card"].querySelectorAll("button")) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
+  for (const button of ui["unit-card"].querySelectorAll("button"))
+    if (button.dataset.legal != null) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
   for (const node of ui.board.querySelectorAll(".board-choice")) {
     const disabled = busy || !snapshot;
     node.setAttribute("aria-disabled", String(disabled));

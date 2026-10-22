@@ -76,8 +76,15 @@
       </section>
       <section id="world-effects" aria-label="World Effects" hidden></section>
       <details><summary>Event History</summary><ol id="events"></ol></details>
+      <details class="card-debug"><summary>Unit debug information</summary><div id="unit-debug"></div></details>
     </div>
   </details>
+  <dialog id="portrait-viewer" aria-labelledby="portrait-caption">
+    <button id="close-portrait" type="button" autofocus aria-label="Close portrait">Close ×</button>
+    <p id="portrait-caption"></p>
+    <img id="portrait-image" alt="">
+    <p id="portrait-error" hidden>Portrait unavailable.</p>
+  </dialog>
   <main id="playtest-main">
     <section class="play-status" aria-label="Current play status">
       <p id="status" aria-live="polite">Loading...</p>
@@ -105,7 +112,7 @@
     </section>
     <aside class="card-column" aria-label="Gameplay and Unit card">
       <div class="activation-controls"><button id="end-turn" disabled>End Turn</button><button id="start-round" disabled>Start round</button></div>
-      <div id="unit-card" aria-label="Unit Card"></div>
+      <div id="unit-card" aria-label="Unit Card" tabindex="-1"></div>
     </aside>
   </main>
   <main id="designer-main" hidden>

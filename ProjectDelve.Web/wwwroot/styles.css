@@ -296,4 +296,45 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .dice-group .dice-faces { display: inline-flex; margin-right: 10px; }
 .combat-outcome { margin: 4px 0; font-size: .8rem; }
 .card-debug { margin: 6px 0 0; font-size: .75rem; }
+
+/* Unit Cards: illustration, compact information and quiet native disclosures. */
+#unit-card { border-color: #8b7857; background: linear-gradient(145deg, #2b3443, #222936); }
+.card-identity { display: grid; grid-template-columns: 108px minmax(0, 1fr); align-items: center; gap: 12px; }
+.card-name { min-width: 0; overflow-wrap: anywhere; }
+#unit-card h3 { color: #f3deb2; font-size: 1.12rem; line-height: 1.2; margin: 0 0 7px; }
+.card-name small { color: #c0c9d7; }
+#unit-card .card-health { font-size: .95rem; color: #f3deb2; margin: 8px 0 4px; }
+.card-portrait { position: relative; width: 100%; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid #9d8660; border-radius: 7px; background: #171c26; overflow: hidden; font-size: 1.8rem; color: #d8c59f; }
+.portrait-button { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: zoom-in; }
+.portrait-button:disabled { opacity: 1; cursor: default; }
+.portrait-button img { width: 100%; height: 100%; object-fit: contain; }
+.card-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; padding: 7px 0; border-bottom: 1px solid #8b785766; }
+#unit-card .card-stats p { font-size: .8rem; margin: 2px 0; }
+.card-ability { position: relative; padding: 9px 0; border-bottom-color: #8b785744; overflow-wrap: anywhere; }
+.card-ability:last-child { border-bottom: 0; padding-bottom: 0; }
+.ability-heading { padding-right: 34px; gap: 4px 6px; }
+#unit-card .ability-heading small { font-size: .65rem; color: #c6c4b7; font-weight: 400; }
+.ability-heading strong { color: #eee5d4; }
+.ability-description details { margin: 0; color: #d4dce8; }
+.ability-description summary { position: absolute; right: -3px; top: 2px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 4px; list-style: none; color: #d8c59f; }
+.ability-description summary::-webkit-details-marker { display: none; }
+.ability-description summary::after { content: '⌄'; font-size: 1.2rem; }
+.ability-description details[open] summary::after { content: '⌃'; }
+.ability-description details[open] > p { padding: 8px; background: #171c2670; border-left: 2px solid #9d8660; white-space: pre-line; }
+.ability-description summary:hover { background: #ffffff12; }
+.ability-description summary:focus-visible, .portrait-button:focus-visible { outline: 2px solid #ffe084; outline-offset: -3px; }
+#portrait-viewer { width: min(800px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 12px; border: 1px solid #b49b63; border-radius: 8px; background: #222936; color: #eee5d4; }
+#portrait-viewer::backdrop { background: #090c14d9; }
+#close-portrait { float: right; min-height: 44px; }
+#portrait-caption { margin: 12px 0; padding-right: 100px; }
+#portrait-image { display: block; width: 100%; max-height: calc(100dvh - 125px); object-fit: contain; }
+#portrait-image[hidden] { display: none; }
+@media (max-width: 760px) {
+  .card-identity { grid-template-columns: 96px minmax(0, 1fr); gap: 10px; }
+  .card-stats { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; }
+}
+@media (pointer: coarse) {
+  .ability-description summary { width: 44px; height: 44px; top: 0; }
+  .ability-heading { padding-right: 44px; min-height: 28px; }
+}
 @media (max-width: 760px) { #dice.combat-dice { max-height: 25dvh; } }

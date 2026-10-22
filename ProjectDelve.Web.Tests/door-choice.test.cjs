@@ -82,7 +82,9 @@ class Element {
   removeAttribute(name) { delete this.attributes[name]; }
   getBoundingClientRect() { this.layoutReads = (this.layoutReads ?? 0) + 1; return {}; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
-  focus() { this.listeners.focus?.(); }
+  focus() { this.focused = true; this.listeners.focus?.(); }
+  showModal() { this.open = true; }
+  close() { this.open = false; this.listeners.close?.(); }
   querySelectorAll(selector) {
     return this.children.flatMap(child => [
       ...(selector === "button" ? child.tagName === "button" : child.classList.contains(selector.slice(1))) ? [child] : [],
@@ -124,7 +126,11 @@ function response(candidates = [], entries = []) {
 function harness(initial, fetchImpl, extras = {}) {
   const elements = new Map(), submitted = [];
   const document = {
-    getElementById(id) { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); },
+    getElementById(id) {
+      const find = node => node.id === id ? node : node.children.map(find).find(Boolean);
+      for (const root of elements.values()) { const found = find(root); if (found) return found; }
+      if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id);
+    },
     createElement(tag) { const node = new Element(); node.tagName = tag; return node; }
   };
   document.getElementById("coordinates").checked = false;
@@ -2657,7 +2663,7 @@ test("short descriptions retain full content through tooltip and native disclosu
   h.figure("b").listeners.mouseenter();
   assert.match(h.elements.get("unit-card").textContent, /Inspecting/);
   h.figure("b").listeners.mouseleave();
-  assert.match(h.elements.get("unit-card").textContent, /Active Unit/);
+  assert.doesNotMatch(h.elements.get("unit-card").textContent, /Active Unit/);
   assert.match(h.elements.get("unit-card").textContent, /Concise supplied wording/);
 });
 
@@ -2887,7 +2893,8 @@ test("readable display metadata changes no candidate payloads or debug/event IDs
   assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Castle Guard attacks Goblin Peasant");
   assert.equal(h.elements.get("board-hint").textContent, "Castle Guard chooses an Action");
   click(buttons(h.elements.get("choices"))[0]); assert.deepEqual(h.submitted, ["raw-choice-id"]);
-  assert.match(h.elements.get("unit-card").querySelectorAll(".card-debug")[0].textContent, /actor/);
+  assert.match(h.elements.get("unit-debug").textContent, /actor/);
+  assert.doesNotMatch(h.elements.get("unit-card").textContent, /actor/);
   h.context.displayEvent = { kind: "ActionUsed", unitId: "actor", targetId: "a" };
   h.run('prepareOccurrence(displayEvent, { text: "raw actor a", displayText: "Castle Guard attacks Goblin Peasant" })');
   assert.doesNotMatch(h.elements.get("effect").textContent, /raw actor/);
@@ -2909,4 +2916,108 @@ test("compact controls precede a content-height card and retain responsive board
   assert.match(css, /#playtest-main #board \{ width: min\(100%, calc\(\(100dvh - 126px\)/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.card-column \{[^}]*height: auto/);
   assert.match(css, /#dice\.combat-dice \{ max-height: 25dvh/);
+});
+
+test("card portraits reuse the Unit Type catalog and preserve fallback through loading and errors", () => {
+  for (const typeId of ["wizard-type", "chief-mechanic-type", "royal-peasant-type"]) {
+    const initial = response(); initial.result.state.units[0].typeId = typeId;
+    initial.result.state.types.push({ ...initial.result.state.types[0], id: typeId });
+    const h = harness(initial), card = h.elements.get("unit-card");
+    const frame = card.querySelectorAll(".card-portrait")[0];
+    const fallback = frame.children[0], button = buttons(frame)[0], image = button.children[0];
+    assert.equal(image.src, `./art/units/${typeId.replace(/-type$/, "")}.webp`);
+    assert.equal(image.hidden, true); assert.equal(button.disabled, true);
+    image.listeners.load();
+    assert.equal(image.hidden, false); assert.equal(fallback.hidden, true); assert.equal(button.disabled, false);
+    h.run('busy = true; updateControls()');
+    assert.equal(button.disabled, false); // Presentation remains usable during playback.
+    image.listeners.error();
+    assert.equal(image.hidden, true); assert.equal(fallback.hidden, false); assert.equal(button.disabled, true);
+    assert.match(frame.attributes["aria-label"], /portrait unavailable/);
+    assert.deepEqual(h.submitted, []);
+  }
+  const h = harness(response()), frame = h.elements.get("unit-card").querySelectorAll(".card-portrait")[0];
+  assert.ok(frame.children[0].textContent);
+  assert.equal(buttons(frame).length, 0);
+});
+
+test("portrait enlargement uses a separate modal, survives hover switching and restores focus on dismissal", () => {
+  const initial = response([choice("board-choice", "Unit", { unitId: "b" })]);
+  initial.result.state.types[0].id = "wizard-type";
+  for (const unit of initial.result.state.units) unit.typeId = "wizard-type";
+  const h = harness(initial), button = h.elements.get("unit-card").querySelectorAll(".portrait-button")[0];
+  button.children[0].listeners.load(); click(button);
+  const viewer = h.elements.get("portrait-viewer");
+  assert.equal(viewer.open, true);
+  assert.equal(h.elements.get("portrait-image").src, "./art/units/wizard.webp");
+  assert.equal(h.elements.get("portrait-caption").textContent, "A printed name");
+  h.figure("b").listeners.mouseenter(); h.figure("b").listeners.mouseleave();
+  assert.equal(viewer.open, true);
+  // Native Escape dismissal invokes the same close event as the visible button.
+  const restored = h.elements.get("unit-card").querySelectorAll(".portrait-button")[0];
+  restored.children[0].listeners.load();
+  viewer.close();
+  assert.equal(restored.focused, true);
+  click(restored);
+  click(h.elements.get("close-portrait")); assert.equal(viewer.open, false);
+  click(restored); restored.children[0].listeners.error(); viewer.close();
+  assert.equal(h.elements.get("unit-card").focused, true);
+  assert.deepEqual(h.submitted, []);
+  h.elements.get("portrait-image").listeners.error();
+  assert.equal(h.elements.get("portrait-image").hidden, true);
+  assert.equal(h.elements.get("portrait-error").hidden, false);
+});
+
+test("all abilities and usage marks remain visible while only supplied Direct choices activate", () => {
+  const attack = entry("attack", "Attack"); attack.content.shortDescription = "";
+  const focus = entry("focus", "Focus", "Bonus Action");
+  focus.content.shortDescription = "Improve the next Attack.";
+  const passive = entry("passive", "Passive", "Capability");
+  const free = entry("free", "Free", "Free Action");
+  const legal = choice("opaque-focus", "Direct", {}, { entryId: "focus" });
+  const h = harness(response([legal], [attack, focus, passive, free]));
+  h.run('chooseCandidate = key => submitted.push(key)');
+  const rows = h.elements.get("unit-card").querySelectorAll(".card-ability");
+  assert.equal(rows.length, 4);
+  for (const [index, supplied] of [attack, focus, passive, free].entries()) {
+    assert.match(rows[index].textContent, new RegExp(supplied.content.name));
+    assert.match(rows[index].textContent, new RegExp(supplied.content.category));
+    assert.match(rows[index].textContent, /0 \/ 2 uses/);
+    const description = rows[index].querySelectorAll(".ability-description")[0];
+    const details = description.children[1], summary = details.children[0];
+    assert.equal(details.tagName, "details"); assert.equal(summary.tagName, "summary");
+    assert.equal(summary.children[0].className, "sr-only");
+    assert.equal(summary.title, supplied.content.description);
+    assert.equal(details.children[1].textContent, supplied.content.description);
+    assert.equal(buttons(details).length, 0); // Native keyboard/touch disclosure has no decision listener.
+    assert.equal(summary.listeners.click, undefined);
+  }
+  assert.equal(rows[0].querySelectorAll(".ability-description")[0].children[0].hidden, true);
+  assert.equal(buttons(rows[0]).length, 0);
+  assert.equal(buttons(rows[1]).length, 1);
+  click(buttons(rows[1])[0]); assert.deepEqual(h.submitted, ["opaque-focus"]);
+  h.run('busy = true; updateControls()'); assert.equal(buttons(rows[1])[0].disabled, true);
+  h.run('busy = false; snapshot.presentation.decision.candidates[0].relevant = false; renderUnitCard()');
+  assert.equal(h.elements.get("unit-card").querySelectorAll(".card-ability").length, 4);
+  assert.equal(buttons(h.elements.get("unit-card"))[0].hidden, true);
+});
+
+test("card identity preserves effective stats, changing posture, nonstandard footprint and Tools debugging", () => {
+  const initial = response(); initial.presentation.cards.actor.footprintLabel = "Footprint 2 × 2";
+  initial.result.state.physical.figures[0].posture = "Lying";
+  const h = harness(initial), card = h.elements.get("unit-card");
+  assert.match(card.textContent, /Side same.*HP 4 \/ 4.*Lying.*Footprint 2 × 2/s);
+  assert.match(card.textContent, /MOV 3.*RNG 1.*ATK 3 → 17.*DEF 2 → 9/s);
+  assert.doesNotMatch(card.textContent, /Active Unit|actor|opaque-type/);
+  assert.match(h.elements.get("unit-debug").textContent, /actor.*opaque-type/);
+  const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
+  assert.match(html, /class="tools-content"[\s\S]*Unit debug information[\s\S]*id="unit-debug"/);
+  assert.match(html, /<dialog id="portrait-viewer" aria-labelledby="portrait-caption">/);
+  assert.match(html, /id="close-portrait"[^>]*autofocus/);
+  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  assert.match(css, /\.card-identity \{[^}]*108px minmax\(0, 1fr\)/);
+  assert.match(css, /\.portrait-button img \{[^}]*object-fit: contain/);
+  assert.match(css, /@media \(max-width: 760px\) \{\s*\.card-identity \{[^}]*96px/);
+  assert.match(css, /@media \(pointer: coarse\)[\s\S]*summary \{ width: 44px; height: 44px/);
+  assert.match(css, /summary:focus-visible/);
 });

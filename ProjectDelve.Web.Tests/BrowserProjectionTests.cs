@@ -91,7 +91,8 @@ public sealed class BrowserProjectionTests
         Assert.Equal("opaque-finish", projected.Candidates[0].Key);
         var attack = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries, e => e.Content.Id == "attack");
         Assert.Equal("Attack an enemy within Range and Line of Sight.", attack.Content.Description);
-        Assert.False(string.IsNullOrWhiteSpace(attack.Content.ShortDescription));
+        Assert.Equal("", attack.Content.ShortDescription);
+        Assert.Null(BrowserProjection.Cards(state)["actor"].FootprintLabel);
         var json = JsonSerializer.Serialize(attack);
         Assert.Contains("ShortDescription", json);
         Assert.Contains("Description", json);

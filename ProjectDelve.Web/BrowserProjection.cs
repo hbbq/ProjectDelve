@@ -116,7 +116,7 @@ public static class BrowserProjection
             PlayerName = PlayerName(state, u.Id, individualNames),
             ResourceStorage = type.ResourceStorage?.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name,
                 state.StoredQuantity(u.SideId, u.TypeId, c.Type.Id), c.Capacity)).ToArray() ?? [],
-            FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : "Footprint 1 × 1"
+            FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : null
         };
     });
 

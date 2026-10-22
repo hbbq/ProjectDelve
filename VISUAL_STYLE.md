@@ -188,6 +188,18 @@ Follow-up to the board-first layout. These are **presentation-only** requirement
 5. Ordinary play uses readable Unit names; debug retains stable internal IDs.
 6. All previous board-first UI and gameplay decision tests remain passing.
 
+## Unit Card redesign — iteration 1
+
+This initial visual iteration supersedes the earlier instruction to retain the card structure. It affects presentation only; preserve authoritative rules, decision generation and the existing visual theme.
+
+- Lead with a square Unit Type portrait, approximately 100–120 CSS pixels on desktop and smaller where needed. Reuse the existing artwork catalog, show the illustration without the circular token crop, and provide a graceful missing-art fallback. Open a larger image in a modal viewer on click/touch/keyboard activation, with a visible close control, Escape dismissal and focus restoration. Do not alter original artwork.
+- Group the display name, Side, current/max HP and compact MOV/RNG/ATK/DEF near the portrait. Show effective changes such as `DEF 2 → 3` and relevant changing status. Omit the redundant Active Unit heading and default Footprint 1×1; retain nonstandard footprints. Put internal IDs and verbose details in Tools/debug.
+- Always list every ability, even when unavailable. Show its name, a discreet Action / Bonus Action / Free Action / Capability label, existing usage marks and a useful short description. Use the existing short/full metadata, including intentionally empty short descriptions for obvious abilities; do not create a client rule catalog.
+- Replace repeated “Full description · Ability Name” lines with a small chevron or information disclosure. Reveal complete text inline using a keyboard- and touch-accessible control, and retain tooltip access. Keep disclosure activation separate from legal Action buttons, placed with their corresponding abilities; preserve disabled states, relevance filtering and accurate counters.
+- Preserve active-card default and temporary hover switching, board selection, Classic and Enhanced 2D, stable End Turn / Next Round controls above the card, and board dimensions. Keep the card content-height with scrolling only when needed, rather than filling an empty panel. Adapt portrait, stats and abilities to narrow screens without horizontal overflow.
+- Use the existing restrained fantasy tabletop palette, clear hierarchy, subtle separators, consistent small labels and comfortable compact spacing. Favor a maintainable first iteration over a new theme or elaborate effects.
+- Verify portraits/fallbacks, enlargement/dismissal, disclosures and short/full text, unavailable abilities, legal buttons/usage, effective stats, hover switching, debug access, stable controls/board sizing and responsive behavior. Run relevant JavaScript/.NET tests and solution build. When browser QA is available, inspect Wizard, Diamond Kart or Chief Mechanic, and Peasant at desktop and narrow widths; otherwise report the limitation.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.

@@ -45,7 +45,7 @@ public static class ContentDescriptions
             entries.Add(new("run-rails", $"Run Rails ({rails.Steps})", "Automatic",
                 $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place.", ShortDescription: "Follow outgoing Rails; collide with smaller Units."));
         if (type.Actions.HasFlag(UnitAction.NormalAttack))
-            entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight.", ShortDescription: "Attack an enemy within Range and Line of Sight."));
+            entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight.", ShortDescription: ""));
         if (type.Actions.HasFlag(UnitAction.FireBreath))
             entries.Add(new("fire-breath", names.FireBreath ?? "Fire Breath", "Action", "Attack all enemies within RNG."));
         if (type.Actions.HasFlag(UnitAction.ClawAttack) && type.ClawAttack is { } claw)
