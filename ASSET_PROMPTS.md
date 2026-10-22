@@ -715,6 +715,54 @@ Create a premium fantasy tabletop portrait of a green Goblin pretending to be a 
 - Review circular crops especially carefully: the Knight requires both horse head and rider, while the Goblin's hobby-horse must not look like a real horse.
 - This batch covers only Bishop and Knight. Queen and King remain for a later batch.
 
+## Delve Chess — final portraits (Queen and King)
+
+This batch completes the two contrasting chess courts established by Peasant/Rook and Bishop/Knight. **Hero Court:** genuine, elegant medieval royalty, expertly crafted silver/blue/gold clothing and equipment. **Monster Court:** Goblins and other monsters earnestly imitating royal splendor with oversized crowns, patched fabric, salvaged ornaments and homemade finery. Both sides have **identical mechanics per role** and must receive equally polished illustration quality. These are fantasy characters dressed to evoke chess silhouettes, not living stone or wooden chess pieces.
+
+**For each portrait combine the Shared portrait style prompt near the beginning of this file with the specific subject prompt below.** Use approved Project Delve portraits and especially the approved Chess portraits from the matching court as visual style references. Compose for a square 1:1 **head-and-upper-torso portrait** with face and crown in the central 75% safe area for a circular token crop. No text, labels, chessboard, UI, side-colored token rings, borders, logos or watermark. These are not top-down unit sprites or full-body scenes.
+
+Save the four unchanged originals at:
+
+- `assets/source/units/royal-queen.png`
+- `assets/source/units/witch-queen.png`
+- `assets/source/units/royal-king.png`
+- `assets/source/units/goblin-king.png`
+
+The design decision is that both Queens are Unique, powerful mobile combatants with AdvanceOnKill; both Kings are Unique, comparatively weak melee combatants with high HP and **the same adjacent-friendly +1 DEF aura as Cleric**. Do **not** depict Fireball, spellcasting or a Wizard King: the King is a monarch and protector, not a Wizard. The Queen's costume may suggest witchcraft, but the two Queens have the same non-spellcasting gameplay abilities at this stage.
+
+### Royal Queen — Hero Court
+
+```text
+Create a premium fantasy tabletop portrait of a formidable human Royal Queen, unmistakably the most powerful battlefield figure of a dignified medieval chess court. She wears an elegant, distinctively tall and ornate queen's crown with several upward points, finely crafted silver-steel ceremonial battle armor and royal-blue velvet accents, with restrained gold filigree. Intelligent, confident, commanding expression; face clearly visible, no closed helmet. A hint of a richly embroidered royal mantle over the shoulders. She looks capable of fighting at the front rather than merely posing for a royal painting, but do not show an active attack. Her queen-shaped crown and regal bearing should read instantly at small circular token size and visually complement the Hero Court's Castle Guard and Royal Bishop. Subdued stone atmospheric backdrop. No staff, no spell effects, no fire, no chessboard or literal chess piece.
+```
+
+### Witch Queen — Monster Court
+
+```text
+Create a premium fantasy tabletop portrait of a self-appointed Goblin Witch Queen, an eccentric but genuinely intimidating counterpart to a royal chess Queen. Green skin, pointed ears, sly confident eyes, and an enormous crooked queen's crown assembled from scavenged brass, bent iron prongs, mismatched imitation jewels and hand-tied ornaments. Her extravagant dark-purple gown and royal mantle are patched together from velvet scraps, frayed lace and homemade gold trim; a few little trinkets suggest an amateur witch's wardrobe, but she is NOT casting a spell. The crown should have the recognizable tall multi-point silhouette of a chess Queen and remain readable inside a circular token crop. She takes her royal authority completely seriously; the humor comes from the absurdly ambitious homemade costume, not cartoon drawing quality. Rich painterly textures, expressive face, simple atmospheric backdrop. No magic effects, fireball, wand, literal chess piece, chessboard, text or watermark.
+```
+
+### Royal King — Hero Court
+
+```text
+Create a premium fantasy tabletop portrait of a venerable human Royal King, a real medieval monarch in the dignified Hero Court. An imposing but tasteful royal crown with a clear central high finial evoking the traditional chess King silhouette, finely crafted gold and silver details, royal-blue mantle, polished but restrained ceremonial armor, and a well-groomed beard. He is mature, resolute, protective and authoritative, more a leader who inspires the soldiers standing beside him than a frontline warrior. His expression conveys steady courage rather than magical power. Make his crown visually distinct from the Royal Queen's multi-point crown, and keep his face and crown large and readable at small circular token size. The aura of protection is conveyed through posture and presence, not glowing spell effects. Soft subdued stone background. No wizard hat, staff, Fireball, spell effects, chessboard, literal chess piece or text.
+```
+
+### Goblin King — Monster Court
+
+```text
+Create a premium fantasy tabletop portrait of a tiny, extremely self-important green Goblin King who has dressed himself as the supreme monarch of a homemade chess army. His oversized, slightly lopsided royal crown is cobbled together from hammered brass, scrap iron, fake gemstones and a conspicuous tall central finial, giving the unmistakable silhouette of a chess King. His pointed ears protrude awkwardly under the crown. He wears an absurdly voluminous patched dark-purple-and-crimson royal cape, a crooked improvised clasp and a homemade ceremonial breastplate; perhaps he grips a short painted wooden scepter, clearly a symbol of authority rather than a magic wand. He looks fiercely serious, commanding and convinced that his nearby subjects will protect him. The visual joke is his improvised royal grandeur, not incompetence or low-quality artwork. Keep the expressive Goblin face and tall crown inside the central circular crop-safe area. No spellcasting, Fireball, glowing aura, wizard clothing, chessboard, literal chess piece, text or watermark.
+```
+
+### Integration notes
+
+- All four are Unique character portraits, not generic crowd sprites. Different IDs/names/art but mechanically mirrored Hero/Monster counterparts.
+- Preserve originals and prepare runtime artwork with the existing pipeline.
+- Queen and King should be immediately distinguishable by crown shape and bearing, including in small circular tokens.
+- Hero Court should look genuinely royal; Monster Court should look proudly homemade, **not** visually inferior in artistic execution.
+- Avoid magical attack imagery on either King; his ability is the established Cleric-like DEF aura.
+- The complete 8×8 chess-inspired scenario can be authored later; these prompts only define artwork.
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
