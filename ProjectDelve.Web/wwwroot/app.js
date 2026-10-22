@@ -478,19 +478,26 @@ function renderUnitCard() {
   const state = displayedState;
   const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
   const card = ui["unit-card"];
-  card.replaceChildren();
+  // Keep the portrait's ancestors mounted; Cell hover and playback also render this card.
+  let header = card.querySelectorAll(".card-identity")[0];
+  for (const child of Array.from(card.children)) if (child !== header) child.remove();
   // Reset affiliation on the empty card and update it on every hover/active switch.
   card.style.setProperty("--unit-side-border", "var(--ui-border)");
   const debug = document.getElementById("unit-debug"); debug.replaceChildren();
-  if (!unit) { card.append(text("p", "Start a round or hover a Unit to inspect it.")); return; }
+  if (!unit) { card.replaceChildren(text("p", "Start a round or hover a Unit to inspect it.")); return; }
   const type = state.types.find(type => type.id === unit.typeId);
   styleSide(card, unit.sideId);
   card.style.setProperty("--unit-side-border", "hsl(var(--side-hue) 60% 70%)");
   const content = displayedCards[unit.id];
   const name = unitName(unit.id);
   debug.append(text("p", `${name} · ${unit.id} · ${unit.typeId}`));
-  const header = text("div", ""); header.className = "card-identity";
-  header.append(unitPortrait(unit.typeId, name));
+  if (!header) {
+    header = text("div", ""); header.className = "card-identity"; card.append(header);
+  }
+  const previousPortrait = header.children[0];
+  const portrait = unitPortrait(unit.typeId, name, previousPortrait);
+  for (const child of Array.from(header.children)) if (child !== portrait) child.remove();
+  if (portrait !== previousPortrait) header.append(portrait);
   const identity = text("div", ""); identity.className = "card-name";
   if (hoveredUnitId || state.currentUnitId !== unit.id)
     identity.append(text("small", hoveredUnitId ? "Inspecting" : "Most recently active"));
@@ -500,7 +507,7 @@ function renderUnitCard() {
   const posture = state.physical.figures.find(figure => figure.id === unit.id)?.posture;
   if (posture && posture !== "Upright") identity.append(text("small", posture));
   if (content.footprintLabel) identity.append(text("small", content.footprintLabel));
-  header.append(identity); card.append(header);
+  header.append(identity);
   const stats = text("div", ""); stats.className = "card-stats";
   for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
     const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
@@ -567,9 +574,20 @@ function abilityDescription(ability) {
   return description;
 }
 
-function unitPortrait(typeId, name) {
-  const frame = text("div", ""); frame.className = "card-portrait";
+function unitPortrait(typeId, name, previous) {
+  const frame = previous ?? text("div", ""); frame.className = "card-portrait";
   const visual = applyBoardVisual(frame, "unit", typeId);
+  frame.dataset.portraitName = name;
+  const source = visual.image ?? "";
+  if (previous && frame.dataset.portraitSource === source) {
+    frame.children[0].textContent = visual.glyph ?? abbreviatedName(name);
+    const button = frame.querySelectorAll(".portrait-button")[0];
+    if (button) button.setAttribute("aria-label", `Enlarge portrait of ${name}`);
+    if (!button || button.disabled) frame.setAttribute("aria-label", `${name}: portrait unavailable`);
+    return frame;
+  }
+  frame.replaceChildren();
+  frame.dataset.portraitSource = source;
   const fallback = text("span", visual.glyph ?? abbreviatedName(name));
   fallback.setAttribute("aria-hidden", "true"); frame.append(fallback);
   frame.setAttribute("role", "img"); frame.setAttribute("aria-label", `${name}: portrait unavailable`);
@@ -579,16 +597,21 @@ function unitPortrait(typeId, name) {
   button.setAttribute("aria-haspopup", "dialog");
   button.disabled = true;
   const image = document.createElement("img"); image.alt = ""; image.hidden = true;
-  image.addEventListener("load", () => {
+  const showImage = () => {
+    if (frame.children[1] !== button) return;
     image.hidden = false; fallback.hidden = true; button.disabled = false;
     frame.removeAttribute("role"); frame.removeAttribute("aria-label");
-  });
+  };
+  image.addEventListener("load", showImage);
   image.addEventListener("error", () => {
+    if (frame.children[1] !== button) return;
     image.hidden = true; fallback.hidden = false; button.disabled = true;
-    frame.setAttribute("role", "img"); frame.setAttribute("aria-label", `${name}: portrait unavailable`);
+    frame.setAttribute("role", "img"); frame.setAttribute("aria-label", `${frame.dataset.portraitName}: portrait unavailable`);
   });
-  button.addEventListener("click", () => { if (!button.disabled) openPortrait(visual.image, name); });
+  button.addEventListener("click", () => { if (!button.disabled) openPortrait(source, frame.dataset.portraitName); });
   image.src = visual.image; button.append(image); frame.append(button);
+  // Cached images can already be ready before their queued load event is delivered.
+  if (image.complete && image.naturalWidth > 0) showImage();
   return frame;
 }
 

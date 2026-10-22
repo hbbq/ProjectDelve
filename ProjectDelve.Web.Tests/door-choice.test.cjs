@@ -2981,6 +2981,73 @@ test("card portraits reuse the Unit Type catalog and preserve fallback through l
   assert.equal(buttons(frame).length, 0);
 });
 
+test("empty Cell hover and state updates keep an unchanged card portrait mounted and loaded", () => {
+  const initial = response();
+  initial.result.state.types[0].id = "wizard-type";
+  for (const unit of initial.result.state.units) unit.typeId = "wizard-type";
+  const h = harness(initial), card = h.elements.get("unit-card");
+  const header = card.children[0], frame = header.children[0], button = buttons(frame)[0], image = button.children[0];
+  image.listeners.load();
+  let sourceWrites = 0;
+  Object.defineProperty(image, "src", { get: () => "./art/units/wizard.webp", set: () => sourceWrites++ });
+  for (const key of ["1,0", "2,0", "3,0", "2,0"]) {
+    h.run(`cells.get(${JSON.stringify(key)}).listeners.mouseenter(); cells.get(${JSON.stringify(key)}).listeners.mouseleave()`);
+    assert.equal(card.children[0], header);
+    assert.equal(header.children[0], frame);
+    assert.equal(button.children[0], image);
+    assert.equal(image.hidden, false);
+    assert.equal(frame.children[0].hidden, true);
+  }
+  // Another Unit with the same artwork updates the caption without resetting the image.
+  h.figure("b").listeners.mouseenter(); click(button);
+  assert.equal(h.elements.get("portrait-caption").textContent, "Inspected name (5,0)");
+  h.figure("b").listeners.mouseleave();
+  h.run('displayedState.units[0].currentHp = 2; renderState(displayedState); renderSnapshot()');
+  assert.match(card.textContent, /HP 2 \/ 4/);
+  assert.equal(card.children[0], header);
+  assert.equal(header.children[0], frame);
+  assert.equal(button.children[0], image);
+  assert.equal(image.hidden, false);
+  assert.equal(button.disabled, false);
+  assert.equal(sourceWrites, 0);
+});
+
+test("portrait switching shows cached images immediately and ignores obsolete image events", () => {
+  const initial = response();
+  initial.result.state.types = ["wizard-type", "zombie-type"].map(id => ({ ...state().types[0], id }));
+  initial.result.state.units.forEach((unit, index) => { unit.typeId = index ? "zombie-type" : "wizard-type"; });
+  const h = harness(initial), card = h.elements.get("unit-card");
+  const frame = card.querySelectorAll(".card-portrait")[0], original = buttons(frame)[0].children[0];
+  original.listeners.load();
+  // Model the browser's synchronously available cached image, before its load event.
+  h.run(`const createElement = document.createElement;
+    document.createElement = tag => {
+      const node = createElement(tag);
+      if (tag === "img") { node.complete = true; node.naturalWidth = 256; }
+      return node;
+    };`);
+  for (let index = 0; index < 3; index++) {
+    h.figure("b").listeners.mouseenter();
+    let button = buttons(frame)[0];
+    assert.equal(button.children[0].src, "./art/units/zombie.webp");
+    assert.equal(button.children[0].hidden, false);
+    assert.equal(frame.children[0].hidden, true);
+    original.listeners.error();
+    assert.equal(frame.attributes.role, undefined);
+    h.figure("b").listeners.mouseleave();
+    button = buttons(frame)[0];
+    assert.equal(button.children[0].src, "./art/units/wizard.webp");
+    assert.equal(button.children[0].hidden, false);
+    assert.equal(button.disabled, false);
+  }
+  const image = buttons(frame)[0].children[0];
+  image.listeners.error();
+  h.run('renderUnitCard()');
+  assert.equal(image.hidden, true);
+  assert.equal(frame.children[0].hidden, false);
+  assert.equal(buttons(frame)[0].disabled, true);
+});
+
 test("portrait enlargement uses a separate modal, survives hover switching and restores focus on dismissal", () => {
   const initial = response([choice("board-choice", "Unit", { unitId: "b" })]);
   initial.result.state.types[0].id = "wizard-type";
