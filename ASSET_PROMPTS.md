@@ -622,6 +622,52 @@ Center the entire machine in a square 1:1 composition with genuine transparent a
 
 Preserve originals. Fruit Tree is Grass plus three transparent, deterministically varied and rotated canopy overlays, using the existing Tree artwork mechanism. Banana is a Resource distinct from the Banana Peel Cell Marker. Resource icons should remain legible at small size; Machine storage and ownership indicators remain client-rendered. Verify real alpha transparency and in-board appearance.
 
+## Delve Chess — first portraits (Peasant and Rook)
+
+These four portraits establish two contrasting courts. **Hero Court** uses real, professionally made medieval equipment and restrained blue/silver/gold heraldry; **Monster Court** is a self-serious Goblin/Troll amateur imitation assembled from wood, scrap iron, rope and oversized costumes. Both courts should have equally polished *artwork*, and the characters are equally capable mechanically. Keep the visual silhouette of a chess pawn or rook, but draw living fantasy characters, **not literal chess pieces**.
+
+For each portrait, **combine the Shared portrait style prompt above with the subject prompt below**. Prefer attaching one approved Project Delve unit portrait as a style reference, and use the first approved Chess portrait as a reference for the other three. Square 1:1, head and upper torso, central 75% safe for circular crop, face readable, no printed letters, border, side-color ring, or UI. These are portraits, **not** top-down miniatures or full-body chess board illustrations.
+
+Save untouched originals as:
+
+- `assets/source/units/royal-peasant.png`
+- `assets/source/units/goblin-peasant.png`
+- `assets/source/units/castle-guard.png`
+- `assets/source/units/tower-troll.png`
+
+The names and filenames are proposed artwork identifiers; the actual Unit Type IDs and gameplay definitions will be confirmed in `CONSTRAINTS.md` before implementation.
+
+### Royal Peasant — Hero Court pawn
+
+```text
+Create a portrait of a humble but proud human medieval peasant conscript serving a proper royal chess court. The central visual motif is a large smooth rounded steel helmet with a distinctive spherical crown that immediately evokes the silhouette of a chess pawn, but is still believable wearable equipment. His expressive, slightly apprehensive human face is clearly visible below the helmet. Modest but well-made blue-and-cream padded tunic, simple polished shoulder protection, a hint of a wooden spear shaft by the shoulder. Equipment is real and practical, though clearly much less prestigious than the royal knights. Restrained silver, muted royal blue and warm leather palette. Charming, dignified, lightly humorous without caricature. Keep the rounded pawn-helmet shape conspicuous within a circular token crop.
+```
+
+### Goblin Peasant — Monster Court pawn
+
+```text
+Create a portrait of a small green fantasy Goblin trying very earnestly to impersonate a royal chess pawn. He wears an absurdly oversized round helmet hammered together from dented scrap metal and a rounded cooking pot, with visible seams, rivets and improvised straps. The helmet's large spherical top must instantly evoke a chess pawn silhouette, while the Goblin's pointed ears, green face and determined overconfident expression remain clearly visible. Patched brown tunic, bits of rusty metal armor, a crooked wooden spear shaft by one shoulder. Handmade costume assembled by enthusiastic amateurs, not a professionally forged uniform. Funny through design and character, not a cartoon or poorly rendered image. Earthy browns, oxidized iron, muted green skin and tiny dark-purple cloth accents. Make the round pawn helmet and Goblin face readable at token size.
+```
+
+### Castle Guard — Hero Court rook
+
+```text
+Create a portrait of a stout, formidable Dwarf castle guard serving as the royal chess court's Rook. Heavy, professionally crafted silver-steel plate armor with refined blue heraldic accents and subtle gold trim. His imposing helmet and shoulder armor deliberately form the unmistakable squared battlement silhouette of a medieval castle tower, with clear crenellations visible above his face. A thick, well-kept beard and stern Dwarven face show through the front opening. Solid, immovable, disciplined and dignified; the armor looks functional and expensive, not a literal stone building. Keep the distinctive castle-tower crown and face large and readable in a circular crop. A muted stone background only, not an actual chessboard.
+```
+
+### Tower Troll — Monster Court rook
+
+```text
+Create a portrait of a huge green-gray fantasy Troll proudly disguised as a chess Rook, wearing an outrageously improvised castle-tower costume. A crude square turret made of mismatched wooden planks, rough stone-colored painted boards, rope, crooked iron brackets and visible nails sits around his shoulders and head. Four prominent uneven battlements create an unmistakable rook/chess-tower silhouette. His broad tusked Troll face peers through a roughly cut window in the tower costume, looking intensely serious and pleased with the engineering. The outfit is clearly homemade and slightly ridiculous, but solid enough to wear; do not make the creature a literal building or hide the face. Rough wood, rusty iron, gray stone paint, green-gray skin and small dark-purple fabric details. Strong clean silhouette suitable for a small circular token portrait.
+```
+
+### Integration notes
+
+- Hero and Monster counterparts have different artwork and names but are intended to have **identical stats, abilities and behavior** within each role. Art should not suggest different power levels.
+- Preserve source originals. Runtime derivatives are produced by the existing artwork pipeline.
+- Inspect all four at actual token size; the pawn's round cap and rook's crenellations should be recognizable even if finer costume details disappear.
+- This batch covers only Peasant and Rook. Bishop, Knight, Queen and King artwork will be specified later.
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
