@@ -668,6 +668,53 @@ Create a portrait of a huge green-gray fantasy Troll proudly disguised as a ches
 - Inspect all four at actual token size; the pawn's round cap and rook's crenellations should be recognizable even if finer costume details disappear.
 - This batch covers only Peasant and Rook. Bishop, Knight, Queen and King artwork will be specified later.
 
+## Delve Chess — second portraits (Bishop and Knight)
+
+Continue the two-court art direction established in the Peasant/Rook batch above: **Hero Court** has genuine, finely crafted medieval equipment (silver, muted blue, restrained gold); **Monster Court** is a dead-serious but hilariously improvised imitation by Goblins (patched fabric, scrap iron, wood, rope). Both are painted to the same premium quality. The chess references must be readable through the **silhouette**, while the subjects remain living fantasy characters rather than literal chess pieces.
+
+**For each image, concatenate the Shared portrait style prompt at the top of this file with the subject prompt below.** Use an approved Project Delve portrait and, preferably, the matching court's approved Peasant/Rook portrait as visual references. Square 1:1 head-and-upper-torso portrait for a circular token crop; keep the face and distinguishing hat/horse silhouette inside the central 75%. No text, labels, chessboard, UI, border, token ring or watermark.
+
+Save original generated images unchanged at:
+
+- `assets/source/units/royal-bishop.png`
+- `assets/source/units/goblin-bishop.png`
+- `assets/source/units/royal-knight.png`
+- `assets/source/units/hobby-knight.png`
+
+These are artwork filenames, not a decision about canonical Unit Type IDs. Bishop is planned to have diagonal-corridor movement via orthogonal steps and AdvanceOnKill; Knight is planned to have an L-shaped leap. **Do not depict special attacks, magic or rearing/stomping effects**: the horse's Rear Up ability is deliberately deferred.
+
+### Royal Bishop — Hero Court
+
+```text
+Create a premium fantasy portrait of a dignified human royal bishop/cleric dressed for a ceremonial chess court. The character wears a tall, authentic and beautifully made bishop's mitre (mitra), with a prominent split-pointed silhouette that immediately reads as the Bishop chess piece's distinctive tall head. His intelligent, slightly severe face is clearly visible beneath the mitre. Finely tailored cream-white and muted royal-blue vestments, delicate gold embroidery, a restrained polished silver clasp, and a slender ceremonial staff visible beside one shoulder. The mitre is the visual focal point and must remain unmistakable in a small circular token crop. Authentic, functional fantasy-clerical clothing; solemn, composed, authoritative, with a hint of theatrical self-importance. Soft atmospheric stone backdrop. No religious symbols copied from real institutions, no spell effects, no full-body pose, no chessboard or literal stone chess piece.
+```
+
+### Goblin Bishop — Monster Court
+
+```text
+Create a premium fantasy portrait of a small green Goblin who has enthusiastically appointed himself Bishop of a makeshift chess army. He wears a comically gigantic, crooked, split-pointed bishop's mitre, badly stitched from stiff cloth, cardboard-like painted leather and wooden supports, with obvious mismatched seams, patches and loose stitching. The mitre is unmistakably Bishop-shaped but absurdly oversized; the Goblin's pointed ears poke out on either side and his face is still clearly visible, wearing an extremely solemn, self-important expression. His ceremonial robes are patched dark-purple and dusty brown cloth with uneven homemade gold-colored trim, and he holds a crooked stick as a ceremonial staff. Rich painterly texture and credible materials: the COSTUME is amateurish, not the illustration. Keep the giant mitre, face and upper torso clearly readable in a small circular token crop. No spell effects, no literal chess piece, no text, no board.
+```
+
+### Royal Knight — Hero Court
+
+```text
+Create a premium fantasy tabletop portrait of a genuine royal cavalry knight mounted on a real, noble horse. The knight wears well-made silver-steel armor with muted royal-blue heraldic fabric and restrained gold detailing; the horse has a finely crafted bridle and tasteful blue-and-silver barding. Frame the knight's armored upper body and the horse's expressive head and arched neck together in a compact, cohesive portrait, with the horse's head forming the instantly recognizable chess Knight horse-head silhouette. The rider's face should be at least partly visible beneath an open-faced helmet. Both rider and horse are dignified and believable, confident and disciplined. Compose specifically for a square 1:1 image and small circular token crop: the horse head and rider must both remain visible inside the central 75%, without requiring a full-body view. Simple subdued atmospheric background. No galloping motion blur, no combat, no rearing pose, no text, no chessboard, no literal chess piece.
+```
+
+### Hobby Knight — Monster Court
+
+```text
+Create a premium fantasy tabletop portrait of a green Goblin pretending to be a grand cavalry knight while riding a ridiculous homemade HOBBY HORSE: a painted wooden horse head attached to a long stick held between his legs. The Goblin is wearing mismatched dented scrap-metal armor, a crooked bucket-like knight helmet and a small patched dark-purple cape. He looks fiercely proud and convinced he is mounted on a magnificent warhorse. The wooden horse head must be unmistakably a toy: visible wood grain, hand-painted eyes, crude carved ears, an improvised rope bridle and part of the wooden stick. Frame the Goblin's face and upper body together with the oversized toy horse head in a clear chess Knight-like horse-head silhouette. Make the absurdity obvious even at small circular token size, while preserving the same high-quality hand-painted fantasy artwork as the Hero Court. Avoid depicting a real horse, a centaur, a Goblin physically seated on an animal, a rearing action, a full-body scene, a literal chess piece, text or chessboard.
+```
+
+### Integration notes
+
+- Use the existing Unit portrait artwork pipeline and preserve the originals.
+- Hero/Monster counterparts must be equally legible and stylistically cohesive; their gameplay will be symmetric within each role.
+- Prioritize the Bishop mitre silhouette and the Knight horse-head silhouette over small decorative details.
+- Review circular crops especially carefully: the Knight requires both horse head and rider, while the Goblin's hobby-horse must not look like a real horse.
+- This batch covers only Bishop and Knight. Queen and King remain for a later batch.
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
