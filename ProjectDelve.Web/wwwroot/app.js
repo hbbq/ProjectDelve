@@ -232,6 +232,7 @@ let focusedDoor;
 const figures = new Map();
 const edges = new Map();
 const cells = new Map();
+const choiceFeedback = new Map();
 let boardObjects = new Map();
 
 // These helpers describe geometry and presentation only. Legal choices arrive from the engine.
@@ -260,6 +261,8 @@ function inspectCell(key) {
 
 function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines) {
   const board = state.physical.board;
+  for (const node of choiceFeedback.values()) node.remove();
+  choiceFeedback.clear();
   for (const node of ui.board.querySelectorAll(".waypoint-area")) node.remove();
   const nextObjects = new Map(), objectCounts = new Map();
   // Retain decoded artwork through both playback steps and snapshot redraws.
@@ -598,6 +601,7 @@ function useMarkers(uses) {
 }
 
 function clearAffectedPreview() {
+  for (const node of choiceFeedback.values()) node.classList.remove("feedback-hover");
   for (const node of figures.values()) node.classList.remove("affected-preview");
   for (const node of cells.values()) node.classList.remove("placement-preview");
 }
@@ -611,6 +615,7 @@ function previewChoice(candidate) {
 
 function choiceButton(candidate) {
   const button = text("button", candidate.displayLabel ?? candidate.label);
+  bindTooltip(button, () => candidate.boardVisual?.preview ?? candidate.displayLabel ?? candidate.label);
   button.addEventListener("click", () => chooseCandidate(candidate.key));
   const preview = () => {
     previewChoice(candidate);
@@ -729,7 +734,37 @@ function chooseCandidate(key) {
 }
 
 function bindBoardChoice(node, candidates) {
-  const label = candidates.map(candidate => candidate.displayLabel ?? candidate.label).join(" / ");
+  const descriptions = candidates.map(candidate => candidate.boardVisual?.preview ?? candidate.displayLabel ?? candidate.label);
+  const label = (candidates.length > 1 ? "Choose an option: " : "") + descriptions.join(" / ");
+  const kinds = new Set(candidates.map(candidate => candidate.boardVisual?.kind).filter(Boolean));
+  for (const kind of kinds) node.classList.add(`choice-${kind}`);
+  if (kinds.size && (node.dataset.cell || node.dataset.unitId)) node.classList.add("cell-choice-feedback");
+  // Mount once per Cell as a board sibling: Terrain Cells are isolated stacking
+  // contexts, and tokens must remain input surfaces without their own markers.
+  if (node.dataset.cell && kinds.size) {
+    const [x, y] = node.dataset.cell.split(",").map(Number);
+    const board = displayedState.physical.board;
+    const feedback = text("span", ""); feedback.className = "choice-feedback";
+    feedback.dataset.cell = node.dataset.cell;
+    feedback.setAttribute("aria-hidden", "true");
+    Object.assign(feedback.style, { left: `${x / board.width * 100}%`, top: `${y / board.height * 100}%`,
+      width: `${100 / board.width}%`, height: `${100 / board.height}%` });
+    const icons = text("span", ""); icons.className = "choice-icons";
+    for (const kind of kinds) {
+      if (!["activate", "move", "attack"].includes(kind)) continue;
+      const marker = text("span", ""); marker.className = `choice-marker marker-${kind}`;
+      feedback.append(marker);
+    }
+    for (const candidate of candidates) {
+      const visual = candidate.boardVisual;
+      if (!visual?.icon) continue;
+      const icon = text("span", visual.icon); icon.className = `choice-icon icon-${visual.kind}`;
+      icons.append(icon);
+    }
+    feedback.append(icons);
+    choiceFeedback.set(node.dataset.cell, feedback);
+    ui.board.append(feedback);
+  }
   const select = () => {
     if (busy) return;
     if (candidates.length === 1) return chooseCandidate(candidates[0].key);
@@ -743,18 +778,24 @@ function bindBoardChoice(node, candidates) {
     ui.choices.querySelectorAll("button")[0]?.focus();
   };
   node.classList.add("board-choice");
-  if (candidates.length === 1) {
-    node.addEventListener("mouseenter", () => {
-      if (node.dataset.cell) inspectCell(node.dataset.cell);
-      previewChoice(candidates[0]);
-    });
-    node.addEventListener("focus", () => previewChoice(candidates[0]));
-    node.addEventListener("mouseleave", clearAffectedPreview);
-    node.addEventListener("blur", clearAffectedPreview);
-  }
-  if (node.classList.contains("cell")) node.classList.add("legal");
+  const preview = () => {
+    if (node.dataset.cell) inspectCell(node.dataset.cell);
+    if (candidates.length === 1) previewChoice(candidates[0]);
+    else clearAffectedPreview();
+    if (busy) return;
+    const figure = displayedState.physical.figures.find(figure => figure.id === node.dataset.unitId);
+    const keys = node.dataset.cell ? [node.dataset.cell] : figure ? figureCells(figure).map(cellKey) : [];
+    for (const key of keys) choiceFeedback.get(key)?.classList.add("feedback-hover");
+  };
+  node.addEventListener("mouseenter", preview);
+  node.addEventListener("focus", preview);
+  node.addEventListener("mouseleave", clearAffectedPreview);
+  node.addEventListener("blur", clearAffectedPreview);
+  if (node.classList.contains("cell") && !kinds.size) node.classList.add("legal");
   const accessibleLabel = [label, node.classList.contains("machine-cell") ? node.title : null, node.dataset.postureLabel, node.dataset.hpLabel].filter(Boolean).join(" · ");
-  node.title = accessibleLabel;
+  const tooltipLabel = [label, node.classList.contains("machine-cell") ? node.title : null].filter(Boolean).join(" · ");
+  bindTooltip(node, () => tooltipLabel);
+  node.title = "";
   node.setAttribute("role", "button");
   node.setAttribute("aria-label", accessibleLabel);
   node.addEventListener("click", event => {
@@ -1290,6 +1331,8 @@ function rollLabel(pool) {
 function clearDice() {
   clearTimeout(diceDismissal); diceGeneration++;
   combatDice = null;
+  renderCombatRelationship();
+  for (const node of figures.values()) { node.classList.remove("attack-source"); node.classList.remove("attack-target"); }
   ui.dice.replaceChildren(); ui.dice.hidden = true; ui.dice.classList.remove("rolling");
 }
 function dismissDiceAfter(ms) {
@@ -1303,7 +1346,7 @@ const combatSignature = context => JSON.stringify([context.attackerId, context.a
 function beginCombatDice(context) {
   clearDice();
   const names = new Map((displayedState?.units ?? []).map(unit => [unit.id, unitName(unit.id)]));
-  combatDice = { signature: combatSignature(context), context, names, attack: null, defences: new Map(), outcomes: new Map(), finished: false };
+  combatDice = { signature: combatSignature(context), context, names, positions: new Map((displayedState?.physical.figures ?? []).map(f => [f.id, { ...f.position }])), attack: null, defences: new Map(), outcomes: new Map(), finished: false };
 }
 function finishCombatDice() {
   if (!combatDice || combatDice.finished) return;
@@ -1358,6 +1401,7 @@ function renderCombatDice() {
   }
   ui.dice.hidden = !ui.dice.children.length;
   ui.dice.tabIndex = 0;
+  highlightContext();
 }
 function renderDice(result) {
   const pool = result.pool, combat = combatDice;
@@ -1374,12 +1418,34 @@ function renderDice(result) {
   dismissDiceAfter(4500);
 }
 
+// Uses exactly the combined dice lifetime, including a pending manual Defence.
+function renderCombatRelationship() {
+  for (const node of ui.board.querySelectorAll(".combat-link")) node.remove();
+  const combat = combatDice, board = displayedState?.physical.board;
+  if (!combat || !board) return;
+  const source = combat.positions.get(combat.context.attackerId);
+  if (!source) return;
+  for (const target of combat.context.targets) {
+    const destination = combat.positions.get(target.targetId);
+    if (!destination) continue;
+    const dx = destination.x - source.x, dy = destination.y - source.y;
+    const line = text("span", ""); line.className = "combat-link";
+    line.setAttribute("aria-hidden", "true");
+    Object.assign(line.style, { left: `${(source.x + .5) / board.width * 100}%`,
+      top: `${(source.y + .5) / board.height * 100}%`,
+      width: `${Math.hypot(dx, dy) / board.width * 100}%`,
+      transform: `rotate(${Math.atan2(dy, dx)}rad)` });
+    ui.board.append(line);
+  }
+}
 function highlightContext() {
+  const relationship = combatDice?.context ?? attackContext;
+  renderCombatRelationship();
   for (const [id, node] of figures) {
     node.classList.toggle("token-selected", id === focusedUnitId);
     node.classList.remove("attack-source"); node.classList.remove("attack-target"); node.classList.remove("event-focus");
-    if (id === attackContext?.attackerId) node.classList.add("attack-source");
-    if (attackContext?.targets.some(target => target.targetId === id)) node.classList.add("attack-target");
+    if (id === relationship?.attackerId) node.classList.add("attack-source");
+    if (relationship?.targets.some(target => target.targetId === id)) node.classList.add("attack-target");
     if (id === focusedUnitId) node.classList.add("event-focus");
   }
   for (const [key, node] of edges) {
@@ -1404,7 +1470,9 @@ function prepareOccurrence(occurrence, outcome) {
     case "ActivationStarted":
       latestUnitId = occurrence.unitId;
       if (combatDice && !combatDice.finished) clearDice(); break;
-    case "ActivationCompleted": focusedUnitId = null; attackContext = null; focusedDoor = null; break;
+    case "ActivationCompleted":
+      if (combatDice && !combatDice.finished) clearDice();
+      focusedUnitId = null; attackContext = null; focusedDoor = null; break;
     case "AttackStarted":
       attackContext = occurrence.attackContext;
       if (attackContext) {

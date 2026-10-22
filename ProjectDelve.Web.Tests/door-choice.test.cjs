@@ -82,7 +82,10 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = value; }
   removeAttribute(name) { delete this.attributes[name]; }
   getBoundingClientRect() { this.layoutReads = (this.layoutReads ?? 0) + 1; return {}; }
-  addEventListener(name, callback) { this.listeners[name] = callback; }
+  addEventListener(name, callback) {
+    const previous = this.listeners[name];
+    this.listeners[name] = (...args) => { previous?.(...args); return callback(...args); };
+  }
   focus() { this.focused = true; this.listeners.focus?.(); }
   showModal() { this.open = true; }
   close() { this.open = false; this.listeners.close?.(); }
@@ -1996,10 +1999,10 @@ test("Machines render individual supplied storage and bind Give and Operate to t
   assert.match(machine(2).textContent, /Diamond Press.*Coal: 3\/3/s);
   assert.match(machine(2).textContent, /Public/);
   assert.match(machine(3).textContent, /Owner: blue/);
-  assert.match(machine(3).title, /Owner: blue/);
+  assert.match(machine(3).dataset.tooltip, /Owner: blue/);
   assert.match(machine(3).attributes["aria-label"], /Owner: blue/);
   assert.match(machine(3).textContent, /Coal: 1\/3/);
-  assert.match(machine(2).title, /Spend 3 Coal.*1 Diamond/);
+  assert.match(machine(2).dataset.tooltip, /Spend 3 Coal.*1 Diamond/);
   assert.equal(machine(2).classList.contains("legal"), true);
   assert.equal(h.run("edges.size"), 1);
   // Supplied choices remain selectable even when local stats/Edge appearances suggest otherwise.
@@ -3080,4 +3083,154 @@ for (const operation of ["start-scenario", "restart-scenario"]) test(`streamed $
   assert.equal(await h.elements.get(operation).listeners.click(), false);
   assert.equal(tools.open, true);
   assert.match(h.elements.get("error").textContent, /Replacement rejected/);
+});
+
+for (const view of ["classic", "enhanced"]) for (const terrain of ["StoneFloor", "Asphalt", "Grass", "Water", "Lava", "Rail"]) {
+  test(`${view} ${terrain}: board feedback follows projected decision metadata and keyboard focus`, () => {
+    const candidates = [
+      choice("opaque-select", "Unit", { unitId: "b" }, { boardVisual: { kind: "activate", preview: "Activate Hobby Knight" } }),
+      choice("opaque-move", "Position", { position: { x: 2, y: 0 } }, { boardVisual: { kind: "move", preview: "Move Wizard to (2,0)" } }),
+      choice("opaque-stay", "Unit", { unitId: "actor" }, { boardVisual: { kind: "stay", preview: "Stay \u2014 Wizard", icon: "\u2161" } }),
+      choice("opaque-attack", "Unit", { unitId: "a" }, { boardVisual: { kind: "attack", preview: "Attack Goblin", icon: "\u2316" } })
+    ];
+    const initial = response(candidates);
+    initial.result.state.physical.board.terrain = Array.from({ length: 6 }, (_, x) => ({ position: { x, y: 0 }, kind: terrain, direction: "East" }));
+    const h = harness(initial); h.context.view = view;
+    h.run('boardView.value = view; updateBoardView()');
+    const nodes = [h.figure("b"), h.run('cells.get("2,0")'), h.figure("actor"), h.figure("a")];
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i], visual = candidates[i].boardVisual;
+      assert.equal(node.classList.contains(`choice-${visual.kind}`), true);
+      assert.equal(node.dataset.tooltip.startsWith(visual.preview), true);
+      assert.equal(node.attributes["aria-label"].startsWith(visual.preview), true);
+      assert.equal(node.tabIndex, 0);
+      assert.equal(node.title, "");
+      node.focus();
+      assert.equal(h.submitted.length, 0, "focus previews without submitting");
+      assert.equal(node.querySelectorAll(".choice-marker").length, 0, "input surfaces do not own visual markers");
+      const key = i === 0 ? "5,0" : i === 1 ? "2,0" : i === 2 ? "0,0" : "4,0";
+      const feedback = h.run(`choiceFeedback.get("${key}")`);
+      assert.equal(feedback.parent, h.elements.get("board"));
+      assert.equal(feedback.classList.contains("feedback-hover"), true);
+      assert.equal(feedback.querySelectorAll(i === 2 ? ".choice-icon" : ".choice-marker").length, 1);
+    }
+    const stayCell = h.run('cells.get("0,0")');
+    assert.equal(stayCell.classList.contains("choice-stay"), true);
+    assert.equal(stayCell.classList.contains("choice-move"), false);
+    assert.equal(stayCell.classList.contains("legal"), false);
+  });
+}
+
+test("Fireball and Move on the same occupied Cell describe every alternative and never choose on hover", async () => {
+  const initial = response([
+    choice("first", "Position", { position: { x: 4, y: 0 } }, { boardVisual: { kind: "special", preview: "Fireball at (4,0)", icon: "\u{1f525}" }, affectedUnitIds: ["actor", "b"] }),
+    choice("second", "Unit", { unitId: "a" }, { boardVisual: { kind: "move", preview: "Move Wizard to (4,0)" } })
+  ]);
+  const h = harness(initial), node = h.figure("a");
+  h.run("chooseCandidate = key => submitted.push(key)");
+  assert.match(node.dataset.tooltip, /Choose an option: Fireball at \(4,0\) \/ Move Wizard to \(4,0\)/);
+  assert.equal(node.classList.contains("choice-special"), true);
+  assert.equal(node.classList.contains("choice-move"), true);
+  assert.match(h.run('choiceFeedback.get("4,0")').textContent, /\u{1f525}/u);
+  node.focus(); assert.equal(h.submitted.length, 0);
+  assert.equal(h.figure("b").classList.contains("affected-preview"), false, "no arbitrary alternative preview");
+  await node.listeners.keydown({ key: "Enter", preventDefault() {} });
+  const options = buttons(h.elements.get("choices"));
+  assert.equal(options[0].dataset.tooltip, "Fireball at (4,0)");
+  assert.equal(options[1].dataset.tooltip, "Move Wizard to (4,0)");
+  options[0].focus();
+  assert.equal(h.figure("b").classList.contains("affected-preview"), true);
+  assert.equal(h.run('ui.board.querySelectorAll(".placement-preview").length'), 0, "no invented explosion geometry");
+  await click(options[1]); assert.equal(h.submitted.at(-1), "second");
+});
+
+test("hidden irrelevant feedback is absent and automatic-choice setting is retained", () => {
+  const initial = response([choice("irrelevant", "Unit", { unitId: "a" }, { relevant: false, boardVisual: { kind: "attack", preview: "Attack Goblin" } })]);
+  initial.autoChooseSingleRelevantChoice = true;
+  const h = harness(initial);
+  assert.equal(h.figure("a").classList.contains("choice-attack"), false);
+  assert.equal(h.elements.get("auto").checked, true);
+  h.run('ui.filter.checked = false; renderSnapshot()');
+  assert.equal(h.figure("a").classList.contains("choice-attack"), true);
+});
+
+test("ranged relationship persists across pending Defence, defeated targets and clears with dice; rapid attacks replace it", () => {
+  const clock = combatClock(), h = harness(combatFixture(), undefined, { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  const links = () => h.elements.get("board").querySelectorAll(".combat-link");
+  assert.equal(links().length, 1);
+  assert.equal(links()[0].style.width, "50%");
+  h.run('snapshot.result.state.attackInProgress.stage = "DefenceRoll"; renderSnapshot()');
+  clock.tick(600000);
+  assert.equal(links().length, 1);
+  assert.equal(h.figure("actor").classList.contains("attack-source"), true);
+  assert.equal(h.figure("a").classList.contains("attack-target"), true);
+  h.run('prepareOccurrence({ kind: "AttackResolved", unitId: "actor", targetId: "a", actionId: "attack" }, { text: "Complete" }); snapshot.result.state.attackInProgress = null; snapshot.result.state.physical.figures = snapshot.result.state.physical.figures.filter(f => f.id !== "a"); renderSnapshot()');
+  assert.equal(links().length, 1, "snapshot positions survive figure removal");
+  clock.tick(1800); assert.equal(links().length, 0);
+  assert.equal(h.figure("actor").classList.contains("attack-source"), false);
+  h.run('prepareOccurrence({ kind: "AttackStarted", attackContext: { attackerId: "actor", actionId: "attack", targets: [{targetId: "b"}] } }, { text: "Next" }); finishCombatDice()');
+  const oldDismiss = clock.jobs[0].callback;
+  h.run('prepareOccurrence({ kind: "AttackStarted", attackContext: { attackerId: "b", actionId: "attack", targets: [{targetId: "actor"}] } }, { text: "Immediate next" })');
+  oldDismiss();
+  assert.equal(links().length, 1);
+  assert.equal(links()[0].style.left, "68.75%");
+  assert.equal(h.figure("b").classList.contains("attack-source"), true);
+  assert.equal(h.figure("actor").classList.contains("attack-target"), true);
+});
+
+test("feedback graphics never intercept clicks, with contrasting shapes in both views", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-enhanced.css"), "utf8");
+  assert.match(css, /#board \.choice-marker \{[^}]*pointer-events: none/s);
+  assert.match(css, /#board \.combat-link \{[^}]*pointer-events: none/s);
+  assert.match(css, /\.marker-activate[^}]*linear-gradient/s);
+  assert.match(css, /\.marker-move[^}]*border: 2px solid[^}]*box-shadow/s);
+  assert.match(css, /#board \.feedback-hover/);
+});
+
+for (const view of ["classic", "enhanced"]) test(`${view}: Cell and portrait share one set of feedback and alternatives above the token`, async () => {
+  const initial = response([
+    choice("select", "Unit", { unitId: "a" }, { boardVisual: { kind: "activate", preview: "Activate Wizard" } }),
+    choice("fireball", "Position", { position: { x: 4, y: 0 } }, { boardVisual: { kind: "special", preview: "Fireball at (4,0)", icon: "flame" } }),
+    choice("heal", "Unit", { unitId: "a" }, { boardVisual: { kind: "special", preview: "Heal Wizard", icon: "heal" } }),
+    choice("telekinesis", "Unit", { unitId: "a" }, { boardVisual: { kind: "special", preview: "Telekinesis Wizard", icon: "hand" } })
+  ]);
+  const h = harness(initial); h.context.view = view;
+  h.run('boardView.value = view; updateBoardView(); chooseCandidate = key => submitted.push(key)');
+  const cell = h.run('cells.get("4,0")'), figure = h.figure("a"), feedback = h.run('choiceFeedback.get("4,0")');
+  assert.equal(h.elements.get("board").querySelectorAll(".choice-feedback").length, 1);
+  assert.equal(feedback.parent, h.elements.get("board"), "outside isolated terrain and token stacking contexts");
+  assert.equal(cell.querySelectorAll(".choice-marker").length, 0);
+  assert.equal(figure.querySelectorAll(".choice-marker").length, 0);
+  assert.equal(feedback.querySelectorAll(".marker-activate").length, 1);
+  assert.deepEqual(feedback.querySelectorAll(".choice-icon").map(icon => icon.textContent), ["flame", "heal", "hand"]);
+  assert.equal(feedback.attributes["aria-hidden"], "true");
+  assert.equal(feedback.listeners.click, undefined);
+  assert.equal(cell.dataset.tooltip, figure.dataset.tooltip);
+  for (const surface of [cell, figure]) {
+    surface.listeners.mouseenter(); assert.equal(feedback.classList.contains("feedback-hover"), true);
+    surface.listeners.mouseleave(); assert.equal(feedback.classList.contains("feedback-hover"), false);
+    surface.focus(); assert.equal(feedback.classList.contains("feedback-hover"), true);
+    surface.listeners.blur(); assert.equal(feedback.classList.contains("feedback-hover"), false);
+    assert.equal(surface.tabIndex, 0);
+    assert.equal(h.submitted.length, 0);
+    await click(surface);
+    const options = buttons(h.elements.get("choices"));
+    assert.equal(options.length, 5, "four alternatives and Cancel from either input surface");
+    assert.equal(options[1].dataset.tooltip, "Fireball at (4,0)");
+    h.run('closeBoardChooser()');
+  }
+  h.run('renderState(snapshot.result.state)');
+  assert.equal(h.elements.get("board").querySelectorAll(".choice-feedback").length, 0, "playback removes stale feedback");
+});
+
+test("Cell feedback layers sit above whole tokens, with non-overlapping click-through icons below decision overlays", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-enhanced.css"), "utf8");
+  const base = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  assert.match(css, /\.choice-feedback \{[^}]*position: absolute;[^}]*z-index: 4;[^}]*pointer-events: none/s);
+  assert.match(css, /\.choice-feedback \* \{ pointer-events: none/);
+  assert.match(css, /\.choice-icons \{[^}]*display: flex; flex-wrap: wrap;[^}]*gap: 2px/s);
+  assert.match(base, /\.figure \{[^}]*z-index: 3/s);
+  assert.match(base, /\.board-overlays \{[^}]*z-index: 9/s);
+  assert.match(base, /\.shared-tooltip \{[^}]*pointer-events: none/s);
+  assert.match(css, /\.cell-choice-feedback:focus-visible \{ outline: none/);
 });

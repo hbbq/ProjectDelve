@@ -5,11 +5,13 @@ namespace ProjectDelve.Web;
 public enum InteractionKind { Direct, Unit, Position, Door }
 public sealed record ChoiceInteraction(InteractionKind Kind, string? UnitId = null,
     Cell? Position = null, Edge? Door = null);
+public sealed record BoardChoiceVisual(string Kind, string Preview, string? Icon = null);
 public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
     bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds)
 {
     public IReadOnlyList<Cell> PlacementCells { get; init; } = [];
     public bool IsEndTurn { get; init; }
+    public BoardChoiceVisual? BoardVisual { get; init; }
     public string? DisplayLabel { get; init; }
 }
 public sealed record FigureGeometry(Cell Anchor, IReadOnlyList<Cell> OccupiedCells, int CellSpan);
@@ -178,6 +180,15 @@ public static class BrowserProjection
                 : c.TargetId is not null ? [c.TargetId] : [];
             return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
             {
+                BoardVisual = c.Kind switch
+                {
+                    ActivationChoiceKind.SelectUnit => new("activate", $"Activate {PlayerName(state, c.Key, individualNames)}"),
+                    ActivationChoiceKind.Move => new("move", $"Move {PlayerName(state, request.UnitId, individualNames)} to ({c.Destination!.X},{c.Destination.Y})"),
+                    ActivationChoiceKind.Stay => new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ"),
+                    _ when c.Action == UnitAction.NormalAttack => new("attack", $"Attack {PlayerName(state, c.TargetId, individualNames)}", "⌖"),
+                    _ when c.Action == UnitAction.Fireball => new("special", $"Fireball at ({c.Destination!.X},{c.Destination.Y})", "🔥"),
+                    _ => new("special", Label(id => PlayerName(state, id, individualNames)), "◆")
+                },
                 DisplayLabel = Label(id => PlayerName(state, id, individualNames)),
                 IsEndTurn = c.Kind == ActivationChoiceKind.EndTurn,
                 PlacementCells = c.Destination is null ? [] :
@@ -202,7 +213,9 @@ public static class BrowserProjection
         BrowserChoice? none = !request.AllowsNone ? null : new(null,
             request.Kind == DecisionKind.Move ? "Stay here" : continuation is not null ? $"Decline {continuation.Name}" : "Take no action",
             null, true, request.Kind == DecisionKind.Move
-                ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), []);
+                ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), [])
+            { BoardVisual = request.Kind == DecisionKind.Move
+                ? new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ") : null };
         return new(request.UnitId, prompt, candidates, none) { Roll = request.Roll, DisplayPrompt = Prompt(id => PlayerName(state, id, individualNames)) };
     }
 

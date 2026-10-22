@@ -10,6 +10,30 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void BoardVisualsDescribeSuppliedChoicesWithoutChangingTheirIdentityOrLegality()
+    {
+        var state = State(UnitType.Wizard());
+        var names = new Dictionary<string, string> { ["actor"] = "Wizard", ["target"] = "Goblin" };
+        var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "actor",
+            [new("actor", Kind: ActivationChoiceKind.SelectUnit),
+             new("opaque-move", Destination: new(2, 0), Kind: ActivationChoiceKind.Move),
+             new("opaque-stay", Kind: ActivationChoiceKind.Stay),
+             new("opaque-attack", TargetId: "target", Action: UnitAction.NormalAttack),
+             new("opaque-fireball", Destination: new(2, 0), Action: UnitAction.Fireball, Relevant: false)], false);
+        var before = JsonSerializer.Serialize(request);
+        var projected = BrowserProjection.Decision(request, state, names)!.Candidates;
+        Assert.Equal(new[] { "activate", "move", "stay", "attack", "special" }, projected.Select(c => c.BoardVisual!.Kind));
+        Assert.Equal(new[] { "Activate Wizard", "Move Wizard to (2,0)", "Stay — Wizard", "Attack Goblin", "Fireball at (2,0)" },
+            projected.Select(c => c.BoardVisual!.Preview));
+        Assert.Equal("🔥", projected[4].BoardVisual!.Icon);
+        Assert.Equal("Ⅱ", projected[2].BoardVisual!.Icon);
+        Assert.False(projected[4].Relevant);
+        Assert.Equal(projected[1].Interaction.Position, projected[4].Interaction.Position);
+        Assert.Equal(request.Candidates.Select(c => c.Key), projected.Select(c => c.Key));
+        Assert.Equal(before, JsonSerializer.Serialize(request));
+    }
+
+    [Fact]
     public void PlayerNamesAndDisplayTextPreserveRawChoicesAndAuthoritativeEvents()
     {
         var guard = UnitType.Grunt() with { DisplayName = "Royal Guard" };
@@ -474,6 +498,7 @@ public sealed class BrowserProjectionTests
         Assert.Equal(InteractionKind.Unit, cleave.Candidates[0].Interaction.Kind);
         var move = BrowserProjection.Decision(new(DecisionKind.Move, state.Types[0].Id, "actor", [], true, true), state)!;
         Assert.Equal("Stay here", move.NoneChoice!.Label);
+        Assert.Equal("stay", move.NoneChoice.BoardVisual!.Kind);
         Assert.Equal("actor", move.NoneChoice.Interaction.UnitId);
         var select = BrowserProjection.Decision(new(DecisionKind.SelectUnit, state.Types[0].Id, null,
             [new("actor", Kind: ActivationChoiceKind.SelectUnit)], false), state)!;
