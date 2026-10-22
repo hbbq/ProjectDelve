@@ -4,12 +4,28 @@ import { applyBoardVisual } from "./board-visuals.js";
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
 const boardView = document.getElementById("board-view");
+for (const id of ["end-turn", "start-round", "bag-count", "decision-panel", "board-overlays", "move-overlay", "board-hint"]) ui[id] = document.getElementById(id);
+const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+let diceDismissal;
+let diceGeneration = 0;
+let diceSession;
+let combatDice;
+ui["move-overlay"].addEventListener("click", () => ui["board-overlays"].classList.toggle("at-top"));
+ui["end-turn"].addEventListener("click", () => {
+  const candidate = snapshot?.presentation.decision?.candidates.find(candidate => candidate.isEndTurn);
+  if (candidate) return chooseCandidate(candidate.key);
+});
+ui["start-round"].addEventListener("click", () => { if (!ui.round.disabled) return mutate("round"); });
 function updateBoardView() {
   // Do not rerender: mounted choices, selection, hover and in-flight playback survive.
   ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
 }
 boardView.addEventListener("change", updateBoardView);
 updateBoardView();
+const fitBoard = document.getElementById("fit-board");
+function updateBoardFit() { ui.board.classList.toggle("fit-board", fitBoard.checked); }
+fitBoard.addEventListener("change", updateBoardFit);
+updateBoardFit();
 let snapshot;
 let queuedScenario;
 let renderedScenarioId;
@@ -172,6 +188,13 @@ let setupPhase;
 const cardChoiceKeys = new Set();
 const boardChoiceKeys = new Set();
 let boardChooser;
+let boardChooserOrigin;
+function closeBoardChooser() {
+  boardChooser = null; clearAffectedPreview(); renderChoicePanel(); boardChooserOrigin?.focus();
+}
+ui["decision-panel"].addEventListener("keydown", event => {
+  if (event.key === "Escape" && boardChooser) { event.preventDefault(); closeBoardChooser(); }
+});
 let attackContext;
 let focusedUnitId;
 let focusedDoor;
@@ -364,8 +387,8 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     styleSide(node, unit?.sideId);
     node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
     node.style.pointerEvents = "";
-    node.title = `${figure.id} · ${figure.posture}`;
-    node.title += ` · ${tokenName} · Side ${unit?.sideId ?? ""}`;
+    node.dataset.unitId = figure.id;
+    node.title = `${displayedCards[figure.id]?.playerName ?? tokenName} · ${figure.posture} · Side ${unit?.sideId ?? ""}`;
     node.dataset.postureLabel = node.title;
     if (type?.hp > 1) {
       const hp = text("span", `${unit.currentHp}/${type.hp}`);
@@ -403,6 +426,7 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   setupPhase = isSetup;
   renderBoard(state, preserveNodes, machines);
   displayedState = state;
+  syncCombatDice(state);
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
   renderTurn(state);
   renderWorldEffects(world);
@@ -425,8 +449,10 @@ function renderUnitCard() {
   const type = state.types.find(type => type.id === unit.typeId);
   const content = displayedCards[unit.id];
   card.append(text("small", hoveredUnitId ? "Inspecting" : state.currentUnitId === unit.id ? "Active Unit" : "Most recently active"));
-  card.append(text("h3", content.displayName));
-  card.append(text("small", `${unit.id} · ${unit.sideId ?? ""}`));
+  card.append(text("h3", unitName(unit.id)));
+  card.append(text("small", unit.sideId ?? ""));
+  const debug = text("details", ""); debug.className = "card-debug";
+  debug.append(text("summary", "Unit debug information")); debug.append(text("small", unit.id)); card.append(debug);
   const stats = text("div", ""); stats.className = "card-stats";
   for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
     const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
@@ -458,7 +484,7 @@ function renderUnitCard() {
     heading.append(name); heading.append(text("small", ability.category));
     if (entry.uses) heading.append(useMarkers(entry.uses));
     row.append(heading);
-    row.append(text("p", ability.description));
+    row.append(abilityDescription(ability));
     const decision = snapshot?.presentation.decision;
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.candidates.filter(candidate => candidate.entryId === ability.id && candidate.interaction.kind === "Direct") : [];
@@ -475,6 +501,18 @@ function renderUnitCard() {
   }
   // Hover inspection must not strand a Direct choice whose card is no longer shown.
   if (!busy) renderChoicePanel();
+}
+
+function abilityDescription(ability) {
+  const description = text("div", ""); description.className = "ability-description";
+  const short = text("p", ability.shortDescription || ability.description || ability.name);
+  short.title = ability.description || ability.name;
+  description.append(short);
+  const full = text("details", "");
+  full.append(text("summary", `Full description · ${ability.name}`));
+  full.append(text("p", ability.description || ability.name));
+  description.append(full);
+  return description;
 }
 
 function useMarkers(uses) {
@@ -502,7 +540,7 @@ function previewChoice(candidate) {
 }
 
 function choiceButton(candidate) {
-  const button = text("button", candidate.label);
+  const button = text("button", candidate.displayLabel ?? candidate.label);
   button.addEventListener("click", () => chooseCandidate(candidate.key));
   const preview = () => {
     previewChoice(candidate);
@@ -517,6 +555,7 @@ function choiceButton(candidate) {
 function renderChoicePanel() {
   ui.choices.replaceChildren();
   const decision = snapshot?.presentation.decision;
+  ui["decision-panel"].hidden = false;
   if (decision?.roll) {
     const detail = text("p", rollLabel(decision.roll)); detail.className = "roll-detail";
     ui.choices.append(detail);
@@ -532,15 +571,16 @@ function renderChoicePanel() {
     chooser.append(text("small", "Choose an option"));
     for (const candidate of boardChooser) chooser.append(choiceButton(candidate));
     const cancel = text("button", "Cancel");
-    cancel.addEventListener("click", () => { boardChooser = null; clearAffectedPreview(); renderChoicePanel(); });
+    cancel.addEventListener("click", closeBoardChooser);
     chooser.append(cancel);
     ui.choices.append(chooser);
   }
   if (decision?.noneChoice && !boardChoiceKeys.has(null)) ui.choices.append(choiceButton(decision.noneChoice));
   for (const candidate of decision?.candidates ?? []) {
-    if (!visibleChoice(candidate) || boardChoiceKeys.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
+    if (candidate.isEndTurn || !visibleChoice(candidate) || boardChoiceKeys.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
     ui.choices.append(choiceButton(candidate));
   }
+  ui["decision-panel"].hidden = !ui.choices.children.length;
 }
 
 function renderSnapshot() {
@@ -560,14 +600,16 @@ function renderSnapshot() {
     describeScenario();
     renderControllerSetup();
   }
-  if (state.round === 0) ui.dice.replaceChildren();
+  if (state.round === 0 || diceSession !== snapshot.sessionId) clearDice();
+  diceSession = snapshot.sessionId;
   hoveredUnitId = null;
   boardChooser = null;
   boardChoiceKeys.clear();
   attackContext = state.attackInProgress ?? null;
   focusedUnitId = state.currentUnitId;
   focusedDoor = snapshot.presentation.decision?.roll?.door ?? state.doorInProgress?.door;
-  if (attackContext?.attackRoll && !ui.dice.children.length) renderDice(attackContext.attackRoll);
+  const focusFigure = state.physical.figures.find(figure => figure.id === (attackContext?.targets?.[0]?.targetId ?? state.currentUnitId));
+  ui["board-overlays"].classList.toggle("at-top", !!focusFigure && focusFigure.position.y >= state.physical.board.height / 2);
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   const decision = snapshot.presentation.decision;
@@ -578,7 +620,8 @@ function renderSnapshot() {
     if (!boardChoices.has(node)) boardChoices.set(node, new Map());
     boardChoices.get(node).set(candidate.key, candidate);
   };
-  ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? `${decision.prompt} · ${decision.unitId ?? ""}` : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? decision.roll ? rollLabel(decision.roll) : decision.displayPrompt ?? decision.prompt : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  ui["board-hint"].textContent = ui.prompt.textContent;
   for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
     if (!visibleChoice(candidate)) continue;
     const selection = candidate.interaction;
@@ -602,7 +645,7 @@ function renderSnapshot() {
   for (const [node, choices] of boardChoices) {
     const candidates = [...choices.values()]; // Preserve authoritative candidate order.
     bindBoardChoice(node, candidates);
-    if (candidates.length === 1) boardChoiceKeys.add(candidates[0].key);
+    for (const candidate of candidates) boardChoiceKeys.add(candidate.key);
   }
   renderChoicePanel();
   updateControls();
@@ -616,11 +659,15 @@ function chooseCandidate(key) {
 }
 
 function bindBoardChoice(node, candidates) {
-  const label = candidates.map(candidate => candidate.label).join(" / ");
+  const label = candidates.map(candidate => candidate.displayLabel ?? candidate.label).join(" / ");
   const select = () => {
     if (busy) return;
     if (candidates.length === 1) return chooseCandidate(candidates[0].key);
     boardChooser = candidates;
+    boardChooserOrigin = node;
+    const reference = candidates[0].interaction;
+    const location = reference.position ?? reference.door?.a ?? displayedState?.physical.figures.find(figure => figure.id === reference.unitId)?.position;
+    if (location) ui["board-overlays"].classList.toggle("at-top", location.y >= displayedState.physical.board.height / 2);
     clearAffectedPreview();
     renderChoicePanel();
     ui.choices.querySelectorAll("button")[0]?.focus();
@@ -671,6 +718,11 @@ function updateControls() {
   ui["decision-commentary"].disabled = busy || !snapshot?.presentation.decision;
   ui.round.disabled = busy || !snapshot || !!snapshot.result.state.completion || !(snapshot.result.state.round === 0 || snapshot.result.state.roundComplete);
   ui.round.textContent = snapshot?.result.state.round ? "Start next round" : "Start round";
+  ui["start-round"].disabled = ui.round.disabled;
+  ui["start-round"].textContent = snapshot?.result.state.round ? "Next round" : "Start round";
+  const endTurn = snapshot?.presentation.decision?.candidates.find(candidate => candidate.isEndTurn);
+  ui["end-turn"].disabled = busy || !endTurn;
+  ui["end-turn"].textContent = endTurn?.label ?? "End Turn";
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
   for (const button of ui["unit-card"].querySelectorAll("button")) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
   for (const node of ui.board.querySelectorAll(".board-choice")) {
@@ -708,6 +760,7 @@ function connectUpdates() {
 }
 
 function cancelPlayback() {
+  clearDice();
   playbackGeneration++;
   cancelPause?.();
   playbackQueue.length = 0;
@@ -733,7 +786,7 @@ function receiveUpdate(update) {
     attackContext = null;
     focusedDoor = null;
     ui.dice.classList.remove("rolling");
-    ui.dice.replaceChildren(); ui.events.replaceChildren(); ui.effect.textContent = "";
+    ui.dice.replaceChildren(); if (!sameSession) ui.events.replaceChildren(); ui.effect.textContent = "";
     ui.error.textContent = update.error ?? "";
     renderSnapshot(); updateControls();
     if (pendingReplacement && (update.commandId === pendingReplacement.commandId || update.sessionId !== pendingReplacement.sessionId)) {
@@ -766,7 +819,7 @@ async function drainUpdates() {
       snapshot = update.snapshot;
       if (update.kind === "commentary") showCommentary(update.commentary);
       if (update.kind === "event") {
-        if (!playbackOperationActive) { skipEffects = !ui.animate.checked; playbackOperationActive = true; }
+        if (!playbackOperationActive) { skipEffects = !ui.animate.checked || reducedMotion(); playbackOperationActive = true; }
         await playEvents(snapshot, generation, false);
       }
       if (generation !== playbackGeneration) return;
@@ -849,7 +902,10 @@ async function refresh() {
   if (busy) return;
   busy = true; updateControls(); ui.error.textContent = "";
   try {
-    snapshot = await request(""); clearCommentary(); ui.events.replaceChildren(); ui.effect.textContent = ""; ui.dice.replaceChildren(); renderSnapshot();
+    const previousSession = snapshot?.sessionId;
+    snapshot = await request(""); clearCommentary();
+    if (previousSession !== snapshot.sessionId) ui.events.replaceChildren();
+    ui.effect.textContent = ""; clearDice(); renderSnapshot();
   } catch (error) { ui.error.textContent = error.message; }
   finally {
     busy = false; updateControls();
@@ -865,18 +921,18 @@ async function mutate(operation, body = {}) {
   if (streaming) return sendCommand(operation, body);
   if (busy || !snapshot) return false;
   let succeeded = false;
-  busy = true; skipEffects = !ui.animate.checked; updateControls(); ui.error.textContent = "";
+  busy = true; skipEffects = !ui.animate.checked || reducedMotion(); updateControls(); ui.error.textContent = "";
   try {
     // Present from the previous visible state, advancing only with engine snapshots.
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
     succeeded = true;
-    if (["scenario", "scenario/import", "restart"].includes(operation)) { latestUnitId = null; clearCommentary(); }
-    ui.events.replaceChildren();
+    if (["scenario", "scenario/import", "restart"].includes(operation)) { latestUnitId = null; clearCommentary(); clearDice(); }
+    if (["scenario", "scenario/import", "restart"].includes(operation)) ui.events.replaceChildren();
     await playEvents(snapshot);
   } catch (error) {
     clearCommentary();
     ui.error.textContent = `${error.message} Synchronized to the server; choose again.`;
-    if (operation !== "scenario/import") ui.dice.replaceChildren();
+    if (operation !== "scenario/import") clearDice();
     try { snapshot = await request(""); }
     catch { ui.error.textContent = `${error.message} Refresh to reconnect before choosing again.`; snapshot = null; }
   } finally {
@@ -978,11 +1034,13 @@ async function guardedPause(ms) {
 }
 
 async function present(event, occurrence) {
-  if (!occurrence) ui.effect.textContent = describe(event);
+  if (!occurrence) ui.effect.textContent = event.displayText ?? describe(event);
   if (occurrence?.kind === "DiceRolled") {
-    ui.dice.classList.add("rolling");
+    const groups = ui.dice.querySelectorAll(".dice-group");
+    const rolling = groups[groups.length - 1] ?? ui.dice;
+    rolling.classList.add("rolling");
     await guardedPause(260);
-    ui.dice.classList.remove("rolling");
+    rolling.classList.remove("rolling");
     await guardedPause(420);
     return;
   }
@@ -1068,7 +1126,7 @@ function renderOrders(orders, state) {
 function orderLabel(order, state) {
   const route = state.routes?.find(r => r.id === order.route?.routeId);
   const target = order.target;
-  const targetLabel = target?.kind === "Unit" ? `Unit ${target.unitId}`
+  const targetLabel = target?.kind === "Unit" ? unitName(target.unitId)
     : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}`
     : target?.kind === "Side" ? `Side ${target.sideId}`
     : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
@@ -1121,14 +1179,15 @@ function renderTurn(state) {
     ui.objectives.append(row);
   }
   ui.status.textContent = `Round ${state.round} \u00b7 ${state.completion ? "Game over" : state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
-  ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining`));
+  ui["bag-count"].textContent = `Activation Bag · ${(state.bag ?? []).length} remaining`;
+  ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining. Membership only; future draw order is unknown.`));
   for (const token of state.bag ?? []) ui.bag.append(tokenNode(token, state));
   ui["active-token"].replaceChildren(text("small", "Drawn token"));
   ui["active-token"].className = ui.effect.dataset.kind === "TokenDrawn" ? "token-draw" : "";
   if (state.activeToken) ui["active-token"].append(tokenNode(state.activeToken, state));
   else ui["active-token"].append(text("span", "Awaiting draw"));
   ui["active-unit"].textContent = state.currentUnitId
-    ? `Activating \u00b7 ${displayedCards[state.currentUnitId]?.displayName ?? state.currentUnitId} \u00b7 ${state.currentUnitId}` +
+    ? `Activating \u00b7 ${unitName(state.currentUnitId)}` +
       (Number.isInteger(state.effectiveMovesPerActivation) ? ` · Moves ${state.movesCompletedThisActivation}/${state.effectiveMovesPerActivation}` : "")
     : state.completion ? "Game complete" : "Choose a Unit or start a round";
 }
@@ -1137,25 +1196,111 @@ function actionLabel(pool) {
   const card = displayedCards?.[pool.sourceUnitId];
   return card?.entries.find(entry => entry.content.id === pool.sourceActionId)?.content.name ?? pool.sourceActionId;
 }
+// Player labels are separate from IDs used by choices, events and debug information.
+function unitName(id) {
+  if (combatDice?.names.has(id)) return combatDice.names.get(id);
+  const cards = displayedCards ?? snapshot?.presentation.cards ?? {};
+  if (cards[id]?.playerName) return cards[id].playerName;
+  const state = displayedState ?? snapshot?.result.state;
+  const nameOf = unitId => cards[unitId]?.individualName?.trim() || cards[unitId]?.displayName?.trim()
+    || state?.types.find(type => type.id === state.units.find(unit => unit.id === unitId)?.typeId)?.displayName || "Unit";
+  const name = nameOf(id), peers = (state?.units ?? []).filter(unit => nameOf(unit.id) === name);
+  if (peers.length < 2) return name;
+  const position = state.physical.figures.find(figure => figure.id === id)?.position;
+  return position ? `${name} (${position.x},${position.y})` : `${name} #${peers.findIndex(unit => unit.id === id) + 1}`;
+}
 function rollLabel(pool) {
-  const owner = displayedCards?.[pool.ownerUnitId]?.displayName ?? pool.ownerUnitId;
-  return `${pool.purpose} \u00b7 ${pool.family === "D6" ? `${pool.count}d6` : `${pool.count} ${pool.family} dice`} \u00b7 ${owner} (${pool.ownerUnitId}) \u00b7 ${actionLabel(pool)}`;
+  const owner = unitName(pool.ownerUnitId);
+  const dice = pool.family === "D6" ? `${pool.count}d6` : `${pool.count} ${pool.family} dice`;
+  const role = pool.family === "Defence" ? `${owner} defends against ${unitName(pool.sourceUnitId)}` : owner;
+  return `Roll ${dice} \u00b7 ${role} \u00b7 ${actionLabel(pool)}`;
 }
 
-function renderDice(result) {
-  ui.dice.replaceChildren();
-  ui.dice.className = `dice-tray ${result.pool.family.toLowerCase()}`;
-  ui.dice.append(text("small", rollLabel(result.pool)));
+function clearDice() {
+  clearTimeout(diceDismissal); diceGeneration++;
+  combatDice = null;
+  ui.dice.replaceChildren(); ui.dice.hidden = true; ui.dice.classList.remove("rolling");
+}
+function dismissDiceAfter(ms) {
+  clearTimeout(diceDismissal);
+  const generation = ++diceGeneration;
+  diceDismissal = setTimeout(() => { if (generation === diceGeneration) clearDice(); }, ms);
+  diceDismissal?.unref?.();
+}
+const combatSignature = context => JSON.stringify([context.attackerId, context.actionId, context.selectedCell,
+  context.targets.map(target => target.targetId)]);
+function beginCombatDice(context) {
+  clearDice();
+  const names = new Map((displayedState?.units ?? []).map(unit => [unit.id, unitName(unit.id)]));
+  combatDice = { signature: combatSignature(context), context, names, attack: null, defences: new Map(), outcomes: new Map(), finished: false };
+}
+function finishCombatDice() {
+  if (!combatDice || combatDice.finished) return;
+  combatDice.finished = true;
+  renderCombatDice();
+  // This timer never advances gameplay or delays the next legal decision.
+  dismissDiceAfter(1800);
+}
+function syncCombatDice(state) {
+  // Older projections need not carry the optional continuation field.
+  if (!("attackInProgress" in state)) return;
+  const context = state.attackInProgress;
+  if (!context) {
+    if (combatDice && !combatDice.finished) {
+      if (combatDice.outcomes.size) finishCombatDice(); else clearDice();
+    }
+    return;
+  }
+  if (!combatDice || combatDice.signature !== combatSignature(context)
+      || (combatDice.finished && context.stage === "AttackRoll")) beginCombatDice(context);
+  combatDice.context = context;
+  if (context.attackRoll) combatDice.attack = context.attackRoll;
+  for (const result of context.results ?? []) {
+    if (!combatDice.outcomes.has(result.targetId)) combatDice.outcomes.set(result.targetId,
+      `${unitName(result.targetId)}: ${result.blocks} Blocks \u00b7 ${result.damage} Damage`);
+  }
+  renderCombatDice();
+  if (context.targetIndex >= context.targets.length) finishCombatDice();
+}
+function diceRow(result, row = text("section", "")) {
+  row.className = `dice-group ${result.pool.family.toLowerCase()}`;
+  row.append(text("small", rollLabel(result.pool)));
   const faces = text("div", ""); faces.className = "dice-faces";
   for (const face of result.faces) {
-    const die = text("span", face); die.className = `die ${face === "Miss" ? "miss" : "success"}`;
-    faces.append(die);
+    const die = text("span", face); die.className = `die ${face === "Miss" ? "miss" : "success"}`; faces.append(die);
   }
-  ui.dice.append(faces);
-  const label = result.pool.family === "Attack" ? `${result.successes} Hits`
-    : result.pool.family === "Defence" ? `${result.successes} Blocks`
-    : result.successes > 0 ? "Success" : "Failed";
-  ui.dice.append(text("strong", label));
+  row.append(faces);
+  row.append(text("strong", diceTotal(result)));
+  return row;
+}
+function diceTotal(result) {
+  return result.pool.family === "Attack" ? `${result.successes} Hits`
+    : result.pool.family === "Defence" ? `${result.successes} Blocks` : result.successes > 0 ? "Success" : "Failed";
+}
+function renderCombatDice() {
+  const combat = combatDice;
+  ui.dice.replaceChildren(); ui.dice.className = "dice-tray combat-dice";
+  if (combat.attack) ui.dice.append(diceRow(combat.attack));
+  for (const result of combat.defences.values()) ui.dice.append(diceRow(result));
+  for (const outcome of combat.outcomes.values()) {
+    const row = text("p", outcome); row.className = "combat-outcome"; ui.dice.append(row);
+  }
+  ui.dice.hidden = !ui.dice.children.length;
+  ui.dice.tabIndex = 0;
+}
+function renderDice(result) {
+  const pool = result.pool, combat = combatDice;
+  if (combat && !combat.finished && pool.sourceUnitId === combat.context.attackerId && pool.sourceActionId === combat.context.actionId
+      && (pool.family === "Attack" || pool.family === "Defence" && combat.context.targets.some(target => target.targetId === pool.ownerUnitId))) {
+    clearTimeout(diceDismissal); diceGeneration++;
+    if (pool.family === "Attack") combat.attack = result; else combat.defences.set(pool.ownerUnitId, result);
+    renderCombatDice();
+    return;
+  }
+  // Noncombat checks retain their independent presentation.
+  clearDice(); ui.dice.hidden = false;
+  diceRow(result, ui.dice); ui.dice.className = `dice-tray ${pool.family.toLowerCase()}`;
+  dismissDiceAfter(4500);
 }
 
 function highlightContext() {
@@ -1171,11 +1316,11 @@ function highlightContext() {
     if (focusedDoor && key === edgeKey(focusedDoor)) node.classList.add("door-focus");
   }
   ui["attack-context"].textContent = attackContext
-    ? `${attackContext.attackerId} \u00b7 ${attackContext.abilityName ?? actionLabel({ sourceUnitId: attackContext.attackerId, sourceActionId: attackContext.actionId })} \u2192 ${attackContext.targets.map(target => target.targetId).join(", ")}` : "";
+    ? `${unitName(attackContext.attackerId)} \u00b7 ${attackContext.abilityName ?? actionLabel({ sourceUnitId: attackContext.attackerId, sourceActionId: attackContext.actionId })} \u2192 ${attackContext.targets.map(target => unitName(target.targetId)).join(", ")}` : "";
 }
 
 function prepareOccurrence(occurrence, outcome) {
-  ui.effect.textContent = outcome.text;
+  ui.effect.textContent = outcome.displayText ?? outcome.text;
   if (!occurrence) return;
   ui.effect.dataset.kind = occurrence.kind;
   focusedUnitId = occurrence.targetId ?? occurrence.unitId;
@@ -1183,23 +1328,47 @@ function prepareOccurrence(occurrence, outcome) {
   switch (occurrence.kind) {
     case "RoundStarted":
     case "TokenDrawn":
-      ui.dice.replaceChildren(); attackContext = null; focusedDoor = null;
+      if (combatDice && !combatDice.finished) clearDice(); attackContext = null; focusedDoor = null;
       break;
     case "ActivationStarted":
       latestUnitId = occurrence.unitId;
-      ui.dice.replaceChildren(); break;
+      if (combatDice && !combatDice.finished) clearDice(); break;
     case "ActivationCompleted": focusedUnitId = null; attackContext = null; focusedDoor = null; break;
     case "AttackStarted":
-      attackContext = occurrence.attackContext; ui.dice.replaceChildren(); break;
-    case "AttackResolved": attackContext = null; break;
-    case "DiceRolled": renderDice(occurrence.dice); break;
+      attackContext = occurrence.attackContext;
+      if (attackContext) {
+        beginCombatDice(attackContext);
+        ui.effect.textContent = `${unitName(attackContext.attackerId)} attacks ${attackContext.targets.map(target => unitName(target.targetId)).join(", ")}`;
+      } else clearDice();
+      break;
+    case "AttackTargetResolved":
+    case "AttackResolved":
+      if (combatDice && !combatDice.finished && (!occurrence.unitId || occurrence.unitId === combatDice.context.attackerId)
+          && (!occurrence.actionId || occurrence.actionId === combatDice.context.actionId)) {
+        if (occurrence.targetId && combatDice.context.targets.some(target => target.targetId === occurrence.targetId)) {
+          combatDice.outcomes.set(occurrence.targetId,
+            `${unitName(occurrence.targetId)}: ${occurrence.hits} Hits \u00b7 ${occurrence.blocks} Blocks \u00b7 ${occurrence.damage} Damage`);
+          ui.effect.textContent = `${unitName(combatDice.context.attackerId)} attacks ${combatDice.outcomes.get(occurrence.targetId)}`;
+          renderCombatDice();
+        }
+        if (!occurrence.targetId || combatDice.outcomes.size === combatDice.context.targets.length) finishCombatDice();
+      }
+      if (occurrence.kind === "AttackResolved") attackContext = null;
+      break;
+    case "DiceRolled":
+      renderDice(occurrence.dice);
+      ui.effect.textContent = `${rollLabel(occurrence.dice.pool)} · ${diceTotal(occurrence.dice)}`;
+      break;
+    case "UnitDefeated":
+      ui.effect.textContent = `${unitName(occurrence.unitId)} was defeated`;
+      break;
     case "PostureChanged":
-      if (occurrence.sourceUnitId) ui.effect.textContent += ` (from ${occurrence.sourceUnitId})`;
+      if (occurrence.sourceUnitId) ui.effect.textContent += ` (from ${unitName(occurrence.sourceUnitId)})`;
       break;
     case "ActionUsed":
       focusedDoor = occurrence.door ?? null;
-      ui.dice.replaceChildren();
-      if (occurrence.targetId) ui.effect.textContent += ` \u2192 ${occurrence.targetId}`;
+      if (combatDice && !combatDice.finished) clearDice();
+      if (occurrence.targetId) ui.effect.textContent += ` \u2192 ${unitName(occurrence.targetId)}`;
       if (occurrence.cell) ui.effect.textContent += ` \u2192 (${occurrence.cell.x},${occurrence.cell.y})`;
       if (occurrence.door) ui.effect.textContent += ` \u2192 door ${cellKey(occurrence.door.a)} / ${cellKey(occurrence.door.b)}`;
       break;
@@ -1224,7 +1393,7 @@ const waypointToggle = document.getElementById("waypoints");
 waypointToggle.addEventListener("change", () => ui.board.classList.toggle("hide-waypoints", !waypointToggle.checked));
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
-ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); cancelPause?.(); updateControls(); });
+ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
 // Designer exports enter the same revisioned scenario replacement operation as pasted imports.
 globalThis.delvePlayDesign = transport => replaceScenario("scenario/import", { transport }, true);
 ui["commentary-toggle"].addEventListener("click", () => { commentaryVisible = !commentaryVisible; renderCommentary(); });

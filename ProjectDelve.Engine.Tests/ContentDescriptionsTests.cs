@@ -27,7 +27,7 @@ public sealed class ContentDescriptionsTests
             Assert.False(string.IsNullOrWhiteSpace(e.Description));
         });
         var wave = Assert.Single(types[2].CardEntries(), e => e.Id == "holy-wave");
-        Assert.Equal(new CardEntryDescription("holy-wave", "Holy Wave", "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.", 2), wave);
+        Assert.Equal(new CardEntryDescription("holy-wave", "Holy Wave", "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.", 2, "Lay down adjacent Upright enemies, then this Unit."), wave);
         Assert.Equal("2/game", wave.UseLimitText);
         Assert.Equal("+2 ATK this turn", Assert.Single(types[0].CardEntries(), e => e.Name == "Rage").Description);
         Assert.Equal("+2 RNG & -1 ATK this turn", Assert.Single(types[1].CardEntries(), e => e.Name == "Throwing Knife").Description);

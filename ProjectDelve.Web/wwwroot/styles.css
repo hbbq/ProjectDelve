@@ -167,7 +167,7 @@ details { margin-top: 24px; color: #aeb9cb; }
 
 #active-token.token-draw .activation-token { box-shadow: 0 0 0 3px #ffe084, 0 0 18px #ffe08450; }
 
-/* Changing gameplay feedback stays in the sidebar, outside the board's layout. */
+/* Shared card presentation. */
 section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .ability-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
 .ability-heading strong { font-size: .85rem; }
@@ -233,3 +233,67 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 /* Cell Markers are separate from Terrain and do not intercept Cell interaction. */
 .cell:has(.cell-marker) { position: relative; }
 .cell .cell-marker { position: absolute; width: 62%; height: 62%; left: 19%; top: 19%; z-index: 0; display: grid; place-items: center; pointer-events: none; font-size: clamp(16px, calc(var(--cell-size, 60px) * .4), 32px); }
+/* Playtest: the board and card own the viewport; tools never resize the game. */
+body:has(#playtest-main:not([hidden])) { max-width: none; padding: 8px 12px; }
+body:has(#playtest-main:not([hidden])) > header h1 { margin: 0; font-size: 1.1rem; min-height: 34px; padding-right: 240px; }
+body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
+#playtest-main { grid-template-columns: minmax(0, 1fr) clamp(250px, 22vw, 310px); gap: 10px 16px; }
+.play-status { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 36px; position: sticky; top: 0; z-index: 12; padding: 5px 8px; background: #222936; border: 1px solid #615640; border-radius: 5px; font-size: .85rem; }
+.play-status #status { margin: 0; }
+.play-status #active-token { display: flex; align-items: center; gap: 5px; }
+.play-status #active-token > small { display: none; }
+.play-status .activation-token { margin: 0; padding: 3px 6px; }
+.play-status details { margin: 0 0 0 auto; }
+.bag-disclosure { position: relative; }
+.bag-disclosure summary, .playtest-tools summary, .ability-description summary { cursor: pointer; }
+#bag { position: absolute; right: 0; top: 100%; z-index: 15; width: min(340px, 85vw); padding: 12px; background: #222d3f; border: 1px solid #7c91af; border-radius: 6px; box-shadow: 0 6px 18px #0008; }
+.board-stage { position: relative; }
+#playtest-main #board { width: min(100%, calc((100dvh - 126px) * var(--board-ratio, 1))); }
+#playtest-main #board.fit-board { min-width: 0; }
+.board-overlays { position: absolute; bottom: 8px; right: 8px; z-index: 9; width: min(360px, calc(100% - 16px)); max-height: 45%; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.board-overlays.at-top { top: 8px; bottom: auto; }
+.decision-panel { background: #222936f5; border: 1px solid #b49b63; border-radius: 8px; padding: 8px; box-shadow: 0 3px 12px #0008; overflow-y: auto; pointer-events: auto; min-height: 90px; }
+#move-overlay { float: right; font-size: .7rem; padding: 3px 6px; }
+#dice { margin: 0; padding: 8px; overflow-y: auto; flex-shrink: 1; min-height: 0; max-height: 150px; box-shadow: 0 3px 12px #0008; }
+.card-column { display: flex; flex-direction: column; gap: 8px; height: auto; max-height: calc(100dvh - 110px); overflow: visible; padding: 0; position: sticky; top: 48px; }
+.card-column #unit-card { overflow-y: auto; flex: 0 1 auto; min-height: 0; scrollbar-gutter: stable; }
+.activation-controls { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.activation-controls button { height: 48px; }
+#end-turn { flex: 1; min-height: 44px; }
+.ability-description p { margin: 5px 0; }
+.ability-description details { margin: 4px 0; font-size: .8rem; }
+#attack-context, #effect { margin: 3px 0; font-size: .8rem; padding-block: 3px; }
+#error:empty { display: none; }
+.playtest-tools { position: absolute; right: 12px; top: 8px; margin: 0; z-index: 30; }
+.playtest-tools > summary { border: 1px solid #7c91af; border-radius: 5px; padding: 6px 10px; background: #35455e; color: #e9edf4; font-size: .85rem; }
+.tools-content { position: absolute; top: 100%; right: 0; margin-top: 6px; width: min(480px, calc(100vw - 24px)); max-height: calc(100dvh - 65px); overflow-y: auto; padding: 12px; background: #171c26; border: 1px solid #7c91af; border-radius: 6px; box-shadow: 0 6px 24px #000b; }
+.tools-content details { margin-top: 10px; }
+.tools-content h2 { margin-top: 12px; }
+@media (max-width: 760px) {
+  body:has(#playtest-main:not([hidden])) { padding: 6px; }
+  body > header h1 small { display: none; }
+  #playtest-main { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  #playtest-main #board { width: min(100%, calc((100dvh - 150px) * var(--board-ratio, 1))); }
+  .play-status { gap: 4px 8px; }
+  .play-status details { margin-left: 0; }
+  .card-column { height: auto; max-height: none; overflow: visible; position: static; }
+  .card-column #unit-card { max-height: 45dvh; }
+  .activation-controls { position: sticky; top: 48px; z-index: 13; background: #171c26; padding: 6px 0; }
+  .board-overlays { max-height: 60%; width: min(300px, calc(100% - 16px)); }
+  .playtest-tools { right: 6px; top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #playtest-main *, #playtest-main *::before, #playtest-main *::after { animation: none !important; transition: none !important; }
+}
+#board-hint { margin: 4px 0; min-height: 1.2em; font-size: .8rem; color: #d5e4f5; }
+
+/* Combat rows share one tray; only the current roll animates. */
+#dice.combat-dice { display: block; max-height: min(290px, 36dvh); pointer-events: auto; }
+#dice.combat-dice:focus-visible { outline: 3px solid #ffe084; }
+.dice-group { padding: 5px 0; }
+.dice-group .die { min-width: 28px; height: 28px; padding: 4px; font-size: .75rem; }
+.dice-group + .dice-group { border-top: 1px solid #71809a; }
+.dice-group .dice-faces { display: inline-flex; margin-right: 10px; }
+.combat-outcome { margin: 4px 0; font-size: .8rem; }
+.card-debug { margin: 6px 0 0; font-size: .75rem; }
+@media (max-width: 760px) { #dice.combat-dice { max-height: 25dvh; } }

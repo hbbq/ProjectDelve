@@ -318,7 +318,8 @@ for (const mode of ["animate", "disabled", "skip"]) {
     await click(h.run('cells.get("1,0")'));
     assert.deepEqual(requests, [{ expectedRevision: 8, candidateKey: supplied.key }]);
     assert.equal(h.figure("new-goblin").classList.contains("lying"), true);
-    assert.match(h.figure("new-goblin").title, /new-goblin.*Lying/);
+    assert.match(h.figure("new-goblin").title, /Goblin.*Lying/);
+    assert.equal(h.figure("new-goblin").dataset.unitId, "new-goblin");
     h.figure("new-goblin").listeners.mouseenter();
     assert.match(h.elements.get("unit-card").textContent, /Goblin.*Attack/s);
   });
@@ -369,7 +370,7 @@ for (const name of ["Cleave", "Heal", "Claw Attack", "New unit ability"]) {
     click(h.figure("b")); click(h.elements.get("choices").children[0]);
     assert.deepEqual(h.submitted, ["unparsed unit key", null]);
     assert.match(h.figure("b").attributes["aria-label"], new RegExp(name));
-    assert.equal(h.elements.get("prompt").textContent, "Supplied prompt · actor");
+    assert.equal(h.elements.get("prompt").textContent, "Supplied prompt");
     assert.equal(h.figure("a").classList.contains("board-choice"), false);
   });
 }
@@ -392,7 +393,7 @@ test("Position, Door, Unit selection and optional stay bind explicit references"
   assert.equal(h.elements.get("choices").children.length, 0);
 });
 
-test("ambiguous and missing board references remain selectable in the choice panel", () => {
+test("ambiguous board choices use the chooser and missing references retain a fallback", () => {
   const initial = response([
     choice("first", "Unit", { unitId: "b" }), choice("second", "Unit", { unitId: "b" }),
     choice("missing", "Unit", { unitId: "absent" }), choice("unknown direct", "Direct", {}, { entryId: "no-card-entry" })
@@ -401,7 +402,10 @@ test("ambiguous and missing board references remain selectable in the choice pan
   h.run("chooseCandidate = key => submitted.push(key)");
   assert.equal(h.figure("b").classList.contains("board-choice"), true);
   for (const button of h.elements.get("choices").children) click(button);
-  assert.deepEqual(h.submitted, ["first", "second", "missing", "unknown direct"]);
+  assert.deepEqual(h.submitted, ["missing", "unknown direct"]);
+  click(h.figure("b"));
+  for (const button of buttons(h.elements.get("choices").children[0]).slice(0, 2)) click(button);
+  assert.deepEqual(h.submitted, ["missing", "unknown direct", "first", "second"]);
 });
 
 test("all card wording, categories, counters and effective stats are supplied", () => {
@@ -609,7 +613,7 @@ test("Lying tokens render generic physical posture with readable identity and su
   h.run("chooseCandidate = key => submitted.push(key)");
   assert.equal(h.figure("actor").classList.contains("lying"), true);
   assert.equal(h.figure("a").classList.contains("lying"), false);
-  assert.match(h.figure("actor").attributes["aria-label"], /actor.*Lying.*HP 4\/4/);
+  assert.match(h.figure("actor").attributes["aria-label"], /A printed name.*Lying.*HP 4\/4/);
   assert.match(h.figure("actor").textContent, /Apn1/);
   click(h.figure("actor"));
   assert.deepEqual(h.submitted, ["supplied despite posture"]);
@@ -671,10 +675,10 @@ for (const name of ["Fireball", "Unfamiliar option"]) for (const surface of ["fi
     click(items[1]);
     assert.deepEqual(h.submitted, [position.key]);
     click(items[2]);
-    assert.equal(h.elements.get("choices").children[0].className, "");
+    assert.equal(h.elements.get("choices").children.length, 0);
     assert.equal(h.figure("a").classList.contains("affected-preview"), false);
-    // Ambiguous choices retain a panel fallback.
-    click(h.elements.get("choices").children[0]);
+    // Reopen through the same keyboard-accessible board target.
+    click(node); click(buttons(h.elements.get("choices").children[0])[0]);
     assert.deepEqual(h.submitted, [position.key, unit.key]);
   });
 }
@@ -714,7 +718,7 @@ test("collision chooser only includes currently presented choices and ignores bu
   h.elements.get("filter").checked = false;
   h.run("renderSnapshot(); busy = true");
   click(h.figure("b"));
-  assert.equal(h.elements.get("choices").children[0].className, "");
+  assert.equal(h.elements.get("choices").children.length, 0);
   h.run("busy = false"); click(h.figure("b"));
   assert.equal(buttons(h.elements.get("choices").children[0]).length, 3);
 });
@@ -832,7 +836,7 @@ for (const mode of ["animate", "disabled", "skip"]) {
     await click(buttons(h.elements.get("choices"))[0]);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].body.candidateKey, "commit-attack");
-    assert.match(h.elements.get("prompt").textContent, /roll 3 Attack dice/);
+    assert.match(h.elements.get("prompt").textContent, /Roll 3 Attack dice/);
     assert.equal(buttons(h.elements.get("choices")).length, 1);
     assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
     assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
@@ -949,7 +953,7 @@ test("activation and attack focus uses explicit Unit and fixed target metadata",
   assert.equal(h.figure("actor").classList.contains("attack-source"), true);
   assert.equal(h.figure("b").classList.contains("attack-target"), true);
   assert.equal(h.figure("a").classList.contains("attack-target"), false);
-  assert.match(h.elements.get("attack-context").textContent, /future-action \u2192 b/);
+  assert.match(h.elements.get("attack-context").textContent, /future-action \u2192 Inspected name \(5,0\)/);
   h.run('renderState(snapshot.result.state);');
   assert.equal(h.figure("b").classList.contains("attack-target"), true);
   h.run('prepareOccurrence({ kind: "ActivationCompleted", unitId: "actor" }, { text: "Complete" });');
@@ -982,7 +986,7 @@ test("unknown actions show supplied category and target, Cell and door context",
   h.run(`prepareOccurrence({ kind: "ActionUsed", unitId: "actor", targetId: "b",
     cell: { x: 3, y: 0 }, door: { a: { x: 2, y: 0 }, b: { x: 3, y: 0 } }
   }, { text: "actor used Future Magic (Free Action)" });`);
-  assert.match(h.elements.get("effect").textContent, /Future Magic \(Free Action\).*b.*\(3,0\).*door 2,0 \/ 3,0/);
+  assert.match(h.elements.get("effect").textContent, /Future Magic \(Free Action\).*Inspected name \(5,0\).*\(3,0\).*door 2,0 \/ 3,0/);
 });
 
 for (const mode of ["animate", "disabled", "skip"]) {
@@ -1083,7 +1087,8 @@ for (const animate of [true, false]) {
     await h.run('mutate("decision", { candidateKey: "opaque" })');
     assert.equal(h.figure("b"), undefined);
     assert.equal(h.run('displayedState.units.find(unit => unit.id === "b").currentHp'), 4);
-    assert.match(h.elements.get("effect").textContent, /b was defeated/);
+    assert.match(h.elements.get("effect").textContent, /Inspected name \(5,0\) was defeated/);
+    assert.match(h.elements.get("events").textContent, /b was defeated/);
   });
 }
 
@@ -1105,22 +1110,21 @@ test("compact use circles present supplied remaining and maximum counts accessib
   assert.ok(circles.every(circle => circle.attributes["aria-hidden"] === "true"));
 });
 
-test("gameplay sections are outside the board column and scenario description is a tooltip", () => {
+test("board-first layout reserves status, card and End Turn while tools start closed", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
-  const boardColumn = html.slice(html.indexOf('<section aria-label="Board">'), html.indexOf('<aside'));
-  const sidebar = html.slice(html.indexOf('<aside'));
-  assert.match(boardColumn, /id="board"/);
-  for (const id of ["status", "active-token", "active-unit", "bag", "attack-context", "effect", "dice", "choices", "unit-card"]) {
-    assert.ok(!boardColumn.includes(`id="${id}"`), `${id} must not shift the board`);
-    assert.ok(sidebar.includes(`id="${id}"`));
-  }
-  assert.match(html, /aria-label="Scenario information" aria-describedby="scenario-description"/);
+  const tools = html.slice(html.indexOf('<details id="playtest-tools"'), html.indexOf('<main id="playtest-main"'));
+  assert.match(tools, /<details id="playtest-tools" class="playtest-tools">/);
+  for (const id of ["scenario", "mode-designer", "board-view", "objectives", "orders", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
+    assert.ok(tools.includes(`id="${id}"`), id);
+  assert.match(html, /class="board-stage">[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
+  assert.match(html, /class="card-column"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
+  assert.match(html, /class="play-status"[\s\S]*id="status"[\s\S]*id="active-token"[\s\S]*id="bag-count"/);
   assert.match(html, /id="scenario-description" role="tooltip"/);
-  assert.match(boardColumn, /<details id="game-setup"[\s\S]*id="scenario"[\s\S]*id="side-controllers"[\s\S]*id="import-scenario"[\s\S]*<\/details>/);
-  assert.match(sidebar, /<details class="sidebar-reference">[\s\S]*id="objectives"[\s\S]*id="orders"[\s\S]*<\/details>/);
-  assert.match(html, /id="coordinates" type="checkbox"> Show coordinates/);
-  assert.doesNotMatch(html, /id="coordinates"[^>]*checked/);
-  assert.ok(!html.includes("Start a round to play."));
+  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  assert.match(css, /100dvh - 126px/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(css, /pointer-events: none/);
+  assert.match(css, /prefers-reduced-motion/);
 });
 
 
@@ -1800,6 +1804,8 @@ test("standing Orders render projected labels and playback values without an edi
     { ...initial.result.state.types[0], id: "goblin-type", displayName: "Goblin" },
     { ...initial.result.state.types[0], id: "rogue-type", displayName: "Rogue" }
   ];
+  initial.presentation.cards["hero-alpha"] = { displayName: "Castle Guard", entries: [] };
+  initial.presentation.cards["escort-leader"] = { displayName: "Escort Leader", entries: [] };
   initial.presentation.orders = [
     { token: { typeId: "grunt-type", sideId: "red" }, kind: "DoNothing", destination: null },
     { token: { typeId: "skeleton-archer-type", sideId: "red" }, kind: "HoldPosition", destination: null },
@@ -1815,10 +1821,10 @@ test("standing Orders render projected labels and playback values without an edi
   assert.equal(h.elements.get("orders").hidden, false);
   assert.match(h.elements.get("orders").textContent,
     /Standing Orders.*Grunt · red: Do Nothing.*Skeleton Archer · red: Hold Position.*Zombie · red: Move To \(5,9\)/);
-  assert.match(h.elements.get("orders").textContent, /Grunt .* red: Attack .* Unit hero-alpha/);
+  assert.match(h.elements.get("orders").textContent, /Grunt .* red: Attack .* Castle Guard/);
   assert.match(h.elements.get("orders").textContent, /Skeleton Archer .* red: Attack .* Rogue .* blue/);
   assert.match(h.elements.get("orders").textContent, /Goblin .* red: Attack .* Side blue/);
-  assert.match(h.elements.get("orders").textContent, /Zombie .* red: Protect .* Unit escort-leader/);
+  assert.match(h.elements.get("orders").textContent, /Zombie .* red: Protect .* Escort Leader/);
   assert.match(h.elements.get("orders").textContent, /Goblin .* red: Retreat/);
   assert.match(h.elements.get("orders").textContent, /Zombie .* red: Interact With .* Door \(5,4\).\(6,4\)/);
   assert.equal(h.elements.get("orders").querySelectorAll("button").length, 0);
@@ -1831,10 +1837,11 @@ test("standing Orders render projected labels and playback values without an edi
 
 test("a Unit card shows the standing Order for its Unit Type and Side", () => {
   const initial = response();
+  initial.presentation.cards["target-alpha"] = { displayName: "Target Scout", entries: [] };
   initial.presentation.orders = [{ token: { typeId: "opaque-type", sideId: "same" },
     kind: "Attack", target: { kind: "Unit", unitId: "target-alpha" } }];
   const h = harness(initial);
-  assert.match(h.elements.get("unit-card").textContent, /Standing Order.*Attack .* Unit target-alpha/);
+  assert.match(h.elements.get("unit-card").textContent, /Standing Order.*Attack .* Target Scout/);
 
   initial.presentation.orders[0] = { token: { typeId: "opaque-type", sideId: "other" }, kind: "Retreat" };
   h.run("renderState(snapshot.result.state)");
@@ -2614,4 +2621,292 @@ test("racing resources, Fruit Tree and Slot Machine retain Classic/Enhanced inte
     await click(slot); assert.equal(h.submitted.at(-1),"slot-choice");
     assert.match(h.elements.get("active-unit").textContent, /Moves 1\/2/);
   }
+});
+
+test("End Turn stays reserved and trusts explicit projection metadata, including busy boundaries", async () => {
+  const supplied = choice("opaque-end", "Direct", {}, { label: "Finish activation", isEndTurn: true, relevant: false });
+  const h = harness(response([supplied]));
+  assert.equal(h.elements.get("end-turn").disabled, false);
+  assert.equal(h.elements.get("end-turn").textContent, "Finish activation");
+  assert.equal(buttons(h.elements.get("choices")).length, 0);
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(h.elements.get("end-turn"));
+  assert.deepEqual(h.submitted, ["opaque-end"]);
+  h.run('busy = true; updateControls()');
+  assert.equal(h.elements.get("end-turn").disabled, true);
+  h.run('busy = false; snapshot.presentation.decision = null; renderSnapshot()');
+  assert.equal(h.elements.get("end-turn").disabled, true);
+  assert.equal(h.elements.get("end-turn").textContent, "End Turn");
+  // Printed words are never used to infer an end-activation rule.
+  const other = harness(response([choice("other", "Direct", {}, { label: "End Turn" })]));
+  assert.equal(other.elements.get("end-turn").disabled, true);
+  assert.equal(buttons(other.elements.get("choices")).length, 1);
+});
+
+test("short descriptions retain full content through tooltip and native disclosure with fallback", () => {
+  const printed = entry("custom", "Custom ability", "Capability", "Full authoritative wording with exceptions.");
+  printed.content.shortDescription = "Concise supplied wording.";
+  const h = harness(response([], [printed, entry("fallback", "Fallback", "Action", "Fallback full text")]));
+  const descriptions = h.elements.get("unit-card").querySelectorAll(".ability-description");
+  assert.equal(descriptions[0].children[0].textContent, "Concise supplied wording.");
+  assert.equal(descriptions[0].children[0].title, printed.content.description);
+  assert.equal(descriptions[0].children[1].tagName, "details");
+  assert.equal(descriptions[0].children[1].children[0].tagName, "summary");
+  assert.equal(descriptions[0].children[1].children[1].textContent, printed.content.description);
+  assert.equal(descriptions[1].children[0].textContent, "Fallback full text");
+  h.figure("b").listeners.mouseenter();
+  assert.match(h.elements.get("unit-card").textContent, /Inspecting/);
+  h.figure("b").listeners.mouseleave();
+  assert.match(h.elements.get("unit-card").textContent, /Active Unit/);
+  assert.match(h.elements.get("unit-card").textContent, /Concise supplied wording/);
+});
+
+test("collision overlay can move and Escape restores board focus without submitting", () => {
+  const h = harness(response([choice("a", "Unit", { unitId: "b" }), choice("b", "Unit", { unitId: "b" })]));
+  const node = h.figure("b"); let focused = false; node.focus = () => { focused = true; };
+  node.listeners.keydown({ key: "Enter", preventDefault() {} });
+  assert.equal(h.elements.get("decision-panel").hidden, false);
+  click(h.elements.get("move-overlay"));
+  assert.equal(h.elements.get("board-overlays").classList.contains("at-top"), true);
+  h.elements.get("decision-panel").listeners.keydown({ key: "Escape", preventDefault() {} });
+  assert.equal(h.elements.get("decision-panel").hidden, true);
+  assert.equal(focused, true);
+  assert.deepEqual(h.submitted, []);
+});
+
+test("dice dismissal is temporary and preserves authoritative faces and Event History", () => {
+  let dismiss;
+  const h = harness(response(), undefined, { setTimeout: (callback, delay) => { assert.equal(delay, 4500); dismiss = callback; return 1; } });
+  h.run('ui.events.append(text("li", "Earlier Attack roll")); renderDice({ pool: { family: "Defence", purpose: "Defence", count: 1, ownerUnitId: "b", sourceActionId: "attack" }, faces: ["Block"], successes: 7 })');
+  assert.equal(h.elements.get("dice").hidden, false);
+  assert.match(h.elements.get("dice").textContent, /7 Blocks/);
+  dismiss();
+  assert.equal(h.elements.get("dice").hidden, true);
+  assert.match(h.elements.get("events").textContent, /Earlier Attack roll/);
+  h.run('renderDice({ pool: { family: "Attack", purpose: "Attack", count: 1, ownerUnitId: "actor", sourceActionId: "attack" }, faces: ["Miss"], successes: 0 })');
+  assert.equal(h.elements.get("dice").hidden, false);
+  assert.match(h.elements.get("dice").textContent, /0 Hits/);
+});
+
+for (const view of ["classic", "enhanced"]) for (const [width, height] of [[8, 8], [20, 15], [5, 12]]) {
+  test(`${view}: board-first sizing retains ${width}x${height} square Cell geometry`, () => {
+    const initial = response(); Object.assign(initial.result.state.physical.board, { width, height });
+    const h = harness(initial); const board = h.elements.get("board");
+    h.elements.get("board-view").value = view; h.run('updateBoardView()');
+    assert.equal(board.dataset.view, view);
+    assert.equal(board.style.aspectRatio, `${width} / ${height}`);
+    assert.equal(board.style["--board-ratio"], width / height);
+    assert.equal(h.run('cells.size'), width * height);
+  });
+}
+
+test("Fit board is a presentation-only toggle and preserves mounted choices and hover", () => {
+  const h = harness(response([choice("attack", "Unit", { unitId: "b" })]));
+  const board = h.elements.get("board"), figure = h.figure("b");
+  assert.equal(board.classList.contains("fit-board"), true);
+  figure.listeners.mouseenter();
+  const inspected = h.elements.get("unit-card").textContent;
+  h.elements.get("fit-board").checked = false;
+  h.elements.get("fit-board").listeners.change();
+  assert.equal(board.classList.contains("fit-board"), false);
+  assert.equal(h.figure("b"), figure);
+  assert.equal(h.elements.get("unit-card").textContent, inspected);
+  assert.equal(figure.attributes["aria-disabled"], "false");
+  assert.deepEqual(h.submitted, []);
+});
+
+test("reduced-motion mode preserves successive authoritative dice rolls in history", async () => {
+  const views = ["Attack", "Defence"].map((family, i) => {
+    const view = response(); view.revision += i + 1;
+    view.result.events = [{ kind: "DiceRolled", dice: {
+      pool: { family, purpose: family, count: 1, ownerUnitId: "actor", sourceActionId: "attack" },
+      faces: [i ? "Block" : "Hit"], successes: 1
+    } }];
+    view.presentation.events = [{ role: "Notice", text: `${family} supplied outcome` }];
+    return view;
+  });
+  const h = harness(response(), async () => ({ ok: true, json: async () => views.shift() }), { matchMedia: () => ({ matches: true }) });
+  h.run('present = async () => { throw new Error("Reduced-motion playback must not animate"); }');
+  await h.run('mutate("decision", { candidateKey: "first" })');
+  await h.run('mutate("decision", { candidateKey: "second" })');
+  assert.equal(h.run('skipEffects'), true);
+  assert.match(h.elements.get("events").textContent, /Attack supplied outcome.*Defence supplied outcome/);
+  assert.match(h.elements.get("dice").textContent, /Block.*1 Blocks/);
+});
+
+test("compact status updates activation identity and bag count from displayed snapshots", () => {
+  const initial = response();
+  initial.result.state.bag = [{ typeId: "opaque-type", sideId: "violet" }, { typeId: "opaque-type", sideId: "amber" }];
+  initial.presentation.cards.actor.individualName = "Ada";
+  const h = harness(initial);
+  assert.match(h.elements.get("status").textContent, /Round 1/);
+  assert.match(h.elements.get("active-token").textContent, /A printed name.*amber/);
+  assert.match(h.elements.get("active-unit").textContent, /Ada/);
+  assert.match(h.elements.get("bag-count").textContent, /2 remaining/);
+  assert.match(h.elements.get("bag").textContent, /future draw order is unknown/);
+  h.run('renderTurn({ ...displayedState, round: 2, bag: [], activeToken: null, currentUnitId: null })');
+  assert.match(h.elements.get("status").textContent, /Round 2/);
+  assert.match(h.elements.get("bag-count").textContent, /0 remaining/);
+  assert.match(h.elements.get("active-token").textContent, /Awaiting draw/);
+});
+
+// Test-owned combat snapshots; timers never stand in for authoritative progression.
+function combatClock() {
+  let now = 0, id = 0; const jobs = new Map();
+  return { setTimeout(callback, delay) { const key = ++id; jobs.set(key, { callback, at: now + delay }); return key; },
+    clearTimeout(key) { jobs.delete(key); },
+    tick(ms) { now += ms; for (const [key, job] of [...jobs]) if (job.at <= now) { jobs.delete(key); job.callback(); } },
+    get jobs() { return [...jobs.values()]; } };
+}
+function combatFixture(targets = ["a"]) {
+  const view = response([choice("opaque-roll", "Direct")], [entry("attack", "Attack")]);
+  view.sessionId = "combat-session";
+  view.result.state.physical.board.height = 8;
+  view.result.state.physical.board.width = 8;
+  view.presentation.cards.actor.individualName = "Castle Guard";
+  view.presentation.cards.a.displayName = view.presentation.cards.b.displayName = "Goblin Peasant";
+  view.result.state.attackInProgress = { attackerId: "actor", actionId: "attack", targets: targets.map(targetId => ({ targetId, defenceDice: 2 })),
+    attackDice: 3, stage: "AttackRoll", targetIndex: 0, results: [], attackRoll: null };
+  view.presentation.decision.roll = { family: "Attack", count: 3, ownerUnitId: "actor", sourceUnitId: "actor", sourceActionId: "attack", purpose: "Attack" };
+  return view;
+}
+function suppliedCombatRoll(family, ownerUnitId = "actor") {
+  return { pool: { family, count: family === "Attack" ? 3 : 2, ownerUnitId, sourceUnitId: "actor", sourceActionId: "attack", purpose: family },
+    faces: family === "Attack" ? ["Hit", "Miss", "Hit"] : ["Block", "Miss"], successes: family === "Attack" ? 2 : 1 };
+}
+function withCombatEvents(view, events, states) {
+  view.result.events = events;
+  view.presentation.events = events.map(e => ({ role: "Notice", text: `${e.kind} raw actor a`, displayText: `${e.kind} Castle Guard`, unitId: e.unitId, targetId: e.targetId }));
+  view.result.resolutionSteps = events.map((e, eventIndex) => ({ eventIndex, stateAfter: states?.[eventIndex] ?? view.result.state }));
+  view.presentation.resolutionSteps = events.map((e, eventIndex) => ({ eventIndex, cards: view.presentation.cards }));
+  return view;
+}
+for (const mode of ["animate", "disabled", "reduced", "skip"]) test(`manual Attack survives a long Defence wait and clears combined results after resolution (${mode})`, async () => {
+  const clock = combatClock(), initial = combatFixture(), pending = combatFixture(), resolved = combatFixture();
+  const attack = suppliedCombatRoll("Attack"), defence = suppliedCombatRoll("Defence", "a");
+  Object.assign(pending.result.state.attackInProgress, { stage: "DefenceRoll", attackRoll: attack });
+  pending.presentation.decision.unitId = "a"; pending.presentation.decision.roll = defence.pool;
+  withCombatEvents(pending, [{ kind: "DiceRolled", dice: attack }]);
+  const defenceState = structuredClone(pending.result.state);
+  const outcomeState = structuredClone(defenceState);
+  outcomeState.attackInProgress.targetIndex = 1;
+  outcomeState.attackInProgress.results = [{ targetId: "a", blocks: 1, damage: 1 }];
+  resolved.result.state.attackInProgress = null; resolved.presentation.decision = null;
+  withCombatEvents(resolved, [{ kind: "DiceRolled", dice: defence },
+    { kind: "AttackResolved", unitId: "actor", targetId: "a", actionId: "attack", hits: 2, blocks: 1, damage: 1 },
+    { kind: "ActivationCompleted", unitId: "actor" }, { kind: "TokenDrawn" }],
+    [defenceState, outcomeState, resolved.result.state, resolved.result.state]);
+  const queue = [pending, resolved], requests = [];
+  const h = harness(initial, async (url, options) => { requests.push(JSON.parse(options.body)); return { ok: true, json: async () => queue.shift() }; },
+    { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, matchMedia: () => ({ matches: mode === "reduced" }) });
+  h.run(`ui.animate.checked = ${mode !== "disabled"}; pause = async () => { ${mode === "skip" ? "skipEffects = true;" : ""} }`);
+  await click(buttons(h.elements.get("choices"))[0]);
+  clock.tick(600000);
+  assert.equal(h.elements.get("dice").hidden, false);
+  assert.equal(h.elements.get("dice").querySelectorAll(".dice-group").length, 1);
+  assert.match(h.elements.get("dice").textContent, /Hit.*Miss.*Hit.*2 Hits/);
+  assert.match(h.elements.get("prompt").textContent, /Goblin Peasant \(4,0\) defends against Castle Guard/);
+  assert.equal(clock.jobs.length, 0, "No dismissal timer while Defence is pending");
+  h.figure("b").listeners.mouseenter(); h.figure("b").listeners.mouseleave();
+  click(h.elements.get("move-overlay"));
+  assert.match(h.elements.get("dice").textContent, /2 Hits/);
+  await click(buttons(h.elements.get("choices"))[0]);
+  assert.equal(h.elements.get("dice").querySelectorAll(".dice-group").length, 2);
+  assert.match(h.elements.get("dice").textContent, /2 Hits.*Block.*Miss.*1 Blocks.*1 Damage/);
+  assert.deepEqual(requests.map(request => request.candidateKey), ["opaque-roll", "opaque-roll"]);
+  assert.match(h.elements.get("events").textContent, /DiceRolled raw actor a.*AttackResolved raw actor a/);
+  clock.tick(1799); assert.equal(h.elements.get("dice").hidden, false);
+  clock.tick(1); assert.equal(h.elements.get("dice").hidden, true);
+  assert.equal(h.elements.get("dice").children.length, 0);
+  assert.match(h.elements.get("events").textContent, /AttackResolved raw actor a/);
+});
+
+test("automatic combat uses the same combined tray, and a new same-source Attack invalidates old timers", async () => {
+  const clock = combatClock(), initial = combatFixture(), view = combatFixture();
+  const context = view.result.state.attackInProgress;
+  view.result.state.attackInProgress = null; view.presentation.decision = null;
+  withCombatEvents(view, [{ kind: "AttackStarted", attackContext: context }, { kind: "DiceRolled", dice: suppliedCombatRoll("Attack") },
+    { kind: "DiceRolled", dice: suppliedCombatRoll("Defence", "a") },
+    { kind: "AttackResolved", unitId: "actor", targetId: "a", actionId: "attack", hits: 2, blocks: 1, damage: 1 }]);
+  // Per-event snapshots are supplied by the engine; keep the continuation until the final outcome.
+  view.result.resolutionSteps.slice(0, 3).forEach(step => { step.stateAfter = initial.result.state; });
+  const h = harness(initial, async () => ({ ok: true, json: async () => view }), { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  h.run('ui.animate.checked = false');
+  await h.run('mutate("decision", { candidateKey: "automatic" })');
+  assert.equal(h.elements.get("dice").querySelectorAll(".dice-group").length, 2);
+  const oldDismiss = clock.jobs[0].callback;
+  h.context.nextContext = structuredClone(context);
+  h.run('prepareOccurrence({ kind: "AttackStarted", attackContext: nextContext }, { text: "Next Attack" })');
+  assert.equal(h.elements.get("dice").children.length, 0);
+  h.context.nextRoll = suppliedCombatRoll("Attack"); h.context.nextRoll.faces = ["Miss", "Miss", "Miss"]; h.context.nextRoll.successes = 0;
+  h.run('prepareOccurrence({ kind: "DiceRolled", dice: nextRoll }, { text: "Second Attack" })');
+  oldDismiss(); clock.tick(10000);
+  assert.equal(h.elements.get("dice").hidden, false);
+  assert.doesNotMatch(h.elements.get("dice").textContent, /Block|2 Hits|1 Damage/);
+  assert.match(h.elements.get("dice").textContent, /0 Hits/);
+});
+
+test("multi-target Attack retains shared dice across every Defence and supports targets without a roll", () => {
+  const clock = combatClock(), initial = combatFixture(["a", "b"]), h = harness(initial, undefined,
+    { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  h.context.attack = suppliedCombatRoll("Attack"); h.context.defence = suppliedCombatRoll("Defence", "a");
+  h.run('renderDice(attack); renderDice(defence); prepareOccurrence({ kind: "AttackTargetResolved", unitId: "actor", targetId: "a", hits: 2, blocks: 1, damage: 1 }, { text: "First target" })');
+  clock.tick(600000);
+  assert.equal(h.elements.get("dice").hidden, false);
+  assert.equal(clock.jobs.length, 0);
+  h.run('prepareOccurrence({ kind: "AttackTargetResolved", unitId: "actor", targetId: "b", hits: 2, blocks: 0, damage: 2 }, { text: "Zero Defence Dice" })');
+  assert.match(h.elements.get("dice").textContent, /Goblin Peasant \(4,0\).*1 Damage.*Goblin Peasant \(5,0\).*0 Blocks.*2 Damage/);
+  assert.equal(h.elements.get("dice").querySelectorAll(".dice-group").length, 2, "No fabricated Defence faces for zero dice");
+  clock.tick(1800); assert.equal(h.elements.get("dice").children.length, 0);
+});
+
+test("baseline hydration pins reported Attack dice; interruption, replacement and playback cancellation clear stale dice", () => {
+  const clock = combatClock(), initial = combatFixture();
+  initial.result.state.attackInProgress.stage = "DefenceRoll";
+  initial.result.state.attackInProgress.attackRoll = suppliedCombatRoll("Attack");
+  const h = harness(initial, undefined, { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  clock.tick(600000); assert.match(h.elements.get("dice").textContent, /2 Hits/);
+  h.run('snapshot.result.state.attackInProgress = null; renderSnapshot()');
+  assert.equal(h.elements.get("dice").children.length, 0);
+  h.context.continuation = structuredClone(initial.result.state);
+  h.context.continuation.attackInProgress = { attackerId: "actor", actionId: "attack", targets: [{ targetId: "a" }], stage: "DefenceRoll", attackRoll: suppliedCombatRoll("Attack"), results: [] };
+  h.run('snapshot.result.state = continuation; renderSnapshot(); cancelPlayback()');
+  assert.equal(h.elements.get("dice").hidden, true);
+  h.run('renderSnapshot()');
+  assert.match(h.elements.get("dice").textContent, /2 Hits/);
+  h.run('snapshot.sessionId = "replacement"; snapshot.result.state.attackInProgress = null; renderSnapshot()');
+  assert.equal(h.elements.get("dice").children.length, 0);
+});
+
+test("readable display metadata changes no candidate payloads or debug/event IDs", () => {
+  const initial = combatFixture(); initial.result.state.attackInProgress = null;
+  initial.presentation.decision.roll = null;
+  initial.presentation.decision.displayPrompt = "Castle Guard chooses an Action";
+  initial.presentation.decision.candidates = [choice("raw-choice-id", "Direct", {}, { label: "raw actor a", displayLabel: "Castle Guard attacks Goblin Peasant" })];
+  const h = harness(initial); h.run('chooseCandidate = key => submitted.push(key)');
+  assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Castle Guard attacks Goblin Peasant");
+  assert.equal(h.elements.get("board-hint").textContent, "Castle Guard chooses an Action");
+  click(buttons(h.elements.get("choices"))[0]); assert.deepEqual(h.submitted, ["raw-choice-id"]);
+  assert.match(h.elements.get("unit-card").querySelectorAll(".card-debug")[0].textContent, /actor/);
+  h.context.displayEvent = { kind: "ActionUsed", unitId: "actor", targetId: "a" };
+  h.run('prepareOccurrence(displayEvent, { text: "raw actor a", displayText: "Castle Guard attacks Goblin Peasant" })');
+  assert.doesNotMatch(h.elements.get("effect").textContent, /raw actor/);
+  assert.equal(h.run('unitName("a")'), "Goblin Peasant (4,0)");
+  assert.equal(h.run('unitName("b")'), "Goblin Peasant (5,0)");
+  assert.equal(h.run('unitName("missing-generated-id")'), "Unit");
+});
+
+test("compact controls precede a content-height card and retain responsive board sizing", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
+  const column = html.slice(html.indexOf('<aside class="card-column"'), html.indexOf('</aside>', html.indexOf('<aside class="card-column"')));
+  assert.match(column, /class="activation-controls"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
+  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
+  const card = css.match(/\.card-column \{([^}]+)\}/)[1];
+  assert.match(card, /height: auto/);
+  assert.doesNotMatch(card, /(?:^|;)\s*height: calc/);
+  assert.match(css, /\.card-column #unit-card \{[^}]*flex: 0 1 auto/);
+  assert.match(css, /\.activation-controls button \{ height: 48px/);
+  assert.match(css, /#playtest-main #board \{ width: min\(100%, calc\(\(100dvh - 126px\)/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.card-column \{[^}]*height: auto/);
+  assert.match(css, /#dice\.combat-dice \{ max-height: 25dvh/);
 });

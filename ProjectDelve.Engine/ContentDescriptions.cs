@@ -3,7 +3,7 @@ namespace ProjectDelve.Engine;
 // Player-facing content, suitable for a physical card as well as any digital client.
 // These descriptions do not replace the concrete components that implement rules.
 public sealed record CardEntryDescription(string Id, string Name, string Category,
-    string Description, int? MaxUses = null)
+    string Description, int? MaxUses = null, string? ShortDescription = null)
 {
     // All currently supported limited-use content has a per-game limit.
     // Keep its printed wording in the domain rather than inferring a period in a renderer.
@@ -18,34 +18,34 @@ public static class ContentDescriptions
         var names = type.AbilityNames;
         if (type.MovementPattern == MovementPattern.StraightOrthogonalOrDiagonalCorridor)
             entries.Add(new("straight-orthogonal-or-diagonal-corridor", "Straight Orthogonal or Diagonal Corridor Movement", "Capability",
-                "Each ordinary Move may Stay, travel straight in one cardinal direction for 1 MOV per Cell, or travel along one straight diagonal for 2 MOV per Cell. Each diagonal segment uses two legal orthogonal steps through either corner. Do not turn or mix modes. No passing through Banana Peels; only the final Cell resolves arrival effects."));
+                "Each ordinary Move may Stay, travel straight in one cardinal direction for 1 MOV per Cell, or travel along one straight diagonal for 2 MOV per Cell. Each diagonal segment uses two legal orthogonal steps through either corner. Do not turn or mix modes. No passing through Banana Peels; only the final Cell resolves arrival effects.", ShortDescription: "Move straight or diagonally; 1 MOV per cardinal Cell, 2 per diagonal Cell."));
         if (type.MovementPattern == MovementPattern.Adjacent)
             entries.Add(new("adjacent", "Adjacent Movement", "Capability",
-                "Each ordinary Move may Stay or finish on one of the eight surrounding Cells. A cardinal destination costs one legal orthogonal step; a diagonal destination costs two through either legal corner. Use at most effective MOV. No longer detours or passing through Banana Peels; only the final Cell resolves arrival effects."));
+                "Each ordinary Move may Stay or finish on one of the eight surrounding Cells. A cardinal destination costs one legal orthogonal step; a diagonal destination costs two through either legal corner. Use at most effective MOV. No longer detours or passing through Banana Peels; only the final Cell resolves arrival effects.", ShortDescription: "Move to a neighboring Cell within MOV, or Stay."));
         if (type.MovementPattern == MovementPattern.DiagonalCorridor)
             entries.Add(new("diagonal-corridor", "Diagonal Corridor Movement", "Capability",
-                "Each ordinary Move may Stay or travel along one straight diagonal. Each diagonal segment costs 2 MOV and uses two legal orthogonal steps through either corner. No stopping at corners or passing through Banana Peels. Only the final Cell resolves arrival effects."));
+                "Each ordinary Move may Stay or travel along one straight diagonal. Each diagonal segment costs 2 MOV and uses two legal orthogonal steps through either corner. No stopping at corners or passing through Banana Peels. Only the final Cell resolves arrival effects.", ShortDescription: "Move along one straight diagonal for 2 MOV per Cell, or Stay."));
         if (type.MovementPattern == MovementPattern.LShape)
             entries.Add(new("l-shape", "L-shaped Movement", "Capability",
-                "Each ordinary Move may Stay or leap two Cells along one axis and one along the other, for 3 MOV. Ignore intermediate Cells and Edges. The landing Cell must be legal; normal arrival effects apply. Extra MOV does not allow another leap within that Move."));
+                "Each ordinary Move may Stay or leap two Cells along one axis and one along the other, for 3 MOV. Ignore intermediate Cells and Edges. The landing Cell must be legal; normal arrival effects apply. Extra MOV does not allow another leap within that Move.", ShortDescription: "Leap in an L shape for 3 MOV, or Stay."));
         if (type.MovementPattern == MovementPattern.StraightOrthogonal)
             entries.Add(new("straight-orthogonal", "Straight Orthogonal Movement", "Capability",
-                "Each ordinary Move may Stay or follow one uninterrupted cardinal direction up to MOV. All ordinary passage restrictions apply."));
+                "Each ordinary Move may Stay or follow one uninterrupted cardinal direction up to MOV. All ordinary passage restrictions apply.", ShortDescription: "Move straight in one cardinal direction up to MOV, or Stay."));
         if (type.AdvanceOnKill is not null)
             entries.Add(new("advance-on-kill", "Advance On Kill", "Follow-up",
-                "After this Unit's normal melee Attack fully resolves, if it defeated a hostile target, immediately Move to that target's former adjacent Cell or Stay. Use one cardinal step for an orthogonal Cell or two through either intermediate Cell for a diagonal Cell. Respect physical passage; ignore ordinary MOV and Movement Pattern. Normal arrival effects apply."));
+                "After this Unit's normal melee Attack fully resolves, if it defeated a hostile target, immediately Move to that target's former adjacent Cell or Stay. Use one cardinal step for an orthogonal Cell or two through either intermediate Cell for a diagonal Cell. Respect physical passage; ignore ordinary MOV and Movement Pattern. Normal arrival effects apply.", ShortDescription: "After a normal melee Attack defeats an enemy, Move into its former Cell or Stay."));
         if (type.TerrainRestrictedMovement is { } restriction)
             entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
                 $"Ordinary Moves may only enter {restriction.Terrain} Cells."));
         if (type.ShootShell is { } shell)
             entries.Add(new("shoot-shell", "Shoot Shell", "Action", $"Spend {shell.ShellCost} Shell to attack an enemy with RNG {shell.Rng} and ATK {shell.Atk}."));
         if (type.WaypointSlotMachine is not null)
-            entries.Add(new("waypoint-slot-machine", "Waypoint Slot Machine", "Automatic", "At the end of this Unit's activation, if its own Move advanced its group's waypoint, roll once: d6 1–3 Banana, 4–5 Mushroom, 6 Shell. Add one to shared Resource Storage; discard if full."));
+            entries.Add(new("waypoint-slot-machine", "Waypoint Slot Machine", "Automatic", "At the end of this Unit's activation, if its own Move advanced its group's waypoint, roll once: d6 1–3 Banana, 4–5 Mushroom, 6 Shell. Add one to shared Resource Storage; discard if full.", ShortDescription: "Roll for a stored Resource after advancing a waypoint with your Move."));
         if (type.RunRails is { } rails)
             entries.Add(new("run-rails", $"Run Rails ({rails.Steps})", "Automatic",
-                $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place."));
+                $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place.", ShortDescription: "Follow outgoing Rails; collide with smaller Units."));
         if (type.Actions.HasFlag(UnitAction.NormalAttack))
-            entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight."));
+            entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight.", ShortDescription: "Attack an enemy within Range and Line of Sight."));
         if (type.Actions.HasFlag(UnitAction.FireBreath))
             entries.Add(new("fire-breath", names.FireBreath ?? "Fire Breath", "Action", "Attack all enemies within RNG."));
         if (type.Actions.HasFlag(UnitAction.ClawAttack) && type.ClawAttack is { } claw)
@@ -53,10 +53,10 @@ public static class ContentDescriptions
         if (type.Actions.HasFlag(UnitAction.Heal) && type.Heal is { } heal)
             entries.Add(new("heal", names.Heal ?? "Heal", "Action", $"Heal an adjacent damaged friendly Unit for {heal.Amount} HP.", heal.MaxUses));
         if (type.Actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is { } wave)
-            entries.Add(new("holy-wave", names.HolyWave ?? "Holy Wave", "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.", wave.MaxUses));
+            entries.Add(new("holy-wave", names.HolyWave ?? "Holy Wave", "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.", wave.MaxUses, ShortDescription: "Lay down adjacent Upright enemies, then this Unit."));
         if (type.Actions.HasFlag(UnitAction.Fireball) && type.Fireball is { } fireball)
             entries.Add(new("fireball", names.Fireball ?? "Fireball", "Action",
-                "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", fireball.MaxUses));
+                "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", fireball.MaxUses, ShortDescription: "Attack all Units on or adjacent to a chosen Cell within RNG and LOS."));
         if (type.Actions.HasFlag(UnitAction.Telekinesis))
             entries.Add(new("telekinesis", names.Telekinesis ?? "Telekinesis", "Action", "Lay down an upright enemy within RNG and LOS."));
         if (type.Actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon)
@@ -68,19 +68,19 @@ public static class ContentDescriptions
         }
         if (type.Actions.HasFlag(UnitAction.SummonWorker) && type.SummonWorker is { } worker)
             entries.Add(new("summon-worker", "Summon Worker", "Action",
-                $"If fewer than {worker.SideLimit} living Workers are on this Unit's Side, place one Upright Worker in an adjacent empty Cell on this Unit's Side."));
+                $"If fewer than {worker.SideLimit} living Workers are on this Unit's Side, place one Upright Worker in an adjacent empty Cell on this Unit's Side.", ShortDescription: "Place an adjacent Worker, within the Side limit."));
         if (type.Actions.HasFlag(UnitAction.SummonTroll) && type.SummonTroll is { } troll)
             entries.Add(new("summon-troll", "Summon Troll", "Action",
-                $"Spend {troll.DiamondCost} Diamond from this Unit's shared Resource Storage and place one Upright Troll in an adjacent empty Cell on this Unit's Side."));
+                $"Spend {troll.DiamondCost} Diamond from this Unit's shared Resource Storage and place one Upright Troll in an adjacent empty Cell on this Unit's Side.", ShortDescription: "Spend Diamonds to place an adjacent Troll."));
         if (type.Actions.HasFlag(UnitAction.PickupResource))
-            entries.Add(new("pickup-resource", "Pickup Resource", "Action", "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room."));
+            entries.Add(new("pickup-resource", "Pickup Resource", "Action", "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room.", ShortDescription: "Store one Resource from this Cell in shared storage."));
         if (type.Actions.HasFlag(UnitAction.GiveResource))
-            entries.Add(new("give-resource", "Give Resource", "Action", "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room."));
+            entries.Add(new("give-resource", "Give Resource", "Action", "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room.", ShortDescription: "Give a Resource from this Cell to adjacent friendly storage or a Machine."));
         if (type.Actions.HasFlag(UnitAction.Operate))
-            entries.Add(new("operate", "Operate", "Action", "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource."));
+            entries.Add(new("operate", "Operate", "Action", "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.", ShortDescription: "Spend an adjacent Machine's inputs to produce its output on this Cell."));
         if (type.ResourceStorage is { } storage)
             entries.Add(new("resource-storage", "Resource Storage", "Capability", "Shared by all Units of this Type on this Side: " +
-                string.Join(", ", storage.Capacities.Select(c => $"{c.Type.Name} capacity {c.Capacity}")) + "."));
+                string.Join(", ", storage.Capacities.Select(c => $"{c.Type.Name} capacity {c.Capacity}")) + ".", ShortDescription: "Resource capacity shared by this Unit Type and Side."));
         if (type.TryOpenDoor is { } attempt)
             entries.Add(new("try-open-door", names.TryOpenDoor ?? "Try Open Door", "Action",
                 $"Try to open a bordering Closed Door. Roll a D6: success on {attempt.SuccessCount} of 6 faces."));
@@ -107,13 +107,13 @@ public static class ContentDescriptions
                 $"When this Unit is defeated, deal {explosion.Damage} damage to every adjacent Unit."));
         if (type.Undying is not null)
             entries.Add(new("undying", names.Undying ?? "Undying", "Capability",
-                "If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down."));
+                "If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down.", ShortDescription: "When Upright, replace defeat with 1 HP and Lying."));
         if (type.TransportResource is not null)
             entries.Add(new("transport-resource", "Transport Resource", "Capability",
-                "During this Unit?s own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources."));
+                "During this Unit?s own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources.", ShortDescription: "Carry this Cell's Resource during your own Move."));
         if (type.Phase is not null)
             entries.Add(new("phase", "Phase", "Capability",
-                "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell."));
+                "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.", ShortDescription: "Pass through terrain and Edges; end on a legal Cell."));
         if (type.Cleave is { } cleave)
             entries.Add(new("cleave", names.Cleave ?? "Cleave", "Follow-up",
                 $"After this Unit's Attack, if it dealt {cleave.TriggerDamage} or more damage to a Unit, you may immediately deal {cleave.Damage} damage to an adjacent enemy.", cleave.MaxUses));

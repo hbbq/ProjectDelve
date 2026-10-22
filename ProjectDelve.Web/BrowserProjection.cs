@@ -9,12 +9,15 @@ public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
     bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds)
 {
     public IReadOnlyList<Cell> PlacementCells { get; init; } = [];
+    public bool IsEndTurn { get; init; }
+    public string? DisplayLabel { get; init; }
 }
 public sealed record FigureGeometry(Cell Anchor, IReadOnlyList<Cell> OccupiedCells, int CellSpan);
 public sealed record BrowserDecision(string? UnitId, string Prompt,
     IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice)
 {
     public DicePool? Roll { get; init; }
+    public string? DisplayPrompt { get; init; }
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses);
 public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null)
@@ -25,6 +28,7 @@ public sealed record StoredResourceDisplay(string ResourceTypeId, string Name, i
 public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entries)
 {
     public string? IndividualName { get; init; }
+    public string? PlayerName { get; init; }
     public IReadOnlyList<StoredResourceDisplay> ResourceStorage { get; init; } = [];
     public string? FootprintLabel { get; init; }
 }
@@ -38,7 +42,10 @@ public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int Dra
 public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Defeat, DoorAttempt, DoorOpened, DoorClosed }
 public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitId = null,
     string? TargetId = null, List<Cell>? Path = null, Edge? Door = null,
-    int Hits = 0, int Blocks = 0, int Damage = 0);
+    int Hits = 0, int Blocks = 0, int Damage = 0)
+{
+    public string? DisplayText { get; init; }
+}
 public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
 {
     public GameCompletion? Completion { get; init; }
@@ -65,8 +72,8 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
 public static class BrowserProjection
 {
     public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null) => new(
-        Cards(result.State, individualNames), Decision(result.NextInput, result.State),
-        result.Events.Select(e => Outcome(e, result.State)).ToArray(),
+        Cards(result.State, individualNames), Decision(result.NextInput, result.State, individualNames),
+        result.Events.Select(e => Outcome(e, result.State, individualNames)).ToArray(),
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter, individualNames))
             { Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
                 Completion = s.StateAfter.Completion, Orders = s.StateAfter.Orders.ToArray() }).ToArray())
@@ -106,13 +113,33 @@ public static class BrowserProjection
             type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id))).ToArray())
         {
             IndividualName = individualNames?.GetValueOrDefault(u.Id),
+            PlayerName = PlayerName(state, u.Id, individualNames),
             ResourceStorage = type.ResourceStorage?.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name,
                 state.StoredQuantity(u.SideId, u.TypeId, c.Type.Id), c.Capacity)).ToArray() ?? [],
             FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : "Footprint 1 × 1"
         };
     });
 
-    public static BrowserDecision? Decision(DecisionRequest? request, GameState state)
+    // Display labels never replace authoritative identifiers or debug wording.
+    public static string PlayerName(GameState state, string? id, IReadOnlyDictionary<string, string>? individualNames = null)
+    {
+        string Name(string? unitId)
+        {
+            var unit = state.Units.FirstOrDefault(u => u.Id == unitId);
+            var individual = unitId is null ? null : individualNames?.GetValueOrDefault(unitId);
+            if (!string.IsNullOrWhiteSpace(individual)) return individual.Trim();
+            var typeName = state.Types.FirstOrDefault(t => t.Id == unit?.TypeId)?.DisplayName;
+            return !string.IsNullOrWhiteSpace(typeName) ? typeName.Trim() : unit?.TypeId ?? "Unit";
+        }
+        var name = Name(id);
+        var peers = state.Units.Where(u => Name(u.Id) == name).ToArray();
+        if (peers.Length < 2) return name;
+        var position = state.Physical.Figures.FirstOrDefault(f => f.Id == id)?.Position;
+        return position is not null ? $"{name} ({position.X},{position.Y})"
+            : $"{name} #{Array.FindIndex(peers, u => u.Id == id) + 1}";
+    }
+
+    public static BrowserDecision? Decision(DecisionRequest? request, GameState state, IReadOnlyDictionary<string, string>? individualNames = null)
     {
         if (request is null) return null;
         var type = state.Types.Single(t => t.Id == request.TypeId);
@@ -130,26 +157,29 @@ public static class BrowserProjection
                 : c.Destination is not null ? new(InteractionKind.Position, Position: c.Destination)
                 : c.TargetId is not null ? new(InteractionKind.Unit, UnitId: c.TargetId)
                 : new ChoiceInteraction(InteractionKind.Direct);
-            var label = c.Kind switch
+            string Label(Func<string, string> name) => c.Kind switch
             {
                 ActivationChoiceKind.RollDice => "Roll Dice",
                 ActivationChoiceKind.Stay => "Stay here",
                 ActivationChoiceKind.EndTurn => "End Turn",
-                ActivationChoiceKind.SelectUnit => $"Select {c.Key}",
+                ActivationChoiceKind.SelectUnit => $"Select {name(c.Key)}",
                 ActivationChoiceKind.Move => $"Move to ({c.Destination!.X},{c.Destination.Y})",
                 _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource or UnitAction.Operate =>
-                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {c.TargetId}") +
+                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {name(c.TargetId)}") +
                     (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
                 _ => entry is null ? "Choose option" : $"{entry.Name} ({entry.Category})" +
-                    (c.TargetId is not null && c.Destination is not null ? $" → {c.TargetId} to ({c.Destination.X},{c.Destination.Y})" :
-                     c.TargetId is not null ? $" → {c.TargetId}" :
+                    (c.TargetId is not null && c.Destination is not null ? $" → {name(c.TargetId)} to ({c.Destination.X},{c.Destination.Y})" :
+                     c.TargetId is not null ? $" → {name(c.TargetId)}" :
                      c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" :
                      c.Door is not null ? $" → ({c.Door.A.X},{c.Door.A.Y})–({c.Door.B.X},{c.Door.B.Y})" : "")
             };
+            var label = Label(id => id);
             IReadOnlyList<string> affected = !c.TargetIds.IsEmpty ? c.TargetIds.ToArray()
                 : c.TargetId is not null ? [c.TargetId] : [];
             return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
             {
+                DisplayLabel = Label(id => PlayerName(state, id, individualNames)),
+                IsEndTurn = c.Kind == ActivationChoiceKind.EndTurn,
                 PlacementCells = c.Destination is null ? [] :
                     c.Kind == ActivationChoiceKind.Move
                         ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
@@ -163,25 +193,32 @@ public static class BrowserProjection
         var continuation = request.Kind == DecisionKind.Cleave ? entries.GetValueOrDefault("cleave")
             : request.IsMoveAfterAttack ? entries.GetValueOrDefault(state.AdvanceOnKillCells is not null
                 ? "advance-on-kill" : "move-after-attack") : null;
-        var prompt = request.Roll is { } pool ? $"{pool.OwnerUnitId}: roll {pool.Count} {pool.Family} dice ({pool.Purpose}, {pool.SourceActionId})"
-                + (pool.TargetId is null ? "" : $" against {pool.TargetId}")
+        string Prompt(Func<string, string> name) => request.Roll is { } pool ? $"{name(pool.OwnerUnitId)}: roll {pool.Count} {pool.Family} dice ({pool.Purpose}, {pool.SourceActionId})"
+                + (pool.TargetId is null ? "" : $" against {name(pool.TargetId)}")
                 + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")
             : request.Kind == DecisionKind.SelectUnit ? "Choose a Unit"
             : continuation?.Name ?? "Choose an activation choice";
+        var prompt = Prompt(id => id);
         BrowserChoice? none = !request.AllowsNone ? null : new(null,
             request.Kind == DecisionKind.Move ? "Stay here" : continuation is not null ? $"Decline {continuation.Name}" : "Take no action",
             null, true, request.Kind == DecisionKind.Move
                 ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), []);
-        return new(request.UnitId, prompt, candidates, none) { Roll = request.Roll };
+        return new(request.UnitId, prompt, candidates, none) { Roll = request.Roll, DisplayPrompt = Prompt(id => PlayerName(state, id, individualNames)) };
     }
 
-    public static BrowserOutcome Outcome(RulesEvent e, GameState state)
+    public static BrowserOutcome Outcome(RulesEvent e, GameState state, IReadOnlyDictionary<string, string>? individualNames = null)
+    {
+        var raw = OutcomeCore(e, state, id => id ?? "");
+        return raw with { DisplayText = OutcomeCore(e, state, id => PlayerName(state, id, individualNames)).Text };
+    }
+
+    private static BrowserOutcome OutcomeCore(RulesEvent e, GameState state, Func<string?, string> name)
     {
         string CellLabel(Cell cell) => $"{cell.X},{cell.Y}";
         var subject = e.WorldCard is { } worldCard ? WorldCards.Content(worldCard.Effect).Name
-            : e.AbilityName is null ? e.UnitId : $"{e.UnitId} · {e.AbilityName}";
+            : e.AbilityName is null ? name(e.UnitId) : $"{name(e.UnitId)} · {e.AbilityName}";
         if (e.Kind == "ExplosionDamageResolved" && e.WorldCard is not null)
-            subject = $"{e.UnitId} · {e.AbilityName} (during {subject})";
+            subject = $"{name(e.UnitId)} · {e.AbilityName} (during {subject})";
         var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
         var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
             .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId || entry.Id == $"bonus:{e.ActionId}")?.Name ?? e.ActionId;
@@ -215,7 +252,7 @@ public static class BrowserProjection
                 description = $"{subject} finished resolving, including automatic consequences; card discarded";
                 break;
             case "AbilityUsesReplenished":
-                description = $"{subject} → {e.UnitId}: replenish 1 use of each limited-use Ability, up to its maximum";
+                description = $"{subject} → {name(e.UnitId)}: replenish 1 use of each limited-use Ability, up to its maximum";
                 break;
             case "RoundStarted":
                 description = $"Round {e.Round} started";
@@ -228,7 +265,7 @@ public static class BrowserProjection
                 break;
             case "ActivationStarted":
             case "ActivationCompleted":
-                description = $"{e.UnitId}: {(e.Kind == "ActivationStarted" ? "activation started" : "activation completed")} ({e.Token?.TypeId}, {e.Token?.SideId})";
+                description = $"{name(e.UnitId)}: {(e.Kind == "ActivationStarted" ? "activation started" : "activation completed")} ({e.Token?.TypeId}, {e.Token?.SideId})";
                 break;
             case "ActionUsed":
                 var category = e.Category switch
@@ -237,10 +274,10 @@ public static class BrowserProjection
                     ActivationChoiceKind.FreeAction => "Free Action",
                     _ => "Action"
                 };
-                description = $"{e.UnitId} used {actionName} ({category})";
+                description = $"{name(e.UnitId)} used {actionName} ({category})";
                 break;
             case "AttackStarted":
-                description = $"{e.UnitId}: {actionName} started against {string.Join(", ", e.AttackContext!.Targets.Select(t => t.TargetId))}";
+                description = $"{name(e.UnitId)}: {actionName} started against {string.Join(", ", e.AttackContext!.Targets.Select(t => name(t.TargetId)))}";
                 break;
             case "DiceRolled":
                 var resultLabel = e.Dice!.Pool.Family switch
@@ -249,7 +286,7 @@ public static class BrowserProjection
                     DiceFamily.Defence => "Blocks",
                     _ => "successes"
                 };
-                description = $"{e.UnitId}: {e.Dice.Pool.Family} dice [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} {resultLabel} ({e.Dice.Pool.SourceUnitId}, {e.ActionId})";
+                description = $"{name(e.UnitId)}: {e.Dice.Pool.Family} dice [{string.Join(", ", e.Dice.Faces)}], {e.Dice.Successes} {resultLabel} ({name(e.Dice.Pool.SourceUnitId)}, {e.ActionId})";
                 break;
             case "LavaCoalRolled":
                 description = $"Lava at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Coal direction";
@@ -258,91 +295,91 @@ public static class BrowserProjection
                 description = $"Fruit Tree at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Fruit direction";
                 break;
             case "WaypointReached":
-                description = $"{e.UnitId}: reached {e.WaypointId} on Route {e.RouteId}";
+                description = $"{name(e.UnitId)}: reached {e.WaypointId} on Route {e.RouteId}";
                 break;
             case "RacingSlotRolled":
-                description = $"{e.UnitId}: waypoint slot d6 {e.DieRoll}: {e.ResourceType?.Name}" + (e.Succeeded == true ? " awarded" : " discarded (storage full)");
+                description = $"{name(e.UnitId)}: waypoint slot d6 {e.DieRoll}: {e.ResourceType?.Name}" + (e.Succeeded == true ? " awarded" : " discarded (storage full)");
                 break;
             case "CellMarkerConsumed":
-                description = $"{e.UnitId}: consumed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                description = $"{name(e.UnitId)}: consumed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "CellMarkerPlaced":
-                description = $"{e.UnitId}: placed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                description = $"{name(e.UnitId)}: placed {e.CellMarkerType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "RouteAdvanced":
-                description = $"{e.UnitId}: advanced the group's route waypoint";
+                description = $"{name(e.UnitId)}: advanced the group's route waypoint";
                 break;
             case "RouteCompleted":
-                description = $"{e.UnitId}: completed the group's route";
+                description = $"{name(e.UnitId)}: completed the group's route";
                 break;
             case "ResourceCreated":
                 description = $"{e.ResourceType?.Name} created at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "MachineOperated":
-                description = $"{e.UnitId}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
+                description = $"{name(e.UnitId)}: operated {e.MachineId}, spent {string.Join(", ", e.ConsumedResources.Select(r => $"{r.Quantity} {r.Type.Name}"))}, output {e.ResourceType?.Name} at {e.Cell?.X},{e.Cell?.Y}";
                 break;
             case "ResourceStored" when e.MachineId is not null:
-                description = $"{e.UnitId}: {e.ResourceType?.Name} stored in {e.MachineId} ({e.StoredQuantity} stored)";
+                description = $"{name(e.UnitId)}: {e.ResourceType?.Name} stored in {e.MachineId} ({e.StoredQuantity} stored)";
                 break;
             case "ResourceSpent":
-                description = $"{e.UnitId}: spent {e.ResourceType?.Name} for {actionName} ({e.StoredQuantity} stored)";
+                description = $"{name(e.UnitId)}: spent {e.ResourceType?.Name} for {actionName} ({e.StoredQuantity} stored)";
                 break;
             case "ResourceStored":
-                description = $"{e.UnitId}: {e.ResourceType?.Name} from {e.Cell?.X},{e.Cell?.Y} stored for {e.SideId} / {e.TypeId} ({e.StoredQuantity} stored)";
+                description = $"{name(e.UnitId)}: {e.ResourceType?.Name} from {e.Cell?.X},{e.Cell?.Y} stored for {e.SideId} / {e.TypeId} ({e.StoredQuantity} stored)";
                 break;
             case "UnitCreated":
-                description = $"{e.SourceUnitId} created {e.UnitId} ({e.SideId}) at {e.Cell?.X},{e.Cell?.Y}, {e.Posture}";
+                description = $"{name(e.SourceUnitId)} created {name(e.UnitId)} ({e.SideId}) at {e.Cell?.X},{e.Cell?.Y}, {e.Posture}";
                 break;
             case "PostureChanged":
-                description = $"{e.UnitId}: {e.Posture}" + (e.WorldCard is null ? "" : $" ({subject})");
+                description = $"{name(e.UnitId)}: {e.Posture}" + (e.WorldCard is null ? "" : $" ({subject})");
                 break;
             case "MovementCompleted":
                 role = OutcomeRole.Movement;
-                description = $"{e.UnitId} {(e.IsMoveAfterAttack ? "moved after attack" : "moved")}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
+                description = $"{name(e.UnitId)} {(e.IsMoveAfterAttack ? "moved after attack" : "moved")}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
                 break;
             case "UnitRepositioned":
                 role = OutcomeRole.Movement;
                 description = e.ActionId == "run-rails"
-                    ? $"{e.UnitId} ran Rails: {string.Join(" -> ", e.Path!.Select(CellLabel))}"
-                    : $"{e.SourceUnitId} displaced {e.UnitId}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
+                    ? $"{name(e.UnitId)} ran Rails: {string.Join(" -> ", e.Path!.Select(CellLabel))}"
+                    : $"{name(e.SourceUnitId)} displaced {name(e.UnitId)}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
                 break;
             case "PlacesSwapped":
-                description = $"{e.UnitId} swapped places with {e.TargetId}";
+                description = $"{name(e.UnitId)} swapped places with {name(e.TargetId)}";
                 break;
             case "AttackResolved" when e.TargetId is null && e.Attack is { } attack:
                 role = OutcomeRole.AttackSummary;
                 description = $"{subject}: {attack.AttackDice} Attack Dice, {attack.Hits} shared Hits; " +
-                    string.Join("; ", attack.Targets.Select(t => $"{t.TargetId}: {t.Blocks} Blocks, {t.Damage} Damage"));
+                    string.Join("; ", attack.Targets.Select(t => $"{name(t.TargetId)}: {t.Blocks} Blocks, {t.Damage} Damage"));
                 break;
             case "AttackResolved":
             case "AttackTargetResolved":
                 role = OutcomeRole.AttackTarget;
-                description = $"{subject} → {e.TargetId}: {e.Hits} Hits, {e.Blocks} Blocks, {e.Damage} Damage";
+                description = $"{subject} → {name(e.TargetId)}: {e.Hits} Hits, {e.Blocks} Blocks, {e.Damage} Damage";
                 break;
             case "WorldDamageResolved":
             case "ExplosionDamageResolved":
             case "CleaveResolved":
                 role = OutcomeRole.Damage;
-                description = $"{subject} → {e.TargetId}: {e.Damage} Damage";
+                description = $"{subject} → {name(e.TargetId)}: {e.Damage} Damage";
                 break;
             case "HealResolved":
                 role = OutcomeRole.Healing;
-                description = $"{subject} → {e.TargetId}: {e.Healing} HP restored";
+                description = $"{subject} → {name(e.TargetId)}: {e.Healing} HP restored";
                 break;
             case "UnitDefeated":
                 role = OutcomeRole.Defeat;
-                description = $"{e.UnitId} was defeated";
+                description = $"{name(e.UnitId)} was defeated";
                 break;
             case "AbilityUsed":
-                description = $"{e.UnitId} used {e.AbilityName}";
+                description = $"{name(e.UnitId)} used {e.AbilityName}";
                 break;
             case "DoorOpeningAttemptResolved":
                 role = OutcomeRole.DoorAttempt;
-                description = $"{e.UnitId} tried door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}: D6 {e.DieRoll}, {e.SuccessCount}/6 → {(e.Succeeded == true ? "success" : "failed; door stays closed")} (Action consumed)";
+                description = $"{name(e.UnitId)} tried door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}: D6 {e.DieRoll}, {e.SuccessCount}/6 → {(e.Succeeded == true ? "success" : "failed; door stays closed")} (Action consumed)";
                 break;
             case "DoorOpened":
                 role = OutcomeRole.DoorOpened;
-                description = $"{(e.WorldCard is null ? e.UnitId : subject)} opened door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
+                description = $"{(e.WorldCard is null ? name(e.UnitId) : subject)} opened door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
                 break;
             case "DoorClosed":
                 role = OutcomeRole.DoorClosed;

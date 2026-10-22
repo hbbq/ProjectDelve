@@ -10,6 +10,94 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void PlayerNamesAndDisplayTextPreserveRawChoicesAndAuthoritativeEvents()
+    {
+        var guard = UnitType.Grunt() with { DisplayName = "Royal Guard" };
+        var enemy = UnitType.Goblin() with { DisplayName = "Goblin Peasant" };
+        var state = new GameState
+        {
+            Physical = new(new Board(8, 8, []), [new("generated-actor", new(0, 0)), new("generated-a", new(1, 0)), new("generated-b", new(2, 0))]),
+            Types = [guard, enemy], Units = [guard.CreateUnit("generated-actor", "blue"), enemy.CreateUnit("generated-a", "red"), enemy.CreateUnit("generated-b", "red")]
+        };
+        var names = new Dictionary<string, string> { ["generated-actor"] = " Castle Guard " };
+        var request = new DecisionRequest(DecisionKind.Activation, guard.Id, "generated-actor",
+            [new("opaque-attack", TargetId: "generated-a", Action: UnitAction.NormalAttack)], false);
+        var started = new RulesEvent("AttackStarted", "generated-actor")
+        {
+            ActionId = "attack", AttackContext = new("generated-actor", "attack", null, null, [new("generated-a", 2)], 3, Results: [])
+        };
+        var result = new EngineResult(state, [started], request);
+        var before = JsonSerializer.Serialize(result);
+        var view = BrowserProjection.Create(result, names);
+        var choice = Assert.Single(view.Decision!.Candidates);
+        Assert.Equal("opaque-attack", choice.Key);
+        Assert.Equal("generated-a", choice.Interaction.UnitId);
+        Assert.Contains("generated-a", choice.Label);
+        Assert.Contains("Goblin Peasant (1,0)", choice.DisplayLabel);
+        Assert.DoesNotContain("generated-", choice.DisplayLabel);
+        Assert.Equal("Castle Guard", view.Cards["generated-actor"].PlayerName);
+        Assert.Equal("Goblin Peasant (2,0)", view.Cards["generated-b"].PlayerName);
+        Assert.Contains("generated-actor", view.Events[0].Text);
+        Assert.Contains("Castle Guard", view.Events[0].DisplayText);
+        Assert.Contains("Goblin Peasant (1,0)", view.Events[0].DisplayText);
+        Assert.DoesNotContain("generated-", view.Events[0].DisplayText);
+        Assert.Equal(before, JsonSerializer.Serialize(result));
+        Assert.Equal("Unit", BrowserProjection.PlayerName(state, "unknown-generated-id"));
+        Assert.Equal("Royal Guard", BrowserProjection.PlayerName(state, "generated-actor", new Dictionary<string, string> { ["generated-actor"] = "  " }));
+    }
+
+    [Fact]
+    public void DefencePromptsAndOutcomesHaveReadableNamesWithoutChangingDiceOrDebugText()
+    {
+        var type = UnitType.Grunt() with { DisplayName = "Hobby Knight" };
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 3, []), [new("attacker-id", new(0, 0)), new("defender-id", new(1, 1))]),
+            Types = [type], Units = [type.CreateUnit("attacker-id", "blue"), type.CreateUnit("defender-id", "red")]
+        };
+        var names = new Dictionary<string, string> { ["defender-id"] = "Royal Queen" };
+        var pool = new DicePool(DiceFamily.Defence, 2, "defender-id", "attacker-id", "attack", "Defence", "defender-id");
+        var request = new DecisionRequest(DecisionKind.RollDice, type.Id, "defender-id", [new("roll-key", Kind: ActivationChoiceKind.RollDice)], false) { Roll = pool };
+        var decision = BrowserProjection.Decision(request, state, names)!;
+        Assert.Contains("Royal Queen", decision.DisplayPrompt);
+        Assert.Contains("defender-id", decision.Prompt);
+        Assert.Same(pool, decision.Roll);
+        var dice = new DiceResult(pool, ["Block", "Miss"], 7);
+        var rolled = new RulesEvent("DiceRolled", "defender-id") { Dice = dice, ActionId = "attack" };
+        var projected = BrowserProjection.Outcome(rolled, state, names);
+        Assert.Contains("7 Blocks", projected.DisplayText);
+        Assert.Contains("Royal Queen", projected.DisplayText);
+        Assert.Contains("Hobby Knight", projected.DisplayText);
+        Assert.DoesNotContain("attacker-id", projected.DisplayText);
+        Assert.Contains("attacker-id", projected.Text);
+        Assert.Same(dice, rolled.Dice);
+        var resolved = BrowserProjection.Outcome(new("AttackResolved", "attacker-id", "defender-id", Hits: 8, Blocks: 7, Damage: 1), state, names);
+        Assert.Contains("Royal Queen: 8 Hits, 7 Blocks, 1 Damage", resolved.DisplayText);
+        Assert.Equal("attacker-id", resolved.UnitId);
+        Assert.Equal("defender-id", resolved.TargetId);
+    }
+
+    [Fact]
+    public void EndTurnMetadataComesFromCandidateKindAndShortCopyTravelsWithFullCopy()
+    {
+        var type = UnitType.Barbarian("fixture");
+        var state = new GameState { Physical = new(new Board(1, 1, []), [new("actor", new(0, 0))]),
+            Types = [type], Units = [type.CreateUnit("actor", "amber")] };
+        var request = new DecisionRequest(DecisionKind.Activation, type.Id, "actor",
+            [new("opaque-finish", Kind: ActivationChoiceKind.EndTurn), new("end-turn", Action: UnitAction.NormalAttack)], false);
+        var projected = BrowserProjection.Decision(request, state)!;
+        Assert.True(projected.Candidates[0].IsEndTurn);
+        Assert.False(projected.Candidates[1].IsEndTurn);
+        Assert.Equal("opaque-finish", projected.Candidates[0].Key);
+        var attack = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries, e => e.Content.Id == "attack");
+        Assert.Equal("Attack an enemy within Range and Line of Sight.", attack.Content.Description);
+        Assert.False(string.IsNullOrWhiteSpace(attack.Content.ShortDescription));
+        var json = JsonSerializer.Serialize(attack);
+        Assert.Contains("ShortDescription", json);
+        Assert.Contains("Description", json);
+    }
+
+    [Fact]
     public void ExplosionProjectsDirectDamageFromRemovedSource()
     {
         var imp = UnitType.BombImp();
