@@ -479,9 +479,13 @@ function renderUnitCard() {
   const unit = state?.units.find(unit => unit.id === (hoveredUnitId ?? latestUnitId));
   const card = ui["unit-card"];
   card.replaceChildren();
+  // Reset affiliation on the empty card and update it on every hover/active switch.
+  card.style.setProperty("--unit-side-border", "var(--ui-border)");
   const debug = document.getElementById("unit-debug"); debug.replaceChildren();
   if (!unit) { card.append(text("p", "Start a round or hover a Unit to inspect it.")); return; }
   const type = state.types.find(type => type.id === unit.typeId);
+  styleSide(card, unit.sideId);
+  card.style.setProperty("--unit-side-border", "hsl(var(--side-hue) 60% 70%)");
   const content = displayedCards[unit.id];
   const name = unitName(unit.id);
   debug.append(text("p", `${name} · ${unit.id} · ${unit.typeId}`));

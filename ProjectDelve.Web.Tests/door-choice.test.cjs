@@ -2911,6 +2911,38 @@ test("readable display metadata changes no candidate payloads or debug/event IDs
   assert.equal(h.run('unitName("missing-generated-id")'), "Unit");
 });
 
+for (const view of ["classic", "enhanced"]) test(`Unit Card affiliation follows actual Side through hover and reassignment (${view})`, () => {
+  const initial = response();
+  initial.scenarioId = "card-fixture";
+  initial.scenarios = [{ id: "card-fixture", sideHues: { Red: 0, Blue: 210, Orchard: 140 } }];
+  initial.result.state.types = ["wizard-type", "zombie-type"].map(id => ({ ...state().types[0], id }));
+  // Hero and Monster portraits deliberately appear on both conventional and unusual Sides.
+  initial.result.state.units.forEach((unit, i) => {
+    unit.typeId = i === 0 ? "wizard-type" : "zombie-type";
+    unit.sideId = ["Red", "Blue", "Orchard"][i];
+  });
+  const h = harness(initial), card = h.elements.get("unit-card");
+  h.context.view = view;
+  h.run('document.getElementById("board-view").value = view; renderSnapshot()');
+  assert.equal(card.style["--side-hue"], 0);
+  assert.equal(card.style["--unit-side-border"], "hsl(var(--side-hue) 60% 70%)");
+  for (const [id, hue] of [["a", 210], ["b", 140]]) {
+    h.figure(id).listeners.mouseenter();
+    assert.equal(card.style["--side-hue"], hue);
+    assert.equal(card.style["--side-hue"], h.figure(id).style["--side-hue"]);
+    h.figure(id).listeners.mouseleave();
+    assert.equal(card.style["--side-hue"], 0);
+  }
+  h.run('displayedState.units[0].sideId = "Orchard"; renderUnitCard()');
+  assert.equal(card.style["--side-hue"], 140);
+  h.run('displayedState.units[0].typeId = "zombie-type"; renderUnitCard()');
+  assert.equal(card.style["--side-hue"], 140);
+  h.run('displayedState.units = []; renderUnitCard()');
+  assert.equal(card.style["--unit-side-border"], "var(--ui-border)");
+  assert.match(card.textContent, /hover a Unit/);
+  assert.deepEqual(h.submitted, []);
+});
+
 test("compact controls precede a content-height card and retain responsive board sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const column = html.slice(html.indexOf('<aside class="card-column"'), html.indexOf('</aside>', html.indexOf('<aside class="card-column"')));
