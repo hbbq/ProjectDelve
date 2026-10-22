@@ -153,6 +153,41 @@ Acceptance check: arrange straight, curve, T and cross pieces in a sample track 
 6. Game Setup, Objectives/Orders, designer navigation, legend, settings and debugging remain accessible.
 7. Classic View, Enhanced 2D, autoplay/auto-choice, replay and event animations remain functional. Add relevant UI tests and inspect a real 8×8 Chess board plus a larger scenario at desktop and narrow widths.
 
+## Playtest UI polish — compact card and persistent combat dice
+
+Follow-up to the board-first layout. These are **presentation-only** requirements; keep authoritative combat timing, dice, legal decisions and Unit Card interactions unchanged.
+
+### Right column sizing and controls
+
+- Place **End Turn** and **Next Round** together in a fixed row **above** the Unit Card. Keep both controls mounted and their positions stable as legal decisions change; use existing enable/disable semantics only.
+- The Unit Card remains permanently available on desktop but **sizes vertically to its actual content**, instead of stretching to fill the whole board height. Do not leave a tall empty card background below its text.
+- Preserve active-unit default, temporary hover-card replacement, relevant Action buttons, usage marks, stats and short/full descriptions. Switching hovered Units may change the card's height without shifting the fixed button row.
+- Do not reduce board area or force the card to match the board's height. Keep narrow viewport access functional.
+
+### One coherent attack presentation
+
+- Treat Attack dice and Defence dice as **one visual combat sequence**, even if they require separate decisions, event updates or controllers.
+- After Attack dice are resolved, **retain their actual faces/results visibly** throughout the pending Defence choice/roll. Do **not** expire them on a short animation timer while the attack remains unresolved.
+- When Defence dice resolve, show both Attack and Defence results **together**, with their actual hit/block totals and any resolved consequence. Then allow the combined result to disappear after a short readable delay (approximately 1.5–2 seconds), consistent with animation preferences.
+- Use only authoritative dice events/results and the existing attack/correlation identifiers or event sequence. Do not roll in the client, infer unreported dice, or invent a new gameplay combat phase. Handle automatic Attack/Defence, manual rolls, rapid successive attacks and interrupted/aborted sequences without mixing results from different attacks or leaving stale overlays.
+- Preserve the movable contextual decision overlay and its existing positioning behavior. Ensure it stays usable while the previous Attack result is pinned, including at small viewport sizes. When animations are disabled or reduced, avoid forced delays; still present relevant dice while a Defence decision is pending. Full outcomes remain available in Event History.
+
+### Human-readable names in normal play
+
+- Replace internal IDs such as `scenario-unit-1` in player-facing contextual prompts, decision headings, and compact under-board status with **the Unit's authored display name, or Unit Type display name as fallback**.
+- Prefer e.g. `Castle Guard attacks Goblin Peasant` and `Roll 3 Attack dice` rather than raw IDs. When several same-name Units must be distinguished, use a short, meaningful disambiguator (e.g. coordinates or an existing label), not a raw generated ID.
+- Keep IDs intact in authoritative events, payloads, selection values, logs and expanded developer/debug views. This is display formatting only, not event rewriting.
+- Keep attack and defence actor/target labels consistent across the full combat sequence.
+
+### Acceptance checks
+
+1. Right-side End Turn / Next Round controls are above a content-height Unit Card; no large empty panel or shifting controls.
+2. Attack dice remain visible until Defence resolves, regardless of how long the user waits before rolling.
+3. Both dice sets and totals are briefly visible together after resolution, then clear correctly; subsequent attacks do not inherit stale dice.
+4. Automatic/manual rolls, animation-off/reduced-motion, hover/card switching, movable overlays and small screens still work.
+5. Ordinary play uses readable Unit names; debug retains stable internal IDs.
+6. All previous board-first UI and gameplay decision tests remain passing.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.
