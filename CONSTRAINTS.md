@@ -1039,6 +1039,37 @@ This Behavior may therefore move a Skeleton Archer away from an enemy even when 
 
 Maximize Attack Distance is a Decision Provider preference, not an attack or movement rule. It uses shared gameplay queries for attack legality, distance, Line of Sight, and related calculations rather than reproducing those rules inside the provider.
 
+### Delve Chess — first Unit Types and movement rules
+
+**Delve Chess** is a chess-*inspired* content experiment, not a chess rules variant. A later 8×8 scenario may alternate Grass and Stone Floor to evoke a chessboard, but ordinary Delve combat, Activation Bag, Side relationships, Unit occupancy, friendly pass-through, LOS, Posture and Objectives remain authoritative. No check/checkmate, chess captures, pawn promotion, castling or en passant. The eventual objective is to defeat the enemy King; the full chess scenario and remaining pieces are deferred.
+
+**Two visually distinct Unit Types per role:** the Hero Court has professionally equipped fantasy characters; the Monster Court has Goblins/Trolls in earnest homemade chess costumes. The counterpart types have identical Stats, Capabilities and Behavior but different IDs, names and portraits. Their names do not restrict which Side they can be assigned to. The first two pairs are:
+
+| Role | Hero Court Unit Type | Monster Court Unit Type | MOV | RNG | ATK | DEF | HP |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Peasant | Royal Peasant | Goblin Peasant | 1 | 1 | 2 | 2 | 1 |
+| Rook | Castle Guard | Tower Troll | 16 | 1 | 3 | 4 | 1 |
+
+All four use ordinary Normal Attack. **Peasant** has ordinary movement (no special Movement Pattern), no new special Action and the default automated behavior except for **Prefer Lowest Effective Defense**: *when choosing among already-legal targets for a normal Attack*, first rank targets by their effective DEF at that decision point, ascending, then apply the existing deterministic attack-target tie breakers. It does not change Move decisions, target legality, attacks by other abilities, or any other Behavior priorities. Implement this as a reusable behavior preference.
+
+**Rook** has **Straight Orthogonal Movement** and **Advance On Kill**. Its default automated Behavior otherwise follows the ordinary combat behavior.
+
+**Straight Orthogonal Movement** is a reusable movement restriction: each ordinary Move may follow only a single uninterrupted cardinal direction (north, east, south or west) for at most the Unit's effective MOV; Stay is allowed. All traversed cells and edges must be legal under the existing movement rules, including friendly pass-through, hostile blocking, terrain, Walls, Windows, Doors, Resources and Cell Markers. No turn is allowed *within the same Move*, even if the endpoint would be reachable by a shorter ordinary route. A separate Move opportunity may choose a new direction. This restriction affects ordinary Move legality and destination/path generation, not attack range, LOS, or special repositioning unless explicitly stated. Existing canonical movement and deterministic choice conventions remain applicable.
+
+**Advance On Kill** is a reusable Capability related to `MoveAfterAttack`, but it is a **conditional post-Action Move**, not an ordinary Move opportunity. After a Unit's **normal melee Attack** has fully resolved and actually defeated at least one hostile target, the attacker receives one immediate special Move with a maximum allowance of **2 orthogonal steps**. Its legal destinations are **Stay** and the former cells of hostile Units just defeated by that Attack that were eight-cell adjacent to the attacker when the Attack resolved. If more than one qualifying defeated cell exists, the player/provider chooses one legal destination. This does not apply to Fireball, Shoot Shell or other special attacks, nor when defeat was prevented by Undying, Indestructible or another effect.
+
+For an orthogonally adjacent former target cell, the special Move uses exactly one cardinal step. For a diagonally adjacent former target cell, it uses exactly two cardinal steps through **either** of the two intermediate cells; at least one of these two-step paths must be legal. It cannot take a longer detour. Evaluate physical passage normally: blocking terrain, Walls, Windows, Closed Doors, and hostile Units block; friendly Units can be passed as usual. The defeated Unit no longer occupies its former cell. Ignore only the attacker's ordinary MOV value and special Movement Pattern for this special Move; the Capability supplies MOV 2. Normal arrival effects, including Banana Peels, apply. Stay means declining to advance. Resolve the post-Action Move immediately before the active Unit can finish or another Unit can be selected; do not reopen ordinary Moves or normal Actions after it. If no target cell is legally reachable, Stay remains legal.
+
+These rules do **not** introduce Trample or an automatic chess-style capture. A successful normal Attack does not normally move the attacker; only a Unit with Advance On Kill receives this option.
+
+**Artwork originals** (prepared by the established artwork pipeline, with source files preserved unchanged):
+- `assets/source/units/royal-peasant.png`
+- `assets/source/units/goblin-peasant.png`
+- `assets/source/units/castle-guard.png`
+- `assets/source/units/tower-troll.png`
+
+For initial verification, create a compact playtest scenario using both Peasant and Rook pairs, with a mix of open terrain, Walls, Windows and Doors to exercise straight movement and post-kill passage. The complete chessboard scenario and Bishop/Knight/Queen/King mechanics are deferred. Future diagonal Bishop movement, if adopted, should be represented through orthogonal two-step corner paths, not by silently changing the global movement model.
+
 #### Goblin
 
 Goblin is the first Monster Unit Type with a Capability that changes the normal phase flow.
