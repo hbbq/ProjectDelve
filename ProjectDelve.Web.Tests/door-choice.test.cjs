@@ -2331,7 +2331,8 @@ test("portrait assets use the content catalog and retain fallback on image failu
 });
 
 for (const name of ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
-  "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
+  "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive",
+  "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
   const initial = response();
   initial.result.state.types[0].id = `${name}-type`;
   initial.result.state.units[0].typeId = `${name}-type`;

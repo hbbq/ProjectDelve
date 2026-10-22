@@ -2,6 +2,10 @@ namespace ProjectDelve.Engine;
 
 public static class UnitTypeIds
 {
+    public const string RoyalPeasant = "royal-peasant-type";
+    public const string GoblinPeasant = "goblin-peasant-type";
+    public const string CastleGuard = "castle-guard-type";
+    public const string TowerTroll = "tower-troll-type";
     public const string DiamondKart = "diamond-kart-type";
     public const string ChiefMechanic = "chief-mechanic-type";
     public const string Locomotive = "locomotive-type";
@@ -37,6 +41,10 @@ public static class CanonicalUnitTypes
     private static readonly IReadOnlyDictionary<string, Func<UnitType>> Factories =
         new Dictionary<string, Func<UnitType>>(StringComparer.Ordinal)
         {
+            [UnitTypeIds.RoyalPeasant] = () => UnitRoster.RoyalPeasant(),
+            [UnitTypeIds.GoblinPeasant] = () => UnitRoster.GoblinPeasant(),
+            [UnitTypeIds.CastleGuard] = () => UnitRoster.CastleGuard(),
+            [UnitTypeIds.TowerTroll] = () => UnitRoster.TowerTroll(),
             [UnitTypeIds.DiamondKart] = () => UnitRoster.DiamondKart(),
             [UnitTypeIds.ChiefMechanic] = () => UnitRoster.ChiefMechanic(),
             [UnitTypeIds.Locomotive] = () => UnitRoster.Locomotive(),

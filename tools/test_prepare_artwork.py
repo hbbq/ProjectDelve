@@ -21,6 +21,13 @@ spec.loader.exec_module(pipeline)
 
 
 class CompositeArtworkTests(unittest.TestCase):
+    def test_chess_portraits_use_standard_pipeline_and_catalog(self):
+        catalog = (pipeline.ROOT / 'ProjectDelve.Web/wwwroot/board-visuals.js').read_text(encoding='utf-8')
+        for name in ('royal-peasant', 'goblin-peasant', 'castle-guard', 'tower-troll'):
+            with self.subTest(name=name):
+                self.assertIn((f'units/{name}.png', f'units/{name}.webp', 512), pipeline.ASSETS)
+                self.assertIn(f'"{name}-type": {{ image: "./art/units/{name}.webp" }}', catalog)
+
     def test_asphalt_and_chief_mechanic_registrations(self):
         for slot in range(1, 4):
             self.assertIn((f'terrain/asphalt-{slot:02}.png', f'terrain/asphalt/{slot:02}.webp', 256), pipeline.ASSETS)

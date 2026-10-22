@@ -48,6 +48,7 @@ public interface IGameplayQueries
         bool closedDoorsTraversable = false) =>
         throw new NotSupportedException();
     int EffectiveMovOf(string unitId) => throw new NotSupportedException();
+    int EffectiveDefOf(string unitId) => throw new NotSupportedException();
     int EffectiveRngOf(string unitId) => throw new NotSupportedException();
     int? DistanceToUnitFrom(string unitId, Cell position, string targetId,
         bool closedDoorsTraversable = false) => throw new NotSupportedException();
@@ -74,6 +75,7 @@ public interface IGameplayQueries
 
 internal sealed class GameplayQueries : IGameplayQueries
 {
+    public int EffectiveDefOf(string unitId) => world.EffectiveDefOf(unitId);
     public Route RouteDefinition(string id) => world.Routes.Single(r => r.Id == id);
     public ObjectiveArea WaypointArea(string id) => world.Waypoints.Single(w => w.Id == id).Area;
     public TerrainKind TerrainAt(Cell cell) => world.Physical.Board.TerrainAt(cell);

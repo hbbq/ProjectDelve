@@ -295,6 +295,21 @@ Select **Chief Mechanic Production** (`chief-mechanic-production`) for a small 8
 
 All four originals are opaque 1254 × 1254 RGB PNGs without embedded profiles, EXIF orientation or animation. The existing `tools/prepare-artwork.py` pipeline exports sRGB WebPs with Lanczos resizing, quality 85 and method 6. All 52 originals were fully decoded and their SHA-256 hashes verified unchanged. The source catalog now comprises 50 direct exports and two railway material components, with no missing sources. Full re-export confirmed identical decoded pixels for the previous WebPs, whose existing bytes were retained. The regenerated [catalog preview](assets/previews/artwork-pack-01.png) includes the four additions at Cell/token scale. No artwork was regenerated. Preview inspection and automated Classic/Enhanced interaction, fallback and playback tests do not constitute browser visual approval; no browser surface was connected for actual-board visual QA.
 
+### Delve Chess — Peasants and Rooks
+
+Select **Delve Chess — Peasants and Rooks** (`delve-chess-peasants-rooks`) for a compact 12 × 7 playtest. Blue Royal Peasants and Castle Guards face Red Goblin Peasants and Tower Trolls, with multiple Units per group. Open lanes, a Wall corner, Windows and Closed Doors exercise straight movement, diagonal melee and blocked advances. A human-controlled neutral Rogue can open Doors without adding capabilities to the Chess roles. Both combat Sides use the existing Eliminate Enemies Objective; the neutral gatekeeper has No Objective. Change group controllers to compare human and automated play.
+
+Royal Peasant and Goblin Peasant share MOV 1 / RNG 1 / ATK 2 / DEF 2 / HP 1 and Prefer Lowest Effective Defense for normal Attack target selection. Castle Guard and Tower Troll share MOV 16 / RNG 1 / ATK 3 / DEF 4 / HP 1, Straight Orthogonal Movement and Advance On Kill. These are reusable Unit capabilities/preferences, independent of Side or scenario. Separate ordinary Moves may change direction, including Moves gained with Mushroom Boost. Advance On Kill reuses the post-Attack Move resolver with MOV 2, only adjacent former Cells of actually defeated normal-melee targets, and physical passage checks; it ignores ordinary MOV and Movement Pattern. Goblin Move After Attack retains its existing behavior. The full chessboard and later pieces remain deferred.
+
+| Original under `assets/source/units/` | Canonical catalog key | Runtime under `wwwroot/art/units/` |
+| --- | --- | --- |
+| `royal-peasant.png` | `royal-peasant-type` | `royal-peasant.webp` |
+| `goblin-peasant.png` | `goblin-peasant-type` | `goblin-peasant.webp` |
+| `castle-guard.png` | `castle-guard-type` | `castle-guard.webp` |
+| `tower-troll.png` | `tower-troll-type` | `tower-troll.webp` |
+
+The four new portraits are opaque 1254 × 1254 RGB PNG originals, without profiles, EXIF orientation or animation. The established pipeline exports 512 × 512 sRGB WebPs using Lanczos and quality 85/method 6, without cropping or altering originals. All 65 sources were decoded and their SHA-256 hashes verified unchanged; all 63 direct exports and the two railway components are registered. The updated [catalog preview](assets/previews/artwork-pack-01.png) includes 50px circular tokens: faces and pawn/rook silhouettes remain readable. Catalog/error fallbacks and Classic token presentation remain available. Existing WebP bytes were retained after confirming identical decoded pixels on full re-export; the pipeline also regenerated railway SVGs. Contact-sheet review and DOM tests do not constitute browser approval; no browser surface was connected for actual-board QA.
+
 ### Level Designer V1
 
 Click **Designer** in the browser host to author the same `ScenarioDefinition` format visually. The browser retains a local draft, including temporarily invalid placements, and uses only generic grid editing and server-supplied Unit geometry. It does not evaluate Delve placement, terrain, Unique, HP, or agency legality. Reload discards the draft; export a DELVE1 string to keep it. Switching to Playtest and back retains it.

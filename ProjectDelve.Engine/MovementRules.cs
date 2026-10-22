@@ -25,11 +25,13 @@ internal static class MovementRules
     // null searches the current board without an activation's MOV limit.
     // Planning may ignore Cell Markers; paths from that analysis are not legal Move paths.
     internal static IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> FindPaths(
-        GameState state, string moverId, Cell from, int? maxSteps = null, bool ignoreCellMarkers = false)
+        GameState state, string moverId, Cell from, int? maxSteps = null, bool ignoreCellMarkers = false,
+        bool ignoreMovementPattern = false)
     {
         HypotheticalPosition.Validate(state, moverId, from);
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
+        var straight = !ignoreMovementPattern && state.Types.Single(t => t.Id == unit.TypeId).MovementPattern == MovementPattern.StraightOrthogonal;
         var traversal = MovementTraversal.For(state, moverId);
         var footprint = FootprintGeometry.FootprintOf(state, moverId);
         // Relocate only the mover: its entire original footprint is now unoccupied.
@@ -46,6 +48,10 @@ internal static class MovementRules
                 !ignoreCellMarkers && current != from && CellMarkerRules.ContainsBananaPeel(state, footprint, current)) continue;
             foreach (var to in Neighbors(current)) // top, left, right, bottom
             {
+                // Restrict the path itself: filtering BFS endpoints would allow detours.
+                if (straight && current != from &&
+                    (to.X - current.X != Math.Sign(current.X - from.X) ||
+                     to.Y - current.Y != Math.Sign(current.Y - from.Y))) continue;
                 if (paths.ContainsKey(to) || !CanStep(state.Physical.Board, footprint, current, to, traversal))
                     continue;
                 if (FootprintGeometry.OccupiedCells(footprint, to).Any(c => occupants.TryGetValue(c, out var occupant) &&

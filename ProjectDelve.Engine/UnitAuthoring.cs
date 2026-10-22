@@ -67,6 +67,16 @@ public static class UnitAuthoring
         internal override UnitType Apply(UnitType type) => type with { WaypointSlotMachine = new() };
     }
     public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
+    public static Entry StraightOrthogonal() => new PatternEntry();
+    public static Entry AdvanceOnKill() => new AdvanceEntry();
+    private sealed class PatternEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { MovementPattern = global::ProjectDelve.Engine.MovementPattern.StraightOrthogonal };
+    }
+    private sealed class AdvanceEntry : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { AdvanceOnKill = new() };
+    }
     private sealed class BananaEntry(PlaceBananaPeel ability) : Entry
     {
         internal override UnitType Apply(UnitType type) => type with

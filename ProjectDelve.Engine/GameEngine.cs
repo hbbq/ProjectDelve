@@ -39,6 +39,7 @@ public static partial class GameEngine
         state.ActiveToken = null;
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
+        state.AdvanceOnKillCells = null;
         state.CleavePending = false;
         state.AttackInProgress = null;
         state.DoorInProgress = null;
@@ -267,6 +268,11 @@ public static partial class GameEngine
                 if (request.IsMoveAfterAttack)
                 {
                     state.MoveAfterAttackAllowance = null;
+                    if (state.AdvanceOnKillCells is not null)
+                    {
+                        state.AdvanceOnKillCells = null;
+                        state.ActionsUsedThisActivation = Math.Max(state.ActionsUsedThisActivation, state.EffectiveActionsPerActivation);
+                    }
                 }
                 else state.MovesCompletedThisActivation++;
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
@@ -449,6 +455,7 @@ public static partial class GameEngine
         state.CompletedUnitIds.Add(state.CurrentUnitId!);
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
+        state.AdvanceOnKillCells = null;
         state.CleavePending = false;
         state.MoveOpportunityModifierThisActivation = 0;
         state.MovesCompletedThisActivation = 0;
@@ -481,8 +488,12 @@ public static partial class GameEngine
     {
         var start = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
         var allowance = maxSteps ?? state.EffectiveMovOf(unit.Id);
-        return MovementRules.FindPaths(state, unit.Id, start, allowance)
+        return MovementRules.FindPaths(state, unit.Id, start, allowance,
+                ignoreMovementPattern: state.AdvanceOnKillCells is not null)
             .Where(pair => pair.Key != start)
+            .Where(pair => state.AdvanceOnKillCells is not { } cells ||
+                cells.Contains(pair.Key) && Math.Max(Math.Abs(pair.Key.X - start.X), Math.Abs(pair.Key.Y - start.Y)) == 1 &&
+                pair.Value.Count - 1 == Math.Abs(pair.Key.X - start.X) + Math.Abs(pair.Key.Y - start.Y))
             .OrderBy(pair => pair.Key.Y).ThenBy(pair => pair.Key.X)
             .Select(pair => new Candidate($"{pair.Key.X},{pair.Key.Y}", pair.Key, [.. pair.Value], Kind: ActivationChoiceKind.Move)).ToList();
     }
@@ -767,7 +778,7 @@ public static partial class GameEngine
     {
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
-            attack.AttackDice, Results: []);
+            attack.AttackDice, Results: []) { IsNormalMelee = actionId == "attack" && state.EffectiveRngOf(attackerId) == 1 };
         events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
             { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId });
     }
@@ -806,6 +817,11 @@ public static partial class GameEngine
             if (type.Cleave is { } cleave && attack.Results.Any(r => r.Damage >= cleave.TriggerDamage) && CleaveCandidates(state, attacker).Count > 0)
                 state.CleavePending = true;
             if (type.MoveAfterAttack is { } move) state.MoveAfterAttackAllowance = move.MaxSteps;
+            if (type.AdvanceOnKill is not null && attack.IsNormalMelee && !attack.DefeatedHostileCells.IsEmpty)
+            {
+                state.AdvanceOnKillCells = attack.DefeatedHostileCells;
+                state.MoveAfterAttackAllowance = 2;
+            }
         }
     }
 
@@ -815,6 +831,9 @@ public static partial class GameEngine
         var target = attack.Targets[attack.TargetIndex];
         var damage = Math.Max(0, attack.Hits - blocks);
         var results = attack.Results.Add(new(target.TargetId, target.DefenceDice, blocks, damage));
+        var formerCells = FootprintGeometry.OccupiedCells(state, target.TargetId).ToImmutableArray();
+        var hostile = state.AreHostile(state.Units.Single(u => u.Id == attack.AttackerId).SideId,
+            state.Units.Single(u => u.Id == target.TargetId).SideId);
         state.AttackInProgress = attack with { Results = results, TargetIndex = attack.TargetIndex + 1 };
         DealDamage(state, target.TargetId, damage,
             new RulesEvent(attack.AbilityName is null ? "AttackResolved" : "AttackTargetResolved",
@@ -822,6 +841,9 @@ public static partial class GameEngine
                 AbilityName: attack.AbilityName,
                 Attack: attack.AbilityName is null ? new(attack.AttackDice, attack.Hits, results) : null)
                 { ActionId = attack.ActionId, SourceUnitId = attack.AttackerId }, events);
+        if (hostile && state.DefeatedUnitIds.Contains(target.TargetId))
+            state.AttackInProgress = state.AttackInProgress! with
+            { DefeatedHostileCells = state.AttackInProgress.DefeatedHostileCells.AddRange(formerCells) };
     }
 
     private static void SubmitRoll(GameState state, DicePool pool, IRandomProvider random, ResolutionEvents events)
@@ -1029,6 +1051,7 @@ public static partial class GameEngine
                 t.ShootShell is { ShellCost: < 1 } or { Rng: < 1 } or { Atk: < 1 } ||
                 (t.Actions.HasFlag(UnitAction.ShootShell) && t.ShootShell is null) ||
                 t.Actions.HasFlag(UnitAction.PlaceBananaPeel) ||
+                (t.MovementPattern is { } pattern && !Enum.IsDefined(pattern)) ||
                 (t.TerrainRestrictedMovement is { } restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
                 (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
                 (t.Actions.HasFlag(UnitAction.ClawAttack) && t.ClawAttack is null) ||

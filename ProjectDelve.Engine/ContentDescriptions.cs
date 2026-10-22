@@ -16,6 +16,12 @@ public static class ContentDescriptions
     {
         List<CardEntryDescription> entries = [];
         var names = type.AbilityNames;
+        if (type.MovementPattern == MovementPattern.StraightOrthogonal)
+            entries.Add(new("straight-orthogonal", "Straight Orthogonal Movement", "Capability",
+                "Each ordinary Move may Stay or follow one uninterrupted cardinal direction up to MOV. All ordinary passage restrictions apply."));
+        if (type.AdvanceOnKill is not null)
+            entries.Add(new("advance-on-kill", "Advance On Kill", "Follow-up",
+                "After this Unit's normal melee Attack fully resolves, if it defeated a hostile target, immediately Move to that target's former adjacent Cell or Stay. Use one cardinal step for an orthogonal Cell or two through either intermediate Cell for a diagonal Cell. Respect physical passage; ignore ordinary MOV and Movement Pattern. Normal arrival effects apply."));
         if (type.TerrainRestrictedMovement is { } restriction)
             entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
                 $"Ordinary Moves may only enter {restriction.Terrain} Cells."));

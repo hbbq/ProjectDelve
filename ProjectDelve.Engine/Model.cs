@@ -67,6 +67,8 @@ public sealed record AttackContinuation(string AttackerId, string ActionId, stri
     ImmutableArray<AttackTargetResult> Results = default)
 {
     public DiceResult? AttackRoll { get; init; }
+    public ImmutableArray<Cell> DefeatedHostileCells { get; init; } = [];
+    public bool IsNormalMelee { get; init; }
 }
 public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount, string ActionId);
 
@@ -102,8 +104,11 @@ public enum UnitBehavior
     PreferTrollThenDiamondThenWorker = 4096,
     PreferSummonWorker = 8192,
     RouteLookahead = 16384,
-    PreferBananaPeel = 32768
+    PreferBananaPeel = 32768,
+    PreferLowestEffectiveDefense = 65536
 }
+public enum MovementPattern { StraightOrthogonal }
+public sealed record AdvanceOnKill;
 public sealed record ReshapeRoom;
 public sealed record Swap;
 // Current external movement supports zero or one ordinary step only.
@@ -220,6 +225,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public ShootShell? ShootShell { get; init; }
     public WaypointSlotMachine? WaypointSlotMachine { get; init; }
     public TerrainRestrictedMovement? TerrainRestrictedMovement { get; init; }
+    public MovementPattern? MovementPattern { get; init; }
+    public AdvanceOnKill? AdvanceOnKill { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
     public Fury? Fury { get; init; }
     public Backstab? Backstab { get; init; }
@@ -265,6 +272,10 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
         UnitAuthoring.Define(id, name, stats, entries);
 
     public static UnitType Locomotive(string id = UnitTypeIds.Locomotive) => UnitRoster.Locomotive(id);
+    public static UnitType RoyalPeasant(string id = UnitTypeIds.RoyalPeasant) => UnitRoster.RoyalPeasant(id);
+    public static UnitType GoblinPeasant(string id = UnitTypeIds.GoblinPeasant) => UnitRoster.GoblinPeasant(id);
+    public static UnitType CastleGuard(string id = UnitTypeIds.CastleGuard) => UnitRoster.CastleGuard(id);
+    public static UnitType TowerTroll(string id = UnitTypeIds.TowerTroll) => UnitRoster.TowerTroll(id);
     public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) => UnitRoster.Barbarian(id);
     public static UnitType Rogue(string id = UnitTypeIds.Rogue) => UnitRoster.Rogue(id);
     public static UnitType Cleric(string id = UnitTypeIds.Cleric) => UnitRoster.Cleric(id);
@@ -534,6 +545,8 @@ public sealed class GameState
     public string? CurrentUnitId { get; set; }
     // Mandatory post-attack movement resolves before the activation may end.
     public int? MoveAfterAttackAllowance { get; set; }
+    // Only the immediate post-Attack continuation retains these former Cells.
+    public ImmutableArray<Cell>? AdvanceOnKillCells { get; set; }
     // Optional immediate resolution created by a qualifying Attack, never activation history.
     public bool CleavePending { get; set; }
     public DecisionRequest? Pending { get; set; }
@@ -580,6 +593,7 @@ public sealed class GameState
         BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
+        AdvanceOnKillCells = AdvanceOnKillCells,
         CleavePending = CleavePending, PendingExplosions = [.. PendingExplosions],
         Pending = Pending, RoundComplete = RoundComplete
     };

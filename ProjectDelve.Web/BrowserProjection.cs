@@ -161,7 +161,8 @@ public static class BrowserProjection
             };
         }).ToArray();
         var continuation = request.Kind == DecisionKind.Cleave ? entries.GetValueOrDefault("cleave")
-            : request.IsMoveAfterAttack ? entries.GetValueOrDefault("move-after-attack") : null;
+            : request.IsMoveAfterAttack ? entries.GetValueOrDefault(state.AdvanceOnKillCells is not null
+                ? "advance-on-kill" : "move-after-attack") : null;
         var prompt = request.Roll is { } pool ? $"{pool.OwnerUnitId}: roll {pool.Count} {pool.Family} dice ({pool.Purpose}, {pool.SourceActionId})"
                 + (pool.TargetId is null ? "" : $" against {pool.TargetId}")
                 + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")

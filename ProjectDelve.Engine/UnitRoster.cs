@@ -18,6 +18,22 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType RoyalPeasant(string id = UnitTypeIds.RoyalPeasant) => UnitType.Define(id,
+        "Royal Peasant", Stats(1, 1, 2, 2, 1)
+    ).WithBehaviors(UnitBehavior.PreferLowestEffectiveDefense);
+
+    public static UnitType GoblinPeasant(string id = UnitTypeIds.GoblinPeasant) => UnitType.Define(id,
+        "Goblin Peasant", Stats(1, 1, 2, 2, 1)
+    ).WithBehaviors(UnitBehavior.PreferLowestEffectiveDefense);
+
+    public static UnitType CastleGuard(string id = UnitTypeIds.CastleGuard) => UnitType.Define(id,
+        "Castle Guard", Stats(16, 1, 3, 4, 1), StraightOrthogonal(), AdvanceOnKill()
+    );
+
+    public static UnitType TowerTroll(string id = UnitTypeIds.TowerTroll) => UnitType.Define(id,
+        "Tower Troll", Stats(16, 1, 3, 4, 1), StraightOrthogonal(), AdvanceOnKill()
+    );
+
     public static UnitType DiamondKart(string id = UnitTypeIds.DiamondKart) => UnitType.Define(
         id, "Diamond Kart", Stats(5, 0, 0, 3, 4), Unique(), CantAttack(),
         ResourceStorage(new(ResourceTypes.Banana, 1), new(ResourceTypes.Mushroom, 1), new(ResourceTypes.Shell, 1)),

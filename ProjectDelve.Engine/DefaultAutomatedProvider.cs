@@ -225,15 +225,25 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         }
 
         orderedTargetIds ??= [];
-        var attack = request.Candidates.Where(IsAttack)
+        var rankedAttacks = request.Candidates.Where(IsAttack)
             .OrderByDescending(candidate => CandidateTargets(candidate).Count(orderedTargetIds.Contains))
             .ThenByDescending(candidate => queries.EffectiveAttackDice(request.UnitId!, candidate))
             .ThenByDescending(candidate => CandidateTargets(candidate)
                 .Count(targetId => queries.IsHostileTo(request.UnitId!, targetId)))
             .ThenByDescending(candidate => queries.IsUnlimitedAttack(request.UnitId!, candidate))
             .ThenBy(candidate => queries.AttackDefinitionOrder(request.UnitId!, candidate))
-            .ThenBy(candidate => candidate.Key, StringComparer.Ordinal)
-            .FirstOrDefault();
+            .ThenBy(candidate => candidate.Key, StringComparer.Ordinal).ToArray();
+        var attack = rankedAttacks.FirstOrDefault();
+        // Keep the existing Action/Order priorities. Once Normal Attack is chosen,
+        // rank its legal targets by DEF, retaining the original ordering for ties.
+        if (attack?.Action == UnitAction.NormalAttack &&
+            queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferLowestEffectiveDefense))
+        {
+            var orderedMatches = CandidateTargets(attack).Count(orderedTargetIds.Contains);
+            attack = rankedAttacks.Where(c => c.Action == UnitAction.NormalAttack &&
+                    CandidateTargets(c).Count(orderedTargetIds.Contains) == orderedMatches)
+                .OrderBy(c => queries.EffectiveDefOf(c.TargetId!)).First();
+        }
 
         if (attack is not null) return attack.Key;
         var occupied = queries.OccupiedCellsOf(request.UnitId!);

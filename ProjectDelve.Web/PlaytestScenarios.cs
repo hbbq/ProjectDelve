@@ -22,6 +22,7 @@ public static class PlaytestScenarios
 {
     public const string DefaultId = "basic-combat";
     public static IReadOnlyList<ScenarioDescription> Catalog { get; } = Array.AsReadOnly<ScenarioDescription>([
+        new("delve-chess-peasants-rooks", "Delve Chess — Peasants and Rooks", "Two courts test straight Rook Moves, diagonal melee and Advance On Kill around Walls, Windows and Doors. A neutral Rogue opens Doors. Change controllers to compare manual and automated play."),
         new("simple-racing", "Simple Racing", "Two autonomous Diamond Karts share a circuit Route, collecting waypoint items and using Boost, Banana Peels and Shells. No victory objective."),
         new("racing-and-industry", "Racing and Industry", "Workers cross the racing circuit to collect orchard Fruit, supply owned Slot Machines outside, and deliver racing items to their Kart. No victory objective."),
         new("a-day-at-the-race-track", "A day at the race track", "Two autonomous Diamond Karts follow the same looping route around a winding Asphalt track. Chief Mechanics and Geomancers support each Side beside owned Diamond Presses."),
@@ -53,6 +54,7 @@ public static class PlaytestScenarios
 
     public static ScenarioDefinition Definition(string id) => id switch
     {
+        "delve-chess-peasants-rooks" => DelveChessScenario.Definition(),
         "simple-racing" => FocusedRacingScenarios.Definition(false),
         "racing-and-industry" => FocusedRacingScenarios.Definition(true),
         "a-day-at-the-race-track" => ADayAtTheRaceTrackScenario.Definition(),

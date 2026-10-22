@@ -42,6 +42,10 @@ export const boardVisuals = {
   },
   unit: {
     default: { detail: "radial-gradient(circle at 35% 25%, #ffffff45, transparent 65%)" },
+    "royal-peasant-type": { image: "./art/units/royal-peasant.webp" },
+    "goblin-peasant-type": { image: "./art/units/goblin-peasant.webp" },
+    "castle-guard-type": { image: "./art/units/castle-guard.webp" },
+    "tower-troll-type": { image: "./art/units/tower-troll.webp" },
     "barbarian-type": { image: "./art/units/barbarian.webp" },
     "zombie-type": { image: "./art/units/zombie.webp" },
     "worker-type": { image: "./art/units/worker.webp" },
