@@ -235,6 +235,47 @@ After **successful** Start selected or Restart current, close the Tools panel au
 
 Test Tools grouping and keyboard accessibility, all existing controls, successful versus failed Start/Restart closing, controller assignment and import, shared tooltip hover/focus/touch and viewport placement, Enhanced 2D default, Classic selection persistence, and preservation of board dimensions and Unit Card behavior. Inspect desktop and narrow viewports when browser QA is available.
 
+## Playtest UI — board decision clarity and combat targeting
+
+Second UI iteration after Tools organization and shared tooltips. **Primary goal: prevent mistaken clicks by making the exact current decision obvious.** Presentation only: never alter authoritative legal choices, attack geometry, effect areas, or game-state transitions.
+
+### Distinct visual language
+
+- **Select Unit / activate within group:** prominent **yellow corner brackets** around eligible Units. Highlight only Units that can actually be selected. Hover preview: `Activate <display name>`.
+- **Move destination:** **blue outlined/faintly filled Cell** for each legal destination, legible against both light and dark Terrain. Hover preview: `Move <name> to (x,y)`; optionally show the existing authoritative/canonical path if already available. Do not fabricate paths.
+- **Stay:** distinct **pause/stand-still symbol** on the active Unit's Cell, not a normal move destination highlight. Hover preview: `Stay — <name>`.
+- **Normal Attack target:** **red crosshair/target brackets** around legal target Units. Hover preview: `Attack <display name>`.
+- Use different shapes/icons as well as colors, with contrasting edges/shadows so all remain recognizable on Stone, Asphalt, Grass, Water, Lava, Rails and other materials. Preserve Side rings, HP badges, nameplates and board accessibility.
+
+### Hover/focus shows the actual click result
+
+- During a pending choice, hovering/focusing a legal Cell or Unit reveals a **concise, prominent action preview** using the new shared tooltip presentation. It must describe the **actual decision currently mapped to that click**, not an assumed Move/Attack based on coordinates alone.
+- Keep three layers visually distinct: (1) all currently legal selectable targets, (2) the specifically hovered/focused choice preview, and (3) the active/resolving effect.
+- If multiple legal choices map to the same Cell/Unit (e.g. different attacks), do **not** silently pick one or misleadingly label it. Preserve or invoke the existing disambiguation mechanism, with clear names/icons and accurate descriptions of alternatives.
+- Pointer movement alone must never submit a choice. Tooltips and preview graphics must not intercept board clicks. Provide keyboard focus and touch-accessible equivalents where practical.
+- Existing relevant-choice filtering and auto-choice must remain consistent with displayed legal choices.
+
+### Special abilities and area previews
+
+- Provide extensible visual metadata for special board-targeted decisions: icon/shape and a concise action label. **Fireball** is the first explicit example: flame icon on eligible target Cells and a clearly differentiated preview of its affected Cell area on hover/focus.
+- Derive target legality and affected area from **authoritative available choice/effect data**. If an accurate area is not available in current projections, prefer a generic `Fireball at (x,y)` preview over reimplementing rules in JavaScript or displaying a misleading area. Any projection extension must remain presentation-only and reuse engine calculations.
+- Design for later Telekinesis, Swap, Banana Peel and other actions without requiring one-off rendering paths for each. Do not implement unrelated ability previews now.
+
+### Visible attacker-to-target relationship
+
+- When a normal or ranged Attack is chosen/resolving, clearly identify **attacker and target**, with contrasting Unit emphasis and a visible connecting line/arrow where both Cells are known. This is a relationship indicator, **not** an assertion about projectile trajectory or LOS.
+- Keep the relationship visible throughout the linked Attack/Defence dice sequence, including while waiting for manual Defence. Clear it together with the existing combined dice outcome after resolution. Do not confuse successive attacks or leave stale lines.
+- Keep line/markers above Terrain but below important interactive UI; avoid obscuring Units or stealing pointer input. Use the existing combat event correlation/state rather than inventing combat state or timers that disagree with the dice overlay.
+
+### Acceptance / tests
+
+1. Selecting a Unit, choosing a Move, choosing Stay and targeting an Attack are immediately distinguishable without reading the status bar.
+2. Hover/focus accurately predicts the click, including Fireball vs Move and ambiguous same-cell choices.
+3. Fireball shows an accurate area only when authoritative data supports it; otherwise it makes no false area claim.
+4. Ranged and melee Attack source/target remain identifiable during pending Defence and clear with the dice outcome.
+5. Highlights remain visible over contrasting Terrain; pointer, keyboard and touch interactions remain usable.
+6. No regressions in legal choices, card actions, auto-choice, filtering, Classic/Enhanced 2D, draggable decision overlays or replay. Verify Chess and Wizard/Doors plus a mixed-terrain scenario.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.
