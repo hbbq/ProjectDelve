@@ -109,6 +109,50 @@ Generate/source a small material kit: **Gravel** (three opaque square variants),
 
 Acceptance check: arrange straight, curve, T and cross pieces in a sample track network with rotations, verify all connected boundaries visually at actual board scale, and verify the separate arrows agree with outgoing directions. If ports do not match, fix the shared geometry instead of patching each image by eye.
 
+## Playtest layout — board-first interaction (next UI iteration)
+
+**Goal:** Make Playtest feel like a game rather than a development dashboard. Maximize the usable board area, reduce permanent interface chrome and preserve every existing legal choice and debug capability. This section governs presentation only; it does not change game rules, available decisions, resolution or the authoritative state.
+
+### Persistent desktop layout
+
+- The **board is the dominant surface**. Allocate it all practical space after reserving a compact right-side Unit Card and small status/control chrome. Preserve square Cells and map aspect ratio; do not stretch or crop the board to fill arbitrary rectangles. Handle large and small boards and narrow viewports gracefully; avoid gratuitous fixed board dimensions.
+- A **compact always-visible status strip** shows current Round, currently activating Unit Type/Side or Unit when relevant, and **number of Activation Bag tokens remaining**. Detailed bag contents should be available on hover/focus/click (tooltip/popover) rather than taking permanent space. Never imply the future draw order is known; display the actual remaining membership/count, not a fabricated shuffled prediction.
+- Keep the **Unit Card permanently visible on desktop** in the right column. Retain existing behavior: show the active Unit's card by default; temporarily show a hovered Unit's card while hovered, then return to the active Unit. Preserve existing clickable legal/relevant Action buttons, choice filtering and usage indicators. Do not redesign the card wholesale in this iteration.
+- **End Turn / equivalent end-activation control has a stable, reserved position** and remains rendered, disabled whenever not currently a legal choice. Avoid layout shifts when choices appear or disappear. Bind it to existing legal decisions; do not invent an End Turn action where the engine does not provide one.
+- On narrower screens, adapt layout without obscuring the board or losing access to the Unit Card and decisions; a compact card region or accessible panel is acceptable.
+
+### Contextual choices and dice
+
+- Put **Roll Dice** and other transient decisions that cannot be expressed by clicking a board Cell/Unit or existing Unit Card button in a small **contextual overlay over the board**, preferably near a noncritical edge. Examples: multiple distinct attacks on the same target, choice-specific confirmations and dice rolls.
+- Do not duplicate existing board-click and card-button interactions unnecessarily. Every decision type must remain discoverable and selectable, including keyboard/focus accessibility. Preserve the existing decision-filtering semantics and manual/automatic choice modes.
+- Show dice being rolled and recent dice outcomes briefly over the board, without permanently occupying a sidebar. Results must remain accessible afterward in Event History; avoid blocking board input after the roll resolves. Honor existing event-animation preferences, including disabled/reduced-motion behavior.
+- Overlay placement should avoid covering the active/target Unit when practical, remain readable and clickable, and not cause the board to resize or jump. Multiple-choice and attack/defense phases must be handled without losing the current pending decision.
+
+### Secondary tools, still available
+
+- Move the bulky top/bottom controls into a **collapsible tools/sidebar area**, closed by default in normal play: Game Setup, scenario start/restart, Playtest/Designer navigation where appropriate, Board View selection, board legend, Objectives & Orders, Event History, optional decision commentary, display/animation/filter toggles, coordinates, Waypoints and developer/debug controls.
+- Preserve all existing functionality and discoverability; don't delete controls merely to make the screen cleaner. A compact menu/tool button remains visible. Ensure that opening tools does not silently reset or interrupt a game.
+- Objectives/Orders must remain quickly accessible even when collapsed, but need not consume permanent board width.
+- Avoid permanently showing verbose IDs, dice logs, full Activation Bag token lists or long rules text in the main play area.
+
+### Compact Unit Card ability text
+
+- **Keep current Unit Card interaction and structure** for now: active/hover switching, legal choice buttons, relevance filter, resource/usage indicators and stats.
+- Each Capability/Action may have a concise **short description** for permanent card display, and retain the existing **full description** available via tooltip plus a focus/click-accessible disclosure (not hover-only). A short description should explain what the ability *does*, not restate every exception. Full descriptions remain accurate and available.
+- Prefer **one source of presentation metadata** attached to the existing capability/action definitions or shared projections; do not hardcode a second competing dictionary in the web client. Reuse the full description already in the model where possible. If short text is absent, provide a sensible nonempty fallback (e.g. title plus an accessible full-description disclosure), rather than clipping rules text silently.
+- Short and long descriptions are **presentation**, never alternate rule definitions. Do not change legality, parameterization, effect timing or authoritative `CONSTRAINTS.md` to shorten card copy.
+- Ensure that tooltips and disclosure controls work for mouse, keyboard and touch. Keep the card legible at normal desktop width; a more ambitious card redesign is explicitly a **later iteration**.
+
+### Verification / acceptance
+
+1. On a typical desktop Playtest screen, the board is visibly larger and dominates the viewport; secondary panels are initially collapsed.
+2. The status strip shows accurate current activation and remaining bag count; full bag membership is accessible without exposing nonexistent future draw order.
+3. The active/hover Unit Card, existing legal Action buttons, relevance filtering and usage marks behave exactly as before.
+4. End Turn has a stable location and is disabled when not legal; no jumping control positions.
+5. Dice decisions and ambiguous choices can be completed via contextual board overlays; results are briefly visible and remain in history.
+6. Game Setup, Objectives/Orders, designer navigation, legend, settings and debugging remain accessible.
+7. Classic View, Enhanced 2D, autoplay/auto-choice, replay and event animations remain functional. Add relevant UI tests and inspect a real 8×8 Chess board plus a larger scenario at desktop and narrow widths.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.
