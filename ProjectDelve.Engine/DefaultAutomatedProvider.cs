@@ -87,7 +87,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
                 .Select(r => r.Position).ToHashSet();
             if (request.AllowsNone && diamonds.Contains(queries.PositionOf(unitId))) return null;
             var resourceMove = request.Candidates.Where(c => diamonds.Contains(c.Destination!))
-                .OrderBy(c => c.Path!.Count - 1)
+                .OrderBy(c => MovementRules.Cost(c.Path!))
                 .ThenBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
                 .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();
             if (resourceMove is not null) return resourceMove.Key;
@@ -101,7 +101,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
                 return NoCandidate(request);
             var escape = request.Candidates
                 .Where(c => !queries.HasNearbyHostileThreatFrom(unitId, c.Destination!))
-                .OrderBy(c => c.Path!.Count - 1)
+                .OrderBy(c => MovementRules.Cost(c.Path!))
                 .ThenBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
                 .FirstOrDefault();
             return escape?.Key ?? NoCandidate(request);
@@ -109,7 +109,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         if (behaviors.HasFlag(UnitBehavior.MaximizeAttackDistance))
         {
             var positions = request.Candidates.Select(c => (
-                Key: (string?)c.Key, Position: c.Destination!, MovementLength: c.Path!.Count - 1));
+                Key: (string?)c.Key, Position: c.Destination!, MovementLength: MovementRules.Cost(c.Path!)));
             if (request.AllowsNone)
                 positions = positions.Append((null, queries.PositionOf(unitId), 0));
 
@@ -147,7 +147,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             {
                 Candidate = c,
                 Distance = queries.DistanceToNearestHostileFrom(unitId, c.Destination!, closedDoorsTraversable),
-                MovementLength = c.Path!.Count - 1
+                MovementLength = MovementRules.Cost(c.Path!)
             })
             .Where(item => item.Distance > currentDistance)
             .OrderByDescending(item => item.Distance)

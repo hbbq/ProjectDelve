@@ -310,6 +310,29 @@ Royal Peasant and Goblin Peasant share MOV 1 / RNG 1 / ATK 2 / DEF 2 / HP 1 and 
 
 The four new portraits are opaque 1254 × 1254 RGB PNG originals, without profiles, EXIF orientation or animation. The established pipeline exports 512 × 512 sRGB WebPs using Lanczos and quality 85/method 6, without cropping or altering originals. All 65 sources were decoded and their SHA-256 hashes verified unchanged; all 63 direct exports and the two railway components are registered. The updated [catalog preview](assets/previews/artwork-pack-01.png) includes 50px circular tokens: faces and pawn/rook silhouettes remain readable. Catalog/error fallbacks and Classic token presentation remain available. Existing WebP bytes were retained after confirming identical decoded pixels on full re-export; the pipeline also regenerated railway SVGs. Contact-sheet review and DOM tests do not constitute browser approval; no browser surface was connected for actual-board QA.
 
+### Delve Chess — Phase 2: Bishops and Knights
+
+Select **Delve Chess — Phase 2: Bishops and Knights** (`delve-chess-phase-2`) for a compact 12 × 10 playtest with both courts' Peasants, Rooks, Bishops and Knights. Phase 1 remains available. Blue groups are human-controlled, Red groups automated; change controllers to compare play. A neutral Rogue opens Doors. Existing Objectives apply.
+
+Royal Bishop and Goblin Bishop share MOV 16 / RNG 1 / ATK 3 / DEF 4 / HP 1, Diagonal Corridor Movement and Advance On Kill. Each diagonal segment costs two ordinary orthogonal steps through either legal corner, using the existing top/left/right/bottom ordering when both work. Corners and intermediate diagonal Cells are transit; only the final destination resolves arrival. Ordinary Moves cannot turn or stop at corners. Advance On Kill can move orthogonally and change checkerboard color.
+
+Royal Knight and Hobby Knight share MOV 3 / RNG 1 / ATK 3 / DEF 4 / HP 1 and L-shaped Movement. Each ordinary Move allows one leap for 3 MOV, ignoring intermediate Cells and Edges while checking normal landing legality and arrival. Less than 3 MOV permits only Stay; extra MOV never chains leaps. Knights retain normal melee, including diagonal adjacency, and have no Advance On Kill or posture reaction. Both roles use default combat Behavior and can belong to either Side. Extra ordinary Moves reuse their patterns. Shared movement-cost calculation counts a leap as 3 MOV without inventing intermediate playback Cells; ordinary pathfinding and attack geometry remain unchanged.
+
+Manual playtest landmarks (zero-based coordinates):
+
+- The Bishop at `(1,1)` has open diagonals. Its southeast segment to `(2,2)` must use the lower corner; the next segment to `(3,3)` has both routes blocked. The enemy at `(0,1)` offers an orthogonal Advance On Kill.
+- The Bishop at `(10,2)` is trapped in a one-cell-wide straight lane. The Bishop at `(8,2)` faces a Window and Closed Door; the neutral Rogue at `(8,3)` can change the Door passage. An Open Door at `(7,3)` offers another corner route.
+- The Knight at `(4,7)` can leap across Walls, Water and neighboring Units. `(5,5)` and `(6,6)` are occupied landing choices to inspect; `(8,5)` is an impassable landing for the Hobby Knight at `(9,7)`. Landing at `(6,8)` hits a Banana Peel. A second Peel at `(7,4)` exercises Bishop arrival/transit restrictions.
+
+| Original under `assets/source/units/` | Canonical catalog key | Runtime under `wwwroot/art/units/` |
+| --- | --- | --- |
+| `royal-bishop.png` | `royal-bishop-type` | `royal-bishop.webp` |
+| `goblin-bishop.png` | `goblin-bishop-type` | `goblin-bishop.webp` |
+| `royal-knight.png` | `royal-knight-type` | `royal-knight.webp` |
+| `hobby-knight.png` | `hobby-knight-type` | `hobby-knight.webp` |
+
+These four supplied originals are opaque 1254 × 1254 RGB PNGs without profiles, EXIF orientation or animation. The existing pipeline exports uncropped 512 × 512 sRGB WebPs with Lanczos, quality 85/method 6. All 69 original SHA-256 hashes were verified unchanged; all 67 direct exports and two railway materials are registered, with no missing sources. Existing WebP bytes were retained after verifying identical decoded pixels on full re-export. The regenerated [catalog preview](assets/previews/artwork-pack-01.png) includes 50px circular crops: Bishop mitres and both Knight horse heads/riders remain recognizable. Artwork was not regenerated. Enhanced portrait/error fallbacks and Classic presentation remain covered by automated tests. No browser surface was connected for actual-board visual QA; preview inspection is not browser approval. Queen, King, the full chessboard and Knight Rear Up remain deferred.
+
 ### Level Designer V1
 
 Click **Designer** in the browser host to author the same `ScenarioDefinition` format visually. The browser retains a local draft, including temporarily invalid placements, and uses only generic grid editing and server-supplied Unit geometry. It does not evaluate Delve placement, terrain, Unique, HP, or agency legality. Reload discards the draft; export a DELVE1 string to keep it. Switching to Playtest and back retains it.

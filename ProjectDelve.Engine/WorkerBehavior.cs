@@ -25,7 +25,7 @@ internal static class WorkerBehavior
                     !queries.Resources.Any(r => r.Position == p.Key))
                 .SelectMany(p => queries.ResourceActionsFrom(unitId, p.Key, resource.Type)
                     .Where(a => a.Action == UnitAction.GiveResource)
-                    .Select(a => new Goal(p.Key, p.Value.Count - 1, a.MachineId ?? a.TargetId!)))
+                    .Select(a => new Goal(p.Key, MovementRules.Cost(p.Value), a.MachineId ?? a.TargetId!)))
                 .OrderBy(g => g.Distance).ThenBy(g => g.Position.Y).ThenBy(g => g.Position.X)
                 .ThenBy(g => g.Identity, StringComparer.Ordinal).ToList();
         }
@@ -41,9 +41,9 @@ internal static class WorkerBehavior
             if (goal.Distance == 0) return stay;
             return moves.Where(c => !preserveCargo || !queries.Resources.Any(r => r.Position == c.Destination))
                 .Select(c => new { Candidate = c, Remaining = queries.PlanningPathsFrom(unitId, c.Destination!)
-                    .GetValueOrDefault(goal.Position)?.Count - 1 })
+                    .GetValueOrDefault(goal.Position) is { } path ? MovementRules.Cost(path) : (int?)null })
                 .Where(p => p.Remaining.HasValue && p.Remaining < goal.Distance)
-                .OrderBy(p => p.Remaining).ThenBy(p => p.Candidate.Path!.Count)
+                .OrderBy(p => p.Remaining).ThenBy(p => MovementRules.Cost(p.Candidate.Path!))
                 .ThenBy(p => p.Candidate.Destination!.Y).ThenBy(p => p.Candidate.Destination!.X)
                 .ThenBy(p => p.Candidate.Key, StringComparer.Ordinal).FirstOrDefault()?.Candidate.Key ?? stay;
         }
@@ -65,7 +65,7 @@ internal static class WorkerBehavior
         {
             var resourceGoal = queries.Resources.Where(r => r.Position != current && paths.ContainsKey(r.Position))
                 .Where(r => DeliveryGoals(r, r.Position).Count > 0)
-                .Select(r => new Goal(r.Position, paths[r.Position].Count - 1, r.Type.Id))
+                .Select(r => new Goal(r.Position, MovementRules.Cost(paths[r.Position]), r.Type.Id))
                 .OrderBy(g => g.Distance).ThenBy(g => g.Position.Y).ThenBy(g => g.Position.X)
                 .ThenBy(g => g.Identity, StringComparer.Ordinal).FirstOrDefault();
             if (resourceGoal is not null) return Approach(resourceGoal, preserveCargo: false) ?? Fallback();
@@ -75,7 +75,7 @@ internal static class WorkerBehavior
                 queries.ResourceActionsFrom(unitId, p.Key,
                     queries.Resources.SingleOrDefault(r => r.Position == p.Key)?.Type ?? (transport ? cargo?.Type : null))
                 .Where(a => a.Action == UnitAction.Operate)
-                .Select(a => new Goal(p.Key, p.Value.Count - 1, a.MachineId!)))
+                .Select(a => new Goal(p.Key, MovementRules.Cost(p.Value), a.MachineId!)))
                 .OrderBy(g => g.Distance).ThenBy(g => g.Position.Y).ThenBy(g => g.Position.X)
                 .ThenBy(g => g.Identity, StringComparer.Ordinal).FirstOrDefault();
             if (machineGoal is not null) return Approach(machineGoal, preserveCargo: false) ?? Fallback();

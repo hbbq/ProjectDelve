@@ -29,7 +29,8 @@ test("artwork catalog resolves registered local files while other content retain
   const run = catalog();
   const names = ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
     "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive",
-    "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll"];
+    "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
+    "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight"];
   const expected = names.map(name => `./art/units/${name}.webp`);
   const portraits = JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => boardVisuals.unit[name + "-type"].image))`));
   assert.deepEqual(portraits, expected);

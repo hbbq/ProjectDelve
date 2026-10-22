@@ -20,7 +20,13 @@ internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = f
 
 internal static class MovementRules
 {
-    // Paths include the origin, so movement distance is path.Count - 1.
+    // Ordinary paths contain cardinal steps; a leap contains only its endpoints.
+    // Sum the nominal distance rather than treating every recorded hop as MOV 1.
+    internal static int Cost(IReadOnlyList<Cell> path) => path.Zip(path.Skip(1),
+        (a, b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y)).Sum();
+
+    // Paths include the origin and actual transit Cells. A leap records only
+    // origin and landing; its nominal cost is their Manhattan distance (3).
     // Only valid stopping cells are returned, including the origin at distance 0.
     // null searches the current board without an activation's MOV limit.
     // Planning may ignore Cell Markers; paths from that analysis are not legal Move paths.
@@ -31,7 +37,8 @@ internal static class MovementRules
         HypotheticalPosition.Validate(state, moverId, from);
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
-        var straight = !ignoreMovementPattern && state.Types.Single(t => t.Id == unit.TypeId).MovementPattern == MovementPattern.StraightOrthogonal;
+        var pattern = ignoreMovementPattern ? null : state.Types.Single(t => t.Id == unit.TypeId).MovementPattern;
+        var straight = pattern == MovementPattern.StraightOrthogonal;
         var traversal = MovementTraversal.For(state, moverId);
         var footprint = FootprintGeometry.FootprintOf(state, moverId);
         // Relocate only the mover: its entire original footprint is now unoccupied.
@@ -39,26 +46,62 @@ internal static class MovementRules
             .SelectMany(f => FootprintGeometry.OccupiedCells(state, f.Id).Select(c => (Cell: c, Figure: f)))
             .ToDictionary(p => p.Cell, p => p.Figure);
         var paths = new Dictionary<Cell, List<Cell>> { [from] = [from] };
-        var queue = new Queue<Cell>();
-        queue.Enqueue(from);
-        while (queue.Count > 0)
+        bool CanEnter(Cell current, Cell to) => CanStep(state.Physical.Board, footprint, current, to, traversal) &&
+            FootprintGeometry.OccupiedCells(footprint, to).All(c => !occupants.TryGetValue(c, out var occupant) ||
+                state.Units.Single(u => u.Id == occupant.Id).SideId == unit.SideId);
+        bool CanTransit(Cell cell) => ignoreCellMarkers || !CellMarkerRules.ContainsBananaPeel(state, footprint, cell);
+
+        if (pattern == MovementPattern.LShape)
         {
-            var current = queue.Dequeue();
-            if (paths[current].Count - 1 == maxSteps ||
-                !ignoreCellMarkers && current != from && CellMarkerRules.ContainsBananaPeel(state, footprint, current)) continue;
-            foreach (var to in Neighbors(current)) // top, left, right, bottom
+            if (maxSteps is null or >= 3)
+                foreach (var dx in new[] { -2, -1, 1, 2 })
+                foreach (var dy in new[] { -2, -1, 1, 2 })
+                {
+                    var landing = new Cell(from.X + dx, from.Y + dy);
+                    if (Math.Abs(dx) + Math.Abs(dy) == 3 &&
+                        SpatialRules.Fits(state.Physical.Board, footprint, landing, traversal))
+                        paths[landing] = [from, landing];
+                }
+        }
+        else if (pattern == MovementPattern.DiagonalCorridor)
+        {
+            foreach (var dx in new[] { -1, 1 })
+            foreach (var dy in new[] { -1, 1 })
             {
-                // Restrict the path itself: filtering BFS endpoints would allow detours.
-                if (straight && current != from &&
-                    (to.X - current.X != Math.Sign(current.X - from.X) ||
-                     to.Y - current.Y != Math.Sign(current.Y - from.Y))) continue;
-                if (paths.ContainsKey(to) || !CanStep(state.Physical.Board, footprint, current, to, traversal))
-                    continue;
-                if (FootprintGeometry.OccupiedCells(footprint, to).Any(c => occupants.TryGetValue(c, out var occupant) &&
-                    state.Units.Single(u => u.Id == occupant.Id).SideId != unit.SideId))
-                    continue;
-                paths[to] = [.. paths[current], to];
-                queue.Enqueue(to);
+                var current = from;
+                for (var cost = 2; maxSteps is null || cost <= maxSteps; cost += 2)
+                {
+                    if (current != from && !CanTransit(current)) break;
+                    var next = new Cell(current.X + dx, current.Y + dy);
+                    // Same top/left/right/bottom ordering as ordinary BFS. The
+                    // choice is local to a segment; corners are never arrivals.
+                    var corner = Neighbors(current).Where(c => c == new Cell(next.X, current.Y) || c == new Cell(current.X, next.Y))
+                        .Where(c => CanEnter(current, c) && CanTransit(c) && CanEnter(c, next))
+                        .Select(c => (Cell?)c).FirstOrDefault();
+                    if (corner is null) break;
+                    paths[next] = [.. paths[current], corner, next];
+                    current = next;
+                }
+            }
+        }
+        else
+        {
+            var queue = new Queue<Cell>();
+            queue.Enqueue(from);
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if (paths[current].Count - 1 == maxSteps || current != from && !CanTransit(current)) continue;
+                foreach (var to in Neighbors(current)) // top, left, right, bottom
+                {
+                    // Restrict the path itself: filtering BFS endpoints would allow detours.
+                    if (straight && current != from &&
+                        (to.X - current.X != Math.Sign(current.X - from.X) ||
+                         to.Y - current.Y != Math.Sign(current.Y - from.Y))) continue;
+                    if (paths.ContainsKey(to) || !CanEnter(current, to)) continue;
+                    paths[to] = [.. paths[current], to];
+                    queue.Enqueue(to);
+                }
             }
         }
 

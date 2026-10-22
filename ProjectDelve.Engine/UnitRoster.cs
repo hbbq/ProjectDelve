@@ -18,6 +18,22 @@ namespace ProjectDelve.Engine;
 
 public static class UnitRoster
 {
+    public static UnitType RoyalBishop(string id = UnitTypeIds.RoyalBishop) => UnitType.Define(id,
+        "Royal Bishop", Stats(16, 1, 3, 4, 1), DiagonalCorridor(), AdvanceOnKill()
+    );
+
+    public static UnitType GoblinBishop(string id = UnitTypeIds.GoblinBishop) => UnitType.Define(id,
+        "Goblin Bishop", Stats(16, 1, 3, 4, 1), DiagonalCorridor(), AdvanceOnKill()
+    );
+
+    public static UnitType RoyalKnight(string id = UnitTypeIds.RoyalKnight) => UnitType.Define(id,
+        "Royal Knight", Stats(3, 1, 3, 4, 1), LShape()
+    );
+
+    public static UnitType HobbyKnight(string id = UnitTypeIds.HobbyKnight) => UnitType.Define(id,
+        "Hobby Knight", Stats(3, 1, 3, 4, 1), LShape()
+    );
+
     public static UnitType RoyalPeasant(string id = UnitTypeIds.RoyalPeasant) => UnitType.Define(id,
         "Royal Peasant", Stats(1, 1, 2, 2, 1)
     ).WithBehaviors(UnitBehavior.PreferLowestEffectiveDefense);

@@ -77,7 +77,7 @@ public static class RouteRules
         var next = Next(route, definition);
         var lookahead = queries.BehaviorsOf(id).HasFlag(UnitBehavior.RouteLookahead) && next is not null;
         var options = request.Candidates.Where(c => request.Kind == DecisionKind.Move || c.Kind == ActivationChoiceKind.Move)
-            .Select(c => (Key: (string?)c.Key, Position: c.Destination!, Length: c.Path!.Count - 1));
+            .Select(c => (Key: (string?)c.Key, Position: c.Destination!, Length: MovementRules.Cost(c.Path!)));
         var stay = request.Candidates.FirstOrDefault(c => c.Kind == ActivationChoiceKind.Stay)?.Key;
         if (stay is not null || request.AllowsNone)
             options = options.Append((stay, queries.PositionOf(id), 0));

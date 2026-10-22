@@ -164,7 +164,10 @@ public sealed class MonsterMovementTests
 
     private static Candidate Choice(Cell destination, int steps) =>
         new($"{destination.X},{destination.Y}", destination,
-            Enumerable.Repeat(new Cell(0, 0), steps).Append(destination).ToList());
+            // Use real cardinal steps so recorded path length and nominal MOV
+            // agree. Repeated placeholder Cells followed by a jump do not model
+            // the ordinary movement whose ranking this fixture tests.
+            Enumerable.Range(0, steps + 1).Select(i => new Cell(destination.X - steps + i, destination.Y)).ToList());
 
     [Theory]
     [InlineData(3, true)] // Staying has a shorter remaining distance than every move.

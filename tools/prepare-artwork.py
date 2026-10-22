@@ -27,7 +27,8 @@ ASSETS = [
                    "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
                    "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
                    "labyrinth-shaper", "red-dragon", "locomotive",
-                   "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll")],
+                   "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
+                   "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
       for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)

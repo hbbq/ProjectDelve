@@ -65,10 +65,16 @@ public sealed class DesignerApiTests
     [InlineData("asphalt")]
     [InlineData("machines")]
     [InlineData("route")]
+    [InlineData("chess-phase2")]
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
+        var definition = id == "chess-phase2" ? Scenario.Define(Scenario.Map(6, 6),
+            [Scenario.Group(UnitTypeIds.RoyalBishop, "red", ControllerKind.Human, Scenario.At(0, 0)),
+             Scenario.Group(UnitTypeIds.GoblinBishop, "blue", ControllerKind.Automated, Scenario.At(5, 5)),
+             Scenario.Group(UnitTypeIds.RoyalKnight, "red", ControllerKind.Human, Scenario.At(1, 0)),
+             Scenario.Group(UnitTypeIds.HobbyKnight, "blue", ControllerKind.Automated, Scenario.At(4, 5))]) :
+            id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
         if (id == "route") definition = definition with { Orders = [new(definition.Agency[0].UnitTypeId,
             definition.Agency[0].SideId, OrderKind.FollowRoute,
             Route: new("test-route", 1, -1))],

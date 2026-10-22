@@ -3,7 +3,7 @@ using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
 
-public sealed class DelveChessTests
+public sealed partial class DelveChessTests
 {
     private sealed class Dice(bool hit = true) : IRandomProvider
     {
@@ -434,6 +434,8 @@ public sealed class DelveChessTests
     [Theory]
     [InlineData(UnitTypeIds.RoyalPeasant, UnitTypeIds.GoblinPeasant)]
     [InlineData(UnitTypeIds.CastleGuard, UnitTypeIds.TowerTroll)]
+    [InlineData(UnitTypeIds.RoyalBishop, UnitTypeIds.GoblinBishop)]
+    [InlineData(UnitTypeIds.RoyalKnight, UnitTypeIds.HobbyKnight)]
     public void CounterpartsMatchAndWorkOnArbitrarySidesAndRoundTrip(string a, string b)
     {
         var first = CanonicalUnitTypes.Find(a)!;

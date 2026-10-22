@@ -243,7 +243,7 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
                 (request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move) &&
                 queries.CanAttackAnyFrom(request.UnitId!, candidate.Destination!, targetIds))
             .OrderByDescending(candidate => HostileAdjacency(request, queries, candidate.Destination!))
-            .ThenBy(candidate => candidate.Path!.Count - 1)
+            .ThenBy(candidate => MovementRules.Cost(candidate.Path!))
             .ThenBy(candidate => candidate.Destination!.Y).ThenBy(candidate => candidate.Destination!.X)
             .ThenBy(candidate => candidate.Key, StringComparer.Ordinal).FirstOrDefault();
         if (immediatelyAttackable is not null) return immediatelyAttackable.Key;
@@ -256,7 +256,7 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
     private static IOrderedEnumerable<RankedMove> RankedMoves(DecisionRequest request, IGameplayQueries queries,
         Func<Candidate, int?> remaining) =>
         request.Candidates.Where(candidate => request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move)
-            .Select(candidate => new RankedMove(candidate, remaining(candidate), candidate.Path!.Count - 1))
+            .Select(candidate => new RankedMove(candidate, remaining(candidate), MovementRules.Cost(candidate.Path!)))
             .OrderBy(item => item.Remaining)
             .ThenByDescending(item => HostileAdjacency(request, queries, item.Candidate.Destination!))
             .ThenBy(item => item.Length)
@@ -290,7 +290,7 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
             {
                 Candidate = candidate,
                 Remaining = queries.RouteDistanceTo(request.UnitId!, candidate.Destination!, destination, closedDoors),
-                Length = candidate.Path!.Count - 1,
+                Length = MovementRules.Cost(candidate.Path!),
                 Safety = flee
                     ? queries.DistanceToNearestHostileFrom(request.UnitId!, candidate.Destination!, closedDoors) : null,
                 Adjacency = adjacency
@@ -323,7 +323,7 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
     {
         foreach (var candidate in request.Candidates.Where(candidate =>
                      request.Kind == DecisionKind.Move || candidate.Kind == ActivationChoiceKind.Move))
-            yield return new(candidate, candidate.Key, candidate.Destination!, candidate.Path!.Count - 1);
+            yield return new(candidate, candidate.Key, candidate.Destination!, MovementRules.Cost(candidate.Path!));
         if (request.Kind == DecisionKind.Activation && StayChoice(request) is { } stay)
             yield return new(null, stay, queries.PositionOf(request.UnitId!), 0);
         else if (request.Kind == DecisionKind.Move && request.AllowsNone)

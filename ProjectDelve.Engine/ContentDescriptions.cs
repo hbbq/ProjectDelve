@@ -16,6 +16,12 @@ public static class ContentDescriptions
     {
         List<CardEntryDescription> entries = [];
         var names = type.AbilityNames;
+        if (type.MovementPattern == MovementPattern.DiagonalCorridor)
+            entries.Add(new("diagonal-corridor", "Diagonal Corridor Movement", "Capability",
+                "Each ordinary Move may Stay or travel along one straight diagonal. Each diagonal segment costs 2 MOV and uses two legal orthogonal steps through either corner. No stopping at corners or passing through Banana Peels. Only the final Cell resolves arrival effects."));
+        if (type.MovementPattern == MovementPattern.LShape)
+            entries.Add(new("l-shape", "L-shaped Movement", "Capability",
+                "Each ordinary Move may Stay or leap two Cells along one axis and one along the other, for 3 MOV. Ignore intermediate Cells and Edges. The landing Cell must be legal; normal arrival effects apply. Extra MOV does not allow another leap within that Move."));
         if (type.MovementPattern == MovementPattern.StraightOrthogonal)
             entries.Add(new("straight-orthogonal", "Straight Orthogonal Movement", "Capability",
                 "Each ordinary Move may Stay or follow one uninterrupted cardinal direction up to MOV. All ordinary passage restrictions apply."));

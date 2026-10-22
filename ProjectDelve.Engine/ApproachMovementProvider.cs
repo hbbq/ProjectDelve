@@ -25,7 +25,7 @@ public sealed class ApproachMovementProvider(IDecisionProvider otherDecisions) :
         var attackDestination = request.Candidates
             .Where(c => queries.CanAttackHostileFrom(unitId, c.Destination!))
             .OrderByDescending(c => HostileAdjacency(c.Destination!))
-            .ThenBy(c => c.Path!.Count - 1)
+            .ThenBy(c => MovementRules.Cost(c.Path!))
             .ThenBy(c => c.Destination!.Y)
             .ThenBy(c => c.Destination!.X)
             .FirstOrDefault();
@@ -39,7 +39,7 @@ public sealed class ApproachMovementProvider(IDecisionProvider otherDecisions) :
             .Select(c => (
                 Key: (string?)c.Key,
                 Position: c.Destination!,
-                MovementLength: c.Path!.Count - 1,
+                MovementLength: MovementRules.Cost(c.Path!),
                 RemainingDistance: queries.DistanceToAttackPositionFrom(unitId, c.Destination!, closedDoorsTraversable)));
         if (request.AllowsNone)
             approachOptions = approachOptions.Append((null, current, 0,

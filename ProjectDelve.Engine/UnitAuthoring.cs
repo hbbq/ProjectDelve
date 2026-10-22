@@ -67,11 +67,13 @@ public static class UnitAuthoring
         internal override UnitType Apply(UnitType type) => type with { WaypointSlotMachine = new() };
     }
     public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
-    public static Entry StraightOrthogonal() => new PatternEntry();
+    public static Entry StraightOrthogonal() => new PatternEntry(MovementPattern.StraightOrthogonal);
+    public static Entry DiagonalCorridor() => new PatternEntry(MovementPattern.DiagonalCorridor);
+    public static Entry LShape() => new PatternEntry(MovementPattern.LShape);
     public static Entry AdvanceOnKill() => new AdvanceEntry();
-    private sealed class PatternEntry : Entry
+    private sealed class PatternEntry(MovementPattern pattern) : Entry
     {
-        internal override UnitType Apply(UnitType type) => type with { MovementPattern = global::ProjectDelve.Engine.MovementPattern.StraightOrthogonal };
+        internal override UnitType Apply(UnitType type) => type with { MovementPattern = pattern };
     }
     private sealed class AdvanceEntry : Entry
     {
