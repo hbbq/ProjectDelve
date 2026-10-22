@@ -200,6 +200,41 @@ This initial visual iteration supersedes the earlier instruction to retain the c
 - Use the existing restrained fantasy tabletop palette, clear hierarchy, subtle separators, consistent small labels and comfortable compact spacing. Favor a maintainable first iteration over a new theme or elaborate effects.
 - Verify portraits/fallbacks, enlargement/dismissal, disclosures and short/full text, unavailable abilities, legal buttons/usage, effective stats, hover switching, debug access, stable controls/board sizing and responsive behavior. Run relevant JavaScript/.NET tests and solution build. When browser QA is available, inspect Wizard, Diamond Kart or Chief Mechanic, and Peasant at desktop and narrow widths; otherwise report the limitation.
 
+## Playtest UI — Tools organization and shared tooltips
+
+This is the **first of two separate UI iterations**. Implement menu organization and reusable tooltip behavior first; board-choice highlights and attack-target graphics are a later iteration. These are presentation changes only.
+
+### Shared tooltip behavior
+
+- Use a common, accessible tooltip/popover presentation for informative controls in Playtest, Tools and Unit Cards. Do not create unrelated per-control tooltip implementations.
+- Hover and keyboard focus can reveal concise contextual explanations with a small delay to avoid flicker. Support touch with an explicit info/disclosure control where needed. Keep tooltips within the viewport and avoid intercepting clicks on their targets.
+- Tooltips should not duplicate self-explanatory labels such as Refresh. Use them for actual additional information, including ability details and what controls do. Reuse existing short/full ability description metadata; do not duplicate game rules in client-side strings.
+- Design the component for later use on board cells, where feedback about the **actual pending decision** should appear promptly. Do not implement the new board-choice semantics or visual marks in this iteration.
+- Preserve the existing full-description disclosures and portrait viewer; shared tooltip work must not break them.
+
+### Tools panel structure
+
+Keep all existing Tools functionality but group it clearly, using collapsible sections:
+
+- **Game**: scenario selection, controller assignments per Side and Unit Type, Start selected, Restart current, DELVE1 import.
+- **Display**: board view, fit to viewport, coordinates, waypoints, animation settings.
+- **Gameplay**: Objectives & Orders, choice filtering, auto-choose single relevant choice, round/effect controls where applicable.
+- **Developer**: Event History, Unit debug information, optional decision comments, Board legend and other diagnostics.
+
+Retain Playtest/Designer navigation prominently near the top. Default the Game section open when Tools is opened; other sections may start collapsed. Maintain clear spacing and headings rather than a long unstructured column. Preserve all control semantics and accessibility, including controller selections, DELVE1 import and debug features.
+
+After **successful** Start selected or Restart current, close the Tools panel automatically and return attention to gameplay. On failure, leave it open and show the error. Do not change scenario start/restart semantics or close the panel prematurely.
+
+### Default board view
+
+- **Enhanced 2D View** is the default when there is no previously explicit view selection.
+- Preserve an explicit Classic View choice during the session, including across scenario start/restart. Classic View remains fully supported.
+- Do not change scenario data or gameplay state to implement this preference.
+
+### Verification
+
+Test Tools grouping and keyboard accessibility, all existing controls, successful versus failed Start/Restart closing, controller assignment and import, shared tooltip hover/focus/touch and viewport placement, Enhanced 2D default, Classic selection persistence, and preservation of board dimensions and Unit Card behavior. Inspect desktop and narrow viewports when browser QA is available.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.
