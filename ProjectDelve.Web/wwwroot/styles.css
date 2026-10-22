@@ -178,8 +178,6 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .scenario-info { position: relative; display: inline-flex; }
 .info-button { display: grid; place-items: center; border-radius: 50%; width: 26px; height: 26px; padding: 0; font-family: Georgia, serif; font-weight: bold; }
-#scenario-description { display: none; position: absolute; left: 0; top: calc(100% + 8px); z-index: 10; width: min(330px, 65vw); padding: 12px; border: 1px solid #7c91af; border-radius: 6px; background: #222d3f; color: #e9edf4; box-shadow: 0 6px 18px #0008; font-size: .85rem; line-height: 1.45; }
-.scenario-info:hover #scenario-description, .scenario-info:focus-within #scenario-description { display: block; }
 .board-legend { margin: 12px 0; font-size: .8rem; }
 #attack-context:empty { display: none; }
 #effect:empty { display: none; }
@@ -338,3 +336,27 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
   .ability-heading { padding-right: 44px; min-height: 28px; }
 }
 @media (max-width: 760px) { #dice.combat-dice { max-height: 25dvh; } }
+
+/* Fixed outside clipping panels; the explained control always receives input. */
+.shared-tooltip { position: fixed; z-index: 100; pointer-events: none;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 16px)); max-height: calc(100dvh - 16px);
+  overflow: hidden; padding: 10px 12px; border: 1px solid #9d8660;
+  border-radius: 6px; background: #222631; color: #eee5d4;
+  box-shadow: 0 6px 18px #0008; font-size: .85rem; line-height: 1.45;
+  white-space: pre-line; overflow-wrap: anywhere; }
+.tools-section { padding: 10px; border: 1px solid #8b785766; border-radius: 6px; }
+.tools-section > summary { color: #e0cca4; font-weight: 650; cursor: pointer; }
+.tools-section[open] > summary { margin-bottom: 12px; }
+.tools-section .toolbar + .toolbar { margin-top: 12px; }
+.tools-section select, .tools-section textarea { max-width: 100%; min-width: 0; }
+.tools-section label { max-width: 100%; }
+.tools-content > .mode-switch { margin-top: 0; }
+.tools-content summary:focus-visible, .bag-disclosure summary:focus-visible {
+  outline: 2px solid #ffe084; outline-offset: 2px; }
+.scenario-info { flex-wrap: wrap; }
+.scenario-info > summary { list-style: none; cursor: pointer; border: 1px solid #7c91af; }
+.scenario-info > summary::-webkit-details-marker { display: none; }
+.scenario-info[open] { flex-basis: 100%; }
+.scenario-info > p, .setting-help > p { width: 100%; font-size: .85rem; line-height: 1.45; }
+@media (pointer: coarse) { .info-button { width: 44px; height: 44px; } }

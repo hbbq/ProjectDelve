@@ -1,8 +1,22 @@
+import { bindTooltip, initializeTooltips } from "./tooltips.js";
 import { styleSide, applySideHues } from "./side-colors.js";
 import { applyBoardVisual } from "./board-visuals.js";
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
+initializeTooltips();
+const toolsPanel = document.getElementById("playtest-tools");
+toolsPanel.addEventListener("toggle", () => {
+  if (toolsPanel.open) ui["game-setup"].open = true;
+});
+async function startFromTools(operation, body) {
+  const succeeded = await replaceScenario(operation, body, true);
+  if (succeeded) {
+    toolsPanel.open = false;
+    document.getElementById("tools-toggle").focus();
+  }
+  return succeeded;
+}
 const boardView = document.getElementById("board-view");
 for (const id of ["end-turn", "start-round", "bag-count", "decision-panel", "board-overlays", "move-overlay", "board-hint"]) ui[id] = document.getElementById(id);
 const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -37,6 +51,7 @@ function updateBoardView() {
   ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
 }
 boardView.addEventListener("change", updateBoardView);
+if (!boardView.value) boardView.value = "enhanced";
 updateBoardView();
 const fitBoard = document.getElementById("fit-board");
 function updateBoardFit() { ui.board.classList.toggle("fit-board", fitBoard.checked); }
@@ -501,10 +516,10 @@ function renderUnitCard() {
     const ability = entry.content;
     const heading = text("div", ""); heading.className = "ability-heading";
     const name = text("strong", ability.name);
-    name.title = ability.description || ability.name;
+    bindTooltip(name, () => ability.description || ability.name);
     if (ability.useLimitText != null) {
       const limit = text("span", ` [${ability.useLimitText}]`); limit.className = "sr-only";
-      name.append(limit); name.title = `${ability.name} [${ability.useLimitText}]`;
+      name.append(limit);
     }
     heading.append(name); heading.append(text("small", ability.category));
     if (entry.uses) heading.append(useMarkers(entry.uses));
@@ -532,11 +547,11 @@ function abilityDescription(ability) {
   const description = text("div", ""); description.className = "ability-description";
   const short = text("p", ability.shortDescription ?? ability.description ?? ability.name);
   short.hidden = short.textContent === "";
-  short.title = ability.description || ability.name;
+  bindTooltip(short, () => ability.description || ability.name);
   description.append(short);
   const full = text("details", "");
   const summary = text("summary", "");
-  summary.title = ability.description || ability.name;
+  bindTooltip(summary, () => ability.description || ability.name);
   summary.append(text("span", `Full description: ${ability.name}`));
   summary.children[0].className = "sr-only";
   full.append(summary);
@@ -572,7 +587,7 @@ function unitPortrait(typeId, name) {
 
 function useMarkers(uses) {
   const label = `${uses.remainingUses} / ${uses.maxUses} uses`;
-  const markers = text("span", ""); markers.className = "use-markers"; markers.title = label;
+  const markers = text("span", ""); markers.className = "use-markers"; bindTooltip(markers, () => label);
   const accessible = text("span", label); accessible.className = "sr-only"; markers.append(accessible);
   for (let index = 0; index < uses.maxUses; index++) {
     const circle = text("span", "");
@@ -1437,8 +1452,8 @@ function updateCoordinates() {
 }
 
 ui.scenario.addEventListener("change", () => { describeScenario(); renderControllerSetup(true); });
-ui["start-scenario"].addEventListener("click", () => replaceScenario("scenario", { scenarioId: ui.scenario.value, ...setupControllers() }));
-ui["restart-scenario"].addEventListener("click", () => replaceScenario("restart", controllerSetupScenario === snapshot?.scenarioId ? setupControllers() : {}));
+ui["start-scenario"].addEventListener("click", () => startFromTools("scenario", { scenarioId: ui.scenario.value, ...setupControllers() }));
+ui["restart-scenario"].addEventListener("click", () => startFromTools("restart", controllerSetupScenario === snapshot?.scenarioId ? setupControllers() : {}));
 ui["import-scenario"].addEventListener("click", () => replaceScenario("scenario/import", { transport: ui["scenario-transport"].value.trim() }));
 ui["controller-retry"].addEventListener("click", () => mutate("controller/retry"));
 ui["controller-cancel"].addEventListener("click", () => mutate("controller/cancel"));

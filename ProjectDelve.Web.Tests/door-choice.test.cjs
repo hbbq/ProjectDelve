@@ -78,6 +78,7 @@ class Element {
   }
   set textContent(value) { this.replaceChildren(); this.content = value; }
   get textContent() { return [this.content ?? "", ...this.children.map(child => child.textContent)].join(" "); }
+  getAttribute(name) { return this.attributes[name] ?? null; }
   setAttribute(name, value) { this.attributes[name] = value; }
   removeAttribute(name) { delete this.attributes[name]; }
   getBoundingClientRect() { this.layoutReads = (this.layoutReads ?? 0) + 1; return {}; }
@@ -126,6 +127,9 @@ function response(candidates = [], entries = []) {
 function harness(initial, fetchImpl, extras = {}) {
   const elements = new Map(), submitted = [];
   const document = {
+    body: new Element(),
+    querySelectorAll() { return []; },
+    addEventListener() {},
     getElementById(id) {
       const find = node => node.id === id ? node : node.children.map(find).find(Boolean);
       for (const root of elements.values()) { const found = find(root); if (found) return found; }
@@ -138,6 +142,7 @@ function harness(initial, fetchImpl, extras = {}) {
     fetch: fetchImpl ?? (async () => ({ ok: true, json: async () => initial })), ...extras });
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
   vm.runInContext("snapshot = initial; renderSnapshot();", context);
   return { elements, submitted, run: code => vm.runInContext(code, context), context,
@@ -782,7 +787,7 @@ test("scenario change interrupts playback and uses the completed request revisio
   h.run(`present = async () => {
     if (ui["start-scenario"].disabled) throw new Error("Scenario must remain available during playback");
     ui.scenario.value = "chosen-setup";
-    await ui["start-scenario"].listeners.click();
+    void ui["start-scenario"].listeners.click();
   };`);
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.deepEqual(requests.map(r => r.url), ["/api/game/decision", "/api/game/scenario"]);
@@ -802,9 +807,9 @@ test("scenario restart waits for an in-flight request without submitting its sta
     return { ok: true, json: async () => requests.length === 1 ? resolved : fresh };
   });
   const pending = h.run('mutate("decision", { candidateKey: "opaque" })');
-  await h.elements.get("restart-scenario").listeners.click();
+  const restarting = h.elements.get("restart-scenario").listeners.click();
   assert.equal(requests.length, 1);
-  release(); await pending;
+  release(); await pending; await restarting;
   assert.deepEqual(requests[1], { url: "/api/game/restart", body: { expectedRevision: 9 } });
   assert.equal(h.run("snapshot.revision"), 10);
 });
@@ -1108,7 +1113,7 @@ test("compact use circles present supplied remaining and maximum counts accessib
   const card = h.elements.get("unit-card");
   const markers = card.querySelectorAll(".use-markers");
   assert.equal(markers.length, 1);
-  assert.equal(markers[0].title, "2 / 4 uses");
+  assert.equal(markers[0].dataset.tooltip, "2 / 4 uses");
   assert.match(markers[0].textContent, /2 \/ 4 uses/);
   const circles = markers[0].querySelectorAll(".use-circle");
   assert.equal(circles.length, 4);
@@ -1125,7 +1130,7 @@ test("board-first layout reserves status, card and End Turn while tools start cl
   assert.match(html, /class="board-stage">[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
   assert.match(html, /class="card-column"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
   assert.match(html, /class="play-status"[\s\S]*id="status"[\s\S]*id="active-token"[\s\S]*id="bag-count"/);
-  assert.match(html, /id="scenario-description" role="tooltip"/);
+  assert.match(html, /data-tooltip-source="scenario-description"/);
   const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
   assert.match(css, /100dvh - 126px/);
   assert.match(css, /@media \(max-width: 760px\)/);
@@ -2655,7 +2660,7 @@ test("short descriptions retain full content through tooltip and native disclosu
   const h = harness(response([], [printed, entry("fallback", "Fallback", "Action", "Fallback full text")]));
   const descriptions = h.elements.get("unit-card").querySelectorAll(".ability-description");
   assert.equal(descriptions[0].children[0].textContent, "Concise supplied wording.");
-  assert.equal(descriptions[0].children[0].title, printed.content.description);
+  assert.equal(descriptions[0].children[0].dataset.tooltip, printed.content.description);
   assert.equal(descriptions[0].children[1].tagName, "details");
   assert.equal(descriptions[0].children[1].children[0].tagName, "summary");
   assert.equal(descriptions[0].children[1].children[1].textContent, printed.content.description);
@@ -2987,7 +2992,7 @@ test("all abilities and usage marks remain visible while only supplied Direct ch
     const details = description.children[1], summary = details.children[0];
     assert.equal(details.tagName, "details"); assert.equal(summary.tagName, "summary");
     assert.equal(summary.children[0].className, "sr-only");
-    assert.equal(summary.title, supplied.content.description);
+    assert.equal(summary.dataset.tooltip, supplied.content.description);
     assert.equal(details.children[1].textContent, supplied.content.description);
     assert.equal(buttons(details).length, 0); // Native keyboard/touch disclosure has no decision listener.
     assert.equal(summary.listeners.click, undefined);
@@ -3020,4 +3025,59 @@ test("card identity preserves effective stats, changing posture, nonstandard foo
   assert.match(css, /@media \(max-width: 760px\) \{\s*\.card-identity \{[^}]*96px/);
   assert.match(css, /@media \(pointer: coarse\)[\s\S]*summary \{ width: 44px; height: 44px/);
   assert.match(css, /summary:focus-visible/);
+});
+
+for (const operation of ["start-scenario", "restart-scenario"]) {
+  for (const success of [true, false]) test(`${operation} closes Tools only after success (${success}) and preserves Classic`, async () => {
+    const initial = response();
+    let release;
+    const h = harness(initial, async (url) => {
+      if (url === "/api/game") return { ok: true, json: async () => initial };
+      await new Promise(resolve => { release = resolve; });
+      return { ok: success, status: 400, json: async () => success ? response() : { detail: "Test replacement rejected" } };
+    });
+    h.run('ui.animate.checked = false');
+    const tools = h.elements.get("playtest-tools"); tools.open = true;
+    const view = h.elements.get("board-view"); view.value = "classic"; view.listeners.change();
+    const pending = h.elements.get(operation).listeners.click();
+    assert.equal(tools.open, true);
+    release(); await pending;
+    assert.equal(tools.open, !success);
+    assert.equal(view.value, "classic"); assert.equal(h.elements.get("board").dataset.view, "classic");
+    if (success) assert.equal(h.elements.get("tools-toggle").focused, true);
+    else assert.match(h.elements.get("error").textContent, /Test replacement rejected/);
+  });
+}
+
+test("Enhanced view defaults once, Tools reopening expands Game without resetting other sections", () => {
+  const h = harness(response());
+  assert.equal(h.elements.get("board-view").value, "enhanced");
+  assert.equal(h.elements.get("board").dataset.view, "enhanced");
+  const tools = h.elements.get("playtest-tools"), game = h.elements.get("game-setup");
+  tools.open = true; game.open = false; tools.listeners.toggle(); assert.equal(game.open, true);
+  game.open = false; tools.open = false; tools.listeners.toggle(); assert.equal(game.open, false);
+});
+
+for (const operation of ["start-scenario", "restart-scenario"]) test(`streamed ${operation} keeps Tools open until confirmed replacement`, async () => {
+  const requests = [];
+  const h = streamHarness(async (url, options) => {
+    requests.push(JSON.parse(options.body)); return { ok: true, json: async () => ({}) };
+  });
+  h.emit(update(0, "baseline", "waiting-human"));
+  const tools = h.elements.get("playtest-tools"); tools.open = true;
+  const pending = h.elements.get(operation).listeners.click();
+  await settleStream();
+  assert.equal(tools.open, true); // POST acknowledgement alone is insufficient.
+  h.emit(update(0, "baseline", "waiting-human", response(), "fresh-session", requests[0].commandId));
+  await pending;
+  assert.equal(tools.open, false);
+});
+
+for (const operation of ["start-scenario", "restart-scenario"]) test(`streamed ${operation} failure keeps Tools and error feedback`, async () => {
+  const h = streamHarness(async () => ({ ok: false, json: async () => ({ detail: "Replacement rejected" }) }));
+  h.emit(update(0, "baseline", "waiting-human"));
+  const tools = h.elements.get("playtest-tools"); tools.open = true;
+  assert.equal(await h.elements.get(operation).listeners.click(), false);
+  assert.equal(tools.open, true);
+  assert.match(h.elements.get("error").textContent, /Replacement rejected/);
 });

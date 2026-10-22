@@ -13,20 +13,17 @@
   <header><h1>Project Delve <small>visual playtest</small></h1>
   </header>
   <details id="playtest-tools" class="playtest-tools">
-    <summary>Tools &middot; Objectives &amp; Orders</summary>
+    <summary id="tools-toggle">Tools &middot; Objectives &amp; Orders</summary>
     <div class="tools-content">
   <nav class="toolbar mode-switch" aria-label="Application mode">
     <button id="mode-playtest" aria-pressed="true">Playtest</button>
     <button id="mode-designer" aria-pressed="false">Designer</button>
   </nav>
-      <details id="game-setup" class="game-setup" open>
-        <summary>Game setup</summary>
+      <details id="game-setup" class="game-setup tools-section" open>
+        <summary>Game</summary>
         <div class="toolbar" aria-label="Playtest scenarios">
           <label>Scenario <select id="scenario" disabled></select></label>
-          <span class="scenario-info">
-            <button class="info-button" type="button" aria-label="Scenario information" aria-describedby="scenario-description">i</button>
-            <span id="scenario-description" role="tooltip"></span>
-          </span>
+          <details class="scenario-info"><summary class="info-button" aria-label="Scenario information" data-tooltip-source="scenario-description">i</summary><p id="scenario-description"></p></details>
           <button id="start-scenario" disabled>Start selected</button>
           <button id="restart-scenario" disabled>Restart current</button>
         </div>
@@ -38,45 +35,57 @@
           <button id="import-scenario" disabled>Load scenario</button>
         </div>
       </details>
-      <div class="toolbar board-view-toolbar">
-        <label>Board view <select id="board-view">
-          <option value="classic">Classic View</option>
-          <option value="enhanced">Enhanced 2D View</option>
-        </select></label>
-        <label><input id="fit-board" type="checkbox" checked> Fit board to viewport</label>
-      </div>
-      <details class="sidebar-reference">
-        <summary>Objectives &amp; Orders</summary>
-        <section id="objectives" aria-label="Side objectives"></section>
-        <section id="orders" aria-label="Standing Orders" hidden></section>
+      <details id="tools-display" class="tools-section">
+        <summary>Display</summary>
+        <div class="toolbar board-view-toolbar">
+          <label>Board view <select id="board-view">
+            <option value="classic">Classic View</option>
+            <option value="enhanced" selected>Enhanced 2D View</option>
+          </select></label>
+          <label><input id="fit-board" type="checkbox" checked> Fit board to viewport</label>
+        </div>
+        <div class="toolbar">
+          <label><input id="animate" type="checkbox" checked> Animate events</label>
+          <label><input id="coordinates" type="checkbox"> Show coordinates</label>
+          <label><input id="waypoints" type="checkbox" checked> Show Waypoints</label>
+        </div>
       </details>
-      <details class="board-legend"><summary>Board legend</summary>
-      <p class="legend">Figures abbreviate Unit names; hover to inspect. Colour distinguishes Sides; tokens show their Side names. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
-      <p class="legend">Green: grass; dark green: tree; blue waves: water; brown: table; grey: stone floor. Cyan edges are windows. Highlights show supplied choices.</p>
+      <details id="tools-gameplay" class="tools-section">
+        <summary>Gameplay</summary>
+        <details class="sidebar-reference">
+          <summary>Objectives &amp; Orders</summary>
+          <section id="objectives" aria-label="Side objectives"></section>
+          <section id="orders" aria-label="Standing Orders" hidden></section>
+        </details>
+        <div class="toolbar">
+          <button id="round" disabled>Start round</button>
+          <button id="skip" disabled>Skip effects</button>
+          <label><input id="filter" type="checkbox" checked> Filter irrelevant choices (display only)</label>
+          <label><input id="auto" type="checkbox" checked data-tooltip-source="auto-help"> Auto-choose single relevant choice</label>
+        </div>
+        <details class="setting-help"><summary data-tooltip-source="auto-help">About automatic choices</summary><p id="auto-help">Ordinary sole legal choices resolve automatically; Roll Dice waits for input. This also auto-chooses one relevant choice among multiple legal choices.</p></details>
+        <section id="world-effects" aria-label="World Effects" hidden></section>
+        <section aria-label="Resident player status">
+          <p id="controller-status" role="status" aria-live="polite"></p>
+          <div class="toolbar"><button id="controller-retry" hidden disabled>Retry Gambit</button><button id="controller-cancel" hidden disabled>Cancel Gambit decision</button></div>
+        </section>
       </details>
-      <div class="toolbar">
-        <button id="round" disabled>Start round</button>
-        <button id="refresh" disabled>Refresh</button>
-        <button id="skip" disabled>Skip effects</button>
-        <label><input id="animate" type="checkbox" checked> Animate events</label>
-        <label><input id="filter" type="checkbox" checked> Filter irrelevant choices (display only)</label>
-        <label title="Ordinary sole legal choices resolve automatically; Roll Dice waits for input. This also auto-chooses one relevant choice among multiple legal choices."><input id="auto" type="checkbox" checked> Auto-choose single relevant choice</label>
-        <label><input id="coordinates" type="checkbox"> Show coordinates</label>
-        <label><input id="waypoints" type="checkbox" checked> Show Waypoints</label>
-      </div>
-      <section aria-label="Resident player status">
-        <p id="controller-status" role="status" aria-live="polite"></p>
-        <div class="toolbar"><button id="controller-retry" hidden disabled>Retry Gambit</button><button id="controller-cancel" hidden disabled>Cancel Gambit decision</button></div>
-      </section>
+      <details id="tools-developer" class="tools-section">
+        <summary>Developer</summary>
         <label class="commentary-input" for="decision-commentary">Optional decision comment</label>
         <textarea id="decision-commentary" rows="2" maxlength="280" placeholder="A short comment for your next choice" disabled></textarea>
-      <button id="commentary-toggle" aria-controls="commentary-panel" aria-expanded="false">Show decision commentary</button>
-      <section id="commentary-panel" aria-label="Latest decision commentary" hidden>
-        <h2>Latest commentary</h2><small id="commentary-context"></small><p id="commentary-text" aria-live="polite"></p>
-      </section>
-      <section id="world-effects" aria-label="World Effects" hidden></section>
-      <details><summary>Event History</summary><ol id="events"></ol></details>
-      <details class="card-debug"><summary>Unit debug information</summary><div id="unit-debug"></div></details>
+        <button id="commentary-toggle" aria-controls="commentary-panel" aria-expanded="false">Show decision commentary</button>
+        <section id="commentary-panel" aria-label="Latest decision commentary" hidden>
+          <h2>Latest commentary</h2><small id="commentary-context"></small><p id="commentary-text" aria-live="polite"></p>
+        </section>
+        <details><summary>Event History</summary><ol id="events"></ol></details>
+        <details class="card-debug"><summary>Unit debug information</summary><div id="unit-debug"></div></details>
+        <details class="board-legend"><summary>Board legend</summary>
+          <p class="legend">Figures abbreviate Unit names; hover to inspect. Colour distinguishes Sides; tokens show their Side names. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
+          <p class="legend">Green: grass; dark green: tree; blue waves: water; brown: table; grey: stone floor. Cyan edges are windows. Highlights show supplied choices.</p>
+        </details>
+        <div class="toolbar"><button id="refresh" disabled>Refresh</button></div>
+      </details>
     </div>
   </details>
   <dialog id="portrait-viewer" aria-labelledby="portrait-caption">
@@ -89,14 +98,14 @@
     <section class="play-status" aria-label="Current play status">
       <p id="status" aria-live="polite">Loading...</p>
       <div id="active-token"></div><div id="active-unit"></div>
-      <details class="bag-disclosure"><summary id="bag-count">Activation Bag</summary>
+      <details class="bag-disclosure"><summary id="bag-count" data-tooltip-source="bag">Activation Bag</summary>
         <div id="bag" aria-label="Remaining Activation Bag membership"></div>
       </details>
     </section>
     <section class="board-area" aria-label="Board">
       <section id="game-result" role="status" aria-live="polite" hidden></section>
       <div class="board-stage">
-        <div class="board-scroll"><div id="board" data-view="classic" aria-label="Dungeon board"></div></div>
+        <div class="board-scroll"><div id="board" data-view="enhanced" aria-label="Dungeon board"></div></div>
         <div class="board-overlays" id="board-overlays">
           <div id="dice" aria-label="Authoritative dice results" aria-live="polite"></div>
           <section id="decision-panel" class="decision-panel" aria-label="Pending decision" hidden>
