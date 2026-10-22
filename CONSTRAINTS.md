@@ -1041,7 +1041,7 @@ Maximize Attack Distance is a Decision Provider preference, not an attack or mov
 
 ### Delve Chess — first Unit Types and movement rules
 
-**Delve Chess** is a chess-*inspired* content experiment, not a chess rules variant. A later 8×8 scenario may alternate Grass and Stone Floor to evoke a chessboard, but ordinary Delve combat, Activation Bag, Side relationships, Unit occupancy, friendly pass-through, LOS, Posture and Objectives remain authoritative. No check/checkmate, chess captures, pawn promotion, castling or en passant. The eventual objective is to defeat the enemy King; the full chess scenario and remaining pieces are deferred.
+**Delve Chess** is a chess-*inspired* content experiment, not a chess rules variant. A later 8×8 scenario may alternate Grass and Stone Floor to evoke a chessboard, but ordinary Delve combat, Activation Bag, Side relationships, Unit occupancy, friendly pass-through, LOS, Posture and Objectives remain authoritative. No check/checkmate, chess captures, pawn promotion, castling or en passant. The introductory scenario objective is to defeat the enemy King; the complete scenario and later pieces are specified in the sections below.
 
 **Two visually distinct Unit Types per role:** the Hero Court has professionally equipped fantasy characters; the Monster Court has Goblins/Trolls in earnest homemade chess costumes. The counterpart types have identical Stats, Capabilities and Behavior but different IDs, names and portraits. Their names do not restrict which Side they can be assigned to. The first two pairs are:
 
@@ -1068,7 +1068,7 @@ These rules do **not** introduce Trample or an automatic chess-style capture. A 
 - `assets/source/units/castle-guard.png`
 - `assets/source/units/tower-troll.png`
 
-For initial verification, create a compact playtest scenario using both Peasant and Rook pairs, with a mix of open terrain, Walls, Windows and Doors to exercise straight movement and post-kill passage. The complete chessboard scenario and Queen/King mechanics are deferred. Bishop and Knight are specified in the following section.
+For initial verification, create a compact playtest scenario using both Peasant and Rook pairs, with a mix of open terrain, Walls, Windows and Doors to exercise straight movement and post-kill passage. Bishop and Knight are specified in the following section; Queen, King and the complete introductory board are specified after that.
 
 ### Delve Chess — Bishop and Knight (second pair)
 
@@ -1091,7 +1091,28 @@ All four have **Normal Attack** and ordinary default combat Behavior. **Bishops*
 - `assets/source/units/royal-knight.png`
 - `assets/source/units/hobby-knight.png`
 
-Extend the existing Delve Chess playtest coverage with both Bishop and Knight pairs, including corridor/corner obstructions, hostile and friendly transit, windows, diagonal AdvanceOnKill, LShape landing, and Banana Peel arrival. The full chessboard scenario, Queen, King and Knight Rear Up remain **out of scope** for this iteration. No chess-specific capture, check or turn-order rules are introduced.
+Extend the existing Delve Chess playtest coverage with both Bishop and Knight pairs, including corridor/corner obstructions, hostile and friendly transit, windows, diagonal AdvanceOnKill, LShape landing, and Banana Peel arrival. The full chessboard scenario, Queen and King are specified in the following section; Knight Rear Up remains deferred. No chess-specific capture, check or turn-order rules are introduced.
+
+### Delve Chess — Queen, King and the classic-looking board
+
+Complete the two-court content with **two separate canonical Unit Types per role**, mechanically identical within each pair and assignable to any Side:
+
+| Role | Hero Court | Monster Court | MOV | RNG | ATK | DEF | HP | Unique |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Queen | Royal Queen | Witch Queen | 16 | 1 | 4 | 5 | 3 | Yes, per Side |
+| King | Royal King | Goblin King | 2 | 1 | 2 | 3 | 5 | Yes, per Side |
+
+**Queen:** Normal Attack, `AdvanceOnKill`, default combat Behavior and a reusable **StraightOrthogonalOrDiagonalCorridor** ordinary-Move pattern. For each ordinary Move, choose **either** one straight cardinal path under existing `StraightOrthogonal` rules **or** one diagonal corridor path under existing `DiagonalCorridor` rules. Do not concatenate the two within one Move or permit turns. Stay is always legal. Both alternatives use their established MOV costs and physical passage rules. The union applies to extra ordinary Moves as well; `AdvanceOnKill` retains its existing special post-Attack path rules and ignores the ordinary movement restriction. No new Queen-only movement engine.
+
+**King:** Normal Attack, default combat Behavior, and the **same adjacent-friendly +1 effective DEF aura** as the existing Cleric, with identical adjacency, active-while-Upright, stacking and modifier semantics. No Fireball or other spell. Use reusable **Adjacent** ordinary-Move restriction: Stay or finish on any of the eight adjacent Cells; cardinal destinations require one legal orthogonal step, diagonal destinations require exactly two legal orthogonal steps via at least one of the two intermediate Cells, with the existing terrain, Edge and Unit passage rules. No longer detours. Its `MOV 2` supports diagonal adjacency but does not permit two-cell straight movement. Effective MOV below the needed step cost makes that destination unavailable. Additional ordinary Move opportunities each apply Adjacent independently. Ordinary melee attack geometry remains unchanged. The King has no `AdvanceOnKill`.
+
+**Artwork originals:** `assets/source/units/royal-queen.png`, `assets/source/units/witch-queen.png`, `assets/source/units/royal-king.png`, `assets/source/units/goblin-king.png`. Preserve originals and integrate using the established artwork pipeline and fallback conventions. Hero Court uses real royal equipment; Monster Court uses earnest homemade costumes. The two sides' counterpart gameplay definitions must remain equal.
+
+**Scenario — Chess:** Create a distinct introductory 8×8 board that looks like an ordinary chess setup at first glance. Use **alternating Stone Floor and Asphalt** Cells (not Grass) for a strong light/dark checkerboard pattern. All 64 Cells are passable and otherwise ordinary; do not attach Asphalt-only movement or any racing rule to the board. The classical layout is 16 Units per Side: on each back rank, from left to right, **Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook**, with eight Peasants on the rank in front. Opposite Side mirrors the same file order from the viewer's perspective, so the Queens occupy the same file and Kings occupy the same file. Use Hero Court types on one Side and Monster Court types on the other. Orient the board so each Side has two ranks facing the other across four empty ranks. All Units are ordinary Delve Units and use existing activation, combat, occupancy, LOS, movement, posture and abilities. No special chess capture, check/checkmate, pawn promotion, castling, en passant, or chess turn order. No railway, Karts, Banana Peels, machines, special terrain, hazards or other surprise props in this **introductory** scenario. The intended surprise is entirely in how ordinary Delve rules operate on a familiar-looking board.
+
+**Victory objective:** Defeat the **opposing King Unit Type**, not all enemies or all Unique Units. The game ends with victory for the Side whose enemy King has actually been defeated. Reuse the existing objective framework and existing defeat semantics; do not introduce special chess check rules. Both Sides should have symmetric objectives. If the existing objective expression cannot select a specific hostile King group correctly, use the smallest generic objective extension rather than a scenario-specific hardcode, and raise an ambiguity if the rules cannot determine a symmetric result.
+
+Preserve existing Phase 1 and Phase 2 playtest scenarios as separate mechanical test content. Add tests for Queen's union-of-patterns movement, King's adjacent path legality and aura reuse, counterpart parity, 8×8 alternating Stone/Asphalt layout, 16-per-Side classical deployment, and King-defeat victory. The unrelated future **Chess Room** dungeon ambush and Knight Rear Up reaction remain speculative and out of scope.
 
 #### Goblin
 
