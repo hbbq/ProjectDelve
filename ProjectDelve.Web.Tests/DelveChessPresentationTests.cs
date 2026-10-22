@@ -11,6 +11,10 @@ public sealed class DelveChessPresentationTests
     [InlineData(UnitTypeIds.GoblinBishop, "diagonal-corridor", "3,3", 5)]
     [InlineData(UnitTypeIds.RoyalKnight, "l-shape", "3,2", 2)]
     [InlineData(UnitTypeIds.HobbyKnight, "l-shape", "3,2", 2)]
+    [InlineData(UnitTypeIds.RoyalQueen, "straight-orthogonal-or-diagonal-corridor", "3,3", 5)]
+    [InlineData(UnitTypeIds.WitchQueen, "straight-orthogonal-or-diagonal-corridor", "3,3", 5)]
+    [InlineData(UnitTypeIds.RoyalKing, "adjacent", "2,2", 3)]
+    [InlineData(UnitTypeIds.GoblinKing, "adjacent", "2,2", 3)]
     public void Phase2ProjectsAuthoritativeChoicesCardsAndAtomicPlayback(string id, string capability, string key, int pathCount)
     {
         var definition = Scenario.Define(Scenario.Map(7, 7),

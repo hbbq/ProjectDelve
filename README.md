@@ -333,6 +333,23 @@ Manual playtest landmarks (zero-based coordinates):
 
 These four supplied originals are opaque 1254 × 1254 RGB PNGs without profiles, EXIF orientation or animation. The existing pipeline exports uncropped 512 × 512 sRGB WebPs with Lanczos, quality 85/method 6. All 69 original SHA-256 hashes were verified unchanged; all 67 direct exports and two railway materials are registered, with no missing sources. Existing WebP bytes were retained after verifying identical decoded pixels on full re-export. The regenerated [catalog preview](assets/previews/artwork-pack-01.png) includes 50px circular crops: Bishop mitres and both Knight horse heads/riders remain recognizable. Artwork was not regenerated. Enhanced portrait/error fallbacks and Classic presentation remain covered by automated tests. No browser surface was connected for actual-board visual QA; preview inspection is not browser approval. Queen, King, the full chessboard and Knight Rear Up remain deferred.
 
+### Delve Chess — Phase 3: Queens, Kings and Chess
+
+Select **Chess** (`chess`) for the complete introductory 8 × 8 Stone Floor / Asphalt board. Each court deploys sixteen Units in classical file order, with Queen on file four and King on file five. Blue is human-controlled and Red automated; controllers can be changed normally. Each Side wins by actually defeating the opposing King group through the existing Defeat Units Objective. Normal Unit Type + Side tokens govern activation, including all eight Peasants activating sequentially. Both earlier Chess playtests remain available.
+
+Royal Queen and Witch Queen are Unique per Side, with MOV 16 / RNG 1 / ATK 4 / DEF 5 / HP 3, Normal Attack, default combat Behavior and Advance On Kill. Their reusable Straight Orthogonal or Diagonal Corridor pattern composes the existing complete path searches: choose one mode per ordinary Move, retaining its costs, passage restrictions, deterministic corners and atomic arrival. Advance On Kill retains its own allowance and passage rules.
+
+Royal King and Goblin King are Unique per Side, with MOV 2 / RNG 1 / ATK 2 / DEF 3 / HP 5, Normal Attack and default combat Behavior. Their reusable Adjacent pattern uses the same searches limited to one cardinal step or one two-step diagonal segment. Effective MOV still limits cost, and extra ordinary Moves independently apply the pattern. Their Aura directly reuses Cleric's adjacent-friendly +1 DEF component, including LOS, Upright activity and stacking. All four types can be assigned to arbitrary Sides and appear through the canonical registry in the Level Designer.
+
+| Original under `assets/source/units/` | Canonical catalog key | Runtime under `wwwroot/art/units/` |
+| --- | --- | --- |
+| `royal-queen.png` | `royal-queen-type` | `royal-queen.webp` |
+| `witch-queen.png` | `witch-queen-type` | `witch-queen.webp` |
+| `royal-king.png` | `royal-king-type` | `royal-king.webp` |
+| `goblin-king.png` | `goblin-king-type` | `goblin-king.webp` |
+
+The four supplied opaque 1254 × 1254 RGB PNGs have no ICC profiles, EXIF orientation or animation. The established pipeline exports uncropped 512 × 512 sRGB WebPs using Lanczos, quality 85 / method 6. All 73 original hashes were verified unchanged; all 71 direct exports and both railway materials are registered, with no missing sources. Existing WebP bytes were retained after confirming identical decoded pixels on full re-export. The regenerated [catalog preview](assets/previews/artwork-pack-01.png) and new [court preview](assets/previews/chess-court.png) show circular crops at 50px and 84px: faces and crowns remain legible. Enhanced image/error fallbacks and Classic presentation remain covered by tests. No browser surface was connected for actual-board QA; preview review is not browser approval. Knight Rear Up and the Chess Room remain deferred.
+
 ### Level Designer V1
 
 Click **Designer** in the browser host to author the same `ScenarioDefinition` format visually. The browser retains a local draft, including temporarily invalid placements, and uses only generic grid editing and server-supplied Unit geometry. It does not evaluate Delve placement, terrain, Unique, HP, or agency legality. Reload discards the draft; export a DELVE1 string to keep it. Switching to Playtest and back retains it.

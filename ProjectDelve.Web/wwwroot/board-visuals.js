@@ -41,6 +41,10 @@ export const boardVisuals = {
     Rail: { baseTerrain: "Gravel", tracks: Object.fromEntries(["straight", "curve", "tee", "cross"].map(shape => [shape, `./art/railway/${shape}.svg`])) }
   },
   unit: {
+    "royal-queen-type": { image: "./art/units/royal-queen.webp" },
+    "witch-queen-type": { image: "./art/units/witch-queen.webp" },
+    "royal-king-type": { image: "./art/units/royal-king.webp" },
+    "goblin-king-type": { image: "./art/units/goblin-king.webp" },
     default: { detail: "radial-gradient(circle at 35% 25%, #ffffff45, transparent 65%)" },
     "royal-peasant-type": { image: "./art/units/royal-peasant.webp" },
     "goblin-peasant-type": { image: "./art/units/goblin-peasant.webp" },

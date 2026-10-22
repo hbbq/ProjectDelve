@@ -28,7 +28,8 @@ ASSETS = [
                    "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon",
                    "labyrinth-shaper", "red-dragon", "locomotive",
                    "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
-                   "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight")],
+                   "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
+                   "royal-queen", "witch-queen", "royal-king", "goblin-king")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
       for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
@@ -126,6 +127,7 @@ def main():
     edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
     if not args.edges_only:
         composite_preview(assets, decoded)
+        court_preview(assets, decoded)
         object_preview(assets, decoded)
         marker_preview(assets, decoded)
         export_tracks(SOURCE, OUTPUT / "railway")
@@ -155,6 +157,29 @@ def main():
     preview = ROOT / "assets/previews/artwork-pack-01.png"
     preview.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(preview, optimize=True)
+
+
+def court_preview(assets, images):
+    """Final court portraits at gameplay scale on ordinary board materials."""
+    catalog = {asset[1]: image for asset, image in zip(assets, images)}
+    sheet = Image.new("RGB", (640, 250), "#202630")
+    draw = ImageDraw.Draw(sheet)
+    for col, name in enumerate(("royal-queen", "witch-queen", "royal-king", "goblin-king")):
+        draw.text((col * 160 + 8, 8), name, fill="white")
+        for row, (cell_size, token_size) in enumerate(((60, 50), (100, 84))):
+            x, y = col * 160 + 8, 32 + row * 90
+            base = "stone-floor" if col % 2 == 0 else "asphalt"
+            tile = catalog[f"terrain/{base}/01.webp"].resize((cell_size, cell_size), Image.Resampling.LANCZOS)
+            portrait = catalog[f"units/{name}.webp"].resize((token_size, token_size), Image.Resampling.LANCZOS)
+            mask = Image.new("L", (token_size * 4, token_size * 4))
+            ImageDraw.Draw(mask).ellipse((0, 0, mask.width - 1, mask.height - 1), fill=255)
+            mask = mask.resize((token_size, token_size), Image.Resampling.LANCZOS)
+            offset = (cell_size - token_size) // 2
+            tile.paste(portrait, (offset, offset), mask)
+            ImageDraw.Draw(tile).ellipse((offset, offset, offset + token_size - 1, offset + token_size - 1),
+                outline="#689fe4" if col % 2 == 0 else "#dc6868", width=2)
+            sheet.paste(tile, (x, y))
+    sheet.save(ROOT / "assets/previews/chess-court.png", optimize=True)
 
 
 def composite_preview(assets, images):

@@ -38,6 +38,26 @@ internal static class MovementRules
         if (maxSteps < 0) throw new ArgumentOutOfRangeException(nameof(maxSteps));
         var unit = state.Units.Single(u => u.Id == moverId);
         var pattern = ignoreMovementPattern ? null : state.Types.Single(t => t.Id == unit.TypeId).MovementPattern;
+        return FindPatternPaths(state, moverId, from, maxSteps, ignoreCellMarkers, pattern);
+    }
+
+    private static IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> FindPatternPaths(
+        GameState state, string moverId, Cell from, int? maxSteps, bool ignoreCellMarkers, MovementPattern? pattern)
+    {
+        if (pattern is MovementPattern.StraightOrthogonalOrDiagonalCorridor or MovementPattern.Adjacent)
+        {
+            // Compose complete paths, never concatenate modes. Adjacent uses the
+            // same corner machinery, limited to a single diagonal segment.
+            var adjacent = pattern == MovementPattern.Adjacent;
+            int? Limit(int allowance) => maxSteps is null ? allowance : Math.Min(maxSteps.Value, allowance);
+            var cardinal = FindPatternPaths(state, moverId, from, adjacent ? Limit(1) : maxSteps,
+                ignoreCellMarkers, MovementPattern.StraightOrthogonal);
+            var diagonal = FindPatternPaths(state, moverId, from, adjacent ? Limit(2) : maxSteps,
+                ignoreCellMarkers, MovementPattern.DiagonalCorridor);
+            return new ReadOnlyDictionary<Cell, IReadOnlyList<Cell>>(cardinal.Concat(diagonal)
+                .DistinctBy(pair => pair.Key).ToDictionary(pair => pair.Key, pair => pair.Value));
+        }
+        var unit = state.Units.Single(u => u.Id == moverId);
         var straight = pattern == MovementPattern.StraightOrthogonal;
         var traversal = MovementTraversal.For(state, moverId);
         var footprint = FootprintGeometry.FootprintOf(state, moverId);

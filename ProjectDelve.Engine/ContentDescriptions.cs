@@ -16,6 +16,12 @@ public static class ContentDescriptions
     {
         List<CardEntryDescription> entries = [];
         var names = type.AbilityNames;
+        if (type.MovementPattern == MovementPattern.StraightOrthogonalOrDiagonalCorridor)
+            entries.Add(new("straight-orthogonal-or-diagonal-corridor", "Straight Orthogonal or Diagonal Corridor Movement", "Capability",
+                "Each ordinary Move may Stay, travel straight in one cardinal direction for 1 MOV per Cell, or travel along one straight diagonal for 2 MOV per Cell. Each diagonal segment uses two legal orthogonal steps through either corner. Do not turn or mix modes. No passing through Banana Peels; only the final Cell resolves arrival effects."));
+        if (type.MovementPattern == MovementPattern.Adjacent)
+            entries.Add(new("adjacent", "Adjacent Movement", "Capability",
+                "Each ordinary Move may Stay or finish on one of the eight surrounding Cells. A cardinal destination costs one legal orthogonal step; a diagonal destination costs two through either legal corner. Use at most effective MOV. No longer detours or passing through Banana Peels; only the final Cell resolves arrival effects."));
         if (type.MovementPattern == MovementPattern.DiagonalCorridor)
             entries.Add(new("diagonal-corridor", "Diagonal Corridor Movement", "Capability",
                 "Each ordinary Move may Stay or travel along one straight diagonal. Each diagonal segment costs 2 MOV and uses two legal orthogonal steps through either corner. No stopping at corners or passing through Banana Peels. Only the final Cell resolves arrival effects."));

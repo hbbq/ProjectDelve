@@ -69,6 +69,8 @@ public static class UnitAuthoring
     public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
     public static Entry StraightOrthogonal() => new PatternEntry(MovementPattern.StraightOrthogonal);
     public static Entry DiagonalCorridor() => new PatternEntry(MovementPattern.DiagonalCorridor);
+    public static Entry StraightOrthogonalOrDiagonalCorridor() => new PatternEntry(MovementPattern.StraightOrthogonalOrDiagonalCorridor);
+    public static Entry Adjacent() => new PatternEntry(MovementPattern.Adjacent);
     public static Entry LShape() => new PatternEntry(MovementPattern.LShape);
     public static Entry AdvanceOnKill() => new AdvanceEntry();
     private sealed class PatternEntry(MovementPattern pattern) : Entry

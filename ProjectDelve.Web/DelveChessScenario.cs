@@ -4,6 +4,42 @@ namespace ProjectDelve.Web;
 
 internal static class DelveChessScenario
 {
+    internal static ScenarioDefinition ChessDefinition()
+    {
+        string[] hero = [UnitTypeIds.CastleGuard, UnitTypeIds.RoyalKnight, UnitTypeIds.RoyalBishop,
+            UnitTypeIds.RoyalQueen, UnitTypeIds.RoyalKing, UnitTypeIds.RoyalBishop,
+            UnitTypeIds.RoyalKnight, UnitTypeIds.CastleGuard];
+        string[] monster = [UnitTypeIds.TowerTroll, UnitTypeIds.HobbyKnight, UnitTypeIds.GoblinBishop,
+            UnitTypeIds.WitchQueen, UnitTypeIds.GoblinKing, UnitTypeIds.GoblinBishop,
+            UnitTypeIds.HobbyKnight, UnitTypeIds.TowerTroll];
+        List<UnitPlacement> units = [];
+        for (var x = 0; x < 8; x++)
+        {
+            units.Add(new(hero[x], "blue", new(x, 7)));
+            units.Add(new(UnitTypeIds.RoyalPeasant, "blue", new(x, 6)));
+            units.Add(new(monster[x], "red", new(x, 0)));
+            units.Add(new(UnitTypeIds.GoblinPeasant, "red", new(x, 1)));
+        }
+        return new()
+        {
+            Board = new()
+            {
+                Width = 8, Height = 8,
+                Cells = [.. from y in Enumerable.Range(0, 8)
+                            from x in Enumerable.Range(0, 8)
+                            select new CellDefinition(new(x, y), (x + y) % 2 == 0 ? TerrainKind.StoneFloor : TerrainKind.Asphalt)]
+            },
+            UnitTypeIds = [.. units.Select(u => u.UnitTypeId).Distinct()],
+            Units = units,
+            Agency = [.. units.Select(u => new AgencyAssignment(u.UnitTypeId, u.SideId,
+                u.SideId == "blue" ? ControllerKind.Human : ControllerKind.Automated)).Distinct()],
+            Objectives = [
+                new("blue", ScenarioObjective.DefeatUnits) { Selectors = [UnitSelector.Group(UnitTypeIds.GoblinKing, "red")] },
+                new("red", ScenarioObjective.DefeatUnits) { Selectors = [UnitSelector.Group(UnitTypeIds.RoyalKing, "blue")] }
+            ]
+        };
+    }
+
     internal static ScenarioDefinition Phase2Definition()
     {
         var edges = new List<EdgeDefinition>

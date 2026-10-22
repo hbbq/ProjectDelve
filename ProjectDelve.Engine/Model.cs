@@ -107,7 +107,7 @@ public enum UnitBehavior
     PreferBananaPeel = 32768,
     PreferLowestEffectiveDefense = 65536
 }
-public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape }
+public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill;
 public sealed record ReshapeRoom;
 public sealed record Swap;
