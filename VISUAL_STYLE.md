@@ -276,6 +276,22 @@ Second UI iteration after Tools organization and shared tooltips. **Primary goal
 5. Highlights remain visible over contrasting Terrain; pointer, keyboard and touch interactions remain usable.
 6. No regressions in legal choices, card actions, auto-choice, filtering, Classic/Enhanced 2D, draggable decision overlays or replay. Verify Chess and Wizard/Doors plus a mixed-terrain scenario.
 
+## Neutral Dark Theme — base palette
+
+This is the **default visual foundation**, not a restriction on future scenario-specific UI themes. Preserve the current clean, board-first presentation: no parchment textures, ornate fantasy frames, new layout or decorative background images in this iteration.
+
+- Replace pervasive blue-tinted UI backgrounds with **dark neutral charcoal / slightly warm gray** surfaces. Suggested starting palette (tune for contrast in implementation): page `#17191C`, panels `#25272A`, raised controls `#303237`, subtle borders `#50504D`, primary text `#E8E4DC`, secondary text `#A9A69F`, restrained warm accent `#C5A36A`.
+- Centralize the shared UI palette in semantic CSS custom properties/tokens for background, surface, elevated surface, borders, text, muted text, accent, hover, focus and control states. Prefer reusing tokens over scattering new hardcoded colors. Maintain readable contrast, keyboard focus, hover, disabled and selected states.
+- **Unit Cards:** neutral panel fill with a clearly visible but restrained border in the Unit's **actual Side color**, regardless of Unit Type or Hero/Monster classification. A small Side-colored name/detail accent is optional. Do not tint the entire card strongly by Side; keep its contents legible. Preserve the existing portrait-left/name-right layout, stats, HP, abilities, legal Action buttons, usage markers, disclosures and hover-card switching.
+- **Side colors are identity**, not generic UI action colors. Preserve existing distinguishable Unit token rings and all decision-specific marks (yellow Select Unit, blue Move, red Attack, Stay icon, special-action indicators), their meaning and visibility on different terrain. Do not make the UI monochrome at the expense of legibility.
+- Apply the neutral palette consistently to header/status strip, Tools sections, decision overlays, dice presentation, buttons and cards without changing their structure or gameplay interactions.
+- Preserve the board artwork/materials, square Cell geometry, current board size, Classic View, Enhanced 2D, tooltips and accessible interactions.
+- Make later theme variants possible by overriding shared semantic tokens, **without implementing a theme switcher or scenario-specific theme system now**.
+
+**Separate later experiment:** A full-width portrait under a standalone Unit name is *not part of this iteration*. Keep the existing portrait size/layout untouched so that a subsequent uncommitted, reversible experiment can test that independently.
+
+**Acceptance:** Compare Wizard, Royal King and a Monster Unit Card; confirm Side-colored borders follow actual Side assignment, not portrait type. Check both light/dark board terrain, legal choice highlights, dice overlays, Tools, desktop/narrow screens, keyboard focus and sufficient text contrast. Run relevant tests and solution build. Review screenshots if browser access exists; otherwise report the limitation.
+
 ## Implementation boundary
 
 The renderer uses existing authoritative state/projections and events. Assets, visual seeds, animation timing and panel styling are presentation responsibilities only. All game interactions should remain usable in Classic and Enhanced 2D views. Add test-owned fixtures for rendering logic and visually inspect real scenarios; do not freeze authored scenario content in tests.
