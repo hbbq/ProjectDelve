@@ -1068,7 +1068,30 @@ These rules do **not** introduce Trample or an automatic chess-style capture. A 
 - `assets/source/units/castle-guard.png`
 - `assets/source/units/tower-troll.png`
 
-For initial verification, create a compact playtest scenario using both Peasant and Rook pairs, with a mix of open terrain, Walls, Windows and Doors to exercise straight movement and post-kill passage. The complete chessboard scenario and Bishop/Knight/Queen/King mechanics are deferred. Future diagonal Bishop movement, if adopted, should be represented through orthogonal two-step corner paths, not by silently changing the global movement model.
+For initial verification, create a compact playtest scenario using both Peasant and Rook pairs, with a mix of open terrain, Walls, Windows and Doors to exercise straight movement and post-kill passage. The complete chessboard scenario and Queen/King mechanics are deferred. Bishop and Knight are specified in the following section.
+
+### Delve Chess — Bishop and Knight (second pair)
+
+Continue the two-court convention above: each role has **two separate canonical Unit Types**, one Hero Court portrait/name and one Monster Court portrait/name. Counterparts have identical mechanics and default Behavior, and **neither is restricted to a particular Side**.
+
+| Role | Hero Court Unit Type | Monster Court Unit Type | MOV | RNG | ATK | DEF | HP |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Bishop | Royal Bishop | Goblin Bishop | 16 | 1 | 3 | 4 | 1 |
+| Knight | Royal Knight | Hobby Knight | 3 | 1 | 3 | 4 | 1 |
+
+All four have **Normal Attack** and ordinary default combat Behavior. **Bishops** have reusable `DiagonalCorridor` ordinary movement restriction **and** `AdvanceOnKill` (as already defined above). **Knights** have reusable `LShape` ordinary movement restriction, but no AdvanceOnKill or Rear Up/reaction ability at this stage. Do not add an attack or posture reaction when a Knight survives a hit; that design is deferred.
+
+**DiagonalCorridor movement:** Each ordinary Move is either Stay or a single straight diagonal journey, in one of four diagonal directions. This is **not a new diagonal base step**: each advance from `(x,y)` to `(x±1,y±1)` must be implemented as exactly **two consecutive legal orthogonal steps**, either horizontal-then-vertical or vertical-then-horizontal, chosen independently for each diagonal segment. At least one of those two corner paths must be legal; if both are blocked, the Bishop cannot pass that segment. For a destination `n` diagonal cells away, the complete path must consist of `n` such segments along the **same diagonal**, with cost `2n` MOV; it may not detour away from the diagonal corridor, switch diagonal direction, or stop at the intermediate off-diagonal corner cell. Respect existing Edge, terrain, friendly pass-through, hostile blocking, and Cell Marker rules for each orthogonal step. The complete Move remains **atomic**: intermediate corner cells and intermediate diagonal cells are transit, not separate Move destinations/arrivals; however transit restrictions (including inability to pass through a Banana Peel) still apply. Only the final destination resolves ordinary Move arrival effects. When both corner routes work, choose a deterministic canonical path consistent with existing movement conventions. This movement restriction applies to **ordinary Moves including extra ordinary Move opportunities** such as Boost, but not to AdvanceOnKill's separate post-Attack Move. A Bishop may change checkerboard color via an **orthogonal AdvanceOnKill**, not via DiagonalCorridor movement.
+
+**LShape movement:** Each ordinary Move is either Stay or **one leap** to a destination with offset `(|dx|,|dy|)=(2,1)` or `(1,2)` (eight possibilities before board bounds). The leap has nominal movement cost **3 MOV** and cannot be split into shorter moves, chained within one Move, or extended merely because effective MOV is greater than 3. If effective MOV is below 3, no LShape leap is available; Stay remains legal. A leap ignores all intermediate cells, edges, terrain and Units: no transit collision, hazard or intermediate arrival checks. The **landing Cell** must satisfy ordinary final-cell occupancy and terrain legality, including hostile Unit occupancy restrictions and any applicable landing constraints. Resolve normal arrival effects (including Banana Peel) **only on landing**. This is a special ordinary-Move path rule, **not** a general ability to teleport, attack occupied cells, or move through blocked destinations. It applies equally to extra ordinary Move opportunities; each such Move allows at most one leap. LShape does not change the Knight's normal melee attack geometry: `RNG 1` still includes diagonal adjacency under existing rules.
+
+**Artwork originals** (preserve and process using the existing pipeline):
+- `assets/source/units/royal-bishop.png`
+- `assets/source/units/goblin-bishop.png`
+- `assets/source/units/royal-knight.png`
+- `assets/source/units/hobby-knight.png`
+
+Extend the existing Delve Chess playtest coverage with both Bishop and Knight pairs, including corridor/corner obstructions, hostile and friendly transit, windows, diagonal AdvanceOnKill, LShape landing, and Banana Peel arrival. The full chessboard scenario, Queen, King and Knight Rear Up remain **out of scope** for this iteration. No chess-specific capture, check or turn-order rules are introduced.
 
 #### Goblin
 
