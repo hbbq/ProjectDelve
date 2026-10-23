@@ -1,0 +1,23 @@
+# Reviewed data-only dispatcher. This exact protected script validates all trailing
+# arguments and never accepts JavaScript, executable paths, sessions or URLs.
+# Re-review after changing the protected dispatcher or moving the checkout.
+prefix_rule(
+    pattern = [
+        "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "-NoLogo", "-NoProfile", "-NonInteractive",
+        "-ExecutionPolicy", "RemoteSigned",
+        "-File", "D:\\sc\\bq\\ProjectDelve\\.codex\\browser-qa.ps1",
+        "-Action", "inspect", "-PlanFile",
+    ],
+    decision = "allow",
+    justification = "Reviewed Project Delve localhost-only inspection plan in a new temporary Edge context",
+    match = [
+        '"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "D:\\sc\\bq\\ProjectDelve\\.codex\\browser-qa.ps1" -Action inspect -PlanFile .playwright-cli/qa-plan.json',
+    ],
+    not_match = [
+        'powershell.exe -Command whoami',
+        'node -e "process.exit()"',
+        'playwright-cli run-code "async page => page.title()"',
+        '"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "D:\\sc\\bq\\ProjectDelve\\tools\\other.ps1" -Action inspect -PlanFile .playwright-cli/qa-plan.json',
+    ],
+)
