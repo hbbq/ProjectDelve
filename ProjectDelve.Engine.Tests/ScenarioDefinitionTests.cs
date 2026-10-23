@@ -7,6 +7,18 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class ScenarioDefinitionTests
 {
+    [Fact]
+    public void AuthoringIdentityProjectionMatchesCreationWithReservedAndMachineIds()
+    {
+        var definition = Define(Map(7, 3), [Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human,
+            At(0, 0), At(1, 0), At(2, 0), At(3, 0))]) with
+        { Machines = [new("scenario-unit-2", new(6, 2), MachineTypes.DiamondPress)] };
+        definition.Units[3] = definition.Units[3] with { UnitId = "scenario-unit-1" };
+        var expected = new[] { "scenario-unit-3", "scenario-unit-4", "scenario-unit-5", "scenario-unit-1" };
+        Assert.Equal(expected, ScenarioIdentity.UnitIds(definition.Units, definition.Machines.Select(m => m.Id)));
+        Assert.Equal(expected, GameEngine.CreateGame(definition).Units.Select(u => u.Id));
+    }
+
     private static ScenarioDefinition Basic() => Define(Map(5, 5), [
         Group(UnitTypeIds.Grunt, "amber", ControllerKind.Human, At(0, 0))
     ]);

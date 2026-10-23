@@ -8,6 +8,13 @@ const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
 const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
+const press = (root, label) => root.querySelectorAll("button").find(b => b.textContent === label).listeners.click();
+const change = (input, value) => { input.value = value; input.listeners.change?.(); };
+const objectiveForm = h => h.editor.ui["side-settings"].children.at(-1);
+function openObjective(h, side = "blue") {
+  h.editor.ui["side-settings"].children.find(f => f.children[0].textContent === side).querySelectorAll("button").find(b => b.textContent.includes("Edit Objective")).listeners.click();
+  return objectiveForm(h);
+}
 const memoryStorage = () => {
   const data = new Map();
   return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
@@ -15,6 +22,7 @@ const memoryStorage = () => {
 function enter(input, value) { input.value = value; input.listeners.input?.(); }
 const catalog = {
   maxBoardSize: 50,
+  resourceTypes: ["coal", "diamond", "fruit", "banana", "mushroom", "shell"].map(id => ({ id, name: id[0].toUpperCase() + id.slice(1) })),
   cellMarkerTypes: [{ id: "banana-peel", name: "Banana Peel" }],
   machineTypes: [{ id: "diamond-press", name: "Diamond Press",
     storage: { capacities: [{ type: { id: "coal", name: "Coal" }, capacity: 3 }] },
@@ -67,7 +75,7 @@ class Element {
   focus() {} select() {} scrollIntoView() {}
 }
 
-function harness(request = async () => ({ valid: true, errors: [] }), play = async () => true, storage) {
+function harness(request = async () => ({ valid: true, errors: [] }), play = async () => true, storage, projectMetadata = async () => ({ unitTypes: catalog.unitTypes, unitIds: [] })) {
   const elements = new Map(), documentListeners = {};
   const document = {
     getElementById(id) {
@@ -78,7 +86,7 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
       return elements.get(id);
     },
     createElement(tag) { return new Element(tag); },
-    addEventListener(name, callback) { documentListeners[name] = callback; }
+    addEventListener(name, callback) { const previous = documentListeners[name]; documentListeners[name] = previous ? event => { previous(event); callback(event); } : callback; }
   };
   const tools = document.getElementById("designer-tools");
   for (const tool of ["Select", "Terrain", "Edge", "Unit", "Machine", "BananaPeel", "RemoveMarker"]) {
@@ -87,11 +95,11 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
   document.getElementById("designer-side").value = "side-1";
   document.getElementById("designer-agency-side").value = "side-1";
   const details = new Element("details"); details.append(document.getElementById("designer-transport"));
-  const context = vm.createContext({ document, catalog, request, play, structuredClone, localStorage: storage, navigator: { clipboard: { writeText: async () => {} } } });
+  const context = vm.createContext({ document, catalog, request, play, projectMetadata, structuredClone, localStorage: storage, navigator: { clipboard: { writeText: async () => {} } } });
   vm.runInContext(source("designer-state.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("side-colors.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("designer.js").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, "").replace(/startDesigner\(\);\s*$/, ""), context);
-  vm.runInContext("globalThis.editor = mountDesigner(catalog, request, play)", context);
+  vm.runInContext("globalThis.editor = mountDesigner(catalog, request, play, projectMetadata)", context);
   const editor = context.editor;
   return {
     editor, documentListeners, context,
@@ -132,6 +140,172 @@ test("Machine tool places catalog content by pointer and keyboard, edits and del
   form.querySelectorAll("button").find(node => node.textContent === "Delete Machine").listeners.click();
   assert.equal(draft.definition.machines.length, 1);
   assert.throws(() => draft.resize(4, 2), /Shrinking/);
+});
+
+test("Resources place, reject collisions, change type, move, recover and undo atomically", () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage), d = h.editor.draft;
+  h.editor.setTool("Resource"); h.editor.ui["resource-type"].value = "diamond";
+  h.down(h.cell(2, 2));
+  assert.equal(d.definition.resources[0].type.id, "diamond");
+  assert.match(h.cell(2, 2).textContent, /💎/);
+  const count = h.editor.history.past.length;
+  h.down(h.cell(2, 2)); assert.match(h.editor.ui.status.textContent, /refused/);
+  assert.equal(h.editor.history.past.length, count);
+  h.editor.setTool("Select"); h.down(h.cell(2, 2));
+  change(inputField(h.editor.ui.properties.children[0], "Resource Type"), "shell");
+  h.submit(h.editor.ui.properties.children[0]);
+  assert.equal(d.definition.resources[0].type.id, "shell");
+  press(h.editor.ui.properties, "Move Resource on board"); h.down(h.cell(3, 3));
+  assert.deepEqual(plain(d.definition.resources[0].position), { x: 3, y: 3 });
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.definition.resources), plain(d.definition.resources));
+  h.click("undo"); assert.deepEqual(plain(d.definition.resources[0].position), { x: 2, y: 2 });
+  h.click("redo"); assert.deepEqual(plain(d.definition.resources[0].position), { x: 3, y: 3 });
+  h.down(h.cell(3, 3)); press(h.editor.ui.properties, "Remove Resource");
+  assert.equal(d.definition.resources.length, 0); h.click("undo"); assert.equal(d.definition.resources.length, 1);
+});
+
+test("Unit moves use supplied multi-Cell geometry, preserve identity and references and cancel with Escape", () => {
+  const h = harness(), d = h.editor.draft;
+  const key = d.place("opaque-large", "blue", "Human", { x: 0, y: 0 });
+  d.definition.units[0].unitId = "giant";
+  d.setObjective("blue", { objective: "DefeatUnits", count: 1, selectors: [{ kind: "Unit", unitId: "giant" }] });
+  h.editor.render(); h.down(h.cell(1, 1));
+  const before = h.editor.history.past.length;
+  press(h.editor.ui.properties, "Move Unit on board"); h.move(h.cell(3, 2));
+  assert.match(h.cell(4, 3).className, /placement-preview/);
+  h.down(h.cell(3, 2)); assert.equal(h.editor.history.past.length, before + 1);
+  assert.equal(d.unitKeys[0], key); assert.equal(d.definition.units[0].unitId, "giant");
+  assert.equal(d.definition.objectives[0].selectors[0].unitId, "giant");
+  h.click("undo"); assert.deepEqual(plain(d.definition.units[0].anchor), { x: 0, y: 0 });
+  h.down(h.cell(0, 0)); press(h.editor.ui.properties, "Move Unit on board");
+  h.documentListeners.keydown({ key: "Escape" }); h.down(h.cell(3, 3));
+  assert.deepEqual(plain(d.definition.units[0].anchor), { x: 0, y: 0 });
+});
+
+test("Objectives author all types, selectors, counts, rectangles and stable board-picked Unit references", () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage), d = h.editor.draft;
+  d.place("grunt-type", "blue", "Human", { x: 0, y: 0 });
+  d.place("grunt-type", "red", "Automated", { x: 4, y: 4 }); h.editor.render();
+  let f = openObjective(h);
+  change(inputField(f, "Objective type"), "ReachArea");
+  f = objectiveForm(h); press(f, "Add selection"); f = objectiveForm(h);
+  assert.equal(inputField(f, "Selection 1 · select").value, "SideAtStart");
+  change(inputField(f, "Selection 1 · select"), "Unit");
+  f = objectiveForm(h); press(f, "Pick Unit on board"); h.down(h.cell(0, 0));
+  const id = d.definition.units[0].unitId; assert.ok(id);
+  f = objectiveForm(h); press(f, "Draw Objective Area"); h.down(h.cell(2, 1)); h.up(); h.down(h.cell(4, 3)); h.up();
+  f = objectiveForm(h); assert.equal(inputField(f, "Area W").value, "3"); h.submit(f);
+  assert.deepEqual(plain(d.definition.objectives[0]), { sideId: "blue", objective: "ReachArea", count: 0, selectors: [{ kind: "Unit", unitId: id }], area: { x: 2, y: 1, w: 3, h: 3 } });
+  assert.ok(h.editor.ui.board.children.some(n => n.className.includes("objective-area")));
+  assert.ok(h.editor.ui.board.children.some(n => n.className.includes("objective-reference")));
+  f = objectiveForm(h); change(inputField(f, "Required Units"), "Minimum"); enter(inputField(f, "Minimum count"), "2");
+  press(f, "Add selection"); f = objectiveForm(h); change(inputField(f, "Selection 2 · select"), "Group");
+  f = objectiveForm(h); change(inputField(f, "Selection 2 · Group"), JSON.stringify(["grunt-type", "red"]));
+  h.submit(f); assert.equal(d.definition.objectives[0].count, 2);
+  assert.equal(d.definition.objectives[0].selectors[1].kind, "Group");
+  f = objectiveForm(h); change(inputField(f, "Objective type"), "DefeatUnits"); h.submit(objectiveForm(h));
+  assert.equal(d.definition.objectives[0].area, undefined);
+  const exported = plain(d.snapshot());
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()), exported);
+  f = objectiveForm(h); press(f, "Copy Objective");
+  assert.equal(d.definition.objectives.find(o => o.sideId === "red").count, 2);
+  f = objectiveForm(h); change(inputField(f, "Objective type"), "NoObjective"); h.submit(objectiveForm(h));
+  assert.equal(d.definition.objectives.find(o => o.sideId === "blue").objective, "NoObjective");
+  f = objectiveForm(h); change(inputField(f, "Objective type"), "EliminateEnemies"); h.submit(objectiveForm(h));
+  assert.equal(d.definition.objectives.find(o => o.sideId === "blue").objective, "EliminateEnemies");
+  press(objectiveForm(h), "Use default Objective"); assert.equal(d.definition.objectives.some(o => o.sideId === "blue"), false);
+});
+
+test("incomplete Objective inputs recover, selector removal shifts identities and drag rectangle is one authored edit", () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage), d = h.editor.draft;
+  d.setAgency("grunt-type", "blue", "Human"); h.editor.render();
+  let f = openObjective(h); change(inputField(f, "Objective type"), "ReachArea");
+  f = objectiveForm(h); press(f, "Add selection"); f = objectiveForm(h); press(f, "Add selection");
+  f = objectiveForm(h); enter(inputField(f, "Selection 2 · Side"), "missing-side");
+  press(f.querySelectorAll("div").find(n => n.className === "designer-selector"), "Remove selection");
+  f = objectiveForm(h); assert.equal(inputField(f, "Selection 1 · Side").value, "missing-side");
+  enter(inputField(f, "Area W"), "-"); h.submit(f);
+  assert.equal(d.definition.objectives, undefined);
+  const recovered = harness(undefined, undefined, storage); let rf = openObjective(recovered);
+  assert.equal(inputField(rf, "Area W").value, "-");
+  press(f, "Draw Objective Area"); const count = h.editor.history.past.length;
+  h.down(h.cell(1, 1)); h.move(h.cell(3, 2)); h.up();
+  assert.equal(h.editor.history.past.length, count);
+  f = objectiveForm(h); h.submit(f);
+  assert.equal(h.editor.history.past.length, count + 1);
+  assert.deepEqual(plain(d.definition.objectives[0].area), { x: 1, y: 1, w: 3, h: 2 });
+  assert.throws(() => d.resize(2, 2), /Shrinking/);
+});
+
+test("group inventory uses effective capacities, preserves unplaced groups and unsupported imported stores", () => {
+  const h = harness(), d = h.editor.draft;
+  const meta = d.catalog.unitTypes.find(t => t.unitTypeId === "unplaced");
+  const previous = meta.resourceStorage; meta.resourceStorage = { capacities: [{ type: catalog.resourceTypes[1], capacity: 3 }] };
+  try {
+    d.setAgency("unplaced", "blue", "Human");
+    d.definition.storedResources = [{ unitTypeId: "unplaced", sideId: "blue", type: { id: "mystery", name: "Mystery" }, quantity: 2 }]; h.editor.render();
+    let f = h.editor.ui.agency.children[0]; enter(inputField(f, "Stored Diamond (capacity 3)"), "2"); h.submit(f);
+    assert.equal(d.definition.units.length, 0); assert.equal(d.definition.storedResources.length, 2);
+    assert.equal(d.definition.storedResources[1].quantity, 2);
+    f = h.editor.ui.agency.children[0]; enter(inputField(f, "Stored Diamond (capacity 3)"), "4"); const before = plain(d.snapshot()); h.submit(f);
+    assert.deepEqual(plain(d.snapshot()), before); assert.match(h.editor.ui.status.textContent, /refused/);
+    h.editor.render(); f = h.editor.ui.agency.children[0]; press(f, "Discard unfinished inputs");
+    h.click("undo"); assert.equal(d.definition.storedResources.length, 1);
+    h.click("redo"); assert.equal(d.definition.storedResources.length, 2);
+  } finally { meta.resourceStorage = previous; }
+});
+
+test("custom metadata overrides canonical geometry, ignores stale requests and preserves opaque content", async () => {
+  const pending = [], h = harness(undefined, undefined, undefined, body => new Promise(resolve => pending.push({ body, resolve }))), d = h.editor.draft;
+  d.place("grunt-type", "blue", "Human", { x: 0, y: 0 });
+  d.definition.unitTypes = [{ id: "grunt-type", hp: 12, opaque: { retain: true } }]; h.editor.render();
+  assert.equal(d.metadata("grunt-type"), undefined);
+  d.definition.unitTypes[0].hp = 13; h.editor.render();
+  const metadata = { ...catalog.unitTypes[0], unitTypeId: "grunt-type", maxHp: 13, cellSpan: 2, footprintOffsets: [{ x: 0, y: 0 }, { x: 1, y: 1 }] };
+  pending.at(-1).resolve({ unitTypes: [metadata] }); await Promise.resolve(); await Promise.resolve();
+  pending.at(-2).resolve({ unitTypes: [{ ...metadata, maxHp: 12 }] }); await Promise.resolve(); await Promise.resolve();
+  assert.equal(d.metadata("grunt-type").maxHp, 13); assert.equal(d.unitsAt({ x: 1, y: 1 }).length, 1);
+  assert.deepEqual(plain(d.definition.unitTypes[0].opaque), { retain: true });
+});
+
+test("picking and deletion freeze generated identities without retargeting imported Objective or Order references", () => {
+  const h = harness(), d = h.editor.draft;
+  const a = d.place("grunt-type", "blue", "Human", { x: 0, y: 0 });
+  const b = d.place("grunt-type", "red", "Human", { x: 4, y: 4 });
+  d.setObjective("blue", { objective: "DefeatUnits", count: 1, selectors: [{ kind: "Unit", unitId: "scenario-unit-2" }] });
+  assert.throws(() => d.removeUnit(a), /identities are still loading/);
+  d.effectiveUnitIds = ["scenario-unit-1", "scenario-unit-2"];
+  assert.equal(d.stableUnitId(b), "scenario-unit-2");
+  assert.equal(d.definition.units[0].unitId, undefined);
+  d.removeUnit(a); assert.equal(d.definition.units[0].unitId, "scenario-unit-2");
+  assert.equal(d.definition.objectives[0].selectors[0].unitId, "scenario-unit-2");
+});
+
+test("Objective Apply retains unknown data and imported selector and count semantics", () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency("grunt-type", "blue", "Human");
+  const original = { sideId: "blue", objective: "ReachArea", count: 0, custom: { retained: true },
+    selectors: [{ kind: "Group", unitTypeId: "grunt-type", sideId: "blue", extra: "retained" }, { kind: "SideAtStart", sideId: "blue" }], area: { x: 1, y: 1, w: 2, h: 2 } };
+  d.setObjective("blue", original); h.editor.render(); h.submit(openObjective(h));
+  assert.deepEqual(plain(d.definition.objectives[0]), original);
+});
+
+test("Order destinations, Door edges and Waypoint rectangles use shared buffered board picking", () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency("grunt-type", "blue", "Human"); h.editor.render();
+  let form = h.editor.ui.agency.children[0]; change(inputField(form, "Starting Order"), "MoveTo");
+  press(form, "Pick Destination on board"); h.down(h.cell(4, 3)); form = h.editor.ui.agency.children[0]; h.submit(form);
+  assert.deepEqual(plain(d.definition.orders[0].destination), { x: 4, y: 3 });
+  form = h.editor.ui.agency.children[0]; change(inputField(form, "Starting Order"), "InteractWith");
+  press(form, "Pick Door edge"); h.down(h.edge(2, 1, "Down")); form = h.editor.ui.agency.children[0]; h.submit(form);
+  assert.deepEqual(plain(d.definition.orders[0].target.door), { a: { x: 2, y: 1 }, b: { x: 2, y: 2 } });
+  form = h.editor.ui.routes.children.find(n => n.dataset.formKey === "waypoint:new");
+  enter(inputField(form, "Waypoint ID"), "drawn"); press(form, "Draw Waypoint Area");
+  h.down(h.cell(3, 2)); h.move(h.cell(1, 1)); h.up();
+  form = h.editor.ui.routes.children.find(n => n.dataset.formKey === "waypoint:new"); h.submit(form);
+  assert.deepEqual(plain(d.definition.waypoints[0]), { id: "drawn", area: { x: 1, y: 1, w: 3, h: 2 } });
 });
 
 test("imported Machines survive validation, export and play and remain selectable in invalid overlaps", async () => {
@@ -674,16 +848,19 @@ test("Neutrality and No Objective edit independently and survive designer roundt
   draft.paintTerrain({ x: 0, y: 0 }, "Rail", "South"); h.editor.render();
   let form = h.editor.ui["side-settings"].children[0];
   inputField(form, "Neutral (no hostility in either direction)").value = "Yes";
-  inputField(form, "Objective").value = "NoObjective"; h.submit(form);
+  h.submit(form);
+  form.querySelectorAll("button").find(b => b.textContent.includes("Edit Objective")).listeners.click();
+  form = h.editor.ui["side-settings"].children.at(-1);
+  inputField(form, "Objective type").value = "NoObjective"; h.submit(form);
   assert.deepEqual(plain(draft.definition.neutralSides), ["Railway"]);
-  assert.deepEqual(plain(draft.definition.objectives), [{ sideId: "Railway", objective: "NoObjective" }]);
+  assert.equal(draft.definition.objectives[0].objective, "NoObjective");
   const exported = draft.snapshot(); draft.replace(JSON.parse(JSON.stringify(exported))); h.editor.render();
   assert.deepEqual(plain(draft.snapshot()), plain(exported));
   form = h.editor.ui["side-settings"].children[0];
   inputField(form, "Neutral (no hostility in either direction)").value = "No"; h.submit(form);
   assert.deepEqual(plain(draft.definition.neutralSides), []);
   assert.equal(draft.definition.objectives[0].objective, "NoObjective");
-  form = h.editor.ui["side-settings"].children[0]; inputField(form, "Objective").value = ""; h.submit(form);
+  form = h.editor.ui["side-settings"].children.at(-1); inputField(form, "Objective type").value = ""; h.submit(form);
   assert.deepEqual(plain(draft.definition.objectives), []);
   assert.equal(draft.railDirectionAt({ x: 0, y: 0 }), "South");
 });

@@ -23,7 +23,11 @@ export class DesignerDraft {
   }
   changed() { this.revision++; }
   snapshot() { return structuredClone(this.definition); }
-  metadata(id) { return this.catalog.unitTypes.find(type => type.unitTypeId === id); }
+  metadata(id) {
+    if ((this.definition.unitTypes ?? []).some(type => type.id === id))
+      return this.effectiveMetadata?.find(type => type.unitTypeId === id);
+    return this.catalog.unitTypes.find(type => type.unitTypeId === id);
+  }
   occupied(unit) {
     const metadata = this.metadata(unit.unitTypeId);
     // Unknown imported content remains recoverable/selectable at its anchor. Geometry is supplied by the catalog.
@@ -51,6 +55,7 @@ export class DesignerDraft {
       (this.definition.cellMarkers ?? []).some(marker => hidden(marker.position)) ||
       (this.definition.resources ?? []).some(resource => hidden(resource.position)) ||
       (this.definition.waypoints ?? []).some(w => hidden({ x: w.area.x + w.area.w - 1, y: w.area.y + w.area.h - 1 })) ||
+      (this.definition.objectives ?? []).some(o => o.area && hidden({ x: o.area.x + o.area.w - 1, y: o.area.y + o.area.h - 1 })) ||
       (this.definition.machines ?? []).some(machine => hidden(machine.position)))
       throw new Error("Shrinking would hide authored terrain, edges, Units, Resources, Cell Markers or Machines. Remove or reposition them first.");
     board.width = width; board.height = height; this.changed();
@@ -68,8 +73,54 @@ export class DesignerDraft {
   }
   setObjective(side, objective) {
     const objectives = (this.definition.objectives ?? []).filter(value => value.sideId !== side);
-    if (objective) objectives.push({ sideId: side, objective });
+    if (objective) objectives.push(typeof objective === "string" ? { sideId: side, objective } : { ...structuredClone(objective), sideId: side });
     this.definition.objectives = objectives; this.changed();
+  }
+  setResource(position, type) {
+    const rows = this.definition.resources ??= [];
+    if (type && rows.some(row => sameCell(row.position, position)))
+      throw new Error("This Cell already has a Resource. Select it to move, change or remove it.");
+    upsert(rows, row => sameCell(row.position, position), type ? { type: structuredClone(type), position: { ...position } } : null);
+    this.changed();
+  }
+  moveResource(from, to) {
+    if (sameCell(from, to)) return;
+    const row = this.definition.resources?.find(row => sameCell(row.position, from));
+    if (!row) throw new Error("Select a Resource first.");
+    if (this.definition.resources.some(row => sameCell(row.position, to))) throw new Error("The destination already has a Resource.");
+    row.position = { ...to }; this.changed();
+  }
+  setInventory(unitTypeId, sideId, quantities) {
+    for (const { type, quantity } of quantities) {
+      const capacity = this.metadata(unitTypeId)?.resourceStorage?.capacities.find(c => c.type.id === type.id)?.capacity;
+      if (!Number.isInteger(quantity) || quantity < 0 || capacity == null || quantity > capacity)
+        throw new Error(`${type.name} must be between 0 and ${capacity ?? "the group's capacity"}.`);
+    }
+    const rows = this.definition.storedResources ??= [];
+    for (const { type, quantity } of quantities) upsert(rows,
+      row => row.unitTypeId === unitTypeId && row.sideId === sideId && row.type.id === type.id,
+      quantity === 0 ? null : { unitTypeId, sideId, type: structuredClone(type), quantity });
+    this.changed();
+  }
+  stableUnitId(key) {
+    const index = this.unitIndex(key), unit = this.definition.units[index];
+    if (!unit) throw new Error("Select a placed Unit.");
+    if (!unit.unitId) {
+      if (this.effectiveUnitIds?.[index]) {
+        // Make the selected engine identity explicit without rewriting references.
+        unit.unitId = this.effectiveUnitIds[index];
+        this.changed(); return unit.unitId;
+      }
+      if ((this.definition.objectives ?? []).some(o => o.selectors?.some(s => s.kind === "Unit")) ||
+          (this.definition.orders ?? []).some(o => o.target?.kind === "Unit"))
+        throw new Error("Unit identities are still loading. Try picking again after metadata is available; existing references were retained.");
+      let number = 1;
+      const used = new Set([...this.definition.units.map(u => u.unitId), ...(this.definition.machines ?? []).map(m => m.id),
+        ...(this.definition.objectives ?? []).flatMap(o => (o.selectors ?? []).map(s => s.unitId))]);
+      while (used.has(`authored-unit-${number}`)) number++;
+      unit.unitId = `authored-unit-${number}`; this.changed();
+    }
+    return unit.unitId;
   }
   paintTerrain(position, terrain, direction = "East") {
     upsert(this.definition.board.cells, entry => sameCell(entry.position, position),
@@ -135,6 +186,14 @@ export class DesignerDraft {
   removeUnit(key) {
     const index = this.unitIndex(key);
     if (index < 0) return;
+    // Removing an earlier placement must not retarget a reference to a generated ID.
+    const references = [...(this.definition.objectives ?? []).flatMap(o => (o.selectors ?? []).filter(s => s.kind === "Unit").map(s => s.unitId)),
+      ...(this.definition.orders ?? []).filter(o => o.target?.kind === "Unit").map(o => o.target.unitId)];
+    if (references.length && this.definition.units.some(u => !u.unitId)) {
+      if (!this.effectiveUnitIds || this.effectiveUnitIds.length !== this.definition.units.length)
+        throw new Error("Unit identities are still loading. Try deleting again after metadata is available; existing references were retained.");
+      this.definition.units.forEach((u, i) => { u.unitId ??= this.effectiveUnitIds[i]; });
+    }
     this.definition.units.splice(index, 1); this.unitKeys.splice(index, 1); this.changed();
   }
   setAgency(unitTypeId, sideId, controller) {

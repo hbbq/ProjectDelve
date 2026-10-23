@@ -61,15 +61,88 @@ public sealed class DesignerApiTests
             Assert.Equal(type.DisplayName, entry.GetProperty("displayName").GetString());
             Assert.Equal(FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)),
                 entry.GetProperty("footprintOffsets").Deserialize<Cell[]>(Json));
-            Assert.Equal(new[] { "unitTypeId", "displayName", "maxHp", "footprintOffsets", "cellSpan" }, entry.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(new[] { "unitTypeId", "displayName", "maxHp", "footprintOffsets", "cellSpan", "resourceStorage" }, entry.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(JsonSerializer.SerializeToElement(type.ResourceStorage, Json).GetRawText(), entry.GetProperty("resourceStorage").GetRawText());
         }
         var dragon = projected.Single(type => type.GetProperty("unitTypeId").GetString() == UnitTypeIds.RedDragon);
         Assert.Equal(2, dragon.GetProperty("cellSpan").GetInt32());
         Assert.Equal(4, dragon.GetProperty("footprintOffsets").GetArrayLength());
     }
 
+    [Fact]
+    public async Task EffectiveMetadataUsesScenarioOverridesWithoutRequiringAValidBoard()
+    {
+        await using var host = await Host.Start();
+        var custom = UnitRoster.RedDragon() with { Id = "custom-large", Hp = 12, DisplayName = "Scenario giant" };
+        var overridden = UnitRoster.Grunt() with { Hp = 9, Footprint = Footprint.TwoByTwo,
+            ResourceStorage = new([new(ResourceTypes.Shell, 4)]) };
+        using var response = await host.Client.PostAsJsonAsync("/api/designer/metadata", new { unitTypes = new[] { custom, overridden } }, Json);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        foreach (var type in new[] { custom, overridden })
+        {
+            var entry = result.GetProperty("unitTypes").EnumerateArray().Single(t => t.GetProperty("unitTypeId").GetString() == type.Id);
+            Assert.Equal(UnitContent.Find(type.Id, [custom, overridden])!.Hp, entry.GetProperty("maxHp").GetInt32());
+            Assert.Equal(4, entry.GetProperty("footprintOffsets").GetArrayLength());
+            Assert.Equal(2, entry.GetProperty("cellSpan").GetInt32());
+        }
+        using var duplicate = await host.Client.PostAsJsonAsync("/api/designer/metadata", new { unitTypes = new[] { custom, custom } }, Json);
+        Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
+    }
+
+    public static IEnumerable<object[]> ObjectiveCases()
+    {
+        foreach (var objective in Enum.GetValues<ScenarioObjective>())
+        foreach (var count in new[] { 0, 1, 2 })
+        foreach (var selector in new[] { "Unit", "SideAtStart", "Group", "Union" })
+            yield return [objective, count, selector];
+    }
+
+    [Theory]
+    [MemberData(nameof(ObjectiveCases))]
+    public async Task ObjectiveAndLogisticsAuthoringRoundTripsAndPlays(ScenarioObjective kind, int count, string selection)
+    {
+        await using var host = await Host.Start();
+        var selectors = selection switch
+        {
+            "Unit" => new[] { UnitSelector.ForUnit("target") },
+            "SideAtStart" => [UnitSelector.SideAtStart("red")],
+            "Group" => [UnitSelector.Group(UnitTypeIds.Grunt, "red")],
+            _ => [UnitSelector.ForUnit("target"), UnitSelector.SideAtStart("red"), UnitSelector.Group(UnitTypeIds.Grunt, "red")]
+        };
+        var objective = new SideObjective("blue", kind) { Count = count, Selectors = [.. selectors],
+            Area = kind == ScenarioObjective.ReachArea ? new(2, 2, 2, 2) : null };
+        var definition = Scenario.Define(Scenario.Map(5, 5),
+            [Scenario.Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human, Scenario.At(0, 0)),
+             Scenario.Group(UnitTypeIds.Grunt, "red", ControllerKind.Automated, Scenario.At(4, 4)),
+             Scenario.Group(UnitTypeIds.Geomancer, "blue", ControllerKind.Human)]) with
+        {
+            Objectives = [objective, new("red", ScenarioObjective.NoObjective)],
+            Resources = [new(ResourceTypes.Shell, new(1, 1)), new(ResourceTypes.Diamond, new(1, 2))],
+            StoredResources = [new("blue", UnitTypeIds.Geomancer, ResourceTypes.Diamond, 1)]
+        };
+        definition.Units[1] = definition.Units[1] with { UnitId = "target" };
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = ScenarioDefinitionTransport.Encode(definition) });
+        imported.EnsureSuccessStatusCode();
+        var loaded = ScenarioDefinitionJson.FromJson(await imported.Content.ReadAsStringAsync());
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(loaded));
+        // A focused edit changes authored geometry/count while retaining selectors and logistics.
+        loaded.Objectives![0] = objective with { Count = count + 1, Area = kind == ScenarioObjective.ReachArea ? new(1, 2, 3, 2) : null };
+        using var valid = await host.PostDraft("validate", ScenarioDefinitionJson.ToJson(loaded));
+        Assert.True((await valid.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", ScenarioDefinitionJson.ToJson(loaded));
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        Assert.Equal(ScenarioDefinitionJson.ToJson(loaded), ScenarioDefinitionJson.ToJson(ScenarioDefinitionTransport.Decode(transport)));
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
+        played.EnsureSuccessStatusCode();
+        var state = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!.Result.State;
+        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(loaded), state);
+    }
+
     [Theory]
     [InlineData("railway-fixture")]
+    [InlineData("designer-phase2")]
     [InlineData("serialization")]
     [InlineData("shaman")]
     [InlineData("shaper")]
@@ -84,7 +157,8 @@ public sealed class DesignerApiTests
     public async Task DesignerRoundTripPreservesDefinitionsAndUsesExistingGameImport(string id)
     {
         await using var host = await Host.Start();
-        var definition = id == "chess-phase2" ? Scenario.Define(Scenario.Map(6, 6),
+        var definition = id == "designer-phase2" ? ScenarioDefinitionJson.FromJson(await File.ReadAllTextAsync(
+            Path.Combine(host.ContentRoot, "../ProjectDelve.Web.Tests/fixtures/designer-phase2.json"))) : id == "chess-phase2" ? Scenario.Define(Scenario.Map(6, 6),
             [Scenario.Group(UnitTypeIds.RoyalBishop, "red", ControllerKind.Human, Scenario.At(0, 0)),
              Scenario.Group(UnitTypeIds.GoblinBishop, "blue", ControllerKind.Automated, Scenario.At(5, 5)),
              Scenario.Group(UnitTypeIds.RoyalKnight, "red", ControllerKind.Human, Scenario.At(1, 0)),

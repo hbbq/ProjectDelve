@@ -1,0 +1,35 @@
+{
+  "board": { "width": 8, "height": 6, "defaultTerrain": "StoneFloor", "cells": [], "edges": [
+    { "position": { "x": 3, "y": 2 }, "direction": "Right", "kind": "ClosedDoor" }
+  ] },
+  "unitTypeIds": ["grunt-type", "wizard-type", "fixture-store"],
+  "unitTypes": [
+    { "id": "grunt-type", "displayName": "Scenario Giant", "mov": 2, "rng": 1, "atk": 1, "def": 1, "hp": 9, "unique": true, "footprint": "TwoByTwo" },
+    { "id": "fixture-store", "displayName": "Shared Store", "mov": 1, "rng": 0, "atk": 0, "def": 1, "hp": 3, "unique": true, "actions": "None", "resourceStorage": { "capacities": [
+      { "type": { "id": "coal", "name": "Coal" }, "capacity": 3 },
+      { "type": { "id": "diamond", "name": "Diamond" }, "capacity": 3 },
+      { "type": { "id": "fruit", "name": "Fruit" }, "capacity": 3 },
+      { "type": { "id": "banana", "name": "Banana" }, "capacity": 3 },
+      { "type": { "id": "mushroom", "name": "Mushroom" }, "capacity": 3 },
+      { "type": { "id": "shell", "name": "Shell" }, "capacity": 3 }
+    ] } }
+  ],
+  "units": [
+    { "unitTypeId": "grunt-type", "sideId": "blue", "anchor": { "x": 0, "y": 0 }, "posture": "Upright", "initialHp": 8 },
+    { "unitTypeId": "wizard-type", "sideId": "red", "anchor": { "x": 6, "y": 4 }, "posture": "Upright", "unitId": "wizard" }
+  ],
+  "agency": [
+    { "unitTypeId": "grunt-type", "sideId": "blue", "controller": "Human" },
+    { "unitTypeId": "wizard-type", "sideId": "red", "controller": "Human" },
+    { "unitTypeId": "fixture-store", "sideId": "blue", "controller": "Human" }
+  ],
+  "objectives": [
+    { "sideId": "blue", "objective": "ReachArea", "count": 0, "selectors": [{ "kind": "SideAtStart", "sideId": "blue" }], "area": { "x": 4, "y": 0, "w": 3, "h": 3 } },
+    { "sideId": "red", "objective": "DefeatUnits", "count": 1, "selectors": [{ "kind": "Unit", "unitId": "scenario-unit-1" }] }
+  ],
+  "storedResources": [{ "unitTypeId": "fixture-store", "sideId": "blue", "type": { "id": "shell", "name": "Shell" }, "quantity": 1 }],
+  "resources": [{ "type": { "id": "diamond", "name": "Diamond" }, "position": { "x": 3, "y": 0 } }],
+  "waypoints": [{ "id": "east", "area": { "x": 4, "y": 1, "w": 2, "h": 2 } }],
+  "routes": [{ "id": "path", "mode": "Once", "waypointIds": ["east"] }],
+  "orders": [{ "unitTypeId": "grunt-type", "sideId": "blue", "kind": "MoveTo", "destination": { "x": 4, "y": 0 } }]
+}

@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace ProjectDelve.Engine;
 
 internal static class ScenarioCreation
@@ -138,6 +136,7 @@ internal static class ScenarioCreation
         }
         // The same validation also remains at round start. Validate content before CreateUnit.
         GameEngine.ValidateScenario(state);
+        var initialUnitIds = ScenarioIdentity.UnitIds(definition.Units, (definition.Machines ?? []).Select(m => m.Id));
         for (var index = 0; index < definition.Units.Count; index++)
         {
             var placement = definition.Units[index];
@@ -145,13 +144,7 @@ internal static class ScenarioCreation
             if (placement.InitialHp is { } hp && (hp < 1 || hp > type.Hp))
                 throw ScenarioValidationContext.At(new ArgumentException($"InitialHp for placement {index} must be between 1 and {type.Hp}.", nameof(definition)), $"units[{index}]");
             // Preserve existing deterministic IDs when free, while reserving every authored identity first.
-            var id = placement.UnitId;
-            if (id is null)
-            {
-                var number = index + 1;
-                do id = "scenario-unit-" + (number++).ToString(CultureInfo.InvariantCulture);
-                while (authoredUnitIds.Contains(id) || state.Units.Any(unit => unit.Id == id) || state.Physical.Board.Machines.Any(m => m.Id == id));
-            }
+            var id = initialUnitIds[index];
             try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
             if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };

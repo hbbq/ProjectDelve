@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ProjectDelve.Engine;
 
 namespace ProjectDelve.Web;
 
 public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int MaxHp,
-    IReadOnlyList<Cell> FootprintOffsets, int CellSpan);
+    IReadOnlyList<Cell> FootprintOffsets, int CellSpan, ResourceStorage? ResourceStorage);
+public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null);
 public sealed record DesignerError(string Message, string? Path);
 public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
 public sealed record DesignerImportRequest(string Transport);
@@ -15,6 +17,13 @@ public sealed class DesignerBoardLimitException() : ArgumentException(
 public static class DesignerApi
 {
     public const int MaxBoardSize = 50; // Web/editor policy, never a Delve rule.
+
+    private static DesignerUnitType Metadata(UnitType type)
+    {
+        var offsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0));
+        return new(type.Id, type.DisplayName ?? type.Id, type.Hp, offsets,
+            offsets.Max(cell => cell.X) + 1, type.ResourceStorage);
+    }
 
     public static void CheckHostLimits(ScenarioDefinition definition)
     {
@@ -31,18 +40,28 @@ public static class DesignerApi
             cellMarkerTypes = new[] { CellMarkerTypes.BananaPeel },
             machineTypes = new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine },
             resourceTypes = new[] { ResourceTypes.Coal, ResourceTypes.Diamond, ResourceTypes.Fruit, ResourceTypes.Banana, ResourceTypes.Mushroom, ResourceTypes.Shell },
-            unitTypes = CanonicalUnitTypes.All.Select(type =>
-            {
-                var offsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0));
-                return new DesignerUnitType(type.Id, type.DisplayName ?? type.Id, type.Hp,
-                    offsets, offsets.Max(cell => cell.X) + 1);
-            }).ToArray(),
+            unitTypes = CanonicalUnitTypes.All.Select(Metadata).ToArray(),
             terrains = Enum.GetNames<TerrainKind>(),
             railDirections = Enum.GetNames<RailDirection>(),
             edgeKinds = Enum.GetNames<EdgeKind>(),
             postures = Enum.GetNames<Posture>(),
             controllers = Enum.GetNames<ControllerKind>(),
             orderKinds = Enum.GetNames<OrderKind>()
+        }));
+        // Content projection works even when the board or Objectives are incomplete.
+        // Use the same content resolver as scenario creation; never materialize a game here.
+        app.MapPost("/api/designer/metadata", (JsonElement content) => Execute(() =>
+        {
+            var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            { Converters = { new JsonStringEnumConverter(allowIntegerValues: false) } };
+            var input = content.Deserialize<DesignerMetadataRequest>(options);
+            var custom = input?.UnitTypes
+                ?? throw new ArgumentException("Unit Types are required.");
+            if (custom.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id)) || custom.Select(t => t.Id).Distinct().Count() != custom.Count)
+                throw new ArgumentException("Custom Unit Types must have unique, nonblank IDs.");
+            var ids = CanonicalUnitTypes.All.Select(t => t.Id).Concat(custom.Select(t => t.Id)).Distinct();
+            return Results.Ok(new { unitTypes = ids.Select(id => Metadata(UnitContent.Find(id, custom)!)).ToArray(),
+                unitIds = ScenarioIdentity.UnitIds(input!.Units ?? [], input.MachineIds ?? []) });
         }));
         app.MapGet("/api/designer/scenarios/{id}", (string id) =>
             PlaytestScenarios.Catalog.Any(s => s.Id == id)

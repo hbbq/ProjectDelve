@@ -2,7 +2,9 @@ import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDr
 import { styleSide } from "./side-colors.js";
 
 const element = (tag, value = "") => {
-  const node = document.createElement(tag); node.textContent = value; return node;
+  const node = document.createElement(tag); node.textContent = value;
+  if (tag === "button") node.dataset.action = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return node;
 };
 const button = (label, action) => {
   const node = element("button", label); node.type = "button"; node.addEventListener("click", action); return node;
@@ -21,16 +23,17 @@ function globalField(form, label, value, { entries, type = "text", list } = {}) 
   }
   if (type === "number") { input.type = "text"; input.inputMode = "numeric"; input.dataset.number = "true"; }
   input.setAttribute("aria-label", label);
+  input.dataset.field = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   if (list) input.setAttribute("list", list);
   input.value = value ?? ""; wrapper.append(input); form.append(wrapper); return input;
 }
 
 // A renderer for drafts, deliberately separate from GameState, choices and event playback.
-export function mountDesigner(catalog, request, playDesign) {
+export function mountDesigner(catalog, request, playDesign, projectMetadata = body => request("metadata", body)) {
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
     "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy",
-    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom"];
+    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom", "resource-label", "resource-type"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
   const history = new DesignerHistory(draft);
@@ -79,14 +82,15 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.undo.disabled = !history.past.length; ui.redo.disabled = !history.future.length;
     const count = Object.keys(buffers).length;
     ui.pending.textContent = count ? `${count} unfinished form${count > 1 ? "s" : ""} retained. Apply or discard before Validate, Export or Test. Save draft includes these inputs.`
-      : "Inspector properties commit on change. Board, World Effects, Group and Route forms use Apply / Save.";
+      : "Inspector properties commit on change. Objectives, Board, World Effects, Groups and Routes use Apply / Save.";
     ui.pending.dataset.pending = String(!!count);
     document.getElementById("designer-discard-inputs").hidden = !count;
     if (count) for (const key of Object.keys(buffers)) ui.pending.append(button(`Review ${formLabel(key)}`, () => reviewForm(key)));
   }
   function reviewForm(key) {
     if (key.startsWith("selection:")) { try { selection = JSON.parse(key.slice(10)); } catch {} showPanel("inspect"); }
-    else showPanel(key.startsWith("route:") || key.startsWith("waypoint:") ? "routes" : key.startsWith("side:") ? "sides" : key.startsWith("agency:") || key === "agency-form" ? "groups" : "board");
+    else showPanel(key.startsWith("route:") || key.startsWith("waypoint:") ? "routes" : key.startsWith("side:") || key.startsWith("objective:") ? "sides" : key.startsWith("agency:") || key === "agency-form" ? "groups" : "board");
+    if (key.startsWith("objective:")) objectiveSide = key.slice(10);
     render();
     for (const form of ui.main.querySelectorAll("form")) if (form.dataset.formKey === key) { form.scrollIntoView?.({ block: "nearest" }); form.querySelector?.("input,select")?.focus(); }
   }
@@ -121,11 +125,60 @@ export function mountDesigner(catalog, request, playDesign) {
     return input;
   }
   let tool = "Select", selection = null, painting = false, lastPaint = null, pendingPlay = false;
+  let objectiveSide = null, inspectedObjective = null, highlightedGroup = null, picker = null, metadataSignature = null, metadataSequence = 0;
+  const resourceSymbol = type => ({ coal: "⬢", diamond: "💎", fruit: "🍒", banana: "🍌", mushroom: "🍄", shell: "🐚" }[type.id] ?? type.name.slice(0, 2));
+  const resourceTypes = catalog.resourceTypes ?? [];
+  options(ui["resource-type"], resourceTypes.map(t => ({ value: t.id, label: `${resourceSymbol(t)} ${t.name}` })));
+  const resourceTool = button("◆ Resources", () => setTool("Resource")); resourceTool.dataset.tool = "Resource"; ui.tools.append(resourceTool);
+  const cancelPick = button("Cancel board pick (Esc)", () => { picker = null; setTool("Select"); renderBoard(); });
+  cancelPick.hidden = true; ui.help.after?.(cancelPick);
+  function beginPick(kind, label, apply, unitTypeId = null) {
+    picker = { kind, label, apply, unitTypeId }; setTool("Pick");
+    ui.board.dataset.pick = kind;
+    ui.help.textContent = `${label} · ${kind === "area" ? "Drag a rectangle, or click two opposite corners." : kind === "edge" ? "Choose an internal edge." : "Choose a Cell."} Esc cancels.`;
+    cancelPick.hidden = false; ui.board.scrollIntoView?.({ block: "nearest" });
+  }
+  function completePick(value) {
+    const apply = picker.apply; picker = null; setTool("Select"); apply(value); renderBoard();
+  }
+  function pick(target) {
+    if (!picker) return false;
+    if (picker.kind === "edge") { if (target.direction) completePick(target); return true; }
+    if (target.direction) return true;
+    if (picker.kind !== "area") { completePick(target.position); return true; }
+    if (!picker.start) { picker.start = target.position; picker.end = target.position; }
+    else completePick(rectangle(picker.start, target.position));
+    return true;
+  }
+  const rectangle = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x) + 1, h: Math.abs(a.y - b.y) + 1 });
+  function bufferedValues(form, values) {
+    const key = form.dataset.formKey;
+    Object.assign((buffers[key] ??= { values: {} }).values ??= {}, values); requests.sequence++; persist(); render();
+  }
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && picker) { picker = null; setTool("Select"); renderBoard(); }
+  });
+  function refreshMetadata() {
+    const custom = draft.definition.unitTypes ?? [];
+    const body = { unitTypes: custom, units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
+    const signature = JSON.stringify([custom, body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds]);
+    if (signature === metadataSignature) return;
+    metadataSignature = signature; draft.effectiveUnitIds = null;
+    if (draft.metadataContentSignature !== JSON.stringify(custom)) draft.effectiveMetadata = null;
+    draft.metadataContentSignature = JSON.stringify(custom);
+    const sequence = ++metadataSequence;
+    Promise.resolve(projectMetadata(body)).then(result => {
+      if (sequence !== metadataSequence) return;
+      if (!Array.isArray(result?.unitTypes)) throw new Error("Custom metadata unavailable");
+      draft.effectiveMetadata = result.unitTypes; draft.effectiveUnitIds = result.unitIds; render();
+    }).catch(() => { if (sequence === metadataSequence && custom.length) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only. Validate for engine diagnostics."; });
+  }
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
   function syncImportedTypes() {
-    typeOptions.splice(0, typeOptions.length, ...catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName })));
+    typeOptions.splice(0, typeOptions.length, ...catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: draft.metadata(type.unitTypeId)?.displayName ?? type.unitTypeId })));
     for (const id of new Set([...draft.definition.unitTypeIds, ...draft.definition.units.map(u => u.unitTypeId)]))
-      if (!typeOptions.some(t => t.value === id)) typeOptions.push({ value: id, label: `${id} (imported · anchor preview)` });
+      if (!typeOptions.some(t => t.value === id)) typeOptions.push({ value: id, label: draft.metadata(id)?.displayName ?? `${id} (imported · anchor preview)` });
+    for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) { const value = select.value; options(select, typeOptions); if (typeOptions.some(t => t.value === value)) select.value = value; }
   }
   const terrainOptions = [{ value: "", label: "Use default (remove override)" }, ...catalog.terrains];
   const edgeOptions = [{ value: "", label: "Remove" }, ...catalog.edgeKinds.filter(kind => kind !== "None")];
@@ -152,6 +205,7 @@ export function mountDesigner(catalog, request, playDesign) {
   document.getElementById("mode-playtest").addEventListener("click", () => setMode(false));
 
   function report(result, operation) {
+    ui.status.dataset.validation = result.valid ? "valid" : "invalid";
     ui.status.textContent = result.valid ? "Valid · checked by the engine" : operation === "import"
       ? "Import failed · current draft retained" : "Invalid · draft remains editable";
     ui.errors.replaceChildren(...result.errors.map(error => {
@@ -162,6 +216,7 @@ export function mountDesigner(catalog, request, playDesign) {
   }
   const requests = new DesignerRequests(draft, request, report);
   function unchecked() {
+    ui.status.dataset.validation = "unchecked";
     ui.status.textContent = "Unchecked · validate before export or play";
     ui.errors.replaceChildren();
     if (ui.transport.value === lastExport) ui.transport.value = "";
@@ -220,12 +275,16 @@ export function mountDesigner(catalog, request, playDesign) {
     restoreStatic("board-form");
   }
   function setTool(value) {
+    if (value !== "Pick") picker = null;
+    cancelPick.hidden = value !== "Pick";
     tool = value; ui.board.dataset.tool = tool;
-    for (const node of ui.board.querySelectorAll(".designer-edge-hit")) node.tabIndex = tool === "Edge" || tool === "Select" ? 0 : -1;
+    for (const node of ui.board.querySelectorAll(".designer-edge-hit")) node.tabIndex = tool === "Edge" || tool === "Select" || picker?.kind === "edge" ? 0 : -1;
     for (const node of ui.tools.querySelectorAll("button")) node.setAttribute("aria-pressed", String(node.dataset.tool === tool));
     ui["terrain-label"].hidden = tool !== "Terrain"; ui["edge-label"].hidden = tool !== "Edge";
     ui["unit-brush"].hidden = tool !== "Unit";
     ui["machine-label"].hidden = tool !== "Machine";
+    ui["resource-label"].hidden = tool !== "Resource";
+    if (["Unit", "Machine", "Resource"].includes(tool)) showPanel("inspect");
     ui.help.textContent = {
       Select: "Select a cell, edge, Unit or Machine to edit. Overlapping placements appear in a chooser and placement list.",
       Terrain: "Click or drag cells to paint. Use default removes the explicit override.",
@@ -233,6 +292,7 @@ export function mountDesigner(catalog, request, playDesign) {
       Unit: "Click the top-left anchor to place. Supplied footprint geometry is a preview; Validate checks legality.",
       BananaPeel: "Click a Cell to place a Banana Peel. Validate checks placement legality.",
       RemoveMarker: "Click a Cell to remove its Cell Marker.",
+      Resource: "Place one Resource per Cell. Select a Resource to move, change or remove it. Validate checks terrain and Machine conflicts.",
       Machine: "Click a cell to place a Machine. Select it to edit its ID, position, Owner Side and starting Resources. Validate checks legality."
     }[tool];
   }
@@ -262,6 +322,7 @@ export function mountDesigner(catalog, request, playDesign) {
     // Board pointer handling prevents native focus changes; explicitly finish any simple field first.
     document.activeElement?.blur?.();
     event.preventDefault();
+    if (pick(target)) return;
     if (tool === "Terrain" || tool === "Edge") { history.begin(); painting = true; lastPaint = null; paint(target); }
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
@@ -271,6 +332,7 @@ export function mountDesigner(catalog, request, playDesign) {
         catalog.cellMarkerTypes.find(type => type.id === "banana-peel"));
     });
     else if (tool === "Machine" && !target.direction) placeMachine(target.position);
+    else if (tool === "Resource" && !target.direction) commit(() => { draft.setResource(target.position, resourceTypes.find(t => t.id === ui["resource-type"].value)); selection = { kind: "cell", position: target.position }; });
     else if (tool === "Select") selectTarget(target);
   });
   ui.board.addEventListener("pointermove", event => {
@@ -279,14 +341,20 @@ export function mountDesigner(catalog, request, playDesign) {
     if (!target) return;
     ui.hover.textContent = target.direction ? `Edge (${target.position.x}, ${target.position.y}) ${target.direction}`
       : `Cell (${target.position.x}, ${target.position.y}) · ${draft.terrainAt(target.position)}`;
-    if (tool === "Unit" && !target.direction) {
-      const preview = draft.occupied({ unitTypeId: ui.type.value, anchor: target.position });
+    if ((tool === "Unit" || picker?.unitTypeId) && !target.direction) {
+      const preview = draft.occupied({ unitTypeId: picker?.unitTypeId ?? ui.type.value, anchor: target.position });
       for (const cell of preview) cellNodes.get(`${cell.x},${cell.y}`)?.classList.add("placement-preview");
     }
     if (tool === "Machine" && !target.direction) target.node.classList.add("placement-preview");
+    if (picker && !target.direction) {
+      picker.end = target.position;
+      const area = picker.kind === "area" && picker.start ? rectangle(picker.start, target.position) : rectangle(target.position, target.position);
+      for (let y = area.y; y < area.y + area.h; y++) for (let x = area.x; x < area.x + area.w; x++) cellNodes.get(`${x},${y}`)?.classList.add("placement-preview");
+    }
     if (painting && event.buttons === 1) paint(target);
   });
   document.addEventListener("pointerup", () => {
+    if (picker?.kind === "area" && picker.start && picker.end && !sameCell(picker.start, picker.end)) completePick(rectangle(picker.start, picker.end));
     if (painting) { painting = false; lastPaint = null; history.finish(); persist(); render(); }
   });
   document.addEventListener("pointercancel", () => { painting = false; lastPaint = null; history.finish(); persist(); render(); });
@@ -294,6 +362,7 @@ export function mountDesigner(catalog, request, playDesign) {
     if (!["Enter", " "].includes(event.key) || pendingPlay) return;
     const target = hit(event); if (!target) return;
     event.preventDefault();
+    if (pick(target)) return;
     if (tool === "Select") selectTarget(target);
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
@@ -303,6 +372,7 @@ export function mountDesigner(catalog, request, playDesign) {
         catalog.cellMarkerTypes.find(type => type.id === "banana-peel"));
     });
     else if (tool === "Machine" && !target.direction) placeMachine(target.position);
+    else if (tool === "Resource" && !target.direction) commit(() => draft.setResource(target.position, resourceTypes.find(t => t.id === ui["resource-type"].value)));
     else { history.begin(); lastPaint = null; paint(target); history.finish(); persist(); render(); }
   });
   function placeMachine(position) {
@@ -315,18 +385,21 @@ export function mountDesigner(catalog, request, playDesign) {
       const units = draft.unitsAt(target.position);
       const machines = (draft.definition.machines ?? []).flatMap((machine, index) =>
         sameCell(machine.position, target.position) ? [draft.machineKeys[index]] : []);
-      const count = units.length + machines.length;
+      const resource = (draft.definition.resources ?? []).some(r => sameCell(r.position, target.position));
+      const count = units.length + machines.length + (resource ? 1 : 0);
+      if (resource && count === 1) { selection = { kind: "cell", position: target.position }; render(); return; }
       selection = count === 1 ? (units.length ? { kind: "unit", key: units[0] } : { kind: "machine", key: machines[0] })
-        : count > 1 ? { kind: "overlap", keys: units, machineKeys: machines, position: target.position }
+        : count > 1 ? { kind: "overlap", keys: units, machineKeys: machines, resource, position: target.position }
         : { kind: "cell", position: target.position };
     }
     render();
   }
   function selectPath(path) {
     const clean = path.replace(/^\$\.?/, "");
-    const match = clean.match(/^(units|machines|cellMarkers|board.cells|board.edges|agency|orders|routes|waypoints|objectives|neutralSides)\[(\d+)\]/);
+    const match = clean.match(/^(units|machines|resources|cellMarkers|board.cells|board.edges|agency|orders|routes|waypoints|objectives|neutralSides)\[(\d+)\]/);
     if (!match) { showPanel(clean.startsWith("board") || clean.startsWith("world") || clean.startsWith("unitType") ? "board" : "groups"); return; }
     const index = Number(match[2]);
+    if (match[1] === "objectives") { objectiveSide = draft.definition.objectives?.[index]?.sideId; showPanel("sides"); render(); reviewForm(`objective:${objectiveSide}`); return; }
     showPanel(["agency", "orders"].includes(match[1]) ? "groups" : ["objectives", "neutralSides"].includes(match[1]) ? "sides" : ["routes", "waypoints"].includes(match[1]) ? "routes" : "inspect");
     if (["routes", "waypoints"].includes(match[1])) {
       const id = draft.definition[match[1]]?.[index]?.id;
@@ -336,6 +409,7 @@ export function mountDesigner(catalog, request, playDesign) {
     if (match[1] === "machines" && draft.machineKeys[index]) selection = { kind: "machine", key: draft.machineKeys[index] };
     if (match[1] === "cellMarkers" && draft.definition.cellMarkers?.[index])
       selection = { kind: "cell", position: draft.definition.cellMarkers[index].position };
+    if (match[1] === "resources" && draft.definition.resources?.[index]) selection = { kind: "cell", position: draft.definition.resources[index].position };
     if (match[1] === "board.cells" && draft.definition.board.cells[index])
       selection = { kind: "cell", position: draft.definition.board.cells[index].position };
     if (match[1] === "board.edges" && draft.definition.board.edges[index])
@@ -363,6 +437,19 @@ export function mountDesigner(catalog, request, playDesign) {
       const area = waypoint.area, node = element("span", waypoint.id); node.className = "waypoint-area";
       Object.assign(node.style, { left: `${area.x / board.width * 100}%`, top: `${area.y / board.height * 100}%`,
         width: `${area.w / board.width * 100}%`, height: `${area.h / board.height * 100}%` });
+      ui.board.append(node);
+    }
+    const objectives = (draft.definition.objectives ?? []).filter(o => o.sideId !== objectiveSide);
+    if (inspectedObjective && objectiveSide) objectives.push(inspectedObjective);
+    for (const objective of objectives) {
+      const a = objective.area;
+      if (objective.objective !== "ReachArea" || !a || ![a.x, a.y, a.w, a.h].every(Number.isFinite) || a.w < 1 || a.h < 1) continue;
+      const x = Math.max(0, a.x), y = Math.max(0, a.y), w = Math.max(0, Math.min(board.width, a.x + a.w) - x), h = Math.max(0, Math.min(board.height, a.y + a.h) - y);
+      if (!w || !h) continue;
+      const node = element("span", `${objective.sideId} · Objective`); node.className = `waypoint-area objective-area${objective.sideId === objectiveSide ? " active" : ""}`;
+      if (x !== a.x || y !== a.y || w !== a.w || h !== a.h) { node.className += " invalid-area"; node.textContent += " · outside board"; }
+      styleSide(node, objective.sideId);
+      Object.assign(node.style, { left: `${x / board.width * 100}%`, top: `${y / board.height * 100}%`, width: `${w / board.width * 100}%`, height: `${h / board.height * 100}%` });
       ui.board.append(node);
     }
     for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
@@ -397,9 +484,9 @@ export function mountDesigner(catalog, request, playDesign) {
       }
       const resource = (draft.definition.resources ?? []).find(resource => sameCell(resource.position, cell));
       if (resource) {
-        const marker = element("span", "?"); marker.className = "resource-marker";
+        const marker = element("span", resourceSymbol(resource.type)); marker.className = "resource-marker";
         marker.title = resource.type.name; marker.setAttribute("aria-label", resource.type.name);
-        node.append(marker); node.title += ` ? ${resource.type.name}`;
+        node.append(marker); node.title += ` · ${resource.type.name}`; node.setAttribute("aria-label", node.title);
       }
       ui.board.append(node); cellNodes.set(`${x},${y}`, node);
     }
@@ -409,7 +496,7 @@ export function mountDesigner(catalog, request, playDesign) {
       const edge = edges.get(`${x},${y},${direction}`), node = element("div");
       node.className = `edge designer-edge-hit ${edge?.kind ?? "None"}`;
       node.dataset.editorHit = "edge"; node.dataset.x = x; node.dataset.y = y; node.dataset.direction = direction;
-      node.tabIndex = tool === "Edge" || tool === "Select" ? 0 : -1;
+      node.tabIndex = tool === "Edge" || tool === "Select" || picker?.kind === "edge" ? 0 : -1;
       node.setAttribute("role", "button"); node.setAttribute("aria-label", `Edge ${x},${y} ${direction}: ${edge?.kind ?? "empty"}`);
       node.title = `(${x},${y}) ${direction} · ${edge?.kind ?? "empty"}`;
       node.style.left = `${(x + (direction === "Right" ? 1 : .5)) / board.width * 100}%`;
@@ -426,6 +513,8 @@ export function mountDesigner(catalog, request, playDesign) {
       node.className = `figure${span > 1 ? " large" : ""}${unit.posture === "Lying" ? " lying" : ""}`;
       node.dataset.unitKey = draft.unitKeys[index]; node.dataset.cellSpan = span;
       if (selection?.kind === "unit" && selection.key === draft.unitKeys[index]) node.classList.add("selected");
+      if (highlightedGroup?.unitTypeId === unit.unitTypeId && highlightedGroup?.sideId === unit.sideId ||
+        objectiveSide && inspectedObjective?.selectors?.some(s => s.kind === "Unit" ? (unit.unitId ?? draft.effectiveUnitIds?.[index]) === s.unitId : s.sideId === unit.sideId && (s.kind === "SideAtStart" || s.unitTypeId === unit.unitTypeId))) node.classList.add("objective-reference");
       const label = element("span", name.split(/\s+/).map(word => word[0]).join("").slice(0, 3) + (index + 1));
       label.className = "figure-name"; node.append(label);
       node.style.left = `${(unit.anchor.x + span / 2) / board.width * 100}%`;
@@ -447,6 +536,7 @@ export function mountDesigner(catalog, request, playDesign) {
       for (const key of selection.machineKeys ?? []) ui.properties.append(button(machineLabel(draft.machineKeys.indexOf(key)), () => {
         selection = { kind: "machine", key }; render();
       }));
+      if (selection.resource) ui.properties.append(button("Inspect Resource", () => { selection = { kind: "cell", position: selection.position }; render(); }));
       ui.properties.append(button("Edit terrain below", () => { selection = { kind: "cell", position: selection.position }; render(); }));
       return;
     }
@@ -474,8 +564,16 @@ export function mountDesigner(catalog, request, playDesign) {
           posture: posture.value, initialHp: hp.value === "" ? null : Number(hp.value),
           unitId: unitId.value.trim() ? unitId.value : null }, controller.value)); });
       form.append(element("button", "Apply Unit"));
+      form.append(button("Move Unit on board", () => beginPick("cell", `Choose top-left anchor for ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId}`, anchor => commit(() => {
+        draft.editUnit(key, { anchor }, agency?.controller ?? "Human");
+      }), unit.unitTypeId)));
       form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; }, [form.dataset.formKey])));
       form.append(button("Edit terrain at anchor", () => { selection = { kind: "cell", position: unit.anchor }; render(); }));
+      form.append(button("Inspect group and inventory", () => {
+        highlightedGroup = { unitTypeId: unit.unitTypeId, sideId: unit.sideId }; objectiveSide = null; showPanel("groups"); render();
+        const index = draft.definition.agency.findIndex(g => g.unitTypeId === unit.unitTypeId && g.sideId === unit.sideId);
+        ui.agency.children[index]?.scrollIntoView?.({ block: "nearest" });
+      }));
     } else if (selection.kind === "machine") {
       const key = selection.key, machine = draft.definition.machines?.[draft.machineKeys.indexOf(key)];
       if (!machine) { selection = null; renderProperties(); return; }
@@ -500,11 +598,20 @@ export function mountDesigner(catalog, request, playDesign) {
           ...quantities.map(q => ({ type: q.type, quantity: Number(q.input.value) }))]
       })); });
       form.append(element("button", "Apply Machine"));
+      form.append(button("Move Machine on board", () => beginPick("cell", "Move Machine", position => commit(() => draft.editMachine(key, { position })))));
       form.append(button("Delete Machine", () => commit(() => { draft.removeMachine(key); selection = null; }, [form.dataset.formKey])));
       form.append(button("Edit terrain below", () => { selection = { kind: "cell", position: machine.position }; render(); }));
     } else if (selection.kind === "cell") {
       const position = { ...selection.position };
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
+      const resource = draft.definition.resources?.find(row => sameCell(row.position, position));
+      let resourceType = null;
+      if (resource) {
+        form.append(element("strong", `${resourceSymbol(resource.type)} ${resource.type.name}`));
+        resourceType = field(form, "Resource Type", resource.type.id, { entries: resourceTypes.map(t => ({ value: t.id, label: t.name })) });
+        form.append(button("Move Resource on board", () => beginPick("cell", `Move ${resource.type.name}`, to => commit(() => { draft.moveResource(position, to); selection = { kind: "cell", position: to }; }))));
+        form.append(button("Remove Resource", () => commit(() => draft.setResource(position, null), [form.dataset.formKey])));
+      }
       const marker = draft.definition.cellMarkers?.find(marker => sameCell(marker.position, position));
       if (marker) {
         form.append(element("p", `Cell Marker: ${marker.type.name}`));
@@ -513,7 +620,10 @@ export function mountDesigner(catalog, request, playDesign) {
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrain ?? "", { entries: terrainOptions });
       const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });
-      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.paintTerrain(position, terrain.value || null, direction.value)); });
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
+        draft.paintTerrain(position, terrain.value || null, direction.value);
+        if (resource && resourceType.value !== resource.type.id) { resource.type = structuredClone(resourceTypes.find(t => t.id === resourceType.value)); draft.changed(); }
+      }); });
       form.append(element("button", "Apply terrain"));
     } else if (selection.kind === "edge") {
       const position = { ...selection.position }, direction = selection.direction;
@@ -543,6 +653,7 @@ export function mountDesigner(catalog, request, playDesign) {
         const x = field(details, `${label} X`, cell?.x ?? 0, { type: "number" });
         const y = field(details, `${label} Y`, cell?.y ?? 0, { type: "number" });
         x.step = y.step = "1";
+        details.append(button(`Pick ${label} on board`, () => beginPick("cell", label, cell => bufferedValues(form, { [`${label} X`]: String(cell.x), [`${label} Y`]: String(cell.y) }))));
         return () => ({ x: Number(x.value), y: Number(y.value) });
       };
       readDetails = () => ({});
@@ -569,6 +680,10 @@ export function mountDesigner(catalog, request, playDesign) {
             const id = field(targetFields, "Target Unit ID", target?.unitId, { list: "designer-unit-ids" });
             const suggestions = element("p", "Assign a stable Unit ID in the selected Unit's properties first.");
             targetFields.append(suggestions);
+            targetFields.append(button("Pick Order Unit on board", () => beginPick("cell", "Pick Order target", position => {
+              const keys = draft.unitsAt(position); if (keys.length !== 1) { ui.status.textContent = "Choose a Cell with one Unit."; return; }
+              let unitId; if (commit(() => { unitId = draft.stableUnitId(keys[0]); })) bufferedValues(form, { "Target Unit ID": unitId });
+            })));
             readTarget = () => ({ kind: "Unit", unitId: id.value });
           } else if (scope.value === "Group") {
             const type = field(targetFields, "Target Unit Type", target?.group?.typeId ?? typeOptions[0].value, { entries: typeOptions });
@@ -584,6 +699,10 @@ export function mountDesigner(catalog, request, playDesign) {
       } else if (kind.value === "InteractWith") {
         const a = cellFields("Door endpoint A", saved?.target?.door?.a);
         const b = cellFields("Door endpoint B", saved?.target?.door?.b);
+        details.append(button("Pick Door edge", () => beginPick("edge", "Pick Door edge", target => {
+          const end = { x: target.position.x + (target.direction === "Right" ? 1 : 0), y: target.position.y + (target.direction === "Down" ? 1 : 0) };
+          bufferedValues(form, { "Door endpoint A X": String(target.position.x), "Door endpoint A Y": String(target.position.y), "Door endpoint B X": String(end.x), "Door endpoint B Y": String(end.y) });
+        })));
         readDetails = () => {
           const endpoints = [a(), b()].sort((left, right) => left.y - right.y || left.x - right.x);
           return { target: { kind: "Door", door: { a: endpoints[0], b: endpoints[1] } } };
@@ -597,6 +716,107 @@ export function mountDesigner(catalog, request, playDesign) {
     const machine = draft.definition.machines[index];
     return `${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`} · (${machine.position.x}, ${machine.position.y})`;
   }
+  function objectiveEditor(side, current, sides) {
+    const form = editorForm(`objective:${side}`);
+    form.dataset.objectiveSide = side;
+    const heading = element("strong", `Objective · ${side}`); styleSide(heading, side); form.append(heading);
+    const kind = field(form, "Objective type", current?.objective ?? "", { entries: [
+      { value: "", label: "Default · Eliminate Enemies" }, { value: "EliminateEnemies", label: "Eliminate Enemies" },
+      { value: "NoObjective", label: "No Objective" }, { value: "ReachArea", label: "Reach Area" }, { value: "DefeatUnits", label: "Defeat Units" }] });
+    kind.addEventListener("change", render);
+    const selected = ["ReachArea", "DefeatUnits"].includes(kind.value);
+    let readSelectors = () => [], readArea = () => null, readCount = () => current?.count ?? 0;
+    if (selected) {
+      form.append(element("small", kind.value === "ReachArea" ? "Selected living Units must fit completely inside the area at the same evaluation boundary." : "Selected Units must have been defeated. Removing a figure alone does not count."));
+      const mode = field(form, "Required Units", current?.count ? "Minimum" : "All", { entries: ["All", "Minimum"] });
+      const count = field(form, "Minimum count", current?.count || 1, { type: "number" });
+      count.disabled = mode.value === "All";
+      mode.addEventListener("change", () => { count.disabled = mode.value === "All"; });
+      readCount = () => mode.value === "All" ? 0 : Number(count.value);
+      form.append(element("small", "Selectors combine without double counting. An empty selection never achieves the Objective."));
+      const selectorRows = structuredClone(buffers[form.dataset.formKey]?.selectors ?? current?.selectors ?? []);
+      const reads = [];
+      const saveRows = rows => { (buffers[form.dataset.formKey] ??= { values: {} }).selectors = rows; requests.sequence++; persist(); render(); };
+      selectorRows.forEach((row, index) => {
+        const section = element("div"); section.className = "designer-selector"; form.append(section);
+        const prefix = `Selection ${index + 1}`;
+        const scope = field(section, `${prefix} · select`, row.kind, { entries: [
+          { value: "Unit", label: "One specific Unit" }, { value: "SideAtStart", label: "Side's initial Units" }, { value: "Group", label: "Unit Type + Side · includes later Units" }] });
+        scope.addEventListener("change", render);
+        let read;
+        if (scope.value === "Unit") {
+          const entries = [{ value: "", label: "Choose a Unit with a stable ID, or pick on board" }, ...draft.definition.units.flatMap((u, i) => {
+            const id = u.unitId ?? draft.effectiveUnitIds?.[i]; return id ? [{ value: id, label: `${draft.metadata(u.unitTypeId)?.displayName ?? u.unitTypeId} · ${u.sideId} · ${id}` }] : [];
+          })];
+          const id = field(section, `${prefix} · Unit`, row.unitId ?? "", { entries });
+          section.append(button("Pick Unit on board", () => beginPick("cell", "Pick the specific Unit", position => {
+            const keys = draft.unitsAt(position);
+            if (keys.length !== 1) { ui.status.textContent = "Choose a Cell containing exactly one Unit. Overlaps can be fixed in Inspector."; return; }
+            let unitId; if (commit(() => { unitId = draft.stableUnitId(keys[0]); })) bufferedValues(form, { [`${prefix} · Unit`]: unitId });
+          })));
+          read = () => ({ kind: "Unit", unitId: id.value });
+        } else if (scope.value === "SideAtStart") {
+          const id = field(section, `${prefix} · Side`, row.sideId ?? sides[0], { entries: sides });
+          section.append(element("small", "Only Units present at setup are included; summoned Units are excluded."));
+          read = () => ({ kind: "SideAtStart", sideId: id.value });
+        } else {
+          const entries = draft.definition.agency.map(g => ({ value: JSON.stringify([g.unitTypeId, g.sideId]), label: `${draft.metadata(g.unitTypeId)?.displayName ?? g.unitTypeId} · ${g.sideId}` }));
+          const identity = row.unitTypeId && row.sideId ? JSON.stringify([row.unitTypeId, row.sideId]) : "missing";
+          const group = field(section, `${prefix} · Group`, identity, { entries: [{ value: "missing", label: "Choose a group" }, ...entries] });
+          read = () => { try { const [unitTypeId, sideId] = JSON.parse(group.value); return { kind: "Group", unitTypeId, sideId }; } catch { return { ...row, kind: "Group" }; } };
+          section.append(button("Pick group on board", () => beginPick("cell", "Pick a Unit in the group", position => {
+            const keys = draft.unitsAt(position), unit = keys.length === 1 ? draft.definition.units[draft.unitIndex(keys[0])] : null;
+            if (!unit) { ui.status.textContent = "Choose a Cell with one Unit."; return; }
+            bufferedValues(form, { [`${prefix} · Group`]: JSON.stringify([unit.unitTypeId, unit.sideId]) });
+          })));
+        }
+        const readKnown = read;
+        reads.push(() => {
+          const result = { ...row, ...readKnown() };
+          if (result.kind !== "Unit") delete result.unitId;
+          if (result.kind === "Unit") { delete result.sideId; delete result.unitTypeId; }
+          if (result.kind === "SideAtStart") delete result.unitTypeId;
+          return result;
+        });
+        section.append(button("Remove selection", () => {
+          const rows = reads.map(fn => fn()).concat(selectorRows.slice(reads.length)); rows.splice(index, 1);
+          for (const label of Object.keys(buffers[form.dataset.formKey]?.values ?? {})) if (label.startsWith("Selection ")) delete buffers[form.dataset.formKey].values[label];
+          saveRows(rows);
+        }));
+      });
+      readSelectors = () => reads.map(fn => fn());
+      form.append(button("Add selection", () => saveRows([...readSelectors(), { kind: "SideAtStart", sideId: side }])));
+      if (kind.value === "ReachArea") {
+        const coordinates = element("div"); coordinates.className = "designer-coordinate-grid"; form.append(coordinates);
+        const geometry = ["x", "y", "w", "h"].map(key => field(coordinates, `Area ${key.toUpperCase()}`, current?.area?.[key] ?? (key === "w" || key === "h" ? 1 : 0), { type: "number" }));
+        readArea = () => Object.fromEntries(["x", "y", "w", "h"].map((key, i) => [key, Number(geometry[i].value)]));
+        form.append(button("Draw Objective Area", () => beginPick("area", `Draw Objective Area for ${side}`, area => {
+          bufferedValues(form, Object.fromEntries(Object.entries(area).map(([key, value]) => [`Area ${key.toUpperCase()}`, String(value)])));
+        })));
+      }
+    }
+    const read = () => {
+      if (!kind.value) return null;
+      if (kind.value === current?.objective && !selected) return structuredClone(current);
+      const result = { ...(current ?? {}), sideId: side, objective: kind.value, count: selected ? readCount() : 0, selectors: selected ? readSelectors() : [] };
+      if (kind.value === "ReachArea") result.area = readArea(); else delete result.area;
+      return result;
+    };
+    inspectedObjective = read();
+    form.append(element("button", "Apply Objective"));
+    form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.setObjective(side, read())); });
+    if (current) form.append(button("Use default Objective", () => commit(() => draft.setObjective(side, null), [form.dataset.formKey])));
+    const destinations = sides.filter(s => s !== side);
+    if (destinations.length) {
+      const destination = field(form, "Copy Objective to Side", destinations[0], { entries: destinations });
+      form.append(button("Copy Objective", () => {
+        if (draft.definition.objectives?.some(o => o.sideId === destination.value)) { ui.status.textContent = "That Side already has an explicit Objective. Use its default Objective first before copying."; return; }
+        if (!numbersComplete(form)) { ui.status.textContent = "Finish numeric fields before copying."; return; }
+        commit(() => draft.setObjective(destination.value, read()));
+      }));
+    }
+    return form;
+  }
   function renderData() {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));
     const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
@@ -605,15 +825,14 @@ export function mountDesigner(catalog, request, playDesign) {
       form.append(element("strong", side));
       const neutral = field(form, "Neutral (no hostility in either direction)", (draft.definition.neutralSides ?? []).includes(side) ? "Yes" : "No", { entries: ["No", "Yes"] });
       const current = draft.definition.objectives?.find(row => row.sideId === side);
-      const entries = [{ value: "", label: "Default (Eliminate Enemies)" }, { value: "EliminateEnemies", label: "Eliminate Enemies" }, { value: "NoObjective", label: "No Objective" }];
-      if (current && !entries.some(entry => entry.value === current.objective)) entries.push({ value: current.objective, label: current.objective });
-      const objective = field(form, "Objective", current?.objective ?? "", { entries });
+      form.append(button(`${current?.objective?.replace(/([a-z])([A-Z])/g, "$1 $2") ?? "Default · Eliminate Enemies"} · Edit Objective`, () => { objectiveSide = side; highlightedGroup = null; render(); }));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         draft.setNeutral(side, neutral.value === "Yes");
-        if (objective.value !== (current?.objective ?? "")) draft.setObjective(side, objective.value || null);
       }); });
       form.append(element("button", "Apply Side")); return form;
     }));
+    if (objectiveSide && sides.includes(objectiveSide)) ui["side-settings"].append(objectiveEditor(objectiveSide, draft.definition.objectives?.find(o => o.sideId === objectiveSide), sides));
+    if (!sides.length) ui["side-settings"].append(element("p", "Place a Unit or add an unplaced group in Groups to create a Side."));
     ui.sides.replaceChildren(...sides.map(side => { const option = element("option"); option.value = side; return option; }));
     ui["unit-ids"].replaceChildren(...draft.definition.units.filter(unit => unit.unitId).map(unit => {
       const option = element("option", `${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId} · ${unit.sideId}`);
@@ -621,16 +840,36 @@ export function mountDesigner(catalog, request, playDesign) {
     }));
     ui.agency.replaceChildren(...draft.definition.agency.map((row, index) => {
       const form = editorForm(`agency:${JSON.stringify([row.unitTypeId, row.sideId])}`); form.className += " designer-agency-row";
+      form.dataset.groupType = row.unitTypeId; form.dataset.groupSide = row.sideId;
       const type = field(form, "Type", row.unitTypeId, { entries: typeOptions });
       const side = field(form, "SideId", row.sideId, { list: "designer-sides" });
       const controller = field(form, "Controller", row.controller, { entries: catalog.controllers });
       const readOrder = orderFields(form, draft.definition.orders?.find(order =>
         order.unitTypeId === row.unitTypeId && order.sideId === row.sideId));
+      form.append(button("Highlight group", () => { highlightedGroup = { unitTypeId: row.unitTypeId, sideId: row.sideId }; objectiveSide = null; renderBoard(); }));
+      const capacities = draft.metadata(row.unitTypeId)?.resourceStorage?.capacities ?? [];
+      const inventoryPanel = element("details"), inventoryFields = element("div"); inventoryFields.className = "designer-coordinate-grid";
+      if (capacities.length) {
+        const quantity = (draft.definition.storedResources ?? []).filter(r => r.unitTypeId === row.unitTypeId && r.sideId === row.sideId).reduce((sum, r) => sum + r.quantity, 0);
+        inventoryPanel.append(element("summary", `Edit shared inventory · ${quantity} stored`)); form.append(inventoryPanel);
+        inventoryPanel.append(inventoryFields);
+        inventoryPanel.open = quantity > 0 || Object.keys(buffers[form.dataset.formKey]?.values ?? {}).some(k => k.startsWith("Stored "));
+      }
+      const inventory = capacities.map(c => ({ type: c.type, input: field(inventoryFields, `Stored ${c.type.name} (capacity ${c.capacity})`,
+        draft.definition.storedResources?.find(r => r.unitTypeId === row.unitTypeId && r.sideId === row.sideId && r.type.id === c.type.id)?.quantity ?? 0, { type: "number" }) }));
+      form.append(element("small", capacities.length ? "Shared group inventory · stored on the Unit Type + Side card, including when no Units are placed." : "This Unit Type has no Resource Storage."));
+      for (const resource of draft.definition.storedResources ?? []) if (resource.unitTypeId === row.unitTypeId && resource.sideId === row.sideId && !capacities.some(c => c.type.id === resource.type.id)) {
+        form.append(element("small", `Retained unsupported inventory: ${resource.quantity} ${resource.type.name}`));
+        form.append(button(`Remove unsupported ${resource.type.name}`, () => commit(() => { draft.definition.storedResources = draft.definition.storedResources.filter(r => r !== resource); draft.changed(); })));
+      }
       const count = draft.definition.units.filter(unit => unit.unitTypeId === row.unitTypeId && unit.sideId === row.sideId).length;
       form.append(element("small", `${count} initial Units`));
       form.append(element("button", "Apply pair"));
       form.append(button("Remove pair", () => commit(() => draft.removeAgency(index), [form.dataset.formKey])));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
+        const identityChanged = type.value !== row.unitTypeId || side.value !== row.sideId;
+        if (identityChanged && inventory.some(q => Number(q.input.value) !== (draft.definition.storedResources?.find(r => r.unitTypeId === row.unitTypeId && r.sideId === row.sideId && r.type.id === q.type.id)?.quantity ?? 0))) throw new Error("Apply inventory before changing the group's identity. Existing stored Resources retain their original group.");
+        if (inventory.length && !identityChanged) draft.setInventory(row.unitTypeId, row.sideId, inventory.map(q => ({ type: q.type, quantity: Number(q.input.value) })));
         draft.editAgency(index, { unitTypeId: type.value, sideId: side.value, controller: controller.value }, readOrder());
       }); });
       return form;
@@ -641,6 +880,9 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.placements.append(...draft.machineKeys.map((key, index) => button(machineLabel(index), () => {
       selection = { kind: "machine", key }; setTool("Select"); render();
     })));
+    ui.placements.append(...(draft.definition.resources ?? []).map(r => button(`${resourceSymbol(r.type)} ${r.type.name} · ${r.position.x},${r.position.y}`, () => {
+      selection = { kind: "cell", position: r.position }; setTool("Select"); showPanel("inspect"); render();
+    })));
     syncBrushAgency();
   }
   function renderRoutes() {
@@ -648,8 +890,12 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.routes.append(element("h3", "Waypoints"));
     for (const waypoint of [...(draft.definition.waypoints ?? []), null]) {
       const form = editorForm(`waypoint:${waypoint?.id ?? "new"}`);
+      form.dataset.waypointId = waypoint?.id ?? "new";
       const id = field(form, "Waypoint ID", waypoint?.id ?? "");
       const geometry = ["x", "y", "w", "h"].map(key => field(form, key.toUpperCase(), waypoint?.area[key] ?? (key === "w" || key === "h" ? 1 : 0), { type: "number" }));
+      form.append(button("Draw Waypoint Area", () => beginPick("area", "Draw Waypoint Area", area => {
+        bufferedValues(form, Object.fromEntries(Object.entries(area).map(([key, value]) => [key.toUpperCase(), String(value)])));
+      })));
       form.append(element("button", waypoint ? "Save Waypoint" : "Create Waypoint"));
       if (waypoint) form.append(button("Delete Waypoint", () => commit(() => draft.removeWaypoint(waypoint.id), [form.dataset.formKey])));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveWaypoint(waypoint?.id, {
@@ -684,7 +930,7 @@ export function mountDesigner(catalog, request, playDesign) {
       ui.routes.append(form);
     }
   }
-  function render() { syncImportedTypes(); renderRoutes(); syncWorldFields(); renderBoard(); renderProperties(); renderData(); updateDocumentState(); }
+  function render() { refreshMetadata(); syncImportedTypes(); renderRoutes(); syncWorldFields(); renderProperties(); renderData(); renderBoard(); updateDocumentState(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
     draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });
@@ -756,9 +1002,13 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.pending.scrollIntoView?.({ block: "nearest" }); return false;
   }
   function canReplace() {
+    if (!Object.keys(buffers).length && ui.title.value === "Untitled scenario" &&
+        JSON.stringify(draft.definition) === JSON.stringify(new DesignerDraft(catalog).definition)) return true;
     return !globalThis.confirm || globalThis.confirm("Replace this draft? Save draft first to keep a separate file. The current scenario can be restored with Undo; unfinished form inputs will be replaced.");
   }
   function showPanel(name) {
+    if (!picker && name !== "sides") objectiveSide = null;
+    if (!picker && name !== "groups") highlightedGroup = null;
     for (const panel of ui.main.querySelectorAll("[data-designer-panel]")) panel.hidden = panel.dataset.designerPanel !== name;
     for (const tab of ui.main.querySelectorAll("[data-designer-tab]")) tab.setAttribute("aria-pressed", String(tab.dataset.designerTab === name));
   }

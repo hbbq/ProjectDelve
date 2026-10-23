@@ -37,9 +37,9 @@ public static class UnitTypeIds
 }
 
 // Canonical lookup for initial setup and concrete summoning; existing game definitions take priority.
-internal static class UnitContent
+public static class UnitContent
 {
-    internal static UnitType? Find(string id, IReadOnlyList<UnitType>? existing = null) =>
+    public static UnitType? Find(string id, IReadOnlyList<UnitType>? existing = null) =>
         existing?.SingleOrDefault(t => t.Id == id) ?? CanonicalUnitTypes.Find(id);
 }
 
