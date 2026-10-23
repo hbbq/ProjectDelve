@@ -11,14 +11,15 @@
 </head>
 <body>
   <header><h1>Project Delve <small>visual playtest</small></h1>
-  </header>
-  <details id="playtest-tools" class="playtest-tools">
-    <summary id="tools-toggle">Tools &middot; Objectives &amp; Orders</summary>
-    <div class="tools-content">
   <nav class="toolbar mode-switch" aria-label="Application mode">
     <button id="mode-playtest" aria-pressed="true">Playtest</button>
     <button id="mode-designer" aria-pressed="false">Designer</button>
   </nav>
+  </header>
+  <details id="playtest-tools" class="playtest-tools">
+    <summary id="tools-toggle">Tools &middot; Objectives &amp; Orders</summary>
+    <div class="tools-content">
+
       <details id="game-setup" class="game-setup tools-section" open>
         <summary>Game</summary>
         <div class="toolbar" aria-label="Playtest scenarios">
@@ -125,78 +126,49 @@
     </aside>
   </main>
   <main id="designer-main" hidden>
-    <section aria-label="Scenario designer board">
-      <form id="designer-board-form" class="toolbar">
-        <label>Width <input id="designer-width" type="number" min="1" max="50" value="15" required></label>
-        <label>Height <input id="designer-height" type="number" min="1" max="50" value="15" required></label>
-        <label>Default terrain <select id="designer-default"></select></label>
-        <button>Apply board</button>
-      </form>
-      <form id="designer-world-form" class="toolbar">
-        <label><input id="designer-world-enabled" type="checkbox"> Use World Effects</label>
-        <label>Cards per Round <input id="designer-world-draws" type="number" min="0" step="1" value="1" required disabled></label>
-        <label>Cycling N <input id="designer-world-cycling" type="number" min="1" step="1" value="1" required disabled></label>
-        <button>Apply World Effects</button>
-      </form>
+    <div class="designer-document">
+      <div class="designer-identity"><span class="designer-eyebrow">SCENARIO STUDIO</span><label class="sr-only" for="designer-title">Scenario name</label><input id="designer-title" value="Untitled scenario" maxlength="120"><small id="designer-save-status" role="status">New draft</small><button id="designer-recovery-download" hidden>Download recovery data</button></div>
+      <div class="toolbar designer-document-actions">
+        <button id="designer-new" title="Start a new draft">New</button><button id="designer-open">Open draft…</button><button id="designer-save">Save draft</button>
+        <span class="designer-divider"></span><button id="designer-undo" title="Undo (Ctrl+Z). History lasts for this page session; recovered drafts start a new history." disabled>↶ Undo</button><button id="designer-redo" title="Redo (Ctrl+Shift+Z)" disabled>↷ Redo</button>
+        <button id="designer-validate">Validate</button><button id="designer-play" class="designer-primary">Test scenario →</button>
+      </div>
+      <input id="designer-file" type="file" accept=".json,.delve-draft" hidden>
+    </div>
+    <section class="designer-canvas" aria-label="Scenario designer board">
+      <div class="designer-canvas-heading"><h2>Board workspace</h2><label class="designer-zoom-label">Zoom <select id="designer-zoom" aria-label="Board zoom"></select></label></div>
       <div id="designer-tools" class="toolbar" aria-label="Designer tools">
-        <button data-tool="Select" aria-pressed="true">Select</button>
-        <button data-tool="Terrain" aria-pressed="false">Terrain</button>
-        <button data-tool="Edge" aria-pressed="false">Edge</button>
-        <button data-tool="Unit" aria-pressed="false">Unit</button>
-        <button data-tool="BananaPeel" aria-pressed="false">Banana Peel</button>
-        <button data-tool="RemoveMarker" aria-pressed="false">Remove Marker</button>
-        <button data-tool="Machine" aria-pressed="false">Machine</button>
+        <button data-tool="Select" aria-pressed="true">↖ Select</button><button data-tool="Terrain" aria-pressed="false">▧ Terrain</button><button data-tool="Edge" aria-pressed="false">╋ Edges</button><button data-tool="Unit" aria-pressed="false">♟ Units</button><button data-tool="Machine" aria-pressed="false">⚙ Machines</button><button data-tool="BananaPeel" aria-pressed="false">Banana Peel</button><button data-tool="RemoveMarker" aria-pressed="false">Erase marker</button>
       </div>
       <div id="designer-brushes" class="toolbar">
         <label id="designer-terrain-label" hidden>Terrain brush <select id="designer-terrain"></select> Rail direction <select id="designer-rail-direction"></select></label>
         <label id="designer-edge-label" hidden>Edge brush <select id="designer-edge"></select></label>
         <label id="designer-machine-label" hidden>Machine Type <select id="designer-machine-type"></select></label>
-        <div id="designer-unit-brush" class="toolbar" hidden>
-          <label>Unit Type <select id="designer-type"></select></label>
-          <label>SideId <input id="designer-side" list="designer-sides" value="side-1"></label>
-          <label>Controller for Type + Side <select id="designer-controller"></select></label>
-        </div>
+        <div id="designer-unit-brush" class="toolbar" hidden><label>Unit Type <select id="designer-type"></select></label><label>Side <input id="designer-side" list="designer-sides" value="side-1"></label><label>New group controller <select id="designer-controller"></select></label></div>
       </div>
-      <p id="designer-help" class="legend">Select a cell, edge or Unit to edit its properties.</p>
-      <div id="designer-board" class="designer-board" aria-label="Editable scenario board"></div>
-      <p id="designer-hover" class="legend" aria-live="polite"></p>
-      <div class="toolbar designer-actions">
-        <button id="designer-validate">Validate</button>
-        <button id="designer-export">Export DELVE1</button>
-        <button id="designer-play">Play design</button>
-      </div>
-      <p id="designer-status" role="status">Unchecked</p>
-      <div id="designer-errors" role="alert"></div>
-      <details class="designer-transport"><summary>DELVE1 import / export</summary>
-        <label for="designer-transport">Portable scenario string</label>
-        <textarea id="designer-transport" rows="3" spellcheck="false" placeholder="Paste DELVE1:... to import, or export the current draft."></textarea>
-        <div class="toolbar"><button id="designer-import">Import into designer</button><button id="designer-copy">Copy string</button></div>
-      </details>
+      <p id="designer-help" class="legend"></p>
+      <div class="designer-board-stage"><div id="designer-board" class="designer-board" aria-label="Editable scenario board"></div></div>
+      <p id="designer-hover" class="legend" aria-live="polite">Choose a tool, then click the board. Coordinates start at 0.</p>
     </section>
-    <aside aria-label="Designer properties and scenario data">
-      <h2>Selected item</h2><div id="designer-properties">Nothing selected.</div>
-      <h2>Unit Type order</h2>
-      <p class="legend">First use appends a Type. Deleting Units retains declarations.</p>
-      <ol id="designer-order"></ol>
-      <form id="designer-declare-form" class="toolbar"><label>Declare unplaced Type <select id="designer-declare-type"></select></label><button>Declare</button></form>
-      <h2>Side relationships and objectives</h2>
-      <div id="designer-side-settings"></div>
-      <h2>Agency: Type + Side</h2>
-      <p class="legend">Each pair has one controller. Rows without initial Units are retained.</p>
-      <div id="designer-agency"></div>
-      <details><summary>Shared Waypoints and Routes</summary><div id="designer-routes"></div></details>
-      <p class="legend">Set starting Orders per Type + Side and apply the pair. Normal means no assigned Order. Validate checks destinations and targets.</p>
-      <form id="designer-agency-form" class="designer-property-form">
-        <label>Unit Type <select id="designer-agency-type"></select></label>
-        <label>SideId <input id="designer-agency-side" list="designer-sides" value="side-1"></label>
-        <label>Controller <select id="designer-agency-controller"></select></label>
-        <button>Add / update pair</button>
-      </form>
-      <details><summary>All placements (including overlaps)</summary><div id="designer-placements"></div></details>
-      <datalist id="designer-sides"></datalist>
-      <datalist id="designer-unit-ids"></datalist>
-      <p class="legend">Boards: 1..50 × 1..50, a host/editor limit. Drafts may be invalid. Reload discards this draft; export to keep it.</p>
+    <aside class="designer-inspector" aria-label="Designer properties and scenario data">
+      <nav class="designer-tabs" aria-label="Scenario sections">
+        <button data-designer-tab="inspect" aria-pressed="true">Inspector</button><button data-designer-tab="board" aria-pressed="false">Board</button><button data-designer-tab="groups" aria-pressed="false">Groups</button><button data-designer-tab="sides" aria-pressed="false">Sides &amp; Objectives</button><button data-designer-tab="routes" aria-pressed="false">Routes</button><button data-designer-tab="document" aria-pressed="false">Library &amp; Export</button>
+      </nav>
+      <section data-designer-panel="inspect"><h2>Selected item</h2><div id="designer-properties">Select a Cell, Unit, edge or Machine on the board.</div><details open><summary>All placements</summary><div id="designer-placements"></div></details></section>
+      <section data-designer-panel="board" hidden><h2>Board setup</h2><p class="legend">Resize without losing authored content. Shrinks that would hide objects are refused.</p>
+        <form id="designer-board-form" class="designer-property-form"><div class="toolbar"><label>Width <input id="designer-width" type="number" value="15"></label><label>Height <input id="designer-height" type="number" value="15"></label></div><label>Default terrain <select id="designer-default"></select></label><button>Apply board</button></form>
+        <h2>World Effects</h2><form id="designer-world-form" class="designer-property-form"><label><input id="designer-world-enabled" type="checkbox"> Use World Effects</label><label>Cards per Round <input id="designer-world-draws" type="number" value="1" disabled></label><label>Cycling N <input id="designer-world-cycling" type="number" value="1" disabled></label><button>Apply World Effects</button></form>
+        <h2>Unit Type order</h2><p class="legend">First placement appends a Type. Deleting Units retains declarations.</p><ol id="designer-order"></ol><form id="designer-declare-form" class="designer-property-form"><label>Declare unplaced Type <select id="designer-declare-type"></select></label><button>Declare</button></form>
+      </section>
+      <section data-designer-panel="groups" hidden><h2>Sides &amp; groups</h2><p class="legend">One controller and starting Order per Unit Type + Side. Apply each group together.</p><div id="designer-agency"></div><h3>Add a group</h3><form id="designer-agency-form" class="designer-property-form"><label>Unit Type <select id="designer-agency-type"></select></label><label>Side <input id="designer-agency-side" list="designer-sides" value="side-1"></label><label>Controller <select id="designer-agency-controller"></select></label><button>Add / update pair</button></form></section>
+      <section data-designer-panel="sides" hidden><h2>Side relationships &amp; Objectives</h2><p class="legend">Place a Unit or add a group to create a Side. Advanced imported Objectives are retained.</p><div id="designer-side-settings"></div></section>
+      <section data-designer-panel="routes" hidden><h2>Waypoints &amp; Routes</h2><p class="legend">Create rectangular Waypoints, assemble a shared Route, then assign it in Groups.</p><div id="designer-routes"></div></section>
+      <section data-designer-panel="document" hidden><h2>Start from the library</h2><p class="legend">Open an editable copy. Catalog originals stay in the library.</p><label class="designer-catalog-label">Scenario <select id="designer-catalog"></select></label><button id="designer-catalog-open">Open a copy</button>
+        <h2>Playable scenario</h2><p class="legend">Save draft keeps incomplete content and unfinished inputs in an editable file. DELVE1 is validated by the engine for sharing and Playtest.</p><button id="designer-export">Export DELVE1</button><details class="designer-transport"><summary>DELVE1 import / export</summary><label for="designer-transport">Portable scenario string</label><textarea id="designer-transport" rows="5" spellcheck="false" placeholder="Paste DELVE1:… or export a validated scenario."></textarea><div class="toolbar"><button id="designer-import">Import into designer</button><button id="designer-copy">Copy string</button></div></details>
+      </section>
+      <datalist id="designer-sides"></datalist><datalist id="designer-unit-ids"></datalist>
     </aside>
+    <section class="designer-feedback" aria-label="Editing and validation status"><p id="designer-status" role="status">Unchecked · validate before testing</p><div id="designer-errors" role="alert"></div><div class="designer-pending-row"><div id="designer-pending"></div><button id="designer-discard-inputs">Discard unfinished inputs</button></div></section>
   </main>
   <footer>One game lives in this host. Start or restart a scenario to discard the current game.</footer>
 </body>

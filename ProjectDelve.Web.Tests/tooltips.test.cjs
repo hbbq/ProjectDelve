@@ -111,7 +111,7 @@ test("Tools keeps every existing control once, in its native collapsible section
     "tools-gameplay": ["objectives", "orders", "filter", "auto", "round", "skip", "world-effects", "controller-status", "controller-retry", "controller-cancel"],
     "tools-developer": ["events", "unit-debug", "decision-commentary", "commentary-toggle", "commentary-panel", "refresh"]
   })) for (const id of controls) assert.ok(sections.get(id)?.includes(section), `${id} belongs in ${section}`);
-  for (const id of ["mode-playtest", "mode-designer"]) assert.deepEqual(sections.get(id), ["playtest-tools"]);
+  for (const id of ["mode-playtest", "mode-designer"]) assert.deepEqual(sections.get(id), []); // Primary navigation stays visible with Tools closed.
   assert.match(html, /<details id="game-setup"[^>]* open>/);
   for (const title of ["Game", "Display", "Gameplay", "Developer"]) assert.ok(html.includes(`<summary>${title}</summary>`));
   for (const id of ["tools-display", "tools-gameplay", "tools-developer"])

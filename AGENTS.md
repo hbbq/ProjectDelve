@@ -85,5 +85,7 @@ Agents may maintain this repository-working-knowledge section without separate p
 
 - The solution targets .NET 10. Run all C# tests with `dotnet test ProjectDelve.sln`; focused engine tests can use `dotnet test ProjectDelve.Engine.Tests --filter "FullyQualifiedName~TestClassName"`.
 - Browser interaction and scenario-designer tests use Node's built-in runner: `node --test ProjectDelve.Web.Tests/*.test.cjs`. They run without a browser or npm dependency installation.
+- With an existing Web host locking normal build output, run `dotnet test ProjectDelve.sln --artifacts-path .playwright-cli`. Keep this artifacts path one directory below the repository root: web test hosts locate their content root four parents above the test binary directory.
+- Browser visual inspection uses the official Playwright CLI and its skill at `.agents/skills/playwright-cli/SKILL.md`; see `BROWSER_INSPECTION.md` for isolated host startup, Windows command resolution, screenshots and cleanup. Use a named temporary browser session and inspect captured PNGs with `view_image`.
 
 For artwork processing, prefer the existing system Python installation with Pillow when available. Check py -c "import PIL" before creating a temporary environment or installing dependencies. Use tools/prepare-artwork.py for conversions.

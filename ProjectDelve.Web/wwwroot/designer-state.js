@@ -26,7 +26,8 @@ export class DesignerDraft {
   metadata(id) { return this.catalog.unitTypes.find(type => type.unitTypeId === id); }
   occupied(unit) {
     const metadata = this.metadata(unit.unitTypeId);
-    if (!metadata) throw new Error(`No authoritative geometry for ${unit.unitTypeId}. Reload the catalog.`);
+    // Unknown imported content remains recoverable/selectable at its anchor. Geometry is supplied by the catalog.
+    if (!metadata) return [{ ...unit.anchor }];
     return metadata.footprintOffsets
       .map(offset => ({ x: unit.anchor.x + offset.x, y: unit.anchor.y + offset.y }));
   }
@@ -153,6 +154,9 @@ export class DesignerDraft {
     this.changed();
   }
   editAgency(index, assignment, order) {
+    // Check before touching declarations, the previous pair or its Order.
+    if (order.kind === "FollowRoute" && !(this.definition.routes ?? []).some(r => r.id === order.route?.routeId))
+      throw new Error("Select an existing Route first.");
     const previous = this.definition.agency[index];
     this.setOrder(previous.unitTypeId, previous.sideId, { kind: "Normal" });
     this.declare(assignment.unitTypeId);
@@ -165,8 +169,9 @@ export class DesignerDraft {
     this.definition.agency.splice(index, 1); this.changed();
   }
   saveWaypoint(previousId, waypoint) {
-    const rows = this.definition.waypoints ??= [];
+    const rows = this.definition.waypoints ?? [];
     if (!waypoint.id.trim() || rows.some(w => w.id === waypoint.id && w.id !== previousId)) throw new Error("Waypoint ID must be unique and nonempty.");
+    this.definition.waypoints = rows;
     const index = rows.findIndex(w => w.id === previousId);
     if (index < 0) rows.push(structuredClone(waypoint)); else rows[index] = structuredClone(waypoint);
     for (const route of this.definition.routes ?? []) route.waypointIds = route.waypointIds.map(id => id === previousId ? waypoint.id : id);
@@ -176,17 +181,25 @@ export class DesignerDraft {
     if ((this.definition.routes ?? []).some(r => r.waypointIds.includes(id))) throw new Error("Remove this Waypoint from its Routes before deleting it.");
     this.definition.waypoints = (this.definition.waypoints ?? []).filter(w => w.id !== id); this.changed();
   }
-  saveRoute(previousId, route) {
-    const rows = this.definition.routes ??= [];
+  saveRoute(previousId, route, resetProgress = false) {
+    const rows = this.definition.routes ?? [];
     if (!route.id.trim() || rows.some(r => r.id === route.id && r.id !== previousId)) throw new Error("Route ID must be unique and nonempty.");
     if (!route.waypointIds.length || route.waypointIds.some(id => !(this.definition.waypoints ?? []).some(w => w.id === id)))
       throw new Error("A Route needs existing Waypoints in order.");
     const index = rows.findIndex(r => r.id === previousId);
+    const previous = rows[index];
+    const structuralChange = previous && (previous.mode !== route.mode || JSON.stringify(previous.waypointIds) !== JSON.stringify(route.waypointIds));
+    const assigned = previous ? (this.definition.orders ?? []).filter(order => order.route?.routeId === previousId) : [];
+    // A sequence edit is meaningful for a group while its current slot still targets the same Waypoint.
+    const needsReset = assigned.filter(order => structuralChange && (previous.mode !== route.mode ||
+      !route.waypointIds[order.route.currentIndex] || route.waypointIds[order.route.currentIndex] !== previous.waypointIds[order.route.currentIndex]));
+    if (needsReset.length && !resetProgress)
+      throw new Error(`This changes the current target or traversal mode for ${needsReset.length} assigned group(s). Choose ‘Reset affected group progress’ to start those groups at waypoint 0. Other groups retain progress.`);
+    this.definition.routes = rows;
     if (index < 0) rows.push(structuredClone(route)); else rows[index] = structuredClone(route);
-    for (const order of this.definition.orders ?? []) if (order.route?.routeId === previousId) {
-      // Replacing a Route resets each assigned group's initial progress.
-      order.route = { routeId: route.id, currentIndex: 0, direction: 1 };
-    }
+    for (const order of assigned) order.route = needsReset.includes(order)
+      ? { routeId: route.id, currentIndex: 0, direction: 1 }
+      : { ...order.route, routeId: route.id };
     this.changed();
   }
   removeRoute(id) {
@@ -219,4 +232,72 @@ export class DesignerRequests {
       return null;
     }
   }
+}
+
+// Authoring history includes temporary identities, never selection or viewport state.
+export class DesignerHistory {
+  constructor(draft) { this.draft = draft; this.past = []; this.future = []; this.start = null; }
+  capture() {
+    return { definition: this.draft.snapshot(), unitKeys: [...this.draft.unitKeys], machineKeys: [...this.draft.machineKeys], nextKey: this.draft.nextKey };
+  }
+  restore(state) { Object.assign(this.draft, structuredClone(state)); this.draft.changed(); }
+  begin() { if (!this.start) { this.start = this.capture(); this.startRevision = this.draft.revision; } }
+  finish() {
+    if (!this.start) return false;
+    const changed = JSON.stringify(this.start.definition) !== JSON.stringify(this.draft.definition);
+    if (changed) { this.past.push(this.start); if (this.past.length > 100) this.past.shift(); this.future = []; }
+    this.start = null; return changed;
+  }
+  cancel() {
+    if (!this.start) return;
+    Object.assign(this.draft, structuredClone(this.start)); this.draft.revision = this.startRevision; this.start = null;
+  }
+  transact(action) { this.begin(); try { action(); return this.finish(); } catch (error) { this.cancel(); throw error; } }
+  undo() { this.finish(); return this.move(this.past, this.future); }
+  redo() { this.finish(); return this.move(this.future, this.past); }
+  move(from, to) {
+    if (!from.length) return false;
+    to.push(this.capture()); this.restore(from.pop()); return true;
+  }
+}
+
+export const draftStorageKey = "project-delve.designer.v1";
+export function draftDocument(definition, title = "Untitled scenario", buffers = {}) {
+  return { format: "ProjectDelveDraft", version: 1, title, savedAt: new Date().toISOString(), definition: structuredClone(definition), buffers: structuredClone(buffers) };
+}
+export function readDraftDocument(text, maxBoardSize = 50) {
+  const doc = JSON.parse(text);
+  if (doc?.format !== "ProjectDelveDraft" || doc.version !== 1) throw new Error("Unsupported draft document. Expected Project Delve draft version 1.");
+  if (doc.transportInput != null && typeof doc.transportInput !== "string") throw new Error("Invalid saved import text.");
+  const d = doc.definition, board = d?.board;
+  // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
+  if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
+      ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "objectives", "neutralSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      d.units.some(u => !u || typeof u.unitTypeId !== "string" || !u.anchor || !Number.isFinite(u.anchor.x) || !Number.isFinite(u.anchor.y)) ||
+      board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
+      (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||
+      (d.machines ?? []).some(m => !m?.position || !m.type?.storage?.capacities))
+    throw new Error("The saved draft is damaged or has an unsupported structure. The current draft was retained.");
+  if (typeof board.defaultTerrain !== "string" ||
+      d.agency.some(a => !a || typeof a.unitTypeId !== "string" || typeof a.sideId !== "string") ||
+      (d.orders ?? []).some(o => !o || typeof o.kind !== "string") ||
+      (d.objectives ?? []).some(o => !o || typeof o.sideId !== "string") ||
+      (d.routes ?? []).some(r => typeof r.id !== "string") || (d.waypoints ?? []).some(w => typeof w.id !== "string") ||
+      [...(d.cellMarkers ?? []), ...(d.resources ?? [])].some(m => !m?.position || !m.type || typeof m.type.id !== "string") ||
+      (d.machines ?? []).some(m => typeof m.id !== "string" || !Array.isArray(m.type.storage.capacities) ||
+        m.type.storage.capacities.some(c => !c?.type) || m.storedResources != null && !Array.isArray(m.storedResources)))
+    throw new Error("The saved draft contains damaged authoring data. The current draft was retained.");
+  if (doc.buffers != null && (typeof doc.buffers !== "object" || Array.isArray(doc.buffers))) throw new Error("Invalid saved form data.");
+  if (Object.values(doc.buffers ?? {}).some(buffer => !buffer || typeof buffer !== "object" ||
+      buffer.values != null && (typeof buffer.values !== "object" || Array.isArray(buffer.values)) ||
+      buffer.sequence != null && (!Array.isArray(buffer.sequence) || buffer.sequence.some(id => typeof id !== "string"))))
+    throw new Error("Invalid saved form data.");
+  const keys = doc.editorKeys;
+  if (keys && (!Array.isArray(keys.unitKeys) || !Array.isArray(keys.machineKeys) || keys.unitKeys.length !== d.units.length ||
+      keys.machineKeys.length !== (d.machines ?? []).length || !Number.isInteger(keys.nextKey) ||
+      [...keys.unitKeys, ...keys.machineKeys].some(n => !Number.isInteger(n) || n < 1 || n > keys.nextKey) ||
+      new Set([...keys.unitKeys, ...keys.machineKeys]).size !== keys.unitKeys.length + keys.machineKeys.length))
+    throw new Error("Invalid saved editor identities.");
+  return doc;
 }

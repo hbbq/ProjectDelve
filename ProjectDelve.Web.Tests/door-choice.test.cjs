@@ -1128,8 +1128,10 @@ test("board-first layout reserves status, card and End Turn while tools start cl
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const tools = html.slice(html.indexOf('<details id="playtest-tools"'), html.indexOf('<main id="playtest-main"'));
   assert.match(tools, /<details id="playtest-tools" class="playtest-tools">/);
-  for (const id of ["scenario", "mode-designer", "board-view", "objectives", "orders", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
+  for (const id of ["scenario", "board-view", "objectives", "orders", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
     assert.ok(tools.includes(`id="${id}"`), id);
+  const header = html.slice(html.indexOf("<header>"), html.indexOf("</header>"));
+  for (const id of ["mode-designer", "mode-playtest"]) assert.ok(header.includes(`id="${id}"`), `${id} is always accessible`);
   assert.match(html, /class="board-stage">[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
   assert.match(html, /class="card-column"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
   assert.match(html, /class="play-status"[\s\S]*id="status"[\s\S]*id="active-token"[\s\S]*id="bag-count"/);

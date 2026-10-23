@@ -16,6 +16,21 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class DesignerApiTests
 {
+    [Fact]
+    public async Task CatalogCopiesLoadAsValidDefinitionsWithoutChangingTheRunningGame()
+    {
+        await using var host = await Host.Start();
+        var before = await host.Client.GetStringAsync("/api/game");
+        var catalog = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
+        foreach (var scenario in catalog.GetProperty("scenarios").EnumerateArray())
+        {
+            var json = await host.Client.GetStringAsync($"/api/designer/scenarios/{scenario.GetProperty("id").GetString()}");
+            _ = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(json));
+        }
+        Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
+        Assert.Equal(HttpStatusCode.NotFound, (await host.Client.GetAsync("/api/designer/scenarios/missing")).StatusCode);
+    }
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }

@@ -27,6 +27,7 @@ public static class DesignerApi
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
             maxBoardSize = MaxBoardSize,
+            scenarios = PlaytestScenarios.Catalog.Select(s => new { s.Id, s.Name }),
             cellMarkerTypes = new[] { CellMarkerTypes.BananaPeel },
             machineTypes = new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine },
             resourceTypes = new[] { ResourceTypes.Coal, ResourceTypes.Diamond, ResourceTypes.Fruit, ResourceTypes.Banana, ResourceTypes.Mushroom, ResourceTypes.Shell },
@@ -43,6 +44,10 @@ public static class DesignerApi
             controllers = Enum.GetNames<ControllerKind>(),
             orderKinds = Enum.GetNames<OrderKind>()
         }));
+        app.MapGet("/api/designer/scenarios/{id}", (string id) =>
+            PlaytestScenarios.Catalog.Any(s => s.Id == id)
+                ? Results.Text(ScenarioDefinitionJson.ToJson(PlaytestScenarios.Definition(id)), "application/json")
+                : Results.NotFound());
         app.MapPost("/api/designer/import", (DesignerImportRequest request) => Execute(() =>
         {
             var definition = ScenarioDefinitionTransport.Decode(request.Transport, CheckHostLimits);

@@ -1,4 +1,4 @@
-import { DesignerDraft, DesignerRequests, sameCell } from "./designer-state.js";
+import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDraftDocument, draftStorageKey, sameCell } from "./designer-state.js";
 import { styleSide } from "./side-colors.js";
 
 const element = (tag, value = "") => {
@@ -12,10 +12,15 @@ function options(select, entries) {
     const node = element("option", entry.label ?? entry); node.value = entry.value ?? entry; return node;
   }));
 }
-function field(form, label, value, { entries, type = "text", list } = {}) {
+function globalField(form, label, value, { entries, type = "text", list } = {}) {
   const wrapper = element("label", label);
   const input = element(entries ? "select" : "input");
   if (entries) options(input, entries); else input.type = type;
+  if (entries && value != null && value !== "" && !entries.some(entry => String(entry.value ?? entry) === String(value))) {
+    const missing = element("option", `${value} (unavailable)`); missing.value = value; input.append(missing);
+  }
+  if (type === "number") { input.type = "text"; input.inputMode = "numeric"; input.dataset.number = "true"; }
+  input.setAttribute("aria-label", label);
   if (list) input.setAttribute("list", list);
   input.value = value ?? ""; wrapper.append(input); form.append(wrapper); return input;
 }
@@ -24,14 +29,109 @@ function field(form, label, value, { entries, type = "text", list } = {}) {
 export function mountDesigner(catalog, request, playDesign) {
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
-    "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy"];
+    "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy",
+    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
+  const history = new DesignerHistory(draft);
+  let buffers = {}, activeForm = null, recovering = true, persistenceBlocked = false;
+  let savedRecovery = null;
+  let lastExport = "";
+  let recoveryMessage = "New draft · saved in this browser";
+  try {
+    const saved = savedRecovery = globalThis.localStorage?.getItem(draftStorageKey);
+    if (saved) {
+      const doc = readDraftDocument(saved, catalog.maxBoardSize);
+      draft.replace(doc.definition); restoreKeys(doc); buffers = doc.buffers ?? {}; ui.title.value = doc.title; ui.transport.value = doc.transportInput ?? "";
+      recoveryMessage = "Recovered draft · saved in this browser";
+    }
+  } catch (error) { persistenceBlocked = true; recoveryMessage = `Recovery unavailable: ${error.message} ${savedRecovery ? "Original recovery data retained. Download it before New/Open." : "Save draft to keep a file."}`; }
+  if (!ui.title.value) ui.title.value = "Untitled scenario";
+  function persist() {
+    if (recovering) return;
+    updateDocumentState();
+    if (persistenceBlocked) return;
+    try {
+      if (!globalThis.localStorage) throw new Error("Browser storage unavailable");
+      globalThis.localStorage.setItem(draftStorageKey, JSON.stringify(documentData()));
+      ui["save-status"].textContent = "Saved in this browser · " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch { ui["save-status"].textContent = "Browser recovery unavailable · Save draft to keep a file"; }
+  }
+  function documentData() {
+    return { ...draftDocument(draft.snapshot(), ui.title.value, buffers), transportInput: ui.transport.value === lastExport ? "" : ui.transport.value,
+      editorKeys: { unitKeys: [...draft.unitKeys], machineKeys: [...draft.machineKeys], nextKey: draft.nextKey } };
+  }
+  function restoreKeys(doc) {
+    if (!doc.editorKeys) return;
+    draft.unitKeys = [...doc.editorKeys.unitKeys]; draft.machineKeys = [...doc.editorKeys.machineKeys]; draft.nextKey = doc.editorKeys.nextKey;
+  }
+  function formLabel(key) {
+    if (key.startsWith("selection:")) {
+      try { const s = JSON.parse(key.slice(10)); return s.position ? `${s.kind} (${s.position.x}, ${s.position.y})` : `${s.kind} properties`; } catch {}
+    }
+    if (key === "board-form") return "Board setup";
+    if (key === "world-form") return "World Effects";
+    if (key === "agency-form") return "New group";
+    if (key.startsWith("agency:")) { try { return JSON.parse(key.slice(7)).join(" · "); } catch {} }
+    return key.replace(":", " · ");
+  }
+  function updateDocumentState() {
+    ui.undo.disabled = !history.past.length; ui.redo.disabled = !history.future.length;
+    const count = Object.keys(buffers).length;
+    ui.pending.textContent = count ? `${count} unfinished form${count > 1 ? "s" : ""} retained. Apply or discard before Validate, Export or Test. Save draft includes these inputs.`
+      : "Inspector properties commit on change. Board, World Effects, Group and Route forms use Apply / Save.";
+    ui.pending.dataset.pending = String(!!count);
+    document.getElementById("designer-discard-inputs").hidden = !count;
+    if (count) for (const key of Object.keys(buffers)) ui.pending.append(button(`Review ${formLabel(key)}`, () => reviewForm(key)));
+  }
+  function reviewForm(key) {
+    if (key.startsWith("selection:")) { try { selection = JSON.parse(key.slice(10)); } catch {} showPanel("inspect"); }
+    else showPanel(key.startsWith("route:") || key.startsWith("waypoint:") ? "routes" : key.startsWith("side:") ? "sides" : key.startsWith("agency:") || key === "agency-form" ? "groups" : "board");
+    render();
+    for (const form of ui.main.querySelectorAll("form")) if (form.dataset.formKey === key) { form.scrollIntoView?.({ block: "nearest" }); form.querySelector?.("input,select")?.focus(); }
+  }
+  function editorForm(key, immediate = false) {
+    const form = element("form"); form.className = "designer-property-form"; form.dataset.formKey = key;
+    const listen = form.addEventListener.bind(form);
+    form.addEventListener = (name, action) => listen(name, name === "submit" ? event => {
+      event.preventDefault();
+      if (!numbersComplete(form)) { ui.status.textContent = "Enter a whole number in each numeric field. Unfinished inputs are retained."; return; }
+      activeForm = key;
+      try { action(event); } finally { activeForm = null; }
+    } : action);
+    if (immediate) listen("change", () => {
+      if (!numbersComplete(form)) { ui.status.textContent = "Invalid numeric input · finish the whole number or discard the retained inputs."; return; }
+      form.requestSubmit?.();
+    });
+    if (buffers[key]) form.append(button("Discard unfinished inputs", () => { delete buffers[key]; persist(); render(); }));
+    return form;
+  }
+  function field(form, label, value, config) {
+    let root = form;
+    while (!root.dataset.formKey && (root.parentElement ?? root.parent)) root = root.parentElement ?? root.parent;
+    const key = root.dataset.formKey;
+    const input = globalField(form, label, buffers[key]?.values?.[label] ?? value, config);
+    if (config?.type === "number" && label.startsWith("Initial HP")) input.dataset.optional = "true";
+    const remember = () => {
+      if (!key) return;
+      const buffer = buffers[key] ??= { values: {} }; buffer.values ??= {};
+      buffer.values[label] = input.value; requests.sequence++; persist();
+    };
+    input.addEventListener("input", remember); input.addEventListener("change", remember);
+    return input;
+  }
   let tool = "Select", selection = null, painting = false, lastPaint = null, pendingPlay = false;
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
+  function syncImportedTypes() {
+    typeOptions.splice(0, typeOptions.length, ...catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName })));
+    for (const id of new Set([...draft.definition.unitTypeIds, ...draft.definition.units.map(u => u.unitTypeId)]))
+      if (!typeOptions.some(t => t.value === id)) typeOptions.push({ value: id, label: `${id} (imported · anchor preview)` });
+  }
   const terrainOptions = [{ value: "", label: "Use default (remove override)" }, ...catalog.terrains];
   const edgeOptions = [{ value: "", label: "Remove" }, ...catalog.edgeKinds.filter(kind => kind !== "None")];
   options(ui["rail-direction"], catalog.railDirections ?? ["North", "East", "South", "West"]); ui["rail-direction"].value = "East";
+  options(ui.zoom, [{value:"fit",label:"Fit board"},{value:"24",label:"Comfortable"},{value:"36",label:"Large"},{value:"48",label:"Extra large"}]); ui.zoom.value = "fit";
+  ui.zoom.addEventListener("change", renderBoard);
   options(ui.default, catalog.terrains.filter(kind => kind !== "Rail")); ui.default.value = draft.definition.board.defaultTerrain;
   options(ui.terrain, terrainOptions); options(ui.edge, edgeOptions); ui.edge.value = "Wall";
   options(ui["machine-type"], catalog.machineTypes.map(type => ({ value: type.id, label: type.name })));
@@ -43,6 +143,9 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.main.hidden = !designer;
     document.getElementById("mode-designer").setAttribute("aria-pressed", String(designer));
     document.getElementById("mode-playtest").setAttribute("aria-pressed", String(!designer));
+    document.body?.classList.toggle("designing", designer);
+    document.getElementById("playtest-tools").open = false;
+    try { globalThis.localStorage?.setItem("project-delve.mode", designer ? "designer" : "playtest"); } catch {}
     if (designer) render();
   }
   document.getElementById("mode-designer").addEventListener("click", () => setMode(true));
@@ -61,13 +164,20 @@ export function mountDesigner(catalog, request, playDesign) {
   function unchecked() {
     ui.status.textContent = "Unchecked · validate before export or play";
     ui.errors.replaceChildren();
-    ui.transport.value = "";
+    if (ui.transport.value === lastExport) ui.transport.value = "";
+    lastExport = "";
   }
-  function commit(action) {
-    try { action(); unchecked(); render(); }
+  function commit(action, discardKeys = []) {
+    try {
+      history.transact(action);
+      if (activeForm) delete buffers[activeForm];
+      for (const key of discardKeys) delete buffers[key];
+      unchecked(); persist(); render(); return true;
+    }
     catch (error) {
       report({ valid: false, errors: [{ message: error.message }] });
       ui.status.textContent = "Edit refused · current draft retained";
+      persist(); return false;
     }
   }
   function syncBrushAgency() {
@@ -77,14 +187,15 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.controller.title = row ? "Existing pair: change its controller in the Agency table." : "Controller for a new Type + Side pair.";
   }
   ui.type.addEventListener("change", syncBrushAgency); ui.side.addEventListener("input", syncBrushAgency);
+  prepareStatic("board-form", ["width", "height", "default"]);
+  prepareStatic("world-form", ["world-enabled", "world-draws", "world-cycling"]);
+  prepareStatic("agency-form", ["agency-type", "agency-side", "agency-controller"]);
   ui["board-form"].addEventListener("submit", event => {
     event.preventDefault();
-    commit(() => {
+    if (commit(() => {
       draft.resize(Number(ui.width.value), Number(ui.height.value));
       draft.definition.board.defaultTerrain = ui.default.value;
-    });
-    // Restore fields after a refused shrink.
-    syncBoardFields();
+    })) syncBoardFields();
   });
   ui["world-enabled"].addEventListener("change", () => {
     ui["world-draws"].disabled = ui["world-cycling"].disabled = !ui["world-enabled"].checked;
@@ -100,10 +211,13 @@ export function mountDesigner(catalog, request, playDesign) {
     ui["world-draws"].value = world?.cardsPerRound ?? 1;
     ui["world-cycling"].value = world?.cycling ?? 1;
     ui["world-draws"].disabled = ui["world-cycling"].disabled = !world;
+    restoreStatic("world-form");
+    ui["world-draws"].disabled = ui["world-cycling"].disabled = !ui["world-enabled"].checked;
   }
   function syncBoardFields() {
     ui.width.value = draft.definition.board.width; ui.height.value = draft.definition.board.height;
     ui.default.value = draft.definition.board.defaultTerrain;
+    restoreStatic("board-form");
   }
   function setTool(value) {
     tool = value; ui.board.dataset.tool = tool;
@@ -145,8 +259,10 @@ export function mountDesigner(catalog, request, playDesign) {
   ui.board.addEventListener("pointerdown", event => {
     if (event.button !== 0 || pendingPlay) return;
     const target = hit(event); if (!target) return;
+    // Board pointer handling prevents native focus changes; explicitly finish any simple field first.
+    document.activeElement?.blur?.();
     event.preventDefault();
-    if (tool === "Terrain" || tool === "Edge") { painting = true; lastPaint = null; paint(target); }
+    if (tool === "Terrain" || tool === "Edge") { history.begin(); painting = true; lastPaint = null; paint(target); }
     else if (tool === "Unit" && !target.direction) commit(() => {
       selection = { kind: "unit", key: draft.place(ui.type.value, ui.side.value, ui.controller.value, target.position) };
     });
@@ -171,9 +287,9 @@ export function mountDesigner(catalog, request, playDesign) {
     if (painting && event.buttons === 1) paint(target);
   });
   document.addEventListener("pointerup", () => {
-    if (painting) { painting = false; lastPaint = null; render(); }
+    if (painting) { painting = false; lastPaint = null; history.finish(); persist(); render(); }
   });
-  document.addEventListener("pointercancel", () => { painting = false; lastPaint = null; render(); });
+  document.addEventListener("pointercancel", () => { painting = false; lastPaint = null; history.finish(); persist(); render(); });
   ui.board.addEventListener("keydown", event => {
     if (!["Enter", " "].includes(event.key) || pendingPlay) return;
     const target = hit(event); if (!target) return;
@@ -187,12 +303,13 @@ export function mountDesigner(catalog, request, playDesign) {
         catalog.cellMarkerTypes.find(type => type.id === "banana-peel"));
     });
     else if (tool === "Machine" && !target.direction) placeMachine(target.position);
-    else { lastPaint = null; paint(target); render(); }
+    else { history.begin(); lastPaint = null; paint(target); history.finish(); persist(); render(); }
   });
   function placeMachine(position) {
     commit(() => { selection = { kind: "machine", key: draft.placeMachine(ui["machine-type"].value, position) }; });
   }
   function selectTarget(target) {
+    showPanel("inspect");
     if (target.direction) selection = { kind: "edge", position: target.position, direction: target.direction };
     else {
       const units = draft.unitsAt(target.position);
@@ -206,9 +323,15 @@ export function mountDesigner(catalog, request, playDesign) {
     render();
   }
   function selectPath(path) {
-    const match = path.replace(/^\$\.?/, "").match(/^(units|machines|cellMarkers|board.cells|board.edges|agency|orders)\[(\d+)\]/);
-    if (!match) return;
+    const clean = path.replace(/^\$\.?/, "");
+    const match = clean.match(/^(units|machines|cellMarkers|board.cells|board.edges|agency|orders|routes|waypoints|objectives|neutralSides)\[(\d+)\]/);
+    if (!match) { showPanel(clean.startsWith("board") || clean.startsWith("world") || clean.startsWith("unitType") ? "board" : "groups"); return; }
     const index = Number(match[2]);
+    showPanel(["agency", "orders"].includes(match[1]) ? "groups" : ["objectives", "neutralSides"].includes(match[1]) ? "sides" : ["routes", "waypoints"].includes(match[1]) ? "routes" : "inspect");
+    if (["routes", "waypoints"].includes(match[1])) {
+      const id = draft.definition[match[1]]?.[index]?.id;
+      reviewForm(`${match[1] === "routes" ? "route" : "waypoint"}:${id}`); return;
+    }
     if (match[1] === "units" && draft.unitKeys[index]) selection = { kind: "unit", key: draft.unitKeys[index] };
     if (match[1] === "machines" && draft.machineKeys[index]) selection = { kind: "machine", key: draft.machineKeys[index] };
     if (match[1] === "cellMarkers" && draft.definition.cellMarkers?.[index])
@@ -224,6 +347,7 @@ export function mountDesigner(catalog, request, playDesign) {
       ui.agency.children[groupIndex]?.scrollIntoView?.({ block: "nearest" });
     }
     setTool("Select"); renderBoard(); renderProperties();
+    if (!["agency", "orders", "objectives", "neutralSides"].includes(match[1])) ui.properties.scrollIntoView?.({ block: "nearest" });
   }
 
   const cellNodes = new Map();
@@ -234,6 +358,7 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.board.style.setProperty("--columns", board.width);
     ui.board.style.setProperty("--board-ratio", board.width / board.height);
     ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
+    ui.board.style.minWidth = ui.zoom.value === "fit" ? "" : `${board.width * Number(ui.zoom.value)}px`;
     for (const waypoint of draft.definition.waypoints ?? []) {
       const area = waypoint.area, node = element("span", waypoint.id); node.className = "waypoint-area";
       Object.assign(node.style, { left: `${area.x / board.width * 100}%`, top: `${area.y / board.height * 100}%`,
@@ -313,7 +438,7 @@ export function mountDesigner(catalog, request, playDesign) {
   }
   function renderProperties() {
     ui.properties.replaceChildren();
-    if (!selection) { ui.properties.textContent = "Nothing selected."; return; }
+    if (!selection) { ui.properties.textContent = "Select a Cell, edge, Unit or Machine on the board. Use a placement tool to add something new."; return; }
     if (selection.kind === "overlap") {
       ui.properties.append(element("p", "Overlapping placements: choose an object."));
       for (const key of selection.keys) ui.properties.append(button(unitLabel(draft.unitIndex(key)), () => {
@@ -325,10 +450,11 @@ export function mountDesigner(catalog, request, playDesign) {
       ui.properties.append(button("Edit terrain below", () => { selection = { kind: "cell", position: selection.position }; render(); }));
       return;
     }
-    const form = element("form"); form.className = "designer-property-form";
+    const form = editorForm(`selection:${JSON.stringify(selection)}`, true);
     if (selection.kind === "unit") {
       const key = selection.key, unit = draft.definition.units[draft.unitIndex(key)];
       if (!unit) { selection = null; renderProperties(); return; }
+      if (!draft.metadata(unit.unitTypeId)) form.append(element("p", "Imported content: geometry is unavailable in the editor catalog; only the anchor is previewed. Engine validation still checks the full scenario. Save draft retains custom definitions."));
       const type = field(form, "Unit Type", unit.unitTypeId, { entries: typeOptions });
       const side = field(form, "SideId", unit.sideId, { list: "designer-sides" });
       const x = field(form, "Anchor X", unit.anchor.x, { type: "number" });
@@ -348,7 +474,7 @@ export function mountDesigner(catalog, request, playDesign) {
           posture: posture.value, initialHp: hp.value === "" ? null : Number(hp.value),
           unitId: unitId.value.trim() ? unitId.value : null }, controller.value)); });
       form.append(element("button", "Apply Unit"));
-      form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; })));
+      form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; }, [form.dataset.formKey])));
       form.append(button("Edit terrain at anchor", () => { selection = { kind: "cell", position: unit.anchor }; render(); }));
     } else if (selection.kind === "machine") {
       const key = selection.key, machine = draft.definition.machines?.[draft.machineKeys.indexOf(key)];
@@ -374,7 +500,7 @@ export function mountDesigner(catalog, request, playDesign) {
           ...quantities.map(q => ({ type: q.type, quantity: Number(q.input.value) }))]
       })); });
       form.append(element("button", "Apply Machine"));
-      form.append(button("Delete Machine", () => commit(() => { draft.removeMachine(key); selection = null; })));
+      form.append(button("Delete Machine", () => commit(() => { draft.removeMachine(key); selection = null; }, [form.dataset.formKey])));
       form.append(button("Edit terrain below", () => { selection = { kind: "cell", position: machine.position }; render(); }));
     } else if (selection.kind === "cell") {
       const position = { ...selection.position };
@@ -475,7 +601,7 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.order.replaceChildren(...draft.definition.unitTypeIds.map(id => element("li", `${draft.metadata(id)?.displayName ?? id} (${id})`)));
     const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
     ui["side-settings"].replaceChildren(...sides.map(side => {
-      const form = element("form"); form.className = "designer-property-form";
+      const form = editorForm(`side:${side}`, true);
       form.append(element("strong", side));
       const neutral = field(form, "Neutral (no hostility in either direction)", (draft.definition.neutralSides ?? []).includes(side) ? "Yes" : "No", { entries: ["No", "Yes"] });
       const current = draft.definition.objectives?.find(row => row.sideId === side);
@@ -494,7 +620,7 @@ export function mountDesigner(catalog, request, playDesign) {
       option.value = unit.unitId; return option;
     }));
     ui.agency.replaceChildren(...draft.definition.agency.map((row, index) => {
-      const form = element("form"); form.className = "designer-agency-row designer-property-form";
+      const form = editorForm(`agency:${JSON.stringify([row.unitTypeId, row.sideId])}`); form.className += " designer-agency-row";
       const type = field(form, "Type", row.unitTypeId, { entries: typeOptions });
       const side = field(form, "SideId", row.sideId, { list: "designer-sides" });
       const controller = field(form, "Controller", row.controller, { entries: catalog.controllers });
@@ -503,7 +629,7 @@ export function mountDesigner(catalog, request, playDesign) {
       const count = draft.definition.units.filter(unit => unit.unitTypeId === row.unitTypeId && unit.sideId === row.sideId).length;
       form.append(element("small", `${count} initial Units`));
       form.append(element("button", "Apply pair"));
-      form.append(button("Remove pair", () => commit(() => draft.removeAgency(index))));
+      form.append(button("Remove pair", () => commit(() => draft.removeAgency(index), [form.dataset.formKey])));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         draft.editAgency(index, { unitTypeId: type.value, sideId: side.value, controller: controller.value }, readOrder());
       }); });
@@ -521,58 +647,62 @@ export function mountDesigner(catalog, request, playDesign) {
     ui.routes.replaceChildren();
     ui.routes.append(element("h3", "Waypoints"));
     for (const waypoint of [...(draft.definition.waypoints ?? []), null]) {
-      const form = element("form"); form.className = "designer-property-form";
+      const form = editorForm(`waypoint:${waypoint?.id ?? "new"}`);
       const id = field(form, "Waypoint ID", waypoint?.id ?? "");
       const geometry = ["x", "y", "w", "h"].map(key => field(form, key.toUpperCase(), waypoint?.area[key] ?? (key === "w" || key === "h" ? 1 : 0), { type: "number" }));
       form.append(element("button", waypoint ? "Save Waypoint" : "Create Waypoint"));
-      if (waypoint) form.append(button("Delete Waypoint", () => commit(() => draft.removeWaypoint(waypoint.id))));
+      if (waypoint) form.append(button("Delete Waypoint", () => commit(() => draft.removeWaypoint(waypoint.id), [form.dataset.formKey])));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveWaypoint(waypoint?.id, {
         id: id.value, area: Object.fromEntries(["x", "y", "w", "h"].map((key, i) => [key, Number(geometry[i].value)])) })); });
       ui.routes.append(form);
     }
     ui.routes.append(element("h3", "Routes"));
     for (const route of [...(draft.definition.routes ?? []), null]) {
-      const form = element("form"); form.className = "designer-property-form";
+      const form = editorForm(`route:${route?.id ?? "new"}`);
       const id = field(form, "Route ID", route?.id ?? "");
       const mode = field(form, "Route mode", route?.mode ?? "Loop", { entries: ["Once", "Loop", { value: "PingPong", label: "Ping-pong" }] });
-      const sequence = [...(route?.waypointIds ?? [])], rows = element("div"); form.append(rows);
+      const sequence = [...(buffers[form.dataset.formKey]?.sequence ?? route?.waypointIds ?? [])], rows = element("div"); form.append(rows);
+      function rememberSequence() { (buffers[form.dataset.formKey] ??= { values: {} }).sequence = [...sequence]; persist(); }
       function renderSequence() {
         rows.replaceChildren();
         sequence.forEach((value, i) => {
           const row = element("div");
-          const select = field(row, `Waypoint ${i + 1}`, value, { entries: (draft.definition.waypoints ?? []).map(w => w.id) });
-          select.addEventListener("change", () => { sequence[i] = select.value; });
-          row.append(button("Up", () => { if (i > 0) [sequence[i-1], sequence[i]] = [sequence[i], sequence[i-1]]; renderSequence(); }));
-          row.append(button("Down", () => { if (i+1 < sequence.length) [sequence[i+1], sequence[i]] = [sequence[i], sequence[i+1]]; renderSequence(); }));
-          row.append(button("Remove", () => { sequence.splice(i, 1); renderSequence(); })); rows.append(row);
+          const select = globalField(row, `Waypoint ${i + 1}`, value, { entries: (draft.definition.waypoints ?? []).map(w => w.id) });
+          select.addEventListener("change", () => { sequence[i] = select.value; rememberSequence(); });
+          row.append(button("Up", () => { if (i > 0) [sequence[i-1], sequence[i]] = [sequence[i], sequence[i-1]]; rememberSequence(); renderSequence(); }));
+          row.append(button("Down", () => { if (i+1 < sequence.length) [sequence[i+1], sequence[i]] = [sequence[i], sequence[i+1]]; rememberSequence(); renderSequence(); }));
+          row.append(button("Remove", () => { sequence.splice(i, 1); rememberSequence(); renderSequence(); })); rows.append(row);
         });
       }
-      form.append(button("Add existing Waypoint", () => { if (draft.definition.waypoints?.length) { sequence.push(draft.definition.waypoints[0].id); renderSequence(); } }));
+      form.append(button("Add existing Waypoint", () => { if (draft.definition.waypoints?.length) { sequence.push(draft.definition.waypoints[0].id); rememberSequence(); renderSequence(); } }));
       renderSequence();
       form.append(element("button", route ? "Save Route" : "Create Route"));
-      if (route) form.append(button("Delete Route", () => commit(() => draft.removeRoute(route.id))));
-      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveRoute(route?.id, { id: id.value, mode: mode.value, waypointIds: sequence })); });
+      if (route) form.append(button("Delete Route", () => commit(() => draft.removeRoute(route.id), [form.dataset.formKey])));
+      const reset = field(form, "Reset affected group progress", "No", { entries: ["No", "Yes"] });
+      form.append(element("small", "Progress is retained while the current slot targets the same Waypoint. Changed targets or traversal mode require a reset to waypoint 0 for affected groups."));
+      form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveRoute(route?.id, { id: id.value, mode: mode.value, waypointIds: sequence }, reset.value === "Yes")); });
       ui.routes.append(form);
     }
   }
-  function render() { renderRoutes(); syncWorldFields(); renderBoard(); renderProperties(); renderData(); }
+  function render() { syncImportedTypes(); renderRoutes(); syncWorldFields(); renderBoard(); renderProperties(); renderData(); updateDocumentState(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
     draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });
-  ui.validate.addEventListener("click", () => requests.run("validate", draft.snapshot()));
+  ui.validate.addEventListener("click", () => ready() ? requests.run("validate", draft.snapshot()) : null);
   ui.export.addEventListener("click", async () => {
+    if (!ready()) return;
     const result = await requests.run("export", draft.snapshot());
-    if (result?.transport) { ui.transport.value = result.transport; ui.transport.closest("details").open = true; }
+    if (result?.transport) { lastExport = ui.transport.value = result.transport; showPanel("document"); ui.transport.closest("details").open = true; }
   });
   ui.import.addEventListener("click", async () => {
     const result = await requests.run("import", { transport: ui.transport.value.trim() });
     if (result?.board) {
-      try { draft.replace(result); selection = null; syncBoardFields(); render(); report({ valid: true, errors: [] }); }
+      try { if (!canReplace()) return; loadDocument(JSON.stringify(draftDocument(result, "Imported scenario"))); report({ valid: true, errors: [] }); }
       catch (error) { report({ valid: false, errors: [{ message: error.message }] }, "import"); }
     }
   });
   ui.play.addEventListener("click", async () => {
-    if (pendingPlay) return;
+    if (pendingPlay || !ready()) return;
     const revision = draft.revision;
     const result = await requests.run("export", draft.snapshot());
     if (!result?.transport || revision !== draft.revision) return;
@@ -580,7 +710,7 @@ export function mountDesigner(catalog, request, playDesign) {
     // Block editing only during game replacement, so the exported version is the one being played.
     ui.main.inert = true;
     try {
-      if (await playDesign(result.transport)) { ui.transport.value = result.transport; setMode(false); }
+      if (await playDesign(result.transport)) { lastExport = ui.transport.value = result.transport; setMode(false); }
       else report({ valid: false, errors: [{ message: "Could not start the design. Check Playtest status, refresh and try again." }] });
     } catch (error) { report({ valid: false, errors: [{ message: error.message }] }); }
     finally { pendingPlay = false; ui.play.disabled = false; ui.main.inert = false; }
@@ -589,8 +719,137 @@ export function mountDesigner(catalog, request, playDesign) {
     try { await navigator.clipboard.writeText(ui.transport.value); }
     catch { ui.transport.focus(); ui.transport.select(); }
   });
-  setTool("Select"); syncBoardFields(); render();
-  return { draft, render, setTool, setMode, requests, selectTarget, ui };
+  function numbersComplete(form) {
+    return [...form.querySelectorAll("input")].every(input => !input.dataset.number || input.disabled ||
+      input.dataset.optional && input.value === "" || /^-?\d+$/.test(input.value) && Number.isSafeInteger(Number(input.value)));
+  }
+  function prepareStatic(id, fields) {
+    const form = ui[id]; form.dataset.formKey = id;
+    for (const name of fields) {
+      const input = ui[name];
+      if (input.type === "number") { input.type = "text"; input.inputMode = "numeric"; input.dataset.number = "true"; }
+      const remember = () => {
+        (buffers[id] ??= { values: {} }).values[name] = input.type === "checkbox" ? input.checked : input.value;
+        requests.sequence++; persist();
+      };
+      input.addEventListener("input", remember);
+      // Use input for text, change for selects and checkbox without replacing existing change behavior.
+      input.addEventListener("change", remember);
+    }
+    const listen = form.addEventListener.bind(form);
+    form.addEventListener = (name, action) => listen(name, name === "submit" ? event => {
+      event.preventDefault();
+      if (!numbersComplete(form)) { ui.status.textContent = "Complete numeric inputs before applying. Inputs are retained."; return; }
+      activeForm = id; try { action(event); } finally { activeForm = null; }
+    } : action);
+    restoreStatic(id);
+  }
+  function restoreStatic(id) {
+    for (const [name, value] of Object.entries(buffers[id]?.values ?? {})) {
+      if (!ui[name]) continue;
+      if (ui[name].type === "checkbox") ui[name].checked = value; else ui[name].value = value;
+    }
+  }
+  function ready() {
+    if (!Object.keys(buffers).length) return true;
+    ui.status.textContent = "Unfinished forms · apply or discard the retained inputs first. Save draft keeps all inputs.";
+    ui.pending.scrollIntoView?.({ block: "nearest" }); return false;
+  }
+  function canReplace() {
+    return !globalThis.confirm || globalThis.confirm("Replace this draft? Save draft first to keep a separate file. The current scenario can be restored with Undo; unfinished form inputs will be replaced.");
+  }
+  function showPanel(name) {
+    for (const panel of ui.main.querySelectorAll("[data-designer-panel]")) panel.hidden = panel.dataset.designerPanel !== name;
+    for (const tab of ui.main.querySelectorAll("[data-designer-tab]")) tab.setAttribute("aria-pressed", String(tab.dataset.designerTab === name));
+  }
+  function loadDocument(text) {
+    const doc = readDraftDocument(text, catalog.maxBoardSize);
+    // Renderability checks are distinct from engine validation. Roll back if content cannot be displayed.
+    const previous = history.capture(), previousRevision = draft.revision, previousBuffers = buffers, previousTitle = ui.title.value, previousSelection = selection;
+    try {
+      draft.replace(doc.definition); restoreKeys(doc); buffers = doc.buffers ?? {}; ui.title.value = doc.title || "Untitled scenario";
+      selection = null; syncBoardFields(); render();
+    } catch (error) {
+      Object.assign(draft, previous); draft.revision = previousRevision; buffers = previousBuffers; ui.title.value = previousTitle; selection = previousSelection;
+      syncBoardFields(); render(); throw new Error(`Could not open draft: ${error.message}`);
+    }
+    history.past.push(previous); if (history.past.length > 100) history.past.shift(); history.future = []; persistenceBlocked = false;
+    unchecked(); ui.transport.value = doc.transportInput ?? ""; persist(); updateDocumentState();
+  }
+  function download(name, text) {
+    const link = element("a"); const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url);
+  }
+  function installDocumentControls() {
+    const recoveryDownload = document.getElementById("designer-recovery-download");
+    recoveryDownload.hidden = !(persistenceBlocked && savedRecovery);
+    recoveryDownload.addEventListener("click", () => download("designer-recovery.json", savedRecovery));
+    ui.title.addEventListener("input", persist);
+    ui.transport.addEventListener("input", () => { lastExport = ""; persist(); });
+    ui.save.addEventListener("click", () => {
+      download(`${ui.title.value.replace(/[^a-z0-9_-]/gi, "-") || "scenario"}.delve-draft.json`, JSON.stringify(documentData(), null, 2));
+      ui["save-status"].textContent = "Draft file saved · includes unfinished inputs";
+    });
+    ui.open.addEventListener("click", () => ui.file.click());
+    ui.file.addEventListener("change", async () => {
+      const file = ui.file.files?.[0]; if (!file) return;
+      try {
+        const text = await file.text(); readDraftDocument(text, catalog.maxBoardSize);
+        if (canReplace()) loadDocument(text);
+      } catch (error) { ui.status.textContent = error.message; }
+      finally { ui.file.value = ""; }
+    });
+    ui.new.addEventListener("click", () => {
+      if (!canReplace()) return;
+      const blank = new DesignerDraft(catalog);
+      loadDocument(JSON.stringify(draftDocument(blank.snapshot())));
+      ui["save-status"].textContent = "New draft · previous scenario available with Undo";
+    });
+    function travel(direction) {
+      if (!ready()) return;
+      if (history[direction]()) { selection = null; syncBoardFields(); unchecked(); persist(); render(); }
+    }
+    ui.undo.addEventListener("click", () => travel("undo")); ui.redo.addEventListener("click", () => travel("redo"));
+    document.addEventListener("keydown", event => {
+      if (ui.main.hidden || event.target?.closest?.("input,textarea,select") || !(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() === "z") { event.preventDefault(); travel(event.shiftKey ? "redo" : "undo"); }
+      if (event.key.toLowerCase() === "y") { event.preventDefault(); travel("redo"); }
+    });
+    globalThis.addEventListener?.("storage", event => {
+      if (event.key !== draftStorageKey) return;
+      persistenceBlocked = true;
+      ui["save-status"].textContent = "Recovery changed in another tab · Save draft to keep this version, or reload to recover the other version";
+    });
+    for (const tab of ui.main.querySelectorAll("[data-designer-tab]")) tab.addEventListener("click", () => showPanel(tab.dataset.designerTab));
+    document.getElementById("designer-discard-inputs").addEventListener("click", () => {
+      if (!globalThis.confirm || globalThis.confirm("Discard all unfinished form inputs? Committed scenario edits will stay.")) { buffers = {}; syncBoardFields(); render(); persist(); }
+    });
+    options(ui.catalog, (catalog.scenarios ?? []).map(s => ({ value: s.id, label: s.name })));
+    ui["catalog-open"].addEventListener("click", async () => {
+      const revision = draft.revision;
+      try {
+        const response = await fetch(`/api/designer/scenarios/${encodeURIComponent(ui.catalog.value)}`);
+        if (!response.ok) throw new Error("Could not open catalog scenario.");
+        const definition = await response.json();
+        if (draft.revision !== revision) { ui.status.textContent = "Draft changed while opening the catalog copy. Try again."; return; }
+        if (canReplace()) loadDocument(JSON.stringify(draftDocument(definition, catalog.scenarios.find(s => s.id === ui.catalog.value)?.name)));
+      } catch (error) { ui.status.textContent = error.message; }
+    });
+  }
+  installDocumentControls();
+  setTool("Select");
+  try { syncBoardFields(); render(); }
+  catch (error) {
+    // A damaged recovery payload must never prevent the author from opening a healthy document.
+    draft.replace(new DesignerDraft(catalog).snapshot()); buffers = {}; selection = null;
+    ui.title.value = "Untitled scenario"; ui.transport.value = ""; persistenceBlocked = true;
+    recoveryMessage = `Recovery unavailable: ${error.message}. Original recovery data retained. Download it before New/Open.`;
+    document.getElementById("designer-recovery-download").hidden = !savedRecovery;
+    syncBoardFields(); render();
+  }
+  recovering = false; ui["save-status"].textContent = recoveryMessage;
+  try { if (globalThis.localStorage?.getItem("project-delve.mode") === "designer") setMode(true); } catch {}
+  return { draft, history, documentData, loadDocument, render, setTool, setMode, requests, selectTarget, ui };
 }
 
 async function startDesigner() {

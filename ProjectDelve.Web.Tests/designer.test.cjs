@@ -8,6 +8,11 @@ const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
 const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
+const memoryStorage = () => {
+  const data = new Map();
+  return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+};
+function enter(input, value) { input.value = value; input.listeners.input?.(); }
 const catalog = {
   maxBoardSize: 50,
   cellMarkerTypes: [{ id: "banana-peel", name: "Banana Peel" }],
@@ -47,7 +52,11 @@ class Element {
   replaceChildren(...children) { for (const child of this.children) child.parent = null; this.children = []; this.append(...children); }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter(child => child !== this); this.parent = null; }
   setAttribute(key, value) { this.attributes[key] = value; }
-  addEventListener(name, callback) { this.listeners[name] = callback; }
+  addEventListener(name, callback) {
+    const previous = this.listeners[name];
+    this.listeners[name] = previous ? event => { previous(event); callback(event); } : callback;
+  }
+  requestSubmit() { this.listeners.submit?.({ preventDefault() {} }); }
   matches(selector) {
     if (selector === "[data-editor-hit]") return !!this.dataset.editorHit;
     if (selector.startsWith(".")) return this.classList.contains(selector.slice(1));
@@ -58,7 +67,7 @@ class Element {
   focus() {} select() {} scrollIntoView() {}
 }
 
-function harness(request = async () => ({ valid: true, errors: [] }), play = async () => true) {
+function harness(request = async () => ({ valid: true, errors: [] }), play = async () => true, storage) {
   const elements = new Map(), documentListeners = {};
   const document = {
     getElementById(id) {
@@ -78,7 +87,7 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
   document.getElementById("designer-side").value = "side-1";
   document.getElementById("designer-agency-side").value = "side-1";
   const details = new Element("details"); details.append(document.getElementById("designer-transport"));
-  const context = vm.createContext({ document, catalog, request, play, structuredClone, navigator: { clipboard: { writeText: async () => {} } } });
+  const context = vm.createContext({ document, catalog, request, play, structuredClone, localStorage: storage, navigator: { clipboard: { writeText: async () => {} } } });
   vm.runInContext(source("designer-state.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("side-colors.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("designer.js").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, "").replace(/startDesigner\(\);\s*$/, ""), context);
@@ -235,7 +244,7 @@ test("shared Waypoint/Route editor preserves references, ordering, group progres
   for (const body of submitted) assert.deepEqual(body.orders, [expected]);
   draft.saveWaypoint("north", {id:"renamed", area:{x:2,y:0,w:3,h:1}});
   assert.deepEqual(plain(draft.definition.routes[0].waypointIds), ["renamed","south"]);
-  draft.saveRoute("track", {id:"new-track", mode:"Once", waypointIds:["south", "renamed", "south"]});
+  draft.saveRoute("track", {id:"new-track", mode:"Once", waypointIds:["south", "renamed", "south"]}, true);
   assert.deepEqual(plain(draft.definition.orders[0].route), {routeId:"new-track",currentIndex:0,direction:1});
   const saved = plain(draft.snapshot()); draft.replace(saved); h.editor.render();
   assert.deepEqual(plain(draft.snapshot()), saved);
@@ -350,7 +359,7 @@ test("refused board shrink retains the draft and does not claim a Delve validity
   h.editor.ui.width.value = "14"; h.submit(h.editor.ui["board-form"]);
   assert.deepEqual(plain(h.editor.draft.snapshot()), before);
   assert.match(h.editor.ui.status.textContent, /Edit refused/);
-  assert.equal(h.editor.ui.width.value, "15");
+  assert.equal(h.editor.ui.width.value, "14"); // Retain the rejected input so the author can repair it.
 });
 
 test("Unit tool places supplied 2x2 geometry; all occupied cells select one temporary identity", () => {
@@ -700,6 +709,168 @@ test("Cell Marker brushes place and remove by pointer/keyboard, roundtrip and gu
   assert.match(form.textContent, /Cell Marker: Banana Peel/);
   form.querySelectorAll("button").find(node => node.textContent === "Remove Cell Marker").listeners.click();
   assert.equal(draft.definition.cellMarkers.length, 0);
+});
+
+test("rejected compound agency edits preserve the complete definition and revision", () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency("goblin-type", "A", "Automated");
+  d.setOrder("goblin-type", "A", { kind: "HoldPosition" });
+  const before = plain(d.snapshot()), revision = d.revision;
+  assert.throws(() => d.editAgency(0, { unitTypeId: "unplaced", sideId: "B", controller: "Human" },
+    { kind: "FollowRoute", route: { routeId: "missing", currentIndex: 0, direction: 1 } }), /existing Route/);
+  assert.deepEqual(plain(d.snapshot()), before); assert.equal(d.revision, revision);
+  assert.throws(() => d.saveRoute(null, { id: "bad", mode: "Loop", waypointIds: ["missing"] }));
+  assert.throws(() => d.saveWaypoint(null, { id: "", area: { x: 0, y: 0, w: 1, h: 1 } }));
+  assert.deepEqual(plain(d.snapshot()), before); assert.equal(d.revision, revision);
+  assert.throws(() => h.editor.history.transact(() => { d.setNeutral("A", true); throw new Error("refused"); }));
+  assert.deepEqual(plain(d.snapshot()), before); assert.equal(d.revision, revision);
+  assert.equal(h.editor.history.past.length, 0);
+});
+
+test("Route saves preserve meaningful progress and require deliberate resets only for affected groups", () => {
+  const d = harness().editor.draft;
+  for (const id of ["a", "b", "c"]) d.saveWaypoint(null, { id, area: {x:0,y:0,w:1,h:1} });
+  d.saveRoute(null, { id: "track", mode: "PingPong", waypointIds: ["a", "b"] });
+  d.setOrder("unplaced", "C", { kind: "HoldPosition" });
+  d.saveRoute(null, { id: "other", mode: "Once", waypointIds: ["a"] });
+  assert.deepEqual(plain(d.definition.orders[0]), {unitTypeId:"unplaced",sideId:"C",kind:"HoldPosition"});
+  d.setOrder("unplaced", "C", { kind: "Normal" });
+  d.setOrder("goblin-type", "A", { kind: "FollowRoute", route: { routeId: "track", currentIndex: 1, direction: -1 } });
+  d.setOrder("wizard-type", "B", { kind: "FollowRoute", route: { routeId: "track", currentIndex: 0, direction: 1 } });
+  const progress = plain(d.definition.orders);
+  d.saveRoute("track", plain(d.definition.routes[0]));
+  assert.deepEqual(plain(d.definition.orders), progress);
+  d.saveRoute("track", { id: "renamed", mode: "PingPong", waypointIds: ["a", "b", "c"] });
+  assert.deepEqual(plain(d.definition.orders[0].route), { routeId: "renamed", currentIndex: 1, direction: -1 });
+  const before = plain(d.snapshot()), revision = d.revision;
+  const changed = { id: "renamed", mode: "PingPong", waypointIds: ["a", "c", "b"] };
+  assert.throws(() => d.saveRoute("renamed", changed), /Reset affected group progress/);
+  assert.deepEqual(plain(d.snapshot()), before); assert.equal(d.revision, revision);
+  d.saveRoute("renamed", changed, true);
+  assert.deepEqual(plain(d.definition.orders[0].route), { routeId: "renamed", currentIndex: 0, direction: 1 });
+  assert.deepEqual(plain(d.definition.orders[1].route), { routeId: "renamed", currentIndex: 0, direction: 1 });
+});
+
+test("strokes and compound edits undo atomically; selection has no history and a new edit clears redo", () => {
+  const h = harness(), d = h.editor.draft;
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Grass";
+  h.down(h.cell(0,0)); h.move(h.cell(1,0)); h.move(h.cell(2,0)); h.up();
+  assert.equal(h.editor.history.past.length, 1);
+  h.editor.setTool("Select"); h.down(h.cell(0,0)); h.down(h.cell(1,1));
+  assert.equal(h.editor.history.past.length, 1);
+  const revision = d.revision;
+  h.click("undo"); assert.equal(d.definition.board.cells.length, 0); assert.ok(d.revision > revision);
+  h.click("redo"); assert.equal(d.definition.board.cells.length, 3);
+  h.click("undo"); h.editor.setTool("Unit"); h.editor.ui.type.value = "goblin-type"; h.down(h.cell(0,0));
+  assert.equal(h.editor.history.future.length, 0);
+  assert.equal(d.definition.units.length, 1); assert.equal(d.definition.agency.length, 1);
+  h.click("undo"); assert.equal(d.definition.units.length, 0); assert.equal(d.definition.agency.length, 0);
+  assert.deepEqual(plain(d.definition.unitTypeIds), []);
+});
+
+test("simple properties commit on change; incomplete numeric input survives selection, unrelated edits and recovery", async () => {
+  const storage = memoryStorage(), sent = [];
+  const h = harness(async (operation, data) => { sent.push(operation); return { valid:true, errors:[] }; }, undefined, storage);
+  h.editor.setTool("Unit"); h.editor.ui.type.value = "goblin-type"; h.down(h.cell(1,1));
+  h.editor.setTool("Select"); h.down(h.cell(1,1));
+  let form = h.editor.ui.properties.children[0];
+  enter(inputField(form, "SideId"), "blue"); form.listeners.change();
+  assert.equal(h.editor.draft.definition.units[0].sideId, "blue");
+  form = h.editor.ui.properties.children[0]; enter(inputField(form, "Anchor X"), "-"); form.listeners.change();
+  h.down(h.cell(4,4));
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Water"; h.down(h.cell(2,2)); h.up();
+  h.editor.setTool("Select"); h.down(h.cell(1,1));
+  assert.equal(inputField(h.editor.ui.properties.children[0], "Anchor X").value, "-");
+  await h.click("validate"); assert.deepEqual(sent, []); assert.match(h.editor.ui.status.textContent, /Unfinished/);
+  const recovered = harness(undefined, undefined, storage); recovered.down(recovered.cell(1,1));
+  assert.equal(inputField(recovered.editor.ui.properties.children[0], "Anchor X").value, "-");
+  assert.equal(recovered.editor.draft.terrainAt({x:2,y:2}), "Water");
+  assert.match(recovered.editor.ui["save-status"].textContent, /Recovered/);
+});
+
+test("draft files preserve incomplete scenarios, unfinished Route sequences and editor identities", () => {
+  const h = harness(), d = h.editor.draft;
+  const removed = d.place("goblin-type", "A", "Human", {x:0,y:0}); d.removeUnit(removed);
+  d.place("goblin-type", "A", "Human", {x:2,y:2});
+  d.place("goblin-type", "B", "Human", {x:2,y:2}); // Invalid overlap is deliberate authoring data.
+  d.saveWaypoint(null, {id:"first",area:{x:0,y:0,w:1,h:1}}); h.editor.render();
+  const form = h.editor.ui.routes.querySelectorAll("form").find(f => inputField(f,"Route ID"));
+  enter(inputField(form,"Route ID"), "unfinished-route");
+  form.querySelectorAll("button").find(b => b.textContent === "Add existing Waypoint").listeners.click();
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Tree"; h.down(h.cell(3,3)); h.up();
+  const doc = plain(h.editor.documentData());
+  const other = harness(); other.editor.loadDocument(JSON.stringify(doc));
+  assert.deepEqual(plain(other.editor.draft.snapshot()), plain(d.snapshot()));
+  assert.deepEqual(plain(other.editor.draft.unitKeys), plain(d.unitKeys));
+  const restored = other.editor.ui.routes.querySelectorAll("form").find(f => inputField(f,"Route ID"));
+  assert.equal(inputField(restored,"Route ID").value,"unfinished-route");
+  assert.equal(inputField(restored,"Waypoint 1").value,"first");
+});
+
+test("corrupt, incompatible and unrenderable recovery data is retained without overwriting it", () => {
+  for (const saved of ["{broken", '{"format":"ProjectDelveDraft","version":99}', JSON.stringify({format:"ProjectDelveDraft",version:1,definition:{board:{width:15,height:15}}})]) {
+    const storage = memoryStorage(); storage.setItem("project-delve.designer.v1", saved);
+    const h = harness(undefined, undefined, storage);
+    assert.match(h.editor.ui["save-status"].textContent, /Recovery unavailable/);
+    h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Grass"; h.down(h.cell(0,0)); h.up();
+    assert.equal(storage.getItem("project-delve.designer.v1"), saved);
+    const before = plain(h.editor.draft.snapshot()), revision = h.editor.draft.revision;
+    assert.throws(() => h.editor.loadDocument(saved));
+    assert.deepEqual(plain(h.editor.draft.snapshot()), before); assert.equal(h.editor.draft.revision, revision);
+  }
+});
+
+test("new unfinished input invalidates an in-flight validation response", async () => {
+  let resolve; const h = harness(() => new Promise(done => {resolve = done;}));
+  const pending = h.click("validate");
+  enter(h.editor.ui.width,"unfinished");
+  resolve({valid:true,errors:[]}); await pending;
+  assert.doesNotMatch(h.editor.ui.status.textContent,/^Valid/);
+});
+
+test("pasted import text survives unrelated edits and recovery; zoom never enters history", () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage);
+  enter(h.editor.ui.transport,"DELVE1:unfinished-paste");
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Grass"; h.down(h.cell(0,0)); h.up();
+  assert.equal(h.editor.ui.transport.value,"DELVE1:unfinished-paste");
+  const historyLength = h.editor.history.past.length;
+  h.editor.ui.zoom.value = "48"; h.editor.ui.zoom.listeners.change();
+  assert.equal(h.editor.history.past.length,historyLength);
+  assert.equal(h.editor.ui.board.style.minWidth,"720px");
+  const recovered = harness(undefined, undefined, storage);
+  assert.equal(recovered.editor.ui.transport.value,"DELVE1:unfinished-paste");
+});
+
+test("nested damaged recovery cannot prevent opening a healthy draft; missing select values remain visible", () => {
+  const good = harness().editor.documentData(), damaged = plain(good), storage = memoryStorage();
+  damaged.definition.machines = [{id:"broken",position:{x:0,y:0},type:catalog.machineTypes[0],storedResources:[null]}];
+  const raw = JSON.stringify(damaged); storage.setItem("project-delve.designer.v1",raw);
+  const h = harness(undefined,undefined,storage);
+  assert.match(h.editor.ui["save-status"].textContent,/Recovery unavailable/);
+  assert.equal(storage.getItem("project-delve.designer.v1"),raw);
+  h.editor.loadDocument(JSON.stringify(good));
+  assert.equal(h.editor.draft.definition.machines,undefined);
+  h.editor.draft.setAgency("goblin-type","A","Human");
+  h.editor.draft.definition.orders = [{unitTypeId:"goblin-type",sideId:"A",kind:"FollowRoute",route:{routeId:"missing",currentIndex:0,direction:1}}];
+  h.editor.render();
+  const missing = inputField(h.editor.ui.agency.children[0],"Shared Route");
+  assert.equal(missing.value,"missing"); assert.match(missing.textContent,/unavailable/);
+});
+
+test("group buffers survive other edits and rejected Apply preserves revision and authored Order", () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency("goblin-type","A","Automated"); d.setOrder("goblin-type","A",{kind:"HoldPosition"}); h.editor.render();
+  let form = h.editor.ui.agency.children[0];
+  enter(inputField(form,"SideId"),"B");
+  const kind = inputField(form,"Starting Order"); kind.value="FollowRoute"; kind.listeners.change();
+  h.editor.setTool("Terrain"); h.editor.ui.terrain.value="Grass"; h.down(h.cell(0,0)); h.up();
+  form = h.editor.ui.agency.children[0];
+  assert.equal(inputField(form,"SideId").value,"B"); assert.equal(inputField(form,"Starting Order").value,"FollowRoute");
+  const before = plain(d.snapshot()), revision = d.revision;
+  h.submit(form);
+  assert.deepEqual(plain(d.snapshot()),before); assert.equal(d.revision,revision);
+  assert.equal(inputField(h.editor.ui.agency.children[0],"SideId").value,"B");
+  assert.match(h.editor.ui.pending.textContent,/unfinished/);
 });
 
 test("Asphalt is a standalone brush and default, clears Rail direction and roundtrips", () => {
