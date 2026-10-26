@@ -6,11 +6,11 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
-test("Solid Rock has a distinct temporary material without borrowing Tree artwork", () => {
+test("Solid Rock uses full-Cell bedrock variants and retains a distinct material fallback", () => {
   const run = catalog();
   assert.notEqual(run('terrainLayers("SolidRock").base.fill'), run('terrainLayers("Tree").base.fill'));
   assert.ok(run('terrainLayers("SolidRock").base.detail').includes("gradient"));
-  assert.equal(run('terrainLayers("SolidRock").base.image'), undefined);
+  assert.match(run('terrainLayers("SolidRock").base.image'), /^\.\/art\/terrain\/solid-rock\/0[123]\.webp$/);
   assert.equal(run('terrainLayers("SolidRock").object'), null);
 });
 
@@ -44,7 +44,7 @@ test("artwork catalog resolves registered local files while other content retain
   const portraits = JSON.parse(run(`JSON.stringify(${JSON.stringify(names)}.map(name => boardVisuals.unit[name + "-type"].image))`));
   assert.deepEqual(portraits, expected);
   const terrain = [];
-  for (const [id, folder] of [["StoneFloor", "stone-floor"], ["Gravel", "gravel"], ["Asphalt", "asphalt"], ["Grass", "grass"], ["Water", "water"], ["Lava", "lava"]]) {
+  for (const [id, folder] of [["StoneFloor", "stone-floor"], ["SolidRock", "solid-rock"], ["Gravel", "gravel"], ["Asphalt", "asphalt"], ["Grass", "grass"], ["Water", "water"], ["Lava", "lava"]]) {
     const variants = JSON.parse(run(`JSON.stringify(boardVisuals.terrain.${id}.variants.map(v => v.image))`));
     assert.deepEqual(variants, [1, 2, 3].map(i => `./art/terrain/${folder}/0${i}.webp`));
     terrain.push(...variants);
@@ -79,7 +79,7 @@ test("terrain hash has fixed cross-runtime vectors and does not use random state
 
 test("terrain variants survive reload, differ across seeds, and preserve category fallbacks", () => {
   const run = catalog(), reload = catalog();
-  for (const id of ["StoneFloor", "Asphalt", "Gravel", "Grass", "Water", "Lava"]) {
+  for (const id of ["StoneFloor", "SolidRock", "Asphalt", "Gravel", "Grass", "Water", "Lava"]) {
     const distribution = seed => `JSON.stringify(Array.from({length: 64}, (_, i) => terrainVariantIndex("${seed}", "${id}", i % 8, Math.floor(i / 8), 3)))`;
     assert.equal(run(distribution("a")), reload(distribution("a")));
     assert.notEqual(run(distribution("a")), run(distribution("b")));
@@ -130,7 +130,7 @@ test("composite mappings reuse base slots and choose object slots independently"
 
 test("quarter turns are opt-in, deterministic and independent of variants and the other layer", () => {
   const run = catalog(), reload = catalog();
-  for (const id of ["StoneFloor", "Asphalt", "Gravel", "Rail", "Grass", "Water", "Lava", "Tree", "FruitTree", "StoneFloorWithTable"]) {
+  for (const id of ["StoneFloor", "SolidRock", "Asphalt", "Gravel", "Rail", "Grass", "Water", "Lava", "Tree", "FruitTree", "StoneFloorWithTable"]) {
     const distribution = seed => `JSON.stringify(Array.from({length:256}, (_,i) => terrainLayers("${id}", {seed:"${seed}", x:i%16, y:Math.floor(i/16)})))`;
     const first = run(distribution("fixture"));
     assert.equal(first, reload(distribution("fixture")));

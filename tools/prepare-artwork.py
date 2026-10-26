@@ -31,7 +31,7 @@ ASSETS = [
                    "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
                    "royal-queen", "witch-queen", "royal-king", "goblin-king")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
-      for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt") for i in range(1, 4)],
+      for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt", "solid-rock") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
       for name in ("tree", "table", "fruit-tree") for i in range(1, 4)],
     *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond", "fruit", "banana", "mushroom", "shell")],
@@ -126,6 +126,7 @@ def main():
     # Roughly 50px portraits (circular UI clip) and 60px Cells, plus larger references.
     edge_preview([image for asset, image in zip(assets, decoded) if asset[0].startswith("edges/")])
     if not args.edges_only:
+        solid_rock_preview(assets, decoded)
         composite_preview(assets, decoded)
         court_preview(assets, decoded)
         object_preview(assets, decoded)
@@ -157,6 +158,23 @@ def main():
     preview = ROOT / "assets/previews/artwork-pack-01.png"
     preview.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(preview, optimize=True)
+
+
+def solid_rock_preview(assets, images):
+    """Repeat each bedrock slot in 3x3 blocks at minimum and normal Cell sizes."""
+    catalog = {asset[1]: image for asset, image in zip(assets, images)}
+    sheet = Image.new("RGB", (972, 570), "#202630")
+    draw = ImageDraw.Draw(sheet)
+    draw.text((12, 8), "Solid Rock | repeated 3x3 | 60px and 100px Cells | no added grid", fill="white")
+    for slot in range(1, 4):
+        x = 12 + (slot - 1) * 324
+        draw.text((x, 30), f"solid-rock/{slot:02}", fill="white")
+        for size, top in ((60, 52), (100, 250)):
+            tile = catalog[f"terrain/solid-rock/{slot:02}.webp"].resize((size, size), Image.Resampling.LANCZOS)
+            for row in range(3):
+                for col in range(3):
+                    sheet.paste(tile, (x + col * size, top + row * size))
+    sheet.save(ROOT / "assets/previews/solid-rock.png", optimize=True)
 
 
 def court_preview(assets, images):

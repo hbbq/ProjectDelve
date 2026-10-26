@@ -34,6 +34,21 @@ class CompositeArtworkTests(unittest.TestCase):
             self.assertIn((f'terrain/asphalt-{slot:02}.png', f'terrain/asphalt/{slot:02}.webp', 256), pipeline.ASSETS)
         self.assertIn(('units/chief-mechanic.png', 'units/chief-mechanic.webp', 512), pipeline.ASSETS)
 
+    def test_solid_rock_slots_use_opaque_full_cell_exports(self):
+        for slot in range(1, 4):
+            source = f'terrain/solid-rock-{slot:02}.png'
+            destination = f'terrain/solid-rock/{slot:02}.webp'
+            with self.subTest(slot=slot):
+                self.assertIn((source, destination, 256), pipeline.ASSETS)
+                with Image.open(pipeline.SOURCE / source) as original:
+                    original.load()
+                    self.assertEqual(original.width, original.height)
+                    self.assertEqual(original.convert('RGBA').getchannel('A').getextrema(), (255, 255))
+                with Image.open(pipeline.OUTPUT / destination) as exported:
+                    exported.load()
+                    self.assertEqual(exported.size, (256, 256))
+                    self.assertEqual(exported.convert('RGBA').getchannel('A').getextrema(), (255, 255))
+
     def test_machine_and_resource_alpha_survives_export_without_crop(self):
         for category, name, size in (("machines", "diamond-press", 256), ("machines", "slot-machine", 256),
                                      ("markers", "banana-peel", 128), ("resources", "coal", 128), ("resources", "diamond", 128),
