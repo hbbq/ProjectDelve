@@ -6,7 +6,7 @@ export function applySideHues(preferences = {}) {
   for (const [sideId, hue] of Object.entries(preferences)) sideHues.set(sideId, hue);
 }
 
-export function styleSide(node, sideId = "") {
+export function sideHue(sideId = "") {
   if (!sideHues.has(sideId)) {
     let hue = sidePalette[sideHues.size];
     if (hue === undefined) {
@@ -20,5 +20,9 @@ export function styleSide(node, sideId = "") {
     }
     sideHues.set(sideId, hue);
   }
-  node.style.setProperty("--side-hue", sideHues.get(sideId));
+  return sideHues.get(sideId);
+}
+
+export function styleSide(node, sideId = "") {
+  node.style.setProperty("--side-hue", sideHue(sideId));
 }

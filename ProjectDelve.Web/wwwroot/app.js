@@ -2,6 +2,7 @@ import { bindTooltip, initializeTooltips } from "./tooltips.js";
 import { styleSide, applySideHues } from "./side-colors.js";
 import { applyBoardVisual } from "./board-visuals.js";
 import { createBoardCamera } from "./board-camera.js";
+import { createViewportRouter, boardCandidates } from "./playtest-viewport.js";
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
@@ -47,9 +48,16 @@ ui["end-turn"].addEventListener("click", () => {
   if (candidate) return chooseCandidate(candidate.key);
 });
 ui["start-round"].addEventListener("click", () => { if (!ui.round.disabled) return mutate("round"); });
+let viewportRouter;
+let threeViewport;
+let displayedFrame;
 function updateBoardView() {
   // Do not rerender: mounted choices, selection, hover and in-flight playback survive.
-  ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
+  if (boardView.value !== "three") ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
+  if (viewportRouter) {
+    if (boardView.value !== "three") domViewport.mode = boardView.value;
+    return viewportRouter.request(boardView.value);
+  }
 }
 boardView.addEventListener("change", updateBoardView);
 if (!boardView.value) boardView.value = "enhanced";
@@ -239,11 +247,75 @@ if (cameraViewport) boardCamera = createBoardCamera({ document, viewport: camera
   clearPreview: () => { hoveredUnitId = null; clearAffectedPreview(); },
   onChange: () => positionDecisionPanel() });
 
+const domCameraControls = cameraViewport?.previousElementSibling;
+const domViewport = { host: cameraViewport, mode: boardView.value, camera: boardCamera,
+  setActive(active) { cameraViewport.hidden = !active; domCameraControls.hidden = !active; if (!active) boardCamera.cancel(); },
+  dispose() {} };
+const threeActive = () => !!threeViewport && viewportRouter?.active === threeViewport;
+const playCamera = () => threeActive() ? threeViewport.camera : boardCamera;
+function syncThreeInteraction() {
+  if (!threeActive()) return;
+  const decision = !busy && displayedState === snapshot?.result.state ? snapshot.presentation.decision : null;
+  threeViewport.showInteraction({ busy, candidates: [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(visibleChoice),
+    focusedUnitId, focusedDoor, relationship: combatDice?.context ?? attackContext,
+    combatPositions: combatDice?.positions, preview: threePreview,
+    coordinates: ui.coordinates.checked, waypoints: document.getElementById("waypoints").checked });
+}
+let threePreview;
+let threeChoicesOpen = false;
+function selectThreeHit(hit) {
+  if (busy || !displayedState) return;
+  const candidates = boardCandidates(hit, snapshot.presentation.decision, displayedState, displayedFigures, visibleChoice);
+  if (!candidates.length) return;
+  if (candidates.length === 1) return chooseCandidate(candidates[0].key);
+  boardChooser = candidates; boardChooserOrigin = viewportRouter.active.host;
+  positionDecisionPanel(hit.cell); clearAffectedPreview(); renderChoicePanel();
+  ui.choices.querySelectorAll("button")[0]?.focus();
+}
+if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, overlay: ui["board-overlays"],
+  loadThree: async () => {
+    const startedAt = performance.now();
+    const { createThreeViewport } = await import("./three-viewport.js");
+    const host = document.createElement("div"); host.className = "board-stage three-viewport"; host.id = "three-viewport";
+    host.hidden = true; host.tabIndex = 0; host.setAttribute("aria-label", "Three.js board. Arrow keys select Cells; Enter chooses; Shift plus arrows pans; plus and minus zoom.");
+    cameraViewport.after(host);
+    const root = domCameraControls.cloneNode(true); root.classList.add("three-controls"); root.hidden = true;
+    const controls = { root };
+    for (const node of root.querySelectorAll("[id]")) { const key = node.id.replace(/^camera-/, ""); node.id = `three-camera-${key}`; controls[key] = node; }
+    domCameraControls.after(root);
+    // The DOM controls remain the original immediate previous sibling for their adapter.
+    const objectives = document.createElement("div"); objectives.className = "three-objectives"; host.append(objectives); controls.objectives = objectives;
+    try {
+      threeViewport = createThreeViewport({ host, controls, startedAt, animate: () => ui.animate.checked && !skipEffects && !reducedMotion(),
+        onPick: selectThreeHit, onHover: id => { hoveredUnitId = id; renderUnitCard(); },
+        onPreview: candidate => { if (threePreview === candidate) return; threePreview = candidate; syncThreeInteraction(); },
+        onProject: () => positionDecisionPanel(),
+        onFailure: error => { ui.error.textContent = error.message; domViewport.mode = "enhanced"; boardView.value = "enhanced"; ui.board.dataset.view = "enhanced"; void viewportRouter.request("enhanced"); } });
+      if (displayedFrame) threeViewport.renderFrame(displayedFrame);
+      return threeViewport;
+    } catch (error) { threeViewport?.dispose(); threeViewport = null; root.remove(); host.remove(); throw error; }
+  },
+  onChange: (selection, active) => {
+    boardView.value = selection;
+    if (active === threeViewport) {
+      if (displayedFrame) threeViewport.renderFrame(displayedFrame);
+      syncThreeInteraction(); if (!busy) threeViewport.camera.stable(snapshot?.presentation.decision);
+    } else {
+      if (displayedFrame) boardCamera.setFrame(displayedFrame.state, displayedFrame.presentation, displayedFrame.metadata);
+      boardCamera.measure(); if (!busy) boardCamera.stable(snapshot?.presentation.decision);
+    }
+    if (snapshot) { renderChoicePanel(); updateControls(); }
+    positionDecisionPanel();
+  },
+  onError: (error, previous) => { ui.error.textContent = `Three.js could not start: ${error.message}`; boardView.value = previous; }
+});
+
 function positionDecisionPanel(location) {
   location ??= displayedState?.physical.figures.find(figure => figure.id === (attackContext?.targets?.[0]?.targetId ?? focusedUnitId))?.position;
   if (!location) return;
-  const screen = boardCamera?.screen({ x: location.x + .5, y: location.y + .5 });
-  const lower = screen ? screen.y >= cameraViewport.getBoundingClientRect().height / 2 : location.y >= displayedState.physical.board.height / 2;
+  const screen = playCamera()?.screen({ x: location.x + .5, y: location.y + .5 });
+  const stage = threeActive() ? threeViewport.host : cameraViewport;
+  const lower = screen && stage ? screen.y >= stage.getBoundingClientRect().height / 2 : location.y >= displayedState.physical.board.height / 2;
   ui["board-overlays"].classList.toggle("at-top", lower);
 }
 
@@ -486,7 +558,10 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   setupPhase = isSetup;
   renderBoard(state, preserveNodes, machines, objectives);
   displayedState = state;
-  boardCamera?.setFrame(state, { figures: geometry, objectives, viewingSideId: snapshot.presentation.viewingSideId },
+  displayedFrame = { state, presentation: { cards, figures: geometry, worldEffects: world, orders, machines, objectives, viewingSideId: snapshot.presentation.viewingSideId },
+    metadata: { sessionId: snapshot.sessionId, scenarioId: snapshot.scenarioId, assignments: snapshot.controllerAssignments, controllers: snapshot.controllers, round: state.round }, visualSeed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}` };
+  if (threeActive()) threeViewport.renderFrame(displayedFrame);
+  playCamera()?.setFrame(state, { figures: geometry, objectives, viewingSideId: snapshot.presentation.viewingSideId },
     { sessionId: snapshot.sessionId, scenarioId: snapshot.scenarioId, assignments: snapshot.controllerAssignments,
       controllers: snapshot.controllers, round: state.round });
   syncCombatDice(state);
@@ -657,6 +732,7 @@ function useMarkers(uses) {
 }
 
 function clearAffectedPreview() {
+  threePreview = null; syncThreeInteraction();
   for (const node of choiceFeedback.values()) node.classList.remove("feedback-hover");
   for (const node of figures.values()) node.classList.remove("affected-preview");
   for (const node of cells.values()) node.classList.remove("placement-preview");
@@ -684,6 +760,8 @@ function choiceButton(candidate) {
 }
 
 function renderChoicePanel() {
+  const previousAlternatives = ui.choices.querySelectorAll(".three-board-choices")[0];
+  if (previousAlternatives) threeChoicesOpen = previousAlternatives.open;
   ui.choices.replaceChildren();
   const decision = snapshot?.presentation.decision;
   ui["decision-panel"].hidden = false;
@@ -710,6 +788,23 @@ function renderChoicePanel() {
   for (const candidate of decision?.candidates ?? []) {
     if (candidate.isEndTurn || !visibleChoice(candidate) || boardChoiceKeys.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
     ui.choices.append(choiceButton(candidate));
+  }
+  if (threeActive() && boardChoiceKeys.size && !boardChooser) {
+    // A canvas has no native Cell buttons. Keep the same authoritative choices
+    // available to keyboard, assistive technology and touch without inventing
+    // another command path. Collapsed by default to preserve board-first play.
+    const alternatives = text("details", ""); alternatives.className = "three-board-choices";
+    alternatives.open = threeChoicesOpen;
+    alternatives.addEventListener("toggle", () => { if (alternatives.isConnected) threeChoicesOpen = alternatives.open; });
+    alternatives.append(text("summary", "Board choices"));
+    const list = text("div", "");
+    for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
+      if (!visibleChoice(candidate) || !boardChoiceKeys.has(candidate.key)) continue;
+      const button = choiceButton(candidate); button.dataset.boardChoiceKind = candidate.boardVisual?.kind ?? "special";
+      button.dataset.boardChoiceKey = candidate.key ?? "none"; list.append(button);
+      if (candidate.interaction.kind === "Position") button.dataset.boardChoiceCell = `${candidate.interaction.position.x}-${candidate.interaction.position.y}`;
+    }
+    alternatives.append(list); ui.choices.append(alternatives);
   }
   ui["decision-panel"].hidden = !ui.choices.children.length;
 }
@@ -778,9 +873,10 @@ function renderSnapshot() {
     for (const candidate of candidates) boardChoiceKeys.add(candidate.key);
   }
   renderChoicePanel();
-  boardCamera?.stable(decision);
+  playCamera()?.stable(decision);
   positionDecisionPanel();
   updateControls();
+  void viewportRouter?.checkpoint();
 }
 
 function chooseCandidate(key) {
@@ -929,7 +1025,9 @@ function connectUpdates() {
 }
 
 function cancelPlayback() {
-  boardCamera?.cancel();
+  threeViewport?.cancel();
+  void viewportRouter?.checkpoint();
+  playCamera()?.cancel();
   clearDice();
   playbackGeneration++;
   cancelPause?.();
@@ -1127,24 +1225,25 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
     };
     for (const [index, event] of view.presentation.events.entries()) {
       if (generation !== playbackGeneration) return;
+      viewportRouter?.beginEvent();
       commentsAt(index);
       ui.events.append(text("li", describe(event)));
       const occurrence = view.result.events[index];
       const projected = view.presentation.resolutionSteps.find(step => step.eventIndex === index);
       prepareOccurrence(occurrence, event);
-      if (!["UnitCreated", "AttackStarted"].includes(occurrence?.kind)) boardCamera?.occurrence(occurrence, event, skipEffects);
+      if (!["UnitCreated", "AttackStarted"].includes(occurrence?.kind)) playCamera()?.occurrence(occurrence, event, skipEffects);
       if (occurrence?.kind === "WorldCardDrawn" && projected) renderWorldEffects(projected.worldEffects);
       if (["TokenDrawn", "RoundStarted", "ActivationBagPopulated", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
         renderTurn(steps.get(index));
       }
       if (!skipEffects) await present(event, occurrence);
       if (generation !== playbackGeneration) return;
-      if (skipEffects && event.role === "Movement") boardCamera?.finishMovement();
+      if (skipEffects && event.role === "Movement") playCamera()?.finishMovement();
       if (steps.has(index)) {
         const before = displayedState;
         const after = steps.get(index);
         renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders, projected.machines, projected.objectives);
-        if (["UnitCreated", "AttackStarted"].includes(occurrence?.kind)) boardCamera?.occurrence(occurrence, event, skipEffects);
+        if (["UnitCreated", "AttackStarted"].includes(occurrence?.kind)) playCamera()?.occurrence(occurrence, event, skipEffects);
         if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
           const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
           const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
@@ -1152,8 +1251,10 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
         }
         if (!skipEffects && occurrence?.kind === "UnitCreated") figures.get(occurrence.unitId)?.classList.add("created");
         if (!skipEffects && occurrence?.kind === "PostureChanged") figures.get(occurrence.unitId)?.classList.add("posture-changed");
+        if (!skipEffects && threeActive()) threeViewport.afterOccurrence(occurrence);
         if (["AttackTargetResolved", "PostureChanged", "UnitCreated", "PlacesSwapped", "UnitRepositioned"].includes(occurrence?.kind)) await guardedPause(380);
       }
+      await viewportRouter?.checkpoint();
     }
     if (generation === playbackGeneration) commentsAt(view.presentation.events.length);
 }
@@ -1222,6 +1323,10 @@ async function present(event, occurrence) {
     WorldCardDrawn: 1000, WorldContinuousChanged: 700, WorldCardDiscarded: 450, WorldDeckReshuffled: 600,
     PostureChanged: 200, UnitCreated: 200 }[occurrence?.kind];
   if (delay != null) { await guardedPause(delay); return; }
+  if (threeActive()) {
+    await threeViewport.present(event, occurrence, { pause: guardedPause, skipping: () => skipEffects || !ui.animate.checked || reducedMotion() });
+    return;
+  }
   if (event.movementSegments?.length && event.movingFigure) {
     await presentObservedMovement(event);
     return;
@@ -1236,7 +1341,7 @@ async function present(event, occurrence) {
         if (skipEffects) break;
         node.style.transition = "left .22s linear, top .22s linear";
         placeFigure(node, cell, snapshot.result.state.physical.board);
-        boardCamera?.movementStep(cell);
+        playCamera()?.movementStep(cell);
         await guardedPause(250);
       }
       break;
@@ -1309,11 +1414,11 @@ async function presentObservedMovement(event) {
     for (const segment of event.movementSegments) {
       if (skipEffects) break;
       node.style.transition = "none"; placeFigure(node, segment[0], board); node.getBoundingClientRect();
-      boardCamera?.movementStep(segment[0]);
+      playCamera()?.movementStep(segment[0]);
       for (const cell of segment.slice(1)) {
         if (skipEffects) break;
         node.style.transition = "left .22s linear, top .22s linear";
-        placeFigure(node, cell, board); boardCamera?.movementStep(cell); await guardedPause(250);
+        placeFigure(node, cell, board); playCamera()?.movementStep(cell); await guardedPause(250);
       }
     }
   } finally {
@@ -1459,7 +1564,7 @@ const combatSignature = context => JSON.stringify([context.attackerId, context.a
 function beginCombatDice(context) {
   clearDice();
   const names = new Map((displayedState?.units ?? []).map(unit => [unit.id, unitName(unit.id)]));
-  combatDice = { signature: combatSignature(context), context, names, positions: new Map((displayedState?.physical.figures ?? []).map(f => [f.id, { ...f.position }])), attack: null, defences: new Map(), outcomes: new Map(), finished: false };
+  combatDice = { signature: combatSignature(context), context, names, positions: new Map((displayedState?.physical.figures ?? []).map(f => [f.id, { ...f.position, cellSpan: displayedFigures?.[f.id]?.cellSpan ?? 1 }])), attack: null, defences: new Map(), outcomes: new Map(), finished: false };
 }
 function finishCombatDice() {
   if (!combatDice || combatDice.finished) return;
@@ -1552,6 +1657,7 @@ function renderCombatRelationship() {
   }
 }
 function highlightContext() {
+  syncThreeInteraction();
   const relationship = combatDice?.context ?? attackContext;
   renderCombatRelationship();
   for (const [id, node] of figures) {
@@ -1630,6 +1736,7 @@ function prepareOccurrence(occurrence, outcome) {
 }
 
 function updateCoordinates() {
+  syncThreeInteraction();
   ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
 }
 
@@ -1643,11 +1750,16 @@ ui.filter.addEventListener("change", renderSnapshot);
 ui.auto.addEventListener("change", () => mutate("preferences", { autoChooseSingleRelevantChoice: ui.auto.checked }));
 ui.coordinates.addEventListener("change", updateCoordinates);
 const waypointToggle = document.getElementById("waypoints");
-waypointToggle.addEventListener("change", () => ui.board.classList.toggle("hide-waypoints", !waypointToggle.checked));
+waypointToggle.addEventListener("change", () => { ui.board.classList.toggle("hide-waypoints", !waypointToggle.checked); syncThreeInteraction(); });
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
-ui.skip.addEventListener("click", () => { skipEffects = true; boardCamera?.settle(); ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
-ui.animate.addEventListener("change", () => { if (!ui.animate.checked) boardCamera?.settle(); });
+ui.skip.addEventListener("click", () => { skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
+ui.animate.addEventListener("change", () => { if (!ui.animate.checked) { threeViewport?.settle(); playCamera()?.settle(); } });
+globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").addEventListener?.("change", event => {
+  if (event.matches) { skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); cancelPause?.(); }
+});
+globalThis.addEventListener?.("pagehide", event => { if (event.persisted) viewportRouter?.active.setActive(false); else viewportRouter?.dispose(); });
+globalThis.addEventListener?.("pageshow", event => { if (event.persisted) viewportRouter?.active.setActive(true); });
 // Designer exports enter the same revisioned scenario replacement operation as pasted imports.
 globalThis.delvePlayDesign = transport => replaceScenario("scenario/import", { transport }, true);
 globalThis.delvePlayGenerated = code => replaceScenario("scenario/import", { generationCode: code }, true);

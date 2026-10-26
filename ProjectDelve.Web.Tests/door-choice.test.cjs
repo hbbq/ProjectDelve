@@ -166,6 +166,7 @@ function harness(initial, fetchImpl, extras = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^export /gm, ""), context);
   if (extras.withCamera) for (const file of ["camera-geometry.js", "camera-observation.js", "board-camera.js"])
     vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", file), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
@@ -175,6 +176,52 @@ function harness(initial, fetchImpl, extras = {}) {
 }
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
+
+function attachThree(h) {
+  const rendered = [], frames = [], camera = { setFrame() {}, stable() {}, occurrence() {}, movementStep() {}, finishMovement() {}, settle() {}, cancel() {}, screen:p=>p };
+  h.context.testThree = { host: new Element(), camera, setActive() {}, renderFrame: frame=>frames.push(frame),
+    showInteraction: view=>rendered.push(view), present: async()=>{}, afterOccurrence() {}, settle() {}, cancel() {}, dispose() {} };
+  h.run(`threeViewport = testThree; domViewport.setActive = () => {}; domViewport.host = document.getElementById('board');
+    viewportRouter = createViewportRouter({ dom: domViewport, overlay: ui['board-overlays'], loadThree: async () => threeViewport,
+      onChange: (selection, active) => { boardView.value = selection; if (active === threeViewport && displayedFrame) threeViewport.renderFrame(displayedFrame); syncThreeInteraction(); } });`);
+  return { frames, rendered };
+}
+
+test('Three routing receives displayed StateAfter, never future legal decisions, and submits one opaque key', async () => {
+  const initial = response([choice('first','Position',{position:{x:1,y:0}}),choice('second','Position',{position:{x:1,y:0}})]);
+  const submitted=[];
+  const h=harness(initial,async(url,options)=>{submitted.push(JSON.parse(options.body));return {ok:true,json:async()=>initial};});
+  const three=attachThree(h);await h.run('viewportRouter.request("three")');
+  assert.equal(three.frames.at(-1).state,initial.result.state);
+  h.run('snapshot = { ...snapshot, result: { ...snapshot.result, state: { ...snapshot.result.state, round: 99 } } }; busy = true; syncThreeInteraction();');
+  assert.equal(three.rendered.at(-1).candidates.length,0);
+  assert.equal(three.frames.at(-1).state.round,1);
+  h.run('snapshot = initial; busy = false; selectThreeHit({cell:{x:1,y:0}});');
+  assert.deepEqual(Array.from(h.run('boardChooser.map(c=>c.key)')),['first','second']);
+  h.run('playEvents = async () => {};');
+  const command=h.run('chooseCandidate("second")');h.run('selectThreeHit({cell:{x:1,y:0}});');await command;
+  assert.equal(submitted.length,1);assert.equal(submitted[0].candidateKey,'second');
+  assert.deepEqual(Object.keys(submitted[0]).sort(),['candidateKey','expectedRevision']);
+});
+
+test('an app playback switch waits for StateAfter without duplicating history, dice or decisions', async () => {
+  const initial=response();const final=structuredClone(initial);
+  final.result.state.physical.figures[0].position.x=2;
+  final.result.events=[{kind:'MovementCompleted',unitId:'actor'}];
+  final.presentation.events=[{role:'Movement',text:'Supplied movement',unitId:'actor',path:[{x:0,y:0},{x:2,y:0}]}];
+  final.result.resolutionSteps=[{eventIndex:0,stateAfter:final.result.state}];
+  final.presentation.resolutionSteps=[{eventIndex:0,cards:final.presentation.cards}];
+  const h=harness(initial);const three=attachThree(h);
+  h.context.final=final;
+  h.run(`snapshot = final; busy = true; ui.animate.checked = true;
+    present = async () => { await viewportRouter.request('three'); if (threeViewport === viewportRouter.active) throw Error('Early handoff'); };
+    pause = async () => {}; combatDice = { context: {attackerId:'actor',targets:[]}, names: new Map(), positions: new Map(), finished:true, outcomes:new Map(), attack:null,defences:new Map() };`);
+  await h.run('playEvents(final)');
+  assert.equal(three.frames.at(-1).state,final.result.state);
+  assert.equal(three.frames.at(-1).state.physical.figures[0].position.x,2);
+  assert.equal(h.elements.get('events').children.length,1);assert.equal(h.run('combatDice.context.attackerId'),'actor');
+  assert.equal(h.run('playbackGeneration'),0);assert.equal(h.submitted.length,0);
+});
 
 for (const view of ["classic", "enhanced"]) for (const mode of ["animate", "disabled", "skip"])
 for (const journey of ["known", "enter", "leave", "islands", "door", "phase"])

@@ -68,6 +68,13 @@ Run `dotnet run --project ProjectDelve.Console` to play successive Rounds on a h
 
 Hero decisions use numbered engine-supplied choices. Choose the supplied Stay or End Turn option, or `q` to quit. An optional follow-up Move still uses `0` to stay. The authored Grunt group uses DefaultAutomatedProvider. Tokens draw automatically; the Barbarian controller confirms each owned dice pool through the numbered Roll Dice option. Positions, HP, deaths, and door state persist between Rounds. The host shows canonical movement paths and resulting rules events. There are no victory conditions.
 
+## Playtest board views
+
+Playtest also offers **Three.js Flat 2D** alongside Classic and Enhanced. It shares
+the existing session, observed state, decisions, playback and surrounding UI.
+See [THREE_VIEWPORT.md](THREE_VIEWPORT.md) for dependency reproduction, viewport
+architecture, camera/input, artwork reuse, FoW layering, diagnostics and tests.
+
 ## Repository artwork skill
 
 Add new originals or replace existing originals under `assets/source/`, then

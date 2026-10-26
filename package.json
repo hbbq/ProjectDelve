@@ -1,0 +1,10 @@
+{
+  "name": "project-delve-browser-vendor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "vendor:three": "node tools/prepare-three.cjs",
+    "vendor:check": "node tools/prepare-three.cjs --check"
+  },
+  "dependencies": { "three": "0.180.0" }
+}

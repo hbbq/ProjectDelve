@@ -1,0 +1,20 @@
+.three-viewport { position: relative; height: clamp(260px, calc(100dvh - 210px), 950px); overflow: clip; isolation: isolate; background: #11161c; border: 1px solid var(--ui-border); touch-action: none; user-select: none; }
+.three-viewport[hidden], .three-controls[hidden] { display: none; }
+.three-canvas { display: block; width: 100%; height: 100%; }
+.three-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.three-token-info { position: absolute; transform: translate(-50%, -50%); text-align: center; font: 11px/14px system-ui; color: #fff2d4; }
+.three-token-info[hidden] { display: none; }
+.three-name { position: absolute; bottom: -3px; left: 0; right: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #19232cf5; border: 1px solid #d6bd86; border-radius: 3px; padding: 0 3px; }
+.three-hp { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #15212cf5; border: 1px solid #f1d392; border-radius: 3px; padding: 0 3px; }
+.three-hp:empty, .three-state:empty { display: none; }
+.three-state { position: absolute; top: 42%; left: 50%; transform: translateX(-50%); background: #171c26eb; border-radius: 3px; padding: 0 3px; }
+.three-token-info[data-detail="2"] { font-size: 10px; line-height: 12px; }
+.three-coordinates span { position: absolute; color: #c8c7c0; font: 10px/12px system-ui; text-shadow: 0 1px 2px #000; }
+.three-machine-labels > span { position: absolute; transform: translate(-50%, -50%); color: #fff2d4; font: 10px/12px system-ui; background: #18232cdd; border-radius: 3px; padding: 1px 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.three-focus { position: absolute; transform: translate(-50%,-50%); background: transparent; border: 0; padding: 0; pointer-events: none; opacity: 0; }
+.three-focus:focus-visible { opacity: 1; outline: 3px dashed var(--ui-focus); }
+.three-objectives { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.three-metrics { font-size: .65rem; color: var(--ui-muted); }
+.three-metrics { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.three-board-choices > div { display: flex; flex-wrap: wrap; gap: 4px; max-height: 180px; overflow: auto; padding-top: 5px; }
+@media(max-width:850px) { .three-viewport { height: clamp(280px, 60dvh, 650px); } }

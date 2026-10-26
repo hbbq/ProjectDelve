@@ -1,0 +1,2 @@
+# Preserve the exact upstream bytes checked by tools/prepare-three.cjs.
+ProjectDelve.Web/wwwroot/vendor/three/** -text
