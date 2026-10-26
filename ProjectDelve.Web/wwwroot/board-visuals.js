@@ -4,6 +4,7 @@
 export const boardVisuals = {
   terrain: {
     Unknown: { fill: "#171e29", detail: "repeating-linear-gradient(135deg, transparent 0 10px, #94a7bd0b 11px 12px)" },
+    SolidRock: { fill: "#34303e", detail: "repeating-linear-gradient(135deg, transparent 0 13px, #aea0b04a 14px 16px, transparent 17px 24px), repeating-linear-gradient(35deg, transparent 0 23px, #17132080 24px 27px)" },
     default: { fill: "#666a68", detail: "repeating-linear-gradient(0deg, transparent 0 48%, #242d3040 49% 51%, transparent 52% 100%)" },
     StoneFloor: { rotation: true, fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)",
       variants: [

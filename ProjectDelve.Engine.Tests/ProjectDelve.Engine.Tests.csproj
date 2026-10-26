@@ -12,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../ProjectDelve.Engine/ProjectDelve.Engine.csproj" />
+    <ProjectReference Include="..\ProjectDelve.Generation\ProjectDelve.Generation.csproj" />
   </ItemGroup>
 </Project>

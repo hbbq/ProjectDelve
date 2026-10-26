@@ -335,6 +335,8 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   const doc = JSON.parse(text);
   if (doc?.format !== "ProjectDelveDraft" || doc.version !== 1) throw new Error("Unsupported draft document. Expected Project Delve draft version 1.");
   if (doc.transportInput != null && typeof doc.transportInput !== "string") throw new Error("Invalid saved import text.");
+  if (doc.generationSource != null && (typeof doc.generationSource.code !== "string" || typeof doc.generationSource.definitionJson !== "string"))
+    throw new Error("Invalid saved generation source.");
   const d = doc.definition, board = d?.board;
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||

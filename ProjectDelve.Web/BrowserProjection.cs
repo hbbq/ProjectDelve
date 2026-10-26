@@ -37,6 +37,7 @@ public sealed record UnitCard(string DisplayName, IReadOnlyList<CardEntry> Entri
 public sealed record BrowserObjective(string SideId, string Name)
 {
     public string Meaning { get; init; } = "";
+    public ObjectiveArea? Area { get; init; }
 }
 public sealed record BrowserWorldCard(string Id, string Name, string Text, bool Continuous);
 public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
@@ -123,7 +124,8 @@ public static class BrowserProjection
             m.Type.Storage.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name, m.StoredQuantity(c.Type.Id), c.Capacity)).ToArray(), m.OwnerSide) { TypeId = m.Type.Id }).ToArray();
 
     public static IReadOnlyList<BrowserObjective> Objectives(GameState state) => state.Objectives.Select(o =>
-        new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o) }).ToArray();
+        new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o),
+            Area = o.Objective == ScenarioObjective.ReachArea ? o.Area : null }).ToArray();
 
     public static BrowserWorldCard WorldCard(WorldCard card)
     {

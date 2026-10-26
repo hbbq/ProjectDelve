@@ -6,6 +6,25 @@ const vm = require("node:vm");
 
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
+for (const view of ["classic", "enhanced"]) test(`Reach Area mission marker survives Unknown Cells and Waypoints off (${view})`, () => {
+  const initial = response();
+  initial.presentation.viewingSideId = "blue";
+  initial.result.state.exploredCells = { blue: [{ x: 0, y: 0 }] };
+  initial.presentation.objectives = [{ sideId: "blue", name: "Reach Area", meaning: "Reach the supplied area", area: { x: 4, y: 0, w: 2, h: 1 } }];
+  const h = harness(initial); h.context.view = view;
+  h.run('boardView.value = view; updateBoardView(); ui.board.classList.add("hide-waypoints"); renderState(snapshot.result.state)');
+  const board = h.elements.get("board"), marker = board.querySelectorAll(".mission-area")[0];
+  assert.ok(marker); assert.equal(marker.style.left, `${4 / 6 * 100}%`);
+  assert.equal(marker.style.width, `${2 / 6 * 100}%`);
+  assert.ok(!marker.classList.contains("waypoint-area"));
+  assert.ok(h.run('cells.get("4,0").classList.contains("Unknown")'));
+  assert.equal(h.run('snapshot.result.state.exploredCells.blue.length'), 1);
+  h.context.earlierObjectives = [{ sideId:"blue", area:{ x:2, y:0, w:1, h:1 }, meaning:"Earlier snapshot" }];
+  h.run('renderState(snapshot.result.state, true, snapshot.presentation.cards, snapshot.presentation.figures, null, [], [], earlierObjectives)');
+  assert.equal(board.querySelectorAll(".mission-area").length, 1);
+  assert.equal(board.querySelectorAll(".mission-area")[0].style.left, `${2 / 6 * 100}%`);
+});
+
 for (const mode of ["animate", "disabled", "skip"]) {
   test(`Troll survives lethal playback using generic HP, posture and card content (${mode})`, async () => {
     const printed = { content: { id: "undying", name: "Undying", category: "Capability",

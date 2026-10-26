@@ -66,11 +66,13 @@ public sealed class FogOfWarTests
         Assert.True(Known(state, 8, 4)); Assert.False(Known(state, 9, 4));
     }
 
-    [Fact]
-    public void BlockingDestinationDiscoveredButTerrainBehindItIsHidden()
+    [Theory]
+    [InlineData(TerrainKind.Tree)]
+    [InlineData(TerrainKind.SolidRock)]
+    public void BlockingDestinationDiscoveredButTerrainBehindItIsHidden(TerrainKind terrain)
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
-        state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.Tree));
+        state.Physical.Board.Terrain.Add(new(new(4, 4), terrain));
         state.ExploredCells.Clear(); FogOfWar.Refresh(state);
         Assert.True(Known(state, 4, 4)); Assert.False(Known(state, 5, 4));
         state.Physical.Board.Terrain.Clear();
@@ -79,14 +81,16 @@ public sealed class FogOfWarTests
         Assert.True(Known(state, 4, 4)); Assert.False(Known(state, 5, 4));
     }
 
-    [Fact]
-    public void PhaseVisionIgnoresWallsAndDoorsButNotTreesOrAttackLos()
+    [Theory]
+    [InlineData(TerrainKind.Tree)]
+    [InlineData(TerrainKind.SolidRock)]
+    public void PhaseVisionIgnoresWallsAndDoorsButNotTreesOrAttackLos(TerrainKind terrain)
     {
         var state = Dungeon();
         state.Types[0] = state.Types[0] with { Phase = new() };
         FogOfWar.Refresh(state); Assert.True(Known(state, 8, 4));
         Assert.False(AttackRules.HasUnitLineOfSight(state, "hero", new(3, 4), new(8, 4), "guard"));
-        state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.Tree));
+        state.Physical.Board.Terrain.Add(new(new(4, 4), terrain));
         state.ExploredCells.Clear(); FogOfWar.Refresh(state);
         Assert.True(Known(state, 4, 4)); Assert.False(Known(state, 8, 4));
     }

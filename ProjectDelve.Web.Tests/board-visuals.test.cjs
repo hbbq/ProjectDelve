@@ -6,6 +6,14 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
+test("Solid Rock has a distinct temporary material without borrowing Tree artwork", () => {
+  const run = catalog();
+  assert.notEqual(run('terrainLayers("SolidRock").base.fill'), run('terrainLayers("Tree").base.fill'));
+  assert.ok(run('terrainLayers("SolidRock").base.detail').includes("gradient"));
+  assert.equal(run('terrainLayers("SolidRock").base.image'), undefined);
+  assert.equal(run('terrainLayers("SolidRock").object'), null);
+});
+
 test("racing assets use shared Grass, three stable rotating Fruit Tree objects and separate item icons", () => {
   const run = catalog();
   assert.equal(run('boardVisuals.terrain.FruitTree.baseTerrain'), "Grass");

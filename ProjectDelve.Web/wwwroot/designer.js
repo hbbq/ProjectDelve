@@ -40,12 +40,14 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   let buffers = {}, activeForm = null, recovering = true, persistenceBlocked = false;
   let savedRecovery = null;
   let lastExport = "";
+  let generationSource = null;
   let recoveryMessage = "New draft · saved in this browser";
   try {
     const saved = savedRecovery = globalThis.localStorage?.getItem(draftStorageKey);
     if (saved) {
       const doc = readDraftDocument(saved, catalog.maxBoardSize);
       draft.replace(doc.definition); restoreKeys(doc); buffers = doc.buffers ?? {}; ui.title.value = doc.title; ui.transport.value = doc.transportInput ?? "";
+      generationSource = doc.generationSource ?? null;
       recoveryMessage = "Recovered draft · saved in this browser";
     }
   } catch (error) { persistenceBlocked = true; recoveryMessage = `Recovery unavailable: ${error.message} ${savedRecovery ? "Original recovery data retained. Download it before New/Open." : "Save draft to keep a file."}`; }
@@ -62,6 +64,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   function documentData() {
     return { ...draftDocument(draft.snapshot(), ui.title.value, buffers), transportInput: ui.transport.value === lastExport ? "" : ui.transport.value,
+      generationSource,
       editorKeys: { unitKeys: [...draft.unitKeys], machineKeys: [...draft.machineKeys], nextKey: draft.nextKey } };
   }
   function restoreKeys(doc) {
@@ -79,6 +82,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     return key.replace(":", " · ");
   }
   function updateDocumentState() {
+    const generationLabel = document.getElementById("designer-generation-source");
+    if (generationLabel) {
+      generationLabel.hidden = !generationSource;
+      generationLabel.textContent = generationSource ? `${JSON.stringify(draft.definition) === generationSource.definitionJson ? "Original generated scenario" : "Modified scenario · code reproduces the original only"} · ${generationSource.code}` : "";
+    }
     ui.undo.disabled = !history.past.length; ui.redo.disabled = !history.future.length;
     const count = Object.keys(buffers).length;
     ui.pending.textContent = count ? `${count} unfinished form${count > 1 ? "s" : ""} retained. Apply or discard before Validate, Export or Test. Save draft includes these inputs.`
@@ -180,12 +188,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       if (!typeOptions.some(t => t.value === id)) typeOptions.push({ value: id, label: draft.metadata(id)?.displayName ?? `${id} (imported · anchor preview)` });
     for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) { const value = select.value; options(select, typeOptions); if (typeOptions.some(t => t.value === value)) select.value = value; }
   }
-  const terrainOptions = [{ value: "", label: "Use default (remove override)" }, ...catalog.terrains];
+  const terrainLabel = kind => kind === "SolidRock" ? { value: kind, label: "Solid Rock" } : kind;
+  const terrainOptions = [{ value: "", label: "Use default (remove override)" }, ...catalog.terrains.map(terrainLabel)];
   const edgeOptions = [{ value: "", label: "Remove" }, ...catalog.edgeKinds.filter(kind => kind !== "None")];
   options(ui["rail-direction"], catalog.railDirections ?? ["North", "East", "South", "West"]); ui["rail-direction"].value = "East";
   options(ui.zoom, [{value:"fit",label:"Fit board"},{value:"24",label:"Comfortable"},{value:"36",label:"Large"},{value:"48",label:"Extra large"}]); ui.zoom.value = "fit";
   ui.zoom.addEventListener("change", renderBoard);
-  options(ui.default, catalog.terrains.filter(kind => kind !== "Rail")); ui.default.value = draft.definition.board.defaultTerrain;
+  options(ui.default, catalog.terrains.filter(kind => kind !== "Rail").map(terrainLabel)); ui.default.value = draft.definition.board.defaultTerrain;
   options(ui.terrain, terrainOptions); options(ui.edge, edgeOptions); ui.edge.value = "Wall";
   options(ui["machine-type"], catalog.machineTypes.map(type => ({ value: type.id, label: type.name })));
   for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) options(select, typeOptions);
@@ -1029,6 +1038,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       syncBoardFields(); render(); throw new Error(`Could not open draft: ${error.message}`);
     }
     history.past.push(previous); if (history.past.length > 100) history.past.shift(); history.future = []; persistenceBlocked = false;
+    generationSource = doc.generationSource ?? null;
     unchecked(); ui.transport.value = doc.transportInput ?? ""; persist(); updateDocumentState();
   }
   function download(name, text) {
@@ -1092,6 +1102,12 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     });
   }
   installDocumentControls();
+  globalThis.delveOpenGenerated = result => {
+    if (!canReplace()) return false;
+    const doc = draftDocument(result.definition, "Generated dungeon");
+    doc.generationSource = { code: result.code, definitionJson: JSON.stringify(result.definition) };
+    loadDocument(JSON.stringify(doc)); setMode(true); return true;
+  };
   setTool("Select");
   try { syncBoardFields(); render(); }
   catch (error) {

@@ -25,6 +25,7 @@ public static class PlaytestHost
         app.UseDefaultFiles();
         app.UseStaticFiles();
         DesignerApi.Map(app);
+        GenerationApi.Map(app);
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
@@ -33,7 +34,7 @@ public static class PlaytestHost
         app.MapPost("/api/game/scenario", (ScenarioRequest request, PlaytestGame game) =>
             Mutate(() => game.BrowserResponse(game.SetupScenario(request.ExpectedRevision, request.ScenarioId, request.Controllers, request.ControllerAssignments))));
         app.MapPost("/api/game/scenario/import", (ScenarioImportRequest request, PlaytestGame game) =>
-            Mutate(() => game.BrowserResponse(game.SetupImport(request.ExpectedRevision, request.Transport, request.Controllers, request.ControllerAssignments))));
+            Mutate(() => game.BrowserResponse(game.SetupImport(request.ExpectedRevision, request.Transport, request.Controllers, request.ControllerAssignments, request.GenerationCode))));
         app.MapPost("/api/game/restart", (RoundRequest request, PlaytestGame game) =>
             Mutate(() => game.BrowserResponse(game.SetupRestart(request.ExpectedRevision, request.Controllers, request.ControllerAssignments))));
         app.MapPost("/api/game/round", (RoundRequest request, PlaytestGame game) =>
@@ -137,10 +138,11 @@ public sealed record RoundRequest
 
 public sealed record ScenarioImportRequest
 {
+    public string? GenerationCode { get; init; }
     public Dictionary<string,string>? Controllers { get; init; }
     public List<ControllerSelection>? ControllerAssignments { get; init; }
     public required long ExpectedRevision { get; init; }
-    public required string Transport { get; init; }
+    public string? Transport { get; init; }
 }
 
 public sealed record DecisionSubmission
@@ -158,6 +160,7 @@ public sealed record PreferenceRequest
 
 public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true, string ScenarioId = PlaytestScenarios.DefaultId)
 {
+    public string? GenerationCode { get; init; }
     // Presentation metadata, persisted with detached responses, independent of session/RNG.
     public string? VisualSeed { get; init; }
     public IReadOnlyList<DecisionCommentary> Commentaries { get; init; } = [];

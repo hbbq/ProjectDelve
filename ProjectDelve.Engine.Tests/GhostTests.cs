@@ -79,6 +79,7 @@ public sealed class GhostTests
 
     [Theory]
     [InlineData(TerrainKind.Tree)]
+    [InlineData(TerrainKind.SolidRock)]
     [InlineData(TerrainKind.Water)]
     [InlineData(TerrainKind.StoneFloorWithTable)]
     public void ImpassableTerrainCanBeTraversedButNeverChosenAsDestination(TerrainKind kind)

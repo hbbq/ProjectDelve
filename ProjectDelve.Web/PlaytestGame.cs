@@ -1,4 +1,5 @@
 using ProjectDelve.Engine;
+using ProjectDelve.Generation;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
@@ -29,6 +30,7 @@ public sealed partial class PlaytestGame : IDisposable
     private GameUpdate published;
     private string scenarioId = PlaytestScenarios.DefaultId;
     private string visualSeed;
+    private string? generationCode;
     private ScenarioDefinition definition = PlaytestScenarios.Definition(PlaytestScenarios.DefaultId);
     private string sessionId = Guid.NewGuid().ToString("N");
     private string? decisionId;
@@ -139,7 +141,20 @@ public sealed partial class PlaytestGame : IDisposable
             case "scenario":
                 if (!PlaytestScenarios.Catalog.Any(s => s.Id == request.ScenarioId)) throw Error(400, "Choose an available scenario.");
                 replacement = PlaytestScenarios.Definition(request.ScenarioId!); break;
-            case "scenario/import": replacement = Decode(request.Transport); break;
+            case "scenario/import":
+                if (request.GenerationCode is null) replacement = Decode(request.Transport);
+                else
+                {
+                    if (request.Transport is not null) throw Error(400, "Supply either a generation code or DELVE1, not both.");
+                    try
+                    {
+                        var generated = DungeonGenerator.Generate(request.GenerationCode);
+                        replacement = generated.Definition;
+                        request = request with { GenerationCode = generated.Code.ToString() };
+                    }
+                    catch (Exception error) when (error is ArgumentException or FormatException) { throw Error(400, error.Message); }
+                }
+                break;
             case "restart": break;
             default: throw Error(400, "Choose a supported operation.");
         }
@@ -238,6 +253,7 @@ public sealed partial class PlaytestGame : IDisposable
                 ApplyControllers(created, request.Controllers, request.ControllerAssignments);
                 state = created; definition = replacement; committed.Clear(); acknowledgedCursor = historyOffset = 0; gambitRequest = null; controllerError = null; gambitAdmitted = false; delegatedActivation = null; historyOverflow = false;
                 scenarioId = request.Operation == "scenario" ? request.ScenarioId! : request.Operation == "scenario/import" ? "imported" : scenarioId;
+                if (request.Operation != "restart") generationCode = request.Operation == "scenario/import" ? request.GenerationCode : null;
                 visualSeed = BoardAppearance.DeriveSeed(scenarioId, created.Physical.Board);
                 sessionId = Guid.NewGuid().ToString("N"); sequence = 0; journal.Clear(); revision++;
                 status = "idle"; decisionId = null; busy = resetQueued = false;
@@ -382,7 +398,7 @@ public sealed partial class PlaytestGame : IDisposable
             busy = resetQueued;
             stable = Detach(Response(state, status == "waiting-human" ? state.Pending : null));
             Publish("boundary", stable, request.CommandId);
-            response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId) { Commentaries = commentaries, VisualSeed = visualSeed };
+            response = new(revision, result with { Events = events, ResolutionSteps = steps }, autoChoose, scenarioId) { Commentaries = commentaries, VisualSeed = visualSeed, GenerationCode = generationCode };
             if (status == "waiting-external" && state.Pending is { } externalPending && !IsGambit(externalPending))
             {
                 externalWait?.Dispose(); externalWait = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
@@ -428,14 +444,14 @@ public sealed partial class PlaytestGame : IDisposable
         : current.ControllerFor(current.Pending) == ControllerKind.Human ? "waiting-human"
         : UsesExternal(current, current.Pending) ? "waiting-external" : "resolving";
     private GameResponse Response(GameState current, DecisionRequest? pending) => new(revision, new(current, [], pending), autoChoose, scenarioId)
-        { SessionId = sessionId, VisualSeed = visualSeed, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus };
+        { SessionId = sessionId, VisualSeed = visualSeed, GenerationCode = generationCode, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus };
     private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null)
     {
         if (FogOfWar.ViewingSide(snapshot.Result.State) is { } viewingSide &&
             (kind == "event" && !snapshot.Result.Events.Any(e => FogOfWar.ObserveEvent(snapshot.Result.State, viewingSide, e) is not null) ||
              kind == "commentary" && (commentary?.UnitId is not { } id || !FogOfWar.IsUnitObservable(snapshot.Result.State, viewingSide, id)))) return;
         lastPublishedAvailability = ControllerAvailable;
-        snapshot = snapshot with { SessionId = sessionId, VisualSeed = visualSeed, Controllers = ControllersFor(snapshot.Result.State), ControllerAssignments = ControllerAssignmentsFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus };
+        snapshot = snapshot with { SessionId = sessionId, VisualSeed = visualSeed, GenerationCode = generationCode, Controllers = ControllersFor(snapshot.Result.State), ControllerAssignments = ControllerAssignmentsFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus };
         published = new(sessionId, ++sequence, kind, status, revision, decisionId, Detach(snapshot), commandId, error, commentary);
         journal.Enqueue(published); while (journal.Count > capacity) journal.Dequeue();
         foreach (var subscriber in subscribers.ToArray())

@@ -31,7 +31,7 @@ public sealed record ControllerStatus(string BindingId, string? SideId, string S
 public sealed partial class PlaytestGame
 {
     public GameResponse SetupScenario(long revision, string id, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario", ScenarioId = id, Controllers = controllers, ControllerAssignments = assignments });
-    public GameResponse SetupImport(long revision, string transport, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario/import", Transport = transport, Controllers = controllers, ControllerAssignments = assignments });
+    public GameResponse SetupImport(long revision, string? transport, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null, string? generationCode = null) => Legacy(new() { ExpectedRevision = revision, Operation = "scenario/import", Transport = transport, Controllers = controllers, ControllerAssignments = assignments, GenerationCode = generationCode });
     public GameResponse SetupRestart(long revision, Dictionary<string,string>? controllers, List<ControllerSelection>? assignments = null) => Legacy(new() { ExpectedRevision = revision, Operation = "restart", Controllers = controllers, ControllerAssignments = assignments });
     private Dictionary<ActivationToken, string> controllerBindings = [];
     private readonly List<RulesEvent> committed = [];

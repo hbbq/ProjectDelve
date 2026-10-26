@@ -5,6 +5,22 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
+
+test("generated Designer transfer preserves the exact definition and identifies later edits through recovery", () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage);
+  const result = { code:"DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF", definition:structuredClone(designerSetup) };
+  h.context.generated = result;
+  assert.equal(h.run('delveOpenGenerated(generated)'), true);
+  assert.deepEqual(plain(h.editor.draft.snapshot()), result.definition);
+  const label = h.run('document.getElementById("designer-generation-source")');
+  assert.match(label.textContent, /Original generated scenario/);
+  h.editor.draft.paintTerrain({x:0,y:0}, "SolidRock"); h.editor.render();
+  assert.match(label.textContent, /Modified scenario.*original only/);
+  assert.equal(h.editor.documentData().generationSource.code, result.code);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.match(label.textContent, /Modified scenario/);
+  assert.equal(h.editor.draft.terrainAt({x:0,y:0}), "SolidRock");
+});
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
 const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];

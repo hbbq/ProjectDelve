@@ -8,12 +8,14 @@
   <link rel="stylesheet" href="board-enhanced.css">
   <script type="module" src="app.js"></script>
   <script type="module" src="designer.js"></script>
+  <script type="module" src="generator.js"></script>
 </head>
 <body>
   <header><h1>Project Delve <small>visual playtest</small></h1>
   <nav class="toolbar mode-switch" aria-label="Application mode">
     <button id="mode-playtest" aria-pressed="true">Playtest</button>
     <button id="mode-designer" aria-pressed="false">Designer</button>
+    <button id="open-generator" data-open-generator>Dungeon generator</button>
   </nav>
   </header>
   <details id="playtest-tools" class="playtest-tools">
@@ -27,6 +29,7 @@
           <details class="scenario-info"><summary class="info-button" aria-label="Scenario information" data-tooltip-source="scenario-description">i</summary><p id="scenario-description"></p></details>
           <button id="start-scenario" disabled>Start selected</button>
           <button id="restart-scenario" disabled>Restart current</button>
+          <button data-open-generator>Generate dungeon</button>
         </div>
         <div id="side-controllers" class="toolbar" aria-label="Controllers for selected scenario Sides"></div>
         <p class="legend">Assign each Unit Type + Side before starting or restarting. Side defaults are shortcuts; Gambit assignments must stay on one Side. Gambit dice and sole legal choices resolve automatically.</p>
@@ -96,6 +99,11 @@
     <p id="portrait-error" hidden>Portrait unavailable.</p>
   </dialog>
   <main id="playtest-main">
+    <section id="generated-game" class="generated-game" hidden aria-label="Generated dungeon recipe">
+      <strong>Generated dungeon</strong> <code id="generated-game-code"></code>
+      <button id="generated-game-copy">Copy complete code</button><button id="generated-game-inspect">Inspect map (reveals dungeon)</button>
+      <small>Restart reuses this dungeon. Inspect the map to export the exact scenario as DELVE1.</small>
+    </section>
     <section class="play-status" aria-label="Current play status">
       <p id="status" aria-live="polite">Loading...</p>
       <div id="active-token"></div><div id="active-unit"></div>
@@ -126,6 +134,7 @@
     </aside>
   </main>
   <main id="designer-main" hidden>
+    <small id="designer-generation-source" hidden></small>
     <div class="designer-document">
       <div class="designer-identity"><span class="designer-eyebrow">SCENARIO STUDIO</span><label class="sr-only" for="designer-title">Scenario name</label><input id="designer-title" value="Untitled scenario" maxlength="120"><small id="designer-save-status" role="status">New draft</small><button id="designer-recovery-download" hidden>Download recovery data</button></div>
       <div class="toolbar designer-document-actions">
@@ -171,6 +180,50 @@
     </aside>
     <section class="designer-feedback" aria-label="Editing and validation status"><p id="designer-status" role="status">Unchecked · validate before testing</p><div id="designer-errors" role="alert"></div><div class="designer-pending-row"><div id="designer-pending"></div><button id="designer-discard-inputs">Discard unfinished inputs</button></div></section>
   </main>
+  <dialog id="dungeon-generator" aria-labelledby="generator-heading">
+    <div class="generator-heading"><div><span class="designer-eyebrow">DUNGEON WORKSHOP · V1</span><h2 id="generator-heading">Heroes vs Monsters</h2></div><button id="generator-close" type="button">Close</button></div>
+    <p class="legend">Four Heroes. An unknown dungeon. A code you can replay. Preview reveals the whole map; Play Unseen goes straight to gameplay.</p>
+    <div class="generator-layout">
+      <section class="generator-controls" aria-label="Dungeon configuration">
+        <label>Generation profile <select id="generator-profile"><option value="HVM">Heroes vs Monsters</option></select></label>
+        <div class="generator-fields">
+          <label>Width <input id="generator-width" type="number" min="14" max="50" value="30"></label>
+          <label>Height <input id="generator-height" type="number" min="14" max="50" value="20"></label>
+          <label>Rooms <input id="generator-rooms" type="number" min="2" max="24" value="8"></label>
+          <label>Connectivity <select id="generator-connectivity"><option value="0">Tree · no loops</option><option value="1">1 extra route</option><option value="2" selected>2 extra routes</option><option value="3">3 extra routes</option></select></label>
+          <label>Door density <select id="generator-doors"><option value="0">None</option><option value="1">Few</option><option value="2" selected>Normal</option><option value="3">Many</option></select></label>
+          <label>Monster density <select id="generator-density"><option value="1">Sparse</option><option value="2" selected>Normal</option><option value="3">Dense</option></select></label>
+          <label>Difficulty <select id="generator-difficulty"><option value="1">1 · low Threat</option><option value="2">2</option><option value="3" selected>3 · mixed Threat</option><option value="4">4</option><option value="5">5 · high Threat</option></select></label>
+          <label>Objective <select id="generator-objective"><option value="reach" selected>Reach Area</option><option value="eliminate">Eliminate Enemies</option></select></label>
+          <label id="generator-required-label">Required Heroes <select id="generator-required"><option value="1">At least 1</option><option value="2" selected>At least 2</option><option value="3">At least 3</option><option value="A">All 4</option></select></label>
+          <label>Hero Fog of War <select id="generator-fog"><option value="1" selected>Enabled</option><option value="0">Disabled</option></select></label>
+        </div>
+        <small>Dimensions 14–50; rooms need 6 × 6 regions. Extra routes are limited by distinct room pairs. Difficulty selects Threat; density selects population.</small>
+        <label>Seed · 16 hexadecimal digits, optional <input id="generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" spellcheck="false" autocomplete="off"></label>
+        <button id="generator-random" type="button">Random Seed</button>
+        <div class="generator-actions"><button id="generator-preview" class="designer-primary">Generate Preview</button><button id="generator-play" class="designer-primary">Play Unseen</button><button id="generator-another">Generate Another</button></div>
+        <small>Play Unseen replaces the current game. Monsters always act normally, including beyond explored Cells.</small>
+        <details id="generator-code-tools" open><summary>Generation code</summary>
+          <label>Load a prefix or complete code <textarea id="generator-code-input" rows="3" spellcheck="false" placeholder="DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1"></textarea></label>
+          <div class="toolbar"><button id="generator-load">Load Generation Code</button><button id="generator-code-play">Play code unseen</button></div>
+          <label>Configuration prefix <textarea id="generator-prefix" rows="2" readonly spellcheck="false"></textarea></label>
+          <button id="generator-copy-prefix">Copy Configuration Prefix</button>
+        </details>
+      </section>
+      <section class="generator-result" aria-label="Generated preview">
+        <p id="generator-status" role="status" aria-live="polite">Configure a dungeon or load a code. Play Unseen keeps the map hidden.</p>
+        <div id="generator-preview-content" hidden>
+          <div class="toolbar"><strong>Full-map authoring preview</strong><label>View <select id="generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label></div>
+          <p id="generator-preview-summary" class="legend"></p>
+          <div class="generator-board-scroll"><div id="generator-board" class="generator-board" data-view="enhanced" aria-label="Complete generated dungeon"></div></div>
+          <label>Complete code for this preview <textarea id="generator-complete" rows="2" readonly spellcheck="false"></textarea></label>
+          <div class="toolbar"><button id="generator-copy-complete">Copy Complete Code</button><button id="generator-designer">Open in Designer</button><button id="generator-play-preview">Play this preview</button><button id="generator-export">Export DELVE1</button></div>
+          <label id="generator-export-label" hidden>Exact scenario · DELVE1 <textarea id="generator-transport" readonly rows="4" spellcheck="false"></textarea></label>
+          <p class="legend">The code is a recipe. DELVE1 preserves the exact scenario, including any later Designer edits. Preserve good dungeons with DELVE1; future releases need not retain every historical generator.</p>
+        </div>
+      </section>
+    </div>
+  </dialog>
   <footer>One game lives in this host. Start or restart a scenario to discard the current game.</footer>
 </body>
 </html>

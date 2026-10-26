@@ -259,11 +259,12 @@ function inspectCell(key) {
   renderUnitCard();
 }
 
-function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines) {
+function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives) {
   const board = state.physical.board;
   for (const node of choiceFeedback.values()) node.remove();
   choiceFeedback.clear();
   for (const node of ui.board.querySelectorAll(".waypoint-area")) node.remove();
+  for (const node of ui.board.querySelectorAll(".mission-area")) node.remove();
   const nextObjects = new Map(), objectCounts = new Map();
   // Retain decoded artwork through both playback steps and snapshot redraws.
   // Prune absent objects every render and isolate artwork by game identity.
@@ -288,6 +289,15 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   ui.board.style.setProperty("--columns", board.width);
   ui.board.style.setProperty("--board-ratio", board.width / board.height);
   ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
+  for (const objective of objectives ?? []) {
+    if (!objective.area) continue;
+    const area = objective.area, node = text("span", "Reach Area");
+    node.className = "mission-area"; node.setAttribute("aria-label", `${objective.sideId}: ${objective.meaning}`);
+    styleSide(node, objective.sideId);
+    Object.assign(node.style, { left: `${area.x / board.width * 100}%`, top: `${area.y / board.height * 100}%`,
+      width: `${area.w / board.width * 100}%`, height: `${area.h / board.height * 100}%` });
+    ui.board.append(node);
+  }
   for (const waypoint of state.waypoints ?? []) {
     const area = waypoint.area, node = text("span", waypoint.id);
     node.className = "waypoint-area"; node.setAttribute("aria-hidden", "true");
@@ -316,7 +326,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.append(coordinates);
     node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
     if (kind === "Unknown") node.setAttribute("aria-label", `Unknown Cell (${x},${y})`);
-    const symbol = { Unknown: "?", Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
+    const symbol = { Unknown: "?", SolidRock: "Rock", Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));
@@ -454,7 +464,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   }
 }
 
-function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders, machines = snapshot.presentation.machines) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives) {
   applySideHues(snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.sideHues);
   displayedCards = cards;
   displayedFigures = geometry;
@@ -462,7 +472,7 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   const isSetup = state.round === 0;
   if (setupPhase === undefined || setupPhase !== isSetup) ui["game-setup"].open = isSetup;
   setupPhase = isSetup;
-  renderBoard(state, preserveNodes, machines);
+  renderBoard(state, preserveNodes, machines, objectives);
   displayedState = state;
   syncCombatDice(state);
   if (state.currentUnitId) latestUnitId = state.currentUnitId;
@@ -691,6 +701,7 @@ function renderChoicePanel() {
 
 function renderSnapshot() {
   const state = snapshot.result.state;
+  globalThis.dispatchEvent?.(new CustomEvent("delve-generation-state", { detail: { code: snapshot.generationCode ?? null } }));
   if (snapshot.scenarios) {
     if (!ui.scenario.children.length) {
       for (const scenario of snapshot.scenarios) {
@@ -1114,7 +1125,7 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
       if (steps.has(index)) {
         const before = displayedState;
         const after = steps.get(index);
-        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders, projected.machines);
+        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders, projected.machines, projected.objectives);
         if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
           const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;
           const hpAfter = after.units.find(unit => unit.id === event.targetId)?.currentHp;
@@ -1571,6 +1582,7 @@ ui.refresh.addEventListener("click", refresh);
 ui.skip.addEventListener("click", () => { skipEffects = true; ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
 // Designer exports enter the same revisioned scenario replacement operation as pasted imports.
 globalThis.delvePlayDesign = transport => replaceScenario("scenario/import", { transport }, true);
+globalThis.delvePlayGenerated = code => replaceScenario("scenario/import", { generationCode: code }, true);
 ui["commentary-toggle"].addEventListener("click", () => { commentaryVisible = !commentaryVisible; renderCommentary(); });
 renderCommentary();
 

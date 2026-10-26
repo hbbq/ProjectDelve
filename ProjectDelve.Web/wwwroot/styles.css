@@ -45,8 +45,39 @@ aside { overflow-wrap: anywhere; max-height: calc(100dvh - 120px); overflow-y: a
 }
 .cell.Grass { background: #365b3d; }
 .cell.Tree { background: #1a4028; color: #b2d5a0; }
+.cell.SolidRock { background: repeating-linear-gradient(135deg, #34303e 0 12px, #605366 13px 15px, #34303e 16px 24px); color: #dbcedf; }
+
+/* Dungeon authoring shares the application palette and board presentation. */
+#dungeon-generator { width: min(1440px, 94vw); max-width: 94vw; max-height: 94dvh; box-sizing: border-box; overflow: auto; background: #19232d; color: #e3e8ed; border: 1px solid #586976; border-radius: 14px; padding: 24px; }
+#dungeon-generator::backdrop { background: #080d16c9; }
+.generator-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.generator-heading h2 { margin: 5px 0; font-size: 25px; }
+.generator-layout { display: grid; grid-template-columns: minmax(280px, 350px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.generator-controls { display: grid; gap: 12px; }
+.generator-controls label, .generator-result label { display: grid; gap: 5px; min-width: 0; }
+.generator-controls input, .generator-controls select, #dungeon-generator textarea { width: 100%; box-sizing: border-box; }
+.generator-controls input, #dungeon-generator textarea { background: var(--ui-control); color: var(--ui-text); border: 1px solid var(--ui-control-border); border-radius: 4px; padding: 8px; font: inherit; }
+.generator-controls small, .generator-result .legend { color: #a9bac8; line-height: 1.5; }
+.generator-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.generator-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+#generator-status { border-left: 3px solid #d7b979; background: #d5bf8310; padding: 14px; margin-top: 0; line-height: 1.6; overflow-wrap: anywhere; }
+#dungeon-generator textarea, #generator-seed { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+#generator-code-tools > label { margin-top: 12px; }
+.generator-board-scroll { overflow: auto; padding: 4px; margin: 12px 0 18px; background: #101820; border-radius: 5px; }
+.generator-board { display: grid; position: relative; width: 100%; min-width: calc(var(--columns) * 18px); --edge-thickness: 4px; }
+.generator-board .cell { min-width: 0; min-height: 0; padding: 0; font-size: 7px; }
+.generator-board[data-view="enhanced"] .cell { isolation: isolate; position: relative; background: var(--visual-fill); }
+.generator-board[data-view="enhanced"] .cell::before { content: ""; position: absolute; inset: 0; z-index: -1; background-color: var(--visual-fill); background-image: var(--visual-image), var(--visual-detail); background-size: cover; transform: rotate(var(--visual-rotation, 0deg)); }
+.generator-board .figure { font-size: clamp(7px, .8vw, 11px); }
+.generator-board .mission-area { font-size: 10px; padding: 2px; }
+.generated-game { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px; border: 1px solid #576957; background: #26352b; border-radius: 8px; }
+.generated-game code { overflow-wrap: anywhere; font-size: 12px; }
+.generated-game small { flex-basis: 100%; color: #b5c6ba; }
+#designer-generation-source { grid-column: 1 / -1; overflow-wrap: anywhere; padding: 10px; color: #e3ca8b; }
+@media (max-width: 850px) { .generator-layout { grid-template-columns: 1fr; } #dungeon-generator { padding: 16px; } .generator-result { min-width: 0; } }
 .cell.FruitTree { background: #28512d; color: #f4b5a7; }
 .waypoint-area { position: absolute; pointer-events: none; z-index: 1; border: 1px dashed #e7d5a780; box-sizing: border-box; color: #f2e4bf; font-size: 9px; text-shadow: 0 1px 2px #000; padding: 2px; }
+.mission-area { position: absolute; pointer-events: none; z-index: 8; border: 3px solid hsl(var(--side-hue) 70% 78%); box-sizing: border-box; color: #fff3ba; font-size: clamp(9px, 1vw, 13px); font-weight: bold; text-shadow: 0 1px 3px #000, 0 0 3px #000; padding: 3px; background: transparent; }
 #board.hide-waypoints .waypoint-area { display: none; }
 .cell.Water { background: repeating-linear-gradient(165deg, #225374 0 9px, #2d6488 9px 12px); color: #c5e6f8; }
 .cell.Lava { background: repeating-linear-gradient(25deg, #782c1c 0 8px, #ee6427 8px 12px); color: #fff0b3; }
