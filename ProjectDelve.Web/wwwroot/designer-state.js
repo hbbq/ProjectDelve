@@ -71,6 +71,13 @@ export class DesignerDraft {
     if (neutral) sides.push(side);
     this.definition.neutralSides = sides; this.changed();
   }
+  setFogOfWar(side, enabled) {
+    const sides = (this.definition.fogOfWarSides ?? []).filter(value => value !== side);
+    if (enabled) sides.push(side);
+    if (sides.length) this.definition.fogOfWarSides = sides;
+    else delete this.definition.fogOfWarSides;
+    this.changed();
+  }
   setObjective(side, objective) {
     const objectives = (this.definition.objectives ?? []).filter(value => value.sideId !== side);
     if (objective) objectives.push(typeof objective === "string" ? { sideId: side, objective } : { ...structuredClone(objective), sideId: side });
@@ -332,7 +339,7 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "objectives", "neutralSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
       d.units.some(u => !u || typeof u.unitTypeId !== "string" || !u.anchor || !Number.isFinite(u.anchor.x) || !Number.isFinite(u.anchor.y)) ||
       board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
       (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||

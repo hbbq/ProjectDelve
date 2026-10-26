@@ -981,7 +981,7 @@ Phase changes traversal only. A Ghost must end every Move with its complete foot
 
 Phase also applies when Default Monster Behavior evaluates reachable attack positions and remaining approach distance for the Ghost. Those analyses use the Ghost's actual phasing traversal rather than ordinary terrain/edge passability. This may make a route through otherwise impassable Cells or Edges the shortest route to a Cell from which a legal Attack can be made, or may make a longer movement route preferable because it leads toward such an attack position.
 
-Phase does not alter Range, Line of Sight, targeting, or Attack rules. A Ghost's Normal Attack requires ordinary legal Range and normal Unit-origin Line of Sight. Terrain and Edges therefore continue to block its attacks according to their ordinary LOS properties even though the Ghost may move through them.
+Phase does not alter Range, attack Line of Sight, targeting, or Attack rules. A Ghost's Normal Attack requires ordinary legal Range and normal Unit-origin Line of Sight. Terrain and Edges therefore continue to block its attacks according to their ordinary LOS properties even though the Ghost may move through them. The digital-only Fog of War vision exception below applies only to exploration.
 
 #### Shaman
 
@@ -1918,6 +1918,28 @@ This separation also allows the physical component set to grow without requiring
 ## Loose tokens and markers
 
 Resources are the initial loose Board markers, as defined under **Resources and Transport Resource**. A Resource marker has a type and occupies one Cell without affecting the Unit or terrain occupancy rules. No generic loose-token framework is required by this rule.
+
+## Fog of War V1 — Digital only*
+
+Fog of War is an optional scenario setting per Side (`fogOfWarSides`). It is **Digital only*** under the existing digital-only exception: permanent exploration is persistent digital game state without a required physical representation. Ordinary physical content and scenarios without Fog of War retain their existing rules. V1 has only permanent exploration; no additional modes are established.
+
+Each in-play Unit of an enabled Side, including Lying Units, contributes vision from every occupied Cell of its footprint. Sight range is `max(5, effective RNG + 3)`, measured by Manhattan distance. There is no separate Sight stat. Vision uses existing geometric LOS and corner rules, with only terrain and edges blocking it; Units do not block vision. The blocking destination Cell can itself be discovered. Phase Units see through Walls and Doors, while other sight-blocking terrain still applies. Phase does not change ordinary attack LOS.
+
+Initial exploration is calculated after the complete scenario has been instantiated. Exploration updates when authoritative changes affect vision, including movement, repositioning, swaps, creation/removal, effective stats/capabilities, temporary modifiers, Doors, Edges and terrain. Once explored, a Cell remains explored for the entire game and always displays its current contents. Normal atomic Moves accumulate swept sight from actual canonical transit positions; leaps and other movement without ordinary traversed Cells reveal no invented intermediate positions. Movement remains atomic and creates no intermediate decisions.
+
+Every Decision Provider controlling an enabled Side uses the same authoritative restricted legal decision space. Ordinary path search can traverse and stop only where every footprint Cell is explored, including with Phase; preserve movement patterns, occupancy, corners and deterministic canonical paths. Unknown Units, Resources, Machines, Markers and Doors cannot be explicitly selected. Legal area actions still resolve against the complete world and may affect hidden Units; previews omit hidden automatic recipients. An authored Move To Order may name an unexplored destination without revealing it, but execution uses normal restricted movement and may make no progress. V1 grants no controller-specific knowledge privileges or new exploration Behavior.
+
+Activation Bag rules are unchanged: populate and draw every normal token. Hidden Units continue acting, subject to their own Side's Fog of War setting. There are no sleeping regions, inactive Units or placeholder hidden-activity events.
+
+A Side-specific observation preserves known board dimensions. Unexplored Cells are explicitly Unknown and reveal no terrain or contents. Edges bordering at least one explored Cell may be shown; Edges between two unknown Cells remain hidden. A multi-Cell Unit is observable in full when any occupied Cell is explored. Units entering unknown territory disappear; Units entering explored territory appear. A stable viewing Side is used, independent of the active token. The Scenario Designer remains omniscient.
+
+Events entirely outside the Side's event-time exploration are omitted without placeholders, including hidden activations, movement and combat. Visible consequences may be shown without disclosing hidden sources; individual targets and details are filtered for partial visibility. Event history, snapshots and animation must correspond using exploration at event time, not final exploration. Bag presentation is generic and cards, Orders, decisions, status and commentary must avoid ordinary-play spoilers.
+
+At the start of a direct Attack, reveal its established qualifying trajectory, including endpoints, to an enabled Side when the attacker belongs to that Side or the direct target Unit/Cell is already observable to that Side. Evaluate observability before revealing the trajectory. Reveal it even on a miss. Hidden combat with no observable endpoint remains hidden. Use the existing attack geometry and the actual qualifying line; do not invent paths for area effects without an established direct trajectory. This does not permit blind firing or alter normal attack LOS.
+
+Exploration belongs to authoritative Game State, survives serialization/continuation and is deeply copied for hypothetical queries. Restart creates fresh initial exploration. Scenario exports contain configuration, never runtime exploration history. Existing JSON and DELVE1 scenarios remain compatible.
+
+This is a gameplay presentation feature aimed at enjoyable exploration and avoiding obvious spoilers. Anti-cheat measures, timing side channels, traffic analysis, developer-tools inspection, deliberate inference from request timing/sizes, cryptographic secrecy and adversarial information-flow analysis are outside V1. Initial explored-area painting, additional modes and a separate Sight stat are not part of V1.
 
 ## Explicitly deferred
 

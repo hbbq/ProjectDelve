@@ -4,13 +4,15 @@ namespace ProjectDelve.Engine;
 
 // Shared terrain/edge traversal parameters. Occupancy and stopping legality stay separate.
 internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = false,
-    bool ClosedDoorsTraversable = false, TerrainKind? RequiredTerrain = null)
+    bool ClosedDoorsTraversable = false, TerrainKind? RequiredTerrain = null, IReadOnlySet<Cell>? KnownCells = null)
 {
     internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
         new(state.IsUpright(unitId) &&
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).Phase is not null,
             closedDoorsTraversable,
-            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain);
+            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain,
+            FogOfWar.IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId)
+                ? state.ExploredCells.GetValueOrDefault(state.Units.Single(u => u.Id == unitId).SideId) ?? [] : null);
 
     internal bool CanTraverse(TerrainKind terrain) => (!RequiredTerrain.HasValue || terrain == RequiredTerrain) &&
         (IgnoreTerrainAndEdges || terrain.Passable());
@@ -79,6 +81,7 @@ internal static class MovementRules
                 {
                     var landing = new Cell(from.X + dx, from.Y + dy);
                     if (Math.Abs(dx) + Math.Abs(dy) == 3 &&
+                        FogOfWar.KnownFootprint(state, unit.SideId, footprint, landing) &&
                         SpatialRules.Fits(state.Physical.Board, footprint, landing, traversal))
                         paths[landing] = [from, landing];
                 }
@@ -134,6 +137,7 @@ internal static class MovementRules
     }
 
     internal static bool CanStep(Board board, Footprint footprint, Cell from, Cell to, MovementTraversal traversal) =>
+        FootprintGeometry.OccupiedCells(footprint, to).All(c => traversal.KnownCells is null || traversal.KnownCells.Contains(c)) &&
         SpatialRules.Fits(board, footprint, to, traversal) &&
         FootprintGeometry.OccupiedCells(footprint, from).All(c =>
             traversal.CanTraverse(board.EdgeBetween(c, new(c.X + to.X - from.X, c.Y + to.Y - from.Y))));
@@ -178,7 +182,8 @@ internal static class ApproachRules
                 // Exceptional goal Cells belong to the 1x1 distance calculation used by Flee.
                 if (next == goal && footprint == Footprint.OneByOne)
                 {
-                    if (!MovementRules.Inside(board, next) || !traversal.CanTraverse(board.EdgeBetween(current, next))) continue;
+                    if (!MovementRules.Inside(board, next) || traversal.KnownCells is not null && !traversal.KnownCells.Contains(next) ||
+                        !traversal.CanTraverse(board.EdgeBetween(current, next))) continue;
                 }
                 else if (!MovementRules.CanStep(board, footprint, current, next, traversal)) continue;
                 distances[next] = distances[current] + 1;

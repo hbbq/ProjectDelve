@@ -7,6 +7,7 @@ public enum DefaultBehaviorPreviewStopReason
     ActivationCompleted,
     StepLimit,
     UnexpectedRandomness,
+    ExplorationChanged,
     NoDecision
 }
 
@@ -55,6 +56,11 @@ public static partial class GameEngine
 
         while (true)
         {
+            // An advisory preview may show the planned known Move, but must not
+            // use its hypothetical discoveries to announce a later hidden target.
+            if (FogOfWar.IsEnabled(authoritative, selected.SideId) &&
+                result.State.ExploredCells[selected.SideId].Except(authoritative.ExploredCells[selected.SideId]).Any())
+                return new(unitId, true, steps, DefaultBehaviorPreviewStopReason.ExplorationChanged);
             var request = result.NextInput;
             if (request is null)
                 return new(unitId, true, steps, DefaultBehaviorPreviewStopReason.NoDecision);

@@ -17,6 +17,7 @@ public static partial class GameEngine
             throw new InvalidOperationException("The current round is still active.");
         ValidateScenario(previous);
         var state = previous.Copy();
+        FogOfWar.Refresh(state);
         EnsureObjectives(state);
         // Scenario constructors may supply bare Units; initialize content once at game start.
         if (state.Round == 0)
@@ -95,8 +96,9 @@ public static partial class GameEngine
         }
         // Pending data is also exposed to clients and survives serialization. Rebuild
         // legality from authoritative state, and never share canonical paths with a provider.
-        var request = CreateDecision(state);
-        var choice = SelectChoice(request, decisions, new GameplayQueries(state), autoChooseSingleRelevantChoice);
+        var request = CreateDecision(state, preview: false);
+        var choice = SelectChoice(FogOfWar.ObserveDecision(state, request.Token?.SideId, request)!,
+            decisions, new GameplayQueries(state), autoChooseSingleRelevantChoice);
 
         state.Pending = null;
         ApplyDecision(state, request, choice, random, events);
@@ -275,6 +277,7 @@ public static partial class GameEngine
                     }
                 }
                 else state.MovesCompletedThisActivation++;
+                FogOfWar.Sweep(state, request.UnitId!, path);
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
                 if (!request.IsMoveAfterAttack) RouteRules.CompleteMove(state, request.UnitId!, events.Add);
@@ -438,10 +441,11 @@ public static partial class GameEngine
                 state.ActiveToken = null;
                 continue;
             }
-            var request = CreateDecision(state);
-            if (!TryAutomaticChoice(request, autoChooseSingleRelevantChoice, out var choice))
+            var request = CreateDecision(state, preview: false);
+            var preview = FogOfWar.ObserveDecision(state, request.Token?.SideId, request)!;
+            if (!TryAutomaticChoice(preview, autoChooseSingleRelevantChoice, out var choice))
             {
-                state.Pending = request;
+                state.Pending = preview;
                 return;
             }
             ApplyDecision(state, request, choice, random, events);
@@ -661,6 +665,11 @@ public static partial class GameEngine
         var modified = state.Copy();
         // Compare gameplay results of the complete effect, regardless of its modifiers.
         modified.ModifiersThisTurn.AddRange(ability.Modifiers);
+        if (FogOfWar.IsEnabled(state, unit.SideId) && ability.Modifiers.Any(m => m.Stat == Stat.Rng))
+        {
+            FogOfWar.Refresh(modified);
+            if (modified.ExploredCells[unit.SideId].Except(state.ExploredCells[unit.SideId]).Any()) return true;
+        }
         var before = GameplayCandidates(state, unit).ToList();
         var after = GameplayCandidates(modified, unit).ToList();
         var destinations = before.Where(c => c.Kind == ActivationChoiceKind.Move)
@@ -685,14 +694,19 @@ public static partial class GameEngine
         if (state.MoveAfterAttackAllowance is { } allowance)
             return MovementCandidates(state, unit, allowance);
         if (!state.MoveDone) return MovementCandidates(state, unit);
-        return state.ActionsRemaining == 0 ? [] : ActionCandidates(state, unit);
+        return state.ActionsRemaining == 0 ? [] : ActionCandidates(state, unit).Where(c => FogOfWar.Allows(state, unit.SideId, c));
     }
 
-    private static DecisionRequest CreateDecision(GameState state)
+    private static DecisionRequest CreateDecision(GameState state, bool preview = true)
     {
+        FogOfWar.Refresh(state);
         var request = CreateDecisionCore(state);
         var owner = request.UnitId is null ? null : state.Units.Single(u => u.Id == request.UnitId);
-        return request with { Token = owner is null ? state.ActiveToken : new(owner.TypeId, owner.SideId) };
+        var token = owner is null ? state.ActiveToken : new(owner.TypeId, owner.SideId);
+        if (request.Kind != DecisionKind.RollDice && owner is not null && FogOfWar.IsEnabled(state, owner.SideId))
+            request = request with { Candidates = request.Candidates.Where(c => FogOfWar.Allows(state, owner.SideId, c)).ToList() };
+        request = request with { Token = token };
+        return preview ? FogOfWar.ObserveDecision(state, token?.SideId, request)! : request;
     }
 
     private static DecisionRequest CreateDecisionCore(GameState state)
@@ -779,6 +793,7 @@ public static partial class GameEngine
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
             attack.AttackDice, Results: []) { IsNormalMelee = actionId == "attack" && state.EffectiveRngOf(attackerId) == 1 };
+        FogOfWar.DiscoverAttack(state, state.AttackInProgress);
         events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
             { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId });
     }
@@ -992,6 +1007,7 @@ public static partial class GameEngine
 
         public void Add(RulesEvent resolved)
         {
+            FogOfWar.Refresh(state);
             if (resolved.WorldCard is null && state.WorldDeck?.ResolvingCard is { } card)
                 resolved = resolved with { WorldCard = card };
             Steps.Add(new ResolutionStep(Events.Count, state.Copy()));

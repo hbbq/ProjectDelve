@@ -463,3 +463,6 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .scenario-info[open] { flex-basis: 100%; }
 .scenario-info > p, .setting-help > p { width: 100%; font-size: .85rem; line-height: 1.45; }
 @media (pointer: coarse) { .info-button { width: 44px; height: 44px; } }
+.cell.Unknown { background: #171e29; color: #718296; border-color: #283344; }
+.cell.Unknown .terrain-label { color: #718296; font-size: 1.1em; }
+.cell.Unknown .cell-coordinates { color: #718296; }

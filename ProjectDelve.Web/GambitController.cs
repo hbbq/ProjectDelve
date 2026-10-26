@@ -266,7 +266,7 @@ public sealed partial class PlaytestGame
     }
     private static GameState SanitizeState(GameState source)
     {
-        var copy = Detach(source);
+        var copy = FogOfWar.ViewingSide(source) is { } side ? FogOfWar.Observe(source, side) : Detach(source);
         if (copy.WorldDeck is not null) copy.WorldDeck.DrawPile = [];
         copy.Bag = copy.Bag.OrderBy(t => t.SideId).ThenBy(t => t.TypeId).ToList();
         return copy;
@@ -276,13 +276,25 @@ public sealed partial class PlaytestGame
     internal GameResponse BrowserResponse(GameResponse source)
     {
         var result = source.Result;
+        var side = FogOfWar.ViewingSide(result.State);
+        var presentation = source.Presentation;
+        if (side is not null) result = BrowserProjection.Observe(result, side);
+        var snapshots = source.Result.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
+        int ProjectedIndex(int original) => side is null ? original : source.Result.Events.Take(original).Select((e, index) =>
+            FogOfWar.ObserveEvent(snapshots.GetValueOrDefault(index) ?? source.Result.State, side, e)).Count(e => e is not null);
         return source with { Result = result with { State = SanitizeState(result.State),
             ResolutionSteps = result.ResolutionSteps.Select(s => s with { StateAfter = SanitizeState(s.StateAfter) }).ToList() },
-            PresentationOverride = source.Presentation };
+            // Host commentary was observed at decision time, before its first event.
+            Commentaries = source.Commentaries.Select(c => c with { EventIndex = ProjectedIndex(c.EventIndex) }).ToArray(),
+            Controllers = side is null ? source.Controllers : source.Controllers.Where(p => p.Key == side).ToDictionary(),
+            ControllerAssignments = side is null ? source.ControllerAssignments : source.ControllerAssignments.Where(c => c.SideId == side).ToArray(),
+            PresentationOverride = presentation };
     }
     internal GameUpdate BrowserUpdate(GameUpdate source) => source with
     {
         Snapshot = BrowserResponse(source.Snapshot),
+        Commentary = FogOfWar.ViewingSide(source.Snapshot.Result.State) is null ? source.Commentary : source.Commentary is { UnitId: { } id } comment &&
+            FogOfWar.IsUnitObservable(source.Snapshot.Result.State, FogOfWar.ViewingSide(source.Snapshot.Result.State), id) ? comment : null,
         Error = source.Error is null ? null : "Game resolution failed. Restart or retry as indicated."
     };
 }

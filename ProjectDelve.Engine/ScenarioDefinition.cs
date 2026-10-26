@@ -4,6 +4,7 @@ namespace ProjectDelve.Engine;
 public sealed record ScenarioDefinition
 {
     public List<string>? NeutralSides { get; init; }
+    public List<string>? FogOfWarSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }
     public WorldEffectsSettings? WorldEffects { get; init; }
     public required BoardDefinition Board { get; init; }

@@ -296,14 +296,17 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     ui.board.append(node);
   }
   const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile]));
+  const viewingSide = snapshot.presentation.viewingSideId;
+  const explored = viewingSide ? new Set((state.exploredCells?.[viewingSide] ?? []).map(cellKey)) : null;
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const tile = terrain.get(cellKey({ x, y }));
-    const kind = tile?.kind ?? "StoneFloor";
+    const kind = explored && !explored.has(cellKey({ x, y })) ? "Unknown" : tile?.kind ?? "StoneFloor";
     const key = cellKey({ x, y });
     const node = cells.get(key) ?? document.createElement("div");
     node.replaceChildren();
     node.removeAttribute("aria-label");
     node.className = `cell ${kind}`; node.dataset.cell = key;
+    node.dataset.x = String(x); node.dataset.y = String(y);
     applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
       x, y, direction: tile?.direction, terrain });
     node.dataset.railDirection = tile?.direction ?? "";
@@ -312,7 +315,8 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
     node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
-    const symbol = { Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
+    if (kind === "Unknown") node.setAttribute("aria-label", `Unknown Cell (${x},${y})`);
+    const symbol = { Unknown: "?", Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));
@@ -1320,6 +1324,10 @@ function renderTurn(state) {
   ui.status.textContent = `Round ${state.round} \u00b7 ${state.completion ? "Game over" : state.round === 0 ? "Ready" : state.roundComplete ? "Complete" : "In play"}`;
   ui["bag-count"].textContent = `Activation Bag · ${(state.bag ?? []).length} remaining`;
   ui.bag.replaceChildren(text("small", `Activation Bag \u00b7 ${(state.bag ?? []).length} remaining. Membership only; future draw order is unknown.`));
+  if (snapshot.presentation.viewingSideId) {
+    ui["bag-count"].textContent = "Activation Bag";
+    ui.bag.replaceChildren(text("small", "Activation Bag · hidden composition. All Units continue to activate normally."));
+  }
   for (const token of state.bag ?? []) ui.bag.append(tokenNode(token, state));
   ui["active-token"].replaceChildren(text("small", "Drawn token"));
   ui["active-token"].className = ui.effect.dataset.kind === "TokenDrawn" ? "token-draw" : "";
@@ -1337,6 +1345,7 @@ function actionLabel(pool) {
 }
 // Player labels are separate from IDs used by choices, events and debug information.
 function unitName(id) {
+  if (!id && snapshot?.presentation.viewingSideId) return "Unseen source";
   if (combatDice?.names.has(id)) return combatDice.names.get(id);
   const cards = displayedCards ?? snapshot?.presentation.cards ?? {};
   if (cards[id]?.playerName) return cards[id].playerName;

@@ -88,7 +88,7 @@ test("terrain variants survive reload, differ across seeds, and preserve categor
     applyBoardVisual(node, "terrain", "Fixture", {seed: "a", x: 1, y: 2});`);
   assert.match(run('node.style["--visual-image"]'), /webp/);
   assert.match(run('node.style["--visual-detail"]'), /gradient/);
-  run('applyBoardVisual(node, "terrain", "Unknown", {seed: "a", x: 1, y: 2});');
+  run('applyBoardVisual(node, "terrain", "UnregisteredTerrainFixture", {seed: "a", x: 1, y: 2});');
   assert.equal(run('node.style["--visual-image"]'), "none");
   assert.equal(run('node.style["--visual-fill"]'), "#666a68");
 });

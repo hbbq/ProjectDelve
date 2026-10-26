@@ -46,6 +46,7 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GameCompletion? Completion,
     int Round, bool RoundComplete, GambitGlossary Glossary, string AsciiBoard)
 {
+    public IReadOnlyList<Cell> UnknownCells { get; init; } = [];
     public IReadOnlyList<GroupOrder> Orders { get; init; } = [];
     public IReadOnlyList<Waypoint> Waypoints { get; init; } = [];
     public IReadOnlyList<ProjectDelve.Engine.Route> Routes { get; init; } = [];
@@ -159,6 +160,8 @@ internal static class GambitProjection
     internal static GambitObservation Observation(GameState state, string bindingSide,
         IReadOnlyDictionary<ActivationToken, string> controllerBindings)
     {
+        var unknown = FogOfWar.UnknownCells(state, bindingSide);
+        state = FogOfWar.Observe(state, bindingSide);
         var geometries = BrowserProjection.Figures(state);
         var units = state.Units.Select(unit =>
         {
@@ -193,15 +196,15 @@ internal static class GambitProjection
         return new(state.Physical.Board with { Edges = [.. state.Physical.Board.Edges], Terrain = [.. state.Physical.Board.Terrain], Machines = [.. state.Physical.Board.Machines] }, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
-            state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units))
+            state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units, unknown))
             { Orders = state.Orders.ToArray(), Waypoints = state.Waypoints.ToArray(), Routes = state.Routes.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
-                DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray() };
+                DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray(), UnknownCells = unknown };
     }
 
     private const string UnitSymbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-    private static string RenderAsciiBoard(Board board, IReadOnlyList<GambitUnit> units)
+    private static string RenderAsciiBoard(Board board, IReadOnlyList<GambitUnit> units, IReadOnlyList<Cell> unknown)
     {
         var positioned = units.Where(unit => unit.Position is not null)
             .OrderBy(unit => unit.Id, StringComparer.Ordinal).ToArray();
@@ -235,7 +238,7 @@ internal static class GambitProjection
             {
                 var cell = new Cell(x, y);
                 var symbol = occupants.GetValueOrDefault(cell) ?? (board.Machines.Any(m => m.Position == cell) ? "M" : "-");
-                var content = $"{Terrain(board.TerrainAt(cell))}{symbol.PadRight(symbolWidth)}";
+                var content = unknown.Contains(cell) ? "?" : $"{Terrain(board.TerrainAt(cell))}{symbol.PadRight(symbolWidth)}";
                 line.Append(content.PadRight(cellWidth));
                 if (x < board.Width - 1)
                     line.Append(VerticalEdge(board.EdgeBetween(cell, new(x + 1, y))));

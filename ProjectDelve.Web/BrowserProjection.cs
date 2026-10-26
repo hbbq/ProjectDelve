@@ -61,6 +61,8 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
     BrowserDecision? Decision, IReadOnlyList<BrowserOutcome> Events,
     IReadOnlyList<BrowserResolutionStep> ResolutionSteps)
 {
+    public string? ViewingSideId { get; init; }
+    public IReadOnlyList<Cell> UnknownCells { get; init; } = [];
     public GameCompletion? Completion { get; init; }
     public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
@@ -73,14 +75,46 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
 // Internal engine results remain authoritative; transport boundaries sanitize future draw information.
 public static class BrowserProjection
 {
-    public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null) => new(
+    public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null)
+    {
+        var side = FogOfWar.ViewingSide(result.State);
+        IReadOnlyList<BrowserOutcome> outcomes;
+        if (side is null) outcomes = result.Events.Select(e => Outcome(e, result.State, individualNames)).ToArray();
+        else
+        {
+            var snapshots = result.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
+            outcomes = result.Events.Select((e, index) => (Event: e, State: snapshots.GetValueOrDefault(index) ?? result.State))
+                .Select(p => (Event: FogOfWar.ObserveEvent(p.State, side, p.Event), p.State))
+                .Where(p => p.Event is not null).Select(p => Outcome(p.Event!, p.State, individualNames)).ToArray();
+        }
+        if (side is not null) result = Observe(result, side);
+        return new(
         Cards(result.State, individualNames), Decision(result.NextInput, result.State, individualNames),
-        result.Events.Select(e => Outcome(e, result.State, individualNames)).ToArray(),
+        outcomes,
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter, individualNames))
             { Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
                 Completion = s.StateAfter.Completion, Orders = s.StateAfter.Orders.ToArray() }).ToArray())
         { Machines = Machines(result.State), Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
-            Orders = result.State.Orders.ToArray() };
+            Orders = result.State.Orders.ToArray(), ViewingSideId = side, UnknownCells = FogOfWar.UnknownCells(result.State, side) };
+    }
+
+    internal static EngineResult Observe(EngineResult result, string side)
+    {
+        var events = new List<RulesEvent>();
+        var steps = new List<ResolutionStep>();
+        var snapshots = result.ResolutionSteps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
+        for (var index = 0; index < result.Events.Count; index++)
+        {
+            // Engine operations retain emission-time snapshots, including initial discovery.
+            // Never use the final explored set to reconsider historical event visibility.
+            var atEvent = snapshots.GetValueOrDefault(index) ?? result.State;
+            if (FogOfWar.ObserveEvent(atEvent, side, result.Events[index]) is not { } occurrence) continue;
+            steps.Add(new(events.Count, FogOfWar.Observe(atEvent, side)));
+            events.Add(occurrence);
+        }
+        return new(FogOfWar.Observe(result.State, side), events,
+            FogOfWar.ObserveDecision(result.State, side, result.NextInput)) { ResolutionSteps = steps };
+    }
 
     public static IReadOnlyList<MachineDisplay> Machines(GameState state) => state.Physical.Board.Machines.Select(m =>
         new MachineDisplay(m.Id, m.Position, m.Type.Name,
@@ -221,8 +255,9 @@ public static class BrowserProjection
 
     public static BrowserOutcome Outcome(RulesEvent e, GameState state, IReadOnlyDictionary<string, string>? individualNames = null)
     {
-        var raw = OutcomeCore(e, state, id => id ?? "");
-        return raw with { DisplayText = OutcomeCore(e, state, id => PlayerName(state, id, individualNames)).Text };
+        var fog = state.FogOfWarSides.Count > 0;
+        var raw = OutcomeCore(e, state, id => fog && string.IsNullOrEmpty(id) ? "Unseen source" : id ?? "");
+        return raw with { DisplayText = OutcomeCore(e, state, id => fog && string.IsNullOrEmpty(id) ? "Unseen source" : PlayerName(state, id, individualNames)).Text };
     }
 
     private static BrowserOutcome OutcomeCore(RulesEvent e, GameState state, Func<string?, string> name)
@@ -349,6 +384,9 @@ public static class BrowserProjection
             case "MovementCompleted":
                 role = OutcomeRole.Movement;
                 description = $"{name(e.UnitId)} {(e.IsMoveAfterAttack ? "moved after attack" : "moved")}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
+                break;
+            case "MovementObserved":
+                description = $"{name(e.UnitId)} moved through explored territory";
                 break;
             case "UnitRepositioned":
                 role = OutcomeRole.Movement;

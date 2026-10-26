@@ -75,7 +75,7 @@ internal static class AttackRules
             ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
     }
 
-    private static bool InRange(Cell from, Cell to, int range)
+    internal static bool InRange(Cell from, Cell to, int range)
     {
         var dx = Math.Abs(to.X - from.X);
         var dy = Math.Abs(to.Y - from.Y);
@@ -100,10 +100,10 @@ internal static class AttackRules
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.
     internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to, string? interactionMachineId = null,
-        Cell? ignoredTerrainCell = null) =>
-        !HasBlockingEdgeLos(board, from, to) &&
+        Cell? ignoredTerrainCell = null, bool phaseVision = false, bool discoverDestination = false) =>
+        (phaseVision || !HasBlockingEdgeLos(board, from, to)) &&
         !board.Terrain.Any(tile => tile.Position != ignoredTerrainCell && tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)) &&
-        !board.Machines.Any(m => m.Id != interactionMachineId && CrossesInterior(from, to, m.Position));
+        !board.Machines.Any(m => m.Id != interactionMachineId && (!discoverDestination || m.Position != to) && CrossesInterior(from, to, m.Position));
 
     private static bool HasBlockingEdgeLos(Board board, Cell from, Cell to)
     {
@@ -174,7 +174,7 @@ internal static class AttackRules
     }
 
     // A center-to-center segment intersects a cell only when it enters its interior.
-    private static bool CrossesInterior(Cell from, Cell to, Cell cell)
+    internal static bool CrossesInterior(Cell from, Cell to, Cell cell)
     {
         double low = 0, high = 1;
         foreach (var (start, delta, center) in new[] {

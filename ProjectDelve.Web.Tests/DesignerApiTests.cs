@@ -324,6 +324,29 @@ public sealed class DesignerApiTests
         Assert.Equal(HttpStatusCode.BadRequest, exported.StatusCode);
     }
 
+    [Fact]
+    public async Task FogOfWarSurvivesDesignerJsonAndDelveImportValidationAndExport()
+    {
+        await using var host = await Host.Start();
+        var definition = ProjectDelve.Testing.FogOfWarFixture.SleepingDungeon();
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import",
+            new { transport = ScenarioDefinitionTransport.Encode(definition) });
+        imported.EnsureSuccessStatusCode();
+        var json = await imported.Content.ReadAsStringAsync();
+        Assert.Equal("explorers", Assert.Single(ScenarioDefinitionJson.FromJson(json).FogOfWarSides!));
+        using var validated = await host.PostDraft("validate", json);
+        Assert.True((await validated.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", json);
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        var restored = ScenarioDefinitionTransport.Decode(transport);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(restored));
+        Assert.DoesNotContain("exploredCells", json);
+        using var invalid = await host.PostDraft("validate", ScenarioDefinitionJson.ToJson(definition with { FogOfWarSides = ["missing"] }));
+        var validation = (await invalid.Content.ReadFromJsonAsync<DesignerValidation>())!;
+        Assert.Contains(validation.Errors, error => error.Path == "fogOfWarSides");
+    }
+
     private static ScenarioDefinition CompleteData() => Scenario.Define(
         Scenario.Map(5, 5, defaultTerrain: TerrainKind.Grass,
             cells: [Scenario.Tile(4, 4, TerrainKind.Grass), Scenario.Tile(3, 3, TerrainKind.StoneFloor)],

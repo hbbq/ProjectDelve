@@ -85,6 +85,9 @@ internal static class ScenarioCreation
             (neutral.Any(s => s is null || !sides.Contains(s)) || neutral.Distinct().Count() != neutral.Count))
             throw new ArgumentException("Neutral Sides must be unique, known Sides.", nameof(definition));
         var objectives = definition.Objectives ?? [];
+        if (definition.FogOfWarSides is { } fog &&
+            (fog.Any(s => s is null || !sides.Contains(s)) || fog.Distinct().Count() != fog.Count))
+            throw ScenarioValidationContext.At(new ArgumentException("Fog of War Sides must be unique, known Sides.", nameof(definition)), "fogOfWarSides");
         HashSet<string> objectiveSides = new(StringComparer.Ordinal);
         for (var index = 0; index < objectives.Count; index++)
         {
@@ -172,6 +175,9 @@ internal static class ScenarioCreation
         ValidateObjectiveSelections(state, definition);
         GameEngine.CaptureObjectiveStartUnits(state);
         GameEngine.ValidateScenario(state);
+        // Defer vision until every Unit, terrain object and initial setting exists.
+        state.FogOfWarSides = [.. definition.FogOfWarSides ?? []];
+        FogOfWar.Refresh(state);
         return state;
     }
 

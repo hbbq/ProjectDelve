@@ -421,7 +421,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       ui.agency.children[groupIndex]?.scrollIntoView?.({ block: "nearest" });
     }
     setTool("Select"); renderBoard(); renderProperties();
-    if (!["agency", "orders", "objectives", "neutralSides"].includes(match[1])) ui.properties.scrollIntoView?.({ block: "nearest" });
+    if (!["agency", "orders", "objectives", "neutralSides", "fogOfWarSides"].includes(match[1])) ui.properties.scrollIntoView?.({ block: "nearest" });
   }
 
   const cellNodes = new Map();
@@ -822,12 +822,17 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const sides = [...new Set([...draft.definition.units, ...draft.definition.agency].map(row => row.sideId))];
     ui["side-settings"].replaceChildren(...sides.map(side => {
       const form = editorForm(`side:${side}`, true);
+      form.dataset.sideId = side;
       form.append(element("strong", side));
       const neutral = field(form, "Neutral (no hostility in either direction)", (draft.definition.neutralSides ?? []).includes(side) ? "Yes" : "No", { entries: ["No", "Yes"] });
+      const fog = field(form, "Fog of War — permanent exploration", (draft.definition.fogOfWarSides ?? []).includes(side) ? "Enabled" : "Disabled", { entries: ["Disabled", "Enabled"] });
+      fog.dataset.fogSide = side;
+      form.append(element("small", "Digital only*. This Side explores using its own Units. Explored Cells remain known for the entire game."));
       const current = draft.definition.objectives?.find(row => row.sideId === side);
       form.append(button(`${current?.objective?.replace(/([a-z])([A-Z])/g, "$1 $2") ?? "Default · Eliminate Enemies"} · Edit Objective`, () => { objectiveSide = side; highlightedGroup = null; render(); }));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         draft.setNeutral(side, neutral.value === "Yes");
+        draft.setFogOfWar(side, fog.value === "Enabled");
       }); });
       form.append(element("button", "Apply Side")); return form;
     }));

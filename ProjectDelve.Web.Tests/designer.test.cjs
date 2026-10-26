@@ -114,6 +114,38 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
   };
 }
 
+test("Fog of War Side setting survives undo, redo, draft recovery and playtest while Designer stays omniscient", async () => {
+  const storage = memoryStorage(), played = [], operations = [];
+  const h = harness(async (operation, body) => {
+    operations.push({operation,body:plain(body)});
+    return operation === "validate" ? {valid:true,errors:[]} : {transport:"DELVE1:fow-fixture"};
+  }, async value => { played.push(value); return true; }, storage);
+  const draft = h.editor.draft;
+  draft.place("grunt-type", "blue", "Human", { x: 0, y: 0 });
+  draft.place("grunt-type", "red", "Automated", { x: 14, y: 14 }); h.editor.render();
+  let form = h.editor.ui["side-settings"].children[0];
+  assert.equal(inputField(form, "Fog of War — permanent exploration").value, "Disabled");
+  inputField(form, "Fog of War — permanent exploration").value = "Enabled"; h.submit(form);
+  assert.deepEqual(plain(draft.definition.fogOfWarSides), ["blue"]);
+  assert.match(form.textContent, /Explored Cells remain known/);
+  assert.ok(h.cell(14,14).textContent.includes("grunt-type") || h.cell(14,14).children.length);
+  h.click("undo"); assert.equal(draft.definition.fogOfWarSides, undefined);
+  h.click("redo"); assert.deepEqual(plain(draft.definition.fogOfWarSides), ["blue"]);
+  const exported = plain(draft.snapshot());
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()), exported);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.deepEqual(plain(draft.snapshot()), exported);
+  assert.equal(inputField(h.editor.ui["side-settings"].children[0], "Fog of War — permanent exploration").value, "Enabled");
+  await h.click("validate"); await h.click("export"); await h.click("play");
+  assert.deepEqual(played, ["DELVE1:fow-fixture"]);
+  assert.ok(operations.length >= 2);
+  assert.ok(operations.every(row => row.body.fogOfWarSides[0] === "blue"));
+  form = h.editor.ui["side-settings"].children[0];
+  inputField(form, "Fog of War — permanent exploration").value = "Disabled"; h.submit(form);
+  assert.equal(draft.definition.fogOfWarSides, undefined);
+});
+
 test("Machine tool places catalog content by pointer and keyboard, edits and deletes individual storage", () => {
   const h = harness(), draft = h.editor.draft;
   h.editor.setTool("Machine");

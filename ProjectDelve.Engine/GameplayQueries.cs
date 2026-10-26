@@ -94,7 +94,10 @@ internal sealed class GameplayQueries : IGameplayQueries
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
 
-    public IReadOnlyList<Resource> Resources => world.Resources.AsReadOnly();
+    public IReadOnlyList<Resource> Resources => world.Resources.Where(r =>
+        FogOfWar.IsExplored(world, world.Pending?.Token?.SideId ?? world.ActiveToken?.SideId, r.Position)).ToArray();
+    private bool Knows(string unitId, string targetId) => FogOfWar.IsUnitObservable(world,
+        world.Units.Single(u => u.Id == unitId).SideId, targetId);
     public int StoredQuantityFor(string unitId, ResourceType resource)
     {
         var unit = world.Units.Single(u => u.Id == unitId);
@@ -121,7 +124,8 @@ internal sealed class GameplayQueries : IGameplayQueries
         projected.Resources.RemoveAll(r => r.Position == position);
         if (source is not null) projected.Resources.Add(new(source, position));
         var actor = projected.Units.Single(u => u.Id == unitId);
-        return ResourceRules.Candidates(projected, actor).Concat(MachineRules.Candidates(projected, actor)).ToList().AsReadOnly();
+        return ResourceRules.Candidates(projected, actor).Concat(MachineRules.Candidates(projected, actor))
+            .Where(c => FogOfWar.Allows(projected, actor.SideId, c)).ToList().AsReadOnly();
     }
 
     public Cell ResourceRecipientPosition(Candidate action) => action.MachineId is { } machineId
@@ -158,7 +162,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public IReadOnlyList<string> EligibleAttackOrderTargets(string unitId, OrderTarget target)
     {
         var side = world.Units.Single(u => u.Id == unitId).SideId;
-        return world.Units.Where(u => u.CurrentHp > 0 && world.AreHostile(side, u.SideId) &&
+        return world.Units.Where(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId) &&
                 world.Physical.Figures.Any(f => f.Id == u.Id) && target.Kind switch
                 {
                     OrderTargetKind.Unit => u.Id == target.UnitId,
@@ -189,7 +193,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public bool IsLivingFriendlyUnit(string unitId, string targetId)
     {
         var unit = world.Units.Single(u => u.Id == unitId);
-        return world.Units.SingleOrDefault(u => u.Id == targetId) is { CurrentHp: > 0 } target &&
+        return Knows(unitId, targetId) && world.Units.SingleOrDefault(u => u.Id == targetId) is { CurrentHp: > 0 } target &&
             target.SideId == unit.SideId && world.Physical.Figures.Any(f => f.Id == targetId);
     }
 
@@ -206,6 +210,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public int? DistanceToAdjacentPositionFrom(string unitId, Cell position, string targetId,
         bool closedDoorsTraversable = false)
     {
+        if (!Knows(unitId, targetId)) return null;
         HypotheticalPosition.Validate(world, unitId, position);
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
         var targetCells = OccupiedCellsOf(targetId);
@@ -230,6 +235,8 @@ internal sealed class GameplayQueries : IGameplayQueries
     {
         HypotheticalPosition.Validate(world, unitId, position);
         if (!IsClosedDoor(door) || !CanInteractWithDoors(unitId)) return null;
+        if (!FogOfWar.IsEdgeObservable(world, world.Units.Single(u => u.Id == unitId).SideId,
+            new(door.A, door.B, EdgeKind.ClosedDoor))) return null;
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
         return ApproachRules.Distances(world.Physical.Board, position,
                 traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint: footprint)
@@ -241,7 +248,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     private bool CanAttackTargetFrom(string unitId, Cell position, string targetId)
     {
         var attacker = world.Units.Single(u => u.Id == unitId);
-        if (world.Units.SingleOrDefault(u => u.Id == targetId) is not { CurrentHp: > 0 } target ||
+        if (!Knows(unitId, targetId) || world.Units.SingleOrDefault(u => u.Id == targetId) is not { CurrentHp: > 0 } target ||
             !world.AreHostile(attacker.SideId, target.SideId) || !world.Physical.Figures.Any(f => f.Id == targetId)) return false;
         if (new[] { UnitAction.NormalAttack, UnitAction.ClawAttack, UnitAction.FireBreath }
             .Any(action => AttackRules.EvaluateApproachFrom(world, unitId, position, targetId, action)
@@ -256,7 +263,7 @@ internal sealed class GameplayQueries : IGameplayQueries
         return FootprintGeometry.OccupiedCells(world, unitId, position).Any(source =>
             Enumerable.Range(0, world.Physical.Board.Width).SelectMany(x =>
                     Enumerable.Range(0, world.Physical.Board.Height).Select(y => new Cell(x, y)))
-                .Where(center => Math.Abs(center.X - source.X) + Math.Abs(center.Y - source.Y) <= range &&
+                .Where(center => FogOfWar.IsExplored(world, attacker.SideId, center) && Math.Abs(center.X - source.X) + Math.Abs(center.Y - source.Y) <= range &&
                     AttackRules.HasUnitLineOfSight(world, unitId, source, center))
                 .Any(center => targetCells.Any(targetCell =>
                     Math.Max(Math.Abs(targetCell.X - center.X), Math.Abs(targetCell.Y - center.Y)) <= 1 &&
@@ -269,6 +276,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public int? DistanceToUnitFrom(string unitId, Cell position, string targetId,
         bool closedDoorsTraversable = false)
     {
+        if (!Knows(unitId, targetId)) return null;
         HypotheticalPosition.Validate(world, unitId, position);
         var distances = ApproachRules.Distances(world.Physical.Board, position,
             traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
@@ -280,6 +288,7 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public bool IsWithinEffectiveRangeAndLos(string unitId, Cell position, string targetId)
     {
+        if (!Knows(unitId, targetId)) return false;
         HypotheticalPosition.Validate(world, unitId, position);
         var range = world.EffectiveRngOf(unitId);
         return range > 0 && FootprintGeometry.OccupiedCells(world, unitId, position).Any(from =>
@@ -293,14 +302,14 @@ internal sealed class GameplayQueries : IGameplayQueries
     {
         HypotheticalPosition.Validate(world, unitId, position);
         var side = world.Units.Single(u => u.Id == unitId).SideId;
-        return world.Units.Count(u => u.CurrentHp > 0 && world.AreHostile(side, u.SideId) &&
+        return world.Units.Count(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId) &&
             SpatialRules.AreAdjacent(world, unitId, u.Id, position));
     }
 
     public bool IsHostileTo(string unitId, string targetId)
     {
         var unit = world.Units.Single(u => u.Id == unitId);
-        return world.Units.SingleOrDefault(u => u.Id == targetId) is { CurrentHp: > 0 } target &&
+        return Knows(unitId, targetId) && world.Units.SingleOrDefault(u => u.Id == targetId) is { CurrentHp: > 0 } target &&
             world.AreHostile(unit.SideId, target.SideId) && world.Physical.Figures.Any(f => f.Id == targetId);
     }
 
@@ -335,8 +344,9 @@ internal sealed class GameplayQueries : IGameplayQueries
     {
         var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
         if (type.SummonAdjacent is null) return null;
-        return targetIds.SelectMany(targetId => OccupiedCellsOf(targetId).Select(targetCell =>
-                ApproachRules.Distance(world.Physical.Board, placement, targetCell)))
+        return targetIds.Where(targetId => Knows(unitId, targetId)).SelectMany(targetId => OccupiedCellsOf(targetId).Select(targetCell =>
+                ApproachRules.Distance(world.Physical.Board, placement, targetCell,
+                    traversal: new(KnownCells: MovementTraversal.For(world, unitId).KnownCells))))
             .Where(distance => distance.HasValue).Min();
     }
 
@@ -380,7 +390,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     {
         HypotheticalPosition.Validate(world, unitId, position);
         var side = world.Units.Single(u => u.Id == unitId).SideId;
-        return world.Units.Where(u => u.CurrentHp > 0 && world.AreHostile(side, u.SideId))
+        return world.Units.Where(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId))
             .Any(hostile => SpatialRules.AreAdjacent(world, unitId, hostile.Id, position));
     }
 
@@ -388,7 +398,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     {
         HypotheticalPosition.Validate(world, unitId, position);
         var side = world.Units.Single(u => u.Id == unitId).SideId;
-        return world.Units.Where(u => u.CurrentHp > 0 && world.AreHostile(side, u.SideId))
+        return world.Units.Where(u => u.CurrentHp > 0 && Knows(unitId, u.Id) && world.AreHostile(side, u.SideId))
             .SelectMany(u => FootprintGeometry.OccupiedCells(world, unitId, position)
                 .SelectMany(from => OccupiedCellsOf(u.Id).Select(to =>
                     ApproachRules.Distance(world.Physical.Board, from, to,

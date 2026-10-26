@@ -145,6 +145,22 @@ public sealed partial class PlaytestGame : IDisposable
         }
         if (reset)
         {
+            // A FoW browser edits only its viewing Side's setup. Preserve hidden
+            // controller assignments on restart without disclosing their composition.
+            if (request.Operation == "restart" && FogOfWar.ViewingSide(state) is { } viewingSide &&
+                request.ControllerAssignments is { } observedAssignments &&
+                observedAssignments.All(a => a is not null && a.SideId == viewingSide) &&
+                observedAssignments.Select(a => new ActivationToken(a.TypeId, a.SideId)).Distinct().Count() == observedAssignments.Count)
+            {
+                var merged = ControllerAssignmentsFor(state).ToDictionary(a => new ActivationToken(a.TypeId, a.SideId));
+                foreach (var assignment in observedAssignments)
+                {
+                    var token = new ActivationToken(assignment.TypeId, assignment.SideId);
+                    if (!merged.ContainsKey(token)) throw Error(400, "Assign controllers to existing Unit Type + Side groups.");
+                    merged[token] = assignment;
+                }
+                request = request with { ControllerAssignments = merged.Values.ToList() };
+            }
             var preview = GameEngine.CreateGame(replacement ?? definition);
             if (request.Controllers is not null || request.ControllerAssignments is not null)
             {
@@ -252,6 +268,10 @@ public sealed partial class PlaytestGame : IDisposable
             text = NormalizeCommentary(text);
             if (text is null) return;
             var unitId = pending.Kind == DecisionKind.SelectUnit ? key : pending.UnitId;
+            // Commentary precedes the decision's events. Decide observability now,
+            // before movement/discovery can change what the viewing Side observes.
+            if (FogOfWar.ViewingSide(current) is { } viewingSide &&
+                (unitId is null || !FogOfWar.IsUnitObservable(current, viewingSide, unitId))) return;
             var side = pending.Token?.SideId ?? current.Units.Single(u => u.Id == unitId).SideId;
             var comment = new DecisionCommentary(id, unitId, current.ControllerFor(pending), side, pending.Kind, key, text, eventCount);
             commentaries.Add(comment);
@@ -350,7 +370,12 @@ public sealed partial class PlaytestGame : IDisposable
                 var acknowledged = (int)(acknowledgedCursor - historyOffset);
                 committed.RemoveRange(0, acknowledged); historyOffset = acknowledgedCursor;
                 FinishReceipt(applied, "applied"); }
-            if (GambitSide is not null) committed.AddRange(Detach(events));
+            if (GambitSide is { } gambitSide)
+            {
+                var atEvents = steps.ToDictionary(s => s.EventIndex, s => s.StateAfter);
+                committed.AddRange(Detach(events.Select((e, index) =>
+                    FogOfWar.ObserveEvent(atEvents.GetValueOrDefault(index) ?? result.State, gambitSide, e)).OfType<RulesEvent>().ToList()));
+            }
             state = result.State; revision++; status = resetQueued ? "resolving" : StatusFor(state);
             decisionId = state.Pending is null || resetQueued ? null : Guid.NewGuid().ToString("N");
             PublishGambitRequest();
@@ -406,6 +431,9 @@ public sealed partial class PlaytestGame : IDisposable
         { SessionId = sessionId, VisualSeed = visualSeed, Controllers = ControllersFor(current), ControllerAssignments = ControllerAssignmentsFor(current), ControllerStatus = CurrentControllerStatus };
     private void Publish(string kind, GameResponse snapshot, string? commandId = null, string? error = null, DecisionCommentary? commentary = null)
     {
+        if (FogOfWar.ViewingSide(snapshot.Result.State) is { } viewingSide &&
+            (kind == "event" && !snapshot.Result.Events.Any(e => FogOfWar.ObserveEvent(snapshot.Result.State, viewingSide, e) is not null) ||
+             kind == "commentary" && (commentary?.UnitId is not { } id || !FogOfWar.IsUnitObservable(snapshot.Result.State, viewingSide, id)))) return;
         lastPublishedAvailability = ControllerAvailable;
         snapshot = snapshot with { SessionId = sessionId, VisualSeed = visualSeed, Controllers = ControllersFor(snapshot.Result.State), ControllerAssignments = ControllerAssignmentsFor(snapshot.Result.State), ControllerStatus = CurrentControllerStatus };
         published = new(sessionId, ++sequence, kind, status, revision, decisionId, Detach(snapshot), commandId, error, commentary);

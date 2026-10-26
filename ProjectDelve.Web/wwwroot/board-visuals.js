@@ -3,6 +3,7 @@
 // fallback beneath artwork, including while loading or when an image is missing.
 export const boardVisuals = {
   terrain: {
+    Unknown: { fill: "#171e29", detail: "repeating-linear-gradient(135deg, transparent 0 10px, #94a7bd0b 11px 12px)" },
     default: { fill: "#666a68", detail: "repeating-linear-gradient(0deg, transparent 0 48%, #242d3040 49% 51%, transparent 52% 100%)" },
     StoneFloor: { rotation: true, fill: "#666a68", detail: "repeating-linear-gradient(90deg, transparent 0 48%, #29323855 49% 51%, transparent 52% 100%)",
       variants: [

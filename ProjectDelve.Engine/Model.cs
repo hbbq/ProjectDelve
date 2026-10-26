@@ -381,6 +381,9 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 public sealed class GameState
 {
+    // Only detached Side observations carry these values. Removing hidden providers
+    // from presentation must not recalculate the visible Units' authoritative stats.
+    internal Dictionary<string, (int Mov, int Rng, int Atk, int Def)>? ObservationValues { get; set; }
     public required PhysicalState Physical { get; set; }
     public required List<UnitType> Types { get; set; }
     public required List<Unit> Units { get; set; }
@@ -405,8 +408,11 @@ public sealed class GameState
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
         Units.Add(type.CreateUnit(id, sideId));
         Physical.Figures.Add(new(id, cell, posture));
+        FogOfWar.Refresh(this);
     }
     public List<string> NeutralSides { get; set; } = [];
+    public List<string> FogOfWarSides { get; set; } = [];
+    public Dictionary<string, HashSet<Cell>> ExploredCells { get; set; } = new(StringComparer.Ordinal);
     public bool AreHostile(string firstSide, string secondSide) =>
         firstSide != secondSide && !NeutralSides.Contains(firstSide) && !NeutralSides.Contains(secondSide);
     public List<SideObjective> Objectives { get; set; } = [];
@@ -482,6 +488,7 @@ public sealed class GameState
 
     public int EffectiveAtkOf(string unitId)
     {
+        if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Atk;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
         var attack = type.Atk + (WorldDeck?.Modifier(WorldEffect.Bloodlust, WorldEffect.Weakness) ?? 0) + (CurrentUnitId == unitId
@@ -514,14 +521,17 @@ public sealed class GameState
         return Math.Max(0, attack + (supported ? backstab.AtkBonus : 0));
     }
     public int EffectiveMovOf(string unitId) =>
+        ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
         Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
         (WorldDeck?.Modifier(WorldEffect.Haste, WorldEffect.Sluggishness) ?? 0) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) =>
+        ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Rng :
         Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
     public int EffectiveDefOf(string unitId)
     {
+        if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Def;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
         var defence = type.Def + (WorldDeck?.Modifier(WorldEffect.IronSkin, WorldEffect.Vulnerability) ?? 0) + (CurrentUnitId == unitId
@@ -581,6 +591,8 @@ public sealed class GameState
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
+        FogOfWarSides = [.. FogOfWarSides],
+        ExploredCells = ExploredCells.ToDictionary(p => p.Key, p => new HashSet<Cell>(p.Value), StringComparer.Ordinal),
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),

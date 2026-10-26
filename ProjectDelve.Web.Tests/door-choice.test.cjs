@@ -155,6 +155,44 @@ const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 
 for (const animate of [true, false]) {
+  test(`Fog renders Unknown Cells, uses a generic bag and plays appearance/disappearance from supplied snapshots (animate=${animate})`, async () => {
+    const initial = response(), revealed = response(), final = response();
+    for (const value of [initial, revealed, final]) {
+      value.presentation.viewingSideId = "blue";
+      value.result.state.fogOfWarSides = ["blue"];
+      value.result.state.exploredCells = { blue: [{x:0,y:0}, {x:1,y:0}, {x:2,y:0}] };
+      value.result.state.bag = [];
+      value.result.state.units = value.result.state.units.filter(u => u.id !== "a");
+      value.result.state.physical.figures = value.result.state.physical.figures.filter(f => f.id !== "a");
+      delete value.presentation.cards.a;
+    }
+    for (const value of [initial, final]) {
+      value.result.state.units = value.result.state.units.filter(u => u.id !== "b");
+      value.result.state.physical.figures = value.result.state.physical.figures.filter(f => f.id !== "b");
+      delete value.presentation.cards.b;
+    }
+    revealed.result.state.physical.figures.find(f => f.id === "b").position.x = 2;
+    final.result.events = [{kind:"MovementCompleted",unitId:"b"}, {kind:"MovementCompleted",unitId:"b"}];
+    final.presentation.events = [{role:"Notice",text:"A guard appears"}, {role:"Notice",text:"A guard disappears"}];
+    final.result.resolutionSteps = [revealed, final].map((v,eventIndex) => ({eventIndex,stateAfter:v.result.state}));
+    final.presentation.resolutionSteps = [revealed, final].map((v,eventIndex) => ({eventIndex,cards:v.presentation.cards}));
+    const h = harness(initial, async () => ({ok:true,json:async () => final})), seen = [];
+    assert.equal(h.run('cells.get("3,0").classList.contains("Unknown")'), true);
+    assert.equal(h.run('cells.get("3,0").dataset.visualId'), "Unknown");
+    assert.equal(h.run('cells.get("3,0").style["--visual-image"]'), "none");
+    assert.equal(h.run('cells.get("3,0").getAttribute("aria-label")'), "Unknown Cell (3,0)");
+    assert.match(h.elements.get("bag").textContent, /hidden composition/);
+    assert.equal(h.figure("b"), undefined);
+    h.context.seen = seen; h.context.animate = animate;
+    h.run('ui.animate.checked = animate; pause = async () => {}; const baseRender = renderState; renderState = (...args) => { baseRender(...args); seen.push(figures.has("b")); };');
+    await h.run('mutate("decision", { candidateKey: "opaque" })');
+    assert.deepEqual(seen, [true,false,false]);
+    assert.equal(h.figure("b"), undefined);
+    assert.equal(h.run('snapshot.presentation.viewingSideId'), "blue");
+  });
+}
+
+for (const animate of [true, false]) {
   test(`swap and external movement render supplied positions together (animate=${animate})`, async () => {
     const initial = response(), swapped = state(), displaced = state();
     swapped.physical.figures[0].position.x = 4;
