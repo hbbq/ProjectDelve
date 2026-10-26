@@ -763,6 +763,43 @@ Create a premium fantasy tabletop portrait of a tiny, extremely self-important g
 - Avoid magical attack imagery on either King; his ability is the established Cleric-like DEF aura.
 - The complete 8×8 chess-inspired scenario can be authored later; these prompts only define artwork.
 
+## Solid Rock — dungeon terrain (three variants)
+
+Solid Rock is a full-Cell, LOS-blocking and impassable terrain type with the same gameplay behavior as Tree. These assets are **presentation only**; do not change terrain rules, Phase, FoW or movement.
+
+Generate **5–6 candidates using the same prompt** and select **three cohesive variants**. Save the approved, untouched square originals as:
+
+- `assets/source/terrain/solid-rock-01.png`
+- `assets/source/terrain/solid-rock-02.png`
+- `assets/source/terrain/solid-rock-03.png`
+
+Use an approved Stone Floor terrain image as a style reference if helpful, but make Solid Rock visibly different from traversable paving. Unlike Tree, this is a **full-bleed terrain base**, not a transparent object overlay. It must work in large contiguous areas of generated dungeons.
+
+### Image-generation prompt
+
+```text
+Premium fantasy tabletop board game terrain artwork, matching the polished hand-painted top-down Project Delve dungeon tiles. Square 1:1 seamless tileable texture of solid, unexcavated bedrock seen STRICTLY from directly overhead.
+
+A dense continuous mass of rough natural stone, with broad irregular interlocking rock planes, shallow fractured seams, worn mineral grain and subtle changes in surface height suggested through painterly shading. Cool neutral slate gray and charcoal-gray stone with restrained muted earthy undertones; moderate contrast, enough texture to unmistakably read as solid impassable rock rather than a walkable stone floor.
+
+Make the stone feel solid, ancient and compact, with a clear chunky material character that remains recognizable when each tile is reduced to a small board Cell. No dominant central boulder or isolated object. Keep the texture distributed evenly across the square, with natural variation and no obvious repeating motif. The texture must tile seamlessly on all four edges, so many copies form one continuous rock mass without visible square boundaries or repeating seams.
+
+Maintain the existing premium fantasy tabletop illustration style, controlled colors, subtle brushwork and gentle consistent overhead illumination. Avoid deep black fissures, strong directional cast shadows, excessive fine noise or bright highlights that compete with Units, grid lines, Fog of War and gameplay overlays.
+
+No perspective, isometric angle, cliffs, visible vertical rock faces, cave openings, holes, tunnels, paths, walkable flagstones, constructed masonry, separate stones arranged like paving, vegetation, moss clusters, water, lava, objects, characters, grid, borders, labels, symbols, text, interface elements or watermark.
+
+Full-bleed opaque square terrain texture, not a transparent overlay. No baked-in Cell outline or border.
+```
+
+### Selection and integration guidance
+
+- Select three variants with similar overall brightness, color, texture scale and edge continuity. Reject candidates that look like ordinary Stone Floor, a single isolated boulder, a cave entrance, or a strongly directional cliff face.
+- Verify seamless repetition in a 3×3 or larger tiled preview. A seamless-looking single square may still reveal obvious grid seams when repeated.
+- Prefer restrained broad shapes over noisy microdetail: this terrain will often occupy a large percentage of a generated board.
+- Preserve the original PNG files unchanged. Let the artwork workflow prepare optimized runtime variants, stable deterministic selection and optional quarter-turn rotation if supported by the current catalog.
+- Verify the result inside both the normal and zoomed Enhanced 2D board, especially next to Stone Floor, Walls, Doors and FoW. Preserve a distinct Classic fallback. Do not bake any gameplay overlays into the artwork.
+- This batch is only the artwork for existing Solid Rock. Do not introduce a new terrain type or change gameplay.
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
