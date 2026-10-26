@@ -1844,9 +1844,9 @@ An open door does not block LOS. Opening a door therefore immediately allows oth
 
 Because LOS runs between cell centers, it cannot run along a grid edge. It can, however, pass exactly through a grid corner.
 
-When LOS passes exactly through a corner, it is blocked only when all possible passages through that corner are blocked. If at least one passage is free, LOS passes through the corner. This also applies when a wall terminates exactly at the corner.
+When LOS passes exactly through a grid corner, consider the two flank Cells beside the straight line, excluding the Cell the ray arrives from and the Cell it enters. Each flank defines one possible corner passage. A passage is closed when its flank Cell contains LOS-blocking terrain or a LOS-blocking fixed object, or when an LOS-blocking Edge separates that flank Cell from either the arriving Cell or the entered Cell. LOS is blocked at that corner only when **both passages are closed**. If at least one passage is open, LOS passes through the corner. Evaluate each crossed corner independently, including where a Wall or Door ends exactly at the corner. Two blocking features on the same flank do not close the opposite passage.
 
-Merely touching the corner of an LOS-blocking cell does not count as passing through that cell's interior.
+Merely touching the corner of a single LOS-blocking Cell or the endpoint of a single LOS-blocking Edge does not by itself block LOS when the other corner passage is open. A ray entering a blocking Cell's interior remains blocked by the ordinary terrain/fixed-object rule. Corner passages use LOS-blocking properties, not movement passability, and do not bend the straight sightline. Apply established query-specific exceptions (including FoW blocking-destination discovery, Phase vision's ignored Walls/Doors, and other explicit source/target exemptions) before evaluating whether a passage is closed. Unit figures retain their established interior-only LOS-blocking rules and are not treated as flank terrain or fixed objects. This clarification does not change movement or Phase traversal.
 
 Friendly Units do not block LOS.
 
