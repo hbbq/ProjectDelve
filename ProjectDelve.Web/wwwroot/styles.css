@@ -382,8 +382,35 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .bag-disclosure summary, .playtest-tools summary, .ability-description summary { cursor: pointer; }
 #bag { position: absolute; right: 0; top: 100%; z-index: 15; width: min(340px, 85vw); padding: 12px; background: var(--ui-surface); border: 1px solid var(--ui-control-border); border-radius: 6px; box-shadow: 0 6px 18px #0008; }
 .board-stage { position: relative; }
+.camera-controls { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-bottom: 6px; position: relative; z-index: 11; }
+.camera-controls label { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; }
+.camera-controls button, .camera-controls select, .camera-settings summary { min-height: 40px; padding: 6px 9px; font-size: .8rem; }
+.camera-controls #camera-in, .camera-controls #camera-out { min-width: 42px; font-size: 1.2rem; }
+.camera-settings { position: relative; margin: 0; }
+.camera-settings summary { cursor: pointer; border: 1px solid var(--ui-control-border); border-radius: 5px; background: var(--ui-control); }
+.camera-settings > div { position: absolute; top: 100%; right: 0; width: min(300px, 85vw); padding: 12px; display: grid; gap: 10px; background: var(--ui-surface); border: 1px solid var(--ui-control-border); border-radius: 6px; box-shadow: 0 5px 16px #0008; }
+.camera-settings input { width: 52px; background: var(--ui-control); color: var(--ui-text); border: 1px solid var(--ui-control-border); padding: 6px; }
+#camera-status { font-size: .72rem; }
+#camera-viewport { height: clamp(260px, calc(100dvh - 210px), 950px); overflow: clip; isolation: isolate; background: #11161c; border: 1px solid var(--ui-border); touch-action: none; user-select: none; }
+#camera-viewport:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+#camera-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#playtest-main #camera-world #board { width: auto; min-width: 0; margin: 0; }
+#camera-world #board { outline: none; }
+.camera-dragging, .camera-dragging * { cursor: grabbing !important; }
+.camera-dragging .shared-tooltip { display: none; }
+#camera-objectives { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+.camera-objective { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; width: 44px; height: 44px; padding: 5px; border-radius: 50%; background: var(--ui-control); border: 2px solid var(--ui-accent); box-shadow: 0 2px 7px #000b; }
+.camera-objective > span:first-child { display: block; font-size: 24px; line-height: 1; }
+.camera-objective:focus-visible { outline: 3px solid var(--ui-focus); }
+@media (max-width: 760px) {
+  #camera-viewport { height: clamp(280px, 60dvh, 650px); }
+  .camera-controls button, .camera-controls select, .camera-settings summary { min-height: 44px; }
+  .camera-controls { gap: 4px; }
+  .camera-settings { position: static; }
+  .camera-settings > div { right: 0; left: auto; }
+  #camera-status { flex-basis: 100%; }
+}
 #playtest-main #board { width: min(100%, calc((100dvh - 126px) * var(--board-ratio, 1))); }
-#playtest-main #board.fit-board { min-width: 0; }
 .board-overlays { position: absolute; bottom: 8px; right: 8px; z-index: 9; width: min(360px, calc(100% - 16px)); max-height: 45%; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .board-overlays.at-top { top: 8px; bottom: auto; }
 .decision-panel { background: var(--ui-surface-overlay); border: 1px solid var(--ui-accent); border-radius: 8px; padding: 8px; box-shadow: 0 3px 12px #0008; overflow-y: auto; pointer-events: auto; min-height: 90px; }

@@ -1,7 +1,6 @@
 @import url("./art/railway/fallbacks.css");
 /* Opt-in appearance only; app.js/styles.css retain geometry and hit targets. */
 .board-view-toolbar { margin-bottom: 12px; }
-.board-scroll:has(#board[data-view="enhanced"]) { overflow: auto; padding: 5px; }
 .machine-art { display: none !important; }
 #board .machine-labels { display: contents; font-size: inherit; }
 #board .visual-glyph { font-size: inherit; }
@@ -9,8 +8,6 @@
 #board .terrain-object-artwork { display: none; pointer-events: none; }
 #board .edge-artwork { display: none; pointer-events: none; }
 #board[data-view="enhanced"] {
-  /* Pan large boards instead of shrinking tokens and hit targets indefinitely. */
-  min-width: calc(var(--columns) * 60px);
   outline: 3px solid #887c65;
   background: #363f40;
 }

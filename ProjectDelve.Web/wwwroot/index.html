@@ -46,7 +46,6 @@
             <option value="classic">Classic View</option>
             <option value="enhanced" selected>Enhanced 2D View</option>
           </select></label>
-          <label><input id="fit-board" type="checkbox" checked> Fit board to viewport</label>
         </div>
         <div class="toolbar">
           <label><input id="animate" type="checkbox" checked> Animate events</label>
@@ -113,8 +112,24 @@
     </section>
     <section class="board-area" aria-label="Board">
       <section id="game-result" role="status" aria-live="polite" hidden></section>
-      <div class="board-stage">
-        <div class="board-scroll"><div id="board" data-view="enhanced" aria-label="Dungeon board"></div></div>
+      <div class="camera-controls" role="group" aria-label="Board camera">
+        <label>View <select id="camera-mode"><option value="full">Full Board</option><option value="fixed">Fixed</option><option value="auto" selected>Auto</option></select></label>
+        <select id="camera-span" aria-label="Fixed maximum Cell span" hidden><option value="10">10 Cells</option><option value="15">15 Cells</option><option value="20">20 Cells</option><option value="25">25 Cells</option><option value="custom" disabled>Custom</option></select>
+        <label>Follow <select id="camera-follow"><option value="off">Off</option><option value="own" selected>Own Side</option><option value="all">All observable</option></select></label>
+        <label id="camera-side-label" hidden>Side <select id="camera-side" aria-label="Camera Side"></select></label>
+        <button id="camera-out" type="button" aria-label="Zoom out">−</button><button id="camera-in" type="button" aria-label="Zoom in">+</button>
+        <button id="camera-reset" type="button">Reset View</button><button id="camera-resume" type="button" hidden>Resume Follow</button>
+        <details class="camera-settings"><summary aria-label="Camera settings">Settings</summary><div>
+          <label>Auto minimum span <input id="camera-min" type="number" min="5" max="15" value="7"></label>
+          <label>Auto maximum span <input id="camera-max" type="number" min="7" max="25" value="15"> Cells</label>
+          <label>Auto margin <input id="camera-margin" type="number" min="0" max="5" value="2"> Cells</label>
+          <small>Span is measured along the longer viewport axis. Drag to pan; use + / − or Alt + wheel to zoom. Arrow keys pan when the board has focus. Following resumes at your next Human activation.</small>
+        </div></details>
+        <small id="camera-status" aria-live="off"></small>
+      </div>
+      <div class="board-stage camera-viewport" id="camera-viewport" tabindex="0" aria-label="Board viewport. Drag to pan; plus and minus to zoom; arrow keys to pan.">
+        <div class="camera-world" id="camera-world"><div id="board" data-view="enhanced" aria-label="Dungeon board"></div></div>
+        <div id="camera-objectives" aria-label="Offscreen Reach Areas"></div>
         <div class="board-overlays" id="board-overlays">
           <div id="dice" aria-label="Authoritative dice results" aria-live="polite"></div>
           <section id="decision-panel" class="decision-panel" aria-label="Pending decision" hidden>

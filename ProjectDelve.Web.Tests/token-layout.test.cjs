@@ -130,7 +130,7 @@ test("Open Door keeps a clear central passage in loading, missing and ready stat
   assert.ok(style(enhanced(".cell.legal")).outline);
 });
 
-test("Enhanced names stay on one line with ellipsis inside the token at minimum Cell size", () => {
+test("Enhanced names stay on one line inside the token while the shared camera owns Cell scale", () => {
   const name = style(enhanced(".token-nameplate"));
   assert.equal(name.display, "block");
   assert.equal(name["white-space"], "nowrap");
@@ -144,7 +144,7 @@ test("Enhanced names stay on one line with ellipsis inside the token at minimum 
   assert.ok(parseFloat(name["font-size"]) <= 10);
   assert.ok(parseFloat(name["line-height"]) <= 12);
   assert.ok(parseFloat(name.bottom) <= 0); // Anchor to the lower rim, away from the face.
-  assert.match(style('#board[data-view="enhanced"]')["min-width"], /60px/);
+  assert.equal(style('#board[data-view="enhanced"]')["min-width"], undefined); // Both renderers must obey the shared camera.
 });
 
 test("Enhanced HP is compact at the top and Side text stays hidden while the ring remains", () => {

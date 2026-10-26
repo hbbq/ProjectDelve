@@ -150,6 +150,7 @@ function harness(initial, fetchImpl, extras = {}) {
   const elements = new Map(), submitted = [];
   const document = {
     body: new Element(),
+    querySelector(selector) { return extras.withCamera && selector === "#camera-viewport" ? this.getElementById("camera-viewport") : null; },
     querySelectorAll() { return []; },
     addEventListener() {},
     getElementById(id) {
@@ -165,6 +166,8 @@ function harness(initial, fetchImpl, extras = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
+  if (extras.withCamera) for (const file of ["camera-geometry.js", "camera-observation.js", "board-camera.js"])
+    vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", file), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
   vm.runInContext("snapshot = initial; renderSnapshot();", context);
   return { elements, submitted, run: code => vm.runInContext(code, context), context,
@@ -1229,7 +1232,7 @@ test("board-first layout reserves status, card and End Turn while tools start cl
     assert.ok(tools.includes(`id="${id}"`), id);
   const header = html.slice(html.indexOf("<header>"), html.indexOf("</header>"));
   for (const id of ["mode-designer", "mode-playtest"]) assert.ok(header.includes(`id="${id}"`), `${id} is always accessible`);
-  assert.match(html, /class="board-stage">[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
+  assert.match(html, /class="board-stage camera-viewport"[\s\S]*id="camera-world"[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
   assert.match(html, /class="card-column"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
   assert.match(html, /class="play-status"[\s\S]*id="status"[\s\S]*id="active-token"[\s\S]*id="bag-count"/);
   assert.match(html, /data-tooltip-source="scenario-description"/);
@@ -1311,7 +1314,7 @@ for (const mode of ["animate", "disabled", "skip"]) {
   });
 }
 // Streaming harness drives actual EventSource reception and native animation timers.
-function streamHarness(fetchImpl) {
+function streamHarness(fetchImpl, extras = {}) {
   const sources = [], timers = new Map(); let nextTimer = 0;
   class FakeEventSource {
     constructor(url) { this.url = url; this.listeners = {}; sources.push(this); }
@@ -1320,6 +1323,7 @@ function streamHarness(fetchImpl) {
     emit(update) { this.listeners.update({ data: JSON.stringify(update) }); }
   }
   const h = harness(response([choice("initial", "Direct")]), fetchImpl, {
+    ...extras,
     EventSource: FakeEventSource,
     setTimeout: callback => { const id = ++nextTimer; timers.set(id, callback); return id; },
     clearTimeout: id => timers.delete(id)
@@ -1409,16 +1413,24 @@ test("gap discards the old drain, requests baseline, and ignores stale source ca
   assert.equal(h.run("receivedSequence"), 3);
 });
 
-test("session reset cancels native animation and old state cannot repaint", async () => {
-  const h = streamHarness(); h.emit(update(0, "baseline", "idle"));
-  h.emit(update(1, "event", "resolving", movementView()));
-  const fresh = response([]); fresh.result.state.physical.figures[0].position.x = 4;
+for (const withCamera of [false, true]) test(`session reset cancels native animation and old state cannot repaint (camera=${withCamera})`, async () => {
+  const h = streamHarness(undefined, { withCamera });
+  const initial = response([]); initial.sessionId = "session-a";
+  h.emit(update(0, "baseline", "idle", initial));
+  if (withCamera) h.run('boardCamera.zoom(1.2)');
+  const moving = movementView(); moving.sessionId = "session-a";
+  h.emit(update(1, "event", "resolving", moving));
+  const fresh = response([]); fresh.sessionId = "session-b"; fresh.result.state.physical.figures[0].position.x = 4;
   h.emit(update(0, "baseline", "idle", fresh, "session-b"));
   await settleStream();
   assert.equal(h.run("latestUpdate.sessionId"), "session-b");
   assert.equal(h.run("displayedState.physical.figures[0].position.x"), 4);
   assert.equal(h.elements.get("events").children.length, 0);
   assert.equal(h.timers.size, 0);
+  if (withCamera) {
+    assert.equal(h.run('boardCamera.inspect().suspended'), false);
+    assert.equal(h.run('boardCamera.inspect().transitionActive'), false);
+  }
 });
 
 test("fault settles immediately on the supplied authoritative recovery snapshot", async () => {
@@ -2813,15 +2825,13 @@ for (const view of ["classic", "enhanced"]) for (const [width, height] of [[8, 8
   });
 }
 
-test("Fit board is a presentation-only toggle and preserves mounted choices and hover", () => {
-  const h = harness(response([choice("attack", "Unit", { unitId: "b" })]));
+test("camera mode changes are presentation-only and preserve mounted choices and hover", () => {
+  const h = harness(response([choice("attack", "Unit", { unitId: "b" })]), undefined, { withCamera: true });
   const board = h.elements.get("board"), figure = h.figure("b");
-  assert.equal(board.classList.contains("fit-board"), true);
   figure.listeners.mouseenter();
   const inspected = h.elements.get("unit-card").textContent;
-  h.elements.get("fit-board").checked = false;
-  h.elements.get("fit-board").listeners.change();
-  assert.equal(board.classList.contains("fit-board"), false);
+  h.run('boardCamera.setMode("fixed"); boardCamera.setMode("full"); boardCamera.settle();');
+  assert.equal(h.run('boardCamera.inspect().preferences.mode'), "full");
   assert.equal(h.figure("b"), figure);
   assert.equal(h.elements.get("unit-card").textContent, inspected);
   assert.equal(figure.attributes["aria-disabled"], "false");

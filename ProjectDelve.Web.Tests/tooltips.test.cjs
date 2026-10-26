@@ -107,7 +107,7 @@ test("Tools keeps every existing control once, in its native collapsible section
   }
   for (const [section, controls] of Object.entries({
     "game-setup": ["scenario", "side-controllers", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario"],
-    "tools-display": ["board-view", "fit-board", "coordinates", "waypoints", "animate"],
+    "tools-display": ["board-view", "coordinates", "waypoints", "animate"],
     "tools-gameplay": ["objectives", "orders", "filter", "auto", "round", "skip", "world-effects", "controller-status", "controller-retry", "controller-cancel"],
     "tools-developer": ["events", "unit-debug", "decision-commentary", "commentary-toggle", "commentary-panel", "refresh"]
   })) for (const id of controls) assert.ok(sections.get(id)?.includes(section), `${id} belongs in ${section}`);
