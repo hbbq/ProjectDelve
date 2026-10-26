@@ -408,12 +408,15 @@ The initial terrain types are:
 | Grass | yes | no |
 | Asphalt | yes | no |
 | Tree | no | yes |
+| Solid Rock | no | yes |
 | Fruit Tree | no | yes |
 | Water | no | no |
 | Lava | no | no |
 | Gravel | yes | no |
 | Stone floor | yes | no |
 | Stone floor with table | no | no |
+
+**Solid Rock** is a distinct Terrain type with the same gameplay properties and interactions as Tree: Passable = no, Blocks LOS = yes. It has no special effect of its own. Movement, placement, Phase traversal, ordinary attack LOS, and Fog of War vision treat Solid Rock exactly as Tree. It has its own terrain identity and presentation; dedicated artwork may be added separately. No new digging, destruction, or other gameplay mechanic is introduced.
 
 **Asphalt** is ordinary, non-directional Terrain with **Passable = yes** and **Blocks LOS = no**, and no intrinsic special effects. Any future restriction to Asphalt-only traversal belongs to the Unit's movement capability, not to Asphalt itself.
 
@@ -1918,6 +1921,18 @@ This separation also allows the physical component set to grow without requiring
 ## Loose tokens and markers
 
 Resources are the initial loose Board markers, as defined under **Resources and Transport Resource**. A Resource marker has a type and occupies one Cell without affecting the Unit or terrain occupancy rules. No generic loose-token framework is required by this rule.
+
+## Procedural scenario generation — first profile
+
+Procedural generation is an authoring/setup operation, not a new gameplay-resolution mechanic. A generator accepts explicit parameters and an optional seed and produces an ordinary `ScenarioDefinition` governed by the existing engine rules. The first profile is **Heroes vs Monsters**, using the four standard Heroes and an explicit pool of conventional fantasy Monsters; unrelated content such as vehicles and industrial or chess Units is excluded. The dungeon generator may use Solid Rock as unexcavated terrain, ordinary floors for rooms and corridors, and normal Walls and Doors. Its intended regions must be connected by normally traversable passages, allowing opening of Doors; this geometric guarantee does not imply that every generated game can be won.
+
+Generation configuration includes dungeon geometry, connectivity, Doors, Monster density and difficulty, Objective selection, and optional Hero Fog of War (enabled by default). Difficulty influences Monster selection and is distinct from density. Threat ratings and generation weights are authoring metadata, not Unit Stats or combat rules. Monster FoW is disabled for this profile. The generation algorithm and its tuning are implementation/content policy, not universal core gameplay rules.
+
+The profile supports **Eliminate Enemies** and **Reach Area** Objectives using the existing authoritative Objective types. For Reach Area, the player can choose **all initial Heroes** or **at least X initial Heroes**, where X is a positive count no greater than the initial party size. The Heroes must qualify simultaneously under the existing Reach Area rules. The Monster Side's Objective is **Defeat Units** targeting the initial Heroes: defeat at least one when all initial Heroes must reach the Area, or defeat at least `initialHeroCount - X + 1` when X Heroes must reach it. These are generated scenario configurations, not changes to Objective evaluation. Reach Area outlines may be displayed over unexplored Cells as mission information, without revealing underlying terrain or contents or changing FoW exploration or legal decisions.
+
+A versioned **generation code** records parameters and, when complete, a seed. A code without a seed selects a fresh seed for that generation; the resulting complete code identifies its generated initial scenario for that generator version. The generator must be deterministic for a fixed version, configuration, and seed. A generated scenario can also be exported as ordinary **DELVE1**: this captures the exact concrete scenario and is the preferred artifact for preserving a particularly good map for a campaign. Generator codes are reproducible recipes, not a promise of perpetual backward compatibility across future generator implementations or content changes. Changes to output-affecting generator behavior require a distinct generator version rather than silently changing an existing version's meaning.
+
+Preview is explicitly omniscient authoring; direct play from a prefix or complete code must enter the normal FoW-filtered gameplay view without first revealing the generated layout. Campaign recipes, parameter randomization, sub-scenarios, hierarchical seeds, and runtime map expansion are deferred.
 
 ## Fog of War V1 — Digital only*
 
