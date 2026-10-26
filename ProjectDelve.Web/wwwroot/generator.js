@@ -4,7 +4,7 @@ import { styleSide } from "./side-colors.js";
 
 const byId = id => document.getElementById(`generator-${id}`);
 const dialog = document.getElementById("dungeon-generator");
-const fields = ["width", "height", "rooms", "connectivity", "doors", "density", "difficulty", "objective", "required", "fog", "seed"];
+const fields = ["width", "height", "rooms", "excavation", "connectivity", "doors", "density", "difficulty", "objective", "required", "fog", "seed"];
 const state = new GeneratorSession();
 let playing = false, currentGameCode = null;
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
@@ -110,6 +110,7 @@ byId("view").addEventListener("change", () => { byId("board").dataset.view = byI
 const element = (tag, value = "") => { const node = document.createElement(tag); node.textContent = value; return node; };
 function renderPreview() {
   const result = state.result, definition = result.definition, board = definition.board, root = byId("board");
+  root.dataset.generationCode = result.code;
   root.replaceChildren(); root.style.gridTemplateColumns = `repeat(${board.width}, 1fr)`; root.style.gridTemplateRows = `repeat(${board.height}, 1fr)`;
   root.style.aspectRatio = `${board.width} / ${board.height}`; root.style.setProperty("--columns", board.width);
   const terrain = new Map(board.cells.map(c => [`${c.position.x},${c.position.y}`, c.terrain]));

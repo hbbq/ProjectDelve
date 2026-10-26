@@ -190,6 +190,7 @@
           <label>Width <input id="generator-width" type="number" min="14" max="50" value="30"></label>
           <label>Height <input id="generator-height" type="number" min="14" max="50" value="20"></label>
           <label>Rooms <input id="generator-rooms" type="number" min="2" max="24" value="8"></label>
+          <label>Excavation <select id="generator-excavation"><option value="1">Compact</option><option value="2" selected>Balanced</option><option value="3">Spacious</option></select></label>
           <label>Connectivity <select id="generator-connectivity"><option value="0">Tree · no loops</option><option value="1">1 extra route</option><option value="2" selected>2 extra routes</option><option value="3">3 extra routes</option></select></label>
           <label>Door density <select id="generator-doors"><option value="0">None</option><option value="1">Few</option><option value="2" selected>Normal</option><option value="3">Many</option></select></label>
           <label>Monster density <select id="generator-density"><option value="1">Sparse</option><option value="2" selected>Normal</option><option value="3">Dense</option></select></label>
@@ -204,7 +205,7 @@
         <div class="generator-actions"><button id="generator-preview" class="designer-primary">Generate Preview</button><button id="generator-play" class="designer-primary">Play Unseen</button><button id="generator-another">Generate Another</button></div>
         <small>Play Unseen replaces the current game. Monsters always act normally, including beyond explored Cells.</small>
         <details id="generator-code-tools" open><summary>Generation code</summary>
-          <label>Load a prefix or complete code <textarea id="generator-code-input" rows="3" spellcheck="false" placeholder="DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1"></textarea></label>
+          <label>Load a prefix or complete code <textarea id="generator-code-input" rows="3" spellcheck="false" placeholder="DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1"></textarea></label>
           <div class="toolbar"><button id="generator-load">Load Generation Code</button><button id="generator-code-play">Play code unseen</button></div>
           <label>Configuration prefix <textarea id="generator-prefix" rows="2" readonly spellcheck="false"></textarea></label>
           <button id="generator-copy-prefix">Copy Configuration Prefix</button>

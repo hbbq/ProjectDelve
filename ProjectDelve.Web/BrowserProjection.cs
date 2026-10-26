@@ -43,11 +43,14 @@ public sealed record BrowserWorldCard(string Id, string Name, string Text, bool 
 public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
     IReadOnlyList<BrowserWorldCard> ActiveContinuous, BrowserWorldCard? ResolvingCard);
 public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Defeat, DoorAttempt, DoorOpened, DoorClosed }
+public sealed record MovementAppearance(string TypeId, string SideId, string Name, Posture Posture, int CellSpan, int Hp, int MaxHp);
 public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitId = null,
     string? TargetId = null, List<Cell>? Path = null, Edge? Door = null,
     int Hits = 0, int Blocks = 0, int Damage = 0)
 {
     public string? DisplayText { get; init; }
+    public IReadOnlyList<List<Cell>>? MovementSegments { get; init; }
+    public MovementAppearance? MovingFigure { get; init; }
 }
 public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
 {
@@ -259,7 +262,8 @@ public static class BrowserProjection
     {
         var fog = state.FogOfWarSides.Count > 0;
         var raw = OutcomeCore(e, state, id => fog && string.IsNullOrEmpty(id) ? "Unseen source" : id ?? "");
-        return raw with { DisplayText = OutcomeCore(e, state, id => fog && string.IsNullOrEmpty(id) ? "Unseen source" : PlayerName(state, id, individualNames)).Text };
+        var display = OutcomeCore(e, state, id => fog && string.IsNullOrEmpty(id) ? "Unseen source" : PlayerName(state, id, individualNames));
+        return raw with { DisplayText = display.Text, MovingFigure = display.MovingFigure };
     }
 
     private static BrowserOutcome OutcomeCore(RulesEvent e, GameState state, Func<string?, string> name)
@@ -388,6 +392,7 @@ public static class BrowserProjection
                 description = $"{name(e.UnitId)} {(e.IsMoveAfterAttack ? "moved after attack" : "moved")}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
                 break;
             case "MovementObserved":
+                role = OutcomeRole.Movement;
                 description = $"{name(e.UnitId)} moved through explored territory";
                 break;
             case "UnitRepositioned":
@@ -445,6 +450,15 @@ public static class BrowserProjection
                 description = e.Kind;
                 break;
         }
-        return new(role, description, e.UnitId, e.TargetId, e.Path, e.Door, e.Hits, e.Blocks, e.Damage);
+        MovementAppearance? appearance = null;
+        if (e.ObservedMovement is { Count: > 0 } && state.Units.FirstOrDefault(u => u.Id == e.UnitId) is { } mover)
+        {
+            var type = state.Types.Single(t => t.Id == mover.TypeId);
+            var figure = state.Physical.Figures.Single(f => f.Id == mover.Id);
+            appearance = new(mover.TypeId, mover.SideId, name(mover.Id), figure.Posture,
+                FootprintGeometry.OccupiedCells(state, mover.Id).Max(c => c.X) - figure.Position.X + 1, mover.CurrentHp, type.Hp);
+        }
+        return new(role, description, e.UnitId, e.TargetId, e.Path, e.Door, e.Hits, e.Blocks, e.Damage)
+        { MovementSegments = e.ObservedMovement, MovingFigure = appearance };
     }
 }

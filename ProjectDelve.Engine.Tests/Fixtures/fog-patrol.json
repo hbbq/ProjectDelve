@@ -1,0 +1,20 @@
+{
+  "board": { "width": 14, "height": 5, "defaultTerrain": "StoneFloor", "cells": [], "edges": [] },
+  "unitTypeIds": ["barbarian-type", "grunt-type"],
+  "units": [
+    { "unitTypeId": "barbarian-type", "sideId": "blue", "anchor": { "x": 1, "y": 2 }, "unitId": "hero" },
+    { "unitTypeId": "grunt-type", "sideId": "red", "anchor": { "x": 8, "y": 2 }, "unitId": "patrol" }
+  ],
+  "agency": [
+    { "unitTypeId": "barbarian-type", "sideId": "blue", "controller": "Human" },
+    { "unitTypeId": "grunt-type", "sideId": "red", "controller": "Automated" }
+  ],
+  "fogOfWarSides": ["blue"],
+  "objectives": [{ "sideId": "blue", "objective": "NoObjective" }, { "sideId": "red", "objective": "NoObjective" }],
+  "waypoints": [
+    { "id": "hidden", "area": { "x": 8, "y": 2, "w": 1, "h": 1 } },
+    { "id": "known", "area": { "x": 5, "y": 2, "w": 1, "h": 1 } }
+  ],
+  "routes": [{ "id": "patrol", "mode": "PingPong", "waypointIds": ["hidden", "known"] }],
+  "orders": [{ "unitTypeId": "grunt-type", "sideId": "red", "kind": "FollowRoute", "route": { "routeId": "patrol", "currentIndex": 1, "direction": 1 } }]
+}

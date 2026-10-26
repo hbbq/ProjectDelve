@@ -90,6 +90,8 @@ aside { overflow-wrap: anywhere; max-height: calc(100dvh - 120px); overflow-y: a
   transform: translate(-50%, -50%); background: #bb4a47; color: white; font-weight: bold; z-index: 3; border: 2px solid #ffc7c5; }
 .figure { background: hsl(var(--side-hue, 0) 48% 39%); border-color: hsl(var(--side-hue, 0) 65% 78%); }
 .figure.large { border-radius: 18%; }
+#board .movement-fog { position: absolute; z-index: 6; background: #161b22; pointer-events: none; }
+#board .movement-figure { pointer-events: none; }
 .figure.selected { outline: 2px solid #90c8e8; outline-offset: 2px; }
 .cell.placement-preview { box-shadow: inset 0 0 0 3px #ffe084; }
 .figure.lying { aspect-ratio: 1.65; transform: translate(-50%, -50%) rotate(-25deg); border-style: dashed; }

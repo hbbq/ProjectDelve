@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
-const code = "DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF";
+const code = "DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF";
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function harness() {
   class Node {
@@ -18,7 +18,7 @@ function harness() {
     showModal() { this.open = true; } close() { this.open = false; this.listeners.close?.(); }
   }
   const nodes = new Map(), get = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
-  for (const [key, value] of Object.entries({ width:"30", height:"20", rooms:"8", connectivity:"2", doors:"2", density:"2", difficulty:"3", objective:"reach", required:"2", fog:"1", seed:"", view:"enhanced" })) get(`generator-${key}`).value = value;
+  for (const [key, value] of Object.entries({ width:"30", height:"20", rooms:"8", excavation:"2", connectivity:"2", doors:"2", density:"2", difficulty:"3", objective:"reach", required:"2", fog:"1", seed:"", view:"enhanced" })) get(`generator-${key}`).value = value;
   const opened = new Node(), requests = [], plays = [], designs = [], events = {};
   const context = vm.createContext({ structuredClone, Uint32Array, document: { getElementById: get, querySelectorAll: () => [opened], createElement: () => new Node() },
     crypto: { getRandomValues: array => { array[0] = 1; array[1] = 2; return array; } }, navigator: { clipboard: { writeText: async () => {} } },
@@ -77,4 +77,17 @@ test("configuration prefixes omit seeds, OR4 normalizes and invalid capacities f
   assert.equal(vm.runInContext(`configurationCode(configurationFromCode('${code}'), false)`, h.context), code.split("-S")[0]);
   assert.match(vm.runInContext(`configurationCode(configurationFromCode('${code.replace("OR2", "OR4")}'))`, h.context), /-ORA-/);
   assert.throws(() => vm.runInContext(`configurationFromCode('${code.replace("30x20-R8", "14x14-R24")}')`, h.context), /rooms do not fit/);
+});
+
+for (const excavation of ["1", "2", "3"]) test(`Excavation ${excavation} round-trips and invalidates a retained preview`, async () => {
+  const h = harness(); h.click("preview");
+  h.requests[0].resolve({ok:true,json:async () => h.result(code)}); await flush();
+  const changedCode = code.replace("-E2-", `-E${excavation}-`);
+  h.enter("code-input", changedCode); h.click("load");
+  assert.equal(h.get("generator-excavation").value, excavation);
+  assert.match(h.get("generator-prefix").value, new RegExp(`-E${excavation}-`));
+  assert.equal(h.get("generator-complete").value, code);
+  h.enter("excavation", excavation === "1" ? "3" : "1");
+  assert.match(h.get("generator-status").textContent, /outdated/);
+  h.click("play-preview"); await flush(); assert.deepEqual(h.plays,[code]);
 });

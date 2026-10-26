@@ -109,6 +109,22 @@ public static class FogOfWar
             ? FootprintGeometry.OccupiedCells(state, id, position).Any(p => IsExplored(state, side, p))
             : IsExplored(state, side, position);
         var path = e.Path?.Where(VisiblePosition).ToList();
+        List<List<Cell>>? segments = e.ObservedMovement?.Select(s => s.ToList()).ToList();
+        if (segments is null && e.Kind is "MovementCompleted" or "UnitRepositioned" && e.Path is { } movement)
+        {
+            segments = [];
+            for (var i = 0; i < movement.Count; i++)
+            {
+                if (!VisiblePosition(movement[i])) continue;
+                var start = i;
+                while (i + 1 < movement.Count && VisiblePosition(movement[i + 1])) i++;
+                var end = i;
+                bool Step(int a, int b) => Math.Abs(movement[a].X - movement[b].X) + Math.Abs(movement[a].Y - movement[b].Y) == 1;
+                if (start > 0 && Step(start - 1, start)) start--;
+                if (end + 1 < movement.Count && Step(end, end + 1)) end++;
+                segments.Add(movement.GetRange(start, end - start + 1));
+            }
+        }
         var fragmentedMovement = e.Kind is "MovementCompleted" or "UnitRepositioned" && e.Path is { } original &&
             original.Zip(original.Skip(1), (a, b) => !VisiblePosition(a) && VisiblePosition(b)).Count(entered => entered) +
             (original.Count > 0 && VisiblePosition(original[0]) ? 1 : 0) > 1;
@@ -121,7 +137,7 @@ public static class FogOfWar
             "WorldContinuousChanged" or "WorldCardDiscarded" => true,
             "TokenDrawn" => e.Token?.SideId == side || state.Units.Any(u => u.TypeId == e.Token?.TypeId &&
                 u.SideId == e.Token?.SideId && Known(u.Id)),
-            "MovementCompleted" or "UnitRepositioned" => unit || path?.Count > 0,
+            "MovementCompleted" or "UnitRepositioned" or "MovementObserved" => unit || path?.Count > 0 || segments?.Count > 0,
             "PlacesSwapped" => unit || target,
             "DoorOpened" or "DoorClosed" or "DoorOpeningAttemptResolved" => door,
             "AttackStarted" => attack is not null,
@@ -133,7 +149,8 @@ public static class FogOfWar
         };
         if (!observable) return null;
         return e with { Kind = fragmentedMovement ? "MovementObserved" : e.Kind,
-            UnitId = unit || path?.Count > 0 ? e.UnitId : null, TargetId = target ? e.TargetId : null,
+            ObservedMovement = segments,
+            UnitId = unit || path?.Count > 0 || segments?.Count > 0 ? e.UnitId : null, TargetId = target ? e.TargetId : null,
             SourceUnitId = Known(e.SourceUnitId) ? e.SourceUnitId : null,
             TypeId = unit || e.Kind == "TokenDrawn" ? e.TypeId : null,
             SideId = unit || e.Kind == "TokenDrawn" ? e.SideId : null,

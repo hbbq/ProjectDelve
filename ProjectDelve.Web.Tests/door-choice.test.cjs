@@ -173,6 +173,46 @@ function harness(initial, fetchImpl, extras = {}) {
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 
+for (const view of ["classic", "enhanced"]) for (const mode of ["animate", "disabled", "skip"])
+for (const journey of ["known", "enter", "leave", "islands", "door", "phase"])
+test(`${view}: observed movement ${journey} starts under fog, keeps gaps hidden and settles (${mode})`, async () => {
+  const initial = response(), final = response();
+  const known = journey === "islands" ? [0, 1, 4] : [0, 1, 2];
+  for (const value of [initial, final]) {
+    value.presentation.viewingSideId = "blue";
+    value.result.state.fogOfWarSides = ["blue"];
+    value.result.state.exploredCells = { blue: known.map(x => ({x,y:0})) };
+    value.result.state.physical.figures = value.result.state.physical.figures.filter(f => f.id === "actor");
+    value.result.state.units = value.result.state.units.filter(u => u.id === "actor");
+  }
+  const runs = journey === "enter" ? [[3,2,1]] : journey === "leave" ? [[1,2,3]] : journey === "islands" ? [[1,2],[3,4,5]] : [[0,1,2]];
+  const end = runs.at(-1).at(-1);
+  final.result.state.physical.figures[0].position.x = end;
+  if (!known.includes(end)) { final.result.state.physical.figures = []; final.result.state.units = []; final.presentation.cards = {}; }
+  if (journey === "enter") { initial.result.state.physical.figures = []; initial.result.state.units = []; initial.presentation.cards = {}; }
+  if (journey === "door") final.result.state.physical.board.edges = [{a:{x:1,y:0},b:{x:2,y:0},kind:"OpenDoor"}];
+  if (journey === "phase") final.result.state.physical.board.terrain = [{position:{x:1,y:0},kind:"SolidRock"}];
+  final.result.events = [{kind:"MovementObserved",unitId:"actor"}];
+  final.presentation.events = [{role:"Movement",text:"Observed movement",unitId:"actor",
+    movementSegments:runs.map(run => run.map(x => ({x,y:0}))),
+    movingFigure:{typeId:"grunt-type",sideId:"red",name:"Guard",posture:"Upright",cellSpan:1,hp:2,maxHp:2}}];
+  final.result.resolutionSteps = [{eventIndex:0,stateAfter:final.result.state}];
+  final.presentation.resolutionSteps = [{eventIndex:0,cards:final.presentation.cards}];
+  const h = harness(initial, async () => ({ok:true,json:async () => final}));
+  const frames = []; h.context.frames = frames;
+  h.run(`boardView.value = '${view}'; updateBoardView(); ui.animate.checked = ${mode !== "disabled"};
+    pause = async () => { const node = ui.board.querySelectorAll('.movement-figure')[0];
+      if (node) frames.push({left:node.style.left, transition:node.style.transition, masks:ui.board.querySelectorAll('.movement-fog').length, interactive:node.dataset.unitId});
+      ${mode === "skip" ? "skipEffects = true;" : ""} };`);
+  await h.run('mutate("decision", { candidateKey:"opaque" })');
+  if (mode !== "disabled") { assert.ok(frames.length); assert.ok(frames.every(f => f.masks === 6-known.length && !f.interactive)); assert.match(frames[0].transition, /linear/); }
+  else assert.equal(frames.length, 0);
+  assert.equal(h.elements.get("board").querySelectorAll(".movement-figure").length, 0);
+  assert.equal(h.elements.get("board").querySelectorAll(".movement-fog").length, 0);
+  assert.equal(!!h.figure("actor"), known.includes(end));
+  if (h.figure("actor")) assert.equal(h.figure("actor").style.left, `${(end+.5)/6*100}%`);
+});
+
 for (const animate of [true, false]) {
   test(`Fog renders Unknown Cells, uses a generic bag and plays appearance/disappearance from supplied snapshots (animate=${animate})`, async () => {
     const initial = response(), revealed = response(), final = response();

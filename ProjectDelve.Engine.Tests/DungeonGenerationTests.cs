@@ -1,4 +1,4 @@
-﻿using ProjectDelve.Generation;
+using ProjectDelve.Generation;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -6,7 +6,7 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class DungeonGenerationTests(ITestOutputHelper output)
 {
-    private const string Prefix = "DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1";
+    private const string Prefix = "DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1";
     [Fact]
     public void PcgMatchesPublishedReferenceVector()
     {
@@ -28,12 +28,15 @@ public sealed class DungeonGenerationTests(ITestOutputHelper output)
     }
     [Theory]
     [InlineData("")]
-    [InlineData("DNG2-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG2-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1")]
     [InlineData("DNG1-RACING-30x20-R8-C2-D2-N2-L3-OR2-F1")]
-    [InlineData("DNG1-HVM-030x20-R8-C2-D2-N2-L3-OR2-F1")]
-    [InlineData("DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-S123")]
-    [InlineData("DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-extra")]
-    [InlineData("DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR0-F1")]
+    [InlineData("DNG1-HVM-030x20-R8-E2-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S123")]
+    [InlineData("DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-extra")]
+    [InlineData("DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR0-F1")]
+    [InlineData("DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG1-HVM-30x20-R8-E0-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG1-HVM-30x20-R8-E4-C2-D2-N2-L3-OR2-F1")]
     public void InvalidCodesFailUsefully(string code) => Assert.Throws<FormatException>(() => GenerationCode.Parse(code));
 
     [Fact]
@@ -54,11 +57,11 @@ public sealed class DungeonGenerationTests(ITestOutputHelper output)
         Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition with { Units = [new(UnitTypeIds.Ghost, "side", new(1, 0))] }));
     }
     [Theory]
-    [InlineData(0UL, "332D6B24509DCFC6")]
-    [InlineData(1UL, "70C91AAB5843CB21")]
-    [InlineData(42UL, "CF3993EFF29C5AFE")]
-    [InlineData(0x0123456789abcdefUL, "AEAC63014842BC72")]
-    [InlineData(ulong.MaxValue, "8E2D1157B55A6F4A")]
+    [InlineData(0UL, "43392B608B21A995")]
+    [InlineData(1UL, "3894B26D29C5A6BE")]
+    [InlineData(42UL, "6CB0BAB663D2F5F0")]
+    [InlineData(0x0123456789abcdefUL, "B2AB7BD4D61A1C52")]
+    [InlineData(ulong.MaxValue, "0FEB2AD25453D97F")]
     public void Dng1RegressionSeeds(ulong seed, string fingerprint) =>
         Assert.Equal(fingerprint, DungeonGenerator.Generate(new GenerationCode(Seed: seed)).Fingerprint);
     [Theory]
@@ -219,6 +222,7 @@ public sealed class DungeonGenerationTests(ITestOutputHelper output)
     public void VariedSeedCorpusHasValidRoomsEdgesAndPlacements()
     {
         for (ulong seed = 100; seed < 228; seed++)
+        for (var excavation = 1; excavation <= 3; excavation++)
         {
             var config = (seed % 4) switch
             {
@@ -227,7 +231,56 @@ public sealed class DungeonGenerationTests(ITestOutputHelper output)
                 2 => new GenerationCode(50, 26, 24, 2),
                 _ => new GenerationCode(38, 14, 6, 1)
             };
-            AssertGeometry(DungeonGenerator.Generate(config with { Seed = seed, Doors = (int)(seed % 4) }));
+            AssertGeometry(DungeonGenerator.Generate(config with { Seed = seed, Excavation = excavation, Doors = (int)(seed % 4) }));
+        }
+    }
+    [Fact]
+    public void ExcavationCorpusMeasuresPlayableAreaRoomsSightAndActualCorridorWidths()
+    {
+        double previousArea = 0;
+        for (var excavation = 1; excavation <= 3; excavation++)
+        {
+            int area = 0, roomArea = 0, corridorArea = 0, explored = 0, hiddenRooms = 0, attempts = 0;
+            int[] widths = new int[4], interiorWidths = new int[4], requested = new int[4];
+            for (ulong seed = 0; seed < 24; seed++)
+            {
+                var code = new GenerationCode(Seed: seed, Excavation: excavation);
+                Assert.Equal(code, GenerationCode.Parse(code.ToString()));
+                var result = DungeonGenerator.Generate(code); AssertGeometry(result);
+                Assert.Equal(ScenarioDefinitionJson.ToJson(result.Definition), ScenarioDefinitionJson.ToJson(DungeonGenerator.Generate(GenerationCode.Parse(code.ToString())).Definition));
+                var known = GameEngine.CreateGame(result.Definition).ExploredCells[HeroesVsMonsters.Heroes];
+                area += result.Definition.Board.Cells.Count;
+                roomArea += result.Diagnostics.Rooms.Sum(r => r.Width * r.Height);
+                corridorArea += result.Definition.Board.Cells.Count(c => !result.Diagnostics.Rooms.Any(r => r.Contains(c.Position)));
+                explored += known.Count;
+                hiddenRooms += result.Diagnostics.Rooms.Count(r => !r.Cells().Any(known.Contains));
+                attempts += result.Diagnostics.Attempts;
+                foreach (var corridor in result.Diagnostics.Corridors)
+                {
+                    requested[corridor.Width]++;
+                    var cells = corridor.Cells.ToHashSet();
+                    for (var i = 1; i < corridor.Spine.Count - 1; i++)
+                    {
+                        var c = corridor.Spine[i];
+                        var dx = c.X - corridor.Spine[i - 1].X; var dy = c.Y - corridor.Spine[i - 1].Y;
+                        var width = 1;
+                        foreach (var sign in new[] { -1, 1 })
+                            for (var n = 1; n < 4 && cells.Contains(new(c.X - dy * sign * n, c.Y + dx * sign * n)); n++) width++;
+                        widths[Math.Min(width, 3)]++;
+                        if (i > 1 && i < corridor.Spine.Count - 2) interiorWidths[Math.Min(width, 3)]++;
+                    }
+                }
+            }
+            var fraction = area / (24.0 * 600);
+            Assert.True(fraction > previousArea + (excavation == 1 ? 0 : .025)); previousArea = fraction;
+            Assert.InRange(fraction, .2, .75);
+            Assert.True(hiddenRooms > 24);
+            Assert.True(widths[2] > widths[1] && widths[2] > widths[3]);
+            Assert.True(widths[2] * 2 > widths.Sum());
+            Assert.True(widths[1] * 100 < widths.Sum() * 15);
+            Assert.True(requested[2] > requested[1] * 3 && requested[2] > requested[3] * 2);
+            output.WriteLine($"E{excavation}: floor={fraction:P2}, rock={1-fraction:P2}, mean room={roomArea/192.0:F1}, corridor cells/map={corridorArea/24.0:F1}, initial sight={explored/14400.0:P2}, hidden rooms/map={hiddenRooms/24.0:F2}, attempts={attempts}/24; requested widths 1/2/3={requested[1]}/{requested[2]}/{requested[3]}, measured spine cross-sections 1/2/3+={widths[1]}/{widths[2]}/{widths[3]}");
+            output.WriteLine($"E{excavation} corridor interiors (excluding first/last approach Cell): 1/2/3+={interiorWidths[1]}/{interiorWidths[2]}/{interiorWidths[3]}");
         }
     }
     private static void AssertGeometry(GeneratedDungeon result)
@@ -246,6 +299,21 @@ public sealed class DungeonGenerationTests(ITestOutputHelper output)
         Assert.DoesNotContain(definition.Units.Skip(4), u => result.Diagnostics.Rooms[result.Diagnostics.StartRoom].Contains(u.Anchor));
         Assert.All(definition.Units.Skip(4), u => Assert.Contains(HeroesVsMonsters.Pool, m => m.UnitTypeId == u.UnitTypeId));
         Assert.InRange(definition.Units.Count(u => u.UnitTypeId == UnitTypeIds.Shaman), 0, 1);
+        // A widened corridor may touch a room along several Cells. Only the routed
+        // entrance may cross that boundary; side contacts must stay walled off.
+        var floors = board.Cells.Select(c => c.Position).ToHashSet();
+        var portals = result.Diagnostics.Corridors.SelectMany(c => new[] {
+            (c.Spine[0], c.Spine[1]), (c.Spine[^2], c.Spine[^1]) }).ToArray();
+        foreach (var room in result.Diagnostics.Rooms)
+        foreach (var cell in room.Cells())
+        foreach (var next in new Cell[] { new(cell.X-1,cell.Y), new(cell.X+1,cell.Y), new(cell.X,cell.Y-1), new(cell.X,cell.Y+1) })
+        {
+            if (room.Contains(next) || !floors.Contains(next)) continue;
+            if (portals.Any(p => p.Item1 == cell && p.Item2 == next || p.Item2 == cell && p.Item1 == next)) continue;
+            var edge = board.Edges.Single(e => e.Position == (next.X < cell.X || next.Y < cell.Y ? next : cell) &&
+                e.Direction == (next.X != cell.X ? EdgeDirection.Right : EdgeDirection.Down));
+            Assert.Equal(EdgeKind.Wall, edge.Kind);
+        }
         foreach (var edge in board.Edges.Where(e => e.Kind == EdgeKind.ClosedDoor))
         {
             var other = new Cell(edge.Position.X + (edge.Direction == EdgeDirection.Right ? 1 : 0), edge.Position.Y + (edge.Direction == EdgeDirection.Down ? 1 : 0));

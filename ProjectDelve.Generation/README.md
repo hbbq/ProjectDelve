@@ -26,13 +26,13 @@ is preferred for long-term preservation, including edited scenarios.
 Example prefix:
 
 ```text
-DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1
+DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1
 ```
 
 Complete example:
 
 ```text
-DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF
+DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF
 ```
 
 Fields are strict and ordered. Tokens are uppercase, dimensions use lowercase
@@ -46,6 +46,7 @@ once per generation operation with 64 cryptographically random bits.
 | HVM | Four canonical Heroes vs the curated Monster allowlist |
 | Width, height | Each 14–50 Cells; one outer border of Solid Rock |
 | R | Exactly 2–24 rooms, subject to BSP capacity |
+| E | Excavation: 1 Compact, 2 Balanced (default), 3 Spacious |
 | C | 0–3 additional distinct room connections; limited by available room pairs |
 | D | 0–3: 0%, 25%, 50%, 75% of eligible portals become Closed Doors |
 | N | 1–3: approximately 40%, 60%, 80% of non-start rooms occupied |
@@ -78,9 +79,16 @@ population or placement through bounded-integer rejection sampling. No runtime h
 sequence participates. Content density/difficulty/Objective changes preserve
 geometry and Hero placement for the same seed and geometry configuration.
 
-Output-affecting changes require a new generator version. Five regression seeds
-lock DNG1 scenario fingerprints, alongside the PCG reference vector and transport
-round trips. The fingerprint is the first 16 uppercase hexadecimal digits of
+**DNG1 is under active development.** Its current implementation is deterministic:
+the same complete configuration and seed produce the same ScenarioDefinition in
+Preview, Designer transfer and Play Unseen. Development refinements may change
+what an earlier DNG1 code generates. There is no historical algorithm, migration
+layer or DNG2. Current regression fingerprints are updated with intentional tuning;
+they check the current implementation, not permanent historical output.
+
+Use **DELVE1** to preserve a good dungeon exactly, including for campaigns.
+It stores the concrete ScenarioDefinition rather than a generator recipe.
+The fingerprint is the first 16 uppercase hexadecimal digits of
 SHA-256 over UTF-8 `ScenarioDefinitionJson.ToJson(definition)`. This is lightweight
 verification, not a promise of permanent historical generator support. DELVE1 is
 the concrete preservation artifact; canonical Unit definitions remain authoritative.
@@ -88,10 +96,24 @@ the concrete preservation artifact; canonical Unit definitions remain authoritat
 ## Geometry and profile
 
 BSP recursively splits only where both children can hold their assigned exact
-room counts. Each leaf contains a randomly sized rectangular 3–9 Cell room,
-with rock margins. Child regions are joined by a multi-source shortest corridor
-through rock; existing floors are endpoints, preventing corridor intersections.
-Ordinary Walls close incidental contacts between nearby passages. Additional
+room counts. Each leaf retains a rock margin and contains a rectangular room.
+Compact draws each dimension from 3–9 Cells, bounded by its partition. Balanced
+draws from 65–100% of the available interior extent; Spacious from 85–100%.
+Larger rooms remain distinct within their partitions rather than arbitrarily
+painting rock into floor.
+
+All rooms are placed before child networks are joined. A deterministic multi-source
+weighted route through rock favors space for two-Cell width. Existing floors are
+endpoints, and free rock across BSP separators is available for widening.
+Routed spines are widened into available rock,
+using the other side when the preferred side is obstructed. Requested widths
+draw from 10% one Cell, 70% two Cells and 20% three Cells; a narrow draw on a
+route longer than six spine positions becomes two Cells. Extra connections prefer
+room pairs with space for wide routes, retaining narrow fallback connections when
+needed to honor the configuration. Local geometry can retain
+narrow throats and Doorways. Only the original routed portals connect into
+existing floors; ordinary Walls seal lateral contacts, preventing widened
+corridors from bypassing a Closed Door or connecting an unintended room. Additional
 routes connect distinct room pairs. Closed Doors occupy legal floor-to-floor
 room portals; portal Cells are excluded from initial Unit placement.
 
@@ -150,16 +172,31 @@ Tree/Solid Rock movement and FoW theories, and the browser-client tests. The
 deterministic corpus checks count, connectivity, portal clearance, legal placements,
 Threat distribution, density, empty rooms, branches, dead ends, loops, destination
 distance, exploration and attempts. A further 128 seeds vary dimensions and room
-counts, plus edge-size configurations up to 50 × 50 / 24 rooms.
+counts across all three Excavations (384 configurations), plus edge-size checks
+up to 50 × 50 / 24 rooms.
 
-In the 24-seed 30 × 20 corpus, Sparse/Normal/Dense produce 106/191/360 Monsters and
-72/96/144 occupied rooms out of 168 non-start rooms each. Mean Threat by difficulty
-is 1.62/2.24/3.04/3.75/4.30. Tree layouts have 73 leaf rooms and 24 branch rooms;
-mean destination distance is 36.6 steps and initially explored fraction is 6.7%.
-All 216 samples in that comparison succeeded on attempt one. These are broad
-distribution checks, not individual-seed balance guarantees.
+The 24-seed 30 × 20 excavation comparison produces these means (seeds 0–23):
+
+| Excavation | Passable | Solid Rock | Room area | Corridor Cells/map | Initial explored | Entirely hidden rooms/map |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Compact | 41.31% | 58.69% | 18.5 | 99.9 | 6.51% | 6.67 |
+| Balanced | 47.87% | 52.13% | 26.8 | 72.9 | 7.80% | 6.71 |
+| Spacious | 52.67% | 47.33% | 33.5 | 48.4 | 8.61% | 6.83 |
+
+All 72 layouts succeed on attempt one, with zero disconnected floors or invalid
+Doors/placements. The independent varied-size corpus covers all three settings.
+Measured corridor spine cross-sections (including narrow room approaches) are
+6.3/59.6/34.1% one/two/three-or-more Cells for Compact,
+6.0/68.3/25.7% for Balanced and 8.3/64.4/27.3% for Spacious.
+Requested widths across all 648 connections are 53/452/143 one/two/three Cells.
+This distinguishes routing policy from actual usable width: Spacious rooms leave
+short, narrow connections at their boundaries. Two Cells is the majority
+measured width in every setting; narrow Door portals remain useful chokepoints.
+These are corpus measurements, not individual-seed balance guarantees.
 
 V1 intentionally has one profile, no combat-balance guarantee, no campaign/runtime
 expansion machinery, and no historical compatibility framework. Dedicated Solid
 Rock artwork and playtest-driven balance/layout tuning are future work; output
-tuning must use a new version. There are no unresolved gameplay design decisions.
+tuning continues within DNG1. The approved closed-corner LOS rule is implemented
+in the shared engine geometry; see the follow-up in [VERIFICATION.md](VERIFICATION.md).
+Generator tuning does not define those gameplay rules.

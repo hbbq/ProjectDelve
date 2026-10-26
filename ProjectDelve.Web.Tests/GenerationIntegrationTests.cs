@@ -14,7 +14,7 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class GenerationIntegrationTests
 {
-    private const string Code = "DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF";
+    private const string Code = "DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF";
     private sealed class Dice : IRandomProvider
     {
         public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.OrderBy(t => t.SideId == HeroesVsMonsters.Monsters ? 0 : 1).ThenBy(t => t.TypeId).First();
@@ -63,8 +63,8 @@ public sealed class GenerationIntegrationTests
         Assert.Equal(completed, host.Game.Snapshot().GenerationCode);
     }
     [Theory]
-    [InlineData("DNG2-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1")]
-    [InlineData("DNG1-HVM-14x14-R24-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG2-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG1-HVM-14x14-R24-E2-C2-D2-N2-L3-OR2-F1")]
     public async Task InvalidRequestsRetainTheCurrentGame(string code)
     {
         await using var host = await Host.Start();

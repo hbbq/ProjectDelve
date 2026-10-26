@@ -8,7 +8,7 @@ const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web
 
 test("generated Designer transfer preserves the exact definition and identifies later edits through recovery", () => {
   const storage = memoryStorage(), h = harness(undefined, undefined, storage);
-  const result = { code:"DNG1-HVM-30x20-R8-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF", definition:structuredClone(designerSetup) };
+  const result = { code:"DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF", definition:structuredClone(designerSetup) };
   h.context.generated = result;
   assert.equal(h.run('delveOpenGenerated(generated)'), true);
   assert.deepEqual(plain(h.editor.draft.snapshot()), result.definition);

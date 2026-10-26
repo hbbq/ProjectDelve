@@ -354,6 +354,9 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    // Observation-only contiguous paths, with at most one boundary step at each end.
+    // Hidden interiors are never transported or joined into an invented route.
+    public IReadOnlyList<List<Cell>>? ObservedMovement { get; init; }
     public string? RouteId { get; init; }
     public string? WaypointId { get; init; }
     public string? MachineId { get; init; }

@@ -100,19 +100,24 @@ internal static class AttackRules
 
     // Ordinary board geometry only; independent of Unit actions, stats and attack effects.
     internal static bool HasGeometricLineOfSight(Board board, Cell from, Cell to, string? interactionMachineId = null,
-        Cell? ignoredTerrainCell = null, bool phaseVision = false, bool discoverDestination = false) =>
-        (phaseVision || !HasBlockingEdgeLos(board, from, to)) &&
-        !board.Terrain.Any(tile => tile.Position != ignoredTerrainCell && tile.Kind.BlocksLos() && CrossesInterior(from, to, tile.Position)) &&
-        !board.Machines.Any(m => m.Id != interactionMachineId && (!discoverDestination || m.Position != to) && CrossesInterior(from, to, m.Position));
-
-    private static bool HasBlockingEdgeLos(Board board, Cell from, Cell to)
+        Cell? ignoredTerrainCell = null, bool phaseVision = false, bool discoverDestination = false)
     {
-        if (board.Edges.Any(edge => edge.Kind.BlocksLos() && CrossesEdgeInterior(from, to, edge)))
-            return true;
+        // The same exemptions apply to interiors and flank Cells. Unit figures
+        // remain separate: only their interiors can block Unit-origin LOS.
+        bool TerrainBlocks(Cell cell, TerrainKind kind) => cell != ignoredTerrainCell && kind.BlocksLos();
+        bool MachineBlocks(Machine machine) => machine.Id != interactionMachineId && (!discoverDestination || machine.Position != to);
+        bool CellBlocks(Cell cell) => TerrainBlocks(cell, board.TerrainAt(cell)) ||
+            board.Machines.Any(m => m.Position == cell && MachineBlocks(m));
+        return !board.Terrain.Any(tile => TerrainBlocks(tile.Position, tile.Kind) && CrossesInterior(from, to, tile.Position)) &&
+            !board.Machines.Any(m => MachineBlocks(m) && CrossesInterior(from, to, m.Position)) &&
+            (phaseVision || !board.Edges.Any(edge => edge.Kind.BlocksLos() && CrossesEdgeInterior(from, to, edge))) &&
+            !HasBlockingCornerLos(board, from, to, CellBlocks, phaseVision);
+    }
 
-        // At an exact corner there are two possible passages. The defined
-        // corner rule lets LOS pass when either passage has no blocking edges.
-        // A terrain cell touched only at this corner does not block LOS.
+    private static bool HasBlockingCornerLos(Board board, Cell from, Cell to, Func<Cell, bool> cellBlocks, bool phaseVision)
+    {
+        // Keep the ray straight. Each flank closes one passage through this
+        // corner; two blockers on the same flank leave the other passage open.
         var minX = Math.Min(from.X, to.X);
         var maxX = Math.Max(from.X, to.X);
         var minY = Math.Min(from.Y, to.Y);
@@ -132,16 +137,16 @@ internal static class AttackRules
             var after = new Cell(x + (stepX > 0 ? 1 : 0), y + (stepY > 0 ? 1 : 0));
             var horizontalFirst = new Cell(after.X, before.Y);
             var verticalFirst = new Cell(before.X, after.Y);
-            if (!PassageHasFeaturedEdge(board, before, horizontalFirst, after) ||
-                !PassageHasFeaturedEdge(board, before, verticalFirst, after))
+            if (!PassageBlocksLos(board, before, horizontalFirst, after, cellBlocks, phaseVision) ||
+                !PassageBlocksLos(board, before, verticalFirst, after, cellBlocks, phaseVision))
                 continue;
             return true;
         }
         return false;
     }
 
-    private static bool PassageHasFeaturedEdge(Board board, Cell first, Cell middle, Cell last) =>
-        HasFeaturedEdge(board, first, middle) || HasFeaturedEdge(board, middle, last);
+    private static bool PassageBlocksLos(Board board, Cell first, Cell middle, Cell last, Func<Cell, bool> cellBlocks, bool phaseVision) =>
+        cellBlocks(middle) || !phaseVision && (HasFeaturedEdge(board, first, middle) || HasFeaturedEdge(board, middle, last));
 
     private static bool HasFeaturedEdge(Board board, Cell a, Cell b) =>
         board.Edges.Any(edge => edge.Kind.BlocksLos() &&

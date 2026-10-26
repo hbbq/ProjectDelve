@@ -1203,6 +1203,10 @@ async function present(event, occurrence) {
     WorldCardDrawn: 1000, WorldContinuousChanged: 700, WorldCardDiscarded: 450, WorldDeckReshuffled: 600,
     PostureChanged: 200, UnitCreated: 200 }[occurrence?.kind];
   if (delay != null) { await guardedPause(delay); return; }
+  if (event.movementSegments?.length && event.movingFigure) {
+    await presentObservedMovement(event);
+    return;
+  }
   switch (event.role) {
     case "Movement": {
       const node = figures.get(event.unitId);
@@ -1253,6 +1257,47 @@ async function present(event, occurrence) {
       await guardedPause(300); break;
     }
     default: await guardedPause(250);
+  }
+}
+
+async function presentObservedMovement(event) {
+  const board = snapshot.result.state.physical.board, appearance = event.movingFigure;
+  const stable = figures.get(event.unitId);
+  if (stable) stable.style.visibility = "hidden";
+  const masks = [];
+  const known = new Set((displayedState.exploredCells?.[snapshot.presentation.viewingSideId] ?? []).map(cellKey));
+  for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
+    if (known.has(`${x},${y}`)) continue;
+    const mask = text("div", ""); mask.className = "movement-fog"; mask.setAttribute("aria-hidden", "true");
+    Object.assign(mask.style, { left: `${x / board.width * 100}%`, top: `${y / board.height * 100}%`, width: `${100 / board.width}%`, height: `${100 / board.height}%` });
+    ui.board.append(mask); masks.push(mask);
+  }
+  const node = text("div", ""); node.className = `figure movement-figure${appearance.cellSpan > 1 ? " large" : ""}${appearance.posture === "Lying" ? " lying" : ""}`;
+  node.setAttribute("aria-hidden", "true");
+  node.dataset.cellSpan = appearance.cellSpan; node.style.setProperty("--token-span", appearance.cellSpan);
+  node.style.width = `${(appearance.cellSpan > 1 ? appearance.cellSpan * 95 : 70) / board.width}%`;
+  styleSide(node, appearance.sideId); const visual = applyBoardVisual(node, "unit", appearance.typeId);
+  const label = text("span", abbreviatedName(appearance.name)); label.className = "figure-name"; node.append(label);
+  const nameplate = text("span", appearance.name); nameplate.className = "token-nameplate"; node.append(nameplate);
+  const portrait = text("span", ""); portrait.className = "token-portrait";
+  const fallback = text("span", visual.glyph ?? abbreviatedName(appearance.name)); portrait.append(fallback);
+  if (visual.image) { const img = document.createElement("img"); img.alt = ""; img.src = visual.image; img.addEventListener("load", () => { fallback.hidden = true; }); img.addEventListener("error", () => { img.hidden = true; }); portrait.append(img); }
+  node.append(portrait);
+  if (appearance.maxHp > 1) { const hp = text("span", `${appearance.hp}/${appearance.maxHp}`); hp.className = "figure-hp"; hp.style.setProperty("--hp-fill", `${Math.max(0, Math.min(1, appearance.hp / appearance.maxHp)) * 100}%`); node.append(hp); }
+  ui.board.append(node);
+  try {
+    for (const segment of event.movementSegments) {
+      if (skipEffects) break;
+      node.style.transition = "none"; placeFigure(node, segment[0], board); node.getBoundingClientRect();
+      for (const cell of segment.slice(1)) {
+        if (skipEffects) break;
+        node.style.transition = "left .22s linear, top .22s linear";
+        placeFigure(node, cell, board); await guardedPause(250);
+      }
+    }
+  } finally {
+    node.remove(); for (const mask of masks) mask.remove();
+    if (stable) stable.style.visibility = "";
   }
 }
 

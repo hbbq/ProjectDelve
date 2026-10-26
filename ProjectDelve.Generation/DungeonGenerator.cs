@@ -15,8 +15,12 @@ public sealed record DungeonRoom(int X, int Y, int Width, int Height)
     }
 }
 public sealed record RoomConnection(int A, int B);
+public sealed record DungeonCorridor(int Width, IReadOnlyList<Cell> Spine, IReadOnlyList<Cell> Cells);
 public sealed record GenerationDiagnostics(IReadOnlyList<DungeonRoom> Rooms, IReadOnlyList<RoomConnection> Connections,
-    int StartRoom, int DestinationRoom, int DestinationDistance, int OccupiedRooms, int Monsters, int Attempts);
+    int StartRoom, int DestinationRoom, int DestinationDistance, int OccupiedRooms, int Monsters, int Attempts)
+{
+    public IReadOnlyList<DungeonCorridor> Corridors { get; init; } = [];
+}
 public sealed record GeneratedDungeon(GenerationCode Code, ScenarioDefinition Definition, string Fingerprint, GenerationDiagnostics Diagnostics);
 public sealed record MonsterThreat(string UnitTypeId, int Threat);
 
@@ -97,6 +101,8 @@ public static class DungeonGenerator
         private readonly Pcg32 routing = Pcg32.Stream(code.Seed!.Value, "connections", attempt);
         private readonly List<DungeonRoom> rooms = [];
         private readonly List<RoomConnection> connections = [];
+        private readonly List<DungeonCorridor> corridors = [];
+        private readonly List<(List<Cell> Sources, HashSet<Cell> Targets)> joins = [];
         private readonly Dictionary<Cell, int> floors = [];
         private readonly HashSet<(Cell, Cell)> passages = [];
         private readonly HashSet<(Cell, Cell)> portals = [];
@@ -107,6 +113,16 @@ public static class DungeonGenerator
         {
             Partition(whole, code.Rooms);
             if (failed) return false;
+            // Place every room before routing. Width may extend across a BSP separator
+            // into free rock, while every unrelated room is already a protected obstacle.
+            foreach (var join in joins)
+            {
+                var sourceOwners = join.Sources.Select(c => floors[c]).ToHashSet();
+                var targetOwners = join.Targets.Select(c => floors[c]).ToHashSet();
+                var sources = floors.Where(p => sourceOwners.Contains(p.Value)).Select(p => p.Key).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
+                var targets = floors.Where(p => targetOwners.Contains(p.Value)).Select(p => p.Key).ToHashSet();
+                if (!Connect(sources, targets, whole)) return false;
+            }
             // Connectivity is a level: up to C additional distinct room connections, where possible.
             // No request to change dimensions or room count is ever silently approximated.
             var pairs = (from a in Enumerable.Range(0, rooms.Count)
@@ -115,6 +131,13 @@ public static class DungeonGenerator
             routing.Shuffle(pairs);
             var added = 0;
             foreach (var pair in pairs)
+            {
+                if (added == code.Connectivity) break;
+                if (Connect(rooms[pair.A].Cells().ToList(), rooms[pair.B].Cells().ToHashSet(), whole, preferWide: true)) added++;
+            }
+            // Prefer useful wide extra routes. Tight configurations may still need
+            // a narrow alternative to honor their requested connection count.
+            foreach (var pair in pairs.Where(p => !connections.Contains(p)))
             {
                 if (added == code.Connectivity) break;
                 if (Connect(rooms[pair.A].Cells().ToList(), rooms[pair.B].Cells().ToHashSet(), whole)) added++;
@@ -126,8 +149,14 @@ public static class DungeonGenerator
         {
             if (count == 1)
             {
-                var w = 3 + geometry.Next(Math.Min(9, r.W - 2) - 2);
-                var h = 3 + geometry.Next(Math.Min(9, r.H - 2) - 2);
+                int RoomSize(int extent)
+                {
+                    var maximum = code.Excavation == 1 ? Math.Min(9, extent - 2) : extent - 2;
+                    var minimum = code.Excavation == 1 ? 3 : Math.Max(3, (maximum * (code.Excavation == 2 ? 65 : 85) + 99) / 100);
+                    return minimum + geometry.Next(maximum - minimum + 1);
+                }
+                var w = RoomSize(r.W);
+                var h = RoomSize(r.H);
                 var room = new DungeonRoom(r.X + 1 + geometry.Next(r.W - w - 1), r.Y + 1 + geometry.Next(r.H - h - 1), w, h);
                 var cells = room.Cells().ToList(); var owner = rooms.Count; rooms.Add(room);
                 foreach (var c in cells) floors.Add(c, owner);
@@ -146,38 +175,85 @@ public static class DungeonGenerator
             if (options.Count == 0) { failed = true; return []; }
             var split = options[geometry.Next(options.Count)];
             var left = Partition(split.A, split.CountA); var right = Partition(split.B, count - split.CountA);
-            if (failed || !Connect(left, right.ToHashSet(), r)) { failed = true; return []; }
-            return floors.Keys.Where(r.Contains).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
+            if (failed) return [];
+            joins.Add((left, right.ToHashSet()));
+            return left.Concat(right).OrderBy(c => c.Y).ThenBy(c => c.X).ToList();
         }
 
-        // Multi-source shortest route through unexcavated rock. Existing floors are endpoints only.
+        // Multi-source route through unexcavated rock, favoring room for two-Cell width.
+        // Existing floors are endpoints only.
         // Seal incidental floor contacts with ordinary Walls, so close parallel passages stay separate.
-        private bool Connect(List<Cell> sources, HashSet<Cell> targets, Region bounds)
+        private bool Connect(List<Cell> sources, HashSet<Cell> targets, Region bounds, bool preferWide = false)
         {
             routing.Shuffle(sources);
-            Dictionary<Cell, Cell?> previous = []; Queue<Cell> queue = new();
-            foreach (var source in sources) { previous[source] = null; queue.Enqueue(source); }
+            Dictionary<Cell, Cell?> previous = []; Dictionary<Cell, int> costs = [];
+            PriorityQueue<Cell, (int Cost, int Order)> queue = new(); var order = 0;
+            foreach (var source in sources) { previous[source] = null; costs[source] = 0; queue.Enqueue(source, (0, order++)); }
             var turn = routing.Next(4);
             Cell? end = null;
-            while (end is null && queue.TryDequeue(out var c))
+            while (queue.TryDequeue(out var c, out var priority))
             {
+                if (priority.Cost != costs[c]) continue;
+                if (targets.Contains(c)) { end = c; break; }
                 var neighbors = Neighbors(c).ToArray();
                 for (var i = 0; i < 4; i++)
                 {
                     var n = neighbors[(i + turn) % 4];
-                    if (!bounds.Contains(n) || previous.ContainsKey(n)) continue;
+                    if (!bounds.Contains(n)) continue;
                     if (floors.ContainsKey(n) && !targets.Contains(n)) continue;
+                    var dx = n.X - c.X; var dy = n.Y - c.Y;
+                    bool Free(Cell side) => bounds.Contains(side) && !floors.ContainsKey(side);
+                    var wide = Free(new(n.X - dy, n.Y + dx)) || Free(new(n.X + dy, n.Y - dx));
+                    var cost = costs[c] + (targets.Contains(n) || wide ? 1 : 9);
+                    if (costs.TryGetValue(n, out var oldCost) && oldCost <= cost) continue;
+                    costs[n] = cost;
                     previous[n] = c;
-                    if (targets.Contains(n)) { end = n; break; }
-                    queue.Enqueue(n);
+                    queue.Enqueue(n, (cost, order++));
                 }
             }
             if (end is null) return false;
             List<Cell> path = []; for (Cell? c = end; c is not null; c = previous[c]) path.Add(c);
             path.Reverse();
+            if (preferWide && path.Count > 6)
+            {
+                var narrow = 0;
+                for (var i = 1; i < path.Count - 1; i++)
+                {
+                    var dx = path[i].X - path[i - 1].X; var dy = path[i].Y - path[i - 1].Y;
+                    bool Blocked(Cell side) => !bounds.Contains(side) || floors.ContainsKey(side);
+                    if (Blocked(new(path[i].X - dy, path[i].Y + dx)) && Blocked(new(path[i].X + dy, path[i].Y - dx))) narrow++;
+                }
+                if (narrow * 100 > (path.Count - 2) * 15) return false;
+            }
             var ownerA = floors[path[0]]; var ownerB = floors[path[^1]];
             if (ownerA == ownerB) return false;
             connections.Add(new(Math.Min(ownerA, ownerB), Math.Max(ownerA, ownerB)));
+            var widthDraw = routing.Next(10);
+            // Narrow draws are short chokepoints, never long single-file hallways.
+            var width = widthDraw == 0 && path.Count <= 6 ? 1 : widthDraw < 8 ? 2 : 3;
+            var side = routing.Next(2) == 0 ? -1 : 1;
+            var excavated = path.Where(c => !floors.ContainsKey(c)).ToHashSet();
+            // Widen the routed spine structurally. Existing floors remain endpoints only;
+            // lateral contacts stay sealed, including beside single-Cell Door portals.
+            for (var i = 1; i < path.Count - 1; i++)
+            {
+                var dx = path[i].X - path[i - 1].X;
+                var dy = path[i].Y - path[i - 1].Y;
+                var remaining = width - 1;
+                foreach (var direction in new[] { side, -side })
+                for (var lane = 1; lane < width && remaining > 0; lane++)
+                {
+                    var cell = new Cell(path[i].X - dy * direction * lane, path[i].Y + dx * direction * lane);
+                    if (!bounds.Contains(cell) || floors.ContainsKey(cell)) break;
+                    excavated.Add(cell);
+                    remaining--;
+                }
+            }
+            foreach (var cell in excavated) floors.Add(cell, ownerA);
+            foreach (var cell in excavated)
+            foreach (var neighbor in Neighbors(cell))
+                if (excavated.Contains(neighbor)) passages.Add(Key(cell, neighbor));
+            corridors.Add(new(width, path.ToArray(), excavated.OrderBy(c => c.Y).ThenBy(c => c.X).ToArray()));
             for (var i = 0; i < path.Count; i++)
             {
                 floors.TryAdd(path[i], ownerA);
@@ -256,7 +332,7 @@ public static class DungeonGenerator
                  new(HeroesVsMonsters.Monsters, ScenarioObjective.DefeatUnits) { Count = 5 - required, Selectors = [UnitSelector.SideAtStart(HeroesVsMonsters.Heroes)] }] };
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ScenarioDefinitionJson.ToJson(definition))));
             return new(code, definition, hash[..16], new(rooms.ToArray(), connections.ToArray(), start, destination,
-                distances[destinationRoom.Center], occupied, units.Count - 4, attempt + 1));
+                distances[destinationRoom.Center], occupied, units.Count - 4, attempt + 1) { Corridors = corridors.ToArray() });
         }
     }
 }

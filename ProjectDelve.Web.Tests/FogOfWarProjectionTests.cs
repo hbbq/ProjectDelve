@@ -184,7 +184,75 @@ public sealed class FogOfWarProjectionTests
         var e = new RulesEvent("MovementCompleted", "guard", Path: [new(5, 4), new(6, 4), new(7, 4), new(8, 4)]);
         var projected = FogOfWar.ObserveEvent(state, "explorers", e)!;
         Assert.Equal("MovementObserved", projected.Kind); Assert.Null(projected.Path);
-        Assert.Equal(OutcomeRole.Notice, BrowserProjection.Outcome(projected, state).Role);
+        var outcome = BrowserProjection.Outcome(projected, state);
+        Assert.Equal(OutcomeRole.Movement, outcome.Role);
+        Assert.Equal(2, outcome.MovementSegments!.Count);
+        Assert.Equal([new Cell(5, 4), new(6, 4)], outcome.MovementSegments[0]);
+        Assert.Equal([new Cell(7, 4), new(8, 4)], outcome.MovementSegments[1]);
+        Assert.NotNull(outcome.MovingFigure);
+    }
+
+    [Theory]
+    [InlineData(4, 5, 1)] // known -> known
+    [InlineData(7, 5, 1)] // unknown -> known
+    [InlineData(5, 7, 1)] // known -> unknown
+    [InlineData(8, 7, 0)] // unknown -> unknown
+    public void MovementProjectionIncludesOnlyObservedRunsAndOneBoundaryStep(int from, int to, int expected)
+    {
+        var state = Dungeon(); Move(state, "guard", new(to, 4));
+        var direction = Math.Sign(to - from);
+        var path = Enumerable.Range(0, Math.Abs(to - from) + 1).Select(i => new Cell(from + i * direction, 4)).ToList();
+        var occurrence = new RulesEvent("MovementCompleted", "guard", Path: path);
+        var observed = FogOfWar.ObserveEvent(state, "explorers", occurrence);
+        if (expected == 0) { Assert.Null(observed); return; }
+        Assert.Single(observed!.ObservedMovement!);
+        Assert.DoesNotContain(observed.ObservedMovement!.SelectMany(s => s), c => c.X > 6);
+        var outcome = BrowserProjection.Create(new(state, [occurrence], null)).Events.Single();
+        Assert.NotNull(outcome.MovingFigure);
+        Assert.Equal(UnitTypeIds.Grunt, outcome.MovingFigure!.TypeId);
+        Assert.DoesNotContain("7,4", outcome.Text);
+        Assert.DoesNotContain("8,4", outcome.Text);
+        // Observation remains idempotent without restoring hidden world state.
+        var twice = FogOfWar.ObserveEvent(FogOfWar.Observe(state, "explorers"), "explorers", observed);
+        Assert.NotNull(twice);
+        Assert.Equal(observed.Kind, twice.Kind);
+    }
+
+    private sealed class PatrolRandom : IRandomProvider
+    {
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag.OrderBy(t => t.SideId == "red" ? 0 : 1).First();
+        public AttackFace RollAttackDie() => AttackFace.Miss;
+        public DefenceFace RollDefenceDie() => DefenceFace.Miss;
+        public int RollD6() => 6;
+    }
+
+    [Fact]
+    public void TestOwnedPatrolUsesActualCanonicalMovementToEnterAndLeaveFog()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "ProjectDelve.sln"))) directory = directory.Parent;
+        var definition = ScenarioDefinitionJson.FromJson(File.ReadAllText(Path.Combine(directory!.FullName, "ProjectDelve.Engine.Tests", "Fixtures", "fog-patrol.json")));
+        using var game = new PlaytestGame(new PatrolRandom(), GameEngine.CreateGame(definition));
+        Assert.DoesNotContain("patrol", game.BrowserResponse(game.Snapshot()).Presentation.Cards.Keys);
+        var entered = game.StartRound(0);
+        var entering = game.BrowserResponse(entered).Presentation.Events.Single(e => e.Role == OutcomeRole.Movement);
+        Assert.Equal([new Cell(6, 2), new(5, 2)], entering.Path);
+        Assert.Equal([new Cell(7, 2), new(6, 2), new(5, 2)], Assert.Single(entering.MovementSegments!));
+        Assert.Equal("Grunt", entering.MovingFigure!.Name);
+        Assert.Contains("patrol", game.BrowserResponse(entered).Presentation.Cards.Keys);
+        for (var i = 0; !entered.Result.State.RoundComplete && i < 4; i++)
+        {
+            var candidates = entered.Result.NextInput!.Candidates;
+            var key = candidates.Any(c => c.Key == "stay") ? "stay" : "end-turn";
+            entered = game.Decide(entered.Revision, key);
+        }
+        Assert.True(entered.Result.State.RoundComplete);
+        var left = game.StartRound(entered.Revision);
+        var leaving = game.BrowserResponse(left).Presentation.Events.Single(e => e.Role == OutcomeRole.Movement);
+        Assert.Equal([new Cell(5, 2), new(6, 2)], leaving.Path);
+        Assert.Equal([new Cell(5, 2), new(6, 2), new(7, 2)], Assert.Single(leaving.MovementSegments!));
+        Assert.Equal("Grunt", leaving.MovingFigure!.Name);
+        Assert.DoesNotContain("patrol", game.BrowserResponse(left).Presentation.Cards.Keys);
     }
 
     [Fact]

@@ -250,6 +250,22 @@ public sealed class FootprintTests
     }
 
     [Fact]
+    public void ClosedTerrainCornerAndAlternativeCellPairStillRequireRangeAndLosThroughTheSamePair()
+    {
+        var state = World(Large() with { Rng = 3 }, new(0, 0));
+        Add(state, "target", Large("target"), new(3, 2));
+        state.Physical.Board.Terrain.AddRange([new(new(3, 1), TerrainKind.SolidRock), new(new(2, 2), TerrainKind.Tree)]);
+        Assert.False(AttackRules.HasUnitLineOfSight(state, "actor", new(1, 1), new(4, 2), "target"));
+        state.Physical.Board.Terrain.RemoveAt(0);
+        Assert.True(AttackRules.HasUnitLineOfSight(state, "actor", new(1, 1), new(4, 2), "target"));
+        Assert.False(AttackRules.HasUnitLineOfSight(state, "actor", new(1, 1), new(3, 2), "target"));
+        Assert.True(AttackRules.HasUnitLineOfSight(state, "actor", "target"));
+        Assert.Equal(UnitTargetEvaluation.NotPossible, AttackRules.EvaluateFrom(state, "actor", new(0, 0), "target"));
+        state.Types[0] = state.Types[0] with { Rng = 4 };
+        Assert.Equal(UnitTargetEvaluation.Possible, AttackRules.EvaluateFrom(state, "actor", new(0, 0), "target"));
+    }
+
+    [Fact]
     public void FuryBackstabAndAuraCountUnitsOnceAndNeverSelf()
     {
         var state = World(Large() with { Fury = new(), Backstab = new(), AdjacentFriendlyUnitsDefenceBonus = new(1) });
