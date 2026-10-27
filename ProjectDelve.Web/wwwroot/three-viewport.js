@@ -4,7 +4,7 @@ import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
 import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
 import { createTabletopVisuals, createMovementClipPool } from './three-tabletop.js';
-import { orientationBasis, groundQuadrilateral } from './three-camera-geometry.js';
+import { orientationBasis, groundQuadrilateral, perspectiveLens } from './three-camera-geometry.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
@@ -30,7 +30,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;renderer.shadowMap.enabled=false;
   renderer.localClippingEnabled=true;
   renderer.setClearColor('#11161c');
-  const scene=new THREE.Scene(), camera=new THREE.OrthographicCamera(-1,1,1,-1,.1,200);
+  const scene=new THREE.Scene(), orthographicCamera=new THREE.OrthographicCamera(-1,1,1,-1,.1,200),perspectiveCamera=new THREE.PerspectiveCamera(45,1,.01,200);
+  let camera=orthographicCamera;
   camera.up.set(0,0,-1);
   const groups=Object.fromEntries(Object.keys(heights).map(name=>{const group=new THREE.Group();group.name=name;scene.add(group);return[name,group];}));
   const labels=document.createElement('div');labels.className='three-labels';labels.setAttribute('aria-hidden','true');host.append(labels);
@@ -175,7 +176,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }
       const layer=terrainLayers(kind,{seed:frame.visualSeed,x,y,direction:tile?.direction,terrain});
       batchCell('terrain',material(layer.base.fill,layer.base.image),x,y,layer.rotation);
-      if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed));
+      if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt));
       else if(layer.object){retain(`object:${x},${y}`,JSON.stringify(layer.object)+layer.objectRotation,'objects',()=>{
         const group=new THREE.Group(),fallback=plane(glyph(kind==='StoneFloorWithTable'?'▰':'♣'),x+.5,y+.5,.65,.65,heights.objects);
         artwork(group,fallback,layer.object.image?material('#254737',layer.object.image,true):null,x+.5,y+.5,1,1,heights.objects+.005,layer.objectRotation);return group;
@@ -295,10 +296,12 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     });
     invalidate();
   }
-  function resize(){const rect=host.getBoundingClientRect(),w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;const ratio=Math.min(globalThis.devicePixelRatio||1,2),width=Math.round(w*ratio),height=Math.round(h*ratio);if(canvas.width!==width||canvas.height!==height)renderer.setSize(width,height,false);camera.left=-w/2;camera.right=w/2;camera.top=h/2;camera.bottom=-h/2;cameraControl.resize(w,h);return rect;}
-  function updateCamera(){const pose=cameraControl.current();if(!pose)return;const b=orientationBasis(pose),board=frame.state.physical.board,distance=Math.max(100,Math.hypot(board.width,board.height)*2);
+  function resize(){const rect=host.getBoundingClientRect(),w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;const ratio=Math.min(globalThis.devicePixelRatio||1,2),width=Math.round(w*ratio),height=Math.round(h*ratio);if(canvas.width!==width||canvas.height!==height)renderer.setSize(width,height,false);orthographicCamera.left=-w/2;orthographicCamera.right=w/2;orthographicCamera.top=h/2;orthographicCamera.bottom=-h/2;perspectiveCamera.aspect=w/h;cameraControl.resize(w,h);return rect;}
+  function updateCamera(){const pose=cameraControl.current();if(!pose)return;const b=orientationBasis(pose),board=frame.state.physical.board,lens=perspectiveLens(pose,cameraControl.size),distance=lens.perspective?lens.distance:Math.max(100,Math.hypot(board.width,board.height)*2);
+    camera=lens.perspective?perspectiveCamera:orthographicCamera;
     camera.position.set(pose.x+distance*b.st*b.s,distance*b.ct,pose.y+distance*b.st*b.c);
-    camera.up.set(-b.ct*b.s,b.st,-b.ct*b.c);camera.lookAt(pose.x,0,pose.y);camera.far=distance*2+10;camera.zoom=pose.scale;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);}
+    const closest=Math.min(...[-.12,board.width+.12].flatMap(x=>[-.12,board.height+.12].map(y=>distance-b.st*(b.s*(x-pose.x)+b.c*(y-pose.y))-b.ct*.75)));
+    camera.up.set(-b.ct*b.s,b.st,-b.ct*b.c);camera.lookAt(pose.x,0,pose.y);camera.far=distance+Math.hypot(board.width,board.height)+10;camera.near=lens.perspective?Math.max(.01,closest*.5):.1;camera.zoom=lens.perspective?1:pose.scale;if(lens.perspective)camera.fov=lens.fov;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);}
   function draw(time){
     try { drawFrame(time); } catch(error) { raf=null;lost=true;onFailure?.(error); }
   }
@@ -351,7 +354,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const diameter=samples?Math.max(...samples.map(p=>p.x))-Math.min(...samples.map(p=>p.x)):pose.scale*.84*a.cellSpan;
       const screenHeight=samples?Math.max(...samples.map(p=>p.y))-Math.min(...samples.map(p=>p.y)):diameter;
       label.detail=tokenDetail(diameter,label.detail);label.dataset.detail=String(label.detail);const width=Math.min(150,Math.max(24,diameter));
-      const offscreen=p.x+diameter/2<0||p.y+diameter/2<0||p.x-diameter/2>size.width||p.y-diameter/2>size.height;
+      const offscreen=p.behind||p.x+diameter/2<0||p.y+diameter/2<0||p.x-diameter/2>size.width||p.y-diameter/2>size.height;
       const collision=placed.some(r=>Math.abs(r.x-p.x)<(r.w+width)/2&&Math.abs(r.y-p.y)<diameter*.7);
       label.hidden=offscreen||id===transientId||label.detail<2||collision&&id!==view.focusedUnitId;
       if(label.hidden)continue;placed.push({x:p.x,y:p.y,w:width});label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;label.style.width=`${width}px`;label.style.height=`${Math.max(22,screenHeight)}px`;
@@ -380,15 +383,16 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     let door,nearest=Infinity;for(const candidate of doors){const p=edgePlacement(candidate),a=cameraControl.screen({x:p.x-(p.vertical?0:.5),y:p.z-(p.vertical?.5:0)}),b=cameraControl.screen({x:p.x+(p.vertical?0:.5),y:p.z+(p.vertical?.5:0)}),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/(dx*dx+dy*dy)));
       let distance=Math.hypot(point.x-a.x-t*dx,point.y-a.y-t*dy);
       if(presentation==='tabletop'&&candidate.kind!=='OpenDoor'){
-        const top=cameraControl.screen({x:p.x-(p.vertical?0:.5),y:p.z-(p.vertical?.5:0),height:.6}),hx=top.x-a.x,hy=top.y-a.y,det=dx*hy-dy*hx;
-        if(Math.abs(det)>1e-6){const px=point.x-a.x,py=point.y-a.y,u=(px*hy-py*hx)/det,v=(dx*py-dy*px)/det;if(u>=0&&u<=1&&v>=0&&v<=1)distance=0;}
+        const topA=cameraControl.screen({x:p.x-(p.vertical?0:.5),y:p.z-(p.vertical?.5:0),height:.6}),topB=cameraControl.screen({x:p.x+(p.vertical?0:.5),y:p.z+(p.vertical?.5:0),height:.6});
+        const polygon=[a,b,topB,topA],crosses=polygon.map((v,i)=>{const w=polygon[(i+1)%4];return(w.x-v.x)*(point.y-v.y)-(w.y-v.y)*(point.x-v.x);});
+        if(!polygon.some(v=>v.behind)&&(crosses.every(v=>v>=-1e-6)||crosses.every(v=>v<=1e-6)))distance=0;
       }
       if(distance<10&&distance<nearest){door=candidate;nearest=distance;}
     }
     let figure=frame.state.physical.figures.find(f=>(frame.presentation.figures?.[f.id]?.occupiedCells??[f.position]).some(c=>boardCellKey(c)===boardCellKey(cell)));
     if(presentation==='tabletop'&&!door&&!(view.candidates??[]).some(c=>c.interaction.kind==='Position'&&boardCellKey(c.interaction.position)===boardCellKey(cell))){
       const at=cameraControl.groundAtHeight?.(point,.084)??cameraControl.ground(point);
-      const proxy=frame.state.physical.figures.find(f=>{const span=frame.presentation.figures?.[f.id]?.cellSpan??1,center=cellCenter(f.position,span);return Math.hypot(at.x-center.x,at.y-center.z)<=span*.46;});
+      const proxy=at&&frame.state.physical.figures.find(f=>{const span=frame.presentation.figures?.[f.id]?.cellSpan??1,center=cellCenter(f.position,span);return Math.hypot(at.x-center.x,at.y-center.z)<=span*.46;});
       if(proxy){figure=proxy;const cells=frame.presentation.figures?.[proxy.id]?.occupiedCells??[proxy.position];if(!cells.some(c=>boardCellKey(c)===boardCellKey(cell))){const nearest=[...cells].sort((a,b)=>Math.hypot(a.x+.5-at.x,a.y+.5-at.y)-Math.hypot(b.x+.5-at.x,b.y+.5-at.y))[0];cell.x=nearest.x;cell.y=nearest.y;}}
     }
     const outside=()=>cell.x<0||cell.y<0||cell.x>=board.width||cell.y>=board.height;

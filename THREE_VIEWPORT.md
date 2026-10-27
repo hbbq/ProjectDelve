@@ -62,8 +62,8 @@ Failed activation rolls back the overlay and working viewport.
 One world unit is one Cell. X follows board x; Z follows board y; Y is visual
 height. Cell `(x,y)` occupies `[x,x+1] × [y,y+1]`. A span-s figure is centered at
 `(x+s/2, height, y+s/2)`. The orthographic camera looks down with north at screen
-top in Flat mode. Tabletop adds tilt/yaw to the same orthographic camera. There
-are no lights, shadows, tone mapping or perspective. Physical geometry uses
+top in Flat mode. Tabletop adds tilt/yaw and selectable orthographic/perspective
+projection. There are no lights, shadows or tone mapping. Physical geometry uses
 restrained baked vertex tones rather than a lighting system.
 
 Named groups separate terrain, grid, objects, rails, Edges, items, transient
@@ -187,12 +187,13 @@ mark and HTML information stay fixed. Skip/cancel settles the authoritative face
 Walls are .52 Cell high, .13 thick blocks on canonical Edge centers. Doors use
 .60-high jambs and a .54-high leaf; opening lifts/shrinks the leaf out, leaving a
 clear passage. Closing restores it. Windows retain a visibly open frame. Solid
-Rock is a low faceted component with existing top artwork; Trees/Fruit Trees use
-trunks, compact crowns and existing canopy images; Tables use supports and the
-existing tabletop print. Machines use compact blocks, artwork badges, owner
+Rock uses continuous low tops and observed boundary skirts (details below);
+Trees/Fruit Trees use trunks, compact crowns and existing canopy images; Tables
+use four legs, aprons and a distinct wooden top with the existing print. Machines
+use compact blocks, artwork badges, owner
 accents and projected storage labels. Static obstacle parts are instanced by
 geometry/material. A separate `tabletop-shape-v1` variant domain varies rock
-geometry without changing terrain artwork hashes.
+boundary tones without changing terrain artwork hashes.
 
 Coal, Diamond, Banana, Fruit, Mushroom and Shell use shared low-poly geometry.
 Unknown Resources fall back to a physical puck with catalog artwork/glyph.
@@ -206,8 +207,9 @@ capabilities. An observed item under a Unit also receives a small HTML indicator
 `three-camera-geometry.js` owns Three-specific projection/inversion, ground
 quadrilateral, projected-bound fitting and yaw interpolation. Shared DOM camera
 geometry is unchanged. Tilt is limited to 0–55°. Full fits border and .75 Cell of
-height with screen padding. Fixed uses maximum board-space span derived from the
-unprojected viewport corners. Auto fits supplied active/Move footprints, margins
+height with screen padding. Orthographic Fixed uses maximum board-space span
+derived from the unprojected viewport corners; perspective uses the focus-plane
+reference described below. Auto fits supplied active/Move footprints, margins
 and nearby friends under the existing span cap; it rechecks bounds during camera
 rotation. Angled pan bounds keep the focus on the board while allowing gutters:
 requiring a rotated viewport to stay entirely inside the board would exclude
@@ -309,6 +311,158 @@ Those math/lifecycle paths have focused automated coverage, but the data-only
 dispatcher cannot inject them. Low-end/mobile GPU timing and actual VRAM were
 not measured. Labels retain local collision suppression, cutaway is user-operated,
 and simple component silhouettes deliberately do not imply gameplay height/LOS.
+
+## Perspective camera and component refinement — 2026-10-27
+
+Tabletop's Projection selector chooses Orthographic (default) or Perspective.
+Lens selects vertical FOV from 20° to 80° in 5° steps, default 45°, and is disabled
+in Orthographic. The math and transitions accept continuous FOV values. Projection
+and lens share the existing `delve.three.camera.v1` preference record with camera
+policy. Flat always returns to overhead orthographic, retaining the Tabletop lens
+preference for the next switch. Classic, Enhanced, Designer and Generator use
+their existing renderers.
+
+The viewport owns one OrthographicCamera and one genuine PerspectiveCamera, with
+one renderer/context. Only the currently displayed camera renders and raycasts.
+Camera pose contains the board-space ground focus `(x,y)`, scale, tilt, yaw, FOV
+and projection mix; it contains no Unit representation or gameplay state. Unit
+roots, body bounds and information anchors remain independent of projection.
+
+For viewport height H, vertical FOV F and mix m, focal length in CSS pixels is
+`f = H / (2 * tan(F/2) * m)` and eye distance is `d = f / scale`. At m=0 the
+orthographic camera is used exactly. With yaw-rotated coordinates u/v, height h
+and tilt t, perspective depth is `d - sin(t)*v - cos(t)*h`; screen offsets are
+`f*u/depth` and `f*(cos(t)*v - sin(t)*h)/depth`. Inverse ground/raised-plane
+queries solve these same equations, verified against real Three matrices.
+Every update derives distance from the pose; lens changes never accumulate dolly
+offsets. Near clipping uses the nearest board/border/height bound, avoiding poor
+depth precision on large boards. Far clipping includes the complete board depth.
+
+Zoom expresses desired board-space span independently of the lens. Perspective
+uses the matched orthographic ground coverage at the focus plane as that reference,
+labelled "Cells focus span". Changing FOV derives a new distance while keeping
+that focus scale/span; zoom retains the chosen FOV. Actual near/far ground coverage
+changes with perspective strength, as it must under an angled lens. Tilt/yaw retain
+focus and derive the scale for the requested span. Tabletop permits gutters even
+at exactly overhead so crossing projection/orientation boundaries does not shift
+a corner focus. Flat's clamping is unchanged.
+
+Full solves the frustum inequalities at all board/border corners at heights 0
+and .75 Cell, with 28px padding. It does not assume bounds vary linearly with
+distance. Auto uses supplied active and legal Move footprints first, then margin
+and nearby friends. Perspective fitting accounts for actual vertex depth and
+16px padding. Comfortable following tests projected bounds and searches along
+the focus translation. Within-activation expansion remains stable. During lens
+and rotation transitions Auto rechecks the active footprint; optional regions
+can overflow at the span cap. If even the active footprint cannot fit under that
+cap on a narrow viewport, its complete display takes priority and the view widens.
+
+Transitions use the existing invalidation-driven RAF, 260ms cubic easing, shortest
+yaw and logarithmic span interpolation. FOV and projection strength interpolate
+continuously; distance and compensated scale are recalculated at each displayed
+pose. Intermediate projection uses a real perspective lens tending to parallel
+rays, without a second render pass/context or projection-matrix blend. Retargeting
+starts at the displayed pose. Manual input interrupts following/position movement
+immediately while an unfinished lens request completes smoothly from its displayed
+value. Skip Effects, reduced motion, deactivation and session replacement settle
+local work without adding playback pauses. Idle scenes still schedule no RAF.
+
+Picking uses the active camera matrix. Raised closed-Door proxies use the actual
+projected four-corner polygon, including its perspective taper; Open Door proxies
+retain their ground Edge tolerance. Unit caps map back to observed footprints;
+supplied Position choices retain priority. Ground rays above the horizon return
+no hit. HTML information anchors, sampled token sizes, logical focus, Areas and
+objective indicators project through the same pose; Unit labels behind the eye
+are culled. Decoration never supplies legality.
+
+FoW remains the server's displayed observed projection. Unknown terrain is checked
+before sparse terrain defaults. Hidden stable content is never built. Stable
+observable multi-Cell Units remain whole; transient copies retain the same four
+vertical world-space clipping planes per explored Cell under both projections.
+Hidden boundary movement still cannot drive the camera. No transient HTML labels
+are created. No Engine, server observation, scenario format or rule changes are
+involved.
+
+Solid Rock now has coplanar, full-Cell tops at .22 Cell, reusing the original
+variant/rotation artwork in a single opaque surface. Adjacent tops meet without
+isolated columns or internal walls. A shared shallow, inward-faceted skirt appears
+only where an observed Rock Cell borders a known non-Rock Cell; Unknown neighbours
+never create an excavation boundary. Skirts stay inside the observed Cell and use
+deterministic tones. No geometry merging/flood fill or hidden terrain lookup is
+needed. Shared geometry is cached once; keyed instanced batches are retained until
+their observed terrain-derived transforms change. Reconciliation computes these
+transforms on observed frame changes, never on camera RAFs. Single-surface tops
+also avoid perspective depth striping from near-coplanar fallback/artwork layers.
+
+Tables have an .80×.55 Cell horizontal wooden top at .40 Cell, four .085-wide legs,
+and two aprons. The existing print follows the complete prop's deterministic
+quarter turn. Solid wood supplies the loading/failure fallback. Geometry/materials
+remain shared and static parts enter the existing instance batches. Neither prop
+changes logical placement, movement, LOS, height or collision rules.
+
+Known presentation limits/defaults: at a ground horizon, visible ground span is
+infinite. Fixed's focus-span label is a finite framing reference, not a literal
+bound on every perspective corner ray. Matching those farthest intersections
+instead would cause strong apparent zoom at the focus when changing FOV; the
+focus-plane reference is the chosen stable presentation default. Coordinate
+enumeration uses a finite overhead reference at the horizon; actual picking still
+rejects sky rays. The low Rock silhouette remains available for later visual
+tuning. Local label collision suppression and
+the current .75 Cell Full-height budget remain; future taller body factories can
+extend that presentation budget without gameplay changes.
+
+### Refined camera/component verification
+
+Final client/security verification: 504 tests passed, including original
+orthographic assertions and new real-matrix perspective/inverse tests, continuous
+FOV compensation, Fixed coverage, Full/Auto depth fitting, rotated/narrow views,
+focus retention, retargeting, interrupted lens zoom, touch tap suppression, Door
+and Unit proxies, hidden camera-event suppression, FoW clipping across projection/
+FOV/yaw combinations, observed Rock boundaries, four-leg Tables, instance reuse,
+reduced motion, Skip/settle, replacement, context recovery and idle rendering.
+The .NET solution build has zero warnings/errors; the complete regression suite
+passed 1,978 tests (1,601 Engine / 377 Web).
+
+Protected Edge dispatcher, isolated 5081, desktop 1440×1000 and narrow 600×850.
+Generated 50×50 comparisons retain the previous seed/profile. These are short
+local CPU samples, not GPU timer or VRAM measurements. First-frame values below
+are direct Tabletop activation, including lazy scene setup; the older record used
+Tabletop after preloading Flat, so those startup values are not comparable.
+
+| Scene | Calls | Triangles | Textures / geometries | Direct Tabletop first frame | Warm CPU render p95 | Camera CPU p95 / interval p95 / samples |
+| --- | ---: | ---: | --- | ---: | ---: | --- |
+| 50×50, 24 rooms, revealed | 476 | 23,340 | 29 / 7 | 153.9 ms | 3.4 ms | 2.9 ms / 16.73 ms / 7 |
+| 50×50, 24 rooms, FoW | 52 | 6,018 | 16 / 7 | 131.5 ms | 2.5 ms | 2.4 ms / 16.7 ms / 7 |
+| 50×50 test board, 2,499 Rock Cells | 18 | 10,992 | 6 / 7 | 130.9 ms | 2.9 ms | 1.7 ms / 16.7 ms / 8 |
+
+The previous revealed Tabletop record had 517 calls, 42,530 triangles and nine
+uploaded geometries. The refined sample reduces calls about 8% and triangles
+about 45%; estimated textures remain 20.75 MiB (FoW 8.17, Rock test 2.83).
+Cold CPU render spikes are excluded from warm samples. Repeated projection
+switching retained 29 textures, seven geometries and ten programs across six
+fully settled projection changes in the sampled scene; source meshes
+used to build static instances do not register retained artwork fallbacks.
+
+Evidence under `.playwright-cli/browser-qa/`:
+
+- `inspection-wO7DWU`: 20°/45°/80° and orthographic initial comparison.
+- `inspection-0yATp5`: final Fixed lens comparison, rotated and narrow Full.
+- `inspection-stdXXo`: final revealed generated Rock geometry and warm timings.
+- `inspection-yZcZp9`: final dense FoW performance.
+- `inspection-33CdG4`: continuous 50×50 Rock surface and timings after depth fix.
+- `inspection-CJY2o1`: 80° FoW entry/exit and restart.
+- `inspection-GBMfI9`: Door opening, legal Move and observed posture playback.
+- `inspection-7UdQiv`: Attack/Defence and renderer switching.
+- `inspection-FKh27y`: settled Flat, Classic, Enhanced, Tabletop, restart and reload.
+- `inspection-7hl1Hi`: six settled projection switches and stable resource counts.
+- `inspection-TmuUd8`: Table close-up, angled/rotated and overhead.
+
+Successful plans reported no console errors or missing assets. Refresh/replacement
+plans include expected aborted superseded SSE requests. Native canvas gestures,
+real touch hardware, real-driver context loss, frame-exact FoW pixel assertions
+and long-duration/GPU performance remain manual QA gaps: the restricted dispatcher
+cannot inject those operations. Node tests cover the corresponding math/input/
+lifecycle paths. No browser permissions or protected dispatcher files changed.
 
 ## Verification and diagnostics
 

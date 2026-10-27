@@ -3,6 +3,13 @@ import { boardVisuals, terrainVariantIndex } from './board-visuals.js';
 import { sideHue } from './side-colors.js';
 
 export const tabletopDimensions=Object.freeze({border:.12,boardThickness:.12,tokenThickness:.06,tokenRadius:.46,wallHeight:.52,doorHeight:.6});
+// Only observed neighbours may form an excavated boundary. Unknown neighbours
+// always retain the continuous top; neither their kind nor hidden extent enters.
+export function rockBoundaryMask(x,y,kindAt){
+  return [[0,-1],[1,0],[0,1],[-1,0]].reduce((mask,[dx,dy],i)=>{
+    const kind=kindAt(x+dx,y+dy);return kind!=='Unknown'&&kind!=='SolidRock'?mask|(1<<i):mask;
+  },0);
+}
 
 // Concrete visual bodies, not Units or rules. A future model body can supply the
 // same group/bounds/anchor without owning identity, footprint, choices or cards.
@@ -28,8 +35,10 @@ export function createTabletopVisuals({material,glyph,plane,artwork,geometries})
   }
   const box=(g,c,x,y,z,w,h,d,r=0)=>mesh(g,geometries.box,c,x,y,z,w,h,d,r);
   function print(group,image,x,z,w,d,height,rotation=0,color='#82796a'){
-    const fallback=plane(material(color),x,z,w,d,height,rotation);group.add(fallback);
-    if(image)group.add(plane(material(color,image,true),x,z,w,d,height+.001,rotation));
+    // Printed props already have a solid top beneath the image. It is also the
+    // loading/failure fallback; registering throwaway source meshes as artwork
+    // fallbacks would retain them after their transforms enter static batches.
+    group.add(plane(image?material(color,image,true):material(color),x,z,w,d,height+(image?.001:0),rotation));
   }
   function unit(a){
     const body=new THREE.Group(),s=a.cellSpan??1,r=s*tabletopDimensions.tokenRadius,t=tabletopDimensions.tokenThickness;
@@ -75,21 +84,32 @@ export function createTabletopVisuals({material,glyph,plane,artwork,geometries})
     print(group,null,width/2,height/2,width+2*b,height+2*b,-.004,0,'#766b59');
     return group;
   }
-  function terrain(kind,layer,x,z,seed){
+  function terrain(kind,layer,x,z,seed,kindAt=()=> 'Unknown'){
     const group=new THREE.Group(),cx=x+.5,cz=z+.5;
     const variation=terrainVariantIndex(seed,'tabletop-shape-v1:'+kind,x,z,3);
     if(kind==='SolidRock'){
-      const h=.36+variation*.035;
-      mesh(group,geometries.lump,['#625e63','#777076','#514e55'][variation],cx,h/2,cz,.49,h*.64,.49,variation*.17);
-      print(group,layer.base.image,cx,cz,.78,.78,h,layer.rotation,'#625c64');
+      const mask=rockBoundaryMask(x,z,kindAt);
+      group.add(plane(material(layer.base.fill,layer.base.image),cx,cz,1,1,.22,layer.rotation));
+      // Shared tops have no gaps or internal walls. Exposed excavation edges
+      // use a shallow, inward-faceted skirt, wholly inside the observed Cell.
+      if(!geometries.rockWall){
+        const g=new THREE.BufferGeometry(),p=[-.5,.22,0,.5,.22,0,.5,.10,.025,-.5,.22,0,.5,.10,.025,-.5,.10,.025,-.5,.10,.025,.5,.10,.025,.5,0,0,-.5,.10,.025,.5,0,0,-.5,0,0];
+        g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.computeVertexNormals();geometries.rockWall=g;
+      }
+      for(let i=0;i<4;i++)if(mask&(1<<i)){
+        const wall=new THREE.Mesh(geometries.rockWall,material(['#645e66','#706770','#645e66'][variation]));
+        wall.position.set(cx+[0,.5,0,-.5][i],0,cz+[-.5,0,.5,0][i]);wall.rotation.y=-i*Math.PI/2;group.add(wall);
+      }
     }else if(kind==='Tree'||kind==='FruitTree'){
       mesh(group,geometries.cylinder,'#69503a',cx,.19,cz,.065,.38,.065);
       mesh(group,geometries.dome,'#35563b',cx,.41,cz,.34,.18,.34);
       if(layer.object)group.add(plane(material('#35563b',layer.object.image,true),cx,cz,.88,.88,.6,layer.objectRotation));
     }else if(kind==='StoneFloorWithTable'){
-      for(const dx of [-.27,.27])for(const dz of [-.22,.22])box(group,'#614632',cx+dx,.105,cz+dz,.065,.21,.065);
-      box(group,'#9b7752',cx,.235,cz,.78,.07,.69);
-      print(group,layer.object?.image,cx,cz,.90,.90,.273,layer.objectRotation,'#8a6747');
+      const prop=new THREE.Group();prop.position.set(cx,0,cz);prop.rotation.y=layer.objectRotation*Math.PI/180;group.add(prop);
+      for(const dx of [-.29,.29])for(const dz of [-.18,.18])box(prop,'#614632',dx,.17,dz,.085,.34,.085);
+      for(const dz of [-.19,.19])box(prop,'#795538',0,.285,dz,.66,.10,.055);
+      box(prop,'#a47a4e',0,.365,0,.80,.07,.55);
+      print(prop,layer.object?.image,0,0,.78,.53,.401,0,'#a47a4e');
     }
     return group;
   }

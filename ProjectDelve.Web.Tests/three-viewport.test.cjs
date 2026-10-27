@@ -83,7 +83,8 @@ function fixture(size=8,side=null){
 async function harness(frame=fixture()){
   const frames=new Map(),requests=[],rendered=[],picked=[],hovered=[],failures=[];let handle=0,disposed=0;
   const saved={};for(const key of ['document','ResizeObserver','requestAnimationFrame','cancelAnimationFrame','addEventListener','matchMedia'])saved[key]=globalThis[key];
-  const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives','tilt','yaw','cutaway'])controls[id]=new Element();controls.root.append(controls.status);
+  const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives','tilt','yaw','cutaway','projection','fov'])controls[id]=new Element();controls.root.append(controls.status);
+  for(const id of ['projection','fov']){const label=new Element('label');label.append(controls[id]);controls.root.append(label);}
   const host=new Element();
   globalThis.document={createElement:tag=>new Element(tag),getElementById:()=>null};globalThis.ResizeObserver=class{observe(){}disconnect(){}};
   globalThis.requestAnimationFrame=fn=>{frames.set(++handle,fn);return handle;};globalThis.cancelAnimationFrame=id=>frames.delete(id);globalThis.addEventListener=()=>{};
@@ -250,6 +251,103 @@ test('angled ray picking, cap proxies, open Doors, pan, zoom and cutaway use log
   }finally{h.cleanup();}
 });
 
+test('perspective picking, supplied Move/Attack choices and independent lens/zoom remain exact during transitions',async()=>{
+  const h=await harness(fixture(16));try{
+    h.viewport.setPresentation('tabletop');const c=h.viewport.camera;c.setMode('full');h.viewport.settle();h.flush();
+    const focus=c.current();c.setProjection('perspective');assert.equal(c.inspect().transitionActive,true);
+    h.flush(performance.now()+100);assert.equal(h.rendered.at(-1).camera.isPerspectiveCamera,true);
+    assert.ok(c.current().projectionMix>0&&c.current().projectionMix<1);
+    assert.ok(Math.hypot(c.current().x-focus.x,c.current().y-focus.y)<1e-8);
+    assert.deepEqual(h.viewport.pick(h.viewport.project({x:8.5,y:8.5})).cell,{x:8,y:8});
+    h.viewport.settle();
+    for(const fov of [20,45,80])for(const yaw of [0,47,180,275]){
+      c.setFov(fov,false);c.setOrientation({tilt:55,yaw},false);h.flush();
+      for(const cell of [{x:0,y:0},{x:8,y:10},{x:5,y:4}])assert.deepEqual(h.viewport.pick(h.viewport.project({x:cell.x+.5,y:cell.y+.5})).cell,cell);
+      assert.equal(h.viewport.pick(h.viewport.project({x:2.5,y:2.5,height:.084})).unitId,'hero');
+      assert.equal(h.viewport.pick(h.viewport.project({x:5,y:4,height:.084})).unitId,'large');
+      const door={a:{x:8,y:8},b:{x:9,y:8},kind:'OpenDoor'};
+      h.viewport.showInteraction({candidates:[{key:'door',interaction:{kind:'Door',door}},{key:'move',interaction:{kind:'Position',position:{x:5,y:4}}},{key:'attack',interaction:{kind:'Unit',unitId:'large'}}]});
+      assert.deepEqual(h.viewport.pick(h.viewport.project({x:9,y:8.5})).door,door);
+      const closed={...door,kind:'ClosedDoor'};h.viewport.showInteraction({candidates:[{key:'closed',interaction:{kind:'Door',door:closed}}]});assert.deepEqual(h.viewport.pick(h.viewport.project({x:9,y:8.8,height:.55})).door,closed);
+      assert.deepEqual(h.viewport.pick(h.viewport.project({x:5.5,y:4.5})).cell,{x:5,y:4});
+    }
+    c.setMode('fixed');c.manual({...c.current(),x:8,y:8,scale:80});
+    assert.equal(h.controls.fov.disabled,false);h.controls.fov.value='45';h.controls.fov.emit('input');h.viewport.settle();assert.equal(c.current().fov,45);c.setFov(80,false);
+    const initial=c.current(),point={x:470,y:310},anchor=c.ground(point);
+    c.zoom(1.2,point);assert.equal(c.current().fov,80);assert.ok(Math.hypot(c.ground(point).x-anchor.x,c.ground(point).y-anchor.y)<1e-8);
+    const scale=c.current().scale;for(let i=0;i<10;i++){c.setFov(20,false);c.setFov(80,false);}
+    assert.equal(c.current().scale,scale);assert.equal(c.current().x,c.inspect().target.x);
+    c.setFov(100,false);assert.equal(c.current().fov,80);c.setFov(0,false);assert.equal(c.current().fov,20);
+    const before=c.current();c.pan({x:450,y:300},{x:490,y:325});assert.ok(c.current().x!==before.x||c.current().y!==before.y);
+    const panFocus=c.current();c.setProjection('orthographic',false);assert.equal(c.current().x,panFocus.x);assert.equal(c.current().y,panFocus.y);h.flush();assert.equal(h.rendered.at(-1).camera.isOrthographicCamera,true);assert.equal(h.controls.fov.disabled,true);
+    c.manual({...c.current(),x:0,y:0});c.setOrientation({tilt:0,yaw:0},false);c.setProjection('perspective',false);c.setProjection('orthographic',false);assert.equal(c.current().x,0);assert.equal(c.current().y,0);
+    c.setProjection('perspective',false);h.flush();const root=h.rendered.at(-1).scene.getObjectByName('units').children[0];
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(h.rendered.at(-1).camera.isOrthographicCamera,true);assert.equal(h.rendered.at(-1).scene.getObjectByName('units').children[0],root);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.rendered.at(-1).camera.isPerspectiveCamera,true);assert.equal(h.frames.size,0);
+    assert.deepEqual(h.failures,[]);assert.ok(initial.scale>0);
+  }finally{h.cleanup();}
+});
+
+test('perspective transitions retarget, settle for Skip, reduced motion, replacement and context recovery',async()=>{
+  const f=fixture(16),h=await harness(f);try{
+    const c=h.viewport.camera;h.viewport.setPresentation('tabletop');h.viewport.settle();
+    c.setProjection('perspective');h.flush(performance.now()+90);const mid=c.current();
+    c.setProjection('orthographic');assert.deepEqual(c.current(),mid);h.flush(performance.now()+50);assert.ok(c.current().projectionMix<mid.projectionMix);
+    h.viewport.settle();assert.equal(c.current().projectionMix,0);assert.equal(c.inspect().transitionActive,false);
+    globalThis.matchMedia=()=>({matches:true,addEventListener(){}});c.setProjection('perspective');assert.equal(c.inspect().transitionActive,false);assert.equal(c.current().projectionMix,1);
+    globalThis.matchMedia=()=>({matches:false,addEventListener(){}});c.setFov(80);assert.equal(c.inspect().transitionActive,true);
+    h.flush(performance.now()+70);const beforeZoom=c.current(),point={x:470,y:310},ground=c.ground(point);c.zoom(1.1,point);assert.equal(c.current().fov,beforeZoom.fov);assert.ok(Math.hypot(c.ground(point).x-ground.x,c.ground(point).y-ground.y)<1e-7);assert.equal(c.inspect().suspended,true);
+    h.viewport.setActive(false);assert.equal(c.inspect().transitionActive,false);assert.equal(h.frames.size,0);h.viewport.setActive(true);h.flush();
+    const canvas=h.host.children.find(n=>n.tagName==='canvas');canvas.emit('webglcontextlost');assert.equal(h.frames.size,0);canvas.emit('webglcontextrestored');h.flush();assert.equal(h.viewport.inspect().lost,false);
+    const next=structuredClone(f);next.metadata.sessionId='replacement';h.viewport.renderFrame(next);h.flush();assert.equal(c.inspect().transitionActive,false);assert.equal(c.current().fov,80);assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('perspective touch gestures interrupt camera follow without submitting a choice or leaking hidden camera events',async()=>{
+  const h=await harness(fixture(50,'blue'));try{
+    h.viewport.setPresentation('tabletop');const c=h.viewport.camera;c.setProjection('perspective',false);c.setMode('fixed');h.viewport.settle();
+    const canvas=h.host.children.find(n=>n.tagName==='canvas');
+    for(const fov of [20,45,80]){
+      c.setFov(fov,false);c.resume();h.viewport.settle();const target=c.inspect().target;
+      c.occurrence({kind:'MovementCompleted'},{role:'Movement',unitId:'hidden',movementSegments:[[{x:45,y:45},{x:46,y:45}]],movingFigure:{sideId:'red',cellSpan:1}});c.movementStep({x:46,y:45});assert.deepEqual(c.inspect().target,target);
+      canvas.emit('pointerdown',{button:0,pointerId:1,pointerType:'touch',clientX:300,clientY:300});canvas.emit('pointerdown',{button:0,pointerId:2,pointerType:'touch',clientX:400,clientY:300});canvas.emit('pointermove',{pointerId:2,clientX:450,clientY:320});canvas.emit('pointerup',{pointerId:2,clientX:450,clientY:320});canvas.emit('pointerup',{pointerId:1,clientX:300,clientY:300});assert.equal(h.picked.length,0);assert.equal(c.inspect().suspended,true);assert.equal(c.current().fov,fov);
+    }
+    h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('perspective Auto retains active footprints through narrow-view rotations and lens transitions',async()=>{
+  const h=await harness(fixture(50));try{
+    h.host.clientWidth=320;h.host.clientHeight=700;h.viewport.setPresentation('tabletop');const c=h.viewport.camera;c.setProjection('perspective',false);c.setMode('auto');
+    c.stable({unitId:'large',candidates:[{boardVisual:{kind:'move'},placementCells:[{x:7,y:5},{x:8,y:5},{x:7,y:6},{x:8,y:6}]}]});h.viewport.settle();h.flush();
+    for(const yaw of [0,45,135,270]){
+      c.setOrientation({tilt:55,yaw});c.setFov(80);const start=performance.now();
+      for(const ms of [30,100,200,300]){h.flush(start+ms);for(const x of [4,6])for(const y of [3,5]){const p=h.viewport.project({x,y});assert.ok(!p.behind&&p.x>=-.1&&p.x<=320.1&&p.y>=-.1&&p.y<=700.1,JSON.stringify({p,pose:c.current()}));}}
+      c.setFov(20,false);h.flush();
+    }
+    assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('observed Rock regions share coplanar tops, omit internal/unknown boundaries and cache resources; Tables have four legs',async()=>{
+  const {rockBoundaryMask}=await moduleAt('three-tabletop.js');
+  assert.equal(rockBoundaryMask(0,0,()=> 'Unknown'),0);assert.equal(rockBoundaryMask(0,0,()=> 'SolidRock'),0);assert.equal(rockBoundaryMask(0,0,()=> 'StoneFloor'),15);
+  const f=fixture(16,'blue');f.state.exploredCells.blue=[{x:2,y:2},{x:3,y:2},{x:4,y:2}];
+  f.state.physical.board.terrain=[{kind:'SolidRock',position:{x:2,y:2}},{kind:'SolidRock',position:{x:3,y:2}},{kind:'SolidRock',position:{x:15,y:15}},{kind:'StoneFloorWithTable',position:{x:4,y:2}}];
+  const h=await harness(f),disposedGeometryCounts=new Map();try{
+    const {observedTerrain}=await moduleAt('three-viewport.js'),data=observedTerrain(f);assert.equal(rockBoundaryMask(2,2,data.kindAt),0);assert.equal(rockBoundaryMask(3,2,data.kindAt),2);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const scene=h.rendered.at(-1).scene,objects=scene.getObjectByName('objects'),m=new h.THREE.Matrix4();
+    const rockWalls=objects.children.filter(n=>n.geometry.getAttribute('position').count===12);assert.equal(rockWalls.reduce((n,b)=>n+b.count,0),1);
+    let legs=0;for(const batch of objects.children)for(let i=0;i<batch.count;i++){batch.getMatrixAt(i,m);const size=new h.THREE.Vector3().setFromMatrixScale(m);if(Math.abs(size.y-.34)<1e-6&&Math.abs(size.x-.085)<1e-6)legs++;}assert.equal(legs,4);
+    const previous=[...objects.children],count=h.requests.length;h.viewport.renderFrame(f);h.flush();assert.deepEqual(objects.children,previous);assert.equal(h.requests.length,count);
+    for(let i=0;i<6;i++){h.viewport.renderFrame(f);h.flush();for(const batch of objects.children)assert.equal(batch.material.userData.fallbacks?.size??0,0);}
+    const hiddenChanged=structuredClone(f);hiddenChanged.state.physical.board.terrain.at(-2).kind='Tree';h.viewport.renderFrame(hiddenChanged);h.flush();assert.deepEqual(objects.children,previous);assert.equal(h.requests.length,count);
+    scene.traverse(node=>{if(node.geometry&&!disposedGeometryCounts.has(node.geometry)){disposedGeometryCounts.set(node.geometry,0);node.geometry.addEventListener('dispose',()=>disposedGeometryCounts.set(node.geometry,disposedGeometryCounts.get(node.geometry)+1));}});
+    assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+  assert.ok(disposedGeometryCounts.size>0);assert.ok([...disposedGeometryCounts.values()].every(count=>count===1));
+});
+
 test('observed Tabletop posture flips settle, cancel and leave logical placement and HTML information fixed',async()=>{
   const f=fixture(),h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().flips,0);
@@ -269,14 +367,15 @@ test('Tabletop fog omits unknown raised shapes and preserves entire observable s
     assert.ok(h.requests.every(r=>!r.url.includes('solid-rock')));
     const scene=h.rendered.at(-1).scene,large=scene.getObjectByName('units').children[1];
     assert.equal(large.visible,true);let clipped=0;large.traverse(n=>{if(n.material?.clippingPlanes)clipped++;});assert.equal(clipped,0);
-    for(const yaw of [0,80,180,270]){h.viewport.camera.setOrientation({tilt:55,yaw},false);h.flush();assert.equal(large.visible,true);assert.equal(h.viewport.inspect().lost,false);}
+    for(const projection of ['orthographic','perspective'])for(const fov of [20,45,80])for(const yaw of [0,80,180,270]){h.viewport.camera.setProjection(projection,false);h.viewport.camera.setFov(fov,false);h.viewport.camera.setOrientation({tilt:55,yaw},false);h.flush();assert.equal(large.visible,true);assert.equal(h.viewport.inspect().lost,false);assert.ok(h.requests.every(r=>!r.url.includes('solid-rock')));}
   }finally{h.cleanup();}
 });
 
 test('elevated Tabletop movement clips every child to displayed explored Cell columns at every angle',async()=>{
   const f=fixture(16,'blue'),h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();
-    for(const yaw of [0,90,225]){
+    for(const projection of ['orthographic','perspective'])for(const fov of [20,45,80])for(const yaw of [0,90,225]){
+      h.viewport.camera.setProjection(projection,false);h.viewport.camera.setFov(fov,false);
       h.viewport.camera.setOrientation({tilt:55,yaw},false);h.flush();
       const event={role:'Movement',unitId:'hero',movingFigure:{name:'Hero',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]};
       const positions=[];await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{

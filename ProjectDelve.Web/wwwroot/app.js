@@ -282,6 +282,13 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
     const root = domCameraControls.cloneNode(true); root.classList.add("three-controls"); root.hidden = true;
     const controls = { root };
     for (const node of root.querySelectorAll("[id]")) { const key = node.id.replace(/^camera-/, ""); node.id = `three-camera-${key}`; controls[key] = node; }
+    const projectionLabel=document.createElement("label"),projection=document.createElement("select");projection.id="three-camera-projection";
+    for(const [value,text]of [["orthographic","Orthographic"],["perspective","Perspective"]]){const option=document.createElement("option");option.value=value;option.textContent=text;projection.append(option);}
+    projectionLabel.append(document.createTextNode("Projection "),projection);root.append(projectionLabel);controls.projection=projection;
+    const lensLabel=document.createElement("label"),lens=document.createElement("select");
+    for(let fov=20;fov<=80;fov+=5){const option=document.createElement("option");option.value=String(fov);option.textContent=`${fov}°`;lens.append(option);}
+    lens.value="45";lens.id="three-camera-fov";lens.setAttribute("aria-label","Perspective vertical field of view");
+    lensLabel.append(document.createTextNode("Lens "),lens);root.append(lensLabel);controls.fov=lens;
     for (const [key, label, max] of [["tilt", "Tilt", 55], ["yaw", "Rotate", 360]]) {
       const wrapper = document.createElement("label"); wrapper.className = "three-orientation";
       wrapper.append(document.createTextNode(`${label} `));
