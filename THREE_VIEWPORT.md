@@ -164,10 +164,9 @@ Tabletop-specific controls are hidden in Flat. Pan/zoom still suspend following.
 `three-tabletop.js` contains the small physical visual factory. Each authoritative
 Unit ID keeps a persistent scene root, observed footprint and information anchor.
 Only its visual children change. The body supplies `infoAnchor` and `visualBounds`;
-`updateLabels` projects those values. A future local model factory can replace
-the body and supply different bounds/anchors without owning Unit identity,
-choices, cards, movement legality or state. No model loader/configuration system
-is implemented.
+`updateLabels` projects those values. Static GLB bodies use this same boundary
+without owning Unit identity, choices, cards, movement legality or state.
+See Static miniatures V1 below for loading, approval and fallback.
 
 The board is one neutral-sided slab: top Y=0, thickness .12 Cell and .12 Cell of
 unprinted border. It is not a collection of extruded Cells. Existing material-
@@ -206,7 +205,7 @@ capabilities. An observed item under a Unit also receives a small HTML indicator
 
 `three-camera-geometry.js` owns Three-specific projection/inversion, ground
 quadrilateral, projected-bound fitting and yaw interpolation. Shared DOM camera
-geometry is unchanged. Tilt is limited to 0–55°. Full fits border and .75 Cell of
+geometry is unchanged. Tilt is limited to 0–55°. Full fits border and 1.5 Cells of
 height with screen padding. Orthographic Fixed uses maximum board-space span
 derived from the unprojected viewport corners; perspective uses the focus-plane
 reference described below. Auto fits supplied active/Move footprints, margins
@@ -348,7 +347,7 @@ at exactly overhead so crossing projection/orientation boundaries does not shift
 a corner focus. Flat's clamping is unchanged.
 
 Full solves the frustum inequalities at all board/border corners at heights 0
-and .75 Cell, with 28px padding. It does not assume bounds vary linearly with
+and 1.5 Cells (the Miniatures V1 envelope), with 28px padding. It does not assume bounds vary linearly with
 distance. Auto uses supplied active and legal Move footprints first, then margin
 and nearby friends. Perspective fitting accounts for actual vertex depth and
 16px padding. Comfortable following tests projected bounds and searches along
@@ -408,8 +407,8 @@ focus-plane reference is the chosen stable presentation default. Coordinate
 enumeration uses a finite overhead reference at the horizon; actual picking still
 rejects sky rays. The low Rock silhouette remains available for later visual
 tuning. Local label collision suppression and
-the current .75 Cell Full-height budget remain; future taller body factories can
-extend that presentation budget without gameplay changes.
+the fixed 1.5 Cell Tabletop height envelope remain. Future taller approved bodies
+must extend that presentation budget without gameplay changes.
 
 ### Refined camera/component verification
 
@@ -720,3 +719,527 @@ Browser evidence is under `.playwright-cli/browser-qa/`:
 Successful runs had no console errors or missing asset requests. Refresh/reload
 FoW runs logged expected aborted SSE connections. Native canvas gestures, real
 driver context loss and lower-end hardware remain manual verification gaps.
+
+## Static miniatures V1
+
+Tabletop now offers **Units: Cardboard / Miniatures**, independently of camera
+and lighting. Cardboard is the default. `delve.three.units.v1` stores only this
+local preference; invalid or unavailable storage falls back safely. Flat always
+uses its original token presentation. Classic, Enhanced, Designer and Generator
+rendering are unchanged.
+
+The approved Tripo H3.1 Zombie is registered in the normal production catalog.
+Other Types retain Cardboard until approved assets exist. Test-owned procedural
+figures remain isolated QA fixtures and never substitute for production artwork.
+
+### Identity, bodies and safe replacement
+
+`unitRoots` continues to own observed Unit ID, ground placement, complete
+footprint, active mark and interaction/information association. Selection and
+target feedback remain in the shared informational layer; Unit Cards remain in
+the app. The small Tabletop body result is:
+
+```js
+{ group, facingNode, visualBounds: { radius, height }, infoAnchor: { x, y, z } }
+```
+
+Only an imported body has a `facingNode`. Root/body metadata is presentation
+state, never serialized GameState. Side-colored miniature base geometry is a
+root sibling of the imported body and never rotates with facing. Cardboard keeps
+its existing printed Side faces and turnover behavior.
+
+Resolution order is Flat token, requested Cardboard, Lying cardboard, approved
+compatible ready miniature, then cardboard fallback. A Type descriptor's approved
+Cell span must match the observed footprint. Unsupported, invalid, failed and
+loading models never produce an empty Unit.
+
+The router notifies the viewport at event start and authoritative checkpoints.
+Preference requests and model-ready entries wait for a safe checkpoint, including
+completion of transient movement and cardboard turnover. Changing representation
+does not reset camera/projection, restart gameplay, submit a command, discard
+history or create another context. Existing roots survive body replacement.
+
+### GLB preparation, hosting and validation
+
+Three remains pinned to `0.180.0`. `tools/prepare-three.cjs` additionally prepares
+`examples/jsm/loaders/GLTFLoader.js` and `examples/jsm/utils/BufferGeometryUtils.js`.
+Their exact bare `three` imports become `../../../build/three.module.js` so browser
+and Node use the same module identity. The complete prepared graph is checked;
+the provenance manifest records upstream and prepared hashes and the import
+transformation. There is no CDN, import map, bundler or new npm dependency.
+
+```text
+node tools/prepare-three.cjs
+node tools/prepare-three.cjs --check
+```
+
+`PlaytestHost` explicitly maps `.glb` to `model/gltf-binary` in the existing
+static-file middleware. Unknown extensions remain disabled. The model loader
+fetches same-origin GLB files; addon import is deferred until an approved observed
+model is needed. No Draco, Meshopt, KTX2 or other decoder is installed.
+
+`three-models.js` validates approval and local URL/version/budgets before fetching.
+GLB preflight requires version 2.0, one default scene, embedded PNG/JPEG resources,
+static triangle primitives, and no animations, skins, morph targets, cameras or
+extensions. V1 deliberately accepts core glTF materials only. Runtime validation
+checks nested/world transforms, positive nondegenerate transforms, finite vertex
+attributes/indices, normals, UVs for textured materials, geometry/primitive limits
+and decoded texture dimensions. Failed image decoding is a model failure even
+when GLTFLoader would otherwise tolerate a null map.
+
+Normalization measures transformed vertices once per template, centers X/Z,
+grounds minimum Y to zero and applies one uniform scale to the authored target
+height. The resulting radial extent must fit the descriptor; overwide assets
+fail rather than receiving nonuniform stretching or
+automatic horizontal shrinking. Matrix-authored child transforms are retained.
+The normalized body stands at Y=.06 on the procedural base, relative to the
+existing Unit root height. Bounds and label anchors are cached.
+
+Semantic requirements such as recognizable front, absence of an authored base,
+style and provenance require human asset review; geometry validation cannot
+establish those facts.
+
+### Production Zombie asset specification and registration
+
+Preserve the untouched source at
+`assets/source/models/units/zombie/original.glb`. Optional editable master:
+`assets/source/models/units/zombie/zombie.blend`. Store reference views, production
+notes, license/attribution information, generation tool/version and source/runtime
+hashes under that same source directory. Keep source files outside wwwroot.
+
+The approved runtime destination is
+`ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb`.
+
+| Property | Zombie V1 contract |
+| --- | --- |
+| Format | Self-contained GLB / glTF 2.0, one default scene |
+| Orientation | Right-handed, +Y up, +Z forward |
+| Origin/pivot | Ground-centered beneath soles, vertical yaw through origin |
+| Footprint | Approved 1×1; no gameplay height/facing |
+| Normalized height | Initial Zombie 1.20 Cell; 1.35 recommended maximum for this asset, not a universal Type height cap |
+| Horizontal radius | Catalog .38 Cell; inspected H3.1 radius .325632 after normalization |
+| Base | Generated by Three: radius .46 Cell, thickness .06 Cell |
+| Geometry | Target 6,000–8,000 triangles; hard maximum 12,000 |
+| Draw primitives | At most two; prefer one material/primitive |
+| Texture | Prefer 1024² base color, optional 512² normal and packed ORM |
+| Texture limit | Default 1024; explicit asset-specific budget may allow larger embedded PNG/JPEG (approved Zombie: 2048) |
+| Texture memory | Prefer about 8 MiB or less including mipmaps |
+| Material | Rough painted PBR, opaque where possible; no emissive lighting |
+| Pose | Compact neutral shamble; readable head/hands and front/back |
+| Excluded | Base, scenery, floor, lights, cameras, animation, skinning, morphs |
+| Transfer size | Prefer ≤3 MiB; larger files need production review |
+
+The runtime rejects hard descriptor/geometry/texture incompatibilities and reports
+them in diagnostics. Above 8,000 triangles is advisory. Low-poly test geometry is
+valid; the target range is not a minimum rejection limit. Facing direction,
+physical base omission and portrait consistency remain approval criteria.
+
+Use the approved `assets/source/units/zombie.png` portrait for gray-green skin,
+thinning hair, crooked jaw and ragged brown/desaturated-green clothing. A reviewed
+front/side/back full-body reference is useful before model generation, but neither
+reference generation nor production model creation is implemented here. Optional
+Blender processing should apply transforms, repair/simplify geometry, consolidate
+materials, bake maps and export core static GLB with repeatable recorded settings.
+Keep the existing Pillow portrait pipeline separate.
+
+To add or replace an approved production model:
+
+1. Review style, front/back, pose, rights/provenance and the full source/master.
+2. Prepare the runtime export to this contract; run the Khronos glTF validator
+   and review warnings, then verify runtime validation and normalized dimensions.
+3. Put the approved export at the versioned runtime path above. Do not overwrite
+   the source or use the test figure as the export.
+4. Add an approved asset to `art/models/unit-visuals.json`'s `models` array and
+   reference its ID from the existing `zombie-type` entry's optional `model`:
+
+   ```js
+   { "id": "zombie/v1", "approved": true,
+     "url": "./art/models/units/zombie/v1/zombie.glb", "version": "1",
+     "maxTriangles": 12000, "maxPrimitives": 2, "maxTextureDimension": 2048 }
+   ```
+
+5. Run model/viewport tests, HTTP/publish checks and real-browser acceptance with
+   the approved asset. Confirm diagnostics `ready`, PBR/Off appearance, grounding,
+   overhead/angled silhouette, clipping, label readability and resource budgets.
+6. Version both runtime URL and descriptor when replacing an approved model.
+
+No gameplay, scenario schema or new rendering architecture is needed. Each cached
+URL/version has one shared source template and resource contract; each Type uses
+its own uniform normalization. Additional static Types use the same catalog boundary. Animated assets remain
+explicitly unsupported in V1.
+
+### Complete Unit visual dimensions and shared sources
+
+`wwwroot/art/models/unit-visuals.json` is the authoritative presentation catalog.
+Schema version 1 contains `units` and `models` arrays. Every canonical Type has
+exactly one `{typeId,targetHeight,maximumRadius}` entry; optional `model` references
+an approved asset's `id`. Asset entries contain `id`, `approved:true`, local `url`,
+`version`, and optional `maxTriangles`, `maxPrimitives`, `maxTextureDimension`.
+Footprints, HP, movement and other gameplay content are not duplicated in JSON.
+
+All **32** current canonical Types are included, including royal/goblin pieces,
+Diamond Kart, Locomotive, Chief Mechanic, Worker and Red Dragon. Terrain Machines
+are not Unit Types. Initial heights range from .65 (Bomb Imp) through .80 (Goblin),
+1.20 (Zombie), 1.90 (Troll), 2.10 (Tower Troll), to 2.60 (2×2 Red Dragon). Vehicles
+start lower (.75 Kart/.85 Locomotive). These authored presentation defaults are
+provisional and may be visually tuned without changing gameplay.
+
+`unit-visuals.js` validates exact coverage against the existing public canonical
+content endpoint `/api/designer/catalog` when Three first activates. Missing,
+unknown, duplicate or invalid entries, unknown model references and unsupported
+schema versions fail validation visibly rather than silently inventing dimensions.
+Custom scenario Types without approved assets continue using Cardboard; they do
+not expand the canonical registry. Canonical model resolution also checks the
+observed footprint against the canonical footprint, so a scenario override cannot
+silently approve an incompatible body.
+
+`UnitVisualCatalogTests` compares JSON IDs with actual `CanonicalUnitTypes.All`,
+`UnitTypeIds` constants and the `UnitRoster` factory inventory. This catches an
+omitted registry factory as well as a missing catalog entry. Node tests exercise
+negative schemas/dimensions/references and adding a new canonical ID.
+
+To add a canonical Type: add its gameplay definition/registry entry, add one
+explicit visual row with provisional positive finite height/radius, then run
+`UnitVisualCatalogTests` and `unit-visuals.test.cjs`. Attach an approved asset later
+by referencing `models[].id`. No name-derived runtime dimensions hide omissions.
+
+Height means exact intended model height above its feet, excluding the procedural
+.06-Cell base. Radius is a maximum of transformed vertices about the ground-center
+after uniform scaling. Radius failure keeps Cardboard; the loader never shrinks to
+fit or stretches axes separately. V1 radial budgets stay within the generated
+base envelope (.46 × canonical Cell span), retaining the nine-column FoW pool
+guarantee. There is no universal 1×1 height cap. A tall compact Troll is valid.
+Broader silhouettes outside that envelope require a deliberate clipping/base
+budget extension before approval.
+
+The cache keys **source** resources by approved URL/version and measures their
+transformed bounds once. Height, radius and Cell span are per-Type contracts, not
+source cache keys. Instance wrappers clone the source hierarchy and apply a private
+uniform scale/ground offset; geometry, textures and immutable lit/Off material
+pairs remain shared. Two Types can reference the same asset at 1.20/.38 and
+2.40/.76, respectively, with one download/parse. A Type-specific radius failure
+does not poison a ready source needed by another Type. Source triangle/primitive/
+texture budgets must agree for a shared URL/version.
+
+Camera fitting uses the public maximum registered height plus base/label allowance
+(minimum 1.5), independent of hidden Units and async arrivals. Coarse picking stays
+on observed logical footprints and vertical proxies. Miniature labels use their
+information anchor and also clear the projected base's top edge, preventing name
+plates covering heads at overhead. LOD and width continue using the base.
+
+### Facing, Posture, FoW, picking and camera
+
+`unit-facing.js` stores decoration separately from bodies. Initial heading hashes
+`visualSeed` and observed Unit ID under versioned domains: eight sectors plus a
+stable ±6° offset. Session replacement clears records but session ID is not a
+hash input, so restart reproduces initial headings. Rerenders, loading and body
+switches retain the current record. Browser reload begins from the displayed
+baseline; historical orientation is not persisted in storage or GameState.
+
+Observed nonzero movement legs use `atan2(dx,dz)` plus the stable offset. A leg
+needs an observable supplied endpoint/footprint; hidden-only padding, singleton
+segments, zero displacement and disconnected gaps supply no heading. Boundary
+entry/exit legs use only supplied geometry. No hidden route is reconstructed.
+
+At AttackStarted, the actor turns toward an observed selected Cell, otherwise
+the first resolvable observed target footprint center in supplied order. Action
+use and Door events may resolve their supplied Cell/Unit/Machine/Edge target.
+Missing spatial information retains heading. Defenders do not automatically turn.
+The app observes facing outside animation gates and resolves attacks against the
+matching displayed after-frame, including newly observed endpoints, never the
+latest response's future positions. This runs even with Three inactive.
+
+Yaw uses the existing RAF, about 150ms cubic easing and
+`atan2(sin(target-current),cos(target-current))`. Retargeting starts at the
+displayed angle. Skip/reduced motion settle to the same final observed heading
+without adding pauses. Cardboard, including fallback, never receives yaw.
+
+Initial Lying and miniature-to-Lying use settled reverse-face cardboard. Standing
+restores a ready miniature with stored facing, or cardboard while loading.
+Cardboard-to-cardboard retains existing turnover. Unit root, footprint and
+information remain authoritative throughout.
+
+Stable hidden Units are absent from observed figure input and never instantiated.
+Stable observable multi-Cell bodies remain whole and unclipped. Transient movement
+uses the displayed explored set and nine reusable Cell-column copies. Hierarchy
+copies preserve nested matrices and material arrays; every mesh gets private
+clipping variants of both PBR and Off materials. Planes remain world-aligned while
+all facing pivots share yaw. The validated base/radial envelope bounds intersecting
+columns to four for 1×1 and nine for 2×2. Height does not weaken vertical planes.
+Transient labels remain absent. Cancellation releases only its own pool/source,
+so a stale movement cannot touch a replacement session or newer movement.
+
+Picking still maps ground Cells, footprints and Door proxies to supplied opaque
+candidates. Imported triangles are never raycast for legality. An observed
+miniature additionally has a coarse vertical box; nearest ray distance wins with
+a stable ID tie-break. A head above the ground horizon can still hit this proxy.
+Door and supplied Position-choice priority are preserved, and proxy hits map back
+to complete logical footprints. Board choices remain the accessible alternative.
+
+Tabletop Full/Auto/follow and near-plane safety use a public catalog-derived visual
+envelope: at least 1.5 Cells, or the tallest registered Type's target height plus
+.15 Cell. It is independent of observation, loading and representation preference.
+Model arrival therefore does not change framing. The model
+anchor positions HTML information above the figure; base projection primarily
+determines LOD and width. Neither envelope nor model height is an engine stat.
+Taller Types have explicit catalog heights; no Engine Height is introduced.
+
+### Lighting, cache ownership and diagnostics
+
+The existing directional key/ambient rig illuminates imported Standard materials.
+The cache registers one shared Basic/Standard pair per imported material. Off
+preserves base color, texture, alpha and raster settings; existing portraits stay
+unlit. Loading while Off immediately resolves the correct variant. There are no
+new lights, shadow maps, environment maps, glow or tone mapping.
+
+The viewport owns one promise/state entry per approved URL/version: loading,
+ready or failed. Loading never blocks a decision. Independent hierarchy clones
+share geometry, textures and material pairs. Failures remain cached without retry
+storms. Completion only marks current bodies eligible at a safe checkpoint; it
+never attaches captured roots from an old session, removed Unit, prior Posture or
+inactive viewport. Context loss retains CPU assets for existing recovery/fallback.
+
+Per-Unit removal detaches instances; it does not dispose shared assets. Clipping
+pools dispose only their material clones. Viewport disposal aborts fetches,
+disposes unique geometries/material variants/textures, closes owned image bitmaps
+and releases cache references. Late parser completion is disposed without attach.
+Static miniatures add no continuous RAF or skeletal work.
+
+Diagnostics include preference, visible model roots, cache states/errors,
+fetch/decode/total milliseconds, resource timing fetch count, model triangle and
+primitive counts, resource counts and estimated texture bytes. Decode includes
+lazy addon import and normalization; GPU upload/completion is not measured.
+
+### Test fixtures and verification
+
+`ProjectDelve.Web.Tests/fixtures/miniatures/static-figure.glb` is a deterministic
+84-triangle, two-material, 9,916-byte procedural test figure. Its orange front,
+vertical silhouette and nested transforms exercise the import path. It is not
+production artwork.
+
+The companion `textured-figure.glb` (10,404 bytes) embeds a deterministic 8×8 PNG
+checker. It exercises real browser image decoding, sRGB maps and shared PBR/Off
+materials without changing the untextured performance fixture.
+
+Reproduce/check both with:
+
+```text
+node tools/prepare-miniature-fixture.cjs
+node tools/prepare-miniature-fixture.cjs --check
+node --test ProjectDelve.Web.Tests/three-models.test.cjs ProjectDelve.Web.Tests/unit-facing.test.cjs ProjectDelve.Web.Tests/three-viewport.test.cjs ProjectDelve.Web.Tests/door-choice.test.cjs ProjectDelve.Web.Tests/three-camera-geometry.test.cjs
+```
+
+HTTP tests cover explicit MIME, actual bytes and rejection of unknown extensions.
+QA registration requires BOTH Development and `--MiniatureQa true`. Only then
+does `/__qa/miniatures/` expose the test directory and its explicit registration
+module; Production ignores the flag. Production registration uses the normal JSON catalog. Source/test
+assets are not ordinarily published. `/api/presentation/miniatures-qa` reports only
+whether this explicit test mode is enabled, never gameplay/observation data.
+
+After the cached Debug build, `node tools/test-miniature-publish.cjs` runs actual
+Web SDK publish with an explicitly supplied test-only Content target. It verifies
+GLB inclusion, local loader/module inclusion, production Zombie inclusion, source exclusion and absence of QA registration. The production project never imports
+that target.
+
+Start the isolated host using BROWSER_INSPECTION.md, adding
+`--environment Development --MiniatureQa true`. `node tools/miniature-qa-plans.cjs`
+prepares test scenarios and data-only dispatcher plans under
+`.playwright-cli/miniature-qa/`. Validate and inspect them through the existing
+protected runner. `combat-settled.json` intentionally observes the completed game
+after `combat.json`; it does not replace it. Performance and other fixture plans
+import their own scenarios. Preserve the original 5080 listener.
+
+Focused tests cover static validation/failure, actual GLB parsing, transformed
+bounds, shared resources, late disposal, image decode failure/bitmap cleanup,
+preference/checkpoint fallback, root identity, yaw and Posture, skipped/inactive
+playback, event-local attack positions, hidden movement, imported multi-Cell
+figures, matrix/material-array clipping, proxy priority/horizon, lighting,
+replacement, context recovery and idle rendering. Real scenarios are not fixtures.
+
+### Edge measurements and evidence — 2026-10-27
+
+Restricted headed Edge, isolated 5081, Full Board, perspective FOV 65, fresh contexts.
+One additional unsupported cardboard Unit is present. The figure has **84
+triangles and no textures**, so these measure infrastructure overhead, not an
+8,000-triangle production Zombie. Warm timing snapshots contain only 6–7 camera
+frames; these are short functional samples, not GPU benchmarks or FPS guarantees.
+
+| Board | Models | Fetch ms | Decode/normalize/import ms | Warm CPU p95 ms | Camera interval p95 ms | Calls | Total triangles |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 30×20 | 1 | 9.0 | 13.7 | 1.3 | 16.7 | 17 | 1,598 |
+| 30×20 | 10 | 10.6 | 14.0 | 1.9 | 16.7 | 62 | 3,434 |
+| 30×20 | 30 | 11.2 | 17.6 | 2.2 | 16.7 | 162 | 7,514 |
+| 30×20 | 100 | 21.5 | 19.3 | 4.2 | 16.7 | 512 | 21,794 |
+| 50×50 | 1 | 11.7 | 190.0 | 1.6 | 16.7 | 17 | 5,398 |
+| 50×50 | 10 | 10.8 | 20.5 | 1.9 | 16.7 | 62 | 7,234 |
+| 50×50 | 30 | 12.9 | 18.9 | 2.4 | 16.7 | 162 | 11,314 |
+| 50×50 | 100 | 26.3 | 20.0 | 4.0 | 16.7 | 512 | 25,594 |
+
+Each model cache retained two geometries, four material variants and zero textures,
+independent of count. The sampled scenes retained five to six uploaded textures, eight
+geometries and 31 cached materials. Cold import variability is visible in the table;
+it must not be compared with warm submission timings. A textured production model
+will need separate texture/upload/GPU measurements. At 8,000 triangles, 100 models
+would add about 0.8 million model triangles before clipping copies; no such GPU
+performance claim is established by this fixture.
+
+The observed FoW patrol recorded 26 movement frames: movement CPU p95 2.1ms,
+interval p95 16.8ms; settled scene 27 calls/750 triangles. Five Cardboard/Miniatures
+pairs plus Flat/Classic/Enhanced/Tabletop switching retained one ready model entry,
+two model geometries/four variants and one resource-timing GLB fetch. First use of
+Flat uploads additional existing geometry/shader variants; cache growth at that
+boundary is expected. Missing/invalid fixture diagnostics each retained one failed
+entry and one fetch through repeated preference changes.
+
+Evidence under `.playwright-cli/browser-qa/`:
+
+- `inspection-YEAyFP`: mixed scene, Side bases, Off/On, angled/overhead/narrow.
+- `inspection-SE0Yle`, `inspection-OEL1TK`, `inspection-jSkLkH`, `inspection-wKndDi`: final 30×20 counts 1/10/30/100.
+- `inspection-MYQ99l`, `inspection-KxAef6`, `inspection-GnFXLD`, `inspection-YiemSG`: final 50×50 counts 1/10/30/100.
+- `inspection-06KG1M`: imported patrol hidden/entered/left/restart and movement timing.
+- `inspection-SEN48i`: repeated preference/renderer switching, cache/fetch reuse, restart/reload.
+- `inspection-RHSwUA`: initial Lying and Upright restoration.
+- `inspection-uDEpMu`: intentional missing/invalid fixture failures and playable fallback.
+- `inspection-xeRNSV`, `inspection-DMO5so`: supplied Attack choice/dice, orientation and settled Lying result.
+- `inspection-ZZbYEv`: generated dungeon through Play Unseen; no canonical model falsely activated.
+- `inspection-B6Cnu9`: real embedded PNG decoding and visible checker in Lighting Off/On; one shared model texture and one GLB fetch.
+
+Earlier fixture-baseline complete client/security suite: **540 passed**. Cached solution build:
+**zero warnings/errors**. Complete .NET solution tests: **1,982 passed**
+(1,601 Engine, 381 Web), including four new MIME/QA-isolation HTTP checks.
+Vendor/fixture integrity and actual publish checks also passed. No Engine,
+server-side observation, scenario schema, `CONSTRAINTS.md` or protected runner
+implementation was changed.
+
+Normal successful runs reported no console errors or missing assets. The deliberate
+missing-GLB run reports its expected 404; refresh/restart runs can abort superseded
+SSE requests. Earlier draft plans that toggled an already-open disclosure or waited
+for an automatically completed End Turn were corrected; a proposed complex selector
+was rejected by the runner and removed. No protected runner or permission changed.
+
+Remaining manual gaps: native canvas/touch selection, frame-exact transient FoW
+pixel assertions, real-driver context loss, injected network timing, long-duration
+resource/GPU/low-end performance and final painted production appearance. Node
+tests cover input/clip/lifecycle math but do not establish those hardware results.
+The following production acceptance section supersedes the fixture-only results.
+
+### Production H3.1 Zombie — 2026-10-27
+
+The owner-supplied replacement is Tripo **H3.1 generated under Pro**, confirmed by
+the owner. Reviewed [paid-user terms](https://www.tripo3d.ai/terms) section 5.2.2
+include publication, distribution and licensing. Together with Pro commercial
+use, this supports game/web hosting and source/runtime repository inclusion;
+no standalone-output exclusion was found. Agreement/third-party-rights conditions
+remain applicable. Provenance records the basis and unknown generation/export
+details; it does not invent a new public asset license.
+
+Source: `assets/source/models/units/zombie/original.glb`, **4,466,380 bytes**, SHA-256
+`9f3804e8fc44deccf126efdec1f8babe2564adff45b4c53fbd131ef1a3823eb3`.
+The original remains byte-for-byte unchanged. Runtime:
+`ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb`, **4,466,452 bytes**,
+SHA-256 `c3f15a9e0be475aebf336ca0ed5704f5dbfc2b323e8446711f642e352b6bea79`.
+Both files are eligible for version control; source stays outside published content.
+
+Inspection found glTF 2.0, one scene/node with identity transforms, one mesh,
+primitive and material, **9,674 triangles**, and three embedded 2048×2048 maps
+(base color JPEG, metallic-roughness JPEG and normal PNG). Positions, normals and
+UVs are finite. No external resources, animations, skins, cameras, lights or
+miniature base. Raw bounds are .485535 × .974670 × .403641 with minimum Y zero.
+Uniform scale 1.231185 yields height 1.20 and radius .325632. Catalog height stays
+1.20 and the radius budget is .38. Browser observed +Z movement confirms the front
+axis; no axis correction is necessary. Feet stand on the procedural .06-Cell base.
+
+`tools/prepare-unit-model.cjs` is a reusable, provenance-driven exporter. It verifies
+source hash and reviewed rights, rejects actual extension payloads, removes unused
+extension declarations, adds source-hash metadata, and preserves all binary mesh
+and image bytes. Runtime does uniform normalization/ground-centering. There is no
+decimation or texture resizing: short measurements did not justify quality loss.
+
+```text
+node tools/inspect-glb.cjs assets/source/models/units/zombie/original.glb
+node tools/prepare-unit-model.cjs assets/source/models/units/zombie/provenance.json
+node tools/prepare-unit-model.cjs assets/source/models/units/zombie/provenance.json --check
+```
+
+The catalog's `zombie/v1` asset uses version `h3.1-v1`, 12,000-triangle/two-primitive
+limits and an explicit 2048 texture budget. Only `zombie-type` references it.
+On an ordinary host select Tabletop → Miniatures. Upright Zombies load asynchronously;
+Lying, unsupported, loading and failed bodies use Cardboard. Flat remains unchanged.
+There is no special Zombie route, environment restriction, flag, browser registration
+request, binary ignore rule, publish blacklist or alternate runtime copy. Obsolete
+preview code/tool/tests and its prepared model were removed. General fixture QA
+isolation, source integrity, MIME and resource ownership remain in place.
+
+For the next model: create a reviewed source/provenance directory with original
+and runtime paths/hashes, run the same exporter with that provenance filename,
+validate geometry/maps/normalized proportions, add an approved catalog asset and
+Type reference, and run model/catalog/HTTP/publish/browser checks. Multiple Types
+may share the same URL/version at different scales without another download/parse.
+No gameplay or rendering architecture migration is required.
+
+Restricted Edge used the **Release** binary with ordinary Production defaults on
+isolated 5081, without model flags. Performance scenes contain one unsupported
+Cardboard Unit and Full Board perspective FOV 65. These are fresh-browser local
+loads and short 6–8-camera-frame samples, not GPU completion or sustained FPS.
+
+| Board | Zombies | Fetch ms | Decode/import/analysis ms | Render CPU p95 ms | Interval p95 ms | Calls | Total triangles |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 30×20 | 1 | 35.0 | 92.2 | 1.9 | 16.7 | 16 | 11,188 |
+| 30×20 | 10 | 38.9 | 80.8 | 1.9 | 16.7 | 52 | 99,334 |
+| 30×20 | 30 | 38.6 | 99.1 | 2.7 | 16.7 | 132 | 295,214 |
+| 30×20 | 100 | 221.3 | 94.0 | 4.7 | 16.7 | 412 | 980,794 |
+| 50×50 | 100 | 54.1 | 94.9 | 4.5 | 16.7 | 412 | 984,594 |
+
+All counts retained one GLB fetch, one source geometry, two shared material variants
+and three textures. Estimated RGBA+mipmap texture memory is **64 MiB**, independent
+of instance count, not a measured GPU allocation. Renderer inventory was seven
+geometries, nine uploaded textures and 31 cached materials. The 221ms fetch is an
+observed local outlier, not discarded. The warmed FoW patrol recorded 26 movement
+frames: CPU p95 2.1ms, interval p95 16.8ms; camera CPU p95 2.6ms. Repeated preference/
+renderer switching retained one fetch and shared resources. Static models remain idle.
+
+Inspected evidence under `.playwright-cli/browser-qa/`:
+
+- `inspection-Y1k9qF`: mixed Cardboard/miniatures, physical base/grounding,
+  Lighting Off/On, overhead, Orthographic, 65° perspective and narrow layout.
+- `inspection-gJ8m1Q`: canonical Zombie legal Move and retained +Z front direction.
+- `inspection-LarljH`: observed Attack choice/roll and settled target orientation.
+- `inspection-QvhtaS`: initial Lying Cardboard and restored Upright model.
+- `inspection-sGTbPK`: hidden enemy, observed entry/exit, restart and movement samples.
+- `inspection-xklgoH`: five preference pairs, Flat/Classic/Enhanced/Tabletop switches,
+  restart/reload, stable model/cache counts and one fetch.
+- `inspection-xWu5Gm`: generated dungeon through Play Unseen; visible party stayed
+  Cardboard and concealed monsters did not trigger model instances.
+- `inspection-1KZ5lY`, `inspection-OC3lam`, `inspection-yBsd7Q`, `inspection-0qs20O`:
+  30×20 counts 1/10/30/100; `inspection-LatWL7`: 50×50 stress sample.
+
+Images show aligned bases, grounded feet, readable front/back, overhead labels and
+clear mixed fallback. Lighting is darker at default fill than Off; adjusted fill
+helps. Fine detail remains small at narrow full-board zoom. Console reports were
+empty; no asset request failed. Restart/refresh aborted superseded SSE streams only.
+
+Verification: **547 client/security tests**, **1,985 .NET tests** (1,601 Engine,
+384 Web); Debug/Release solution builds with zero warnings/errors. Seven focused
+catalog/hosting cases pass in Release as well. Vendor integrity and reproducible
+export checks pass. Debug and Release ordinary publish outputs each contain exactly
+one production GLB and no source/test copies; the separate test-target publish still
+verifies fixture inclusion and exclusion of its registration module.
+
+CPU tests cover the actual model's grounding, scale, coarse picking and transient
+clipping in both lighting modes. Their in-memory geometry copy omits map bindings
+because Node has no image decoder; Edge loads the real embedded textures. Existing
+tests retain hidden/disconnected/padded observation, shortest-yaw/Skip/reduced-motion,
+root identity, async cancellation, cleanup, legal proxy priority and context recovery.
+
+Manual gaps remain for native canvas/touch input, frame-exact transient/disconnected
+FoW pixels, injected network delays/context loss in a real driver, browser reduced
+motion emulation, and sustained GPU/low-end/resource testing. No GPU performance
+claim or independent exclusivity/copyright guarantee is established. There is no
+remaining technical migration blocker; generation/export records remain unknown.
+
+Migration files: source/runtime GLBs, catalog, provenance/asset README,
+`tools/prepare-unit-model.cjs`, `tools/zombie-qa-plans.cjs`, publish checker,
+`PlaytestHost.cs`, `app.js`, model defaults comment and catalog resolver comment,
+model/viewport/hosting/catalog tests and this document. Old preview-only script,
+test and prepared bytes were deleted; unrelated V1 changes were preserved.
+No Engine, server observation, scenario format, rules or `CONSTRAINTS.md` changes.

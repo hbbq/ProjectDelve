@@ -4,7 +4,7 @@ import { interpolatePose } from './playtest-viewport.js';
 import { tabletopOrientation, threeProject, threeUnproject, threeSpanScale, threeClampPose, threeFull, threeAutoFit, threeEnsureVisible, threeScreenBounds, threeFitRect, interpolateOrientation, lensFov } from './three-camera-geometry.js';
 
 // Cell-space policy and time-based pose. No CSS transforms or separate RAF loop.
-export function createThreeCamera({ controls, invalidate, animate, onChange = () => {}, environment = globalThis }) {
+export function createThreeCamera({ controls, invalidate, animate, onChange = () => {}, environment = globalThis, visualHeight = 1.5 }) {
   let saved; try { saved = JSON.parse(environment.localStorage?.getItem('delve.three.camera.v1') ?? 'null'); } catch { /* optional */ }
   let preferences = cameraPreferences(saved ?? {}), frame, metadata = {}, side, sideChoice, session;
   let size = { width: 1, height: 1 }, pose, target, transition, suspended = false, activation = 0, manualActivation;
@@ -12,7 +12,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   let orientation = {tilt:0,yaw:0}, physical = false;
   let projection=saved?.projection==='perspective'?'perspective':'orthographic',fov=lensFov(saved?.fov);
   const optics=()=>({projection:physical?projection:'orthographic',projectionMix:physical&&projection==='perspective'?1:0,fov,allowGutters:physical});
-  const geometry=()=>({...orientation,...optics()});
+  const geometry=()=>({...orientation,...optics(),visualHeight:physical?visualHeight:0});
   let fitBounds=null,activeBounds=null;
   const spanScale = span => threeSpanScale(size,span,geometry());
   const subscriptions = new AbortController(), indicators = new Map();
@@ -204,7 +204,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     renderControls();
   }
   function pan(from,to,start=pose){if(!start)return;const a=threeUnproject(from,start,size),b=threeUnproject(to,start,size);if(a&&b)manual({...start,x:start.x+a.x-b.x,y:start.y+a.y-b.y});}
-  function setMode(mode){preferences.mode=mode;suspended=false;moveSignature=fittedSpan=null;persist();useful();}
+  function setMode(mode){preferences.mode=mode;suspended=false;moveSignature=fittedSpan=null;persist();useful();renderControls();}
   const bind=(id,type,fn)=>controls[id].addEventListener(type,fn,{signal:subscriptions.signal});
   bind('mode','change',()=>setMode(controls.mode.value));
   bind('span','change',()=>{preferences.fixedSpan=Number(controls.span.value);resume();persist();});

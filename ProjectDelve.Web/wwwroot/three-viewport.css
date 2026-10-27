@@ -4,6 +4,7 @@
 .three-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .three-token-info { position: absolute; transform: translate(-50%, -50%); text-align: center; font: 11px/14px system-ui; color: #fff2d4; }
 .three-token-info[hidden] { display: none; }
+.three-token-info[data-body="miniature"] { transform: translate(-50%, -100%); }
 .three-name { position: absolute; bottom: -3px; left: 0; right: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #19232cf5; border: 1px solid #d6bd86; border-radius: 3px; padding: 0 3px; }
 .three-hp { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #15212cf5; border: 1px solid #f1d392; border-radius: 3px; padding: 0 3px; }
 .three-hp:empty, .three-state:empty { display: none; }

@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "H3.1",
+  "plan": "Pro",
+  "planEvidence": "User confirms this exact replacement was generated under a paid Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/zombie.png",
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/zombie/original.glb",
+    "bytes": 4466380,
+    "sha256": "9f3804e8fc44deccf126efdec1f8babe2564adff45b4c53fbd131ef1a3823eb3",
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb",
+    "bytes": 4466452,
+    "sha256": "c3f15a9e0be475aebf336ca0ed5704f5dbfc2b323e8446711f642e352b6bea79"
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "steps": [
+      "Verify reviewed source hash",
+      "Reject actual extension payloads; remove unused exporter extension declarations",
+      "Add source-hash metadata and rebuild JSON chunk deterministically",
+      "Preserve all geometry and three original 2048x2048 embedded textures",
+      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+    ],
+    "orientation": "+Y up; +Z forward verified after observed positive-Z Move in restricted Edge, inspection-gJ8m1Q/move-positive-z-front.png"
+  },
+  "rightsReview": {
+    "date": "2026-10-27",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record."
+  },
+  "inspection": {
+    "file": "assets/source/models/units/zombie/original.glb",
+    "bytes": 4466380,
+    "sha256": "9f3804e8fc44deccf126efdec1f8babe2564adff45b4c53fbd131ef1a3823eb3",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2028
+      },
+      {
+        "type": 5130562,
+        "length": 4464324
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9674,
+    "materials": [
+      {
+        "name": "tripo_material_95b6b82e-fe2e-4c22-9250-d6b50a5b17bf",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 955017,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "4c8223b5503ccf9b3701e84186fb03527b1209d237bd7d985b91471a05b448de"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 966130,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "cd813f43109a3817445bd973049fd636ec4769985a991c93bbd73f5af45594e1"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2163755,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "e4718a8bfc05ab2c589eed36845c9eb39f0d5496c05eaeb5204106720b93f170"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_95b6b82e-fe2e-4c22-9250-d6b50a5b17bf",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.242767333984375,
+        0,
+        -0.20182037353515625
+      ],
+      "max": [
+        0.242767333984375,
+        0.97467041015625,
+        0.20182037353515625
+      ],
+      "dimensions": [
+        0.48553466796875,
+        0.97467041015625,
+        0.4036407470703125
+      ]
+    },
+    "normalization": {
+      "targetHeight": 1.2,
+      "scale": 1.2311854217546496,
+      "maximumRadius": 0.3256312192435704,
+      "dimensions": [
+        0.5977832049596092,
+        1.2,
+        0.49695660341912457
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  }
+}

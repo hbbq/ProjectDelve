@@ -80,7 +80,7 @@ function fixture(size=8,side=null){
   const figures=[{id:'hero',position:{x:2,y:2},posture:'Lying'},{id:'large',position:{x:4,y:3},posture:'Upright'}];
   return{metadata:{sessionId:'one',round:1,assignments:[{sideId:'blue',controller:'Human'}]},visualSeed:'test',state:{round:1,currentUnitId:'hero',types:[{id:'test',hp:5}],units:figures.map(f=>({id:f.id,typeId:'test',sideId:'blue',currentHp:3})),physical:{board:{width:size,height:size,terrain:[],edges:[]},figures},exploredCells:side?{blue:[{x:2,y:2},{x:4,y:3}]}:undefined},presentation:{viewingSideId:side,cards:{hero:{displayName:'Hero'},large:{individualName:'An Authored Large Name',displayName:'Large'}},figures:{hero:{cellSpan:1,occupiedCells:[{x:2,y:2}]},large:{cellSpan:2,occupiedCells:[{x:4,y:3},{x:5,y:3},{x:4,y:4},{x:5,y:4}]}},machines:[],objectives:[]}};
 }
-async function harness(frame=fixture()){
+async function harness(frame=fixture(),options={}){
   const frames=new Map(),requests=[],rendered=[],picked=[],hovered=[],failures=[];let handle=0,disposed=0;
   const saved={};for(const key of ['document','ResizeObserver','requestAnimationFrame','cancelAnimationFrame','addEventListener','matchMedia'])saved[key]=globalThis[key];
   const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives','tilt','yaw','cutaway','projection','fov'])controls[id]=new Element();controls.root.append(controls.status);
@@ -91,7 +91,7 @@ async function harness(frame=fixture()){
   globalThis.matchMedia=()=>({matches:false,addEventListener(){}});
   const THREE=await moduleAt('vendor/three/0.180.0/build/three.module.js'),{createThreeViewport}=await moduleAt('three-viewport.js');
   const renderer={shadowMap:{},info:{render:{calls:0,triangles:0},memory:{textures:0,geometries:0}},setClearColor(){},setSize(w,h){host.children.find(n=>n.tagName==='canvas').width=w;host.children.find(n=>n.tagName==='canvas').height=h;},render(scene,camera){rendered.push({scene,camera});let calls=0;scene.traverse(n=>{if(n.isMesh||n.isLine)calls++;});this.info.render.calls=calls;},dispose(){disposed++;}};
-  const viewport=createThreeViewport({host,controls,animate:()=>true,onPick:hit=>picked.push(hit),onHover:id=>hovered.push(id),onFailure:error=>failures.push(error.message),rendererFactory:()=>renderer,textureLoader:{load(url,ready,progress,error){requests.push({url,ready,error});}}});
+  const viewport=createThreeViewport({host,controls,animate:()=>true,onPick:hit=>picked.push(hit),onHover:id=>hovered.push(id),onFailure:error=>failures.push(error.message),rendererFactory:()=>renderer,textureLoader:{load(url,ready,progress,error){requests.push({url,ready,error});}},...options});
   viewport.setActive(true);viewport.renderFrame(frame);
   const flush=(time=performance.now())=>{const todo=[...frames.values()];frames.clear();for(const fn of todo)fn(time);};flush();
   return{viewport,host,controls,frames,requests,rendered,picked,hovered,failures,THREE,flush,renderer,get disposed(){return disposed;},cleanup(){viewport.dispose();for(const[key,value]of Object.entries(saved))if(value===undefined)delete globalThis[key];else globalThis[key]=value;}};
@@ -116,6 +116,158 @@ test('Tabletop lamp initializes once, is world fixed, clamps preferences and per
   assert.deepEqual(restored.inspect(),{enabled:false,key:1.2,fill:.4,azimuth:90,elevation:35,active:false,materials:0,firstFrameMs:null});restored.dispose();
   const denied=createTabletopLighting({scene,root,invalidate:()=>{},environment:{...environment,localStorage:{getItem(){throw Error('denied');},setItem(){throw Error('denied');}}}});
   denied.set({enabled:false});denied.dispose();
+});
+
+test('catalog allows tall Types to share one source; camera envelope stays fixed through loading and switching',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';f.state.units[1].typeId='large-type';
+  const descriptor={...miniatureDescriptor},options=miniatureOptions();delete descriptor.cellSpan;options.modelDescriptors={test:descriptor,'large-type':descriptor};
+  options.visualCatalog={units:{test:{typeId:'test',targetHeight:1.2,maximumRadius:.38},'large-type':{typeId:'large-type',targetHeight:2.4,maximumRadius:.76}},models:{}};
+  const h=await harness(f,options);try{
+    h.viewport.setPresentation('tabletop');h.viewport.camera.setMode('full');h.viewport.settle();h.flush();const pose=h.viewport.camera.current();
+    h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,small=scene.getObjectByName('unit:hero'),large=scene.getObjectByName('unit:large');
+    assert.equal(small.userData.body.visualBounds.height,1.26);assert.equal(large.userData.body.visualBounds.height,2.46);
+    assert.equal(small.getObjectByName('body').geometry,large.getObjectByName('body').geometry);assert.deepEqual(h.viewport.camera.current(),pose);
+    h.viewport.setRepresentation('cardboard');h.viewport.setRepresentation('miniatures');h.viewport.settle();h.flush();assert.deepEqual(h.viewport.camera.current(),pose);assert.equal(h.viewport.models.inspect().length,1);
+    h.viewport.camera.setMode('fixed');assert.equal(h.controls.span.hidden,false);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+const zombieAssetPath=path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb');
+test('production Zombie actual geometry grounds, picks and clips throughout observed movement in both lighting modes',async()=>{
+  const raw=fs.readFileSync(zombieAssetPath),bytes=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
+  const descriptor={approved:true,url:'./art/models/units/zombie/v1/zombie.glb',version:'h3.1-v1',height:1.2,radius:.38,maxTextureDimension:2048};
+  const f=fixture(16,'blue');f.state.physical.figures[0].posture='Upright';
+  // Node has no image decoder. Only this CPU geometry test removes texture
+  // bindings from an in-memory CPU test copy; actual textures are verified in Edge.
+  const load=async b=>{const view=new DataView(b),length=view.getUint32(12,true),json=JSON.parse(new TextDecoder().decode(new Uint8Array(b,20,length)));
+    delete json.images;delete json.textures;delete json.samplers;for(const m of json.materials){delete m.normalTexture;delete m.pbrMetallicRoughness.baseColorTexture;delete m.pbrMetallicRoughness.metallicRoughnessTexture;}
+    let j=Buffer.from(JSON.stringify(json));j=Buffer.concat([j,Buffer.alloc((4-j.length%4)%4,32)]);const rest=Buffer.from(b,20+length),out=Buffer.alloc(20+j.length+rest.length);out.writeUInt32LE(0x46546c67);out.writeUInt32LE(2,4);out.writeUInt32LE(out.length,8);out.writeUInt32LE(j.length,12);out.writeUInt32LE(0x4e4f534a,16);j.copy(out,20);rest.copy(out,20+j.length);
+    const {GLTFLoader}=await moduleAt('vendor/three/0.180.0/examples/jsm/loaders/GLTFLoader.js');return new GLTFLoader().parseAsync(out.buffer.slice(out.byteOffset,out.byteOffset+out.byteLength),'');};
+  const h=await harness(f,{modelDescriptors:{test:descriptor},modelCacheOptions:{fetchBytes:async()=>bytes,load}});try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('unit:hero');root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(root.getObjectByName('normalized-model'));
+    assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-1.272)<1e-6);assert.equal(h.viewport.models.inspect()[0].triangles,9674);
+    for(const projection of ['perspective','orthographic']){h.viewport.camera.setProjection(projection,false);h.viewport.settle();h.flush();assert.equal(h.viewport.pick(h.viewport.project({x:2.5,y:2.5,height:.8})).unitId,'hero');}
+    await h.viewport.present({role:'Movement',unitId:'hero',movingFigure:{typeId:'test',name:'Zombie',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]},{},{skipping:()=>false,pause:async()=>{
+      h.flush(performance.now()+230);const pool=scene.getObjectByName('clipped-movement');assert.ok(pool);
+      for(const enabled of [true,false]){h.viewport.lighting.set({enabled});h.flush();let meshes=0;pool.traverse(n=>{if(n.isMesh){meshes++;for(const m of Array.isArray(n.material)?n.material:[n.material])assert.equal(m.clippingPlanes.length,4);}});assert.ok(meshes>=3);}
+      assert.equal(h.host.querySelector('.three-token-info').hidden,true);
+    }});assert.deepEqual(h.failures,[]);h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+const miniatureDescriptor={approved:true,url:'./__qa/miniatures/static-figure.glb',version:'fixture-v1',cellSpan:1};
+function miniatureOptions(extra={}){return {modelDescriptors:{test:miniatureDescriptor},modelCacheOptions:{fetchBytes:async()=>{const b=fs.readFileSync(path.join(__dirname,'fixtures/miniatures/static-figure.glb'));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);},...extra}};}
+async function readyMiniature(h){h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(miniatureDescriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();}
+test('miniature loading keeps cardboard, replaces only body at checkpoints, and retains roots, footprint, camera and Flat',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';let release;
+  const options=miniatureOptions({fetchBytes:()=>new Promise(r=>release=r)}),h=await harness(f,options);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const root=h.rendered.at(-1).scene.getObjectByName('unit:hero'),footprint=structuredClone(root.userData.footprint),camera=h.viewport.camera.current();
+    h.viewport.beginEvent();h.viewport.setRepresentation('miniatures');assert.equal(h.viewport.inspect().representation,'cardboard');h.viewport.checkpoint();assert.ok(root.getObjectByName('cardboard-body'));
+    h.viewport.beginEvent();const b=fs.readFileSync(path.join(__dirname,'fixtures/miniatures/static-figure.glb'));release(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength));await h.viewport.models.request(miniatureDescriptor).promise;h.flush();assert.ok(root.getObjectByName('cardboard-body'));
+    h.viewport.checkpoint();h.flush();assert.ok(root.getObjectByName('miniature-body'));assert.equal(root.userData.body.facingNode,root.getObjectByName('miniature-facing'));assert.deepEqual(root.userData.footprint,footprint);assert.deepEqual(h.viewport.camera.current(),camera);
+    assert.ok(h.rendered.at(-1).scene.getObjectByName('unit:large').getObjectByName('cardboard-body'));const yaw=root.userData.body.facingNode.rotation.y;
+    h.viewport.setRepresentation('cardboard');assert.ok(root.getObjectByName('cardboard-body'));assert.equal(root.rotation.y,0);h.viewport.setRepresentation('miniatures');assert.equal(root.userData.body.facingNode.rotation.y,yaw);
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(h.rendered.at(-1).scene.getObjectByName('unit:hero'),root);assert.equal(root.getObjectByName('miniature-body'),undefined);assert.equal(root.userData.body,undefined);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+test('miniatures use shared PBR/Basic pairs, procedural Side base, ground feet and model label anchors',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+    h.viewport.lighting.set({enabled:false});await readyMiniature(h);const root=h.rendered.at(-1).scene.getObjectByName('unit:hero'),mesh=root.getObjectByName('body');
+    assert.equal(mesh.material.isMeshBasicMaterial,true);assert.ok(root.getObjectByName('miniature-base'));root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(root.getObjectByName('normalized-model'));assert.ok(Math.abs(box.min.y-(.012+.06))<1e-6);assert.ok(root.userData.infoAnchor.y>1.2);
+    const off=mesh.material;h.viewport.lighting.set({enabled:true});assert.equal(mesh.material.isMeshStandardMaterial,true);h.viewport.lighting.set({enabled:false});assert.equal(mesh.material,off);
+    h.viewport.settle();h.flush();assert.equal(h.frames.size,0);const before=h.viewport.inspect().renderCount;h.flush();assert.equal(h.viewport.inspect().renderCount,before);
+  }finally{h.cleanup();}
+});
+test('miniature Lying fallback and stand up keep identity and facing, without cardboard yaw or model turnover',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+    await readyMiniature(h);const root=h.rendered.at(-1).scene.getObjectByName('unit:hero'),yaw=root.userData.body.facingNode.rotation.y;
+    const next=structuredClone(f);next.state.physical.figures[0].posture='Lying';h.viewport.renderFrame(next);h.viewport.afterOccurrence({kind:'PostureChanged',unitId:'hero'});h.viewport.settle();h.flush();
+    assert.ok(root.getObjectByName('cardboard-body'));assert.equal(root.getObjectByName('cardboard-body').userData.angle,Math.PI);assert.equal(root.rotation.y,0);assert.equal(h.viewport.inspect().flips,0);
+    h.viewport.renderFrame(f);h.viewport.afterOccurrence({kind:'PostureChanged',unitId:'hero'});h.viewport.settle();h.flush();assert.equal(root.userData.body.facingNode.rotation.y,yaw);assert.equal(h.viewport.inspect().flips,0);
+  }finally{h.cleanup();}
+});
+test('late model completion after session replacement or removal never resurrects a Unit',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';let release;const h=await harness(f,miniatureOptions({fetchBytes:()=>new Promise(r=>release=r)}));try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');const e=h.viewport.models.request(miniatureDescriptor);
+    const next=structuredClone(f);next.metadata.sessionId='replacement';next.state.physical.figures=[];next.state.units=[];h.viewport.renderFrame(next);
+    const b=fs.readFileSync(path.join(__dirname,'fixtures/miniatures/static-figure.glb'));release(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength));await e.promise;h.flush();assert.equal(h.rendered.at(-1).scene.getObjectByName('units').children.length,0);assert.equal(h.viewport.inspect().units,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+test('miniature facing eases shortest yaw, retargets from display, and Skip settles desired observed angle',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+    await readyMiniature(h);const node=h.rendered.at(-1).scene.getObjectByName('miniature-facing');node.rotation.y=Math.PI-.02;h.viewport.facing.get('hero').yaw=-Math.PI+.02;h.viewport.syncFacing();h.flush(performance.now()+60);
+    assert.ok(node.rotation.y>Math.PI-.02&&node.rotation.y<Math.PI+.02);const mid=node.rotation.y;h.viewport.facing.get('hero').yaw=1;h.viewport.syncFacing();assert.equal(node.rotation.y,mid);h.viewport.settle();h.flush();assert.equal(node.rotation.y,1);assert.equal(h.viewport.inspect().rotations,0);
+  }finally{h.cleanup();}
+});
+test('nested imported miniature movement clips all PBR/Off meshes while yaw remains synchronized and world planes fixed',async()=>{
+  const f=fixture(16,'blue');f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+    await readyMiniature(h);const scene=h.rendered.at(-1).scene;
+    const event={role:'Movement',unitId:'hero',movingFigure:{typeId:'test',name:'Figure',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]};
+    const owned=new Map();await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+      h.flush(performance.now()+230);const pool=scene.getObjectByName('clipped-movement');assert.ok(pool.getObjectByName('body'));
+      for(const enabled of [false,true]){h.viewport.lighting.set({enabled});h.flush(performance.now()+240);
+        const yaw=pool.children[0].getObjectByName('miniature-facing').rotation.y;
+        for(const copy of pool.children){assert.equal(copy.getObjectByName('miniature-facing').rotation.y,yaw);copy.traverse(n=>{if(!n.isMesh)return;for(const m of Array.isArray(n.material)?n.material:[n.material]){assert.equal(m.clippingPlanes.length,4);assert.equal(m.clipIntersection,false);if(!owned.has(m)){owned.set(m,0);m.addEventListener('dispose',()=>owned.set(m,owned.get(m)+1));}}});}
+        for(const copy of pool.children.filter(c=>c.visible))assert.equal(copy.getObjectByName('body').material.clippingPlanes[0].constant,-2);
+      }
+      assert.equal(h.host.querySelector('.three-token-info').hidden,true);
+    }});
+    assert.ok([...owned.values()].every(n=>n===1));assert.equal(h.viewport.inspect().transient,false);assert.equal(scene.getObjectByName('unit:hero').userData.body.facingNode.rotation.y,Math.PI/2+h.viewport.facing.get('hero').offset);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+test('miniature coarse proxies use current projection and retain legal Position priority without triangle raycasting',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+    await readyMiniature(h);for(const projection of ['orthographic','perspective']){
+      h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:55,yaw:35},false);h.viewport.settle();h.flush();
+      const p=h.viewport.project({x:2.5,y:2.5,height:.85}),ground=h.viewport.camera.ground(p);h.viewport.showInteraction({candidates:[]});assert.equal(h.viewport.pick(p).unitId,'hero');
+      h.viewport.showInteraction({candidates:[{key:'position',interaction:{kind:'Position',position:{x:Math.floor(ground.x),y:Math.floor(ground.y)}}}]});const hit=h.viewport.pick(p);assert.deepEqual(hit.cell,{x:Math.floor(ground.x),y:Math.floor(ground.y)});
+    }
+    h.viewport.showInteraction({candidates:[]});h.viewport.camera.setProjection('perspective',false);h.viewport.camera.setFov(80,false);h.viewport.camera.setOrientation({tilt:55,yaw:0},false);h.viewport.camera.manual({...h.viewport.camera.current(),x:2.5,y:2.5,scale:180});h.viewport.settle();h.flush();
+    const head=h.viewport.project({x:2.5,y:2.5,height:1.2});assert.equal(h.viewport.camera.ground(head),null);assert.equal(h.viewport.pick(head).unitId,'hero');
+    const canvas=h.host.children.find(n=>n.tagName==='canvas');canvas.emit('webglcontextlost');canvas.emit('webglcontextrestored');h.viewport.setActive(true);h.flush();assert.equal(h.viewport.inspect().models[0].state,'ready');
+  }finally{h.cleanup();}
+});
+test('model clipping preserves authored matrices and material arrays without changing stable materials',async()=>{
+  const T=await moduleAt('vendor/three/0.180.0/build/three.module.js'),{createMovementClipPool}=await moduleAt('three-tabletop.js');
+  const source=new T.Group(),matrixNode=new T.Group(),yaw=new T.Group();yaw.name='miniature-facing';matrixNode.matrixAutoUpdate=false;matrixNode.matrix.makeTranslation(.05,.3,0);
+  const g=new T.BoxGeometry(.2,1.2,.2),a=new T.MeshBasicMaterial(),b=new T.MeshStandardMaterial();g.clearGroups();g.addGroup(0,18,0);g.addGroup(18,18,1);
+  const mesh=new T.Mesh(g,[a,b]);matrixNode.add(mesh);yaw.add(matrixNode);source.add(yaw);source.position.set(2.5,.012,2.5);source.userData.visualBounds={radius:.46,height:1.5};source.updateMatrixWorld(true);
+  const pool=createMovementClipPool(source,new Set(['2,2']));pool.update(2.5,2.5,1,.7);pool.root.updateMatrixWorld(true);
+  const copy=pool.copies[0].body.getObjectByName('miniature-facing').children[0];assert.equal(copy.matrixAutoUpdate,false);assert.deepEqual(copy.matrix.elements,matrixNode.matrix.elements);assert.equal(copy.parent.rotation.y,.7);
+  for(const m of copy.children[0].material){assert.equal(m.clippingPlanes.length,4);assert.notEqual(m,a);assert.notEqual(m,b);}assert.equal(a.clippingPlanes,null);assert.equal(b.clippingPlanes,null);pool.dispose();g.dispose();a.dispose();b.dispose();
+});
+test('hidden stable content and entirely hidden movement do not load or instantiate models or change facing',async()=>{
+  const f=fixture(16,'blue');f.state.physical.figures=[];f.state.units=[];let requests=0;const h=await harness(f,miniatureOptions({fetchBytes:async()=>{requests++;throw Error('Must not load');}}));try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');h.viewport.settle();h.flush();const before=h.viewport.facing.inspect(),camera=h.viewport.camera.current();
+    await h.viewport.present({role:'Movement',unitId:'hidden',movingFigure:{typeId:'test',cellSpan:1,posture:'Upright',sideId:'red'},movementSegments:[[{x:9,y:9},{x:10,y:9}]]},{},{skipping:()=>false,pause:async()=>{throw Error('Must not animate');}});
+    assert.equal(requests,0);assert.deepEqual(h.viewport.facing.inspect(),before);assert.deepEqual(h.viewport.camera.current(),camera);assert.equal(h.viewport.inspect().transient,false);
+  }finally{h.cleanup();}
+});
+test('session replacement during model movement cannot restore stale roots or dispose a new movement pool',async()=>{
+  const f=fixture(16,'blue');f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+    await readyMiniature(h);let resume;const old=h.viewport.present({role:'Movement',unitId:'hero',path:[{x:2,y:2},{x:3,y:2}]},{},{skipping:()=>false,pause:()=>new Promise(r=>resume=r)});
+    const next=structuredClone(f);next.metadata.sessionId='replacement';next.state.physical.figures=next.state.physical.figures.filter(f=>f.id!=='hero');next.state.units=next.state.units.filter(u=>u.id!=='hero');h.viewport.renderFrame(next);resume();await old;h.flush();
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('unit:hero'),undefined);assert.equal(h.viewport.facing.inspect().hero,undefined);assert.equal(h.viewport.inspect().transient,false);
+  }finally{h.cleanup();}
+});
+test('model readiness while inactive or Lying defers attachment; reduced motion settles yaw immediately',async()=>{
+  const f=fixture();f.state.physical.figures[0].posture='Upright';let release;const h=await harness(f,{...miniatureOptions({fetchBytes:()=>new Promise(r=>release=r)}),animate:()=>false});try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');const e=h.viewport.models.request(miniatureDescriptor);h.viewport.setActive(false);
+    const next=structuredClone(f);next.state.physical.figures[0].posture='Lying';h.viewport.renderFrame(next);const b=fs.readFileSync(path.join(__dirname,'fixtures/miniatures/static-figure.glb'));release(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength));await e.promise;
+    assert.equal(h.frames.size,0);h.viewport.setActive(true);h.flush();const root=h.rendered.at(-1).scene.getObjectByName('unit:hero');assert.equal(root.getObjectByName('miniature-body'),undefined);
+    h.viewport.renderFrame(f);h.viewport.facing.get('hero').yaw=2;h.viewport.syncFacing();assert.equal(root.userData.body.facingNode.rotation.y,2);assert.equal(h.viewport.inspect().rotations,0);
+  }finally{h.cleanup();}
+});
+test('an observable imported 2x2 body remains whole over Unknown Cells and selects its complete logical footprint',async()=>{
+  const f=fixture(16,'blue');f.state.units.find(u=>u.id==='large').typeId='large-fixture';f.state.types.push({id:'large-fixture',hp:1});
+  const descriptor={...miniatureDescriptor,version:'fixture-large-v1',cellSpan:2,radius:.76},options=miniatureOptions();options.modelDescriptors={'large-fixture':descriptor};const h=await harness(f,options);try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const root=h.rendered.at(-1).scene.getObjectByName('unit:large');assert.ok(root.userData.body.facingNode);assert.equal(root.userData.footprint.length,4);root.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]).filter(Boolean))assert.equal(m.clippingPlanes,null);});
+    for(const cell of root.userData.footprint){const p=h.viewport.project({x:cell.x+.5,y:cell.y+.5});assert.equal(h.viewport.pick(p).unitId,'large');}
+    h.viewport.showInteraction({candidates:[{key:'door',interaction:{kind:'Door',door:{a:{x:4,y:3},b:{x:5,y:3},kind:'OpenDoor'}}}]});assert.ok(h.viewport.pick(h.viewport.project({x:5,y:3.5})).door);
+  }finally{h.cleanup();}
 });
 
 test('lighting swaps shared physical materials once while artwork, instances, camera and observation remain intact',async()=>{

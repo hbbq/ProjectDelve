@@ -163,7 +163,14 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     }
     return group;
   }
-  return {unit,posture,board,terrain,edge,machine,item};
+  function miniatureBase(a){
+    const group=new THREE.Group(),r=.46*(a.cellSpan??1);group.name='miniature-base';
+    mesh(group,geometries.cylinder,`hsl(${sideHue(a.sideId)},70%,65%)`,0,.03,0,r,.06,r);
+    group.add(plane(material('#494642'),0,0,r,r,.06,0,geometries.tokenCap));
+    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries.tokenRim));
+    return group;
+  }
+  return {unit,posture,board,terrain,edge,machine,item,miniatureBase};
 }
 
 // One transient mover; at most nine Cell columns intersect its 2x2-sized body.
@@ -173,7 +180,12 @@ export function createMovementClipPool(source,explored,THREEImpl=THREE,clippedVa
   const materialMap=new Map();
   for(let i=0;i<9;i++){
     const planes=[new THREEImpl.Plane(new THREEImpl.Vector3(1,0,0)),new THREEImpl.Plane(new THREEImpl.Vector3(-1,0,0)),new THREEImpl.Plane(new THREEImpl.Vector3(0,0,1)),new THREEImpl.Plane(new THREEImpl.Vector3(0,0,-1))];
-    const copyNode=node=>{const copy=node.isMesh?new THREEImpl.Mesh(node.geometry,node.material):new THREEImpl.Group();copy.position.copy(node.position);copy.quaternion.copy(node.quaternion);copy.scale.copy(node.scale);copy.visible=node.visible;copy.name=node.name;for(const child of node.children)copy.add(copyNode(child));return copy;};
+    const copyNode=node=>{
+      const copy=node.isMesh?new THREEImpl.Mesh(node.geometry,node.material):new THREEImpl.Group();
+      copy.position.copy(node.position);copy.quaternion.copy(node.quaternion);copy.scale.copy(node.scale);
+      copy.matrix.copy(node.matrix);copy.matrixAutoUpdate=node.matrixAutoUpdate;copy.visible=node.visible;copy.name=node.name;
+      for(const child of node.children)copy.add(copyNode(child));return copy;
+    };
     const body=copyNode(source);body.position.set(0,0,0);body.traverse(node=>{if(!node.material)return;
       const clone=m=>{const key=`${i}:${m.id}`;if(!materialMap.has(key)){
         const copies=clippedVariants?clippedVariants(m,planes):[m.clone()];
@@ -183,9 +195,10 @@ export function createMovementClipPool(source,explored,THREEImpl=THREE,clippedVa
       node.material=Array.isArray(node.material)?node.material.map(clone):clone(node.material);
     });root.add(body);copies.push({body,planes});
   }
-  function update(x,z,span){
+  function update(x,z,span,yaw){
     root.position.set(x,source.position.y,z);let index=0;
-    const radius=span*.48;
+    const radius=source.userData.visualBounds?.radius??span*.48;
+    if(yaw!=null)for(const copy of copies){const node=copy.body.getObjectByName('miniature-facing');if(node)node.rotation.y=yaw;}
     for(let y=Math.floor(z-radius);y<=Math.floor(z+radius);y++)for(let cellX=Math.floor(x-radius);cellX<=Math.floor(x+radius);cellX++){
       if(explored&&!explored.has(`${cellX},${y}`))continue;
       const copy=copies[index++];if(!copy)continue;

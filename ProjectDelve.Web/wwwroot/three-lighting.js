@@ -43,6 +43,13 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
     if(!pair){pair=register([new THREE.MeshBasicMaterial({color,vertexColors}),new THREE.MeshLambertMaterial({color})]);pairs.set(id,pair);}
     return resolve(pair[0]);
   }
+  // Model cache owns these pairs, including the imported source material.
+  function modelMaterial(source){
+    const existing=variants.get(source);if(existing)return existing;
+    const basic=new THREE.MeshBasicMaterial();
+    for(const key of ['map','alphaMap','alphaTest','transparent','opacity','side','depthTest','depthWrite','vertexColors','wireframe','polygonOffset','polygonOffsetFactor','polygonOffsetUnits'])if(key in source)basic[key]=source[key];
+    basic.color.copy(source.color);return register([basic,source]);
+  }
   // Only the movement pool owns/disposes these copies. Weak registration does
   // not retain completed movement or introduce per-object stable clones.
   function clippedVariants(m,planes){
@@ -66,7 +73,7 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
     changedAt=now();preferences=updated;apply();try{environment.localStorage?.setItem(preferenceKey,JSON.stringify(preferences));}catch{/* optional */}invalidate();
   }
   apply();
-  return {material,clippedVariants,resolve,set,controls,identity:m=>variants.get(m)?.[0].id??m.id,
+  return {material,modelMaterial,clippedVariants,resolve,set,controls,identity:m=>variants.get(m)?.[0].id??m.id,
     setPresentation(value){physical=value==='tabletop';changedAt=now();apply();},
     frameRendered(){if(changedAt!==null){firstFrameMs=+(now()-changedAt).toFixed(2);changedAt=null;}},
     inspect:()=>({...preferences,active:rig.visible,materials:pairs.size*2,firstFrameMs}),

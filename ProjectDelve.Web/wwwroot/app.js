@@ -3,6 +3,9 @@ import { styleSide, applySideHues } from "./side-colors.js";
 import { applyBoardVisual } from "./board-visuals.js";
 import { createBoardCamera } from "./board-camera.js";
 import { createViewportRouter, boardCandidates } from "./playtest-viewport.js";
+import { createUnitFacing } from "./unit-facing.js";
+import { loadUnitVisualCatalog } from "./unit-visuals.js";
+const unitFacing = createUnitFacing();
 
 const ui = Object.fromEntries(["game-setup", "scenario", "scenario-description", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario", "board", "status", "effect", "round", "refresh", "skip", "animate", "coordinates", "filter", "auto", "error", "prompt", "choices", "unit-card", "events", "bag", "active-token", "active-unit", "dice", "attack-context", "world-effects", "objectives", "orders", "game-result", "commentary-toggle", "commentary-panel", "commentary-context", "commentary-text", "decision-commentary", "side-controllers", "controller-status", "controller-retry", "controller-cancel"]
   .map(id => [id, document.getElementById(id)]));
@@ -276,6 +279,11 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
   loadThree: async () => {
     const startedAt = performance.now();
     const { createThreeViewport } = await import("./three-viewport.js");
+    const visualCatalog = await loadUnitVisualCatalog();
+    let fixtureModels;
+    const qa = await fetch('./api/presentation/miniatures-qa').then(r=>r.ok?r.json():null).catch(()=>null);
+    if(qa?.enabled===true)({fixtureModels}=await import('./__qa/miniatures/registration.js'));
+    const modelDescriptors = {...fixtureModels};
     const host = document.createElement("div"); host.className = "board-stage three-viewport"; host.id = "three-viewport";
     host.hidden = true; host.tabIndex = 0; host.setAttribute("aria-label", "Three.js board. Arrow keys select Cells; Enter chooses; Shift plus arrows pans; plus and minus zoom.");
     cameraViewport.after(host);
@@ -305,7 +313,7 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
     // The DOM controls remain the original immediate previous sibling for their adapter.
     const objectives = document.createElement("div"); objectives.className = "three-objectives"; host.append(objectives); controls.objectives = objectives;
     try {
-      threeViewport = createThreeViewport({ host, controls, startedAt, animate: () => ui.animate.checked && !skipEffects && !reducedMotion(),
+      threeViewport = createThreeViewport({ host, controls, startedAt, facing:unitFacing, visualCatalog, modelDescriptors, animate: () => ui.animate.checked && !skipEffects && !reducedMotion(),
         onPick: selectThreeHit, onHover: id => { hoveredUnitId = id; renderUnitCard(); },
         onPreview: candidate => { if (threePreview === candidate) return; threePreview = candidate; syncThreeInteraction(); },
         onProject: () => positionDecisionPanel(),
@@ -579,6 +587,7 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   displayedState = state;
   displayedFrame = { state, presentation: { cards, figures: geometry, worldEffects: world, orders, machines, objectives, viewingSideId: snapshot.presentation.viewingSideId },
     metadata: { sessionId: snapshot.sessionId, scenarioId: snapshot.scenarioId, assignments: snapshot.controllerAssignments, controllers: snapshot.controllers, round: state.round }, visualSeed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}` };
+  unitFacing.setFrame(displayedFrame);
   if (threeActive()) threeViewport.renderFrame(displayedFrame);
   playCamera()?.setFrame(state, { figures: geometry, objectives, viewingSideId: snapshot.presentation.viewingSideId },
     { sessionId: snapshot.sessionId, scenarioId: snapshot.scenarioId, assignments: snapshot.controllerAssignments,
@@ -1249,6 +1258,8 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
       ui.events.append(text("li", describe(event)));
       const occurrence = view.result.events[index];
       const projected = view.presentation.resolutionSteps.find(step => step.eventIndex === index);
+      // Facing observes the displayed timeline even when effects/Three are disabled.
+      if(event.role==='Movement')unitFacing.observe(event,occurrence,displayedFrame);
       prepareOccurrence(occurrence, event);
       if (!["UnitCreated", "AttackStarted"].includes(occurrence?.kind)) playCamera()?.occurrence(occurrence, event, skipEffects);
       if (occurrence?.kind === "WorldCardDrawn" && projected) renderWorldEffects(projected.worldEffects);
@@ -1273,6 +1284,8 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
         if (!skipEffects && threeActive()) threeViewport.afterOccurrence(occurrence);
         if (["AttackTargetResolved", "PostureChanged", "UnitCreated", "PlacesSwapped", "UnitRepositioned"].includes(occurrence?.kind)) await guardedPause(380);
       }
+      if(event.role!=='Movement')unitFacing.observe(event,occurrence,displayedFrame);
+      if(threeActive())threeViewport.syncFacing?.(skipEffects||!ui.animate.checked||reducedMotion());
       await viewportRouter?.checkpoint();
     }
     if (generation === playbackGeneration) commentsAt(view.presentation.events.length);

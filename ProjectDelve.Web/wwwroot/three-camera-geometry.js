@@ -72,8 +72,8 @@ export function threeFull(board,viewport,orientation={},physical=false) {
   orientation={...orientation,tilt:orientation.tilt??0,yaw:orientation.yaw??0};
   const border=physical?.12:0,padding=physical?28:0;
   if(orientation.x!=null||perspectiveLens({...orientation,scale:1},viewport).perspective)
-    return threeFitRect({x:-border,y:-border,w:board.width+2*border,h:board.height+2*border},viewport,orientation,physical?.75:0,padding);
-  const bounds=projectedBounds({x:-border,y:-border,w:board.width+2*border,h:board.height+2*border},orientation,physical?.75:0);
+    return threeFitRect({x:-border,y:-border,w:board.width+2*border,h:board.height+2*border},viewport,orientation,physical?(orientation.visualHeight??1.5):0,padding);
+  const bounds=projectedBounds({x:-border,y:-border,w:board.width+2*border,h:board.height+2*border},orientation,physical?(orientation.visualHeight??1.5):0);
   const scale=Math.min(Math.max(1,viewport.width-2*padding)/bounds.w,Math.max(1,viewport.height-2*padding)/bounds.h);
   const center=threeUnproject({x:bounds.x+bounds.w/2,y:bounds.y+bounds.h/2},{x:0,y:0,scale:1,...orientation},{width:0,height:0});
   return {...center,scale,...orientation};
@@ -86,7 +86,7 @@ export function threeScreenBounds(rect,pose,viewport,height=0){
 }
 // Solve each frustum-plane inequality at actual vertex depth. This remains
 // valid at narrow aspects, rotated poses, raised bounds and wide-angle horizons.
-export function threeFitRect(rect,viewport,orientation,height=.16,padding=16){
+export function threeFitRect(rect,viewport,orientation,height=orientation.visualHeight??.16,padding=16){
   const pose={...orientation,x:orientation.x??rect.x+rect.w/2,y:orientation.y??rect.y+rect.h/2,scale:1},b=orientationBasis(pose),lens=perspectiveLens(pose,viewport);
   if(!lens.perspective){const p=threeScreenBounds(rect,pose,viewport,height);return {...pose,scale:Math.min(Math.max(1,viewport.width/2-padding)/Math.max(Math.abs(p.x-viewport.width/2),Math.abs(p.x+p.w-viewport.width/2)),Math.max(1,viewport.height/2-padding)/Math.max(Math.abs(p.y-viewport.height/2),Math.abs(p.y+p.h-viewport.height/2)))};}
   let distance=.1;
@@ -102,17 +102,17 @@ export function threeEnsureVisible(pose,bounds,board,viewport,preferred=bounds) 
     let result={...pose},target=bounds;
     const fits=p=>!p.behind&&p.x>=viewport.width*.12&&p.y>=viewport.height*.12&&p.x+p.w<=viewport.width*.88&&p.y+p.h<=viewport.height*.88;
     if(threeFitRect(bounds,viewport,pose).scale<pose.scale)target=preferred;
-    if(fits(threeScreenBounds(target,result,viewport,.16)))return result;
+    if(fits(threeScreenBounds(target,result,viewport,pose.visualHeight??.16)))return result;
     const center={x:target.x+target.w/2,y:target.y+target.h/2};
     // Follow only as far as necessary. The fixed iteration count avoids jitter
     // and does not assume screen bounds vary linearly with camera distance.
     let lo=0,hi=1;
-    for(let i=0;i<18;i++){const t=(lo+hi)/2,p={...pose,x:pose.x+(center.x-pose.x)*t,y:pose.y+(center.y-pose.y)*t};if(fits(threeScreenBounds(target,p,viewport,.16)))hi=t;else lo=t;}
+    for(let i=0;i<18;i++){const t=(lo+hi)/2,p={...pose,x:pose.x+(center.x-pose.x)*t,y:pose.y+(center.y-pose.y)*t};if(fits(threeScreenBounds(target,p,viewport,pose.visualHeight??.16)))hi=t;else lo=t;}
     result={...pose,x:pose.x+(center.x-pose.x)*hi,y:pose.y+(center.y-pose.y)*hi};
     return threeClampPose(result,board,viewport);
   }
-  let b=projectedBounds(bounds,pose);
-  if(b.w*pose.scale>viewport.width||b.h*pose.scale>viewport.height)b=projectedBounds(preferred,pose);
+  let b=projectedBounds(bounds,pose,pose.visualHeight??0);
+  if(b.w*pose.scale>viewport.width||b.h*pose.scale>viewport.height)b=projectedBounds(preferred,pose,pose.visualHeight??0);
   const center=threeProject({x:pose.x,y:pose.y},{x:0,y:0,scale:1,tilt:pose.tilt,yaw:pose.yaw},{width:0,height:0});
   const axis=(value,start,length,pixels)=>{
     const visible=pixels/pose.scale,comfortable=visible*.76,extent=length<=comfortable?comfortable:visible;
@@ -127,7 +127,7 @@ export function threeAutoFit({active,moves=[],friends=[],board,viewport,preferen
   if(!(orientation.tilt||orientation.yaw||perspective))return flatAutoFit({active,moves,friends,board,viewport,preferences});
   const prefs=cameraPreferences(preferences),activeBounds=cameraBounds(active);if(!activeBounds)return null;
   const core=moves.reduce((b,cells)=>cameraUnion(b,cameraBounds(cells)),activeBounds);
-  const required=b=>{if(perspective)return threeSpanScale(viewport,1,orientation)/threeFitRect(b,viewport,orientation).scale;const p=projectedBounds(b,orientation,.16);return threeSpanScale(viewport,1,orientation)*Math.max(p.w/Math.max(1,viewport.width-32),p.h/Math.max(1,viewport.height-32));};
+  const required=b=>{if(perspective)return threeSpanScale(viewport,1,orientation)/threeFitRect(b,viewport,orientation).scale;const p=projectedBounds(b,orientation,orientation.visualHeight??.16);return threeSpanScale(viewport,1,orientation)*Math.max(p.w/Math.max(1,viewport.width-32),p.h/Math.max(1,viewport.height-32));};
   const fits=b=>required(b)<=prefs.maxSpan;
   let bounds=core;const overflow=!fits(core);
   for(let m=prefs.margin;m>=0;m--){const b=cameraMargin(core,m,board);if(fits(b)){bounds=b;break;}}

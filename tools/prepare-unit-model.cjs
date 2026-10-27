@@ -1,0 +1,27 @@
+// Reproducible core-static GLB export, driven by reviewed per-asset provenance.
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..'),hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+function prepare(bytes,sourceHash){
+  if(hash(bytes)!==sourceHash)throw Error('Source hash differs from reviewed provenance');
+  if(bytes.readUInt32LE(0)!==0x46546c67||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length)throw Error('Invalid GLB');
+  const length=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+length));
+  function visit(v){if(!v||typeof v!=='object')return;if(v.extensions&&Object.keys(v.extensions).length)throw Error('Review actual extension payloads before export');for(const c of Object.values(v))visit(c);}
+  visit(json);delete json.extensionsUsed;delete json.extensionsRequired;
+  json.asset.extras={...json.asset.extras,preparation:'ProjectDelve core static GLB v1',sourceSha256:sourceHash};
+  let j=Buffer.from(JSON.stringify(json));j=Buffer.concat([j,Buffer.alloc((4-j.length%4)%4,32)]);
+  const rest=bytes.subarray(20+length),header=Buffer.alloc(20);header.writeUInt32LE(0x46546c67);header.writeUInt32LE(2,4);header.writeUInt32LE(20+j.length+rest.length,8);header.writeUInt32LE(j.length,12);header.writeUInt32LE(0x4e4f534a,16);
+  return Buffer.concat([header,j,rest]);
+}
+if(require.main===module){
+  const manifest=process.argv.slice(2).find(a=>a!=='--check')??'assets/source/models/units/zombie/provenance.json',p=JSON.parse(fs.readFileSync(path.resolve(root,manifest)));
+  const inside=name=>{const f=path.resolve(root,name);if(!f.startsWith(root+path.sep))throw Error('Asset path must stay within repository');return f;};
+  const source=inside(p.original.path),output=inside(p.runtime.path);if(source===output)throw Error('Never overwrite original');
+  if(!p.commerciallyCleared||!p.redistributionRightsConfirmed)throw Error('Runtime publishing requires reviewed rights');
+  const bytes=fs.readFileSync(source),prepared=prepare(bytes,p.original.sha256);
+  if(p.runtime.sha256&&hash(prepared)!==p.runtime.sha256)throw Error('Prepared hash differs from provenance');
+  if(process.argv.includes('--check')){if(!fs.readFileSync(output).equals(prepared))throw Error('Runtime export is not reproducible');}
+  else{fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,prepared);}
+  if(hash(fs.readFileSync(source))!==p.original.sha256)throw Error('Source changed');
+  console.log(JSON.stringify({bytes:prepared.length,sha256:hash(prepared),output:p.runtime.path}));
+}
+module.exports={prepare};

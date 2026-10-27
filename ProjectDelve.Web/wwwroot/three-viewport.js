@@ -1,11 +1,14 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { boardVisuals, terrainLayers, railConnections, railGeometry } from './board-visuals.js';
+import { resolveUnitModel, unitVisualEnvelope } from './unit-visuals.js';
 import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
 import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
 import { createTabletopVisuals, createMovementClipPool } from './three-tabletop.js';
 import { createTabletopLighting } from './three-lighting.js';
 import { orientationBasis, groundQuadrilateral, perspectiveLens } from './three-camera-geometry.js';
+import { createModelCache } from './three-models.js';
+import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-facing.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
@@ -22,6 +25,7 @@ export function observedTerrain(frame) {
 
 // Only browser observations enter this renderer. All game decisions stay in app.js.
 export function createThreeViewport({ host, controls, animate, onPick, onHover, onPreview, onProject, onFailure,
+  modelDescriptors={},visualCatalog=null,modelCacheOptions={},facing=createUnitFacing(),
   rendererFactory = parameters => new THREE.WebGLRenderer(parameters), textureLoader = new THREE.TextureLoader(), startedAt = performance.now() }) {
   let presentation='flat',heights=flatHeights,representationTransition=null;
   const canvas=document.createElement('canvas');canvas.className='three-canvas';canvas.setAttribute('aria-hidden','true');host.prepend(canvas);
@@ -49,15 +53,42 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   let motion,transient,transientId,drag=null,pinch=null,blockClick=false,space=false;
   const arrivals=new Map(),flips=new Map(),doorMotions=new Map(),unitRoots=new Map(),postureChanges=new Map(),pieceEffects=new Map();
   let clipPool=null;
+  let inEvent=false,bodiesDirty=false,unitRepresentation='cardboard',requestedRepresentation='cardboard';
+  const readyModels=new Set(),pendingModels=new Set();
+  const rotations=new Map();let transientYaw=null;
   const pointers=new Map(),samples=[],renderTimes=[],unitRenderTimes=[],unitIntervals=[],reconcileTimes=[],cameraRenderTimes=[],cameraIntervals=[];
   let presentationStartedAt=null,presentationFirstFrameMs=null,lastCameraFrame=0;
   let lastUnitFrame=0;
   let renderCount=0,firstFrameAt=null,readyAt=null,lastHover='',lastRender=0;
   const started=startedAt;
   function invalidate(){if(active&&!lost&&!disposed&&raf===null)raf=requestAnimationFrame(draw);}
-  const cameraControl=createThreeCamera({controls,invalidate,animate,onChange:()=>onProject?.()});
+  const visualHeight=unitVisualEnvelope(visualCatalog,modelDescriptors);
+  const cameraControl=createThreeCamera({controls,invalidate,animate,visualHeight,onChange:()=>onProject?.()});
   const lighting=createTabletopLighting({scene,root:controls.root,invalidate});
   const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
+  const models=createModelCache({...modelCacheOptions,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
+  const representationLabel=document.createElement('label'),representationSelect=document.createElement('select');
+  representationLabel.textContent='Units ';representationSelect.id='three-unit-representation';representationSelect.setAttribute('aria-label','Unit representation');
+  for(const [value,text]of [['cardboard','Cardboard'],['miniatures','Miniatures']]){const option=document.createElement('option');option.value=value;option.textContent=text;representationSelect.append(option);}
+  representationLabel.append(representationSelect);representationLabel.hidden=true;controls.root.append(representationLabel);
+  try{if(localStorage.getItem('delve.three.units.v1')==='miniatures')requestedRepresentation=unitRepresentation='miniatures';}catch{/* optional */}
+  representationSelect.value=requestedRepresentation;
+  representationSelect.addEventListener('change',()=>setRepresentation(representationSelect.value),{signal:abort.signal});
+  function setRepresentation(value){if(!['cardboard','miniatures'].includes(value)||disposed)return;requestedRepresentation=value;representationSelect.value=value;
+    try{localStorage.setItem('delve.three.units.v1',value);}catch{/* optional */}bodiesDirty=true;commitBodies();}
+  function commitBodies(){
+    if(!bodiesDirty||!active||lost||disposed||inEvent||transient||flips.size||!frame)return;
+    unitRepresentation=requestedRepresentation;for(const entry of pendingModels)readyModels.add(entry);pendingModels.clear();bodiesDirty=false;retained=new Set(nodes.keys());
+    for(const figure of frame.state.physical.figures)updateUnit(figure,appearance(figure));invalidate();
+  }
+  const modelDescriptor=a=>resolveUnitModel(visualCatalog,a.typeId,a.cellSpan??1,modelDescriptors);
+  function modelEntry(a){const d=modelDescriptor(a);const entry=presentation==='tabletop'&&unitRepresentation==='miniatures'&&a.posture!=='Lying'&&d?models.request(d):null;return entry?.state==='ready'&&!readyModels.has(entry)?{...entry,state:'loading'}:entry;}
+  function syncFacing(instant=false){
+    for(const [id,root]of unitRoots){const node=root.userData.body?.facingNode;if(!node){rotations.delete(id);continue;}const to=facing.get(id).yaw;
+      if(Math.abs(shortestYaw(node.rotation.y,to))<1e-7)continue;
+      if(instant||!animate()){node.rotation.y=to;rotations.delete(id);}else rotations.set(id,{node,from:node.rotation.y,to,start:performance.now()});
+    }invalidate();
+  }
   function material(color,source,transparent=false,vertexColors=false) {
     const key=JSON.stringify([color,source,transparent,vertexColors]);if(materials.has(key))return materials.get(key);
     const m=new THREE.MeshBasicMaterial({color:color==='transparent'?'#19232c':color??'#666a68',transparent,opacity:source&&transparent?0:1,depthWrite:!transparent,side:THREE.FrontSide,vertexColors});
@@ -127,28 +158,36 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     group.userData.infoAnchor={x:0,y:-heights.units,z:0};group.userData.visualBounds={radius:span*.42,height:0};
     return group;
   }
-  function token(a,position,height=heights.units){
+  function token(a,position,height=heights.units,id){
     if(presentation==='flat')return flatToken(a,position,height);
     const root=new THREE.Group(),center=cellCenter(position,a.cellSpan??1);root.position.set(center.x,height,center.z);
-    const body=physical.unit(a);root.add(body);root.userData.infoAnchor=body.userData.infoAnchor;root.userData.visualBounds=body.userData.bounds;return root;
+    const entry=modelEntry(a),model=models.clone(entry,modelDescriptor(a));let body;
+    if(model){
+      const group=new THREE.Group(),yaw=new THREE.Group();group.name='miniature-body';yaw.name='miniature-facing';yaw.position.y=.06;yaw.rotation.y=id?facing.get(id).yaw:0;
+      yaw.add(model.group);group.add(yaw);root.add(physical.miniatureBase(a));
+      body={group,facingNode:yaw,visualBounds:{radius:.46*a.cellSpan,height:.06+model.visualBounds.height},infoAnchor:model.infoAnchor};
+    }else{const group=physical.unit(a);body={group,facingNode:null,visualBounds:group.userData.bounds,infoAnchor:group.userData.infoAnchor};}
+    root.add(body.group);root.userData.body=body;root.userData.infoAnchor=body.infoAnchor;root.userData.visualBounds=body.visualBounds;return root;
   }
   function updateUnit(figure,a){
-    const id=figure.id,key=`unit:${id}`,signature=JSON.stringify([presentation,a]);retained.add(key);
+    const id=figure.id,key=`unit:${id}`,entry=modelEntry(a),signature=JSON.stringify([presentation,unitRepresentation,entry?.state,entry?.descriptor.version,a]);retained.add(key);
     let root=unitRoots.get(id);
     if(!root){root=new THREE.Group();root.name=`unit:${id}`;root.userData.unitId=id;groups.units.add(root);unitRoots.set(id,root);}
     const old=nodes.get(key),previous=root.userData.appearance;
     if(old?.signature!==signature){
-      for(const child of [...root.children])removeRecord({object:child});
-      const body=token(a,{x:0,y:0},0);for(const child of [...body.children])root.add(child);
-      root.userData.infoAnchor=body.userData.infoAnchor;root.userData.visualBounds=body.userData.visualBounds;
-      if(presentation==='tabletop'&&previous&&previous.posture!==a.posture&&animate()){
+      const previousBody=root.userData.body,previousYaw=previousBody?.facingNode?.rotation.y;
+      rotations.delete(id);for(const child of [...root.children])removeRecord({object:child});
+      const body=token(a,{x:0,y:0},0,id);for(const child of [...body.children])root.add(child);
+      root.userData.body=body.userData.body;root.userData.infoAnchor=body.userData.infoAnchor;root.userData.visualBounds=body.userData.visualBounds;
+      if(previousYaw!=null&&root.userData.body?.facingNode)root.userData.body.facingNode.rotation.y=previousYaw;
+      if(presentation==='tabletop'&&previous&&previous.posture!==a.posture&&animate()&&!previousBody?.facingNode&&!root.userData.body?.facingNode){
         const from=previous.posture==='Lying'?Math.PI:0,to=a.posture==='Lying'?Math.PI:0;
         postureChanges.set(id,{from,to});
       }
       nodes.set(key,{signature,object:root});
     }
     const center=cellCenter(figure.position,a.cellSpan);root.position.set(center.x,heights.units,center.z);
-    if(presentation==='tabletop'&&a.active&&!root.getObjectByName('active-mark')){const mark=plane(glyph('▶'),-a.cellSpan*.34,-a.cellSpan*.3,a.cellSpan*.18,a.cellSpan*.18,.095);mark.name='active-mark';root.add(mark);}
+    if(presentation==='tabletop'&&a.active&&!root.children.some(child=>child.name==='active-mark')){const mark=plane(glyph('▶'),-a.cellSpan*.34,-a.cellSpan*.3,a.cellSpan*.18,a.cellSpan*.18,.095);mark.name='active-mark';root.add(mark);}
     root.userData.appearance={...a};root.userData.footprint=frame.presentation.figures?.[id]?.occupiedCells??[figure.position];
     return root;
   }
@@ -159,7 +198,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function renderFrame(next){
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
     if(identity!==session){cancel();session=identity;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
-    frame=next;lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
+    frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
     // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat
     // terrain and fog by material; all dynamic objects retain ordinary meshes.
     const batches=new Map(),solidBatches=new Map();
@@ -263,6 +302,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     // Called only by the router at an authoritative checkpoint. Unit roots stay.
     settle();presentationStartedAt=performance.now();presentation=value;heights=value==='tabletop'?physicalHeights:flatHeights;
     host.dataset.presentation=value;
+    representationLabel.hidden=value!=='tabletop';
     lighting.setPresentation(value);
     for(const [key,record]of nodes)if(!key.startsWith('unit:')){removeRecord(record);nodes.delete(key);}
     cameraControl.setPresentation(value,active);
@@ -303,15 +343,17 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function updateCamera(){const pose=cameraControl.current();if(!pose)return;const b=orientationBasis(pose),board=frame.state.physical.board,lens=perspectiveLens(pose,cameraControl.size),distance=lens.perspective?lens.distance:Math.max(100,Math.hypot(board.width,board.height)*2);
     camera=lens.perspective?perspectiveCamera:orthographicCamera;
     camera.position.set(pose.x+distance*b.st*b.s,distance*b.ct,pose.y+distance*b.st*b.c);
-    const closest=Math.min(...[-.12,board.width+.12].flatMap(x=>[-.12,board.height+.12].map(y=>distance-b.st*(b.s*(x-pose.x)+b.c*(y-pose.y))-b.ct*.75)));
+    const closest=Math.min(...[-.12,board.width+.12].flatMap(x=>[-.12,board.height+.12].map(y=>distance-b.st*(b.s*(x-pose.x)+b.c*(y-pose.y))-b.ct*(presentation==='tabletop'?visualHeight:0))));
     camera.up.set(-b.ct*b.s,b.st,-b.ct*b.c);camera.lookAt(pose.x,0,pose.y);camera.far=distance+Math.hypot(board.width,board.height)+10;camera.near=lens.perspective?Math.max(.01,closest*.5):.1;camera.zoom=lens.perspective?1:pose.scale;if(lens.perspective)camera.fov=lens.fov;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);}
   function draw(time){
     try { drawFrame(time); } catch(error) { raf=null;lost=true;onFailure?.(error); }
   }
   function drawFrame(time){
-    raf=null;if(!active||lost||disposed||!frame)return;const begin=performance.now();if(!resize())return;const movingCamera=cameraControl.tick(time);updateCamera();
+    raf=null;if(!active||lost||disposed||!frame)return;commitBodies();const begin=performance.now();if(!resize())return;const movingCamera=cameraControl.tick(time);updateCamera();
     if(motion){const t=Math.min(1,(time-motion.start)/motion.duration);motion.object.position.x=motion.from.x+(motion.to.x-motion.from.x)*t;motion.object.position.z=motion.from.z+(motion.to.z-motion.from.z)*t;if(t>=1)motion=null;}
-    if(clipPool&&transient)clipPool.update(transient.position.x,transient.position.z,transient.userData.span);
+    for(const [id,r]of rotations){const t=Math.min(1,(time-r.start)/150);r.node.rotation.y=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(t>=1)rotations.delete(id);}
+    if(transientYaw){const r=transientYaw,t=Math.min(1,(time-r.start)/150);r.current=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(r.node)r.node.rotation.y=r.current;}
+    if(clipPool&&transient)clipPool.update(transient.position.x,transient.position.z,transient.userData.span,transientYaw?.current);
     for(const [id,effect]of flips){const body=unitRoots.get(id)?.getObjectByName('cardboard-body'),t=Math.min(1,(time-effect.start)/360);if(body)physical.posture(body,effect.from+(effect.to-effect.from)*(1-(1-t)**3));if(t>=1||!body)flips.delete(id);}
     for(const [key,effect]of doorMotions){const leaf=nodes.get(key)?.object.getObjectByName('door-leaf'),t=Math.min(1,(time-effect.start)/280);if(leaf){leaf.visible=t<1||!effect.open;leaf.position.y=effect.open?t*.3:(1-t)*.3;leaf.scale.y=effect.open?1-t:t;}if(t>=1||!leaf){if(leaf){leaf.position.y=0;leaf.scale.y=1;}doorMotions.delete(key);}}
     for(const [key,effect]of pieceEffects){const object=nodes.get(key)?.object,t=Math.min(1,(time-effect.start)/240);if(object)object.scale.setScalar(.65+.35*(1-(1-t)**3));if(t>=1||!object)pieceEffects.delete(key);}
@@ -341,11 +383,11 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     renderTimes.push(performance.now()-begin);if(renderTimes.length>240)renderTimes.shift();
     if(movingCamera){cameraRenderTimes.push(renderTimes.at(-1));if(cameraRenderTimes.length>240)cameraRenderTimes.shift();if(lastCameraFrame){cameraIntervals.push(time-lastCameraFrame);if(cameraIntervals.length>240)cameraIntervals.shift();}lastCameraFrame=time;}else lastCameraFrame=0;
     if(transient){unitRenderTimes.push(renderTimes.at(-1));if(unitRenderTimes.length>240)unitRenderTimes.shift();if(lastUnitFrame){unitIntervals.push(time-lastUnitFrame);if(unitIntervals.length>240)unitIntervals.shift();}lastUnitFrame=time;}else lastUnitFrame=0;
-    const continuous=movingCamera||motion||arrivals.size||flips.size||doorMotions.size||pieceEffects.size||representationTransition;
+    const continuous=movingCamera||motion||arrivals.size||flips.size||doorMotions.size||pieceEffects.size||representationTransition||rotations.size||bodiesDirty&&!inEvent;
     if(lastRender&&time-lastRender<1000){samples.push(time-lastRender);if(samples.length>240)samples.shift();}lastRender=continuous?time:0;
     const percentile=(values,p)=>[...values].sort((a,b)=>a-b)[Math.floor((values.length-1)*p)]??0;
     const textureBytes=[...textures.values()].reduce((n,e)=>n+(e.texture?.image?.width??0)*(e.texture?.image?.height??0)*4*4/3,0)+glyphs.size*128*128*4*4/3;
-    metrics.textContent=JSON.stringify({presentation,lighting:lighting.inspect(),materials:materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+(textureBytes/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
+    metrics.textContent=JSON.stringify({presentation,representation:unitRepresentation,miniatures:[...unitRoots.values()].filter(r=>r.userData.body?.facingNode).length,models:models.inspect(),lighting:lighting.inspect(),materials:models.inspect().reduce((n,e)=>n+(e.materials??0),0)+materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+((textureBytes+models.inspect().reduce((n,e)=>n+(e.textureBytes??0),0))/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
     if(continuous)invalidate();
   }
   function updateLabels(){const pose=cameraControl.current(),size=cameraControl.size;if(!pose)return;const placed=[];
@@ -353,10 +395,13 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const entries=[...labelNodes].sort(([a],[b])=>priority(b)-priority(a));
     for(const[id,label]of entries){const a=label.appearance,root=unitRoots.get(id),anchor=root?.userData.infoAnchor??{x:0,y:0,z:0},height=(root?.position.y??0)+anchor.y;
       const center={x:label.position.x+a.cellSpan/2+anchor.x,y:label.position.y+a.cellSpan/2+anchor.z,height},p=cameraControl.screen(center),radius=root?.userData.visualBounds?.radius??a.cellSpan*.42;
-      const samples=presentation==='tabletop'?Array.from({length:16},(_,i)=>cameraControl.screen({...center,x:center.x+Math.cos(i*Math.PI/8)*radius,y:center.y+Math.sin(i*Math.PI/8)*radius})):null;
+      const samples=presentation==='tabletop'?Array.from({length:16},(_,i)=>cameraControl.screen({...center,height:.084,x:center.x+Math.cos(i*Math.PI/8)*radius,y:center.y+Math.sin(i*Math.PI/8)*radius})):null;
       const diameter=samples?Math.max(...samples.map(p=>p.x))-Math.min(...samples.map(p=>p.x)):pose.scale*.84*a.cellSpan;
       const screenHeight=samples?Math.max(...samples.map(p=>p.y))-Math.min(...samples.map(p=>p.y)):diameter;
-      label.detail=tokenDetail(diameter,label.detail);label.dataset.detail=String(label.detail);const width=Math.min(150,Math.max(24,diameter));
+      // At overhead the elevated information anchor projects onto the figure.
+      // Keep miniature names above the base silhouette as well as above the head.
+      if(root?.userData.body?.facingNode&&samples)p.y=Math.min(p.y,Math.min(...samples.map(p=>p.y))-6);
+      label.detail=tokenDetail(diameter,label.detail);label.dataset.detail=String(label.detail);label.dataset.body=root?.userData.body?.facingNode?'miniature':'cardboard';const width=Math.min(150,Math.max(24,diameter));
       const offscreen=p.behind||p.x+diameter/2<0||p.y+diameter/2<0||p.x-diameter/2>size.width||p.y-diameter/2>size.height;
       const collision=placed.some(r=>Math.abs(r.x-p.x)<(r.w+width)/2&&Math.abs(r.y-p.y)<diameter*.7);
       label.hidden=offscreen||id===transientId||label.detail<2||collision&&id!==view.focusedUnitId;
@@ -380,7 +425,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function pick(point){
     if(!frame||!active||lost)return null;updateCamera();const rect=canvas.getBoundingClientRect();if(!rect.width||!rect.height)return null;
     raycaster.setFromCamera(new THREE.Vector2(point.x/rect.width*2-1,1-point.y/rect.height*2),camera);
-    if(!raycaster.ray.intersectPlane(ground,intersection))return null;const cell={x:Math.floor(intersection.x),y:Math.floor(intersection.z)},board=frame.state.physical.board;
+    const grounded=raycaster.ray.intersectPlane(ground,intersection);const cell=grounded?{x:Math.floor(intersection.x),y:Math.floor(intersection.z)}:{x:-1,y:-1},board=frame.state.physical.board;
     // Door hit proxies include the transparent open passage. Only supplied Door choices compete.
     const doors=(view.candidates??[]).filter(c=>c.interaction.kind==='Door').map(c=>c.interaction.door);
     let door,nearest=Infinity;for(const candidate of doors){const p=edgePlacement(candidate),a=cameraControl.screen({x:p.x-(p.vertical?0:.5),y:p.z-(p.vertical?.5:0)}),b=cameraControl.screen({x:p.x+(p.vertical?0:.5),y:p.z+(p.vertical?.5:0)}),dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((point.x-a.x)*dx+(point.y-a.y)*dy)/(dx*dx+dy*dy)));
@@ -397,6 +442,15 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const at=cameraControl.groundAtHeight?.(point,.084)??cameraControl.ground(point);
       const proxy=at&&frame.state.physical.figures.find(f=>{const span=frame.presentation.figures?.[f.id]?.cellSpan??1,center=cellCenter(f.position,span);return Math.hypot(at.x-center.x,at.y-center.z)<=span*.46;});
       if(proxy){figure=proxy;const cells=frame.presentation.figures?.[proxy.id]?.occupiedCells??[proxy.position];if(!cells.some(c=>boardCellKey(c)===boardCellKey(cell))){const nearest=[...cells].sort((a,b)=>Math.hypot(a.x+.5-at.x,a.y+.5-at.y)-Math.hypot(b.x+.5-at.x,b.y+.5-at.y))[0];cell.x=nearest.x;cell.y=nearest.y;}}
+    }
+    if(presentation==='tabletop'&&!door&&!(view.candidates??[]).some(c=>c.interaction.kind==='Position'&&boardCellKey(c.interaction.position)===boardCellKey(cell))){
+      const hits=[];
+      for(const f of frame.state.physical.figures){const root=unitRoots.get(f.id),body=root?.userData.body;if(!body?.facingNode||!root.visible)continue;
+        const r=body.visualBounds.radius,box=new THREE.Box3(new THREE.Vector3(root.position.x-r,root.position.y,root.position.z-r),new THREE.Vector3(root.position.x+r,root.position.y+body.visualBounds.height,root.position.z+r)),point=new THREE.Vector3();
+        if(raycaster.ray.intersectBox(box,point))hits.push({f,distance:point.distanceToSquared(raycaster.ray.origin)});
+      }
+      hits.sort((a,b)=>a.distance-b.distance||(a.f.id<b.f.id?-1:a.f.id>b.f.id?1:0));
+      if(hits.length){figure=hits[0].f;const cells=frame.presentation.figures?.[figure.id]?.occupiedCells??[figure.position],at=grounded?intersection:{x:figure.position.x+.5,z:figure.position.y+.5};const nearest=[...cells].sort((a,b)=>Math.hypot(a.x+.5-at.x,a.y+.5-at.z)-Math.hypot(b.x+.5-at.x,b.y+.5-at.z)||a.y-b.y||a.x-b.x)[0];cell.x=nearest.x;cell.y=nearest.y;}
     }
     const outside=()=>cell.x<0||cell.y<0||cell.x>=board.width||cell.y>=board.height;
     if(door&&outside()){cell.x=door.a.x;cell.y=door.a.y;}if(outside())return null;
@@ -450,20 +504,28 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   bind(globalThis,'resize',()=>{if(active){resize();invalidate();}});
   bind(canvas,'webglcontextlost',event=>{event.preventDefault();lost=true;cancel();if(raf!==null)cancelAnimationFrame(raf);raf=null;onFailure?.(new Error('WebGL context lost. Enhanced 2D remains available.'));});
   bind(canvas,'webglcontextrestored',()=>{lost=false;invalidate();});
-  function setActive(value){if(value&&lost)throw Error('WebGL is unavailable. Continue in Enhanced 2D until the context is restored.');active=value;host.hidden=!value;controls.root.hidden=!value;if(!value){cancel();pointers.clear();drag=pinch=null;if(raf!==null)cancelAnimationFrame(raf);raf=null;pointerPosition=null;hover(null);}else{resize();invalidate();}}
+  function setActive(value){if(value&&lost)throw Error('WebGL is unavailable. Continue in Enhanced 2D until the context is restored.');active=value;host.hidden=!value;controls.root.hidden=!value;if(!value){cancel();pointers.clear();drag=pinch=null;if(raf!==null)cancelAnimationFrame(raf);raf=null;pointerPosition=null;hover(null);}else{commitBodies();resize();invalidate();}}
   async function present(event,occurrence,playback){
     if(!active||lost||!frame)return;const generation=epoch;
     if(event.role==='Movement'){
+      facing.observe(event,occurrence,frame);
       const stable=nodes.get(`unit:${event.unitId}`)?.object,figure=frame.state.physical.figures.find(f=>f.id===event.unitId),a=event.movingFigure??(figure?appearance(figure):null),segments=event.movementSegments??(event.path?.length?[event.path]:[]);
       if(!a||!segments.length)return;
-      if(stable)stable.visible=false;transientId=event.unitId;const source=token(a,segments[0][0],heights.movement);
+      const legs=observedMovementLegs(event,frame);if(data.explored&&!legs.flat().some(yaw=>yaw!=null))return;
+      if(stable)stable.visible=false;transientId=event.unitId;const source=token(a,segments[0][0],heights.movement,event.unitId);
+      const yawNode=source.userData.body?.facingNode;
+      let currentYaw=stable?.userData.body?.facingNode?.rotation.y??facing.get(event.unitId).yaw;
+      if(yawNode)yawNode.rotation.y=currentYaw;
       if(data.explored&&(presentation==='tabletop'||cameraControl.current().tilt)){
         clipPool=createMovementClipPool(source,data.explored,THREE,lighting.clippedVariants);transient=clipPool.root;transient.userData.span=a.cellSpan??1;clipPool.update(source.position.x,source.position.z,a.cellSpan??1);
       }else transient=source;
       groups.movement.add(transient);
-      try{for(const segment of segments){if(!transient||playback.skipping()||generation!==epoch)break;const start=cellCenter(segment[0],a.cellSpan);transient.position.x=start.x;transient.position.z=start.z;cameraControl.movementStep(segment[0]);invalidate();
-        for(const anchor of segment.slice(1)){if(!transient||playback.skipping()||generation!==epoch)break;const to=cellCenter(anchor,a.cellSpan);motion={object:transient,from:{x:transient.position.x,z:transient.position.z},to,start:performance.now(),duration:220};cameraControl.movementStep(anchor);invalidate();await playback.pause(250);if(motion){motion.object.position.x=to.x;motion.object.position.z=to.z;motion=null;}}
-      }}finally{clipPool?.dispose();clipPool=null;removeRecord({object:source});if(transient)transient.removeFromParent();transient=null;transientId=null;motion=null;if(stable)stable.visible=true;invalidate();}
+      const localTransient=transient,localPool=clipPool;
+      try{for(const [si,segment]of segments.entries()){if(!transient||playback.skipping()||generation!==epoch)break;const start=cellCenter(segment[0],a.cellSpan);transient.position.x=start.x;transient.position.z=start.z;cameraControl.movementStep(segment[0]);invalidate();
+        for(const [li,anchor]of segment.slice(1).entries()){if(!transient||playback.skipping()||generation!==epoch)break;
+          if(yawNode&&legs[si][li]!=null){const to=legs[si][li]+facing.get(event.unitId).offset;transientYaw={node:yawNode,from:transientYaw?.current??currentYaw,current:transientYaw?.current??currentYaw,to,start:performance.now()};currentYaw=to;}
+          const to=cellCenter(anchor,a.cellSpan);motion={object:transient,from:{x:transient.position.x,z:transient.position.z},to,start:performance.now(),duration:220};cameraControl.movementStep(anchor);invalidate();await playback.pause(250);if(generation===epoch&&motion?.object===localTransient){motion.object.position.x=to.x;motion.object.position.z=to.z;motion=null;}}
+      }}finally{localPool?.dispose();removeRecord({object:source});localTransient.removeFromParent();if(transient===localTransient){clipPool=null;transient=null;transientId=null;transientYaw=null;motion=null;}if(generation===epoch&&stable&&unitRoots.get(event.unitId)===stable){stable.visible=true;if(stable.userData.body?.facingNode)stable.userData.body.facingNode.rotation.y=facing.get(event.unitId).yaw;}invalidate();}
       return;
     }
     const id=event.targetId??event.unitId??occurrence?.unitId,node=nodes.get(`unit:${id}`)?.object;
@@ -472,6 +534,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     try{await playback.pause(duration);}finally{if(node)node.scale.setScalar(1);invalidate();}
   }
   function settle(){if(motion){motion.object.position.x=motion.to.x;motion.object.position.z=motion.to.z;motion=null;}
+    for(const r of rotations.values())r.node.rotation.y=r.to;rotations.clear();transientYaw=null;syncFacing(true);
     for(const id of arrivals.keys())nodes.get(`unit:${id}`)?.object.scale.setScalar(1);arrivals.clear();
     for(const [id,effect]of flips){const body=unitRoots.get(id)?.getObjectByName('cardboard-body');if(body)physical.posture(body,effect.to);}flips.clear();
     for(const [key,effect]of doorMotions){const leaf=nodes.get(key)?.object.getObjectByName('door-leaf');if(leaf){leaf.visible=!effect.open;leaf.scale.y=1;leaf.position.y=0;}}doorMotions.clear();
@@ -481,8 +544,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     clipPool?.dispose();clipPool=null;if(transient){transient.removeFromParent();transient=null;transientId=null;for(const root of unitRoots.values())root.visible=true;}
     cameraControl.settle();invalidate();}
   function cancel(){epoch++;settle();motion=null;for(const record of nodes.values())record.object.visible=true;cameraControl.cancel();}
-  function dispose(){if(disposed)return;setActive(false);disposed=true;abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
-  return{host,lighting,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,
+  function dispose(){if(disposed)return;setActive(false);disposed=true;models.dispose();readyModels.clear();pendingModels.clear();abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
+  return{host,lighting,models,facing,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,setRepresentation,syncFacing,
+    beginEvent(){inEvent=true;},checkpoint(){inEvent=false;commitBodies();},
     afterOccurrence:occurrence=>{
       if(!active||!animate())return;
       if(presentation==='tabletop'&&occurrence?.kind==='PostureChanged'){
@@ -491,5 +555,5 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }else if(occurrence?.kind==='UnitCreated'||presentation==='flat'&&occurrence?.kind==='PostureChanged')arrivals.set(occurrence.unitId,{kind:occurrence.kind,start:performance.now()});
       invalidate();
     },
-    inspect:()=>({active,lost,presentation,lighting:lighting.inspect(),renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
+    inspect:()=>({active,lost,presentation,representation:unitRepresentation,requestedRepresentation,models:models.inspect(),facing:facing.inspect(),rotations:rotations.size,lighting:lighting.inspect(),renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
 }

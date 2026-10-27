@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using ProjectDelve.Engine;
 
 namespace ProjectDelve.Web;
@@ -23,7 +25,18 @@ public static class PlaytestHost
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
-        app.UseStaticFiles();
+        var contentTypes = new FileExtensionContentTypeProvider();
+        contentTypes.Mappings[".glb"] = "model/gltf-binary";
+        app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes });
+        // Explicit local QA opt-in, independent of gameplay/scenario configuration.
+        // Test assets stay outside wwwroot and are absent from published output.
+        var miniatureQa = builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("MiniatureQa");
+        app.MapGet("/api/presentation/miniatures-qa", () => new { enabled = miniatureQa });
+        if (miniatureQa)
+        {
+            var fixtures = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "../ProjectDelve.Web.Tests/fixtures/miniatures"));
+            app.UseStaticFiles(new StaticFileOptions { RequestPath = "/__qa/miniatures", FileProvider = new PhysicalFileProvider(fixtures), ContentTypeProvider = contentTypes });
+        }
         DesignerApi.Map(app);
         GenerationApi.Map(app);
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>

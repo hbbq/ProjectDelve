@@ -1,6 +1,7 @@
 // Presentation only. Keys are content IDs, never display names or legality checks.
 // Add optional image: "./art/example.webp" to any entry. CSS keeps the
 // fallback beneath artwork, including while loading or when an image is missing.
+// Unit dimensions and approved model references live in art/models/unit-visuals.json.
 export const boardVisuals = {
   terrain: {
     Unknown: { fill: "#171e29", detail: "repeating-linear-gradient(135deg, transparent 0 10px, #94a7bd0b 11px 12px)" },

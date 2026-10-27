@@ -167,6 +167,7 @@ function harness(initial, fetchImpl, extras = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/unit-facing.js"), "utf8").replace(/^export /gm, ""), context);
   if (extras.withCamera) for (const file of ["camera-geometry.js", "camera-observation.js", "board-camera.js"])
     vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", file), "utf8").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, ""), context);
   vm.runInContext(script.replace(/^import .*\r?\n/gm, "").replace(/await refresh\(\);\s*$/, ""), context);
@@ -221,6 +222,22 @@ test('an app playback switch waits for StateAfter without duplicating history, d
   assert.equal(three.frames.at(-1).state.physical.figures[0].position.x,2);
   assert.equal(h.elements.get('events').children.length,1);assert.equal(h.run('combatDice.context.attackerId'),'actor');
   assert.equal(h.run('playbackGeneration'),0);assert.equal(h.submitted.length,0);
+});
+
+for(const mode of ['normal','skip','disabled'])test(`observed facing follows matching AttackStarted after-frame and movement with Three inactive (${mode})`,async()=>{
+  const initial=response();initial.result.state.physical.board.height=6;
+  const final=structuredClone(initial),atAttack=structuredClone(initial.result.state);
+  atAttack.physical.figures.find(f=>f.id==='b').position={x:0,y:2};
+  final.result.events=[{kind:'AttackStarted',unitId:'actor',attackContext:{attackerId:'actor',actionId:'attack',targets:[{targetId:'b'}]}},{kind:'MovementCompleted',unitId:'a'}];
+  final.presentation.events=[{role:'Notice',text:'Observed attack',unitId:'actor'},{role:'Movement',text:'Observed leg',unitId:'a',path:[{x:4,y:0},{x:4,y:1}]}];
+  const afterMove=structuredClone(atAttack);afterMove.physical.figures.find(f=>f.id==='a').position={x:4,y:1};
+  final.result.resolutionSteps=[{eventIndex:0,stateAfter:atAttack},{eventIndex:1,stateAfter:afterMove}];
+  final.presentation.resolutionSteps=[0,1].map(eventIndex=>({eventIndex,cards:final.presentation.cards}));
+  // The latest response deliberately disagrees with event-local target position.
+  final.result.state.physical.figures.find(f=>f.id==='b').position={x:5,y:0};
+  const h=harness(initial);h.context.final=final;h.context.mode=mode;
+  h.run('snapshot=final;skipEffects=mode==="skip";ui.animate.checked=mode!=="disabled";present=async()=>{};pause=async()=>{};');
+  await h.run('playEvents(final)');assert.equal(h.run('unitFacing.get("actor").yaw'),0);assert.equal(h.run('unitFacing.get("a").yaw-unitFacing.get("a").offset'),0);assert.equal(h.submitted.length,0);
 });
 
 for (const view of ["classic", "enhanced"]) for (const mode of ["animate", "disabled", "skip"])

@@ -1,0 +1,6 @@
+<Project>
+  <!-- Explicit test invocation only; never imported by the production project. -->
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)static-figure.glb" Link="wwwroot/__qa/miniatures/static-figure.glb" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -41,8 +41,8 @@ export function createViewportRouter({ dom, loadThree, overlay, onChange = () =>
   return {
     get active() { return active; },
     request(selection) { requested = selection; return checkpoint(); },
-    beginEvent() { inEvent = true; },
-    checkpoint() { inEvent = false; return checkpoint(); },
+    beginEvent() { inEvent = true; three?.beginEvent?.(); },
+    checkpoint() { inEvent = false; three?.checkpoint?.(); return checkpoint(); },
     dispose() { disposed = true; requested = null; dom.dispose?.(); three?.dispose(); },
     inspect: () => ({ active: active === dom ? dom.mode : 'three', pending: requested, inEvent })
   };
