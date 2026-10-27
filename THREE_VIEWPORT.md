@@ -1,6 +1,6 @@
-# Three.js Flat 2D Playtest viewport
+# Three.js Playtest viewport — Flat 2D and Tabletop 3D
 
-Playtest offers Classic, Enhanced 2D and Three.js Flat 2D under Tools → Display.
+Playtest offers Classic, Enhanced 2D, Three.js Flat 2D and Three.js Tabletop 3D under Tools → Display.
 Enhanced remains the default. Renderer selection is local to the page; switching
 and restarting do not create a different server session unless Restart itself is
 requested. Designer and Generator preview continue using their existing renderers.
@@ -62,7 +62,9 @@ Failed activation rolls back the overlay and working viewport.
 One world unit is one Cell. X follows board x; Z follows board y; Y is visual
 height. Cell `(x,y)` occupies `[x,x+1] × [y,y+1]`. A span-s figure is centered at
 `(x+s/2, height, y+s/2)`. The orthographic camera looks down with north at screen
-top. There are no lights, shadows, tone mapping, perspective, tilt or rotation.
+top in Flat mode. Tabletop adds tilt/yaw to the same orthographic camera. There
+are no lights, shadows, tone mapping or perspective. Physical geometry uses
+restrained baked vertex tones rather than a lighting system.
 
 Named groups separate terrain, grid, objects, rails, Edges, items, transient
 movement, FoW, stable Units, decision feedback and Areas. Explicit height ordering
@@ -122,7 +124,7 @@ attack-area or gameplay legality calculations live here.
 
 Unknown Cells are identified by the displayed Side's explored set before applying
 sparse-known-terrain defaults. Hidden contents are absent from the server browser
-projection. Unknown covers conceal terrain/objects and transient movement.
+projection. In Flat, Unknown covers conceal terrain/objects and transient movement.
 Stable multi-Cell Units supplied as observable are above the cover in full.
 Reach Area mission outlines may appear above Unknown Cells.
 
@@ -140,10 +142,173 @@ reactivation while still lost is rejected transactionally. Disposal releases
 listeners, observers, geometries, materials and textures. Page-cache suspension
 does not destroy the viewport.
 
-Future Tabletop mode can add sidewalls/board thickness and a camera orientation
-inside these scene groups. Full 3D can replace artwork children with models.
-Angled-view concealment of elevated transient geometry needs separate visual
-design. None requires changing authoritative gameplay or scenario serialization.
+Tabletop uses the same viewport, context, observed frames and interaction adapter.
+Its concrete bodies and transient concealment are described below. No engine,
+server observation or scenario serialization changes are involved.
+
+## Tabletop presentation and physical components
+
+The display selector's `three` and `tabletop` values both resolve to the one
+lazy-created Three viewport. `createViewportRouter` commits representation changes
+at authoritative event checkpoints, including switches within Three. It does not
+cancel shared playback, restart a session or replace dice/card/history nodes.
+`setPresentation` rebuilds decorative components, retains Unit roots and eases
+component height while the camera transitions from its currently displayed pose.
+Flat returns to its original overhead heights and artwork.
+
+Camera pose and representation are independent. The Tabletop preset chooses
+cardboard and 38° tilt/0° yaw; Overhead, Angled, rotation buttons and sliders then
+change only camera pose. Resume preserves orientation; Reset restores the preset.
+Tabletop-specific controls are hidden in Flat. Pan/zoom still suspend following.
+
+`three-tabletop.js` contains the small physical visual factory. Each authoritative
+Unit ID keeps a persistent scene root, observed footprint and information anchor.
+Only its visual children change. The body supplies `infoAnchor` and `visualBounds`;
+`updateLabels` projects those values. A future local model factory can replace
+the body and supply different bounds/anchors without owning Unit identity,
+choices, cards, movement legality or state. No model loader/configuration system
+is implemented.
+
+The board is one neutral-sided slab: top Y=0, thickness .12 Cell and .12 Cell of
+unprinted border. It is not a collection of extruded Cells. Existing material-
+instanced terrain planes print the playable top; the border has no Cell/Edge hit
+target. Artwork variants, quarter turns, Rail connections and supplied visualSeed
+are unchanged; no combined map texture or new artwork export is used.
+
+Cardboard bodies have radius `.46 * cellSpan`, 24-segment sides and .06 Cell
+thickness independent of footprint span. Both faces retain Side color and identity.
+The reverse uses the existing portrait, a subdued wash, broken rim and Lying mark.
+Inactive back faces are omitted from draw submission; both faces participate in
+turnover. Initial Lying figures immediately show the reverse. Only an observed
+`PostureChanged` hook starts a turnover after its matching frame: 360 ms, 180°,
+with world-Y compression limiting lift to .12 Cell. The root, footprint, active
+mark and HTML information stay fixed. Skip/cancel settles the authoritative face.
+
+Walls are .52 Cell high, .13 thick blocks on canonical Edge centers. Doors use
+.60-high jambs and a .54-high leaf; opening lifts/shrinks the leaf out, leaving a
+clear passage. Closing restores it. Windows retain a visibly open frame. Solid
+Rock is a low faceted component with existing top artwork; Trees/Fruit Trees use
+trunks, compact crowns and existing canopy images; Tables use supports and the
+existing tabletop print. Machines use compact blocks, artwork badges, owner
+accents and projected storage labels. Static obstacle parts are instanced by
+geometry/material. A separate `tabletop-shape-v1` variant domain varies rock
+geometry without changing terrain artwork hashes.
+
+Coal, Diamond, Banana, Fruit, Mushroom and Shell use shared low-poly geometry.
+Unknown Resources fall back to a physical puck with catalog artwork/glyph.
+Markers use thin discs with artwork/glyphs, including Banana Peel. Local item
+roots remain inside their authoritative Cell and can grow briefly on appearance;
+removals reconcile immediately. Resource transport is never inferred from Unit
+capabilities. An observed item under a Unit also receives a small HTML indicator.
+
+## Angled camera, interaction and concealment
+
+`three-camera-geometry.js` owns Three-specific projection/inversion, ground
+quadrilateral, projected-bound fitting and yaw interpolation. Shared DOM camera
+geometry is unchanged. Tilt is limited to 0–55°. Full fits border and .75 Cell of
+height with screen padding. Fixed uses maximum board-space span derived from the
+unprojected viewport corners. Auto fits supplied active/Move footprints, margins
+and nearby friends under the existing span cap; it rechecks bounds during camera
+rotation. Angled pan bounds keep the focus on the board while allowing gutters:
+requiring a rotated viewport to stay entirely inside the board would exclude
+corner Units. Exact Flat retains its original clamping. Camera intentions still
+come exclusively from camera-observation.js and the displayed observation.
+
+Pan and anchored zoom use ground unprojection. Cell picking uses the real camera
+ray and ground plane; token cap proxies map back to observed occupied Cells.
+Door tolerance is measured against projected Edge segments in CSS pixels and
+includes Open Doors. Supplied Position choices take priority over cap parallax.
+Decorative meshes never intercept legal decisions. Feedback renders in a final,
+depth-independent informational pass with the same renderer/camera so its Cell
+alignment remains correct behind raised components. Cutaway obstacles temporarily
+hides known obstacle/Machine decoration; it changes neither LOS nor observation.
+Keyboard Cell focus and the accessible Board choices list remain available.
+
+Unknown ground has a low opaque cover (.006 Cell). Hidden stable content is absent
+from observed input and never constructed. Observable stable multi-Cell Units are
+rendered whole, without Cell clipping, even over Unknown ground. Mission Areas
+retain their established overlay behavior.
+
+Elevated movement cannot rely on horizontal covers. Under FoW, Tabletop/angled
+transients use `createMovementClipPool`: nine reusable shared-geometry copies,
+each with four world-space vertical clipping planes bounding one intersecting
+explored Cell. Every mesh material in each copy has clipping enabled. The pool
+uses the currently displayed explored set, never a later frame. Hidden copies
+are invisible, disconnected supplied segments are never joined, and transient
+HTML labels remain absent. Material variants share textures and follow loading
+state; only those variants are disposed with the pool. Camera following still
+excludes hidden boundary padding. This is presentation masking, not another FoW
+or LOS implementation.
+
+## Tabletop lifecycle and verification
+
+One invalidation-driven RAF covers camera, movement, turnover, Door motion,
+creation and item effects; stable/inactive scenes are idle. Shared cached geometry,
+materials and textures live until viewport disposal. Removed instanced batches
+release instance resources; owned feedback materials and transient clipping
+variants are disposed individually. Session replacement clears roots and effects;
+deactivation/context loss settles and clears local motion. The same transactional
+DOM fallback remains available after context loss. DPR stays capped at 2.
+
+Run focused `three-viewport.test.cjs`, `three-camera-geometry.test.cjs` and
+`door-choice.test.cjs`, then client/security suites and the solution build/tests.
+The existing Flat assertions remain. Tabletop tests cover identity, dimensions,
+all catalog pieces/fallbacks, rotated ray math, corner framing, clipping of every
+transient child, whole observable 2×2 figures, leaf/turnover cancellation, context
+recovery, texture failures, batching and idle rendering. `tabletop-scene.json`
+and `tabletop-fog.json` are dedicated test-owned fixtures; the latter exposes just
+one Dragon footprint Cell while projecting the complete figure.
+
+### Tabletop Edge measurements — 2026-10-27
+
+Protected dispatcher, isolated 5081 Edge, 1440×1000. Generated cases use seed
+`0000000000000001`, E2/C2/D3/L3/OR2, with N2 for medium/30×20 and N3 for 50×50.
+These are short local CPU/frame-interval samples, not GPU timers or general FPS
+guarantees. Cold Tabletop first-frame includes reconciliation, shader preparation
+and the next RAF after an already loaded Flat view. Startup spikes are excluded
+from warm timings by Reset timing sample.
+
+| Scene | Flat calls | Tabletop calls | Tabletop triangles | Textures / geometries | Estimated texture MiB | First Tabletop frame | Warm render p95 | Warm camera interval p95 / frames |
+| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |
+| Basic Combat, authored | 20 | 36 | 1,060 | 13 / 9 | 5.42 | 35.0 ms | — | — |
+| 20×16, 6 rooms, revealed | 98 | 135 | 7,574 | 22 / 9 | 12.42 | 49.1 ms | 2.0 ms | 16.7 ms / 9 |
+| 30×20, 12 rooms, FoW | 26 | 48 | 2,318 | 15 / 9 | 7.96 | 38.6 ms | 1.5 ms | 16.8 ms / 9 |
+| 50×50, 24 rooms, FoW | 48 | 57 | 6,258 | 16 / 9 | 8.17 | 44.4 ms | 2.5 ms | 16.77 ms / 10 |
+| 50×50, 24 rooms, revealed | 498 | 517 | 42,530 | 26 / 9 | 20.75 | 91.8 ms | 3.1 ms | 16.8 ms / 11 |
+
+The revealed case initially submitted 1,259 Tabletop calls. Omitting settled hidden
+token faces reduced that to 517; warm CPU render p95 changed from 3.8 to 3.1 ms.
+Six further Flat/Tabletop pairs retained 26 textures, nine uploaded geometries,
+nine programs and 20.75 MiB estimated textures. This establishes a bounded sample,
+not a proof against every possible driver leak. Cold reconciliation p95 for that
+run was 28.6 ms; initial Flat lazy-load first-frame was 183.1 ms.
+
+Basic Combat's capture includes startup and was not reset for a warm sample.
+The test-owned FoW patrol recorded 29 moving-token frames: CPU render p95 1.4 ms,
+movement frame-interval p95 16.8 ms. Its 45 camera frames recorded CPU render p95
+2.1 ms and interval p95 16.8 ms. Final verification passed 496 client/security
+tests and 1,978 .NET tests (1,601 Engine / 377 Web); solution build had no warnings
+or errors. No Engine or server-side observation implementation files changed.
+
+Evidence under `.playwright-cli/browser-qa/`: `inspection-QHvp49` mixed physical
+components/rotations/narrow (final capture `inspection-jqdH5H`);
+`inspection-QI9yV6` partial 2×2 observation;
+`inspection-d93tZi` entering/leaving FoW, restart/reload; `inspection-AQ8780`
+Door/Move/Telekinesis/reverse-face sequence; `inspection-28WCQ7` manual combat
+and view switches; `inspection-9XdQOS`, `inspection-SOMeEn`, `inspection-bqPGeO`,
+`inspection-qbQBuI` generated measurements; `inspection-JF0oWG` switching counts.
+`inspection-Zz8btA` is authored Basic Combat; `inspection-zTlKDA` records movement
+timings. Node tests also protect Unit visibility throughout representation changes
+and raised proxy picking at board boundaries.
+Successful plans had no console errors or failed asset requests; refresh/reload
+can abort the superseded SSE connection as expected.
+
+Remaining hardware/tooling gaps: native canvas gestures, actual touch hardware,
+real-driver context-loss injection and frame-exact fog-boundary pixel assertions.
+Those math/lifecycle paths have focused automated coverage, but the data-only
+dispatcher cannot inject them. Low-end/mobile GPU timing and actual VRAM were
+not measured. Labels retain local collision suppression, cutaway is user-operated,
+and simple component silhouettes deliberately do not imply gameplay height/LOS.
 
 ## Verification and diagnostics
 

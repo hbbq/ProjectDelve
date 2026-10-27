@@ -1,6 +1,7 @@
-import { cameraPreferences, cameraBounds, cameraUnion, cameraSpanScale, cameraClampPose, cameraFull, cameraProject, cameraUnproject, cameraAutoFit, cameraEnsureVisible, cameraObjectiveIndicator, cameraIndicatorSlot } from './camera-geometry.js';
+import { cameraPreferences, cameraBounds, cameraUnion, cameraObjectiveIndicator, cameraIndicatorSlot } from './camera-geometry.js';
 import { cameraObservedFrame, cameraFootprint, cameraEventIntent, cameraAnchorBounds, cameraHumanSides, cameraOwnHuman, cameraAllowsFollow } from './camera-observation.js';
 import { interpolatePose } from './playtest-viewport.js';
+import { tabletopOrientation, threeProject, threeUnproject, threeSpanScale, threeClampPose, threeFull, threeAutoFit, threeEnsureVisible, projectedBounds, interpolateOrientation } from './three-camera-geometry.js';
 
 // Cell-space policy and time-based pose. No CSS transforms or separate RAF loop.
 export function createThreeCamera({ controls, invalidate, animate, onChange = () => {}, environment = globalThis }) {
@@ -8,6 +9,9 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   let preferences = cameraPreferences(saved ?? {}), frame, metadata = {}, side, sideChoice, session;
   let size = { width: 1, height: 1 }, pose, target, transition, suspended = false, activation = 0, manualActivation;
   let decision, activationKey, fittedSpan, moveSignature, movement, overflow = false;
+  let orientation = {tilt:0,yaw:0}, physical = false;
+  let fitBounds=null,activeBounds=null;
+  const spanScale = span => threeSpanScale(size,span,orientation);
   const subscriptions = new AbortController(), indicators = new Map();
   const reduced = () => environment.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const persist = () => { try { environment.localStorage?.setItem('delve.three.camera.v1', JSON.stringify(preferences)); } catch { /* optional */ } };
@@ -18,12 +22,16 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     for (const [id, value] of Object.entries({ mode: preferences.mode, span: [10,15,20,25].includes(preferences.fixedSpan) ? preferences.fixedSpan : 'custom', follow: preferences.follow, min: preferences.minSpan, max: preferences.maxSpan, margin: preferences.margin })) controls[id].value = String(value);
     controls.span.hidden = preferences.mode !== 'fixed';
     controls.resume.hidden = !suspended || preferences.follow === 'off' || preferences.mode === 'full';
-    controls.status.textContent = `${suspended ? 'Manual · ' : ''}${pose ? (Math.max(size.width, size.height) / pose.scale).toFixed(1) : '—'} Cells max${overflow && preferences.mode === 'auto' ? ' · some Moves offscreen' : ''}`;
+    if(controls.tilt) { controls.tilt.value=String(Math.round(orientation.tilt));controls.tilt.disabled=!physical; }
+    if(controls.yaw) { controls.yaw.value=String(Math.round(((orientation.yaw%360)+360)%360));controls.yaw.disabled=!physical; }
+    for(const key of ['tilt','yaw','cutaway'])if(controls[key]?.parentElement)controls[key].parentElement.hidden=!physical;
+    for(const key of ['turn-left','turn-right','overhead','angle'])if(controls[key])controls[key].hidden=!physical;
+    controls.status.textContent = `${suspended ? 'Manual · ' : ''}${pose ? (threeSpanScale(size,1,pose) / pose.scale).toFixed(1) : '—'} Cells max${overflow && preferences.mode === 'auto' ? ' · some Moves offscreen' : ''}`;
   }
   function apply(next, smooth = true) {
     if (!frame) return;
-    next = cameraClampPose(next, frame.board, size);
-    if (target && Math.abs(target.x-next.x)+Math.abs(target.y-next.y)+Math.abs(target.scale-next.scale) < .0001) return;
+    next = threeClampPose({...orientation,...next}, frame.board, size);
+    if (target && ['x','y','scale','tilt','yaw'].every(key=>Math.abs(target[key]-next[key])<.0001)) return;
     target = next;
     transition = pose && smooth && animate() && !reduced() ? { from: { ...pose }, to: next, start: environment.performance.now(), duration: 260 } : null;
     if (!transition) pose = { ...next };
@@ -31,33 +39,34 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function follow(intent, smooth = true) {
     if (!pose || !cameraAllowsFollow(preferences, suspended, intent, side)) return;
-    apply(cameraEnsureVisible(pose, intent.bounds, frame.board, size, intent.preferred), smooth);
+    apply(threeEnsureVisible({...pose,...orientation}, intent.bounds, frame.board, size, intent.preferred), smooth);
   }
-  function fit(force = false) {
+  function fit(force = false, smooth = true) {
     if (!decision?.unitId || !own(decision.unitId)) return false;
     const moves = (decision.candidates ?? []).filter(c => c.boardVisual?.kind === 'move').map(c => c.placementCells ?? []);
     const signature = JSON.stringify(moves); if (!force && signature === moveSignature) return true;
-    const result = cameraAutoFit({ active: cameraFootprint(frame, decision.unitId), moves,
-      friends: frame.units.filter(u => u.sideId === side && u.id !== decision.unitId).map(u => cameraFootprint(frame,u.id)), board: frame.board, viewport: size, preferences });
+    const result = threeAutoFit({ active: cameraFootprint(frame, decision.unitId), moves,
+      friends: frame.units.filter(u => u.sideId === side && u.id !== decision.unitId).map(u => cameraFootprint(frame,u.id)), board: frame.board, viewport: size, preferences, orientation });
     if (!result) return false;
+    activeBounds=cameraBounds(cameraFootprint(frame,decision.unitId));fitBounds=result.overflow?activeBounds:result.bounds;
     moveSignature = signature; overflow = result.overflow;
     if (!force && fittedSpan != null && result.span <= fittedSpan) follow({ kind: 'frame', bounds: result.core, sides: [side] });
-    else { fittedSpan = result.span; apply(result.pose); }
+    else { fittedSpan = result.span; apply(result.pose,smooth); }
     return true;
   }
   function useful(smooth = true) {
     if (!frame) return;
-    if (preferences.mode === 'full') return apply(cameraFull(frame.board,size), smooth);
-    if (preferences.mode === 'auto' && fit(true)) return;
+    if (preferences.mode === 'full') return apply(threeFull(frame.board,size,orientation,physical), smooth);
+    if (preferences.mode === 'auto' && fit(true,smooth)) return;
     const party = frame.units.filter(u => (!side || u.sideId === side) && cameraFootprint(frame,u.id).length);
     let bounds = party.reduce((b,u) => cameraUnion(b,cameraBounds(cameraFootprint(frame,u.id))),null);
-    const scale = cameraSpanScale(size,preferences.mode === 'fixed' ? preferences.fixedSpan : preferences.maxSpan);
+    const scale = spanScale(preferences.mode === 'fixed' ? preferences.fixedSpan : preferences.maxSpan);
     if (bounds && (bounds.w*scale > size.width || bounds.h*scale > size.height)) bounds = cameraBounds(cameraFootprint(frame,(party.find(u=>own(u.id)) ?? party[0]).id));
     apply({ x: bounds ? bounds.x+bounds.w/2 : frame.board.width/2, y: bounds ? bounds.y+bounds.h/2 : frame.board.height/2, scale },smooth);
   }
   function setFrame(state,presentation,meta) {
     const replacement = session !== (meta.sessionId ?? meta.scenarioId);
-    if (replacement) { session = meta.sessionId ?? meta.scenarioId; pose = target = transition = null; suspended = false; decision = movement = null; activationKey = null; activation = 0; manualActivation = null; fittedSpan = moveSignature = null; }
+    if (replacement) { session = meta.sessionId ?? meta.scenarioId; pose = target = transition = null; suspended = false; decision = movement = null; activationKey = null; activation = 0; manualActivation = null; fittedSpan = moveSignature = fitBounds = activeBounds = null; }
     frame = cameraObservedFrame(state,presentation); metadata = meta;
     const humans = cameraHumanSides(assignments()), sides = [...new Set(frame.units.map(u=>u.sideId))];
     side = frame.side ?? (sides.includes(sideChoice) ? sideChoice : humans[0] ?? null);
@@ -72,7 +81,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function stable(next) {
     decision = next;
-    if (!next?.unitId || !own(next.unitId)) return;
+    if (!next?.unitId || !own(next.unitId)) { fitBounds=activeBounds=null;return; }
     const key = `${metadata.round}:${next.unitId}:${activation}`;
     if (key !== activationKey) { activationKey = key; fittedSpan = moveSignature = null; if (manualActivation !== activation && preferences.follow !== 'off') suspended = false; }
     if (!automatic()) return;
@@ -94,30 +103,43 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     settle();
   }
   function settle() { if(target) pose={...target}; transition=null; invalidate(); }
-  function manual(next,smooth=false) { if(!frame) return; if(preferences.mode==='full') preferences.mode='fixed'; suspended=true; manualActivation=activation; apply(next,smooth); persist(); }
+  function manual(next,smooth=false) { if(!frame) return; if(preferences.mode==='full') preferences.mode='fixed'; orientation={tilt:next.tilt??orientation.tilt,yaw:next.yaw??orientation.yaw};suspended=true; manualActivation=activation; apply(next,smooth); persist(); }
   function zoom(factor,point={x:size.width/2,y:size.height/2},smooth=false) {
     if(!pose) return;
-    const anchor=cameraUnproject(point,pose,size), span=Math.max(5,Math.min(50,Math.max(size.width,size.height)/(pose.scale*factor))),scale=cameraSpanScale(size,span);
+    const anchor=threeUnproject(point,pose,size), span=Math.max(5,Math.min(50,threeSpanScale(size,1,pose)/(pose.scale*factor))),scale=threeSpanScale(size,span,pose);
     if(preferences.mode==='full') preferences.mode='fixed'; if(preferences.mode==='fixed') preferences.fixedSpan=span;
-    manual({x:anchor.x-(point.x-size.width/2)/scale,y:anchor.y-(point.y-size.height/2)/scale,scale},smooth);
+    const offset=threeUnproject(point,{...pose,x:0,y:0,scale},size);
+    manual({...pose,x:anchor.x-offset.x,y:anchor.y-offset.y,scale},smooth);
   }
   function resize(width,height) {
     if(!width||!height||width===size.width&&height===size.height) return;
-    const span=pose ? Math.max(size.width,size.height)/pose.scale : preferences.fixedSpan;
+    const span=pose ? threeSpanScale(size,1,pose)/pose.scale : preferences.fixedSpan;
     size={width,height}; transition=null; target=null;
     if(!frame) return;
     if(preferences.mode==='full'||preferences.mode==='auto'&&automatic()) useful(false);
-    else apply({...pose,scale:cameraSpanScale(size,preferences.mode==='fixed'?preferences.fixedSpan:span)},false);
+    else apply({...pose,scale:spanScale(preferences.mode==='fixed'?preferences.fixedSpan:span)},false);
   }
   function tick(time) {
-    if(transition) { const fraction=(time-transition.start)/transition.duration; pose=interpolatePose(transition.from,transition.to,fraction); if(fraction>=1) transition=null; }
+    if(transition) { const fraction=(time-transition.start)/transition.duration; pose={...interpolatePose(transition.from,transition.to,fraction),...interpolateOrientation(transition.from,transition.to,fraction)};
+      // A rectangle can be wider midway through rotation than at either endpoint.
+      if(preferences.mode==='full')pose.scale=Math.min(pose.scale,threeFull(frame.board,size,pose,physical).scale);
+      const orienting=transition.from.tilt!==transition.to.tilt||transition.from.yaw!==transition.to.yaw;
+      if(orienting&&preferences.mode==='auto'&&automatic()&&fitBounds&&activeBounds){
+        const b=projectedBounds(fitBounds,pose,.16),scale=Math.min((size.width-32)/b.w,(size.height-32)/b.h);
+        pose.scale=Math.max(threeSpanScale(size,preferences.maxSpan,pose),Math.min(pose.scale,scale));
+        pose=threeEnsureVisible(pose,activeBounds,frame.board,size);
+      }
+      if(fraction>=1) { pose={...transition.to};transition=null; }
+    }
     renderControls(); onChange(); return !!transition;
   }
   function renderIndicators(blocked=[]) {
     const retained=new Set(),placed=[]; if(!frame||!pose) return;
     for(const [i,objective] of frame.objectives.entries()) {
       if(!objective.area) continue;
-      let location=cameraObjectiveIndicator(objective.area,pose,size,26); if(!location) continue;
+      const pb=projectedBounds(objective.area,pose),origin=threeProject({x:0,y:0},pose,size);
+      const screenArea={x:origin.x+pb.x*pose.scale,y:origin.y+pb.y*pose.scale,w:pb.w*pose.scale,h:pb.h*pose.scale};
+      let location=cameraObjectiveIndicator(screenArea,{x:size.width/2,y:size.height/2,scale:1},size,26); if(!location) continue;
       const key=`${objective.sideId}:${i}`;retained.add(key);
       let node=indicators.get(key);
       if(!node) {node=document.createElement('button');node.type='button';node.className='camera-objective';node.textContent='➜';node.addEventListener('click',()=>manual({...pose,x:node.area.x+node.area.w/2,y:node.area.y+node.area.h/2},true));controls.objectives.append(node);indicators.set(key,node);}
@@ -128,6 +150,15 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     for(const [key,node] of indicators) if(!retained.has(key)){node.remove();indicators.delete(key);}
   }
   function resume(){suspended=false;moveSignature=fittedSpan=null;useful();renderControls();}
+  function setOrientation(next,smooth=true) {
+    orientation={tilt:Math.max(0,Math.min(55,Number(next.tilt??orientation.tilt))),yaw:Number(next.yaw??orientation.yaw)};
+    moveSignature=null;
+    if(preferences.mode==='full'||preferences.mode==='auto'&&automatic())useful(smooth);
+    else if(pose)apply({...pose,...orientation,scale:spanScale(preferences.fixedSpan)},smooth);
+    renderControls();
+  }
+  function setPresentation(value,smooth=true){physical=value==='tabletop';setOrientation(physical?tabletopOrientation:{tilt:0,yaw:0},smooth);}
+  function pan(from,to,start=pose){if(!start)return;const a=threeUnproject(from,start,size),b=threeUnproject(to,start,size);manual({...start,x:start.x+a.x-b.x,y:start.y+a.y-b.y});}
   function setMode(mode){preferences.mode=mode;suspended=false;moveSignature=fittedSpan=null;persist();useful();}
   const bind=(id,type,fn)=>controls[id].addEventListener(type,fn,{signal:subscriptions.signal});
   bind('mode','change',()=>setMode(controls.mode.value));
@@ -135,11 +166,16 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   bind('follow','change',()=>{preferences.follow=controls.follow.value;persist();if(preferences.follow!=='off')resume();else settle();});
   for(const [id,key] of [['min','minSpan'],['max','maxSpan'],['margin','margin']]) bind(id,'change',()=>{preferences=cameraPreferences({...preferences,[key]:controls[id].value});persist();resume();});
   bind('side','change',()=>{sideChoice=controls.side.value||null;side=sideChoice;activationKey=null;resume();});
-  bind('reset','click',resume);bind('resume','click',resume);bind('in','click',()=>zoom(1.2,undefined,true));bind('out','click',()=>zoom(1/1.2,undefined,true));
+  bind('reset','click',()=>{orientation=physical?{...tabletopOrientation}:{tilt:0,yaw:0};resume();});bind('resume','click',resume);bind('in','click',()=>zoom(1.2,undefined,true));bind('out','click',()=>zoom(1/1.2,undefined,true));
+  for(const key of ['tilt','yaw'])if(controls[key])bind(key,'input',()=>setOrientation({[key]:Number(controls[key].value)},true));
+  for(const [key,change]of [['turn-left',()=>({yaw:orientation.yaw-45})],['turn-right',()=>({yaw:orientation.yaw+45})],['overhead',()=>({tilt:0})],['angle',()=>({tilt:38})]])
+    if(controls[key])bind(key,'click',()=>{if(physical)setOrientation(change(),true);});
   const media=environment.matchMedia?.('(prefers-reduced-motion: reduce)');media?.addEventListener?.('change',()=>{if(reduced())settle();},{signal:subscriptions.signal});
   renderControls();
-  return {setFrame,stable,occurrence,movementStep,finishMovement,settle,cancel:()=>{movement=null;settle();},resize,tick,manual,zoom,resume,setMode,renderIndicators,
-    screen:point=>pose?cameraProject(point,pose,size):point,
+  return {setFrame,stable,occurrence,movementStep,finishMovement,settle,cancel:()=>{movement=null;settle();},resize,tick,manual,pan,zoom,resume,setMode,setOrientation,setPresentation,renderIndicators,
+    screen:point=>pose?threeProject(point,pose,size):point,
+    ground:point=>pose?threeUnproject(point,pose,size):point,
+    groundAtHeight:(point,height)=>pose?threeUnproject(point,pose,size,height):point,
     current:()=>pose&&({...pose}), get size(){return size;},
     dispose:()=>{subscriptions.abort();for(const node of indicators.values())node.remove();},
     inspect:()=>({preferences:{...preferences},current:pose&&({...pose}),target:target&&({...target}),suspended,side,fittedSpan,overflow,transitionActive:!!transition})};

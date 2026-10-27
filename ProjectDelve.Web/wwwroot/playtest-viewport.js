@@ -8,12 +8,13 @@ export function createViewportRouter({ dom, loadThree, overlay, onChange = () =>
       while (requested && !inEvent && !disposed) {
         const selection = requested; requested = null;
         try {
-          const next = selection === 'three' ? (three ??= await (loading ??= loadThree())) : dom;
+          const next = ['three','tabletop'].includes(selection) ? (three ??= await (loading ??= loadThree())) : dom;
           if (disposed) { next.dispose?.(); return; }
           // Another selection may have superseded an asynchronous import.
           if (requested) continue;
           // SSE may have started an event while the lazy module was loading.
           if (inEvent) { requested = selection; break; }
+          if(next===three)next.setPresentation?.(selection==='tabletop'?'tabletop':'flat');
           if (next !== active) {
             const previous = active;
             previous.setActive(false);

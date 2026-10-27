@@ -16,5 +16,9 @@
 .three-objectives { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
 .three-metrics { font-size: .65rem; color: var(--ui-muted); }
 .three-metrics { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.three-orientation { display: inline-flex; align-items: center; gap: 3px; }
+.three-orientation input { width: 85px; accent-color: var(--ui-accent); }
+.three-controls [hidden] { display: none !important; }
+.three-item-indicators span { position: absolute; transform: translate(-50%,-50%); padding: 0 2px; font: 11px/14px system-ui; color: #f3dfa5; background: #202326ee; border: 1px solid #a88c56; border-radius: 50%; }
 .three-board-choices > div { display: flex; flex-wrap: wrap; gap: 4px; max-height: 180px; overflow: auto; padding-top: 5px; }
 @media(max-width:850px) { .three-viewport { height: clamp(280px, 60dvh, 650px); } }

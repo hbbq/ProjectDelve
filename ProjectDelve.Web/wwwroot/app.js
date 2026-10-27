@@ -53,9 +53,9 @@ let threeViewport;
 let displayedFrame;
 function updateBoardView() {
   // Do not rerender: mounted choices, selection, hover and in-flight playback survive.
-  if (boardView.value !== "three") ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
+  if (!["three", "tabletop"].includes(boardView.value)) ui.board.dataset.view = boardView.value === "enhanced" ? "enhanced" : "classic";
   if (viewportRouter) {
-    if (boardView.value !== "three") domViewport.mode = boardView.value;
+    if (!["three", "tabletop"].includes(boardView.value)) domViewport.mode = boardView.value;
     return viewportRouter.request(boardView.value);
   }
 }
@@ -282,6 +282,18 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
     const root = domCameraControls.cloneNode(true); root.classList.add("three-controls"); root.hidden = true;
     const controls = { root };
     for (const node of root.querySelectorAll("[id]")) { const key = node.id.replace(/^camera-/, ""); node.id = `three-camera-${key}`; controls[key] = node; }
+    for (const [key, label, max] of [["tilt", "Tilt", 55], ["yaw", "Rotate", 360]]) {
+      const wrapper = document.createElement("label"); wrapper.className = "three-orientation";
+      wrapper.append(document.createTextNode(`${label} `));
+      const input = document.createElement("input"); input.type = "range"; input.min = "0"; input.max = String(max); input.step = "1"; input.value = "0";
+      input.id = `three-camera-${key}`; input.setAttribute("aria-label", `${label} board camera`); wrapper.append(input); root.append(wrapper); controls[key] = input;
+    }
+    const cutawayLabel=document.createElement("label"),cutaway=document.createElement("input");cutaway.type="checkbox";cutaway.id="three-camera-cutaway";
+    cutawayLabel.append(cutaway,document.createTextNode(" Cutaway obstacles"));root.append(cutawayLabel);controls.cutaway=cutaway;
+    for(const [key,label]of [["turn-left","↶"],["turn-right","↷"],["overhead","Overhead"],["angle","Angled"]]){
+      const button=document.createElement("button");button.type="button";button.id=`three-camera-${key}`;button.textContent=label;
+      button.setAttribute("aria-label",key==='turn-left'?"Rotate board left":key==='turn-right'?"Rotate board right":`${label} camera`);root.append(button);controls[key]=button;
+    }
     domCameraControls.after(root);
     // The DOM controls remain the original immediate previous sibling for their adapter.
     const objectives = document.createElement("div"); objectives.className = "three-objectives"; host.append(objectives); controls.objectives = objectives;

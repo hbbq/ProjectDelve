@@ -83,7 +83,7 @@ function fixture(size=8,side=null){
 async function harness(frame=fixture()){
   const frames=new Map(),requests=[],rendered=[],picked=[],hovered=[],failures=[];let handle=0,disposed=0;
   const saved={};for(const key of ['document','ResizeObserver','requestAnimationFrame','cancelAnimationFrame','addEventListener','matchMedia'])saved[key]=globalThis[key];
-  const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives'])controls[id]=new Element();controls.root.append(controls.status);
+  const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives','tilt','yaw','cutaway'])controls[id]=new Element();controls.root.append(controls.status);
   const host=new Element();
   globalThis.document={createElement:tag=>new Element(tag),getElementById:()=>null};globalThis.ResizeObserver=class{observe(){}disconnect(){}};
   globalThis.requestAnimationFrame=fn=>{frames.set(++handle,fn);return handle;};globalThis.cancelAnimationFrame=id=>frames.delete(id);globalThis.addEventListener=()=>{};
@@ -182,5 +182,174 @@ test('diagonal combat relationship joins token centers, including a captured lar
     const ends=[-.5,.5].map(x=>new h.THREE.Vector3(x,0,0).applyMatrix4(line.matrixWorld)).sort((a,b)=>a.x-b.x);
     assert.ok(Math.abs(ends[0].x-2.5)<1e-6&&Math.abs(ends[0].z-2.5)<1e-6);
     assert.ok(Math.abs(ends[1].x-5)<1e-6&&Math.abs(ends[1].z-4)<1e-6);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop handoff shares the Three instance and waits for the authoritative checkpoint',async()=>{
+  const {createViewportRouter}=await moduleAt('playtest-viewport.js');let loads=0;const modes=[],overlay={dice:'retained'};
+  const dom={mode:'enhanced',host:{append(){}},setActive(){}};
+  const three={host:{append(node){assert.equal(node,overlay);}},setActive(){},setPresentation(mode){modes.push(mode);}};
+  const router=createViewportRouter({dom,loadThree:async()=>{loads++;return three;},overlay});
+  await router.request('three');router.beginEvent();await router.request('tabletop');assert.deepEqual(modes,['flat']);
+  await router.checkpoint();assert.equal(router.active,three);assert.deepEqual(modes,['flat','tabletop']);
+  await router.request('three');assert.equal(loads,1);assert.equal(router.active,three);assert.equal(overlay.dice,'retained');
+});
+
+test('Tabletop preserves Unit roots, identity and footprints while camera orientation is independent',async()=>{
+  const f=fixture(),h=await harness(f);try{
+    const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('units').children[0],footprint=structuredClone(root.userData.footprint);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.deepEqual(h.failures,[]);
+    assert.equal(h.viewport.inspect().presentation,'tabletop');assert.equal(scene.getObjectByName('units').children[0],root);
+    assert.equal(root.userData.unitId,'hero');assert.deepEqual(root.userData.footprint,footprint);
+    const body=root.getObjectByName('cardboard-body');assert.equal(body.userData.angle,Math.PI);assert.ok(body.getObjectByName('reverse'));
+    h.viewport.camera.setOrientation({tilt:0,yaw:90},false);h.flush();assert.equal(root.getObjectByName('cardboard-body'),body);
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('units').children[0],root);assert.equal(root.getObjectByName('cardboard-body'),undefined);
+    assert.equal(h.viewport.camera.current().tilt,0);assert.equal(h.viewport.camera.current().yaw,0);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop physical slab, both token sizes, raised components and all item fallbacks render',async()=>{
+  const {boardVisuals}=await moduleAt('board-visuals.js');const f=fixture(16);
+  f.state.physical.board.terrain=['SolidRock','Tree','FruitTree','StoneFloorWithTable','Rail'].map((kind,x)=>({position:{x,y:0},kind,direction:'East'}));
+  f.state.physical.board.edges=['Wall','ClosedDoor','OpenDoor','WallWithWindow'].map((kind,x)=>({kind,a:{x,y:5},b:{x,y:6}}));
+  f.state.resources=[...Object.keys(boardVisuals.resource).filter(k=>k!=='default'),'new-resource'].map((id,x)=>({position:{x,y:7},type:{id,name:id}}));
+  f.state.cellMarkers=['banana-peel','new-marker'].map((id,x)=>({position:{x,y:8},type:{id,name:id}}));
+  f.presentation.machines=[{id:'press',typeId:'diamond-press',name:'Press',position:{x:7,y:5},ownerSide:'blue',resourceStorage:[]}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.deepEqual(h.failures,[]);
+    const scene=h.rendered.at(-1).scene,slab=scene.getObjectByName('board').children[0].children[0];
+    assert.equal(slab.scale.x,16.24);assert.equal(slab.scale.y,.12);assert.ok(slab.position.y<0);
+    const bodies=scene.getObjectByName('units').children.map(root=>root.getObjectByName('cardboard-body'));
+    assert.equal(bodies[0].userData.bounds.height,.06);assert.equal(bodies[1].userData.bounds.height,.06);assert.equal(bodies[1].userData.radius,2*bodies[0].userData.radius);
+    const doors=scene.getObjectByName('edges').children;assert.equal(doors.length,2);assert.equal(doors[0].getObjectByName('door-leaf').visible,true);assert.equal(doors[1].getObjectByName('door-leaf').visible,false);
+    assert.ok(scene.getObjectByName('objects').children.every(n=>n.isInstancedMesh));
+    for(const object of f.state.resources)assert.ok(scene.getObjectByName(`resource:${object.type.id}`));
+    assert.ok(scene.getObjectByName('cellMarker:new-marker'));assert.ok(scene.getObjectByName('cellMarker:banana-peel'));
+    assert.equal(h.viewport.pick(h.viewport.project({x:-.06,y:3})),null);
+    const before=h.requests.length;for(let i=0;i<6;i++){h.viewport.setPresentation('flat');h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();}
+    assert.equal(h.requests.length,before);assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('angled ray picking, cap proxies, open Doors, pan, zoom and cutaway use logical geometry',async()=>{
+  const h=await harness(fixture(16));try{
+    h.viewport.setPresentation('tabletop');h.viewport.camera.setMode('full');h.viewport.settle();
+    for(const yaw of [0,47,90,180,275]){
+      h.viewport.camera.setOrientation({tilt:55,yaw},false);h.viewport.settle();h.flush();
+      for(const cell of [{x:0,y:0},{x:8,y:10},{x:5,y:4}])assert.deepEqual(h.viewport.pick(h.viewport.project({x:cell.x+.5,y:cell.y+.5})).cell,cell);
+      const cap=h.viewport.project({x:2.5,y:2.5,height:.084});assert.equal(h.viewport.pick(cap).unitId,'hero');
+      const door={a:{x:8,y:8},b:{x:9,y:8},kind:'OpenDoor'};h.viewport.showInteraction({candidates:[{key:'d',interaction:{kind:'Door',door}}]});
+      assert.deepEqual(h.viewport.pick(h.viewport.project({x:9,y:8.5})).door,door);
+    }
+    const camera=h.viewport.camera;camera.setMode('fixed');camera.manual({...camera.current(),x:8,y:8,scale:100});
+    const point={x:470,y:280},before=camera.ground(point);camera.zoom(1.2,point);assert.ok(Math.hypot(camera.ground(point).x-before.x,camera.ground(point).y-before.y)<1e-8);
+    camera.pan({x:450,y:300},{x:490,y:325});assert.equal(camera.inspect().suspended,true);
+    const orientation={tilt:camera.current().tilt,yaw:camera.current().yaw};camera.resume();h.viewport.settle();assert.deepEqual({tilt:camera.current().tilt,yaw:camera.current().yaw},orientation);
+    h.controls.cutaway.checked=true;h.controls.cutaway.emit('change');h.flush();assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').visible,false);
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('observed Tabletop posture flips settle, cancel and leave logical placement and HTML information fixed',async()=>{
+  const f=fixture(),h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().flips,0);
+    const next=structuredClone(f);next.state.physical.figures[0].posture='Upright';h.viewport.renderFrame(next);assert.equal(h.viewport.inspect().flips,0);
+    h.viewport.afterOccurrence({kind:'PostureChanged',unitId:'hero'});assert.equal(h.viewport.inspect().flips,1);
+    const root=h.rendered.at(-1).scene.getObjectByName('units').children[0],position=root.position.clone();
+    h.flush(performance.now()+150);assert.deepEqual(root.position,position);assert.ok(root.getObjectByName('cardboard-body').scale.y<=1);
+    h.viewport.settle();h.flush();assert.equal(root.getObjectByName('cardboard-body').userData.angle,0);assert.equal(h.viewport.inspect().flips,0);
+    h.viewport.renderFrame(f);h.viewport.afterOccurrence({kind:'PostureChanged',unitId:'hero'});h.viewport.cancel();h.flush();assert.equal(root.getObjectByName('cardboard-body').userData.angle,Math.PI);
+    h.viewport.setActive(false);const renders=h.viewport.inspect().renderCount;h.flush();assert.equal(h.viewport.inspect().renderCount,renders);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop fog omits unknown raised shapes and preserves entire observable stable 2x2 Units',async()=>{
+  const f=fixture(16,'blue');f.state.physical.board.terrain=[{kind:'SolidRock',position:{x:10,y:10}}];const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    assert.ok(h.requests.every(r=>!r.url.includes('solid-rock')));
+    const scene=h.rendered.at(-1).scene,large=scene.getObjectByName('units').children[1];
+    assert.equal(large.visible,true);let clipped=0;large.traverse(n=>{if(n.material?.clippingPlanes)clipped++;});assert.equal(clipped,0);
+    for(const yaw of [0,80,180,270]){h.viewport.camera.setOrientation({tilt:55,yaw},false);h.flush();assert.equal(large.visible,true);assert.equal(h.viewport.inspect().lost,false);}
+  }finally{h.cleanup();}
+});
+
+test('elevated Tabletop movement clips every child to displayed explored Cell columns at every angle',async()=>{
+  const f=fixture(16,'blue'),h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();
+    for(const yaw of [0,90,225]){
+      h.viewport.camera.setOrientation({tilt:55,yaw},false);h.flush();
+      const event={role:'Movement',unitId:'hero',movingFigure:{name:'Hero',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]};
+      const positions=[];await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+        h.flush(performance.now()+230);const root=h.rendered.at(-1).scene.getObjectByName('movement').children[0];positions.push(root.position.x);
+        for(const copy of root.children.filter(c=>c.visible))copy.traverse(n=>{if(n.isMesh){assert.equal(n.material.clippingPlanes.length,4);const planes=n.material.clippingPlanes;assert.ok(planes[0].constant===-2&&planes[2].constant===-2);}});
+        assert.ok(h.viewport.inspect().clippedCopies<=1);assert.equal(h.host.querySelector('.three-token-info').hidden,true);
+      }});
+      assert.deepEqual(positions,[2.5,6.5]);assert.equal(h.viewport.inspect().clippedCopies,0);assert.equal(h.viewport.inspect().transient,false);
+    }
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('dense 50x50 Tabletop static components batch by shared geometry/material and settle to idle',async()=>{
+  const f=fixture(50);f.state.physical.board.terrain=Array.from({length:2500},(_,i)=>({kind:i%3?'SolidRock':'Tree',position:{x:i%50,y:Math.floor(i/50)}}));
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const objects=h.rendered.at(-1).scene.getObjectByName('objects');
+    assert.ok(objects.children.length<25);assert.ok(objects.children.every(n=>n.isInstancedMesh));assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+    h.viewport.renderFrame(f);h.flush();assert.ok(objects.children.length<25);assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('observed Door changes animate only the leaf and Skip settles canonical state',async()=>{
+  const f=fixture(16),door={kind:'ClosedDoor',a:{x:7,y:7},b:{x:8,y:7}};f.state.physical.board.edges=[door];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().doorMotions,0);
+    const open=structuredClone(f);open.state.physical.board.edges[0].kind='OpenDoor';h.viewport.renderFrame(open);assert.equal(h.viewport.inspect().doorMotions,1);
+    h.flush(performance.now()+120);let leaf=h.rendered.at(-1).scene.getObjectByName('door-leaf');assert.ok(leaf.position.y>0);assert.ok(leaf.scale.y<1);
+    h.viewport.settle();h.flush();assert.equal(leaf.visible,false);assert.equal(h.viewport.inspect().doorMotions,0);
+    h.viewport.renderFrame(f);h.viewport.cancel();h.flush();leaf=h.rendered.at(-1).scene.getObjectByName('door-leaf');assert.equal(leaf.visible,true);assert.equal(leaf.position.y,0);assert.equal(leaf.scale.y,1);assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop movement Skip removes transient pool, restores stable token, and cannot continue stale segments',async()=>{
+  const h=await harness(fixture(16,'blue'));try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    let pauses=0;await h.viewport.present({role:'Movement',unitId:'hero',movingFigure:{name:'Hero',cellSpan:1,sideId:'blue',posture:'Upright'},movementSegments:[[{x:2,y:2},{x:3,y:2},{x:4,y:2}],[{x:4,y:3},{x:5,y:3}]]},{},{skipping:()=>false,pause:async()=>{pauses++;h.viewport.settle();}});
+    h.flush();assert.equal(pauses,1);assert.equal(h.viewport.inspect().transient,false);assert.equal(h.viewport.inspect().clippedCopies,0);
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('units').children[0].visible,true);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop context recovery and missing portraits reuse scene resources without stale bodies',async()=>{
+  const f=fixture();f.state.units[0].typeId='barbarian-type';f.state.types.push({id:'barbarian-type',hp:5});const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('units').children[0];
+    for(const request of h.requests)request.error();h.flush();assert.ok(Object.values(h.viewport.inspect().textureStates).includes('missing'));
+    const canvas=h.host.children.find(n=>n.tagName==='canvas');canvas.emit('webglcontextlost');assert.equal(h.frames.size,0);
+    h.viewport.setActive(false);canvas.emit('webglcontextrestored');h.viewport.setActive(true);h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('units').children[0],root);assert.equal(h.disposed,0);
+    const replacement=structuredClone(f);replacement.metadata.sessionId='replacement';h.viewport.renderFrame(replacement);h.viewport.settle();h.flush();assert.notEqual(scene.getObjectByName('units').children[0],root);assert.equal(h.viewport.inspect().flips,0);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop raised proxy picks work at the board boundary without making its border playable',async()=>{
+  const f=fixture(16);f.state.physical.figures[0].position={x:0,y:0};f.presentation.figures.hero.occupiedCells=[{x:0,y:0}];const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.camera.setMode('full');h.viewport.camera.setOrientation({tilt:55,yaw:0},false);h.viewport.settle();h.flush();
+    assert.equal(h.viewport.pick(h.viewport.project({x:.5,y:.05,height:.084})).unitId,'hero');
+    assert.equal(h.viewport.pick(h.viewport.project({x:-.1,y:5})),null);
+    const door={a:{x:3,y:0},b:{x:4,y:0},kind:'ClosedDoor'};
+    h.viewport.showInteraction({candidates:[{key:'door',interaction:{kind:'Door',door}}]});
+    assert.deepEqual(h.viewport.pick(h.viewport.project({x:4,y:.5,height:.55})).door,door);
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('representation transitions keep whole observable Unit roots above fog in both directions',async()=>{
+  const h=await harness(fixture(16,'blue'));try{
+    for(const mode of ['tabletop','flat','tabletop','flat']){
+      h.viewport.setPresentation(mode);h.flush(performance.now()+90);
+      const scene=h.rendered.at(-1).scene,units=scene.getObjectByName('units'),fog=scene.getObjectByName('fog');
+      assert.equal(units.scale.y,1);const matrix=new h.THREE.Matrix4();fog.children[0].getMatrixAt(0,matrix);
+      const root=units.children[1];assert.equal(root.visible,true);assert.ok(root.position.y>matrix.elements[13]);
+      h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+    }
   }finally{h.cleanup();}
 });

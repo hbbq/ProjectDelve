@@ -1,0 +1,310 @@
+{
+  "board": {
+    "width": 16,
+    "height": 12,
+    "defaultTerrain": "StoneFloor",
+    "cells": [
+      {
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "terrain": "StoneFloor"
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 0
+        },
+        "terrain": "Grass"
+      },
+      {
+        "position": {
+          "x": 2,
+          "y": 0
+        },
+        "terrain": "SolidRock"
+      },
+      {
+        "position": {
+          "x": 3,
+          "y": 0
+        },
+        "terrain": "Tree"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "terrain": "FruitTree"
+      },
+      {
+        "position": {
+          "x": 5,
+          "y": 0
+        },
+        "terrain": "Water"
+      },
+      {
+        "position": {
+          "x": 6,
+          "y": 0
+        },
+        "terrain": "Lava"
+      },
+      {
+        "position": {
+          "x": 7,
+          "y": 0
+        },
+        "terrain": "Gravel"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 0
+        },
+        "terrain": "Asphalt"
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "terrain": "StoneFloorWithTable"
+      },
+      {
+        "position": {
+          "x": 10,
+          "y": 0
+        },
+        "terrain": "Rail",
+        "direction": "East"
+      }
+    ],
+    "edges": [
+      {
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "direction": "Right",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 3
+        },
+        "direction": "Right",
+        "kind": "OpenDoor"
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 4
+        },
+        "direction": "Right",
+        "kind": "Wall"
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "ClosedDoor"
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 5
+        },
+        "direction": "Down",
+        "kind": "WallWithWindow"
+      }
+    ]
+  },
+  "unitTypeIds": [
+    "wizard-type",
+    "barbarian-type",
+    "grunt-type",
+    "red-dragon-type"
+  ],
+  "units": [
+    {
+      "unitTypeId": "barbarian-type",
+      "sideId": "blue",
+      "anchor": {
+        "x": 2,
+        "y": 3
+      },
+      "unitId": "barbarian"
+    },
+    {
+      "unitTypeId": "red-dragon-type",
+      "sideId": "red",
+      "anchor": {
+        "x": 7,
+        "y": 3
+      },
+      "unitId": "dragon",
+      "posture": "Lying",
+      "initialHp": 5
+    }
+  ],
+  "agency": [
+    {
+      "unitTypeId": "barbarian-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "red-dragon-type",
+      "sideId": "red",
+      "controller": "Automated"
+    }
+  ],
+  "resources": [
+    {
+      "type": {
+        "id": "coal",
+        "name": "Coal"
+      },
+      "position": {
+        "x": 5,
+        "y": 4
+      }
+    },
+    {
+      "type": {
+        "id": "diamond",
+        "name": "Diamond"
+      },
+      "position": {
+        "x": 6,
+        "y": 4
+      }
+    },
+    {
+      "type": {
+        "id": "banana",
+        "name": "Banana"
+      },
+      "position": {
+        "x": 7,
+        "y": 4
+      }
+    },
+    {
+      "type": {
+        "id": "fruit",
+        "name": "Fruit"
+      },
+      "position": {
+        "x": 8,
+        "y": 4
+      }
+    },
+    {
+      "type": {
+        "id": "mushroom",
+        "name": "Mushroom"
+      },
+      "position": {
+        "x": 9,
+        "y": 4
+      }
+    },
+    {
+      "type": {
+        "id": "shell",
+        "name": "Shell"
+      },
+      "position": {
+        "x": 10,
+        "y": 4
+      }
+    }
+  ],
+  "machines": [
+    {
+      "id": "press",
+      "position": {
+        "x": 6,
+        "y": 7
+      },
+      "type": {
+        "id": "diamond-press",
+        "name": "Diamond Press",
+        "storage": {
+          "capacities": [
+            {
+              "type": {
+                "id": "coal",
+                "name": "Coal"
+              },
+              "capacity": 3
+            }
+          ]
+        },
+        "operation": {
+          "costs": [
+            {
+              "type": {
+                "id": "coal",
+                "name": "Coal"
+              },
+              "quantity": 3
+            }
+          ],
+          "outputType": {
+            "id": "diamond",
+            "name": "Diamond"
+          },
+          "outputQuantity": 1,
+          "outputTable": null,
+          "outputDescription": "Diamond"
+        }
+      },
+      "ownerSide": "blue"
+    }
+  ],
+  "cellMarkers": [
+    {
+      "type": {
+        "id": "banana-peel",
+        "name": "Banana Peel"
+      },
+      "position": {
+        "x": 11,
+        "y": 4
+      }
+    }
+  ],
+  "objectives": [
+    {
+      "sideId": "blue",
+      "objective": "NoObjective"
+    },
+    {
+      "sideId": "red",
+      "objective": "NoObjective"
+    }
+  ],
+  "waypoints": [
+    {
+      "id": "sample",
+      "area": {
+        "x": 12,
+        "y": 2,
+        "w": 2,
+        "h": 2
+      }
+    }
+  ],
+  "fogOfWarSides": [
+    "blue"
+  ]
+}
