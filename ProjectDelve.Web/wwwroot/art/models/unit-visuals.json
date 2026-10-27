@@ -24,164 +24,196 @@
     {
       "typeId": "royal-queen-type",
       "targetHeight": 0.83,
-      "maximumRadius": 0.4
+      "maximumRadius": 0.4,
+      "baseRadius": 0.32
     },
     {
       "typeId": "witch-queen-type",
       "targetHeight": 0.73,
-      "maximumRadius": 0.4
+      "maximumRadius": 0.4,
+      "baseRadius": 0.31
     },
     {
       "typeId": "royal-king-type",
       "targetHeight": 0.83,
-      "maximumRadius": 0.4
+      "maximumRadius": 0.4,
+      "baseRadius": 0.32
     },
     {
       "typeId": "goblin-king-type",
       "targetHeight": 0.68,
-      "maximumRadius": 0.35
+      "maximumRadius": 0.35,
+      "baseRadius": 0.3
     },
     {
       "typeId": "royal-bishop-type",
       "targetHeight": 0.85,
-      "maximumRadius": 0.38
+      "maximumRadius": 0.38,
+      "baseRadius": 0.31
     },
     {
       "typeId": "goblin-bishop-type",
       "targetHeight": 0.65,
-      "maximumRadius": 0.34
+      "maximumRadius": 0.34,
+      "baseRadius": 0.28
     },
     {
       "typeId": "royal-knight-type",
       "targetHeight": 0.85,
-      "maximumRadius": 0.44
+      "maximumRadius": 0.44,
+      "baseRadius": 0.36
     },
     {
       "typeId": "hobby-knight-type",
       "targetHeight": 0.68,
-      "maximumRadius": 0.4
+      "maximumRadius": 0.4,
+      "baseRadius": 0.31
     },
     {
       "typeId": "royal-peasant-type",
       "targetHeight": 0.70,
-      "maximumRadius": 0.36
+      "maximumRadius": 0.36,
+      "baseRadius": 0.3
     },
     {
       "typeId": "goblin-peasant-type",
       "targetHeight": 0.55,
-      "maximumRadius": 0.32
+      "maximumRadius": 0.32,
+      "baseRadius": 0.27
     },
     {
       "typeId": "castle-guard-type",
       "targetHeight": 0.85,
-      "maximumRadius": 0.43
+      "maximumRadius": 0.43,
+      "baseRadius": 0.34
     },
     {
       "typeId": "tower-troll-type",
       "targetHeight": 1.20,
-      "maximumRadius": 0.44
+      "maximumRadius": 0.44,
+      "baseRadius": 0.43
     },
     {
       "typeId": "diamond-kart-type",
       "targetHeight": 0.53,
-      "maximumRadius": 0.45
+      "maximumRadius": 0.45,
+      "baseRadius": 0.37
     },
     {
       "typeId": "chief-mechanic-type",
       "targetHeight": 0.73,
-      "maximumRadius": 0.4
+      "maximumRadius": 0.4,
+      "baseRadius": 0.31
     },
     {
       "typeId": "locomotive-type",
       "targetHeight": 0.58,
-      "maximumRadius": 0.45
+      "maximumRadius": 0.45,
+      "baseRadius": 0.39
     },
     {
       "typeId": "displacer-demon-type",
       "targetHeight": 0.98,
-      "maximumRadius": 0.44
+      "maximumRadius": 0.44,
+      "baseRadius": 0.38
     },
     {
       "typeId": "labyrinth-shaper-type",
       "targetHeight": 0.85,
-      "maximumRadius": 0.4
+      "maximumRadius": 0.4,
+      "baseRadius": 0.33
     },
     {
       "typeId": "red-dragon-type",
       "targetHeight": 1.45,
-      "maximumRadius": 0.88
+      "maximumRadius": 0.88,
+      "baseRadius": 0.72
     },
     {
       "typeId": "grunt-type",
       "targetHeight": 0.78,
-      "maximumRadius": 0.42
+      "maximumRadius": 0.42,
+      "baseRadius": 0.34
     },
     {
       "typeId": "zombie-type",
       "targetHeight": 0.75,
       "maximumRadius": 0.38,
+      "baseRadius": 0.25,
       "model": "zombie/v1"
     },
     {
       "typeId": "ghost-type",
       "targetHeight": 0.83,
-      "maximumRadius": 0.36
+      "maximumRadius": 0.36,
+      "baseRadius": 0.3
     },
     {
       "typeId": "skeleton-archer-type",
       "targetHeight": 0.73,
-      "maximumRadius": 0.36
+      "maximumRadius": 0.36,
+      "baseRadius": 0.29
     },
     {
       "typeId": "goblin-type",
       "targetHeight": 0.55,
-      "maximumRadius": 0.32
+      "maximumRadius": 0.32,
+      "baseRadius": 0.27
     },
     {
       "typeId": "bomb-imp-type",
       "targetHeight": 0.48,
-      "maximumRadius": 0.28
+      "maximumRadius": 0.28,
+      "baseRadius": 0.24
     },
     {
       "typeId": "troll-type",
       "targetHeight": 1.00,
       "maximumRadius": 0.856,
+      "baseRadius": 0.44,
       "model": "troll/v1"
     },
     {
       "typeId": "worker-type",
       "targetHeight": 0.63,
-      "maximumRadius": 0.34
+      "maximumRadius": 0.34,
+      "baseRadius": 0.28
     },
     {
       "typeId": "geomancer-type",
       "targetHeight": 0.75,
-      "maximumRadius": 0.38
+      "maximumRadius": 0.38,
+      "baseRadius": 0.31
     },
     {
       "typeId": "shaman-type",
       "targetHeight": 0.68,
-      "maximumRadius": 0.36
+      "maximumRadius": 0.36,
+      "baseRadius": 0.29
     },
     {
       "typeId": "barbarian-type",
       "targetHeight": 0.80,
-      "maximumRadius": 0.42
+      "maximumRadius": 0.42,
+      "baseRadius": 0.34
     },
     {
       "typeId": "rogue-type",
       "targetHeight": 0.73,
-      "maximumRadius": 0.36
+      "maximumRadius": 0.36,
+      "baseRadius": 0.3
     },
     {
       "typeId": "cleric-type",
       "targetHeight": 0.78,
-      "maximumRadius": 0.39
+      "maximumRadius": 0.39,
+      "baseRadius": 0.32
     },
     {
       "typeId": "wizard-type",
       "targetHeight": 0.80,
-      "maximumRadius": 0.38
+      "maximumRadius": 0.38,
+      "baseRadius": 0.32
     }
   ]
 }

@@ -24,10 +24,12 @@ async function inspect(file,targetHeight=1.2){
     else if(data[0]===255&&data[1]===216){let p=2;while(p<data.length){if(data[p++]!==255)continue;const marker=data[p++];if(marker===0xd9||marker===0xda)break;if(marker===0xd8||marker===0x01)continue;const length=data.readUInt16BE(p);if([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf].includes(marker)){height=data.readUInt16BE(p+3);width=data.readUInt16BE(p+5);break;}p+=length;}}
     return {index:i,mimeType:def.mimeType,bytes:data.length,width,height,sha256:crypto.createHash('sha256').update(data).digest('hex')};}
   const size=bounds.getSize(new T.Vector3()),center=bounds.getCenter(new T.Vector3()),scale=targetHeight/size.y,radius=points.reduce((r,p)=>Math.max(r,Math.hypot(p.x-center.x,p.z-center.z)*scale),0);
+  const {estimateContactEnvelope}=await import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot/three-models.js')));
+  const contact=Object.fromEntries(Object.entries(estimateContactEnvelope(points,bounds)).map(([k,v])=>[k,k==='samples'?v:v*scale]));
   return {file:path.relative(path.resolve(__dirname,'..'),path.resolve(file)).replaceAll('\\','/'),bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),asset:json.asset,chunks,
     scenes:json.scenes.length,meshes:json.meshes?.length??0,primitives,triangles,materials:json.materials??[],textures:json.textures?.length??0,images:(json.images??[]).map((_,i)=>image(i)),
     externalResources:[...(json.buffers??[]),...(json.images??[])].filter(v=>v.uri).map(v=>v.uri),hierarchy,animations:json.animations?.length??0,skins:json.skins?.length??0,cameras:json.cameras?.length??0,extensionsUsed:json.extensionsUsed??[],extensionsRequired:json.extensionsRequired??[],
-    attributes:(json.meshes??[]).flatMap(m=>m.primitives.map(p=>Object.keys(p.attributes))),finite,bounds:{min:bounds.min.toArray(),max:bounds.max.toArray(),dimensions:size.toArray()},normalization:{targetHeight,scale,maximumRadius:radius,dimensions:size.multiplyScalar(scale).toArray()},orientation:'Requires visual verification; axes are interpreted as glTF +Y up, +Z forward'};
+    attributes:(json.meshes??[]).flatMap(m=>m.primitives.map(p=>Object.keys(p.attributes))),finite,bounds:{min:bounds.min.toArray(),max:bounds.max.toArray(),dimensions:size.toArray()},normalization:{targetHeight,scale,maximumRadius:radius,contact,dimensions:size.multiplyScalar(scale).toArray()},orientation:'Requires visual verification; axes are interpreted as glTF +Y up, +Z forward'};
 }
 module.exports={inspect};
 if(require.main===module)inspect(process.argv[2]).then(v=>console.log(JSON.stringify(v,null,2))).catch(e=>{console.error(e.message);process.exitCode=1;});

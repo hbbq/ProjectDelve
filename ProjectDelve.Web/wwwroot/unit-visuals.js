@@ -3,6 +3,23 @@
 // Below one Cell: every yaw/position intersects at most 3x3 Cell columns.
 // This retains the existing 2x2 envelope while permitting 1x1 visual overhang.
 export const maximumModelRadius=.92;
+export const miniatureFootMargin=.04;
+export const miniatureFootprintCoverage=.90;
+// Presentation dimensions only. Callers can pass actual width/depth independently
+// of the current square cellSpan representation (e.g. a future 2x1 figure).
+export function maximumBaseRadius(width,depth=width){
+  if(![width,depth].every(n=>Number.isFinite(n)&&n>0))throw Error('Invalid base footprint');
+  return Math.min(width,depth)*miniatureFootprintCoverage/2;
+}
+export function miniatureBaseLayout({baseRadius,width=1,depth=width,contact=null}){
+  const maximumRadius=maximumBaseRadius(width,depth),requestedRadius=baseRadius??Math.min(.34,maximumRadius);
+  if(!Number.isFinite(requestedRadius)||requestedRadius<=0)throw Error('Invalid base radius');
+  const requiredRadius=contact?contact.radius+miniatureFootMargin:0;
+  const radius=Math.min(maximumRadius,requestedRadius),shortfall=Math.max(0,requiredRadius-radius);
+  const fitsContact=shortfall===0;
+  return {radius,maximumRadius,requestedRadius,requiredRadius,margin:contact?radius-contact.radius:null,shortfall,fitsContact,
+    warning:!fitsContact?'Estimated contact envelope lacks the target foot margin':requestedRadius>maximumRadius?'Base radius capped to 90% footprint coverage':null};
+}
 const positive=n=>typeof n==='number'&&Number.isFinite(n)&&n>0;
 const unique=(rows,key)=>{const result=Object.create(null);for(const row of rows){if(!row||typeof row[key]!=='string'||!row[key].trim()||Object.hasOwn(result,row[key]))throw Error(`Invalid or duplicate ${key}`);result[row[key]]=Object.freeze({...row});}return Object.freeze(result);};
 export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.url){
@@ -11,8 +28,8 @@ export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.
   for(const id of Object.keys(canonical))if(!Object.hasOwn(units,id))throw Error(`Missing Unit visual metadata: ${id}`);
   for(const [id,u]of Object.entries(units)){
     if(!Object.hasOwn(canonical,id))throw Error(`Unknown Unit visual Type: ${id}`);
-    if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadius)throw Error(`Invalid Unit visual dimensions: ${id}`);
-    if(Object.keys(u).some(k=>!['typeId','targetHeight','maximumRadius','model'].includes(k)))throw Error(`Unknown Unit visual field: ${id}`);
+    if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadius||!positive(u.baseRadius)||u.baseRadius>maximumBaseRadius(canonical[id].cellSpan))throw Error(`Invalid Unit visual dimensions: ${id}`);
+    if(Object.keys(u).some(k=>!['typeId','targetHeight','maximumRadius','baseRadius','model'].includes(k)))throw Error(`Unknown Unit visual field: ${id}`);
     if(u.model!=null&&!Object.hasOwn(models,u.model))throw Error(`Unknown model reference: ${id}`);
   }
   for(const [id,m]of Object.entries(models)){

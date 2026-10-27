@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
 const at=n=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',n)).href);
-const sample=()=>({schemaVersion:1,models:[{id:'shared',approved:true,url:'./art/shared.glb',version:'v1'}],units:[{typeId:'small',targetHeight:1.2,maximumRadius:.38,model:'shared'},{typeId:'large',targetHeight:2.4,maximumRadius:.76,model:'shared'}]});
+const sample=()=>({schemaVersion:1,models:[{id:'shared',approved:true,url:'./art/shared.glb',version:'v1'}],units:[{typeId:'small',targetHeight:1.2,maximumRadius:.38,baseRadius:.30,model:'shared'},{typeId:'large',targetHeight:2.4,maximumRadius:.76,baseRadius:.65,model:'shared'}]});
 const canonical=[{unitTypeId:'small',cellSpan:1},{unitTypeId:'large',cellSpan:2}];
 test('catalog rejects omissions, stale IDs, duplicates, invalid dimensions, schema and model references',async()=>{
   const {validateUnitVisualCatalog:v}=await at('unit-visuals.js');assert.equal(v(sample(),canonical).units.large.targetHeight,2.4);

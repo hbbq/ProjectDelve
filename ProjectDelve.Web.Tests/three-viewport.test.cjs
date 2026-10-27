@@ -217,6 +217,49 @@ test('production Zombie actual geometry grounds, picks and clips throughout obse
 const miniatureDescriptor={approved:true,url:'./__qa/miniatures/static-figure.glb',version:'fixture-v1',cellSpan:1};
 function miniatureOptions(extra={}){return {modelDescriptors:{test:miniatureDescriptor},modelCacheOptions:{fetchBytes:async()=>{const b=fs.readFileSync(path.join(__dirname,'fixtures/miniatures/static-figure.glb'));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);},...extra}};}
 async function readyMiniature(h){h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(miniatureDescriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();}
+test('current Zombie and Troll bases preserve model approval, facing, picking, camera and posture despite contact warnings',async()=>{
+  const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')));
+  const {validateUnitVisualCatalog,resolveUnitModel}=await moduleAt('unit-visuals.js');
+  const catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1})));
+  const f=fixture();f.state.units[0].typeId='zombie-type';f.state.units[1].typeId='troll-type';f.state.physical.figures[0].posture='Upright';
+  f.presentation.figures.large={cellSpan:1,occupiedCells:[{x:4,y:3}]};
+  const h=await harness(f,{visualCatalog:catalog,modelCacheOptions:{fetchBytes:async url=>{const b=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot',new URL(url).pathname.split('/wwwroot/')[1]));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);},load:parseGeometryOnly}});
+  try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const pose=h.viewport.camera.current();h.viewport.setRepresentation('miniatures');
+    for(const id of ['zombie-type','troll-type'])await h.viewport.models.request(resolveUnitModel(catalog,id,1)).promise;
+    h.viewport.checkpoint();h.viewport.settle();h.flush();const scene=h.rendered.at(-1).scene;
+    const zombie=scene.getObjectByName('unit:hero'),troll=scene.getObjectByName('unit:large');
+    for(const [root,radius,height]of [[zombie,.25,.75],[troll,.44,1]]){
+      const base=root.getObjectByName('miniature-base'),model=root.getObjectByName('normalized-model');assert.ok(base&&model);
+      assert.equal(base.children[0].scale.x,radius);assert.equal(root.userData.body.pickRadius,.46);assert.equal(root.userData.footprint.length,1);
+      root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.max.y-box.min.y-height)<1e-6);assert.ok(Math.abs(box.min.y-.072)<1e-6);
+      const matrix=base.matrixWorld.clone();for(const yaw of [0,.7,Math.PI/2,Math.PI,-Math.PI/2]){h.viewport.facing.get(root.userData.unitId).yaw=yaw;h.viewport.syncFacing(true);root.updateMatrixWorld(true);assert.deepEqual(base.matrixWorld.elements,matrix.elements);assert.equal(base.rotation.y,0);assert.equal(base.children[0].scale.x,radius);}
+    }
+    assert.equal(zombie.userData.base.fitsContact,true);assert.ok(zombie.userData.base.margin>.046);
+    assert.equal(troll.userData.base.fitsContact,false);assert.ok(Math.abs(troll.userData.base.shortfall-.0500286923)<1e-8);
+    assert.ok(h.viewport.inspect().bases.find(b=>b.typeId==='troll-type').warning);assert.ok(h.viewport.models.inspect().every(e=>e.state==='ready'));
+    for(const projection of ['perspective','orthographic']){
+      h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.flush();
+      // Outside the .25 physical radius, still within the authoritative Cell/proxy.
+      assert.equal(h.viewport.pick(h.viewport.project({x:2.90,y:2.5,height:0})).unitId,'hero');
+    }
+    h.viewport.camera.setProjection(pose.projection,false);h.viewport.settle();h.flush();assert.equal(h.viewport.camera.current().visualHeight,pose.visualHeight);assert.equal(h.viewport.camera.current().visualOverhang,pose.visualOverhang);
+    for(const enabled of [false,true]){h.viewport.lighting.set({enabled});h.flush();assert.ok(troll.getObjectByName('normalized-model'));}
+    const lying=structuredClone(f);lying.state.physical.figures[1].posture='Lying';h.viewport.renderFrame(lying);h.viewport.settle();h.flush();assert.ok(troll.getObjectByName('cardboard-body'));assert.equal(troll.getObjectByName('miniature-base'),undefined);
+    h.viewport.renderFrame(f);h.viewport.settle();h.flush();assert.ok(troll.getObjectByName('normalized-model'));assert.equal(troll.userData.base.radius,.44);
+    const disposed=new Map();scene.traverse(n=>{if(n.isMesh&&n.geometry&&!disposed.has(n.geometry)){disposed.set(n.geometry,0);n.geometry.addEventListener('dispose',()=>disposed.set(n.geometry,disposed.get(n.geometry)+1));}});
+    h.viewport.dispose();assert.ok([...disposed.values()].every(n=>n===1));assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('a future 2x1 presentation base uses actual occupied dimensions and remains centered',async()=>{
+  const f=fixture();f.state.units[1].typeId='rectangle-fixture';f.presentation.figures.large.occupiedCells=[{x:4,y:3},{x:5,y:3}];
+  const d={...miniatureDescriptor,cellSpan:2,radius:.76,baseRadius:.8},options=miniatureOptions();options.modelDescriptors={'rectangle-fixture':d};
+  const h=await harness(f,options);try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(d).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const root=h.rendered.at(-1).scene.getObjectByName('unit:large');assert.equal(root.position.x,5);assert.equal(root.position.z,3.5);assert.equal(root.userData.base.radius,.45);assert.ok(root.getObjectByName('normalized-model'));assert.equal(root.userData.footprint.length,2);
+  }finally{h.cleanup();}
+});
 test('miniature loading keeps cardboard, replaces only body at checkpoints, and retains roots, footprint, camera and Flat',async()=>{
   const f=fixture();f.state.physical.figures[0].posture='Upright';let release;
   const options=miniatureOptions({fetchBytes:()=>new Promise(r=>release=r)}),h=await harness(f,options);try{

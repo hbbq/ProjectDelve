@@ -33,6 +33,17 @@ export function modelResources(gltf) {
   });
   return {geometries,materials,textures,images,dispose(){for(const g of geometries)g.dispose();for(const m of materials)m.dispose();for(const t of textures)t.dispose();for(const i of images)i.close?.();}};
 }
+// A conservative low-vertex envelope, measured about the eventual facing pivot,
+// not its own center. Elevated equipment does not inflate the supporting base.
+export function estimateContactEnvelope(points,bounds) {
+  const center=bounds.getCenter(new THREE.Vector3()),bandHeight=(bounds.max.y-bounds.min.y)*.075;
+  let radius=0,minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity,samples=0;
+  for(const p of points)if(p.y<=bounds.min.y+bandHeight+1e-8){
+    const x=p.x-center.x,z=p.z-center.z;samples++;
+    radius=Math.max(radius,Math.hypot(x,z));minX=Math.min(minX,x);maxX=Math.max(maxX,x);minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z);
+  }
+  return {radius,minX,maxX,minZ,maxZ,bandHeight,samples};
+}
 function analyzeModel(gltf,d) {
   if(gltf.animations?.length||!gltf.scene)throw Error('Model must be a static scene');
   const scene=gltf.scene;scene.updateMatrixWorld(true);
@@ -60,14 +71,15 @@ function analyzeModel(gltf,d) {
   if(triangles>d.maxTriangles||primitives>d.maxPrimitives||!primitives)throw Error('Model exceeds geometry budget');
   const center=bounds.getCenter(new THREE.Vector3());
   const sourceRadius=points.reduce((r,p)=>Math.max(r,Math.hypot(p.x-center.x,p.z-center.z)),0);
-  return {group:scene,bounds,center,sourceHeight:size.y,sourceRadius,triangles,primitives,warnings:triangles>8000?['Above recommended 8000 triangles']:[]};
+  return {group:scene,bounds,center,sourceHeight:size.y,sourceRadius,contact:estimateContactEnvelope(points,bounds),triangles,primitives,warnings:triangles>8000?['Above recommended 8000 triangles']:[]};
 }
 function normalizeSource(source,d) {
   const {bounds,center,triangles,primitives,warnings}=source,scale=d.height/source.sourceHeight,radius=source.sourceRadius*scale;
   if(radius>d.radius+1e-6)throw Error('Model has incompatible proportions');
   const normalized=new THREE.Group(),offset=new THREE.Group();normalized.name='normalized-model';
   normalized.scale.setScalar(scale);offset.position.set(-center.x,-bounds.min.y,-center.z);offset.add(source.group.clone(true));normalized.add(offset);
-  return {group:normalized,visualBounds:{radius,height:d.height},infoAnchor:{x:0,y:.06+d.height+.08,z:0},triangles,primitives,scale,
+  const contact=Object.fromEntries(Object.entries(source.contact).map(([k,v])=>[k,k==='samples'?v:v*scale]));
+  return {group:normalized,visualBounds:{radius,height:d.height},contact,infoAnchor:{x:0,y:.06+d.height+.08,z:0},triangles,primitives,scale,
     warnings};
 }
 export function normalizeModel(gltf,d) {return normalizeSource(analyzeModel(gltf,d),d);}

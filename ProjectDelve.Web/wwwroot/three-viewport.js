@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { boardVisuals, terrainLayers, railConnections, railGeometry } from './board-visuals.js';
-import { resolveUnitModel, unitVisualEnvelope, unitVisualOverhang } from './unit-visuals.js';
+import { resolveUnitModel, unitVisualEnvelope, unitVisualOverhang, miniatureBaseLayout } from './unit-visuals.js';
 import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
 import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
@@ -13,6 +13,7 @@ import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-faci
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
 export const cellCenter = (cell, span=1) => ({x:cell.x+span/2,z:cell.y+span/2});
+const physicalCenter=(cell,a)=>({x:cell.x+(a.footprintWidth??a.cellSpan??1)/2,z:cell.y+(a.footprintDepth??a.cellSpan??1)/2});
 export function edgePlacement(edge) {
   return {x:(edge.a.x+edge.b.x)/2+.5,z:(edge.a.y+edge.b.y)/2+.5,vertical:edge.a.y===edge.b.y};
 }
@@ -52,6 +53,11 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   let active=false,disposed=false,lost=false,raf=null,frame,view={},data,retained,session,epoch=0,pointerPosition,focusedCell={x:0,y:0};
   let motion,transient,transientId,drag=null,pinch=null,blockClick=false,space=false;
   const arrivals=new Map(),flips=new Map(),doorMotions=new Map(),unitRoots=new Map(),postureChanges=new Map(),pieceEffects=new Map();
+  // Repeated Units share the same diagnostic; keep dense-scene output bounded
+  // by observed Type/footprint combinations rather than duplicating every mesh.
+  function baseDiagnostics(){
+    const rows=new Map();for(const root of unitRoots.values()){const b=root.userData.base;if(b)rows.set(`${b.typeId}:${b.radius}:${b.maximumRadius}`,b);}return [...rows.values()];
+  }
   let clipPool=null;
   let inEvent=false,bodiesDirty=false,unitRepresentation='cardboard',requestedRepresentation='cardboard';
   const readyModels=new Set(),pendingModels=new Set();
@@ -160,12 +166,15 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   }
   function token(a,position,height=heights.units,id){
     if(presentation==='flat')return flatToken(a,position,height);
-    const root=new THREE.Group(),center=cellCenter(position,a.cellSpan??1);root.position.set(center.x,height,center.z);
+    const root=new THREE.Group(),center=physicalCenter(position,a);root.position.set(center.x,height,center.z);
     const entry=modelEntry(a),model=models.clone(entry,modelDescriptor(a));let body;
+    const base=model?miniatureBaseLayout({baseRadius:visualCatalog?.units[a.typeId]?.baseRadius??modelDescriptors[a.typeId]?.baseRadius,
+      width:a.footprintWidth??a.cellSpan??1,depth:a.footprintDepth??a.cellSpan??1,contact:model.contact}):null;
+    if(base)root.userData.base={typeId:a.typeId,...base,contact:model.contact};
     if(model){
       const group=new THREE.Group(),yaw=new THREE.Group();group.name='miniature-body';yaw.name='miniature-facing';yaw.position.y=.06;yaw.rotation.y=id?facing.get(id).yaw:0;
-      yaw.add(model.group);group.add(yaw);root.add(physical.miniatureBase(a));
-      body={group,facingNode:yaw,pickRadius:.46*a.cellSpan,visualBounds:{radius:Math.max(.46*a.cellSpan,model.visualBounds.radius),height:.06+model.visualBounds.height},infoAnchor:model.infoAnchor};
+      yaw.add(model.group);group.add(yaw);root.add(physical.miniatureBase(a,base));
+      body={group,facingNode:yaw,pickRadius:.46*a.cellSpan,visualBounds:{radius:Math.max(base.radius,model.visualBounds.radius),height:.06+model.visualBounds.height},infoAnchor:model.infoAnchor};
     }else{const group=physical.unit(a);body={group,facingNode:null,visualBounds:group.userData.bounds,infoAnchor:group.userData.infoAnchor};}
     root.add(body.group);root.userData.body=body;root.userData.infoAnchor=body.infoAnchor;root.userData.visualBounds=body.visualBounds;return root;
   }
@@ -179,6 +188,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       rotations.delete(id);for(const child of [...root.children])removeRecord({object:child});
       const body=token(a,{x:0,y:0},0,id);for(const child of [...body.children])root.add(child);
       root.userData.body=body.userData.body;root.userData.infoAnchor=body.userData.infoAnchor;root.userData.visualBounds=body.userData.visualBounds;
+      root.userData.base=body.userData.base;
       if(previousYaw!=null&&root.userData.body?.facingNode)root.userData.body.facingNode.rotation.y=previousYaw;
       if(presentation==='tabletop'&&previous&&previous.posture!==a.posture&&animate()&&!previousBody?.facingNode&&!root.userData.body?.facingNode){
         const from=previous.posture==='Lying'?Math.PI:0,to=a.posture==='Lying'?Math.PI:0;
@@ -186,14 +196,16 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }
       nodes.set(key,{signature,object:root});
     }
-    const center=cellCenter(figure.position,a.cellSpan);root.position.set(center.x,heights.units,center.z);
+    const center=presentation==='tabletop'?physicalCenter(figure.position,a):cellCenter(figure.position,a.cellSpan);root.position.set(center.x,heights.units,center.z);
     if(presentation==='tabletop'&&a.active&&!root.children.some(child=>child.name==='active-mark')){const mark=plane(glyph('▶'),-a.cellSpan*.34,-a.cellSpan*.3,a.cellSpan*.18,a.cellSpan*.18,.095);mark.name='active-mark';root.add(mark);}
     root.userData.appearance={...a};root.userData.footprint=frame.presentation.figures?.[id]?.occupiedCells??[figure.position];
     return root;
   }
   function appearance(figure){
     const unit=frame.state.units.find(u=>u.id===figure.id),type=frame.state.types.find(t=>t.id===unit?.typeId),card=frame.presentation.cards?.[figure.id];
-    return{typeId:unit?.typeId,sideId:unit?.sideId,name:card?.individualName?.trim()||card?.displayName||type?.displayName||'Unit',posture:figure.posture,active:frame.state.currentUnitId===figure.id,cellSpan:frame.presentation.figures?.[figure.id]?.cellSpan??1,hp:unit?.currentHp,maxHp:type?.hp??1};
+    const geometry=frame.presentation.figures?.[figure.id],cells=geometry?.occupiedCells;
+    const footprint=cells?.length?{footprintWidth:Math.max(...cells.map(c=>c.x))-Math.min(...cells.map(c=>c.x))+1,footprintDepth:Math.max(...cells.map(c=>c.y))-Math.min(...cells.map(c=>c.y))+1}:{};
+    return{typeId:unit?.typeId,sideId:unit?.sideId,name:card?.individualName?.trim()||card?.displayName||type?.displayName||'Unit',posture:figure.posture,active:frame.state.currentUnitId===figure.id,cellSpan:geometry?.cellSpan??1,...footprint,hp:unit?.currentHp,maxHp:type?.hp??1};
   }
   function renderFrame(next){
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
@@ -388,7 +400,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(lastRender&&time-lastRender<1000){samples.push(time-lastRender);if(samples.length>240)samples.shift();}lastRender=continuous?time:0;
     const percentile=(values,p)=>[...values].sort((a,b)=>a-b)[Math.floor((values.length-1)*p)]??0;
     const textureBytes=[...textures.values()].reduce((n,e)=>n+(e.texture?.image?.width??0)*(e.texture?.image?.height??0)*4*4/3,0)+glyphs.size*128*128*4*4/3;
-    metrics.textContent=JSON.stringify({presentation,representation:unitRepresentation,miniatures:[...unitRoots.values()].filter(r=>r.userData.body?.facingNode).length,models:models.inspect(),lighting:lighting.inspect(),materials:models.inspect().reduce((n,e)=>n+(e.materials??0),0)+materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+((textureBytes+models.inspect().reduce((n,e)=>n+(e.textureBytes??0),0))/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
+    metrics.textContent=JSON.stringify({presentation,representation:unitRepresentation,bases:baseDiagnostics(),miniatures:[...unitRoots.values()].filter(r=>r.userData.body?.facingNode).length,models:models.inspect(),lighting:lighting.inspect(),materials:models.inspect().reduce((n,e)=>n+(e.materials??0),0)+materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+((textureBytes+models.inspect().reduce((n,e)=>n+(e.textureBytes??0),0))/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
     if(continuous)invalidate();
   }
   function updateLabels(){const pose=cameraControl.current(),size=cameraControl.size;if(!pose)return;const placed=[];
@@ -511,7 +523,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(!active||lost||!frame)return;const generation=epoch;
     if(event.role==='Movement'){
       facing.observe(event,occurrence,frame);
-      const stable=nodes.get(`unit:${event.unitId}`)?.object,figure=frame.state.physical.figures.find(f=>f.id===event.unitId),a=event.movingFigure??(figure?appearance(figure):null),segments=event.movementSegments??(event.path?.length?[event.path]:[]);
+      const stable=nodes.get(`unit:${event.unitId}`)?.object,figure=frame.state.physical.figures.find(f=>f.id===event.unitId),observed=figure?appearance(figure):null,
+        a=event.movingFigure?{footprintWidth:observed?.footprintWidth,footprintDepth:observed?.footprintDepth,...event.movingFigure}:observed,segments=event.movementSegments??(event.path?.length?[event.path]:[]);
       if(!a||!segments.length)return;
       const legs=observedMovementLegs(event,frame);if(data.explored&&!legs.flat().some(yaw=>yaw!=null))return;
       if(stable)stable.visible=false;transientId=event.unitId;const source=token(a,segments[0][0],heights.movement,event.unitId);
@@ -523,10 +536,10 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }else transient=source;
       groups.movement.add(transient);
       const localTransient=transient,localPool=clipPool;
-      try{for(const [si,segment]of segments.entries()){if(!transient||playback.skipping()||generation!==epoch)break;const start=cellCenter(segment[0],a.cellSpan);transient.position.x=start.x;transient.position.z=start.z;cameraControl.movementStep(segment[0]);invalidate();
+      try{for(const [si,segment]of segments.entries()){if(!transient||playback.skipping()||generation!==epoch)break;const start=presentation==='tabletop'?physicalCenter(segment[0],a):cellCenter(segment[0],a.cellSpan);transient.position.x=start.x;transient.position.z=start.z;cameraControl.movementStep(segment[0]);invalidate();
         for(const [li,anchor]of segment.slice(1).entries()){if(!transient||playback.skipping()||generation!==epoch)break;
           if(yawNode&&legs[si][li]!=null){const to=legs[si][li]+facing.get(event.unitId).offset;transientYaw={node:yawNode,from:transientYaw?.current??currentYaw,current:transientYaw?.current??currentYaw,to,start:performance.now()};currentYaw=to;}
-          const to=cellCenter(anchor,a.cellSpan);motion={object:transient,from:{x:transient.position.x,z:transient.position.z},to,start:performance.now(),duration:220};cameraControl.movementStep(anchor);invalidate();await playback.pause(250);if(generation===epoch&&motion?.object===localTransient){motion.object.position.x=to.x;motion.object.position.z=to.z;motion=null;}}
+          const to=presentation==='tabletop'?physicalCenter(anchor,a):cellCenter(anchor,a.cellSpan);motion={object:transient,from:{x:transient.position.x,z:transient.position.z},to,start:performance.now(),duration:220};cameraControl.movementStep(anchor);invalidate();await playback.pause(250);if(generation===epoch&&motion?.object===localTransient){motion.object.position.x=to.x;motion.object.position.z=to.z;motion=null;}}
       }}finally{localPool?.dispose();removeRecord({object:source});localTransient.removeFromParent();if(transient===localTransient){clipPool=null;transient=null;transientId=null;transientYaw=null;motion=null;}if(generation===epoch&&stable&&unitRoots.get(event.unitId)===stable){stable.visible=true;if(stable.userData.body?.facingNode)stable.userData.body.facingNode.rotation.y=facing.get(event.unitId).yaw;}invalidate();}
       return;
     }
@@ -557,5 +570,5 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }else if(occurrence?.kind==='UnitCreated'||presentation==='flat'&&occurrence?.kind==='PostureChanged')arrivals.set(occurrence.unitId,{kind:occurrence.kind,start:performance.now()});
       invalidate();
     },
-    inspect:()=>({active,lost,presentation,representation:unitRepresentation,requestedRepresentation,models:models.inspect(),facing:facing.inspect(),rotations:rotations.size,lighting:lighting.inspect(),renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
+    inspect:()=>({active,lost,presentation,representation:unitRepresentation,requestedRepresentation,bases:baseDiagnostics(),models:models.inspect(),facing:facing.inspect(),rotations:rotations.size,lighting:lighting.inspect(),renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
 }

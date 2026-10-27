@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { boardVisuals, terrainVariantIndex } from './board-visuals.js';
 import { sideHue } from './side-colors.js';
+import { miniatureBaseLayout } from './unit-visuals.js';
 
 export const tabletopDimensions=Object.freeze({border:.12,boardThickness:.12,tokenThickness:.06,tokenRadius:.46,wallHeight:.52,doorHeight:.6});
 // Only observed neighbours may form an excavated boundary. Unknown neighbours
@@ -163,11 +164,15 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     }
     return group;
   }
-  function miniatureBase(a){
-    const group=new THREE.Group(),r=.46*(a.cellSpan??1);group.name='miniature-base';
-    mesh(group,geometries.cylinder,`hsl(${sideHue(a.sideId)},70%,65%)`,0,.03,0,r,.06,r);
+  function miniatureBase(a,layout=miniatureBaseLayout({baseRadius:a.baseRadius,width:a.footprintWidth??a.cellSpan??1,depth:a.footprintDepth??a.cellSpan??1})){
+    const group=new THREE.Group(),r=layout.radius;group.name='miniature-base';group.userData.base=layout;
+    mesh(group,geometries.cylinder,'#494642',0,.03,0,r,.06,r);
     group.add(plane(material('#494642'),0,0,r,r,.06,0,geometries.tokenCap));
-    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries.tokenRim));
+    // A shared unit ring scaled to each radius would make small rims disappear.
+    // Cache a constant .025-Cell rim per radius; all instances share geometry.
+    const key=`miniature-rim:${r}`;
+    geometries[key]??=new THREE.RingGeometry(Math.max(0,1-.025/r),1,32);
+    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries[key]));
     return group;
   }
   return {unit,posture,board,terrain,edge,machine,item,miniatureBase};

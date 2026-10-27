@@ -872,16 +872,16 @@ explicitly unsupported in V1.
 
 `wwwroot/art/models/unit-visuals.json` is the authoritative presentation catalog.
 Schema version 1 contains `units` and `models` arrays. Every canonical Type has
-exactly one `{typeId,targetHeight,maximumRadius}` entry; optional `model` references
+exactly one `{typeId,targetHeight,maximumRadius,baseRadius}` entry; optional `model` references
 an approved asset's `id`. Asset entries contain `id`, `approved:true`, local `url`,
 `version`, and optional `maxTriangles`, `maxPrimitives`, `maxTextureDimension`.
 Footprints, HP, movement and other gameplay content are not duplicated in JSON.
 
 All **32** current canonical Types are included, including royal/goblin pieces,
 Diamond Kart, Locomotive, Chief Mechanic, Worker and Red Dragon. Terrain Machines
-are not Unit Types. Initial heights range from .65 (Bomb Imp) through .80 (Goblin),
-1.20 (Zombie), 1.90 (Troll), 2.10 (Tower Troll), to 2.60 (2×2 Red Dragon). Vehicles
-start lower (.75 Kart/.85 Locomotive). These authored presentation defaults are
+are not Unit Types. Current compressed heights range from .48 (Bomb Imp) through
+.55 (Goblin), .75 (Zombie), 1.00 (Troll), 1.20 (Tower Troll), to 1.45 (2×2 Red
+Dragon). Vehicles start lower (.53 Kart/.58 Locomotive). These presentation defaults are
 provisional and may be visually tuned without changing gameplay.
 
 `unit-visuals.js` validates exact coverage against the existing public canonical
@@ -899,7 +899,7 @@ omitted registry factory as well as a missing catalog entry. Node tests exercise
 negative schemas/dimensions/references and adding a new canonical ID.
 
 To add a canonical Type: add its gameplay definition/registry entry, add one
-explicit visual row with provisional positive finite height/radius, then run
+explicit visual row with provisional positive finite height/model radius/base radius, then run
 `UnitVisualCatalogTests` and `unit-visuals.test.cjs`. Attach an approved asset later
 by referencing `models[].id`. No name-derived runtime dimensions hide omissions.
 
@@ -911,7 +911,7 @@ either logical footprint, retaining the nine-column FoW pool guarantee: a radius
 below one Cell intersects at most three columns on each axis. A miniature may
 overhang its logical footprint and generated base without changing legality.
 Clipping uses the maximum of the measured model radius and the base radius.
-Picking and label width retain the .46 × Cell span base envelope. There is no
+Picking and label width retain the independent .46 × Cell span proxy envelope. There is no
 universal 1×1 height cap. See the approved Troll measurements below.
 
 The cache keys **source** resources by approved URL/version and measures their
@@ -927,8 +927,146 @@ Camera fitting uses the public maximum registered height plus base/label allowan
 (minimum 1.5), plus the greatest registered radial overhang beyond half its logical
 span, independent of hidden Units and async arrivals. Coarse picking stays
 on observed logical footprints and vertical proxies. Miniature labels use their
-information anchor and also clear the projected base's top edge, preventing name
-plates covering heads at overhead. LOD and width continue using the base.
+information anchor and also clear the projected proxy's top edge, preventing name
+plates covering heads at overhead. LOD and width continue using the independent proxy.
+
+### Configurable physical miniature bases V1
+
+`baseRadius` is the authored circular base radius in Cells. It is independent of
+`targetHeight` (figure height above its feet), `maximumRadius` (the permitted
+overall model extent, including equipment), and the authoritative logical
+footprint. It never scales or approves a GLB and never changes picking, movement,
+LOS or observation. Unsupported Types still use Cardboard until they have an
+approved model; their explicit base values are provisional presentation metadata.
+
+Physical bases are capped at `.90 * min(footprintWidth, footprintDepth) / 2`.
+Canonical metadata is validated against canonical footprint dimensions; runtime
+layout additionally caps against the actual observed occupied-Cell dimensions.
+Thus a 1×1 circle has maximum radius .45, a 2×2 circle .90, and a 2×1 circle .45.
+The base and imported figure remain centered on the footprint. The sizing helper
+accepts width and depth independently; only circular geometry is implemented.
+No rectangular/oval/custom descriptor schema has been introduced.
+
+Bases keep .06-Cell thickness, a neutral charcoal body/top, and a .025-Cell-wide
+Side-colored top rim. Shared cylinder/cap geometry is scaled; rim geometry is
+cached per radius to retain constant visible width. All of these geometries are
+owned and disposed through the existing viewport registry. Yaw rotates only the
+figure, so the base never moves, rotates or resizes as facing changes. Feet remain
+grounded at the same base-top height. Selection, active marks and legal indicators
+retain their existing logical geometry.
+
+The contact approximation samples transformed scene vertices in the lowest 7.5%
+of source height once per cached source. It records X/Z minima/maxima and maximum
+radial distance **about the normalized model's facing pivot**, including any
+offset of the foot area. Uniform normalization scales that envelope per Type.
+Elevated weapons/arms/wings are excluded by height, without mesh segmentation.
+The default target margin is .04 Cells: `requiredRadius = contact.radius + .04`.
+The configured radius stays fixed; the estimate never automatically enlarges a
+base or changes the imported figure. Diagnostics expose the estimate, selected
+and maximum radius, actual margin, shortfall and warning for observed miniatures.
+
+**Contact fit is advisory.** Insufficient margin or an envelope wider than the
+base is a non-blocking visual diagnostic, including when the required radius
+exceeds the footprint cap. It does not revoke model approval or substitute
+Cardboard. Loading, genuine model validation/rendering/safety failures and Lying
+Posture retain the established Cardboard fallback. Low cloth, toes, weapons,
+decorations or sparse vertices can make the estimate ambiguous; it is not foot
+detection or a physical support guarantee. Inspect actual imagery before tuning.
+
+At the current compressed heights, production measurements are:
+
+| Model | Height | Base radius | Contact radius | Contact X / Z bounds | Band / vertices | Actual margin | Required radius | Margin shortfall |
+| --- | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |
+| Zombie | .75 | .25 | .203520 | [-.161622,.185692] / [-.155299,.148383] | .05625 / 421 | .046480 | .243520 | 0 |
+| Troll | 1.00 | .44 | .450029 | [-.416705,.437671] / [-.275222,.242219] | .075 / 561 | -.010029 | .490029 | .050029 |
+
+Zombie has a visible margin and is much less dominated by its base. Troll retains
+the approved GLB on its .44 base despite the warning, as explicitly requested:
+the conservative envelope overhangs by .010029 Cells, and the .04 margin cannot
+fit within the .45 cap. No deformation, height change, source modification or
+footprint expansion resolves that warning implicitly. Historical model/performance
+records later in this document predate the compressed heights and this base pass.
+
+All 32 provisional circular radii (Cells):
+
+| Unit Type | Radius | Unit Type | Radius |
+| --- | ---: | --- | ---: |
+| Royal Queen | .32 | Labyrinth Shaper | .33 |
+| Witch Queen | .31 | Red Dragon (2×2) | .72 |
+| Royal King | .32 | Grunt | .34 |
+| Goblin King | .30 | Zombie | .25 |
+| Royal Bishop | .31 | Ghost | .30 |
+| Goblin Bishop | .28 | Skeleton Archer | .29 |
+| Royal Knight | .36 | Goblin | .27 |
+| Hobby Knight | .31 | Bomb Imp | .24 |
+| Royal Peasant | .30 | Troll | .44 |
+| Goblin Peasant | .27 | Worker | .28 |
+| Castle Guard | .34 | Geomancer | .31 |
+| Tower Troll | .43 | Shaman | .29 |
+| Diamond Kart | .37 | Barbarian | .34 |
+| Chief Mechanic | .31 | Rogue | .30 |
+| Locomotive | .39 | Cleric | .32 |
+| Displacer Demon | .38 | Wizard | .32 |
+
+For a new approved model, keep height/model radius separate, measure using
+`inspect(file, targetHeight)` from `tools/inspect-glb.cjs`, then choose the smallest
+comfortable `baseRadius` that provides about .04 Cells of radial foot margin and
+fits the footprint cap. Inspect several figure facings, overhead and angled
+lighting On/Off views. Where contact geometry is ambiguous, retain the reviewed
+metadata and document the diagnostic rather than changing model approval. Run
+`miniature-bases.test.cjs`, model/catalog/viewport tests and `UnitVisualCatalogTests`.
+
+Transient FoW clips the maximum of the actual model radius and selected base
+radius, so smaller bases cannot reveal or hide additional model fragments.
+Camera fitting still uses the public model-height/radial envelope, never the base
+radius or contact diagnostic. Full/Fixed/Auto/Follow, both projections, the model
+cache and invalidation-driven idle behavior are unchanged.
+
+#### Configurable base verification — 2026-10-27
+
+Focused model/catalog/base/viewport tests: **78 passed**. Complete browser-client
+and dispatcher-security suite: **559 passed**. Warning-free cached solution build
+and the focused .NET `UnitVisualCatalogTests` passed; no full .NET regression run
+was needed for these client changes. Earlier production catalog tests still
+expected pre-compression heights (Zombie 1.20/Troll 1.90); those two registration
+expectations now use the existing .75/1.00 metadata. Historical GLB reproduction
+and overhang stress tests retain their explicit taller test contracts.
+
+`node tools/miniature-base-qa-plans.cjs` reproduces data-only plans under
+`.playwright-cli/miniature-base-qa/`, reusing the existing test-owned scenarios.
+Production-mode isolated 5081, restricted headed Edge, no model overrides:
+
+| Capture directory under `.playwright-cli/browser-qa/` | Inspected evidence |
+| --- | --- |
+| `inspection-ixrc8P` | Zombie/Troll together, Lying Cardboard, lit/Off perspective 65°, overhead/orthographic, narrow |
+| `inspection-Okr2G2` | Three adjacent Upright Trolls and Zombie; lit/Off, overhead, 600×850 layout; `bases.yaml` confirms .25/.44 and advisory Troll shortfall |
+| `inspection-D7WiU7` | Final repeat of adjacent views after compact diagnostics grouped by observed Type/footprint |
+| `inspection-wgJcnJ` | Settled 0/90/180/270° camera views |
+| `inspection-v1isUz` | Canonical Move, positive-Z facing and grounded figure |
+| `inspection-ChRHYt` | Attack-facing, selection/active emphasis and combat on test-owned stats |
+| `inspection-tSictM` | Canvas-center picking submits legal Stay; Smash Door spatial-facing and action feedback |
+| `inspection-Qwn9O4` | Initial Lying Cardboard and restored Upright Troll |
+| `inspection-wwQQ05` | Patrol hidden/entered/left FoW and fresh restart exploration |
+| `inspection-HOHHDp` | Repeated Cardboard/Miniatures and Flat/Classic/Enhanced/Tabletop cycles, restart/reload; one GLB fetch, shared source geometry/textures |
+| `inspection-L39Pt7` | Reload then ordinary Tabletop selection restores the production Troll |
+
+Captured PNGs were opened and visually inspected. Zombie's feet have a visible
+neutral margin; Side rims remain readable. Adjacent Troll bases stay separate,
+with no geometry overlap; the figure may overhang its own base as reported by the
+diagnostic. The compressed figures and fixed-thickness bases remain grounded.
+Hidden patrol bases disappear with their Units and return together. Projection,
+facing, information, picking and renderer-switch behavior showed no regression.
+Console checks were empty and no asset requests failed. Refresh/restart during
+movement/combat plans aborted superseded `/api/game/updates` SSE requests normally.
+
+Remaining manual gaps: frame-exact transient FoW pixel assertions, native touch,
+real-driver context loss and sustained GPU/low-end performance. Existing CPU
+tests cover clipping geometry, failure fallback, context recovery and cleanup;
+these are not hardware measurements. Low-vertex contact is approximate and the
+Troll margin shortfall intentionally remains advisory. Types without approved
+GLBs have provisional radii awaiting visual review with their eventual models.
+No Engine/server-observation implementation, gameplay, scenarios, GLBs or
+`CONSTRAINTS.md` changed. The original 5080 host was preserved.
 
 ### Facing, Posture, FoW, picking and camera
 
