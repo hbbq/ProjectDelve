@@ -96,6 +96,106 @@ async function harness(frame=fixture()){
   const flush=(time=performance.now())=>{const todo=[...frames.values()];frames.clear();for(const fn of todo)fn(time);};flush();
   return{viewport,host,controls,frames,requests,rendered,picked,hovered,failures,THREE,flush,renderer,get disposed(){return disposed;},cleanup(){viewport.dispose();for(const[key,value]of Object.entries(saved))if(value===undefined)delete globalThis[key];else globalThis[key]=value;}};
 }
+
+test('Tabletop lamp initializes once, is world fixed, clamps preferences and persists without observation input',async()=>{
+  const {createTabletopLighting,lightingDefaults,lightingPreferences}=await moduleAt('three-lighting.js');
+  const THREE=await moduleAt('vendor/three/0.180.0/build/three.module.js');
+  assert.deepEqual(lightingPreferences(null),lightingDefaults);
+  assert.deepEqual(lightingPreferences({enabled:'off',key:Infinity,fill:-1,azimuth:900,elevation:0}),{...lightingDefaults,fill:0,azimuth:360,elevation:15});
+  let saved='broken',invalidations=0;const scene=new THREE.Scene(),root=new Element(),storage={getItem:()=>saved,setItem:(key,value)=>{assert.equal(key,'delve.three.lighting.v1');saved=value;}};
+  const environment={document:{createElement:t=>new Element(t)},localStorage:storage};
+  const lamp=createTabletopLighting({scene,root,invalidate:()=>invalidations++,environment});
+  const key=scene.getObjectByName('tabletop-key'),fill=scene.getObjectByName('tabletop-fill');
+  assert.ok(key.isDirectionalLight&&fill.isAmbientLight);assert.equal(key.castShadow,false);assert.equal(lamp.inspect().active,false);
+  lamp.setPresentation('tabletop');assert.equal(lamp.inspect().active,true);assert.ok(Math.abs(key.position.length()-1)<1e-12);
+  const direction=key.position.clone();assert.ok(direction.y>0&&direction.x<0&&direction.z<0);
+  lamp.controls.enabled.value='off';lamp.controls.enabled.emit('change');assert.equal(invalidations,1);assert.equal(lamp.controls.key.disabled,true);
+  lamp.set({key:1.2,fill:.4,azimuth:90,elevation:35});assert.equal(key.intensity,1.2);assert.equal(fill.intensity,.4);assert.ok(key.position.x>0&&Math.abs(key.position.z)<1e-12);
+  lamp.dispose();assert.equal(scene.children.length,0);assert.equal(root.children.length,0);
+  const restored=createTabletopLighting({scene,root,invalidate:()=>{},environment});
+  assert.deepEqual(restored.inspect(),{enabled:false,key:1.2,fill:.4,azimuth:90,elevation:35,active:false,materials:0,firstFrameMs:null});restored.dispose();
+  const denied=createTabletopLighting({scene,root,invalidate:()=>{},environment:{...environment,localStorage:{getItem(){throw Error('denied');},setItem(){throw Error('denied');}}}});
+  denied.set({enabled:false});denied.dispose();
+});
+
+test('lighting swaps shared physical materials once while artwork, instances, camera and observation remain intact',async()=>{
+  const f=fixture(16,'blue');f.state.physical.board.terrain=[{kind:'Tree',position:{x:2,y:2}},{kind:'SolidRock',position:{x:4,y:3}}];
+  f.state.resources=[{position:{x:2,y:2},type:{id:'diamond',name:'Diamond'}}];
+  const unchanged=structuredClone(f),h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,objects=scene.getObjectByName('objects'),batches=[...objects.children],root=scene.getObjectByName('unit:hero');
+    const printed=[];scene.traverse(n=>{if(n.material?.isMeshBasicMaterial)printed.push([n,n.material]);});
+    const side=root.getObjectByName('turnover').children[0],lit=side.material;
+    assert.equal(lit.isMeshLambertMaterial,true);assert.equal(lit.vertexColors,false);assert.equal(scene.getObjectByName('unit:large').getObjectByName('turnover').children[0].material,lit);
+    assert.ok(objects.children.some(n=>n.isInstancedMesh&&n.material.isMeshLambertMaterial));
+    const pose=h.viewport.camera.current(),requests=h.requests.length,materials=h.viewport.inspect().lighting.materials;
+    h.viewport.lighting.set({enabled:true});assert.equal(h.frames.size,0);
+    for(let i=0;i<12;i++){
+      h.viewport.lighting.set({enabled:false});assert.equal(side.material.isMeshBasicMaterial,true);assert.equal(side.material.vertexColors,true);assert.equal(h.frames.size,1);h.flush();assert.equal(h.frames.size,0);
+      h.viewport.lighting.set({enabled:true});h.flush();assert.equal(side.material,lit);assert.deepEqual(objects.children,batches);
+      for(const [node,m]of printed)assert.equal(node.material,m);
+    }
+    // New frames use canonical batch identities regardless of lighting mode.
+    h.viewport.lighting.set({enabled:false});h.viewport.renderFrame(f);h.flush();assert.deepEqual(objects.children,batches);
+    assert.equal(h.requests.length,requests);assert.equal(h.viewport.inspect().lighting.materials,materials);assert.deepEqual(h.viewport.camera.current(),pose);assert.deepEqual(f,unchanged);
+    const direction=scene.getObjectByName('tabletop-key').position.clone();
+    for(const projection of ['perspective','orthographic']){h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({yaw:135,tilt:45},false);h.viewport.settle();h.flush();assert.equal(side.material.isMeshBasicMaterial,true);assert.deepEqual(scene.getObjectByName('tabletop-key').position,direction);}
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.active,false);assert.equal(h.controls.root.querySelector('#three-lighting-controls').hidden,true);
+    scene.getObjectByName('units').traverse(n=>{if(n.material)assert.equal(n.material.isMeshBasicMaterial,true);});
+    h.viewport.setActive(false);h.viewport.lighting.set({enabled:true});assert.equal(h.frames.size,0);h.viewport.setActive(true);h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const replacement=structuredClone(f);replacement.metadata.sessionId='restart';h.viewport.renderFrame(replacement);h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.active,true);assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('lighting never derives content, direction or preferences from unexplored terrain',async()=>{
+  const f=fixture(16,'blue');f.state.physical.board.terrain=[{kind:'SolidRock',position:{x:15,y:15}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,fog=scene.getObjectByName('fog'),cover=fog.children[0],large=scene.getObjectByName('unit:large');
+    const before=structuredClone(f.state.exploredCells),requests=h.requests.length;
+    for(const enabled of [false,true]){
+      h.viewport.lighting.set({enabled,key:2,fill:0,azimuth:180});h.flush();
+      f.state.physical.board.terrain[0].kind='FruitTree';h.viewport.renderFrame(f);h.flush();
+      assert.equal(scene.getObjectByName('objects').children.length,0);assert.equal(h.requests.length,requests);assert.equal(fog.children[0],cover);assert.equal(cover.material.isMeshBasicMaterial,true);assert.equal(large.visible,true);
+      large.traverse(n=>{if(n.material)assert.equal(n.material.clippingPlanes,null);});assert.deepEqual(f.state.exploredCells,before);
+    }
+    assert.equal(h.viewport.inspect().lighting.key,2);assert.equal(h.viewport.inspect().lighting.fill,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('lighting changes during elevated movement preserve every clipping plane and dispose both variants',async()=>{
+  const h=await harness(fixture(16,'blue')),owned=new Map();try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,materialCount=h.viewport.inspect().lighting.materials;
+    await h.viewport.present({role:'Movement',unitId:'hero',movingFigure:{name:'Hero',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2},{x:3,y:2}]]},{},{skipping:()=>false,pause:async()=>{
+      h.flush(performance.now()+230);const mover=scene.getObjectByName('clipped-movement');
+      for(const enabled of [false,true,false,true]){
+        h.viewport.lighting.set({enabled});h.flush();mover.traverse(n=>{if(!n.isMesh)return;
+          const m=n.material;assert.equal(m.clippingPlanes.length,4);assert.equal(m.clipIntersection,false);
+          if(!owned.has(m)){owned.set(m,0);m.addEventListener('dispose',()=>owned.set(m,owned.get(m)+1));}
+          if(m.userData.sourceMaterial.isMeshLambertMaterial)assert.equal(enabled,true);
+          if(m.userData.sourceMaterial.vertexColors)assert.equal(enabled,false);
+        });
+      }
+      assert.ok(h.viewport.inspect().clippedCopies<=1);
+    }});
+    assert.ok(owned.size>0);assert.ok([...owned.values()].every(n=>n===1));assert.equal(h.viewport.inspect().lighting.materials,materialCount);h.flush();assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
+test('missing and loaded printed textures stay Basic through light changes and all cached physical materials dispose once',async()=>{
+  const f=fixture();f.state.units[0].typeId='barbarian-type';f.state.types.push({id:'barbarian-type',hp:5});
+  const h=await harness(f),disposed=new Map();try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    h.requests[0].error();for(const request of h.requests.slice(1))request.ready(new h.THREE.Texture());h.flush();
+    const scene=h.rendered.at(-1).scene;
+    for(const enabled of [false,true]){h.viewport.lighting.set({enabled});h.flush();scene.traverse(n=>{
+      if(n.material?.map)assert.equal(n.material.isMeshBasicMaterial,true);
+      if(n.material?.isMeshLambertMaterial||n.material?.vertexColors){const m=n.material;if(!disposed.has(m)){disposed.set(m,0);m.addEventListener('dispose',()=>disposed.set(m,disposed.get(m)+1));}}
+    });}
+    assert.ok(Object.values(h.viewport.inspect().textureStates).includes('missing'));assert.equal(h.renderer.shadowMap.enabled,false);
+  }finally{h.cleanup();}assert.ok(disposed.size>0);assert.ok([...disposed.values()].every(n=>n===1));
+});
 test('real scene maps Cells/Edges, reuses keyed geometry, preserves fully observable large Units over fog',async()=>{
   const{cellCenter,edgePlacement,observedTerrain}=await moduleAt('three-viewport.js');assert.deepEqual(cellCenter({x:3,y:4},2),{x:4,z:5});
   assert.deepEqual(edgePlacement({a:{x:1,y:1},b:{x:2,y:1}}),{x:2,z:1.5,vertical:true});

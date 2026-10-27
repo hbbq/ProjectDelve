@@ -63,8 +63,8 @@ One world unit is one Cell. X follows board x; Z follows board y; Y is visual
 height. Cell `(x,y)` occupies `[x,x+1] × [y,y+1]`. A span-s figure is centered at
 `(x+s/2, height, y+s/2)`. The orthographic camera looks down with north at screen
 top in Flat mode. Tabletop adds tilt/yaw and selectable orthographic/perspective
-projection. There are no lights, shadows or tone mapping. Physical geometry uses
-restrained baked vertex tones rather than a lighting system.
+projection. Tabletop adds optional directional/ambient illumination; Flat remains
+unlit. There are no shadows or tone mapping. See Tabletop lighting V1 below.
 
 Named groups separate terrain, grid, objects, rails, Edges, items, transient
 movement, FoW, stable Units, decision feedback and Areas. Explicit height ordering
@@ -463,6 +463,192 @@ real touch hardware, real-driver context loss, frame-exact FoW pixel assertions
 and long-duration/GPU performance remain manual QA gaps: the restricted dispatcher
 cannot inject those operations. Node tests cover the corresponding math/input/
 lifecycle paths. No browser permissions or protected dispatcher files changed.
+
+## Tabletop lighting V1
+
+`three-lighting.js` owns one world-space `DirectionalLight` and neutral
+`AmbientLight` in the existing scene. Tabletop enables the rig by default; Flat
+always hides it and uses its original Basic materials. The renderer, context,
+color space, tone mapping and shadow-map settings are unchanged. There are no
+shadow maps, local lights, postprocessing, emissive effects or animation loop for
+lighting. The module receives a scene, control host and invalidation callback;
+it has no observed-state, camera, session, rules or transport input.
+
+Defaults are key intensity **0.85**, color **#fff5e8**, ambient fill intensity
+**0.65**, color **#ffffff**, azimuth **315 degrees**, elevation **50 degrees**.
+The normalized lamp position is `(sin(a) cos(e), sin(e), -cos(a) cos(e))`, aimed at
+the world origin. Zero azimuth is north (-Z), 90 is east (+X). It is a directional
+source, so board size and camera pan/yaw/projection do not move the illumination.
+Fill keeps the unlit faces readable; changing direction makes vertical faces and
+faceted pieces visibly distinct without changing the printed board colors.
+
+### Materials, Off and ownership
+
+The physical factory explicitly requests lighting materials for slab sides,
+cardboard sidewalls, Wall bodies, Door leaves/frames, Rock boundary skirts, Tree
+trunks/crowns, Table bodies/legs, Machines and Resource pieces. Each authored
+color/vertex-tone combination has one shared Basic/Lambert pair. Lambert ignores
+the existing baked vertex colors to avoid double shading. Off selects Basic with
+the original vertex tones (or the original plain color for Rock skirts). It also
+hides the light rig, so no illuminated physical shaders are submitted in Off.
+Both variants remain cached for quick comparisons; Off does not discard already
+compiled programs. Stable pieces and instances never acquire per-object clones.
+
+Terrain, raised Rock tops, portraits on both token faces, printed Side/Lying
+indicators, prop prints, Marker art, fallback glyphs and informational highlights
+remain `MeshBasicMaterial`. Textures still share the artwork catalog/cache, sRGB
+handling, alpha, fallback and disposal paths. Lighting does not recolor a texture.
+The factory retains existing simple geometry, including its cardboard sidewall;
+V1 does not add bevel geometry or change approved artwork.
+
+Switching On/Off remaps existing mesh material references, including instanced
+meshes, without reconciliation, replacing Unit roots, resetting cameras or
+interrupting playback. Canonical pair identity keeps static batch keys stable on
+later observed frames. Only the transient FoW pool owns per-Cell clipping clones:
+it prepares both physical variants with the same four vertical planes. Weak
+variant registration does not retain completed movement. Pool disposal releases
+both variants; viewport disposal releases cached pairs, lights and UI listeners.
+
+### Controls and preferences
+
+The camera/presentation control bank includes a compact, initially collapsed
+**Lighting** disclosure, visible only in Tabletop. It offers On/Off, key/fill
+intensity 0-2 in 0.05 steps, direction in 15-degree steps, and elevation 15-85
+degrees in 5-degree steps. Other settings are disabled while Off. Labels wrap on
+narrow screens. Preferences use `delve.three.lighting.v1`, independently of the
+camera key; parsing, finite-number validation, clamping and unavailable storage
+fallback are local. Renderer switching and restart retain them, and reload
+restores them. Each actual change coalesces into one invalidation and returns to
+idle when existing motion finishes. Reapplying identical settings does nothing.
+
+Diagnostics add the current lighting settings, cached physical/total material
+counts and `lighting.firstFrameMs`: time from a preference/presentation change
+until its first CPU-submitted render, including the RAF wait. It is not GPU
+completion time. Total material count covers the persistent caches, excluding
+temporary clipping/feedback clones; geometry/texture/program counts come from
+Three's renderer information. Programs are retained shader variants, not the
+number of programs used by the current frame.
+
+### Observation and FoW
+
+The rig is unrelated to discovery and does not create content or light sources
+from Units, terrain, resources or events. Existing displayed observations remain
+the only content source. Unknown covers and grid remain unlit. No shadow or glow
+can disclose a hidden object's presence. Observable stable multi-Cell Units stay
+whole and unclipped over Unknown ground. Every elevated transient child retains
+Cell-column clipping through On/Off changes, using the displayed explored set;
+disconnected observed segments and observation-safe camera follow are unchanged.
+There is no client exploration/LOS system and no Engine, server observation,
+scenario-format, Designer, Generator or `CONSTRAINTS.md` change.
+
+### Lighting measurements and visual verification — 2026-10-27
+
+Headed Edge through the protected dispatcher on isolated 5081; 5080 was preserved.
+Generated scenes use seed `0000000000000001`, E2/C2/D3/L3/OR2, N2 for 30x20 and N3
+for 50x50, with 12/24 rooms respectively. Desktop viewport is 1440x1000. Timings
+below are short local CPU submission samples after Reset timing sample, not GPU
+timers, hardware benchmarks or a claim that lighting improves performance. Small
+differences in either direction are within sample variability. Full-page captures
+can temporarily resize an overflowing page and shorten camera animations; sample
+counts and this limitation matter when comparing the following records.
+
+| Orthographic scene | Calls Off / On | CPU render p95 Off / On | Camera CPU p95 Off / On | Camera interval p95 Off / On | Camera frames Off / On |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 30x20 FoW | 45 / 45 | 1.9 / 1.6 ms | 1.7 / 1.5 ms | 16.70 / 16.70 ms | 8 / 6 |
+| 50x50 FoW | 52 / 52 | 2.3 / 2.6 ms | 1.5 / 2.4 ms | 16.73 / 16.70 ms | 4 / 8 |
+| Dense revealed 50x50 | 476 / 476 | 3.5 / 3.7 ms | 3.2 / 3.1 ms | 16.70 / 16.80 ms | 7 / 8 |
+
+Separate warm samples with the perspective lens already set to 65 degrees before
+Reset timing sample (rather than mixing projection timings):
+
+| Perspective scene | Calls Off / On | CPU render p95 Off / On | Camera CPU p95 Off / On | Camera interval p95 Off / On | Camera frames Off / On |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 30x20 FoW | 45 / 45 | 1.4 / 1.6 ms | 1.3 / 1.4 ms | 16.63 / 16.70 ms | 6 / 6 |
+| 50x50 FoW | 52 / 52 | 1.9 / 1.9 ms | 1.9 / 1.7 ms | 16.70 / 16.80 ms | 8 / 8 |
+| Dense revealed 50x50 | 476 / 476 | 3.5 / 3.7 ms | 3.2 / 3.5 ms | 16.70 / 16.70 ms | 7 / 8 |
+
+| Scene | First default-On Tabletop frame | First Off change frame | Cached materials | Physical pair materials | Textures / geometries | Programs Off / On | Texture estimate |
+| --- | ---: | ---: | ---: | ---: | --- | --- | ---: |
+| 30x20 FoW | 94.7 ms | 13.9 ms | 48 | 16 | 15 / 7 | 10 / 8 | 7.96 MiB |
+| 50x50 FoW | 124.7 ms | 17.3 ms | 53 | 18 | 16 / 7 | 13 / 10 | 8.17 MiB |
+| Dense revealed 50x50 | 162.9 ms | 47.7 ms | 81 | 20 | 29 / 7 | 13 / 10 | 20.75 MiB |
+
+The first-frame columns measure different operations: initial Tabletop entry
+versus the first switch to Off after On. Off runs have already compiled the On
+variants; their larger program counts are cache history, not additional active
+lighting work. Initial viewport lazy-load times for Off/On runs were 194.6/188.6,
+210.8/218.1 and 279.1/269.3 ms respectively. There is no added draw-call cost in
+these samples and no significant warm CPU regression requiring optimization.
+
+The dedicated FoW patrol measured 31/27 moving-token frames Off/On: movement CPU
+render p95 1.7/1.3 ms, movement interval p95 16.8/16.9 ms, 22 settled draw calls,
+32 cached materials, nine textures and six geometries. Soft key/fill 0.4/0.8 and
+strong 1.5/0.3 in the mixed fixture retained 99 calls, 132 cached materials, 28
+textures, 11 geometries and 10 programs; warm CPU p95 was 1.7/1.6 ms. These very
+short intensity samples establish functional comparison, not relative speed.
+
+Six additional Off/On pairs in the dense scene's default Auto framing retained
+81 cached materials, 24 uploaded textures, seven geometries and 13 programs,
+with 82 calls and 20.75 MiB estimated textures throughout. Cached textures can
+exceed uploaded textures when outside the frustum. Warm CPU p95 across toggles
+was 3.7 ms, and the last On change reached its first frame in 4.7 ms. In a separate
+1440x1800 capture, where full-page screenshots did not resize the viewport, the
+static render count stayed **4 before and after three captures**. Node tests also
+verify one RAF per idle setting change, no RAF for no-op/inactive changes, stable
+batch identity and disposal of both clipping/material variants.
+
+Visual inspection found increased depth on Resources, Tree crowns, Table legs,
+Wall sides and Door leaves, with unchanged printed terrain/portraits and readable
+Side rings, Lying marks and choices. Comparisons include On/Off from the same
+fixture/camera pose, 315/135/90-degree light directions, soft/strong settings,
+orthographic and perspective FOV 45/65/80, 600px layout, FoW entry/exit and a whole
+partially observed Dragon. Classic, Enhanced and Flat captures remain readable;
+restart/reload restored Off and fill 0.80. Successful plans had no console errors
+or missing assets. Refresh/import/restart plans can report expected aborted
+superseded `/api/game/updates` SSE requests. One initial reused movement plan
+encountered an automatically completed End Turn; rerunning with auto-choice
+advancement disabled completed the same patrol in both lighting modes.
+The final close-up comparison and 320px capture confirm lighting labels wrap
+without horizontal control overflow. A reused Fixed-span selector was hidden
+during close-up setup; the corrected plan used the visible zoom button.
+
+Final focused tests passed throughout implementation; the complete Node
+client/security suite passed **509 tests**. The cached solution build succeeded
+with zero warnings/errors, followed by **1,978 .NET tests** (1,601 Engine and 377
+Web). New focused coverage includes rig/configuration, corrupt/unavailable
+storage and reload preferences, physical/printed materials, shared instances,
+world-fixed direction, idle/no-op/inactive invalidation, renderer/projection and
+session replacement, missing textures, both clipping variants' disposal, and
+unchanged exploration/absence of unknown terrain. Existing Flat assertions were
+retained. Tests use dedicated fixtures, never authored layouts as contracts.
+
+Evidence under `.playwright-cli/browser-qa/`:
+
+- `inspection-Vxi41L`: original unlit baseline, mixed components.
+- `inspection-OFBulU`: same-pose Off/On, directions/intensity, 45/65 lenses, 600px.
+- `inspection-utR906` / `inspection-Np057T`: 30x20 FoW Off/On.
+- `inspection-fSamHD` / `inspection-pp4yA0`: 50x50 FoW Off/On.
+- `inspection-qYMsSE` / `inspection-G5oXb3`: dense revealed 50x50 Off/On.
+- `inspection-aHek5e`: six toggle pairs and bounded resource counts.
+- `inspection-cak1sG` / `inspection-oxS6A2`: FoW movement timings Off/On.
+- `inspection-T4gY9F`: stronger light, perspective FoW hidden/entered/left/restart.
+- `inspection-r5O17P`: whole observable Dragon over Unknown, both modes.
+- `inspection-BnRmEv`: soft/strong intensity samples.
+- `inspection-rUXLJh`: Flat/Classic/Enhanced/Tabletop, restart/reload preferences.
+- `inspection-Z2vbBi`: static rendering idle between captures.
+- `inspection-C2pXzM` / `inspection-goaTFf`: perspective 30x20 FoW Off/On.
+- `inspection-DKgIKd` / `inspection-gqwk7b`: perspective 50x50 FoW Off/On.
+- `inspection-RIYQ1j` / `inspection-HQVBwB`: perspective dense 50x50 Off/On.
+- `inspection-H0kIRN`: closer physical-pieces comparison and 320px controls.
+
+Remaining gaps: native pointer/touch interaction, frame-exact transient FoW pixel
+probes, real-driver context-loss injection, long-duration/low-end hardware and
+GPU/VRAM measurements cannot be established by the restricted dispatcher. Node
+tests cover input math, every transient child's clipping and lifecycle, but are
+not a substitute for those native/hardware checks. No lighting implementation
+issue remains known. Future emissive materials or local lamps can opt in at the
+physical material factory/rig boundary after an observation-safe source contract
+and light budget are defined; neither system is implemented in V1.
 
 ## Verification and diagnostics
 

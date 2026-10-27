@@ -13,7 +13,7 @@ export function rockBoundaryMask(x,y,kindAt){
 
 // Concrete visual bodies, not Units or rules. A future model body can supply the
 // same group/bounds/anchor without owning identity, footprint, choices or cards.
-export function createTabletopVisuals({material,glyph,plane,artwork,geometries}) {
+export function createTabletopVisuals({material,physicalMaterial=(color,vertexColors=true)=>material(color,null,false,vertexColors),glyph,plane,artwork,geometries}) {
   Object.assign(geometries,{
     box:new THREE.BoxGeometry(1,1,1),
     cylinder:new THREE.CylinderGeometry(1,1,1,24,1,true),
@@ -24,14 +24,14 @@ export function createTabletopVisuals({material,glyph,plane,artwork,geometries})
     dome:new THREE.SphereGeometry(1,12,6),
     banana:new THREE.TorusGeometry(.085,.029,5,12,Math.PI*1.35)
   });
-  // Baked face tones keep the components legible without lights or shadow maps.
+  // Off-only baked tones. Lit physical materials ignore this attribute.
   for(const key of ['box','cylinder','gem','lump','dome','banana']){
     const geometry=geometries[key],normal=geometry.getAttribute('normal'),colors=[];
     for(let i=0;i<normal.count;i++){const shade=.68+.25*Math.max(0,normal.getY(i))+.07*Math.max(0,normal.getX(i));colors.push(shade,shade,shade);}
     geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
   }
   function mesh(group,geometry,color,x,y,z,w,h,d,rotation=0){
-    const object=new THREE.Mesh(geometry,material(color,null,false,true));object.position.set(x,y,z);object.scale.set(w,h,d);object.rotation.y=rotation;group.add(object);return object;
+    const object=new THREE.Mesh(geometry,physicalMaterial(color));object.position.set(x,y,z);object.scale.set(w,h,d);object.rotation.y=rotation;group.add(object);return object;
   }
   const box=(g,c,x,y,z,w,h,d,r=0)=>mesh(g,geometries.box,c,x,y,z,w,h,d,r);
   function print(group,image,x,z,w,d,height,rotation=0,color='#82796a'){
@@ -97,7 +97,7 @@ export function createTabletopVisuals({material,glyph,plane,artwork,geometries})
         g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.computeVertexNormals();geometries.rockWall=g;
       }
       for(let i=0;i<4;i++)if(mask&(1<<i)){
-        const wall=new THREE.Mesh(geometries.rockWall,material(['#645e66','#706770','#645e66'][variation]));
+        const wall=new THREE.Mesh(geometries.rockWall,physicalMaterial(['#645e66','#706770','#645e66'][variation],false));
         wall.position.set(cx+[0,.5,0,-.5][i],0,cz+[-.5,0,.5,0][i]);wall.rotation.y=-i*Math.PI/2;group.add(wall);
       }
     }else if(kind==='Tree'||kind==='FruitTree'){
@@ -168,14 +168,18 @@ export function createTabletopVisuals({material,glyph,plane,artwork,geometries})
 
 // One transient mover; at most nine Cell columns intersect its 2x2-sized body.
 // Copies share geometry/textures. Only clipping materials are owned by this pool.
-export function createMovementClipPool(source,explored,THREEImpl=THREE){
+export function createMovementClipPool(source,explored,THREEImpl=THREE,clippedVariants=null){
   const root=new THREEImpl.Group(),copies=[],materials=new Set();root.name='clipped-movement';
   const materialMap=new Map();
   for(let i=0;i<9;i++){
     const planes=[new THREEImpl.Plane(new THREEImpl.Vector3(1,0,0)),new THREEImpl.Plane(new THREEImpl.Vector3(-1,0,0)),new THREEImpl.Plane(new THREEImpl.Vector3(0,0,1)),new THREEImpl.Plane(new THREEImpl.Vector3(0,0,-1))];
     const copyNode=node=>{const copy=node.isMesh?new THREEImpl.Mesh(node.geometry,node.material):new THREEImpl.Group();copy.position.copy(node.position);copy.quaternion.copy(node.quaternion);copy.scale.copy(node.scale);copy.visible=node.visible;copy.name=node.name;for(const child of node.children)copy.add(copyNode(child));return copy;};
     const body=copyNode(source);body.position.set(0,0,0);body.traverse(node=>{if(!node.material)return;
-      const clone=m=>{const key=`${i}:${m.id}`;if(!materialMap.has(key)){const c=m.clone();c.clippingPlanes=planes;c.clipIntersection=false;materialMap.set(key,c);materials.add(c);c.userData={};c.userData.sourceMaterial=m;}return materialMap.get(key);};
+      const clone=m=>{const key=`${i}:${m.id}`;if(!materialMap.has(key)){
+        const copies=clippedVariants?clippedVariants(m,planes):[m.clone()];
+        for(const c of copies){c.clippingPlanes=planes;c.clipIntersection=false;materials.add(c);if(!clippedVariants)c.userData={sourceMaterial:m};}
+        materialMap.set(key,copies.find(c=>c.type===m.type)??copies[0]);
+      }return materialMap.get(key);};
       node.material=Array.isArray(node.material)?node.material.map(clone):clone(node.material);
     });root.add(body);copies.push({body,planes});
   }

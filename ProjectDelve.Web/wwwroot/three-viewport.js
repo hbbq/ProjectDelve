@@ -4,6 +4,7 @@ import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
 import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
 import { createTabletopVisuals, createMovementClipPool } from './three-tabletop.js';
+import { createTabletopLighting } from './three-lighting.js';
 import { orientationBasis, groundQuadrilateral, perspectiveLens } from './three-camera-geometry.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
@@ -55,7 +56,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   const started=startedAt;
   function invalidate(){if(active&&!lost&&!disposed&&raf===null)raf=requestAnimationFrame(draw);}
   const cameraControl=createThreeCamera({controls,invalidate,animate,onChange:()=>onProject?.()});
-  const physical=createTabletopVisuals({material,glyph,plane,artwork,geometries});
+  const lighting=createTabletopLighting({scene,root:controls.root,invalidate});
+  const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
   function material(color,source,transparent=false,vertexColors=false) {
     const key=JSON.stringify([color,source,transparent,vertexColors]);if(materials.has(key))return materials.get(key);
     const m=new THREE.MeshBasicMaterial({color:color==='transparent'?'#19232c':color??'#666a68',transparent,opacity:source&&transparent?0:1,depthWrite:!transparent,side:THREE.FrontSide,vertexColors});
@@ -163,7 +165,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const batches=new Map(),solidBatches=new Map();
     const batchSolid=object=>{
       object.updateMatrixWorld(true);object.traverse(mesh=>{if(!mesh.isMesh)return;
-        const key=`physical-batch:${mesh.geometry.id}:${mesh.material.id}`;let batch=solidBatches.get(key);
+        const key=`physical-batch:${mesh.geometry.id}:${lighting.identity(mesh.material)}`;let batch=solidBatches.get(key);
         if(!batch){batch={geometry:mesh.geometry,material:mesh.material,matrices:[]};solidBatches.set(key,batch);}batch.matrices.push(mesh.matrixWorld.clone());
       });
     };
@@ -261,6 +263,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     // Called only by the router at an authoritative checkpoint. Unit roots stay.
     settle();presentationStartedAt=performance.now();presentation=value;heights=value==='tabletop'?physicalHeights:flatHeights;
     host.dataset.presentation=value;
+    lighting.setPresentation(value);
     for(const [key,record]of nodes)if(!key.startsWith('unit:')){removeRecord(record);nodes.delete(key);}
     cameraControl.setPresentation(value,active);
     if(frame)renderFrame(frame);
@@ -333,7 +336,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const autoClear=renderer.autoClear;renderer.autoClear=false;renderer.render(scene,camera);renderer.autoClear=autoClear;
       renderer.info.render.calls+=calls;renderer.info.render.triangles+=triangles;for(const [group,visible]of hidden)group.visible=visible;
     }else renderer.render(scene,camera);
-    renderCount++;readyAt??=performance.now();firstFrameAt??=time;
+    lighting.frameRendered();renderCount++;readyAt??=performance.now();firstFrameAt??=time;
     if(presentationStartedAt!==null){presentationFirstFrameMs=performance.now()-presentationStartedAt;presentationStartedAt=null;}
     renderTimes.push(performance.now()-begin);if(renderTimes.length>240)renderTimes.shift();
     if(movingCamera){cameraRenderTimes.push(renderTimes.at(-1));if(cameraRenderTimes.length>240)cameraRenderTimes.shift();if(lastCameraFrame){cameraIntervals.push(time-lastCameraFrame);if(cameraIntervals.length>240)cameraIntervals.shift();}lastCameraFrame=time;}else lastCameraFrame=0;
@@ -342,7 +345,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(lastRender&&time-lastRender<1000){samples.push(time-lastRender);if(samples.length>240)samples.shift();}lastRender=continuous?time:0;
     const percentile=(values,p)=>[...values].sort((a,b)=>a-b)[Math.floor((values.length-1)*p)]??0;
     const textureBytes=[...textures.values()].reduce((n,e)=>n+(e.texture?.image?.width??0)*(e.texture?.image?.height??0)*4*4/3,0)+glyphs.size*128*128*4*4/3;
-    metrics.textContent=JSON.stringify({presentation,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+(textureBytes/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
+    metrics.textContent=JSON.stringify({presentation,lighting:lighting.inspect(),materials:materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+(textureBytes/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
     if(continuous)invalidate();
   }
   function updateLabels(){const pose=cameraControl.current(),size=cameraControl.size;if(!pose)return;const placed=[];
@@ -455,7 +458,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       if(!a||!segments.length)return;
       if(stable)stable.visible=false;transientId=event.unitId;const source=token(a,segments[0][0],heights.movement);
       if(data.explored&&(presentation==='tabletop'||cameraControl.current().tilt)){
-        clipPool=createMovementClipPool(source,data.explored);transient=clipPool.root;transient.userData.span=a.cellSpan??1;clipPool.update(source.position.x,source.position.z,a.cellSpan??1);
+        clipPool=createMovementClipPool(source,data.explored,THREE,lighting.clippedVariants);transient=clipPool.root;transient.userData.span=a.cellSpan??1;clipPool.update(source.position.x,source.position.z,a.cellSpan??1);
       }else transient=source;
       groups.movement.add(transient);
       try{for(const segment of segments){if(!transient||playback.skipping()||generation!==epoch)break;const start=cellCenter(segment[0],a.cellSpan);transient.position.x=start.x;transient.position.z=start.z;cameraControl.movementStep(segment[0]);invalidate();
@@ -478,8 +481,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     clipPool?.dispose();clipPool=null;if(transient){transient.removeFromParent();transient=null;transientId=null;for(const root of unitRoots.values())root.visible=true;}
     cameraControl.settle();invalidate();}
   function cancel(){epoch++;settle();motion=null;for(const record of nodes.values())record.object.visible=true;cameraControl.cancel();}
-  function dispose(){if(disposed)return;setActive(false);disposed=true;abort.abort();observer.disconnect();cameraControl.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
-  return{host,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,
+  function dispose(){if(disposed)return;setActive(false);disposed=true;abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
+  return{host,lighting,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,
     afterOccurrence:occurrence=>{
       if(!active||!animate())return;
       if(presentation==='tabletop'&&occurrence?.kind==='PostureChanged'){
@@ -488,5 +491,5 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }else if(occurrence?.kind==='UnitCreated'||presentation==='flat'&&occurrence?.kind==='PostureChanged')arrivals.set(occurrence.unitId,{kind:occurrence.kind,start:performance.now()});
       invalidate();
     },
-    inspect:()=>({active,lost,presentation,renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
+    inspect:()=>({active,lost,presentation,lighting:lighting.inspect(),renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
 }
