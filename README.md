@@ -96,6 +96,21 @@ unexpected dimensions/composition, destructive cropping/distortion, conflicting
 documentation or missing rendering support. Missing sources never trigger automatic
 runtime deletion. Unresolved files and any unverified visual behavior are reported.
 
+### Optional Unit concepts and references
+
+Any Unit Type may keep optional concept material under `assets/source/units/<unit>/`:
+`concepts.md` may contain backstory, established visual identity, design thoughts,
+speculative ideas and future possibilities, with no mandatory headings or schema.
+Concept notes are not authoritative gameplay rules; established rules remain
+governed by `CONSTRAINTS.md` and canonical definitions.
+
+An optional `reference/` directory can contain character sheets, full-body artwork,
+turnarounds and other references for 3D models, Standees, portraits and scenario
+illustrations. Zombie's existing example uses
+[`CONCEPT.md`](assets/source/units/zombie/CONCEPT.md) and
+[`reference/`](assets/source/units/zombie/reference/); preserve these existing files.
+This convention introduces no required concept files or validation for any Unit Type.
+
 ## Browser playtest host
 
 Decision Commentary is optional presentation metadata on a selected legal decision. Both decision submissions and commands accept a trimmed `commentary` string of at most 280 characters. Streaming updates publish `kind: "commentary"` before that decision's rules events; legacy responses carry `commentaries` with `eventIndex` counting preceding rules events. Each entry identifies the decision, acting Unit, controller, Side and candidate key. Fresh baselines omit historical commentary. The host retains its enriched and key-only external selection callbacks for isolated adapter tests; the production Gambit broker uses the authenticated Resident polling contract described below. All browser transports present decision commentary from every player separately from gameplay events. Resident observations exclude commentary entirely. Automated flavor text uses fixed wording and consumes no gameplay randomness. Browser commentary starts hidden and follows event playback.

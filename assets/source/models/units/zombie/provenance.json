@@ -9,6 +9,10 @@
   "generationSettings": "unknown",
   "savedLicenseOrExportRecord": "not supplied",
   "projectPortraitReference": "assets/source/units/zombie.png",
+  "projectConceptReferences": [
+    "assets/source/units/zombie/reference/character-sheet.png",
+    "assets/source/units/zombie/reference/full-body.png"
+  ],
   "portraitUsedAsGenerationInput": "unknown",
   "commerciallyCleared": true,
   "redistributionRightsConfirmed": true,
