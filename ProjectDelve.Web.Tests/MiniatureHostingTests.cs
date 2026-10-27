@@ -15,16 +15,19 @@ public sealed class MiniatureHostingTests
     [Theory]
     [InlineData("Development")]
     [InlineData("Production")]
-    public async Task ProductionZombieIsAvailableWithoutFlags(string environment)
+    public async Task ProductionModelsAreAvailableWithoutFlags(string environment)
     {
         await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", Path.Combine(Root, "ProjectDelve.Web"), "--environment", environment], null, GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         await app.StartAsync();
         using var http = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
-        using var response = await http.GetAsync("/art/models/units/zombie/v1/zombie.glb");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("model/gltf-binary", response.Content.Headers.ContentType!.MediaType);
-        Assert.Equal(File.ReadAllBytes(Path.Combine(Root, "ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb")), await response.Content.ReadAsByteArrayAsync());
-        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync("/assets/source/models/units/zombie/original.glb")).StatusCode);
+        foreach (var unit in new[] { "zombie", "troll" })
+        {
+            using var response = await http.GetAsync($"/art/models/units/{unit}/v1/{unit}.glb");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("model/gltf-binary", response.Content.Headers.ContentType!.MediaType);
+            Assert.Equal(File.ReadAllBytes(Path.Combine(Root, $"ProjectDelve.Web/wwwroot/art/models/units/{unit}/v1/{unit}.glb")), await response.Content.ReadAsByteArrayAsync());
+            Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"/assets/source/models/units/{unit}/original.glb")).StatusCode);
+        }
     }
 
     [Fact]

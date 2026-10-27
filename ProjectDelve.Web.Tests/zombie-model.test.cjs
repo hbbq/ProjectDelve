@@ -4,7 +4,7 @@ const p=JSON.parse(read('assets/source/models/units/zombie/provenance.json'));
 test('production Zombie has paid generation provenance and a real catalog registration',async()=>{
   assert.equal(p.generationModel,'H3.1');assert.equal(p.plan,'Pro');assert.equal(p.commerciallyCleared,true);assert.equal(p.redistributionRightsConfirmed,true);
   const c=JSON.parse(read('ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')),u=c.units.find(u=>u.typeId==='zombie-type'),asset=c.models.find(m=>m.id===u.model);
-  assert.equal(asset.url,'./art/models/units/zombie/v1/zombie.glb');assert.equal(asset.approved,true);assert.deepEqual(c.units.filter(u=>u.model).map(u=>u.typeId),['zombie-type']);
+  assert.equal(asset.url,'./art/models/units/zombie/v1/zombie.glb');assert.equal(asset.approved,true);assert.deepEqual(c.units.filter(u=>u.model).map(u=>u.typeId).sort(),['troll-type','zombie-type']);
   const {resolveUnitModel}=await at('unit-visuals.js');const compiled={units:Object.fromEntries(c.units.map(u=>[u.typeId,u])),models:Object.fromEntries(c.models.map(m=>[m.id,m]))};assert.equal(resolveUnitModel(compiled,'zombie-type',1).height,1.2);assert.equal(resolveUnitModel(compiled,'goblin-type',1),null);
 });
 test('production GLB is reproducible, preserves source geometry/maps and fits approved dimensions',async()=>{

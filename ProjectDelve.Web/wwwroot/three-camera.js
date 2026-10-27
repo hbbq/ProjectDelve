@@ -4,7 +4,7 @@ import { interpolatePose } from './playtest-viewport.js';
 import { tabletopOrientation, threeProject, threeUnproject, threeSpanScale, threeClampPose, threeFull, threeAutoFit, threeEnsureVisible, threeScreenBounds, threeFitRect, interpolateOrientation, lensFov } from './three-camera-geometry.js';
 
 // Cell-space policy and time-based pose. No CSS transforms or separate RAF loop.
-export function createThreeCamera({ controls, invalidate, animate, onChange = () => {}, environment = globalThis, visualHeight = 1.5 }) {
+export function createThreeCamera({ controls, invalidate, animate, onChange = () => {}, environment = globalThis, visualHeight = 1.5, visualOverhang = 0 }) {
   let saved; try { saved = JSON.parse(environment.localStorage?.getItem('delve.three.camera.v1') ?? 'null'); } catch { /* optional */ }
   let preferences = cameraPreferences(saved ?? {}), frame, metadata = {}, side, sideChoice, session;
   let size = { width: 1, height: 1 }, pose, target, transition, suspended = false, activation = 0, manualActivation;
@@ -12,7 +12,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   let orientation = {tilt:0,yaw:0}, physical = false;
   let projection=saved?.projection==='perspective'?'perspective':'orthographic',fov=lensFov(saved?.fov);
   const optics=()=>({projection:physical?projection:'orthographic',projectionMix:physical&&projection==='perspective'?1:0,fov,allowGutters:physical});
-  const geometry=()=>({...orientation,...optics(),visualHeight:physical?visualHeight:0});
+  const geometry=()=>({...orientation,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0});
   let fitBounds=null,activeBounds=null;
   const spanScale = span => threeSpanScale(size,span,geometry());
   const subscriptions = new AbortController(), indicators = new Map();
@@ -35,8 +35,8 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function apply(next, smooth = true) {
     if (!frame) return;
-    next = threeClampPose({...orientation,...next,...optics()}, frame.board, size);
-    if (target && ['x','y','scale','tilt','yaw','projectionMix','fov'].every(key=>Math.abs(target[key]-next[key])<.0001)) return;
+    next = threeClampPose({...orientation,...next,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0}, frame.board, size);
+    if (target && ['x','y','scale','tilt','yaw','projectionMix','fov','visualHeight','visualOverhang'].every(key=>Math.abs(target[key]-next[key])<.0001)) return;
     target = next;
     transition = pose && smooth && animate() && !reduced() ? { from: { ...pose }, to: next, start: environment.performance.now(), duration: 260 } : null;
     if (!transition) pose = { ...next };

@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms this Troll was generated using Tripo under their paid Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/troll.png",
+  "projectConceptReferences": [
+    "assets/source/units/troll/reference/character-sheet.png",
+    "assets/source/units/troll/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/troll/original.glb",
+    "bytes": 4370304,
+    "sha256": "fa1efdf52d87635dbce4fbf45784057d9dfb24b8fe88a90b518528f9f3788b33",
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb",
+    "bytes": 4370372,
+    "sha256": "e1eb5e1bac81f2e5f622214a91effaa50ddbc0bafe0312c4bb8071c27835e846"
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "steps": [
+      "Verify reviewed source hash",
+      "Reject actual extension payloads; remove unused exporter extension declarations",
+      "Add source-hash metadata and rebuild JSON chunk deterministically",
+      "Preserve all geometry and three original 2048x2048 embedded textures",
+      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+    ],
+    "orientation": "+Y up; +Z forward verified after a canonical positive-Z Move in restricted Edge: inspection-1Pvzxc/move-positive-z-front.png. Minimum Y is zero; runtime places feet at the procedural base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-27",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record."
+  },
+  "inspection": {
+    "file": "assets/source/models/units/troll/original.glb",
+    "bytes": 4370304,
+    "sha256": "fa1efdf52d87635dbce4fbf45784057d9dfb24b8fe88a90b518528f9f3788b33",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2040
+      },
+      {
+        "type": 5130562,
+        "length": 4368236
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9504,
+    "materials": [
+      {
+        "name": "tripo_material_4e053cef-c185-4864-8a5c-4d394bb366e3",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1013307,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "67c23bfc232453652e8676f0cfc0e696f3206729854db5838f9cbc51e57d7ade"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 720723,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "4066c0e74c149ffd7f2717ac5aeaa26fa9191a5a549e282c36550e3e1f5f627f"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2310267,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "5ad1c03dfce104c0553a4eaf6904bf3f5902ed665859ea259f400fd4beb7afaa"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_4e053cef-c185-4864-8a5c-4d394bb366e3",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.433837890625,
+        0,
+        -0.2728118896484375
+      ],
+      "max": [
+        0.433837890625,
+        0.991241455078125,
+        0.2728118896484375
+      ],
+      "dimensions": [
+        0.86767578125,
+        0.991241455078125,
+        0.545623779296875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 1.9,
+      "scale": 1.9167882762230226,
+      "maximumRadius": 0.8550545153660638,
+      "dimensions": [
+        1.663150765062652,
+        1.9,
+        1.045845263384748
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 1.9,
+    "previousMaximumRadius": 0.44,
+    "supportedMaximumRadius": 0.92,
+    "measuredMaximumRadius": 0.8550545153660638,
+    "maximumRadius": 0.856,
+    "scopeEvidence": "User authorizes a generic metadata-driven visual envelope extension preserving 1.90 height and proportions; logical footprint stays 1x1."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE: no authored tangents; tangent space generated at rendering time may vary between implementations.",
+    "sourceInfo": "Unused FB_ngon_encoding declaration is unsupported by the validator; removed by preparation.",
+    "runtimeChecks": "Core static GLB preflight, finite geometry/attributes/indices, positive transforms, budgets, uniform normalization and embedded image decoding verified. Runtime ready in restricted Edge."
+  }
+}

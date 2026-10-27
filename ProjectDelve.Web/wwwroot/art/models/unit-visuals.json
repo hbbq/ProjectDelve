@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "models": [
     {
+      "id": "troll/v1",
+      "approved": true,
+      "url": "./art/models/units/troll/v1/troll.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 2048
+    },
+    {
       "id": "zombie/v1",
       "approved": true,
       "url": "./art/models/units/zombie/v1/zombie.glb",
@@ -136,7 +145,8 @@
     {
       "typeId": "troll-type",
       "targetHeight": 1.9,
-      "maximumRadius": 0.44
+      "maximumRadius": 0.856,
+      "model": "troll/v1"
     },
     {
       "typeId": "worker-type",

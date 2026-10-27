@@ -18,7 +18,8 @@ test('test-owned GLB is reproducible and production registry contains no placeho
 });
 test('descriptor approval, URL and budgets reject incompatible registrations',async()=>{
   const {validateModelDescriptor:v}=await at('three-models.js');assert.equal(v(descriptor).height,1.2);
-  for(const change of [{approved:false},{url:'https://foreign.invalid/a.glb'},{url:'./a.gltf'},{url:'./a.glb?remote=1'},{height:Infinity},{height:0},{radius:.9},{cellSpan:3},{maxTriangles:13000},{maxPrimitives:3}])assert.throws(()=>v({...descriptor,...change}));
+  for(const change of [{approved:false},{url:'https://foreign.invalid/a.glb'},{url:'./a.gltf'},{url:'./a.glb?remote=1'},{height:Infinity},{height:0},{radius:.921},{cellSpan:3},{maxTriangles:13000},{maxPrimitives:3}])assert.throws(()=>v({...descriptor,...change}));
+  assert.equal(v({...descriptor,height:1.9,radius:.856}).cellSpan,1);
   assert.equal(v({...descriptor,height:2.4,cellSpan:2,radius:.76}).height,2.4);
 });
 test('GLB preflight rejects external resources, animation, skinning, morphs, extensions and bad containers',async()=>{

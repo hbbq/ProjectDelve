@@ -134,6 +134,63 @@ test('catalog allows tall Types to share one source; camera envelope stays fixed
 });
 
 const zombieAssetPath=path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb');
+// CPU-only geometry tests keep the original binary/geometry and strip image
+// bindings in memory. Edge separately verifies all original embedded textures.
+async function parseGeometryOnly(b){
+  const length=new DataView(b).getUint32(12,true),json=JSON.parse(new TextDecoder().decode(new Uint8Array(b,20,length)));
+  delete json.images;delete json.textures;delete json.samplers;for(const m of json.materials){delete m.normalTexture;delete m.pbrMetallicRoughness.baseColorTexture;delete m.pbrMetallicRoughness.metallicRoughnessTexture;}
+  let j=Buffer.from(JSON.stringify(json));j=Buffer.concat([j,Buffer.alloc((4-j.length%4)%4,32)]);const rest=Buffer.from(b,20+length),out=Buffer.alloc(20+j.length+rest.length);out.writeUInt32LE(0x46546c67);out.writeUInt32LE(2,4);out.writeUInt32LE(out.length,8);out.writeUInt32LE(j.length,12);out.writeUInt32LE(0x4e4f534a,16);j.copy(out,20);rest.copy(out,20+j.length);
+  const {GLTFLoader}=await moduleAt('vendor/three/0.180.0/examples/jsm/loaders/GLTFLoader.js');return new GLTFLoader().parseAsync(out.buffer.slice(out.byteOffset,out.byteOffset+out.byteLength),'');
+}
+test('actual oversized Troll preserves scale, base picking, posture, facing and nine-column FoW entry/exit',async()=>{
+  const raw=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb')),bytes=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
+  const descriptor={approved:true,url:'./art/models/units/troll/v1/troll.glb',version:'tripo-v1',height:1.9,radius:.856,maxTextureDimension:2048};
+  const f=fixture(16,'blue');f.state.physical.figures[0].posture='Upright';
+  const h=await harness(f,{modelDescriptors:{test:descriptor},modelCacheOptions:{fetchBytes:async()=>bytes,load:parseGeometryOnly}});try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('unit:hero'),body=root.userData.body;root.updateMatrixWorld(true);
+    const bounds=new h.THREE.Box3().setFromObject(root.getObjectByName('normalized-model'));
+    assert.ok(Math.abs(bounds.min.y-.072)<1e-6);assert.ok(Math.abs(bounds.max.y-1.972)<1e-6);assert.ok(body.visualBounds.radius>.855&&body.visualBounds.radius<=.856);assert.equal(body.pickRadius,.46);assert.equal(root.userData.footprint.length,1);
+    assert.equal(h.viewport.camera.current().visualOverhang,.356);assert.equal(h.viewport.camera.current().visualHeight,2.05);
+    const yaw=body.facingNode.rotation.y;
+    for(const projection of ['perspective','orthographic']){
+      h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.flush();
+      assert.equal(h.viewport.pick(h.viewport.project({x:2.5,y:2.5,height:.9})).unitId,'hero');
+      assert.notEqual(h.viewport.pick(h.viewport.project({x:3.2,y:2.5,height:0}))?.unitId,'hero');
+      h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});assert.deepEqual(h.viewport.pick(h.viewport.project({x:3.2,y:2.5})).cell,{x:3,y:2});
+    }
+    const lying=structuredClone(f);lying.state.physical.figures[0].posture='Lying';h.viewport.renderFrame(lying);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('cardboard-body'));
+    h.viewport.renderFrame(f);h.viewport.settle();h.flush();assert.equal(root.userData.body.facingNode.rotation.y,yaw);
+    const {createMovementClipPool}=await moduleAt('three-tabletop.js'),all=new Set();for(let y=1;y<=3;y++)for(let x=1;x<=3;x++)all.add(`${x},${y}`);
+    const pool=createMovementClipPool(root,all,h.THREE,h.viewport.lighting.clippedVariants);
+    try{
+      pool.update(2.5,2.5,1,0);assert.equal(pool.copies.filter(c=>c.body.visible).length,9);
+      all.clear();for(let y=1;y<=3;y++)for(let x=2;x<=3;x++)all.add(`${x},${y}`);
+      const owned=new Map();
+      for(const enabled of [false,true])for(const heading of [0,.5,Math.PI/2,Math.PI])for(const x of [1.1,1.5,2,2.5,3.5,4,4.5,4.9]){
+        h.viewport.lighting.set({enabled});pool.update(x,2.5,1,heading);pool.root.updateMatrixWorld(true);
+        const expected=[];for(let cy=Math.floor(2.5-body.visualBounds.radius);cy<=Math.floor(2.5+body.visualBounds.radius);cy++)for(let cx=Math.floor(x-body.visualBounds.radius);cx<=Math.floor(x+body.visualBounds.radius);cx++)if(all.has(`${cx},${cy}`))expected.push(`${cx},${cy}`);
+        const actual=[];
+        for(const {body:copy,planes}of pool.copies){copy.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]).filter(Boolean)){assert.equal(m.clippingPlanes.length,4);if(!owned.has(m)){owned.set(m,0);m.addEventListener('dispose',()=>owned.set(m,owned.get(m)+1));}}});if(!copy.visible)continue;
+          const key=`${-planes[0].constant},${-planes[2].constant}`;actual.push(key);assert.ok(all.has(key));assert.equal(copy.getObjectByName('miniature-facing').rotation.y,heading);
+          // Every fragment admitted by this copy lies in its explored column.
+          for(const px of [x-.855,x,x+.855])for(const pz of [1.645,2.5,3.355]){const point=new h.THREE.Vector3(px,1,pz);if(planes.every(p=>p.distanceToPoint(point)>1e-8))assert.equal(`${Math.floor(px)},${Math.floor(pz)}`,key);}
+        }
+        assert.deepEqual(actual.sort(),expected.sort());assert.ok(actual.length<=9);
+      }
+      assert.equal(pool.copies.filter(c=>c.body.visible).length,0);pool.dispose();assert.ok([...owned.values()].every(n=>n===1));
+    }finally{pool.dispose();}
+    await h.viewport.present({role:'Movement',unitId:'hero',movingFigure:{typeId:'test',name:'Troll',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]},{},{skipping:()=>false,pause:async()=>{
+      h.flush(performance.now()+230);const clipped=scene.getObjectByName('clipped-movement');assert.ok(clipped);assert.equal(clipped.userData.span,1);assert.equal(h.host.querySelector('.three-token-info').hidden,true);
+      for(const copy of clipped.children.filter(c=>c.visible))copy.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]).filter(Boolean)){assert.equal(m.clippingPlanes[0].constant,-2);assert.equal(m.clippingPlanes[2].constant,-2);}});
+    }});
+    assert.equal(h.viewport.inspect().transient,false);assert.equal(h.viewport.inspect().clippedCopies,0);assert.equal(root.userData.body.facingNode.rotation.y,Math.PI/2+h.viewport.facing.get('hero').offset);
+    h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.viewport.setPresentation('flat');h.viewport.settle();h.flush();
+    assert.equal(h.viewport.camera.current().visualOverhang,0);assert.equal(h.viewport.camera.current().visualHeight,0);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.camera.current().visualOverhang,.356);
+    const hidden=structuredClone(f);hidden.state.physical.figures=[];hidden.state.units=[];h.viewport.renderFrame(hidden);h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('unit:hero'),undefined);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
 test('production Zombie actual geometry grounds, picks and clips throughout observed movement in both lighting modes',async()=>{
   const raw=fs.readFileSync(zombieAssetPath),bytes=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
   const descriptor={approved:true,url:'./art/models/units/zombie/v1/zombie.glb',version:'h3.1-v1',height:1.2,radius:.38,maxTextureDimension:2048};

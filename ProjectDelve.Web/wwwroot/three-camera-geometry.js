@@ -2,6 +2,7 @@ import { cameraBounds, cameraUnion, cameraMargin, cameraPreferences, cameraAutoF
 
 // Presentation geometry only. Board y maps to world Z; height is Y.
 const radians = degrees => degrees * Math.PI / 180;
+const visualRect=(rect,orientation)=>{const r=orientation.visualOverhang??0;return r?{x:rect.x-r,y:rect.y-r,w:rect.w+2*r,h:rect.h+2*r}:rect;};
 export const lensFov = value => Math.max(20,Math.min(80,Number.isFinite(Number(value))?Number(value):45));
 // Mix zero is exactly orthographic. Intermediate values are real perspective
 // lenses tending continuously to parallel rays, with matching focus-plane scale.
@@ -53,7 +54,7 @@ export function threeClampPose(pose, board, viewport) {
   // A rotated ground quadrilateral cannot include a board corner while also
   // staying wholly inside the board. Allow gutters and bound the focus itself;
   // requiring its enclosing rectangle to fit would push active corner Units out.
-  if(pose.allowGutters||pose.tilt||pose.yaw||perspectiveLens(pose,viewport).perspective)return {...pose,x:Math.max(0,Math.min(board.width,pose.x)),y:Math.max(0,Math.min(board.height,pose.y))};
+  if(pose.allowGutters||pose.visualOverhang||pose.tilt||pose.yaw||perspectiveLens(pose,viewport).perspective)return {...pose,x:Math.max(0,Math.min(board.width,pose.x)),y:Math.max(0,Math.min(board.height,pose.y))};
   const corners = groundQuadrilateral({...pose,x:0,y:0},viewport);
   const axis = (center,values,extent) => {
     const lo=-Math.min(...values),hi=extent-Math.max(...values);
@@ -62,6 +63,7 @@ export function threeClampPose(pose, board, viewport) {
   return {...pose,x:axis(pose.x,corners.map(p=>p.x),board.width),y:axis(pose.y,corners.map(p=>p.y),board.height)};
 }
 export function projectedBounds(rect, orientation = {}, height = 0) {
+  rect=visualRect(rect,orientation);
   const pose={x:0,y:0,scale:1,tilt:orientation.tilt,yaw:orientation.yaw},size={width:0,height:0},points=[];
   for(const x of [rect.x,rect.x+rect.w])for(const y of [rect.y,rect.y+rect.h])for(const h of [0,height])
     points.push(threeProject({x,y,height:h},pose,size));
@@ -79,6 +81,7 @@ export function threeFull(board,viewport,orientation={},physical=false) {
   return {...center,scale,...orientation};
 }
 export function threeScreenBounds(rect,pose,viewport,height=0){
+  rect=visualRect(rect,pose);
   const points=[];
   for(const x of [rect.x,rect.x+rect.w])for(const y of [rect.y,rect.y+rect.h])for(const h of [0,height])points.push(threeProject({x,y,height:h},pose,viewport));
   const x=Math.min(...points.map(p=>p.x)),y=Math.min(...points.map(p=>p.y));
@@ -90,6 +93,7 @@ export function threeFitRect(rect,viewport,orientation,height=orientation.visual
   const pose={...orientation,x:orientation.x??rect.x+rect.w/2,y:orientation.y??rect.y+rect.h/2,scale:1},b=orientationBasis(pose),lens=perspectiveLens(pose,viewport);
   if(!lens.perspective){const p=threeScreenBounds(rect,pose,viewport,height);return {...pose,scale:Math.min(Math.max(1,viewport.width/2-padding)/Math.max(Math.abs(p.x-viewport.width/2),Math.abs(p.x+p.w-viewport.width/2)),Math.max(1,viewport.height/2-padding)/Math.max(Math.abs(p.y-viewport.height/2),Math.abs(p.y+p.h-viewport.height/2)))};}
   let distance=.1;
+  rect=visualRect(rect,orientation);
   for(const x of [rect.x,rect.x+rect.w])for(const y of [rect.y,rect.y+rect.h])for(const h of [0,height]){
     const dx=x-pose.x,dy=y-pose.y,u=b.c*dx-b.s*dy,v=b.s*dx+b.c*dy,depth=-b.st*v-b.ct*h;
     distance=Math.max(distance,.1-depth,Math.abs(u)*lens.focal/Math.max(1,viewport.width/2-padding)-depth,Math.abs(b.ct*v-b.st*h)*lens.focal/Math.max(1,viewport.height/2-padding)-depth);
@@ -124,7 +128,7 @@ export function threeEnsureVisible(pose,bounds,board,viewport,preferred=bounds) 
 }
 export function threeAutoFit({active,moves=[],friends=[],board,viewport,preferences,orientation={}}) {
   const perspective=perspectiveLens({...orientation,scale:1},viewport).perspective;
-  if(!(orientation.tilt||orientation.yaw||perspective))return flatAutoFit({active,moves,friends,board,viewport,preferences});
+  if(!(orientation.tilt||orientation.yaw||perspective||orientation.visualOverhang))return flatAutoFit({active,moves,friends,board,viewport,preferences});
   const prefs=cameraPreferences(preferences),activeBounds=cameraBounds(active);if(!activeBounds)return null;
   const core=moves.reduce((b,cells)=>cameraUnion(b,cameraBounds(cells)),activeBounds);
   const required=b=>{if(perspective)return threeSpanScale(viewport,1,orientation)/threeFitRect(b,viewport,orientation).scale;const p=projectedBounds(b,orientation,orientation.visualHeight??.16);return threeSpanScale(viewport,1,orientation)*Math.max(p.w/Math.max(1,viewport.width-32),p.h/Math.max(1,viewport.height-32));};
@@ -144,6 +148,12 @@ export function threeAutoFit({active,moves=[],friends=[],board,viewport,preferen
     if(pose.scale>activeFit.scale)pose={...activeFit};
   }
   pose=threeEnsureVisible(pose,activeBounds,board,viewport);
+  if(orientation.visualOverhang){
+    // Edge clamping can prevent the preferred center shift for a raised body.
+    // Fit the visual envelope at that final center rather than crop its overhang.
+    const fitted=threeFitRect(activeBounds,viewport,pose);
+    if(pose.scale>fitted.scale)pose=fitted;
+  }
   return {pose,span,overflow,bounds,core};
 }
 export function interpolateOrientation(from,to,fraction) {

@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { boardVisuals, terrainLayers, railConnections, railGeometry } from './board-visuals.js';
-import { resolveUnitModel, unitVisualEnvelope } from './unit-visuals.js';
+import { resolveUnitModel, unitVisualEnvelope, unitVisualOverhang } from './unit-visuals.js';
 import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
 import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
@@ -62,8 +62,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   let renderCount=0,firstFrameAt=null,readyAt=null,lastHover='',lastRender=0;
   const started=startedAt;
   function invalidate(){if(active&&!lost&&!disposed&&raf===null)raf=requestAnimationFrame(draw);}
-  const visualHeight=unitVisualEnvelope(visualCatalog,modelDescriptors);
-  const cameraControl=createThreeCamera({controls,invalidate,animate,visualHeight,onChange:()=>onProject?.()});
+  const visualHeight=unitVisualEnvelope(visualCatalog,modelDescriptors),visualOverhang=unitVisualOverhang(visualCatalog,modelDescriptors);
+  const cameraControl=createThreeCamera({controls,invalidate,animate,visualHeight,visualOverhang,onChange:()=>onProject?.()});
   const lighting=createTabletopLighting({scene,root:controls.root,invalidate});
   const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
   const models=createModelCache({...modelCacheOptions,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
@@ -165,7 +165,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(model){
       const group=new THREE.Group(),yaw=new THREE.Group();group.name='miniature-body';yaw.name='miniature-facing';yaw.position.y=.06;yaw.rotation.y=id?facing.get(id).yaw:0;
       yaw.add(model.group);group.add(yaw);root.add(physical.miniatureBase(a));
-      body={group,facingNode:yaw,visualBounds:{radius:.46*a.cellSpan,height:.06+model.visualBounds.height},infoAnchor:model.infoAnchor};
+      body={group,facingNode:yaw,pickRadius:.46*a.cellSpan,visualBounds:{radius:Math.max(.46*a.cellSpan,model.visualBounds.radius),height:.06+model.visualBounds.height},infoAnchor:model.infoAnchor};
     }else{const group=physical.unit(a);body={group,facingNode:null,visualBounds:group.userData.bounds,infoAnchor:group.userData.infoAnchor};}
     root.add(body.group);root.userData.body=body;root.userData.infoAnchor=body.infoAnchor;root.userData.visualBounds=body.visualBounds;return root;
   }
@@ -343,7 +343,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function updateCamera(){const pose=cameraControl.current();if(!pose)return;const b=orientationBasis(pose),board=frame.state.physical.board,lens=perspectiveLens(pose,cameraControl.size),distance=lens.perspective?lens.distance:Math.max(100,Math.hypot(board.width,board.height)*2);
     camera=lens.perspective?perspectiveCamera:orthographicCamera;
     camera.position.set(pose.x+distance*b.st*b.s,distance*b.ct,pose.y+distance*b.st*b.c);
-    const closest=Math.min(...[-.12,board.width+.12].flatMap(x=>[-.12,board.height+.12].map(y=>distance-b.st*(b.s*(x-pose.x)+b.c*(y-pose.y))-b.ct*(presentation==='tabletop'?visualHeight:0))));
+    const border=.12+(presentation==='tabletop'?visualOverhang:0);
+    const closest=Math.min(...[-border,board.width+border].flatMap(x=>[-border,board.height+border].map(y=>distance-b.st*(b.s*(x-pose.x)+b.c*(y-pose.y))-b.ct*(presentation==='tabletop'?visualHeight:0))));
     camera.up.set(-b.ct*b.s,b.st,-b.ct*b.c);camera.lookAt(pose.x,0,pose.y);camera.far=distance+Math.hypot(board.width,board.height)+10;camera.near=lens.perspective?Math.max(.01,closest*.5):.1;camera.zoom=lens.perspective?1:pose.scale;if(lens.perspective)camera.fov=lens.fov;camera.updateProjectionMatrix();camera.updateMatrixWorld(true);}
   function draw(time){
     try { drawFrame(time); } catch(error) { raf=null;lost=true;onFailure?.(error); }
@@ -394,7 +395,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const priority=id=>id===view.focusedUnitId?3:id===frame.state.currentUnitId?2:view.relationship?.targets?.some(t=>t.targetId===id)?1:0;
     const entries=[...labelNodes].sort(([a],[b])=>priority(b)-priority(a));
     for(const[id,label]of entries){const a=label.appearance,root=unitRoots.get(id),anchor=root?.userData.infoAnchor??{x:0,y:0,z:0},height=(root?.position.y??0)+anchor.y;
-      const center={x:label.position.x+a.cellSpan/2+anchor.x,y:label.position.y+a.cellSpan/2+anchor.z,height},p=cameraControl.screen(center),radius=root?.userData.visualBounds?.radius??a.cellSpan*.42;
+      const center={x:label.position.x+a.cellSpan/2+anchor.x,y:label.position.y+a.cellSpan/2+anchor.z,height},p=cameraControl.screen(center),radius=root?.userData.body?.pickRadius??root?.userData.visualBounds?.radius??a.cellSpan*.42;
       const samples=presentation==='tabletop'?Array.from({length:16},(_,i)=>cameraControl.screen({...center,height:.084,x:center.x+Math.cos(i*Math.PI/8)*radius,y:center.y+Math.sin(i*Math.PI/8)*radius})):null;
       const diameter=samples?Math.max(...samples.map(p=>p.x))-Math.min(...samples.map(p=>p.x)):pose.scale*.84*a.cellSpan;
       const screenHeight=samples?Math.max(...samples.map(p=>p.y))-Math.min(...samples.map(p=>p.y)):diameter;
@@ -446,7 +447,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(presentation==='tabletop'&&!door&&!(view.candidates??[]).some(c=>c.interaction.kind==='Position'&&boardCellKey(c.interaction.position)===boardCellKey(cell))){
       const hits=[];
       for(const f of frame.state.physical.figures){const root=unitRoots.get(f.id),body=root?.userData.body;if(!body?.facingNode||!root.visible)continue;
-        const r=body.visualBounds.radius,box=new THREE.Box3(new THREE.Vector3(root.position.x-r,root.position.y,root.position.z-r),new THREE.Vector3(root.position.x+r,root.position.y+body.visualBounds.height,root.position.z+r)),point=new THREE.Vector3();
+        // Overhanging clubs/arms never enlarge the logical selection proxy.
+        const r=body.pickRadius,box=new THREE.Box3(new THREE.Vector3(root.position.x-r,root.position.y,root.position.z-r),new THREE.Vector3(root.position.x+r,root.position.y+body.visualBounds.height,root.position.z+r)),point=new THREE.Vector3();
         if(raycaster.ray.intersectBox(box,point))hits.push({f,distance:point.distanceToSquared(raycaster.ray.origin)});
       }
       hits.sort((a,b)=>a.distance-b.distance||(a.f.id<b.f.id?-1:a.f.id>b.f.id?1:0));

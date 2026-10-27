@@ -1,5 +1,8 @@
 // Authored presentation dimensions. Canonical IDs/footprints are supplied by the
 // existing public content catalog, never inferred from names or game observation.
+// Below one Cell: every yaw/position intersects at most 3x3 Cell columns.
+// This retains the existing 2x2 envelope while permitting 1x1 visual overhang.
+export const maximumModelRadius=.92;
 const positive=n=>typeof n==='number'&&Number.isFinite(n)&&n>0;
 const unique=(rows,key)=>{const result=Object.create(null);for(const row of rows){if(!row||typeof row[key]!=='string'||!row[key].trim()||Object.hasOwn(result,row[key]))throw Error(`Invalid or duplicate ${key}`);result[row[key]]=Object.freeze({...row});}return Object.freeze(result);};
 export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.url){
@@ -8,7 +11,7 @@ export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.
   for(const id of Object.keys(canonical))if(!Object.hasOwn(units,id))throw Error(`Missing Unit visual metadata: ${id}`);
   for(const [id,u]of Object.entries(units)){
     if(!Object.hasOwn(canonical,id))throw Error(`Unknown Unit visual Type: ${id}`);
-    if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>.46*canonical[id].cellSpan)throw Error(`Invalid Unit visual dimensions: ${id}`);
+    if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadius)throw Error(`Invalid Unit visual dimensions: ${id}`);
     if(Object.keys(u).some(k=>!['typeId','targetHeight','maximumRadius','model'].includes(k)))throw Error(`Unknown Unit visual field: ${id}`);
     if(u.model!=null&&!Object.hasOwn(models,u.model))throw Error(`Unknown model reference: ${id}`);
   }
@@ -42,4 +45,12 @@ export function unitVisualEnvelope(catalog,overrides={}){
   for(const u of Object.values(catalog?.units??{}))if(u.model||overrides[u.typeId]?.approved)height=Math.max(height,u.targetHeight+.15);
   for(const [id,d]of Object.entries(overrides))if(!catalog?.units[id]&&d.approved)height=Math.max(height,(d.height??1.2)+.15);
   return height;
+}
+export function unitVisualOverhang(catalog,overrides={}){
+  let overhang=0;
+  for(const [id,u]of Object.entries(catalog?.units??{}))if(u.model||overrides[id]?.approved)
+    overhang=Math.max(overhang,u.maximumRadius-(catalog.cellSpans?.[id]??overrides[id]?.cellSpan??1)/2);
+  for(const [id,d]of Object.entries(overrides))if(!catalog?.units[id]&&d.approved)
+    overhang=Math.max(overhang,(d.radius??.38)-(d.cellSpan??1)/2);
+  return overhang;
 }

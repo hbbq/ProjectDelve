@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
+import { maximumModelRadius } from './unit-visuals.js';
 
 // Presentation defaults; approved assets and per-Type dimensions live in the catalog.
 export const zombieModelContract = Object.freeze({version:'1',cellSpan:1,height:1.2,radius:.38,maxTriangles:12000,maxPrimitives:2,maxTextureDimension:1024});
@@ -8,7 +9,7 @@ export function validateModelDescriptor(value, base=import.meta.url) {
   if(url.origin!==origin.origin||!['http:','https:','file:'].includes(url.protocol)||!url.pathname.endsWith('.glb')||url.search||url.hash)throw Error('Model must use a local GLB URL');
   if(![1,2].includes(d.cellSpan)||typeof d.version!=='string'||!d.version||
     ![d.height,d.radius,d.maxTriangles,d.maxPrimitives,d.maxTextureDimension].every(n=>Number.isFinite(n)&&n>0)||
-    d.radius>.46*d.cellSpan||d.maxTriangles>12000||d.maxPrimitives>2||d.maxTextureDimension>8192)throw Error('Invalid model descriptor budgets');
+    d.radius>maximumModelRadius||d.maxTriangles>12000||d.maxPrimitives>2||d.maxTextureDimension>8192)throw Error('Invalid model descriptor budgets');
   return Object.freeze({...d,url:url.href});
 }
 export function inspectGlb(bytes) {

@@ -45,8 +45,7 @@ public sealed class UnitVisualCatalogTests
             var radius = u.GetProperty("maximumRadius").GetDouble();
             Assert.True(double.IsFinite(height) && height > 0);
             Assert.True(double.IsFinite(radius) && radius > 0);
-            var type = types.Single(t => t.Id == u.GetProperty("typeId").GetString());
-            Assert.True(radius <= .46 * (FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)).Max(c => c.X) + 1));
+            Assert.True(radius <= .92); // At most nine transient clipping columns, independent of logical footprint.
             if (u.TryGetProperty("model", out var model)) Assert.Contains(model.GetString(), modelIds);
         }
     }

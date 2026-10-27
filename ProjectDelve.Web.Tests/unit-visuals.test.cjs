@@ -4,8 +4,15 @@ const sample=()=>({schemaVersion:1,models:[{id:'shared',approved:true,url:'./art
 const canonical=[{unitTypeId:'small',cellSpan:1},{unitTypeId:'large',cellSpan:2}];
 test('catalog rejects omissions, stale IDs, duplicates, invalid dimensions, schema and model references',async()=>{
   const {validateUnitVisualCatalog:v}=await at('unit-visuals.js');assert.equal(v(sample(),canonical).units.large.targetHeight,2.4);
-  for(const mutate of [s=>s.units.pop(),s=>s.units.push({...s.units[0],typeId:'stale'}),s=>s.units.push(s.units[0]),s=>s.units[0].targetHeight=0,s=>s.units[0].targetHeight=Infinity,s=>s.units[0].maximumRadius=-1,s=>s.units[0].maximumRadius=.5,s=>s.units[0].model='missing',s=>s.schemaVersion=2,s=>s.models.push(s.models[0]),s=>s.models[0].approved=false,s=>s.models[0].url='https://other.invalid/test.glb',s=>s.models[0].maxTextureDimension=Infinity]){const s=sample();mutate(s);assert.throws(()=>v(s,canonical));}
+  for(const mutate of [s=>s.units.pop(),s=>s.units.push({...s.units[0],typeId:'stale'}),s=>s.units.push(s.units[0]),s=>s.units[0].targetHeight=0,s=>s.units[0].targetHeight=Infinity,s=>s.units[0].maximumRadius=-1,s=>s.units[0].maximumRadius=.921,s=>s.units[0].model='missing',s=>s.schemaVersion=2,s=>s.models.push(s.models[0]),s=>s.models[0].approved=false,s=>s.models[0].url='https://other.invalid/test.glb',s=>s.models[0].maxTextureDimension=Infinity]){const s=sample();mutate(s);assert.throws(()=>v(s,canonical));}
   assert.throws(()=>v(sample(),[...canonical,{unitTypeId:'new-type',cellSpan:1}]),/Missing/);
+});
+test('oversized visual metadata stays bounded to nine columns and does not alter canonical footprints',async()=>{
+  const {validateUnitVisualCatalog:v,resolveUnitModel:r,unitVisualEnvelope:e,unitVisualOverhang:o}=await at('unit-visuals.js');
+  const s=sample();s.units[0].targetHeight=1.9;s.units[0].maximumRadius=.856;const c=v(s,canonical);
+  assert.equal(r(c,'small',1).radius,.856);assert.equal(r(c,'small',2),null);assert.equal(c.cellSpans.small,1);assert.equal(o(c),.356);assert.equal(e(c),2.55);
+  assert.equal(o(v(sample(),canonical)),0);s.units[0].maximumRadius=.92;assert.doesNotThrow(()=>v(s,canonical));
+  s.units[0].maximumRadius=1;assert.throws(()=>v(s,canonical));
 });
 test('catalog model resolution keeps authored dimensions and camera envelope public and load independent',async()=>{
   const {validateUnitVisualCatalog:v,resolveUnitModel:r,unitVisualEnvelope:e}=await at('unit-visuals.js'),c=v(sample(),canonical);

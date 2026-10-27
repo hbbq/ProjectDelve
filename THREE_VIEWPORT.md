@@ -728,7 +728,7 @@ local preference; invalid or unavailable storage falls back safely. Flat always
 uses its original token presentation. Classic, Enhanced, Designer and Generator
 rendering are unchanged.
 
-The approved Tripo H3.1 Zombie is registered in the normal production catalog.
+The approved Tripo H3.1 Zombie and Tripo Troll are registered in the normal production catalog.
 Other Types retain Cardboard until approved assets exist. Test-owned procedural
 figures remain isolated QA fixtures and never substitute for production artwork.
 
@@ -906,11 +906,13 @@ by referencing `models[].id`. No name-derived runtime dimensions hide omissions.
 Height means exact intended model height above its feet, excluding the procedural
 .06-Cell base. Radius is a maximum of transformed vertices about the ground-center
 after uniform scaling. Radius failure keeps Cardboard; the loader never shrinks to
-fit or stretches axes separately. V1 radial budgets stay within the generated
-base envelope (.46 × canonical Cell span), retaining the nine-column FoW pool
-guarantee. There is no universal 1×1 height cap. A tall compact Troll is valid.
-Broader silhouettes outside that envelope require a deliberate clipping/base
-budget extension before approval.
+fit or stretches axes separately. Radial budgets are bounded to .92 Cell for
+either logical footprint, retaining the nine-column FoW pool guarantee: a radius
+below one Cell intersects at most three columns on each axis. A miniature may
+overhang its logical footprint and generated base without changing legality.
+Clipping uses the maximum of the measured model radius and the base radius.
+Picking and label width retain the .46 × Cell span base envelope. There is no
+universal 1×1 height cap. See the approved Troll measurements below.
 
 The cache keys **source** resources by approved URL/version and measures their
 transformed bounds once. Height, radius and Cell span are per-Type contracts, not
@@ -922,7 +924,8 @@ does not poison a ready source needed by another Type. Source triangle/primitive
 texture budgets must agree for a shared URL/version.
 
 Camera fitting uses the public maximum registered height plus base/label allowance
-(minimum 1.5), independent of hidden Units and async arrivals. Coarse picking stays
+(minimum 1.5), plus the greatest registered radial overhang beyond half its logical
+span, independent of hidden Units and async arrivals. Coarse picking stays
 on observed logical footprints and vertical proxies. Miniature labels use their
 information anchor and also clear the projected base's top edge, preventing name
 plates covering heads at overhead. LOD and width continue using the base.
@@ -964,8 +967,9 @@ Stable observable multi-Cell bodies remain whole and unclipped. Transient moveme
 uses the displayed explored set and nine reusable Cell-column copies. Hierarchy
 copies preserve nested matrices and material arrays; every mesh gets private
 clipping variants of both PBR and Off materials. Planes remain world-aligned while
-all facing pivots share yaw. The validated base/radial envelope bounds intersecting
-columns to four for 1×1 and nine for 2×2. Height does not weaken vertical planes.
+all facing pivots share yaw. The validated radial envelope bounds intersecting
+columns to nine for either footprint (compact 1×1 models still need at most four).
+Height does not weaken vertical planes.
 Transient labels remain absent. Cancellation releases only its own pool/source,
 so a stale movement cannot touch a replacement session or newer movement.
 
@@ -1243,3 +1247,165 @@ Migration files: source/runtime GLBs, catalog, provenance/asset README,
 model/viewport/hosting/catalog tests and this document. Old preview-only script,
 test and prepared bytes were deleted; unrelated V1 changes were preserved.
 No Engine, server observation, scenario format, rules or `CONSTRAINTS.md` changes.
+
+### Production Troll — 2026-10-27
+
+Troll is the second approved production GLB, using the same cache, loader,
+preparation, material pairs, base, facing and fallback path as Zombie. There is
+no Troll-specific rendering branch, preview flag, route, renderer or context.
+Tabletop Miniatures uses it Upright; Lying uses Cardboard and standing restores
+the ready model with retained facing. Loading/failed assets retain Cardboard.
+Zombie's H3.1 source/runtime bytes and descriptor remain unchanged; other Types
+remain Cardboard. Flat and DOM modes retain their existing presentation.
+
+Source: `assets/source/models/units/troll/original.glb` (4,370,304 bytes).
+Runtime: `wwwroot/art/models/units/troll/v1/troll.glb` (4,370,372 bytes), catalog
+ID `troll/v1`, export version `tripo-v1`. Source README/provenance contain full
+hashes, dimensions, hierarchy, maps, references and paid Pro rights review. The
+exact Tripo generation model/date/settings and export receipt are unknown.
+The existing preparation tool retains all geometry and three 2048-square images,
+removes unused exporter extension declarations and adds source-hash metadata.
+Reproduction checks pass for both Troll and Zombie. No source bytes changed.
+
+Troll is one static 9,504-triangle mesh/primitive/material, with base-color,
+metallic/roughness and normal maps, no external resources, skin, animation,
+morph, lights, camera or authored base. Identity root, determinant 1, finite
+geometry. Original dimensions are .867676 x .991241 x .545624 (X/Y/Z).
+Uniform scale 1.916788 yields **1.663151 x 1.90 x 1.045845 Cells**. Measured
+radius is **.8550545154**. Its catalog maximumRadius changes **.44 → .856**;
+targetHeight stays **1.90**. No shrink, axis distortion or footprint change.
+It is 58.3% taller than Zombie (1.20), with about 2.78 times its X width.
+Edge's observed +Z Move verifies +Z forward; +Y up and base-top grounding are
+visually consistent across views. The pose and club overhang the .46-radius
+base and can overlap adjacent silhouettes; at ordinary board framing the Troll
+is large and readable without obscuring the whole board.
+
+Khronos validator 2.0.0-dev.3.10 reports zero errors for original and runtime.
+Both have one generated-tangent-space warning: normal-map tangent appearance
+can vary between implementations. The source has one informational unsupported
+unused FB_ngon_encoding declaration, absent in runtime. All original images decode
+successfully in Edge. The 8,000-triangle target is advisory, with 12,000 as the hard
+limit; no optimization was justified by the local measurements below.
+
+#### Bounded generic visual overhang
+
+The user explicitly authorized the visual-envelope extension after inspection
+showed the source could not fit the former 1x1 .46 limit at 1.90 height.
+`maximumModelRadius` is .92 for both footprint sizes, retaining the previous
+largest 2x2 envelope and the existing nine-copy pool. A radius below one Cell
+intersects at most 3x3 world Cell columns at any yaw or sub-Cell position.
+Larger descriptors are rejected; no dynamic/unbounded clipping allocation was
+introduced. Unit visual metadata and model descriptors enforce the same bound.
+
+Imported bodies expose their actual normalized radial extent (or base radius,
+whichever is larger) to transient clipping. The existing pool therefore clips
+the club/arms to every intersecting explored column, using the displayed explored
+set and private lit/Off material variants. Hidden stable content stays absent;
+whole observable stable bodies retain the existing unclipped semantics.
+Transient labels stay hidden and disconnected segments remain separate.
+
+The body separately exposes a base-sized pick radius. Protrusions do not enlarge
+selection boxes, intercept neighboring legal Cells or supply new candidates.
+Ground, supplied Position and Door priorities remain intact; imported triangles
+are never used to determine legality. Logical footprints remain authoritative.
+Label width/LOD still use the base; height anchors remain above the model.
+
+Camera fitting uses public registered metadata: height 2.05 including allowance,
+and maximum overhang .356 beyond half a 1x1 span. Full, Auto, follow and near-plane
+bounds include the overhang independently of observation or async model loading.
+Full/Auto fitting expands only visual bounds, without modifying gameplay Cells.
+When a board-edge center clamp prevents a preferred shift, Auto fits the active
+visual envelope at that final center. Flat clears these presentation allowances.
+
+#### Restricted Edge measurements
+
+Production-mode isolated 5081 host, headed Edge, 1440x1000. Each stress scene is
+a dedicated 30x20 Stone Floor board with N canonical Trolls and one Cardboard
+Grunt. Perspective 65 degrees, Full Board, lighting On. Reset timing sample after
+the model is ready; eight alternating rotations exercise warm rendering. Counts
+are complete scene submissions including bases/terrain/feedback, not just GLB
+triangles. Short local CPU submission/frame-interval samples are not GPU timings
+or sustained FPS guarantees.
+
+| Trolls | Model triangles | Scene triangles | Calls | Fetch / decode ms | Total load ms | Warm CPU render p95 ms | Frame interval p95 ms | Camera samples |
+| ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| 1 | 9,504 | 11,018 | 16 | 48.4 / 90.5 | 139.1 | 1.8 | 16.8 | 28 |
+| 10 | 95,040 | 97,634 | 52 | 31.9 / 78.4 | 110.4 | 1.6 | 16.7 | 14 |
+| 30 | 285,120 | 290,114 | 132 | 201.5 / 74.9 | 276.6 | 2.1 | 16.8 | 16 |
+| 100 | 950,400 | 963,794 | 412 | 51.4 / 98.0 | 149.6 | 3.6 | 16.7 | 11 |
+
+All four cases have one fetch, one shared model geometry, one material with two
+lit/Off variants, and three shared textures (64 MiB estimated decoded RGBA plus
+mips). The complete scenes retain nine uploaded textures, seven geometries,
+eight programs and 67.92 MiB estimated textures, independent of Troll count.
+Like Zombie, this source exceeds preferred transfer/texture targets; Troll has
+170 fewer triangles than Zombie's 9,674. No GPU or low-end-device comparison was
+measured, and no destructive optimization was performed.
+
+The test-owned two-Troll patrol with FoW recorded 27 movement frames, movement
+CPU render p95 **1.7 ms**, interval p95 **16.8 ms**. The same patrol without FoW
+recorded 45 movement frames, CPU p95 **1.3 ms**, interval p95 **16.8 ms**. These
+local samples differ in visible terrain submissions and animation sample count;
+the .4 ms difference is an observed comparison, not isolated GPU clipping cost.
+Repeated Cardboard/Miniature and Flat/Classic/Enhanced/Tabletop switches retained
+one fetch and the same model resources; after two complete renderer cycles,
+texture/geometry/program counts settled at 9/7/8. Restart/reload retained normal
+production registration and fallback behavior.
+
+#### Evidence and automated verification
+
+Generate data-only plans using `node tools/troll-qa-plans.cjs`; run them through
+the protected dispatcher described in BROWSER_INSPECTION.md. This uses existing
+test-owned scenario generators, canonical production assets and ordinary UI.
+No authored scenario layout or Unit configuration is asserted by tests.
+
+Captured and inspected PNGs under `.playwright-cli/browser-qa/`:
+
+- `inspection-LOu8M5`: Troll beside Zombie/Cardboard, Lying fallback, lit/Off,
+  perspective 65 degrees, overhead, orthographic and 600x850 narrow layout.
+- `inspection-iXyesw`: settled 0/90/180/270-degree camera rotation views.
+- `inspection-1Pvzxc`: canonical legal Move and positive-Z front orientation.
+- `inspection-ebMtEy`: Attack-facing and combat feedback, dedicated test stats.
+- `inspection-bGAQoU`: canonical Smash Door spatial-facing and action feedback.
+- `inspection-5lerBu`: actual canvas-center pick submits the legal Stay choice;
+  the captured action frame shows Moves 1/1, selection, active mark and Unit card.
+- `inspection-7MZwNd`: initial Lying Cardboard and restored Upright Troll.
+- `inspection-1aJwMu`: hidden/entered/left FoW patrol, restart/reload and timing.
+- `inspection-8uNjg6`: matching revealed patrol comparison.
+- `inspection-5aTagC`: representation/renderer cycles, settled resources,
+  restart and reload (final capture occurs after the initial loading snapshot).
+- `inspection-95JAVd`: reload followed by ordinary Tabletop selection restores
+  the production Troll; initial diagnostics catch loading before the restored PNG.
+- `inspection-yGi8wJ`: generated 30x20 dungeon with hidden models absent.
+- `inspection-nVA0Ex`: matching revealed generated dungeon with two production Trolls.
+- `inspection-LVv2Sp`, `inspection-aZBdnL`, `inspection-tH5Lt6`,
+  `inspection-0RDfkb`: 1/10/30/100-Troll measurements and loaded/warm screenshots.
+
+Successful plans had no console errors or failed asset requests. Refresh/reload
+can abort the superseded SSE request. Early Door QA fixtures had an invalid
+removed-Side Objective/raced an automated turn; corrected single-Unit fixtures
+pass without errors. This required no engine or scenario-validation changes.
+
+Focused model/catalog/viewport/camera tests and seven .NET hosting/catalog tests
+passed, followed by **552 client/security tests**, **1,985 .NET tests** (1,601
+Engine / 384 Web), warning-free solution build and actual fixture/ordinary publish
+verification. Ordinary output contains exactly Zombie and Troll GLBs; source and
+QA registration are excluded. Tests preserve Zombie/Flat/Cardboard contracts and
+cover source hashes/reproduction, registration, oversized normalization, base
+picking, all nine clipping columns, entry/exit/disconnected movement, lighting,
+camera edges/aspects/yaws, Posture, shared resources and cleanup.
+
+Remaining manual gaps: frame-exact transient FoW pixel assertions, native touch,
+real-driver injected context loss/network failure and sustained GPU/low-end tests.
+CPU geometry/lifecycle/failure tests cover these contracts, but do not establish
+those hardware behaviors. Dense adjacent Trolls can visually overlap and users
+can manually zoom far enough to crop a figure. No unresolved integration blocker;
+generation details and tangent-space portability remain the genuine uncertainties.
+
+Changed files: catalog/runtime GLB; source README/provenance and supplied source/
+reference assets; `unit-visuals.js`, `three-models.js`, `three-viewport.js`,
+`three-camera.js`, `three-camera-geometry.js`; model/catalog/viewport/camera/hosting
+tests; `tools/troll-qa-plans.cjs`, `tools/test-miniature-publish.cjs`; this document.
+The preparation tool and clipping-pool implementation are reused unchanged.
+**No Engine or server observation implementation files changed.** No rules,
+logical footprints, authored scenarios or `CONSTRAINTS.md` changes.

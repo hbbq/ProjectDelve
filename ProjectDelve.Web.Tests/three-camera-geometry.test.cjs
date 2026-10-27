@@ -3,6 +3,22 @@ const assert=require('node:assert/strict');
 const {pathToFileURL}=require('node:url');
 const path=require('node:path');
 const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
+test('public oversized envelopes fit full and active-corner cameras at every yaw, lens and aspect',async()=>{
+  const g=await moduleAt('three-camera-geometry.js'),board={width:12,height:10},overhang=.356;
+  for(const viewport of [{width:900,height:600},{width:360,height:700}])for(const projectionMix of [0,1])for(const tilt of [0,38,55])for(const yaw of [0,45,90,175,270]){
+    const orientation={tilt,yaw,projectionMix,fov:65,visualHeight:2.05,visualOverhang:overhang};
+    const full=g.threeFull(board,viewport,orientation,true);
+    for(const x of [-.12-overhang,12.12+overhang])for(const y of [-.12-overhang,10.12+overhang])for(const height of [0,2.05]){
+      const p=g.threeProject({x,y,height},full,viewport);assert.ok(!p.behind&&p.x>=27.9&&p.x<=viewport.width-27.9&&p.y>=27.9&&p.y<=viewport.height-27.9,JSON.stringify({p,full,viewport}));
+    }
+    for(const [x,y]of [[0,0],[11,9]]){
+      const fit=g.threeAutoFit({active:[{x,y}],board,viewport,preferences:{minSpan:3,maxSpan:15,margin:0},orientation});
+      for(const px of [x-overhang,x+1+overhang])for(const py of [y-overhang,y+1+overhang])for(const height of [0,2.05]){
+        const p=g.threeProject({x:px,y:py,height},fit.pose,viewport);assert.ok(!p.behind&&p.x>=-.01&&p.x<=viewport.width+.01&&p.y>=-.01&&p.y<=viewport.height+.01,JSON.stringify({p,fit,viewport}));
+      }
+    }
+  }
+});
 test('perspective projection, raised inverse rays and distance compensation agree with real Three matrices',async()=>{
   const g=await moduleAt('three-camera-geometry.js'),T=await moduleAt('vendor/three/0.180.0/build/three.module.js');
   assert.equal(g.lensFov(-1),20);assert.equal(g.lensFov(100),80);assert.equal(g.lensFov('bad'),45);
