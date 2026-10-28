@@ -35,6 +35,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   catch(error){canvas.remove();throw error;}
   renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;renderer.shadowMap.enabled=false;
   renderer.localClippingEnabled=true;
+  // Keep oblique printed artwork legible without unbounded texture sampling.
+  const textureAnisotropy=Math.max(1,Math.min(4,renderer.capabilities?.getMaxAnisotropy?.()??1));
   renderer.setClearColor('#11161c');
   const scene=new THREE.Scene(), orthographicCamera=new THREE.OrthographicCamera(-1,1,1,-1,.1,200),perspectiveCamera=new THREE.PerspectiveCamera(45,1,.01,200);
   let camera=orthographicCamera;
@@ -72,7 +74,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   const cameraControl=createThreeCamera({controls,invalidate,animate,visualHeight,visualOverhang,onChange:()=>onProject?.()});
   const lighting=createTabletopLighting({scene,root:controls.root,invalidate});
   const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
-  const models=createModelCache({...modelCacheOptions,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
+  const models=createModelCache({...modelCacheOptions,textureAnisotropy,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
   const representationLabel=document.createElement('label'),representationSelect=document.createElement('select');
   representationLabel.textContent='Units ';representationSelect.id='three-unit-representation';representationSelect.setAttribute('aria-label','Unit representation');
   for(const [value,text]of [['cardboard','Cardboard'],['miniatures','Miniatures']]){const option=document.createElement('option');option.value=value;option.textContent=text;representationSelect.append(option);}
@@ -108,6 +110,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
         textureLoader.load(url,texture=>{
           if(disposed){texture.dispose();return;}
           texture.colorSpace=THREE.SRGBColorSpace;texture.magFilter=THREE.LinearFilter;texture.minFilter=THREE.LinearMipmapLinearFilter;
+          texture.anisotropy=textureAnisotropy;
           entry.texture=texture;entry.state='ready';
           for(const user of entry.users){user.map=texture;user.opacity=1;user.color.set('#ffffff');user.needsUpdate=true;for(const fallback of user.userData.fallbacks??[])fallback.visible=false;}
           invalidate();

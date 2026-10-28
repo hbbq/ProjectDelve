@@ -86,7 +86,7 @@ function normalizeSource(source,d) {
 export function normalizeModel(gltf,d) {return normalizeSource(analyzeModel(gltf,d),d);}
 
 export function createModelCache({onChange=()=>{},fetchBytes=async(url,signal)=>{const r=await fetch(url,{signal});if(!r.ok)throw Error(`GLB HTTP ${r.status}`);return r.arrayBuffer();},
-  load=async bytes=>{const {GLTFLoader}=await import('./vendor/three/0.180.0/examples/jsm/loaders/GLTFLoader.js');return new GLTFLoader().parseAsync(bytes,'');},registerMaterial=m=>[m],resolveMaterial=m=>m}={}) {
+  load=async bytes=>{const {GLTFLoader}=await import('./vendor/three/0.180.0/examples/jsm/loaders/GLTFLoader.js');return new GLTFLoader().parseAsync(bytes,'');},registerMaterial=m=>[m],resolveMaterial=m=>m,textureAnisotropy=1}={}) {
   const entries=new Map(),invalid=new Map(),abort=new AbortController();let disposed=false;
   function request(value){
     if(disposed)return null;
@@ -111,6 +111,8 @@ export function createModelCache({onChange=()=>{},fetchBytes=async(url,signal)=>
         if(loadedTextures.some(t=>!t?.image?.width||!t?.image?.height))throw Error('Model texture failed to decode');
         if(loadedTextures.some(t=>Math.max(t.image.width,t.image.height)>d.maxTextureDimension))throw Error('Model texture exceeds descriptor budget');
         e.template=analyzeModel(gltf,d);
+        // Runtime sampler policy only; embedded images and authored materials stay intact.
+        for(const texture of resources.textures)texture.anisotropy=textureAnisotropy;
         const pairs=new Map();for(const m of resources.materials){const pair=registerMaterial(m,d);pairs.set(m,pair);}
         for(const pair of pairs.values())for(const m of pair)resources.materials.add(m);
         gltf.scene.traverse(n=>{if(n.material)n.material=Array.isArray(n.material)?n.material.map(resolveMaterial):resolveMaterial(n.material);});

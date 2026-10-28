@@ -19,6 +19,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     box:new THREE.BoxGeometry(1,1,1),
     cylinder:new THREE.CylinderGeometry(1,1,1,24,1,true),
     tokenCap:new THREE.CircleGeometry(1,24),
+    miniatureCap:new THREE.CircleGeometry(1,32),
     tokenRim:new THREE.RingGeometry(.975,1,24),
     gem:new THREE.OctahedronGeometry(1),
     lump:new THREE.IcosahedronGeometry(1,0),
@@ -26,11 +27,12 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     banana:new THREE.TorusGeometry(.085,.029,5,12,Math.PI*1.35)
   });
   // Off-only baked tones. Lit physical materials ignore this attribute.
-  for(const key of ['box','cylinder','gem','lump','dome','banana']){
-    const geometry=geometries[key],normal=geometry.getAttribute('normal'),colors=[];
+  function bakeFaceTones(geometry){
+    const normal=geometry.getAttribute('normal'),colors=[];
     for(let i=0;i<normal.count;i++){const shade=.68+.25*Math.max(0,normal.getY(i))+.07*Math.max(0,normal.getX(i));colors.push(shade,shade,shade);}
     geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
   }
+  for(const key of ['box','cylinder','gem','lump','dome','banana'])bakeFaceTones(geometries[key]);
   function mesh(group,geometry,color,x,y,z,w,h,d,rotation=0){
     const object=new THREE.Mesh(geometry,physicalMaterial(color));object.position.set(x,y,z);object.scale.set(w,h,d);object.rotation.y=rotation;group.add(object);return object;
   }
@@ -166,13 +168,23 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
   }
   function miniatureBase(a,layout=miniatureBaseLayout({baseRadius:a.baseRadius,width:a.footprintWidth??a.cellSpan??1,depth:a.footprintDepth??a.cellSpan??1})){
     const group=new THREE.Group(),r=layout.radius;group.name='miniature-base';group.userData.base=layout;
-    mesh(group,geometries.cylinder,'#494642',0,.03,0,r,.06,r);
-    group.add(plane(material('#494642'),0,0,r,r,.06,0,geometries.tokenCap));
-    // A shared unit ring scaled to each radius would make small rims disappear.
-    // Cache a constant .025-Cell rim per radius; all instances share geometry.
-    const key=`miniature-rim:${r}`;
-    geometries[key]??=new THREE.RingGeometry(Math.max(0,1-.025/r),1,32);
-    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries[key]));
+    // A shallow lower chamfer and a sloped Side rim give every miniature the
+    // same molded base finish, inside its existing radius and height envelope.
+    const rim=Math.min(.025,r),top=r-rim,key=`miniature-profile:${r}`,rimKey=`miniature-rim:${r}`;
+    if(!geometries[key]){
+      geometries[key]=new THREE.LatheGeometry([
+        new THREE.Vector2(Math.max(0,r-.012),0),new THREE.Vector2(r,.012),
+        new THREE.Vector2(r,.04),new THREE.Vector2(top,.06)
+      ],32);
+      bakeFaceTones(geometries[key]);
+      const ring=new THREE.RingGeometry(top/r,1,32),positions=ring.getAttribute('position');
+      // plane() rotates local Z into world Y: outer edge meets the shoulder.
+      for(let i=0;i<positions.count;i++)positions.setZ(i,Math.hypot(positions.getX(i),positions.getY(i))>.999?-.021:0);
+      ring.computeVertexNormals();geometries[rimKey]=ring;
+    }
+    mesh(group,geometries[key],'#494642',0,0,0,1,1,1);
+    group.add(plane(physicalMaterial('#494642',false),0,0,top,top,.06,0,geometries.miniatureCap));
+    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries[rimKey]));
     return group;
   }
   return {unit,posture,board,terrain,edge,machine,item,miniatureBase};

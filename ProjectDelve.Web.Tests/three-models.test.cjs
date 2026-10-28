@@ -73,5 +73,5 @@ test('texture decode failures keep failed fallback; textures and shared image bi
   const bad=await parse();bad.parser={getDependencies:async()=>[null]};const failed=createModelCache({fetchBytes:async()=>bytes(),load:async()=>bad}),e=failed.request(descriptor);await e.promise;assert.equal(e.state,'failed');assert.match(e.error,/texture failed/);failed.dispose();
   const gltf=await parse();let closed=0,disposed=0;const image={width:16,height:16,close(){closed++;}},texture=new T.Texture(image);texture.addEventListener('dispose',()=>disposed++);
   gltf.scene.traverse(n=>{if(n.material)n.material.map=texture;});gltf.parser={getDependencies:async()=>[texture]};
-  const ready=createModelCache({fetchBytes:async()=>bytes(),load:async()=>gltf}),r=ready.request(descriptor);await r.promise;assert.equal(r.state,'ready');ready.clone(r);ready.clone(r);ready.dispose();ready.dispose();assert.equal(closed,1);assert.equal(disposed,1);
+  const ready=createModelCache({fetchBytes:async()=>bytes(),load:async()=>gltf,textureAnisotropy:4}),r=ready.request(descriptor);await r.promise;assert.equal(r.state,'ready');assert.equal(texture.anisotropy,4);assert.equal(texture.image,image);ready.clone(r);ready.clone(r);ready.dispose();ready.dispose();assert.equal(closed,1);assert.equal(disposed,1);
 });

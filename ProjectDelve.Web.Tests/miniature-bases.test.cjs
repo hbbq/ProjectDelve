@@ -37,18 +37,32 @@ test('low transformed vertices measure radial contact about the facing pivot, ex
   feet.geometry.dispose();weapon.geometry.dispose();material.dispose();
 });
 
-test('bases share geometry, retain constant thickness and a visible neutral top with Side rim',async()=>{
+test('beveled bases share geometry and retain their envelope, lit neutral top and constant Side rim',async()=>{
   const T=await at('vendor/three/0.180.0/build/three.module.js'),{createTabletopVisuals}=await at('three-tabletop.js');
   const geometries={},materials=new Map(),material=color=>{if(!materials.has(color))materials.set(color,new T.MeshBasicMaterial({color}));return materials.get(color);};
+  const physicalMaterial=(color,vertexColors)=>{const key=`lit:${color}:${vertexColors}`;if(!materials.has(key))materials.set(key,new T.MeshLambertMaterial({color}));return materials.get(key);};
   const plane=(m,x,z,w,h,y,rotation,g)=>{const n=new T.Mesh(g,m);n.rotation.x=-Math.PI/2;n.scale.set(w,h,1);n.position.set(x,y,z);return n;};
-  const physical=createTabletopVisuals({material,plane,geometries});
+  const physical=createTabletopVisuals({material,physicalMaterial,plane,geometries});
   for(const [width,depth,r]of [[1,1,.25],[2,2,.72],[2,1,.44]]){
     const a={sideId:'blue',cellSpan:width,footprintWidth:width,footprintDepth:depth,baseRadius:r},base=physical.miniatureBase(a),other=physical.miniatureBase(a);
     const box=new T.Box3().setFromObject(base);assert.ok(Math.abs(box.min.y)<1e-7);assert.ok(Math.abs(box.max.y-.061)<1e-7);
     assert.ok(Math.abs(box.max.x-r)<1e-6);assert.ok(box.max.x<=width*.45&&box.max.z<=depth*.45);
-    assert.equal(base.children[0].geometry,other.children[0].geometry);assert.equal(base.children[2].geometry,other.children[2].geometry);
-    assert.equal(base.children[0].material,base.children[1].material);assert.notEqual(base.children[1].material,base.children[2].material);
+    assert.equal(base.children.length,3);
+    for(let i=0;i<3;i++)assert.equal(base.children[i].geometry,other.children[i].geometry);
+    assert.ok(base.children[0].material.isMeshLambertMaterial);assert.ok(base.children[1].material.isMeshLambertMaterial);
+    assert.ok(base.children[2].material.isMeshBasicMaterial);assert.notEqual(base.children[1].material,base.children[2].material);
     assert.ok(Math.abs((1-base.children[2].geometry.parameters.innerRadius)*r-.025)<1e-8);
+    const body=base.children[0].geometry.getAttribute('position'),tones=base.children[0].geometry.getAttribute('color');
+    assert.equal(tones.count,body.count);
+    assert.ok(Math.max(...tones.array)>Math.min(...tones.array),'Lighting Off retains molded shape shading');
+    const shoulder=[];for(let i=0;i<body.count;i++)if(Math.abs(body.getY(i)-.04)<1e-7)shoulder.push(Math.hypot(body.getX(i),body.getZ(i)));
+    assert.ok(shoulder.length>0&&shoulder.every(radius=>Math.abs(radius-r)<1e-7));
+    const ring=base.children[2];ring.updateWorldMatrix(true,false);
+    const points=ring.geometry.getAttribute('position');
+    for(let i=0;i<points.count;i++){
+      const point=new T.Vector3().fromBufferAttribute(points,i).applyMatrix4(ring.matrixWorld),radius=Math.hypot(point.x,point.z);
+      assert.ok(Math.abs(point.y-(Math.abs(radius-r)<1e-7?.04:.061))<1e-7,'Side rim meets shoulder and top');
+    }
   }
   // Cached radii are owned by the same viewport geometry registry and released once.
   let disposed=0;for(const g of Object.values(geometries))g.addEventListener('dispose',()=>disposed++);

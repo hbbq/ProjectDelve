@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { createLocalLighting } from './three-local-lighting.js';
 
-export const lightingDefaults=Object.freeze({enabled:true,key:.85,fill:.65,azimuth:315,elevation:50});
+export const lightingDefaults=Object.freeze({enabled:true,key:1.5,fill:1.2,azimuth:315,elevation:50});
 const preferenceKey='delve.three.lighting.v1';
 
 // A surface-only Ghost treatment: no extra geometry, lights, time uniforms or
@@ -40,7 +40,9 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   const local=createLocalLighting();
   const pairs=new Map(),variants=new WeakMap(),subscriptions=new AbortController();
   const rig=new THREE.Group();rig.name='tabletop-lighting';
-  const key=new THREE.DirectionalLight('#fff5e8',preferences.key),fill=new THREE.AmbientLight('#ffffff',preferences.fill);
+  // A warm studio key and cool sky / warm table bounce reveal sculpted forms.
+  // Hemisphere fill adds no shadow pass and remains independent of observed content.
+  const key=new THREE.DirectionalLight('#fff5e8',preferences.key),fill=new THREE.HemisphereLight('#e5edff','#766b59',preferences.fill);
   key.name='tabletop-key';fill.name='tabletop-fill';key.castShadow=false;
   rig.add(key,key.target,fill);scene.add(rig);
   const panel=environment.document.createElement('details');panel.className='three-lighting';panel.id='three-lighting-controls';

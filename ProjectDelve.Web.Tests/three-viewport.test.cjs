@@ -91,11 +91,22 @@ async function harness(frame=fixture(),options={}){
   globalThis.matchMedia=()=>({matches:false,addEventListener(){}});
   const THREE=await moduleAt('vendor/three/0.180.0/build/three.module.js'),{createThreeViewport}=await moduleAt('three-viewport.js');
   const renderer={shadowMap:{},info:{render:{calls:0,triangles:0},memory:{textures:0,geometries:0}},setClearColor(){},setSize(w,h){host.children.find(n=>n.tagName==='canvas').width=w;host.children.find(n=>n.tagName==='canvas').height=h;},render(scene,camera){rendered.push({scene,camera});let calls=0;scene.traverse(n=>{if(n.isMesh||n.isLine)calls++;});this.info.render.calls=calls;},dispose(){disposed++;}};
+  renderer.capabilities={getMaxAnisotropy:()=>options.maxAnisotropy??16};
   const viewport=createThreeViewport({host,controls,animate:()=>true,onPick:hit=>picked.push(hit),onHover:id=>hovered.push(id),onFailure:error=>failures.push(error.message),rendererFactory:()=>renderer,textureLoader:{load(url,ready,progress,error){requests.push({url,ready,error});}},...options});
   viewport.setActive(true);viewport.renderFrame(frame);
   const flush=(time=performance.now())=>{const todo=[...frames.values()];frames.clear();for(const fn of todo)fn(time);};flush();
   return{viewport,host,controls,frames,requests,rendered,picked,hovered,failures,THREE,flush,renderer,get disposed(){return disposed;},cleanup(){viewport.dispose();for(const[key,value]of Object.entries(saved))if(value===undefined)delete globalThis[key];else globalThis[key]=value;}};
 }
+
+test('printed texture filtering respects hardware limits and caps sampling at four',async()=>{
+  for(const [maximum,expected]of [[0,1],[2,2],[16,4]]){
+    const h=await harness(fixture(),{maxAnisotropy:maximum});try{
+      const texture=new h.THREE.Texture();let disposed=0;texture.addEventListener('dispose',()=>disposed++);
+      h.requests[0].ready(texture);h.flush();assert.equal(texture.anisotropy,expected);
+      h.viewport.dispose();assert.equal(disposed,1);
+    }finally{h.cleanup();}
+  }
+});
 
 test('Tabletop lamp initializes once, is world fixed, clamps preferences and persists without observation input',async()=>{
   const {createTabletopLighting,lightingDefaults,lightingPreferences}=await moduleAt('three-lighting.js');
@@ -106,7 +117,8 @@ test('Tabletop lamp initializes once, is world fixed, clamps preferences and per
   const environment={document:{createElement:t=>new Element(t)},localStorage:storage};
   const lamp=createTabletopLighting({scene,root,invalidate:()=>invalidations++,environment});
   const key=scene.getObjectByName('tabletop-key'),fill=scene.getObjectByName('tabletop-fill');
-  assert.ok(key.isDirectionalLight&&fill.isAmbientLight);assert.equal(key.castShadow,false);assert.equal(lamp.inspect().active,false);
+  assert.ok(key.isDirectionalLight&&fill.isHemisphereLight);assert.equal(key.castShadow,false);assert.equal(lamp.inspect().active,false);
+  assert.ok(fill.color.b>fill.color.r&&fill.groundColor.r>fill.groundColor.b);
   lamp.setPresentation('tabletop');assert.equal(lamp.inspect().active,true);assert.ok(Math.abs(key.position.length()-1)<1e-12);
   const direction=key.position.clone();assert.ok(direction.y>0&&direction.x<0&&direction.z<0);
   lamp.controls.enabled.value='off';lamp.controls.enabled.emit('change');assert.equal(invalidations,1);assert.equal(lamp.controls.key.disabled,true);
@@ -231,9 +243,9 @@ test('current Zombie and Troll bases preserve model approval, facing, picking, c
     const zombie=scene.getObjectByName('unit:hero'),troll=scene.getObjectByName('unit:large');
     for(const [root,radius,height]of [[zombie,.25,.75],[troll,.44,1]]){
       const base=root.getObjectByName('miniature-base'),model=root.getObjectByName('normalized-model');assert.ok(base&&model);
-      assert.equal(base.children[0].scale.x,radius);assert.equal(root.userData.body.pickRadius,.46);assert.equal(root.userData.footprint.length,1);
+      assert.ok(Math.abs(new h.THREE.Box3().setFromObject(base).getSize(new h.THREE.Vector3()).x-2*radius)<1e-6);assert.equal(root.userData.body.pickRadius,.46);assert.equal(root.userData.footprint.length,1);
       root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.max.y-box.min.y-height)<1e-6);assert.ok(Math.abs(box.min.y-.072)<1e-6);
-      const matrix=base.matrixWorld.clone();for(const yaw of [0,.7,Math.PI/2,Math.PI,-Math.PI/2]){h.viewport.facing.get(root.userData.unitId).yaw=yaw;h.viewport.syncFacing(true);root.updateMatrixWorld(true);assert.deepEqual(base.matrixWorld.elements,matrix.elements);assert.equal(base.rotation.y,0);assert.equal(base.children[0].scale.x,radius);}
+      const matrix=base.matrixWorld.clone();for(const yaw of [0,.7,Math.PI/2,Math.PI,-Math.PI/2]){h.viewport.facing.get(root.userData.unitId).yaw=yaw;h.viewport.syncFacing(true);root.updateMatrixWorld(true);assert.deepEqual(base.matrixWorld.elements,matrix.elements);assert.equal(base.rotation.y,0);assert.ok(Math.abs(new h.THREE.Box3().setFromObject(base).getSize(new h.THREE.Vector3()).x-2*radius)<1e-6);}
     }
     assert.equal(zombie.userData.base.fitsContact,true);assert.ok(zombie.userData.base.margin>.046);
     assert.equal(troll.userData.base.fitsContact,false);assert.ok(Math.abs(troll.userData.base.shortfall-.0500286923)<1e-8);
