@@ -24,8 +24,8 @@
   },
   "runtime": {
     "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin/v1/goblin.glb",
-    "sha256": "7366c5b1a3879d859a1c73058ffa2b7b0923596300cf3c15895ed3161b04c3d1",
-    "bytes": 5008720
+    "sha256": "448c1b490d8e8d477451648fc42d36be3c1fc919286b3ebd5c8c19ed9d8db8d0",
+    "bytes": 4032532
   },
   "preparation": {
     "tool": "tools/prepare-unit-model.cjs",
@@ -35,10 +35,15 @@
       "Verify reviewed source hash",
       "Reject actual extension payloads; remove unused exporter extension declarations",
       "Add source-hash metadata and rebuild JSON chunk deterministically",
-      "Preserve all geometry and three original 2048x2048 embedded textures",
-      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+      "Resize three embedded maps from 2048x2048 to 1024x1024 with Pillow LANCZOS; lossless PNG, compression level 9; preserve alpha channels",
+      "Repack aligned buffer views preserving geometry, UVs, materials and texture bindings",
+      "Runtime ground-centers and uniformly normalizes to unchanged catalog targetHeight"
     ],
-    "orientation": "+Y up; +Z forward visually verified after positive-Z Move in restricted Edge: inspection-FxuJx8/move-positive-z-front.png. Minimum Y zero; runtime places contact at the procedural base top."
+    "orientation": "+Y up; +Z forward visually verified after positive-Z Move in restricted Edge: inspection-FxuJx8/move-positive-z-front.png. Minimum Y zero; runtime places contact at the procedural base top.",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng"
   },
   "rightsReview": {
     "date": "2026-10-28",
@@ -68,7 +73,7 @@
       "infos": 0
     },
     "warning": "Generated tangent space; portability of normal-map tangent appearance remains advisory. Source unused FB_ngon_encoding declaration removed by preparation.",
-    "runtimeChecks": "Production preflight and finite geometry pass; geometry, images and bounds preserved; embedded images fully decoded with Pillow and restricted Edge. Production cache ready. CPU viewport tests cover grounding, facing, picking, clipping, resource sharing and cleanup."
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; all 21 batch runtime maps exactly match expected LANCZOS output at 1024x1024. RGB channels and OPAQUE semantics preserved. Geometry buffer bytes, UVs/accessors, hierarchy, transforms, materials and texture bindings match previous runtime. Khronos errors zero; restricted Edge models ready."
   },
   "import": {
     "inboxPath": "assets/import/models/goblin.glb",
@@ -237,5 +242,35 @@
     "findings": "Small body remains readable at authored .55 height; ample base margin.",
     "metadataAdjustments": "none; existing targetHeight, maximumRadius and baseRadius retained",
     "evidence": "THREE_VIEWPORT.md: Batch import five Tripo miniatures"
+  },
+  "textureStandardization": {
+    "date": "2026-10-28",
+    "previousRuntime": {
+      "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin/v1/goblin.glb",
+      "sha256": "7366c5b1a3879d859a1c73058ffa2b7b0923596300cf3c15895ed3161b04c3d1",
+      "bytes": 5008720
+    },
+    "sourceSha256Unchanged": "45836ed0b6d593be49e3a5da31ef4646d9a18ad2bb4054ae5584f408d2963e30",
+    "textureDimensionsBefore": [
+      2048,
+      2048
+    ],
+    "textureDimensionsAfter": [
+      1024,
+      1024
+    ],
+    "estimatedRgbaMipMiBBefore": 64,
+    "estimatedRgbaMipMiBAfter": 16,
+    "evidence": "THREE_VIEWPORT.md: Runtime texture standardization to 1024",
+    "visualReview": {
+      "date": "2026-10-28",
+      "before": "inspection-KSgUYW; inspection-bVCuSi",
+      "after": "inspection-5y0TpH; inspection-UnesCR",
+      "lying": "inspection-4fb5bn",
+      "representativeFacing": "inspection-mLHimf (Cleric)",
+      "representativeFoW": "inspection-Sc1bnf (Cleric)",
+      "findings": "No noticeable normal-zoom loss of skin, clothing or painted detail with Lighting On/Off; no alpha artifacts. No visual metadata adjustments or unexpected settled resource changes.",
+      "evidence": "THREE_VIEWPORT.md: Runtime texture standardization to 1024"
+    }
   }
 }

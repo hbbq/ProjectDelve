@@ -823,7 +823,7 @@ The approved runtime destination is
 | Geometry | Target 6,000–8,000 triangles; hard maximum 12,000 |
 | Draw primitives | At most two; prefer one material/primitive |
 | Texture | Prefer 1024² base color, optional 512² normal and packed ORM |
-| Texture limit | Default 1024; explicit asset-specific budget may allow larger embedded PNG/JPEG (approved Zombie: 2048) |
+| Texture limit | All 26 production miniatures use maximum 1024; preparation records and descriptor budgets agree |
 | Texture memory | Prefer about 8 MiB or less including mipmaps |
 | Material | Rough painted PBR, opaque where possible; no emissive lighting |
 | Pose | Compact neutral shamble; readable head/hands and front/back |
@@ -856,7 +856,7 @@ To add or replace an approved production model:
    ```js
    { "id": "zombie/v1", "approved": true,
      "url": "./art/models/units/zombie/v1/zombie.glb", "version": "1",
-     "maxTriangles": 12000, "maxPrimitives": 2, "maxTextureDimension": 2048 }
+     "maxTriangles": 12000, "maxPrimitives": 2, "maxTextureDimension": 1024 }
    ```
 
 5. Run model/viewport tests, HTTP/publish checks and real-browser acceptance with
@@ -1268,6 +1268,9 @@ The following production acceptance section supersedes the fixture-only results.
 
 ### Production H3.1 Zombie — 2026-10-27
 
+Historical integration snapshot. Current runtime sizes, hashes and texture budgets
+are recorded in [Runtime texture standardization to 1024](#runtime-texture-standardization-to-1024--2026-10-28).
+
 The owner-supplied replacement is Tripo **H3.1 generated under Pro**, confirmed by
 the owner. Reviewed [paid-user terms](https://www.tripo3d.ai/terms) section 5.2.2
 include publication, distribution and licensing. Together with Pro commercial
@@ -1388,6 +1391,9 @@ test and prepared bytes were deleted; unrelated V1 changes were preserved.
 No Engine, server observation, scenario format, rules or `CONSTRAINTS.md` changes.
 
 ### Production Troll — 2026-10-27
+
+Historical integration snapshot. Current runtime sizes, hashes and texture budgets
+are recorded in [Runtime texture standardization to 1024](#runtime-texture-standardization-to-1024--2026-10-28).
 
 Troll is the second approved production GLB, using the same cache, loader,
 preparation, material pairs, base, facing and fallback path as Zombie. There is
@@ -1550,6 +1556,9 @@ The preparation tool and clipping-pool implementation are reused unchanged.
 logical footprints, authored scenarios or `CONSTRAINTS.md` changes.
 
 ## Batch import five Tripo miniatures — 2026-10-28
+
+Historical integration snapshot. Current runtime sizes, hashes and texture budgets
+are recorded in [Runtime texture standardization to 1024](#runtime-texture-standardization-to-1024--2026-10-28).
 
 Goblin, Barbarian, Cleric, Hobby Knight and Worker are approved ordinary production
 miniatures, alongside the unchanged Zombie and Troll. All five supplied files
@@ -1760,6 +1769,9 @@ implementation, rules, logical footprint, authored scenario or `CONSTRAINTS.md`
 changes. Zombie/Troll source/runtime assets and registrations remain unchanged.
 
 ## Remaining 19 Tripo miniatures — 2026-10-28
+
+Historical integration snapshot. Current runtime sizes, hashes and texture budgets
+are recorded in [Runtime texture standardization to 1024](#runtime-texture-standardization-to-1024--2026-10-28).
 
 All 19 supplied models passed and are approved ordinary production miniatures:
 Bomb Imp, Castle Guard, Chief Mechanic, Displacer Demon, Geomancer, Goblin Bishop,
@@ -1994,3 +2006,98 @@ comparison. Very small/distant/narrow models naturally lose readable equipment
 detail. CPU geometry/lifecycle/failure tests cover the corresponding contracts
 where applicable. **No Engine or server observation implementation files, gameplay
 rules, CONSTRAINTS.md or runtime renderer implementation files changed.**
+
+## Runtime texture standardization to 1024 — 2026-10-28
+
+All **26 production miniatures** now use a maximum embedded runtime texture
+dimension of **1024**. Zombie, Troll, Goblin, Barbarian, Cleric, Hobby Knight and
+Worker were reprepared from their archived originals using the existing
+`tools/prepare-unit-model.cjs` pipeline and `preparation.textureLimit: 1024`.
+The other 19 runtime hashes remain byte-for-byte unchanged. All 26 source GLBs
+also match the pre-task hashes; none was rewritten.
+
+### Runtime bytes and hashes
+
+Every row retains all three channels: base color, metallic/roughness and normal.
+Each channel changes from 2048x2048 to 1024x1024, preserving aspect ratio. JPEG
+inputs are decoded and the resized runtime maps use lossless PNG compression 9.
+
+| Model | Previous bytes | New bytes | New runtime SHA-256 |
+| --- | ---: | ---: | --- |
+| zombie | 4,466,452 | 3,789,900 | `07fb0b8d3fee6139503f0fd8df375c93f1e7bb335fa18589c76760a28b135e24` |
+| troll | 4,370,372 | 3,522,536 | `9bc1970d2ca0d51c3b14693b068c3b8f6f305a86df6e2a2e24ba7b8974f51274` |
+| goblin | 5,008,720 | 4,032,532 | `448c1b490d8e8d477451648fc42d36be3c1fc919286b3ebd5c8c19ed9d8db8d0` |
+| barbarian | 4,449,268 | 3,731,072 | `71674c266f171b3254a5fb946dcf35c03268670989608429dd87d573cd759ea0` |
+| cleric | 4,160,028 | 3,487,136 | `bc941a1907379cc56c7f6e900f8b5c5f3bff18107c730289a431e421afb44ecb` |
+| hobby-knight | 4,400,276 | 3,870,972 | `17d755a88cbd439a91f04681e7a6fdc5ab82884f1a1bdfaec732e998ce48455d` |
+| worker | 4,343,160 | 3,585,440 | `2f75f4ed1165b80cb7f922fbab4ee0ef0d53822d10a0a228ee3de58f6fbfed2d` |
+
+Total transfer bytes: **31,198,276 → 26,019,588**, a reduction of **5,178,688
+bytes (16.6%)**. Provenance retains each previous runtime hash/size alongside
+the new hash/size, source-preservation evidence and encoder versions. Original
+inspection records continue to describe the unchanged 2048 source maps.
+
+Estimated decoded RGBA plus mipmaps: **64 → 16 MiB per model**, **448 → 112 MiB
+for these seven**, saving **336 MiB (75%)**. Without mipmaps the seven-model
+estimate is 336 → 84 MiB. All 26 distinct models together would use approximately
+**416 MiB** for model maps (previously 752 MiB), plus board/portrait textures.
+These are dimension-based estimates, **not measured GPU allocations**.
+
+### Preservation and preparation verification
+
+The existing helper fully decodes each image and uses aspect-preserving LANCZOS.
+All 21 new maps were fully decoded and compared with the expected resized pixels.
+All source/runtime images in this batch are RGB; no alpha channel existed to
+remove. OPAQUE material semantics, all texture slots/samplers, geometry buffer
+bytes, UVs/accessors, hierarchy, orientation and transforms remain identical.
+Catalog edits change only seven descriptor texture budgets from 2048 to 1024;
+heights, radii, bases, model URLs/versions/references and Unit rows are unchanged.
+
+Khronos glTF Validator **2.0.0-dev.3.10**: all seven sources and seven runtimes
+have zero errors, one existing generated-tangent-space warning per file, and no
+new warnings. Runtime assets are core static glTF with no external resources or
+extension declarations/payloads. All 26 preparation/provenance tests pass;
+the seven provenance-driven `--check` commands also reproduce the runtime bytes.
+Python **3.14.7**, Pillow **13.0.0**, zlib **1.3.1.zlib-ng**, Node **v22.23.2**
+match the recorded preparation environment. The pipeline itself is unchanged.
+
+Focused model/import/provenance tests: **10 passed**. Focused Web
+`MiniatureHostingTests`: **6 passed**. Release Web build: zero warnings/errors.
+`node tools/test-miniature-publish.cjs --release` passes fixture and ordinary
+publishing; ordinary output contains exactly the 26 approved GLBs with exact
+provenance-bound hashes, catalog and loader assets, no original GLBs or QA assets.
+The full client/.NET suites were not run for this asset-only task.
+
+### Restricted Edge visual evidence and resource counts
+
+Controlled before/after, test-owned seven-model scene, 1440x1000 headed Edge:
+**inspection-KSgUYW** (2048 baseline) and **inspection-5y0TpH** (1024).
+The baseline used copied static files under an ignored QA root, with the seven
+saved pre-task runtime GLBs; tracked runtime files were never swapped back.
+Normal Tabletop zoom with Lighting On/Off shows no noticeable loss of skin,
+clothing or painted detail. Extra angled views **inspection-bVCuSi** (before)
+and **inspection-UnesCR** (after) preserve costume colors, equipment and normal
+lighting response. Camera tween timing varies slightly between captures, so
+these are qualitative comparisons, not pixel-diff measurements.
+
+Both controlled scenes have **35 draw calls, 69,115 scene triangles, 38 uploaded
+textures, 20 geometries, 56 scene materials**, and **8/10 programs (Lighting
+On/Off)**. All seven models are ready, each with one fetch, one geometry, two
+material variants and three textures. Estimated whole-scene textures change
+**459 → 123 MiB**, exactly the 336 MiB model reduction. No unexpected model or
+settled-scene resource changes. An earlier cold-host capture included additional
+startup scene resources; controlled repeat captures removed that discrepancy.
+
+**inspection-4fb5bn** shows all seven upright beside seven Lying Cardboard
+fallbacks (test-owned Undying definitions), with both lighting settings.
+**inspection-mLHimf** confirms Cleric facing after positive-Z movement;
+**inspection-Sc1bnf** confirms representative FoW hidden → entered → hidden.
+These successful captures have no console errors or failed model requests;
+expected SSE aborts occur when scenarios are replaced/restarted. An initial
+Lying fixture lacked Undying and was rejected; the corrected dedicated fixture
+passed without production changes. PNGs, plans, baseline hashes, image-decode
+evidence and full validator reports are under ignored `.playwright-cli/`.
+
+No remaining asset issues were found. Extreme-zoom texture fidelity and measured
+GPU allocations were not benchmarked. The existing tangent warning and contact
+advisories remain unchanged; this task does not adjust geometry or visual metadata.

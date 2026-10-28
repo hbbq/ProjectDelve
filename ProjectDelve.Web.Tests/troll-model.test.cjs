@@ -5,16 +5,16 @@ test('Troll has paid provenance without invented model version, real references,
   assert.equal(p.status,'approved-production');assert.equal(p.generator,'Tripo');assert.equal(p.generationModel,'unknown');assert.equal(p.plan,'Pro');assert.equal(p.commerciallyCleared,true);assert.equal(p.redistributionRightsConfirmed,true);
   for(const file of [p.projectPortraitReference,...p.projectConceptReferences])assert.ok(read(file).length);
   const c=JSON.parse(read('ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')),u=c.units.find(u=>u.typeId==='troll-type'),m=c.models.find(m=>m.id===u.model);
-  assert.equal(u.targetHeight,1);assert.equal(u.maximumRadius,.856);assert.equal(m.approved,true);assert.equal(m.url,'./art/models/units/troll/v1/troll.glb');assert.equal(m.version,'tripo-v1');
+  assert.equal(u.targetHeight,1);assert.equal(u.maximumRadius,.856);assert.equal(m.approved,true);assert.equal(m.url,'./art/models/units/troll/v1/troll.glb');assert.equal(m.version,'tripo-v1');assert.equal(m.maxTextureDimension,1024);
   const {resolveUnitModel}=await import(pathToFileURL(path.join(root,'ProjectDelve.Web/wwwroot/unit-visuals.js')));
   const compiled={units:Object.fromEntries(c.units.map(u=>[u.typeId,u])),models:Object.fromEntries(c.models.map(m=>[m.id,m])),cellSpans:{'troll-type':1}};
   assert.equal(resolveUnitModel(compiled,'troll-type',1).height,1);assert.equal(resolveUnitModel(compiled,'troll-type',2),null);assert.equal(resolveUnitModel(compiled,'missing-test-owned-type',1),null);
 });
-test('Troll preparation is reproducible, preserves geometry and image bytes, and measures its actual overhang',async()=>{
+test('Troll preparation is reproducible, preserves geometry and map bindings, and measures its actual overhang',async()=>{
   const {inspect}=require('../tools/inspect-glb.cjs'),{prepare}=require('../tools/prepare-unit-model.cjs'),source=read(p.original.path),runtime=read(p.runtime.path);
-  assert.equal(source.length,p.original.bytes);assert.equal(hash(source),p.original.sha256);assert.equal(runtime.length,p.runtime.bytes);assert.equal(hash(runtime),p.runtime.sha256);assert.deepEqual(runtime,prepare(source,p.original.sha256));
+  assert.equal(source.length,p.original.bytes);assert.equal(hash(source),p.original.sha256);assert.equal(runtime.length,p.runtime.bytes);assert.equal(hash(runtime),p.runtime.sha256);assert.equal(p.preparation.textureLimit,1024);assert.deepEqual(runtime,prepare(source,p.original.sha256,p.preparation));require('./fixtures/miniatures/assert-texture-preparation.cjs')(source,runtime);
   const a=await inspect(path.join(root,p.original.path),1.9),b=await inspect(path.join(root,p.runtime.path),1.9);
-  assert.equal(b.triangles,9504);assert.equal(b.meshes,1);assert.equal(b.primitives,1);assert.equal(b.materials.length,1);assert.equal(b.finite,true);assert.deepEqual(b.images,a.images);assert.equal(b.images.length,3);assert.ok(b.images.every(i=>i.width===2048&&i.height===2048));
+  assert.equal(b.triangles,9504);assert.equal(b.meshes,1);assert.equal(b.primitives,1);assert.equal(b.materials.length,1);assert.equal(b.finite,true);assert.ok(a.images.every(i=>i.width===2048&&i.height===2048));assert.equal(b.images.length,3);assert.ok(b.images.every(i=>i.width===1024&&i.height===1024));
   assert.deepEqual(b.bounds,a.bounds);assert.equal(b.bounds.min[1],0);assert.deepEqual(b.externalResources,[]);assert.deepEqual(b.extensionsUsed,[]);assert.equal(b.animations,0);assert.equal(b.skins,0);
   assert.ok(b.normalization.maximumRadius>.85&&b.normalization.maximumRadius<=.856);assert.equal(b.normalization.targetHeight,1.9);assert.ok(b.normalization.dimensions[0]>1.66);
   const {inspectGlb}=await import(pathToFileURL(path.join(root,'ProjectDelve.Web/wwwroot/three-models.js')));assert.equal(inspectGlb(runtime.buffer.slice(runtime.byteOffset,runtime.byteOffset+runtime.byteLength)).nodes.length,1);

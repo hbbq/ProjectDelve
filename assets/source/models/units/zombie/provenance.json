@@ -24,8 +24,8 @@
   },
   "runtime": {
     "path": "ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb",
-    "bytes": 4466452,
-    "sha256": "c3f15a9e0be475aebf336ca0ed5704f5dbfc2b323e8446711f642e352b6bea79"
+    "bytes": 3789900,
+    "sha256": "07fb0b8d3fee6139503f0fd8df375c93f1e7bb335fa18589c76760a28b135e24"
   },
   "preparation": {
     "tool": "tools/prepare-unit-model.cjs",
@@ -35,10 +35,15 @@
       "Verify reviewed source hash",
       "Reject actual extension payloads; remove unused exporter extension declarations",
       "Add source-hash metadata and rebuild JSON chunk deterministically",
-      "Preserve all geometry and three original 2048x2048 embedded textures",
-      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+      "Resize three embedded maps from 2048x2048 to 1024x1024 with Pillow LANCZOS; lossless PNG, compression level 9; preserve alpha channels",
+      "Repack aligned buffer views preserving geometry, UVs, materials and texture bindings",
+      "Runtime ground-centers and uniformly normalizes to unchanged catalog targetHeight"
     ],
-    "orientation": "+Y up; +Z forward verified after observed positive-Z Move in restricted Edge, inspection-gJ8m1Q/move-positive-z-front.png"
+    "orientation": "+Y up; +Z forward verified after observed positive-Z Move in restricted Edge, inspection-gJ8m1Q/move-positive-z-front.png",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng"
   },
   "rightsReview": {
     "date": "2026-10-27",
@@ -171,5 +176,50 @@
       ]
     },
     "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; all 21 batch runtime maps exactly match expected LANCZOS output at 1024x1024. RGB channels and OPAQUE semantics preserved. Geometry buffer bytes, UVs/accessors, hierarchy, transforms, materials and texture bindings match previous runtime. Khronos errors zero; restricted Edge models ready."
+  },
+  "textureStandardization": {
+    "date": "2026-10-28",
+    "previousRuntime": {
+      "path": "ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb",
+      "bytes": 4466452,
+      "sha256": "c3f15a9e0be475aebf336ca0ed5704f5dbfc2b323e8446711f642e352b6bea79"
+    },
+    "sourceSha256Unchanged": "9f3804e8fc44deccf126efdec1f8babe2564adff45b4c53fbd131ef1a3823eb3",
+    "textureDimensionsBefore": [
+      2048,
+      2048
+    ],
+    "textureDimensionsAfter": [
+      1024,
+      1024
+    ],
+    "estimatedRgbaMipMiBBefore": 64,
+    "estimatedRgbaMipMiBAfter": 16,
+    "evidence": "THREE_VIEWPORT.md: Runtime texture standardization to 1024",
+    "visualReview": {
+      "date": "2026-10-28",
+      "before": "inspection-KSgUYW; inspection-bVCuSi",
+      "after": "inspection-5y0TpH; inspection-UnesCR",
+      "lying": "inspection-4fb5bn",
+      "representativeFacing": "inspection-mLHimf (Cleric)",
+      "representativeFoW": "inspection-Sc1bnf (Cleric)",
+      "findings": "No noticeable normal-zoom loss of skin, clothing or painted detail with Lighting On/Off; no alpha artifacts. No visual metadata adjustments or unexpected settled resource changes.",
+      "evidence": "THREE_VIEWPORT.md: Runtime texture standardization to 1024"
+    }
   }
 }

@@ -31,7 +31,7 @@ supplemental terms and an export receipt were not supplied.
 | | Bytes | SHA-256 |
 | --- | ---: | --- |
 | Original | 4,370,304 | `fa1efdf52d87635dbce4fbf45784057d9dfb24b8fe88a90b518528f9f3788b33` |
-| Runtime | 4,370,372 | `e1eb5e1bac81f2e5f622214a91effaa50ddbc0bafe0312c4bb8071c27835e846` |
+| Runtime | 3,522,536 | `9bc1970d2ca0d51c3b14693b068c3b8f6f305a86df6e2a2e24ba7b8974f51274` |
 
 Runtime: `ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb`.
 Catalog ID: `troll/v1`, version `tripo-v1`, Type `troll-type`.
@@ -47,13 +47,14 @@ The inspection CLI defaults to 1.20 height. To reproduce the Troll measurements,
 call the exported `inspect(file, 1.9)` function. Preparation uses the unchanged
 reusable tool, removes only unused `KHR_materials_volume` and `FB_ngon_encoding`
 declarations, and records the source hash. There are no actual extension payloads.
-The binary chunk, geometry and image bytes are retained; there is no regeneration,
-simplification, map resizing or nonuniform scaling.
+Geometry bytes, UVs and material bindings are retained. Embedded runtime maps
+are resized from 2048x2048 to 1024x1024 with the existing texture-limit option.
+There is no regeneration, simplification, axis correction or nonuniform scaling.
 
 ## Validation and dimensions
 
 glTF 2.0; one default scene, one identity-transform root node, one mesh, one
-triangle primitive, 9,504 triangles and one opaque PBR material. Three embedded
+triangle primitive, 9,504 triangles and one opaque PBR material. Three source
 2048x2048 maps: JPEG base color (1,013,307 bytes), JPEG metallic/roughness
 (720,723), PNG normal (2,310,267). Attributes: POSITION, NORMAL, TEXCOORD_0.
 No external resources, animation, skin, morph, authored base, camera or light.
@@ -84,14 +85,28 @@ The source additionally has an informational message for the unsupported unused
 `FB_ngon_encoding` declaration, removed in runtime. Full reports are local QA
 artifacts `.playwright-cli/troll-{source,runtime}-validation.json`.
 The 9,504 triangles exceed the advisory 8,000 target, within the 12,000 hard limit.
-Transfer size and texture memory exceed preferred defaults; measured local
-performance supports retaining the supplied content unchanged.
+Runtime maps now use the standard 1024 limit, reducing estimated RGBA plus
+mipmaps from 64 to 16 MiB. Geometry remains within the existing hard budget.
 
 ## Integration and verification
 
 `THREE_VIEWPORT.md`, section "Production Troll", contains implementation details,
 performance, screenshots, verification results and remaining QA limitations.
 Upright Trolls use the ordinary approved cache; Lying, loading and failed models
-use Cardboard. Zombie retains its H3.1 bytes and registration. No model-specific
+use Cardboard. Zombie retains its H3.1 source and registration. No model-specific
 renderer branches, Engine/server-observation implementation changes, logical
 footprint changes or rules changes were made.
+
+## Runtime texture standardization — 2026-10-28
+
+Runtime: **3,522,536 bytes**, SHA-256
+`9bc1970d2ca0d51c3b14693b068c3b8f6f305a86df6e2a2e24ba7b8974f51274`.
+The source hash is unchanged. `preparation.textureLimit: 1024` drives the same
+`prepare-unit-model.cjs` command above; `--check` reproduces these bytes using
+Python 3.14.7, Pillow 13.0.0 and zlib 1.3.1.zlib-ng. All three embedded runtime
+channels are 1024x1024; geometry, materials, orientation and visual dimensions
+remain unchanged. These images are RGB and the material remains OPAQUE.
+Khronos validation: zero errors, unchanged generated-tangent-space warning.
+Estimated RGBA plus mipmaps: 64 to 16 MiB; this is not measured GPU allocation.
+See `THREE_VIEWPORT.md`, "Runtime texture standardization to 1024", for batch
+sizes, visual evidence, reproducibility and Release publish verification.

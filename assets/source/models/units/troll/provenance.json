@@ -24,8 +24,8 @@
   },
   "runtime": {
     "path": "ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb",
-    "bytes": 4370372,
-    "sha256": "e1eb5e1bac81f2e5f622214a91effaa50ddbc0bafe0312c4bb8071c27835e846"
+    "bytes": 3522536,
+    "sha256": "9bc1970d2ca0d51c3b14693b068c3b8f6f305a86df6e2a2e24ba7b8974f51274"
   },
   "preparation": {
     "tool": "tools/prepare-unit-model.cjs",
@@ -35,10 +35,15 @@
       "Verify reviewed source hash",
       "Reject actual extension payloads; remove unused exporter extension declarations",
       "Add source-hash metadata and rebuild JSON chunk deterministically",
-      "Preserve all geometry and three original 2048x2048 embedded textures",
-      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+      "Resize three embedded maps from 2048x2048 to 1024x1024 with Pillow LANCZOS; lossless PNG, compression level 9; preserve alpha channels",
+      "Repack aligned buffer views preserving geometry, UVs, materials and texture bindings",
+      "Runtime ground-centers and uniformly normalizes to unchanged catalog targetHeight"
     ],
-    "orientation": "+Y up; +Z forward verified after a canonical positive-Z Move in restricted Edge: inspection-1Pvzxc/move-positive-z-front.png. Minimum Y is zero; runtime places feet at the procedural base top."
+    "orientation": "+Y up; +Z forward verified after a canonical positive-Z Move in restricted Edge: inspection-1Pvzxc/move-positive-z-front.png. Minimum Y is zero; runtime places feet at the procedural base top.",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng"
   },
   "rightsReview": {
     "date": "2026-10-27",
@@ -195,6 +200,36 @@
     },
     "warning": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE: no authored tangents; tangent space generated at rendering time may vary between implementations.",
     "sourceInfo": "Unused FB_ngon_encoding declaration is unsupported by the validator; removed by preparation.",
-    "runtimeChecks": "Core static GLB preflight, finite geometry/attributes/indices, positive transforms, budgets, uniform normalization and embedded image decoding verified. Runtime ready in restricted Edge."
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; all 21 batch runtime maps exactly match expected LANCZOS output at 1024x1024. RGB channels and OPAQUE semantics preserved. Geometry buffer bytes, UVs/accessors, hierarchy, transforms, materials and texture bindings match previous runtime. Khronos errors zero; restricted Edge models ready."
+  },
+  "textureStandardization": {
+    "date": "2026-10-28",
+    "previousRuntime": {
+      "path": "ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb",
+      "bytes": 4370372,
+      "sha256": "e1eb5e1bac81f2e5f622214a91effaa50ddbc0bafe0312c4bb8071c27835e846"
+    },
+    "sourceSha256Unchanged": "fa1efdf52d87635dbce4fbf45784057d9dfb24b8fe88a90b518528f9f3788b33",
+    "textureDimensionsBefore": [
+      2048,
+      2048
+    ],
+    "textureDimensionsAfter": [
+      1024,
+      1024
+    ],
+    "estimatedRgbaMipMiBBefore": 64,
+    "estimatedRgbaMipMiBAfter": 16,
+    "evidence": "THREE_VIEWPORT.md: Runtime texture standardization to 1024",
+    "visualReview": {
+      "date": "2026-10-28",
+      "before": "inspection-KSgUYW; inspection-bVCuSi",
+      "after": "inspection-5y0TpH; inspection-UnesCR",
+      "lying": "inspection-4fb5bn",
+      "representativeFacing": "inspection-mLHimf (Cleric)",
+      "representativeFoW": "inspection-Sc1bnf (Cleric)",
+      "findings": "No noticeable normal-zoom loss of skin, clothing or painted detail with Lighting On/Off; no alpha artifacts. No visual metadata adjustments or unexpected settled resource changes.",
+      "evidence": "THREE_VIEWPORT.md: Runtime texture standardization to 1024"
+    }
   }
 }

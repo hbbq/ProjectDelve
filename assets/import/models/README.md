@@ -62,8 +62,14 @@ Pillow is an offline preparation/test dependency only; normal build, publish and
 browser loading use checked-in GLBs and require neither Python nor a new package.
 The full client suite's optimized-export reproduction tests need this toolchain.
 
-The remaining 19-model batch on 2026-10-28 uses 1024-square maps after Tabletop
-visual review. The seven earlier approved runtime/source exports are unchanged.
+All 26 production miniatures now use runtime maps limited to 1024 pixels after
+Tabletop review. The remaining 19-model batch was prepared with that option at
+import; the seven earlier runtimes were subsequently reprepared from unchanged
+archived originals using their updated `preparation.textureLimit: 1024` records.
+For an existing approved model, use its provenance-driven preparation command
+below; the inbox importer deliberately refuses to overwrite an existing asset.
+Update the reviewed runtime hash/size, preparation and validation records, and
+descriptor texture budget together. Preserve all visual dimensions/references.
 All 19 passed; Royal King's .033071 Cell contact margin falls .006929 short of the
 preferred .04 margin but fits its base and hard radius. No dimension changes.
 See `THREE_VIEWPORT.md` for the full inventory, provenance, measurements and QA.

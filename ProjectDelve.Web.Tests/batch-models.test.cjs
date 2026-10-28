@@ -12,10 +12,10 @@ test('batch production catalog preserves authored dimensions, paid provenance, h
   assert.deepEqual([u.targetHeight,u.maximumRadius,u.baseRadius],dimensions[slug]);assert.equal(u.model,slug+'/v1');assert.equal(d.approved,true);assert.equal(d.url,`./art/models/units/${slug}/v1/${slug}.glb`);assert.equal(resolveUnitModel(catalog,u.typeId,2),null);
   assert.equal(p.status,'approved-production');assert.equal(p.generator,'Tripo');assert.equal(p.plan,'Pro');assert.equal(p.generationModel,'unknown');assert.ok(p.planEvidence);assert.equal(p.commerciallyCleared,true);assert.equal(p.redistributionRightsConfirmed,true);
   for(const ref of [p.projectPortraitReference,...p.projectConceptReferences])assert.ok(read(ref).length);
-  const source=read(p.original.path),runtime=read(p.runtime.path);assert.equal(hash(source),p.original.sha256);assert.equal(hash(runtime),p.runtime.sha256);assert.equal(p.import.sha256BeforeMove,p.original.sha256);assert.equal(p.import.sha256AfterMove,p.original.sha256);assert.deepEqual(prepare(source,p.original.sha256),runtime);
+  const source=read(p.original.path),runtime=read(p.runtime.path);assert.equal(hash(source),p.original.sha256);assert.equal(hash(runtime),p.runtime.sha256);assert.equal(p.import.sha256BeforeMove,p.original.sha256);assert.equal(p.import.sha256AfterMove,p.original.sha256);assert.equal(p.preparation.textureLimit,1024);assert.equal(d.maxTextureDimension,1024);assert.deepEqual(prepare(source,p.original.sha256,p.preparation),runtime);require('./fixtures/miniatures/assert-texture-preparation.cjs')(source,runtime);
   assert.equal(source.length,p.original.bytes);assert.equal(runtime.length,p.runtime.bytes);assert.equal(p.validation.source.errors,0);assert.equal(p.validation.runtime.errors,0);
   const a=await inspect(path.join(root,p.original.path),u.targetHeight),b=await inspect(path.join(root,p.runtime.path),u.targetHeight);
-  assert.equal(b.triangles,triangles[slug]);assert.equal(b.meshes,1);assert.equal(b.primitives,1);assert.equal(b.materials.length,1);assert.equal(b.images.length,3);assert.ok(b.images.every(i=>i.width===2048&&i.height===2048));assert.deepEqual(a.images,b.images);assert.deepEqual(a.bounds,b.bounds);
+  assert.equal(b.triangles,triangles[slug]);assert.equal(b.meshes,1);assert.equal(b.primitives,1);assert.equal(b.materials.length,1);assert.equal(b.images.length,3);assert.ok(b.images.every(i=>i.width===1024&&i.height===1024));assert.ok(a.images.every(i=>i.width===2048&&i.height===2048));assert.deepEqual(a.bounds,b.bounds);
   assert.equal(b.bounds.min[1],0);assert.equal(b.finite,true);assert.equal(b.hierarchy[0].determinant,1);assert.equal(b.animations,0);assert.equal(b.skins,0);assert.deepEqual(b.externalResources,[]);assert.deepEqual(b.extensionsUsed,[]);assert.ok(b.normalization.maximumRadius<u.maximumRadius);
   assert.ok(miniatureBaseLayout({baseRadius:u.baseRadius,contact:b.normalization.contact}).fitsContact);assert.equal(inspectGlb(runtime.buffer.slice(runtime.byteOffset,runtime.byteOffset+runtime.byteLength)).nodes.length,1);
  }
@@ -39,7 +39,7 @@ for(const textureLimit of [null,1024])test(`reviewed inbox import (${textureLimi
   const base='assets/source/models/units/goblin',catalogPath='ProjectDelve.Web/wwwroot/art/models/unit-visuals.json',p=JSON.parse(read(base+'/provenance.json')),catalog=JSON.parse(read(catalogPath));
   p.status='reviewed-import';catalog.models=catalog.models.filter(m=>m.id!=='goblin/v1');delete catalog.units.find(u=>u.typeId==='goblin-type').model;
   const runtime=require('../tools/prepare-unit-model.cjs').prepare(read(p.original.path),p.original.sha256,{textureLimit});
-  if(textureLimit){p.preparation.textureLimit=textureLimit;p.runtime.sha256=hash(runtime);}
+  p.preparation.textureLimit=textureLimit;p.runtime.sha256=hash(runtime);
   for(const dir of ['assets/import/models',base,'ProjectDelve.Web/wwwroot/art/models'])fs.mkdirSync(path.join(tmp,dir),{recursive:true});
   const catalogText=JSON.stringify(catalog,null,2).replace('"targetHeight": 0.7,','"targetHeight": 0.700,')+'\n';
   fs.writeFileSync(path.join(tmp,catalogPath),catalogText);fs.writeFileSync(path.join(tmp,base,'provenance.json'),JSON.stringify(p));fs.writeFileSync(path.join(tmp,'assets/import/models/goblin.glb'),read(p.original.path));
