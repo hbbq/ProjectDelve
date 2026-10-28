@@ -1758,3 +1758,239 @@ reference artwork is used in provenance, without modification.
 **No Engine or server observation implementation files changed.** No renderer
 implementation, rules, logical footprint, authored scenario or `CONSTRAINTS.md`
 changes. Zombie/Troll source/runtime assets and registrations remain unchanged.
+
+## Remaining 19 Tripo miniatures — 2026-10-28
+
+All 19 supplied models passed and are approved ordinary production miniatures:
+Bomb Imp, Castle Guard, Chief Mechanic, Displacer Demon, Geomancer, Goblin Bishop,
+Goblin King, Goblin Peasant, Grunt, Labyrinth Shaper, Rogue, Royal Bishop, Royal King,
+Royal Peasant, Royal Queen, Shaman, Skeleton Archer, Witch Queen and Wizard.
+Production total is **26**; none deferred. Initial working tree was clean. All
+inbox GLBs mapped exactly to canonical `<slug>-type` IDs. The importer moved each
+success into its archive only after exclusive writes, review/hash checks and
+registration. Inbox now contains only its README; unrelated files were preserved.
+The seven earlier model descriptors, sources and runtime exports are unchanged.
+
+### Assets, compatibility and provenance
+
+For each slug: source `assets/source/models/units/<slug>/original.glb`, reviewed
+`provenance.json` and README beside it; runtime
+`ProjectDelve.Web/wwwroot/art/models/units/<slug>/v1/<slug>.glb`. Normal catalog
+registration is `<slug>/v1`, export version `tripo-v1`, canonical Type
+`<slug>-type`. That export version does not identify an inferred Tripo model.
+Source total **83,036,920 bytes**, prepared total **70,743,464 bytes**; **179,962
+model triangles**. Every original and prepared SHA-256, equal before/after-move
+source hash, byte count and exact source/runtime path is recorded per asset.
+
+All have one static identity root, mesh, triangle primitive and opaque PBR material;
+finite POSITION/NORMAL/UV data, minimum Y zero and positive determinant. No skins,
+animations, cameras, external resources or actual extension payloads. The 12,000
+triangle and two-primitive safety limits are unchanged. Runtime descriptor image
+budget is 1024; source inspection retains the existing 2048 input budget.
+Khronos glTF Validator **2.0.0-dev.3.10** reports **zero errors for all 38 original/
+runtime validations**, one generated-tangent-space warning per file. Original
+unused FB_ngon_encoding information is removed by preparation. All **114 source/
+runtime images** fully decoded in Pillow; all runtime maps also decoded in Edge.
+Generated tangents remain a portability advisory. Eighteen models exceed the
+advisory 8,000 triangles; Witch Queen has 7,982. Transfer sizes still exceed the
+preferred budget, without violating the hard contract.
+
+All **targetHeight, maximumRadius and baseRadius values are unchanged**. No hard
+radius incompatibility occurred, no model was distorted, and all logical
+footprints remain 1x1. Royal King's low cape leaves .033071 Cell contact margin,
+.006929 short of the preferred .04; actual .286929 radius fits its .32 base and
+.40 hard allowance. This is advisory and does not justify changing metadata.
+
+| Slug | Source / runtime bytes | Triangles | Height | Actual / allowed radius | Base radius | Contact margin |
+| --- | ---: | ---: | ---: | --- | ---: | ---: |
+| bomb-imp | 3,959,800 / 3,538,080 | 9,686 | 0.48 | 0.140792 / 0.28 | 0.24 | 0.099208 |
+| castle-guard | 4,985,892 / 4,098,848 | 9,486 | 0.85 | 0.241564 / 0.43 | 0.34 | 0.117241 |
+| chief-mechanic | 4,118,084 / 3,575,316 | 9,491 | 0.73 | 0.166323 / 0.4 | 0.31 | 0.143677 |
+| displacer-demon | 3,664,392 / 3,345,168 | 9,621 | 0.98 | 0.229132 / 0.44 | 0.38 | 0.169524 |
+| geomancer | 3,979,992 / 3,559,332 | 9,064 | 0.75 | 0.222927 / 0.38 | 0.31 | 0.131907 |
+| goblin-bishop | 4,285,600 / 3,663,172 | 9,534 | 0.65 | 0.170698 / 0.34 | 0.28 | 0.127981 |
+| goblin-king | 4,626,160 / 3,959,616 | 9,416 | 0.68 | 0.232973 / 0.35 | 0.3 | 0.114005 |
+| goblin-peasant | 4,930,644 / 4,037,536 | 9,482 | 0.55 | 0.136749 / 0.32 | 0.27 | 0.137225 |
+| grunt | 4,957,448 / 3,898,076 | 9,413 | 0.78 | 0.261202 / 0.42 | 0.34 | 0.117170 |
+| labyrinth-shaper | 3,786,568 / 3,521,404 | 9,386 | 0.85 | 0.223506 / 0.4 | 0.33 | 0.106494 |
+| rogue | 3,694,768 / 3,255,080 | 9,724 | 0.73 | 0.191604 / 0.36 | 0.3 | 0.142652 |
+| royal-bishop | 4,172,584 / 3,691,788 | 9,476 | 0.85 | 0.194069 / 0.38 | 0.31 | 0.144090 |
+| royal-king | 4,397,552 / 3,742,112 | 9,982 | 0.83 | 0.286929 / 0.4 | 0.32 | 0.033071 |
+| royal-peasant | 3,803,180 / 3,250,292 | 9,832 | 0.7 | 0.152827 / 0.36 | 0.3 | 0.147173 |
+| royal-queen | 5,000,436 / 4,265,064 | 9,702 | 0.83 | 0.244687 / 0.4 | 0.32 | 0.075313 |
+| shaman | 4,959,892 / 4,015,216 | 9,401 | 0.68 | 0.171510 / 0.36 | 0.29 | 0.144795 |
+| skeleton-archer | 3,639,420 / 3,356,972 | 9,484 | 0.73 | 0.184746 / 0.36 | 0.29 | 0.143180 |
+| witch-queen | 6,074,996 / 4,572,140 | 7,982 | 0.73 | 0.240341 / 0.4 | 0.31 | 0.069659 |
+| wizard | 3,999,512 / 3,398,252 | 9,800 | 0.8 | 0.210156 / 0.38 | 0.32 | 0.161439 |
+
+The owner confirms paid Pro generation for this exact batch. Provenance reuses
+the established paid-user rights review, with one shared check of
+[Tripo terms](https://www.tripo3d.ai/terms) (still 2025-07-11, 5.2.2) and
+[Pro commercial-use pricing](https://www.tripo3d.ai/pricing). Restrictions and
+third-party-rights limits remain recorded. Generation-time supplemental terms,
+model/version, date, settings, selected inputs and export receipt are unknown.
+Existing project portraits/reference sheets are recorded without inventing input
+history, public asset licensing or exclusive copyright.
+
+### Short texture investigation and reusable preparation option
+
+All three maps have a role: base color in both material variants; normal and
+metallic/roughness in Lighting On. Lighting Off uses the shared base color and
+does not free the other maps. There is no requirement to keep all three at 2048.
+At inspected normal Tabletop zoom and close detail zoom, **1024-square maps are
+sufficient**: bow, thin limbs, staff/crystals, large hats, horns, armor and costume
+detail remain readable. This is visual approval, not a formal image-diff claim;
+extreme zoom can expose reduced texel detail.
+
+The existing preparation path now accepts optional `--texture-limit 1024` in
+`import-unit-models.cjs`, recorded as `preparation.textureLimit`. One generic
+offline helper uses installed Pillow: fully decode, aspect-preserving LANCZOS,
+lossless PNG at compression 9, aligned buffer-view repack. No upscaling. Geometry
+bytes, materials, bindings and originals remain unchanged. Omitted configuration
+reproduces all seven earlier exports exactly. Limits 256/512/1024/2048 are
+configurable; no per-Type renderer branches, new browser dependencies, model
+framework or compression service. Reproduction uses Python **3.14.7**, Pillow
+**13.0.0**, zlib **1.3.1.zlib-ng**; configure `PROJECTDELVE_PYTHON` if Python is not
+on PATH. These are offline preparation/test prerequisites, not shipping/runtime
+requirements. Reviewed hashes and the limit must match before apply.
+
+Current runtime preflight accepts only core static GLB and embedded PNG/JPEG,
+rejecting extension declarations. No KTX2/Basis transcoder or compressed-texture
+loader is configured. PNG/JPEG reduce transfer bytes, not decoded GPU allocation.
+GPU texture compression would require a separately justified preparation/loader
+change; none is introduced here.
+
+Estimated RGBA plus mipmaps falls **64 → 16 MiB per new model**, **1,216 → 304 MiB
+for these 19** (75%, 912 MiB saved). Existing seven remain 448 MiB of models,
+approximately 459 MiB in the earlier scene. Loading all 26 distinct models would
+retain **752 MiB for model maps**, plus board/portrait textures; the catalog does
+not eagerly load unused models. Additional instances share textures/geometry.
+Distinct loaded sources accumulate by URL/version until viewport disposal:
+removing figures, changing scenario or switching representation does **not** evict
+ready sources. Viewport disposal disposes unique geometry/material pairs/textures
+and closes image bitmaps; late loads are disposed too. Existing CPU lifecycle tests
+verify this ownership. Browser reload/context teardown releases the old context;
+driver-level VRAM reclamation timing was not measured. No new eviction policy.
+
+### Restricted Edge visual and gameplay evidence
+
+Isolated Production host on **5081**; existing **5080 PID 30892** preserved. All
+plans use the protected dispatcher without permission/runner changes, fresh Edge
+contexts, ordinary production registrations and test-owned scenarios. Generate
+with `node tools/batch-model-qa-plans.cjs --remaining`. Move/Attack/picking
+fixtures retain the previous simple test-owned stat overrides; no game rules or
+real/playtest scenarios are edited. Canonical detail/mixed/posture fixtures retain
+real Types. Four camera directions were captured and inspected for **every model**.
+All model-specific findings and evidence are in each provenance record/README.
+
+| Slug | Four-direction scan | Positive-Z Move |
+| --- | --- | --- |
+| bomb-imp | eSegGY | qg3wKF |
+| castle-guard | dhOVEH | sampled below |
+| chief-mechanic | ulAWu9 | sampled below |
+| displacer-demon | Mm2rUl | Bjms5y |
+| geomancer | 1I9CIA | 6A0Kot |
+| goblin-bishop | eh7OIo | p9wJ6R |
+| goblin-king | HwtJEz | sampled below |
+| goblin-peasant | NFjjWJ | sampled below |
+| grunt | of6lgA | sampled below |
+| labyrinth-shaper | bi15R0 | sampled below |
+| rogue | xJfZfd | sampled below |
+| royal-bishop | mrpRzU | sampled below |
+| royal-king | 2hIpB7 | LGbapS |
+| royal-peasant | gTa02E | sampled below |
+| royal-queen | IcTk4Q | vP8ZDw |
+| shaman | 2Thlg9 | sampled below |
+| skeleton-archer | azzpSn | sk2qWh |
+| witch-queen | 3YXsXO | sampled below |
+| wizard | b25CVo | sampled below |
+
+Entries are `inspection-` directory suffixes below `.playwright-cli/browser-qa/`.
+Representative interaction captures:
+
+| Type | Attack facing | Lying/restored | Hidden/entered/left FoW | Canvas picking |
+| --- | --- | --- | --- | --- |
+| bomb-imp | CwC2xI | G4mi1O | D7W8zw | fTfUST |
+| skeleton-archer | bGivUF | WsgcVx | gVW60F | duiq8L |
+| royal-king | yp95Bf | nvmvvI | pPRIEr | aAXAsg |
+| royal-queen | CioDN2 | GBe494 | 801LAw | 3y1EJa |
+| goblin-bishop | vJqwDP | bh1ytK | y0ulII | 1Edc9v |
+| geomancer | leJyAS | KQolBw | U1Buuy | 12GB5C |
+| displacer-demon | 1reX0b | X3Cgjw | a87cmr | nMXuMy |
+
+Bomb Imp stays small at .48 height; Skeleton Archer retains bow/thin limbs;
+Royal costumes and Goblin Bishop headgear are intact; Geomancer's staff/crystals
+and Displacer Demon's horns/armor survive. Contact, grounding at base top, Side
+colors, facing after observed Move/Attack, logical picking, Lying Cardboard
+fallback and restored miniature, FoW absence/reappearance and camera following
+were inspected. CPU actual-geometry tests now exercise all 19 in both projection
+pick paths, all yaw quadrants, lighting and discontinuous FoW movement clipping.
+
+Mixed capture **fY1GPM** covers 38 figures, perspective/orthographic, angled/side/
+rear/overhead, Lighting On/Off and 600x850 narrow layout. Its early captures show
+some expected loading fallback; later side/rear/narrow views show loaded models.
+**6Yt1MD** covers repeated Cardboard/Miniatures and Classic/Enhanced/Flat/Tabletop
+switches, cache reuse and restart. Initial reload **INqCp1** caught loading;
+**oPstXB/restored.png** verifies all 38 loaded after reload. **e2vUvy** verifies
+fully loaded Lighting Off and a narrow layout; its Developer drawer intentionally
+overlays the board, while fY1GPM shows ordinary narrow controls. No console errors
+or failed asset requests. Refresh/scenario replacement aborts superseded SSE
+requests as expected. Local QA maps, validation reports, timing JSON and reviewed
+contact sheets are in `.playwright-cli/remaining-models/` (ignored evidence).
+
+### Bounded mixed-scene measurements
+
+Headed Edge, 1440x1000, test-owned 12x10 (19) / 12x16 (38) StoneFloor boards,
+19 distinct models, perspective 65 degrees and Lighting On. One figure per Type,
+then one per Side per Type. Reset timing and eight alternating camera rotations.
+All model cache entries are ready. Counts include board, bases and feedback.
+
+| Figures | Draw calls | Scene triangles | CPU render p95 ms | Frame interval p95 ms | Camera samples | Evidence |
+| ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 19 | 83 | 182,812 | 1.7 | 16.7 | 12 | SyBEpy |
+| 38 | 159 | 365,502 | 14.6 | 16.8 | 17 | IdFTpT |
+| 38 repeat | 159 | 365,502 | 2.1 | 16.7 | 12 | e2vUvy |
+
+The first 38 sample has a high p95 but 2.0 ms median; repeat median 1.9 ms. Small
+sample counts and startup/browser scheduling make these variable. These are CPU
+submission/frame-interval measurements, **not GPU timing, sustained FPS or low-end
+performance claims**. All scenes retain **331.92 MiB estimated textures**, **97
+uploaded textures, 35 geometries and eight programs** in the warm lit snapshot.
+There are 19 shared model geometries, 38 lit/Off material variants and 57 shared
+model textures (304 MiB), one fetch per model independent of instance count.
+Other texture memory includes loaded portraits/glyphs/board. Scene material count
+115 (19 figures) / 119 (38) includes Side variants. Lighting Off uploads additional
+program variants without duplicating maps. Switch/restart keeps cached sources.
+
+19-figure fetch/decode/ready ranges: **54–361 / 569–895 / 844–1,157 ms**;
+38 figures: **230–1,080 / 462–1,111 / 1,093–1,581 ms**. Concurrent decode and
+localhost/browser cache affect these figures; they are not isolated network
+benchmarks. Exact per-model timings are in the local performance JSON.
+
+### Automated verification and remaining gaps
+
+Focused asset/catalog/importer/viewport tests and follow-up checks pass. Coverage
+binds every new registration to original/runtime hashes and unchanged dimensions,
+compares geometry buffer bytes/accessors/hierarchy/material bindings, reproduces
+1024 exports, checks optimized importer review/hash mismatch rejection and
+exclusive/idempotent writes, and exercises actual geometry sharing, grounding,
+facing, picking, Posture, FoW clipping and disposal. Existing Zombie/Troll and first
+batch tests still pass; fallback tests now use a missing test-owned Type instead
+of assuming Grunt remains unregistered. Source/runtime reproduction passes for
+all **26** exports. The optional preparation dependency is required for optimized
+reproduction tests; normal .NET builds/publish do not invoke it.
+
+Full client/security suite: **589 passed**, zero failed/skipped. Full .NET suite:
+**1,601 Engine + 384 Web = 1,985 passed**, zero failures/skips. Debug and Release
+solution builds: **zero warnings/errors**. Actual Release publish, both fixture
+and ordinary: **exactly 26 production GLBs**, exact catalog/loader assets and
+provenance-bound runtime hashes/budgets, no source assets or QA fixtures in normal
+shipping output. Repeat importer on the empty inbox does no work.
+
+Remaining manual gaps: native touch, frame-exact transient FoW pixel assertions,
+injected real-driver context loss/network failures, measured GPU/driver memory
+reclamation, sustained/low-end performance and formal 2048/1024 image-diff quality
+comparison. Very small/distant/narrow models naturally lose readable equipment
+detail. CPU geometry/lifecycle/failure tests cover the corresponding contracts
+where applicable. **No Engine or server observation implementation files, gameplay
+rules, CONSTRAINTS.md or runtime renderer implementation files changed.**

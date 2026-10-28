@@ -1,0 +1,154 @@
+{
+    "bomb-imp":  {
+                     "dimensions":  [
+                                        0.48,
+                                        0.28,
+                                        0.24
+                                    ],
+                     "triangles":  9686
+                 },
+    "castle-guard":  {
+                         "dimensions":  [
+                                            0.85,
+                                            0.43,
+                                            0.34
+                                        ],
+                         "triangles":  9486
+                     },
+    "chief-mechanic":  {
+                           "dimensions":  [
+                                              0.73,
+                                              0.4,
+                                              0.31
+                                          ],
+                           "triangles":  9491
+                       },
+    "displacer-demon":  {
+                            "dimensions":  [
+                                               0.98,
+                                               0.44,
+                                               0.38
+                                           ],
+                            "triangles":  9621
+                        },
+    "geomancer":  {
+                      "dimensions":  [
+                                         0.75,
+                                         0.38,
+                                         0.31
+                                     ],
+                      "triangles":  9064
+                  },
+    "goblin-bishop":  {
+                          "dimensions":  [
+                                             0.65,
+                                             0.34,
+                                             0.28
+                                         ],
+                          "triangles":  9534
+                      },
+    "goblin-king":  {
+                        "dimensions":  [
+                                           0.68,
+                                           0.35,
+                                           0.3
+                                       ],
+                        "triangles":  9416
+                    },
+    "goblin-peasant":  {
+                           "dimensions":  [
+                                              0.55,
+                                              0.32,
+                                              0.27
+                                          ],
+                           "triangles":  9482
+                       },
+    "grunt":  {
+                  "dimensions":  [
+                                     0.78,
+                                     0.42,
+                                     0.34
+                                 ],
+                  "triangles":  9413
+              },
+    "labyrinth-shaper":  {
+                             "dimensions":  [
+                                                0.85,
+                                                0.4,
+                                                0.33
+                                            ],
+                             "triangles":  9386
+                         },
+    "rogue":  {
+                  "dimensions":  [
+                                     0.73,
+                                     0.36,
+                                     0.3
+                                 ],
+                  "triangles":  9724
+              },
+    "royal-bishop":  {
+                         "dimensions":  [
+                                            0.85,
+                                            0.38,
+                                            0.31
+                                        ],
+                         "triangles":  9476
+                     },
+    "royal-king":  {
+                       "dimensions":  [
+                                          0.83,
+                                          0.4,
+                                          0.32
+                                      ],
+                       "triangles":  9982
+                   },
+    "royal-peasant":  {
+                          "dimensions":  [
+                                             0.70,
+                                             0.36,
+                                             0.3
+                                         ],
+                          "triangles":  9832
+                      },
+    "royal-queen":  {
+                        "dimensions":  [
+                                           0.83,
+                                           0.4,
+                                           0.32
+                                       ],
+                        "triangles":  9702
+                    },
+    "shaman":  {
+                   "dimensions":  [
+                                      0.68,
+                                      0.36,
+                                      0.29
+                                  ],
+                   "triangles":  9401
+               },
+    "skeleton-archer":  {
+                            "dimensions":  [
+                                               0.73,
+                                               0.36,
+                                               0.29
+                                           ],
+                            "triangles":  9484
+                        },
+    "witch-queen":  {
+                        "dimensions":  [
+                                           0.73,
+                                           0.4,
+                                           0.31
+                                       ],
+                        "triangles":  7982
+                    },
+    "wizard":  {
+                   "dimensions":  [
+                                      0.80,
+                                      0.38,
+                                      0.32
+                                  ],
+                   "triangles":  9800
+               }
+}

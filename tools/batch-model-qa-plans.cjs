@@ -2,11 +2,12 @@
 // catalog only; mutable playtest scenarios and shipped registrations stay intact.
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
 require('./troll-qa-plans.cjs');
-const {setup}=require('./miniature-qa-plans.cjs'),out=path.resolve(__dirname,'../.playwright-cli/batch-qa');fs.mkdirSync(out,{recursive:true});
-const slugs=['goblin','barbarian','cleric','hobby-knight','worker','zombie','troll'];
+const remaining=process.argv.includes('--remaining');
+const {setup}=require('./miniature-qa-plans.cjs'),out=path.resolve(__dirname,remaining?'../.playwright-cli/remaining-qa':'../.playwright-cli/batch-qa');fs.mkdirSync(out,{recursive:true});
+const slugs=remaining?['bomb-imp','castle-guard','chief-mechanic','displacer-demon','geomancer','goblin-bishop','goblin-king','goblin-peasant','grunt','labyrinth-shaper','rogue','royal-bishop','royal-king','royal-peasant','royal-queen','shaman','skeleton-archer','witch-queen','wizard']:['goblin','barbarian','cleric','hobby-knight','worker','zombie','troll'];
 const save=(name,steps)=>{if(steps.length>40)throw Error(name+' exceeds plan budget');fs.writeFileSync(path.join(out,name+'.json'),JSON.stringify({steps},null,2));};
-const base=(copies=1)=>({board:{width:12,height:8,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:slugs.map(s=>s+'-type'),unitTypes:[],
- units:slugs.flatMap((s,i)=>Array.from({length:copies},(_,j)=>({unitTypeId:s+'-type',sideId:j%2?'red':'blue',anchor:{x:2+i,y:2+j*2},unitId:s+'-'+j}))),
+const base=(copies=1)=>({board:{width:12,height:Math.max(8,4+Math.ceil(slugs.length/7)*copies*2),defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:slugs.map(s=>s+'-type'),unitTypes:[],
+ units:slugs.flatMap((s,i)=>Array.from({length:copies},(_,j)=>({unitTypeId:s+'-type',sideId:j%2?'red':'blue',anchor:{x:2+i%7,y:2+Math.floor(i/7)*copies*2+j*2},unitId:s+'-'+j}))),
  agency:slugs.flatMap(s=>['blue','red'].map(sideId=>({unitTypeId:s+'-type',sideId,controller:'Human'}))),objectives:['blue','red'].map(sideId=>({sideId,objective:'NoObjective'}))});
 const view=[{action:'select',target:'#three-unit-representation',value:'miniatures'},{action:'select',target:'#three-camera-mode',value:'full'},{action:'select',target:'#three-camera-projection',value:'perspective'},{action:'select',target:'#three-camera-fov',value:'65'},{action:'click',target:'#three-camera-angle'}];
 const diag=[{action:'click',target:'#tools-toggle'},{action:'click',target:'#tools-developer > summary'},{action:'click',target:'.three-diagnostics > summary'}];
@@ -21,7 +22,7 @@ save('views',[...setup(base(2)),...instant,...view,{action:'click',target:'#thre
 for(const copies of [1,2])save('performance-'+copies,[...setup(base(copies)),...view,{action:'screenshot',name:'loaded.png'},...diag,{action:'click',target:'#three-reset-sample'},
  ...Array.from({length:8},(_,i)=>[{action:'click',target:i%2?'#three-camera-turn-left':'#three-camera-turn-right'},{action:'screenshot',name:'warm-'+i+'.png'}]).flat(),
  {action:'snapshot',target:'.three-diagnostics',name:'warm.yaml'},...end]);
-for(const slug of slugs.slice(0,5)){
+for(const slug of remaining?slugs:slugs.slice(0,5)){
  for(const name of ['move','combat-instant','fog-warm','posture','picking']){
   const plan=JSON.parse(fs.readFileSync(path.resolve(__dirname,`../.playwright-cli/troll-qa/${name}.json`)));
   for(const step of plan.steps)if(step.target==='#scenario-transport'){
@@ -45,4 +46,19 @@ for(const slug of slugs.slice(0,5)){
 const switchSteps=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../.playwright-cli/troll-qa/switching.json'))).steps;
 save('switching',[...setup(base(2)),...switchSteps.slice(6)]);
 const reload=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../.playwright-cli/troll-qa/reload.json'))).steps;save('reload',[...setup(base(2)),...reload.slice(6)]);
+if(remaining){
+ // Large distinct-model scenes can still be decoding at the first screenshot.
+ // Keep observable loading fallback, then capture later rotations in the same context.
+ const plan=JSON.parse(fs.readFileSync(path.join(out,'reload.json')));
+ const index=plan.steps.findIndex(s=>s.name==='restored.png');
+ plan.steps.splice(index,1,...Array.from({length:10},(_,i)=>[
+  {action:'click',target:i%2?'#three-camera-turn-left':'#three-camera-turn-right'},
+  {action:'screenshot',name:i===9?'restored.png':`reload-warm-${i}.png`}
+ ]).flat());save('reload-settled',plan.steps);
+ const performance=JSON.parse(fs.readFileSync(path.join(out,'performance-2.json'))).steps;
+ performance.splice(-2,0,{action:'click',target:'#three-lighting-controls > summary'},
+  {action:'select',target:'#three-lighting-enabled',value:'off'},{action:'screenshot',name:'loaded-off.png'},
+  {action:'resize',width:600,height:850},{action:'screenshot',name:'loaded-narrow.png'});
+ save('performance-lighting',performance);
+}
 console.log(out);

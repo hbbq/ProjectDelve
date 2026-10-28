@@ -19,7 +19,7 @@ test('batch production catalog preserves authored dimensions, paid provenance, h
   assert.equal(b.bounds.min[1],0);assert.equal(b.finite,true);assert.equal(b.hierarchy[0].determinant,1);assert.equal(b.animations,0);assert.equal(b.skins,0);assert.deepEqual(b.externalResources,[]);assert.deepEqual(b.extensionsUsed,[]);assert.ok(b.normalization.maximumRadius<u.maximumRadius);
   assert.ok(miniatureBaseLayout({baseRadius:u.baseRadius,contact:b.normalization.contact}).fitsContact);assert.equal(inspectGlb(runtime.buffer.slice(runtime.byteOffset,runtime.byteOffset+runtime.byteLength)).nodes.length,1);
  }
- for(const u of disk.units.filter(u=>!slugs.concat(['zombie','troll']).includes(u.typeId.slice(0,-5))))assert.equal(resolveUnitModel(catalog,u.typeId,1),null);
+ for(const u of disk.units.filter(u=>!u.model))assert.equal(resolveUnitModel(catalog,u.typeId,1),null);
 });
 test('manual inbox is idle without GLBs; independent bad imports never move or overwrite files',async()=>{
  const {importModels}=require('../tools/import-unit-models.cjs'),tmp=fs.mkdtempSync(path.join(root,'.playwright-cli/import-test-'));
@@ -33,17 +33,20 @@ test('manual inbox is idle without GLBs; independent bad imports never move or o
   assert.deepEqual(fs.readFileSync(file),original);for(const slug of ['unrelated','goblin','cleric'])assert.ok(fs.existsSync(path.join(tmp,'assets/import/models',slug+'.glb')));
  }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 });
-test('reviewed inbox import preserves exact bytes, registers once and does no work on a repeat',async()=>{
+for(const textureLimit of [null,1024])test(`reviewed inbox import (${textureLimit??'original'} textures) preserves sources, registers once and is idle on repeat`,async()=>{
  const {importModels}=require('../tools/import-unit-models.cjs'),tmp=fs.mkdtempSync(path.join(root,'.playwright-cli/import-approved-'));
  try{
   const base='assets/source/models/units/goblin',catalogPath='ProjectDelve.Web/wwwroot/art/models/unit-visuals.json',p=JSON.parse(read(base+'/provenance.json')),catalog=JSON.parse(read(catalogPath));
   p.status='reviewed-import';catalog.models=catalog.models.filter(m=>m.id!=='goblin/v1');delete catalog.units.find(u=>u.typeId==='goblin-type').model;
+  const runtime=require('../tools/prepare-unit-model.cjs').prepare(read(p.original.path),p.original.sha256,{textureLimit});
+  if(textureLimit){p.preparation.textureLimit=textureLimit;p.runtime.sha256=hash(runtime);}
   for(const dir of ['assets/import/models',base,'ProjectDelve.Web/wwwroot/art/models'])fs.mkdirSync(path.join(tmp,dir),{recursive:true});
   const catalogText=JSON.stringify(catalog,null,2).replace('"targetHeight": 0.7,','"targetHeight": 0.700,')+'\n';
   fs.writeFileSync(path.join(tmp,catalogPath),catalogText);fs.writeFileSync(path.join(tmp,base,'provenance.json'),JSON.stringify(p));fs.writeFileSync(path.join(tmp,'assets/import/models/goblin.glb'),read(p.original.path));
   for(const ref of [p.projectPortraitReference,...p.projectConceptReferences]){fs.mkdirSync(path.dirname(path.join(tmp,ref)),{recursive:true});fs.writeFileSync(path.join(tmp,ref),'test-owned reference marker');}
-  const scan=await importModels(tmp);assert.equal(scan[0].state,'compatible-needs-review');assert.equal(fs.existsSync(path.join(tmp,p.original.path)),false);
-  const imported=await importModels(tmp,{apply:true});assert.equal(imported[0].state,'imported',imported[0].error);assert.equal(fs.existsSync(path.join(tmp,'assets/import/models/goblin.glb')),false);assert.deepEqual(fs.readFileSync(path.join(tmp,p.original.path)),read(p.original.path));assert.deepEqual(fs.readFileSync(path.join(tmp,p.runtime.path)),read(p.runtime.path));assert.ok(fs.readFileSync(path.join(tmp,catalogPath),'utf8').includes('"targetHeight": 0.700,'));
+  const scan=await importModels(tmp,{textureLimit});assert.equal(scan[0].state,'compatible-needs-review');assert.equal(fs.existsSync(path.join(tmp,p.original.path)),false);
+  if(textureLimit){const mismatch=await importModels(tmp,{apply:true});assert.equal(mismatch[0].state,'deferred');assert.match(mismatch[0].error,/hashes\/paths/);assert.equal(fs.existsSync(path.join(tmp,p.original.path)),false);}
+  const imported=await importModels(tmp,{apply:true,textureLimit});assert.equal(imported[0].state,'imported',imported[0].error);assert.equal(fs.existsSync(path.join(tmp,'assets/import/models/goblin.glb')),false);assert.deepEqual(fs.readFileSync(path.join(tmp,p.original.path)),read(p.original.path));assert.deepEqual(fs.readFileSync(path.join(tmp,p.runtime.path)),runtime);assert.equal(JSON.parse(fs.readFileSync(path.join(tmp,catalogPath))).models.find(m=>m.id==='goblin/v1').maxTextureDimension,textureLimit??2048);assert.ok(fs.readFileSync(path.join(tmp,catalogPath),'utf8').includes('"targetHeight": 0.700,'));
   const files=[catalogPath,p.original.path,p.runtime.path,base+'/provenance.json'],before=files.map(f=>[hash(fs.readFileSync(path.join(tmp,f))),fs.statSync(path.join(tmp,f)).mtimeMs]);
   fs.writeFileSync(path.join(tmp,'assets/import/models/unrelated.glb'),'unselected invalid incoming file');
   assert.deepEqual(await importModels(tmp,{apply:true,only:['goblin']}),[]);assert.equal(fs.readFileSync(path.join(tmp,'assets/import/models/unrelated.glb'),'utf8'),'unselected invalid incoming file');assert.deepEqual(files.map(f=>[hash(fs.readFileSync(path.join(tmp,f))),fs.statSync(path.join(tmp,f)).mtimeMs]),before);

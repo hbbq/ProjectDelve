@@ -18,7 +18,8 @@ envelopes and base margin. A contact-margin warning is advisory. A hard radius,
 geometry, texture, transform or static-format incompatibility defers that file.
 Inspect semantic orientation/style and run the Khronos glTF Validator on both
 original and prepared bytes; review all warnings and fully decode the images.
-Do not resize geometry/textures or change visual dimensions just to pass.
+Do not resize geometry or change visual dimensions just to pass. Reviewed texture
+downscaling is available for memory control as described below.
 
 Before applying, create `assets/source/models/units/<slug>/provenance.json` using
 an existing approved record as the format example. Set `status` to
@@ -35,6 +36,37 @@ file's plan, hashes, validation, orientation or generation model version.
 ```text
 node tools/import-unit-models.cjs --apply
 ```
+
+For a reviewed runtime texture limit, use the same option for inspection and apply:
+
+```text
+node tools/import-unit-models.cjs --texture-limit 1024
+node tools/import-unit-models.cjs --texture-limit 1024 --apply
+```
+
+This optional preparation step uses `tools/resize-model-textures.py` with the
+existing offline Python/Pillow toolchain. Set `PROJECTDELVE_PYTHON` to the installed
+Python executable if `python` is not on PATH; do not pass shell arguments in it.
+Record `preparation.textureLimit: 1024` and the Python, Pillow and zlib versions in
+provenance. Limits are 256, 512, 1024 or 2048, preserve aspect ratio and never
+upscale. The batch uses one shared limit, with no per-Type runtime exceptions.
+The helper fully decodes images, applies LANCZOS, writes lossless PNG at compression
+level 9 and repacks aligned buffer views. Geometry, materials and bindings remain
+unchanged. Originals and original embedded images remain byte-for-byte intact.
+Omitting the option keeps the previous exporter byte-for-byte behavior.
+The reviewed limit and both hashes must match before apply. Registration records
+the resulting texture budget. `prepare-unit-model.cjs <provenance> --check` reads
+the recorded option, so it reproduces the prepared export with the same encoder
+versions (this batch: Python 3.14.7, Pillow 13.0.0, zlib 1.3.1.zlib-ng).
+Pillow is an offline preparation/test dependency only; normal build, publish and
+browser loading use checked-in GLBs and require neither Python nor a new package.
+The full client suite's optimized-export reproduction tests need this toolchain.
+
+The remaining 19-model batch on 2026-10-28 uses 1024-square maps after Tabletop
+visual review. The seven earlier approved runtime/source exports are unchanged.
+All 19 passed; Royal King's .033071 Cell contact margin falls .006929 short of the
+preferred .04 margin but fits its base and hard radius. No dimension changes.
+See `THREE_VIEWPORT.md` for the full inventory, provenance, measurements and QA.
 
 To constrain a task to an explicit batch while other exports arrive, add
 `--only goblin,barbarian,cleric,hobby-knight,worker` to either command. Unselected

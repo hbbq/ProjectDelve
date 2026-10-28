@@ -63,6 +63,177 @@
       "maxTriangles": 12000,
       "maxPrimitives": 2,
       "maxTextureDimension": 2048
+    },
+    {
+      "id": "bomb-imp/v1",
+      "approved": true,
+      "url": "./art/models/units/bomb-imp/v1/bomb-imp.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "castle-guard/v1",
+      "approved": true,
+      "url": "./art/models/units/castle-guard/v1/castle-guard.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "chief-mechanic/v1",
+      "approved": true,
+      "url": "./art/models/units/chief-mechanic/v1/chief-mechanic.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "displacer-demon/v1",
+      "approved": true,
+      "url": "./art/models/units/displacer-demon/v1/displacer-demon.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "geomancer/v1",
+      "approved": true,
+      "url": "./art/models/units/geomancer/v1/geomancer.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "goblin-bishop/v1",
+      "approved": true,
+      "url": "./art/models/units/goblin-bishop/v1/goblin-bishop.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "goblin-king/v1",
+      "approved": true,
+      "url": "./art/models/units/goblin-king/v1/goblin-king.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "goblin-peasant/v1",
+      "approved": true,
+      "url": "./art/models/units/goblin-peasant/v1/goblin-peasant.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "grunt/v1",
+      "approved": true,
+      "url": "./art/models/units/grunt/v1/grunt.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "labyrinth-shaper/v1",
+      "approved": true,
+      "url": "./art/models/units/labyrinth-shaper/v1/labyrinth-shaper.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "rogue/v1",
+      "approved": true,
+      "url": "./art/models/units/rogue/v1/rogue.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "royal-bishop/v1",
+      "approved": true,
+      "url": "./art/models/units/royal-bishop/v1/royal-bishop.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "royal-king/v1",
+      "approved": true,
+      "url": "./art/models/units/royal-king/v1/royal-king.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "royal-peasant/v1",
+      "approved": true,
+      "url": "./art/models/units/royal-peasant/v1/royal-peasant.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "royal-queen/v1",
+      "approved": true,
+      "url": "./art/models/units/royal-queen/v1/royal-queen.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "shaman/v1",
+      "approved": true,
+      "url": "./art/models/units/shaman/v1/shaman.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "skeleton-archer/v1",
+      "approved": true,
+      "url": "./art/models/units/skeleton-archer/v1/skeleton-archer.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "witch-queen/v1",
+      "approved": true,
+      "url": "./art/models/units/witch-queen/v1/witch-queen.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "wizard/v1",
+      "approved": true,
+      "url": "./art/models/units/wizard/v1/wizard.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
     }
   ],
   "units": [
@@ -70,37 +241,43 @@
       "typeId": "royal-queen-type",
       "targetHeight": 0.83,
       "maximumRadius": 0.4,
-      "baseRadius": 0.32
+      "baseRadius": 0.32,
+      "model": "royal-queen/v1"
     },
     {
       "typeId": "witch-queen-type",
       "targetHeight": 0.73,
       "maximumRadius": 0.4,
-      "baseRadius": 0.31
+      "baseRadius": 0.31,
+      "model": "witch-queen/v1"
     },
     {
       "typeId": "royal-king-type",
       "targetHeight": 0.83,
       "maximumRadius": 0.4,
-      "baseRadius": 0.32
+      "baseRadius": 0.32,
+      "model": "royal-king/v1"
     },
     {
       "typeId": "goblin-king-type",
       "targetHeight": 0.68,
       "maximumRadius": 0.35,
-      "baseRadius": 0.3
+      "baseRadius": 0.3,
+      "model": "goblin-king/v1"
     },
     {
       "typeId": "royal-bishop-type",
       "targetHeight": 0.85,
       "maximumRadius": 0.38,
-      "baseRadius": 0.31
+      "baseRadius": 0.31,
+      "model": "royal-bishop/v1"
     },
     {
       "typeId": "goblin-bishop-type",
       "targetHeight": 0.65,
       "maximumRadius": 0.34,
-      "baseRadius": 0.28
+      "baseRadius": 0.28,
+      "model": "goblin-bishop/v1"
     },
     {
       "typeId": "royal-knight-type",
@@ -119,19 +296,22 @@
       "typeId": "royal-peasant-type",
       "targetHeight": 0.70,
       "maximumRadius": 0.36,
-      "baseRadius": 0.3
+      "baseRadius": 0.3,
+      "model": "royal-peasant/v1"
     },
     {
       "typeId": "goblin-peasant-type",
       "targetHeight": 0.55,
       "maximumRadius": 0.32,
-      "baseRadius": 0.27
+      "baseRadius": 0.27,
+      "model": "goblin-peasant/v1"
     },
     {
       "typeId": "castle-guard-type",
       "targetHeight": 0.85,
       "maximumRadius": 0.43,
-      "baseRadius": 0.34
+      "baseRadius": 0.34,
+      "model": "castle-guard/v1"
     },
     {
       "typeId": "tower-troll-type",
@@ -149,7 +329,8 @@
       "typeId": "chief-mechanic-type",
       "targetHeight": 0.73,
       "maximumRadius": 0.4,
-      "baseRadius": 0.31
+      "baseRadius": 0.31,
+      "model": "chief-mechanic/v1"
     },
     {
       "typeId": "locomotive-type",
@@ -161,13 +342,15 @@
       "typeId": "displacer-demon-type",
       "targetHeight": 0.98,
       "maximumRadius": 0.44,
-      "baseRadius": 0.38
+      "baseRadius": 0.38,
+      "model": "displacer-demon/v1"
     },
     {
       "typeId": "labyrinth-shaper-type",
       "targetHeight": 0.85,
       "maximumRadius": 0.4,
-      "baseRadius": 0.33
+      "baseRadius": 0.33,
+      "model": "labyrinth-shaper/v1"
     },
     {
       "typeId": "red-dragon-type",
@@ -179,7 +362,8 @@
       "typeId": "grunt-type",
       "targetHeight": 0.78,
       "maximumRadius": 0.42,
-      "baseRadius": 0.34
+      "baseRadius": 0.34,
+      "model": "grunt/v1"
     },
     {
       "typeId": "zombie-type",
@@ -198,7 +382,8 @@
       "typeId": "skeleton-archer-type",
       "targetHeight": 0.73,
       "maximumRadius": 0.36,
-      "baseRadius": 0.29
+      "baseRadius": 0.29,
+      "model": "skeleton-archer/v1"
     },
     {
       "typeId": "goblin-type",
@@ -211,7 +396,8 @@
       "typeId": "bomb-imp-type",
       "targetHeight": 0.48,
       "maximumRadius": 0.28,
-      "baseRadius": 0.24
+      "baseRadius": 0.24,
+      "model": "bomb-imp/v1"
     },
     {
       "typeId": "troll-type",
@@ -231,13 +417,15 @@
       "typeId": "geomancer-type",
       "targetHeight": 0.75,
       "maximumRadius": 0.38,
-      "baseRadius": 0.31
+      "baseRadius": 0.31,
+      "model": "geomancer/v1"
     },
     {
       "typeId": "shaman-type",
       "targetHeight": 0.68,
       "maximumRadius": 0.36,
-      "baseRadius": 0.29
+      "baseRadius": 0.29,
+      "model": "shaman/v1"
     },
     {
       "typeId": "barbarian-type",
@@ -250,7 +438,8 @@
       "typeId": "rogue-type",
       "targetHeight": 0.73,
       "maximumRadius": 0.36,
-      "baseRadius": 0.3
+      "baseRadius": 0.3,
+      "model": "rogue/v1"
     },
     {
       "typeId": "cleric-type",
@@ -263,7 +452,8 @@
       "typeId": "wizard-type",
       "targetHeight": 0.80,
       "maximumRadius": 0.38,
-      "baseRadius": 0.32
+      "baseRadius": 0.32,
+      "model": "wizard/v1"
     }
   ]
 }

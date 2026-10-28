@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these 19 remaining batch GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/wizard.png",
+  "projectConceptReferences": [
+    "assets/source/units/wizard/reference/character-sheet.png",
+    "assets/source/units/wizard/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/wizard/original.glb",
+    "sha256": "d7038de9039761cfbc85702c92907ed57fc5c7305101e434f28062028f8c9b4f",
+    "bytes": 3999512,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/wizard/v1/wizard.glb",
+    "sha256": "d3a4a06332e6b5a5375b60b4a1b2fd4870a363f0631d4965ecbc3218183eb003",
+    "bytes": 3398252
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "steps": [
+      "Verify source SHA-256",
+      "Reject extension payloads; remove unused declarations",
+      "Add deterministic source-hash metadata",
+      "Resize embedded maps to maximum 1024 with Pillow LANCZOS; lossless PNG, compression level 9",
+      "Repack aligned buffer views preserving geometry and material bindings",
+      "Runtime uniformly normalizes to unchanged targetHeight and ground-centers"
+    ],
+    "orientation": "+Y up; glTF +Z forward convention retained, four-direction semantic scan in inspection-b25CVo. No axis correction; movement-facing interaction sampled on seven representative Types.",
+    "zlib": "1.3.1.zlib-ng"
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/goblin/provenance.json",
+    "verification": "Shared check for this exact batch: terms still dated 2025-07-11; Pro pricing identifies commercial use; owner confirms paid generation."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent-space warning; source unused FB_ngon_encoding declaration removed. See per-model visual review for contact or geometry advisories.",
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; production Edge cache ready. Buffer-view geometry bytes, accessors, hierarchy and material bindings preserved; runtime maps 1024 square. Source/runtime Khronos errors zero."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/wizard.glb",
+    "sha256BeforeMove": "d7038de9039761cfbc85702c92907ed57fc5c7305101e434f28062028f8c9b4f",
+    "sha256AfterMove": "d7038de9039761cfbc85702c92907ed57fc5c7305101e434f28062028f8c9b4f"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/wizard/original.glb",
+    "bytes": 3999512,
+    "sha256": "d7038de9039761cfbc85702c92907ed57fc5c7305101e434f28062028f8c9b4f",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 1988
+      },
+      {
+        "type": 5130562,
+        "length": 3997496
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9800,
+    "materials": [
+      {
+        "name": "tripo_material_4e9faaf1-3343-430e-9db3-979c9533f33b",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 968482,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "a51b4888e8709a6f799fc6384341a78830d488fb5fdd7644cfefe4a823694f9d"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 634989,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "f43ab0aebd829b435ddc59159548891a9852679ebeb2f9cec05b4ec38c000449"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2062436,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "d7d643ef9d54244c6d68310662458f7ec1e44b6afac6bcf1080b7b97476a91fd"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_4e9faaf1-3343-430e-9db3-979c9533f33b",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.22504423558712006,
+        0,
+        -0.192352294921875
+      ],
+      "max": [
+        0.22504423558712006,
+        0.999114990234375,
+        0.192352294921875
+      ],
+      "dimensions": [
+        0.4500884711742401,
+        0.999114990234375,
+        0.38470458984375
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.8,
+      "scale": 0.8007086349613611,
+      "maximumRadius": 0.21015629386285187,
+      "contact": {
+        "radius": 0.15856145952161438,
+        "minX": -0.09618496026337091,
+        "maxX": 0.1394972357127585,
+        "minZ": -0.0825132045782553,
+        "maxZ": 0.14188584810928861,
+        "bandHeight": 0.06,
+        "samples": 362
+      },
+      "dimensions": [
+        0.36038972536577174,
+        0.8,
+        0.3080362869971594
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.8,
+    "maximumRadius": 0.38,
+    "baseRadius": 0.32,
+    "measuredMaximumRadius": 0.21015629386285187,
+    "contact": {
+      "radius": 0.15856145952161438,
+      "minX": -0.09618496026337091,
+      "maxX": 0.1394972357127585,
+      "minZ": -0.0825132045782553,
+      "maxZ": 0.14188584810928861,
+      "bandHeight": 0.06,
+      "samples": 362
+    },
+    "base": {
+      "radius": 0.32,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.32,
+      "requiredRadius": 0.1985614595216144,
+      "margin": 0.16143854047838563,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-b25CVo",
+    "findings": "Hat, beard, staff and blue cloak remain distinct from front and side.",
+    "metadataAdjustments": "none; targetHeight, maximumRadius and baseRadius unchanged",
+    "textureReview": "1024-square base-color, metallic/roughness and normal maps sufficient at inspected Tabletop zoom; close portraits, bow/staff/horns/costumes retained; no formal image-diff or GPU-quality benchmark",
+    "evidence": "THREE_VIEWPORT.md: Remaining 19 Tripo miniatures"
+  }
+}

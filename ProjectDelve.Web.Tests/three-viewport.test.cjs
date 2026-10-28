@@ -252,7 +252,7 @@ test('current Zombie and Troll bases preserve model approval, facing, picking, c
   }finally{h.cleanup();}
 });
 
-for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker'])test(`production ${slug} geometry shares resources, grounds, faces, clips, picks and restores upright`,async()=>{
+for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker',...Object.keys(require('./fixtures/miniatures/remaining-batch.json'))])test(`production ${slug} geometry shares resources, grounds, faces, clips, picks and restores upright`,async()=>{
   const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json'))),{validateUnitVisualCatalog,resolveUnitModel}=await moduleAt('unit-visuals.js');
   const catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1}))),id=slug+'-type',descriptor=resolveUnitModel(catalog,id,1);
   const f=fixture(16,'blue');f.state.units.forEach(u=>u.typeId=id);f.state.physical.figures[0].posture='Upright';f.presentation.figures.large={cellSpan:1,occupiedCells:[{x:4,y:3}]};
@@ -260,7 +260,7 @@ for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker'])test(`
   try{
     h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
     const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('unit:hero'),other=scene.getObjectByName('unit:large'),model=root.getObjectByName('normalized-model'),base=root.getObjectByName('miniature-base');
-    root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-box.min.y-descriptor.height)<1e-6);assert.equal(root.userData.footprint.length,1);assert.equal(root.userData.base.fitsContact,true);
+    root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-box.min.y-descriptor.height)<1e-6);assert.equal(root.userData.footprint.length,1);assert.equal(root.userData.base.fitsContact,slug!=='royal-king');
     const meshes=[];model.traverse(n=>{if(n.isMesh)meshes.push(n);});assert.equal(meshes[0].geometry,other.getObjectByName(meshes[0].name).geometry);assert.equal(meshes[0].material,other.getObjectByName(meshes[0].name).material);assert.equal(downloads,1);
     const baseMatrix=base.matrixWorld.clone();for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){h.viewport.facing.get('hero').yaw=yaw;h.viewport.syncFacing(true);root.updateMatrixWorld(true);assert.deepEqual(base.matrixWorld.elements,baseMatrix.elements);assert.equal(root.userData.body.facingNode.rotation.y,yaw);}
     for(const projection of ['perspective','orthographic']){h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.flush();assert.equal(h.viewport.pick(h.viewport.project({x:2.5,y:2.5,height:0})).unitId,'hero');h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});assert.deepEqual(h.viewport.pick(h.viewport.project({x:3.2,y:2.5})).cell,{x:3,y:2});}

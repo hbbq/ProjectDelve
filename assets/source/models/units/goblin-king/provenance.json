@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these 19 remaining batch GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/goblin-king.png",
+  "projectConceptReferences": [
+    "assets/source/units/goblin-king/reference/character-sheet.png",
+    "assets/source/units/goblin-king/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/goblin-king/original.glb",
+    "sha256": "624e4403c252b26886127812c8c5cc320d49779c4bdb154b429e26603ad48918",
+    "bytes": 4626160,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin-king/v1/goblin-king.glb",
+    "sha256": "ecc660a87d9ac560c7da00ae041e540fe5752ae8fa068852ba56ece932946ee6",
+    "bytes": 3959616
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "steps": [
+      "Verify source SHA-256",
+      "Reject extension payloads; remove unused declarations",
+      "Add deterministic source-hash metadata",
+      "Resize embedded maps to maximum 1024 with Pillow LANCZOS; lossless PNG, compression level 9",
+      "Repack aligned buffer views preserving geometry and material bindings",
+      "Runtime uniformly normalizes to unchanged targetHeight and ground-centers"
+    ],
+    "orientation": "+Y up; glTF +Z forward convention retained, four-direction semantic scan in inspection-HwtJEz. No axis correction; movement-facing interaction sampled on seven representative Types.",
+    "zlib": "1.3.1.zlib-ng"
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/goblin/provenance.json",
+    "verification": "Shared check for this exact batch: terms still dated 2025-07-11; Pro pricing identifies commercial use; owner confirms paid generation."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent-space warning; source unused FB_ngon_encoding declaration removed. See per-model visual review for contact or geometry advisories.",
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; production Edge cache ready. Buffer-view geometry bytes, accessors, hierarchy and material bindings preserved; runtime maps 1024 square. Source/runtime Khronos errors zero."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/goblin-king.glb",
+    "sha256BeforeMove": "624e4403c252b26886127812c8c5cc320d49779c4bdb154b429e26603ad48918",
+    "sha256AfterMove": "624e4403c252b26886127812c8c5cc320d49779c4bdb154b429e26603ad48918"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/goblin-king/original.glb",
+    "bytes": 4626160,
+    "sha256": "624e4403c252b26886127812c8c5cc320d49779c4bdb154b429e26603ad48918",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2012
+      },
+      {
+        "type": 5130562,
+        "length": 4624120
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9416,
+    "materials": [
+      {
+        "name": "tripo_material_a39362d2-5b12-464d-9bd4-0b8d3156261f",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1128088,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "2838aefb0162a952bdecd3cfd0ff91e97b4f9c2d8785aaaac1c62609d2632597"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 980195,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "033405af367affdc44ab4e5ef75160d1d1fca5bf92f9eafdfb9c517f467369d8"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2185017,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "c805d1433b1e3364d9d8580fd47a9e1840fdf03a10c2f59b192070d18d940130"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_a39362d2-5b12-464d-9bd4-0b8d3156261f",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.3289031982421875,
+        0,
+        -0.1903076171875
+      ],
+      "max": [
+        0.3289031982421875,
+        0.9989013671875,
+        0.1903076171875
+      ],
+      "dimensions": [
+        0.657806396484375,
+        0.9989013671875,
+        0.380615234375
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.68,
+      "scale": 0.6807478919711598,
+      "maximumRadius": 0.23297340751495474,
+      "contact": {
+        "radius": 0.185995161940732,
+        "minX": -0.18316082121471344,
+        "maxX": 0.18422031455265492,
+        "minZ": -0.11078149822803374,
+        "maxZ": 0.11819811389656912,
+        "bandHeight": 0.05100000000000001,
+        "samples": 554
+      },
+      "dimensions": [
+        0.4478003177318832,
+        0.68,
+        0.2591030184528902
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.68,
+    "maximumRadius": 0.35,
+    "baseRadius": 0.3,
+    "measuredMaximumRadius": 0.23297340751495474,
+    "contact": {
+      "radius": 0.185995161940732,
+      "minX": -0.18316082121471344,
+      "maxX": 0.18422031455265492,
+      "minZ": -0.11078149822803374,
+      "maxZ": 0.11819811389656912,
+      "bandHeight": 0.05100000000000001,
+      "samples": 554
+    },
+    "base": {
+      "radius": 0.3,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.3,
+      "requiredRadius": 0.22599516194073202,
+      "margin": 0.11400483805926798,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-HwtJEz",
+    "findings": "Crown, red cape and broad costume remain inside visual limits.",
+    "metadataAdjustments": "none; targetHeight, maximumRadius and baseRadius unchanged",
+    "textureReview": "1024-square base-color, metallic/roughness and normal maps sufficient at inspected Tabletop zoom; close portraits, bow/staff/horns/costumes retained; no formal image-diff or GPU-quality benchmark",
+    "evidence": "THREE_VIEWPORT.md: Remaining 19 Tripo miniatures"
+  }
+}

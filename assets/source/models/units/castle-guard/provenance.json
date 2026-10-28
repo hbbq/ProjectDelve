@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these 19 remaining batch GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/castle-guard.png",
+  "projectConceptReferences": [
+    "assets/source/units/castle-guard/reference/character-sheet.png",
+    "assets/source/units/castle-guard/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/castle-guard/original.glb",
+    "sha256": "155f14a037396d544a7443f9ac298b5b4ca1d608a0148ee2ef82bcdfbf819b6e",
+    "bytes": 4985892,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/castle-guard/v1/castle-guard.glb",
+    "sha256": "590ac0f822daaf3d0781282c66c43d7b24acb7d6a2d6b249ac3112b36e4efe28",
+    "bytes": 4098848
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "steps": [
+      "Verify source SHA-256",
+      "Reject extension payloads; remove unused declarations",
+      "Add deterministic source-hash metadata",
+      "Resize embedded maps to maximum 1024 with Pillow LANCZOS; lossless PNG, compression level 9",
+      "Repack aligned buffer views preserving geometry and material bindings",
+      "Runtime uniformly normalizes to unchanged targetHeight and ground-centers"
+    ],
+    "orientation": "+Y up; glTF +Z forward convention retained, four-direction semantic scan in inspection-dhOVEH. No axis correction; movement-facing interaction sampled on seven representative Types.",
+    "zlib": "1.3.1.zlib-ng"
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/goblin/provenance.json",
+    "verification": "Shared check for this exact batch: terms still dated 2025-07-11; Pro pricing identifies commercial use; owner confirms paid generation."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent-space warning; source unused FB_ngon_encoding declaration removed. See per-model visual review for contact or geometry advisories.",
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; production Edge cache ready. Buffer-view geometry bytes, accessors, hierarchy and material bindings preserved; runtime maps 1024 square. Source/runtime Khronos errors zero."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/castle-guard.glb",
+    "sha256BeforeMove": "155f14a037396d544a7443f9ac298b5b4ca1d608a0148ee2ef82bcdfbf819b6e",
+    "sha256AfterMove": "155f14a037396d544a7443f9ac298b5b4ca1d608a0148ee2ef82bcdfbf819b6e"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/castle-guard/original.glb",
+    "bytes": 4985892,
+    "sha256": "155f14a037396d544a7443f9ac298b5b4ca1d608a0148ee2ef82bcdfbf819b6e",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2024
+      },
+      {
+        "type": 5130562,
+        "length": 4983840
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9486,
+    "materials": [
+      {
+        "name": "tripo_material_1fb2f778-9bc0-4ac4-bbfb-62086fab49be",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1248433,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "6aa1d553c217279ea085cb6c0daa143309fd3999d2a64512ee0081e00e6c1043"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 932898,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "55e376fdfe5ac0fd45dbfb3a6a938deffc4770cd19be80392d753bdca7a4d259"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2478813,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "f5953c5492c655b37c14c0279c80d5b34a6dd36a2d84d1dc0d364d95823bc044"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_1fb2f778-9bc0-4ac4-bbfb-62086fab49be",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2831878662109375,
+        0,
+        -0.14716339111328125
+      ],
+      "max": [
+        0.2831878662109375,
+        1.000274658203125,
+        0.14716339111328125
+      ],
+      "dimensions": [
+        0.566375732421875,
+        1.000274658203125,
+        0.2943267822265625
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.85,
+      "scale": 0.8497666046312963,
+      "maximumRadius": 0.2415638340528406,
+      "contact": {
+        "radius": 0.2227592133229991,
+        "minX": -0.20837017328986407,
+        "maxX": 0.20720324709638235,
+        "minZ": -0.06593419799003969,
+        "maxZ": 0.11093414071080711,
+        "bandHeight": 0.06375,
+        "samples": 484
+      },
+      "dimensions": [
+        0.4812871830857003,
+        0.85,
+        0.25010907038472097
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.85,
+    "maximumRadius": 0.43,
+    "baseRadius": 0.34,
+    "measuredMaximumRadius": 0.2415638340528406,
+    "contact": {
+      "radius": 0.2227592133229991,
+      "minX": -0.20837017328986407,
+      "maxX": 0.20720324709638235,
+      "minZ": -0.06593419799003969,
+      "maxZ": 0.11093414071080711,
+      "bandHeight": 0.06375,
+      "samples": 484
+    },
+    "base": {
+      "radius": 0.34,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.34,
+      "requiredRadius": 0.2627592133229991,
+      "margin": 0.11724078667700091,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-dhOVEH",
+    "findings": "Blue/gold armor, helmet and boots retained; ground contact and base fit are clear.",
+    "metadataAdjustments": "none; targetHeight, maximumRadius and baseRadius unchanged",
+    "textureReview": "1024-square base-color, metallic/roughness and normal maps sufficient at inspected Tabletop zoom; close portraits, bow/staff/horns/costumes retained; no formal image-diff or GPU-quality benchmark",
+    "evidence": "THREE_VIEWPORT.md: Remaining 19 Tripo miniatures"
+  }
+}

@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these 19 remaining batch GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/witch-queen.png",
+  "projectConceptReferences": [
+    "assets/source/units/witch-queen/reference/character-sheet.png",
+    "assets/source/units/witch-queen/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/witch-queen/original.glb",
+    "sha256": "e8d0414ba29e2223be7eaa6d2bbd2646022a1ccbebe3458d81c56784126e7103",
+    "bytes": 6074996,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/witch-queen/v1/witch-queen.glb",
+    "sha256": "43e12ae377da42c7096c4bdb9580004f99376e29016d4436c56b08696f591621",
+    "bytes": 4572140
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "steps": [
+      "Verify source SHA-256",
+      "Reject extension payloads; remove unused declarations",
+      "Add deterministic source-hash metadata",
+      "Resize embedded maps to maximum 1024 with Pillow LANCZOS; lossless PNG, compression level 9",
+      "Repack aligned buffer views preserving geometry and material bindings",
+      "Runtime uniformly normalizes to unchanged targetHeight and ground-centers"
+    ],
+    "orientation": "+Y up; glTF +Z forward convention retained, four-direction semantic scan in inspection-3YXsXO. No axis correction; movement-facing interaction sampled on seven representative Types.",
+    "zlib": "1.3.1.zlib-ng"
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/goblin/provenance.json",
+    "verification": "Shared check for this exact batch: terms still dated 2025-07-11; Pro pricing identifies commercial use; owner confirms paid generation."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent-space warning; source unused FB_ngon_encoding declaration removed. See per-model visual review for contact or geometry advisories.",
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; production Edge cache ready. Buffer-view geometry bytes, accessors, hierarchy and material bindings preserved; runtime maps 1024 square. Source/runtime Khronos errors zero."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/witch-queen.glb",
+    "sha256BeforeMove": "e8d0414ba29e2223be7eaa6d2bbd2646022a1ccbebe3458d81c56784126e7103",
+    "sha256AfterMove": "e8d0414ba29e2223be7eaa6d2bbd2646022a1ccbebe3458d81c56784126e7103"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/witch-queen/original.glb",
+    "bytes": 6074996,
+    "sha256": "e8d0414ba29e2223be7eaa6d2bbd2646022a1ccbebe3458d81c56784126e7103",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2016
+      },
+      {
+        "type": 5130562,
+        "length": 6072952
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 7982,
+    "materials": [
+      {
+        "name": "tripo_material_c62c866e-4894-40c6-bd79-636ccc86b51f",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1526766,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "15bc9ad00fef27e1e78bcdfc37ac8a8097d151a65d13e23ba1c198f237c2a006"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 1046766,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "e5aa4146420c2f7bda115eb38ef9ffd91cddaffd90d4163e3e1218d78e9a6322"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 3185998,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "eb66c4599305507387a3829a0fe79261af2f33d85336a9bf04ab5874d1fa057b"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_c62c866e-4894-40c6-bd79-636ccc86b51f",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.326995849609375,
+        0,
+        -0.26007080078125
+      ],
+      "max": [
+        0.326995849609375,
+        0.993255615234375,
+        0.26007080078125
+      ],
+      "dimensions": [
+        0.65399169921875,
+        0.993255615234375,
+        0.5201416015625
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.73,
+      "scale": 0.7349568316588319,
+      "maximumRadius": 0.24034137220133306,
+      "contact": {
+        "radius": 0.24034137220133306,
+        "minX": -0.2403278335944941,
+        "maxX": 0.2403278335944941,
+        "minZ": -0.19114081174916275,
+        "maxZ": 0.1833579131717209,
+        "bandHeight": 0.05475,
+        "samples": 2164
+      },
+      "dimensions": [
+        0.4806556671889882,
+        0.73,
+        0.3822816234983255
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.73,
+    "maximumRadius": 0.4,
+    "baseRadius": 0.31,
+    "measuredMaximumRadius": 0.24034137220133306,
+    "contact": {
+      "radius": 0.24034137220133306,
+      "minX": -0.2403278335944941,
+      "maxX": 0.2403278335944941,
+      "minZ": -0.19114081174916275,
+      "maxZ": 0.1833579131717209,
+      "bandHeight": 0.05475,
+      "samples": 2164
+    },
+    "base": {
+      "radius": 0.31,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.31,
+      "requiredRadius": 0.28034137220133304,
+      "margin": 0.06965862779866694,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-3YXsXO",
+    "findings": "Crown and elaborate layered costume retained; 7,982 triangles is below the advisory 8,000 target.",
+    "metadataAdjustments": "none; targetHeight, maximumRadius and baseRadius unchanged",
+    "textureReview": "1024-square base-color, metallic/roughness and normal maps sufficient at inspected Tabletop zoom; close portraits, bow/staff/horns/costumes retained; no formal image-diff or GPU-quality benchmark",
+    "evidence": "THREE_VIEWPORT.md: Remaining 19 Tripo miniatures"
+  }
+}

@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these 19 remaining batch GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/bomb-imp.png",
+  "projectConceptReferences": [
+    "assets/source/units/bomb-imp/reference/character-sheet.png",
+    "assets/source/units/bomb-imp/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/bomb-imp/original.glb",
+    "sha256": "7152b2f58fb1e97300d82c1401012243a79c814856e6b81b4eb9b8dd97ade818",
+    "bytes": 3959800,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/bomb-imp/v1/bomb-imp.glb",
+    "sha256": "9413ed0062edbc7925dcd667c23d014ee5a4ccd51ec384510fe30c4ec231e0fb",
+    "bytes": 3538080
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "steps": [
+      "Verify source SHA-256",
+      "Reject extension payloads; remove unused declarations",
+      "Add deterministic source-hash metadata",
+      "Resize embedded maps to maximum 1024 with Pillow LANCZOS; lossless PNG, compression level 9",
+      "Repack aligned buffer views preserving geometry and material bindings",
+      "Runtime uniformly normalizes to unchanged targetHeight and ground-centers"
+    ],
+    "orientation": "+Y up; +Z forward verified after observed positive-Z Move in inspection-qg3wKF/move-positive-z-front.png. Runtime ground-centers at base top; no axis correction.",
+    "zlib": "1.3.1.zlib-ng"
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/goblin/provenance.json",
+    "verification": "Shared check for this exact batch: terms still dated 2025-07-11; Pro pricing identifies commercial use; owner confirms paid generation."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent-space warning; source unused FB_ngon_encoding declaration removed. See per-model visual review for contact or geometry advisories.",
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; production Edge cache ready. Buffer-view geometry bytes, accessors, hierarchy and material bindings preserved; runtime maps 1024 square. Source/runtime Khronos errors zero."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/bomb-imp.glb",
+    "sha256BeforeMove": "7152b2f58fb1e97300d82c1401012243a79c814856e6b81b4eb9b8dd97ade818",
+    "sha256AfterMove": "7152b2f58fb1e97300d82c1401012243a79c814856e6b81b4eb9b8dd97ade818"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/bomb-imp/original.glb",
+    "bytes": 3959800,
+    "sha256": "7152b2f58fb1e97300d82c1401012243a79c814856e6b81b4eb9b8dd97ade818",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 1992
+      },
+      {
+        "type": 5130562,
+        "length": 3957780
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9686,
+    "materials": [
+      {
+        "name": "tripo_material_ef805276-e7ff-4e8e-980f-0933fdcb40f0",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 821166,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "66e26f9dc8567511c84ebc28f99bd707fec99601b53f870feb67cceda16ecfbe"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 873114,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "837c609f3eba649b06bf34af758c10e203df4c19366e1a8a088cd8be96b692a2"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1915968,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "ec7615da95330697fa57ca62d0b04c9344abe7c35db2396871c703018d5b4016"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_ef805276-e7ff-4e8e-980f-0933fdcb40f0",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2483062744140625,
+        0,
+        -0.18857574462890625
+      ],
+      "max": [
+        0.2483062744140625,
+        0.993896484375,
+        0.18857574462890625
+      ],
+      "dimensions": [
+        0.496612548828125,
+        0.993896484375,
+        0.3771514892578125
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.48,
+      "scale": 0.48294767870302135,
+      "maximumRadius": 0.14079166254098932,
+      "contact": {
+        "radius": 0.14079166254098932,
+        "minX": -0.11991893883566691,
+        "maxX": 0.11991893883566691,
+        "minZ": -0.03715182344440862,
+        "maxZ": 0.09107221812822403,
+        "bandHeight": 0.036,
+        "samples": 740
+      },
+      "dimensions": [
+        0.23983787767133383,
+        0.48,
+        0.18214443625644805
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.48,
+    "maximumRadius": 0.28,
+    "baseRadius": 0.24,
+    "measuredMaximumRadius": 0.14079166254098932,
+    "contact": {
+      "radius": 0.14079166254098932,
+      "minX": -0.11991893883566691,
+      "maxX": 0.11991893883566691,
+      "minZ": -0.03715182344440862,
+      "maxZ": 0.09107221812822403,
+      "bandHeight": 0.036,
+      "samples": 740
+    },
+    "base": {
+      "radius": 0.24,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.24,
+      "requiredRadius": 0.18079166254098933,
+      "margin": 0.09920833745901067,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-eSegGY",
+    "findings": "Small .48-height silhouette is legible when zoomed; bomb, horns and feet remain distinct.",
+    "metadataAdjustments": "none; targetHeight, maximumRadius and baseRadius unchanged",
+    "textureReview": "1024-square base-color, metallic/roughness and normal maps sufficient at inspected Tabletop zoom; close portraits, bow/staff/horns/costumes retained; no formal image-diff or GPU-quality benchmark",
+    "evidence": "THREE_VIEWPORT.md: Remaining 19 Tripo miniatures",
+    "move": "inspection-qg3wKF",
+    "attack": "inspection-CwC2xI",
+    "posture": "inspection-G4mi1O",
+    "fog": "inspection-D7W8zw",
+    "picking": "inspection-fTfUST"
+  }
+}

@@ -8,7 +8,7 @@ test('Troll has paid provenance without invented model version, real references,
   assert.equal(u.targetHeight,1);assert.equal(u.maximumRadius,.856);assert.equal(m.approved,true);assert.equal(m.url,'./art/models/units/troll/v1/troll.glb');assert.equal(m.version,'tripo-v1');
   const {resolveUnitModel}=await import(pathToFileURL(path.join(root,'ProjectDelve.Web/wwwroot/unit-visuals.js')));
   const compiled={units:Object.fromEntries(c.units.map(u=>[u.typeId,u])),models:Object.fromEntries(c.models.map(m=>[m.id,m])),cellSpans:{'troll-type':1}};
-  assert.equal(resolveUnitModel(compiled,'troll-type',1).height,1);assert.equal(resolveUnitModel(compiled,'troll-type',2),null);assert.equal(resolveUnitModel(compiled,'grunt-type',1),null);
+  assert.equal(resolveUnitModel(compiled,'troll-type',1).height,1);assert.equal(resolveUnitModel(compiled,'troll-type',2),null);assert.equal(resolveUnitModel(compiled,'missing-test-owned-type',1),null);
 });
 test('Troll preparation is reproducible, preserves geometry and image bytes, and measures its actual overhang',async()=>{
   const {inspect}=require('../tools/inspect-glb.cjs'),{prepare}=require('../tools/prepare-unit-model.cjs'),source=read(p.original.path),runtime=read(p.runtime.path);

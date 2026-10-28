@@ -16,6 +16,12 @@ console.log('Actual publish: all approved production GLBs, catalog, GLB fixture 
 const ordinary=out+'-ordinary',shipping=spawnSync('dotnet',['publish','ProjectDelve.Web/ProjectDelve.Web.csproj','--no-build','--no-restore','-c',process.argv.includes('--release')?'Release':'Debug','--artifacts-path','.playwright-cli','--output',ordinary],{cwd:root,encoding:'utf8',timeout:120000});
 if(shipping.status!==0)throw Error(shipping.stdout+shipping.stderr);
 for(const runtime of runtimes)assert.deepEqual(fs.readFileSync(path.join(ordinary,runtime)),fs.readFileSync(path.join(root,'ProjectDelve.Web',runtime)));
+// Bind ordinary shipping bytes to each reviewed export, including texture limits.
+for(const model of catalog.models){
+ const slug=model.id.split('/')[0],p=JSON.parse(fs.readFileSync(path.join(root,`assets/source/models/units/${slug}/provenance.json`)));
+ assert.equal(p.status,'approved-production');assert.equal(model.maxTextureDimension,p.preparation.textureLimit??2048);
+ assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(ordinary,'wwwroot',model.url.slice(2)))).digest('hex'),p.runtime.sha256);
+}
 const glbs=[];function scan(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const f=path.join(dir,e.name);if(e.isDirectory())scan(f);else if(e.name.endsWith('.glb'))glbs.push(path.relative(ordinary,f).replaceAll('\\','/'));}}scan(ordinary);
 assert.deepEqual(glbs.sort(),runtimes.sort());assert.equal(fs.existsSync(path.join(ordinary,'assets/source')),false);
 console.log(`Ordinary publish: exactly ${runtimes.length} production GLBs; no source or fixture copies.`);

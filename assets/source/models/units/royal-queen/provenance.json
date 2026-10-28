@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these 19 remaining batch GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/royal-queen.png",
+  "projectConceptReferences": [
+    "assets/source/units/royal-queen/reference/character-sheet.png",
+    "assets/source/units/royal-queen/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/royal-queen/original.glb",
+    "sha256": "c80b8a64e4f31ccb1965360aff7dd017ddfa2dcbf8ec2d14b91387efadd16e3a",
+    "bytes": 5000436,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-queen/v1/royal-queen.glb",
+    "sha256": "d594d7514bc6551e9d784b578b4e53b67e51fe978040ba02756acdbed4441972",
+    "bytes": 4265064
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "steps": [
+      "Verify source SHA-256",
+      "Reject extension payloads; remove unused declarations",
+      "Add deterministic source-hash metadata",
+      "Resize embedded maps to maximum 1024 with Pillow LANCZOS; lossless PNG, compression level 9",
+      "Repack aligned buffer views preserving geometry and material bindings",
+      "Runtime uniformly normalizes to unchanged targetHeight and ground-centers"
+    ],
+    "orientation": "+Y up; +Z forward verified after observed positive-Z Move in inspection-vP8ZDw/move-positive-z-front.png. Runtime ground-centers at base top; no axis correction.",
+    "zlib": "1.3.1.zlib-ng"
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/goblin/provenance.json",
+    "verification": "Shared check for this exact batch: terms still dated 2025-07-11; Pro pricing identifies commercial use; owner confirms paid generation."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent-space warning; source unused FB_ngon_encoding declaration removed. See per-model visual review for contact or geometry advisories.",
+    "runtimeChecks": "All six original/runtime images fully decoded with Pillow; production Edge cache ready. Buffer-view geometry bytes, accessors, hierarchy and material bindings preserved; runtime maps 1024 square. Source/runtime Khronos errors zero."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/royal-queen.glb",
+    "sha256BeforeMove": "c80b8a64e4f31ccb1965360aff7dd017ddfa2dcbf8ec2d14b91387efadd16e3a",
+    "sha256AfterMove": "c80b8a64e4f31ccb1965360aff7dd017ddfa2dcbf8ec2d14b91387efadd16e3a"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/royal-queen/original.glb",
+    "bytes": 5000436,
+    "sha256": "c80b8a64e4f31ccb1965360aff7dd017ddfa2dcbf8ec2d14b91387efadd16e3a",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2004
+      },
+      {
+        "type": 5130562,
+        "length": 4998404
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9702,
+    "materials": [
+      {
+        "name": "tripo_material_2d5e8ef0-95b2-43af-9d5e-7e74de2435b6",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1496332,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "22cc0703b1343ce1bde0d575c7093069bc02deebd119447db692842298fc371a"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 1214783,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "a5b41964efb72788405a1b0895db68c96cfd2354342c9d26040bdd6388258df3"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1935471,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "42d69c3c8cf45db6a30dcc640a834b357e3866eaea54568d173e13361f64ee1b"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_2d5e8ef0-95b2-43af-9d5e-7e74de2435b6",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2896270751953125,
+        0,
+        -0.1598205715417862
+      ],
+      "max": [
+        0.2896270751953125,
+        0.99969482421875,
+        0.1598205715417862
+      ],
+      "dimensions": [
+        0.579254150390625,
+        0.99969482421875,
+        0.3196411430835724
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.83,
+      "scale": 0.8302533732218084,
+      "maximumRadius": 0.24468735237856795,
+      "contact": {
+        "radius": 0.24468735237856795,
+        "minX": -0.24046385615727456,
+        "maxX": 0.24046385615727456,
+        "minZ": -0.13269156863280535,
+        "maxZ": 0.13269156863280535,
+        "bandHeight": 0.06224999999999999,
+        "samples": 774
+      },
+      "dimensions": [
+        0.4809277123145491,
+        0.83,
+        0.2653831372656107
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.83,
+    "maximumRadius": 0.4,
+    "baseRadius": 0.32,
+    "measuredMaximumRadius": 0.24468735237856795,
+    "contact": {
+      "radius": 0.24468735237856795,
+      "minX": -0.24046385615727456,
+      "maxX": 0.24046385615727456,
+      "minZ": -0.13269156863280535,
+      "maxZ": 0.13269156863280535,
+      "bandHeight": 0.06224999999999999,
+      "samples": 774
+    },
+    "base": {
+      "radius": 0.32,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.32,
+      "requiredRadius": 0.28468735237856796,
+      "margin": 0.07531264762143206,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-IcTk4Q",
+    "findings": "Elaborate blue/gold costume, cape and crown retained; feet are on the base.",
+    "metadataAdjustments": "none; targetHeight, maximumRadius and baseRadius unchanged",
+    "textureReview": "1024-square base-color, metallic/roughness and normal maps sufficient at inspected Tabletop zoom; close portraits, bow/staff/horns/costumes retained; no formal image-diff or GPU-quality benchmark",
+    "evidence": "THREE_VIEWPORT.md: Remaining 19 Tripo miniatures",
+    "move": "inspection-vP8ZDw",
+    "attack": "inspection-CioDN2",
+    "posture": "inspection-GBe494",
+    "fog": "inspection-801LAw",
+    "picking": "inspection-3y1EJa"
+  }
+}
