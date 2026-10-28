@@ -1,12 +1,14 @@
 import { cameraPreferences, cameraBounds, cameraUnion, cameraObjectiveIndicator, cameraIndicatorSlot } from './camera-geometry.js';
 import { cameraObservedFrame, cameraFootprint, cameraEventIntent, cameraAnchorBounds, cameraHumanSides, cameraOwnHuman, cameraAllowsFollow } from './camera-observation.js';
 import { interpolatePose } from './playtest-viewport.js';
+import { createCameraDirector } from './three-camera-director.js';
+import { interpolateCameraWorld } from './three-camera-geometry.js';
 import { tabletopOrientation, threeProject, threeUnproject, threeSpanScale, threeClampPose, threeFull, threeAutoFit, threeEnsureVisible, threeScreenBounds, threeFitRect, interpolateOrientation, lensFov } from './three-camera-geometry.js';
 
 // Cell-space policy and time-based pose. No CSS transforms or separate RAF loop.
 export function createThreeCamera({ controls, invalidate, animate, onChange = () => {}, environment = globalThis, visualHeight = 1.5, visualOverhang = 0 }) {
   let saved; try { saved = JSON.parse(environment.localStorage?.getItem('delve.three.camera.v1') ?? 'null'); } catch { /* optional */ }
-  let preferences = cameraPreferences(saved ?? {}), frame, metadata = {}, side, sideChoice, session;
+  let preferences = cameraPreferences(saved ?? {}), frame, metadata = {}, side, sideChoice=saved?.focusSide, session;
   let size = { width: 1, height: 1 }, pose, target, transition, suspended = false, activation = 0, manualActivation;
   let decision, activationKey, fittedSpan, moveSignature, movement, overflow = false;
   let orientation = {tilt:0,yaw:0}, physical = false;
@@ -14,14 +16,23 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   const optics=()=>({projection:physical?projection:'orthographic',projectionMix:physical&&projection==='perspective'?1:0,fov,allowGutters:physical});
   const geometry=()=>({...orientation,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0});
   let fitBounds=null,activeBounds=null;
+  const director=createCameraDirector();
+  function direct(smooth=true){
+    if(!physical||!automatic()||!pose)return;
+    const result=director.compose(frame,target??pose,size,preferences,side);
+    if(result){overflow=result.overflow;apply(result.pose,smooth,true);}
+  }
   const spanScale = span => threeSpanScale(size,span,geometry());
   const subscriptions = new AbortController(), indicators = new Map();
   const reduced = () => environment.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const persist = () => { try { environment.localStorage?.setItem('delve.three.camera.v1', JSON.stringify({...preferences,projection,fov})); } catch { /* optional */ } };
+  const persist = () => { try { environment.localStorage?.setItem('delve.three.camera.v1', JSON.stringify({...preferences,projection,fov,focusSide:sideChoice})); } catch { /* optional */ } };
   const assignments = () => metadata.assignments?.length ? metadata.assignments : Object.entries(metadata.controllers ?? {}).map(([sideId, controller]) => ({ sideId, controller }));
   const own = id => cameraOwnHuman(frame, id, side, assignments());
   const automatic = () => !suspended && preferences.follow !== 'off' && preferences.mode !== 'full';
   function renderControls() {
+    if(controls['side-label'].firstChild?.nodeType===3)controls['side-label'].firstChild.textContent=physical?'Focus ':'Side ';
+    controls.side.setAttribute?.('aria-label',physical?'Camera focus preference':'Camera Side');
+    for(const option of controls.follow.options??[])if(option.value==='own')option.textContent=physical?'Focus priority':'Own Side';
     for (const [id, value] of Object.entries({ mode: preferences.mode, span: [10,15,20,25].includes(preferences.fixedSpan) ? preferences.fixedSpan : 'custom', follow: preferences.follow, min: preferences.minSpan, max: preferences.maxSpan, margin: preferences.margin })) controls[id].value = String(value);
     controls.span.hidden = preferences.mode !== 'fixed';
     controls.resume.hidden = !suspended || preferences.follow === 'off' || preferences.mode === 'full';
@@ -32,13 +43,17 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     if(controls.projection){controls.projection.value=projection;controls.projection.parentElement.hidden=!physical;}
     if(controls.fov){controls.fov.value=String(fov);controls.fov.disabled=projection!=='perspective';controls.fov.parentElement.hidden=!physical;}
     controls.status.textContent = `${suspended ? 'Manual · ' : ''}${pose ? (threeSpanScale(size,1,pose) / pose.scale).toFixed(1) : '—'} Cells ${pose?.projectionMix>0?'focus span':'max'}${overflow && preferences.mode === 'auto' ? ' · some Moves offscreen' : ''}`;
+    const diagnosis=physical?director.inspect().diagnostic:null;
+    controls.status.title=diagnosis?`${diagnosis.context}: ${diagnosis.reason}; ${diagnosis.adjustment}; translation ${diagnosis.translation}`:'';
   }
-  function apply(next, smooth = true) {
+  function apply(next, smooth = true, directed = false) {
     if (!frame) return;
-    next = threeClampPose({...orientation,...next,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0}, frame.board, size);
+    next = {...orientation,...next,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0};
+    if(!directed)next=threeClampPose(next,frame.board,size);
+    if(directed)orientation={tilt:next.tilt,yaw:next.yaw};
     if (target && ['x','y','scale','tilt','yaw','projectionMix','fov','visualHeight','visualOverhang'].every(key=>Math.abs(target[key]-next[key])<.0001)) return;
     target = next;
-    transition = pose && smooth && animate() && !reduced() ? { from: { ...pose }, to: next, start: environment.performance.now(), duration: 260 } : null;
+    transition = pose && smooth && animate() && !reduced() ? { from: { ...pose }, to: next, start: environment.performance.now(), duration: directed?420:260, directed } : null;
     if (!transition) pose = { ...next };
     invalidate(); renderControls();
   }
@@ -62,6 +77,14 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   function useful(smooth = true) {
     if (!frame) return;
     if (preferences.mode === 'full') return apply(threeFull(frame.board,size,geometry(),physical), smooth);
+    if(physical&&pose){
+      // Explicit Resume/mode/preferences changes may restore a useful scale.
+      // Ordinary stable decisions and playback never call this reset path.
+      const current=target??pose,currentSpan=threeSpanScale(size,1,current)/current.scale;
+      const span=preferences.mode==='fixed'?preferences.fixedSpan:Math.max(preferences.minSpan,Math.min(preferences.maxSpan,currentSpan));
+      apply({...current,scale:threeSpanScale(size,span,current)},smooth);
+      director.stable(frame,decision,side);direct(smooth);return;
+    }
     if (preferences.mode === 'auto' && fit(true,smooth)) return;
     const party = frame.units.filter(u => (!side || u.sideId === side) && cameraFootprint(frame,u.id).length);
     let bounds = party.reduce((b,u) => cameraUnion(b,cameraBounds(cameraFootprint(frame,u.id))),null);
@@ -71,21 +94,27 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function setFrame(state,presentation,meta) {
     const replacement = session !== (meta.sessionId ?? meta.scenarioId);
+    if(replacement)director.reset();
     if (replacement) { session = meta.sessionId ?? meta.scenarioId; pose = target = transition = null; suspended = false; decision = movement = null; activationKey = null; activation = 0; manualActivation = null; fittedSpan = moveSignature = fitBounds = activeBounds = null; }
     frame = cameraObservedFrame(state,presentation); metadata = meta;
+    refreshSides();
+    if (!pose) useful(false);
+    renderControls(); invalidate();
+  }
+  function refreshSides(){
     const humans = cameraHumanSides(assignments()), sides = [...new Set(frame.units.map(u=>u.sideId))];
-    side = frame.side ?? (sides.includes(sideChoice) ? sideChoice : humans[0] ?? null);
-    controls['side-label'].hidden = !!frame.side || humans.length === 1;
-    const choices = frame.side ? [frame.side] : humans.length ? humans : ['',...sides];
+    const available=[...new Set([...sides,...assignments().map(a=>a.sideId)])];
+    side = physical ? (sideChoice===null?null:available.includes(sideChoice)?sideChoice:frame.side??humans[0]??available[0]??null) : frame.side ?? (sides.includes(sideChoice) ? sideChoice : humans[0] ?? null);
+    controls['side-label'].hidden = physical?false:!!frame.side || humans.length === 1;
+    const choices = physical?['',...available]:frame.side ? [frame.side] : humans.length ? humans : ['',...sides];
     if (controls.side.dataset.options !== JSON.stringify(choices)) {
       controls.side.replaceChildren(...choices.map(id=> { const o=document.createElement('option'); o.value=id; o.textContent=id || 'Spectator'; return o; })); controls.side.dataset.options=JSON.stringify(choices);
     }
     controls.side.value = side ?? '';
-    if (!pose) useful(false);
-    renderControls(); invalidate();
   }
   function stable(next) {
     decision = next;
+    if(physical){activeBounds=fitBounds=cameraBounds(cameraFootprint(frame,next?.unitId));director.stable(frame,next,side);direct();return;}
     if (!next?.unitId || !own(next.unitId)) { fitBounds=activeBounds=null;return; }
     const key = `${metadata.round}:${next.unitId}:${activation}`;
     if (key !== activationKey) { activationKey = key; fittedSpan = moveSignature = null; if (manualActivation !== activation && preferences.follow !== 'off') suspended = false; }
@@ -95,15 +124,23 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function occurrence(occurrence,event,instant=false) {
     if (!frame) return;
+    if(physical){
+      activeBounds=fitBounds=null;
+      if(occurrence?.kind==='ActivationStarted'&&side&&frame.units.some(u=>u.id===occurrence.unitId&&u.sideId===side)&&cameraFootprint(frame,occurrence.unitId).length){activation++;if(preferences.follow!=='off')suspended=false;}
+      director.event(frame,occurrence,event);direct(!instant);
+      if(instant){if(event.role==='Movement')finishMovement();else settle();}return;
+    }
     movement = cameraEventIntent(occurrence,event,frame);
     if (occurrence?.kind === 'ActivationStarted' && own(occurrence.unitId)) { activation++; activationKey = null; if (preferences.follow !== 'off') suspended=false; if(preferences.mode==='auto') return; }
     if (movement?.kind === 'movement') { if(instant) finishMovement(); return; }
     follow(movement,!instant);
   }
   function movementStep(anchor) {
+    if(physical){director.step(anchor,frame);direct();return;}
     if (movement?.kind === 'movement' && movement.segments.some(s=>s.some(c=>c.x===anchor.x && c.y===anchor.y))) follow({ ...movement,bounds:cameraAnchorBounds(anchor,movement.span) });
   }
   function finishMovement() {
+    if(physical){const last=director.finish();if(last){director.step(last,frame);direct(false);}settle();return;}
     if (movement?.kind === 'movement') { const last=movement.segments.at(-1).at(-1); follow({...movement,bounds:cameraAnchorBounds(last,movement.span)},false); }
     settle();
   }
@@ -135,9 +172,14 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function resize(width,height) {
     if(!width||!height||width===size.width&&height===size.height) return;
-    const span=pose ? threeSpanScale(size,1,pose)/pose.scale : preferences.fixedSpan;
+    const resizedPose=physical?(target??pose):pose;
+    const span=resizedPose ? threeSpanScale(size,1,resizedPose)/resizedPose.scale : preferences.fixedSpan;
     size={width,height}; transition=null; target=null;
     if(!frame) return;
+    if(physical&&preferences.mode!=='full'&&pose){
+      apply({...resizedPose,scale:threeSpanScale(size,preferences.mode==='fixed'?preferences.fixedSpan:span,resizedPose)},false);
+      if(automatic()){director.stable(frame,decision,side);direct(false);}return;
+    }
     if(preferences.mode==='full'||preferences.mode==='auto'&&automatic()) useful(false);
     else apply({...pose,scale:spanScale(preferences.mode==='fixed'?preferences.fixedSpan:span)},false);
   }
@@ -157,6 +199,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
         pose=threeEnsureVisible(pose,activeBounds,frame.board,size);
       }
       if(preferences.mode==='auto'&&automatic()&&activeBounds)pose.scale=Math.min(pose.scale,threeFitRect(activeBounds,size,pose).scale);
+      if(transition.directed&&transition.to.projectionMix===1&&transition.from.projectionMix===1)pose=interpolateCameraWorld(transition.from,transition.to,fraction,size);
       if(fraction>=1) { pose={...transition.to};transition=null; }
     }
     renderControls(); onChange(); return !!transition;
@@ -176,15 +219,20 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     }
     for(const [key,node] of indicators) if(!retained.has(key)){node.remove();indicators.delete(key);}
   }
-  function resume(){suspended=false;moveSignature=fittedSpan=null;useful();renderControls();}
+  function resume(){suspended=false;moveSignature=fittedSpan=null;director.reset();useful();renderControls();}
   function setOrientation(next,smooth=true) {
     orientation={tilt:Math.max(0,Math.min(55,Number(next.tilt??orientation.tilt))),yaw:Number(next.yaw??orientation.yaw)};
     moveSignature=null;
+    if(physical&&pose&&preferences.mode!=='full'){
+      let desired={...pose,...geometry()};
+      if(automatic()&&activeBounds)desired.scale=Math.min(desired.scale,threeFitRect(activeBounds,size,desired).scale);
+      apply(desired,smooth);renderControls();return;
+    }
     if(preferences.mode==='full'||preferences.mode==='auto'&&automatic())useful(smooth);
     else if(pose)apply({...pose,...orientation,scale:spanScale(preferences.fixedSpan)},smooth);
     renderControls();
   }
-  function setPresentation(value,smooth=true){physical=value==='tabletop';setOrientation(physical?tabletopOrientation:{tilt:0,yaw:0},smooth);}
+  function setPresentation(value,smooth=true){director.reset();physical=value==='tabletop';fitBounds=activeBounds=null;setOrientation(physical?tabletopOrientation:{tilt:0,yaw:0},smooth);if(frame)refreshSides();}
   function setProjection(value,smooth=true){projection=value==='perspective'?'perspective':'orthographic';changeLens(smooth);}
   function setFov(value,smooth=true){fov=lensFov(value);changeLens(smooth);}
   function changeLens(smooth){
@@ -210,20 +258,21 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   bind('span','change',()=>{preferences.fixedSpan=Number(controls.span.value);resume();persist();});
   bind('follow','change',()=>{preferences.follow=controls.follow.value;persist();if(preferences.follow!=='off')resume();else settle();});
   for(const [id,key] of [['min','minSpan'],['max','maxSpan'],['margin','margin']]) bind(id,'change',()=>{preferences=cameraPreferences({...preferences,[key]:controls[id].value});persist();resume();});
-  bind('side','change',()=>{sideChoice=controls.side.value||null;side=sideChoice;activationKey=null;resume();});
-  bind('reset','click',()=>{orientation=physical?{...tabletopOrientation}:{tilt:0,yaw:0};resume();});bind('resume','click',resume);bind('in','click',()=>zoom(1.2,undefined,true));bind('out','click',()=>zoom(1/1.2,undefined,true));
-  for(const key of ['tilt','yaw'])if(controls[key])bind(key,'input',()=>setOrientation({[key]:Number(controls[key].value)},true));
-  if(controls.projection)bind('projection','change',()=>setProjection(controls.projection.value));
-  if(controls.fov)bind('fov','input',()=>setFov(controls.fov.value));
+  bind('side','change',()=>{sideChoice=controls.side.value||null;side=sideChoice;activationKey=null;persist();resume();});
+  bind('reset','click',()=>{if(physical)manualOrientation(tabletopOrientation);else{orientation={tilt:0,yaw:0};resume();}});bind('resume','click',resume);bind('in','click',()=>zoom(1.2,undefined,true));bind('out','click',()=>zoom(1/1.2,undefined,true));
+  const manualOrientation=next=>{if(pose)manual({...pose,...next},true);};
+  for(const key of ['tilt','yaw'])if(controls[key])bind(key,'input',()=>manualOrientation({[key]:Number(controls[key].value)}));
+  if(controls.projection)bind('projection','change',()=>{const value=controls.projection.value;if(pose)manual(pose);setProjection(value);});
+  if(controls.fov)bind('fov','input',()=>{const value=controls.fov.value;if(pose)manual(pose);setFov(value);});
   for(const [key,change]of [['turn-left',()=>({yaw:orientation.yaw-45})],['turn-right',()=>({yaw:orientation.yaw+45})],['overhead',()=>({tilt:0})],['angle',()=>({tilt:38})]])
-    if(controls[key])bind(key,'click',()=>{if(physical)setOrientation(change(),true);});
+    if(controls[key])bind(key,'click',()=>{if(physical)manualOrientation(change());});
   const media=environment.matchMedia?.('(prefers-reduced-motion: reduce)');media?.addEventListener?.('change',()=>{if(reduced())settle();},{signal:subscriptions.signal});
   renderControls();
-  return {setFrame,stable,occurrence,movementStep,finishMovement,settle,cancel:()=>{movement=null;settle();},resize,tick,manual,pan,zoom,resume,setMode,setOrientation,setPresentation,setProjection,setFov,renderIndicators,
+  return {setFrame,stable,occurrence,movementStep,finishMovement,settle,cancel:()=>{movement=null;director.reset();settle();},resize,tick,manual,pan,zoom,resume,setMode,setOrientation,setPresentation,setProjection,setFov,renderIndicators,
     screen:point=>pose?threeProject(point,pose,size):point,
     ground:point=>pose?threeUnproject(point,pose,size):point,
     groundAtHeight:(point,height)=>pose?threeUnproject(point,pose,size,height):point,
     current:()=>pose&&({...pose}), get size(){return size;},
     dispose:()=>{subscriptions.abort();for(const node of indicators.values())node.remove();},
-    inspect:()=>({preferences:{...preferences},current:pose&&({...pose}),target:target&&({...target}),suspended,side,fittedSpan,overflow,transitionActive:!!transition})};
+    inspect:()=>({preferences:{...preferences},current:pose&&({...pose}),target:target&&({...target}),suspended,side,fittedSpan,overflow,transitionActive:!!transition,director:director.inspect()})};
 }

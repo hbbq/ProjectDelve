@@ -95,8 +95,152 @@ focus expose the complete observed information.
 
 ## Camera and input
 
+### Auto Camera Director V1.1
+
+Tabletop uses `three-camera-director.js` to choose compositions; `three-camera.js`
+owns input, preferences and interpolation on the existing viewport RAF. Flat keeps
+its original policy. Full Board remains explicit whole-board framing. Fixed keeps
+scale except where a primary model would be clipped. FOV remains user controlled.
+
+The contexts are Decision, Movement, Combat and Overview. Decision reads supplied
+browser candidates: selectable Units, active footprint, legal placement Cells,
+Unit/Cell/Door interactions and observed affected Units. Widely scattered choices
+use a bounded region anchored on the active Unit or first selectable Unit; existing
+Board choices remain available. Movement uses observation-safe segments and already
+presented anchors, resets direction across disconnected segments, and adds a small
+direction hint only in explored space. Combat retains observed attacker/target
+envelopes through dice, damage and defeat until the next decision or activation.
+Overview retains the accepted idle view; observed spatial events can attract it.
+
+Focus offers every Side in observed Units/controller metadata plus Spectator. It
+is independent of `viewingSideId`, does not require Human control, and never changes
+server observation selection. Spectator has no preferred Side. Same-Side Units and
+nearby public Objectives provide secondary hints. Without explicit relationship
+projections, other Sides are not classified as enemies. Their observed activity can
+still be followed. Follow Off disables direction; Focus priority and All observable
+both retain the selected focus preference in Tabletop.
+
+Candidate search is deterministic and bounded (at most 20 poses): retain,
+fixed-position perspective look-around, and primary-centered or direction-leading
+fits at the current heading, nearby +/-35 and +/-70 degree headings, and a bounded
+heading toward observed activity. Alternative tilts remain within the safe range.
+Public model envelopes determine clipping; projected footprint width also caps
+the readability measure so catalog-wide safety overhang cannot inflate it.
+Auto prefers a minimum projected subject size of 9% of the shorter viewport edge,
+clamped to 40-64px, and seeks 15%, clamped to 76-110px. Every Combat participant
+counts. When no fully visible, safe candidate meets the minimum, visibility and
+the smallest subject's deficit determine the compromise. Fixed retains its scale
+policy rather than overriding the user's framing preference.
+
+Fitting uses primary subjects and 1-2 Cells of local breathing room. Immediate
+targets, local legal choices and nearby Units have separate bounded score budgets;
+hundreds of destinations cannot outvote primary readability. Public Objective
+bearings and observed nearby activity can influence heading without expanding the
+required region. Other Sides are activity hints, not inferred enemies. A leading
+focus can place the active Unit below center, leaving room toward useful activity.
+Scoring includes subject size, margins, direction, travel, heading, tilt and zoom.
+Readability and useful direction can overcome transition costs. Deterministic
+candidate ordering breaks ties. Zoom can tighten an empty composition as well as
+widen a clipped one. Orthographic travel costs use focus displacement rather than
+the artificial optical reference distance; Perspective uses actual world travel.
+
+Perspective world interpolation reconstructs ground focus and distance at each
+sample, so look-around preserves actual camera position throughout its transition.
+Orthographic uses framing/translation instead of a fictitious optical origin.
+No extra animation loop or playback wait is added.
+
+Auto tilt is 30-70 degrees downward from horizontal (20-60 in the existing
+overhead-relative pose convention), normally near 50 degrees down. There is no
+roll. These limits belong to the director, not the underlying geometry. Candidate
+camera heights below the public model envelope plus one Cell are penalized.
+Manual presets retain their existing broader limits.
+
+Hysteresis uses a 4px intervention edge, larger comfort margins, meaningful score
+improvement and deterministic ties. An undersized primary bypasses retention;
+a readable good shot requires a meaningful improvement to change. There is no repeated automatic zoom-in during
+short pauses. Accepted targets are evaluated during transitions to avoid per-frame
+retargeting. Hover/preview changes do not direct the camera. Initial hidden 1x1
+viewport poses are rescaled when their real dimensions arrive.
+
+Pan, zoom, yaw/tilt, rotation buttons, presets and lens controls interrupt automatic
+direction. Resume Follow restores it. The next observed activation of the selected
+Side also resumes, including automated Sides; Spectator does not resume on arbitrary
+activations. Session replacement, cancellation and renderer handoff clear local
+sequence state. Skip Effects, animation Off and reduced motion use existing settle
+and instant paths.
+
+FoW safety uses existing displayed-frame/event-time adapters. Hidden participants
+have no footprint; movement padding is filtered; disconnected segments are never
+joined. Legal regions come from projected choices, never local legality. Render
+clipping and observation permissions are unchanged.
+
+`camera.inspect().director` reports context and the last accepted shot (subjects,
+reason, adjustment, projected subject pixels, actual travel). The camera status tooltip gives a short
+explanation. There is no per-frame logging or new permanent debug panel.
+
+V1 uses conservative envelopes and margins, not mesh-level occlusion/collision.
+Tall scenery can still obscure a figure; Cutaway remains useful. Margins do not
+solve arbitrarily moved/expanded overlays. Scattered choices can remain offscreen;
+narrow layouts can reduce labels and require Board choices. Speed and candidate
+weights remain presentation tuning opportunities.
+
+
+#### V1.1 composition verification - 2026-10-28
+
+Focused director/geometry/viewport tests passed 123 tests; client and dispatcher
+security regressions passed 631 tests. Tests cover projected readability in both
+lenses and narrow viewports, oversized legal regions, zoom convergence, useful
+yaw changes, Objective bearings independent of distance, optional subjects,
+Combat pairs, hidden footprints, manual suspension and existing playback behavior.
+The solution build completed with zero warnings and errors.
+
+Restricted Edge inspection used test-owned camera-composition Rogue, Cleric and
+compact four-Hero fixtures on isolated port 5081. Both projections and multiple
+headings were inspected, including manual rotation/Resume and legal Rogue movement.
+Rogue's offside Reach Area steers the heading while retaining its offscreen link;
+Cleric's movement choices no longer dictate an all-destinations fit. Compact Heroes
+receive a closer group composition. Movement retained the visible local segment.
+Console and request checks were clean. Screenshot sequences include transitions
+as well as completed decisions; intermediate captures are not final framing.
+Dense model labels can overlap, and expanded Board choices can cover optional
+Cells. Widely separated Combat participants may not all reach the desired size.
+FoW and manual-control regressions remain unchanged; no observation permissions
+or gameplay implementation changed.
+
+#### V1 verification - 2026-10-28
+
+Focused director/geometry/viewport verification passed 114 tests. The complete
+client and dispatcher-security run passed 622 tests. Model-preparation regressions
+used the installed Python/Pillow runtime through `PROJECTDELVE_PYTHON` after the
+default Python shim failed. The solution built with zero warnings/errors; all
+1,985 .NET tests passed (1,601 Engine and 384 Web).
+
+Restricted Edge captures include `inspection-G17xir` (selection/decisions/controls/
+narrow layout), `inspection-jlh9FC` (combat), `inspection-E3B7lK` (FoW and focus),
+`inspection-mwuBpD` (renderer lifecycle), and `inspection-JwMMxQ` (final Full/Fixed/
+Auto and Miniatures), under `.playwright-cli/browser-qa/`. Console/request reports
+were clean. An initial hidden-viewport scale defect and a resize-during-framing
+regression were corrected and covered by dedicated tests.
+
+A separately reviewed localhost-only acceptance script exercised drag pan, range
+sliders, presets, Resume, exact idle canvas stability over 1.2 seconds, multiple
+legal targets, attack/dice resolution, long movement, renderer switching and actual
+restart/reload. Captures and the partial report are in
+`.playwright-cli/director-acceptance-gDoBfS/`. Its later FoW wait encountered a Human
+non-viewing Side whose choices are intentionally unavailable; this was a fixture
+issue, not a camera or observation change. The remaining FoW/Side/Spectator and
+reduced-motion checks passed with that Side automated, recorded in
+`.playwright-cli/director-acceptance-BQUcD4/`.
+
+Observed limitations: expanded decision/dice overlays can cover secondary Units
+or some movement Cells; the active Unit remained readable in the tested views.
+Narrow layouts reduce labels and rely more on Board choices. Large legal movement
+regions can still produce fairly wide shots. Future tuning can reserve actual
+overlay rectangles and improve scenic occlusion without adding gameplay queries.
+Engine, server observation implementation and CONSTRAINTS.md were not changed.
+
 `three-camera.js` reuses camera-geometry.js and camera-observation.js without
-importing board-camera.js. Full, Fixed and Auto preserve maximum-long-axis span,
+importing board-camera.js. In Flat, Full, Fixed and Auto preserve maximum-long-axis span,
 active Human footprint and legal Move-placement priorities, capped overflow,
 comfortable following and Own/All-observable policies. Auto expands without
 oscillating smaller within an activation. Its local preference key is

@@ -1,0 +1,73 @@
+{
+  "board": {
+    "width": 30,
+    "height": 22,
+    "defaultTerrain": "StoneFloor"
+  },
+  "unitTypeIds": [
+    "rogue-type",
+    "grunt-type"
+  ],
+  "units": [
+    {
+      "unitTypeId": "rogue-type",
+      "sideId": "blue",
+      "unitId": "rogue",
+      "anchor": {
+        "x": 10,
+        "y": 10
+      }
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "sideId": "red",
+      "unitId": "grunt",
+      "anchor": {
+        "x": 14,
+        "y": 10
+      }
+    }
+  ],
+  "agency": [
+    {
+      "unitTypeId": "rogue-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "sideId": "red",
+      "controller": "Automated"
+    }
+  ],
+  "objectives": [
+    {
+      "sideId": "blue",
+      "objective": "ReachArea",
+      "count": 1,
+      "selectors": [
+        {
+          "kind": "SideAtStart",
+          "sideId": "blue"
+        }
+      ],
+      "area": {
+        "x": 24,
+        "y": 10,
+        "w": 2,
+        "h": 2
+      }
+    },
+    {
+      "sideId": "red",
+      "objective": "NoObjective"
+    }
+  ],
+  "orders": [
+    {
+      "unitTypeId": "grunt-type",
+      "sideId": "red",
+      "kind": "DoNothing"
+    }
+  ]
+}

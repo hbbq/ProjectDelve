@@ -1,0 +1,60 @@
+{
+  "board": {
+    "width": 30,
+    "height": 22,
+    "defaultTerrain": "StoneFloor"
+  },
+  "unitTypeIds": [
+    "cleric-type",
+    "grunt-type"
+  ],
+  "units": [
+    {
+      "unitTypeId": "cleric-type",
+      "sideId": "blue",
+      "unitId": "cleric",
+      "anchor": {
+        "x": 10,
+        "y": 10
+      }
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "sideId": "red",
+      "unitId": "grunt",
+      "anchor": {
+        "x": 14,
+        "y": 10
+      }
+    }
+  ],
+  "agency": [
+    {
+      "unitTypeId": "cleric-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "sideId": "red",
+      "controller": "Automated"
+    }
+  ],
+  "objectives": [
+    {
+      "sideId": "blue",
+      "objective": "NoObjective"
+    },
+    {
+      "sideId": "red",
+      "objective": "NoObjective"
+    }
+  ],
+  "orders": [
+    {
+      "unitTypeId": "grunt-type",
+      "sideId": "red",
+      "kind": "DoNothing"
+    }
+  ]
+}

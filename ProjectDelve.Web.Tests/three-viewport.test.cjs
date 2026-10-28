@@ -83,7 +83,7 @@ function fixture(size=8,side=null){
 async function harness(frame=fixture(),options={}){
   const frames=new Map(),requests=[],rendered=[],picked=[],hovered=[],failures=[];let handle=0,disposed=0;
   const saved={};for(const key of ['document','ResizeObserver','requestAnimationFrame','cancelAnimationFrame','addEventListener','matchMedia'])saved[key]=globalThis[key];
-  const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives','tilt','yaw','cutaway','projection','fov'])controls[id]=new Element();controls.root.append(controls.status);
+  const controls={};for(const id of ['root','mode','span','follow','min','max','margin','side','side-label','resume','reset','in','out','status','objectives','tilt','yaw','cutaway','projection','fov','turn-left','turn-right','overhead','angle'])controls[id]=new Element();controls.root.append(controls.status);
   for(const id of ['projection','fov']){const label=new Element('label');label.append(controls[id]);controls.root.append(label);}
   const host=new Element();
   globalThis.document={createElement:tag=>new Element(tag),getElementById:()=>null};globalThis.ResizeObserver=class{observe(){}disconnect(){}};
@@ -856,4 +856,56 @@ test('production Dragon preserves 2x2 picking, grounding and every explored clip
  }finally{pool.dispose();}
  const lying=structuredClone(f);lying.state.physical.figures[1].posture='Lying';h.viewport.renderFrame(lying);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('cardboard-body'));h.viewport.renderFrame(f);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('normalized-model'));assert.deepEqual(h.failures,[]);
  }finally{h.cleanup();}
+});
+
+test('director manual controls suspend transitions, Resume restores control, and only focused activations resume',async()=>{
+ const f=fixture(50,'blue');f.metadata.assignments.push({sideId:'red',controller:'Automated'});f.state.units[1].sideId='red';const h=await harness(f);
+ try{h.viewport.setPresentation('tabletop');const c=h.viewport.camera;
+ assert.deepEqual(h.controls.side.children.map(o=>o.value),['','blue','red']);
+ for(const key of ['in','out','turn-left','turn-right','overhead','angle','reset']){c.resume();h.controls[key].emit('click');assert.equal(c.inspect().suspended,true,key);const target=c.inspect().target;c.stable({unitId:'hero',candidates:[]});assert.deepEqual(c.inspect().target,target);}
+ for(const key of ['tilt','yaw']){c.resume();h.controls[key].value='25';h.controls[key].emit('input');assert.equal(c.inspect().suspended,true);}
+ c.resume();c.pan({x:300,y:300},{x:330,y:310});assert.equal(c.inspect().suspended,true);
+ c.occurrence({kind:'ActivationStarted',unitId:'large'},{});assert.equal(c.inspect().suspended,true);
+ c.occurrence({kind:'ActivationStarted',unitId:'hero'},{});assert.equal(c.inspect().suspended,false);
+ h.controls.side.value='';h.controls.side.emit('change');c.zoom(1.1);c.occurrence({kind:'ActivationStarted',unitId:'hero'},{});assert.equal(c.inspect().suspended,true);assert.equal(c.inspect().side,null);
+ h.controls.resume.emit('click');assert.equal(c.inspect().suspended,false);
+ h.viewport.renderFrame(f);assert.equal(c.inspect().side,null);assert.equal(h.viewport.inspect().camera.side,null);
+ h.controls.side.value='red';h.controls.side.emit('change');c.zoom(1.1);c.occurrence({kind:'ActivationStarted',unitId:'large'},{});assert.equal(c.inspect().suspended,false);
+ assert.equal(f.presentation.viewingSideId,'blue');assert.equal(h.viewport.inspect().camera.side,'red');
+ }finally{h.cleanup();}
+});
+test('director cancellation, session replacement and renderer switching clear sequence state',async()=>{
+ const f=fixture(50),h=await harness(f);try{h.viewport.setPresentation('tabletop');const c=h.viewport.camera;
+ const attack=()=>c.occurrence({kind:'AttackStarted',attackContext:{attackerId:'hero',targets:[{targetId:'large'}]}},{});
+ attack();assert.equal(c.inspect().director.context,'Combat');c.cancel();assert.equal(c.inspect().director.context,'Overview');
+ attack();h.viewport.setPresentation('flat');assert.equal(c.inspect().director.context,'Overview');h.viewport.setPresentation('tabletop');
+ attack();c.zoom(1.2);h.viewport.renderFrame({...f,metadata:{...f.metadata,sessionId:'replacement'}});assert.equal(c.inspect().suspended,false);assert.equal(c.inspect().director.context,'Overview');assert.equal(c.inspect().transitionActive,false);
+ }finally{h.cleanup();}
+});
+test('director honors Skip Effects, animation disabled and reduced motion without extra playback',async()=>{
+ for(const mode of ['skip','disabled','reduced']){const h=await harness(fixture(50),{animate:()=>mode!=='disabled'});try{h.viewport.setPresentation('tabletop');const c=h.viewport.camera;
+ if(mode==='reduced')globalThis.matchMedia=()=>({matches:true});
+ c.manual({...c.current(),x:40,y:40});c.resume();c.occurrence({kind:'AttackStarted',attackContext:{attackerId:'hero',targets:[{targetId:'large'}]}},{},mode==='skip');
+ assert.equal(c.inspect().transitionActive,false,mode);h.viewport.settle();h.flush(performance.now()+1000);assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}}
+});
+
+test('director scales the hidden 1x1 viewport pose when Tabletop first receives its real layout',async()=>{
+ const h=await harness(fixture(50));try{const c=h.viewport.camera;h.viewport.setPresentation('tabletop');c.resize(1,1);c.setProjection('perspective',false);c.resume();c.resize(1100,790);c.stable({unitId:'hero',candidates:[]});h.viewport.settle();const p=c.current();assert.ok(p.scale>20,JSON.stringify(p));const screen=c.screen({x:2.5,y:2.5});assert.ok(screen.x>=0&&screen.x<=1100&&screen.y>=0&&screen.y<=790);}
+ finally{h.cleanup();}
+});
+
+test('Resume from a manual overhead preset restores the director tilt range',async()=>{
+ const h=await harness(fixture(30));try{const c=h.viewport.camera;h.viewport.setPresentation('tabletop');c.stable({unitId:'hero',candidates:[]});c.setProjection('perspective',false);h.controls.overhead.emit('click');c.resume();assert.ok(c.inspect().target.tilt>=20&&c.inspect().target.tilt<=60,JSON.stringify(c.inspect()));}
+ finally{h.cleanup();}
+});
+
+test('Tabletop explicit mode and span changes preserve Full Fixed and Auto framing policies',async()=>{
+ const h=await harness(fixture(50));try{const c=h.viewport.camera,g=await moduleAt('three-camera-geometry.js');h.viewport.setPresentation('tabletop');c.setMode('full');h.viewport.settle();c.setMode('fixed');h.viewport.settle();assert.ok(Math.abs(g.threeSpanScale(c.size,1,c.current())/c.current().scale-15)<1e-6);h.controls.span.value='10';h.controls.span.emit('change');h.viewport.settle();assert.ok(Math.abs(g.threeSpanScale(c.size,1,c.current())/c.current().scale-10)<1e-6);c.setMode('full');h.viewport.settle();c.setMode('auto');h.viewport.settle();assert.ok(c.current().scale>20);}
+ finally{h.cleanup();}
+});
+
+test('layout changes during a Fixed transition preserve the selected span',async()=>{
+ const h=await harness(fixture(50));try{const c=h.viewport.camera,g=await moduleAt('three-camera-geometry.js');h.viewport.setPresentation('tabletop');c.setMode('full');h.viewport.settle();c.setMode('fixed');h.controls.span.value='10';h.controls.span.emit('change');h.flush(performance.now()+80);c.resize(1090,788);assert.ok(Math.abs(g.threeSpanScale(c.size,1,c.current())/c.current().scale-10)<1e-6);}
+ finally{h.cleanup();}
 });

@@ -1,0 +1,16 @@
+{
+  "board": {"width": 30, "height": 12, "defaultTerrain": "StoneFloor"},
+  "unitTypeIds": ["camera-scout"],
+  "unitTypes": [{"id":"camera-scout","displayName":"Camera Scout","mov":8,"rng":6,"atk":1,"def":1,"hp":1}],
+  "units": [
+    {"unitTypeId":"camera-scout","sideId":"blue","unitId":"blue-1","anchor":{"x":3,"y":4}},
+    {"unitTypeId":"camera-scout","sideId":"blue","unitId":"blue-2","anchor":{"x":3,"y":6}},
+    {"unitTypeId":"camera-scout","sideId":"red","unitId":"red-1","anchor":{"x":6,"y":4}},
+    {"unitTypeId":"camera-scout","sideId":"red","unitId":"red-2","anchor":{"x":6,"y":6}}
+  ],
+  "agency": [
+    {"unitTypeId":"camera-scout","sideId":"blue","controller":"Human"},
+    {"unitTypeId":"camera-scout","sideId":"red","controller":"Human"}
+  ],
+  "objectives": [{"sideId":"blue","objective":"NoObjective"},{"sideId":"red","objective":"NoObjective"}]
+}

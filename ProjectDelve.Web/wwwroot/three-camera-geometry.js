@@ -161,3 +161,26 @@ export function interpolateOrientation(from,to,fraction) {
   const delta=(((to.yaw??0)-(from.yaw??0)+540)%360)-180;
   return {tilt:(from.tilt??0)+((to.tilt??0)-(from.tilt??0))*t,yaw:(from.yaw??0)+delta*t};
 }
+
+// Actual perspective camera location (board y is world Z). Orthographic travel
+// uses a finite reference distance because its projection has no optical origin.
+export function threeCameraPosition(pose, viewport) {
+  const b=orientationBasis(pose),lens=perspectiveLens(pose,viewport),d=lens.perspective?lens.distance:100;
+  return {x:pose.x+d*b.st*b.s,y:pose.y+d*b.st*b.c,height:d*b.ct};
+}
+export function threePoseFromPosition(position, orientation, viewport) {
+  const b=orientationBasis(orientation),lens=perspectiveLens({...orientation,scale:1},viewport);
+  if(!lens.perspective)return null;
+  const distance=position.height/b.ct;
+  return {...orientation,x:position.x-distance*b.st*b.s,y:position.y-distance*b.st*b.c,scale:lens.focal/distance};
+}
+export function threeLookAt(pose, point, viewport) {
+  if(!perspectiveLens(pose,viewport).perspective)return null;
+  const p=threeCameraPosition(pose,viewport),dx=p.x-point.x,dy=p.y-point.y;
+  return threePoseFromPosition(p,{...pose,yaw:Math.atan2(dx,dy)*180/Math.PI,tilt:Math.atan2(Math.hypot(dx,dy),p.height)*180/Math.PI},viewport);
+}
+export function interpolateCameraWorld(from,to,fraction,viewport) {
+  const t=1-(1-Math.max(0,Math.min(1,fraction)))**3,a=threeCameraPosition(from,viewport),b=threeCameraPosition(to,viewport);
+  return threePoseFromPosition({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,height:a.height+(b.height-a.height)*t},
+    {...to,...interpolateOrientation(from,to,fraction)},viewport);
+}

@@ -1,0 +1,79 @@
+{
+  "board": {
+    "width": 30,
+    "height": 22,
+    "defaultTerrain": "StoneFloor"
+  },
+  "unitTypeIds": [
+    "rogue-type",
+    "cleric-type",
+    "barbarian-type",
+    "wizard-type"
+  ],
+  "units": [
+    {
+      "unitTypeId": "rogue-type",
+      "sideId": "blue",
+      "unitId": "rogue",
+      "anchor": {
+        "x": 10,
+        "y": 10
+      }
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "sideId": "blue",
+      "unitId": "cleric",
+      "anchor": {
+        "x": 11,
+        "y": 10
+      }
+    },
+    {
+      "unitTypeId": "barbarian-type",
+      "sideId": "blue",
+      "unitId": "barbarian",
+      "anchor": {
+        "x": 10,
+        "y": 11
+      }
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "sideId": "blue",
+      "unitId": "wizard",
+      "anchor": {
+        "x": 11,
+        "y": 11
+      }
+    }
+  ],
+  "agency": [
+    {
+      "unitTypeId": "rogue-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "barbarian-type",
+      "sideId": "blue",
+      "controller": "Human"
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "sideId": "blue",
+      "controller": "Human"
+    }
+  ],
+  "objectives": [
+    {
+      "sideId": "blue",
+      "objective": "NoObjective"
+    }
+  ]
+}
