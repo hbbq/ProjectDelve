@@ -3,10 +3,11 @@
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
 require('./troll-qa-plans.cjs');
 const remaining=process.argv.includes('--remaining');
-const {setup}=require('./miniature-qa-plans.cjs'),out=path.resolve(__dirname,remaining?'../.playwright-cli/remaining-qa':'../.playwright-cli/batch-qa');fs.mkdirSync(out,{recursive:true});
-const slugs=remaining?['bomb-imp','castle-guard','chief-mechanic','displacer-demon','geomancer','goblin-bishop','goblin-king','goblin-peasant','grunt','labyrinth-shaper','rogue','royal-bishop','royal-king','royal-peasant','royal-queen','shaman','skeleton-archer','witch-queen','wizard']:['goblin','barbarian','cleric','hobby-knight','worker','zombie','troll'];
+const final=process.argv.includes('--final');
+const {setup}=require('./miniature-qa-plans.cjs'),out=path.resolve(__dirname,final?'../.playwright-cli/final-qa':remaining?'../.playwright-cli/remaining-qa':'../.playwright-cli/batch-qa');fs.mkdirSync(out,{recursive:true});
+const slugs=final?['royal-knight','locomotive','tower-troll','ghost','diamond-kart']:remaining?['bomb-imp','castle-guard','chief-mechanic','displacer-demon','geomancer','goblin-bishop','goblin-king','goblin-peasant','grunt','labyrinth-shaper','rogue','royal-bishop','royal-king','royal-peasant','royal-queen','shaman','skeleton-archer','witch-queen','wizard']:['goblin','barbarian','cleric','hobby-knight','worker','zombie','troll'];
 const save=(name,steps)=>{if(steps.length>40)throw Error(name+' exceeds plan budget');fs.writeFileSync(path.join(out,name+'.json'),JSON.stringify({steps},null,2));};
-const base=(copies=1)=>({board:{width:12,height:Math.max(8,4+Math.ceil(slugs.length/7)*copies*2),defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:slugs.map(s=>s+'-type'),unitTypes:[],
+const base=(copies=1)=>({board:{width:12,height:Math.max(8,4+Math.ceil(slugs.length/7)*copies*2),defaultTerrain:final?'Asphalt':'StoneFloor',cells:[],edges:[]},unitTypeIds:slugs.map(s=>s+'-type'),unitTypes:[],
  units:slugs.flatMap((s,i)=>Array.from({length:copies},(_,j)=>({unitTypeId:s+'-type',sideId:j%2?'red':'blue',anchor:{x:2+i%7,y:2+Math.floor(i/7)*copies*2+j*2},unitId:s+'-'+j}))),
  agency:slugs.flatMap(s=>['blue','red'].map(sideId=>({unitTypeId:s+'-type',sideId,controller:'Human'}))),objectives:['blue','red'].map(sideId=>({sideId,objective:'NoObjective'}))});
 const view=[{action:'select',target:'#three-unit-representation',value:'miniatures'},{action:'select',target:'#three-camera-mode',value:'full'},{action:'select',target:'#three-camera-projection',value:'perspective'},{action:'select',target:'#three-camera-fov',value:'65'},{action:'click',target:'#three-camera-angle'}];
@@ -22,11 +23,12 @@ save('views',[...setup(base(2)),...instant,...view,{action:'click',target:'#thre
 for(const copies of [1,2])save('performance-'+copies,[...setup(base(copies)),...view,{action:'screenshot',name:'loaded.png'},...diag,{action:'click',target:'#three-reset-sample'},
  ...Array.from({length:8},(_,i)=>[{action:'click',target:i%2?'#three-camera-turn-left':'#three-camera-turn-right'},{action:'screenshot',name:'warm-'+i+'.png'}]).flat(),
  {action:'snapshot',target:'.three-diagnostics',name:'warm.yaml'},...end]);
-for(const slug of remaining?slugs:slugs.slice(0,5)){
+for(const slug of remaining||final?slugs:slugs.slice(0,5)){
  for(const name of ['move','combat-instant','fog-warm','posture','picking']){
   const plan=JSON.parse(fs.readFileSync(path.resolve(__dirname,`../.playwright-cli/troll-qa/${name}.json`)));
   for(const step of plan.steps)if(step.target==='#scenario-transport'){
    const s=JSON.parse(zlib.gunzipSync(Buffer.from(step.value.slice(7),'base64url'))),changed=JSON.parse(JSON.stringify(s).replaceAll('troll-type',slug+'-type').replaceAll('Troll',slug));
+   if(final)changed.board.defaultTerrain='Asphalt';
    // Move/Attack/pick fixtures use simple test-owned stats for every Type;
    // canonical Worker has no Attack and Hobby Knight moves only in L shapes.
    if(['move','combat-instant','picking'].includes(name)&&!changed.unitTypes.some(t=>t.id===slug+'-type'))changed.unitTypes.push({id:slug+'-type',displayName:'QA '+slug,mov:3,rng:1,atk:8,def:0,hp:1,undying:{}});
@@ -46,7 +48,7 @@ for(const slug of remaining?slugs:slugs.slice(0,5)){
 const switchSteps=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../.playwright-cli/troll-qa/switching.json'))).steps;
 save('switching',[...setup(base(2)),...switchSteps.slice(6)]);
 const reload=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../.playwright-cli/troll-qa/reload.json'))).steps;save('reload',[...setup(base(2)),...reload.slice(6)]);
-if(remaining){
+if(remaining||final){
  // Large distinct-model scenes can still be decoding at the first screenshot.
  // Keep observable loading fallback, then capture later rotations in the same context.
  const plan=JSON.parse(fs.readFileSync(path.join(out,'reload.json')));

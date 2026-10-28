@@ -62,7 +62,7 @@ Pillow is an offline preparation/test dependency only; normal build, publish and
 browser loading use checked-in GLBs and require neither Python nor a new package.
 The full client suite's optimized-export reproduction tests need this toolchain.
 
-All 26 production miniatures now use runtime maps limited to 1024 pixels after
+All 31 production miniatures now use runtime maps limited to 1024 pixels after
 Tabletop review. The remaining 19-model batch was prepared with that option at
 import; the seven earlier runtimes were subsequently reprepared from unchanged
 archived originals using their updated `preparation.textureLimit: 1024` records.
@@ -73,6 +73,35 @@ descriptor texture budget together. Preserve all visual dimensions/references.
 All 19 passed; Royal King's .033071 Cell contact margin falls .006929 short of the
 preferred .04 margin but fits its base and hard radius. No dimension changes.
 See `THREE_VIEWPORT.md` for the full inventory, provenance, measurements and QA.
+
+All 32 canonical Units now have production miniatures, including Red Dragon.
+Dragon retains height 1.45, uses maximumRadius 1.20 and baseRadius .90, and
+has a reviewed rigid +90 degree Y preparation rotation. The original is preserved
+under assets/source/models/units/red-dragon/. See the current completion section
+in assets/source/models/FINAL_SIX_IMPORT.md; earlier deferral notes are historical.
+
+Importer diagnostics require canonical footprints. Save a fresh response from
+`/api/designer/catalog` and supply `--canonical-catalog path/to/catalog.json`.
+The importer never guesses footprints from a Unit name or base radius. It uses
+this public catalog for footprint-aware model limits and base diagnostics.
+
+For a visually verified axis correction, the exporter supports an optional rigid
+Y rotation, recorded as `preparation.rotationYDegrees` (0, 90, -90 or 180).
+The importer takes the identical `--rotation-y` value during review and apply:
+
+```text
+node tools/import-unit-models.cjs --canonical-catalog .playwright-cli/canonical-catalog.json --only royal-knight --texture-limit 1024 --rotation-y 90
+node tools/import-unit-models.cjs --canonical-catalog .playwright-cli/canonical-catalog.json --only royal-knight --texture-limit 1024 --rotation-y 90 --apply
+```
+
+Royal Knight's source faces -X; +90 degrees corrects it to +Z without changing
+geometry buffers, authored node transforms, height, radial extent or pose. A new
+scene wrapper applies the rotation. Original bytes stay intact. Omitted/zero
+rotation reproduces previous exports exactly. Apply checks the reviewed angle
+as well as paths, hashes and texture limit. Source and prepared inspection records
+remain distinct so oriented bounds/contact coordinates describe the runtime.
+Do not use rotation to disguise a size incompatibility: it preserves radius.
+The commands above now correctly refuse the existing approved registration.
 
 To constrain a task to an explicit batch while other exports arrive, add
 `--only goblin,barbarian,cleric,hobby-knight,worker` to either command. Unselected
@@ -111,6 +140,7 @@ and any limitations in provenance and `THREE_VIEWPORT.md`.
 node tools/prepare-unit-model.cjs assets/source/models/units/<slug>/provenance.json --check
 node tools/test-miniature-publish.cjs --release
 node tools/batch-model-qa-plans.cjs
+node tools/batch-model-qa-plans.cjs --final
 ```
 
 See `BROWSER_INSPECTION.md` for installed-Node resolution if the nvm shim fails.

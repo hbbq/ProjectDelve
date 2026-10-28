@@ -1,0 +1,128 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACp1RQU7DMBD8CpqzK7VwAPlWCSG4FCF6Qz1s7G1i6tjBcQpRlL8jpyUVKVx6Wnt3ZzQz2yHzFDRkh0-jYwG5mAsUbPIiQt4JaN5SY-OaQyDjIPEaveMH632AgGJra8i3jQDrnIdnL9A4E9dtxU86dRBYz3Sg3LtZbCuGwAfNfFZz2HM4tDYnUIJ0MBryfE1Am7qy1K6oZEi8LK_uectOc1JT-j3kXCC4fKgUd0PVvB1qUUEuBEhF410NiZV3ibNxujUJ0_X9UchBxMkH5B8uaqPHEQTIqcKHFOUX5I1AC3l9DGPYohhJ7TigFxPqP3yO3JlteEp-e06uf2JIDihnp9oLLCjvYvDWcoDEY1OSu0jsL5plE31JkfUgzWfvrKLZH888RY7j4TrP4y-pmGj9d3XTfwPzvzCT1gIAAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-gameplay > summary"
+    },
+    {
+      "action": "click",
+      "target": "#animate"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "click",
+      "target": "#three-lighting-controls > summary"
+    },
+    {
+      "action": "select",
+      "target": "#three-lighting-enabled",
+      "value": "off"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-projection",
+      "value": "perspective"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-fov",
+      "value": "65"
+    },
+    {
+      "action": "screenshot",
+      "name": "before-move.png"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": ".three-board-choices > summary"
+    },
+    {
+      "action": "click",
+      "target": "[data-board-choice-cell=\"3-4\"]"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-angle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-developer > summary"
+    },
+    {
+      "action": "click",
+      "target": "#refresh"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-in"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-in"
+    },
+    {
+      "action": "screenshot",
+      "name": "move-positive-z-front.png"
+    },
+    {
+      "action": "snapshot",
+      "name": "move-result.yaml"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}

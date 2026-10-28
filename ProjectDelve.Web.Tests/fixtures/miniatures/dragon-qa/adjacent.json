@@ -1,0 +1,118 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACo2SwVLDIBCG3-U_04NtDw4P4NiLHuytkwMJa4KD0KFEzWR4dye0wQRrzW2XhW93v6FHaYWT4D0-lfQN-D1DQ6pufAwlvYpW-z05J5QBx4u3hh60tQ4MFWl9Aj8UDCRrimFgaI3y--5IOzmcwJFcSSdqa1a-OxIYSuFK4ZRIB95ZrcektqVWl1LxQ7s0GtIh7GO0k-CTBpg2n1VG-EnJVAKDMFVj3bD-F_iaoQNfh8Am8DRrzv61REKXuqWcvb3Gjmvn3JmLm8y7yNzMmWd7OXTq9B_qJlK3IRQMoiZTdcn2cq-VNXEPcuB4bN-FwTjlcoFLIDdtLQHcNnONUDDY8o0qrz7o_BPzV6kMjif7nLKheSbqz6tF-AbOJ40bnAMAAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-mode",
+      "value": "full"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-projection",
+      "value": "perspective"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "view-0.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "view-1.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "view-2.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "view-3.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-overhead"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-projection",
+      "value": "orthographic"
+    },
+    {
+      "action": "screenshot",
+      "name": "overhead.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-lighting-controls > summary"
+    },
+    {
+      "action": "select",
+      "target": "#three-lighting-enabled",
+      "value": "off"
+    },
+    {
+      "action": "screenshot",
+      "name": "off.png"
+    },
+    {
+      "action": "resize",
+      "width": 600,
+      "height": 850
+    },
+    {
+      "action": "screenshot",
+      "name": "narrow.png"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}

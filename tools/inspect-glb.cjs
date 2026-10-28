@@ -1,7 +1,7 @@
 // Read-only inspection of uncompressed glTF 2.0 geometry and embedded images.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),{pathToFileURL}=require('node:url');
-async function inspect(file,targetHeight=1.2){
-  const bytes=fs.readFileSync(file);
+async function inspect(file,targetHeight=1.2,preparedBytes=null){
+  const bytes=preparedBytes??fs.readFileSync(file);
   if(bytes.length<20||bytes.readUInt32LE(0)!==0x46546c67||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length)throw Error('Invalid GLB 2.0 header');
   let json,bin;const chunks=[];
   for(let offset=12;offset<bytes.length;){const length=bytes.readUInt32LE(offset),type=bytes.readUInt32LE(offset+4);if(length%4||offset+8+length>bytes.length)throw Error('Invalid GLB chunk');const data=bytes.subarray(offset+8,offset+8+length);chunks.push({type,length});if(type===0x4e4f534a)json=JSON.parse(data.toString('utf8'));if(type===0x004e4942)bin=data;offset+=8+length;}

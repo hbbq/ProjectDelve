@@ -1,0 +1,930 @@
+{
+  "date": "2026-10-28",
+  "units": "Cells after uniform targetHeight normalization; raw bounds use source coordinates",
+  "scans": [
+    {
+      "slug": "royal-knight",
+      "config": {
+        "typeId": "royal-knight-type",
+        "targetHeight": 0.85,
+        "maximumRadius": 0.44,
+        "baseRadius": 0.36
+      },
+      "inspection": {
+        "file": "assets/import/models/royal-knight.glb",
+        "bytes": 4061488,
+        "sha256": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62",
+        "asset": {
+          "version": "2.0",
+          "generator": "Tripo"
+        },
+        "chunks": [
+          {
+            "type": 1313821514,
+            "length": 2004
+          },
+          {
+            "type": 5130562,
+            "length": 4059456
+          }
+        ],
+        "scenes": 1,
+        "meshes": 1,
+        "primitives": 1,
+        "triangles": 8703,
+        "materials": [
+          {
+            "name": "tripo_material_737243ec-a4b9-4a95-b786-81f0f263880a",
+            "pbrMetallicRoughness": {
+              "baseColorTexture": {
+                "index": 0
+              },
+              "metallicRoughnessTexture": {
+                "index": 1
+              }
+            },
+            "normalTexture": {
+              "index": 2
+            }
+          }
+        ],
+        "textures": 3,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/jpeg",
+            "bytes": 1016469,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "6e56b03342100a26c88253c8d07ec85db8f38da43caaba076aae239e02f6ee74"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/jpeg",
+            "bytes": 1001974,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "4640edcad487269d7fdf95af33a67acf04f9a00757151ed0b6ea8235c9615a97"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/png",
+            "bytes": 1713307,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "0ca45b9844ddd33b77eb57f4deed0697726adfa1de52ba4c90c103ff403ec5d2"
+          }
+        ],
+        "externalResources": [],
+        "hierarchy": [
+          {
+            "index": 0,
+            "name": "tripo_node_737243ec-a4b9-4a95-b786-81f0f263880a",
+            "mesh": 0,
+            "determinant": 1,
+            "children": []
+          }
+        ],
+        "animations": 0,
+        "skins": 0,
+        "cameras": 0,
+        "extensionsUsed": [
+          "KHR_materials_volume",
+          "FB_ngon_encoding"
+        ],
+        "extensionsRequired": [],
+        "attributes": [
+          [
+            "POSITION",
+            "NORMAL",
+            "TEXCOORD_0"
+          ]
+        ],
+        "finite": true,
+        "bounds": {
+          "min": [
+            -0.4854583740234375,
+            0,
+            -0.23736572265625
+          ],
+          "max": [
+            0.4854583740234375,
+            1.000732421875,
+            0.23736572265625
+          ],
+          "dimensions": [
+            0.970916748046875,
+            1.000732421875,
+            0.4747314453125
+          ]
+        },
+        "normalization": {
+          "targetHeight": 0.85,
+          "scale": 0.8493778970480604,
+          "maximumRadius": 0.4171590554806223,
+          "contact": {
+            "radius": 0.2287553989269691,
+            "minX": -0.05180949880949431,
+            "maxX": 0.21977085356422676,
+            "minZ": -0.09674345129552367,
+            "maxZ": 0.09839596288848079,
+            "bandHeight": 0.06375,
+            "samples": 346
+          },
+          "dimensions": [
+            0.8246752256647962,
+            0.85,
+            0.40322639668211757
+          ]
+        },
+        "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+      },
+      "validation": {
+        "source": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 1
+        },
+        "runtime": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 0
+        }
+      },
+      "runtime": {
+        "bytes": 3668488,
+        "sha256": "a9c2cb6ae6b0433e0786624e8c12b948ff568aecd5ed18d9e9dfc13e90f12b43"
+      }
+    },
+    {
+      "slug": "locomotive",
+      "config": {
+        "typeId": "locomotive-type",
+        "targetHeight": 0.58,
+        "maximumRadius": 0.45,
+        "baseRadius": 0.39
+      },
+      "inspection": {
+        "file": "assets/import/models/locomotive.glb",
+        "bytes": 3387980,
+        "sha256": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564",
+        "asset": {
+          "version": "2.0",
+          "generator": "Tripo"
+        },
+        "chunks": [
+          {
+            "type": 1313821514,
+            "length": 1952
+          },
+          {
+            "type": 5130562,
+            "length": 3386000
+          }
+        ],
+        "scenes": 1,
+        "meshes": 1,
+        "primitives": 1,
+        "triangles": 9415,
+        "materials": [
+          {
+            "name": "tripo_material_7a63c044-abb7-4629-bd00-69fde9c276d9",
+            "pbrMetallicRoughness": {
+              "baseColorTexture": {
+                "index": 0
+              },
+              "metallicRoughnessTexture": {
+                "index": 1
+              }
+            },
+            "normalTexture": {
+              "index": 2
+            }
+          }
+        ],
+        "textures": 3,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/jpeg",
+            "bytes": 942138,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "bd9e4ba051eac89f7b7823a187b6a83b11504290ec97d41f0d7e942dd82b34f8"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/jpeg",
+            "bytes": 835669,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "5219f9df500b59ba11704b25dc76b3cea875c32f377f0c8f7dc2a9144678d3ba"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/png",
+            "bytes": 1206792,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "7eea4066fce4483b5aebb14840b7b9b0b4643df37421f6d0ec0d3472d590088f"
+          }
+        ],
+        "externalResources": [],
+        "hierarchy": [
+          {
+            "index": 0,
+            "name": "tripo_node_7a63c044-abb7-4629-bd00-69fde9c276d9",
+            "mesh": 0,
+            "determinant": 1,
+            "children": []
+          }
+        ],
+        "animations": 0,
+        "skins": 0,
+        "cameras": 0,
+        "extensionsUsed": [
+          "KHR_materials_volume",
+          "FB_ngon_encoding"
+        ],
+        "extensionsRequired": [],
+        "attributes": [
+          [
+            "POSITION",
+            "NORMAL",
+            "TEXCOORD_0"
+          ]
+        ],
+        "finite": true,
+        "bounds": {
+          "min": [
+            -0.19365692138671875,
+            0,
+            -0.4981689453125
+          ],
+          "max": [
+            0.19365692138671875,
+            0.61175537109375,
+            0.4981689453125
+          ],
+          "dimensions": [
+            0.3873138427734375,
+            0.61175537109375,
+            0.996337890625
+          ]
+        },
+        "normalization": {
+          "targetHeight": 0.58,
+          "scale": 0.948091389803452,
+          "maximumRadius": 0.4846824203725151,
+          "contact": {
+            "radius": 0.4723098943919466,
+            "minX": -0.1501139878279956,
+            "maxX": 0.15017185473411154,
+            "minZ": -0.302152050284346,
+            "maxZ": 0.472309687718248,
+            "bandHeight": 0.0435,
+            "samples": 628
+          },
+          "dimensions": [
+            0.367208919485184,
+            0.58,
+            0.944619375436496
+          ]
+        },
+        "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+      },
+      "validation": {
+        "source": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 1
+        },
+        "runtime": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 0
+        }
+      },
+      "runtime": {
+        "bytes": 3462924,
+        "sha256": "4361700b9af3ab9aec79c5ebc84c1572f2a93eb5a249923b7120eace2f0d8f9e"
+      }
+    },
+    {
+      "slug": "red-dragon",
+      "config": {
+        "typeId": "red-dragon-type",
+        "targetHeight": 1.45,
+        "maximumRadius": 0.88,
+        "baseRadius": 0.72
+      },
+      "inspection": {
+        "file": "assets/import/models/red-dragon.glb",
+        "bytes": 3668624,
+        "sha256": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223",
+        "asset": {
+          "version": "2.0",
+          "generator": "Tripo"
+        },
+        "chunks": [
+          {
+            "type": 1313821514,
+            "length": 2012
+          },
+          {
+            "type": 5130562,
+            "length": 3666584
+          }
+        ],
+        "scenes": 1,
+        "meshes": 1,
+        "primitives": 1,
+        "triangles": 9852,
+        "materials": [
+          {
+            "name": "tripo_material_3e500232-3131-4fb1-9c16-d28a84be907a",
+            "pbrMetallicRoughness": {
+              "baseColorTexture": {
+                "index": 0
+              },
+              "metallicRoughnessTexture": {
+                "index": 1
+              }
+            },
+            "normalTexture": {
+              "index": 2
+            }
+          }
+        ],
+        "textures": 3,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/jpeg",
+            "bytes": 827760,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "4089e188bfd499f428bbbdd041b9d8b13d828da3b8c96610e5903809c0fbd4d0"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/jpeg",
+            "bytes": 783214,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "cf3e8e37c35b46029b5107854a66098728d9a1e3c17c057001d21e522ee53382"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/png",
+            "bytes": 1689352,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "ef7b59c0ad6700af07a4fe1d0444ab9d5d10ad64fdecc3504cf2268d029981b6"
+          }
+        ],
+        "externalResources": [],
+        "hierarchy": [
+          {
+            "index": 0,
+            "name": "tripo_node_3e500232-3131-4fb1-9c16-d28a84be907a",
+            "mesh": 0,
+            "determinant": 1,
+            "children": []
+          }
+        ],
+        "animations": 0,
+        "skins": 0,
+        "cameras": 0,
+        "extensionsUsed": [
+          "KHR_materials_volume",
+          "FB_ngon_encoding"
+        ],
+        "extensionsRequired": [],
+        "attributes": [
+          [
+            "POSITION",
+            "NORMAL",
+            "TEXCOORD_0"
+          ]
+        ],
+        "finite": true,
+        "bounds": {
+          "min": [
+            -0.501983642578125,
+            0,
+            -0.221527099609375
+          ],
+          "max": [
+            0.501983642578125,
+            0.616668701171875,
+            0.221527099609375
+          ],
+          "dimensions": [
+            1.00396728515625,
+            0.616668701171875,
+            0.44305419921875
+          ]
+        },
+        "normalization": {
+          "targetHeight": 1.45,
+          "scale": 2.351343593804127,
+          "maximumRadius": 1.1961894823973491,
+          "contact": {
+            "radius": 1.1961894823973491,
+            "minX": -1.1803360221705348,
+            "maxX": 0.977191142476153,
+            "minZ": -0.47854958262065744,
+            "maxZ": 0.5208863265205127,
+            "bandHeight": 0.10874999999999999,
+            "samples": 590
+          },
+          "dimensions": [
+            2.3606720443410696,
+            1.45,
+            1.0417726530410254
+          ]
+        },
+        "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+      },
+      "validation": {
+        "source": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 1
+        },
+        "runtime": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 0
+        }
+      },
+      "runtime": {
+        "bytes": 3413512,
+        "sha256": "6c0e30332dd7baef5195b62c955781763c32fb1ae10d260a0f41f9826817f994"
+      }
+    },
+    {
+      "slug": "tower-troll",
+      "config": {
+        "typeId": "tower-troll-type",
+        "targetHeight": 1.2,
+        "maximumRadius": 0.44,
+        "baseRadius": 0.43
+      },
+      "inspection": {
+        "file": "assets/import/models/tower-troll.glb",
+        "bytes": 4754456,
+        "sha256": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc",
+        "asset": {
+          "version": "2.0",
+          "generator": "Tripo"
+        },
+        "chunks": [
+          {
+            "type": 1313821514,
+            "length": 2024
+          },
+          {
+            "type": 5130562,
+            "length": 4752404
+          }
+        ],
+        "scenes": 1,
+        "meshes": 1,
+        "primitives": 1,
+        "triangles": 9759,
+        "materials": [
+          {
+            "name": "tripo_material_413634f8-2a5f-41a6-841a-ae156c94e91f",
+            "pbrMetallicRoughness": {
+              "baseColorTexture": {
+                "index": 0
+              },
+              "metallicRoughnessTexture": {
+                "index": 1
+              }
+            },
+            "normalTexture": {
+              "index": 2
+            }
+          }
+        ],
+        "textures": 3,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/jpeg",
+            "bytes": 1039522,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "aa9d08a6b5fcba7cc68daaded77c33a5de6ca3a2b9b49eb5268e83d4a0d4c2d8"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/jpeg",
+            "bytes": 1074903,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "bfa9b01fc179516bd424da6891936269d1ffd8b786686be2a80bd8d5840afb8b"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/png",
+            "bytes": 2289378,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "3a43f4fe0a98c4775cc39d8ba2d1b966795e69a113eb1bafd1c50839ff6b2c41"
+          }
+        ],
+        "externalResources": [],
+        "hierarchy": [
+          {
+            "index": 0,
+            "name": "tripo_node_413634f8-2a5f-41a6-841a-ae156c94e91f",
+            "mesh": 0,
+            "determinant": 1,
+            "children": []
+          }
+        ],
+        "animations": 0,
+        "skins": 0,
+        "cameras": 0,
+        "extensionsUsed": [
+          "KHR_materials_volume",
+          "FB_ngon_encoding"
+        ],
+        "extensionsRequired": [],
+        "attributes": [
+          [
+            "POSITION",
+            "NORMAL",
+            "TEXCOORD_0"
+          ]
+        ],
+        "finite": true,
+        "bounds": {
+          "min": [
+            -0.3090362548828125,
+            0,
+            -0.17894744873046875
+          ],
+          "max": [
+            0.3090362548828125,
+            1.001007080078125,
+            0.17894744873046875
+          ],
+          "dimensions": [
+            0.618072509765625,
+            1.001007080078125,
+            0.3578948974609375
+          ]
+        },
+        "normalization": {
+          "targetHeight": 1.2,
+          "scale": 1.1987927197341544,
+          "maximumRadius": 0.3740526138822373,
+          "contact": {
+            "radius": 0.30747763989463817,
+            "minX": -0.30337486137998837,
+            "maxX": 0.3057894933652937,
+            "minZ": -0.12784364543954452,
+            "maxZ": 0.14173654135449376,
+            "bandHeight": 0.08999999999999998,
+            "samples": 370
+          },
+          "dimensions": [
+            0.7409408249748483,
+            1.2,
+            0.42904179750617355
+          ]
+        },
+        "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+      },
+      "validation": {
+        "source": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 1
+        },
+        "runtime": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 0
+        }
+      },
+      "runtime": {
+        "bytes": 3890604,
+        "sha256": "6440f641751a2b15e80cb687cbc7b546f82724f50bc0ce2bcdaad684d1821a7f"
+      }
+    },
+    {
+      "slug": "ghost",
+      "config": {
+        "typeId": "ghost-type",
+        "targetHeight": 0.83,
+        "maximumRadius": 0.36,
+        "baseRadius": 0.3
+      },
+      "inspection": {
+        "file": "assets/import/models/ghost.glb",
+        "bytes": 5282096,
+        "sha256": "0466e6c939cd6a15d9657d0d44004febe4e72f846f1eb486d6ea03ca53426fa0",
+        "asset": {
+          "version": "2.0",
+          "generator": "Tripo"
+        },
+        "chunks": [
+          {
+            "type": 1313821514,
+            "length": 1980
+          },
+          {
+            "type": 5130562,
+            "length": 5280088
+          }
+        ],
+        "scenes": 1,
+        "meshes": 1,
+        "primitives": 1,
+        "triangles": 9448,
+        "materials": [
+          {
+            "name": "tripo_material_08fb65a8-bfa9-40b8-b890-47d0a20462cb",
+            "pbrMetallicRoughness": {
+              "baseColorTexture": {
+                "index": 0
+              },
+              "metallicRoughnessTexture": {
+                "index": 1
+              }
+            },
+            "normalTexture": {
+              "index": 2
+            }
+          }
+        ],
+        "textures": 3,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/jpeg",
+            "bytes": 1008812,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "36afb6ef5141111d00d193cdadf5ea5eb160089f5b84d8b1d22e09725abc3110"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/jpeg",
+            "bytes": 991103,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "c90f4af942a39499bc089e358c480b7aa8a090e53023480454ba33d4473742bf"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/png",
+            "bytes": 2925931,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "4dca443dcd92cfe4c0579f640f2193ea756aaae94123e3975e24f095d5adff56"
+          }
+        ],
+        "externalResources": [],
+        "hierarchy": [
+          {
+            "index": 0,
+            "name": "tripo_node_08fb65a8-bfa9-40b8-b890-47d0a20462cb",
+            "mesh": 0,
+            "determinant": 1,
+            "children": []
+          }
+        ],
+        "animations": 0,
+        "skins": 0,
+        "cameras": 0,
+        "extensionsUsed": [
+          "KHR_materials_volume",
+          "FB_ngon_encoding"
+        ],
+        "extensionsRequired": [],
+        "attributes": [
+          [
+            "POSITION",
+            "NORMAL",
+            "TEXCOORD_0"
+          ]
+        ],
+        "finite": true,
+        "bounds": {
+          "min": [
+            -0.290740966796875,
+            0,
+            -0.2911376953125
+          ],
+          "max": [
+            0.290740966796875,
+            0.997894287109375,
+            0.2911376953125
+          ],
+          "dimensions": [
+            0.58148193359375,
+            0.997894287109375,
+            0.582275390625
+          ]
+        },
+        "normalization": {
+          "targetHeight": 0.83,
+          "scale": 0.8317514297073305,
+          "maximumRadius": 0.2730983543553241,
+          "contact": {
+            "radius": 0.2730983543553241,
+            "minX": -0.2418242148077923,
+            "maxX": 0.2418242148077923,
+            "minZ": -0.24215419431786905,
+            "maxZ": 0.24215419431786905,
+            "bandHeight": 0.06224999999999999,
+            "samples": 3333
+          },
+          "dimensions": [
+            0.4836484296155846,
+            0.83,
+            0.4843083886357381
+          ]
+        },
+        "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+      },
+      "validation": {
+        "source": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 1
+        },
+        "runtime": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 0
+        }
+      },
+      "runtime": {
+        "bytes": 3930992,
+        "sha256": "b46acc5d04a6d79f2d0133e6357742558805ec51d46ef229df163d8e00779e43"
+      }
+    },
+    {
+      "slug": "diamond-kart",
+      "config": {
+        "typeId": "diamond-kart-type",
+        "targetHeight": 0.53,
+        "maximumRadius": 0.45,
+        "baseRadius": 0.37
+      },
+      "inspection": {
+        "file": "assets/import/models/diamond-kart.glb",
+        "bytes": 3658056,
+        "sha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
+        "asset": {
+          "version": "2.0",
+          "generator": "Tripo"
+        },
+        "chunks": [
+          {
+            "type": 1313821514,
+            "length": 2028
+          },
+          {
+            "type": 5130562,
+            "length": 3656000
+          }
+        ],
+        "scenes": 1,
+        "meshes": 1,
+        "primitives": 1,
+        "triangles": 9778,
+        "materials": [
+          {
+            "name": "tripo_material_fa645eb3-0c9b-4c46-a984-7101b9f296ae",
+            "pbrMetallicRoughness": {
+              "baseColorTexture": {
+                "index": 0
+              },
+              "metallicRoughnessTexture": {
+                "index": 1
+              }
+            },
+            "normalTexture": {
+              "index": 2
+            }
+          }
+        ],
+        "textures": 3,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/jpeg",
+            "bytes": 896695,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "d85f8fb8d235df64d3bb0f8111909de08c3b01fba662b5a5779a25aa7e0420c2"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/jpeg",
+            "bytes": 856624,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "3860fccee208198ccf17e16e8b4f4faf66fc2983eb92e5970533652ebf30dd80"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/png",
+            "bytes": 1546143,
+            "width": 2048,
+            "height": 2048,
+            "sha256": "aa60fde22a5edc923d3d3046ba6556300b601f3b657a54e35c9a07bdf829bd33"
+          }
+        ],
+        "externalResources": [],
+        "hierarchy": [
+          {
+            "index": 0,
+            "name": "tripo_node_fa645eb3-0c9b-4c46-a984-7101b9f296ae",
+            "mesh": 0,
+            "determinant": 1,
+            "children": []
+          }
+        ],
+        "animations": 0,
+        "skins": 0,
+        "cameras": 0,
+        "extensionsUsed": [
+          "KHR_materials_volume",
+          "FB_ngon_encoding"
+        ],
+        "extensionsRequired": [],
+        "attributes": [
+          [
+            "POSITION",
+            "NORMAL",
+            "TEXCOORD_0"
+          ]
+        ],
+        "finite": true,
+        "bounds": {
+          "min": [
+            -0.422576904296875,
+            0,
+            -0.5000152587890625
+          ],
+          "max": [
+            0.422576904296875,
+            0.7034912109375,
+            0.5000152587890625
+          ],
+          "dimensions": [
+            0.84515380859375,
+            0.7034912109375,
+            1.000030517578125
+          ]
+        },
+        "normalization": {
+          "targetHeight": 0.53,
+          "scale": 0.7533853895540518,
+          "maximumRadius": 0.44905552456399184,
+          "contact": {
+            "radius": 0.4031331357845298,
+            "minX": -0.2920150095436405,
+            "maxX": 0.3055799930591706,
+            "minZ": -0.30136109817613443,
+            "maxZ": 0.2872442289104525,
+            "bandHeight": 0.03975,
+            "samples": 96
+          },
+          "dimensions": [
+            0.6367265313204928,
+            0.53,
+            0.7534083810515357
+          ]
+        },
+        "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+      },
+      "validation": {
+        "source": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 1
+        },
+        "runtime": {
+          "errors": 0,
+          "warnings": 1,
+          "infos": 0
+        }
+      },
+      "runtime": {
+        "bytes": 3448648,
+        "sha256": "20a684f1b7a1821560378d0a0a25c019c8663720637f5a29ec9c7691f286fbdb"
+      }
+    }
+  ]
+}

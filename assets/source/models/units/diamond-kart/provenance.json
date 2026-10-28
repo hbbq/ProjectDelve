@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these exact final six inbox GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/diamond-kart.png",
+  "projectConceptReferences": [
+    "assets/source/units/diamond-kart/reference/character-sheet.png",
+    "assets/source/units/diamond-kart/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/diamond-kart/original.glb",
+    "sha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
+    "bytes": 3658056,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/diamond-kart/v1/diamond-kart.glb",
+    "sha256": "20a684f1b7a1821560378d0a0a25c019c8663720637f5a29ec9c7691f286fbdb",
+    "bytes": 3448648
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify original SHA-256",
+      "Reject extension payloads and remove unused declarations",
+      "Add deterministic source hash metadata",
+      "Downsample embedded maps to 1024 with Pillow LANCZOS and lossless PNG compression 9; repack aligned views",
+      "Uniform runtime target-height normalization and ground-centering at base top"
+    ],
+    "orientation": "+Y up, +Z forward confirmed by production positive-Z Move: inspection-fjhqcO/move-positive-z-front.png. Uniform target-height scale, ground-centered at base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/royal-king/provenance.json",
+    "verification": "Shared final-six check on 2026-10-28: terms still dated July 11 2025 and Pro pricing identifies commercial use. Paid generation confirmed by owner for this batch."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "One existing generated tangent-space warning per source/runtime; unused source extension declarations removed. No extension payloads. All maps fully decoded by preparation; independent decode evidence retained locally.",
+    "runtimeChecks": "All source/runtime images fully decoded independently with Pillow; RGB, exact expected 1024 LANCZOS pixels. Buffer-view geometry/accessors/material bindings preserved. Original nodes unchanged; optional reviewed orientation scene wrapper only. Khronos errors zero. Production Edge models ready."
+  },
+  "visualReview": {
+    "findings": "Four wheels, driver, diamond hood emblem and engine intact. Wheel lowermost .005-Cell band radius .343526 fits .37 base; wider 7.5% band radius .403133 overhangs by .033133. Circular base looks acceptable; no chassis/wheel deformation or baseless presentation. Canonical QA fixture uses Asphalt. inspection-A1s3tr.",
+    "scope": "All accepted production registrations verified through restricted Edge and actual-geometry CPU viewport tests.",
+    "evidence": {
+      "detail": "inspection-A1s3tr",
+      "move": "inspection-fjhqcO",
+      "combat": "inspection-8GBED6",
+      "posture": "inspection-qoIPQu",
+      "fog": "inspection-NFrtfi",
+      "picking": "inspection-1Ccpfl"
+    },
+    "sharedEvidence": [
+      "inspection-3LIu03",
+      "inspection-DdYme4",
+      "inspection-7PH3tJ",
+      "inspection-Ae9Aet",
+      "inspection-az9J21"
+    ],
+    "verified": [
+      "Four-direction shape, scale, grounding and circular bases",
+      "Rear-hoof/wheel contact and all authored costume/vehicle anatomy",
+      "Side indicators, positive-Z Move and Attack facing",
+      "Lying Cardboard fallback and restored upright",
+      "Logical selection and picking",
+      "Lighting On/Off, Perspective/Orthographic",
+      "FoW hidden/entered/left; CPU tests assert transient planes",
+      "Renderer/representation switching, restart/reload, 600x850 narrow layout"
+    ],
+    "limitations": "No native touch, frame-exact transient FoW pixel assertions, GPU timing/measured allocations, sustained/low-end or physical center-of-mass claims."
+  },
+  "metadataAdjustment": null,
+  "import": {
+    "inboxPath": "assets/import/models/diamond-kart.glb",
+    "sha256BeforeMove": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
+    "sha256AfterMove": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/diamond-kart/original.glb",
+    "bytes": 3658056,
+    "sha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2028
+      },
+      {
+        "type": 5130562,
+        "length": 3656000
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9778,
+    "materials": [
+      {
+        "name": "tripo_material_fa645eb3-0c9b-4c46-a984-7101b9f296ae",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 896695,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "d85f8fb8d235df64d3bb0f8111909de08c3b01fba662b5a5779a25aa7e0420c2"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 856624,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "3860fccee208198ccf17e16e8b4f4faf66fc2983eb92e5970533652ebf30dd80"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1546143,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "aa60fde22a5edc923d3d3046ba6556300b601f3b657a54e35c9a07bdf829bd33"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_fa645eb3-0c9b-4c46-a984-7101b9f296ae",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.422576904296875,
+        0,
+        -0.5000152587890625
+      ],
+      "max": [
+        0.422576904296875,
+        0.7034912109375,
+        0.5000152587890625
+      ],
+      "dimensions": [
+        0.84515380859375,
+        0.7034912109375,
+        1.000030517578125
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.53,
+      "scale": 0.7533853895540518,
+      "maximumRadius": 0.44905552456399184,
+      "contact": {
+        "radius": 0.4031331357845298,
+        "minX": -0.2920150095436405,
+        "maxX": 0.3055799930591706,
+        "minZ": -0.30136109817613443,
+        "maxZ": 0.2872442289104525,
+        "bandHeight": 0.03975,
+        "samples": 96
+      },
+      "dimensions": [
+        0.6367265313204928,
+        0.53,
+        0.7534083810515357
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/diamond-kart/v1/diamond-kart.glb",
+    "bytes": 3448648,
+    "sha256": "20a684f1b7a1821560378d0a0a25c019c8663720637f5a29ec9c7691f286fbdb",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2124
+      },
+      {
+        "type": 5130562,
+        "length": 3446496
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9778,
+    "materials": [
+      {
+        "name": "tripo_material_fa645eb3-0c9b-4c46-a984-7101b9f296ae",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1278603,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "e32c8f28da3839faa532961997e8202da3cb314246ac5ef064d7f4b47fe11ac2"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 1306852,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "2e6ae58ce7e694de84db44693ce03caf5773e03a17f2358ed4f84b1bc73e5c70"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 504502,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "da11de4546399c97cae5d15fc52106b184275ef2ba8e99c20f657fdb54aa634f"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_fa645eb3-0c9b-4c46-a984-7101b9f296ae",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.422576904296875,
+        0,
+        -0.5000152587890625
+      ],
+      "max": [
+        0.422576904296875,
+        0.7034912109375,
+        0.5000152587890625
+      ],
+      "dimensions": [
+        0.84515380859375,
+        0.7034912109375,
+        1.000030517578125
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.53,
+      "scale": 0.7533853895540518,
+      "maximumRadius": 0.44905552456399184,
+      "contact": {
+        "radius": 0.4031331357845298,
+        "minX": -0.2920150095436405,
+        "maxX": 0.3055799930591706,
+        "minZ": -0.30136109817613443,
+        "maxZ": 0.2872442289104525,
+        "bandHeight": 0.03975,
+        "samples": 96
+      },
+      "dimensions": [
+        0.6367265313204928,
+        0.53,
+        0.7534083810515357
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.53,
+    "maximumRadius": 0.45,
+    "baseRadius": 0.37,
+    "measuredMaximumRadius": 0.44905552456399184,
+    "contact": {
+      "radius": 0.4031331357845298,
+      "minX": -0.2920150095436405,
+      "maxX": 0.3055799930591706,
+      "minZ": -0.30136109817613443,
+      "maxZ": 0.2872442289104525,
+      "bandHeight": 0.03975,
+      "samples": 96
+    },
+    "base": {
+      "radius": 0.37,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.37,
+      "requiredRadius": 0.4431331357845298,
+      "margin": -0.03313313578452981,
+      "shortfall": 0.07313313578452979,
+      "fitsContact": false,
+      "warning": "Estimated contact envelope lacks the target foot margin"
+    },
+    "logicalFootprint": "unchanged"
+  }
+}

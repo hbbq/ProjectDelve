@@ -252,7 +252,7 @@ test('current Zombie and Troll bases preserve model approval, facing, picking, c
   }finally{h.cleanup();}
 });
 
-for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker',...Object.keys(require('./fixtures/miniatures/remaining-batch.json'))])test(`production ${slug} geometry shares resources, grounds, faces, clips, picks and restores upright`,async()=>{
+for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker',...Object.keys(require('./fixtures/miniatures/remaining-batch.json')),...Object.keys(require('./fixtures/miniatures/final-batch.json'))])test(`production ${slug} geometry shares resources, grounds, faces, clips, picks and restores upright`,async()=>{
   const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json'))),{validateUnitVisualCatalog,resolveUnitModel}=await moduleAt('unit-visuals.js');
   const catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1}))),id=slug+'-type',descriptor=resolveUnitModel(catalog,id,1);
   const f=fixture(16,'blue');f.state.units.forEach(u=>u.typeId=id);f.state.physical.figures[0].posture='Upright';f.presentation.figures.large={cellSpan:1,occupiedCells:[{x:4,y:3}]};
@@ -260,7 +260,7 @@ for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker',...Obje
   try{
     h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
     const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('unit:hero'),other=scene.getObjectByName('unit:large'),model=root.getObjectByName('normalized-model'),base=root.getObjectByName('miniature-base');
-    root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-box.min.y-descriptor.height)<1e-6);assert.equal(root.userData.footprint.length,1);assert.equal(root.userData.base.fitsContact,slug!=='royal-king');
+    root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-box.min.y-descriptor.height)<1e-6);assert.equal(root.userData.footprint.length,1);assert.equal(root.userData.base.fitsContact,!['royal-king','locomotive','ghost','diamond-kart'].includes(slug));
     const meshes=[];model.traverse(n=>{if(n.isMesh)meshes.push(n);});assert.equal(meshes[0].geometry,other.getObjectByName(meshes[0].name).geometry);assert.equal(meshes[0].material,other.getObjectByName(meshes[0].name).material);assert.equal(downloads,1);
     const baseMatrix=base.matrixWorld.clone();for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){h.viewport.facing.get('hero').yaw=yaw;h.viewport.syncFacing(true);root.updateMatrixWorld(true);assert.deepEqual(base.matrixWorld.elements,baseMatrix.elements);assert.equal(root.userData.body.facingNode.rotation.y,yaw);}
     for(const projection of ['perspective','orthographic']){h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.flush();assert.equal(h.viewport.pick(h.viewport.project({x:2.5,y:2.5,height:0})).unitId,'hero');h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});assert.deepEqual(h.viewport.pick(h.viewport.project({x:3.2,y:2.5})).cell,{x:3,y:2});}
@@ -829,4 +829,31 @@ test('representation transitions keep whole observable Unit roots above fog in b
       h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
     }
   }finally{h.cleanup();}
+});
+
+test('large presentation envelopes cover sixteen columns while excluding unknown cells',async()=>{
+  const T=await moduleAt('vendor/three/0.180.0/build/three.module.js'),{createMovementClipPool}=await moduleAt('three-tabletop.js');
+  const source=new T.Group();source.userData.visualBounds={radius:1.25};
+  const all=new Set();for(let y=0;y<4;y++)for(let x=0;x<4;x++)all.add(`${x},${y}`);
+  const pool=createMovementClipPool(source,all);pool.update(2,2,2);
+  assert.equal(pool.copies.length,16);assert.equal(pool.copies.filter(c=>c.body.visible).length,16);
+  all.delete('0,0');pool.update(2,2,2);assert.equal(pool.copies.filter(c=>c.body.visible).length,15);
+  all.clear();pool.update(2,2,2);assert.equal(pool.copies.filter(c=>c.body.visible).length,0);pool.dispose();
+  source.userData.visualBounds.radius=.92;const small=createMovementClipPool(source,null);assert.equal(small.copies.length,9);small.dispose();
+});
+
+test('production Dragon preserves 2x2 picking, grounding and every explored clipping column at all yaws',async()=>{
+ const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json'))),{validateUnitVisualCatalog,resolveUnitModel}=await moduleAt('unit-visuals.js');
+ const catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1}))),d=resolveUnitModel(catalog,'red-dragon-type',2),f=fixture(16,'blue');f.state.units[1].typeId='red-dragon-type';
+ const b=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot',d.url));const h=await harness(f,{visualCatalog:catalog,modelCacheOptions:{fetchBytes:async()=>b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),load:parseGeometryOnly}});
+ try{h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(d).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+ const root=h.rendered.at(-1).scene.getObjectByName('unit:large');root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(root.getObjectByName('normalized-model'));assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-box.min.y-1.45)<1e-6);assert.equal(root.userData.footprint.length,4);assert.equal(root.userData.base.radius,.9);assert.equal(root.userData.body.pickRadius,.92);
+ for(const projection of ['perspective','orthographic']){h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.flush();assert.equal(h.viewport.pick(h.viewport.project({x:5,y:4,height:0})).unitId,'large');assert.notEqual(h.viewport.pick(h.viewport.project({x:6.2,y:4,height:0}))?.unitId,'large');}
+ const {createMovementClipPool}=await moduleAt('three-tabletop.js'),known=new Set();for(let y=0;y<9;y++)for(let x=0;x<9;x++)if((x+y)%3)known.add(`${x},${y}`);const pool=createMovementClipPool(root,known,h.THREE,h.viewport.lighting.clippedVariants);assert.equal(pool.copies.length,16);
+ try{for(const enabled of [true,false])for(const yaw of [0,.4,Math.PI/2,Math.PI,Math.PI*1.7])for(const x of [2,2.15,2.5,2.9,3])for(const z of [2,2.2,2.5,2.9]){h.viewport.lighting.set({enabled});pool.update(x,z,2,yaw);const radius=root.userData.visualBounds.radius,expected=[];for(let cy=Math.floor(z-radius);cy<=Math.floor(z+radius);cy++)for(let cx=Math.floor(x-radius);cx<=Math.floor(x+radius);cx++)if(known.has(`${cx},${cy}`))expected.push(`${cx},${cy}`);
+ const actual=pool.copies.filter(c=>c.body.visible).map(c=>{assert.equal(c.body.getObjectByName('miniature-facing').rotation.y,yaw);return `${-c.planes[0].constant},${-c.planes[2].constant}`;});assert.deepEqual(actual,expected);}
+ known.clear();pool.update(3,3,2);assert.equal(pool.copies.filter(c=>c.body.visible).length,0);
+ }finally{pool.dispose();}
+ const lying=structuredClone(f);lying.state.physical.figures[1].posture='Lying';h.viewport.renderFrame(lying);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('cardboard-body'));h.viewport.renderFrame(f);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('normalized-model'));assert.deepEqual(h.failures,[]);
+ }finally{h.cleanup();}
 });

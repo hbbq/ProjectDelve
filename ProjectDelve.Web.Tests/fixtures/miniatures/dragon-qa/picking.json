@@ -1,0 +1,94 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACp1PMU7EMBD8y9SOhK6g2AcgaKDgqE4pHHtJjHzeaGNzF0X5O4rvdCDo6GZ2ZnZnF3Ri1YMWnILPA-jeYODQD7lCz--2xLxnVRsSCK9ZEj9EEYWB4xgn0KE1YN9zhatBSSHv55Gf_DaBsm-82l5Sk-eR0X47ruGNbnD5EQX9CRpMwV-kLpaN2-QG0a39GbQzmEG7a4FqO4YUmjsYjDLlogzC26j1u7U1sD0nN__nsJOUVWJkBeGxHG2qC6X7YJfDJ1---Z26ySA8y8uNre36BWo2temJAQAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-gameplay > summary"
+    },
+    {
+      "action": "click",
+      "target": "#animate"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-mode",
+      "value": "fixed"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-overhead"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": ".three-board-choices > summary"
+    },
+    {
+      "action": "click",
+      "target": "#three-viewport canvas"
+    },
+    {
+      "action": "snapshot",
+      "name": "door-choices.yaml"
+    },
+    {
+      "action": "screenshot",
+      "name": "choices.png"
+    },
+    {
+      "action": "snapshot",
+      "name": "picked.yaml"
+    },
+    {
+      "action": "screenshot",
+      "name": "picked.png"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}

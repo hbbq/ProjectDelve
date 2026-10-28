@@ -1,0 +1,121 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACp1RQU7DMBD8CpqzK7UgIeRbJYTgUoToDfWwsbeJqWMHxylEUf6OnJZUpHDpae3dndHMbIfMU9CQHT6NjgXkYi5QsMmLCHknoHlLjY1rDoGMg8Rr9I4frPcBAoqtrSHfNgKscx6evUDjTFy3FT_p1EFgPdOBcu9msa0YAh8081nNYc_h0NqcQAnSwWjI8zUBberKUruikiHxsry65y07zUlN6feQc4Hg8qFS3A1V83aoRQW5ECAVjXc1JFbeJc7G6dYkTNf3RyEHEScfkH-4qI0eRxAgpwofUpRfkDcCLeT1MYxhi2IkteOAXkyo__A5cme24Sn57Tm5_okhOaCcnWovsKC8i8FbywESj01J7iKxv2iWTfQlRdaDNJ-9s4pmfzzzFDmOh-s8j7-kYqL139VN_w3KOWO_1gIAAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-gameplay > summary"
+    },
+    {
+      "action": "click",
+      "target": "#animate"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "screenshot",
+      "name": "initial-facing.png"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": ".three-board-choices > summary"
+    },
+    {
+      "action": "click",
+      "target": "[data-board-choice-kind=\"stay\"]"
+    },
+    {
+      "action": "click",
+      "target": "[data-board-choice-kind=\"attack\"]"
+    },
+    {
+      "action": "snapshot",
+      "name": "attack.yaml"
+    },
+    {
+      "action": "screenshot",
+      "name": "attack-facing.png"
+    },
+    {
+      "action": "click",
+      "target": ".primary-roll"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-angle"
+    },
+    {
+      "action": "screenshot",
+      "name": "combat-result.png"
+    },
+    {
+      "action": "snapshot",
+      "name": "completed.yaml"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-developer > summary"
+    },
+    {
+      "action": "click",
+      "target": "#refresh"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "screenshot",
+      "name": "settled-attack.png"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}

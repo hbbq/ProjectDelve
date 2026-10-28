@@ -1,0 +1,155 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACp1TwW7bMAz9l3dWD-mhGHTrpVgva7EW2KHwQTEZW6tCBqw8zwj874PkLEiTDdh6sUnp8b0nUtpjrcEIfo8xUu7hVzcOPceuz_A3DsSbMKT8zGYhCjyesgrfJVWDQ8spvcG_NA5MHddwdtho97D5FuwpUl3DOg2MxmGQmJ-nHd9TXTamK7LQqVzlafcOcWAtaQn3J6XwF4UOb5GWrSrlEKTt1cq5fsKvHCb463nhq7CeTTG7f-c1pgva60veXcimCXPjEDqWdvqI-ValsCQ2eHwetkE-YPUdye2QdRsyU3Wm6-_c5viDl9aeyx-34fFFH45Z8XAm8ldoUTFi-7_hLaSvUUpypynp-FWHXDBW_36_BKe9dmgHM5Z8L8TLtClaMaICv5qLlzFMO41yuEux3oBIxFJmahzOJuow1m9fpluOXSteRcezgk9_wjcHtydiR6u_jRxewNHEwt04bJVKMx-jdI8qHeZm_gVWN0AKpQMAAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-mode",
+      "value": "full"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-projection",
+      "value": "perspective"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-gameplay > summary"
+    },
+    {
+      "action": "click",
+      "target": "#auto"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "screenshot",
+      "name": "hidden.png"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": ".three-board-choices > summary"
+    },
+    {
+      "action": "click",
+      "target": "[data-board-choice-kind=\"stay\"]"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-developer > summary"
+    },
+    {
+      "action": "click",
+      "target": "#refresh"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "screenshot",
+      "name": "round-1.png"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": "[data-board-choice-kind=\"stay\"]"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#refresh"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "screenshot",
+      "name": "round-2.png"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": "[data-board-choice-kind=\"stay\"]"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#refresh"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "screenshot",
+      "name": "round-3.png"
+    },
+    {
+      "action": "snapshot",
+      "name": "rounds.yaml"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}

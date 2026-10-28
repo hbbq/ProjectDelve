@@ -6,7 +6,7 @@ test('remaining 19 production miniatures preserve sources, geometry, dimensions 
  const {prepare}=require('../tools/prepare-unit-model.cjs'),{inspect}=require('../tools/inspect-glb.cjs');
  const {validateUnitVisualCatalog,resolveUnitModel}=await import(pathToFileURL(path.join(root,'ProjectDelve.Web/wwwroot/unit-visuals.js')));
  const disk=JSON.parse(read('ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')),catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1})));
- assert.equal(disk.models.length,26);
+ assert.ok(Object.keys(expected).every(slug=>disk.models.some(m=>m.id===slug+"/v1")));
  for(const [slug,values] of Object.entries(expected)){
   const p=JSON.parse(read(`assets/source/models/units/${slug}/provenance.json`)),u=catalog.units[slug+'-type'],d=resolveUnitModel(catalog,u.typeId,1),source=read(p.original.path),runtime=read(p.runtime.path);
   assert.deepEqual([u.targetHeight,u.maximumRadius,u.baseRadius],values.dimensions,slug);assert.equal(u.model,slug+'/v1');assert.equal(d.approved,true);assert.equal(d.maxTextureDimension,1024);assert.equal(resolveUnitModel(catalog,u.typeId,2),null);

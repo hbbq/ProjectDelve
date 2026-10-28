@@ -31,3 +31,10 @@ test('one shared source supports different Type scales without contaminating geo
   b.group.position.x=9;assert.equal(a.group.position.x,0);assert.equal(e.template.group.parent,null);assert.equal(e.template.group.scale.y,1);
   assert.equal(cache.clone(e,{...small,radius:.01}),null);assert.equal(e.state,'ready');assert.ok(cache.clone(e,small));assert.match(cache.inspect()[0].error,/proportions/);cache.dispose();
 });
+
+test('model radius limits follow the canonical footprint',async()=>{
+  const {maximumModelRadiusForFootprint:limit,validateUnitVisualCatalog:v}=await at('unit-visuals.js');
+  assert.equal(limit(1),.92);assert.equal(limit(2),1.25);assert.throws(()=>limit(3));
+  const s=sample();s.units[1].maximumRadius=1.25;assert.doesNotThrow(()=>v(s,canonical));
+  s.units[1].maximumRadius=1.251;assert.throws(()=>v(s,canonical));
+});

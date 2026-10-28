@@ -1,0 +1,157 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACqWTzU6EMBRG3-Vbl8RoYkx37nSjm9kZFoVeoU7pJaWohPDupg6DyjAjjrve23K-0x96ZKy8huzxZnQoIW8ESjJFGSCvBTQ9q9aGDXmvjIPEbVOXygYI5GRtA_mUCpAu6HM4CLTOhE1X072OHXjulE22LhKT0NUEAcs5VxzMK-07nnSivSrY7TtFyc30gTaqYqeTrfJjL_0KGh1iGYf9NwPIBXJj9G4qs22slctL9vEE3iGvBDrIy3Efc8IFhlRAFeTybiFqYavzsJxd8GwteUjctZVyGMRfOJ70SszhKZ8jc4KyXuX3S_gnZb3Kj3d1jsUyYL3A4Vs-z-Mk57hOKsDZC-XxRne_yzx8mobEAz9OVTSYBRxdmg4fWltholkEAAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-gameplay > summary"
+    },
+    {
+      "action": "click",
+      "target": "#animate"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-mode",
+      "value": "full"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-projection",
+      "value": "perspective"
+    },
+    {
+      "action": "select",
+      "target": "#three-camera-fov",
+      "value": "65"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-angle"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-in"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-in"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-in"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-in"
+    },
+    {
+      "action": "screenshot",
+      "name": "yaw-0.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "yaw-1.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "yaw-2.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "yaw-3.png"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "click",
+      "target": "#tools-developer > summary"
+    },
+    {
+      "action": "click",
+      "target": ".three-diagnostics > summary"
+    },
+    {
+      "action": "snapshot",
+      "target": ".three-diagnostics",
+      "name": "model.yaml"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}

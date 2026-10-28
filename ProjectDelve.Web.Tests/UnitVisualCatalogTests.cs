@@ -45,12 +45,12 @@ public sealed class UnitVisualCatalogTests
             var radius = u.GetProperty("maximumRadius").GetDouble();
             Assert.True(double.IsFinite(height) && height > 0);
             Assert.True(double.IsFinite(radius) && radius > 0);
-            Assert.True(radius <= .92); // At most nine transient clipping columns, independent of logical footprint.
             var baseRadius = u.GetProperty("baseRadius").GetDouble();
             Assert.True(double.IsFinite(baseRadius) && baseRadius > 0);
             var cells = FootprintGeometry.OccupiedCells(types.Single(t => t.Id == u.GetProperty("typeId").GetString()).Footprint, new(0, 0));
             var width = cells.Max(c => c.X) - cells.Min(c => c.X) + 1;
             var depth = cells.Max(c => c.Y) - cells.Min(c => c.Y) + 1;
+            Assert.True(radius <= (width == 2 && depth == 2 ? 1.25 : .92));
             Assert.True(baseRadius <= .45 * Math.Min(width, depth));
             if (u.TryGetProperty("model", out var model)) Assert.Contains(model.GetString(), modelIds);
         }

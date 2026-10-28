@@ -234,6 +234,60 @@
       "maxTriangles": 12000,
       "maxPrimitives": 2,
       "maxTextureDimension": 1024
+    },
+    {
+      "id": "royal-knight/v1",
+      "approved": true,
+      "url": "./art/models/units/royal-knight/v1/royal-knight.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "diamond-kart/v1",
+      "approved": true,
+      "url": "./art/models/units/diamond-kart/v1/diamond-kart.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "ghost/v1",
+      "approved": true,
+      "url": "./art/models/units/ghost/v1/ghost.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "locomotive/v1",
+      "approved": true,
+      "url": "./art/models/units/locomotive/v1/locomotive.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "tower-troll/v1",
+      "approved": true,
+      "url": "./art/models/units/tower-troll/v1/tower-troll.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "red-dragon/v1",
+      "approved": true,
+      "url": "./art/models/units/red-dragon/v1/red-dragon.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
     }
   ],
   "units": [
@@ -283,7 +337,8 @@
       "typeId": "royal-knight-type",
       "targetHeight": 0.85,
       "maximumRadius": 0.44,
-      "baseRadius": 0.36
+      "baseRadius": 0.36,
+      "model": "royal-knight/v1"
     },
     {
       "typeId": "hobby-knight-type",
@@ -317,13 +372,15 @@
       "typeId": "tower-troll-type",
       "targetHeight": 1.20,
       "maximumRadius": 0.44,
-      "baseRadius": 0.43
+      "baseRadius": 0.43,
+      "model": "tower-troll/v1"
     },
     {
       "typeId": "diamond-kart-type",
       "targetHeight": 0.53,
       "maximumRadius": 0.45,
-      "baseRadius": 0.37
+      "baseRadius": 0.37,
+      "model": "diamond-kart/v1"
     },
     {
       "typeId": "chief-mechanic-type",
@@ -335,8 +392,9 @@
     {
       "typeId": "locomotive-type",
       "targetHeight": 0.58,
-      "maximumRadius": 0.45,
-      "baseRadius": 0.39
+      "maximumRadius": 0.485,
+      "baseRadius": 0.39,
+      "model": "locomotive/v1"
     },
     {
       "typeId": "displacer-demon-type",
@@ -355,8 +413,9 @@
     {
       "typeId": "red-dragon-type",
       "targetHeight": 1.45,
-      "maximumRadius": 0.88,
-      "baseRadius": 0.72
+      "maximumRadius": 1.20,
+      "baseRadius": 0.90,
+      "model": "red-dragon/v1"
     },
     {
       "typeId": "grunt-type",
@@ -376,7 +435,8 @@
       "typeId": "ghost-type",
       "targetHeight": 0.83,
       "maximumRadius": 0.36,
-      "baseRadius": 0.3
+      "baseRadius": 0.3,
+      "model": "ghost/v1"
     },
     {
       "typeId": "skeleton-archer-type",

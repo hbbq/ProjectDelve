@@ -1,0 +1,405 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these exact final six inbox GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/locomotive.png",
+  "projectConceptReferences": [
+    "assets/source/units/locomotive/reference/character-sheet.png",
+    "assets/source/units/locomotive/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/locomotive/original.glb",
+    "sha256": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564",
+    "bytes": 3387980,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/locomotive/v1/locomotive.glb",
+    "sha256": "4361700b9af3ab9aec79c5ebc84c1572f2a93eb5a249923b7120eace2f0d8f9e",
+    "bytes": 3462924
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify original SHA-256",
+      "Reject extension payloads and remove unused declarations",
+      "Add deterministic source hash metadata",
+      "Downsample embedded maps to 1024 with Pillow LANCZOS and lossless PNG compression 9; repack aligned views",
+      "Uniform runtime target-height normalization and ground-centering at base top"
+    ],
+    "orientation": "+Y up, +Z forward confirmed by production positive-Z Move: inspection-IK0uiE/move-positive-z-front.png. Uniform target-height scale, ground-centered at base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/royal-king/provenance.json",
+    "verification": "Shared final-six check on 2026-10-28: terms still dated July 11 2025 and Pro pricing identifies commercial use. Paid generation confirmed by owner for this batch."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "One existing generated tangent-space warning per source/runtime; unused source extension declarations removed. No extension payloads. All maps fully decoded by preparation; independent decode evidence retained locally.",
+    "runtimeChecks": "All source/runtime images fully decoded independently with Pillow; RGB, exact expected 1024 LANCZOS pixels. Buffer-view geometry/accessors/material bindings preserved. Original nodes unchanged; optional reviewed orientation scene wrapper only. Khronos errors zero. Production Edge models ready."
+  },
+  "visualReview": {
+    "findings": "Boiler, cab, chimney, wheels and cowcatcher intact. Circular base supports wheel contacts. Low cowcatcher projects past the base; largest radius is a rear cab corner (X=-.164364,Y=.188595,Z=-.455962 at target height). Radius .45 -> .485 only; height .58/base .39 retained. inspection-aDbXvt.",
+    "scope": "All accepted production registrations verified through restricted Edge and actual-geometry CPU viewport tests.",
+    "evidence": {
+      "detail": "inspection-aDbXvt",
+      "move": "inspection-IK0uiE",
+      "combat": "inspection-gfnqVP",
+      "posture": "inspection-WkCUIu",
+      "fog": "inspection-S4BlGF",
+      "picking": "inspection-emYGBN"
+    },
+    "sharedEvidence": [
+      "inspection-3LIu03",
+      "inspection-DdYme4",
+      "inspection-7PH3tJ",
+      "inspection-Ae9Aet",
+      "inspection-az9J21"
+    ],
+    "verified": [
+      "Four-direction shape, scale, grounding and circular bases",
+      "Rear-hoof/wheel contact and all authored costume/vehicle anatomy",
+      "Side indicators, positive-Z Move and Attack facing",
+      "Lying Cardboard fallback and restored upright",
+      "Logical selection and picking",
+      "Lighting On/Off, Perspective/Orthographic",
+      "FoW hidden/entered/left; CPU tests assert transient planes",
+      "Renderer/representation switching, restart/reload, 600x850 narrow layout"
+    ],
+    "limitations": "No native touch, frame-exact transient FoW pixel assertions, GPU timing/measured allocations, sustained/low-end or physical center-of-mass claims."
+  },
+  "metadataAdjustment": {
+    "maximumRadius": {
+      "before": 0.45,
+      "after": 0.485
+    },
+    "reason": "Measured .4846824204; .035 increase preserves appearance within generic .92 maximum. Below half-cell radius, within existing FoW pool and camera allowance; logical picking and base unchanged."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/locomotive.glb",
+    "sha256BeforeMove": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564",
+    "sha256AfterMove": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/locomotive/original.glb",
+    "bytes": 3387980,
+    "sha256": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 1952
+      },
+      {
+        "type": 5130562,
+        "length": 3386000
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9415,
+    "materials": [
+      {
+        "name": "tripo_material_7a63c044-abb7-4629-bd00-69fde9c276d9",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 942138,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "bd9e4ba051eac89f7b7823a187b6a83b11504290ec97d41f0d7e942dd82b34f8"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 835669,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "5219f9df500b59ba11704b25dc76b3cea875c32f377f0c8f7dc2a9144678d3ba"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1206792,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "7eea4066fce4483b5aebb14840b7b9b0b4643df37421f6d0ec0d3472d590088f"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_7a63c044-abb7-4629-bd00-69fde9c276d9",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.19365692138671875,
+        0,
+        -0.4981689453125
+      ],
+      "max": [
+        0.19365692138671875,
+        0.61175537109375,
+        0.4981689453125
+      ],
+      "dimensions": [
+        0.3873138427734375,
+        0.61175537109375,
+        0.996337890625
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.58,
+      "scale": 0.948091389803452,
+      "maximumRadius": 0.4846824203725151,
+      "contact": {
+        "radius": 0.4723098943919466,
+        "minX": -0.1501139878279956,
+        "maxX": 0.15017185473411154,
+        "minZ": -0.302152050284346,
+        "maxZ": 0.472309687718248,
+        "bandHeight": 0.0435,
+        "samples": 628
+      },
+      "dimensions": [
+        0.367208919485184,
+        0.58,
+        0.944619375436496
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/locomotive/v1/locomotive.glb",
+    "bytes": 3462924,
+    "sha256": "4361700b9af3ab9aec79c5ebc84c1572f2a93eb5a249923b7120eace2f0d8f9e",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2040
+      },
+      {
+        "type": 5130562,
+        "length": 3460856
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9415,
+    "materials": [
+      {
+        "name": "tripo_material_7a63c044-abb7-4629-bd00-69fde9c276d9",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1314590,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "3af4b699b923ccc2e6fba599baa3704625360e62b09a4034fc90013375b4f3e0"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 1308140,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "cbc9473f90db6a15123a3f5e304e524e59826ff8474ba324d71b6e04ec9938b8"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 436728,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "662065332b9a6db20de687a45bb5259163cbb566c6c96b80bb3f73ceaa2c4286"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_7a63c044-abb7-4629-bd00-69fde9c276d9",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.19365692138671875,
+        0,
+        -0.4981689453125
+      ],
+      "max": [
+        0.19365692138671875,
+        0.61175537109375,
+        0.4981689453125
+      ],
+      "dimensions": [
+        0.3873138427734375,
+        0.61175537109375,
+        0.996337890625
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.58,
+      "scale": 0.948091389803452,
+      "maximumRadius": 0.4846824203725151,
+      "contact": {
+        "radius": 0.4723098943919466,
+        "minX": -0.1501139878279956,
+        "maxX": 0.15017185473411154,
+        "minZ": -0.302152050284346,
+        "maxZ": 0.472309687718248,
+        "bandHeight": 0.0435,
+        "samples": 628
+      },
+      "dimensions": [
+        0.367208919485184,
+        0.58,
+        0.944619375436496
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.58,
+    "maximumRadius": 0.485,
+    "baseRadius": 0.39,
+    "measuredMaximumRadius": 0.4846824203725151,
+    "contact": {
+      "radius": 0.4723098943919466,
+      "minX": -0.1501139878279956,
+      "maxX": 0.15017185473411154,
+      "minZ": -0.302152050284346,
+      "maxZ": 0.472309687718248,
+      "bandHeight": 0.0435,
+      "samples": 628
+    },
+    "base": {
+      "radius": 0.39,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.39,
+      "requiredRadius": 0.5123098943919466,
+      "margin": -0.08230989439194658,
+      "shortfall": 0.12230989439194662,
+      "fitsContact": false,
+      "warning": "Estimated contact envelope lacks the target foot margin"
+    },
+    "logicalFootprint": "unchanged"
+  }
+}

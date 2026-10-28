@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these exact final six inbox GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/tower-troll.png",
+  "projectConceptReferences": [
+    "assets/source/units/tower-troll/reference/character-sheet.png",
+    "assets/source/units/tower-troll/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/tower-troll/original.glb",
+    "sha256": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc",
+    "bytes": 4754456,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/tower-troll/v1/tower-troll.glb",
+    "sha256": "6440f641751a2b15e80cb687cbc7b546f82724f50bc0ce2bcdaad684d1821a7f",
+    "bytes": 3890604
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify original SHA-256",
+      "Reject extension payloads and remove unused declarations",
+      "Add deterministic source hash metadata",
+      "Downsample embedded maps to 1024 with Pillow LANCZOS and lossless PNG compression 9; repack aligned views",
+      "Uniform runtime target-height normalization and ground-centering at base top"
+    ],
+    "orientation": "+Y up, +Z forward confirmed by production positive-Z Move: inspection-AWPwT0/move-positive-z-front.png. Uniform target-height scale, ground-centered at base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/royal-king/provenance.json",
+    "verification": "Shared final-six check on 2026-10-28: terms still dated July 11 2025 and Pro pricing identifies commercial use. Paid generation confirmed by owner for this batch."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "One existing generated tangent-space warning per source/runtime; unused source extension declarations removed. No extension payloads. All maps fully decoded by preparation; independent decode evidence retained locally.",
+    "runtimeChecks": "All source/runtime images fully decoded independently with Pillow; RGB, exact expected 1024 LANCZOS pixels. Buffer-view geometry/accessors/material bindings preserved. Original nodes unchanged; optional reviewed orientation scene wrapper only. Khronos errors zero. Production Edge models ready."
+  },
+  "visualReview": {
+    "findings": "Whole tower costume and feet retained, no deformation. Width .740941 Cells and contact radius .307478 fit the .43 base. inspection-0gNCVW.",
+    "scope": "All accepted production registrations verified through restricted Edge and actual-geometry CPU viewport tests.",
+    "evidence": {
+      "detail": "inspection-0gNCVW",
+      "move": "inspection-AWPwT0",
+      "combat": "inspection-vkLq6m",
+      "posture": "inspection-oM1Ys5",
+      "fog": "inspection-lornm4",
+      "picking": "inspection-dX4E0r"
+    },
+    "sharedEvidence": [
+      "inspection-3LIu03",
+      "inspection-DdYme4",
+      "inspection-7PH3tJ",
+      "inspection-Ae9Aet",
+      "inspection-az9J21"
+    ],
+    "verified": [
+      "Four-direction shape, scale, grounding and circular bases",
+      "Rear-hoof/wheel contact and all authored costume/vehicle anatomy",
+      "Side indicators, positive-Z Move and Attack facing",
+      "Lying Cardboard fallback and restored upright",
+      "Logical selection and picking",
+      "Lighting On/Off, Perspective/Orthographic",
+      "FoW hidden/entered/left; CPU tests assert transient planes",
+      "Renderer/representation switching, restart/reload, 600x850 narrow layout"
+    ],
+    "limitations": "No native touch, frame-exact transient FoW pixel assertions, GPU timing/measured allocations, sustained/low-end or physical center-of-mass claims."
+  },
+  "metadataAdjustment": null,
+  "import": {
+    "inboxPath": "assets/import/models/tower-troll.glb",
+    "sha256BeforeMove": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc",
+    "sha256AfterMove": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/tower-troll/original.glb",
+    "bytes": 4754456,
+    "sha256": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2024
+      },
+      {
+        "type": 5130562,
+        "length": 4752404
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9759,
+    "materials": [
+      {
+        "name": "tripo_material_413634f8-2a5f-41a6-841a-ae156c94e91f",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1039522,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "aa9d08a6b5fcba7cc68daaded77c33a5de6ca3a2b9b49eb5268e83d4a0d4c2d8"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 1074903,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "bfa9b01fc179516bd424da6891936269d1ffd8b786686be2a80bd8d5840afb8b"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2289378,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "3a43f4fe0a98c4775cc39d8ba2d1b966795e69a113eb1bafd1c50839ff6b2c41"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_413634f8-2a5f-41a6-841a-ae156c94e91f",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.3090362548828125,
+        0,
+        -0.17894744873046875
+      ],
+      "max": [
+        0.3090362548828125,
+        1.001007080078125,
+        0.17894744873046875
+      ],
+      "dimensions": [
+        0.618072509765625,
+        1.001007080078125,
+        0.3578948974609375
+      ]
+    },
+    "normalization": {
+      "targetHeight": 1.2,
+      "scale": 1.1987927197341544,
+      "maximumRadius": 0.3740526138822373,
+      "contact": {
+        "radius": 0.30747763989463817,
+        "minX": -0.30337486137998837,
+        "maxX": 0.3057894933652937,
+        "minZ": -0.12784364543954452,
+        "maxZ": 0.14173654135449376,
+        "bandHeight": 0.08999999999999998,
+        "samples": 370
+      },
+      "dimensions": [
+        0.7409408249748483,
+        1.2,
+        0.42904179750617355
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/tower-troll/v1/tower-troll.glb",
+    "bytes": 3890604,
+    "sha256": "6440f641751a2b15e80cb687cbc7b546f82724f50bc0ce2bcdaad684d1821a7f",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2116
+      },
+      {
+        "type": 5130562,
+        "length": 3888460
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9759,
+    "materials": [
+      {
+        "name": "tripo_material_413634f8-2a5f-41a6-841a-ae156c94e91f",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1405781,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "7af9b5f5d1d53655afc4664e6cf0a5ed2f4e1d725aaadb29e6df04c3d5dca5c6"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 1354558,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "62041e2de38f757ef6c366fbb2844327cb4d45931c8b93f340e5fce21e402b26"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 779520,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "a2e20dc311e26c7cb8ca5f3310927085703efa11c0f07f91e76406b557eaf176"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_413634f8-2a5f-41a6-841a-ae156c94e91f",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.3090362548828125,
+        0,
+        -0.17894744873046875
+      ],
+      "max": [
+        0.3090362548828125,
+        1.001007080078125,
+        0.17894744873046875
+      ],
+      "dimensions": [
+        0.618072509765625,
+        1.001007080078125,
+        0.3578948974609375
+      ]
+    },
+    "normalization": {
+      "targetHeight": 1.2,
+      "scale": 1.1987927197341544,
+      "maximumRadius": 0.3740526138822373,
+      "contact": {
+        "radius": 0.30747763989463817,
+        "minX": -0.30337486137998837,
+        "maxX": 0.3057894933652937,
+        "minZ": -0.12784364543954452,
+        "maxZ": 0.14173654135449376,
+        "bandHeight": 0.08999999999999998,
+        "samples": 370
+      },
+      "dimensions": [
+        0.7409408249748483,
+        1.2,
+        0.42904179750617355
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 1.2,
+    "maximumRadius": 0.44,
+    "baseRadius": 0.43,
+    "measuredMaximumRadius": 0.3740526138822373,
+    "contact": {
+      "radius": 0.30747763989463817,
+      "minX": -0.30337486137998837,
+      "maxX": 0.3057894933652937,
+      "minZ": -0.12784364543954452,
+      "maxZ": 0.14173654135449376,
+      "bandHeight": 0.08999999999999998,
+      "samples": 370
+    },
+    "base": {
+      "radius": 0.43,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.43,
+      "requiredRadius": 0.34747763989463815,
+      "margin": 0.12252236010536183,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  }
+}

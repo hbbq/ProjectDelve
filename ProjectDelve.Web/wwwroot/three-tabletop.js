@@ -178,12 +178,14 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
   return {unit,posture,board,terrain,edge,machine,item,miniatureBase};
 }
 
-// One transient mover; at most nine Cell columns intersect its 2x2-sized body.
+// One transient mover: small envelopes need nine Cell columns, larger ones
+// need sixteen. Validated model radius is at most 1.25 Cells.
 // Copies share geometry/textures. Only clipping materials are owned by this pool.
 export function createMovementClipPool(source,explored,THREEImpl=THREE,clippedVariants=null){
   const root=new THREEImpl.Group(),copies=[],materials=new Set();root.name='clipped-movement';
   const materialMap=new Map();
-  for(let i=0;i<9;i++){
+  const capacity=(source.userData.visualBounds?.radius??0)>=1?16:9;
+  for(let i=0;i<capacity;i++){
     const planes=[new THREEImpl.Plane(new THREEImpl.Vector3(1,0,0)),new THREEImpl.Plane(new THREEImpl.Vector3(-1,0,0)),new THREEImpl.Plane(new THREEImpl.Vector3(0,0,1)),new THREEImpl.Plane(new THREEImpl.Vector3(0,0,-1))];
     const copyNode=node=>{
       const copy=node.isMesh?new THREEImpl.Mesh(node.geometry,node.material):new THREEImpl.Group();

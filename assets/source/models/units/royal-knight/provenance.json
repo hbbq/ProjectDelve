@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these exact final six inbox GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/royal-knight.png",
+  "projectConceptReferences": [
+    "assets/source/units/royal-knight/reference/character-sheet.png",
+    "assets/source/units/royal-knight/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/royal-knight/original.glb",
+    "sha256": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62",
+    "bytes": 4061488,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-knight/v1/royal-knight.glb",
+    "sha256": "64c5613981067d1a5bd9c2e49e6658f4ff4810c74c6a72cc3ca72a1566d78bea",
+    "bytes": 3668588
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 90,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify original SHA-256",
+      "Reject extension payloads and remove unused declarations",
+      "Add deterministic source hash metadata",
+      "Add rigid +90 degree Y scene wrapper; retain all original nodes and geometry buffers",
+      "Downsample embedded maps to 1024 with Pillow LANCZOS and lossless PNG compression 9; repack aligned views",
+      "Uniform runtime target-height normalization and ground-centering at base top"
+    ],
+    "orientation": "Original -X forward/+Y up; rigid +90 Y scene wrapper yields +Z forward. Corrected production positive-Z Move: inspection-YelSSF/move-positive-z-front.png; authored dimensions and radius preserved."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/royal-king/provenance.json",
+    "verification": "Shared final-six check on 2026-10-28: terms still dated July 11 2025 and Pro pricing identifies commercial use. Paid generation confirmed by owner for this batch."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "One existing generated tangent-space warning per source/runtime; unused source extension declarations removed. No extension payloads. All maps fully decoded by preparation; independent decode evidence retained locally.",
+    "runtimeChecks": "All source/runtime images fully decoded independently with Pillow; RGB, exact expected 1024 LANCZOS pixels. Buffer-view geometry/accessors/material bindings preserved. Original nodes unchanged; optional reviewed orientation scene wrapper only. Khronos errors zero. Production Edge models ready."
+  },
+  "visualReview": {
+    "findings": "Mounted royal rider and real horse, intact rearing pose. Rear hooves sit on the base; lifted forelegs, head and plume overhang without exceeding the radius. Source -X forward corrected by rigid +90 degree Y scene wrapper; no geometry buffers or size changed. Initial support inspection-Tkfga6; corrected positive-Z Move inspection-5XRsZ0.",
+    "scope": "All accepted production registrations verified through restricted Edge and actual-geometry CPU viewport tests.",
+    "evidence": {
+      "detail": "inspection-Bcmty7",
+      "move": "inspection-YelSSF",
+      "combat": "inspection-dMyhmC",
+      "posture": "inspection-BDY0TP",
+      "fog": "inspection-pFmEOp",
+      "picking": "inspection-4v2ZIa"
+    },
+    "sharedEvidence": [
+      "inspection-3LIu03",
+      "inspection-DdYme4",
+      "inspection-7PH3tJ",
+      "inspection-Ae9Aet",
+      "inspection-az9J21"
+    ],
+    "verified": [
+      "Four-direction shape, scale, grounding and circular bases",
+      "Rear-hoof/wheel contact and all authored costume/vehicle anatomy",
+      "Side indicators, positive-Z Move and Attack facing",
+      "Lying Cardboard fallback and restored upright",
+      "Logical selection and picking",
+      "Lighting On/Off, Perspective/Orthographic",
+      "FoW hidden/entered/left; CPU tests assert transient planes",
+      "Renderer/representation switching, restart/reload, 600x850 narrow layout"
+    ],
+    "limitations": "No native touch, frame-exact transient FoW pixel assertions, GPU timing/measured allocations, sustained/low-end or physical center-of-mass claims."
+  },
+  "metadataAdjustment": null,
+  "import": {
+    "inboxPath": "assets/import/models/royal-knight.glb",
+    "sha256BeforeMove": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62",
+    "sha256AfterMove": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/royal-knight/original.glb",
+    "bytes": 4061488,
+    "sha256": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2004
+      },
+      {
+        "type": 5130562,
+        "length": 4059456
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 8703,
+    "materials": [
+      {
+        "name": "tripo_material_737243ec-a4b9-4a95-b786-81f0f263880a",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1016469,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "6e56b03342100a26c88253c8d07ec85db8f38da43caaba076aae239e02f6ee74"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 1001974,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "4640edcad487269d7fdf95af33a67acf04f9a00757151ed0b6ea8235c9615a97"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1713307,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "0ca45b9844ddd33b77eb57f4deed0697726adfa1de52ba4c90c103ff403ec5d2"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_737243ec-a4b9-4a95-b786-81f0f263880a",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.4854583740234375,
+        0,
+        -0.23736572265625
+      ],
+      "max": [
+        0.4854583740234375,
+        1.000732421875,
+        0.23736572265625
+      ],
+      "dimensions": [
+        0.970916748046875,
+        1.000732421875,
+        0.4747314453125
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.85,
+      "scale": 0.8493778970480604,
+      "maximumRadius": 0.4171590554806223,
+      "contact": {
+        "radius": 0.2287553989269691,
+        "minX": -0.05180949880949431,
+        "maxX": 0.21977085356422676,
+        "minZ": -0.09674345129552367,
+        "maxZ": 0.09839596288848079,
+        "bandHeight": 0.06375,
+        "samples": 346
+      },
+      "dimensions": [
+        0.8246752256647962,
+        0.85,
+        0.40322639668211757
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/royal-knight/v1/royal-knight.glb",
+    "bytes": 3668588,
+    "sha256": "64c5613981067d1a5bd9c2e49e6658f4ff4810c74c6a72cc3ca72a1566d78bea",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2196
+      },
+      {
+        "type": 5130562,
+        "length": 3666364
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 8703,
+    "materials": [
+      {
+        "name": "tripo_material_737243ec-a4b9-4a95-b786-81f0f263880a",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1375049,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "cf89d4327bfa637ee7f57796a605ce7f57378b518626ba52652c7ec9561ee247"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 1376601,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "532ac11d79442e952b2c821636876582c9978c10ff79c60a9a70876a01161b83"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 587006,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "a60deba2081bb3ae519e03aeacd863bc37cc701e11c7e0d642a846c211e40b45"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 1,
+        "name": "prepared-orientation",
+        "mesh": null,
+        "rotation": [
+          0,
+          0.7071067811865475,
+          0,
+          0.7071067811865476
+        ],
+        "determinant": 1,
+        "children": [
+          0
+        ]
+      },
+      {
+        "index": 0,
+        "name": "tripo_node_737243ec-a4b9-4a95-b786-81f0f263880a",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.23736572265624997,
+        0,
+        -0.4854583740234375
+      ],
+      "max": [
+        0.23736572265625003,
+        1.000732421875,
+        0.4854583740234375
+      ],
+      "dimensions": [
+        0.4747314453125,
+        1.000732421875,
+        0.970916748046875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.85,
+      "scale": 0.8493778970480604,
+      "maximumRadius": 0.4171590554806223,
+      "contact": {
+        "radius": 0.22875539892696914,
+        "minX": -0.0967434512955237,
+        "maxX": 0.0983959628884808,
+        "minZ": -0.21977085356422676,
+        "maxZ": 0.051809498809494293,
+        "bandHeight": 0.06375,
+        "samples": 346
+      },
+      "dimensions": [
+        0.40322639668211757,
+        0.85,
+        0.8246752256647962
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.85,
+    "maximumRadius": 0.44,
+    "baseRadius": 0.36,
+    "measuredMaximumRadius": 0.4171590554806223,
+    "contact": {
+      "radius": 0.22875539892696914,
+      "minX": -0.0967434512955237,
+      "maxX": 0.0983959628884808,
+      "minZ": -0.21977085356422676,
+      "maxZ": 0.051809498809494293,
+      "bandHeight": 0.06375,
+      "samples": 346
+    },
+    "base": {
+      "radius": 0.36,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.36,
+      "requiredRadius": 0.26875539892696915,
+      "margin": 0.13124460107303085,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  }
+}

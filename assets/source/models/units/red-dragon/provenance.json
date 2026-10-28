@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms these exact final six inbox GLBs were generated under the paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/red-dragon.png",
+  "projectConceptReferences": [],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/red-dragon/original.glb",
+    "sha256": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223",
+    "bytes": 3668624,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/red-dragon/v1/red-dragon.glb",
+    "sha256": "1a5c4bba83ed707170952025e75007e30574203d93e9410d6f4e75da855f9f12",
+    "bytes": 3413616
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 90,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify original SHA-256",
+      "Reject extension payloads and remove unused declarations",
+      "Add deterministic source hash metadata",
+      "Add rigid +90 degree Y scene wrapper; retain all original nodes and geometry buffers",
+      "Downsample embedded maps to 1024 with Pillow LANCZOS and lossless PNG compression 9; repack aligned views",
+      "Uniform runtime target-height normalization and ground-centering at base top"
+    ],
+    "orientation": "Rigid +90 degree Y scene wrapper; source -X forward/+Y up, corrected after production Attack facing inspection."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/royal-king/provenance.json",
+    "verification": "Shared final-six check on 2026-10-28: terms still dated July 11 2025 and Pro pricing identifies commercial use. Paid generation confirmed by owner for this batch."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "One existing generated tangent-space warning per source/runtime; unused source extension declarations removed. No extension payloads. All maps fully decoded by preparation; independent decode evidence retained locally."
+  },
+  "visualReview": {
+    "findings": "Intact head, wings, tail and four legs at height 1.45. Selected .90 circular base after .85 preview; toes and low silhouette may overhang. Contact estimate is advisory, not a support polygon. Final +90 Y wrapper verified by positive-Z Move and Attack toward target; initial -90 candidate rejected as backwards.",
+    "evidence": {
+      "detail": "inspection-EfSKMV",
+      "move": "inspection-ooRlCP",
+      "combat": "inspection-XDkPcR",
+      "fog": "inspection-6JkrDK",
+      "adjacent": "inspection-Vb8nhJ",
+      "picking": "inspection-EUh66C",
+      "posture": "inspection-ZQvuSR"
+    },
+    "limitations": [
+      "Existing generated tangent-space warning",
+      "Foot and tail overhang advisory",
+      "Lying remains existing Cardboard representation",
+      "Browser captures do not certify every transient frame; CPU tests exhaust required explored columns across yaw and position",
+      "No sustained GPU or low-end performance claim"
+    ]
+  },
+  "metadataAdjustment": null,
+  "import": {
+    "inboxPath": "assets/import/models/red-dragon.glb",
+    "sha256BeforeMove": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223",
+    "sha256AfterMove": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/red-dragon/original.glb",
+    "bytes": 3668624,
+    "sha256": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2012
+      },
+      {
+        "type": 5130562,
+        "length": 3666584
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9852,
+    "materials": [
+      {
+        "name": "tripo_material_3e500232-3131-4fb1-9c16-d28a84be907a",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 827760,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "4089e188bfd499f428bbbdd041b9d8b13d828da3b8c96610e5903809c0fbd4d0"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 783214,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "cf3e8e37c35b46029b5107854a66098728d9a1e3c17c057001d21e522ee53382"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1689352,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "ef7b59c0ad6700af07a4fe1d0444ab9d5d10ad64fdecc3504cf2268d029981b6"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_3e500232-3131-4fb1-9c16-d28a84be907a",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.501983642578125,
+        0,
+        -0.221527099609375
+      ],
+      "max": [
+        0.501983642578125,
+        0.616668701171875,
+        0.221527099609375
+      ],
+      "dimensions": [
+        1.00396728515625,
+        0.616668701171875,
+        0.44305419921875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 1.45,
+      "scale": 2.351343593804127,
+      "maximumRadius": 1.1961894823973491,
+      "contact": {
+        "radius": 1.1961894823973491,
+        "minX": -1.1803360221705348,
+        "maxX": 0.977191142476153,
+        "minZ": -0.47854958262065744,
+        "maxZ": 0.5208863265205127,
+        "bandHeight": 0.10874999999999999,
+        "samples": 590
+      },
+      "dimensions": [
+        2.3606720443410696,
+        1.45,
+        1.0417726530410254
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/red-dragon/v1/red-dragon.glb",
+    "bytes": 3413616,
+    "sha256": "1a5c4bba83ed707170952025e75007e30574203d93e9410d6f4e75da855f9f12",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2212
+      },
+      {
+        "type": 5130562,
+        "length": 3411376
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9852,
+    "materials": [
+      {
+        "name": "tripo_material_3e500232-3131-4fb1-9c16-d28a84be907a",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1293826,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "3781d4e69bc7ccacc50b96418cd469253b4bcd5aad339e906619835eec6a1c31"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 1151052,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "6aeab2ac60554be709e40cf111d3dd27d2d6fa1197b7bee79786b864f3fe4d2b"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 600237,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "56d5167adb85f93772e5c0d6825fde76b7542894e04849b1da7c508d2a20d503"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 1,
+        "name": "prepared-orientation",
+        "mesh": null,
+        "rotation": [
+          0,
+          0.7071067811865475,
+          0,
+          0.7071067811865476
+        ],
+        "determinant": 1,
+        "children": [
+          0
+        ]
+      },
+      {
+        "index": 0,
+        "name": "tripo_node_3e500232-3131-4fb1-9c16-d28a84be907a",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.22152709960937506,
+        0,
+        -0.501983642578125
+      ],
+      "max": [
+        0.22152709960937492,
+        0.616668701171875,
+        0.501983642578125
+      ],
+      "dimensions": [
+        0.44305419921875,
+        0.616668701171875,
+        1.00396728515625
+      ]
+    },
+    "normalization": {
+      "targetHeight": 1.45,
+      "scale": 2.351343593804127,
+      "maximumRadius": 1.1961894823973491,
+      "contact": {
+        "radius": 1.1961894823973491,
+        "minX": -0.4785495826206573,
+        "maxX": 0.5208863265205127,
+        "minZ": -0.977191142476153,
+        "maxZ": 1.1803360221705348,
+        "bandHeight": 0.10874999999999999,
+        "samples": 590
+      },
+      "dimensions": [
+        1.0417726530410254,
+        1.45,
+        2.3606720443410696
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 1.45,
+    "maximumRadius": 1.2,
+    "baseRadius": 0.9,
+    "measuredMaximumRadius": 1.1961894823973491,
+    "contact": {
+      "radius": 1.1961894823973491,
+      "minX": -0.4785495826206573,
+      "maxX": 0.5208863265205127,
+      "minZ": -0.977191142476153,
+      "maxZ": 1.1803360221705348,
+      "bandHeight": 0.10874999999999999,
+      "samples": 590
+    },
+    "base": {
+      "radius": 0.9,
+      "maximumRadius": 0.9,
+      "requestedRadius": 0.9,
+      "requiredRadius": 1.2361894823973492,
+      "margin": -0.2961894823973491,
+      "shortfall": 0.33618948239734914,
+      "fitsContact": false,
+      "warning": "Estimated contact envelope lacks the target foot margin"
+    },
+    "logicalFootprint": "unchanged"
+  }
+}

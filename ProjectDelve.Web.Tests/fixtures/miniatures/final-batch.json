@@ -1,0 +1,57 @@
+{
+  "royal-knight": {
+    "dimensions": [
+      0.85,
+      0.44,
+      0.36
+    ],
+    "triangles": 8703,
+    "sourceSha256": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62",
+    "runtimeSha256": "64c5613981067d1a5bd9c2e49e6658f4ff4810c74c6a72cc3ca72a1566d78bea",
+    "rotationYDegrees": 90
+  },
+  "locomotive": {
+    "dimensions": [
+      0.58,
+      0.485,
+      0.39
+    ],
+    "triangles": 9415,
+    "sourceSha256": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564",
+    "runtimeSha256": "4361700b9af3ab9aec79c5ebc84c1572f2a93eb5a249923b7120eace2f0d8f9e",
+    "rotationYDegrees": 0
+  },
+  "tower-troll": {
+    "dimensions": [
+      1.2,
+      0.44,
+      0.43
+    ],
+    "triangles": 9759,
+    "sourceSha256": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc",
+    "runtimeSha256": "6440f641751a2b15e80cb687cbc7b546f82724f50bc0ce2bcdaad684d1821a7f",
+    "rotationYDegrees": 0
+  },
+  "ghost": {
+    "dimensions": [
+      0.83,
+      0.36,
+      0.3
+    ],
+    "triangles": 9448,
+    "sourceSha256": "0466e6c939cd6a15d9657d0d44004febe4e72f846f1eb486d6ea03ca53426fa0",
+    "runtimeSha256": "b46acc5d04a6d79f2d0133e6357742558805ec51d46ef229df163d8e00779e43",
+    "rotationYDegrees": 0
+  },
+  "diamond-kart": {
+    "dimensions": [
+      0.53,
+      0.45,
+      0.37
+    ],
+    "triangles": 9778,
+    "sourceSha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67",
+    "runtimeSha256": "20a684f1b7a1821560378d0a0a25c019c8663720637f5a29ec9c7691f286fbdb",
+    "rotationYDegrees": 0
+  }
+}

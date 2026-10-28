@@ -1,0 +1,222 @@
+{
+  "date": "2026-10-28",
+  "measurement": "CPU submission/frame intervals, not GPU timing or measured GPU allocation",
+  "scenes": {
+    "5": {
+      "evidence": "inspection-Ae9Aet",
+      "figures": 5,
+      "drawCalls": 27,
+      "triangles": 48001,
+      "cpuRenderP50Ms": 1.4,
+      "cpuRenderP95Ms": 1.9,
+      "frameP95Ms": 16.73,
+      "cameraRenderP95Ms": 1.9,
+      "cameraSamples": 13,
+      "estimatedTextureMiB": 88.17,
+      "uploadedTextures": 28,
+      "uploadedGeometries": 16,
+      "programs": 8,
+      "sceneMaterials": 46,
+      "models": [
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/royal-knight/v1/royal-knight.glb",
+          "version": "tripo-v1",
+          "loadMs": 112.79999995231628,
+          "decodeMs": 401.7000000476837,
+          "totalMs": 514.7000000476837,
+          "networkRequests": 1,
+          "triangles": 8703,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/locomotive/v1/locomotive.glb",
+          "version": "tripo-v1",
+          "loadMs": 115.70000004768372,
+          "decodeMs": 312.09999990463257,
+          "totalMs": 427.89999985694885,
+          "networkRequests": 1,
+          "triangles": 9415,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/tower-troll/v1/tower-troll.glb",
+          "version": "tripo-v1",
+          "loadMs": 115.70000004768372,
+          "decodeMs": 307.2000000476837,
+          "totalMs": 423,
+          "networkRequests": 1,
+          "triangles": 9759,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/ghost/v1/ghost.glb",
+          "version": "tripo-v1",
+          "loadMs": 115.69999980926514,
+          "decodeMs": 319.80000019073486,
+          "totalMs": 435.5,
+          "networkRequests": 1,
+          "triangles": 9448,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/diamond-kart/v1/diamond-kart.glb",
+          "version": "tripo-v1",
+          "loadMs": 115.60000014305115,
+          "decodeMs": 299.10000014305115,
+          "totalMs": 414.80000019073486,
+          "networkRequests": 1,
+          "triangles": 9778,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        }
+      ]
+    },
+    "10": {
+      "evidence": "inspection-az9J21",
+      "figures": 10,
+      "drawCalls": 47,
+      "triangles": 95784,
+      "cpuRenderP50Ms": 1.5,
+      "cpuRenderP95Ms": 2,
+      "frameP95Ms": 16.7,
+      "cameraRenderP95Ms": 2.3,
+      "cameraSamples": 12,
+      "estimatedTextureMiB": 88.17,
+      "uploadedTextures": 28,
+      "uploadedGeometries": 16,
+      "programs": 8,
+      "sceneMaterials": 50,
+      "models": [
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/royal-knight/v1/royal-knight.glb",
+          "version": "tripo-v1",
+          "loadMs": 126.90000009536743,
+          "decodeMs": 136.09999990463257,
+          "totalMs": 263.2000000476837,
+          "networkRequests": 1,
+          "triangles": 8703,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/locomotive/v1/locomotive.glb",
+          "version": "tripo-v1",
+          "loadMs": 126.69999980926514,
+          "decodeMs": 240.5,
+          "totalMs": 367.19999980926514,
+          "networkRequests": 1,
+          "triangles": 9415,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/tower-troll/v1/tower-troll.glb",
+          "version": "tripo-v1",
+          "loadMs": 126.20000004768372,
+          "decodeMs": 141,
+          "totalMs": 267.59999990463257,
+          "networkRequests": 1,
+          "triangles": 9759,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/ghost/v1/ghost.glb",
+          "version": "tripo-v1",
+          "loadMs": 126.20000004768372,
+          "decodeMs": 125.5,
+          "totalMs": 251.70000004768372,
+          "networkRequests": 1,
+          "triangles": 9448,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        },
+        {
+          "state": "ready",
+          "url": "http://127.0.0.1:5081/art/models/units/diamond-kart/v1/diamond-kart.glb",
+          "version": "tripo-v1",
+          "loadMs": 125.90000009536743,
+          "decodeMs": 147.40000009536743,
+          "totalMs": 273.30000019073486,
+          "networkRequests": 1,
+          "triangles": 9778,
+          "primitives": 1,
+          "warnings": [
+            "Above recommended 8000 triangles"
+          ],
+          "geometries": 1,
+          "materials": 2,
+          "textures": 3,
+          "textureBytes": 16777216
+        }
+      ]
+    }
+  }
+}

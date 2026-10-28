@@ -1,8 +1,12 @@
 // Authored presentation dimensions. Canonical IDs/footprints are supplied by the
 // existing public content catalog, never inferred from names or game observation.
-// Below one Cell: every yaw/position intersects at most 3x3 Cell columns.
-// This retains the existing 2x2 envelope while permitting 1x1 visual overhang.
+// Small envelopes intersect at most 3x3 Cell columns; approved 2x2 envelopes
+// up to 1.25 intersect at most 4x4. Logical footprints remain authoritative.
 export const maximumModelRadius=.92;
+export function maximumModelRadiusForFootprint(cellSpan){
+  if(![1,2].includes(cellSpan))throw Error('Invalid model footprint');
+  return cellSpan===2?1.25:maximumModelRadius;
+}
 export const miniatureFootMargin=.04;
 export const miniatureFootprintCoverage=.90;
 // Presentation dimensions only. Callers can pass actual width/depth independently
@@ -28,7 +32,7 @@ export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.
   for(const id of Object.keys(canonical))if(!Object.hasOwn(units,id))throw Error(`Missing Unit visual metadata: ${id}`);
   for(const [id,u]of Object.entries(units)){
     if(!Object.hasOwn(canonical,id))throw Error(`Unknown Unit visual Type: ${id}`);
-    if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadius||!positive(u.baseRadius)||u.baseRadius>maximumBaseRadius(canonical[id].cellSpan))throw Error(`Invalid Unit visual dimensions: ${id}`);
+    if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadiusForFootprint(canonical[id].cellSpan)||!positive(u.baseRadius)||u.baseRadius>maximumBaseRadius(canonical[id].cellSpan))throw Error(`Invalid Unit visual dimensions: ${id}`);
     if(Object.keys(u).some(k=>!['typeId','targetHeight','maximumRadius','baseRadius','model'].includes(k)))throw Error(`Unknown Unit visual field: ${id}`);
     if(u.model!=null&&!Object.hasOwn(models,u.model))throw Error(`Unknown model reference: ${id}`);
   }

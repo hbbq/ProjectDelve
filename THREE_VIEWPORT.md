@@ -823,7 +823,7 @@ The approved runtime destination is
 | Geometry | Target 6,000–8,000 triangles; hard maximum 12,000 |
 | Draw primitives | At most two; prefer one material/primitive |
 | Texture | Prefer 1024² base color, optional 512² normal and packed ORM |
-| Texture limit | All 26 production miniatures use maximum 1024; preparation records and descriptor budgets agree |
+| Texture limit | All 31 production miniatures use maximum 1024; preparation records and descriptor budgets agree |
 | Texture memory | Prefer about 8 MiB or less including mipmaps |
 | Material | Rough painted PBR, opaque where possible; no emissive lighting |
 | Pose | Compact neutral shamble; readable head/hands and front/back |
@@ -908,8 +908,8 @@ Height means exact intended model height above its feet, excluding the procedura
 .06-Cell base. Radius is a maximum of transformed vertices about the ground-center
 after uniform scaling. Radius failure keeps Cardboard; the loader never shrinks to
 fit or stretches axes separately. Radial budgets are bounded to .92 Cell for
-either logical footprint, retaining the nine-column FoW pool guarantee: a radius
-below one Cell intersects at most three columns on each axis. A miniature may
+1�1 and 1.25 Cells for 2�2 footprints. Small envelopes retain nine FoW copies;
+envelopes at least one Cell in radius use sixteen (at most four columns per axis). A miniature may
 overhang its logical footprint and generated base without changing legality.
 Clipping uses the maximum of the measured model radius and the base radius.
 Picking and label width retain the independent .46 × Cell span proxy envelope. There is no
@@ -1103,7 +1103,7 @@ information remain authoritative throughout.
 
 Stable hidden Units are absent from observed figure input and never instantiated.
 Stable observable multi-Cell bodies remain whole and unclipped. Transient movement
-uses the displayed explored set and nine reusable Cell-column copies. Hierarchy
+uses the displayed explored set and nine or sixteen reusable Cell-column copies. Hierarchy
 copies preserve nested matrices and material arrays; every mesh gets private
 clipping variants of both PBR and Off materials. Planes remain world-aligned while
 all facing pivots share yaw. The validated radial envelope bounds intersecting
@@ -2101,3 +2101,131 @@ evidence and full validator reports are under ignored `.playwright-cli/`.
 No remaining asset issues were found. Extreme-zoom texture fidelity and measured
 GPU allocations were not benchmarked. The existing tangent warning and contact
 advisories remain unchanged; this task does not adjust geometry or visual metadata.
+
+## Final six miniature diagnosis and import — 2026-10-28
+
+Production now has **31 approved miniatures**. Royal Knight, Locomotive, Tower
+Troll, Ghost and Diamond Kart use ordinary production catalog registrations.
+Red Dragon remains unchanged in the inbox and unregistered. Complete preflight,
+hashes, dimensions, per-model reasoning, provenance, visual evidence and remaining
+limits: [final-six report](assets/source/models/FINAL_SIX_IMPORT.md),
+[preflight JSON](assets/source/models/final-six-preflight.json), and
+[performance JSON](assets/source/models/final-six-performance.json).
+
+All six sources were measured before asset/catalog modifications: one static
+mesh/primitive/material, three 2048² maps, 8,703–9,852 triangles, finite identity
+transforms, Y-minimum zero, no external resources, animation, skins or morphs.
+Khronos Validator 2.0.0-dev.3.10 reports zero errors on all originals/prepared
+exports, one existing generated-tangent warning each. Unused source extension
+declarations are removed; no actual extension payload exists. All 36 source and
+prepared maps fully decode. Accepted runtimes retain all three channels at 1024²;
+pixels match the expected LANCZOS downsample. No source or existing model changed.
+
+| Model | Height | Actual radius | Allowed radius | Contact / base radius | Outcome |
+| --- | ---: | ---: | --- | --- | --- |
+| Royal Knight | .85 | .417159 | .44 | .228755 / .36 | Approved, rigid orientation correction |
+| Locomotive | .58 | .484682 | .45 → .485 | .472310 / .39 | Approved, modest radius allowance |
+| Red Dragon | 1.45 | 1.196189 | .88 | 1.196189 / .72 | Deferred, beyond .92 renderer ceiling |
+| Tower Troll | 1.20 | .374053 | .44 | .307478 / .43 | Approved unchanged |
+| Ghost | .83 | .273098 | .36 | .273098 / .30 | Approved unchanged |
+| Diamond Kart | .53 | .449056 | .45 | .403133 / .37 | Approved unchanged |
+
+Contact estimates include the lowest 7.5% of height, not only load-bearing soles.
+Locomotive's low cowcatcher and Kart's curved tires inflate that estimate; actual
+lowest .005-Cell band radii are .279421/.343526, inside their .39/.37 bases.
+Ghost misses the preferred .04 contact margin by .013098. All are advisory;
+screenshots show supported wheels, cloth and the Knight's rear hooves. No base,
+height, pose, wheel, wing, costume or chassis was changed to pass.
+
+Royal Knight's horse faces **−X in the original**. The existing offline exporter
+now optionally adds a rigid scene wrapper using reviewed
+`preparation.rotationYDegrees` (0/±90/180); omitted option reproduces previous
+exports exactly. Knight uses **+90° Y**, preserving geometry buffers, authored
+nodes, height and radius, to correct to +Z forward. Prepared dimensions are
+.403226 × .85 × .824675. Importer `--rotation-y 90` binds the reviewed angle and
+hashes before exclusive writes; source and runtime inspections are recorded
+separately. No runtime renderer change or per-Type orientation branch.
+
+Locomotive's largest radius is a rear cab corner, while the cowcatcher extends
+low beyond the circular base. Its **.035-Cell metadata increase** fits the existing
+generic .92 limit and remains below half a Cell. Existing actual-radius FoW
+clipping, logical picking and public camera fitting apply unchanged. This does
+not enlarge the existing Troll-driven camera overhang. Full locomotive geometry
+is retained; longitudinal extent is .944619 Cells.
+
+Dragon is an actual canonical **2×2 Unit**, with head, wings, tail and four legs.
+Its **2.360672 × 1.45 × 1.041773** source-axis normalized bounds do not fit the
+current envelope. Low tail at (−1.180336,.019159,−.194103) reaches radius 1.196189;
+962 source POSITION entries exceed .88. Even metadata 1.197 would fail the generic
+.92 schema/runtime ceiling. Radius >1 can require more than three FoW columns on
+an axis during movement, exceeding the existing fixed 3×3 copy guarantee.
+Elevated wing/tail clipping and larger camera bounds cannot be approved as-is.
+Shrinking to the generic ceiling would reduce height about **23.1% to 1.115**;
+that substantive appearance change was not made. No wing removal, tail shortening,
+geometry deformation or global safety-limit weakening. Diagnostic anatomy preview
+7ekQXK used only an ignored static-root copy at height 1.0, the real 2×2 footprint
+and .72 base; it is not authored-height approval. Later integration needs an
+explicit presentation/renderer or new-source decision. Dragon remains Cardboard.
+
+`node tools/batch-model-qa-plans.cjs --final` generates test-owned data-only Edge
+plans. Ordinary 5081 production host, existing **5080 PID 40312 preserved**.
+Four-direction shape and positive-Z Move, Attack-facing, Lying/restoration,
+picking and FoW entry/exit were captured and inspected for **every accepted model**;
+the full per-model evidence matrix is in the report. Mixed **3LIu03** verifies
+both projection/lighting modes, Side bases, multiple angles and 600×850 narrow
+layout. **DdYme4** verifies renderer/representation switching and restart;
+**7PH3tJ/restored.png** verifies ten ready miniatures after reload. **az9J21**
+also shows fully loaded Off/narrow modes. An invalid initial canonical Kart on
+StoneFloor was fixed in the dedicated fixture to use Asphalt; production content
+was not changed. Successful runs have no console errors or failed model requests;
+SSE aborts during scenario replacement/refresh are expected.
+
+Headed Edge, 1440×1000, test-owned 12×8 Asphalt board, five distinct new models,
+Perspective 65°, Lighting On. Timing reset after ready; eight alternating camera
+rotations. Counts include board/bases/feedback. Short bounded samples:
+
+| Figures | Draw calls | Triangles | Warm CPU render p95 ms | Frame interval p95 ms | Camera samples | Evidence |
+| ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 5 | 27 | 48,001 | 1.9 | 16.73 | 13 | Ae9Aet |
+| 10 | 47 | 95,784 | 2.0 | 16.70 | 12 | az9J21 |
+
+Both retain **88.17 MiB estimated textures**, **28 uploaded textures, 16 geometries,
+8 programs**, scene materials 46/50. Shared models: **5 geometries, 10 lit/Off
+variants, 15 textures, 80 MiB**, one fetch per URL. Off adds programs without
+duplicating maps. Fetch/decode/ready ranges for five figures: 112.8–115.7 /
+299.1–401.7 / 414.8–514.7 ms; ten: 125.9–126.9 / 125.5–240.5 / 251.7–367.2 ms.
+These are CPU submission/frame intervals and dimension-based texture estimates,
+**not GPU performance, measured VRAM, sustained FPS or low-end claims**. All 31
+distinct models would estimate 496 MiB of model maps; unused models are not
+eagerly loaded. Existing cache/disposal behavior is unchanged.
+
+Focused asset/importer/metadata/viewport checks pass, including rigid wrapper
+preservation, reviewed-angle rejection, geometry sharing, both projection pick
+paths, grounding, lighting, Lying, transient FoW and disposal. Strict baseline
+hash tests preserve the previous 26 source/runtime/provenance files. Dragon
+deferral, unchanged source and missing registration are tested. Full
+client/security: **598 passed**. Full .NET: **1,601 Engine + 384 Web = 1,985 passed**.
+Focused hosting/catalog: **7 passed**. Debug/Release solution builds: **zero
+warnings/errors**. Actual Release fixture and ordinary publish checks pass;
+shipping output has **exactly 31 production GLBs**, exact provenance-bound hashes,
+catalog/loader and no original sources/QA assets.
+
+Remaining incompatibility: Dragon at authored height. Existing tangent warning
+and contact advisories remain. Native touch, frame-exact transient FoW pixel
+checks, measured GPU allocation/reclamation and sustained/low-end performance
+remain unmeasured. **No Engine or server observation implementation files,
+scenario formats, CONSTRAINTS.md, existing approved models or runtime renderer
+implementation files changed.**
+
+## Red Dragon production completion
+
+All **32 canonical Units** now have production miniatures. Red Dragon preserves
+its original GLB and 1.45-Cell height, with radius budget 1.20, circular base .90,
+1024 textures and a reviewed rigid +90-degree Y facing correction. Generic model
+limits are .92 for 1x1 and 1.25 for 2x2; transient FoW uses nine copies for smaller
+envelopes and sixteen when required. Import diagnostics use explicit canonical
+footprints. Existing models, gameplay and observations are unchanged.
+
+The earlier Dragon deferral entries are historical. Current provenance, source
+preservation, Edge evidence, regression/publish results and limitations are in
+[the completion report](assets/source/models/FINAL_SIX_IMPORT.md#red-dragon-completion--2026-10-28).

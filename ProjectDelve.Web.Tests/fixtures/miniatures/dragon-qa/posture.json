@@ -1,0 +1,65 @@
+{
+  "steps": [
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "fill",
+      "target": "#scenario-transport",
+      "value": "DELVE1:H4sIAAAAAAAACp2RQUsDMRCF_4q8cxbaHqTkVgRRkIrYm_SQbqbZaDZZskl1KfvfJdmybRc96GkymRe-9yZH7JzwEvyITy1DBT6fMVSkVRXAlwyS9iKasCHvhbbgeA3O0r1xzoOhJGNa8LctA0lF-dgzRKvDpmvoUaYbeJKF9EI5W4SuITAoH20Ymu1ZnsRHaAl-KWCQum2M6NaiJnC8rG7uhJeDb4baHcBnDN6qXEX4yFXSHnzOUDW5iDJoZ1twrJ0l9CfsgDz7Bf_BbavlMNqZmHphy8r5tLMv8AVDB744pc6yWltdzMDQuDZEn0w_ddoq9GzCuoo5YjzJKWWZKbeXlHJcQgojFNmy-0-a0tngnTHkwfEQa2H_5vPq_SoGV4tAgym3e6cy6MPpZ6fkcZx_5XnsEn4C-VW67b8BDAfggsMCAAA"
+    },
+    {
+      "action": "click",
+      "target": "#import-scenario"
+    },
+    {
+      "action": "click",
+      "target": "#tools-display > summary"
+    },
+    {
+      "action": "select",
+      "target": "#board-view",
+      "value": "tabletop"
+    },
+    {
+      "action": "click",
+      "target": "#tools-toggle"
+    },
+    {
+      "action": "select",
+      "target": "#three-unit-representation",
+      "value": "miniatures"
+    },
+    {
+      "action": "screenshot",
+      "name": "lying.png"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": "#start-round"
+    },
+    {
+      "action": "click",
+      "target": "#three-camera-turn-right"
+    },
+    {
+      "action": "screenshot",
+      "name": "upright.png"
+    },
+    {
+      "action": "snapshot",
+      "name": "upright.yaml"
+    },
+    {
+      "action": "console"
+    },
+    {
+      "action": "requests"
+    }
+  ]
+}
