@@ -1,0 +1,1180 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-28",
+  "purpose": "Final six canonical Unit reference choices for a first Tripo attempt; artwork preparation only.",
+  "sourceManifest": "assets/source/reference-production/2026-10-28/manifest.json",
+  "dimensionSources": [
+    "ProjectDelve.Web/wwwroot/art/models/unit-visuals.json",
+    "ProjectDelve.Engine/UnitRoster.cs"
+  ],
+  "tool": "image_gen.imagegen (built-in)",
+  "generationModelVersionSeed": "Not exposed by tool; unknown.",
+  "units": [
+    {
+      "unitType": "Royal Knight",
+      "unitTypeId": "royal-knight-type",
+      "slug": "royal-knight",
+      "status": "generated-visually-reviewed",
+      "originalReferencePath": "assets/source/units/royal-knight/reference/full-body.png",
+      "revisedReferencePath": "assets/source/units/royal-knight/reference/full-body-compact.png",
+      "selectedTripoInput": "assets/source/units/royal-knight/reference/full-body-compact.png",
+      "originals": [
+        {
+          "path": "assets/source/units/royal-knight.png",
+          "sha256": "30e0cd00a36c170a5b76717cc74cba495cce00ad98b136b3f679f3a221672efa",
+          "role": "approved portrait / identity",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/royal-knight/reference/full-body.png",
+          "sha256": "d471e35f658372ee8dee03b65776b74f283e3c9eefd92775a10bf8629c79b2bf",
+          "role": "original full body",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+          "sha256": "ea07499c869de9092b548f58066106b68b3fb4ed36b39e5d991c761507a57748",
+          "role": "original character sheet / construction",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        }
+      ],
+      "optionalConcept": null,
+      "conceptFinding": "No optional concept file present for this Unit.",
+      "selectedImage": {
+        "path": "assets/source/units/royal-knight/reference/full-body-compact.png",
+        "sha256": "06867c434608643a49f959025aca2bde0646842a2b8b6df4ef70683a8946373d",
+        "dimensions": [
+          1312,
+          1199
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "alphaExtrema": [
+          255,
+          255
+        ],
+        "frames": 1,
+        "exifOrientation": null,
+        "iccProfilePresent": false,
+        "fullyDecoded": true
+      },
+      "logicalFootprint": [
+        1,
+        1
+      ],
+      "visualMetadataReadOnly": {
+        "targetHeight": 0.85,
+        "maximumRadius": 0.44,
+        "baseRadius": 0.36
+      },
+      "reason": "Standing horse has a long horizontal body; controlled rear concentrates the miniature silhouette.",
+      "review": "Same bearded rider, silver armor, blue/gold heraldry, plume, reins and real white-gray horse. Both forelegs raised, both hind hooves planted and separate. Barding, saddle, stirrups and cloak retained. Entire silhouette visible; no base or added support. Horse remains substantial, distinct from Hobby Knight toy.",
+      "heightCompatibility": "Total rider/plume height matters: normalization to 0.85 reduces the horse as well. Restrained plume and moderate rear keep the horse readable; no biological-scale guarantee.",
+      "overhangRisk": "Moderate: raised forehooves, horse muzzle, tail and cloak still project beyond the hind-hoof contact area. Visual compactness improved; maximumRadius 0.44 is unproven.",
+      "groundContactRisk": "Two hind hooves give a narrow support polygon and a high center of mass. Stable-looking pose only; actual balance, hoof connectivity and centering within baseRadius 0.36 need GLB review.",
+      "generations": [
+        {
+          "tool": "image_gen.imagegen (built-in)",
+          "prompt": "Use case: stylized-concept. Asset type: Project Delve Royal Knight single-image-to-3D full-body reference for Tripo.\nInput images: 1 approved portrait is the identity/color authority; 2 existing full body supplies complete equipment; 3 existing character sheet supplies construction details. Preserve originals; produce ONE new single-view image, not a sheet.\nScene/backdrop: clean neutral medium-gray studio background, soft upper-left lighting and subtle contact shadow, no scenery, no base.\nSubject: exactly one mounted Royal Knight, the SAME bearded royal human rider, open-faced silver-steel helmet with compact blue plume, plate armor, blue lion tabard, gold trim and blue cloak, on the SAME real white-gray noble horse with blue/silver/gold fleur-de-lis barding, bridle, reins, saddle and stirrups.\nPrimary request: change the standing horse to a controlled, modest rearing pose designed as a convincing compact tabletop miniature. Both hind hooves planted securely relatively close together under its mass; both front legs lifted and naturally bent toward its chest, two hind legs plus two forelegs only. Powerful dignified believable horse, rider seated securely and leaning naturally with it. Compact horizontal silhouette: keep neck arched, tail down near hindquarters, cape draped close. Consider TOTAL height including rider and plume: no stretched vertical horse, towering plume or tiny shrunken horse; prefer coherent substantial miniature proportions over strict biological scale.\nComposition: clean front three-quarter view with enough side visible to read rearing anatomy and separation of all four horse legs; full rider and horse centered with entire plume, tail and all hooves visible and comfortable margins. Match established premium painterly fantasy materials.\nConstraints: no wooden hobby horse, no added weapons or equipment, no pedestal, no terrain, no rocks, no support prop, no labels, text, logos, detached objects, extra limbs or cropping. Exactly one complete Unit.",
+          "inputReferences": [
+            {
+              "path": "assets/source/units/royal-knight.png",
+              "sha256": "30e0cd00a36c170a5b76717cc74cba495cce00ad98b136b3f679f3a221672efa",
+              "role": "approved portrait",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/royal-knight/reference/full-body.png",
+              "sha256": "d471e35f658372ee8dee03b65776b74f283e3c9eefd92775a10bf8629c79b2bf",
+              "role": "original full body",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+              "sha256": "ea07499c869de9092b548f58066106b68b3fb4ed36b39e5d991c761507a57748",
+              "role": "original character sheet",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            }
+          ],
+          "transparentBackground": false,
+          "generatorOutput": {
+            "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-0854d264-f8aa-46e2-8db3-9d6b1e31a4d7.png",
+            "sha256": "06867c434608643a49f959025aca2bde0646842a2b8b6df4ef70683a8946373d",
+            "dimensions": [
+              1312,
+              1199
+            ],
+            "format": "PNG",
+            "mode": "RGB",
+            "alphaExtrema": [
+              255,
+              255
+            ],
+            "frames": 1,
+            "exifOrientation": null,
+            "iccProfilePresent": false,
+            "fullyDecoded": true
+          },
+          "status": "selected",
+          "review": "Same bearded rider, silver armor, blue/gold heraldry, plume, reins and real white-gray horse. Both forelegs raised, both hind hooves planted and separate. Barding, saddle, stirrups and cloak retained. Entire silhouette visible; no base or added support. Horse remains substantial, distinct from Hobby Knight toy."
+        }
+      ],
+      "characterSheetDecision": "Existing sheet retained as identity/construction support; original pose is superseded by selected single-view reference. No revised sheet needed for first single-image attempt."
+    },
+    {
+      "unitType": "Locomotive",
+      "unitTypeId": "locomotive-type",
+      "slug": "locomotive",
+      "status": "generated-visually-reviewed",
+      "originalReferencePath": "assets/source/units/locomotive/reference/full-body.png",
+      "revisedReferencePath": "assets/source/units/locomotive/reference/full-body-compact.png",
+      "selectedTripoInput": "assets/source/units/locomotive/reference/full-body-compact.png",
+      "originals": [
+        {
+          "path": "assets/source/units/locomotive.png",
+          "sha256": "fd2a5b0fbcfdda1fb43805d06e8afbf9eb683df600e1a5a46f8dbb2267cbfebf",
+          "role": "approved portrait / identity",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/locomotive/reference/full-body.png",
+          "sha256": "6c763cc158a40dcedbe487629240ff814565f61e536058c3b1f713a9027df635",
+          "role": "original full body",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/locomotive/reference/character-sheet.png",
+          "sha256": "2b7f2b9e89316794e4011247684728f4413cf18f1fc5d7cee5cb2318fb234582",
+          "role": "original character sheet / construction",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        }
+      ],
+      "optionalConcept": null,
+      "conceptFinding": "No optional concept file present for this Unit.",
+      "selectedImage": {
+        "path": "assets/source/units/locomotive/reference/full-body-compact.png",
+        "sha256": "fe585183ee9480f85ed7f8e3fb7271146d02f4bd9278dedf67d2cbb5204abaf3",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "alphaExtrema": [
+          255,
+          255
+        ],
+        "frames": 1,
+        "exifOrientation": null,
+        "iccProfilePresent": false,
+        "fullyDecoded": true
+      },
+      "logicalFootprint": [
+        1,
+        1
+      ],
+      "visualMetadataReadOnly": {
+        "targetHeight": 0.58,
+        "maximumRadius": 0.45,
+        "baseRadius": 0.39
+      },
+      "reason": "Original long boiler/wheelbase is poorly matched to the 1x1 vehicle footprint.",
+      "review": "Shorter chunkier boiler and wheelbase; wooden windowed cab, flared chimney, round boiler nose, headlamp, brass pipes/bands and slatted cowcatcher retained. Three near-side driving wheels and connected hubs read coherently; far-side structure is partly occluded. No extra near-side wheel, base, rails or smoke. Natural three-quarter perspective.",
+      "heightCompatibility": "Chunky rather than low/long proportions are more promising at targetHeight 0.58; chimney remains part of total normalized height.",
+      "overhangRisk": "Moderate: cowcatcher, cab roof corners and rear railings remain principal radial extremes. 1x1 and maximumRadius 0.45 appear more plausible than the original, but require transformed-vertex measurement.",
+      "groundContactRisk": "Aligned wheel contact is visually plausible; reconstruction must preserve matched axle pairs and ground all wheels. Check wheel contact against baseRadius 0.39. Existing circular-base presentation remains acceptable; none generated.",
+      "generations": [
+        {
+          "tool": "image_gen.imagegen (built-in)",
+          "prompt": "Use case: stylized-concept. Asset type: Project Delve Locomotive full-body reference for Tripo single-image-to-3D.\nInput images: 1 approved portrait locks identity, materials and colors; 2 existing full body shows construction; 3 character sheet clarifies wheels, cab and rear. Produce one new single view, not a sheet.\nBackdrop: clean neutral medium-gray studio, soft directional lighting, subtle ground contact shadow. No base, rails, scenery, smoke or steam.\nSubject: exactly one complete recognizably SAME industrial fantasy steam locomotive: dark weathered riveted iron boiler and wheels, restrained brass bands/fittings/pipes, tall flared brass-rimmed chimney, brass headlamp, round boiler nose, warm brown WOODEN windowed cab with slightly curved roof, front slatted cowcatcher, piston/connecting-rod mechanism.\nPrimary request: shorten the wheelbase and boiler substantially for a 1x1 tabletop miniature, using slightly exaggerated compact toy-like proportions while keeping credible mechanical structure and original identity. A chunky short boiler and substantial wooden cab, three closely arranged matched driving wheel pairs on exactly three aligned axles, one coherent connecting rod along the visible side connecting the three wheel hubs. Retain front piston, chimney, brass fittings, cowcatcher and rear cab. Keep wheels circular and same intended size; no extra wheel between axles, overlapping wheel centers or unexplained floating components. Keep cowcatcher short but recognizable.\nComposition: clean front three-quarter view, enough side visible to inspect all THREE near-side wheels and aligned hubs, normal long-lens perspective without foreshortening tricks; entire silhouette visible with margins, no cropped chimney or cowcatcher. Same premium painterly material finish as references, modest simplification for coherent reconstructable geometry. Neither generic cartoon train nor face-like locomotive. No people, wagons, tender, text, logos or unrelated objects. No new base design.",
+          "inputReferences": [
+            {
+              "path": "assets/source/units/locomotive.png",
+              "sha256": "fd2a5b0fbcfdda1fb43805d06e8afbf9eb683df600e1a5a46f8dbb2267cbfebf",
+              "role": "approved portrait",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/locomotive/reference/full-body.png",
+              "sha256": "6c763cc158a40dcedbe487629240ff814565f61e536058c3b1f713a9027df635",
+              "role": "original full body",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/locomotive/reference/character-sheet.png",
+              "sha256": "2b7f2b9e89316794e4011247684728f4413cf18f1fc5d7cee5cb2318fb234582",
+              "role": "original character sheet",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            }
+          ],
+          "transparentBackground": false,
+          "generatorOutput": {
+            "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-2870d1e0-1a36-4451-986d-040a5642fa33.png",
+            "sha256": "fe585183ee9480f85ed7f8e3fb7271146d02f4bd9278dedf67d2cbb5204abaf3",
+            "dimensions": [
+              1254,
+              1254
+            ],
+            "format": "PNG",
+            "mode": "RGB",
+            "alphaExtrema": [
+              255,
+              255
+            ],
+            "frames": 1,
+            "exifOrientation": null,
+            "iccProfilePresent": false,
+            "fullyDecoded": true
+          },
+          "status": "selected",
+          "review": "Shorter chunkier boiler and wheelbase; wooden windowed cab, flared chimney, round boiler nose, headlamp, brass pipes/bands and slatted cowcatcher retained. Three near-side driving wheels and connected hubs read coherently; far-side structure is partly occluded. No extra near-side wheel, base, rails or smoke. Natural three-quarter perspective."
+        }
+      ],
+      "characterSheetDecision": "Existing sheet retained as identity/construction support; original pose is superseded by selected single-view reference. No revised sheet needed for first single-image attempt."
+    },
+    {
+      "unitType": "Red Dragon",
+      "unitTypeId": "red-dragon-type",
+      "slug": "red-dragon",
+      "status": "generated-visually-reviewed",
+      "originalReferencePath": "assets/source/units/red-dragon/reference/full-body.png",
+      "revisedReferencePath": "assets/source/units/red-dragon/reference/full-body-compact.png",
+      "selectedTripoInput": "assets/source/units/red-dragon/reference/full-body-compact.png",
+      "originals": [
+        {
+          "path": "assets/source/units/red-dragon.png",
+          "sha256": "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6",
+          "role": "approved portrait / identity",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/red-dragon/reference/full-body.png",
+          "sha256": "95400a319de19126732c5d1a6ca9c691c9f54244f7b189209ad350f4aac88344",
+          "role": "original full body",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+          "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa",
+          "role": "original character sheet / construction",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        }
+      ],
+      "optionalConcept": null,
+      "conceptFinding": "No optional concept file present for this Unit.",
+      "selectedImage": {
+        "path": "assets/source/units/red-dragon/reference/full-body-compact.png",
+        "sha256": "5f7f278fd91b23bc3ff526cf8ace5af5598459ea7c14cf602230366d37e8f3d1",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "alphaExtrema": [
+          255,
+          255
+        ],
+        "frames": 1,
+        "exifOrientation": null,
+        "iccProfilePresent": false,
+        "fullyDecoded": true
+      },
+      "logicalFootprint": [
+        2,
+        2
+      ],
+      "visualMetadataReadOnly": {
+        "targetHeight": 1.45,
+        "maximumRadius": 0.88,
+        "baseRadius": 0.72
+      },
+      "reason": "Original extended tail and open wing silhouette create unnecessary horizontal overhang.",
+      "review": "Crimson/gold adult dragon with recognizable original face, amber eyes and dark curved horns. Four separate legs and all four clawed feet visible after one targeted correction. Both wings retained with closer folded membranes; full tail bends in a U beside the rear flank. Body, wing membranes and tail remain distinct. No base/scenery; horn tips close to upper margin but not cropped.",
+      "heightCompatibility": "Large chest, lifted head and substantial limbs preserve an imposing adult at targetHeight 1.45 on its real 2x2 footprint. No comparison-scale illustration or new size canon introduced.",
+      "overhangRisk": "Elevated: tail U still extends beside/rearward of the body, and horns/wing tips retain lateral extent. 2x2 allows more room, but maximumRadius 0.88 may still be exceeded after height normalization; exact fit cannot be certified from this image.",
+      "groundContactRisk": "Four planted feet form a substantial support area. Tail lies low behind the near hind foot; Tripo must not merge it into that foot. Check claws and all foot contacts against baseRadius 0.72.",
+      "generations": [
+        {
+          "tool": "image_gen.imagegen (built-in)",
+          "prompt": "Use case: stylized-concept. Asset type: Project Delve Red Dragon single-image-to-3D full-body reference for Tripo.\nInput images: 1 approved portrait is strict authority for dragon head, dark swept-back curved horns, amber eyes, crimson scales and gold throat/spikes; 2 original full body supplies anatomy/materials; 3 character sheet supports construction. Produce ONE new single-view full body, not a collage.\nBackdrop: clean neutral medium-gray studio, soft upper-left lighting, slight contact shadow, no scenery or base.\nSubject: exactly one complete impressive large crimson-and-gold Red Dragon. Preserve the distinctive original head and facial identity, two dark curved horns, gold segmented throat and belly, crimson layered scales and gold dorsal accents. FOUR sturdy legs with clawed feet on the ground plus TWO separate bat-like wings; not a wyvern.\nPrimary request: compact powerful standing posture for a large 2x2 tabletop miniature. Fold both wings MUCH closer against the back/flanks like naturally folded bat wings, preserving their complete membranes and visible folded joints; distinguish wings from body. Curve the FULL LENGTH tail around one flank toward the front as a broad natural U, close to the body, with visible continuous root, curved middle and tapered tip. Do not leave a long tail sticking straight out behind, do not amputate/shorten it, do not wrap it through legs. Keep all four legs visually separable, stance substantial but compact, strong chest and lifted head. It must feel larger and more imposing than an ordinary 1x1 fantasy Unit, never a baby dragon.\nComposition: clear front three-quarter view, moderate natural perspective showing body depth, folded wings, tail curve and all four feet. Full silhouette including horns, wing tips, claws and tail tip inside generous frame. Maintain premium painterly material finish. No fire, smoke, effects, floating objects, text, labels, scenery, pedestal, base, extra limbs or cropped extremities.",
+          "inputReferences": [
+            {
+              "path": "assets/source/units/red-dragon.png",
+              "sha256": "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6",
+              "role": "approved portrait",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/red-dragon/reference/full-body.png",
+              "sha256": "95400a319de19126732c5d1a6ca9c691c9f54244f7b189209ad350f4aac88344",
+              "role": "original full body",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+              "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa",
+              "role": "original character sheet",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            }
+          ],
+          "transparentBackground": false,
+          "generatorOutput": {
+            "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-7f71f345-7543-4462-8a10-f9975a1a767f.png",
+            "sha256": "0a9c2aa11b07d121bdda8e3aadf13147263d11f75524da6e032b59af2ea53654",
+            "dimensions": [
+              1536,
+              1024
+            ],
+            "format": "PNG",
+            "mode": "RGB",
+            "alphaExtrema": [
+              255,
+              255
+            ],
+            "frames": 1,
+            "exifOrientation": null,
+            "iccProfilePresent": false,
+            "fullyDecoded": true
+          },
+          "status": "rejected-draft",
+          "review": "Rejected draft: curled tail obscures near hind foot; wings need closer fold."
+        },
+        {
+          "tool": "image_gen.imagegen (built-in)",
+          "prompt": "Use case: precise-object-edit. Asset: Project Delve Red Dragon Tripo full-body reference. Image 1 is the edit target; images 2-3 are identity/construction references.\nCorrect TWO connected geometry issues in image 1: (1) fold the two wings closer to the body, lowering their broad membranes against the flanks and pleating them naturally, while retaining distinguishable wing bones, complete membranes and both gold-tipped leading joints. (2) move the curled tail behind and to the outside of the near hind foot so that ALL FOUR legs AND all four clawed feet are clearly visible separately, including the currently hidden rear-right foot. Keep the full long tail in a continuous compact U-curve around the flank without covering any foot or passing through a leg. If needed turn the stance a few degrees to reveal the fourth foot. Keep body, head, horns, face, crimson/gold colors, substantial adult proportions and painterly materials unchanged. Exactly four legs plus two wings, no extra limbs. Compact powerful 2x2 miniature; no unnaturally shortened tail. One complete dragon in front three-quarter view, entire silhouette with margins on neutral gray background, no scenery, base, text, fire or effects.",
+          "inputReferences": [
+            {
+              "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-7f71f345-7543-4462-8a10-f9975a1a767f.png",
+              "sha256": "0a9c2aa11b07d121bdda8e3aadf13147263d11f75524da6e032b59af2ea53654",
+              "role": "edit target",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/red-dragon.png",
+              "sha256": "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6",
+              "role": "approved portrait",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+              "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa",
+              "role": "original character sheet",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            }
+          ],
+          "transparentBackground": false,
+          "generatorOutput": {
+            "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-8658721f-7a5f-4825-831e-08ea194e761e.png",
+            "sha256": "5f7f278fd91b23bc3ff526cf8ace5af5598459ea7c14cf602230366d37e8f3d1",
+            "dimensions": [
+              1536,
+              1024
+            ],
+            "format": "PNG",
+            "mode": "RGB",
+            "alphaExtrema": [
+              255,
+              255
+            ],
+            "frames": 1,
+            "exifOrientation": null,
+            "iccProfilePresent": false,
+            "fullyDecoded": true
+          },
+          "status": "selected",
+          "review": "Crimson/gold adult dragon with recognizable original face, amber eyes and dark curved horns. Four separate legs and all four clawed feet visible after one targeted correction. Both wings retained with closer folded membranes; full tail bends in a U beside the rear flank. Body, wing membranes and tail remain distinct. No base/scenery; horn tips close to upper margin but not cropped."
+        }
+      ],
+      "characterSheetDecision": "Existing sheet retained as identity/construction support; original pose is superseded by selected single-view reference. No revised sheet needed for first single-image attempt."
+    },
+    {
+      "unitType": "Tower Troll",
+      "unitTypeId": "tower-troll-type",
+      "slug": "tower-troll",
+      "status": "generated-visually-reviewed",
+      "originalReferencePath": "assets/source/units/tower-troll/reference/full-body.png",
+      "revisedReferencePath": "assets/source/units/tower-troll/reference/full-body-compact.png",
+      "selectedTripoInput": "assets/source/units/tower-troll/reference/full-body-compact.png",
+      "originals": [
+        {
+          "path": "assets/source/units/tower-troll.png",
+          "sha256": "6308afa014bccc2dd959b473f98a6d1b7e724e875ab8ec180ada1a4536c9d434",
+          "role": "approved portrait / identity",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/tower-troll/reference/full-body.png",
+          "sha256": "4a887a9f8e41b1866bae0ac921229bba4980fb314bcc4d2d095f03a2d0819a32",
+          "role": "original full body",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+          "sha256": "486762045a86b12381e27e2adbb4897d7684da18a47f539d7ee06be5ce447a26",
+          "role": "original character sheet / construction",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        }
+      ],
+      "optionalConcept": null,
+      "conceptFinding": "No optional concept file present for this Unit.",
+      "selectedImage": {
+        "path": "assets/source/units/tower-troll/reference/full-body-compact.png",
+        "sha256": "411ad31012ef1481bddf7c0d6f7ef9ea4e969f23e8dd5183be9af7a00701ca0c",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "alphaExtrema": [
+          255,
+          255
+        ],
+        "frames": 1,
+        "exifOrientation": null,
+        "iccProfilePresent": false,
+        "fullyDecoded": true
+      },
+      "logicalFootprint": [
+        1,
+        1
+      ],
+      "visualMetadataReadOnly": {
+        "targetHeight": 1.2,
+        "maximumRadius": 0.44,
+        "baseRadius": 0.43
+      },
+      "reason": "Original spread feet and outward arms enlarge the contact and lateral envelope.",
+      "review": "Same tusked Troll and complete defining tower costume: crenellated turret/window, painted planks, shoulder guards, rusty brackets, rope bands/belt, skirt boards, purple cloth and ankle wraps. Feet closer and less splayed, arms/hands modestly closer without shrinking the tower. Both hands/feet complete; front three-quarter view; no base/scenery.",
+      "heightCompatibility": "Substantial tower and broad Troll preserved at targetHeight 1.20; no extreme narrowing used to force compliance.",
+      "overhangRisk": "Moderate to elevated: shoulder boards, hands, elbows and square turret corners may approach maximumRadius 0.44 when depth is reconstructed.",
+      "groundContactRisk": "Two broad, separate feet with a narrower planted stance are promising for baseRadius 0.43. Rear skirt boards and arm/body gaps may merge in reconstruction; contact margin remains advisory.",
+      "generations": [
+        {
+          "tool": "image_gen.imagegen (built-in)",
+          "prompt": "Use case: stylized-concept. Asset type: Project Delve Tower Troll full-body reference for Tripo single-image-to-3D.\nInput images: 1 approved portrait is identity authority; 2 existing full body is complete costume/equipment reference; 3 sheet clarifies construction. Output ONE new single-view complete Unit, not multiple views.\nBackdrop: clean neutral medium-gray studio, soft upper-left lighting and restrained contact shadow. No base, scenery or unrelated objects.\nSubject: SAME broad tusked green-gray Troll face with serious proud expression inside the SAME ridiculous complete homemade wooden rook/tower costume. Retain the large square turret around head, all four corner battlements, face window, mismatched pale stone-painted WOOD planks showing brown grain, rope bands, rusty brackets and nails, wooden shoulder guards, breast/torso planking, rope belt, long front and rear skirt boards, ragged purple cloth, brown leather ankle wraps. The costume is worn by a Troll, not a literal building or ordinary Troll.\nPrimary request: make stance compact for a 1x1 miniature at visual height 1.20 Cells. Bring both arms somewhat closer, hands held beside the hips with a narrow readable gap; keep both arms complete and naturally jointed. Put feet noticeably closer together and pointing mostly forward, weight balanced over two distinct planted feet, knees gently bent. Preserve thick muscular body and substantial TOWER width/height; do not narrow the turret into an insignificant hat or remove costume components to save space.\nComposition: clear natural front three-quarter view showing front and one side of tower, complete silhouette with all battlements, both hands and both feet in frame with margins. Same premium fantasy painterly finish. Coherent geometry, two arms and two legs only, no added weapon, label, text, logo, base, terrain or extra props.",
+          "inputReferences": [
+            {
+              "path": "assets/source/units/tower-troll.png",
+              "sha256": "6308afa014bccc2dd959b473f98a6d1b7e724e875ab8ec180ada1a4536c9d434",
+              "role": "approved portrait",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/tower-troll/reference/full-body.png",
+              "sha256": "4a887a9f8e41b1866bae0ac921229bba4980fb314bcc4d2d095f03a2d0819a32",
+              "role": "original full body",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+              "sha256": "486762045a86b12381e27e2adbb4897d7684da18a47f539d7ee06be5ce447a26",
+              "role": "original character sheet",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            }
+          ],
+          "transparentBackground": false,
+          "generatorOutput": {
+            "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-51069f63-3b6b-4d8e-a34e-8cb781b2fbb4.png",
+            "sha256": "411ad31012ef1481bddf7c0d6f7ef9ea4e969f23e8dd5183be9af7a00701ca0c",
+            "dimensions": [
+              1254,
+              1254
+            ],
+            "format": "PNG",
+            "mode": "RGB",
+            "alphaExtrema": [
+              255,
+              255
+            ],
+            "frames": 1,
+            "exifOrientation": null,
+            "iccProfilePresent": false,
+            "fullyDecoded": true
+          },
+          "status": "selected",
+          "review": "Same tusked Troll and complete defining tower costume: crenellated turret/window, painted planks, shoulder guards, rusty brackets, rope bands/belt, skirt boards, purple cloth and ankle wraps. Feet closer and less splayed, arms/hands modestly closer without shrinking the tower. Both hands/feet complete; front three-quarter view; no base/scenery."
+        }
+      ],
+      "characterSheetDecision": "Existing sheet retained as identity/construction support; original pose is superseded by selected single-view reference. No revised sheet needed for first single-image attempt."
+    },
+    {
+      "unitType": "Diamond Kart",
+      "unitTypeId": "diamond-kart-type",
+      "slug": "diamond-kart",
+      "status": "existing-retained",
+      "originalReferencePath": "assets/source/units/diamond-kart/reference/full-body.png",
+      "revisedReferencePath": null,
+      "selectedTripoInput": "assets/source/units/diamond-kart/reference/full-body.png",
+      "originals": [
+        {
+          "path": "assets/source/units/diamond-kart.png",
+          "sha256": "f8ed8db05e9a2906a5a8b870e4aee1481fe216e2ea2191a20d364cabee8f3088",
+          "role": "approved portrait / identity",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/diamond-kart/reference/full-body.png",
+          "sha256": "9bf40174d355a80c7137f610f4545f665a3bed2a619b068979145141a75bfb8c",
+          "role": "original full body",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/diamond-kart/reference/character-sheet.png",
+          "sha256": "b3cb678bdbdc4caa5451ac33fee14daf6d1e5b5b833cc3d5c6c84c1823ffdcee",
+          "role": "original character sheet / construction",
+          "dimensions": [
+            1983,
+            793
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        }
+      ],
+      "optionalConcept": null,
+      "conceptFinding": "No optional concept file present for this Unit.",
+      "selectedImage": {
+        "path": "assets/source/units/diamond-kart/reference/full-body.png",
+        "sha256": "9bf40174d355a80c7137f610f4545f665a3bed2a619b068979145141a75bfb8c",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "alphaExtrema": [
+          255,
+          255
+        ],
+        "frames": 1,
+        "exifOrientation": null,
+        "iccProfilePresent": false,
+        "fullyDecoded": true
+      },
+      "logicalFootprint": [
+        1,
+        1
+      ],
+      "visualMetadataReadOnly": {
+        "targetHeight": 0.53,
+        "maximumRadius": 0.45,
+        "baseRadius": 0.37
+      },
+      "reason": "Existing approved full body has a complete readable vehicle-and-driver silhouette and no blocking issue; retained intentionally.",
+      "review": "Red kart, green goblin driver/goggles/cap, hands on steering wheel, diamond emblem, lamps, rear brass/steel engine and racing silhouette match portrait and sheet. Four-wheel construction is established by sheet; far rear wheel partly occluded in full-body perspective. No new image or base design needed.",
+      "heightCompatibility": "Existing low compact kart is reasonable for first attempt at targetHeight 0.53; engine/exhaust and driver determine total height.",
+      "overhangRisk": "Moderate: tire width, front bumper, lamps, ears and rear engine/exhaust may challenge maximumRadius 0.45. Retention is an artwork judgment, not a measured fit guarantee.",
+      "groundContactRisk": "Verify four reconstructed tires share a ground plane and contacts fit baseRadius 0.37. Existing circular-base presentation is accepted for the first model; future baseless/rectangular options are out of scope.",
+      "generations": [],
+      "characterSheetDecision": "Existing sheet retained unchanged."
+    },
+    {
+      "unitType": "Ghost",
+      "unitTypeId": "ghost-type",
+      "slug": "ghost",
+      "status": "generated-visually-reviewed",
+      "originalReferencePath": "assets/source/units/ghost/reference/full-body.png",
+      "revisedReferencePath": "assets/source/units/ghost/reference/full-body-solid.png",
+      "selectedTripoInput": "assets/source/units/ghost/reference/full-body-solid.png",
+      "originals": [
+        {
+          "path": "assets/source/units/ghost.png",
+          "sha256": "bf5d4bd5aca37cff89fab8bc3aff79ca9e755b116dd09f2f9b5ca8eb3b7cdda9",
+          "role": "approved portrait / identity",
+          "dimensions": [
+            1254,
+            1254
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/ghost/reference/full-body.png",
+          "sha256": "12b562e9a0fe23ab5d2ec2930c32378f86e27df025138cb1e85521083d322a2f",
+          "role": "original full body",
+          "dimensions": [
+            1024,
+            1536
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        },
+        {
+          "path": "assets/source/units/ghost/reference/character-sheet.png",
+          "sha256": "faf5abf1180f46b2a6f3689f57cecc31f669a98820044baccdb33075af5db5fa",
+          "role": "original character sheet / construction",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "format": "PNG",
+          "mode": "RGB",
+          "alphaExtrema": [
+            255,
+            255
+          ],
+          "frames": 1,
+          "exifOrientation": null,
+          "iccProfilePresent": false,
+          "fullyDecoded": true
+        }
+      ],
+      "optionalConcept": null,
+      "conceptFinding": "No optional concept file present for this Unit.",
+      "selectedImage": {
+        "path": "assets/source/units/ghost/reference/full-body-solid.png",
+        "sha256": "9209640ab2c326dce56a703680e602523fa47e951ef80234ee3887ce7133c885",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "alphaExtrema": [
+          255,
+          255
+        ],
+        "frames": 1,
+        "exifOrientation": null,
+        "iccProfilePresent": false,
+        "fullyDecoded": true
+      },
+      "logicalFootprint": [
+        1,
+        1
+      ],
+      "visualMetadataReadOnly": {
+        "targetHeight": 0.83,
+        "maximumRadius": 0.36,
+        "baseRadius": 0.3
+      },
+      "reason": "Original translucent hair, robe filaments and mist-like hem are too diffuse for dependable solid reconstruction.",
+      "review": "Same sorrowful female face, pale icy skin/eyes, silver-blue hair, embroidered hood and circular star-like clasp/chain. Opaque layered robe panels and bounded hair replace diffuse wisps. Both hands complete, ragged cloth retained; no detached mist, scenery or base. Three-quarter depth is modest but readable. Still supernatural without transparent materials.",
+      "heightCompatibility": "Slender upright silhouette remains readable at targetHeight 0.83, with compact irregular hem beneath the body.",
+      "overhangRisk": "Low to moderate: hem points and sleeve/hair edges remain the likely extremes relative to maximumRadius 0.36; do not infer exact radius from the image.",
+      "groundContactRisk": "Ground contact is the robe hem, not visible feet. Check connected lower cloth and grounding within baseRadius 0.30. Fine perforations, hair strands and clasp chain may simplify or merge in Tripo; no transparency/emissive implementation requested.",
+      "generations": [
+        {
+          "tool": "image_gen.imagegen (built-in)",
+          "prompt": "Use case: stylized-concept. Asset type: Project Delve Ghost solid full-body modeling reference for Tripo single-image-to-3D.\nInput images: 1 approved portrait locks female identity, hood, antique clasp and palette; 2 full body supplies robe and pose; 3 character sheet clarifies overall silhouette. Produce one new single-view image, not a sheet.\nScene: plain clean neutral medium-gray studio background, soft directional light and slight grounding shadow, no scenery, base or fog.\nSubject: the SAME sorrowful young ghostly female face with luminous-looking pale icy eyes, pale blue skin and silver-blue wavy hair, antique ragged hood with faded silver embroidered edge, circular star-like antique metal clasp and small chain, layered long torn blue-gray robes.\nPrimary request: translate translucent wispy effects into SOLID bounded sculptable geometry. Face and both complete hands are opaque icy pale blue; hair is defined connected sculpted locks resting against shoulders, with no floating/detached wisps. Hood and robe are opaque substantial folded cloth with clear outer boundaries and broad ragged edges. Keep layered torn fabric but simplify tiny lace/fog filaments into connected ragged cloth panels, no transparent gauze or see-through mist. Both arms anatomically readable, relaxed hands close to body with narrow gaps. Hem forms a compact gently spreading irregular cloth contact area under the body, not a broad puddle or a pedestal; no added visible feet required. Unmistakably supernatural through icy monochrome color, haunting expression, pale eyes and ancient ragged clothing; should not become an ordinary living woman. Transparent GLB materials or atmospheric glow must not be required to read her identity.\nComposition: clear true front three-quarter view with torso and hood turned enough to show side depth, full silhouette in frame from hood top to robe hem with margins. Match premium painterly fantasy material treatment. Exactly one complete Ghost; no text, labels, detached objects, smoke, particles, base, scenery, extra limbs or cropping.",
+          "inputReferences": [
+            {
+              "path": "assets/source/units/ghost.png",
+              "sha256": "bf5d4bd5aca37cff89fab8bc3aff79ca9e755b116dd09f2f9b5ca8eb3b7cdda9",
+              "role": "approved portrait",
+              "dimensions": [
+                1254,
+                1254
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/ghost/reference/full-body.png",
+              "sha256": "12b562e9a0fe23ab5d2ec2930c32378f86e27df025138cb1e85521083d322a2f",
+              "role": "original full body",
+              "dimensions": [
+                1024,
+                1536
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            },
+            {
+              "path": "assets/source/units/ghost/reference/character-sheet.png",
+              "sha256": "faf5abf1180f46b2a6f3689f57cecc31f669a98820044baccdb33075af5db5fa",
+              "role": "original character sheet",
+              "dimensions": [
+                1536,
+                1024
+              ],
+              "format": "PNG",
+              "mode": "RGB",
+              "alphaExtrema": [
+                255,
+                255
+              ],
+              "frames": 1,
+              "exifOrientation": null,
+              "iccProfilePresent": false,
+              "fullyDecoded": true
+            }
+          ],
+          "transparentBackground": false,
+          "generatorOutput": {
+            "path": "$CODEX_HOME/generated_images/01a1822d-56bf-74b1-98de-452b46d60708/exec-382f6b17-0c12-4bb9-9114-ed494a3d66a3.png",
+            "sha256": "9209640ab2c326dce56a703680e602523fa47e951ef80234ee3887ce7133c885",
+            "dimensions": [
+              1024,
+              1536
+            ],
+            "format": "PNG",
+            "mode": "RGB",
+            "alphaExtrema": [
+              255,
+              255
+            ],
+            "frames": 1,
+            "exifOrientation": null,
+            "iccProfilePresent": false,
+            "fullyDecoded": true
+          },
+          "status": "selected",
+          "review": "Same sorrowful female face, pale icy skin/eyes, silver-blue hair, embroidered hood and circular star-like clasp/chain. Opaque layered robe panels and bounded hair replace diffuse wisps. Both hands complete, ragged cloth retained; no detached mist, scenery or base. Three-quarter depth is modest but readable. Still supernatural without transparent materials."
+        }
+      ],
+      "characterSheetDecision": "Existing sheet retained as identity/construction support; original pose is superseded by selected single-view reference. No revised sheet needed for first single-image attempt."
+    }
+  ],
+  "summary": {
+    "newFullBodyReferences": 5,
+    "retainedFullBodyReferences": 1,
+    "newCharacterSheets": 0,
+    "generationCalls": 6,
+    "rejectedDrafts": 1
+  },
+  "reviewStatus": "Visually suitable for first attempt, subject to per-Unit reconstruction risks; no owner approval or GLB compatibility certification implied.",
+  "measurementPolicy": "Catalog values are existing Cell-unit constraints, not measurements inferred from pixels. Elevated geometry may overhang base; foot-contact margin is advisory. Future hard radius failures belong to model import; metadata unchanged.",
+  "verification": {
+    "scope": "Artwork decoding, direct visual review and SHA-256 preservation only.",
+    "protectedPreexistingFileCount": 427,
+    "changedOrMissingProtectedFiles": [],
+    "coverage": [
+      "All pre-existing assets/source files recursively (including ignored/untracked)",
+      "All pre-existing assets/import/models, assets/previews and runtime-art files recursively",
+      "AGENTS.md, CONSTRAINTS.md, VISUAL_STYLE.md and UnitRoster.cs"
+    ],
+    "originalImagesFullyDecoded": 18,
+    "newImagesFullyDecoded": 5,
+    "copiedOutputsMatchGeneratorBytes": true,
+    "buildGameplayBrowserModelImportTestsRun": false,
+    "limitation": "No Tripo reconstruction, 3D measurement or physical balance test performed; all dimensional assessments are qualitative."
+  },
+  "unresolvedArtworkBlockers": [],
+  "filesCreated": [
+    "assets/source/units/royal-knight/reference/full-body-compact.png",
+    "assets/source/units/locomotive/reference/full-body-compact.png",
+    "assets/source/units/red-dragon/reference/full-body-compact.png",
+    "assets/source/units/tower-troll/reference/full-body-compact.png",
+    "assets/source/units/ghost/reference/full-body-solid.png",
+    "assets/source/reference-production/2026-10-28/final-six-tripo/manifest.json"
+  ]
+}
