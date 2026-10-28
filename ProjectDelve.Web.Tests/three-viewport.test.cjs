@@ -306,6 +306,81 @@ test('miniatures use shared PBR/Basic pairs, procedural Side base, ground feet a
     h.viewport.settle();h.flush();assert.equal(h.frames.size,0);const before=h.viewport.inspect().renderCount;h.flush();assert.equal(h.viewport.inspect().renderCount,before);
   }finally{h.cleanup();}
 });
+test('Ghost appearance shares cached resources and survives lighting, facing, FoW movement and renderer handoffs',async()=>{
+  const descriptor={...miniatureDescriptor,appearance:'ghost'},options=miniatureOptions();options.modelDescriptors={test:descriptor};
+  let downloads=0;const fetchBytes=options.modelCacheOptions.fetchBytes;options.modelCacheOptions.fetchBytes=async()=>{downloads++;return fetchBytes();};
+  const f=fixture(16,'blue');f.state.physical.figures[0].posture='Upright';f.presentation.figures.large={cellSpan:1,occupiedCells:[{x:4,y:3}]};
+  const unchanged=structuredClone(f),h=await harness(f,options),cached=new Map(),clipped=new Map();
+  const track=(map,resource)=>{if(!map.has(resource)){map.set(resource,0);resource.addEventListener('dispose',()=>map.set(resource,map.get(resource)+1));}};
+  try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');const entry=h.viewport.models.request(descriptor);await entry.promise;
+    h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('unit:hero'),other=scene.getObjectByName('unit:large');
+    for(const resource of [...entry.resources.materials,...entry.resources.geometries,...entry.resources.textures])track(cached,resource);
+    const lightCount=()=>{let count=0;scene.traverse(n=>{if(n.isLight)count++;});return count;},lights=lightCount();
+    const stableVariants=new Map();
+    for(const enabled of [false,true,false,true]){
+      h.viewport.lighting.set({enabled});h.viewport.settle();h.flush();
+      const mesh=root.getObjectByName('body'),material=mesh.material;
+      assert.equal(material.transparent,true);assert.equal(material.depthWrite,false);assert.equal(material.depthTest,true);
+      assert.notEqual(material.onBeforeCompile,h.THREE.Material.prototype.onBeforeCompile);
+      assert.equal(!!material.isMeshStandardMaterial,enabled);assert.equal(!!material.isMeshBasicMaterial,!enabled);
+      const native=h.THREE.ShaderLib[enabled?'standard':'basic'],shader={vertexShader:native.vertexShader,fragmentShader:native.fragmentShader};material.onBeforeCompile(shader);
+      for(const stage of ['vertexShader','fragmentShader'])for(const chunk of native[stage].match(/#include <[^>]+>/g))assert.ok(shader[stage].includes(chunk),`Ghost must retain ${chunk}`);
+      assert.notEqual(shader.fragmentShader,native.fragmentShader);assert.notEqual(shader.vertexShader,native.vertexShader);
+      assert.equal(mesh.geometry,other.getObjectByName('body').geometry);assert.equal(material,other.getObjectByName('body').material);
+      assert.equal(material.clippingPlanes,null);assert.equal(lightCount(),lights);
+      if(stableVariants.has(enabled))assert.equal(material,stableVariants.get(enabled));else stableVariants.set(enabled,material);
+      root.getObjectByName('miniature-base').traverse(n=>{if(n.isMesh)assert.notEqual(n.material.onBeforeCompile,material.onBeforeCompile);});
+    }
+    h.viewport.facing.get('hero').yaw=1.2;h.viewport.syncFacing();h.viewport.settle();h.flush();
+    assert.equal(root.getObjectByName('miniature-facing').rotation.y,1.2);assert.notEqual(other.getObjectByName('miniature-facing').rotation.y,1.2);
+    await h.viewport.present({role:'Movement',unitId:'hero',movingFigure:{typeId:'test',name:'Ghost fixture',sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]},{},{skipping:()=>false,pause:async()=>{
+      h.flush(performance.now()+230);const pool=scene.getObjectByName('clipped-movement');assert.ok(pool);assert.equal(root.visible,false);
+      for(const enabled of [false,true]){
+        h.viewport.lighting.set({enabled});h.flush(performance.now()+240);
+        const source=stableVariants.get(enabled),yaw=pool.children[0].getObjectByName('miniature-facing').rotation.y;
+        for(const copy of pool.children){
+          assert.equal(copy.getObjectByName('miniature-facing').rotation.y,yaw);
+          copy.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]).filter(Boolean))track(clipped,m);});
+          const material=copy.getObjectByName('body').material;
+          assert.notEqual(material,source);assert.equal(material.onBeforeCompile,source.onBeforeCompile);
+          assert.equal(material.customProgramCacheKey(),source.customProgramCacheKey());
+          assert.equal(material.transparent,true);assert.equal(material.depthWrite,false);assert.equal(material.depthTest,true);
+          assert.equal(material.clippingPlanes.length,4);assert.equal(material.clipIntersection,false);
+          if(copy.visible){assert.equal(material.clippingPlanes[0].constant,-2);assert.equal(material.clippingPlanes[2].constant,-2);}
+        }
+        assert.equal(source.clippingPlanes,null);assert.ok(h.viewport.inspect().clippedCopies<=1);assert.equal(lightCount(),lights);
+      }
+    }});
+    assert.ok(clipped.size>0);assert.ok([...clipped.values()].every(n=>n===1));assert.ok([...cached.values()].every(n=>n===0));
+    assert.equal(h.viewport.inspect().transient,false);assert.equal(root.visible,true);const yaw=root.getObjectByName('miniature-facing').rotation.y;
+    for(let i=0;i<2;i++){
+      h.viewport.setActive(false);assert.equal(h.frames.size,0);const renders=h.viewport.inspect().renderCount;h.flush();assert.equal(h.viewport.inspect().renderCount,renders);
+      h.viewport.setActive(true);h.viewport.setRepresentation('cardboard');h.viewport.setRepresentation('miniatures');h.viewport.setPresentation('flat');h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+      assert.equal(root.getObjectByName('miniature-facing').rotation.y,yaw);assert.equal(root.getObjectByName('body').material,stableVariants.get(true));
+      assert.equal(h.frames.size,0);
+    }
+    const hidden=structuredClone(f);hidden.state.physical.figures=[];hidden.state.units=[];h.viewport.renderFrame(hidden);h.viewport.settle();h.flush();
+    assert.equal(scene.getObjectByName('normalized-model'),undefined);assert.equal(downloads,1);assert.equal(lightCount(),lights);assert.equal(h.frames.size,0);
+    assert.deepEqual(f,unchanged);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+  assert.ok(cached.size>0);assert.ok([...cached.values()].every(n=>n===1));assert.ok([...clipped.values()].every(n=>n===1));assert.equal(h.frames.size,0);assert.equal(h.disposed,1);
+});
+
+test('unobserved Ghosts never load an appearance or schedule movement effects',async()=>{
+  const f=fixture(16,'blue');f.state.physical.figures=[];f.state.units=[];let downloads=0;
+  const options=miniatureOptions({fetchBytes:async()=>{downloads++;throw Error('Hidden Ghost must not load');}});options.modelDescriptors={test:{...miniatureDescriptor,appearance:'ghost'}};
+  const h=await harness(f,options);try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');h.viewport.settle();h.flush();
+    const before=h.viewport.facing.inspect(),camera=h.viewport.camera.current(),renders=h.viewport.inspect().renderCount;
+    await h.viewport.present({role:'Movement',unitId:'hidden-ghost',movingFigure:{typeId:'test',cellSpan:1,posture:'Upright',sideId:'red'},movementSegments:[[{x:9,y:9},{x:10,y:9}]]},{},{skipping:()=>false,pause:async()=>{throw Error('Hidden Ghost must not animate');}});
+    h.flush();assert.equal(downloads,0);assert.equal(h.viewport.models.inspect().length,0);assert.equal(h.viewport.inspect().transient,false);
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('normalized-model'),undefined);assert.equal(h.frames.size,0);assert.equal(h.viewport.inspect().renderCount,renders);
+    assert.deepEqual(h.viewport.facing.inspect(),before);assert.deepEqual(h.viewport.camera.current(),camera);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('miniature Lying fallback and stand up keep identity and facing, without cardboard yaw or model turnover',async()=>{
   const f=fixture();f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
     await readyMiniature(h);const root=h.rendered.at(-1).scene.getObjectByName('unit:hero'),yaw=root.userData.body.facingNode.rotation.y;

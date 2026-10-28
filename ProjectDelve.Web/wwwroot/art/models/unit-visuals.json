@@ -255,6 +255,7 @@
     },
     {
       "id": "ghost/v1",
+      "appearance": "ghost",
       "approved": true,
       "url": "./art/models/units/ghost/v1/ghost.glb",
       "version": "tripo-v1",

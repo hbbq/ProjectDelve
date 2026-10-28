@@ -58,6 +58,16 @@ test('late load after viewport disposal is released without notifying or becomin
   const c=createModelCache({fetchBytes:async()=>bytes(),load:()=>new Promise(r=>resolve=r),onChange:()=>notifications++}),e=c.request(descriptor);await new Promise(r=>setImmediate(r));c.dispose();resolve(gltf);await e.promise;
   assert.equal(disposed,2);assert.equal(notifications,0);assert.deepEqual(c.inspect(),[]);
 });
+
+test('shared model source cannot silently change appearance',async()=>{
+  const {createModelCache}=await at('three-models.js');let registered;
+  const cache=createModelCache({fetchBytes:async()=>bytes(),registerMaterial:(m,d)=>{registered=d.appearance;return [m];}});
+  const ghost={...descriptor,appearance:'ghost'},e=cache.request(ghost);await e.promise;
+  assert.equal(registered,'ghost');assert.equal(cache.request({...ghost,height:1.3}),e);
+  assert.equal(cache.request(descriptor),null);assert.match(cache.inspect()[0].error,/Conflicting contract/);
+  assert.equal(cache.clone(e,descriptor),null);assert.ok(cache.clone(e,{...ghost,height:1.3}));
+  cache.dispose();
+});
 test('texture decode failures keep failed fallback; textures and shared image bitmaps dispose once',async()=>{
   const T=await at('vendor/three/0.180.0/build/three.module.js'),{createModelCache}=await at('three-models.js');
   const bad=await parse();bad.parser={getDependencies:async()=>[null]};const failed=createModelCache({fetchBytes:async()=>bytes(),load:async()=>bad}),e=failed.request(descriptor);await e.promise;assert.equal(e.state,'failed');assert.match(e.error,/texture failed/);failed.dispose();

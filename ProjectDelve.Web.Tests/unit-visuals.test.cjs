@@ -2,6 +2,15 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const at=n=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',n)).href);
 const sample=()=>({schemaVersion:1,models:[{id:'shared',approved:true,url:'./art/shared.glb',version:'v1'}],units:[{typeId:'small',targetHeight:1.2,maximumRadius:.38,baseRadius:.30,model:'shared'},{typeId:'large',targetHeight:2.4,maximumRadius:.76,baseRadius:.65,model:'shared'}]});
 const canonical=[{unitTypeId:'small',cellSpan:1},{unitTypeId:'large',cellSpan:2}];
+test('Ghost appearance is explicit source metadata and unsupported appearances are rejected',async()=>{
+  const {validateUnitVisualCatalog:v,resolveUnitModel:r}=await at('unit-visuals.js'),{validateModelDescriptor:d}=await at('three-models.js');
+  const s=sample();s.models[0].appearance='ghost';const catalog=v(s,canonical);
+  assert.equal(r(catalog,'small',1).appearance,'ghost');assert.equal(r(catalog,'large',2).appearance,'ghost');
+  assert.equal(d(r(catalog,'small',1)).appearance,'ghost');
+  s.models[0].appearance='unknown';assert.throws(()=>v(s,canonical),/appearance/);assert.throws(()=>d(s.models[0]),/appearance/);
+  const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')));
+  assert.deepEqual(disk.models.filter(m=>m.appearance).map(m=>[m.id,m.appearance]),[['ghost/v1','ghost']]);
+});
 test('catalog rejects omissions, stale IDs, duplicates, invalid dimensions, schema and model references',async()=>{
   const {validateUnitVisualCatalog:v}=await at('unit-visuals.js');assert.equal(v(sample(),canonical).units.large.targetHeight,2.4);
   for(const mutate of [s=>s.units.pop(),s=>s.units.push({...s.units[0],typeId:'stale'}),s=>s.units.push(s.units[0]),s=>s.units[0].targetHeight=0,s=>s.units[0].targetHeight=Infinity,s=>s.units[0].maximumRadius=-1,s=>s.units[0].maximumRadius=.921,s=>s.units[0].model='missing',s=>s.schemaVersion=2,s=>s.models.push(s.models[0]),s=>s.models[0].approved=false,s=>s.models[0].url='https://other.invalid/test.glb',s=>s.models[0].maxTextureDimension=Infinity]){const s=sample();mutate(s);assert.throws(()=>v(s,canonical));}

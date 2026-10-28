@@ -2,6 +2,28 @@ import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 
 export const lightingDefaults=Object.freeze({enabled:true,key:.85,fill:.65,azimuth:315,elevation:50});
 const preferenceKey='delve.three.lighting.v1';
+
+// A surface-only Ghost treatment: no extra geometry, lights, time uniforms or
+// render loop. Keep the authored texture and native depth/FoW clipping chunks.
+function ghostMaterial(material){
+  material.transparent=true;material.depthWrite=false;material.forceSinglePass=true;
+  material.color.multiply(new THREE.Color('#b8e9e5'));
+  if(material.emissive){
+    material.emissive.set('#8dc9c5');material.emissiveMap=material.map;material.emissiveIntensity=.55;
+  }
+  material.onBeforeCompile=shader=>{
+    const varyings='varying vec3 vGhostNormal;\nvarying vec3 vGhostView;\n';
+    shader.vertexShader=varyings+shader.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
+      vGhostNormal = normalize(normalMatrix * normal);
+      vGhostView = isOrthographic ? vec3(0.0, 0.0, 1.0) : -mvPosition.xyz;`);
+    shader.fragmentShader=varyings+shader.fragmentShader.replace('#include <opaque_fragment>',`
+      float ghostRim = pow(1.0 - clamp(abs(dot(normalize(vGhostNormal), normalize(vGhostView))), 0.0, 1.0), 2.0);
+      diffuseColor.a *= mix(0.58, 0.82, ghostRim);
+      outgoingLight += vec3(0.12, 0.30, 0.27) * (0.35 + ghostRim * 0.65);
+      #include <opaque_fragment>`);
+  };
+  material.customProgramCacheKey=()=> 'delve-ghost-v1';
+}
 export function lightingPreferences(value={}){
   const number=(key,min,max)=>typeof value?.[key]==='number'&&Number.isFinite(value[key])?Math.max(min,Math.min(max,value[key])):lightingDefaults[key];
   return {enabled:typeof value?.enabled==='boolean'?value.enabled:lightingDefaults.enabled,key:number('key',0,2),fill:number('fill',0,2),azimuth:number('azimuth',0,360),elevation:number('elevation',15,85)};
@@ -44,17 +66,23 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
     return resolve(pair[0]);
   }
   // Model cache owns these pairs, including the imported source material.
-  function modelMaterial(source){
+  function modelMaterial(source,descriptor={}){
     const existing=variants.get(source);if(existing)return existing;
     const basic=new THREE.MeshBasicMaterial();
     for(const key of ['map','alphaMap','alphaTest','transparent','opacity','side','depthTest','depthWrite','vertexColors','wireframe','polygonOffset','polygonOffsetFactor','polygonOffsetUnits'])if(key in source)basic[key]=source[key];
-    basic.color.copy(source.color);return register([basic,source]);
+    basic.color.copy(source.color);
+    if(descriptor.appearance==='ghost'){ghostMaterial(basic);ghostMaterial(source);}
+    return register([basic,source]);
   }
   // Only the movement pool owns/disposes these copies. Weak registration does
   // not retain completed movement or introduce per-object stable clones.
   function clippedVariants(m,planes){
     const sources=variants.get(m)??[m];
-    const copies=sources.map(source=>{const c=source.clone();c.clippingPlanes=planes;c.clipIntersection=false;c.userData={sourceMaterial:source};return c;});
+    const copies=sources.map(source=>{const c=source.clone();
+      // Three.Material.clone does not copy shader callbacks. Movement must
+      // retain the same surface treatment while adding explored-cell clipping.
+      c.onBeforeCompile=source.onBeforeCompile;c.customProgramCacheKey=source.customProgramCacheKey;
+      c.clippingPlanes=planes;c.clipIntersection=false;c.userData={sourceMaterial:source};return c;});
     if(copies.length===2)register(copies);
     return copies;
   }

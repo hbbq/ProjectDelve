@@ -5,6 +5,7 @@ import { maximumModelRadiusForFootprint } from './unit-visuals.js';
 export const zombieModelContract = Object.freeze({version:'1',cellSpan:1,height:1.2,radius:.38,maxTriangles:12000,maxPrimitives:2,maxTextureDimension:1024});
 export function validateModelDescriptor(value, base=import.meta.url) {
   if(!value || value.approved!==true)throw Error('Model is not approved');
+  if(value.appearance!=null&&value.appearance!=='ghost')throw Error('Unknown model appearance');
   const d={...zombieModelContract,...value},url=new URL(d.url,base),origin=new URL(base);
   if(url.origin!==origin.origin||!['http:','https:','file:'].includes(url.protocol)||!url.pathname.endsWith('.glb')||url.search||url.hash)throw Error('Model must use a local GLB URL');
   if(![1,2].includes(d.cellSpan)||typeof d.version!=='string'||!d.version||
@@ -91,7 +92,7 @@ export function createModelCache({onChange=()=>{},fetchBytes=async(url,signal)=>
     if(disposed)return null;
     let d;try{d=validateModelDescriptor(value);}catch(error){if(!invalid.has(value))invalid.set(value,{state:'failed',url:value?.url,error:String(error.message)});return null;}
     const key=JSON.stringify([d.url,d.version]);let e=entries.get(key);if(e){
-      if(['maxTriangles','maxPrimitives','maxTextureDimension'].some(k=>e.descriptor[k]!==d[k])){
+      if(['maxTriangles','maxPrimitives','maxTextureDimension','appearance'].some(k=>e.descriptor[k]!==d[k])){
         invalid.set(value,{state:'failed',url:d.url,error:'Conflicting contract for cached model URL/version'});return null;
       }return e;
     }
@@ -110,7 +111,7 @@ export function createModelCache({onChange=()=>{},fetchBytes=async(url,signal)=>
         if(loadedTextures.some(t=>!t?.image?.width||!t?.image?.height))throw Error('Model texture failed to decode');
         if(loadedTextures.some(t=>Math.max(t.image.width,t.image.height)>d.maxTextureDimension))throw Error('Model texture exceeds descriptor budget');
         e.template=analyzeModel(gltf,d);
-        const pairs=new Map();for(const m of resources.materials){const pair=registerMaterial(m);pairs.set(m,pair);}
+        const pairs=new Map();for(const m of resources.materials){const pair=registerMaterial(m,d);pairs.set(m,pair);}
         for(const pair of pairs.values())for(const m of pair)resources.materials.add(m);
         gltf.scene.traverse(n=>{if(n.material)n.material=Array.isArray(n.material)?n.material.map(resolveMaterial):resolveMaterial(n.material);});
         e.resources=resources;e.decodeMs=performance.now()-decode;e.totalMs=performance.now()-start;e.state='ready';
@@ -118,7 +119,7 @@ export function createModelCache({onChange=()=>{},fetchBytes=async(url,signal)=>
       if(!disposed)onChange(e);
     })();return e;
   }
-  return {request,clone(e,value=e?.descriptor){if(disposed||e?.state!=='ready')return null;try{const d=validateModelDescriptor(value);if(d.url!==e.descriptor.url||d.version!==e.descriptor.version)throw Error('Mismatched source model');const result=normalizeSource(e.template,d);result.group.traverse(n=>{if(n.material)n.material=Array.isArray(n.material)?n.material.map(resolveMaterial):resolveMaterial(n.material);});return result;}catch(error){const key=JSON.stringify([value?.url,value?.version,value?.cellSpan,value?.height,value?.radius]);if(!invalid.has(key))invalid.set(key,{state:'failed',url:value?.url,error:String(error.message)});return null;}},
+  return {request,clone(e,value=e?.descriptor){if(disposed||e?.state!=='ready')return null;try{const d=validateModelDescriptor(value);if(d.url!==e.descriptor.url||d.version!==e.descriptor.version||d.appearance!==e.descriptor.appearance)throw Error('Mismatched source model');const result=normalizeSource(e.template,d);result.group.traverse(n=>{if(n.material)n.material=Array.isArray(n.material)?n.material.map(resolveMaterial):resolveMaterial(n.material);});return result;}catch(error){const key=JSON.stringify([value?.url,value?.version,value?.cellSpan,value?.height,value?.radius]);if(!invalid.has(key))invalid.set(key,{state:'failed',url:value?.url,error:String(error.message)});return null;}},
     inspect:()=>[...invalid.values(),...[...entries.values()].map(e=>({state:e.state,url:e.descriptor.url,version:e.descriptor.version,error:e.error,loadMs:e.loadMs,decodeMs:e.decodeMs,totalMs:e.totalMs,networkRequests:performance.getEntriesByName?.(e.descriptor.url).filter(e=>e.initiatorType==='fetch').length??0,triangles:e.template?.triangles,primitives:e.template?.primitives,warnings:e.template?.warnings,
       geometries:e.resources?.geometries.size??0,materials:e.resources?.materials.size??0,textures:e.resources?.textures.size??0,textureBytes:[...(e.resources?.textures??[])].reduce((n,t)=>n+(t.image?.width??0)*(t.image?.height??0)*4*4/3,0)}))],
     dispose(){if(disposed)return;disposed=true;abort.abort();for(const e of entries.values())e.resources?.dispose();entries.clear();invalid.clear();}};

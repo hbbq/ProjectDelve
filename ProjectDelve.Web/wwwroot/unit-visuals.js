@@ -37,10 +37,11 @@ export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.
     if(u.model!=null&&!Object.hasOwn(models,u.model))throw Error(`Unknown model reference: ${id}`);
   }
   for(const [id,m]of Object.entries(models)){
+    if(m.appearance!=null&&m.appearance!=='ghost')throw Error(`Unknown model appearance: ${id}`);
     const url=new URL(m.url,base),origin=new URL(base);
     if(m.approved!==true||typeof m.version!=='string'||!m.version||!['http:','https:','file:'].includes(url.protocol)||url.origin!==origin.origin||!url.pathname.endsWith('.glb')||url.search||url.hash)throw Error(`Invalid approved model: ${id}`);
     for(const [key,max]of [['maxTriangles',12000],['maxPrimitives',2],['maxTextureDimension',8192]])if(m[key]!=null&&(!Number.isInteger(m[key])||m[key]<=0||m[key]>max))throw Error(`Invalid model budget: ${id}`);
-    if(Object.keys(m).some(k=>!['id','approved','url','version','maxTriangles','maxPrimitives','maxTextureDimension'].includes(k)))throw Error(`Unknown model field: ${id}`);
+    if(Object.keys(m).some(k=>!['id','approved','url','version','maxTriangles','maxPrimitives','maxTextureDimension','appearance'].includes(k)))throw Error(`Unknown model field: ${id}`);
   }
   return Object.freeze({schemaVersion:1,units,models,cellSpans:Object.freeze(Object.fromEntries(Object.values(canonical).map(t=>[t.unitTypeId,t.cellSpan])))});
 }
