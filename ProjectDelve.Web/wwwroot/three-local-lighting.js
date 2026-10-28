@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 
 // Presentation recipes, in board-cell units and linear RGB. No game queries.
-export const localLightRecipes=Object.freeze({Lava:Object.freeze({color:[1,.24,.025],strength:2.4,radius:3})});
+export const localLightRecipes=Object.freeze({Lava:Object.freeze({color:[1,.30,.055],strength:3.4,radius:3.5})});
 
 // A bounded irradiance field avoids per-source shader loops and shadow cubes.
 // Unknown space is opaque. Use only the displayed checkpoint's observed data.
@@ -87,7 +87,7 @@ export function createLocalLighting(){
           vec2 delveUV = vDelveLightPosition.xz / delveLightSize;
           if (delveLightEnabled > 0.5 && all(greaterThanEqual(delveUV, vec2(0.0))) && all(lessThanEqual(delveUV, vec2(1.0)))) {
             vec3 irradiance = texture2D(delveLightField, delveUV).rgb * 4.0;
-            float heightFalloff = 1.0 / (1.0 + 2.5 * pow(max(0.0, vDelveLightPosition.y - 0.15), 2.0));
+            float heightFalloff = 1.0 / (1.0 + 1.4 * pow(max(0.0, vDelveLightPosition.y - 0.15), 2.0));
             outgoingLight += diffuseColor.rgb * irradiance * heightFalloff;
           }
           #include <opaque_fragment>`);

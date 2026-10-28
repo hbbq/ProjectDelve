@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { createLocalLighting } from './three-local-lighting.js';
 
-export const lightingDefaults=Object.freeze({enabled:true,key:1.5,fill:1.2,azimuth:315,elevation:50});
+export const lightingDefaults=Object.freeze({enabled:true,key:1.65,fill:.85,azimuth:315,elevation:50});
 const preferenceKey='delve.three.lighting.v1';
 
 // A surface-only Ghost treatment: no extra geometry, lights, time uniforms or
@@ -40,9 +40,9 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   const local=createLocalLighting();
   const pairs=new Map(),variants=new WeakMap(),subscriptions=new AbortController();
   const rig=new THREE.Group();rig.name='tabletop-lighting';
-  // A warm studio key and cool sky / warm table bounce reveal sculpted forms.
+  // A warm key and restrained cool fill keep sculpts readable above a dim board.
   // Hemisphere fill adds no shadow pass and remains independent of observed content.
-  const key=new THREE.DirectionalLight('#fff5e8',preferences.key),fill=new THREE.HemisphereLight('#e5edff','#766b59',preferences.fill);
+  const key=new THREE.DirectionalLight('#ffe8cc',preferences.key),fill=new THREE.HemisphereLight('#ccdfff','#62594f',preferences.fill);
   const rim=new THREE.DirectionalLight('#c6dcff',preferences.fill);rim.name='tabletop-rim';
   key.name='tabletop-key';fill.name='tabletop-fill';key.castShadow=true;
   key.shadow.mapSize.set(2048,2048);key.shadow.bias=-.00015;key.shadow.normalBias=.015;
@@ -94,7 +94,7 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   }
   function apply(){
     rig.visible=physical&&preferences.enabled;local.setEnabled(rig.visible);
-    key.intensity=preferences.key;fill.intensity=preferences.fill;rim.intensity=preferences.fill*1.3;
+    key.intensity=preferences.key;fill.intensity=preferences.fill;rim.intensity=preferences.fill*1.15;
     const a=preferences.azimuth*Math.PI/180,e=preferences.elevation*Math.PI/180;
     key.position.set(Math.sin(a)*Math.cos(e),Math.sin(e),-Math.cos(a)*Math.cos(e));
     rim.position.set(-Math.sin(a),.65,Math.cos(a));

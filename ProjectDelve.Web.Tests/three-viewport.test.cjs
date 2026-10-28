@@ -1015,6 +1015,17 @@ test('director cancellation, session replacement and renderer switching clear se
  attack();c.zoom(1.2);h.viewport.renderFrame({...f,metadata:{...f.metadata,sessionId:'replacement'}});assert.equal(c.inspect().suspended,false);assert.equal(c.inspect().director.context,'Overview');assert.equal(c.inspect().transitionActive,false);
  }finally{h.cleanup();}
 });
+
+test('Follow all keeps observed other-Side decisions active instead of returning to the focus party',async()=>{
+ const f=fixture(50,'blue');f.metadata.assignments.push({sideId:'red',controller:'Automated'});f.state.units[1].sideId='red';
+ const h=await harness(f);try{h.viewport.setPresentation('tabletop');const c=h.viewport.camera;
+ c.stable({unitId:'large',candidates:[]});assert.equal(c.inspect().director.context,'Overview');
+ h.controls.follow.value='all';h.controls.follow.emit('change');c.stable({unitId:'large',candidates:[]});
+ assert.equal(c.inspect().side,'blue');assert.equal(c.inspect().director.context,'Decision');
+ c.resize(950,650);assert.equal(c.inspect().director.context,'Decision');
+ h.controls.follow.value='own';h.controls.follow.emit('change');assert.equal(c.inspect().director.context,'Overview');
+ }finally{h.cleanup();}
+});
 test('director honors Skip Effects, animation disabled and reduced motion without extra playback',async()=>{
  for(const mode of ['skip','disabled','reduced']){const h=await harness(fixture(50),{animate:()=>mode!=='disabled'});try{h.viewport.setPresentation('tabletop');const c=h.viewport.camera;
  if(mode==='reduced')globalThis.matchMedia=()=>({matches:true});

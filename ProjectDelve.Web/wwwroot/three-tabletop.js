@@ -119,7 +119,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
           float distanceToBoard = length(outside);
           float contact = 0.62 * exp(-distanceToBoard * 3.5) + 0.16 * exp(-distanceToBoard * 0.65);
           float pool = exp(-dot((wood-tableSize*0.5)/(tableSize*0.5+vec2(7.0)),(wood-tableSize*0.5)/(tableSize*0.5+vec2(7.0))) * 0.6);
-          outgoingLight *= (1.0 - contact) * (0.57 + 0.43 * pool);`:''}
+          outgoingLight *= (1.0 - contact) * (0.40 + 0.40 * pool);`:''}
           #include <opaque_fragment>`);
       };
       m.customProgramCacheKey=()=>cache+'|delve-walnut-v2:'+(table?'table':'frame');

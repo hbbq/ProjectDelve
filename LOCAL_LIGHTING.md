@@ -8,6 +8,14 @@ materials. Existing key/fill lights and printed artwork retain their behavior.
 Lighting Off and Flat presentation disable the field's shared uniform. Lava's
 authored texture remains bright.
 
+The atmospheric Tabletop palette uses a darker, cooler printed floor and walnut
+surround, a warm key and restrained cool fill/rim. Lava's 3.5-Cell radius and
+gentler height attenuation carry warm light onto nearby miniature bodies, not
+only their bases. These are material/recipe changes: no extra lights, passes or
+texture allocations. The larger source footprint increases checkpoint rebuild
+work; steady rendering still samples the same field. Stored lighting intensities
+remain user-controlled, and interaction overlays are unaffected.
+
 The field is rebuilt only when observed terrain, sources, dimensions or edges
 change. Ordinary Unit movement samples it in world space, including instanced
 geometry, Facing transforms and clipped playback copies. Shader hooks compose

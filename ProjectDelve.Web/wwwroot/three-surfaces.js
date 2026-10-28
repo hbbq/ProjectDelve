@@ -4,7 +4,7 @@ import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 // the treatment never samples neighbouring terrain or changes the pick surface.
 export function createTabletopSurfaces(){
   const enabled={value:0};
-  const shadow=new THREE.ShadowMaterial({color:'#141b25',opacity:.58,depthWrite:false});
+  const shadow=new THREE.ShadowMaterial({color:'#141b25',opacity:.50,depthWrite:false});
   shadow.name='observed-ground-shadows';
   return {
     shadow,
@@ -21,7 +21,9 @@ export function createTabletopSurfaces(){
             float seam = smoothstep(0.006, 0.022, inset);
             float bevel = 1.0 - smoothstep(0.022, 0.048, inset);
             float facing = (vDelveTileUV.y - vDelveTileUV.x) * 0.28;
-            diffuseColor.rgb *= mix(vec3(0.15,0.17,0.19), vec3(0.80,0.85,0.89), seam);
+            // Dim the printed board rather than burying the sculpted figures.
+            // Local irradiance is added afterwards, retaining warm source contrast.
+            diffuseColor.rgb *= mix(vec3(0.12,0.15,0.18), vec3(0.56,0.64,0.74), seam);
             diffuseColor.rgb *= 1.0 + bevel * facing;
           }`);
       };

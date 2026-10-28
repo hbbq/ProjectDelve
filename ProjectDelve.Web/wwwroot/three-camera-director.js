@@ -9,7 +9,12 @@ const inside = (b,v,m) => !b.behind && b.x>=m && b.y>=m && b.x+b.w<=v.width-m &&
 const safeTilt = p => p.tilt>=20 && p.tilt<=60; // 70–30 degrees DOWN from horizontal.
 const distance = (a,b) => Math.hypot(center(a).x-center(b).x,center(a).y-center(b).y);
 const unique = bounds => [...new Map(bounds.map(b=>[`${b.x},${b.y},${b.w},${b.h}`,b])).values()];
-export const directorReadability = viewport => ({minimum:Math.max(40,Math.min(64,Math.min(viewport.width,viewport.height)*.09)),desired:Math.max(76,Math.min(110,Math.min(viewport.width,viewport.height)*.15))});
+export const directorReadability = (viewport,context='Decision') => ({
+  minimum:Math.max(40,Math.min(64,Math.min(viewport.width,viewport.height)*.09)),
+  // A logical Cell is appreciably wider than the miniature on its base. Aim
+  // beyond bare label readability so the sculpt is visible at ordinary play zoom.
+  desired:Math.max(100,Math.min(context==='Combat'?185:context==='Overview'?135:165,Math.min(viewport.width,viewport.height)*(context==='Overview'?.20:.24)))
+});
 export function directorSubjectSize(bounds,pose,viewport){
   const envelope=threeScreenBounds(bounds,pose,viewport,pose.visualHeight??0);
   // A catalog-wide safety overhang must not count as visible figure detail.
@@ -48,16 +53,27 @@ export function directorDecision(frame,decision,side) {
 export function scoreDirectorPose(pose,current,shot,viewport) {
   const screen=b=>threeScreenBounds(b,pose,viewport,pose.visualHeight??0);
   const margin=Math.min(48,viewport.width*.10,viewport.height*.10);
-  const readability=directorReadability(viewport),sizes=shot.primary.map(b=>directorSubjectSize(b,pose,viewport));
+  const readability=directorReadability(viewport,shot.context),sizes=shot.primary.map(b=>directorSubjectSize(b,pose,viewport));
   let score=0;
   for(const b of shot.primary){const p=screen(b);score+=inside(p,viewport,4)?0:100000;score+=inside(p,viewport,margin)?0:240;}
   const smallest=Math.min(...sizes);
   score+=4000*Math.max(0,1-smallest/readability.minimum)**2;
-  score+=360*Math.max(0,1-smallest/readability.desired)**2;
+  score+=520*Math.max(0,1-smallest/readability.desired)**2;
   // Category budgets, not a vote per Cell: 400 destinations cannot outweigh
   // the active figure, and adding duplicate action variants changes nothing.
-  const missed=list=>list.length?list.filter(b=>!inside(screen(b),viewport,margin)).length/list.length:0;
-  score+=180*missed(shot.targets??[])+110*missed(shot.legal??[])+24*missed(shot.secondary??[]);
+  const missed=(list,project=screen)=>list.length?list.filter(b=>!inside(project(b),viewport,margin)).length/list.length:0;
+  // Choice outlines lie on the floor; giving every Cell a tall model envelope
+  // unnecessarily widens a shot. Actual Unit targets still use their envelope.
+  const ground=b=>threeScreenBounds(b,{...pose,visualOverhang:0},viewport,0);
+  score+=180*missed(shot.targets??[])+110*missed(shot.legal??[],ground)+24*missed(shot.secondary??[]);
+  // Combat reads across the screen instead of stacking the defender behind the
+  // attacker. This is an observed participant axis, never an inferred facing.
+  if(shot.context==='Combat'&&shot.primary.length===2){
+    const a=threeProject(center(shot.primary[0]),pose,viewport),b=threeProject(center(shot.primary[1]),pose,viewport);
+    const length=Math.hypot(b.x-a.x,b.y-a.y);if(length)score+=70*Math.abs(b.y-a.y)/length;
+  }
+  const preferredTilt=shot.context==='Combat'?52:shot.context==='Overview'?44:48;
+  if(shot.context!=='Movement')score+=Math.abs(pose.tilt-preferredTilt)*1.1;
   if(shot.direction){
     const origin=center(union(shot.primary)),a=threeProject(origin,pose,viewport),b=threeProject({x:origin.x+shot.direction.x*3,y:origin.y+shot.direction.y*3},pose,viewport);
     const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
@@ -98,17 +114,25 @@ export function chooseDirectorPose(current,shot,viewport,preferences,board) {
   const orientation={...current,tilt:Math.max(20,Math.min(60,current.tilt))};
   const candidates=[{pose:current,adjustment:'retain'}];
   const origin=center(bounds),lead=direction?{x:origin.x+direction.x*1.5,y:origin.y+direction.y*1.5}:origin;
+  const moving=shot.context==='Movement',orient=!moving&&!shot.holdAngle&&preferences.mode!=='fixed',preferredTilt=shot.context==='Combat'?52:shot.context==='Overview'?44:48;
   const look=threeLookAt(current,lead,viewport);
-  if(preferences.mode!=='fixed'&&look&&safeTilt(look)&&heading(look.yaw,current.yaw)<=40)candidates.push({pose:look,adjustment:'look-around'});
-  const padded=cameraMargin(bounds,Math.max(1,Math.min(2,preferences.margin)),board);
-  const angles=[[orientation.yaw,orientation.tilt],[orientation.yaw,40],[orientation.yaw,50]];
-  if(direction){
+  if(orient&&look&&safeTilt(look)&&heading(look.yaw,current.yaw)<=30)candidates.push({pose:look,adjustment:'look-around'});
+  const padded=cameraMargin(bounds,Math.max(.45,Math.min(shot.context==='Overview'?1.4:.9,preferences.margin*.5)),board);
+  const angles=[[orientation.yaw,orientation.tilt]];
+  if(orient)angles.push([orientation.yaw,preferredTilt],[orientation.yaw,40]);
+  if(direction&&orient){
     const bearing=Math.atan2(-direction.x,-direction.y)*180/Math.PI,delta=((bearing-orientation.yaw+540)%360)-180;
-    const directedYaw=orientation.yaw+Math.max(-85,Math.min(85,delta));
-    angles.push([orientation.yaw-35,40],[orientation.yaw+35,40],[orientation.yaw-70,40],[orientation.yaw+70,40],[directedYaw,40],[directedYaw,50]);
+    const directedYaw=orientation.yaw+Math.max(-50,Math.min(50,delta));
+    angles.push([orientation.yaw-35,preferredTilt],[orientation.yaw+35,preferredTilt],[directedYaw,preferredTilt]);
+  }
+  if(shot.context==='Combat'&&orient){
+    angles.push([orientation.yaw-30,preferredTilt],[orientation.yaw+30,preferredTilt]);
   }
   for(const [yaw,tilt] of angles.filter((p,i)=>angles.findIndex(q=>q[0]===p[0]&&q[1]===p[1])===i)){
-    for(const focus of direction?[origin,lead]:[origin]){
+    // A little headroom permits a closer model without using its ground center
+    // as the center of the image. All safety fits still use the full envelope.
+    const a=yaw*Math.PI/180,portrait={x:origin.x-Math.sin(a)*.55,y:origin.y-Math.cos(a)*.55};
+    for(const focus of direction&&!moving?[portrait,lead]:[portrait]){
       const base={...orientation,yaw,tilt,...focus};
       let fit=threeFitRect(padded,viewport,base,current.visualHeight,Math.min(48,viewport.width*.1));
       if(preferences.mode==='fixed')fit.scale=threeSpanScale(viewport,preferences.fixedSpan,fit);
@@ -116,8 +140,11 @@ export function chooseDirectorPose(current,shot,viewport,preferences,board) {
         // Fit only primary envelopes and local breathing room. Search scale in
         // a fixed ten steps to reach the desired projected size, in either direction.
         let lo=0,hi=Math.min(fit.scale,threeSpanScale(viewport,preferences.minSpan,fit));
-        for(let i=0;i<10;i++){const scale=(lo+hi)/2,p={...fit,scale};if(Math.min(...primary.map(b=>directorSubjectSize(b,p,viewport)))<directorReadability(viewport).desired)lo=scale;else hi=scale;}
+        for(let i=0;i<10;i++){const scale=(lo+hi)/2,p={...fit,scale};if(Math.min(...primary.map(b=>directorSubjectSize(b,p,viewport)))<directorReadability(viewport,shot.context).desired)lo=scale;else hi=scale;}
         fit.scale=hi;
+        // Follow movement with the established angle and magnification. A bend
+        // in a path should move the subject, not spin or pulse the whole table.
+        if(moving&&Math.min(...primary.map(b=>directorSubjectSize(b,current,viewport)))>=directorReadability(viewport).minimum)fit.scale=Math.min(fit.scale,current.scale);
       }
       fit.scale=Math.min(fit.scale,threeFitRect(bounds,viewport,fit,current.visualHeight,24).scale);
       candidates.push({pose:fit,adjustment:yaw===current.yaw?'translation + zoom':'orbit + translation + zoom'});
@@ -136,11 +163,18 @@ export function chooseDirectorPose(current,shot,viewport,preferences,board) {
 }
 
 export function createCameraDirector() {
-  let shot=null,combat=null,movement=null,lastAnchor=null,segment=null,diagnostic=null;
-  function reset(){shot=combat=movement=lastAnchor=segment=diagnostic=null;}
+  let shot=null,combat=null,movement=null,lastAnchor=null,segment=null,diagnostic=null,layout=null;
+  function reset(){shot=combat=movement=lastAnchor=segment=diagnostic=layout=null;}
   function stable(frame,decision,side){
     movement=lastAnchor=segment=null;
     if(combat&&decision?.roll){shot=combat;return;}
+    if(['Attack','Defence'].includes(decision?.roll?.family)){
+      // Reloads and renderer handoffs can begin during a mandatory roll, without
+      // having played AttackStarted. Use only the supplied observed participants.
+      const roll=decision.roll,ids=[...new Set([roll.sourceUnitId,roll.ownerUnitId,...(roll.targetIds??[])].filter(Boolean))];
+      const subjects=ids.filter(id=>cameraFootprint(frame,id).length),primary=subjects.map(id=>cameraBounds(cameraFootprint(frame,id)));
+      if(primary.length){shot=combat={context:'Combat',primary,legal:[],subjects};return;}
+    }
     combat=null;shot=directorDecision(frame,decision,side);
     if(!shot){const units=frame.units.filter(u=>!side||u.sideId===side),bounds=units.map(u=>cameraBounds(cameraFootprint(frame,u.id))).filter(Boolean);shot={context:'Overview',idle:true,primary:bounds,legal:[],subjects:[]};}
   }
@@ -171,7 +205,9 @@ export function createCameraDirector() {
   }
   function compose(frame,pose,viewport,preferences,side){
     if(!shot||!pose)return null;
-    if(shot.idle&&diagnostic)return null;
+    const nextLayout=`${viewport.width},${viewport.height}`;
+    if(shot.idle&&diagnostic&&layout===nextLayout)return null;
+    layout=nextLayout;
     const anchor=shot.primary[0];if(!anchor)return null;
     const nearby=b=>b&&Math.hypot(b.x-anchor.x,b.y-anchor.y)<=5;
     // Same-Side is known. Other Sides are never presumed hostile.
@@ -183,8 +219,13 @@ export function createCameraDirector() {
       // Observed other-Side activity is a hint, not an assertion of hostility.
       hints.push({point:center(b),weight:side&&unit.sideId===side ? .15 : .45});
     }
-    for(const objective of frame.objectives)if(objective.area&&(!side||objective.sideId===side)){hints.push({point:center(objective.area),weight:.65});if(nearby(objective.area))secondary.push(objective.area);}
+    // Distant public Objectives retain their navigation indicator. They should
+    // not turn a local decision toward an otherwise empty or unexplored table.
+    for(const objective of frame.objectives)if(objective.area&&nearby(objective.area)&&(!side||objective.sideId===side)){hints.push({point:center(objective.area),weight:.65});secondary.push(objective.area);}
     const result=chooseDirectorPose(pose,{...shot,secondary,hints},viewport,preferences,frame.board);
+    // Dice and damage checkpoints share one camera angle. Reconsider framing
+    // after layout changes, but do not orbit again around the same attack.
+    if(shot.context==='Combat')shot.holdAngle=true;
     if(result)diagnostic={context:shot.context,subjects:shot.subjects,reason:result.reason,adjustment:result.adjustment,subjectPixels:Math.round(result.subjectPixels),translation:result.travel<.001?'avoided':`${result.travel.toFixed(2)} Cells`};
     return result;
   }

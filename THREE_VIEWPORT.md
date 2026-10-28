@@ -95,12 +95,13 @@ focus expose the complete observed information.
 
 ## Camera and input
 
-### Auto Camera Director V1.1
+### Auto Camera Director
 
 Tabletop uses `three-camera-director.js` to choose compositions; `three-camera.js`
 owns input, preferences and interpolation on the existing viewport RAF. Flat keeps
 its original policy. Full Board remains explicit whole-board framing. Fixed keeps
-scale except where a primary model would be clipped. FOV remains user controlled.
+its chosen orientation and scale except where a primary model would be clipped.
+FOV remains user controlled.
 
 The contexts are Decision, Movement, Combat and Overview. Decision reads supplied
 browser candidates: selectable Units, active footprint, legal placement Cells,
@@ -108,59 +109,74 @@ Unit/Cell/Door interactions and observed affected Units. Widely scattered choice
 use a bounded region anchored on the active Unit or first selectable Unit; existing
 Board choices remain available. Movement uses observation-safe segments and already
 presented anchors, resets direction across disconnected segments, and adds a small
-direction hint only in explored space. Combat retains observed attacker/target
-envelopes through dice, damage and defeat until the next decision or activation.
-Overview retains the accepted idle view; observed spatial events can attract it.
+direction hint only in explored space. It holds its established angle and avoids
+zooming closer while the figure is already readable.
+
+Combat frames observed attacker/target envelopes and favors separation across the
+screen. It establishes one angle through dice, damage and defeat until the next
+decision or activation. Joining during an Attack or Defence roll recovers supplied
+participant IDs through the same observation adapter. Framing can still correct
+clipping after a resize. Overview retains the accepted idle view unless layout
+changes; observed spatial events can attract it.
 
 Focus offers every Side in observed Units/controller metadata plus Spectator. It
 is independent of `viewingSideId`, does not require Human control, and never changes
-server observation selection. Spectator has no preferred Side. Same-Side Units and
-nearby public Objectives provide secondary hints. Without explicit relationship
-projections, other Sides are not classified as enemies. Their observed activity can
-still be followed. Follow Off disables direction; Focus priority and All observable
-both retain the selected focus preference in Tabletop.
+server observation selection. Spectator has no preferred Side. Follow Off disables
+direction. Focus priority filters stable decisions to the selected Side. All
+observable also follows observed other-Side decisions, retaining the selected focus
+only as a secondary composition preference. Other Sides are activity hints, never
+inferred enemies without explicit relationship projections.
 
-Candidate search is deterministic and bounded (at most 20 poses): retain,
+Candidate search is deterministic and bounded (at most 18 poses): retain,
 fixed-position perspective look-around, and primary-centered or direction-leading
-fits at the current heading, nearby +/-35 and +/-70 degree headings, and a bounded
-heading toward observed activity. Alternative tilts remain within the safe range.
+fits. Auto considers nearby +/-35 degree headings and an activity bearing limited
+to 50 degrees from the current heading; Combat also considers +/-30 degrees.
+Movement and an established Combat angle only consider framing corrections.
 Public model envelopes determine clipping; projected footprint width also caps
 the readability measure so catalog-wide safety overhang cannot inflate it.
 Auto prefers a minimum projected subject size of 9% of the shorter viewport edge,
-clamped to 40-64px, and seeks 15%, clamped to 76-110px. Every Combat participant
+clamped to 40-64px. It seeks 24% for decisions and combat, with a 100px floor and
+respective 165px/185px caps; Overview seeks 20%, capped at 135px. These are logical
+footprint sizes, so the miniature itself is smaller. Every Combat participant
 counts. When no fully visible, safe candidate meets the minimum, visibility and
 the smallest subject's deficit determine the compromise. Fixed retains its scale
 policy rather than overriding the user's framing preference.
 
-Fitting uses primary subjects and 1-2 Cells of local breathing room. Immediate
+Fitting uses primary subjects and 0.45-0.9 Cells of local breathing room (up to
+1.4 Cells for Overview), with a small headroom offset for raised figures. Immediate
 targets, local legal choices and nearby Units have separate bounded score budgets;
-hundreds of destinations cannot outvote primary readability. Public Objective
-bearings and observed nearby activity can influence heading without expanding the
-required region. Other Sides are activity hints, not inferred enemies. A leading
-focus can place the active Unit below center, leaving room toward useful activity.
+hundreds of destinations cannot outvote primary readability. Legal floor outlines
+are scored at ground height; Unit targets retain full model envelopes. Public
+Objectives within five Cells and observed nearby activity can influence heading
+without expanding the required region. Distant Objectives retain navigation
+indicators but cannot turn a local decision toward empty or unexplored space.
+A leading focus can leave room toward useful activity.
+
 Scoring includes subject size, margins, direction, travel, heading, tilt and zoom.
-Readability and useful direction can overcome transition costs. Deterministic
+Readability and useful direction can overcome transition costs; deterministic
 candidate ordering breaks ties. Zoom can tighten an empty composition as well as
 widen a clipped one. Orthographic travel costs use focus displacement rather than
 the artificial optical reference distance; Perspective uses actual world travel.
-
 Perspective world interpolation reconstructs ground focus and distance at each
 sample, so look-around preserves actual camera position throughout its transition.
-Orthographic uses framing/translation instead of a fictitious optical origin.
-No extra animation loop or playback wait is added.
+Directed transitions take 480ms plus 4ms per degree of orbit, capped at 800ms;
+movement following takes 300ms. Manual transitions remain 260ms. No extra animation
+loop or playback wait is added.
 
 Auto tilt is 30-70 degrees downward from horizontal (20-60 in the existing
-overhead-relative pose convention), normally near 50 degrees down. There is no
-roll. These limits belong to the director, not the underlying geometry. Candidate
-camera heights below the public model envelope plus one Cell are penalized.
-Manual presets retain their existing broader limits.
+overhead-relative pose convention). Preferred downward angles are 46 degrees for
+Overview, 42 for decisions and 38 for combat, exposing more of the miniature's
+profile. There is no roll. These limits belong to the director, not the underlying
+geometry. Candidate camera heights below the public model envelope plus one Cell
+are penalized. Manual presets retain their existing broader limits.
 
 Hysteresis uses a 4px intervention edge, larger comfort margins, meaningful score
 improvement and deterministic ties. An undersized primary bypasses retention;
-a readable good shot requires a meaningful improvement to change. There is no repeated automatic zoom-in during
-short pauses. Accepted targets are evaluated during transitions to avoid per-frame
-retargeting. Hover/preview changes do not direct the camera. Initial hidden 1x1
-viewport poses are rescaled when their real dimensions arrive.
+a readable good shot requires a meaningful improvement to change. Accepted targets
+are evaluated during transitions to avoid per-frame retargeting. Hover/preview
+changes do not direct the camera. Initial hidden 1x1 viewport poses are rescaled
+and idle composition is reconsidered when real dimensions arrive, then stays still
+at that layout.
 
 Pan, zoom, yaw/tilt, rotation buttons, presets and lens controls interrupt automatic
 direction. Resume Follow restores it. The next observed activation of the selected
@@ -175,15 +191,13 @@ joined. Legal regions come from projected choices, never local legality. Render
 clipping and observation permissions are unchanged.
 
 `camera.inspect().director` reports context and the last accepted shot (subjects,
-reason, adjustment, projected subject pixels, actual travel). The camera status tooltip gives a short
-explanation. There is no per-frame logging or new permanent debug panel.
+reason, adjustment, projected subject pixels, actual travel). The camera status
+tooltip gives a short explanation. There is no per-frame logging or new debug panel.
 
-V1 uses conservative envelopes and margins, not mesh-level occlusion/collision.
-Tall scenery can still obscure a figure; Cutaway remains useful. Margins do not
-solve arbitrarily moved/expanded overlays. Scattered choices can remain offscreen;
-narrow layouts can reduce labels and require Board choices. Speed and candidate
-weights remain presentation tuning opportunities.
-
+The director uses conservative envelopes and margins, not mesh-level occlusion or
+collision. Tall scenery can still obscure a figure; Cutaway remains useful. Margins
+do not solve arbitrarily moved or expanded overlays. Scattered choices can remain
+offscreen; narrow layouts can reduce labels and require Board choices.
 
 #### V1.1 composition verification - 2026-10-28
 

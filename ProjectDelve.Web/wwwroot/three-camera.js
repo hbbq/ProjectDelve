@@ -20,7 +20,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   function direct(smooth=true){
     if(!physical||!automatic()||!pose)return;
     const result=director.compose(frame,target??pose,size,preferences,side);
-    if(result){overflow=result.overflow;apply(result.pose,smooth,true);}
+    if(result){overflow=result.overflow;apply(result.pose,smooth,result.context);}
   }
   const spanScale = span => threeSpanScale(size,span,geometry());
   const subscriptions = new AbortController(), indicators = new Map();
@@ -29,6 +29,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   const assignments = () => metadata.assignments?.length ? metadata.assignments : Object.entries(metadata.controllers ?? {}).map(([sideId, controller]) => ({ sideId, controller }));
   const own = id => cameraOwnHuman(frame, id, side, assignments());
   const automatic = () => !suspended && preferences.follow !== 'off' && preferences.mode !== 'full';
+  const directorSide = () => preferences.follow==='all'?null:side;
   function renderControls() {
     if(controls['side-label'].firstChild?.nodeType===3)controls['side-label'].firstChild.textContent=physical?'Focus ':'Side ';
     controls.side.setAttribute?.('aria-label',physical?'Camera focus preference':'Camera Side');
@@ -46,14 +47,17 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     const diagnosis=physical?director.inspect().diagnostic:null;
     controls.status.title=diagnosis?`${diagnosis.context}: ${diagnosis.reason}; ${diagnosis.adjustment}; translation ${diagnosis.translation}`:'';
   }
-  function apply(next, smooth = true, directed = false) {
+  function apply(next, smooth = true, context = null) {
     if (!frame) return;
+    const directed=!!context;
     next = {...orientation,...next,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0};
     if(!directed)next=threeClampPose(next,frame.board,size);
     if(directed)orientation={tilt:next.tilt,yaw:next.yaw};
     if (target && ['x','y','scale','tilt','yaw','projectionMix','fov','visualHeight','visualOverhang'].every(key=>Math.abs(target[key]-next[key])<.0001)) return;
     target = next;
-    transition = pose && smooth && animate() && !reduced() ? { from: { ...pose }, to: next, start: environment.performance.now(), duration: directed?420:260, directed } : null;
+    const orbit=pose?Math.abs(((next.yaw-pose.yaw+540)%360)-180):0;
+    const duration=directed?(context==='Movement'?300:Math.min(800,480+orbit*4)):260;
+    transition = pose && smooth && animate() && !reduced() ? { from: { ...pose }, to: next, start: environment.performance.now(), duration, directed } : null;
     if (!transition) pose = { ...next };
     invalidate(); renderControls();
   }
@@ -83,7 +87,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
       const current=target??pose,currentSpan=threeSpanScale(size,1,current)/current.scale;
       const span=preferences.mode==='fixed'?preferences.fixedSpan:Math.max(preferences.minSpan,Math.min(preferences.maxSpan,currentSpan));
       apply({...current,scale:threeSpanScale(size,span,current)},smooth);
-      director.stable(frame,decision,side);direct(smooth);return;
+      director.stable(frame,decision,directorSide());direct(smooth);return;
     }
     if (preferences.mode === 'auto' && fit(true,smooth)) return;
     const party = frame.units.filter(u => (!side || u.sideId === side) && cameraFootprint(frame,u.id).length);
@@ -114,7 +118,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function stable(next) {
     decision = next;
-    if(physical){activeBounds=fitBounds=cameraBounds(cameraFootprint(frame,next?.unitId));director.stable(frame,next,side);direct();return;}
+    if(physical){activeBounds=fitBounds=cameraBounds(cameraFootprint(frame,next?.unitId));director.stable(frame,next,directorSide());direct();return;}
     if (!next?.unitId || !own(next.unitId)) { fitBounds=activeBounds=null;return; }
     const key = `${metadata.round}:${next.unitId}:${activation}`;
     if (key !== activationKey) { activationKey = key; fittedSpan = moveSignature = null; if (manualActivation !== activation && preferences.follow !== 'off') suspended = false; }
@@ -178,7 +182,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     if(!frame) return;
     if(physical&&preferences.mode!=='full'&&pose){
       apply({...resizedPose,scale:threeSpanScale(size,preferences.mode==='fixed'?preferences.fixedSpan:span,resizedPose)},false);
-      if(automatic()){director.stable(frame,decision,side);direct(false);}return;
+      if(automatic()){director.stable(frame,decision,directorSide());direct(false);}return;
     }
     if(preferences.mode==='full'||preferences.mode==='auto'&&automatic()) useful(false);
     else apply({...pose,scale:spanScale(preferences.mode==='fixed'?preferences.fixedSpan:span)},false);

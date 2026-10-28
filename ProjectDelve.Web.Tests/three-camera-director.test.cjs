@@ -33,6 +33,17 @@ test('combat pairs retain a coherent context through dice, damage and defeat, th
  d.stable(f,{unitId:'a',candidates:[]},'blue');assert.equal(d.inspect().context,'Decision');
  d.stable(f,null,'blue');assert.equal(d.inspect().context,'Overview');
 });
+
+test('joining during a combat roll recovers only supplied observed participants',async()=>{
+ const {createCameraDirector}=await at('three-camera-director.js'),f=frame();
+ for(const family of ['Attack','Defence']){
+  const d=createCameraDirector();d.stable(f,{roll:{family,sourceUnitId:'b',ownerUnitId:'a',targetIds:['a','secret']},candidates:[]},'blue');
+  assert.equal(d.inspect().context,'Combat');const result=d.compose(f,pose,size,prefs,'blue');assert.deepEqual(result.subjects,['b','a']);
+ }
+ f.explored=new Set(['4,4']);const d=createCameraDirector();d.stable(f,{roll:{family:'Defence',sourceUnitId:'b',ownerUnitId:'a'}},'blue');
+ assert.deepEqual(d.compose(f,pose,size,prefs,'blue').subjects,['a']);
+ const noncombat=createCameraDirector();noncombat.stable(f,{unitId:'a',roll:{family:'D6',sourceUnitId:'a'}},'blue');assert.equal(noncombat.inspect().context,'Decision');
+});
 test('combat composition frames both observed participants with model envelopes',async()=>{
  const {chooseDirectorPose}=await at('three-camera-director.js'),g=await at('three-camera-geometry.js');
  const primary=[{x:20,y:20,w:1,h:1},{x:26,y:22,w:2,h:2}],shot={context:'Combat',primary,legal:[],secondary:[],subjects:['a','b']};
@@ -56,12 +67,48 @@ test('candidate scoring prioritizes primary visibility and includes actual world
 });
 test('hysteresis retains comfortable views, is deterministic, and immediately corrects clipped primary',async()=>{
  const {chooseDirectorPose}=await at('three-camera-director.js'),shot={context:'Decision',primary:[{x:4,y:4,w:1,h:1}],legal:[],secondary:[]};
- // A readable close shot is genuinely good; V1's nominal scale 55 left a
- // perspective footprint undersized and is intentionally no longer protected.
- assert.equal(chooseDirectorPose({...pose,scale:85},shot,size,prefs,frame().board),null);
+ // Comfortable already-close compositions should remain still, even when a
+ // candidate offers a small change in tilt or headroom.
+ assert.equal(chooseDirectorPose({...pose,scale:125,tilt:48,x:4.5,y:4},shot,size,prefs,frame().board),null);
  shot.primary=[{x:30,y:30,w:1,h:1}];const a=chooseDirectorPose(pose,shot,size,prefs,frame().board);
  assert.equal(a.reason,'primary clipped');assert.deepEqual(a,chooseDirectorPose(pose,shot,size,prefs,frame().board));
  assert.equal(chooseDirectorPose(a.pose,shot,size,prefs,frame().board),null);
+});
+
+test('movement preserves its established angle and cannot pulse closer at path bends',async()=>{
+ const {chooseDirectorPose}=await at('three-camera-director.js');
+ let current={...pose,scale:115,tilt:48,x:4.5,y:4,yaw:35};
+ for(const [x,y] of [[7,4],[9,4],[9,7],[6,7]]){
+  const shot={context:'Movement',primary:[{x,y,w:1,h:1}],legal:[{x:x+1,y,w:1,h:1}],hints:[{point:{x:30,y:1},weight:1}]};
+  const result=chooseDirectorPose(current,shot,size,prefs,frame().board);
+  if(result){assert.equal(result.pose.yaw,current.yaw);assert.equal(result.pose.tilt,current.tilt);assert.ok(result.pose.scale<=current.scale+.001);current=result.pose;}
+ }
+});
+
+test('close combat brings miniatures forward while bounding an individual orbit',async()=>{
+ const {chooseDirectorPose,directorSubjectSize}=await at('three-camera-director.js');
+ const current={...pose,x:20.5,y:20.5,scale:40,visualHeight:2.05,visualOverhang:.356};
+ const primary=[{x:20,y:20,w:1,h:1},{x:20,y:21,w:1,h:1}];
+ const result=chooseDirectorPose(current,{context:'Combat',primary,legal:[],subjects:['a','b'],hints:[{point:{x:1,y:50},weight:1}]},size,prefs,frame().board);
+ assert.ok(result);assert.ok(result.pose.scale>current.scale*1.5);
+ assert.ok(Math.abs(((result.pose.yaw-current.yaw+540)%360)-180)<=50);
+ for(const b of primary)assert.ok(directorSubjectSize(b,result.pose,size)>90);
+});
+
+test('combat dice checkpoints retain one established angle while resized framing stays safe',async()=>{
+ const {createCameraDirector}=await at('three-camera-director.js'),g=await at('three-camera-geometry.js');
+ for(const angle of [0,45,90,135,180,225,270,315]){
+  const f=frame();f.figures[0].position={x:20,y:20};f.figures[1].position={x:20,y:21};f.units=f.units.slice(0,2);
+  f.objectives=[{sideId:'blue',area:{x:20+3*Math.sin(angle*Math.PI/180),y:20+3*Math.cos(angle*Math.PI/180),w:1,h:1}}];
+  const d=createCameraDirector();d.event(f,{kind:'AttackStarted',attackContext:{attackerId:'a',targets:[{targetId:'b'}]}},{});
+  let current=d.compose(f,{...pose,scale:40,x:20,y:20},size,prefs,'blue').pose;const established={yaw:current.yaw,tilt:current.tilt};
+  for(let i=0;i<4;i++){
+   d.stable(f,{roll:{family:'Defence'},candidates:[]},'blue');const result=d.compose(f,current,size,prefs,'blue');
+   if(result)current=result.pose;assert.equal(current.yaw,established.yaw);assert.equal(current.tilt,established.tilt);
+  }
+  const narrow={width:380,height:650},resized=d.compose(f,current,narrow,prefs,'blue');if(resized)current=resized.pose;
+  for(const {position} of f.figures.slice(0,2)){const p=g.threeScreenBounds({...position,w:1,h:1},current,narrow,current.visualHeight);assert.ok(p.x>=4&&p.x+p.w<=narrow.width-4&&p.y>=4&&p.y+p.h<=narrow.height-4);}
+ }
 });
 test('widely scattered optional choices cannot force unbounded zoom',async()=>{
  const {chooseDirectorPose}=await at('three-camera-director.js'),shot={context:'Decision',primary:[{x:25,y:25,w:1,h:1}],legal:[{x:59,y:59,w:1,h:1}],secondary:[{x:0,y:0,w:1,h:1}]};
@@ -121,10 +168,12 @@ test('observed nearby activity changes yaw meaningfully without requiring hostil
  for(const projectionMix of [0,1]){const director=d.createCameraDirector();director.stable(f,{unitId:'a',candidates:[]},'blue');
  const r=director.compose(f,{...pose,scale:25,projectionMix},size,prefs,'blue');assert.ok(r);assert.ok(Math.abs(r.pose.yaw)>=35,JSON.stringify(r));assert.ok(r.subjectPixels>=54);}
 });
-test('a public spatial Objective influences heading but its distance does not expand framing',async()=>{
+test('only nearby public Objectives influence local composition',async()=>{
  const d=await at('three-camera-director.js'),f=frame();f.units=f.units.slice(0,1);f.figures=f.figures.slice(0,1);
- const run=x=>{f.objectives=[{sideId:'blue',area:{x,y:4,w:1,h:1}}];const director=d.createCameraDirector();director.stable(f,{unitId:'a',candidates:[]},'blue');return director.compose(f,{...pose,scale:25},size,prefs,'blue');};
- const near=run(14),far=run(54);assert.ok(Math.abs(near.pose.yaw)>=35);assert.ok(Math.abs(far.pose.yaw)>=35);assert.ok(far.subjectPixels>=54);assert.ok(Math.abs(near.pose.scale-far.pose.scale)<2);
+ const run=(x,candidates=[])=>{f.objectives=x==null?[]:[{sideId:'blue',area:{x,y:4,w:1,h:1}}];const director=d.createCameraDirector();director.stable(f,{unitId:'a',candidates},'blue');return director.compose(f,{...pose,scale:25},size,prefs,'blue');};
+ const near=run(7),far=run(54);assert.ok(Math.abs(near.pose.yaw)>=35);assert.deepEqual(far.pose,run(null).pose);
+ const choices=[{placementCells:[{x:1,y:4}]},{placementCells:[{x:2,y:4}]},{placementCells:[{x:3,y:4}]}];
+ assert.deepEqual(run(54,choices).pose,run(null,choices).pose,'remote Objective cannot pull the camera away from supplied local choices');
 });
 test('distant optional subjects do not force zoom-out and immediate targets get a bounded priority',async()=>{
  const d=await at('three-camera-director.js'),primary=[{x:20,y:20,w:1,h:1}],current={...pose,x:20,y:20,scale:20},shot={context:'Decision',primary,legal:[{x:21,y:20,w:1,h:1}],secondary:[]};
@@ -139,4 +188,11 @@ test('hidden Unit positions do not affect either heading hints or zoom; accepted
  const d=await at('three-camera-director.js'),f=frame();f.explored=new Set(['4,4']);
  const run=()=>{const director=d.createCameraDirector();director.stable(f,{unitId:'a',candidates:[]},'blue');const r=director.compose(f,{...pose,scale:20},size,prefs,'blue');director.stable(f,null,'blue');assert.equal(director.compose(f,r.pose,size,prefs,'blue'),null);return r.pose;};
  const a=run();f.figures[1].position={x:3,y:4};f.figures[2].position={x:4,y:3};assert.deepEqual(run(),a);
+});
+
+test('idle overview recomposes when its initially hidden layout becomes usable, then stays still',async()=>{
+ const {createCameraDirector}=await at('three-camera-director.js'),f=frame(),d=createCameraDirector();d.stable(f,null,'blue');
+ const first=d.compose(f,{...pose,scale:5},{width:100,height:100},prefs,'blue');assert.ok(first);
+ const visible=d.compose(f,first.pose,size,prefs,'blue');assert.ok(visible);assert.ok(visible.pose.scale>first.pose.scale*2);
+ assert.equal(d.compose(f,visible.pose,size,prefs,'blue'),null);
 });
