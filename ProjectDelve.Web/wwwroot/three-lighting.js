@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
+import { createLocalLighting } from './three-local-lighting.js';
 
 export const lightingDefaults=Object.freeze({enabled:true,key:.85,fill:.65,azimuth:315,elevation:50});
 const preferenceKey='delve.three.lighting.v1';
@@ -36,6 +37,7 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   let saved;try{saved=JSON.parse(environment.localStorage?.getItem(preferenceKey)??'null');}catch{/* optional */}
   let preferences=lightingPreferences(saved),physical=false,disposed=false,changedAt=null,firstFrameMs=null;
   const now=()=>environment.performance?.now()??performance.now();
+  const local=createLocalLighting();
   const pairs=new Map(),variants=new WeakMap(),subscriptions=new AbortController();
   const rig=new THREE.Group();rig.name='tabletop-lighting';
   const key=new THREE.DirectionalLight('#fff5e8',preferences.key),fill=new THREE.AmbientLight('#ffffff',preferences.fill);
@@ -62,7 +64,7 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   function resolve(m){return variants.get(m)?.[physical&&preferences.enabled?1:0]??m;}
   function material(color,vertexColors=true){
     const id=JSON.stringify([color,vertexColors]);let pair=pairs.get(id);
-    if(!pair){pair=register([new THREE.MeshBasicMaterial({color,vertexColors}),new THREE.MeshLambertMaterial({color})]);pairs.set(id,pair);}
+    if(!pair){pair=register([new THREE.MeshBasicMaterial({color,vertexColors}),local.attach(new THREE.MeshLambertMaterial({color}))]);pairs.set(id,pair);}
     return resolve(pair[0]);
   }
   // Model cache owns these pairs, including the imported source material.
@@ -72,7 +74,7 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
     for(const key of ['map','alphaMap','alphaTest','transparent','opacity','side','depthTest','depthWrite','vertexColors','wireframe','polygonOffset','polygonOffsetFactor','polygonOffsetUnits'])if(key in source)basic[key]=source[key];
     basic.color.copy(source.color);
     if(descriptor.appearance==='ghost'){ghostMaterial(basic);ghostMaterial(source);}
-    return register([basic,source]);
+    local.attach(source);return register([basic,source]);
   }
   // Only the movement pool owns/disposes these copies. Weak registration does
   // not retain completed movement or introduce per-object stable clones.
@@ -87,7 +89,7 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
     return copies;
   }
   function apply(){
-    rig.visible=physical&&preferences.enabled;
+    rig.visible=physical&&preferences.enabled;local.setEnabled(rig.visible);
     key.intensity=preferences.key;fill.intensity=preferences.fill;
     const a=preferences.azimuth*Math.PI/180,e=preferences.elevation*Math.PI/180;
     key.position.set(Math.sin(a)*Math.cos(e),Math.sin(e),-Math.cos(a)*Math.cos(e));
@@ -101,10 +103,10 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
     changedAt=now();preferences=updated;apply();try{environment.localStorage?.setItem(preferenceKey,JSON.stringify(preferences));}catch{/* optional */}invalidate();
   }
   apply();
-  return {material,modelMaterial,clippedVariants,resolve,set,controls,identity:m=>variants.get(m)?.[0].id??m.id,
+  return {local,material,modelMaterial,clippedVariants,resolve,set,controls,identity:m=>variants.get(m)?.[0].id??m.id,
     setPresentation(value){physical=value==='tabletop';changedAt=now();apply();},
     frameRendered(){if(changedAt!==null){firstFrameMs=+(now()-changedAt).toFixed(2);changedAt=null;}},
-    inspect:()=>({...preferences,active:rig.visible,materials:pairs.size*2,firstFrameMs}),
-    dispose(){if(disposed)return;disposed=true;subscriptions.abort();rig.removeFromParent();key.dispose();fill.dispose();for(const pair of pairs.values())for(const m of pair)m.dispose();pairs.clear();panel.remove();}
+    inspect:()=>({...preferences,active:rig.visible,materials:pairs.size*2,local:local.inspect(),firstFrameMs}),
+    dispose(){if(disposed)return;disposed=true;subscriptions.abort();local.dispose();rig.removeFromParent();key.dispose();fill.dispose();for(const pair of pairs.values())for(const m of pair)m.dispose();pairs.clear();panel.remove();}
   };
 }

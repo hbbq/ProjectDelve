@@ -95,9 +95,10 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       if(instant||!animate()){node.rotation.y=to;rotations.delete(id);}else rotations.set(id,{node,from:node.rotation.y,to,start:performance.now()});
     }invalidate();
   }
-  function material(color,source,transparent=false,vertexColors=false) {
-    const key=JSON.stringify([color,source,transparent,vertexColors]);if(materials.has(key))return materials.get(key);
+  function material(color,source,transparent=false,vertexColors=false,local=false) {
+    const key=JSON.stringify([color,source,transparent,vertexColors,local]);if(materials.has(key))return materials.get(key);
     const m=new THREE.MeshBasicMaterial({color:color==='transparent'?'#19232c':color??'#666a68',transparent,opacity:source&&transparent?0:1,depthWrite:!transparent,side:THREE.FrontSide,vertexColors});
+    if(local)lighting.local.attach(m);
     materials.set(key,m);
     if(source){
       const url=new URL(source,new URL('./',import.meta.url)).href;
@@ -211,6 +212,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
     if(identity!==session){cancel();session=identity;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
     frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
+    lighting.local.update(data);
     // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat
     // terrain and fog by material; all dynamic objects retain ordinary meshes.
     const batches=new Map(),solidBatches=new Map();
@@ -228,7 +230,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
         batchCell('fog',material('#161b22'),x,y);continue;
       }
       const layer=terrainLayers(kind,{seed:frame.visualSeed,x,y,direction:tile?.direction,terrain});
-      batchCell('terrain',material(layer.base.fill,layer.base.image),x,y,layer.rotation);
+      batchCell('terrain',material(layer.base.fill,layer.base.image,false,false,true),x,y,layer.rotation);
       if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt));
       else if(layer.object){retain(`object:${x},${y}`,JSON.stringify(layer.object)+layer.objectRotation,'objects',()=>{
         const group=new THREE.Group(),fallback=plane(glyph(kind==='StoneFloorWithTable'?'▰':'♣'),x+.5,y+.5,.65,.65,heights.objects);

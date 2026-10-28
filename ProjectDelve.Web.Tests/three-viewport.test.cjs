@@ -113,7 +113,7 @@ test('Tabletop lamp initializes once, is world fixed, clamps preferences and per
   lamp.set({key:1.2,fill:.4,azimuth:90,elevation:35});assert.equal(key.intensity,1.2);assert.equal(fill.intensity,.4);assert.ok(key.position.x>0&&Math.abs(key.position.z)<1e-12);
   lamp.dispose();assert.equal(scene.children.length,0);assert.equal(root.children.length,0);
   const restored=createTabletopLighting({scene,root,invalidate:()=>{},environment});
-  assert.deepEqual(restored.inspect(),{enabled:false,key:1.2,fill:.4,azimuth:90,elevation:35,active:false,materials:0,firstFrameMs:null});restored.dispose();
+  assert.deepEqual(restored.inspect(),{enabled:false,key:1.2,fill:.4,azimuth:90,elevation:35,active:false,materials:0,local:{sources:0,buildMs:0,width:1,height:1,enabled:false,textureBytes:4},firstFrameMs:null});restored.dispose();
   const denied=createTabletopLighting({scene,root,invalidate:()=>{},environment:{...environment,localStorage:{getItem(){throw Error('denied');},setItem(){throw Error('denied');}}}});
   denied.set({enabled:false});denied.dispose();
 });
@@ -325,7 +325,7 @@ test('Ghost appearance shares cached resources and survives lighting, facing, Fo
       assert.equal(material.transparent,true);assert.equal(material.depthWrite,false);assert.equal(material.depthTest,true);
       assert.notEqual(material.onBeforeCompile,h.THREE.Material.prototype.onBeforeCompile);
       assert.equal(!!material.isMeshStandardMaterial,enabled);assert.equal(!!material.isMeshBasicMaterial,!enabled);
-      const native=h.THREE.ShaderLib[enabled?'standard':'basic'],shader={vertexShader:native.vertexShader,fragmentShader:native.fragmentShader};material.onBeforeCompile(shader);
+      const native=h.THREE.ShaderLib[enabled?'standard':'basic'],shader={uniforms:{},vertexShader:native.vertexShader,fragmentShader:native.fragmentShader};material.onBeforeCompile(shader);
       for(const stage of ['vertexShader','fragmentShader'])for(const chunk of native[stage].match(/#include <[^>]+>/g))assert.ok(shader[stage].includes(chunk),`Ghost must retain ${chunk}`);
       assert.notEqual(shader.fragmentShader,native.fragmentShader);assert.notEqual(shader.vertexShader,native.vertexShader);
       assert.equal(mesh.geometry,other.getObjectByName('body').geometry);assert.equal(material,other.getObjectByName('body').material);
@@ -983,4 +983,18 @@ test('Tabletop explicit mode and span changes preserve Full Fixed and Auto frami
 test('layout changes during a Fixed transition preserve the selected span',async()=>{
  const h=await harness(fixture(50));try{const c=h.viewport.camera,g=await moduleAt('three-camera-geometry.js');h.viewport.setPresentation('tabletop');c.setMode('full');h.viewport.settle();c.setMode('fixed');h.controls.span.value='10';h.controls.span.emit('change');h.flush(performance.now()+80);c.resize(1090,788);assert.ok(Math.abs(g.threeSpanScale(c.size,1,c.current())/c.current().scale-10)<1e-6);}
  finally{h.cleanup();}
+});
+
+test('local illumination follows displayed checkpoints, switches off, survives movement and clears on restart',async()=>{
+  const f=fixture(8,'blue');f.state.physical.board.terrain=[{kind:'Lava',position:{x:3,y:2}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);
+    const discovered=structuredClone(f);discovered.state.exploredCells.blue.push({x:3,y:2});h.viewport.renderFrame(discovered);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    const field=h.viewport.inspect().lighting.local;h.viewport.renderFrame(discovered);h.flush();assert.deepEqual(h.viewport.inspect().lighting.local,field);
+    await h.viewport.present({role:'Movement',unitId:'hero',path:[{x:2,y:2},{x:2,y:3}]},{},{skipping:()=>false,pause:async()=>{h.flush(performance.now()+230);h.viewport.lighting.set({enabled:false});assert.equal(h.viewport.inspect().lighting.local.enabled,false);h.viewport.lighting.set({enabled:true});}});
+    h.viewport.renderFrame(f);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);
+    h.viewport.renderFrame(discovered);h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,false);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,true);assert.equal(h.frames.size,0);
+    const restart=structuredClone(f);restart.metadata.sessionId='new';h.viewport.renderFrame(restart);h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
 });
