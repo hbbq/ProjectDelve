@@ -1,0 +1,36 @@
+{
+  "slug": "goblin-bishop",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Goblin Bishop, small green pointed-eared goblin with solemn face, hoop earrings, enormous split-pointed mitre made of stitched patched cream/purple/brown leather with wooden supports and uneven gold trim. Patched purple/brown ceremonial robes, same crooked wooden hooked staff with rope and rag ties close vertically. Full-length robes with practical worn brown boots. Preserve patch layout, hat shape and face in all views; not a literal chess piece. No magic effects.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-05bebd6c-ceed-49a9-9588-cd0206e37448.png",
+  "references": [
+    "assets/source/units/goblin-bishop.png"
+  ],
+  "visualReview": "Four complete goblin views; consistent solemn face/earrings, patched mitre/robe and hooked staff, all hat/staff/boots framed.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/goblin-bishop/reference/character-sheet.png",
+    "sha256": "20ac14d3fdc47860f88cf367084a3e7d1abc5443a68ece3c7d9b2c0f5f99c38b",
+    "bytes": 2478770,
+    "dimensions": [
+      1774,
+      887
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/goblin-bishop.png",
+      "sha256": "cbe8d1d47c76c55125fd46d1d77d99b30c0dd20240c5ccb0ed7f99d8f43de029"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

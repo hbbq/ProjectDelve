@@ -1,0 +1,36 @@
+{
+  "slug": "red-dragon",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Red Dragon head/neck identity: rich crimson scales, TWO dark swept-back horns, amber slit eyes, gold bony cheek/neck spines and warm gold segmented underbelly. Extrapolate natural classical dragon anatomy: FOUR weight-bearing legs, TWO separate batlike wings folded compactly against back, one long tapering tail curved gently beside hindquarters. Not humanoid, not wyvern. Four separated full-creature views front, side, rear, three-quarter in a 2x2 landscape layout with ample room, entire folded wings, tail tip, horns and all four feet included in each view. Identical limb/wing attachment and proportions across views. Neutral quadrupedal standing pose, mouth closed, no fire or scenery. Preserve natural body proportions; do not squash to a miniature footprint.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-a9995753-0637-4cf5-b8a1-783e09865dee.png",
+  "references": [
+    "assets/source/units/red-dragon.png"
+  ],
+  "visualReview": "Four complete creature views in 2x2; matching crimson/gold head and horns, four legs/two wings/one tail, no crop/base/fire. Wings partially folded naturally.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+    "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa",
+    "bytes": 2144040,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/red-dragon.png",
+      "sha256": "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

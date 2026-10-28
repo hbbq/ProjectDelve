@@ -1,0 +1,41 @@
+{
+  "slug": "royal-bishop",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Royal Bishop, close gray beard, tall ivory/blue split-point mitre with gold leaf trim, ivory-blue embroidered vestments and silver clasp. One silver ceremonial staff with gold/blue leaf finial held vertical close to body. Whole mitre/staff/shoes framed; clear front three-quarter pose, no magic.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-17f0cfb8-1fe8-4602-a4c9-524cb6dbff2d.png",
+  "references": [
+    "assets/source/units/royal-bishop.png",
+    "assets/source/units/royal-bishop/reference/character-sheet.png"
+  ],
+  "visualReview": "Single full Bishop matching face/mitre/vestments/staff, clear front three-quarter view, entire staff and shoes framed, no text/base.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-bishop/reference/full-body.png",
+    "sha256": "3a75d867749b5391b5c74ab71edda4d0d1e4b0171f65889a366e9a2419fd3570",
+    "bytes": 2137946,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-bishop.png",
+      "sha256": "8c1164d5b0a70ae5563cd4779da6841b4a9a0d1abd0792dac8c95dd805c7366e"
+    },
+    {
+      "path": "assets/source/units/royal-bishop/reference/character-sheet.png",
+      "sha256": "ec355376041a6a64b8c53a455cf2707b61335b18ec4e7c37c9b9856133a17e58"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "witch-queen",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same green female Goblin Witch Queen, amber eyes, small tusks/earrings, braided black hair, enormous crooked jeweled crown with bell/chains/rags, patched purple velvet gown and frayed cream lace/gold trim, same bone/bead/animal-skull/vial trinkets. Relaxed empty hands close at sides, complete crown/gown hem/shoes visible. Front three-quarter, no wand/staff/magic.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-3127875c-3b82-46c6-9f33-1483c9f7916a.png",
+  "references": [
+    "assets/source/units/witch-queen.png",
+    "assets/source/units/witch-queen/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete Witch Queen, matching face/crown/gown/charms, clean full hem/shoes and hands, clear front three-quarter; no magic/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/witch-queen/reference/full-body.png",
+    "sha256": "49ccb8270b32f3ac60e160610fab1c73ae72e3bc370a3e0b71a86e1f485bfffc",
+    "bytes": 2547142,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/witch-queen.png",
+      "sha256": "b8f80b479b2f432e159bbbdd57c51ba75a1f84c151b6fd4a25440e07ec7eaf90"
+    },
+    {
+      "path": "assets/source/units/witch-queen/reference/character-sheet.png",
+      "sha256": "c2d8e7ad8e4fb0914ccd6f0106e0af14cffe776e26b70130dba33f86583f5a4b"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

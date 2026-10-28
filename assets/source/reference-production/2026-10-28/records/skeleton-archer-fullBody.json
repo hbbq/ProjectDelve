@@ -1,0 +1,41 @@
+{
+  "slug": "skeleton-archer",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Skeleton Archer, ivory skull/empty sockets, charcoal ragged hood/cape, brown leather armor/bracers/greaves, back quiver/arrows, ONE undrawn wooden bow held vertical close at side. Preserve natural human skeletal anatomy, two arms/two legs and bony feet. Entire bow/string/feet framed. No flesh/extra weapon/glowing effects; clear three-quarter.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-e3a0cbdd-c547-4b24-a8f4-53869c0349fe.png",
+  "references": [
+    "assets/source/units/skeleton-archer.png",
+    "assets/source/units/skeleton-archer/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete skeletal archer, same skull/hood/armor/quiver/bow, correct two arms/two legs and bony feet, full bow framed; no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/skeleton-archer/reference/full-body.png",
+    "sha256": "a35346e2d4391b418a7f7c18251dc5b030086c83edf258818fc70a646b846840",
+    "bytes": 2261976,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/skeleton-archer.png",
+      "sha256": "ee65ef2c484286a4c90865943c58c1e3045f50c815dfa799bb1966edb3eb9ee5"
+    },
+    {
+      "path": "assets/source/units/skeleton-archer/reference/character-sheet.png",
+      "sha256": "6041987fc13fecf9f69712ede41698c4b9d5b6ca3ec1d148d1aa5832f602299f"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

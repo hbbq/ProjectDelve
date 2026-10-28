@@ -1,0 +1,41 @@
+{
+  "slug": "goblin",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: exact same wiry Goblin, stitched cap with brass disk, ear hoops, green scarf, scavenged brown leather harness and dented shoulder plate, patched trousers and boots. Empty hands at sides. Turn torso visibly 35 degrees from straight-on, preserve narrow face and crooked grin.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-bd940f1f-91ab-4ef1-8b39-c98d2bfd7f4a.png",
+  "references": [
+    "assets/source/units/goblin.png",
+    "assets/source/units/goblin/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete lean Goblin, clear three-quarter torso, identity and scavenged clothing preserved, hands/boots intact, no text/base.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/goblin/reference/full-body.png",
+    "sha256": "7f407a144a69c2a3170925324ff656f1cb57760d84089f24e31c14329c950da8",
+    "bytes": 2094219,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/goblin.png",
+      "sha256": "a5a018aa3c3781f42530f956e8299340342968434ee8e4b9c54d43773c9c9d4b"
+    },
+    {
+      "path": "assets/source/units/goblin/reference/character-sheet.png",
+      "sha256": "67aa9bff673353d046c16451ab74d4017cf512d8b133a2f042d27f69174a8561"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

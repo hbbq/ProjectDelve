@@ -1,0 +1,41 @@
+{
+  "slug": "hobby-knight",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Hobby Knight goblin on his own TWO feet, bucket helmet, scrap armor and purple cape. Hold same flat painted WOODEN TOY horse head with blue mane/cream face/red bridle on straight stick between legs, close to body. Clearly a toy head and stick with NO horse body or animal legs. Full stick and goblin boots visible.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-cce81505-22a6-45c0-b444-bb416464df1e.png",
+  "references": [
+    "assets/source/units/hobby-knight.png",
+    "assets/source/units/hobby-knight/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete two-legged goblin with wooden toy head/stick, matching armor/helmet/cape and face, no actual horse, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/hobby-knight/reference/full-body.png",
+    "sha256": "e1e358ee7b68b8cc0f874a25d2044a5378770ef1959f5d0dec6ad8fc79fe1260",
+    "bytes": 2241417,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/hobby-knight.png",
+      "sha256": "82997fc1c189881e77ae5ef4d383c7aacd620a3546cfcd242d41612bd03105cb"
+    },
+    {
+      "path": "assets/source/units/hobby-knight/reference/character-sheet.png",
+      "sha256": "3f25bd92726a25103effd57a08c05fc1d0a2bf2773e403903aa080390c1717d2"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

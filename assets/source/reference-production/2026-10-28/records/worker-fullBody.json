@@ -1,0 +1,41 @@
+{
+  "slug": "worker",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same green GOBLIN Worker, amber eyes/small tusks/pointed ears/hoop, patched brown cap, cream rolled sleeves, brown leather vest/harness, rock-filled back sack with rope loop, belt tool holsters with hammer/small tools, practical trousers/boots. One hand holds sack strap, other relaxed. Front three-quarter view showing sack edge and tools; full sack/cap/feet visible, no armor/weapon.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-7dc1fc51-aa7c-4364-9670-ec55e7ff88db.png",
+  "references": [
+    "assets/source/units/worker.png",
+    "assets/source/units/worker/reference/character-sheet.png"
+  ],
+  "visualReview": "One full goblin Worker, portrait face/cap and sheet sack/rope/tools/clothes preserved, correct limbs, full boots/sack framed, clear three-quarter and no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/worker/reference/full-body.png",
+    "sha256": "7e8d8222632c938e49dba6ce329df39be29a1376554763d3f5510f1bdc3e7b50",
+    "bytes": 2169624,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/worker.png",
+      "sha256": "c87127bd609d859b22181d31af3d5e49233090f3c86da0196f6a9de0f72a7cee"
+    },
+    {
+      "path": "assets/source/units/worker/reference/character-sheet.png",
+      "sha256": "8aadc6142a88a617df6fd703b32b81edcd7f8f3fb7aebbad4cb336ecc1896e82"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

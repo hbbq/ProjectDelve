@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms all five batch GLBs were generated under their paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/worker.png",
+  "projectConceptReferences": [
+    "assets/source/units/worker/reference/character-sheet.png",
+    "assets/source/units/worker/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/worker/original.glb",
+    "sha256": "e87fd84d08f0f4e00ff08a06b27b38e3f67995e4dec8c8d1506b020abadd46aa",
+    "bytes": 4343092,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/worker/v1/worker.glb",
+    "sha256": "e848ac933336c68b1bc1aef52cc324a956c3a6bf8418c0e16e6a34f059d113bc",
+    "bytes": 4343160
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "steps": [
+      "Verify reviewed source hash",
+      "Reject actual extension payloads; remove unused exporter extension declarations",
+      "Add source-hash metadata and rebuild JSON chunk deterministically",
+      "Preserve all geometry and three original 2048x2048 embedded textures",
+      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+    ],
+    "orientation": "+Y up; +Z forward visually verified after positive-Z Move in restricted Edge: inspection-v9ddWI/move-positive-z-front.png. Minimum Y zero; runtime places contact at the procedural base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/troll/provenance.json",
+    "verification": "Single shared recheck of terms/pricing for this batch; same 2025-07-11 terms and Pro commercial-use basis"
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent space; portability of normal-map tangent appearance remains advisory. Source unused FB_ngon_encoding declaration removed by preparation.",
+    "runtimeChecks": "Production preflight and finite geometry pass; geometry, images and bounds preserved; embedded images fully decoded with Pillow and restricted Edge. Production cache ready. CPU viewport tests cover grounding, facing, picking, clipping, resource sharing and cleanup."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/worker.glb",
+    "sha256BeforeMove": "e87fd84d08f0f4e00ff08a06b27b38e3f67995e4dec8c8d1506b020abadd46aa",
+    "sha256AfterMove": "e87fd84d08f0f4e00ff08a06b27b38e3f67995e4dec8c8d1506b020abadd46aa"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/worker/original.glb",
+    "bytes": 4343092,
+    "sha256": "e87fd84d08f0f4e00ff08a06b27b38e3f67995e4dec8c8d1506b020abadd46aa",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2004
+      },
+      {
+        "type": 5130562,
+        "length": 4341060
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9756,
+    "materials": [
+      {
+        "name": "tripo_material_fd161203-86b9-449f-9a5d-5833e24f9305",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 943020,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "70912c2f5a518d3541f5af954e874cdcede768e28d2dcb9f650c56111a2c9ea7"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 676214,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "69977e7b70ae671c0b63b357cfe976952797563bc87c7f37810db33951279931"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2398029,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "02aa4090ea1ab69948c6b26d0e6f4300ab1527e376f2fa21cb3a2018afcd57cc"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_fd161203-86b9-449f-9a5d-5833e24f9305",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.24288177490234375,
+        0,
+        -0.2214660942554474
+      ],
+      "max": [
+        0.24288177490234375,
+        0.9996337890625,
+        0.2214660942554474
+      ],
+      "dimensions": [
+        0.4857635498046875,
+        0.9996337890625,
+        0.4429321885108948
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.63,
+      "scale": 0.6302307974111613,
+      "maximumRadius": 0.18901580586903668,
+      "contact": {
+        "radius": 0.18901580586903668,
+        "minX": -0.15011925355755434,
+        "maxX": 0.14743628999982827,
+        "minZ": -0.10450316324442468,
+        "maxZ": 0.13957475318214602,
+        "bandHeight": 0.04724999999999999,
+        "samples": 1302
+      },
+      "dimensions": [
+        0.3061431493466846,
+        0.63,
+        0.27914950636429203
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.63,
+    "maximumRadius": 0.34,
+    "baseRadius": 0.28,
+    "measuredMaximumRadius": 0.18901580586903668,
+    "contact": {
+      "radius": 0.18901580586903668,
+      "minX": -0.15011925355755434,
+      "maxX": 0.14743628999982827,
+      "minZ": -0.10450316324442468,
+      "maxZ": 0.13957475318214602,
+      "bandHeight": 0.04724999999999999,
+      "samples": 1302
+    },
+    "base": {
+      "radius": 0.28,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.28,
+      "requiredRadius": 0.2290158058690367,
+      "margin": 0.09098419413096334,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-1wcHHA",
+    "move": "inspection-v9ddWI",
+    "findings": "Rear sack is visible and retained; it does not enlarge logical picking or the contact envelope.",
+    "metadataAdjustments": "none; existing targetHeight, maximumRadius and baseRadius retained",
+    "evidence": "THREE_VIEWPORT.md: Batch import five Tripo miniatures"
+  }
+}

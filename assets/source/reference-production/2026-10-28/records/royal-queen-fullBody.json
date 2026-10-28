@@ -1,0 +1,41 @@
+{
+  "slug": "royal-queen",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Royal Queen, light brown braided updo, blue-gray eyes, tall multi-point blue-gem silver/gold crown, silver/gold armor, blue high collar and royal blue/ivory/gold embroidered mantle. Match sheet armored legs/boots/tabard, empty gauntlets near sides. Full crown/cape/feet visible, clearly turned front three-quarter, no weapons or spell effects.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-0c68301d-062d-4432-a970-9a0f101ba492.png",
+  "references": [
+    "assets/source/units/royal-queen.png",
+    "assets/source/units/royal-queen/reference/character-sheet.png"
+  ],
+  "visualReview": "One full Queen, matching face/crown/armor/mantle, clear three-quarter stance, full gauntlets/boots/cape and no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-queen/reference/full-body.png",
+    "sha256": "0cab3a815c7ec9689957cac1712296d35d4c7a73e68e033c0ea588843a6419ce",
+    "bytes": 2102435,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-queen.png",
+      "sha256": "3b9207482b5ae8089f57b4da46624697a1568b5e38d4655ddbe15c22f6ad361d"
+    },
+    {
+      "path": "assets/source/units/royal-queen/reference/character-sheet.png",
+      "sha256": "012609ff0bd3413f1e3e61307fc928dfae25bb9256cc0278a8fbee577b29dbec"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "royal-peasant",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same young Royal Peasant, smooth spherical steel pawn helmet, short beard, blue/cream padded tunic and modest silver shoulders, brown trousers/boots. One simple wooden steel-tipped spear vertical close at side. Entire spear/helmet/boots framed; body front three-quarter, no shield or added armor.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-a8b227b6-3021-4f09-91af-fa65002f7184.png",
+  "references": [
+    "assets/source/units/royal-peasant.png",
+    "assets/source/units/royal-peasant/reference/character-sheet.png"
+  ],
+  "visualReview": "One full Peasant, matching face/sphere helmet/tunic/spear, clear three-quarter body and full boots/weapon, no text/base.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-peasant/reference/full-body.png",
+    "sha256": "1e41190146a049d7be1a53b13ed2b666fdab51f4565ffa1491056b4a42df1f64",
+    "bytes": 1892947,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-peasant.png",
+      "sha256": "d585d0ce03337a2e95ad9b84902ed932b4690b157a7d6a7ea3633d7450fc2fe7"
+    },
+    {
+      "path": "assets/source/units/royal-peasant/reference/character-sheet.png",
+      "sha256": "c2a38350d37c760ca53e225f5439a5cec3e749a0cf2d1889929c36b98af4aa8b"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

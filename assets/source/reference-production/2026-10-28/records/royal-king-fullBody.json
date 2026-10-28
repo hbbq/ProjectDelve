@@ -1,0 +1,41 @@
+{
+  "slug": "royal-king",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: exact Royal King, mature dark/graying bearded face, blue-gem crown with central tall finial, blue white-fur-edged mantle, silver/gold lion armor from sheet, empty gauntlets at sides. Keep full crown, cape hem and boots framed, visibly front three-quarter stance. No added sword/scepter/magic.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-d0c41659-3035-4684-81b6-f429765f84ff.png",
+  "references": [
+    "assets/source/units/royal-king.png",
+    "assets/source/units/royal-king/reference/character-sheet.png"
+  ],
+  "visualReview": "One full King, matching crown/face/armor/mantle, clear front three-quarter stance, hands and boots framed, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-king/reference/full-body.png",
+    "sha256": "db2379d6a8ce9d9f90a5ea38b5df107d3f7d9b51e3f35fe1ed4524787ab45a45",
+    "bytes": 2236169,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-king.png",
+      "sha256": "cc9b363bc250bdaa8dc5305e979284a3a905ee4cb7423f732bc45b1bab8e0443"
+    },
+    {
+      "path": "assets/source/units/royal-king/reference/character-sheet.png",
+      "sha256": "08e644daee646fd91538dd4dfbe0dc885a03a90007ac5f7ae14496b92de0ffd4"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

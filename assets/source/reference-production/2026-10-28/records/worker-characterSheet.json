@@ -1,0 +1,36 @@
+{
+  "slug": "worker",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Worker portrait, small sturdy green GOBLIN laborer, large pointed ears with simple metal hoop, amber eyes and small tusks, patched brown cloth cap, cream rolled-sleeve shirt and worn brown leather vest/harness. Keep large back sack containing a few gray rocks, rope loop tied to sack, belt tool holsters with wooden-handled hammer and small tools. Extend into practical brown trousers and sturdy worn work boots. One hand lightly holds sack strap as portrait, other relaxed near side; no invented weapon or armor. Same goblin face/gear/sack in all four full views, entire sack/feet framed.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-c210616a-91d6-4994-9e77-2398d5a4d78b.png",
+  "references": [
+    "assets/source/units/worker.png"
+  ],
+  "visualReview": "Four complete Worker views, same goblin face/cap/cream shirt/leather vest, rock sack/rope/tools coherent, intact hands/boots, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/worker/reference/character-sheet.png",
+    "sha256": "8aadc6142a88a617df6fd703b32b81edcd7f8f3fb7aebbad4cb336ecc1896e82",
+    "bytes": 2554890,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/worker.png",
+      "sha256": "c87127bd609d859b22181d31af3d5e49233090f3c86da0196f6a9de0f72a7cee"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

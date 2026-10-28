@@ -1,0 +1,41 @@
+{
+  "slug": "tower-troll",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Tower Troll, one stocky green-gray tusked troll in gray-painted wooden wearable turret costume with front face window, uneven battlements, rope and rusted brackets, plank shoulders/torso apron and purple cloth. Preserve TWO arms/TWO legs and wrapped feet. Empty hands near sides, entire battlements and feet framed, visible front and side turret geometry, no added club.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-18f114b5-b487-48cf-a3f3-85b8387e9e06.png",
+  "references": [
+    "assets/source/units/tower-troll.png",
+    "assets/source/units/tower-troll/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete Troll in matching turret costume, same face/window/planks/rope/purple cloth, correct limbs and framed feet/battlements, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/tower-troll/reference/full-body.png",
+    "sha256": "4a887a9f8e41b1866bae0ac921229bba4980fb314bcc4d2d095f03a2d0819a32",
+    "bytes": 2137356,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/tower-troll.png",
+      "sha256": "6308afa014bccc2dd959b473f98a6d1b7e724e875ab8ec180ada1a4536c9d434"
+    },
+    {
+      "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+      "sha256": "486762045a86b12381e27e2adbb4897d7684da18a47f539d7ee06be5ce447a26"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,36 @@
+{
+  "slug": "goblin-peasant",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Goblin Peasant with green skin, broad pointed ears, small tusks and proud grin; rusted improvised pawn helmet with enormous spherical metal top above flared cap, ragged purple scarf, rough brown stitched tunic, rusty scrap shoulder plate and metal medallion. Single crude wooden spear with uneven rusted leaf blade, rope and purple rag ties held vertically close. Extend to simple worn brown trousers and boots. Consistent ball helmet, face and equipment in all views; living goblin, no chess pedestal.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-04692b5b-4819-46cc-a694-16675143d924.png",
+  "references": [
+    "assets/source/units/goblin-peasant.png"
+  ],
+  "visualReview": "Four full coherent goblin views, distinctive spherical helmet, patched tunic, purple scarf and spear preserved; no clipping/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/goblin-peasant/reference/character-sheet.png",
+    "sha256": "bbd137bbfcd673ed50b18488a545ecbdc12daf9c64cf95f22d2eae339f43136c",
+    "bytes": 2557102,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/goblin-peasant.png",
+      "sha256": "e5a730442234d2a585a108b032a3ba2b4a9cb9776e22056bb8d8e223d45e31b1"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

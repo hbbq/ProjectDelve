@@ -1,0 +1,41 @@
+{
+  "slug": "wizard",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same elderly Wizard, white beard/gray hair, floppy blue pointed hat with amber band jewel, deep-blue/gold layered robes and cloak, round amber clasp. One twisted wooden amber-crystal staff held vertical close to body. Complete hat brim/tip, staff and boots visible; clear front three-quarter. No casting, no book or additional wand.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-707f70a9-62a9-45ce-be13-e4967e8dfc4e.png",
+  "references": [
+    "assets/source/units/wizard.png",
+    "assets/source/units/wizard/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete Wizard matching face/beard/hat/robes and single amber staff, clear three-quarter body, all staff/feet framed, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/wizard/reference/full-body.png",
+    "sha256": "fc129c327f0adbd57486069650c7161a72f65d7b859a50f305650aa7cd3d00bd",
+    "bytes": 2231876,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/wizard.png",
+      "sha256": "54e2dc4523aba7aa028c9016c1500faaa320493543e656933a32217d9239b777"
+    },
+    {
+      "path": "assets/source/units/wizard/reference/character-sheet.png",
+      "sha256": "3b6963f9c38fc8a3560e6ce823fd5cf3a19068cb38ad74c048aa1c21e12152a7"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

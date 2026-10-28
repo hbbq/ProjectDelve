@@ -98,6 +98,13 @@ runtime deletion. Unresolved files and any unverified visual behavior are report
 
 ### Optional Unit concepts and references
 
+Production 3D miniatures use the manual GLB inbox at `assets/import/models/`.
+See [the batch-import workflow](assets/import/models/README.md) for inspection,
+reviewed provenance, deterministic preparation and automatic source preservation
+and catalog registration. The approved catalog currently includes Zombie, Troll,
+Goblin, Barbarian, Cleric, Hobby Knight and Worker. `THREE_VIEWPORT.md` records
+dimensions, gameplay QA and mixed-scene measurements.
+
 Any Unit Type may keep optional concept material under `assets/source/units/<unit>/`:
 `concepts.md` may contain backstory, established visual identity, design thoughts,
 speculative ideas and future possibilities, with no mandatory headings or schema.

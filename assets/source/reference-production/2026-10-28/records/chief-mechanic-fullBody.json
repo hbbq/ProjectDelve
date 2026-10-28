@@ -1,0 +1,41 @@
+{
+  "slug": "chief-mechanic",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Chief Mechanic, goggles on forehead, short dark graying beard, charcoal shirt, brown leather apron and harness with holstered wrench/screwdriver/pliers, gloves, work trousers and boots. Empty hands relaxed.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-c2bbeb57-9bb6-4a7b-82b2-33ae6b5102f7.png",
+  "references": [
+    "assets/source/units/chief-mechanic.png",
+    "assets/source/units/chief-mechanic/reference/character-sheet.png"
+  ],
+  "visualReview": "Single full mechanic, clear three-quarter body, coherent face/goggles/apron/tools, complete limbs and boots; no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/chief-mechanic/reference/full-body.png",
+    "sha256": "48f64823e7020470744a3abf6807ceaa0e01b6bf7f3ae96ff51e53ff8a8477c0",
+    "bytes": 2030137,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/chief-mechanic.png",
+      "sha256": "2e3da066e665877ad0400f557cfaebc04b6d9e7c1b5b690d0a6ebf3feedb647b"
+    },
+    {
+      "path": "assets/source/units/chief-mechanic/reference/character-sheet.png",
+      "sha256": "e606d1c6fdd44020f51b6dc1b8dde3c08942819d59c8f8935c61033eb1e2696e"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

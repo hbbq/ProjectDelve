@@ -1,0 +1,41 @@
+{
+  "slug": "displacer-demon",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Displacer Demon, angular violet face, TWO ram horns, purple-black skin, silver-edged dark armor and layered violet cloth from sheet. Two arms and two legs, relaxed empty hands. Crisp opaque geometry, suppress teleport wisps and haze, no wings or tail added. Entire horns and boots visible.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-4d76eed8-c003-4af8-892f-514a5d71ada2.png",
+  "references": [
+    "assets/source/units/displacer-demon.png",
+    "assets/source/units/displacer-demon/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete demon, clear three-quarter body, matching horns/face/armor, solid readable geometry and complete limbs; no base or haze.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/displacer-demon/reference/full-body.png",
+    "sha256": "f12d861483e30092b601a61af1f0853f6de2969a738173d25ff89431dda7065e",
+    "bytes": 2080187,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/displacer-demon.png",
+      "sha256": "3945acce8622bc07fde0081b87de5225d1f006dc0a0db225575d8fbcc2543fb2"
+    },
+    {
+      "path": "assets/source/units/displacer-demon/reference/character-sheet.png",
+      "sha256": "abf2162a18d3a62dc752cfb2c68a76df0a688525b6f71df17ec574dc328d98c5"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

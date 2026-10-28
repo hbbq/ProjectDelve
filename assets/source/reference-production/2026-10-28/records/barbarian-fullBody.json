@@ -1,0 +1,41 @@
+{
+  "slug": "barbarian",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Subject: same Barbarian, preserve single engraved axe, long dark hair and beard, brown leather/fur armor and crimson cloth. Axe held close beside thigh, neutral stance.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-9b6e4add-b982-4f6e-adbf-28176d79bc5a.png",
+  "references": [
+    "assets/source/units/barbarian.png",
+    "assets/source/units/barbarian/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete Barbarian; intact hands, boots and single axe, coherent portrait/sheet identity, gray background; shallow three-quarter orientation.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/barbarian/reference/full-body.png",
+    "sha256": "150e2cfba20c6b4c00a4301f434ed2c8c4ad111e66bfc1aafe6a674fa343af4a",
+    "bytes": 2227179,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/barbarian.png",
+      "sha256": "d91a331beb78e1f4f67a2aec933b5c5df73819ff9d1751c542ec6af829e58722"
+    },
+    {
+      "path": "assets/source/units/barbarian/reference/character-sheet.png",
+      "sha256": "eb2cad6fff420872e537798599b2af2c72ecd0aa831e4a62cf8f246063aa85f4"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

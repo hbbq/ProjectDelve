@@ -1,0 +1,970 @@
+{
+  "canonicalTypes": 32,
+  "protectedFiles": 177,
+  "protectedFilesUnchanged": true,
+  "existingImagesDecoded": 162,
+  "outputImagesDecoded": 64,
+  "outputs": [
+    {
+      "unitTypeId": "barbarian-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/barbarian/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "barbarian-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/barbarian/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "bomb-imp-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/bomb-imp/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "bomb-imp-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/bomb-imp/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "castle-guard-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/castle-guard/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "castle-guard-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/castle-guard/reference/full-body.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "chief-mechanic-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/chief-mechanic/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "chief-mechanic-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/chief-mechanic/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/cleric/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/cleric/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "diamond-kart-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/diamond-kart/reference/character-sheet.png",
+      "dimensions": [
+        1983,
+        793
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "diamond-kart-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/diamond-kart/reference/full-body.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "displacer-demon-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/displacer-demon/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "displacer-demon-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/displacer-demon/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "geomancer-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/geomancer/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "geomancer-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/geomancer/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "ghost-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/ghost/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "ghost-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/ghost/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-bishop-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/goblin-bishop/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-bishop-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/goblin-bishop/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-king-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/goblin-king/reference/character-sheet.png",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-king-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/goblin-king/reference/full-body.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-peasant-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/goblin-peasant/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-peasant-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/goblin-peasant/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/goblin/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "goblin-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/goblin/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/grunt/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/grunt/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "hobby-knight-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/hobby-knight/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "hobby-knight-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/hobby-knight/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "labyrinth-shaper-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/labyrinth-shaper/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "labyrinth-shaper-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/labyrinth-shaper/reference/full-body.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "locomotive-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/locomotive/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "locomotive-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/locomotive/reference/full-body.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "red-dragon-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "red-dragon-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/red-dragon/reference/full-body.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "rogue-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/rogue/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "rogue-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/rogue/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-bishop-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/royal-bishop/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-bishop-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/royal-bishop/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-king-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/royal-king/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-king-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/royal-king/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-knight-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-knight-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/royal-knight/reference/full-body.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-peasant-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/royal-peasant/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-peasant-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/royal-peasant/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-queen-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/royal-queen/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "royal-queen-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/royal-queen/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "shaman-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/shaman/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "shaman-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/shaman/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "skeleton-archer-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/skeleton-archer/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "skeleton-archer-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/skeleton-archer/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "tower-troll-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "tower-troll-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/tower-troll/reference/full-body.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "troll-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/troll/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "troll-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/troll/reference/full-body.png",
+      "dimensions": [
+        1143,
+        1376
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "witch-queen-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/witch-queen/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "witch-queen-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/witch-queen/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/wizard/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/wizard/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "worker-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/worker/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "worker-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/worker/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "zombie-type",
+      "kind": "characterSheet",
+      "path": "assets/source/units/zombie/reference/character-sheet.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    },
+    {
+      "unitTypeId": "zombie-type",
+      "kind": "fullBody",
+      "path": "assets/source/units/zombie/reference/full-body.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "alphaExtrema": null,
+      "exifOrientation": null,
+      "embeddedColorProfile": false
+    }
+  ],
+  "missing": []
+}

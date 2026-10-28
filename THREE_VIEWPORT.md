@@ -728,7 +728,8 @@ local preference; invalid or unavailable storage falls back safely. Flat always
 uses its original token presentation. Classic, Enhanced, Designer and Generator
 rendering are unchanged.
 
-The approved Tripo H3.1 Zombie and Tripo Troll are registered in the normal production catalog.
+The approved Tripo H3.1 Zombie and Tripo Troll, Goblin, Barbarian, Cleric,
+Hobby Knight and Worker are registered in the normal production catalog.
 Other Types retain Cardboard until approved assets exist. Test-owned procedural
 figures remain isolated QA fixtures and never substitute for production artwork.
 
@@ -1547,3 +1548,213 @@ tests; `tools/troll-qa-plans.cjs`, `tools/test-miniature-publish.cjs`; this docu
 The preparation tool and clipping-pool implementation are reused unchanged.
 **No Engine or server observation implementation files changed.** No rules,
 logical footprints, authored scenarios or `CONSTRAINTS.md` changes.
+
+## Batch import five Tripo miniatures — 2026-10-28
+
+Goblin, Barbarian, Cleric, Hobby Knight and Worker are approved ordinary production
+miniatures, alongside the unchanged Zombie and Troll. All five supplied files
+were compatible; none were substituted, optimized, failed or deferred. Upright
+Tabletop Miniatures resolves through the existing catalog/cache. Lying, loading,
+failed, unsupported and unregistered Types retain Cardboard. Other renderer modes,
+all logical footprints, camera limits, clipping and picking are unchanged.
+
+The initial inbox contained exactly those five GLBs. Additional exports arrived
+later and remain unimported. Repeating this task's explicit `--only` selection
+returns `[]` without touching those arrivals or rewriting completed assets.
+Existing untracked portrait/reference artwork was preserved.
+
+### Workflow and production paths
+
+`assets/import/models/` is the standard manual inbox. Follow its
+[README](assets/import/models/README.md): export a Tripo GLB, use the exact canonical
+slug, place it in the inbox, run `node tools/import-unit-models.cjs`, inspect the
+JSON/geometry and both Khronos reports, record reviewed hash-bound provenance,
+then run with `--apply`. `--only slug,slug` restricts a task's scope. The small
+wrapper reuses `inspect-glb.cjs`, runtime preflight/contact queries and the
+unchanged `prepare-unit-model.cjs`; it adds no import framework or runtime branch.
+
+The importer handles each file independently, refuses existing source/runtime/
+registrations, preserves catalog numeric spelling, writes runtime/source copies
+exclusively, verifies original SHA-256 before and after preservation, updates
+provenance/catalog and only then removes the successful inbox copy. Incompatible,
+unreviewed or failed inputs stay in the inbox. Empty/unselected runs do no work;
+archived sources are never scanned. An interrupted write retains input and any
+recovery evidence for inspection. No watcher, background service or UI is added.
+
+For every slug below:
+
+- Source: `assets/source/models/units/<slug>/original.glb`.
+- Provenance/notes: the same directory's `provenance.json` and `README.md`.
+- Runtime: `ProjectDelve.Web/wwwroot/art/models/units/<slug>/v1/<slug>.glb`.
+- Model ID `<slug>/v1`, version `tripo-v1`, canonical Type `<slug>-type`.
+
+`tripo-v1` identifies this repository export, not an inferred generation model.
+All five use the established 12,000-triangle, two-primitive, 2048-texture budget.
+Registration is in `wwwroot/art/models/unit-visuals.json` with ordinary Release
+static asset packaging. Source files stay outside published wwwroot.
+
+### Geometry, size and provenance
+
+All five are self-contained glTF 2.0 with one identity-transform root (positive
+determinant 1), mesh, triangle primitive and opaque PBR material. POSITION, NORMAL,
+TEXCOORD_0; finite geometry, zero minimum Y, no skinning, animation, morph, external
+resources, lights, cameras or authored base. Each retains three embedded 2048²
+images: base-color JPEG, metallic/roughness JPEG and normal PNG. All fifteen images
+fully decode using Pillow and in Edge. Each model estimates 64 MiB decoded RGBA
+plus mipmaps. No simplification, map resizing, axis correction or deformation.
+Preparation removes unused exporter extension declarations and adds source-hash
+metadata, retaining all binary geometry and image bytes reproducibly.
+
+| Slug | Source / runtime bytes | Triangles | Height | Actual / allowed radius | Contact radius | Base radius | Contact margin |
+| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |
+| goblin | 5,008,652 / 5,008,720 | 9,852 | .55 | .131841 / .32 | .131841 | .27 | .138159 |
+| barbarian | 4,449,200 / 4,449,268 | 9,456 | .80 | .227138 / .42 | .194523 | .34 | .145477 |
+| cleric | 4,159,960 / 4,160,028 | 9,854 | .78 | .194711 / .39 | .187447 | .32 | .132553 |
+| hobby-knight | 4,400,204 / 4,400,276 | 9,849 | .68 | .207796 / .40 | .168170 | .31 | .141830 |
+| worker | 4,343,092 / 4,343,160 | 9,756 | .63 | .189016 / .34 | .189016 | .28 | .090984 |
+
+Dimensions are Cells after uniform target-height normalization. Full original and
+normalized X/Y/Z bounds, materials, image dimensions/hashes, hierarchy and transforms
+are in each provenance record. Contact is the conservative low 7.5%-height vertex
+band about the model's facing pivot. Every new model exceeds the target .04 margin;
+none changes `targetHeight`, `maximumRadius` or `baseRadius`. All remain 1×1.
+Zombie's current height .75/base .25 and Troll's height 1.00/base .44 remain
+unchanged; Troll's existing contact-margin warning remains advisory.
+
+Khronos glTF Validator 2.0.0-dev.3.10 reports **zero errors** for all ten original/
+runtime validations. Each has one generated-tangent-space warning. Each original
+also has an informational unsupported unused `FB_ngon_encoding` declaration;
+prepared exports have no extension declarations/payloads. Tangent-space appearance
+can vary between implementations. Triangle counts exceed the advisory 8,000 target
+but fit the hard budget; transfer size and decoded texture memory exceed preferred
+defaults. Local measurements below support retaining supplied quality for V1.
+
+All originals identify Tripo. The user confirms paid Pro generation for this exact
+batch. Exact generation model/version, date, settings, selected generation input
+and export receipt remain **unknown**. Existing portrait and character-sheet/
+full-body reference paths are recorded without claiming they were generation inputs.
+Full source/runtime SHA-256 and equal before/after-move hashes are stored per model.
+
+Rights reuse the established Zombie/Troll basis, checked once for this batch on
+2026-10-28: [Tripo terms](https://www.tripo3d.ai/terms), still dated 2025-07-11,
+section 5.2.2, and [Pro commercial-use pricing](https://www.tripo3d.ai/pricing).
+The paid-user publication, distribution and licensing rights support the existing
+game/web/repository distribution policy, subject to the agreement and third-party
+rights. Existing competing-service restrictions and service-provision license are
+recorded in provenance. No separate public asset license or exclusivity is invented.
+
+### Restricted Edge gameplay and visual findings
+
+Production-mode isolated 5081 host; original 5080 listener/PID 16984 preserved.
+`node tools/batch-model-qa-plans.cjs` produces data-only plans for the protected
+dispatcher. All scenarios are test-owned and use ordinary production registration.
+Canonical mixed/detail/posture scenes retain real stats. Move/Attack/picking
+fixtures use simple test-owned stats to exercise presentation uniformly: canonical
+Worker cannot Attack and Hobby Knight uses L-shaped movement. No game rule changes.
+
+All five fronts face +Z after an observed positive-Z Move. Side views and opposite
+headings show grounding on the base top, proportionate scale, Side rims and correct
+turning. Barbarian's axe is retained within its radial allowance. Cleric's staff
+and robe hem fit its supporting base. Hobby Knight's wooden horse projects forward
+without a fit conflict. Worker's rear sack is visible and does not enlarge logical
+picking. Goblin stays small at .55 height and benefits from zoom at distant framing.
+None needs a metadata adjustment or Type-specific rendering code.
+
+Captured and inspected PNGs under `.playwright-cli/browser-qa/`:
+
+| Check | Goblin | Barbarian | Cleric | Hobby Knight | Worker |
+| --- | --- | --- | --- | --- | --- |
+| Close front/side/rear | mSaBYa | Moj7ZS | M1ndP7 | Js50Eu | 1wcHHA |
+| Positive-Z Move | FxuJx8 | eIHBtO | ejjQFR | nSxCJC | v9ddWI |
+| Attack facing | 4D1v2g | 412VWQ | Rz8a6A | jSroZH | a0OgBR |
+| Lying / restored Upright | On9H3Z | NnpbWM | iDYXSM | aP0Xa3 | cJDELm |
+| Hidden / entered / left FoW | v6X19P | IEd9Ox | aAaYGO | TYrv4p | IiJcKb |
+| Canvas-center picking | CZy3pf | sDEIQU | 9ebGWQ | 4gmrUJ | yvSLPT |
+
+Each table entry is an `inspection-` directory suffix. `inspection-Ax7CZ9` verifies
+all seven Types together, blue/red bases, lighting On/Off, perspective 65° angled/
+side/rear views, orthographic overhead and 600×850 narrow layout. `inspection-j4L3Cd`
+verifies repeated Cardboard/Miniatures and Flat/Classic/Enhanced/Tabletop switches,
+retained resources and restart. `inspection-LbCpNz/restored.png` verifies all seven
+after reload; its earlier diagnostic snapshot intentionally catches loading fallback.
+Local contact sheets and measurement JSON are under `.playwright-cli/batch-models/`.
+
+Final successful plans have no console errors or failed asset requests. Refresh/
+scenario replacement can abort the superseded SSE request. An early performance
+fixture duplicated unique Heroes on one Side; it was corrected to one per Side.
+The initial picking fixture incorrectly retained Troll's Smash Door follow-up;
+it now stops after the supplied Stay/selection check. One mixed capture caught a
+400 command response during replacement; the fresh repeat above passed. These
+were QA fixture/timing corrections, with no runtime/rules validation changes.
+
+### Mixed-scene performance
+
+Headed Edge, 1440×1000, dedicated 12×8 Stone Floor board, all seven production
+Types, perspective 65°, lighting On. The two scenes contain one of each Type and
+one per Side of each Type respectively. Reset after models are ready, then eight
+alternating rotations sample warm CPU submission and frame intervals. Complete
+scene counts include terrain, bases and feedback. These are short local CPU/frame
+samples, **not GPU timings or sustained/low-end FPS claims**.
+
+| Miniatures | Model triangles | Scene triangles | Draw calls | Warm CPU render p95 ms | Frame interval p95 ms | Camera samples |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 7 | 67,945 | 69,115 | 35 | 2.3 | 16.73 | 14 |
+| 14 | 135,890 | 138,012 | 63 | 2.4 | 16.70 | 13 |
+
+Both scenes retain seven shared model geometries, fourteen lit/Off model material
+variants, twenty-one shared model textures and one fetch per model. Total renderer
+resources are **38 textures / 20 geometries / 8 programs**, with **459 MiB** estimated
+scene textures (448 MiB for models). Resource counts remain constant when doubling
+instances and after renderer cycles. Ordinary model clones do not duplicate maps
+or geometry. Repeated switches retain ready cached sources without refetches.
+
+| Model | Fetch / decode / total ms, 7-figure scene | Fetch / decode / total ms, 14-figure scene |
+| --- | --- | --- |
+| Goblin | 78.7 / 362.4 / 441.4 | 168.6 / 336.7 / 505.4 |
+| Barbarian | 127.5 / 304.5 / 432.1 | 171.1 / 322.5 / 493.7 |
+| Cleric | 126.3 / 288.8 / 415.3 | 161.9 / 323.4 / 485.5 |
+| Hobby Knight | 127.0 / 277.6 / 404.6 | 170.9 / 294.5 / 465.5 |
+| Worker | 126.7 / 295.6 / 422.3 | 165.0 / 346.5 / 512.1 |
+| Zombie | 153.6 / 301.3 / 455.1 | 206.0 / 313.2 / 519.3 |
+| Troll | 154.3 / 756.1 / 910.4 | 208.5 / 646.4 / 854.9 |
+
+Evidence: `inspection-XNXTaI` and `inspection-188wOZ`, `warm.yaml` and warm PNGs.
+Texture memory is an uncompressed RGBA+mipmap estimate, not measured driver VRAM.
+The large seven-Type texture budget is the primary remaining cost; no destructive
+optimization was warranted by these CPU samples. Browser cache and concurrent
+decode affect load timings; this is not an isolated network benchmark.
+
+### Automated verification and remaining limits
+
+Focused asset/catalog/model/base/viewport tests pass. New checks cover exact
+registrations/dimensions, paid provenance and references, original/runtime and move
+hashes, deterministic preparation, geometry/map preservation, independent deferral,
+overwrite refusal, successful import and repeat idempotency including unselected
+arrivals. Five actual-geometry viewport cases verify shared clones, grounding,
+facing with stationary bases, both projection pick paths, Posture restoration,
+lighting, explored-column clipping across hidden gaps, switching and cleanup.
+Node CPU geometry tests strip image bindings only in temporary memory; original
+texture decode/material handling is verified separately in Pillow and Edge.
+
+All 567 client/security tests and the .NET regression suites pass (1,601 Engine + 384 Web =
+1,985 .NET tests). Debug and Release solution builds are warning-free. Actual
+Release publish checks cover both test-fixture and ordinary packaging: exactly
+seven production GLBs, complete catalog/local loader graph, no source assets or
+QA registration in shipping output. All seven reproduction checks pass.
+
+Remaining manual gaps are frame-exact transient FoW pixel assertions, native touch,
+real-driver injected context loss/network failure, sustained GPU and low-end-device
+measurements. Existing/new CPU tests cover their relevant geometry/lifecycle/failure
+contracts, but do not establish those hardware behaviors. At distant/narrow framing
+small figures and equipment lose detail; normal zoom remains available. Tangent
+portability and unknown generation settings remain recorded uncertainties.
+
+Changed files: the five source GLBs/READMEs/provenance files and runtime GLBs;
+`unit-visuals.json`; inbox README; `tools/import-unit-models.cjs`,
+`tools/batch-model-qa-plans.cjs`, `tools/test-miniature-publish.cjs`;
+`batch-models.test.cjs`, `three-viewport.test.cjs`, `zombie-model.test.cjs`,
+`MiniatureHostingTests.cs`; repository README and this document. Existing supplied
+reference artwork is used in provenance, without modification.
+**No Engine or server observation implementation files changed.** No renderer
+implementation, rules, logical footprint, authored scenario or `CONSTRAINTS.md`
+changes. Zombie/Troll source/runtime assets and registrations remain unchanged.

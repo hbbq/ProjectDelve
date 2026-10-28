@@ -1,0 +1,41 @@
+{
+  "slug": "diamond-kart",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: ONE complete Diamond Kart vehicle-and-driver assembly, exactly one seated goblin in the red four-wheeled kart. Same goggles/cap/scarf, diamond nose emblem, two brass lamps, tubular bumper, four black tires, rear engine and curved exhaust. Hands on wheel, feet in kart. Slightly elevated front three-quarter camera to show front and side structure; parked. Entire vehicle including all wheels and exhaust framed. No separate driver or added passengers, no track/smoke.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-013b0f4e-7c5b-42ba-b41c-9c7ff17ce0f6.png",
+  "references": [
+    "assets/source/units/diamond-kart.png",
+    "assets/source/units/diamond-kart/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete vehicle-and-driver, front three-quarter, intact visible wheels/body/exhaust, coherent portrait/sheet design; far fourth wheel naturally occluded. No track/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/diamond-kart/reference/full-body.png",
+    "sha256": "9bf40174d355a80c7137f610f4545f665a3bed2a619b068979145141a75bfb8c",
+    "bytes": 2069419,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/diamond-kart.png",
+      "sha256": "f8ed8db05e9a2906a5a8b870e4aee1481fe216e2ea2191a20d364cabee8f3088"
+    },
+    {
+      "path": "assets/source/units/diamond-kart/reference/character-sheet.png",
+      "sha256": "b3cb678bdbdc4caa5451ac33fee14daf6d1e5b5b833cc3d5c6c84c1823ffdcee"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,36 @@
+{
+  "slug": "grunt",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Grunt, burly gray-brown-skinned tusked infantry monster, heavy brow, short coarse dark hair, pointed ears, broad rough face. Dented dark iron armor over brown leather, simple straps and rivets. Preserve visible crude broad iron spear/polearm on wooden shaft close vertically beside body. Extend armor into practical leather/iron greaves and boots, not elite ornate armor. Two arms/two legs, no horns or extra gear. Keep weapon fully framed.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-09f48e15-7ab2-4316-8f55-ac0cd2ef402c.png",
+  "references": [
+    "assets/source/units/grunt.png"
+  ],
+  "visualReview": "Four complete Grunt views, gray-brown tusked face and crude dented iron armor coherent, one full polearm each view, intact limbs.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/grunt/reference/character-sheet.png",
+    "sha256": "75f221d52f69ef9dc1269a9aeaed445e9e5969c5cc3ebe7e0653bd970436953c",
+    "bytes": 2724974,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/grunt.png",
+      "sha256": "dc411927145faf26751c91da700ef47b76dac4fcdd0a4b711e04dfadf45ad713"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

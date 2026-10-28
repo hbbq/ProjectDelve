@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms all five batch GLBs were generated under their paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/hobby-knight.png",
+  "projectConceptReferences": [
+    "assets/source/units/hobby-knight/reference/character-sheet.png",
+    "assets/source/units/hobby-knight/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/hobby-knight/original.glb",
+    "sha256": "a4d4c577786d9e5eefa4579505077f1b6f1cc1acb05efdda735fc8cfe35df3bf",
+    "bytes": 4400204,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/hobby-knight/v1/hobby-knight.glb",
+    "sha256": "7c4679b7c42cb8e1d3720f552171f197df61eff2e3313ca63cbbad179009037a",
+    "bytes": 4400276
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "steps": [
+      "Verify reviewed source hash",
+      "Reject actual extension payloads; remove unused exporter extension declarations",
+      "Add source-hash metadata and rebuild JSON chunk deterministically",
+      "Preserve all geometry and three original 2048x2048 embedded textures",
+      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+    ],
+    "orientation": "+Y up; +Z forward visually verified after positive-Z Move in restricted Edge: inspection-nSxCJC/move-positive-z-front.png. Minimum Y zero; runtime places contact at the procedural base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/troll/provenance.json",
+    "verification": "Single shared recheck of terms/pricing for this batch; same 2025-07-11 terms and Pro commercial-use basis"
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent space; portability of normal-map tangent appearance remains advisory. Source unused FB_ngon_encoding declaration removed by preparation.",
+    "runtimeChecks": "Production preflight and finite geometry pass; geometry, images and bounds preserved; embedded images fully decoded with Pillow and restricted Edge. Production cache ready. CPU viewport tests cover grounding, facing, picking, clipping, resource sharing and cleanup."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/hobby-knight.glb",
+    "sha256BeforeMove": "a4d4c577786d9e5eefa4579505077f1b6f1cc1acb05efdda735fc8cfe35df3bf",
+    "sha256AfterMove": "a4d4c577786d9e5eefa4579505077f1b6f1cc1acb05efdda735fc8cfe35df3bf"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/hobby-knight/original.glb",
+    "bytes": 4400204,
+    "sha256": "a4d4c577786d9e5eefa4579505077f1b6f1cc1acb05efdda735fc8cfe35df3bf",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2020
+      },
+      {
+        "type": 5130562,
+        "length": 4398156
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9849,
+    "materials": [
+      {
+        "name": "tripo_material_2f0e364b-dd75-4a96-b5ee-0b01f6a92b43",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1122270,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "f31b36c959044d190c53581bffacb5263bfd3ce07117e355931f341efae1e824"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 854886,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "9ebf0b048297fe01e219a3d7d230a25330ec57ee5c2bd1541066ebd887d0fc22"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2071541,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "b9ccb10464738100c0d2f5732ae4c69d9df79e155cfc494cb870f7d55c51214b"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_2f0e364b-dd75-4a96-b5ee-0b01f6a92b43",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.23934170603752136,
+        0,
+        -0.30474853515625
+      ],
+      "max": [
+        0.23934170603752136,
+        0.998748779296875,
+        0.30474853515625
+      ],
+      "dimensions": [
+        0.4786834120750427,
+        0.998748779296875,
+        0.6094970703125
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.68,
+      "scale": 0.6808518959880222,
+      "maximumRadius": 0.20779584516098798,
+      "contact": {
+        "radius": 0.1681701105276901,
+        "minX": -0.16295625434465427,
+        "maxX": 0.15806308748319434,
+        "minZ": -0.11537994120871148,
+        "maxZ": 0.03350444333401129,
+        "bandHeight": 0.05100000000000001,
+        "samples": 468
+      },
+      "dimensions": [
+        0.32591250868930854,
+        0.68,
+        0.4149772359214105
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.68,
+    "maximumRadius": 0.4,
+    "baseRadius": 0.31,
+    "measuredMaximumRadius": 0.20779584516098798,
+    "contact": {
+      "radius": 0.1681701105276901,
+      "minX": -0.16295625434465427,
+      "maxX": 0.15806308748319434,
+      "minZ": -0.11537994120871148,
+      "maxZ": 0.03350444333401129,
+      "bandHeight": 0.05100000000000001,
+      "samples": 468
+    },
+    "base": {
+      "radius": 0.31,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.31,
+      "requiredRadius": 0.2081701105276901,
+      "margin": 0.1418298894723099,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-Js50Eu",
+    "move": "inspection-nSxCJC",
+    "findings": "Wooden hobby horse extends forward but remains inside the authored base/model envelopes.",
+    "metadataAdjustments": "none; existing targetHeight, maximumRadius and baseRadius retained",
+    "evidence": "THREE_VIEWPORT.md: Batch import five Tripo miniatures"
+  }
+}

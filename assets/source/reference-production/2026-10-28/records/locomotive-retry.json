@@ -1,0 +1,7 @@
+{
+  "unitTypeId": "locomotive-type",
+  "reason": "Initial full-body draft added a fourth leading wheel; rejected before final save.",
+  "rejectedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-38242aa6-3fc2-4d30-8d84-b01c78d9bcc2.png",
+  "correction": "One targeted built-in edit removed extra wheel; accepted output saved as full-body.png.",
+  "successfulExistingOutputsOverwritten": false
+}

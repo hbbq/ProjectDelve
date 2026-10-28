@@ -1,0 +1,41 @@
+{
+  "slug": "goblin-king",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same squat Goblin King, tall jeweled scrap crown and central finial, small tusks/earrings, patched purple/crimson cape, brass breastplate with red crown emblem, short wooden painted scepter held close. Preserve feet, crown and cape hem, no magic.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-e238d705-9dc2-4264-9920-889c61d8e775.png",
+  "references": [
+    "assets/source/units/goblin-king.png",
+    "assets/source/units/goblin-king/reference/character-sheet.png"
+  ],
+  "visualReview": "Single full Goblin King, crown/cape/armor/scepter match references; intact limbs and full crown/hem; no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/goblin-king/reference/full-body.png",
+    "sha256": "48dc34a58b3da00a8eb66076a7338e86e87dc7c035c07c42a9d5cf3348fcba3b",
+    "bytes": 2156376,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/goblin-king.png",
+      "sha256": "0bdfc46fa42acc30013827400fa45d4500bca9777800e5c0d377853762a9b685"
+    },
+    {
+      "path": "assets/source/units/goblin-king/reference/character-sheet.png",
+      "sha256": "c36708ee102a9cfd4d34c6102b38c3c67fb858131987e2e9a66bc4508f165785"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

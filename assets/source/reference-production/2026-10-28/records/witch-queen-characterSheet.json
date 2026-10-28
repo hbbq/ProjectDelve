@@ -1,0 +1,36 @@
+{
+  "slug": "witch-queen",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact female green Goblin Witch Queen portrait, sly amber eyes, small tusks, pointed ears with hanging earrings, black braided hair. Enormous crooked multi-prong improvised gold/brass crown with mismatched gems, chains/rags and small bell. Extravagant patched dark-purple velvet gown/mantle with frayed cream lace and homemade gold trim, tooth/bead necklaces, small animal skull and vial pinned to shoulder. Extend into coherent full-length patched gown and worn dark shoes just visible. Preserve face/crown/trinkets, two hands relaxed at sides, no wand/staff/weapons/magic. Entire crown and hem framed.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-29795b20-61b0-4701-b57e-3b2b99fdd403.png",
+  "references": [
+    "assets/source/units/witch-queen.png"
+  ],
+  "visualReview": "Four full Witch Queen views, matching female goblin face/tusks/ears, crown/gown/charms, coherent two arms and hem, no wand/magic/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/witch-queen/reference/character-sheet.png",
+    "sha256": "c2d8e7ad8e4fb0914ccd6f0106e0af14cffe776e26b70130dba33f86583f5a4b",
+    "bytes": 2960968,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/witch-queen.png",
+      "sha256": "b8f80b479b2f432e159bbbdd57c51ba75a1f84c151b6fd4a25440e07ec7eaf90"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

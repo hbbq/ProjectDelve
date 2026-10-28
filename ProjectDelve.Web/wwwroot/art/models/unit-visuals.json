@@ -18,6 +18,51 @@
       "maxTriangles": 12000,
       "maxPrimitives": 2,
       "maxTextureDimension": 2048
+    },
+    {
+      "id": "barbarian/v1",
+      "approved": true,
+      "url": "./art/models/units/barbarian/v1/barbarian.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 2048
+    },
+    {
+      "id": "cleric/v1",
+      "approved": true,
+      "url": "./art/models/units/cleric/v1/cleric.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 2048
+    },
+    {
+      "id": "goblin/v1",
+      "approved": true,
+      "url": "./art/models/units/goblin/v1/goblin.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 2048
+    },
+    {
+      "id": "hobby-knight/v1",
+      "approved": true,
+      "url": "./art/models/units/hobby-knight/v1/hobby-knight.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 2048
+    },
+    {
+      "id": "worker/v1",
+      "approved": true,
+      "url": "./art/models/units/worker/v1/worker.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 2048
     }
   ],
   "units": [
@@ -67,7 +112,8 @@
       "typeId": "hobby-knight-type",
       "targetHeight": 0.68,
       "maximumRadius": 0.4,
-      "baseRadius": 0.31
+      "baseRadius": 0.31,
+      "model": "hobby-knight/v1"
     },
     {
       "typeId": "royal-peasant-type",
@@ -158,7 +204,8 @@
       "typeId": "goblin-type",
       "targetHeight": 0.55,
       "maximumRadius": 0.32,
-      "baseRadius": 0.27
+      "baseRadius": 0.27,
+      "model": "goblin/v1"
     },
     {
       "typeId": "bomb-imp-type",
@@ -177,7 +224,8 @@
       "typeId": "worker-type",
       "targetHeight": 0.63,
       "maximumRadius": 0.34,
-      "baseRadius": 0.28
+      "baseRadius": 0.28,
+      "model": "worker/v1"
     },
     {
       "typeId": "geomancer-type",
@@ -195,7 +243,8 @@
       "typeId": "barbarian-type",
       "targetHeight": 0.80,
       "maximumRadius": 0.42,
-      "baseRadius": 0.34
+      "baseRadius": 0.34,
+      "model": "barbarian/v1"
     },
     {
       "typeId": "rogue-type",
@@ -207,7 +256,8 @@
       "typeId": "cleric-type",
       "targetHeight": 0.78,
       "maximumRadius": 0.39,
-      "baseRadius": 0.32
+      "baseRadius": 0.32,
+      "model": "cleric/v1"
     },
     {
       "typeId": "wizard-type",

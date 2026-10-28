@@ -1,0 +1,38 @@
+{
+  "slug": "ghost",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exactly the female Ghost portrait: sorrowful pale blue-gray translucent woman, softly luminous cyan eyes, long wispy pale hair under tattered antique gray-blue hood with light embroidered edge, ornate round silver cloak clasp. Four complete views of same spectral robed figure, two relaxed arms/hands close to body. Conservative full-length tattered spectral robe ending in a clearly bounded tapering hem, not a fog cloud or pedestal. Do not invent boots, weapons, armor or unrelated anatomy. Keep face/cloth geometry sharply readable and body substantial enough to communicate shape, translucence restrained, minimal wisps confined to silhouette, no surrounding mist scene. Neutral upright resting posture.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-4a3b1be8-36f1-4cf4-93db-5225ccdc5253.png",
+  "references": [
+    "assets/source/units/ghost.png"
+  ],
+  "visualReview": "Four full spectral robe views, consistent woman face/hood/clasp, two hands and bounded full-length hem. No base or fog scenery.",
+  "issues": [
+    "Spectral translucence, fine hair and shredded robe edges may require manual interpretation/simplification in Tripo; no reconstruction performed."
+  ],
+  "output": {
+    "path": "assets/source/units/ghost/reference/character-sheet.png",
+    "sha256": "faf5abf1180f46b2a6f3689f57cecc31f669a98820044baccdb33075af5db5fa",
+    "bytes": 2680128,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/ghost.png",
+      "sha256": "bf5d4bd5aca37cff89fab8bc3aff79ca9e755b116dd09f2f9b5ca8eb3b7cdda9"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -252,6 +252,32 @@ test('current Zombie and Troll bases preserve model approval, facing, picking, c
   }finally{h.cleanup();}
 });
 
+for(const slug of ['goblin','barbarian','cleric','hobby-knight','worker'])test(`production ${slug} geometry shares resources, grounds, faces, clips, picks and restores upright`,async()=>{
+  const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json'))),{validateUnitVisualCatalog,resolveUnitModel}=await moduleAt('unit-visuals.js');
+  const catalog=validateUnitVisualCatalog(disk,disk.units.map(u=>({unitTypeId:u.typeId,cellSpan:u.typeId==='red-dragon-type'?2:1}))),id=slug+'-type',descriptor=resolveUnitModel(catalog,id,1);
+  const f=fixture(16,'blue');f.state.units.forEach(u=>u.typeId=id);f.state.physical.figures[0].posture='Upright';f.presentation.figures.large={cellSpan:1,occupiedCells:[{x:4,y:3}]};
+  let downloads=0;const h=await harness(f,{visualCatalog:catalog,modelCacheOptions:{fetchBytes:async()=>{downloads++;const b=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot',descriptor.url));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);},load:parseGeometryOnly}});
+  try{
+    h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');await h.viewport.models.request(descriptor).promise;h.viewport.checkpoint();h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,root=scene.getObjectByName('unit:hero'),other=scene.getObjectByName('unit:large'),model=root.getObjectByName('normalized-model'),base=root.getObjectByName('miniature-base');
+    root.updateMatrixWorld(true);const box=new h.THREE.Box3().setFromObject(model);assert.ok(Math.abs(box.min.y-.072)<1e-6);assert.ok(Math.abs(box.max.y-box.min.y-descriptor.height)<1e-6);assert.equal(root.userData.footprint.length,1);assert.equal(root.userData.base.fitsContact,true);
+    const meshes=[];model.traverse(n=>{if(n.isMesh)meshes.push(n);});assert.equal(meshes[0].geometry,other.getObjectByName(meshes[0].name).geometry);assert.equal(meshes[0].material,other.getObjectByName(meshes[0].name).material);assert.equal(downloads,1);
+    const baseMatrix=base.matrixWorld.clone();for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){h.viewport.facing.get('hero').yaw=yaw;h.viewport.syncFacing(true);root.updateMatrixWorld(true);assert.deepEqual(base.matrixWorld.elements,baseMatrix.elements);assert.equal(root.userData.body.facingNode.rotation.y,yaw);}
+    for(const projection of ['perspective','orthographic']){h.viewport.camera.setProjection(projection,false);h.viewport.camera.setOrientation({tilt:0,yaw:0},false);h.viewport.settle();h.flush();assert.equal(h.viewport.pick(h.viewport.project({x:2.5,y:2.5,height:0})).unitId,'hero');h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});assert.deepEqual(h.viewport.pick(h.viewport.project({x:3.2,y:2.5})).cell,{x:3,y:2});}
+    const lying=structuredClone(f);lying.state.physical.figures[0].posture='Lying';h.viewport.renderFrame(lying);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('cardboard-body'));assert.equal(root.getObjectByName('normalized-model'),undefined);
+    h.viewport.renderFrame(f);h.viewport.settle();h.flush();assert.ok(root.getObjectByName('normalized-model'));assert.equal(root.userData.body.facingNode.rotation.y,-Math.PI/2);
+    await h.viewport.present({role:'Movement',unitId:'hero',movingFigure:{typeId:id,name:slug,sideId:'blue',cellSpan:1,posture:'Upright'},movementSegments:[[{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2}]]},{},{skipping:()=>false,pause:async()=>{
+      h.flush(performance.now()+230);const pool=scene.getObjectByName('clipped-movement');assert.ok(pool);assert.equal(h.host.querySelector('.three-token-info').hidden,true);
+      for(const enabled of [false,true]){h.viewport.lighting.set({enabled});h.flush();for(const copy of pool.children.filter(c=>c.visible))copy.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]).filter(Boolean)){assert.equal(m.clippingPlanes[0].constant,-2);assert.equal(m.clippingPlanes[2].constant,-2);}});}
+    }});
+    assert.equal(h.viewport.inspect().transient,false);assert.equal(h.viewport.inspect().clippedCopies,0);
+    h.viewport.setRepresentation('cardboard');h.viewport.setRepresentation('miniatures');h.viewport.setPresentation('flat');h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.ok(root.getObjectByName('normalized-model'));assert.equal(downloads,1);
+    const disposed=new Map();scene.traverse(n=>{if(n.geometry&&!disposed.has(n.geometry)){disposed.set(n.geometry,0);n.geometry.addEventListener('dispose',()=>disposed.set(n.geometry,disposed.get(n.geometry)+1));}});
+    const hidden=structuredClone(f);hidden.state.physical.figures=[];hidden.state.units=[];h.viewport.renderFrame(hidden);h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('unit:hero'),undefined);
+    h.viewport.dispose();assert.ok([...disposed.values()].every(n=>n===1));assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('a future 2x1 presentation base uses actual occupied dimensions and remains centered',async()=>{
   const f=fixture();f.state.units[1].typeId='rectangle-fixture';f.presentation.figures.large.occupiedCells=[{x:4,y:3},{x:5,y:3}];
   const d={...miniatureDescriptor,cellSpan:2,radius:.76,baseRadius:.8},options=miniatureOptions();options.modelDescriptors={'rectangle-fixture':d};

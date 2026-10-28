@@ -1,0 +1,41 @@
+{
+  "slug": "red-dragon",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: ONE natural quadrupedal Red Dragon matching sheet, FOUR legs plus TWO separate wings, one long tail; crimson scales/gold belly/spines, amber eyes and two dark swept-back horns matching portrait. Wings folded naturally close to back in compact resting position, not outstretched. Front three-quarter view showing head and side body. Entire tail gently curved alongside hindquarters, tail tip and all feet/wings/horns within canvas. No humanoid stance, no fire, no armor/rider, preserve natural long dragon proportions.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-67805a1d-4273-4c21-8c84-1eb92377b8ac.png",
+  "references": [
+    "assets/source/units/red-dragon.png",
+    "assets/source/units/red-dragon/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete quadrupedal dragon, four legs/two partially folded wings/full tail, matching face/scales/horns/palette, no cropping/base/fire.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/red-dragon/reference/full-body.png",
+    "sha256": "95400a319de19126732c5d1a6ca9c691c9f54244f7b189209ad350f4aac88344",
+    "bytes": 2017759,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/red-dragon.png",
+      "sha256": "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6"
+    },
+    {
+      "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+      "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

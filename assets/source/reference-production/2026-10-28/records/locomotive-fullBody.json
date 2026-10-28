@@ -1,0 +1,46 @@
+{
+  "slug": "locomotive",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Correction of Input Image 3 (edit target); Image 1 portrait identity, Image 2 inspected sheet geometry. Preserve the locomotive exactly except wheel geometry: there must be exactly THREE wheels on the visible near side, all on three axles, matching the sheet's side view. REMOVE the extra small fourth leading wheel directly below the front cylinder/cowcatcher; leave clear chassis space there. Keep three driving wheels connected by one coherent side rod. No extra wheels/axles. Same complete single vehicle, gray background, no smoke/rails/text, all framing unchanged.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-b8a30409-fbbc-473d-8e76-1b0ac4bd3fb2.png",
+  "references": [
+    "assets/source/units/locomotive.png",
+    "assets/source/units/locomotive/reference/character-sheet.png",
+    "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-38242aa6-3fc2-4d30-8d84-b01c78d9bcc2.png"
+  ],
+  "visualReview": "Targeted wheel edit succeeded: exactly three near-side driving wheels with connected rod; coherent full locomotive matching sheet/portrait, no track/smoke/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/locomotive/reference/full-body.png",
+    "sha256": "6c763cc158a40dcedbe487629240ff814565f61e536058c3b1f713a9027df635",
+    "bytes": 2187277,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/locomotive.png",
+      "sha256": "fd2a5b0fbcfdda1fb43805d06e8afbf9eb683df600e1a5a46f8dbb2267cbfebf"
+    },
+    {
+      "path": "assets/source/units/locomotive/reference/character-sheet.png",
+      "sha256": "2b7f2b9e89316794e4011247684728f4413cf18f1fc5d7cee5cb2318fb234582"
+    },
+    {
+      "path": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-38242aa6-3fc2-4d30-8d84-b01c78d9bcc2.png",
+      "sha256": "9066e772c552e4b2045b3719d54099049dbf10c46e2fe8a6f631982f7c67ee57"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

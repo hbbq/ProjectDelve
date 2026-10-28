@@ -1,0 +1,36 @@
+{
+  "slug": "wizard",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact elderly human Wizard portrait, weathered face/light eyes, shoulder-length gray hair and long white beard, floppy broad-brimmed pointed deep-blue hat with leather band and amber jewel, deep-blue layered robes/cape with gold woven trim and amber round clasp, leather straps. Single carved twisted wooden staff with amber crystal in curled head held vertical close to torso. Extend robes naturally to ankles with practical brown boots, two hands, no additional wand/book/effects. Preserve face/beard/hat/jewel/staff identity in all views, whole staff/hat/feet framed.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-3c771528-e986-4b4d-b295-8738812f1805.png",
+  "references": [
+    "assets/source/units/wizard.png"
+  ],
+  "visualReview": "Four complete Wizard views, consistent elderly face/beard/floppy blue hat/gold trim/amber staff, no scenery/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/wizard/reference/character-sheet.png",
+    "sha256": "3b6963f9c38fc8a3560e6ce823fd5cf3a19068cb38ad74c048aa1c21e12152a7",
+    "bytes": 2560780,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/wizard.png",
+      "sha256": "54e2dc4523aba7aa028c9016c1500faaa320493543e656933a32217d9239b777"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "royal-knight",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: ONE complete Royal Knight mounted assembly: one real white-gray horse standing naturally on FOUR hooves and one seated human knight with two legs correctly in stirrups, hands on reins. Match silver/gold open helmet and blue plume, short brown beard, silver armor/blue lion tabard/cape, horse blue/silver/gold barding/chamfron and brown tack. Front three-quarter view with full horse tail, all hooves, rider boots and plume framed. No new weapon or shield, no rearing.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-8b5070b7-6246-499f-82dd-159ac1037ee6.png",
+  "references": [
+    "assets/source/units/royal-knight.png",
+    "assets/source/units/royal-knight/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete mounted Unit, real gray horse/four hooves, seated knight and tack coherent, portrait/sheet armor and barding preserved; no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-knight/reference/full-body.png",
+    "sha256": "d471e35f658372ee8dee03b65776b74f283e3c9eefd92775a10bf8629c79b2bf",
+    "bytes": 2116622,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-knight.png",
+      "sha256": "30e0cd00a36c170a5b76717cc74cba495cce00ad98b136b3f679f3a221672efa"
+    },
+    {
+      "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+      "sha256": "ea07499c869de9092b548f58066106b68b3fb4ed36b39e5d991c761507a57748"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "ghost",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same female Ghost, sorrowful cyan-eyed blue-gray face, embroidered tattered hood and round silver clasp, long pale hair, two relaxed hands and full-length shredded spectral robe from sheet. Keep entire bounded hem visible. Restrained translucency, clear front and side garment structure, minimal wisps only at body edge; no cloud pedestal, boots, weapons or invented legs outside robe.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-b76b560c-f372-47a1-87cb-0d20c02c5bfa.png",
+  "references": [
+    "assets/source/units/ghost.png",
+    "assets/source/units/ghost/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete spectral woman, consistent portrait face and sheet hood/clasp/robe; all hem framed on gray, no scenery/base/text. Fine translucent edges retained.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/ghost/reference/full-body.png",
+    "sha256": "12b562e9a0fe23ab5d2ec2930c32378f86e27df025138cb1e85521083d322a2f",
+    "bytes": 2368208,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/ghost.png",
+      "sha256": "bf5d4bd5aca37cff89fab8bc3aff79ca9e755b116dd09f2f9b5ca8eb3b7cdda9"
+    },
+    {
+      "path": "assets/source/units/ghost/reference/character-sheet.png",
+      "sha256": "faf5abf1180f46b2a6f3689f57cecc31f669a98820044baccdb33075af5db5fa"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

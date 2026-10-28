@@ -1,0 +1,36 @@
+{
+  "slug": "rogue",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact human male Rogue portrait, lean adult with dark hair, light stubble, gray-green alert eyes and half-smile, dark blue-gray stitched hood/cape, weathered brown leather armor and cross straps with round metal clasp. Preserve ONE sheathed dagger strapped high on back with hilt visible above shoulder, not drawn or duplicated. Extend into fitted dark trousers, leather bracers/gloves and soft brown boots. Neutral empty hands near sides, compact cloak, no new weapons.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-ec7bf6f9-a942-47eb-9aed-b7645d917f93.png",
+  "references": [
+    "assets/source/units/rogue.png"
+  ],
+  "visualReview": "Four full Rogue views, same face/hood/leather/cape, one sheathed shoulder dagger, coherent limbs/boots, no text/base.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/rogue/reference/character-sheet.png",
+    "sha256": "5855f825173602322e3d5f65019cc79bacbc4ffb81e3c9c272d5ef541fac8ac9",
+    "bytes": 2422141,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/rogue.png",
+      "sha256": "a07dfa7647eafe175d7999ba38f0d2e79ba3234e556f78912d793fbb677b56ff"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

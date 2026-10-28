@@ -1,0 +1,36 @@
+{
+  "slug": "tower-troll",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Tower Troll portrait, HUGE stocky green-gray tusked troll wearing homemade wooden castle turret COSTUME. Square plank head/shoulder turret painted flaking stone gray, uneven battlements, rope lashings, rusty brackets/nails, large rectangular front face window exposing same broad tusked troll face. Matching plank shoulder guards, ragged dark-purple cloth beneath; extend into wooden torso armor/apron with thick troll arms/legs exposed and simple hide/wrapped feet, consistent with outfit. It is ONE living troll with TWO arms/TWO legs, not a literal building. No extra club/weapon, empty hands relaxed. Same costume proportions/window/battlements all views; rear solid planks plausibly strapped to body. Whole battlements and feet visible.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-a2ded353-4987-4514-a74c-78af5df41df0.png",
+  "references": [
+    "assets/source/units/tower-troll.png"
+  ],
+  "visualReview": "Four full troll views, consistent face-window turret costume, planks/rope/purple cloth, two thick arms/two legs, no literal building/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+    "sha256": "486762045a86b12381e27e2adbb4897d7684da18a47f539d7ee06be5ce447a26",
+    "bytes": 2716861,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/tower-troll.png",
+      "sha256": "6308afa014bccc2dd959b473f98a6d1b7e724e875ab8ec180ada1a4536c9d434"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

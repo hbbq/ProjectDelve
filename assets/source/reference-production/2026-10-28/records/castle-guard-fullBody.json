@@ -1,0 +1,41 @@
+{
+  "slug": "castle-guard",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Castle Guard, crenellated silver/gold helmet and shoulders, reddish braided beard, blue tabard, complete plate armor and boots. Empty gauntleted hands relaxed by sides. Keep entire tower helmet and both armored feet visible.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-0920d515-2740-4530-8b98-672aa6158486.png",
+  "references": [
+    "assets/source/units/castle-guard.png",
+    "assets/source/units/castle-guard/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete guard, consistent tower helmet, armor, beard and tabard; neutral stance, no cropping/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/castle-guard/reference/full-body.png",
+    "sha256": "78879a90392a03f3f5d71345788d40a9fe50a2b80b561f6226c7038e6dcb6156",
+    "bytes": 2065908,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/castle-guard.png",
+      "sha256": "84ec1e6fa82db1ece0b8f6a5db783c5c50f609bd551527200bf5b89129e3e664"
+    },
+    {
+      "path": "assets/source/units/castle-guard/reference/character-sheet.png",
+      "sha256": "104c0f8277c322f868033a266408f2c081999355aafe61ae734597b610e117ea"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

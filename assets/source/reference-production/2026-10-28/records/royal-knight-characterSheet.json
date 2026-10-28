@@ -1,0 +1,36 @@
+{
+  "slug": "royal-knight",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: ONE Royal Knight mounted on ONE real white-gray warhorse, exactly as portrait. Four separated full assembly views front/side/rear/three-quarter in a 2x2 landscape layout. Preserve knight's brown short beard, open-faced silver/gold helmet with blue plume, silver armor, blue/gold lion heraldry and blue cape. Preserve horse white-gray coat/mane, blue/silver/gold chamfron and barding with fleur motifs, brown bridle/reins and saddle. Horse stands naturally on FOUR legs, rider seated in saddle with TWO human legs in stirrups and hands holding reins compactly. Extend visible barding coherently over chest/flanks. No new lance/sword/shield, no second rider/animal, no rearing. Entire tail/hooves/plume in every view.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-f4393ed1-ea45-45fa-8d70-2d73449b1cbc.png",
+  "references": [
+    "assets/source/units/royal-knight.png"
+  ],
+  "visualReview": "Four full mounted-assembly views, consistent real gray horse/four legs and one seated knight, coherent saddle/reins/barding/plume, all framed.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+    "sha256": "ea07499c869de9092b548f58066106b68b3fb4ed36b39e5d991c761507a57748",
+    "bytes": 1957679,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-knight.png",
+      "sha256": "30e0cd00a36c170a5b76717cc74cba495cce00ad98b136b3f679f3a221672efa"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

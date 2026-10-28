@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "unknown",
+  "plan": "Pro",
+  "planEvidence": "User confirms all five batch GLBs were generated under their paid Tripo Pro plan",
+  "generationDate": "unknown",
+  "generationSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/goblin.png",
+  "projectConceptReferences": [
+    "assets/source/units/goblin/reference/character-sheet.png",
+    "assets/source/units/goblin/reference/full-body.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/goblin/original.glb",
+    "sha256": "45836ed0b6d593be49e3a5da31ef4646d9a18ad2bb4054ae5584f408d2963e30",
+    "bytes": 5008652,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin/v1/goblin.glb",
+    "sha256": "7366c5b1a3879d859a1c73058ffa2b7b0923596300cf3c15895ed3161b04c3d1",
+    "bytes": 5008720
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "steps": [
+      "Verify reviewed source hash",
+      "Reject actual extension payloads; remove unused exporter extension declarations",
+      "Add source-hash metadata and rebuild JSON chunk deterministically",
+      "Preserve all geometry and three original 2048x2048 embedded textures",
+      "Runtime ground-centers and uniformly normalizes to catalog targetHeight"
+    ],
+    "orientation": "+Y up; +Z forward visually verified after positive-Z Move in restricted Edge: inspection-FxuJx8/move-positive-z-front.png. Minimum Y zero; runtime places contact at the procedural base top."
+  },
+  "rightsReview": {
+    "date": "2026-10-28",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Terms 5.2.2 grant paid users rights including publication, distribution and licensing; pricing identifies Pro commercial use. This supports game distribution, web GLB hosting and source/runtime repository inclusion; no standalone-output exclusion was found.",
+    "restrictions": "Subject to agreement and applicable law, including third-party rights and no competing generative model/service use (3.2). Tripo retains its stated service-provision license. Not an assertion of exclusive copyright or third-party clearance.",
+    "unknown": "Generation-time supplemental terms and export receipt not supplied; paid generation is owner-confirmed",
+    "repositoryPolicy": "Source and prepared runtime may be version-controlled; source remains outside published wwwroot. No new public asset license is invented by this record.",
+    "reusedFrom": "assets/source/models/units/troll/provenance.json",
+    "verification": "Single shared recheck of terms/pricing for this batch; same 2025-07-11 terms and Pro commercial-use basis"
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "warning": "Generated tangent space; portability of normal-map tangent appearance remains advisory. Source unused FB_ngon_encoding declaration removed by preparation.",
+    "runtimeChecks": "Production preflight and finite geometry pass; geometry, images and bounds preserved; embedded images fully decoded with Pillow and restricted Edge. Production cache ready. CPU viewport tests cover grounding, facing, picking, clipping, resource sharing and cleanup."
+  },
+  "import": {
+    "inboxPath": "assets/import/models/goblin.glb",
+    "sha256BeforeMove": "45836ed0b6d593be49e3a5da31ef4646d9a18ad2bb4054ae5584f408d2963e30",
+    "sha256AfterMove": "45836ed0b6d593be49e3a5da31ef4646d9a18ad2bb4054ae5584f408d2963e30"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/goblin/original.glb",
+    "bytes": 5008652,
+    "sha256": "45836ed0b6d593be49e3a5da31ef4646d9a18ad2bb4054ae5584f408d2963e30",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 1988
+      },
+      {
+        "type": 5130562,
+        "length": 5006636
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9852,
+    "materials": [
+      {
+        "name": "tripo_material_f332a8ce-0512-43b3-a7b6-e11591890948",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 1040273,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "4396a31660be22f4812815476ed09ec307578ed93f7295c25fdc49ea9d805783"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 909343,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "a57954dd3679cd2cff5bc021eff21342750caf1c421ec24d490c791d03e91ac4"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 2716072,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "0dfe749b80216ca27bf8bfeea247550f094422c8fb2289d9ed70f1da85da4531"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_f332a8ce-0512-43b3-a7b6-e11591890948",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.225616455078125,
+        0,
+        -0.1542358696460724
+      ],
+      "max": [
+        0.225616455078125,
+        0.999053955078125,
+        0.1542358696460724
+      ],
+      "dimensions": [
+        0.45123291015625,
+        0.999053955078125,
+        0.3084717392921448
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.55,
+      "scale": 0.5505208174237102,
+      "maximumRadius": 0.1318412569470225,
+      "contact": {
+        "radius": 0.1318412569470225,
+        "minX": -0.11480662439718438,
+        "maxX": 0.11856157462671252,
+        "minZ": -0.07747579191740232,
+        "maxZ": 0.08491005703361258,
+        "bandHeight": 0.04125,
+        "samples": 1236
+      },
+      "dimensions": [
+        0.24841311054769832,
+        0.55,
+        0.16982011406722516
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.55,
+    "maximumRadius": 0.32,
+    "baseRadius": 0.27,
+    "measuredMaximumRadius": 0.1318412569470225,
+    "contact": {
+      "radius": 0.1318412569470225,
+      "minX": -0.11480662439718438,
+      "maxX": 0.11856157462671252,
+      "minZ": -0.07747579191740232,
+      "maxZ": 0.08491005703361258,
+      "bandHeight": 0.04125,
+      "samples": 1236
+    },
+    "base": {
+      "radius": 0.27,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.27,
+      "requiredRadius": 0.1718412569470225,
+      "margin": 0.1381587430529775,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "visualReview": {
+    "date": "2026-10-28",
+    "detail": "inspection-mSaBYa",
+    "move": "inspection-FxuJx8",
+    "findings": "Small body remains readable at authored .55 height; ample base margin.",
+    "metadataAdjustments": "none; existing targetHeight, maximumRadius and baseRadius retained",
+    "evidence": "THREE_VIEWPORT.md: Batch import five Tripo miniatures"
+  }
+}

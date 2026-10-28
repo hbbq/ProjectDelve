@@ -1,0 +1,41 @@
+{
+  "slug": "geomancer",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same horned Geomancer, pale gray-brown male face with goatee, amber eyes, rocky crystal horns, cyan shoulder crystals and necklace, teal/brown/gray layered robes. Single crystal-topped staff vertical close to body, feet and staff ends fully visible. No floating rocks or haze.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-de91f1f4-d487-4c40-a4d6-2e187173b70b.png",
+  "references": [
+    "assets/source/units/geomancer.png",
+    "assets/source/units/geomancer/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete horned Geomancer, matching crystal staff/robe/face, clear hands and boots, no crop/base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/geomancer/reference/full-body.png",
+    "sha256": "9e52fdc5f5038f9033f1770ab15e42598b4f8f859078960441043cd780a3a5a0",
+    "bytes": 2206680,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/geomancer.png",
+      "sha256": "7ec20a502647cdd1c0fec8fd77b28b26f9a3a51d7dcdb5def0de7c6c8de5bb0c"
+    },
+    {
+      "path": "assets/source/units/geomancer/reference/character-sheet.png",
+      "sha256": "9ca4f91c52e5b91c6b2621c3d4001e17f249a7561c65d477403b74471092db55"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

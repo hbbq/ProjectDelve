@@ -1,0 +1,41 @@
+{
+  "slug": "grunt",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same burly gray-brown tusked Grunt in dented iron/leather armor, coarse short hair, single crude spear/polearm held vertical close at side. Full weapon tip/end and boots visible, no added shield or gear. Clearly rotated front three-quarter torso.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-97df695f-7911-4a9c-88d9-497bcef112bf.png",
+  "references": [
+    "assets/source/units/grunt.png",
+    "assets/source/units/grunt/reference/character-sheet.png"
+  ],
+  "visualReview": "Single full Grunt, matching face/tusks/armor/polearm, complete spear and boots, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/grunt/reference/full-body.png",
+    "sha256": "e28d63360f044b226e55fcebb66477b2a6125a35b3124602cede23440ca1e128",
+    "bytes": 2396078,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/grunt.png",
+      "sha256": "dc411927145faf26751c91da700ef47b76dac4fcdd0a4b711e04dfadf45ad713"
+    },
+    {
+      "path": "assets/source/units/grunt/reference/character-sheet.png",
+      "sha256": "75f221d52f69ef9dc1269a9aeaed445e9e5969c5cc3ebe7e0653bd970436953c"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

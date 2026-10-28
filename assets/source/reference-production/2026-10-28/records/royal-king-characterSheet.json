@@ -1,0 +1,36 @@
+{
+  "slug": "royal-king",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Royal King portrait: mature human man, shoulder-length wavy dark graying hair, thick groomed beard, blue eyes, gold/silver crown with tall central fleur-like finial and blue gems. Royal blue mantle with white dark-spotted fur edging, gold lion clasps/chain, polished silver breastplate with gold lion filigree and blue high collar. Extend to restrained matching silver armor, blue embroidered tunic, gauntlets and armored boots. Empty hands relaxed; no new sword/scepter/staff or magic. Keep entire crown/cape and armor consistent in all views.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-dd7f8ff7-b328-4cd5-93e4-3ce54e82e767.png",
+  "references": [
+    "assets/source/units/royal-king.png"
+  ],
+  "visualReview": "Four full King views, consistent beard/crown, blue fur-edged mantle, silver/gold lion armor and boots; no added prop/base/magic.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-king/reference/character-sheet.png",
+    "sha256": "08e644daee646fd91538dd4dfbe0dc885a03a90007ac5f7ae14496b92de0ffd4",
+    "bytes": 2453146,
+    "dimensions": [
+      1774,
+      887
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-king.png",
+      "sha256": "cc9b363bc250bdaa8dc5305e979284a3a905ee4cb7423f732bc45b1bab8e0443"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

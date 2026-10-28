@@ -1,0 +1,840 @@
+{
+  "schemaVersion": 1,
+  "batch": "Tripo multi-view Batch 1",
+  "operation": "Conventional crop and neutral-background padding only",
+  "tool": "Pillow",
+  "canvas": [
+    1024,
+    1024
+  ],
+  "scale": 1,
+  "mirrored": false,
+  "coordinateConvention": "source pixels; left/top inclusive, right/bottom exclusive",
+  "paddingMethod": "Feather boundary background RGB over 64 padding pixels to the neutral source left-edge row color; retained pixels stay unchanged",
+  "paddingFadePixels": 64,
+  "status": "complete-visually-reviewed",
+  "units": [
+    {
+      "slug": "goblin",
+      "unitTypeId": "goblin-type",
+      "source": "assets/source/units/goblin/reference/character-sheet.png",
+      "sourceSha256": "67aa9bff673353d046c16451ab74d4017cf512d8b133a2f042d27f69174a8561",
+      "preservedFullBody": {
+        "path": "assets/source/units/goblin/reference/full-body.png",
+        "sha256": "7f407a144a69c2a3170925324ff656f1cb57760d84089f24e31c14329c950da8"
+      },
+      "preservedPortrait": {
+        "path": "assets/source/units/goblin.png",
+        "sha256": "a5a018aa3c3781f42530f956e8299340342968434ee8e4b9c54d43773c9c9d4b"
+      },
+      "limitations": [
+        "Front is near-frontal; three-quarter is relatively shallow.",
+        "Small patch, strap and finger variations in the sheet are preserved."
+      ],
+      "missingOrientations": [],
+      "views": [
+        {
+          "orientation": "front",
+          "sideDirection": null,
+          "sourcePanel": 1,
+          "crop": [
+            0,
+            0,
+            420,
+            1024
+          ],
+          "pasteOffset": [
+            302,
+            0
+          ],
+          "padding": {
+            "left": 302,
+            "right": 302,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/goblin/reference/views/view-01-front.png",
+          "sha256": "2d9550b5f7bdd3c8be568ab79c04794f30d61b5f3c1b8062383fa95f674e7892",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "side",
+          "sideDirection": "faces image-right",
+          "sourcePanel": 2,
+          "crop": [
+            420,
+            0,
+            735,
+            1024
+          ],
+          "pasteOffset": [
+            354,
+            0
+          ],
+          "padding": {
+            "left": 354,
+            "right": 355,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/goblin/reference/views/view-02-side.png",
+          "sha256": "93d8d1ba8aae90ea9c9bc95571de87102b9b3016cbe02f2315921618e4fcbc92",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "back",
+          "sideDirection": null,
+          "sourcePanel": 3,
+          "crop": [
+            735,
+            0,
+            1135,
+            1024
+          ],
+          "pasteOffset": [
+            312,
+            0
+          ],
+          "padding": {
+            "left": 312,
+            "right": 312,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/goblin/reference/views/view-03-back.png",
+          "sha256": "b4266286f6a46897e12067c31d924fd46f07bd5cf3868fa7754f255ecde83e3b",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "three-quarter",
+          "sideDirection": null,
+          "sourcePanel": 4,
+          "crop": [
+            1135,
+            0,
+            1536,
+            1024
+          ],
+          "pasteOffset": [
+            311,
+            0
+          ],
+          "padding": {
+            "left": 311,
+            "right": 312,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/goblin/reference/views/view-04-three-quarter.png",
+          "sha256": "c0dd2c61e0683faa1219ffc202fe4a086306b849ca545df6491a06ee81f96f9d",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        }
+      ],
+      "sourceDimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "slug": "barbarian",
+      "unitTypeId": "barbarian-type",
+      "source": "assets/source/units/barbarian/reference/character-sheet.png",
+      "sourceSha256": "eb2cad6fff420872e537798599b2af2c72ecd0aa831e4a62cf8f246063aa85f4",
+      "preservedFullBody": {
+        "path": "assets/source/units/barbarian/reference/full-body.png",
+        "sha256": "150e2cfba20c6b4c00a4301f434ed2c8c4ad111e66bfc1aafe6a674fa343af4a"
+      },
+      "preservedPortrait": {
+        "path": "assets/source/units/barbarian.png",
+        "sha256": "d91a331beb78e1f4f67a2aec933b5c5df73819ff9d1751c542ec6af829e58722"
+      },
+      "limitations": [
+        "Three-quarter view is shallow.",
+        "Axe angle and minor cloth/fur details vary between source views; preserved without correction."
+      ],
+      "missingOrientations": [],
+      "views": [
+        {
+          "orientation": "front",
+          "sideDirection": null,
+          "sourcePanel": 1,
+          "crop": [
+            0,
+            0,
+            430,
+            1024
+          ],
+          "pasteOffset": [
+            297,
+            0
+          ],
+          "padding": {
+            "left": 297,
+            "right": 297,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/barbarian/reference/views/view-01-front.png",
+          "sha256": "34e5cc599bdddc9feac5572a6485ee98d253beae1b8b1b1eb885f83c895397b8",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "side",
+          "sideDirection": "faces image-right",
+          "sourcePanel": 2,
+          "crop": [
+            430,
+            0,
+            735,
+            1024
+          ],
+          "pasteOffset": [
+            359,
+            0
+          ],
+          "padding": {
+            "left": 359,
+            "right": 360,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/barbarian/reference/views/view-02-side.png",
+          "sha256": "1f09a72ef3faad08c407f8c1fed7121c9971d7e30a4314ffaa7b79b2bba04414",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "back",
+          "sideDirection": null,
+          "sourcePanel": 3,
+          "crop": [
+            735,
+            0,
+            1135,
+            1024
+          ],
+          "pasteOffset": [
+            312,
+            0
+          ],
+          "padding": {
+            "left": 312,
+            "right": 312,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/barbarian/reference/views/view-03-back.png",
+          "sha256": "3c79070f9dadc6762ddda2becd24bc464f13947841f19785ac77a0571b188031",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "three-quarter",
+          "sideDirection": null,
+          "sourcePanel": 4,
+          "crop": [
+            1135,
+            0,
+            1536,
+            1024
+          ],
+          "pasteOffset": [
+            311,
+            0
+          ],
+          "padding": {
+            "left": 311,
+            "right": 312,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/barbarian/reference/views/view-04-three-quarter.png",
+          "sha256": "b8abc97873b66ae524c928a467ad175236928b5289d6e26b9703de77b88e5ca9",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        }
+      ],
+      "sourceDimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "slug": "cleric",
+      "unitTypeId": "cleric-type",
+      "source": "assets/source/units/cleric/reference/character-sheet.png",
+      "sourceSha256": "1fa15017d05be7fa20b319cf50d6d4938c24661347e0364e497bf2d05c134adf",
+      "preservedFullBody": {
+        "path": "assets/source/units/cleric/reference/full-body.png",
+        "sha256": "4ebfe360f1b95cc0d65ee046620f15d3a6975ae76d4e0ede062778b1ef9c86b2"
+      },
+      "preservedPortrait": {
+        "path": "assets/source/units/cleric.png",
+        "sha256": "1e2d152760024a349b62fb5c209bb89f6d235ce225ac2a5882124d8236c647a5"
+      },
+      "limitations": [
+        "Staff height/position and fine robe embroidery vary slightly between source views; preserved.",
+        "Rear braid and partly occluded staff are the authored rear view, not missing extractions."
+      ],
+      "missingOrientations": [],
+      "views": [
+        {
+          "orientation": "front",
+          "sideDirection": null,
+          "sourcePanel": 1,
+          "crop": [
+            0,
+            0,
+            420,
+            1024
+          ],
+          "pasteOffset": [
+            302,
+            0
+          ],
+          "padding": {
+            "left": 302,
+            "right": 302,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/cleric/reference/views/view-01-front.png",
+          "sha256": "a50f14ecd7b9045f86121d34c4e9c5df9f620e4ab12fcbd16465ec0a1ee0dd33",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "side",
+          "sideDirection": "faces image-left",
+          "sourcePanel": 2,
+          "crop": [
+            420,
+            0,
+            745,
+            1024
+          ],
+          "pasteOffset": [
+            349,
+            0
+          ],
+          "padding": {
+            "left": 349,
+            "right": 350,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/cleric/reference/views/view-02-side.png",
+          "sha256": "72a023abfcb9fe24b341b8a6fdd213da9f7c13c4577f0bcdf152e2e158c89634",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "back",
+          "sideDirection": null,
+          "sourcePanel": 3,
+          "crop": [
+            745,
+            0,
+            1140,
+            1024
+          ],
+          "pasteOffset": [
+            314,
+            0
+          ],
+          "padding": {
+            "left": 314,
+            "right": 315,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/cleric/reference/views/view-03-back.png",
+          "sha256": "6028ee6a8a98d743e6ae38238b91d234fdac413290ec13cff9fd4ebd98e10cc5",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "three-quarter",
+          "sideDirection": null,
+          "sourcePanel": 4,
+          "crop": [
+            1140,
+            0,
+            1536,
+            1024
+          ],
+          "pasteOffset": [
+            314,
+            0
+          ],
+          "padding": {
+            "left": 314,
+            "right": 314,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/cleric/reference/views/view-04-three-quarter.png",
+          "sha256": "519e559fe3a793adc2814550b1f3442971a5aa5a859f4893017cf0687e6adb47",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        }
+      ],
+      "sourceDimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "slug": "hobby-knight",
+      "unitTypeId": "hobby-knight-type",
+      "source": "assets/source/units/hobby-knight/reference/character-sheet.png",
+      "sourceSha256": "3f25bd92726a25103effd57a08c05fc1d0a2bf2773e403903aa080390c1717d2",
+      "preservedFullBody": {
+        "path": "assets/source/units/hobby-knight/reference/full-body.png",
+        "sha256": "e1e358ee7b68b8cc0f874a25d2044a5378770ef1959f5d0dec6ad8fc79fe1260"
+      },
+      "preservedPortrait": {
+        "path": "assets/source/units/hobby-knight.png",
+        "sha256": "82997fc1c189881e77ae5ef4d383c7aacd620a3546cfcd242d41612bd03105cb"
+      },
+      "limitations": [
+        "Front is near-frontal; three-quarter rotation is shallow.",
+        "Toy horse and stick are naturally obscured from behind; no replacement geometry added.",
+        "Stick angle, cape folds and small armor details vary in source; preserved."
+      ],
+      "missingOrientations": [],
+      "views": [
+        {
+          "orientation": "front",
+          "sideDirection": null,
+          "sourcePanel": 1,
+          "crop": [
+            0,
+            0,
+            410,
+            1024
+          ],
+          "pasteOffset": [
+            307,
+            0
+          ],
+          "padding": {
+            "left": 307,
+            "right": 307,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/hobby-knight/reference/views/view-01-front.png",
+          "sha256": "9088769922b19c04f4282d59704096587ec9380d3376277207945fe13cd79f0a",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "side",
+          "sideDirection": "faces image-right",
+          "sourcePanel": 2,
+          "crop": [
+            410,
+            0,
+            780,
+            1024
+          ],
+          "pasteOffset": [
+            327,
+            0
+          ],
+          "padding": {
+            "left": 327,
+            "right": 327,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/hobby-knight/reference/views/view-02-side.png",
+          "sha256": "b2c5525dade46b57e8286d826243aea541a55a659b047dbed834fa55515bafec",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "back",
+          "sideDirection": null,
+          "sourcePanel": 3,
+          "crop": [
+            780,
+            0,
+            1135,
+            1024
+          ],
+          "pasteOffset": [
+            334,
+            0
+          ],
+          "padding": {
+            "left": 334,
+            "right": 335,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/hobby-knight/reference/views/view-03-back.png",
+          "sha256": "0a1da75b561e64d6e2d677dc8af23664f44d1de9ce0e4575a1c862c3e3793b00",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "three-quarter",
+          "sideDirection": null,
+          "sourcePanel": 4,
+          "crop": [
+            1135,
+            0,
+            1536,
+            1024
+          ],
+          "pasteOffset": [
+            311,
+            0
+          ],
+          "padding": {
+            "left": 311,
+            "right": 312,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/hobby-knight/reference/views/view-04-three-quarter.png",
+          "sha256": "8fda65ca524f6996a6e085276fd00451af06b0c6805e8dc346fd122a5c1630de",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        }
+      ],
+      "sourceDimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "slug": "worker",
+      "unitTypeId": "worker-type",
+      "source": "assets/source/units/worker/reference/character-sheet.png",
+      "sourceSha256": "8aadc6142a88a617df6fd703b32b81edcd7f8f3fb7aebbad4cb336ecc1896e82",
+      "preservedFullBody": {
+        "path": "assets/source/units/worker/reference/full-body.png",
+        "sha256": "7e8d8222632c938e49dba6ce329df39be29a1376554763d3f5510f1bdc3e7b50"
+      },
+      "preservedPortrait": {
+        "path": "assets/source/units/worker.png",
+        "sha256": "c87127bd609d859b22181d31af3d5e49233090f3c86da0196f6a9de0f72a7cee"
+      },
+      "limitations": [
+        "Front and three-quarter are both shallow front angles, not exact orthographic views.",
+        "Sack, rock arrangement and tool details vary slightly between source views; preserved.",
+        "First/second figures require a shaped boundary to exclude neighbors without clipping the hand or sack."
+      ],
+      "missingOrientations": [],
+      "views": [
+        {
+          "orientation": "front",
+          "sideDirection": null,
+          "sourcePanel": 1,
+          "crop": [
+            0,
+            0,
+            425,
+            1024
+          ],
+          "pasteOffset": [
+            299,
+            0
+          ],
+          "padding": {
+            "left": 299,
+            "right": 300,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/worker/reference/views/view-01-front.png",
+          "sha256": "6170a52982bbd79d2afb04449618190c805aaac53741a5d35c08004da0d828f4",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "shapedBoundary": {
+            "pointsYx": [
+              [
+                0,
+                400
+              ],
+              [
+                220,
+                400
+              ],
+              [
+                320,
+                385
+              ],
+              [
+                430,
+                390
+              ],
+              [
+                510,
+                415
+              ],
+              [
+                620,
+                425
+              ],
+              [
+                1023,
+                425
+              ]
+            ],
+            "interpolation": "piecewise linear; round to nearest integer using Python round",
+            "retain": "left of boundary",
+            "extraPadding": "Row-dependent outside shaped boundary"
+          },
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "side",
+          "sideDirection": "faces image-right",
+          "sourcePanel": 2,
+          "crop": [
+            385,
+            0,
+            740,
+            1024
+          ],
+          "pasteOffset": [
+            334,
+            0
+          ],
+          "padding": {
+            "left": 334,
+            "right": 335,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/worker/reference/views/view-02-side.png",
+          "sha256": "c7ef1d025d7046f302adf67698ae162babe505058bcf9323bceb9148180c715c",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "shapedBoundary": {
+            "pointsYx": [
+              [
+                0,
+                400
+              ],
+              [
+                220,
+                400
+              ],
+              [
+                320,
+                385
+              ],
+              [
+                430,
+                390
+              ],
+              [
+                510,
+                415
+              ],
+              [
+                620,
+                425
+              ],
+              [
+                1023,
+                425
+              ]
+            ],
+            "interpolation": "piecewise linear; round to nearest integer using Python round",
+            "retain": "right of boundary",
+            "extraPadding": "Row-dependent outside shaped boundary"
+          },
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "back",
+          "sideDirection": null,
+          "sourcePanel": 3,
+          "crop": [
+            740,
+            0,
+            1150,
+            1024
+          ],
+          "pasteOffset": [
+            307,
+            0
+          ],
+          "padding": {
+            "left": 307,
+            "right": 307,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/worker/reference/views/view-03-back.png",
+          "sha256": "5c5f198876000f3a9959fd7ef32bd55ba43dd717f9a2375c45443d0091ef52eb",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        },
+        {
+          "orientation": "three-quarter",
+          "sideDirection": null,
+          "sourcePanel": 4,
+          "crop": [
+            1150,
+            0,
+            1536,
+            1024
+          ],
+          "pasteOffset": [
+            319,
+            0
+          ],
+          "padding": {
+            "left": 319,
+            "right": 319,
+            "top": 0,
+            "bottom": 0
+          },
+          "output": "assets/source/units/worker/reference/views/view-04-three-quarter.png",
+          "sha256": "83e36f57bddd6ce2663948817de7d47b2d8db14af716e4e12d7eb077e8617fac",
+          "dimensions": [
+            1024,
+            1024
+          ],
+          "nativeSourcePixelsPreserved": true,
+          "visualReview": "passed",
+          "visualReviewNotes": "Complete silhouette and equipment; orientation checked against sheet; no neighboring figures or text; native scale and proportions retained."
+        }
+      ],
+      "sourceDimensions": [
+        1536,
+        1024
+      ]
+    }
+  ],
+  "preservation": {
+    "preExistingFilesVerified": 305,
+    "allUnchanged": true,
+    "characterSheetsAndFullBodiesUnchanged": true,
+    "originalFilesCapturedBeforeTask": 304,
+    "originalFilesUnchangedAfterVisualReview": true
+  },
+  "review": {
+    "all20OutputsVisuallyInspected": true,
+    "additionalFullResolutionChecks": [
+      "worker side sack and tools",
+      "hobby-knight three-quarter toy horse and stick",
+      "cleric front staff finial and base"
+    ],
+    "findings": "No unusable extractions or missing views. Shallow source angles and small source design variations are recorded per Unit. No AI generation, mirroring, resizing or subject retouching.",
+    "tripoGenerationPerformed": false
+  },
+  "summary": {
+    "unitsProcessed": 5,
+    "viewsExtracted": 20,
+    "missingOrientations": [],
+    "unsuitableExtractions": [],
+    "existingFilesChanged": 0,
+    "filesCreated": 22
+  }
+}

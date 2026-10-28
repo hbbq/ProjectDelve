@@ -1,0 +1,41 @@
+{
+  "slug": "bomb-imp",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same Bomb Imp with short swept-back horns, spiky dark hair, amber eyes, red scarf and patched charcoal leather. Hold single round black bomb close at waist, unlit short fuse, compact tail from sheet, two arms and two legs.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-daed42ce-d98b-454c-b071-69b9b230f1ca.png",
+  "references": [
+    "assets/source/units/bomb-imp.png",
+    "assets/source/units/bomb-imp/reference/character-sheet.png"
+  ],
+  "visualReview": "Single complete imp, portrait face/horns/scarf and sheet outfit preserved, one bomb with inert fuse, natural two arms/two legs, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/bomb-imp/reference/full-body.png",
+    "sha256": "0bc482d95d8da3b2826bf33d0a714ee759367b03be1bc2bfc8e907257a1dd282",
+    "bytes": 1986122,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/bomb-imp.png",
+      "sha256": "fb0f74df2138098c526ab7a8fe235f1a5aafd35ff39b2bcd5623f3e49d8ed6c6"
+    },
+    {
+      "path": "assets/source/units/bomb-imp/reference/character-sheet.png",
+      "sha256": "b7da51f62b62c5597780307315229fa8b01ebf59f40b7a9ea6c1d08f7faf037f"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

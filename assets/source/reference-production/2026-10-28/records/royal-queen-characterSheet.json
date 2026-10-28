@@ -1,0 +1,36 @@
+{
+  "slug": "royal-queen",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Royal Queen portrait, poised adult human woman with blue-gray eyes, light brown braided updo, tall elegant multi-point silver/gold crown with blue gems/fleur finials, finely crafted silver battle armor with restrained gold filigree, blue high collar and embroidered royal-blue mantle with ivory/gold edging. Extend naturally into matching armored legs/gauntlets/boots and blue cloth tabard. Preserve face/crown/armor/cape, compact upright posture. No new sword, shield, staff, wand or magic; empty hands relaxed at sides. Entire crown/cape/feet framed.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-a6509bfc-0a29-43b6-a668-cf42669aa949.png",
+  "references": [
+    "assets/source/units/royal-queen.png"
+  ],
+  "visualReview": "Four full Queen views, portrait woman's face/updo/crown/blue mantle/silver-gold armor coherent, empty hands and complete feet/hem, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/royal-queen/reference/character-sheet.png",
+    "sha256": "012609ff0bd3413f1e3e61307fc928dfae25bb9256cc0278a8fbee577b29dbec",
+    "bytes": 2567776,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/royal-queen.png",
+      "sha256": "3b9207482b5ae8089f57b4da46624697a1568b5e38d4655ddbe15c22f6ad361d"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

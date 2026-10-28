@@ -20,7 +20,7 @@ public sealed class MiniatureHostingTests
         await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", Path.Combine(Root, "ProjectDelve.Web"), "--environment", environment], null, GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         await app.StartAsync();
         using var http = new HttpClient { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
-        foreach (var unit in new[] { "zombie", "troll" })
+        foreach (var unit in new[] { "zombie", "troll", "goblin", "barbarian", "cleric", "hobby-knight", "worker" })
         {
             using var response = await http.GetAsync($"/art/models/units/{unit}/v1/{unit}.glb");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);

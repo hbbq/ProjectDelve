@@ -1,0 +1,41 @@
+{
+  "slug": "shaman",
+  "kind": "fullBody",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve primary Tripo single-image-to-3D reference. Input Image 1 is the approved portrait: primary face, identity, palette and material authority. Input Image 2 is the inspected character sheet: shared full-body anatomy, clothing and equipment reference. Create ONE complete Unit in a front three-quarter view, entire silhouette and all extremities/equipment visible with generous margins. Compact neutral resting pose, readable front/back orientation, modest perspective without distortion. Plain neutral medium-gray background and soft upper-left studio lighting; match premium hand-painted digital tabletop illustration of portrait with clear readable materials. Preserve portrait identity and sheet design exactly; no additional equipment, characters, panels, text, labels, UI, scenery, ground platform, miniature base or action effects. Camera at approximately 35 degrees around the front, visibly show front and one side rather than straight frontal. Subject: same human WOMAN Shaman with teal face paint, long wild dark-gray braided hair, feather/bone/turquoise ornaments, olive/ochre/umber layered robes and boots. One gnarled circular-hook staff with charms held vertical close to torso. Entire staff/feathers/boots visible, no mask/animal/magic effects; clear front three-quarter.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-8d7595d1-da62-48b6-a93d-ea630ddb3157.png",
+  "references": [
+    "assets/source/units/shaman.png",
+    "assets/source/units/shaman/reference/character-sheet.png"
+  ],
+  "visualReview": "One complete Shaman matching portrait face/paint/hair and sheet robes/ornaments/staff, full feet/staff, no base/text.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/shaman/reference/full-body.png",
+    "sha256": "ad20c0ac8cdd9edf2619e3cab44ef311151cf425b44b7af289adc4fff629b694",
+    "bytes": 2545606,
+    "dimensions": [
+      1024,
+      1536
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/shaman.png",
+      "sha256": "86e51773fbbf4a294ceb67c77e9622949a0db95a12fd56343cec893bf98a22d1"
+    },
+    {
+      "path": "assets/source/units/shaman/reference/character-sheet.png",
+      "sha256": "d1f4af3517cd16998cf7ce4ca653ac6f813402ed5d3e432e16c4aabfe8156283"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

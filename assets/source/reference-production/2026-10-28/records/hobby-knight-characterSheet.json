@@ -1,0 +1,36 @@
+{
+  "slug": "hobby-knight",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Hobby Knight portrait: proud small green tusked goblin in dented bucket-like iron helmet with side handle, scrap plate armor and patched purple cape, holding a WOODEN TOY hobby horse. The horse is ONLY a large flat carved painted wooden head on a long straight wooden stick held between goblin's legs, visible grain, blue painted mane, cream face, red painted bridle straps and rope reins. Goblin stands on his own TWO legs/boots; no real animal, no horse body, no horse legs, no centaur. Preserve exact toy shape and armor in all views. Hands hold toy and reins close to torso; stick end fully visible.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-ff4adb20-34d8-4832-a44e-c5467b867d4e.png",
+  "references": [
+    "assets/source/units/hobby-knight.png"
+  ],
+  "visualReview": "Four complete goblin views with same bucket helmet, scrap armor, purple cape and painted wooden hobby horse; exactly two goblin legs, no real horse.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/hobby-knight/reference/character-sheet.png",
+    "sha256": "3f25bd92726a25103effd57a08c05fc1d0a2bf2773e403903aa080390c1717d2",
+    "bytes": 2323492,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/hobby-knight.png",
+      "sha256": "82997fc1c189881e77ae5ef4d383c7aacd620a3546cfcd242d41612bd03105cb"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

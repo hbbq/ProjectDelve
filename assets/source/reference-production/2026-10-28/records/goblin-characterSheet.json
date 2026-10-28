@@ -1,0 +1,36 @@
+{
+  "slug": "goblin",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact wiry green Goblin portrait, huge pointed ears with multiple brass hoops, mischievous amber eyes, sharp crooked grin, patched brown leather cap with round brass disk, dark green scarf, scavenged leather harness and dented shoulder plate. Extend into matching patched leather tunic, trousers and worn boots. No newly invented weapons, bags, tail or horns. Empty hands relaxed; preserve lean goblin proportions and asymmetrical shoulder armor across all views.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-584bf11a-b569-4424-8af9-065edc9c044c.png",
+  "references": [
+    "assets/source/units/goblin.png"
+  ],
+  "visualReview": "Four complete lean goblin views, cap/earrings/face/scarf/harness consistent, correct two arms/two legs, no added weapon/base.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/goblin/reference/character-sheet.png",
+    "sha256": "67aa9bff673353d046c16451ab74d4017cf512d8b133a2f042d27f69174a8561",
+    "bytes": 2486791,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/goblin.png",
+      "sha256": "a5a018aa3c3781f42530f956e8299340342968434ee8e4b9c54d43773c9c9d4b"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

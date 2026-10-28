@@ -1,0 +1,36 @@
+{
+  "slug": "labyrinth-shaper",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Labyrinth Shaper portrait, masked hooded humanoid, visible dark eyes, angular stone mask with gold/teal geometric trim, deep teal hooded robes and slate/sandstone geometric shoulder/chest armor with muted gold fittings. Extrapolate coherent long teal robes, stone-armored forearms, gloved hands and boots. Keep shoulder stone blocks attached as armor; OMIT the portrait's detached floating masonry fragments and dust for clean model geometry. No new staff or weapon, no actual maze diagram or writing, two arms/two legs. Four complete same-character views.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-bee4563c-9cfb-4fc7-8948-bc2ad284f77e.png",
+  "references": [
+    "assets/source/units/labyrinth-shaper.png"
+  ],
+  "visualReview": "Four coherent full views, same mask/hood, teal-gold robes and attached stone armor; no detached masonry or new weapon, intact limbs.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/labyrinth-shaper/reference/character-sheet.png",
+    "sha256": "af0e13c83a452e1cc0913125b0e102766eab70e13d9f676a6f474592d93b52f0",
+    "bytes": 2497733,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/labyrinth-shaper.png",
+      "sha256": "20765ff84ee94f6c2e17aa980546aa7e1aafffade2d6ec79b8ac54d71f6ac048"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

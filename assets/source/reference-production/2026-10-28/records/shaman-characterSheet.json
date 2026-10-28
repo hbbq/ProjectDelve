@@ -1,0 +1,36 @@
+{
+  "slug": "shaman",
+  "kind": "characterSheet",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve character reference turnaround for future manual image-to-3D and standees. Input Image 1 is the approved portrait and PRIMARY identity authority, not an edit target. Create a new landscape character sheet of exactly this Unit: four clearly separated full-body views, front, side, rear and three-quarter, identical anatomy, face, costume, colors, materials and equipment in all views. Plain neutral medium-gray background, soft upper-left studio light, premium hand-painted digital fantasy tabletop illustration with controlled rich color and subtle brushwork matching the portrait. Neutral compact resting pose, natural proportions, arms and equipment reasonably close to body. All extremities and equipment fully framed with margins. Extrapolate unseen body consistently and conservatively. No text, labels, measurements, symbols resembling text, scenery, floor props, bases, platforms, token rings, additional characters or action effects. Do not replicate a circular portrait composition. Subject: exact Shaman portrait, adult human WOMAN with weathered tan face, intense light eyes, teal vertical/angular face paint, long wild dark hair with gray streaks, braids and teal/brown feathers. Olive/umber/ochre layered rough robes, bone/tooth/wood bead necklaces and earrings with turquoise beads, same single crooked gnarled wooden staff with circular hooked head, rope, feather and bone charms held vertical close. Extend to practical layered long skirt/robe and worn brown boots; no invented mask, animal body, horns or weapons. Keep staff and hair complete; natural neutral standing pose.",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a18149-0103-7f00-a194-314d5b34f1dd\\exec-47c27342-b68f-4acb-ad0a-f6191cca6826.png",
+  "references": [
+    "assets/source/units/shaman.png"
+  ],
+  "visualReview": "Four full Shaman views, matching woman face/teal paint/gray-streaked hair, bone-feather ornaments/robes/staff, correct anatomy, all framed.",
+  "issues": [],
+  "output": {
+    "path": "assets/source/units/shaman/reference/character-sheet.png",
+    "sha256": "d1f4af3517cd16998cf7ce4ca653ac6f813402ed5d3e432e16c4aabfe8156283",
+    "bytes": 2951051,
+    "dimensions": [
+      1536,
+      1024
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "alphaExtrema": null,
+    "exifOrientation": null,
+    "embeddedColorProfile": false
+  },
+  "inputs": [
+    {
+      "path": "assets/source/units/shaman.png",
+      "sha256": "86e51773fbbf4a294ceb67c77e9622949a0db95a12fd56343cec893bf98a22d1"
+    }
+  ],
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "date": "2026-10-28",
+  "approval": "agent visually inspected; not a claim of owner approval or Tripo validation"
+}

@@ -1,0 +1,907 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-28",
+  "tool": "built-in image_gen.imagegen",
+  "generationModel": "not exposed by tool",
+  "order": "unitTypeId ordinal ascending",
+  "batchSize": 1,
+  "canonicalCatalog": "ProjectDelve.Engine/UnitContent.cs",
+  "status": "complete-with-documented-visual-notes",
+  "originalHashes": "baseline.json",
+  "units": [
+    {
+      "unitTypeId": "barbarian-type",
+      "slug": "barbarian",
+      "portraitSource": "assets/source/units/barbarian.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/barbarian/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "eb2cad6fff420872e537798599b2af2c72ecd0aa831e4a62cf8f246063aa85f4",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/barbarian-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/barbarian/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "150e2cfba20c6b4c00a4301f434ed2c8c4ad111e66bfc1aafe6a674fa343af4a",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/barbarian-fullBody.json"
+      },
+      "visualIssues": [
+        "Full-body camera is a shallow front three-quarter angle; side/rear geometry is clearer in the character sheet."
+      ]
+    },
+    {
+      "unitTypeId": "bomb-imp-type",
+      "slug": "bomb-imp",
+      "portraitSource": "assets/source/units/bomb-imp.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/bomb-imp/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "b7da51f62b62c5597780307315229fa8b01ebf59f40b7a9ea6c1d08f7faf037f",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/bomb-imp-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/bomb-imp/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "0bc482d95d8da3b2826bf33d0a714ee759367b03be1bc2bfc8e907257a1dd282",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/bomb-imp-fullBody.json"
+      },
+      "visualIssues": [
+        "Full-body camera is a shallow front three-quarter angle; side/rear geometry is clearer in the character sheet."
+      ]
+    },
+    {
+      "unitTypeId": "castle-guard-type",
+      "slug": "castle-guard",
+      "portraitSource": "assets/source/units/castle-guard.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/castle-guard/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "104c0f8277c322f868033a266408f2c081999355aafe61ae734597b610e117ea",
+        "dimensions": [
+          1774,
+          887
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/castle-guard-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/castle-guard/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "78879a90392a03f3f5d71345788d40a9fe50a2b80b561f6226c7038e6dcb6156",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/castle-guard-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "chief-mechanic-type",
+      "slug": "chief-mechanic",
+      "portraitSource": "assets/source/units/chief-mechanic.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/chief-mechanic/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "e606d1c6fdd44020f51b6dc1b8dde3c08942819d59c8f8935c61033eb1e2696e",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/chief-mechanic-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/chief-mechanic/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "48f64823e7020470744a3abf6807ceaa0e01b6bf7f3ae96ff51e53ff8a8477c0",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/chief-mechanic-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "cleric-type",
+      "slug": "cleric",
+      "portraitSource": "assets/source/units/cleric.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/cleric/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "1fa15017d05be7fa20b319cf50d6d4938c24661347e0364e497bf2d05c134adf",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/cleric-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/cleric/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "4ebfe360f1b95cc0d65ee046620f15d3a6975ae76d4e0ede062778b1ef9c86b2",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/cleric-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "diamond-kart-type",
+      "slug": "diamond-kart",
+      "portraitSource": "assets/source/units/diamond-kart.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/diamond-kart/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "b3cb678bdbdc4caa5451ac33fee14daf6d1e5b5b833cc3d5c6c84c1823ffdcee",
+        "dimensions": [
+          1983,
+          793
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/diamond-kart-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/diamond-kart/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "9bf40174d355a80c7137f610f4545f665a3bed2a619b068979145141a75bfb8c",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/diamond-kart-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "displacer-demon-type",
+      "slug": "displacer-demon",
+      "portraitSource": "assets/source/units/displacer-demon.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/displacer-demon/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "abf2162a18d3a62dc752cfb2c68a76df0a688525b6f71df17ec574dc328d98c5",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/displacer-demon-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/displacer-demon/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "f12d861483e30092b601a61af1f0853f6de2969a738173d25ff89431dda7065e",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/displacer-demon-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "geomancer-type",
+      "slug": "geomancer",
+      "portraitSource": "assets/source/units/geomancer.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/geomancer/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "9ca4f91c52e5b91c6b2621c3d4001e17f249a7561c65d477403b74471092db55",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/geomancer-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/geomancer/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "9e52fdc5f5038f9033f1770ab15e42598b4f8f859078960441043cd780a3a5a0",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/geomancer-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "ghost-type",
+      "slug": "ghost",
+      "portraitSource": "assets/source/units/ghost.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/ghost/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "faf5abf1180f46b2a6f3689f57cecc31f669a98820044baccdb33075af5db5fa",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/ghost-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/ghost/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "12b562e9a0fe23ab5d2ec2930c32378f86e27df025138cb1e85521083d322a2f",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/ghost-fullBody.json"
+      },
+      "visualIssues": [
+        "Spectral translucence, fine hair and shredded robe edges may require manual interpretation/simplification in Tripo; no reconstruction performed."
+      ]
+    },
+    {
+      "unitTypeId": "goblin-bishop-type",
+      "slug": "goblin-bishop",
+      "portraitSource": "assets/source/units/goblin-bishop.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/goblin-bishop/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "20ac14d3fdc47860f88cf367084a3e7d1abc5443a68ece3c7d9b2c0f5f99c38b",
+        "dimensions": [
+          1774,
+          887
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-bishop-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/goblin-bishop/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "82e3af3280817ed4baf385634e7e2f290da767a78b371256acaec87abe2180cb",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-bishop-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "goblin-king-type",
+      "slug": "goblin-king",
+      "portraitSource": "assets/source/units/goblin-king.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/goblin-king/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "c36708ee102a9cfd4d34c6102b38c3c67fb858131987e2e9a66bc4508f165785",
+        "dimensions": [
+          1672,
+          941
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-king-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/goblin-king/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "48dc34a58b3da00a8eb66076a7338e86e87dc7c035c07c42a9d5cf3348fcba3b",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-king-fullBody.json"
+      },
+      "visualIssues": [
+        "Full-body camera is a shallow front three-quarter angle; side/rear geometry is clearer in the character sheet."
+      ]
+    },
+    {
+      "unitTypeId": "goblin-peasant-type",
+      "slug": "goblin-peasant",
+      "portraitSource": "assets/source/units/goblin-peasant.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/goblin-peasant/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "bbd137bbfcd673ed50b18488a545ecbdc12daf9c64cf95f22d2eae339f43136c",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-peasant-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/goblin-peasant/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "eb6392917cb025e65e23239c050831ca20f13844c0e1f436b59468af5b07b603",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-peasant-fullBody.json"
+      },
+      "visualIssues": [
+        "Full-body camera is a shallow front three-quarter angle; side/rear geometry is clearer in the character sheet."
+      ]
+    },
+    {
+      "unitTypeId": "goblin-type",
+      "slug": "goblin",
+      "portraitSource": "assets/source/units/goblin.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/goblin/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "67aa9bff673353d046c16451ab74d4017cf512d8b133a2f042d27f69174a8561",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/goblin/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "7f407a144a69c2a3170925324ff656f1cb57760d84089f24e31c14329c950da8",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/goblin-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "grunt-type",
+      "slug": "grunt",
+      "portraitSource": "assets/source/units/grunt.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/grunt/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "75f221d52f69ef9dc1269a9aeaed445e9e5969c5cc3ebe7e0653bd970436953c",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/grunt-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/grunt/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "e28d63360f044b226e55fcebb66477b2a6125a35b3124602cede23440ca1e128",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/grunt-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "hobby-knight-type",
+      "slug": "hobby-knight",
+      "portraitSource": "assets/source/units/hobby-knight.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/hobby-knight/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "3f25bd92726a25103effd57a08c05fc1d0a2bf2773e403903aa080390c1717d2",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/hobby-knight-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/hobby-knight/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "e1e358ee7b68b8cc0f874a25d2044a5378770ef1959f5d0dec6ad8fc79fe1260",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/hobby-knight-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "labyrinth-shaper-type",
+      "slug": "labyrinth-shaper",
+      "portraitSource": "assets/source/units/labyrinth-shaper.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/labyrinth-shaper/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "af0e13c83a452e1cc0913125b0e102766eab70e13d9f676a6f474592d93b52f0",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/labyrinth-shaper-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/labyrinth-shaper/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "8224afe706cd7abc6c36120839b20775985739ed86b7c3d0b2d4c4e02b1375c0",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/labyrinth-shaper-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "locomotive-type",
+      "slug": "locomotive",
+      "portraitSource": "assets/source/units/locomotive.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/locomotive/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "2b7f2b9e89316794e4011247684728f4413cf18f1fc5d7cee5cb2318fb234582",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/locomotive-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/locomotive/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "6c763cc158a40dcedbe487629240ff814565f61e536058c3b1f713a9027df635",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/locomotive-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "red-dragon-type",
+      "slug": "red-dragon",
+      "portraitSource": "assets/source/units/red-dragon.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/red-dragon-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/red-dragon/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "95400a319de19126732c5d1a6ca9c691c9f54244f7b189209ad350f4aac88344",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/red-dragon-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "rogue-type",
+      "slug": "rogue",
+      "portraitSource": "assets/source/units/rogue.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/rogue/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "5855f825173602322e3d5f65019cc79bacbc4ffb81e3c9c272d5ef541fac8ac9",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/rogue-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/rogue/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "de871781d8e8aaee7939d8f3bc7a5151a7bc5cdcd477b63fe2a9c9b9675d5f3b",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/rogue-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "royal-bishop-type",
+      "slug": "royal-bishop",
+      "portraitSource": "assets/source/units/royal-bishop.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/royal-bishop/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "ec355376041a6a64b8c53a455cf2707b61335b18ec4e7c37c9b9856133a17e58",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-bishop-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/royal-bishop/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "3a75d867749b5391b5c74ab71edda4d0d1e4b0171f65889a366e9a2419fd3570",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-bishop-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "royal-king-type",
+      "slug": "royal-king",
+      "portraitSource": "assets/source/units/royal-king.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/royal-king/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "08e644daee646fd91538dd4dfbe0dc885a03a90007ac5f7ae14496b92de0ffd4",
+        "dimensions": [
+          1774,
+          887
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-king-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/royal-king/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "db2379d6a8ce9d9f90a5ea38b5df107d3f7d9b51e3f35fe1ed4524787ab45a45",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-king-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "royal-knight-type",
+      "slug": "royal-knight",
+      "portraitSource": "assets/source/units/royal-knight.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "ea07499c869de9092b548f58066106b68b3fb4ed36b39e5d991c761507a57748",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-knight-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/royal-knight/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "d471e35f658372ee8dee03b65776b74f283e3c9eefd92775a10bf8629c79b2bf",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-knight-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "royal-peasant-type",
+      "slug": "royal-peasant",
+      "portraitSource": "assets/source/units/royal-peasant.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/royal-peasant/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "c2a38350d37c760ca53e225f5439a5cec3e749a0cf2d1889929c36b98af4aa8b",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-peasant-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/royal-peasant/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "1e41190146a049d7be1a53b13ed2b666fdab51f4565ffa1491056b4a42df1f64",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-peasant-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "royal-queen-type",
+      "slug": "royal-queen",
+      "portraitSource": "assets/source/units/royal-queen.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/royal-queen/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "012609ff0bd3413f1e3e61307fc928dfae25bb9256cc0278a8fbee577b29dbec",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-queen-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/royal-queen/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "0cab3a815c7ec9689957cac1712296d35d4c7a73e68e033c0ea588843a6419ce",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/royal-queen-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "shaman-type",
+      "slug": "shaman",
+      "portraitSource": "assets/source/units/shaman.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/shaman/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "d1f4af3517cd16998cf7ce4ca653ac6f813402ed5d3e432e16c4aabfe8156283",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/shaman-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/shaman/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "ad20c0ac8cdd9edf2619e3cab44ef311151cf425b44b7af289adc4fff629b694",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/shaman-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "skeleton-archer-type",
+      "slug": "skeleton-archer",
+      "portraitSource": "assets/source/units/skeleton-archer.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/skeleton-archer/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "6041987fc13fecf9f69712ede41698c4b9d5b6ca3ec1d148d1aa5832f602299f",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/skeleton-archer-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/skeleton-archer/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "a35346e2d4391b418a7f7c18251dc5b030086c83edf258818fc70a646b846840",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/skeleton-archer-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "tower-troll-type",
+      "slug": "tower-troll",
+      "portraitSource": "assets/source/units/tower-troll.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "486762045a86b12381e27e2adbb4897d7684da18a47f539d7ee06be5ce447a26",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/tower-troll-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/tower-troll/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "4a887a9f8e41b1866bae0ac921229bba4980fb314bcc4d2d095f03a2d0819a32",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/tower-troll-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "troll-type",
+      "slug": "troll",
+      "portraitSource": "assets/source/units/troll.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/troll/reference/character-sheet.png",
+        "status": "existing-preserved"
+      },
+      "fullBody": {
+        "path": "assets/source/units/troll/reference/full-body.png",
+        "status": "existing-preserved"
+      },
+      "visualIssues": [
+        "Existing sheet includes a labeled scale-comparison character; explicitly preserved per task. Existing full-body contains one base-free Troll."
+      ]
+    },
+    {
+      "unitTypeId": "witch-queen-type",
+      "slug": "witch-queen",
+      "portraitSource": "assets/source/units/witch-queen.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/witch-queen/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "c2d8e7ad8e4fb0914ccd6f0106e0af14cffe776e26b70130dba33f86583f5a4b",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/witch-queen-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/witch-queen/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "49ccb8270b32f3ac60e160610fab1c73ae72e3bc370a3e0b71a86e1f485bfffc",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/witch-queen-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "wizard-type",
+      "slug": "wizard",
+      "portraitSource": "assets/source/units/wizard.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/wizard/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "3b6963f9c38fc8a3560e6ce823fd5cf3a19068cb38ad74c048aa1c21e12152a7",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/wizard-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/wizard/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "fc129c327f0adbd57486069650c7161a72f65d7b859a50f305650aa7cd3d00bd",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/wizard-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "worker-type",
+      "slug": "worker",
+      "portraitSource": "assets/source/units/worker.png",
+      "concept": null,
+      "characterSheet": {
+        "path": "assets/source/units/worker/reference/character-sheet.png",
+        "status": "generated-reviewed",
+        "sha256": "8aadc6142a88a617df6fd703b32b81edcd7f8f3fb7aebbad4cb336ecc1896e82",
+        "dimensions": [
+          1536,
+          1024
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/worker-characterSheet.json"
+      },
+      "fullBody": {
+        "path": "assets/source/units/worker/reference/full-body.png",
+        "status": "generated-reviewed",
+        "sha256": "7e8d8222632c938e49dba6ce329df39be29a1376554763d3f5510f1bdc3e7b50",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "provenance": "assets/source/reference-production/2026-10-28/records/worker-fullBody.json"
+      },
+      "visualIssues": []
+    },
+    {
+      "unitTypeId": "zombie-type",
+      "slug": "zombie",
+      "portraitSource": "assets/source/units/zombie.png",
+      "concept": "assets/source/units/zombie/concept.md",
+      "characterSheet": {
+        "path": "assets/source/units/zombie/reference/character-sheet.png",
+        "status": "existing-preserved"
+      },
+      "fullBody": {
+        "path": "assets/source/units/zombie/reference/full-body.png",
+        "status": "existing-preserved"
+      },
+      "visualIssues": [
+        "Existing sheet includes miniature bases and labels; explicitly preserved per task. Existing full-body is base-free."
+      ]
+    }
+  ],
+  "summary": {
+    "canonicalTypes": 32,
+    "alreadyComplete": 2,
+    "processedTypes": 30,
+    "characterSheetsGenerated": 30,
+    "fullBodyReferencesGenerated": 30,
+    "failedTypes": [],
+    "skippedMissingTypes": [],
+    "preservedTypes": [
+      "troll-type",
+      "zombie-type"
+    ],
+    "generatorCalls": 61,
+    "rejectedDrafts": 1,
+    "targetedCorrections": 1,
+    "protectedFilesUnchanged": 177,
+    "referenceOutputs": 64
+  },
+  "toolLimitations": [
+    "Built-in tool does not expose generation model/version, seed or exact canvas-size controls in this session.",
+    "Generated PNG originals have varying canvas dimensions and are preserved without resampling.",
+    "Not validated by Tripo; unseen body surfaces are conservative visual extrapolations, not new game canon.",
+    "Some camera angles are shallow; Ghost translucence and fine ornaments may need manual reconstruction interpretation."
+  ],
+  "verification": "verification.json",
+  "representativeReview": {
+    "path": "review-contact-sheet.png",
+    "units": [
+      "barbarian-type",
+      "diamond-kart-type",
+      "ghost-type",
+      "hobby-knight-type",
+      "locomotive-type",
+      "red-dragon-type",
+      "royal-knight-type",
+      "worker-type"
+    ],
+    "finding": "Saved copies reviewed together; identity, complete silhouettes and source style coherent. Locomotive wheel correction verified. Ghost and shallow camera notes retained.",
+    "additionalOutlier": "goblin-peasant/reference/full-body.png inspected at full size; shallow angle documented."
+  }
+}

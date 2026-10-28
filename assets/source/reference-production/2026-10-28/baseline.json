@@ -1,0 +1,887 @@
+﻿[
+    {
+        "path":  "assets/previews/artwork-pack-01.png",
+        "bytes":  1676766,
+        "sha256":  "f152517fa1fadd71b8bc9de096727567786c9544165827d2a049f2f4d0b41cf0"
+    },
+    {
+        "path":  "assets/previews/cell-markers.png",
+        "bytes":  92556,
+        "sha256":  "2e0ea9fda39b821ac55c4ed76dc507a1fff07a14d37efdfa6e361412fc249c1b"
+    },
+    {
+        "path":  "assets/previews/chess-court.png",
+        "bytes":  94970,
+        "sha256":  "29d95c88a4439913a1c223f6b5b53f0b6d9ada4f7434d7053218c5b84748dbdb"
+    },
+    {
+        "path":  "assets/previews/composite-terrain.png",
+        "bytes":  749192,
+        "sha256":  "898c085f3880cb47fa8a9c6bb3e5d5b59c9c1fa30fe663bba8c347f348222137"
+    },
+    {
+        "path":  "assets/previews/edges.png",
+        "bytes":  430041,
+        "sha256":  "1eba4dde327b6a9eecf7f678627ca232c78a6011dce068ec2f3e9eb532cd2eae"
+    },
+    {
+        "path":  "assets/previews/machines-resources.png",
+        "bytes":  180562,
+        "sha256":  "3c0842f98c6ddeb0b1b41b640f8068ab5cb8ebaf78fa9808aed5d415218d2cf5"
+    },
+    {
+        "path":  "assets/previews/railway.png",
+        "bytes":  1230429,
+        "sha256":  "b60736b8e29be7570e9863d453737eee21687dacd6e2cb8cd39469985b94b8e5"
+    },
+    {
+        "path":  "assets/previews/solid-rock.png",
+        "bytes":  263357,
+        "sha256":  "7e6b36f483d2648eac0305bc68761ecaf9eefe4d809afef58dba019bf89176df"
+    },
+    {
+        "path":  "assets/source/edges/door-closed.png",
+        "bytes":  989500,
+        "sha256":  "308b68047527b0286cbf18f1737b6e71a1e82465cbc3759ea4479bd8f3e2cca7"
+    },
+    {
+        "path":  "assets/source/edges/door-open.png",
+        "bytes":  752697,
+        "sha256":  "7c760af70259661794054d21abdb8df78a8743b330964f06ec5618c41b35d351"
+    },
+    {
+        "path":  "assets/source/edges/wall.png",
+        "bytes":  903585,
+        "sha256":  "42cf0cf2caf861b2518fb9e7eed45655a4355e2c818df2b781c6d6c5f44b8040"
+    },
+    {
+        "path":  "assets/source/machines/diamond-press.png",
+        "bytes":  2328825,
+        "sha256":  "9ed76e4d7f609a2f59a88e3854c66ae5c56464ac463952ea1442637b80bf804d"
+    },
+    {
+        "path":  "assets/source/machines/slot-machine.png",
+        "bytes":  2064309,
+        "sha256":  "0252fa754c0ec59cf2fd98f46f824ea861ad249a5b55d735f9fb42e62312b6de"
+    },
+    {
+        "path":  "assets/source/markers/banana-peel.png",
+        "bytes":  766307,
+        "sha256":  "08e9d3e74d6ca80d07d55d7ef3087798f7e41174bd5367c0c6fa58c9a49bb91d"
+    },
+    {
+        "path":  "assets/source/models/units/troll/original.glb",
+        "bytes":  4370304,
+        "sha256":  "fa1efdf52d87635dbce4fbf45784057d9dfb24b8fe88a90b518528f9f3788b33"
+    },
+    {
+        "path":  "assets/source/models/units/troll/provenance.json",
+        "bytes":  6679,
+        "sha256":  "9aa5e737fc945ad80ea0cc974e083b3bb499f5d52f9a2fee1533c1307e09646d"
+    },
+    {
+        "path":  "assets/source/models/units/troll/README.md",
+        "bytes":  5490,
+        "sha256":  "938f76936b252350ccb9286934a94fc030eaf65d69088561e1d8b21525d56125"
+    },
+    {
+        "path":  "assets/source/models/units/zombie/original.glb",
+        "bytes":  4466380,
+        "sha256":  "9f3804e8fc44deccf126efdec1f8babe2564adff45b4c53fbd131ef1a3823eb3"
+    },
+    {
+        "path":  "assets/source/models/units/zombie/provenance.json",
+        "bytes":  5521,
+        "sha256":  "838c5450c4903dd365199fff1e895032b7ce3ff361e671248e2533c0054b2b16"
+    },
+    {
+        "path":  "assets/source/models/units/zombie/README.md",
+        "bytes":  2082,
+        "sha256":  "61819709a76ea48b9328e7eebf90575e586120c7fbbcbd454cffade39902d433"
+    },
+    {
+        "path":  "assets/source/railway/rail.png",
+        "bytes":  236271,
+        "sha256":  "da634f5e4dbdb4c5b08239520f4e65c4290e794dd98e57042dbbb35a4b615bef"
+    },
+    {
+        "path":  "assets/source/railway/sleeper.png",
+        "bytes":  662154,
+        "sha256":  "7aad989e81983a892deec9d38d42951d495c93f941a053c6c0af3dbae7dcb809"
+    },
+    {
+        "path":  "assets/source/resources/banana.png",
+        "bytes":  502268,
+        "sha256":  "3edf803b3fc1df33b89396c4cf93be30820ae6e19b770f701103bb9586ffa220"
+    },
+    {
+        "path":  "assets/source/resources/coal.png",
+        "bytes":  839726,
+        "sha256":  "b28645d0329c9aabb1413d394c8244c72fd9d918357c5f34fcd12d15ef4ddf6a"
+    },
+    {
+        "path":  "assets/source/resources/diamond.png",
+        "bytes":  826769,
+        "sha256":  "31896234fb49112a6d7f9fc28cfa28f22d3892584c099986a5f0b4c05c0d5fe5"
+    },
+    {
+        "path":  "assets/source/resources/fruit.png",
+        "bytes":  575791,
+        "sha256":  "b6a7af842a16af785ec6970cd2e6f753814e12f0248890435541df5fb9b0293d"
+    },
+    {
+        "path":  "assets/source/resources/mushroom.png",
+        "bytes":  667519,
+        "sha256":  "b59f7d50ac81d4b0fb8d56c7599fee14978438529a2f9744fd79808789a3b301"
+    },
+    {
+        "path":  "assets/source/resources/shell.png",
+        "bytes":  937635,
+        "sha256":  "36975da398645b5ec5aa4af8dc8b9a14f92741f31bdb6d3dab93bf9ab2f5944c"
+    },
+    {
+        "path":  "assets/source/terrain/asphalt-01.png",
+        "bytes":  3676822,
+        "sha256":  "97de5a0275cec2de52e82567929c34e2b013e5f433fb92266fa2a9d26c175f92"
+    },
+    {
+        "path":  "assets/source/terrain/asphalt-02.png",
+        "bytes":  3521999,
+        "sha256":  "614241309d1a3e557066f08b91c34768272daffd0518ecd448aa5d1da12ba11a"
+    },
+    {
+        "path":  "assets/source/terrain/asphalt-03.png",
+        "bytes":  3604772,
+        "sha256":  "71506d744fb09d0f2f0378e99d6125361bd6dcb0dce46dcbdc2e401026235bf5"
+    },
+    {
+        "path":  "assets/source/terrain/grass-01.png",
+        "bytes":  3384303,
+        "sha256":  "2868a8b33855718d7e0f8acce21b4015779a909b6e35662088e503f4a83ff1ee"
+    },
+    {
+        "path":  "assets/source/terrain/grass-02.png",
+        "bytes":  3312508,
+        "sha256":  "d0e41d8a79b0f1631ecfafa64c29203dd75838e30ce7286dc7486a31e303b62a"
+    },
+    {
+        "path":  "assets/source/terrain/grass-03.png",
+        "bytes":  3416335,
+        "sha256":  "0a8b4572805d9fea5af243164af64e26ecd725186113fd22874bca08f112564a"
+    },
+    {
+        "path":  "assets/source/terrain/gravel-01.png",
+        "bytes":  4250297,
+        "sha256":  "b37176d0729cc73bc0ad5be997ab0cb275f9657fd05f63e8247f4e86932f8b02"
+    },
+    {
+        "path":  "assets/source/terrain/gravel-02.png",
+        "bytes":  4327466,
+        "sha256":  "530544264b5dc9dbfe4de6a15186da548db42756d5c02248cc9c5674a5670225"
+    },
+    {
+        "path":  "assets/source/terrain/gravel-03.png",
+        "bytes":  4079858,
+        "sha256":  "0bf9fd63ba5691da3e2e5cda4b075140e4a4bfb6a0449ec06ad1e5e17a868772"
+    },
+    {
+        "path":  "assets/source/terrain/lava-01.png",
+        "bytes":  2228833,
+        "sha256":  "3cd3c8acba81f07138f7865a8526c02f3b39293cd4ed8c525b308f6178caf539"
+    },
+    {
+        "path":  "assets/source/terrain/lava-02.png",
+        "bytes":  2218255,
+        "sha256":  "bd2c973480b89ff2ecc9bd4562ea543c1bc95c24df919b6a6edfaafb04c82769"
+    },
+    {
+        "path":  "assets/source/terrain/lava-03.png",
+        "bytes":  2202143,
+        "sha256":  "1f5954b1e79757370a57fa4bce23306f6c488ca2b2d5377f37b2734d0fe7cb65"
+    },
+    {
+        "path":  "assets/source/terrain/objects/fruit-tree-01.png",
+        "bytes":  2403032,
+        "sha256":  "a99f6c33d1fb12ebdb1c5961923f0ba48b4ffef8372d5aa4c4950214c9bd89b9"
+    },
+    {
+        "path":  "assets/source/terrain/objects/fruit-tree-02.png",
+        "bytes":  2202218,
+        "sha256":  "f7652b11b3d9efb794bd0ffab6cb26c47ea26bf297fce11bfd33425896e5e24d"
+    },
+    {
+        "path":  "assets/source/terrain/objects/fruit-tree-03.png",
+        "bytes":  2294400,
+        "sha256":  "72ac387530e461a92d11d81b2d8b1b15c4e7c1d28a63a1e6f054602d6d38825f"
+    },
+    {
+        "path":  "assets/source/terrain/objects/table-01.png",
+        "bytes":  1522444,
+        "sha256":  "92b543697daa0dee609b9cb279a3a2139e084f0cf8eac1eddb5dd37eee969b38"
+    },
+    {
+        "path":  "assets/source/terrain/objects/table-02.png",
+        "bytes":  1595202,
+        "sha256":  "e6530fff871b86b6f6fdc4ae38cf57fac103fb5abf555b3f7e557e7d6822a336"
+    },
+    {
+        "path":  "assets/source/terrain/objects/table-03.png",
+        "bytes":  1730670,
+        "sha256":  "e45820e7525e96eac159fc8f4b4f4a06d6c7c4465c40bd958a1a56bebdfe728b"
+    },
+    {
+        "path":  "assets/source/terrain/objects/tree-01.png",
+        "bytes":  2043476,
+        "sha256":  "9edd236eca96fd55f882c6716685e61168cd04e24fe4fe09530b649f60a19601"
+    },
+    {
+        "path":  "assets/source/terrain/objects/tree-02.png",
+        "bytes":  2018963,
+        "sha256":  "19ed11cb6777d8ff48902304076163820835ba4e05b13d6d01a66b91e1870534"
+    },
+    {
+        "path":  "assets/source/terrain/objects/tree-03.png",
+        "bytes":  2019167,
+        "sha256":  "2edb812d9ea78282ae73fc2c9bfb1933149ffc9d188b1ceae3c9682566b41d85"
+    },
+    {
+        "path":  "assets/source/terrain/solid-rock-01.png",
+        "bytes":  3301677,
+        "sha256":  "8cfce9b84b6fad045c932dcabf77908d26e51d38c2987e8bda49def9018cdd28"
+    },
+    {
+        "path":  "assets/source/terrain/solid-rock-02.png",
+        "bytes":  3068928,
+        "sha256":  "f9fc7803f5913a48143ceb9ae1c7a6f78f259f0de295ff9f5cb6731cc4f232ef"
+    },
+    {
+        "path":  "assets/source/terrain/solid-rock-03.png",
+        "bytes":  3281945,
+        "sha256":  "391e2311996ccf1e2598221a327e0a24e1fef3d5b4e96d8231437b2fca18b698"
+    },
+    {
+        "path":  "assets/source/terrain/stone-floor-01.png",
+        "bytes":  3683280,
+        "sha256":  "aa524416cc089254990e62603700de3a27ce7f40d6472fb6f4959096e367a99a"
+    },
+    {
+        "path":  "assets/source/terrain/stone-floor-02.png",
+        "bytes":  3415766,
+        "sha256":  "8908f44f0ecb7bacb978dc9969536344411040ef2c4d0afc9daf79504b6aea92"
+    },
+    {
+        "path":  "assets/source/terrain/stone-floor-03.png",
+        "bytes":  3796107,
+        "sha256":  "4b5448b491cc062548d2904ab945b6193d66ca60b2339487950663a9149b9cc4"
+    },
+    {
+        "path":  "assets/source/terrain/water-01.png",
+        "bytes":  1744010,
+        "sha256":  "566f9d57d5cdb305e4828f284ddc48a35e45cdf2b452811120f75cee47a51d4e"
+    },
+    {
+        "path":  "assets/source/terrain/water-02.png",
+        "bytes":  1729980,
+        "sha256":  "08c0ad03c28bcae40e473ef165672f1f4aa31f4ef0561c471ce0e33cb69317a5"
+    },
+    {
+        "path":  "assets/source/terrain/water-03.png",
+        "bytes":  1983446,
+        "sha256":  "386d46a76bf9bcd00ca302f10b03659e09a657bd2a05bd95dab2797254ff0ae9"
+    },
+    {
+        "path":  "assets/source/units/barbarian.png",
+        "bytes":  2799795,
+        "sha256":  "d91a331beb78e1f4f67a2aec933b5c5df73819ff9d1751c542ec6af829e58722"
+    },
+    {
+        "path":  "assets/source/units/bomb-imp.png",
+        "bytes":  2338008,
+        "sha256":  "fb0f74df2138098c526ab7a8fe235f1a5aafd35ff39b2bcd5623f3e49d8ed6c6"
+    },
+    {
+        "path":  "assets/source/units/castle-guard.png",
+        "bytes":  3071877,
+        "sha256":  "84ec1e6fa82db1ece0b8f6a5db783c5c50f609bd551527200bf5b89129e3e664"
+    },
+    {
+        "path":  "assets/source/units/chief-mechanic.png",
+        "bytes":  2468222,
+        "sha256":  "2e3da066e665877ad0400f557cfaebc04b6d9e7c1b5b690d0a6ebf3feedb647b"
+    },
+    {
+        "path":  "assets/source/units/cleric.png",
+        "bytes":  2741953,
+        "sha256":  "1e2d152760024a349b62fb5c209bb89f6d235ce225ac2a5882124d8236c647a5"
+    },
+    {
+        "path":  "assets/source/units/diamond-kart.png",
+        "bytes":  2470898,
+        "sha256":  "f8ed8db05e9a2906a5a8b870e4aee1481fe216e2ea2191a20d364cabee8f3088"
+    },
+    {
+        "path":  "assets/source/units/displacer-demon.png",
+        "bytes":  2288270,
+        "sha256":  "3945acce8622bc07fde0081b87de5225d1f006dc0a0db225575d8fbcc2543fb2"
+    },
+    {
+        "path":  "assets/source/units/geomancer.png",
+        "bytes":  2507158,
+        "sha256":  "7ec20a502647cdd1c0fec8fd77b28b26f9a3a51d7dcdb5def0de7c6c8de5bb0c"
+    },
+    {
+        "path":  "assets/source/units/ghost.png",
+        "bytes":  2448278,
+        "sha256":  "bf5d4bd5aca37cff89fab8bc3aff79ca9e755b116dd09f2f9b5ca8eb3b7cdda9"
+    },
+    {
+        "path":  "assets/source/units/goblin.png",
+        "bytes":  2515722,
+        "sha256":  "a5a018aa3c3781f42530f956e8299340342968434ee8e4b9c54d43773c9c9d4b"
+    },
+    {
+        "path":  "assets/source/units/goblin-bishop.png",
+        "bytes":  2431764,
+        "sha256":  "cbe8d1d47c76c55125fd46d1d77d99b30c0dd20240c5ccb0ed7f99d8f43de029"
+    },
+    {
+        "path":  "assets/source/units/goblin-king.png",
+        "bytes":  2488088,
+        "sha256":  "0bdfc46fa42acc30013827400fa45d4500bca9777800e5c0d377853762a9b685"
+    },
+    {
+        "path":  "assets/source/units/goblin-peasant.png",
+        "bytes":  2483312,
+        "sha256":  "e5a730442234d2a585a108b032a3ba2b4a9cb9776e22056bb8d8e223d45e31b1"
+    },
+    {
+        "path":  "assets/source/units/grunt.png",
+        "bytes":  2651244,
+        "sha256":  "dc411927145faf26751c91da700ef47b76dac4fcdd0a4b711e04dfadf45ad713"
+    },
+    {
+        "path":  "assets/source/units/hobby-knight.png",
+        "bytes":  2743117,
+        "sha256":  "82997fc1c189881e77ae5ef4d383c7aacd620a3546cfcd242d41612bd03105cb"
+    },
+    {
+        "path":  "assets/source/units/labyrinth-shaper.png",
+        "bytes":  2662050,
+        "sha256":  "20765ff84ee94f6c2e17aa980546aa7e1aafffade2d6ec79b8ac54d71f6ac048"
+    },
+    {
+        "path":  "assets/source/units/locomotive.png",
+        "bytes":  2567446,
+        "sha256":  "fd2a5b0fbcfdda1fb43805d06e8afbf9eb683df600e1a5a46f8dbb2267cbfebf"
+    },
+    {
+        "path":  "assets/source/units/red-dragon.png",
+        "bytes":  2553643,
+        "sha256":  "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6"
+    },
+    {
+        "path":  "assets/source/units/rogue.png",
+        "bytes":  2588063,
+        "sha256":  "a07dfa7647eafe175d7999ba38f0d2e79ba3234e556f78912d793fbb677b56ff"
+    },
+    {
+        "path":  "assets/source/units/royal-bishop.png",
+        "bytes":  2516761,
+        "sha256":  "8c1164d5b0a70ae5563cd4779da6841b4a9a0d1abd0792dac8c95dd805c7366e"
+    },
+    {
+        "path":  "assets/source/units/royal-king.png",
+        "bytes":  2506131,
+        "sha256":  "cc9b363bc250bdaa8dc5305e979284a3a905ee4cb7423f732bc45b1bab8e0443"
+    },
+    {
+        "path":  "assets/source/units/royal-knight.png",
+        "bytes":  2644062,
+        "sha256":  "30e0cd00a36c170a5b76717cc74cba495cce00ad98b136b3f679f3a221672efa"
+    },
+    {
+        "path":  "assets/source/units/royal-peasant.png",
+        "bytes":  2498648,
+        "sha256":  "d585d0ce03337a2e95ad9b84902ed932b4690b157a7d6a7ea3633d7450fc2fe7"
+    },
+    {
+        "path":  "assets/source/units/royal-queen.png",
+        "bytes":  2424795,
+        "sha256":  "3b9207482b5ae8089f57b4da46624697a1568b5e38d4655ddbe15c22f6ad361d"
+    },
+    {
+        "path":  "assets/source/units/shaman.png",
+        "bytes":  2988893,
+        "sha256":  "86e51773fbbf4a294ceb67c77e9622949a0db95a12fd56343cec893bf98a22d1"
+    },
+    {
+        "path":  "assets/source/units/skeleton-archer.png",
+        "bytes":  2822843,
+        "sha256":  "ee65ef2c484286a4c90865943c58c1e3045f50c815dfa799bb1966edb3eb9ee5"
+    },
+    {
+        "path":  "assets/source/units/tower-troll.png",
+        "bytes":  2774458,
+        "sha256":  "6308afa014bccc2dd959b473f98a6d1b7e724e875ab8ec180ada1a4536c9d434"
+    },
+    {
+        "path":  "assets/source/units/troll.png",
+        "bytes":  2837192,
+        "sha256":  "baa6b5ce761c4752c42e7b20b9c1bebf1b736dc40c5d611a4e5b46adb688d656"
+    },
+    {
+        "path":  "assets/source/units/troll/reference/character-sheet.png",
+        "bytes":  2849726,
+        "sha256":  "a21c838e2114f1ad32a4299cdf4c012089bf39f64f6d8e3949a0fdfc5bcbe7a2"
+    },
+    {
+        "path":  "assets/source/units/troll/reference/full-body.png",
+        "bytes":  2576088,
+        "sha256":  "c4952960a8d608ca8df574022f38c9d92488cba28f5e84317c3f7e3ac7ff1390"
+    },
+    {
+        "path":  "assets/source/units/witch-queen.png",
+        "bytes":  2596273,
+        "sha256":  "b8f80b479b2f432e159bbbdd57c51ba75a1f84c151b6fd4a25440e07ec7eaf90"
+    },
+    {
+        "path":  "assets/source/units/wizard.png",
+        "bytes":  2627136,
+        "sha256":  "54e2dc4523aba7aa028c9016c1500faaa320493543e656933a32217d9239b777"
+    },
+    {
+        "path":  "assets/source/units/worker.png",
+        "bytes":  2544223,
+        "sha256":  "c87127bd609d859b22181d31af3d5e49233090f3c86da0196f6a9de0f72a7cee"
+    },
+    {
+        "path":  "assets/source/units/zombie.png",
+        "bytes":  2553004,
+        "sha256":  "0db1c1644fd69e3e6fad1a34e5cddd825161b1604f4faefad80a4e644bbea3d7"
+    },
+    {
+        "path":  "assets/source/units/zombie/CONCEPT.md",
+        "bytes":  521,
+        "sha256":  "58f6152d0b602f3ca50120ff037768c6d4dea67265768bb56351b4f54baf29fc"
+    },
+    {
+        "path":  "assets/source/units/zombie/reference/character-sheet.png",
+        "bytes":  2416776,
+        "sha256":  "463f05924450302ee58273c155643bd2abb17629b4ce11e8a55daaca15a22aaa"
+    },
+    {
+        "path":  "assets/source/units/zombie/reference/full-body.png",
+        "bytes":  2267919,
+        "sha256":  "45c12357b400b32906781e6faf78cd0cdb4bc69b5635c14e436f8c8ecb78affd"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/edges/door-closed.webp",
+        "bytes":  17294,
+        "sha256":  "04245118d4c569d163169eec4fd5177f564327a592204c378229bdc92bb186f8"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/edges/door-open.webp",
+        "bytes":  14888,
+        "sha256":  "f5ea12c6425077d992c0a356153095dc728d1b56bec595a23ceef32a3ee9a6a5"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/edges/wall.webp",
+        "bytes":  17368,
+        "sha256":  "de80968e636ebc8ece9c15035d5361a5a565d4b1c5394ffa5c983971f37a9f49"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/machines/diamond-press.webp",
+        "bytes":  21962,
+        "sha256":  "de8eb8ff4a274980195b0f7f50f66523c5d96584f975ad3c4fbfc26c3047635b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/machines/slot-machine.webp",
+        "bytes":  19210,
+        "sha256":  "214a87c61746279d7e35834b5696b580cc9ff1504ed2ba5a45109c60ec8c7910"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/markers/banana-peel.webp",
+        "bytes":  6488,
+        "sha256":  "57ba90b55b88d2cce6da8d630ad9d9bd19f6b81413ef5f29195a7bb982e6cb52"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb",
+        "bytes":  4370372,
+        "sha256":  "e1eb5e1bac81f2e5f622214a91effaa50ddbc0bafe0312c4bb8071c27835e846"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb",
+        "bytes":  4466452,
+        "sha256":  "c3f15a9e0be475aebf336ca0ed5704f5dbfc2b323e8446711f642e352b6bea79"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/models/unit-visuals.json",
+        "bytes":  4917,
+        "sha256":  "fd1e4489196f37093e1121e70e5bf7db6f48d9f15d2471d7e4ebd2f26f2b5814"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/railway/cross.svg",
+        "bytes":  86784,
+        "sha256":  "080cd856b0af30219efc0a39109e55ffc0ce4ba03265c44bb7a7a873e0ff1467"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/railway/curve.svg",
+        "bytes":  85502,
+        "sha256":  "908a22310e0c024e3637332babf4f69ff111dbc5948b2f1a0a22f557e5765f7a"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/railway/fallbacks.css",
+        "bytes":  2728,
+        "sha256":  "fd65172759c51328600a5da2c017934dac4e9b8b240cdfcabf140b41d193cc21"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/railway/straight.svg",
+        "bytes":  85556,
+        "sha256":  "46a0eb29efef58296da58fccc64886f948a5b01140453f9423fa14b02bd421a1"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/railway/tee.svg",
+        "bytes":  87897,
+        "sha256":  "4cccbb3a63ccb989fb541ac34584d85427502fded695db832318e0e53ee2845f"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/resources/banana.webp",
+        "bytes":  3604,
+        "sha256":  "7a88ab6fc97edb52a64371aef3d40a89f1a1b045dea9e46a1c579edbaa3cb901"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/resources/coal.webp",
+        "bytes":  3598,
+        "sha256":  "f472cb44ce0724c1a601f785315f3e41aaaf1a53b81dde17610d03109511010d"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/resources/diamond.webp",
+        "bytes":  4786,
+        "sha256":  "0bf4d20e7c8cb77d2524e2abf2383125c3f0e77673bb71560db33eb115304341"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/resources/fruit.webp",
+        "bytes":  4766,
+        "sha256":  "0740e5fa16b4c52594a3c69c59d04312a124acdfade5508a2f1d202a802d950f"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/resources/mushroom.webp",
+        "bytes":  4148,
+        "sha256":  "9bd6aabb1fdc2b75bda9b6ff0f156ae3823ec3a68265d88b8c2515310bbc128b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/resources/shell.webp",
+        "bytes":  4568,
+        "sha256":  "5d10db2d12914667bb603a239113bed49923590b9dd1d9710cd532748fd08114"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/asphalt/01.webp",
+        "bytes":  4286,
+        "sha256":  "72ca1c1724c7aadb5d9f780cb33dd9639a095df3a7e2ed7c78d8250c4a83f9eb"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/asphalt/02.webp",
+        "bytes":  4850,
+        "sha256":  "6ccf46a3e5d53f6dd094eac8f35f8291e77719dfc2692089c29717b6f47538fd"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/asphalt/03.webp",
+        "bytes":  3944,
+        "sha256":  "5f7a8f45e561d3ed33085ee6fdd48c389f2f6e34b699b4cf439ade47726be63a"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/grass/01.webp",
+        "bytes":  18984,
+        "sha256":  "05c31af22fcaaf44eab104112225e4f062d5e457670cc77b4583ec1514188100"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/grass/02.webp",
+        "bytes":  17766,
+        "sha256":  "bfc730568104a0ae0c3b66272df7916a31a97b88f13c7f6aa7747d5e345cda8b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/grass/03.webp",
+        "bytes":  18308,
+        "sha256":  "14674ea80969826e79f05dd3558e972295f919fcd95a1cced58a0b3e97644a47"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/gravel/01.webp",
+        "bytes":  32208,
+        "sha256":  "2bd1932a02eb027164023aee6529012baab5ef0c07b2ee8b9367d724f2e47d24"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/gravel/02.webp",
+        "bytes":  31870,
+        "sha256":  "0bfaeb49be533f258c00d9d3515a4a7d0af38a121ed603028c71f50ef8c33e1b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/gravel/03.webp",
+        "bytes":  31240,
+        "sha256":  "39d06109a5f018e19a5c3a2c064600b49bed41682250db1f4f0716461fc6a8b7"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/lava/01.webp",
+        "bytes":  15768,
+        "sha256":  "9e80802458cd47087b7ca41810018f4b2c2b7ce1a7e1432e5dfc4a0cc36226c2"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/lava/02.webp",
+        "bytes":  15302,
+        "sha256":  "d12a351b4f41a0dbb90180e871d208c921c226f7f8a5dc05042b77d03c09865a"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/lava/03.webp",
+        "bytes":  15146,
+        "sha256":  "ad6f8ad3e1e5bdfde2891ae116a3a273ed10158c585e8bb7ba39d2784bd2fdd9"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/fruit-tree/01.webp",
+        "bytes":  32818,
+        "sha256":  "c7b1a7cf3500a9ff87bfcffd5a13021ecadfc198821b1e22f6df7fa1be792fb5"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/fruit-tree/02.webp",
+        "bytes":  32502,
+        "sha256":  "41d0bf206c93cd1659752d9ae397b51e3281fcc8159194221ec933a911d980d1"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/fruit-tree/03.webp",
+        "bytes":  32182,
+        "sha256":  "21732ad1def45b246fd7db832db7abc6b9cd4a1ef2f449965f746711043dad99"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/table/01.webp",
+        "bytes":  9958,
+        "sha256":  "4856938a56848b7484e7b1c8d45ae208c3bafb01456f852ee480045bf5e8c2b3"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/table/02.webp",
+        "bytes":  11226,
+        "sha256":  "ebdce99fba7d8cb643857b0e673d1560c9dde1a251348b388c7d8b4adf197e5b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/table/03.webp",
+        "bytes":  11210,
+        "sha256":  "d1c25547ada683f98a6d5a069ed2cbad4af3a220ec9d032e3562f2918eb91971"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/tree/01.webp",
+        "bytes":  26106,
+        "sha256":  "570ee729649e16da23a26a65e25e77ec8e0f70c702c483f7bb13dc13ca80dfb3"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/tree/02.webp",
+        "bytes":  25584,
+        "sha256":  "4a767a836d73cb83589ab523577de16734bfd8f57b31490775bb9a383a23940f"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/objects/tree/03.webp",
+        "bytes":  26460,
+        "sha256":  "ac3554788df0a31635a80e8fb48a2fca4478af3fc4c1e7dc1d037e33d4b819ee"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/solid-rock/01.webp",
+        "bytes":  18868,
+        "sha256":  "0c8684a9d09c5511388b5e71ba2f3bacc040b596e080b72d43d3ba7168461206"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/solid-rock/02.webp",
+        "bytes":  18712,
+        "sha256":  "d58f3a092591ee0bf33d529c95658ca02532de68445fc08569582a8f496a5759"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/solid-rock/03.webp",
+        "bytes":  18670,
+        "sha256":  "fc2a0d6b8a696e14546e55a2c42adb798d31f6137e17f8a4d02ad3b68432ed54"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/stone-floor/01.webp",
+        "bytes":  16426,
+        "sha256":  "cbde29f75f13a9647ac8918f845433e5c0bb6796594905e32813697ee33c084e"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/stone-floor/02.webp",
+        "bytes":  16080,
+        "sha256":  "5543dc98a1155a5085492c36782fcd9ff19dfcadce0d3e4bb6a207c581d22de8"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/stone-floor/03.webp",
+        "bytes":  15890,
+        "sha256":  "75e8def6d4e912dd9674fb8a78ddccadbbffe2165cfd9bbba4f89656f7ed8dd6"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/water/01.webp",
+        "bytes":  7056,
+        "sha256":  "831fe34d8dc2f88ddb358e8591114cdb14ebbf9350c692796191f3b51bd3a5cd"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/water/02.webp",
+        "bytes":  7186,
+        "sha256":  "8de18265ac20110e9045fb2985ffde31ac81f794d13096bae94dd531827ec3c7"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/terrain/water/03.webp",
+        "bytes":  7790,
+        "sha256":  "42cd764cf53577f61f9340b80b6ab7d30c72b02d98c0d64bfa37068bc3c30894"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/barbarian.webp",
+        "bytes":  58182,
+        "sha256":  "038cdba151b4991c6ca2aa8feb0fed71131833c99da4069039d4fb440f94fbeb"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/bomb-imp.webp",
+        "bytes":  35876,
+        "sha256":  "274ff68cc5d4a5b9b39bfc2a483c94d18df4ff7e40458d0a97afc8da5b2595b4"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/castle-guard.webp",
+        "bytes":  62156,
+        "sha256":  "9e4669696a61b1beb318de0404d6609d269242d1fc030f3cd570b4cf357315d0"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/chief-mechanic.webp",
+        "bytes":  51010,
+        "sha256":  "630737bbce4d8a9249777860db2b6ec23385316e4bf14706fb127242776f200d"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/cleric.webp",
+        "bytes":  56922,
+        "sha256":  "5740f04b91f8bcebdba06839900d2355c9c66811d3bdb7cd3de667c7fef8c975"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/diamond-kart.webp",
+        "bytes":  37380,
+        "sha256":  "781c90850158f041e02ec4c409c9bc7717f95c1c67af87f862efdeaf4cd4d755"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/displacer-demon.webp",
+        "bytes":  33314,
+        "sha256":  "ec0b7a537c6e8842d15159b5b996411390194753529a3af03fbf32978fd3c340"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/geomancer.webp",
+        "bytes":  51430,
+        "sha256":  "96f88f72f8003aaf42d575fa52d0a6bd8832043265c5d4ca9a4d5794fbce8f8c"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/ghost.webp",
+        "bytes":  41296,
+        "sha256":  "d93c3e1d01e844a60701e8a5c28702afa277211d51ecbdf423bd9e0ec9874bc4"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/goblin.webp",
+        "bytes":  47576,
+        "sha256":  "566b1b44746d1a89a309eb4fd8aec61d4dd8826fe2ca1f0b03ee7779de76ed79"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/goblin-bishop.webp",
+        "bytes":  45040,
+        "sha256":  "74f234bc507da635bbf216d2d21f039fb2f60dd044f9691fc68b8d150d667509"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/goblin-king.webp",
+        "bytes":  46942,
+        "sha256":  "1249a1ac6fd8f48f44f5afe7cc9a29aca2a994c791f93cb3155e1a47dac0fc5b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/goblin-peasant.webp",
+        "bytes":  45168,
+        "sha256":  "b40dd2f390f3e4d51b7c2ee80d3e6b2535bfac30cc01fc22355eb352121e0ea3"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/grunt.webp",
+        "bytes":  44848,
+        "sha256":  "9043039d8b6deb318ae438991440257e18dba72c7275c6cb029affc202348bb6"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/hobby-knight.webp",
+        "bytes":  51994,
+        "sha256":  "2b2e8cbb57f5703d672ef3dfe9ac591d384169b3474551648fda9b5463c46200"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/labyrinth-shaper.webp",
+        "bytes":  53234,
+        "sha256":  "6fbe3930e78287dc221580820a8e92b95aa4948553069edc5a8c8f81befea03b"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/locomotive.webp",
+        "bytes":  45448,
+        "sha256":  "d35a3a770fec5d956220373eb2c20524398050d82d6e8cdfeefa12cf466ce2c8"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/red-dragon.webp",
+        "bytes":  44118,
+        "sha256":  "0ea39a87492bcf42df8cecefaf1d0a8ec99f2922204d7a0366ecb088c6a2ec1e"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/rogue.webp",
+        "bytes":  42646,
+        "sha256":  "e49e8153aff87bb209e8400a03b59119b4e6a2b5e5737d048fd342f25088085e"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/royal-bishop.webp",
+        "bytes":  43642,
+        "sha256":  "5201decd880eed8fd01038c2ee2947131a367d916484be332e4fdcfa1c0c7009"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/royal-king.webp",
+        "bytes":  47118,
+        "sha256":  "fe74483741b856903b9d17bae9bf2471f8b5ee1201324c8fb8393c7395d43215"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/royal-knight.webp",
+        "bytes":  50818,
+        "sha256":  "af0a9dae3a9afd99fefd7d439ab7633be988a834eae01b05cb6708de4ba8e1fb"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/royal-peasant.webp",
+        "bytes":  31294,
+        "sha256":  "5a7d622090057a032237b4ea4b6acdc3e5320ed12cd85f5b3ee93a534983ba06"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/royal-queen.webp",
+        "bytes":  47892,
+        "sha256":  "bc8d170d2b0176fb5dd2db6b0906efea2cc16f66fe243e1dc3bc70de7cbb6cdf"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/shaman.webp",
+        "bytes":  74386,
+        "sha256":  "85f65277c724fa933d32eddb928259cbe0415afb71fb8b423376f767ab3af116"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/skeleton-archer.webp",
+        "bytes":  53022,
+        "sha256":  "3487b23d2e2c45311facfbdb5b7d50d7a4f5b4e53189b6577873828fb6d8cedb"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/tower-troll.webp",
+        "bytes":  56914,
+        "sha256":  "1e0c3456c49d6ba1b61ce8fd3d5370f44bbeb6cd080e3ad87ee7a397fa7ab24e"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/troll.webp",
+        "bytes":  63150,
+        "sha256":  "37c2376c0f7c368f5ef4a565f0c2146a2cce081b9143c7563278c1bce11b37c4"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/witch-queen.webp",
+        "bytes":  50726,
+        "sha256":  "ab5829493c246bb49b2375371c0f610111be745d08957138d9e87c0257ca82c9"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/wizard.webp",
+        "bytes":  49144,
+        "sha256":  "436b1ef298e45a5960990c94a685fe9e8be47b66562aaf74b7da81eb441f29fe"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/worker.webp",
+        "bytes":  44096,
+        "sha256":  "97f2f9fd661500b3da740a9dba77f93d66bf6c74df212329dbb3439b79a7e059"
+    },
+    {
+        "path":  "ProjectDelve.Web/wwwroot/art/units/zombie.webp",
+        "bytes":  45764,
+        "sha256":  "f3ef763709ed2fd93ecdca92cc9d7384f4928c96aa70fd4582715d779b2febe6"
+    }
+]
