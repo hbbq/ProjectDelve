@@ -90,7 +90,7 @@ async function harness(frame=fixture(),options={}){
   globalThis.requestAnimationFrame=fn=>{frames.set(++handle,fn);return handle;};globalThis.cancelAnimationFrame=id=>frames.delete(id);globalThis.addEventListener=()=>{};
   globalThis.matchMedia=()=>({matches:false,addEventListener(){}});
   const THREE=await moduleAt('vendor/three/0.180.0/build/three.module.js'),{createThreeViewport}=await moduleAt('three-viewport.js');
-  const renderer={shadowMap:{},info:{render:{calls:0,triangles:0},memory:{textures:0,geometries:0}},setClearColor(){},setSize(w,h){host.children.find(n=>n.tagName==='canvas').width=w;host.children.find(n=>n.tagName==='canvas').height=h;},render(scene,camera){rendered.push({scene,camera});let calls=0;scene.traverse(n=>{if(n.isMesh||n.isLine)calls++;});this.info.render.calls=calls;},dispose(){disposed++;}};
+  const renderer={shadowMap:{},info:{render:{calls:0,triangles:0},memory:{textures:0,geometries:0}},setClearColor(){},setSize(w,h){host.children.find(n=>n.tagName==='canvas').width=w;host.children.find(n=>n.tagName==='canvas').height=h;},render(scene,camera){rendered.push({scene,camera,shadow:{...this.shadowMap}});let calls=0;scene.traverse(n=>{if(n.isMesh||n.isLine)calls++;});this.info.render.calls=calls;},dispose(){disposed++;}};
   renderer.capabilities={getMaxAnisotropy:()=>options.maxAnisotropy??16};
   const viewport=createThreeViewport({host,controls,animate:()=>true,onPick:hit=>picked.push(hit),onHover:id=>hovered.push(id),onFailure:error=>failures.push(error.message),rendererFactory:()=>renderer,textureLoader:{load(url,ready,progress,error){requests.push({url,ready,error});}},...options});
   viewport.setActive(true);viewport.renderFrame(frame);
@@ -117,7 +117,7 @@ test('Tabletop lamp initializes once, is world fixed, clamps preferences and per
   const environment={document:{createElement:t=>new Element(t)},localStorage:storage};
   const lamp=createTabletopLighting({scene,root,invalidate:()=>invalidations++,environment});
   const key=scene.getObjectByName('tabletop-key'),fill=scene.getObjectByName('tabletop-fill');
-  assert.ok(key.isDirectionalLight&&fill.isHemisphereLight);assert.equal(key.castShadow,false);assert.equal(lamp.inspect().active,false);
+  assert.ok(key.isDirectionalLight&&fill.isHemisphereLight);assert.equal(key.castShadow,true);assert.equal(lamp.inspect().active,false);
   assert.ok(fill.color.b>fill.color.r&&fill.groundColor.r>fill.groundColor.b);
   lamp.setPresentation('tabletop');assert.equal(lamp.inspect().active,true);assert.ok(Math.abs(key.position.length()-1)<1e-12);
   const direction=key.position.clone();assert.ok(direction.y>0&&direction.x<0&&direction.z<0);
@@ -335,6 +335,7 @@ test('Ghost appearance shares cached resources and survives lighting, facing, Fo
       h.viewport.lighting.set({enabled});h.viewport.settle();h.flush();
       const mesh=root.getObjectByName('body'),material=mesh.material;
       assert.equal(material.transparent,true);assert.equal(material.depthWrite,false);assert.equal(material.depthTest,true);
+      assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);
       assert.notEqual(material.onBeforeCompile,h.THREE.Material.prototype.onBeforeCompile);
       assert.equal(!!material.isMeshStandardMaterial,enabled);assert.equal(!!material.isMeshBasicMaterial,!enabled);
       const native=h.THREE.ShaderLib[enabled?'standard':'basic'],shader={uniforms:{},vertexShader:native.vertexShader,fragmentShader:native.fragmentShader};material.onBeforeCompile(shader);
@@ -356,10 +357,11 @@ test('Ghost appearance shares cached resources and survives lighting, facing, Fo
           assert.equal(copy.getObjectByName('miniature-facing').rotation.y,yaw);
           copy.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]).filter(Boolean))track(clipped,m);});
           const material=copy.getObjectByName('body').material;
+          assert.equal(copy.getObjectByName('body').castShadow,false);assert.equal(copy.getObjectByName('body').receiveShadow,false);
           assert.notEqual(material,source);assert.equal(material.onBeforeCompile,source.onBeforeCompile);
           assert.equal(material.customProgramCacheKey(),source.customProgramCacheKey());
           assert.equal(material.transparent,true);assert.equal(material.depthWrite,false);assert.equal(material.depthTest,true);
-          assert.equal(material.clippingPlanes.length,4);assert.equal(material.clipIntersection,false);
+          assert.equal(material.clippingPlanes.length,4);assert.equal(material.clipIntersection,false);assert.equal(material.clipShadows,true);
           if(copy.visible){assert.equal(material.clippingPlanes[0].constant,-2);assert.equal(material.clippingPlanes[2].constant,-2);}
         }
         assert.equal(source.clippingPlanes,null);assert.ok(h.viewport.inspect().clippedCopies<=1);assert.equal(lightCount(),lights);
@@ -528,6 +530,48 @@ test('lighting never derives content, direction or preferences from unexplored t
   }finally{h.cleanup();}
 });
 
+test('shadow receivers cover only explored Cells and unknown terrain cannot create casters',async()=>{
+  const f=fixture(8,'blue');f.state.physical.board.terrain=[{kind:'Tree',position:{x:2,y:2}},{kind:'SolidRock',position:{x:6,y:6}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,receiver=scene.getObjectByName('observed-ground-shadows'),fog=scene.getObjectByName('fog');
+    assert.ok(receiver.isInstancedMesh&&receiver.receiveShadow);assert.equal(receiver.castShadow,false);assert.equal(receiver.count,2);
+    const cells=[];for(let i=0;i<receiver.count;i++){const matrix=new h.THREE.Matrix4();receiver.getMatrixAt(i,matrix);cells.push([matrix.elements[12]-.5,matrix.elements[14]-.5]);assert.ok(matrix.elements[13]>0&&matrix.elements[13]<.006);}
+    assert.deepEqual(cells,[[2,2],[4,3]]);
+    fog.traverse(n=>{assert.equal(n.castShadow,false);assert.equal(n.receiveShadow,false);if(n.material)assert.equal(n.material.isMeshBasicMaterial,true);});
+    const casters=()=>{const result=[];scene.traverse(n=>{if(n.isMesh&&n.castShadow)result.push([n.uuid,n.geometry.id,n.count??1]);});return result;};
+    const before=casters(),key=scene.getObjectByName('tabletop-key'),lightPosition=key.position.clone(),shadowProjection=key.shadow.camera.projectionMatrix.clone();
+    assert.ok(before.length>0);
+    for(const kind of ['FruitTree','Lava','StoneFloorWithTable']){
+      f.state.physical.board.terrain[1].kind=kind;h.viewport.renderFrame(f);h.viewport.settle();h.flush();
+      assert.deepEqual(casters(),before);assert.equal(scene.getObjectByName('observed-ground-shadows'),receiver);
+      assert.deepEqual(key.position,lightPosition);assert.deepEqual(key.shadow.camera.projectionMatrix,shadowProjection);
+    }
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('observed-ground-shadows'),undefined);assert.equal(h.renderer.shadowMap.enabled,false);
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('shadow map refreshes for scene changes and reuses its contents for camera and overlay renders',async()=>{
+  const f=fixture(),h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const passes=()=>h.rendered.slice(-2).map(r=>r.shadow.needsUpdate);
+    assert.equal(h.renderer.shadowMap.autoUpdate,false);assert.deepEqual(passes(),[true,false]);
+    const key=h.rendered.at(-1).scene.getObjectByName('tabletop-key'),position=key.position.clone(),projection=key.shadow.camera.projectionMatrix.clone();
+    h.viewport.camera.setOrientation({tilt:45,yaw:135},false);h.flush();assert.deepEqual(passes(),[false,false]);
+    h.viewport.camera.setProjection('perspective',false);h.flush();assert.deepEqual(passes(),[false,false]);
+    assert.deepEqual(key.position,position);assert.deepEqual(key.shadow.camera.projectionMatrix,projection);
+    h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});h.flush();assert.deepEqual(passes(),[false,false]);
+    h.viewport.lighting.set({azimuth:135});h.flush();assert.deepEqual(passes(),[true,false]);
+    h.controls.cutaway.checked=true;h.controls.cutaway.emit('change');h.flush();assert.deepEqual(passes(),[true,false]);
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').visible,false);
+    const next=structuredClone(f);next.state.physical.figures[0].position.x=3;h.viewport.renderFrame(next);h.viewport.settle();h.flush();assert.deepEqual(passes(),[true,false]);
+    h.viewport.lighting.set({enabled:false});h.flush();assert.equal(h.renderer.shadowMap.enabled,false);assert.deepEqual(passes(),[false,false]);
+    h.viewport.lighting.set({enabled:true});h.flush();assert.deepEqual(passes(),[true,false]);
+    assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('lighting changes during elevated movement preserve every clipping plane and dispose both variants',async()=>{
   const h=await harness(fixture(16,'blue')),owned=new Map();try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
@@ -536,7 +580,8 @@ test('lighting changes during elevated movement preserve every clipping plane an
       h.flush(performance.now()+230);const mover=scene.getObjectByName('clipped-movement');
       for(const enabled of [false,true,false,true]){
         h.viewport.lighting.set({enabled});h.flush();mover.traverse(n=>{if(!n.isMesh)return;
-          const m=n.material;assert.equal(m.clippingPlanes.length,4);assert.equal(m.clipIntersection,false);
+          const m=n.material;assert.equal(m.clippingPlanes.length,4);assert.equal(m.clipIntersection,false);assert.equal(m.clipShadows,true);
+          assert.equal(n.castShadow,!m.transparent);assert.equal(n.receiveShadow,!m.transparent);
           if(!owned.has(m)){owned.set(m,0);m.addEventListener('dispose',()=>owned.set(m,owned.get(m)+1));}
           if(m.userData.sourceMaterial.isMeshLambertMaterial)assert.equal(enabled,true);
           if(m.userData.sourceMaterial.vertexColors)assert.equal(enabled,false);
@@ -558,7 +603,7 @@ test('missing and loaded printed textures stay Basic through light changes and a
       if(n.material?.map)assert.equal(n.material.isMeshBasicMaterial,true);
       if(n.material?.isMeshLambertMaterial||n.material?.vertexColors){const m=n.material;if(!disposed.has(m)){disposed.set(m,0);m.addEventListener('dispose',()=>disposed.set(m,disposed.get(m)+1));}}
     });}
-    assert.ok(Object.values(h.viewport.inspect().textureStates).includes('missing'));assert.equal(h.renderer.shadowMap.enabled,false);
+    assert.ok(Object.values(h.viewport.inspect().textureStates).includes('missing'));assert.equal(h.renderer.shadowMap.enabled,true);
   }finally{h.cleanup();}assert.ok(disposed.size>0);assert.ok([...disposed.values()].every(n=>n===1));
 });
 test('real scene maps Cells/Edges, reuses keyed geometry, preserves fully observable large Units over fog',async()=>{
@@ -683,8 +728,9 @@ test('Tabletop physical slab, both token sizes, raised components and all item f
   f.presentation.machines=[{id:'press',typeId:'diamond-press',name:'Press',position:{x:7,y:5},ownerSide:'blue',resourceStorage:[]}];
   const h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.deepEqual(h.failures,[]);
-    const scene=h.rendered.at(-1).scene,slab=scene.getObjectByName('board').children[0].children[0];
-    assert.equal(slab.scale.x,16.24);assert.equal(slab.scale.y,.12);assert.ok(slab.position.y<0);
+    const {tabletopDimensions}=await moduleAt('three-tabletop.js');
+    const scene=h.rendered.at(-1).scene,slab=scene.getObjectByName('board').children[0].children.find(n=>n.geometry?.type==='BoxGeometry'&&n.scale.y===tabletopDimensions.boardThickness);
+    assert.ok(slab);assert.equal(slab.scale.x,16+2*tabletopDimensions.border);assert.equal(slab.scale.y,tabletopDimensions.boardThickness);assert.ok(slab.position.y<0);
     const bodies=scene.getObjectByName('units').children.map(root=>root.getObjectByName('cardboard-body'));
     assert.equal(bodies[0].userData.bounds.height,.06);assert.equal(bodies[1].userData.bounds.height,.06);assert.equal(bodies[1].userData.radius,2*bodies[0].userData.radius);
     const doors=scene.getObjectByName('edges').children;assert.equal(doors.length,2);assert.equal(doors[0].getObjectByName('door-leaf').visible,true);assert.equal(doors[1].getObjectByName('door-leaf').visible,false);

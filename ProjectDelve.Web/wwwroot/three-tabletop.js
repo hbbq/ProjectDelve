@@ -3,7 +3,7 @@ import { boardVisuals, terrainVariantIndex } from './board-visuals.js';
 import { sideHue } from './side-colors.js';
 import { miniatureBaseLayout } from './unit-visuals.js';
 
-export const tabletopDimensions=Object.freeze({border:.12,boardThickness:.12,tokenThickness:.06,tokenRadius:.46,wallHeight:.52,doorHeight:.6});
+export const tabletopDimensions=Object.freeze({border:.36,boardThickness:.26,tokenThickness:.06,tokenRadius:.46,wallHeight:.52,doorHeight:.6});
 // Only observed neighbours may form an excavated boundary. Unknown neighbours
 // always retain the continuous top; neither their kind nor hidden extent enters.
 export function rockBoundaryMask(x,y,kindAt){
@@ -79,12 +79,68 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     body.scale.y=Math.min(1,.12/Math.max(.03,vertical));body.position.y=vertical*body.scale.y+.012;
     body.userData.angle=angle;
   }
+  // Stage finishes use the existing material cache and its disposal ownership.
+  // Only board dimensions enter the contact shade; terrain and Units never do.
+  function woodMaterial(color,width,height,table=false){
+    const m=material(color);
+    if(!m.userData.woodUniforms){
+      const uniforms={tableSize:{value:new THREE.Vector2(width,height)}};
+      m.userData.woodUniforms=uniforms;
+      const previous=m.onBeforeCompile,cache=m.customProgramCacheKey();
+      m.onBeforeCompile=function(shader,...args){
+        previous.call(this,shader,...args);Object.assign(shader.uniforms,uniforms);
+        shader.vertexShader='varying vec3 vTablePosition;\n'+shader.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
+          vTablePosition = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+        shader.fragmentShader=`varying vec3 vTablePosition;
+          uniform vec2 tableSize;
+          float tableHash(vec2 p) {
+            vec3 q = fract(vec3(p.xyx) * 0.1031);
+            q += dot(q, q.yzx + 33.33);
+            return fract((q.x + q.y) * q.z);
+          }
+          float tableNoise(vec2 p) {
+            vec2 cell = floor(p), t = fract(p);
+            t = t * t * (3.0 - 2.0 * t);
+            return mix(mix(tableHash(cell), tableHash(cell + vec2(1.0, 0.0)), t.x),
+                       mix(tableHash(cell + vec2(0.0, 1.0)), tableHash(cell + vec2(1.0)), t.x), t.y);
+          }
+          `+shader.fragmentShader.replace('#include <opaque_fragment>',`
+          vec2 wood = vTablePosition.xz;
+          float warp = tableNoise(wood * vec2(0.21, 0.53)) - 0.5;
+          vec2 fineUV = vec2(wood.x * 0.38, (wood.y + warp * 0.38) * 18.0);
+          float fineWeight = 1.0 - smoothstep(0.18, 0.8, max(length(dFdx(fineUV)), length(dFdy(fineUV))));
+          float grain = tableNoise(fineUV) - 0.5;
+          float broadGrain = tableNoise(vec2(wood.x * 0.12, wood.y * 2.2 + warp)) - 0.5;
+          float plank = abs(fract(wood.y / 2.7) - 0.5);
+          float seam = smoothstep(0.491 - fwidth(plank), 0.499, plank);
+          float plankTone = tableHash(vec2(floor(wood.y / 2.7), 19.0)) - 0.5;
+          outgoingLight *= (0.93 + grain * fineWeight * 0.13 + broadGrain * 0.22 + plankTone * 0.055) * (1.0 - seam * 0.14);
+          ${table?`vec2 outside = max(abs(wood - tableSize * 0.5) - tableSize * 0.5 - vec2(0.36), vec2(0.0));
+          float distanceToBoard = length(outside);
+          float contact = 0.62 * exp(-distanceToBoard * 3.5) + 0.16 * exp(-distanceToBoard * 0.65);
+          float pool = exp(-dot((wood-tableSize*0.5)/(tableSize*0.5+vec2(7.0)),(wood-tableSize*0.5)/(tableSize*0.5+vec2(7.0))) * 0.6);
+          outgoingLight *= (1.0 - contact) * (0.57 + 0.43 * pool);`:''}
+          #include <opaque_fragment>`);
+      };
+      m.customProgramCacheKey=()=>cache+'|delve-walnut-v2:'+(table?'table':'frame');
+    }
+    m.userData.woodUniforms.tableSize.value.set(width,height);
+    return m;
+  }
   function board(width,height){
     const group=new THREE.Group(),b=tabletopDimensions.border,t=tabletopDimensions.boardThickness;
-    box(group,'#50483d',width/2,-t/2-.005,height/2,width+2*b,t,height+2*b);
-    // Neutral top border and a darker underside make the cardboard edge readable.
-    box(group,'#292725',width/2,-t-.025,height/2,width+2*b,.035,height+2*b);
-    print(group,null,width/2,height/2,width+2*b,height+2*b,-.004,0,'#766b59');
+    group.name='tabletop-stage';
+    const table=plane(woodMaterial('#49372b',width,height,true),width/2,height/2,width+120,height+120,-t-.075);
+    table.name='gaming-table';group.add(table);
+    // A substantial walnut tray and inset brass line frame the existing play
+    // surface. Everything stays below it, preserving projection and picking.
+    box(group,'#201b17',width/2,-t-.035,height/2,width+2*b+.04,.05,height+2*b+.04);
+    box(group,'#493124',width/2,-t/2-.012,height/2,width+2*b,t,height+2*b);
+    const brass=plane(material('#a68c59'),width/2,height/2,width+2*b-.08,height+2*b-.08,-.009);
+    brass.name='frame-inlay';group.add(brass);
+    const veneer=plane(woodMaterial('#5b3e28',width,height),width/2,height/2,width+2*b-.14,height+2*b-.14,-.007);
+    veneer.name='walnut-frame';group.add(veneer);
+    print(group,null,width/2,height/2,width+.045,height+.045,-.004,0,'#292821');
     return group;
   }
   function terrain(kind,layer,x,z,seed,kindAt=()=> 'Unknown'){
@@ -203,12 +259,13 @@ export function createMovementClipPool(source,explored,THREEImpl=THREE,clippedVa
       const copy=node.isMesh?new THREEImpl.Mesh(node.geometry,node.material):new THREEImpl.Group();
       copy.position.copy(node.position);copy.quaternion.copy(node.quaternion);copy.scale.copy(node.scale);
       copy.matrix.copy(node.matrix);copy.matrixAutoUpdate=node.matrixAutoUpdate;copy.visible=node.visible;copy.name=node.name;
+      copy.castShadow=node.castShadow;copy.receiveShadow=node.receiveShadow;
       for(const child of node.children)copy.add(copyNode(child));return copy;
     };
     const body=copyNode(source);body.position.set(0,0,0);body.traverse(node=>{if(!node.material)return;
       const clone=m=>{const key=`${i}:${m.id}`;if(!materialMap.has(key)){
         const copies=clippedVariants?clippedVariants(m,planes):[m.clone()];
-        for(const c of copies){c.clippingPlanes=planes;c.clipIntersection=false;materials.add(c);if(!clippedVariants)c.userData={sourceMaterial:m};}
+        for(const c of copies){c.clippingPlanes=planes;c.clipIntersection=false;c.clipShadows=true;materials.add(c);if(!clippedVariants)c.userData={sourceMaterial:m};}
         materialMap.set(key,copies.find(c=>c.type===m.type)??copies[0]);
       }return materialMap.get(key);};
       node.material=Array.isArray(node.material)?node.material.map(clone):clone(node.material);

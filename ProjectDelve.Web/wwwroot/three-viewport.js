@@ -6,6 +6,7 @@ import { createThreeCamera } from './three-camera.js';
 import { boardCandidates, boardCellKey, boardEdgeKey, tokenDetail } from './playtest-viewport.js';
 import { createTabletopVisuals, createMovementClipPool } from './three-tabletop.js';
 import { createTabletopLighting } from './three-lighting.js';
+import { createTabletopSurfaces } from './three-surfaces.js';
 import { orientationBasis, groundQuadrilateral, perspectiveLens } from './three-camera-geometry.js';
 import { createModelCache } from './three-models.js';
 import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-facing.js';
@@ -35,6 +36,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   catch(error){canvas.remove();throw error;}
   renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;renderer.shadowMap.enabled=false;
   renderer.localClippingEnabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
   // Keep oblique printed artwork legible without unbounded texture sampling.
   const textureAnisotropy=Math.max(1,Math.min(4,renderer.capabilities?.getMaxAnisotropy?.()??1));
   renderer.setClearColor('#11161c');
@@ -54,6 +56,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   const raycaster=new THREE.Raycaster(), ground=new THREE.Plane(new THREE.Vector3(0,1,0),0), intersection=new THREE.Vector3();
   let active=false,disposed=false,lost=false,raf=null,frame,view={},data,retained,session,epoch=0,pointerPosition,focusedCell={x:0,y:0};
   let motion,transient,transientId,drag=null,pinch=null,blockClick=false,space=false;
+  let shadowDirty=true,shadowWasAnimated=false,lastShadowCutaway=false,shadowUpdates=0;
   const arrivals=new Map(),flips=new Map(),doorMotions=new Map(),unitRoots=new Map(),postureChanges=new Map(),pieceEffects=new Map();
   // Repeated Units share the same diagnostic; keep dense-scene output bounded
   // by observed Type/footprint combinations rather than duplicating every mesh.
@@ -72,7 +75,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function invalidate(){if(active&&!lost&&!disposed&&raf===null)raf=requestAnimationFrame(draw);}
   const visualHeight=unitVisualEnvelope(visualCatalog,modelDescriptors),visualOverhang=unitVisualOverhang(visualCatalog,modelDescriptors);
   const cameraControl=createThreeCamera({controls,invalidate,animate,visualHeight,visualOverhang,onChange:()=>onProject?.()});
-  const lighting=createTabletopLighting({scene,root:controls.root,invalidate});
+  const lighting=createTabletopLighting({scene,root:controls.root,invalidate:()=>{shadowDirty=true;invalidate();}});
+  const surfaces=createTabletopSurfaces();
   const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
   const models=createModelCache({...modelCacheOptions,textureAnisotropy,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
   const representationLabel=document.createElement('label'),representationSelect=document.createElement('select');
@@ -86,6 +90,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     try{localStorage.setItem('delve.three.units.v1',value);}catch{/* optional */}bodiesDirty=true;commitBodies();}
   function commitBodies(){
     if(!bodiesDirty||!active||lost||disposed||inEvent||transient||flips.size||!frame)return;
+    shadowDirty=true;
     unitRepresentation=requestedRepresentation;for(const entry of pendingModels)readyModels.add(entry);pendingModels.clear();bodiesDirty=false;retained=new Set(nodes.keys());
     for(const figure of frame.state.physical.figures)updateUnit(figure,appearance(figure));invalidate();
   }
@@ -94,13 +99,14 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function syncFacing(instant=false){
     for(const [id,root]of unitRoots){const node=root.userData.body?.facingNode;if(!node){rotations.delete(id);continue;}const to=facing.get(id).yaw;
       if(Math.abs(shortestYaw(node.rotation.y,to))<1e-7)continue;
+      shadowDirty=true;
       if(instant||!animate()){node.rotation.y=to;rotations.delete(id);}else rotations.set(id,{node,from:node.rotation.y,to,start:performance.now()});
     }invalidate();
   }
   function material(color,source,transparent=false,vertexColors=false,local=false) {
     const key=JSON.stringify([color,source,transparent,vertexColors,local]);if(materials.has(key))return materials.get(key);
     const m=new THREE.MeshBasicMaterial({color:color==='transparent'?'#19232c':color??'#666a68',transparent,opacity:source&&transparent?0:1,depthWrite:!transparent,side:THREE.FrontSide,vertexColors});
-    if(local)lighting.local.attach(m);
+    if(local){lighting.local.attach(m);surfaces.attach(m);}
     materials.set(key,m);
     if(source){
       const url=new URL(source,new URL('./',import.meta.url)).href;
@@ -213,9 +219,11 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   }
   function renderFrame(next){
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
+    shadowDirty=true;
     if(identity!==session){cancel();session=identity;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
     frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
     lighting.local.update(data);
+    lighting.setBoard(board);
     // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat
     // terrain and fog by material; all dynamic objects retain ordinary meshes.
     const batches=new Map(),solidBatches=new Map();
@@ -254,6 +262,17 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       batch.cells.forEach(([x,y,rotation],index)=>{transform.position.set(x+.5,heights[batch.group],y+.5);transform.rotation.set(-Math.PI/2,0,-rotation*Math.PI/180);transform.updateMatrix();mesh.setMatrixAt(index,transform.matrix);});
       mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();return mesh;
     });
+    if(presentation==='tabletop'){
+      // Only explored ground receives shadows. Unknown Cells remain opaque,
+      // unlit cover even beside an observed large Unit or a bordering wall.
+      const cells=[];for(let y=0;y<board.height;y++)for(let x=0;x<board.width;x++)if(kindAt(x,y)!=='Unknown')cells.push([x,y]);
+      retain('ground-shadows',JSON.stringify(cells),'terrain',()=>{
+        const mesh=new THREE.InstancedMesh(geometries.plane,surfaces.shadow,cells.length),transform=new THREE.Object3D();
+        mesh.name='observed-ground-shadows';mesh.receiveShadow=true;
+        cells.forEach(([x,y],i)=>{transform.position.set(x+.5,.003,y+.5);transform.rotation.x=-Math.PI/2;transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);});
+        mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();return mesh;
+      });
+    }
     retain('grid',`${board.width}:${board.height}`,'grid',()=>{
       const positions=[];for(let x=0;x<=board.width;x++)positions.push(x,heights.grid,0,x,heights.grid,board.height);for(let y=0;y<=board.height;y++)positions.push(0,heights.grid,y,board.width,heights.grid,y);
       const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
@@ -321,6 +340,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     host.dataset.presentation=value;
     representationLabel.hidden=value!=='tabletop';
     lighting.setPresentation(value);
+    surfaces.setPresentation(value);
     for(const [key,record]of nodes)if(!key.startsWith('unit:')){removeRecord(record);nodes.delete(key);}
     cameraControl.setPresentation(value,active);
     if(frame)renderFrame(frame);
@@ -368,6 +388,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   }
   function drawFrame(time){
     raf=null;if(!active||lost||disposed||!frame)return;commitBodies();const begin=performance.now();if(!resize())return;const movingCamera=cameraControl.tick(time);updateCamera();
+    const animateShadows=!!(motion||transient||arrivals.size||flips.size||doorMotions.size||pieceEffects.size||representationTransition||rotations.size||inEvent);
     if(motion){const t=Math.min(1,(time-motion.start)/motion.duration);motion.object.position.x=motion.from.x+(motion.to.x-motion.from.x)*t;motion.object.position.z=motion.from.z+(motion.to.z-motion.from.z)*t;if(t>=1)motion=null;}
     for(const [id,r]of rotations){const t=Math.min(1,(time-r.start)/150);r.node.rotation.y=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(t>=1)rotations.delete(id);}
     if(transientYaw){const r=transientYaw,t=Math.min(1,(time-r.start)/150);r.current=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(r.node)r.node.rotation.y=r.current;}
@@ -389,13 +410,27 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     // Draw information last, including above transparent portraits. Ground-space
     // feedback stays aligned with the selectable Cells at every camera angle.
     if(presentation==='tabletop'){
+      renderer.shadowMap.enabled=lighting.inspect().active;
+      // Native depth clipping uses the movement pool's planes. Transparent
+      // artwork/ghosts and informational overlays never cast opaque silhouettes.
+      for(const name of ['objects','edges','items','units','movement'])groups[name].traverse(node=>{
+        if(!node.isMesh)return;
+        const materials=Array.isArray(node.material)?node.material:[node.material];
+        node.castShadow=materials.every(m=>!m.transparent&&m.depthTest!==false);
+        node.receiveShadow=node.castShadow;
+      });
+      // The feedback-only render below must neither clear nor rebuild the map.
+      renderer.shadowMap.needsUpdate=renderer.shadowMap.enabled&&(shadowDirty||animateShadows||shadowWasAnimated||lastShadowCutaway!==cutaway);
+      if(renderer.shadowMap.needsUpdate)shadowUpdates++;
+      shadowDirty=false;shadowWasAnimated=animateShadows;lastShadowCutaway=cutaway;
       groups.feedback.visible=groups.areas.visible=false;renderer.render(scene,camera);
+      renderer.shadowMap.needsUpdate=false;
       const calls=renderer.info.render.calls,triangles=renderer.info.render.triangles;
       const hidden=[];for(const [name,group]of Object.entries(groups))if(!['feedback','areas'].includes(name)){hidden.push([group,group.visible]);group.visible=false;}
       groups.feedback.visible=groups.areas.visible=true;
       const autoClear=renderer.autoClear;renderer.autoClear=false;renderer.render(scene,camera);renderer.autoClear=autoClear;
       renderer.info.render.calls+=calls;renderer.info.render.triangles+=triangles;for(const [group,visible]of hidden)group.visible=visible;
-    }else renderer.render(scene,camera);
+    }else {renderer.shadowMap.enabled=false;renderer.render(scene,camera);}
     lighting.frameRendered();renderCount++;readyAt??=performance.now();firstFrameAt??=time;
     if(presentationStartedAt!==null){presentationFirstFrameMs=performance.now()-presentationStartedAt;presentationStartedAt=null;}
     renderTimes.push(performance.now()-begin);if(renderTimes.length>240)renderTimes.shift();
@@ -405,7 +440,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(lastRender&&time-lastRender<1000){samples.push(time-lastRender);if(samples.length>240)samples.shift();}lastRender=continuous?time:0;
     const percentile=(values,p)=>[...values].sort((a,b)=>a-b)[Math.floor((values.length-1)*p)]??0;
     const textureBytes=[...textures.values()].reduce((n,e)=>n+(e.texture?.image?.width??0)*(e.texture?.image?.height??0)*4*4/3,0)+glyphs.size*128*128*4*4/3;
-    metrics.textContent=JSON.stringify({presentation,representation:unitRepresentation,bases:baseDiagnostics(),miniatures:[...unitRoots.values()].filter(r=>r.userData.body?.facingNode).length,models:models.inspect(),lighting:lighting.inspect(),materials:models.inspect().reduce((n,e)=>n+(e.materials??0),0)+materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+((textureBytes+models.inspect().reduce((n,e)=>n+(e.textureBytes??0),0))/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
+    metrics.textContent=JSON.stringify({presentation,representation:unitRepresentation,bases:baseDiagnostics(),miniatures:[...unitRoots.values()].filter(r=>r.userData.body?.facingNode).length,models:models.inspect(),lighting:lighting.inspect(),shadowUpdates,materials:models.inspect().reduce((n,e)=>n+(e.materials??0),0)+materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+((textureBytes+models.inspect().reduce((n,e)=>n+(e.textureBytes??0),0))/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
     if(continuous)invalidate();
   }
   function updateLabels(){const pose=cameraControl.current(),size=cameraControl.size;if(!pose)return;const placed=[];
@@ -522,7 +557,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   const observer=new ResizeObserver(()=>{if(active){resize();invalidate();}});observer.observe(host);
   bind(globalThis,'resize',()=>{if(active){resize();invalidate();}});
   bind(canvas,'webglcontextlost',event=>{event.preventDefault();lost=true;cancel();if(raf!==null)cancelAnimationFrame(raf);raf=null;onFailure?.(new Error('WebGL context lost. Enhanced 2D remains available.'));});
-  bind(canvas,'webglcontextrestored',()=>{lost=false;invalidate();});
+  bind(canvas,'webglcontextrestored',()=>{lost=false;shadowDirty=true;invalidate();});
   function setActive(value){if(value&&lost)throw Error('WebGL is unavailable. Continue in Enhanced 2D until the context is restored.');active=value;host.hidden=!value;controls.root.hidden=!value;if(!value){cancel();pointers.clear();drag=pinch=null;if(raf!==null)cancelAnimationFrame(raf);raf=null;pointerPosition=null;hover(null);}else{commitBodies();resize();invalidate();}}
   async function present(event,occurrence,playback){
     if(!active||lost||!frame)return;const generation=epoch;
@@ -550,8 +585,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     }
     const id=event.targetId??event.unitId??occurrence?.unitId,node=nodes.get(`unit:${id}`)?.object;
     const duration=event.role==='Defeat'?320:['DoorAttempt','DoorOpened','DoorClosed'].includes(event.role)?300:250;
-    if(node){node.scale.setScalar(event.role==='Defeat'?.6:1.06);invalidate();}
-    try{await playback.pause(duration);}finally{if(node)node.scale.setScalar(1);invalidate();}
+    if(node){node.scale.setScalar(event.role==='Defeat'?.6:1.06);shadowDirty=true;invalidate();}
+    try{await playback.pause(duration);}finally{if(node)node.scale.setScalar(1);shadowDirty=true;invalidate();}
   }
   function settle(){if(motion){motion.object.position.x=motion.to.x;motion.object.position.z=motion.to.z;motion=null;}
     for(const r of rotations.values())r.node.rotation.y=r.to;rotations.clear();transientYaw=null;syncFacing(true);
@@ -562,9 +597,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(representationTransition)for(const {object,scale}of representationTransition.parts)object.scale.copy(scale);
     representationTransition=null;for(const group of Object.values(groups))group.scale.y=1;
     clipPool?.dispose();clipPool=null;if(transient){transient.removeFromParent();transient=null;transientId=null;for(const root of unitRoots.values())root.visible=true;}
-    cameraControl.settle();invalidate();}
+    cameraControl.settle();shadowDirty=true;invalidate();}
   function cancel(){epoch++;settle();motion=null;for(const record of nodes.values())record.object.visible=true;cameraControl.cancel();}
-  function dispose(){if(disposed)return;setActive(false);disposed=true;models.dispose();readyModels.clear();pendingModels.clear();abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
+  function dispose(){if(disposed)return;setActive(false);disposed=true;models.dispose();readyModels.clear();pendingModels.clear();abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();surfaces.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
   return{host,lighting,models,facing,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,setRepresentation,syncFacing,
     beginEvent(){inEvent=true;},checkpoint(){inEvent=false;commitBodies();},
     afterOccurrence:occurrence=>{
@@ -575,5 +610,5 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }else if(occurrence?.kind==='UnitCreated'||presentation==='flat'&&occurrence?.kind==='PostureChanged')arrivals.set(occurrence.unitId,{kind:occurrence.kind,start:performance.now()});
       invalidate();
     },
-    inspect:()=>({active,lost,presentation,representation:unitRepresentation,requestedRepresentation,bases:baseDiagnostics(),models:models.inspect(),facing:facing.inspect(),rotations:rotations.size,lighting:lighting.inspect(),renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
+    inspect:()=>({active,lost,presentation,representation:unitRepresentation,requestedRepresentation,bases:baseDiagnostics(),models:models.inspect(),facing:facing.inspect(),rotations:rotations.size,lighting:lighting.inspect(),shadowUpdates,renderCount,flips:flips.size,doorMotions:doorMotions.size,clippedCopies:clipPool?.copies.filter(c=>c.body.visible).length??0,initialRenderMs:readyAt?readyAt-started:null,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},textureStates:Object.fromEntries([...textures].map(([url,e])=>[url,e.state])),frameIntervals:[...samples],renderTimes:[...renderTimes],camera:cameraControl.inspect(),units:labelNodes.size,transient:!!transient})};
 }

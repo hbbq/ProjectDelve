@@ -35,7 +35,7 @@ export function lightingPreferences(value={}){
 // Lambert omits them so directional illumination is not multiplied by fake shade.
 export function createTabletopLighting({scene,root,invalidate,environment=globalThis}){
   let saved;try{saved=JSON.parse(environment.localStorage?.getItem(preferenceKey)??'null');}catch{/* optional */}
-  let preferences=lightingPreferences(saved),physical=false,disposed=false,changedAt=null,firstFrameMs=null;
+  let preferences=lightingPreferences(saved),physical=false,disposed=false,changedAt=null,firstFrameMs=null,boardSize=null;
   const now=()=>environment.performance?.now()??performance.now();
   const local=createLocalLighting();
   const pairs=new Map(),variants=new WeakMap(),subscriptions=new AbortController();
@@ -43,8 +43,10 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   // A warm studio key and cool sky / warm table bounce reveal sculpted forms.
   // Hemisphere fill adds no shadow pass and remains independent of observed content.
   const key=new THREE.DirectionalLight('#fff5e8',preferences.key),fill=new THREE.HemisphereLight('#e5edff','#766b59',preferences.fill);
-  key.name='tabletop-key';fill.name='tabletop-fill';key.castShadow=false;
-  rig.add(key,key.target,fill);scene.add(rig);
+  const rim=new THREE.DirectionalLight('#c6dcff',preferences.fill);rim.name='tabletop-rim';
+  key.name='tabletop-key';fill.name='tabletop-fill';key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);key.shadow.bias=-.00015;key.shadow.normalBias=.015;
+  rig.add(key,key.target,fill,rim,rim.target);scene.add(rig);
   const panel=environment.document.createElement('details');panel.className='three-lighting';panel.id='three-lighting-controls';
   const summary=environment.document.createElement('summary');summary.textContent='Lighting';panel.append(summary);
   const controls={};
@@ -86,15 +88,24 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
       // Three.Material.clone does not copy shader callbacks. Movement must
       // retain the same surface treatment while adding explored-cell clipping.
       c.onBeforeCompile=source.onBeforeCompile;c.customProgramCacheKey=source.customProgramCacheKey;
-      c.clippingPlanes=planes;c.clipIntersection=false;c.userData={sourceMaterial:source};return c;});
+      c.clippingPlanes=planes;c.clipIntersection=false;c.clipShadows=true;c.userData={sourceMaterial:source};return c;});
     if(copies.length===2)register(copies);
     return copies;
   }
   function apply(){
     rig.visible=physical&&preferences.enabled;local.setEnabled(rig.visible);
-    key.intensity=preferences.key;fill.intensity=preferences.fill;
+    key.intensity=preferences.key;fill.intensity=preferences.fill;rim.intensity=preferences.fill*1.3;
     const a=preferences.azimuth*Math.PI/180,e=preferences.elevation*Math.PI/180;
     key.position.set(Math.sin(a)*Math.cos(e),Math.sin(e),-Math.cos(a)*Math.cos(e));
+    rim.position.set(-Math.sin(a),.65,Math.cos(a));
+    if(boardSize){
+      // Fit public board bounds, never the hidden contents or the viewing camera.
+      const {width,height}=boardSize,radius=Math.hypot(width,height)/2+4,distance=radius+10;
+      key.target.position.set(width/2,0,height/2);key.position.multiplyScalar(distance).add(key.target.position);
+      rim.target.position.copy(key.target.position);rim.position.multiplyScalar(distance).add(rim.target.position);
+      Object.assign(key.shadow.camera,{left:-radius,right:radius,top:radius,bottom:-radius,near:.1,far:distance+radius+10});
+      key.shadow.camera.updateProjectionMatrix();
+    }
     scene.traverse(node=>{if(node.material)node.material=Array.isArray(node.material)?node.material.map(resolve):resolve(node.material);});
     panel.hidden=!physical;
     for(const [id,control]of Object.entries(controls)){control.value=String(id==='enabled'?(preferences.enabled?'on':'off'):preferences[id]);control.disabled=id!=='enabled'&&!preferences.enabled;}
@@ -106,9 +117,10 @@ export function createTabletopLighting({scene,root,invalidate,environment=global
   }
   apply();
   return {local,material,modelMaterial,clippedVariants,resolve,set,controls,identity:m=>variants.get(m)?.[0].id??m.id,
+    setBoard(board){if(boardSize?.width===board.width&&boardSize?.height===board.height)return;boardSize={width:board.width,height:board.height};apply();},
     setPresentation(value){physical=value==='tabletop';changedAt=now();apply();},
     frameRendered(){if(changedAt!==null){firstFrameMs=+(now()-changedAt).toFixed(2);changedAt=null;}},
     inspect:()=>({...preferences,active:rig.visible,materials:pairs.size*2,local:local.inspect(),firstFrameMs}),
-    dispose(){if(disposed)return;disposed=true;subscriptions.abort();local.dispose();rig.removeFromParent();key.dispose();fill.dispose();for(const pair of pairs.values())for(const m of pair)m.dispose();pairs.clear();panel.remove();}
+    dispose(){if(disposed)return;disposed=true;subscriptions.abort();local.dispose();rig.removeFromParent();key.dispose();fill.dispose();rim.dispose();for(const pair of pairs.values())for(const m of pair)m.dispose();pairs.clear();panel.remove();}
   };
 }
