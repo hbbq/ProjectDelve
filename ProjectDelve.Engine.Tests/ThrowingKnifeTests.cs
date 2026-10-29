@@ -107,6 +107,27 @@ public sealed class ThrowingKnifeTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void KnifeAfterAttackIsLegalButIrrelevantAndNeverExpandsVision(bool fog)
+    {
+        var state = State(1);
+        if (fog) state.FogOfWarSides = ["blue"];
+        var moved = Moved(state);
+        var attacked = Choose(moved.State, "attack:enemy");
+        Assert.False(Ability(attacked).Relevant);
+        var explored = attacked.State.ExploredCells.GetValueOrDefault("blue")?.ToHashSet();
+        var used = Choose(attacked.State, Ability(attacked).Key);
+        Assert.Equal(3, used.State.EffectiveRngOf("rogue"));
+        if (fog)
+        {
+            Assert.True(explored!.SetEquals(used.State.ExploredCells["blue"]));
+            Assert.True(FogOfWar.IsExplored(used.State, "blue", new(5, 0)));
+            Assert.False(FogOfWar.IsExplored(used.State, "blue", new(6, 0)));
+        }
+    }
+
+    [Theory]
     [InlineData(1, false)] // Same legal target with fewer attack dice is no improvement.
     [InlineData(3, true)]
     [InlineData(4, false)]

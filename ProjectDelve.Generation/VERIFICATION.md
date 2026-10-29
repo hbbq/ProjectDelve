@@ -24,8 +24,9 @@ also contains a small independent corner fixture.
 
 Neither `(11,5)` nor `(10,4)` is initially explored in the exact scenario.
 Reconstructing a fresh authoritative state with the Wizard at `(13,7)`, clearing
-exploration and recalculating it, discovers both. The Wizard has effective RNG 4,
-hence sight range 7. The targets' Manhattan distances are 4 and 6. All three other
+exploration and recalculating it, discovers both. At the time of this investigation the Wizard had sight range 7 from effective
+RNG 4. Vision now has a constant range of 5 Cells, so the second target is outside
+vision range from this position. The targets' Manhattan distances are 4 and 6. All three other
 Heroes have blocked LOS from their original positions. No Phase, prior permanent
 exploration or swept sight is needed to reproduce this observation. The actual
 historical movement choices were not supplied; this reconstruction isolates

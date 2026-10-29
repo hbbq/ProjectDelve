@@ -96,15 +96,15 @@ public sealed class FogOfWarTests
     }
 
     [Fact]
-    public void SightUsesEffectiveRangeAndEveryFootprintCell()
+    public void SightIsFiveRegardlessOfRangeAndModifiersFromEveryFootprintCell()
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         state.Types[0] = state.Types[0] with { Footprint = Footprint.TwoByTwo, Rng = 4 };
         state.ExploredCells.Clear(); FogOfWar.Refresh(state);
-        Assert.True(Known(state, 11, 5)); Assert.False(Known(state, 12, 5));
+        Assert.True(Known(state, 9, 5)); Assert.False(Known(state, 10, 5));
         Ready(state, "hero"); state.ModifiersThisTurn.Add(new(Stat.Rng, 2)); FogOfWar.Refresh(state);
-        Assert.True(Known(state, 13, 5));
-        state.ModifiersThisTurn.Clear(); FogOfWar.Refresh(state); Assert.True(Known(state, 13, 5));
+        Assert.True(Known(state, 9, 5)); Assert.False(Known(state, 10, 5));
+        state.ModifiersThisTurn.Clear(); FogOfWar.Refresh(state); Assert.True(Known(state, 9, 5)); Assert.False(Known(state, 10, 5));
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public sealed class FogOfWarTests
     }
 
     [Fact]
-    public void RangeBonusIsRelevantForExplorationAndItsSightSurvivesTheModifierEnding()
+    public void RangeBonusDoesNotExploreOrBecomeRelevantWithoutGameplayBenefit()
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         state.Types[0] = state.Types[0] with { Rng = 4,
@@ -311,12 +311,12 @@ public sealed class FogOfWarTests
         state.ExploredCells.Clear(); FogOfWar.Refresh(state); Ready(state, "hero");
         Assert.False(Known(state, 12, 4));
         var ready = GameEngine.RefreshChoices(state, new Random(), false);
-        Assert.True(ready.NextInput!.Candidates.Single(c => c.Key == "bonus-action:Scout").Relevant);
+        Assert.False(ready.NextInput!.Candidates.Single(c => c.Key == "bonus-action:Scout").Relevant);
         Assert.False(Known(state, 12, 4));
         var scouted = GameEngine.Advance(ready.State, new Pick("bonus-action:Scout"), new Random(), false);
-        Assert.True(Known(scouted.State, 12, 4));
+        Assert.False(Known(scouted.State, 12, 4));
         scouted.State.ModifiersThisTurn.Clear(); FogOfWar.Refresh(scouted.State);
-        Assert.True(Known(scouted.State, 12, 4));
+        Assert.False(Known(scouted.State, 12, 4));
     }
 
     [Fact]

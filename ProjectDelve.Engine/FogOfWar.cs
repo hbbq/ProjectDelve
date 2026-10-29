@@ -180,7 +180,7 @@ public static class FogOfWar
     private static void ExploreFrom(GameState state, Unit unit, HashSet<Cell> explored)
     {
         var board = state.Physical.Board;
-        var range = Math.Max(5, state.EffectiveRngOf(unit.Id) + 3);
+        const int range = 5;
         var phase = state.Types.Single(t => t.Id == unit.TypeId).Phase is not null;
         foreach (var from in FootprintGeometry.OccupiedCells(state, unit.Id))
         for (var y = Math.Max(0, from.Y - range); y <= Math.Min(board.Height - 1, from.Y + range); y++)

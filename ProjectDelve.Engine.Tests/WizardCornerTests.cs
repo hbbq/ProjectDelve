@@ -67,8 +67,9 @@ public sealed class WizardCornerTests(ITestOutputHelper output)
         var index = state.Types.FindIndex(t => t.Id == UnitTypeIds.Wizard);
         if (phase) state.Types[index] = state.Types[index] with { Phase = new() };
         Relocate(state, "wizard", new(13, 7)); state.ExploredCells.Clear(); FogOfWar.Refresh(state);
-        foreach (var cell in new Cell[] { new(11, 5), new(10, 4) })
-            Assert.Equal(phase, FogOfWar.IsExplored(state, "heroes", cell));
+        Assert.Equal(phase, FogOfWar.IsExplored(state, "heroes", new(11, 5)));
+        // Six Cells away: outside vision even with Phase and clear LOS.
+        Assert.False(FogOfWar.IsExplored(state, "heroes", new(10, 4)));
         foreach (var cell in new Cell[] { new(12, 6), new(12, 5), new(13, 6) })
             Assert.True(FogOfWar.IsExplored(state, "heroes", cell));
         Assert.False(FogOfWar.IsExplored(state, "heroes", new(11, 4)));

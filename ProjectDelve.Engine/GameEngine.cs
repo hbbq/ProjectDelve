@@ -667,11 +667,6 @@ public static partial class GameEngine
         var modified = state.Copy();
         // Compare gameplay results of the complete effect, regardless of its modifiers.
         modified.ModifiersThisTurn.AddRange(ability.Modifiers);
-        if (FogOfWar.IsEnabled(state, unit.SideId) && ability.Modifiers.Any(m => m.Stat == Stat.Rng))
-        {
-            FogOfWar.Refresh(modified);
-            if (modified.ExploredCells[unit.SideId].Except(state.ExploredCells[unit.SideId]).Any()) return true;
-        }
         var before = GameplayCandidates(state, unit).ToList();
         var after = GameplayCandidates(modified, unit).ToList();
         var destinations = before.Where(c => c.Kind == ActivationChoiceKind.Move)
