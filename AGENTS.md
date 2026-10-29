@@ -90,3 +90,5 @@ Agents may maintain this repository-working-knowledge section without separate p
 - Browser inspection uses the protected `.codex/browser-qa.ps1` dispatcher with data-only JSON plans and a fresh temporary Edge context per call. See `BROWSER_INSPECTION.md` for the exact invocation, supported actions, recovery and project-rule requirements. Inspect captured PNGs with `view_image`. Arbitrary Playwright JavaScript/acceptance scripts still need separate review; do not broaden the saved execution prefix or edit the protected runner to bypass a rejection.
 
 For artwork processing, prefer the existing system Python installation with Pillow when available. Check py -c "import PIL" before creating a temporary environment or installing dependencies. Use tools/prepare-artwork.py for conversions.
+
+- Model preparation tests use `PROJECTDELVE_PYTHON` to select Python. If the default launcher fails, resolve an installed `python.exe` with `Get-Command python.exe -All`, verify `import PIL`, and set that environment variable for the test process; no installation is needed.

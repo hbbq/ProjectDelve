@@ -6,11 +6,12 @@ export const tabletopMarkColors=Object.freeze({
 
 // These are supplied presentation rectangles, never a legality/visibility query.
 // Three instanced batches share one plane: faint enamel, dark keyline and ink.
-// The viewport owns observation filtering, picking and the existing overlay pass.
+// The viewport owns observation filtering and picking. Marks sit on the floor;
+// opaque scenery occludes them and transparent figures are composited above them.
 export function createTabletopMarks(){
   const geometry=new THREE.PlaneGeometry(1,1),palette=tabletopMarkColors;
   const materials=[.055,.86,1].map(opacity=>new THREE.MeshBasicMaterial({
-    color:'#ffffff',transparent:true,opacity,depthTest:false,depthWrite:false,toneMapped:false
+    color:'#ffffff',transparent:true,opacity,depthTest:true,depthWrite:false,toneMapped:false
   }));
   let disposed=false;
   function build(rectangles=[],links=[]){
@@ -39,7 +40,19 @@ export function createTabletopMarks(){
       const thickness=strong?.038:kind==='attack'?.032:area?.022:.019;
       const inset=Math.min(.035,w*.1,h*.1),left=x+inset,right=x+w-inset,top=y+inset,bottom=y+h-inset;
       if(kind==='move'||kind==='preview')quad(0,x+w/2,y+h/2,Math.max(0,w-.08),Math.max(0,h-.08),0,color,height-.002);
-      if(area){
+      if(kind==='active'){
+        // A continuous gold frame is reserved for the current activation.
+        // Choice/hover brackets can coexist inside it without replacing it.
+        for(const inset of [0,.075]){
+          const l=left+inset,r=right-inset,t=top+inset,b=bottom-inset;
+          const width=inset?.014:.045;
+          stroke((l+r)/2,t,r-l,width,0,inset?palette.ivory:'#ffcf60',height);
+          stroke((l+r)/2,b,r-l,width,0,inset?palette.ivory:'#ffcf60',height);
+          stroke(l,(t+b)/2,b-t,width,Math.PI/2,inset?palette.ivory:'#ffcf60',height);
+          stroke(r,(t+b)/2,b-t,width,Math.PI/2,inset?palette.ivory:'#ffcf60',height);
+        }
+        for(const [cx,cy]of [[left+.04,top+.04],[right-.04,top+.04],[left+.04,bottom-.04],[right-.04,bottom-.04]])diamond(cx,cy,.075,'#ffcf60',height+.002);
+      }else if(area){
         // Dashed perimeter reads as a zone, distinct from an actionable Cell.
         // No area fill: public Objective bounds must not wash out unknown space.
         function dashes(start,end,fixed,vertical){
@@ -84,7 +97,7 @@ export function createTabletopMarks(){
     const transform=new THREE.Object3D();
     for(const [index,items]of batches.entries()){
       if(!items.length)continue;
-      const mesh=new THREE.InstancedMesh(geometry,materials[index],items.length);mesh.name=['mark-wash','mark-keyline','mark-ink'][index];mesh.renderOrder=100+index;
+      const mesh=new THREE.InstancedMesh(geometry,materials[index],items.length);mesh.name=['mark-wash','mark-keyline','mark-ink'][index];mesh.renderOrder=-4+index;
       items.forEach((p,i)=>{
         transform.position.set(p.x,p.height,p.y);transform.rotation.set(-Math.PI/2,0,-p.angle);transform.scale.set(p.w,p.h,1);transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);
         if(!colors.has(p.color))colors.set(p.color,new THREE.Color(p.color));mesh.setColorAt(i,colors.get(p.color));

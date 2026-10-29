@@ -223,7 +223,12 @@ public static class FogOfWar
         var targets = candidate.TargetIds.Where(id => IsUnitObservable(state, side, id)).ToImmutableArray();
         return candidate with { TargetIds = targets,
             Path = candidate.Path is null ? null : [.. candidate.Path],
-            Relevant = candidate.Action is UnitAction.Fireball or UnitAction.HolyWave ? !targets.IsEmpty : candidate.Relevant };
+            Relevant = candidate.Action switch
+            {
+                UnitAction.Fireball => targets.Any(id => state.Units.Single(u => u.Id == id).SideId != side),
+                UnitAction.HolyWave => !targets.IsEmpty,
+                _ => candidate.Relevant
+            } };
     }
 
     internal static void DiscoverAttack(GameState state, AttackContinuation attack)

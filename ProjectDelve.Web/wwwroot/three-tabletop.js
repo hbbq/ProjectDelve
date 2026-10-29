@@ -24,6 +24,8 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     gem:new THREE.OctahedronGeometry(1),
     lump:new THREE.IcosahedronGeometry(1,0),
     dome:new THREE.SphereGeometry(1,12,6),
+    branch:new THREE.CylinderGeometry(.65,1,1,8),
+    foliage:new THREE.IcosahedronGeometry(1,1),
     banana:new THREE.TorusGeometry(.085,.029,5,12,Math.PI*1.35)
   });
   // Off-only baked tones. Lit physical materials ignore this attribute.
@@ -32,7 +34,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     for(let i=0;i<normal.count;i++){const shade=.68+.25*Math.max(0,normal.getY(i))+.07*Math.max(0,normal.getX(i));colors.push(shade,shade,shade);}
     geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
   }
-  for(const key of ['box','cylinder','gem','lump','dome','banana'])bakeFaceTones(geometries[key]);
+  for(const key of ['box','cylinder','gem','lump','dome','branch','foliage','banana'])bakeFaceTones(geometries[key]);
   function mesh(group,geometry,color,x,y,z,w,h,d,rotation=0){
     const object=new THREE.Mesh(geometry,physicalMaterial(color));object.position.set(x,y,z);object.scale.set(w,h,d);object.rotation.y=rotation;group.add(object);return object;
   }
@@ -147,28 +149,70 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     const group=new THREE.Group(),cx=x+.5,cz=z+.5;
     const variation=terrainVariantIndex(seed,'tabletop-shape-v1:'+kind,x,z,3);
     if(kind==='SolidRock'){
-      const mask=rockBoundaryMask(x,z,kindAt);
-      group.add(plane(material(layer.base.fill,layer.base.image),cx,cz,1,1,.22,layer.rotation));
+      const mask=rockBoundaryMask(x,z,kindAt),height=tabletopDimensions.wallHeight;
+      group.add(plane(material(layer.base.fill,layer.base.image),cx,cz,1,1,height,layer.rotation));
       // Shared tops have no gaps or internal walls. Exposed excavation edges
-      // use a shallow, inward-faceted skirt, wholly inside the observed Cell.
+      // use textured, inward-faceted sides, wholly inside the observed Cell.
       if(!geometries.rockWall){
-        const g=new THREE.BufferGeometry(),p=[-.5,.22,0,.5,.22,0,.5,.10,.025,-.5,.22,0,.5,.10,.025,-.5,.10,.025,-.5,.10,.025,.5,.10,.025,.5,0,0,-.5,.10,.025,.5,0,0,-.5,0,0];
-        g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.computeVertexNormals();geometries.rockWall=g;
+        const mid=height*.45,g=new THREE.BufferGeometry(),p=[-.5,height,0,.5,height,0,.5,mid,.025,-.5,height,0,.5,mid,.025,-.5,mid,.025,-.5,mid,.025,.5,mid,.025,.5,0,0,-.5,mid,.025,.5,0,0,-.5,0,0];
+        g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+        // Keep the same texel scale as the one-Cell top instead of stretching a
+        // square texture over a half-height side. Vertex tones define the facets.
+        g.setAttribute('uv',new THREE.Float32BufferAttribute([0,height,1,height,1,mid,0,height,1,mid,0,mid,0,mid,1,mid,1,0,0,mid,1,0,0,0],2));
+        g.computeVertexNormals();bakeFaceTones(g);geometries.rockWall=g;
       }
       for(let i=0;i<4;i++)if(mask&(1<<i)){
-        const wall=new THREE.Mesh(geometries.rockWall,physicalMaterial(['#645e66','#706770','#645e66'][variation],false));
+        const wall=new THREE.Mesh(geometries.rockWall,material(layer.base.fill,layer.base.image,false,true));
         wall.position.set(cx+[0,.5,0,-.5][i],0,cz+[-.5,0,.5,0][i]);wall.rotation.y=-i*Math.PI/2;group.add(wall);
       }
     }else if(kind==='Tree'||kind==='FruitTree'){
-      mesh(group,geometries.cylinder,'#69503a',cx,.19,cz,.065,.38,.065);
-      mesh(group,geometries.dome,'#35563b',cx,.41,cz,.34,.18,.34);
-      if(layer.object)group.add(plane(material('#35563b',layer.object.image,true),cx,cz,.88,.88,.6,layer.objectRotation));
+      const tree=new THREE.Group();tree.name='tree';tree.position.set(cx,0,cz);
+      tree.rotation.y=(layer.objectRotation??0)*Math.PI/180;group.add(tree);
+      // Closed tapered limbs support a volumetric crown. The flat-view portrait
+      // is deliberately not projected across the top of the physical prop.
+      function limb(from,to,radius){
+        const a=new THREE.Vector3(...from),b=new THREE.Vector3(...to),direction=b.clone().sub(a),mid=a.add(b).multiplyScalar(.5);
+        const part=mesh(tree,geometries.branch,'#765238',mid.x,mid.y,mid.z,radius,direction.length(),radius);
+        part.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.normalize());return part;
+      }
+      limb([0,.015,0],[.015,.58,-.015],.082);
+      for(let i=0;i<4;i++){
+        const angle=i*Math.PI/2+.35;
+        limb([Math.cos(angle)*.17,.012,Math.sin(angle)*.17],[0,.15,0],.035);
+      }
+      limb([0,.28,0],[-.20,.57,.05],.044);
+      limb([0,.34,0],[.20,.62,.09],.041);
+      limb([0,.38,0],[.02,.65,-.21],.038);
+      const crowns=[
+        [-.19,.58,.04,.25,.24,.27,'#3f6740'],
+        [.18,.62,.09,.25,.25,.25,'#527846'],
+        [.015,.64,-.18,.27,.25,.25,'#416b3f'],
+        [-.04,.73,.015,.29,.24,.28,'#5b8048']
+      ];
+      for(const [x,y,z,w,h,d,color]of crowns)mesh(tree,geometries.foliage,color,x,y,z,w,h,d,variation*.41);
+      if(kind==='FruitTree'){
+        for(const [x,y,z]of [[-.34,.59,.12],[-.17,.71,.24],[.16,.75,.25],[.35,.61,.06],[.24,.66,-.22],[-.12,.69,-.34],[-.19,.86,.02],[.10,.86,-.10]]){
+          mesh(tree,geometries.dome,'#cf4933',x,y,z,.047,.05,.047);
+          mesh(tree,geometries.branch,'#765238',x,y+.052,z,.008,.025,.008);
+        }
+      }
     }else if(kind==='StoneFloorWithTable'){
-      const prop=new THREE.Group();prop.position.set(cx,0,cz);prop.rotation.y=layer.objectRotation*Math.PI/180;group.add(prop);
+      const prop=new THREE.Group();prop.name='table';prop.position.set(cx,0,cz);prop.rotation.y=(layer.objectRotation??0)*Math.PI/180;group.add(prop);
       for(const dx of [-.29,.29])for(const dz of [-.18,.18])box(prop,'#614632',dx,.17,dz,.085,.34,.085);
-      for(const dz of [-.19,.19])box(prop,'#795538',0,.285,dz,.66,.10,.055);
-      box(prop,'#a47a4e',0,.365,0,.80,.07,.55);
-      print(prop,layer.object?.image,0,0,.78,.53,.401,0,'#a47a4e');
+      // Four aprons and low stretchers make a supported wooden table; separate
+      // planks replace the overhead illustration (which included its own legs).
+      for(const dz of [-.18,.18])box(prop,'#795538',0,.295,dz,.65,.09,.055);
+      for(const dx of [-.29,.29]){
+        box(prop,'#795538',dx,.295,0,.055,.09,.39);
+        box(prop,'#795538',dx,.105,0,.055,.045,.39);
+      }
+      box(prop,'#614632',0,.105,0,.58,.045,.045);
+      for(let i=0;i<4;i++){
+        const z=(i-1.5)*.145;
+        box(prop,['#a77b4c','#b58b57','#aa8050','#b18a59'][i],0,.367,z,.84,.065,.139);
+        // Flush peg heads at both ends read as joinery from the overhead view.
+        for(const x of [-.29,.29])mesh(prop,geometries.dome,'#795538',x,.399,z,.009,.001,.009);
+      }
     }
     return group;
   }

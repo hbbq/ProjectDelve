@@ -253,6 +253,12 @@ public sealed class FogOfWarTests
         var ready = GameEngine.RefreshChoices(state, new Random(), false);
         var fireball = ready.NextInput!.Candidates.Single(c => c.Key == "fireball:4,3");
         Assert.DoesNotContain("hidden", fireball.TargetIds);
+        Assert.Equal(new[] { "wizard" }, fireball.TargetIds);
+        Assert.False(fireball.Relevant); // A hidden enemy must not make a self-only preview relevant.
+        var revealed = ready.State.Copy();
+        revealed.ExploredCells["explorers"].Add(new(5, 4));
+        Assert.True(GameEngine.RefreshChoices(revealed, new Random(), false).NextInput!.Candidates
+            .Single(c => c.Key == fireball.Key).Relevant);
         var continued = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(ready.State))!;
         var attack = GameEngine.Advance(continued, new Pick(fireball.Key), new Random(), false);
         Assert.Contains(attack.State.AttackInProgress!.Targets, t => t.TargetId == "hidden");

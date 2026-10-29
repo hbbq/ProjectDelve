@@ -593,7 +593,9 @@ public static partial class GameEngine
                         AttackRules.HasGeometricLineOfSight(board, center, position));
                 }).Select(u => u.Id).ToImmutableArray();
             yield return new Candidate($"fireball:{x},{y}", Destination: center,
-                Action: UnitAction.Fireball, Relevant: !targets.IsEmpty) { TargetIds = targets };
+                Action: UnitAction.Fireball,
+                Relevant: targets.Any(id => state.Units.Single(u => u.Id == id).SideId != unit.SideId))
+                { TargetIds = targets };
         }
     }
 

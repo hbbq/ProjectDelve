@@ -7,7 +7,7 @@ test('dense legal Cell marks stay in three shared draw batches and duplicate cho
   const a=marks.build(cells),b=marks.build([...cells,...cells]);
   assert.equal(a.children.length,3);assert.deepEqual(a.children.map(m=>m.count),b.children.map(m=>m.count));
   assert.ok(a.children.every((m,i)=>m.geometry===b.children[i].geometry&&m.material===b.children[i].material));
-  for(const mesh of a.children){assert.equal(mesh.material.depthWrite,false);assert.equal(mesh.material.depthTest,false);assert.ok(mesh.instanceColor);assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);assert.equal(mesh.material.map,null);}
+  for(const mesh of a.children){assert.equal(mesh.material.depthWrite,false);assert.equal(mesh.material.depthTest,true);assert.ok(mesh.instanceColor);assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);assert.equal(mesh.material.map,null);}
   a.userData.disposeMarks();b.userData.disposeMarks();marks.dispose();
 });
 
@@ -20,6 +20,24 @@ test('Objective zones use a perimeter without washing unknown contents and attac
   const ink=area.getObjectByName('mark-ink');
   for(let i=0;i<ink.count;i++){ink.getMatrixAt(i,matrix);position.setFromMatrixPosition(matrix);assert.ok(Math.min(Math.abs(position.x-10),Math.abs(position.x-30),Math.abs(position.z-20),Math.abs(position.z-35))<.05,'all Objective ink stays on supplied perimeter');}
   for(const group of [area,move,attack])group.userData.disposeMarks();marks.dispose();
+});
+
+test('selection and active marks remain on the floor and composite behind transparent figure artwork',async()=>{
+  const T=await at('vendor/three/0.180.0/build/three.module.js'),{createTabletopMarks}=await at('three-tabletop-marks.js'),marks=createTabletopMarks();
+  const matrix=new T.Matrix4(),position=new T.Vector3();
+  for(const kind of ['activate','move','attack','preview','focus','source','target','active']){
+    const group=marks.build([{kind,x:0,y:0}]);
+    for(const mesh of group.children){
+      assert.equal(mesh.material.depthTest,true);assert.equal(mesh.material.depthWrite,false);
+      assert.ok(mesh.renderOrder<0,'floor ink renders before ordinary transparent figure artwork');
+      for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,matrix);position.setFromMatrixPosition(matrix);assert.ok(position.y>=.0179&&position.y<.024,'floor decal stays below the token body');}
+    }
+    group.userData.disposeMarks();
+  }
+  const active=marks.build([{kind:'active',x:0,y:0}]),choice=marks.build([{kind:'activate',x:0,y:0}]);
+  assert.equal(active.getObjectByName('mark-ink').count,12,'double continuous perimeter and four corner lozenges');
+  assert.equal(choice.getObjectByName('mark-ink').count,8,'activation choices retain their open corner brackets');
+  active.userData.disposeMarks();choice.userData.disposeMarks();marks.dispose();
 });
 
 test('combat connectors stop outside supplied bases and overlapping bases add no connector',async()=>{

@@ -2856,7 +2856,7 @@ test("short descriptions retain full content through tooltip and native disclosu
   assert.equal(descriptions[0].children[1].children[1].textContent, printed.content.description);
   assert.equal(descriptions[1].children[0].textContent, "Fallback full text");
   h.figure("b").listeners.mouseenter();
-  assert.match(h.elements.get("unit-card").textContent, /Inspecting/);
+  assert.doesNotMatch(h.elements.get("unit-card").textContent, /Inspecting|Most recently active/);
   h.figure("b").listeners.mouseleave();
   assert.doesNotMatch(h.elements.get("unit-card").textContent, /Active Unit/);
   assert.match(h.elements.get("unit-card").textContent, /Concise supplied wording/);

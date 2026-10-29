@@ -207,7 +207,7 @@ public sealed class FireballTests
     }
 
     [Fact]
-    public void FriendlyFireAndSelfAreRelevantAndSelfDefeatDoesNotStopFixedTargetResolution()
+    public void MixedHostileFriendlyAndSelfTargetsAreRelevantAndSelfDefeatDoesNotStopFixedTargetResolution()
     {
         var state = Scenario();
         state.Physical.Figures[1] = new("a", new(2, 2));
@@ -236,12 +236,42 @@ public sealed class FireballTests
         Assert.Equal(new[] { "a" }, CellChoice(Action(state)).TargetIds);
     }
 
-    [Fact]
-    public void FriendlyOnlyExplosionIsRelevantAndBlockingTerrainPreventsTargetCell()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FriendlyOnlyExplosionIsIrrelevantButCanStillBeSubmitted(bool selfOnly)
     {
         var state = Scenario();
         state.Units[1] = state.Units[1] with { SideId = "blue" };
-        Assert.True(CellChoice(Action(state)).Relevant);
+        var action = Action(state);
+        var choice = CellChoice(action, selfOnly ? 0 : 3, 2);
+        Assert.Equal(selfOnly ? ["wizard"] : new[] { "a", "b" }, choice.TargetIds);
+        Assert.False(choice.Relevant);
+
+        var result = Choose(Restore(action.State), choice.Key, new Dice(1));
+        var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
+        Assert.Equal(choice.TargetIds, attack.Targets.Select(t => t.TargetId));
+        Assert.All(attack.Targets, t => Assert.Equal(1, t.Damage));
+        Assert.True(result.State.ActionDone);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].FireballUses);
+    }
+
+    [Fact]
+    public void NeutralRecipientsRemainRelevantRatherThanBeingTreatedAsFriendly()
+    {
+        var state = Scenario();
+        state.NeutralSides.Add("red");
+        Assert.False(state.AreHostile("blue", "red"));
+        var choice = CellChoice(Action(state));
+        Assert.Equal(new[] { "a", "b" }, choice.TargetIds);
+        Assert.True(choice.Relevant);
+    }
+
+    [Fact]
+    public void BlockingTerrainPreventsFriendlyOnlyTargetCell()
+    {
+        var state = Scenario();
+        state.Units[1] = state.Units[1] with { SideId = "blue" };
         state.Physical.Board.Terrain.Add(new(new(2, 2), TerrainKind.Tree));
         Assert.All(state.Physical.Figures, f => Assert.True(state.Physical.Board.TerrainAt(f.Position).Passable()));
         Assert.DoesNotContain(Action(state).NextInput!.Candidates, c => c.Key == "fireball:3,2");

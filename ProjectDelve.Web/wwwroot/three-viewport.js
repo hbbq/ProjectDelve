@@ -388,8 +388,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       for(const p of positions){if(kind!=='stay'||ref.unitId!==frame.state.currentUnitId)cell(p,kind);
         // Preserve authored action symbols; the surrounding mark is shared.
         const icon=candidate.boardVisual?.icon,key=`${boardCellKey(p)}:${icon}`;
-        if(icon&&!icons.has(key)){icons.add(key);const m=glyph(icon).clone();m.depthTest=false;m.depthWrite=false;
-          const object=plane(m,p.x+.76,p.y+.76,.22,.22,.025);object.renderOrder=104;object.userData.overlayMaterial=true;
+        if(icon&&!icons.has(key)){icons.add(key);const m=glyph(icon).clone();m.depthTest=true;m.depthWrite=false;
+          const object=plane(m,p.x+.76,p.y+.76,.22,.22,.025);object.renderOrder=-1;object.userData.overlayMaterial=true;
           retain(`feedback:icon:${key}`,'icon','feedback',()=>object);}
       }
     }
@@ -399,8 +399,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     for(const id of ids){const f=figures.find(f=>f.id===id);if(!f)continue;
       const cells=frame.presentation.figures?.[id]?.occupiedCells??[f.position];
       const x=Math.min(...cells.map(c=>c.x)),y=Math.min(...cells.map(c=>c.y)),w=Math.max(...cells.map(c=>c.x))-x+1,h=Math.max(...cells.map(c=>c.y))-y+1;
-      const kind=id===view.relationship?.attackerId?'source':view.relationship?.targets?.some(t=>t.targetId===id)?'target':id===frame.state.currentUnitId?'activate':'focus';
-      marks.push({kind,x:x+.035,y:y+.035,w:w-.07,h:h-.07,height:.026});
+      if(id===frame.state.currentUnitId)marks.push({kind:'active',x,y,w,h,height:.024});
+      const kind=id===view.relationship?.attackerId?'source':view.relationship?.targets?.some(t=>t.targetId===id)?'target':id===frame.state.currentUnitId?null:'focus';
+      if(kind)marks.push({kind,x:x+.035,y:y+.035,w:w-.07,h:h-.07,height:.026});
     }
     if(view.focusedDoor)door(view.focusedDoor,'focus');
     const positions=view.combatPositions,source=positions?.get(view.relationship?.attackerId);
@@ -444,8 +445,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     for(const[id,effect]of arrivals){const object=nodes.get(`unit:${id}`)?.object,t=Math.min(1,(time-effect.start)/380);if(object)object.scale.setScalar(effect.kind==='UnitCreated'?.65+.35*(1-(1-t)**3):1+Math.sin(t*Math.PI)*.08);if(t>=1||!object)arrivals.delete(id);}
     updateLabels();updateFocus();if(pointerPosition&&!drag&&!pinch)hover(pick(pointerPosition));
     const overlay=host.querySelector('#board-overlays'),r=overlay?.getBoundingClientRect(),b=host.getBoundingClientRect();cameraControl.renderIndicators(r?.width?[{x:r.left-b.left,y:r.top-b.top,w:r.width,h:r.height}]:[]);
-    // Draw information last, including above transparent portraits. Ground-space
-    // feedback stays aligned with the selectable Cells at every camera angle.
+    // Floor marks share scene depth with Units and scenery. Their transparent
+    // batches render before transparent portraits so ink never covers a figure.
     if(presentation==='tabletop'){
       renderer.shadowMap.enabled=lighting.inspect().active;
       // Native depth clipping uses the movement pool's planes. Transparent
@@ -456,17 +457,10 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
         node.castShadow=materials.every(m=>!m.transparent&&m.depthTest!==false);
         node.receiveShadow=node.castShadow;
       });
-      // The feedback-only render below must neither clear nor rebuild the map.
       renderer.shadowMap.needsUpdate=renderer.shadowMap.enabled&&(shadowDirty||animateShadows||shadowWasAnimated||lastShadowCutaway!==cutaway);
       if(renderer.shadowMap.needsUpdate)shadowUpdates++;
       shadowDirty=false;shadowWasAnimated=animateShadows;lastShadowCutaway=cutaway;
-      groups.feedback.visible=groups.areas.visible=false;renderer.render(scene,camera);
-      renderer.shadowMap.needsUpdate=false;
-      const calls=renderer.info.render.calls,triangles=renderer.info.render.triangles;
-      const hidden=[];for(const [name,group]of Object.entries(groups))if(!['feedback','areas'].includes(name)){hidden.push([group,group.visible]);group.visible=false;}
-      groups.feedback.visible=groups.areas.visible=true;
-      const autoClear=renderer.autoClear;renderer.autoClear=false;renderer.render(scene,camera);renderer.autoClear=autoClear;
-      renderer.info.render.calls+=calls;renderer.info.render.triangles+=triangles;for(const [group,visible]of hidden)group.visible=visible;
+      renderer.render(scene,camera);
     }else {renderer.shadowMap.enabled=false;renderer.render(scene,camera);}
     lighting.frameRendered();renderCount++;readyAt??=performance.now();firstFrameAt??=time;
     if(presentationStartedAt!==null){presentationFirstFrameMs=performance.now()-presentationStartedAt;presentationStartedAt=null;}

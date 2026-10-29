@@ -552,22 +552,22 @@ test('shadow receivers cover only explored Cells and unknown terrain cannot crea
   }finally{h.cleanup();}
 });
 
-test('shadow map refreshes for scene changes and reuses its contents for camera and overlay renders',async()=>{
+test('shadow map refreshes for scene changes and reuses its contents for camera and interaction renders',async()=>{
   const f=fixture(),h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
-    const passes=()=>h.rendered.slice(-2).map(r=>r.shadow.needsUpdate);
-    assert.equal(h.renderer.shadowMap.autoUpdate,false);assert.deepEqual(passes(),[true,false]);
+    const passes=()=>[h.rendered.at(-1).shadow.needsUpdate];
+    assert.equal(h.renderer.shadowMap.autoUpdate,false);assert.deepEqual(passes(),[true]);
     const key=h.rendered.at(-1).scene.getObjectByName('tabletop-key'),position=key.position.clone(),projection=key.shadow.camera.projectionMatrix.clone();
-    h.viewport.camera.setOrientation({tilt:45,yaw:135},false);h.flush();assert.deepEqual(passes(),[false,false]);
-    h.viewport.camera.setProjection('perspective',false);h.flush();assert.deepEqual(passes(),[false,false]);
+    h.viewport.camera.setOrientation({tilt:45,yaw:135},false);h.flush();assert.deepEqual(passes(),[false]);
+    h.viewport.camera.setProjection('perspective',false);h.flush();assert.deepEqual(passes(),[false]);
     assert.deepEqual(key.position,position);assert.deepEqual(key.shadow.camera.projectionMatrix,projection);
-    h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});h.flush();assert.deepEqual(passes(),[false,false]);
-    h.viewport.lighting.set({azimuth:135});h.flush();assert.deepEqual(passes(),[true,false]);
-    h.controls.cutaway.checked=true;h.controls.cutaway.emit('change');h.flush();assert.deepEqual(passes(),[true,false]);
+    h.viewport.showInteraction({candidates:[{key:'move',interaction:{kind:'Position',position:{x:3,y:2}}}]});h.flush();assert.deepEqual(passes(),[false]);
+    h.viewport.lighting.set({azimuth:135});h.flush();assert.deepEqual(passes(),[true]);
+    h.controls.cutaway.checked=true;h.controls.cutaway.emit('change');h.flush();assert.deepEqual(passes(),[true]);
     assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').visible,false);
-    const next=structuredClone(f);next.state.physical.figures[0].position.x=3;h.viewport.renderFrame(next);h.viewport.settle();h.flush();assert.deepEqual(passes(),[true,false]);
-    h.viewport.lighting.set({enabled:false});h.flush();assert.equal(h.renderer.shadowMap.enabled,false);assert.deepEqual(passes(),[false,false]);
-    h.viewport.lighting.set({enabled:true});h.flush();assert.deepEqual(passes(),[true,false]);
+    const next=structuredClone(f);next.state.physical.figures[0].position.x=3;h.viewport.renderFrame(next);h.viewport.settle();h.flush();assert.deepEqual(passes(),[true]);
+    h.viewport.lighting.set({enabled:false});h.flush();assert.equal(h.renderer.shadowMap.enabled,false);assert.deepEqual(passes(),[false]);
+    h.viewport.lighting.set({enabled:true});h.flush();assert.deepEqual(passes(),[true]);
     assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
   }finally{h.cleanup();}
 });
@@ -1124,7 +1124,7 @@ test('Tabletop batches supplied choices without changing Cell picks and releases
     h.viewport.setPresentation('tabletop');h.viewport.camera.setOrientation({tilt:38,yaw:25},false);h.viewport.settle();h.flush();
     const feedback=scene.getObjectByName('feedback'),first=feedback.children.find(n=>n.userData.tabletopMarks),counts=first.children.map(m=>m.count);
     assert.ok(first);assert.ok(first.children.length<=3);let instances=0,finishes=0,geometry=0;
-    for(const mesh of first.children){mesh.addEventListener('dispose',()=>instances++);mesh.material.addEventListener('dispose',()=>finishes++);assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);assert.equal(mesh.material.depthTest,false);assert.equal(mesh.material.depthWrite,false);}
+    for(const mesh of first.children){mesh.addEventListener('dispose',()=>instances++);mesh.material.addEventListener('dispose',()=>finishes++);assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);assert.equal(mesh.material.depthTest,true);assert.equal(mesh.material.depthWrite,false);}
     first.children[0].geometry.addEventListener('dispose',()=>geometry++);
     h.viewport.showInteraction({candidates:[move,{...move,key:'another-opaque-choice'}]});h.flush();
     const second=feedback.children.find(n=>n.userData.tabletopMarks);assert.notEqual(second,first);assert.deepEqual(second.children.map(m=>m.count),counts);
@@ -1152,13 +1152,40 @@ test('Tabletop important labels retain HP, Side, posture and combat role and Fla
   }finally{h.cleanup();}
 });
 
+test('floor marks share one depth-tested scene pass and the active footprint persists through combat focus',async()=>{
+  const f=fixture(),h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const originalRender=h.renderer.render;
+    h.renderer.render=function(scene,camera){
+      assert.equal(scene.getObjectByName('feedback').visible,true);
+      assert.equal(scene.getObjectByName('units').visible,true);
+      assert.equal(scene.getObjectByName('edges').visible,true);
+      originalRender.call(this,scene,camera);
+    };
+    const before=h.rendered.length;
+    h.viewport.showInteraction({relationship:{attackerId:'hero',targets:[{targetId:'large'}]},candidates:[]});h.flush();
+    assert.equal(h.rendered.length,before+1,'feedback renders with figures, never in a later overlay pass');
+    const gold=new h.THREE.Color('#ffcf60'),color=new h.THREE.Color(),matrix=new h.THREE.Matrix4(),position=new h.THREE.Vector3();
+    function activePoints(){
+      const ink=h.rendered.at(-1).scene.getObjectByName('feedback').getObjectByName('mark-ink'),points=[];
+      for(let i=0;i<ink.count;i++){ink.getColorAt(i,color);if(Math.abs(color.r-gold.r)+Math.abs(color.g-gold.g)+Math.abs(color.b-gold.b)<1e-6){ink.getMatrixAt(i,matrix);position.setFromMatrixPosition(matrix);points.push(position.clone());}}
+      return points;
+    }
+    const hero=activePoints();assert.equal(hero.length,8,'gold perimeter and corners survive the source marker');
+    assert.ok(hero.every(p=>p.x>2&&p.x<3&&p.z>2&&p.z<3));
+    const next=structuredClone(f);next.state.currentUnitId='large';h.viewport.renderFrame(next);h.viewport.settle();h.flush();
+    const large=activePoints();assert.equal(large.length,8);assert.ok(large.every(p=>p.x>4&&p.x<6&&p.z>3&&p.z<5),'active mark follows the entire new occupied footprint');
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('Tabletop special action symbols and public Objective boundaries survive batching without filling unknown terrain',async()=>{
   const f=fixture(16,'blue');f.presentation.objectives=[{sideId:'blue',name:'Reach Area',area:{x:10,y:10,w:3,h:2}}];
   const h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.showInteraction({candidates:[{key:'special',interaction:{kind:'Position',position:{x:2,y:2}},boardVisual:{kind:'special',icon:'!'}}]});h.viewport.settle();h.flush();
     const scene=h.rendered.at(-1).scene,area=scene.getObjectByName('areas').children.find(n=>n.userData.tabletopMarks),feedback=scene.getObjectByName('feedback');
     assert.ok(area);assert.equal(area.getObjectByName('mark-wash'),undefined);
-    const symbol=feedback.children.find(n=>n.isMesh&&!n.isInstancedMesh);assert.ok(symbol?.material.map);assert.equal(symbol.material.depthTest,false);assert.equal(symbol.castShadow,false);
+    const symbol=feedback.children.find(n=>n.isMesh&&!n.isInstancedMesh);assert.ok(symbol?.material.map);assert.equal(symbol.material.depthTest,true);assert.equal(symbol.castShadow,false);
     assert.equal(h.viewport.inspect().units,2,'public zones do not manufacture Units or labels in unknown Cells');
     assert.deepEqual(h.viewport.pick(h.viewport.project({x:2.5,y:2.5})).cell,{x:2,y:2});assert.deepEqual(h.failures,[]);
   }finally{h.cleanup();}

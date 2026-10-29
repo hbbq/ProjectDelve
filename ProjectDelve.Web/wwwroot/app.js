@@ -686,8 +686,8 @@ function renderUnitCard() {
   for (const child of Array.from(header.children)) if (child !== portrait) child.remove();
   if (portrait !== previousPortrait) header.append(portrait);
   const identity = text("div", ""); identity.className = "card-name";
-  if (hoveredUnitId || state.currentUnitId !== unit.id)
-    identity.append(text("small", hoveredUnitId ? "Inspecting" : "Most recently active"));
+  if (!hoveredUnitId && state.currentUnitId !== unit.id)
+    identity.append(text("small", "Most recently active"));
   identity.append(text("h3", name));
   identity.append(text("small", `Side ${unit.sideId ?? "—"}`));
   const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; identity.append(hp);
