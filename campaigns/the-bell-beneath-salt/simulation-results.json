@@ -1,0 +1,2720 @@
+{
+    "campaign":  "the-bell-beneath-salt",
+    "seeds":  8,
+    "roundLimit":  25,
+    "runs":  [
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261029,
+                     "rounds":  4,
+                     "decisions":  36,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  6,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261030,
+                     "rounds":  5,
+                     "decisions":  42,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  7,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261031,
+                     "rounds":  5,
+                     "decisions":  25,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261032,
+                     "rounds":  6,
+                     "decisions":  51,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  3,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261033,
+                     "rounds":  6,
+                     "decisions":  55,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  1,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261034,
+                     "rounds":  5,
+                     "decisions":  39,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  2
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  6,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261035,
+                     "rounds":  2,
+                     "decisions":  16,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  2,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "aggressive",
+                     "seed":  20261036,
+                     "rounds":  4,
+                     "decisions":  38,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  6,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261029,
+                     "rounds":  2,
+                     "decisions":  24,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  4,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261030,
+                     "rounds":  2,
+                     "decisions":  31,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  6,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261031,
+                     "rounds":  4,
+                     "decisions":  28,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  4,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261032,
+                     "rounds":  4,
+                     "decisions":  31,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  2
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  4,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261033,
+                     "rounds":  3,
+                     "decisions":  24,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  3,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261034,
+                     "rounds":  3,
+                     "decisions":  22,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261035,
+                     "rounds":  2,
+                     "decisions":  16,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  2,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "objective",
+                     "seed":  20261036,
+                     "rounds":  3,
+                     "decisions":  31,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  5,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261029,
+                     "rounds":  2,
+                     "decisions":  24,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  4,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261030,
+                     "rounds":  2,
+                     "decisions":  31,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  6,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261031,
+                     "rounds":  4,
+                     "decisions":  28,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  4,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261032,
+                     "rounds":  4,
+                     "decisions":  31,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  2
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  4,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261033,
+                     "rounds":  3,
+                     "decisions":  24,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  3,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261034,
+                     "rounds":  3,
+                     "decisions":  22,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261035,
+                     "rounds":  2,
+                     "decisions":  16,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  2,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-01-the-drowned-quay",
+                     "policy":  "rush",
+                     "seed":  20261036,
+                     "rounds":  3,
+                     "decisions":  31,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  5,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261029,
+                     "rounds":  5,
+                     "decisions":  68,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261030,
+                     "rounds":  11,
+                     "decisions":  135,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  21,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261031,
+                     "rounds":  5,
+                     "decisions":  79,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  12,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261032,
+                     "rounds":  8,
+                     "decisions":  100,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitDefeated":  6
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261033,
+                     "rounds":  6,
+                     "decisions":  74,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  11,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261034,
+                     "rounds":  5,
+                     "decisions":  70,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261035,
+                     "rounds":  11,
+                     "decisions":  118,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  17,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "aggressive",
+                     "seed":  20261036,
+                     "rounds":  5,
+                     "decisions":  77,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  13,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261029,
+                     "rounds":  5,
+                     "decisions":  68,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261030,
+                     "rounds":  11,
+                     "decisions":  135,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  21,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261031,
+                     "rounds":  5,
+                     "decisions":  79,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  12,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261032,
+                     "rounds":  8,
+                     "decisions":  100,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitDefeated":  6
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261033,
+                     "rounds":  6,
+                     "decisions":  74,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  11,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261034,
+                     "rounds":  5,
+                     "decisions":  70,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261035,
+                     "rounds":  11,
+                     "decisions":  118,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  17,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "objective",
+                     "seed":  20261036,
+                     "rounds":  5,
+                     "decisions":  77,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  13,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261029,
+                     "rounds":  5,
+                     "decisions":  68,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261030,
+                     "rounds":  11,
+                     "decisions":  135,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  21,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261031,
+                     "rounds":  5,
+                     "decisions":  79,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  12,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261032,
+                     "rounds":  8,
+                     "decisions":  100,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitDefeated":  6
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261033,
+                     "rounds":  6,
+                     "decisions":  74,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  11,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261034,
+                     "rounds":  5,
+                     "decisions":  70,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  10,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261035,
+                     "rounds":  11,
+                     "decisions":  118,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  17,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-02-the-lantern-gallery",
+                     "policy":  "rush",
+                     "seed":  20261036,
+                     "rounds":  5,
+                     "decisions":  77,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  13,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261029,
+                     "rounds":  11,
+                     "decisions":  145,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  3,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  18,
+                                    "UnitCreated":  10,
+                                    "UnitDefeated":  13
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261030,
+                     "rounds":  13,
+                     "decisions":  201,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  3,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  34,
+                                    "UnitCreated":  12,
+                                    "UnitDefeated":  17
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261031,
+                     "rounds":  7,
+                     "decisions":  120,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  3,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  16,
+                                    "UnitCreated":  7,
+                                    "UnitDefeated":  10
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261032,
+                     "rounds":  9,
+                     "decisions":  167,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  3,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0
+                                },
+                     "livingEnemies":  6,
+                     "counts":  {
+                                    "AttackStarted":  30,
+                                    "UnitCreated":  8,
+                                    "UnitDefeated":  9
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261033,
+                     "rounds":  22,
+                     "decisions":  387,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  3,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0
+                                },
+                     "livingEnemies":  7,
+                     "counts":  {
+                                    "AttackStarted":  61,
+                                    "UnitCreated":  22,
+                                    "UnitDefeated":  22
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261034,
+                     "rounds":  11,
+                     "decisions":  158,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  2,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  26,
+                                    "UnitCreated":  11,
+                                    "UnitDefeated":  13
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261035,
+                     "rounds":  15,
+                     "decisions":  325,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  3,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0
+                                },
+                     "livingEnemies":  7,
+                     "counts":  {
+                                    "AttackStarted":  51,
+                                    "UnitCreated":  14,
+                                    "UnitDefeated":  14
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "aggressive",
+                     "seed":  20261036,
+                     "rounds":  13,
+                     "decisions":  224,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "rogue":  0,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  39,
+                                    "UnitCreated":  12,
+                                    "UnitDefeated":  17
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261029,
+                     "rounds":  6,
+                     "decisions":  112,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  3,
+                                    "rogue":  0,
+                                    "wizard":  2
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  19,
+                                    "UnitCreated":  5,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261030,
+                     "rounds":  4,
+                     "decisions":  72,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0,
+                                    "wizard":  1
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  13,
+                                    "UnitCreated":  3,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261031,
+                     "rounds":  4,
+                     "decisions":  60,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  2,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitCreated":  4,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261032,
+                     "rounds":  6,
+                     "decisions":  124,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  21,
+                                    "UnitCreated":  5,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261033,
+                     "rounds":  4,
+                     "decisions":  53,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  8,
+                                    "UnitCreated":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261034,
+                     "rounds":  3,
+                     "decisions":  55,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitCreated":  2,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261035,
+                     "rounds":  6,
+                     "decisions":  89,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitCreated":  5,
+                                    "UnitDefeated":  8
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "objective",
+                     "seed":  20261036,
+                     "rounds":  4,
+                     "decisions":  71,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  11,
+                                    "UnitCreated":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261029,
+                     "rounds":  6,
+                     "decisions":  112,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  3,
+                                    "rogue":  0,
+                                    "wizard":  2
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  19,
+                                    "UnitCreated":  5,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261030,
+                     "rounds":  4,
+                     "decisions":  72,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0,
+                                    "wizard":  1
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  13,
+                                    "UnitCreated":  3,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261031,
+                     "rounds":  4,
+                     "decisions":  60,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  2,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitCreated":  4,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261032,
+                     "rounds":  6,
+                     "decisions":  124,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  21,
+                                    "UnitCreated":  5,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261033,
+                     "rounds":  4,
+                     "decisions":  53,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  8,
+                                    "UnitCreated":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261034,
+                     "rounds":  3,
+                     "decisions":  55,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  3,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitCreated":  2,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261035,
+                     "rounds":  6,
+                     "decisions":  89,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  4,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitCreated":  5,
+                                    "UnitDefeated":  8
+                                }
+                 },
+                 {
+                     "scenario":  "salt-03-the-choir-well",
+                     "policy":  "rush",
+                     "seed":  20261036,
+                     "rounds":  4,
+                     "decisions":  71,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  1,
+                                    "wizard":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  11,
+                                    "UnitCreated":  3,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261029,
+                     "rounds":  13,
+                     "decisions":  155,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  25,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261030,
+                     "rounds":  9,
+                     "decisions":  96,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  1,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  14,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261031,
+                     "rounds":  2,
+                     "decisions":  48,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  8,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261032,
+                     "rounds":  7,
+                     "decisions":  81,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  3,
+                                    "cleric":  1
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  12,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261033,
+                     "rounds":  8,
+                     "decisions":  83,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "wizard":  4,
+                                    "rogue":  3,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  12,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261034,
+                     "rounds":  7,
+                     "decisions":  71,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  2
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  8,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261035,
+                     "rounds":  4,
+                     "decisions":  65,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  2,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  11,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "aggressive",
+                     "seed":  20261036,
+                     "rounds":  8,
+                     "decisions":  98,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  3,
+                                    "wizard":  4,
+                                    "rogue":  3,
+                                    "cleric":  1
+                                },
+                     "livingEnemies":  0,
+                     "counts":  {
+                                    "AttackStarted":  16,
+                                    "UnitDefeated":  5
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261029,
+                     "rounds":  6,
+                     "decisions":  89,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  2,
+                                    "rogue":  3,
+                                    "cleric":  1
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  14,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261030,
+                     "rounds":  5,
+                     "decisions":  89,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "wizard":  3,
+                                    "rogue":  3,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261031,
+                     "rounds":  2,
+                     "decisions":  52,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "wizard":  3,
+                                    "rogue":  1,
+                                    "cleric":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261032,
+                     "rounds":  6,
+                     "decisions":  88,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  3,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  14,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261033,
+                     "rounds":  3,
+                     "decisions":  53,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261034,
+                     "rounds":  4,
+                     "decisions":  68,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  0,
+                                    "cleric":  4
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  8,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261035,
+                     "rounds":  2,
+                     "decisions":  26,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  5,
+                     "counts":  {
+                                    "AttackStarted":  2,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "objective",
+                     "seed":  20261036,
+                     "rounds":  5,
+                     "decisions":  97,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "wizard":  3,
+                                    "rogue":  3,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  17,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261029,
+                     "rounds":  6,
+                     "decisions":  89,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  2,
+                                    "rogue":  3,
+                                    "cleric":  1
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  14,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261030,
+                     "rounds":  5,
+                     "decisions":  89,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "wizard":  3,
+                                    "rogue":  3,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  15,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261031,
+                     "rounds":  2,
+                     "decisions":  52,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "wizard":  3,
+                                    "rogue":  1,
+                                    "cleric":  4
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitDefeated":  2
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261032,
+                     "rounds":  6,
+                     "decisions":  88,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  3,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  14,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261033,
+                     "rounds":  3,
+                     "decisions":  53,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  9,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261034,
+                     "rounds":  4,
+                     "decisions":  68,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  0,
+                                    "cleric":  4
+                                },
+                     "livingEnemies":  3,
+                     "counts":  {
+                                    "AttackStarted":  8,
+                                    "UnitDefeated":  3
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261035,
+                     "rounds":  2,
+                     "decisions":  26,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "wizard":  4,
+                                    "rogue":  4,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  5,
+                     "counts":  {
+                                    "AttackStarted":  2,
+                                    "UnitDefeated":  1
+                                }
+                 },
+                 {
+                     "scenario":  "salt-04-the-parting-tide",
+                     "policy":  "rush",
+                     "seed":  20261036,
+                     "rounds":  5,
+                     "decisions":  97,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "wizard":  3,
+                                    "rogue":  3,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  17,
+                                    "UnitDefeated":  4
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261029,
+                     "rounds":  10,
+                     "decisions":  310,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  14,
+                     "counts":  {
+                                    "AttackStarted":  35,
+                                    "UnitCreated":  18,
+                                    "UnitDefeated":  14
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261030,
+                     "rounds":  12,
+                     "decisions":  384,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  9,
+                     "counts":  {
+                                    "AttackStarted":  52,
+                                    "UnitCreated":  18,
+                                    "UnitDefeated":  19
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261031,
+                     "rounds":  13,
+                     "decisions":  330,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  0,
+                                    "wizard":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  2,
+                     "counts":  {
+                                    "AttackStarted":  52,
+                                    "UnitCreated":  17,
+                                    "UnitDefeated":  22
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261032,
+                     "rounds":  11,
+                     "decisions":  377,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  14,
+                     "counts":  {
+                                    "AttackStarted":  46,
+                                    "UnitCreated":  20,
+                                    "UnitDefeated":  16
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261033,
+                     "rounds":  17,
+                     "decisions":  491,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  5,
+                                    "rogue":  0,
+                                    "wizard":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  1,
+                     "counts":  {
+                                    "AttackStarted":  82,
+                                    "UnitCreated":  26,
+                                    "UnitDefeated":  32
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261034,
+                     "rounds":  15,
+                     "decisions":  465,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  11,
+                     "counts":  {
+                                    "AttackStarted":  67,
+                                    "UnitCreated":  28,
+                                    "UnitDefeated":  27
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261035,
+                     "rounds":  9,
+                     "decisions":  233,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  9,
+                     "counts":  {
+                                    "AttackStarted":  30,
+                                    "UnitCreated":  14,
+                                    "UnitDefeated":  15
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "aggressive",
+                     "seed":  20261036,
+                     "rounds":  19,
+                     "decisions":  489,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  74,
+                                    "UnitCreated":  24,
+                                    "UnitDefeated":  30
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261029,
+                     "rounds":  5,
+                     "decisions":  154,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  0,
+                                    "wizard":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  8,
+                     "counts":  {
+                                    "AttackStarted":  24,
+                                    "UnitCreated":  7,
+                                    "UnitDefeated":  6
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261030,
+                     "rounds":  10,
+                     "decisions":  281,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  3,
+                     "heroHp":  {
+                                    "barbarian":  1,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  43,
+                                    "UnitCreated":  11,
+                                    "UnitDefeated":  16
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261031,
+                     "rounds":  6,
+                     "decisions":  190,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  1,
+                                    "rogue":  0,
+                                    "wizard":  3,
+                                    "cleric":  2
+                                },
+                     "livingEnemies":  7,
+                     "counts":  {
+                                    "AttackStarted":  28,
+                                    "UnitCreated":  8,
+                                    "UnitDefeated":  8
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261032,
+                     "rounds":  13,
+                     "decisions":  416,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  10,
+                     "counts":  {
+                                    "AttackStarted":  61,
+                                    "UnitCreated":  15,
+                                    "UnitDefeated":  15
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261033,
+                     "rounds":  6,
+                     "decisions":  157,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  1,
+                                    "wizard":  4,
+                                    "cleric":  4
+                                },
+                     "livingEnemies":  6,
+                     "counts":  {
+                                    "AttackStarted":  24,
+                                    "UnitCreated":  7,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261034,
+                     "rounds":  8,
+                     "decisions":  243,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  9,
+                     "counts":  {
+                                    "AttackStarted":  34,
+                                    "UnitCreated":  9,
+                                    "UnitDefeated":  10
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261035,
+                     "rounds":  11,
+                     "decisions":  303,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  4,
+                                    "wizard":  0,
+                                    "cleric":  1
+                                },
+                     "livingEnemies":  5,
+                     "counts":  {
+                                    "AttackStarted":  48,
+                                    "UnitCreated":  12,
+                                    "UnitDefeated":  15
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "objective",
+                     "seed":  20261036,
+                     "rounds":  9,
+                     "decisions":  294,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  9,
+                     "counts":  {
+                                    "AttackStarted":  44,
+                                    "UnitCreated":  12,
+                                    "UnitDefeated":  13
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261029,
+                     "rounds":  5,
+                     "decisions":  154,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  0,
+                                    "wizard":  4,
+                                    "cleric":  3
+                                },
+                     "livingEnemies":  8,
+                     "counts":  {
+                                    "AttackStarted":  24,
+                                    "UnitCreated":  7,
+                                    "UnitDefeated":  6
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261030,
+                     "rounds":  10,
+                     "decisions":  281,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  3,
+                     "heroHp":  {
+                                    "barbarian":  1,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  4,
+                     "counts":  {
+                                    "AttackStarted":  43,
+                                    "UnitCreated":  11,
+                                    "UnitDefeated":  16
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261031,
+                     "rounds":  6,
+                     "decisions":  190,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  1,
+                     "heroHp":  {
+                                    "barbarian":  1,
+                                    "rogue":  0,
+                                    "wizard":  3,
+                                    "cleric":  2
+                                },
+                     "livingEnemies":  7,
+                     "counts":  {
+                                    "AttackStarted":  28,
+                                    "UnitCreated":  8,
+                                    "UnitDefeated":  8
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261032,
+                     "rounds":  13,
+                     "decisions":  416,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  10,
+                     "counts":  {
+                                    "AttackStarted":  61,
+                                    "UnitCreated":  15,
+                                    "UnitDefeated":  15
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261033,
+                     "rounds":  6,
+                     "decisions":  157,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  0,
+                     "heroHp":  {
+                                    "barbarian":  4,
+                                    "rogue":  1,
+                                    "wizard":  4,
+                                    "cleric":  4
+                                },
+                     "livingEnemies":  6,
+                     "counts":  {
+                                    "AttackStarted":  24,
+                                    "UnitCreated":  7,
+                                    "UnitDefeated":  7
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261034,
+                     "rounds":  8,
+                     "decisions":  243,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  9,
+                     "counts":  {
+                                    "AttackStarted":  34,
+                                    "UnitCreated":  9,
+                                    "UnitDefeated":  10
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261035,
+                     "rounds":  11,
+                     "decisions":  303,
+                     "winners":  [
+                                     "side-1"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  2,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  4,
+                                    "wizard":  0,
+                                    "cleric":  1
+                                },
+                     "livingEnemies":  5,
+                     "counts":  {
+                                    "AttackStarted":  48,
+                                    "UnitCreated":  12,
+                                    "UnitDefeated":  15
+                                }
+                 },
+                 {
+                     "scenario":  "salt-05-the-bell-beneath-salt",
+                     "policy":  "rush",
+                     "seed":  20261036,
+                     "rounds":  9,
+                     "decisions":  294,
+                     "winners":  [
+                                     "side-2"
+                                 ],
+                     "timeout":  false,
+                     "heroDeaths":  4,
+                     "heroHp":  {
+                                    "barbarian":  0,
+                                    "rogue":  0,
+                                    "wizard":  0,
+                                    "cleric":  0
+                                },
+                     "livingEnemies":  9,
+                     "counts":  {
+                                    "AttackStarted":  44,
+                                    "UnitCreated":  12,
+                                    "UnitDefeated":  13
+                                }
+                 }
+             ],
+    "librarySha256":  "0c92d754a8c5e86958e6ed910cdb37e6eb21ff6b2e7fe6b431779f2bd108d56c"
+}

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,37 @@ public sealed class ScenarioCatalogTests
         _ = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(json));
         var export = ScenarioDefinitionTransport.Encode(PlaytestScenarios.Definition(id));
         _ = GameEngine.CreateGame(ScenarioDefinitionTransport.Decode(export));
+    }
+
+    [Fact]
+    public void AuthoredCampaignLibrariesAreValidAndLoadable()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../campaigns"));
+        foreach (var directory in Directory.EnumerateDirectories(root).Order(StringComparer.Ordinal))
+        {
+            var path = Path.Combine(directory, "library.json");
+            if (!File.Exists(path)) continue;
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var library = new ScenarioLibrary(
+                Path.Combine(Path.GetTempPath(), "delve-catalog-unused-" + Guid.NewGuid().ToString("N")),
+                directory, readOnly: true);
+            _ = library.Catalog();
+            var scenarioIds = document.RootElement.GetProperty("scenarios").EnumerateArray()
+                .Select(scenario => scenario.GetProperty("id").GetString()!).ToHashSet(StringComparer.Ordinal);
+            foreach (var id in scenarioIds)
+            {
+                var definition = ScenarioDefinitionJson.FromJson(library.Scenario(id).Definition.GetRawText());
+                _ = GameEngine.CreateGame(definition);
+                _ = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(ScenarioDefinitionJson.ToJson(definition)));
+                _ = GameEngine.CreateGame(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(definition)));
+            }
+            foreach (var entry in document.RootElement.GetProperty("campaigns").EnumerateArray())
+            {
+                var campaign = library.Campaign(entry.GetProperty("id").GetString()!);
+                foreach (var reference in campaign.ScenarioIds)
+                    Assert.Contains(reference, scenarioIds);
+            }
+        }
     }
 
     [Fact]

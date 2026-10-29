@@ -1,0 +1,1510 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "salt-01-the-drowned-quay",
+      "name": "I · The Drowned Quay",
+      "coverArt": "/art/campaigns/the-bell-beneath-salt.png",
+      "revision": 1,
+      "definition": {
+        "worldEffects": {
+          "cardsPerRound": 0,
+          "cycling": 1
+        },
+        "board": {
+          "width": 10,
+          "height": 8,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            {
+              "position": {
+                "x": 4,
+                "y": 0
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 0
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 1
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 1
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": [
+          "barbarian-type",
+          "rogue-type",
+          "grunt-type"
+        ],
+        "units": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 0,
+              "y": 3
+            },
+            "unitId": "barbarian"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 0,
+              "y": 4
+            },
+            "unitId": "rogue"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 6,
+              "y": 2
+            },
+            "unitId": "grunt-6-2"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 7,
+              "y": 4
+            },
+            "unitId": "grunt-7-4"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 8,
+              "y": 6
+            },
+            "unitId": "grunt-8-6"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "side-1",
+            "objective": "ReachArea",
+            "count": 0,
+            "selectors": [
+              {
+                "kind": "SideAtStart",
+                "sideId": "side-1"
+              }
+            ],
+            "area": {
+              "x": 8,
+              "y": 0,
+              "w": 2,
+              "h": 8
+            }
+          },
+          {
+            "sideId": "side-2",
+            "objective": "DefeatUnits",
+            "count": 1,
+            "selectors": [
+              {
+                "kind": "SideAtStart",
+                "sideId": "side-1"
+              }
+            ]
+          }
+        ],
+        "orders": []
+      }
+    },
+    {
+      "id": "salt-02-the-lantern-gallery",
+      "name": "II · The Lantern Gallery",
+      "coverArt": "/art/campaigns/the-bell-beneath-salt.png",
+      "revision": 1,
+      "definition": {
+        "worldEffects": {
+          "cardsPerRound": 0,
+          "cycling": 1
+        },
+        "board": {
+          "width": 11,
+          "height": 9,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            {
+              "position": {
+                "x": 4,
+                "y": 1
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 1
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 4
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 4
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 4
+              },
+              "terrain": "StoneFloorWithTable"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            }
+          ],
+          "edges": [
+            {
+              "position": {
+                "x": 7,
+                "y": 0
+              },
+              "direction": "Right",
+              "kind": "Wall"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 1
+              },
+              "direction": "Right",
+              "kind": "ClosedDoor"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 2
+              },
+              "direction": "Right",
+              "kind": "Wall"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 3
+              },
+              "direction": "Right",
+              "kind": "None"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 4
+              },
+              "direction": "Right",
+              "kind": "None"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 5
+              },
+              "direction": "Right",
+              "kind": "None"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 6
+              },
+              "direction": "Right",
+              "kind": "Wall"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 7
+              },
+              "direction": "Right",
+              "kind": "ClosedDoor"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 8
+              },
+              "direction": "Right",
+              "kind": "Wall"
+            }
+          ]
+        },
+        "unitTypeIds": [
+          "barbarian-type",
+          "rogue-type",
+          "wizard-type",
+          "skeleton-archer-type",
+          "grunt-type"
+        ],
+        "units": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 0,
+              "y": 4
+            },
+            "unitId": "barbarian"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 1,
+              "y": 7
+            },
+            "unitId": "rogue"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 0,
+              "y": 2
+            },
+            "unitId": "wizard"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 9,
+              "y": 1
+            },
+            "unitId": "skeleton-archer-9-1"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 9,
+              "y": 4
+            },
+            "unitId": "skeleton-archer-9-4"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 9,
+              "y": 7
+            },
+            "unitId": "skeleton-archer-9-7"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 5,
+              "y": 3
+            },
+            "unitId": "grunt-5-3"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 6,
+              "y": 5
+            },
+            "unitId": "grunt-6-5"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "grunt-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "side-1",
+            "objective": "EliminateEnemies"
+          },
+          {
+            "sideId": "side-2",
+            "objective": "EliminateEnemies"
+          }
+        ],
+        "orders": [
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "kind": "HoldPosition"
+          }
+        ]
+      }
+    },
+    {
+      "id": "salt-03-the-choir-well",
+      "name": "III · The Choir Well",
+      "coverArt": "/art/campaigns/the-bell-beneath-salt.png",
+      "revision": 1,
+      "definition": {
+        "worldEffects": {
+          "cardsPerRound": 0,
+          "cycling": 1
+        },
+        "board": {
+          "width": 12,
+          "height": 10,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            {
+              "position": {
+                "x": 3,
+                "y": 1
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 1
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 1
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 1
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 8
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 8
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 8
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 8
+              },
+              "terrain": "SolidRock"
+            }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": [
+          "barbarian-type",
+          "rogue-type",
+          "wizard-type",
+          "shaman-type",
+          "troll-type",
+          "zombie-type",
+          "goblin-type"
+        ],
+        "units": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 0,
+              "y": 4
+            },
+            "unitId": "barbarian"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 1,
+              "y": 7
+            },
+            "unitId": "rogue"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 1,
+              "y": 2
+            },
+            "unitId": "wizard"
+          },
+          {
+            "unitTypeId": "shaman-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 10,
+              "y": 4
+            },
+            "unitId": "cantor"
+          },
+          {
+            "unitTypeId": "troll-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 8,
+              "y": 4
+            },
+            "unitId": "troll-8-4"
+          },
+          {
+            "unitTypeId": "zombie-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 6,
+              "y": 2
+            },
+            "unitId": "zombie-6-2"
+          },
+          {
+            "unitTypeId": "zombie-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 6,
+              "y": 7
+            },
+            "unitId": "zombie-6-7"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "shaman-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "troll-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "zombie-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "goblin-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "side-1",
+            "objective": "DefeatUnits",
+            "count": 0,
+            "selectors": [
+              {
+                "kind": "Unit",
+                "unitId": "cantor"
+              }
+            ]
+          },
+          {
+            "sideId": "side-2",
+            "objective": "EliminateEnemies"
+          }
+        ],
+        "orders": []
+      }
+    },
+    {
+      "id": "salt-04-the-parting-tide",
+      "name": "IV · The Parting Tide",
+      "coverArt": "/art/campaigns/the-bell-beneath-salt.png",
+      "revision": 1,
+      "definition": {
+        "worldEffects": {
+          "cardsPerRound": 0,
+          "cycling": 1
+        },
+        "board": {
+          "width": 12,
+          "height": 11,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            {
+              "position": {
+                "x": 2,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 4
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 5
+              },
+              "terrain": "Water"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 8
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 8
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 9
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 9
+              },
+              "terrain": "SolidRock"
+            }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": [
+          "barbarian-type",
+          "wizard-type",
+          "rogue-type",
+          "cleric-type",
+          "skeleton-archer-type",
+          "troll-type",
+          "bomb-imp-type"
+        ],
+        "units": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 1,
+              "y": 9
+            },
+            "unitId": "barbarian"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 1,
+              "y": 10
+            },
+            "unitId": "wizard"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 10,
+              "y": 10
+            },
+            "unitId": "rogue"
+          },
+          {
+            "unitTypeId": "cleric-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 10,
+              "y": 9
+            },
+            "unitId": "cleric"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 3,
+              "y": 3
+            },
+            "unitId": "skeleton-archer-3-3"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 8,
+              "y": 3
+            },
+            "unitId": "skeleton-archer-8-3"
+          },
+          {
+            "unitTypeId": "troll-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 5,
+              "y": 2
+            },
+            "unitId": "troll-5-2"
+          },
+          {
+            "unitTypeId": "bomb-imp-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 4,
+              "y": 7
+            },
+            "unitId": "bomb-imp-4-7"
+          },
+          {
+            "unitTypeId": "bomb-imp-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 7,
+              "y": 7
+            },
+            "unitId": "bomb-imp-7-7"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "cleric-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "troll-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "bomb-imp-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "side-1",
+            "objective": "ReachArea",
+            "count": 0,
+            "selectors": [
+              {
+                "kind": "SideAtStart",
+                "sideId": "side-1"
+              }
+            ],
+            "area": {
+              "x": 4,
+              "y": 0,
+              "w": 4,
+              "h": 2
+            }
+          },
+          {
+            "sideId": "side-2",
+            "objective": "DefeatUnits",
+            "count": 1,
+            "selectors": [
+              {
+                "kind": "SideAtStart",
+                "sideId": "side-1"
+              }
+            ]
+          }
+        ],
+        "orders": [
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "kind": "HoldPosition"
+          }
+        ]
+      }
+    },
+    {
+      "id": "salt-05-the-bell-beneath-salt",
+      "name": "V · The Bell Beneath Salt",
+      "coverArt": "/art/campaigns/the-bell-beneath-salt.png",
+      "revision": 1,
+      "definition": {
+        "worldEffects": {
+          "cardsPerRound": 0,
+          "cycling": 1
+        },
+        "board": {
+          "width": 13,
+          "height": 12,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            {
+              "position": {
+                "x": 3,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 2
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 3
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 4,
+                "y": 3
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 8,
+                "y": 3
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 3
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 5
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 6
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 5,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 6,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 7,
+                "y": 7
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 9
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 9
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 9
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 10,
+                "y": 9
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 2,
+                "y": 10
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 3,
+                "y": 10
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 9,
+                "y": 10
+              },
+              "terrain": "SolidRock"
+            },
+            {
+              "position": {
+                "x": 10,
+                "y": 10
+              },
+              "terrain": "SolidRock"
+            }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": [
+          "barbarian-type",
+          "rogue-type",
+          "wizard-type",
+          "cleric-type",
+          "shaman-type",
+          "skeleton-archer-type",
+          "troll-type",
+          "bomb-imp-type",
+          "goblin-type"
+        ],
+        "units": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 5,
+              "y": 11
+            },
+            "unitId": "barbarian"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 7,
+              "y": 11
+            },
+            "unitId": "rogue"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 6,
+              "y": 10
+            },
+            "unitId": "wizard"
+          },
+          {
+            "unitTypeId": "cleric-type",
+            "sideId": "side-1",
+            "anchor": {
+              "x": 6,
+              "y": 11
+            },
+            "unitId": "cleric"
+          },
+          {
+            "unitTypeId": "shaman-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 1,
+              "y": 1
+            },
+            "unitId": "west-cantor",
+            "posture": "Lying"
+          },
+          {
+            "unitTypeId": "shaman-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 11,
+              "y": 1
+            },
+            "unitId": "east-cantor",
+            "posture": "Lying"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 10,
+              "y": 5
+            },
+            "unitId": "skeleton-archer-10-5"
+          },
+          {
+            "unitTypeId": "troll-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 6,
+              "y": 3
+            },
+            "unitId": "troll-6-3"
+          },
+          {
+            "unitTypeId": "bomb-imp-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 3,
+              "y": 8
+            },
+            "unitId": "bomb-imp-3-8"
+          },
+          {
+            "unitTypeId": "bomb-imp-type",
+            "sideId": "side-2",
+            "anchor": {
+              "x": 9,
+              "y": 8
+            },
+            "unitId": "bomb-imp-9-8"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "rogue-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "cleric-type",
+            "sideId": "side-1",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "shaman-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "troll-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "bomb-imp-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          },
+          {
+            "unitTypeId": "goblin-type",
+            "sideId": "side-2",
+            "controller": "Automated"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "side-1",
+            "objective": "DefeatUnits",
+            "count": 0,
+            "selectors": [
+              {
+                "kind": "Unit",
+                "unitId": "west-cantor"
+              },
+              {
+                "kind": "Unit",
+                "unitId": "east-cantor"
+              }
+            ]
+          },
+          {
+            "sideId": "side-2",
+            "objective": "EliminateEnemies"
+          }
+        ],
+        "orders": [
+          {
+            "unitTypeId": "skeleton-archer-type",
+            "sideId": "side-2",
+            "kind": "HoldPosition"
+          }
+        ]
+      }
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "the-bell-beneath-salt",
+      "name": "The Bell Beneath Salt",
+      "description": "At low tide, a bell sounds beneath the abandoned saltworks. Cross a drowned quay, breach the lantern gallery, hunt the choir, reunite at the northern landing, and silence two cantors beneath the tower. Five independent expeditions with fresh Heroes and abilities. Blue: player; Red: automated. No unlocks or carryover. Read Objectives in play; both extraction missions require every Hero to survive.",
+      "coverArt": "/art/campaigns/the-bell-beneath-salt.png",
+      "scenarioIds": [
+        "salt-01-the-drowned-quay",
+        "salt-02-the-lantern-gallery",
+        "salt-03-the-choir-well",
+        "salt-04-the-parting-tide",
+        "salt-05-the-bell-beneath-salt"
+      ],
+      "revision": 1
+    }
+  ]
+}
