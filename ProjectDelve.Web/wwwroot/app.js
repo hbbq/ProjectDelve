@@ -14,9 +14,17 @@ const toolsPanel = document.getElementById("playtest-tools");
 toolsPanel.addEventListener("toggle", () => {
   if (toolsPanel.open) ui["game-setup"].open = true;
 });
+toolsPanel.addEventListener("keydown", event => {
+  if (event.key === "Escape" && toolsPanel.open) {
+    toolsPanel.open = false;
+    document.getElementById("tools-toggle").focus();
+  }
+});
 async function startFromTools(operation, body) {
+  const previousContext = operation === "restart" ? playContext : null;
   const succeeded = await replaceScenario(operation, body, true);
   if (succeeded) {
+    if (previousContext) globalThis.delveSetPlayContext(previousContext);
     toolsPanel.open = false;
     document.getElementById("tools-toggle").focus();
   }
@@ -67,6 +75,23 @@ if (!boardView.value) boardView.value = "enhanced";
 updateBoardView();
 let boardCamera;
 let snapshot;
+// Navigation context is UI metadata, scoped to the current authoritative session.
+let playContext = null;
+globalThis.delveSetPlayContext = context => {
+  playContext = { ...context, sessionId: snapshot?.sessionId };
+  renderSessionHeading();
+};
+function renderSessionHeading() {
+  if (playContext && playContext.sessionId !== snapshot?.sessionId) playContext = null;
+  const title = document.getElementById("session-title");
+  const back = document.getElementById("session-return");
+  if (!title || !back) return;
+  title.textContent = playContext?.title ?? (snapshot?.generationCode ? "Generated dungeon"
+    : snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.name
+      ?? (snapshot?.scenarioId === "imported" ? "Imported scenario" : "Current game"));
+  back.textContent = playContext?.returnLabel ?? "Back to scenarios";
+  back.href = playContext?.returnHash ?? "#scenarios";
+}
 let queuedScenario;
 let renderedScenarioId;
 let busy = false;
@@ -250,7 +275,7 @@ if (cameraViewport) boardCamera = createBoardCamera({ document, viewport: camera
   clearPreview: () => { hoveredUnitId = null; clearAffectedPreview(); },
   onChange: () => positionDecisionPanel() });
 
-const domCameraControls = cameraViewport?.previousElementSibling;
+const domCameraControls = document.querySelector?.(".camera-controls");
 const domViewport = { host: cameraViewport, mode: boardView.value, camera: boardCamera,
   setActive(active) { cameraViewport.hidden = !active; domCameraControls.hidden = !active; if (!active) boardCamera.cancel(); },
   dispose() {} };
@@ -310,7 +335,7 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
       button.setAttribute("aria-label",key==='turn-left'?"Rotate board left":key==='turn-right'?"Rotate board right":`${label} camera`);root.append(button);controls[key]=button;
     }
     domCameraControls.after(root);
-    // The DOM controls remain the original immediate previous sibling for their adapter.
+    // Both adapters share the disclosure; only their own controls switch visibility.
     const objectives = document.createElement("div"); objectives.className = "three-objectives"; host.append(objectives); controls.objectives = objectives;
     try {
       threeViewport = createThreeViewport({ host, controls, startedAt, facing:unitFacing, visualCatalog, modelDescriptors, animate: () => ui.animate.checked && !skipEffects && !reducedMotion(),
@@ -795,8 +820,6 @@ function renderChoicePanel() {
   const decision = snapshot?.presentation.decision;
   ui["decision-panel"].hidden = false;
   if (decision?.roll) {
-    const detail = text("p", rollLabel(decision.roll)); detail.className = "roll-detail";
-    ui.choices.append(detail);
     // Mandatory continuation: only the server-supplied opaque candidate is submitted.
     for (const candidate of decision.candidates) {
       const button = choiceButton(candidate); button.textContent = "Roll Dice";
@@ -839,6 +862,7 @@ function renderChoicePanel() {
 }
 
 function renderSnapshot() {
+  renderSessionHeading();
   const state = snapshot.result.state;
   globalThis.dispatchEvent?.(new CustomEvent("delve-generation-state", { detail: { code: snapshot.generationCode ?? null } }));
   if (snapshot.scenarios) {
@@ -1001,6 +1025,9 @@ function updateControls() {
     if (latestUpdate.status === "faulted") ui.prompt.textContent = "Game progression stopped after an error.";
   }
   if (busy) clearAffectedPreview();
+  // Keep the prominent instruction in sync during controller waits and playback.
+  ui["board-hint"].textContent = busy && playbackRunning ? "Playing out the action…" : ui.prompt.textContent;
+  ui["board-hint"].dataset.busy = String(busy);
   ui.scenario.disabled = !snapshot;
   ui["start-scenario"].disabled = !snapshot;
   ui["restart-scenario"].disabled = !snapshot;
@@ -1527,6 +1554,16 @@ function renderTurn(state) {
     const sides = completion.achievedSideIds;
     result.append(text("h2", sides.length === 1 ? `Victory: ${sides[0]}` : "Simultaneous victory"));
     result.append(text("p", `Game over. ${sides.join(", ")} ${sides.length === 1 ? "achieved its Objective." : "each achieved their Objective."}`));
+    const actions = text("div", ""); actions.className = "result-actions toolbar";
+    const replay = text("button", "Play again"); replay.id = "result-replay";
+    replay.addEventListener("click", async () => {
+      replay.disabled = true;
+      try { await startFromTools("restart", {}); }
+      finally { replay.disabled = false; }
+    });
+    const back = text("a", playContext?.returnLabel ?? "Choose another scenario");
+    back.className = "library-button"; back.href = playContext?.returnHash ?? "#scenarios";
+    actions.append(replay, back); result.append(actions);
   }
   ui.objectives.replaceChildren(text("h2", "Side objectives"));
   for (const objective of snapshot?.presentation.objectives ?? []) {
@@ -1794,7 +1831,13 @@ globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").addEventListener?.("
 globalThis.addEventListener?.("pagehide", event => { if (event.persisted) viewportRouter?.active.setActive(false); else viewportRouter?.dispose(); });
 globalThis.addEventListener?.("pageshow", event => { if (event.persisted) viewportRouter?.active.setActive(true); });
 // Designer exports enter the same revisioned scenario replacement operation as pasted imports.
-globalThis.delvePlayDesign = transport => replaceScenario("scenario/import", { transport }, true);
+globalThis.delvePlayDesign = async transport => {
+  const fromDesigner = globalThis.location?.hash === "#designer";
+  const title = fromDesigner ? document.getElementById("designer-title")?.value : null;
+  const succeeded = await replaceScenario("scenario/import", { transport }, true);
+  if (succeeded && fromDesigner) globalThis.delveSetPlayContext({ title: title || "Designer playtest", returnHash: "#designer", returnLabel: "Back to Designer" });
+  return succeeded;
+};
 globalThis.delvePlayGenerated = code => replaceScenario("scenario/import", { generationCode: code }, true);
 ui["commentary-toggle"].addEventListener("click", () => { commentaryVisible = !commentaryVisible; renderCommentary(); });
 renderCommentary();

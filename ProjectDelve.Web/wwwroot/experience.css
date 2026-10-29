@@ -1,0 +1,92 @@
+﻿/* Player-facing shell. Board rendering, Side colours and camera geometry live in their own stylesheets. */
+html { scrollbar-gutter: stable; }
+body { min-height: 100dvh; }
+.app-header { padding-bottom: 18px; border-bottom: 1px solid #ffffff12; margin-bottom: 20px; }
+.app-header h1, body:has(#playtest-main:not([hidden])) > .app-header h1 { font: 600 1.25rem Georgia, serif; margin: 0; padding: 0; min-height: 0; letter-spacing: -.035em; }
+.app-header h1 a { color: var(--ui-text); text-decoration: none; white-space: nowrap; }
+.brand-mark { color: var(--ui-accent); margin-right: 7px; font-size: 1.65rem; vertical-align: -2px; }
+.app-header .mode-switch { gap: 6px; margin: 0; }
+.app-header .mode-switch button { background: transparent; border-color: transparent; min-height: 42px; font: 500 .8rem system-ui, sans-serif; }
+.app-header .mode-switch [aria-pressed="true"] { background: #c5a36a18; border-color: #c5a36a70; outline: none; }
+.app-header #open-generator { border-left-color: var(--ui-border); border-radius: 0; color: var(--ui-text-muted); }
+a:focus-visible, summary:focus-visible { outline: 3px solid var(--ui-focus); outline-offset: 3px; }
+button, a.library-button, summary { -webkit-tap-highlight-color: transparent; }
+button, .library-button { transition: background-color .15s, border-color .15s; }
+footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 28px; padding-top: 18px; border-top: 1px solid #ffffff12; line-height: 1.6; font-size: .73rem; }
+footer span:last-child { max-width: 580px; }
+body:has(#playtest-main:not([hidden])) { padding: 16px 22px; }
+body:has(#playtest-main:not([hidden])) .app-header { margin-bottom: 16px; padding-bottom: 12px; }
+body:has(#playtest-main:not([hidden])) .app-header .mode-switch { margin-right: 120px; }
+.playtest-tools { right: 22px; top: 18px; }
+.playtest-tools > summary { padding: 11px 12px; font-size: .8rem; border-color: #c5a36a70; }
+.tools-content { width: min(560px, calc(100vw - 32px)); padding: 18px; border-radius: 10px; }
+.tools-section > summary { font-weight: 600; padding: 6px 0; }
+.session-heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 0 5px; }
+.session-heading h2 { font: 400 clamp(1.4rem, 2vw, 2rem)/1.2 Georgia, serif; margin: 5px 0 0; overflow-wrap: anywhere; }
+.session-heading > div { min-width: 0; }
+.session-heading .library-button { flex-shrink: 0; background: transparent; }
+.play-status { position: relative; top: auto; border: 0; border-bottom: 1px solid var(--ui-border); border-radius: 0; padding: 8px 0 12px; background: transparent; font-size: .8rem; }
+.play-status #status { color: var(--ui-accent); }
+.decision-strip { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #c5a36a50; border-left: 3px solid var(--ui-accent); border-radius: 8px; padding: 12px 16px; background: linear-gradient(100deg, #c5a36a12, #25272a); }
+.decision-strip .library-eyebrow { font-size: .62rem; }
+.decision-strip #board-hint { font-size: .95rem; margin: 5px 0 0; line-height: 1.45; }
+.decision-strip #board-hint[data-busy="true"] { color: var(--ui-text-muted); }
+.decision-strip .activation-controls { min-width: 240px; position: static; background: transparent; padding: 0; }
+.activation-controls button { height: 42px; font-weight: 600; }
+.activation-controls button:enabled, #result-replay { background: var(--ui-accent); color: var(--ui-on-accent); border-color: var(--ui-accent); }
+.activation-controls button:enabled:hover, #result-replay:hover { background: var(--ui-accent-hover); }
+.view-disclosure { margin: 0 0 8px; position: relative; z-index: 14; }
+.view-disclosure > summary { cursor: pointer; color: var(--ui-text); font-size: .78rem; padding: 8px 2px; }
+.view-disclosure > summary span { color: var(--ui-text-muted); margin-left: 12px; font-size: .72rem; }
+.view-disclosure[open] { padding: 0 12px 8px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 8px; }
+.camera-controls { margin-bottom: 0; gap: 8px; }
+#camera-viewport, .three-viewport { height: clamp(280px, calc(100dvh - 335px), 950px); border-radius: 9px; }
+.card-column { position: static; max-height: calc(100dvh - 290px); overflow-y: auto; scrollbar-gutter: stable; gap: 12px; }
+.card-column #unit-card { overflow: visible; flex: none; }
+.mission-panel { flex: none; padding: 14px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 8px; }
+.mission-panel > summary { cursor: pointer; font-size: .8rem; font-weight: 650; color: var(--ui-accent); }
+.mission-panel h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 10px; color: var(--ui-text-muted); }
+.mission-panel #objectives p { font-size: .82rem; line-height: 1.5; padding: 0 0 0 10px; border-left: 2px solid hsl(var(--side-hue) 50% 65%); margin: 12px 0; }
+.mission-panel #objectives small { font-size: .75rem; margin-top: 4px; line-height: 1.5; }
+#unit-card { border-radius: 8px; }
+#game-result { padding: 24px; border: 1px solid #89bca4; background: linear-gradient(120deg, #223d33, #202a28); border-radius: 10px; }
+#game-result h2 { font: 400 1.7rem Georgia, serif; margin-bottom: 10px; }
+#game-result p { line-height: 1.6; }
+.result-actions { margin-top: 18px; }
+.decision-panel { padding: 14px; border-radius: 10px; }
+.decision-panel #prompt { line-height: 1.5; font-size: .9rem; }
+#move-overlay { min-height: 30px; }
+#error:not(:empty) { background: #4b2424; border: 1px solid #bd7771; border-radius: 6px; padding: 12px; }
+@media (max-width: 1000px) {
+  .app-header { align-items: start; }
+  body:has(#playtest-main:not([hidden])) .app-header .mode-switch { margin-right: 0; padding-right: 110px; }
+  .app-header .mode-switch { flex-basis: 100%; }
+  #playtest-main { grid-template-columns: minmax(0, 1fr) 270px; }
+}
+@media (max-width: 760px) {
+  body, body:has(#playtest-main:not([hidden])) { padding: 12px; }
+  .app-header, body:has(#playtest-main:not([hidden])) .app-header { gap: 14px; padding-bottom: 10px; margin-bottom: 14px; }
+  .app-header .mode-switch, body:has(#playtest-main:not([hidden])) .app-header .mode-switch { padding-right: 0; gap: 4px; }
+  .app-header .mode-switch button { padding: 8px 10px; min-height: 40px; }
+  .app-header #open-generator { margin-left: auto; }
+  .playtest-tools { top: 12px; right: 12px; }
+  #playtest-main { grid-template-columns: minmax(0, 1fr); }
+  .session-heading { align-items: start; gap: 10px; }
+  .session-heading .library-button { max-width: 140px; font-size: .75rem; padding: 8px; }
+  .session-heading .library-eyebrow { font-size: .62rem; }
+  .play-status { font-size: .75rem; padding: 6px 0 10px; gap: 8px; }
+  .play-status details { margin-left: auto; }
+  #bag { right: 0; width: min(310px, 85vw); }
+  .decision-strip { flex-wrap: wrap; padding: 12px; gap: 10px; }
+  .decision-strip #board-hint { font-size: .85rem; }
+  .decision-strip .activation-controls { width: 100%; min-width: 0; }
+  .activation-controls button { min-height: 44px; }
+  .view-disclosure > summary span { display: none; }
+  #camera-viewport, .three-viewport { height: clamp(280px, 52dvh, 650px); }
+  .card-column { max-height: none; overflow: visible; }
+  .card-column #unit-card { max-height: none; }
+  .mission-panel { padding: 12px; }
+  footer { font-size: .7rem; }
+}
+@media (prefers-reduced-motion: reduce) { button, .library-button { transition: none; } }
+

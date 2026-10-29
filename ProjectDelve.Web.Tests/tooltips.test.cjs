@@ -95,7 +95,7 @@ test("positioning contains popovers at every viewport corner and on narrow scree
   }
 });
 
-test("Tools keeps every existing control once, in its native collapsible section", () => {
+test("advanced controls remain once in Tools and objectives remain once in the visible mission panel", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const sections = new Map(), stack = [];
   for (const token of html.matchAll(/<\/?details\b[^>]*>|<[^>]+\bid="[^"]+"[^>]*>/g)) {
@@ -108,10 +108,16 @@ test("Tools keeps every existing control once, in its native collapsible section
   for (const [section, controls] of Object.entries({
     "game-setup": ["scenario", "side-controllers", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario"],
     "tools-display": ["board-view", "coordinates", "waypoints", "animate"],
-    "tools-gameplay": ["objectives", "orders", "filter", "auto", "round", "skip", "world-effects", "controller-status", "controller-retry", "controller-cancel"],
+    "tools-gameplay": ["filter", "auto", "round", "skip", "world-effects", "controller-status", "controller-retry", "controller-cancel"],
     "tools-developer": ["events", "unit-debug", "decision-commentary", "commentary-toggle", "commentary-panel", "refresh"]
   })) for (const id of controls) assert.ok(sections.get(id)?.includes(section), `${id} belongs in ${section}`);
   for (const id of ["mode-playtest", "mode-designer"]) assert.deepEqual(sections.get(id), []); // Primary navigation stays visible with Tools closed.
+  const mission = html.match(/<details class="mission-panel" open>([\s\S]*?)<\/details>/)?.[1];
+  assert.ok(mission, 'Objectives and Orders have a default-open mission disclosure');
+  for (const id of ['objectives', 'orders']) {
+    assert.ok(mission.includes(`id="${id}"`), `${id} belongs in the mission panel`);
+    assert.ok(!sections.get(id)?.includes('playtest-tools'), `${id} is available with Tools closed`);
+  }
   assert.match(html, /<details id="game-setup"[^>]* open>/);
   for (const title of ["Game", "Display", "Gameplay", "Developer"]) assert.ok(html.includes(`<summary>${title}</summary>`));
   for (const id of ["tools-display", "tools-gameplay", "tools-developer"])

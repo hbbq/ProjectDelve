@@ -129,3 +129,50 @@ test('bundled scenario deletion is labelled local hiding and sends the current t
   await h.get('library-cards').all('button').find(b=>b.textContent==='Confirm deletion').listeners.click();
   assert.equal(h.calls.find(c=>c.method==='DELETE').url,'/api/library/scenarios/s-one?revision=1&changeToken=current-token');
 });
+
+test('child routes keep their parent navigation selected and expose public campaign links', async () => {
+  for (const [route, active] of [['#campaign/c-one', 'home'], ['#campaigns-edit/c-one', 'home'], ['#scenario/s-one', 'scenarios']]) {
+    const h = harness(route); await h.run('applyRoute()');
+    for (const name of ['home', 'scenarios', 'designer', 'playtest'])
+      assert.equal(h.get('mode-' + name).attributes['aria-pressed'], String(name === active), route + ': ' + name);
+    if (route.startsWith('#scenario/')) {
+      assert.ok(h.get('library-cards').all('a').some(a => a.href === '#campaign/c-one'));
+      assert.deepEqual(h.calls.map(c => c.url), ['/api/library'], 'Details use public metadata without loading scenario definitions');
+      assert.ok(h.get('library-cards').all('details').some(d => /Manage scenario/.test(d.textContent)));
+    }
+  }
+});
+
+test('empty search offers recovery without leaving the collection or fetching definitions', async () => {
+  const h = harness('#scenarios'); await h.run('applyRoute()');
+  h.get('library-search').value = 'missing-name'; h.get('library-search').listeners.input();
+  assert.equal(h.get('library-cards').children.length, 0);
+  assert.match(h.get('library-status').textContent, /No scenarios match/);
+  h.get('library-status').all('button').find(b => b.textContent === 'Clear search').listeners.click();
+  assert.equal(h.get('library-search').value, '');
+  assert.equal(h.get('library-cards').children.length, 2);
+  assert.equal(h.location.hash, '#scenarios');
+  assert.deepEqual(h.calls.map(c => c.url), ['/api/library']);
+});
+
+for (const succeeds of [true, false]) test(`library start sets return context only after a successful game replacement (${succeeds})`, async () => {
+  const h = harness('#campaign/c-one'), contexts = [];
+  h.context.delveSetPlayContext = value => contexts.push(plain(value));
+  let complete;
+  h.context.delvePlayDesign = () => new Promise(resolve => { complete = resolve; });
+  await h.run('applyRoute()');
+  const play = h.get('library-cards').children[0].all('button')[0];
+  const starting = play.listeners.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(play.disabled, true); assert.match(play.textContent, /Preparing/);
+  assert.deepEqual(contexts, []);
+  complete(succeeds); await starting;
+  assert.equal(play.disabled, false); assert.equal(play.textContent, 'Play scenario');
+  if (succeeds) {
+    assert.deepEqual(contexts, [{ title: 'Second', returnHash: '#campaign/c-one', returnLabel: 'Back to campaign' }]);
+    assert.equal(h.location.hash, '#play');
+  } else {
+    assert.deepEqual(contexts, []); assert.equal(h.location.hash, '#campaign/c-one');
+    assert.match(h.get('library-status').textContent, /retry/i);
+  }
+});

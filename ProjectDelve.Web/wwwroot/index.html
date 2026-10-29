@@ -9,28 +9,29 @@
   <link rel="stylesheet" href="three-viewport.css">
   <link rel="stylesheet" href="library.css">
   <link rel="stylesheet" href="campaign-editor.css">
+  <link rel="stylesheet" href="experience.css">
   <script type="module" src="library.js"></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="designer.js"></script>
   <script type="module" src="generator.js"></script>
 </head>
 <body>
-  <header><h1>Project Delve</h1>
+  <header class="app-header"><h1><a href="#home"><span aria-hidden="true" class="brand-mark">◇</span> Project Delve</a></h1>
   <nav class="toolbar mode-switch" aria-label="Application mode">
     <button id="mode-home" aria-pressed="true">Home</button>
     <button id="mode-scenarios" aria-pressed="false">Scenarios</button>
-    <button id="mode-playtest" aria-pressed="false">Playtest</button>
+    <button id="mode-playtest" aria-pressed="false">Current game</button>
     <button id="mode-designer" aria-pressed="false">Designer</button>
     <button id="open-generator" data-open-generator>Dungeon generator</button>
   </nav>
   </header>
   <main id="library-main" aria-label="Campaigns and scenarios">
-    <section class="library-hero"><span class="library-eyebrow">PROJECT DELVE</span><h2>Your next adventure</h2><p>Choose a campaign, explore a dungeon, or create a world of your own.</p><div class="toolbar"><button data-open-generator>Generate a dungeon</button><a class="library-button" href="#designer">Open Designer</a></div></section>
+    <section class="library-hero"><span class="library-eyebrow">A WORLD AT YOUR TABLE</span><h2>Your next adventure</h2><p>Choose a campaign, explore a dungeon, or create a world of your own.</p><div class="toolbar"><a class="library-button library-primary" href="#scenarios">Browse scenarios →</a><a class="library-button" href="#designer">Create a scenario</a></div></section>
     <section class="library-content"><div class="library-heading"><div><p id="library-breadcrumb" class="library-eyebrow"></p><h2 id="library-title">Campaigns</h2></div><div class="toolbar"><a class="library-button" href="#scenarios">All scenarios</a><a class="library-button" href="#campaigns-edit">Create campaign</a></div></div><p id="library-description"></p><label class="library-search" for="library-search">Find by name <input id="library-search" type="search" placeholder="Search this collection"></label><p id="library-status" role="status" aria-live="polite"></p><div id="library-cards" class="library-grid"></div><details id="library-hidden" hidden></details></section>
   </main>
   <section id="campaign-editor" hidden aria-label="Campaign editor"></section>
   <details id="playtest-tools" class="playtest-tools" hidden>
-    <summary id="tools-toggle">Tools &middot; Objectives &amp; Orders</summary>
+    <summary id="tools-toggle">Game tools</summary>
     <div class="tools-content">
 
       <details id="game-setup" class="game-setup tools-section" open>
@@ -68,11 +69,6 @@
       </details>
       <details id="tools-gameplay" class="tools-section">
         <summary>Gameplay</summary>
-        <details class="sidebar-reference">
-          <summary>Objectives &amp; Orders</summary>
-          <section id="objectives" aria-label="Side objectives"></section>
-          <section id="orders" aria-label="Standing Orders" hidden></section>
-        </details>
         <div class="toolbar">
           <button id="round" disabled>Start round</button>
           <button id="skip" disabled>Skip effects</button>
@@ -111,6 +107,10 @@
     <p id="portrait-error" hidden>Portrait unavailable.</p>
   </dialog>
   <main id="playtest-main" hidden>
+    <section class="session-heading" aria-label="Current scenario">
+      <div><span class="library-eyebrow">AT THE TABLE</span><h2 id="session-title">Current game</h2></div>
+      <a id="session-return" class="library-button" href="#scenarios">Back to scenarios</a>
+    </section>
     <section id="generated-game" class="generated-game" hidden aria-label="Generated dungeon recipe">
       <strong>Generated dungeon</strong> <code id="generated-game-code"></code>
       <button id="generated-game-copy">Copy complete code</button><button id="generated-game-inspect">Inspect map (reveals dungeon)</button>
@@ -123,8 +123,13 @@
         <div id="bag" aria-label="Remaining Activation Bag membership"></div>
       </details>
     </section>
+    <section class="decision-strip" aria-label="Your next step">
+      <div><span class="library-eyebrow">NEXT STEP</span><p id="board-hint" role="status">Preparing the table…</p></div>
+      <div class="activation-controls"><button id="end-turn" disabled>End Turn</button><button id="start-round" disabled>Start round</button></div>
+    </section>
     <section class="board-area" aria-label="Board">
       <section id="game-result" role="status" aria-live="polite" hidden></section>
+      <details class="view-disclosure"><summary>View &amp; camera <span>Zoom, follow &amp; tabletop settings</span></summary>
       <div class="camera-controls" role="group" aria-label="Board camera">
         <label>View <select id="camera-mode"><option value="full">Full Board</option><option value="fixed">Fixed</option><option value="auto" selected>Auto</option></select></label>
         <select id="camera-span" aria-label="Fixed maximum Cell span" hidden><option value="10">10 Cells</option><option value="15">15 Cells</option><option value="20">20 Cells</option><option value="25">25 Cells</option><option value="custom" disabled>Custom</option></select>
@@ -140,6 +145,7 @@
         </div></details>
         <small id="camera-status" aria-live="off"></small>
       </div>
+      </details>
       <div class="board-stage camera-viewport" id="camera-viewport" tabindex="0" aria-label="Board viewport. Drag to pan; plus and minus to zoom; arrow keys to pan.">
         <div class="camera-world" id="camera-world"><div id="board" data-view="enhanced" aria-label="Dungeon board"></div></div>
         <div id="camera-objectives" aria-label="Offscreen Reach Areas"></div>
@@ -151,13 +157,15 @@
           </section>
         </div>
       </div>
-      <p id="board-hint" role="status"></p>
       <div id="attack-context" role="status"></div>
       <p id="effect" role="status"></p>
       <p id="error" role="alert"></p>
     </section>
     <aside class="card-column" aria-label="Gameplay and Unit card">
-      <div class="activation-controls"><button id="end-turn" disabled>End Turn</button><button id="start-round" disabled>Start round</button></div>
+      <details class="mission-panel" open><summary>Objectives &amp; Orders</summary>
+        <section id="objectives" aria-label="Side objectives"></section>
+        <section id="orders" aria-label="Standing Orders" hidden></section>
+      </details>
       <div id="unit-card" aria-label="Unit Card" tabindex="-1"></div>
     </aside>
   </main>
@@ -259,6 +267,6 @@
       </section>
     </div>
   </dialog>
-  <footer>One game lives in this host. Start or restart a scenario to discard the current game.</footer>
+  <footer><span>Project Delve · A world at your table</span><span>One shared game per host. Browsing keeps it running; starting another scenario replaces it.</span></footer>
 </body>
 </html>

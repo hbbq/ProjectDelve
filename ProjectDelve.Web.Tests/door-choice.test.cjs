@@ -86,7 +86,7 @@ class Element {
         : (force ? this.classList.add(name) : this.classList.remove(name))
     };
   }
-  append(child) { child.remove(); child.parent = this; this.children.push(child); }
+  append(...children) { for (const child of children) { child.remove(); child.parent = this; this.children.push(child); } }
   replaceChildren(...children) {
     for (const child of this.children) child.parent = null;
     this.children = []; for (const child of children) this.append(child);
@@ -150,7 +150,11 @@ function harness(initial, fetchImpl, extras = {}) {
   const elements = new Map(), submitted = [];
   const document = {
     body: new Element(),
-    querySelector(selector) { return extras.withCamera && selector === "#camera-viewport" ? this.getElementById("camera-viewport") : null; },
+    querySelector(selector) {
+      if (!extras.withCamera) return null;
+      return selector === "#camera-viewport" ? this.getElementById("camera-viewport")
+        : selector === ".camera-controls" ? this.getElementById("camera-controls") : null;
+    },
     querySelectorAll() { return []; },
     addEventListener() {},
     getElementById(id) {
@@ -1015,6 +1019,7 @@ for (const mode of ["animate", "disabled", "skip"]) {
     assert.equal(requests.length, 1);
     assert.equal(requests[0].body.candidateKey, "commit-attack");
     assert.match(h.elements.get("prompt").textContent, /Roll 3 Attack dice/);
+    assert.doesNotMatch(h.elements.get("choices").textContent, /Roll 3 Attack dice/, 'The choice area does not repeat the roll instruction');
     assert.equal(buttons(h.elements.get("choices")).length, 1);
     assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
     assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
@@ -1288,16 +1293,21 @@ test("compact use circles present supplied remaining and maximum counts accessib
   assert.ok(circles.every(circle => circle.attributes["aria-hidden"] === "true"));
 });
 
-test("board-first layout reserves status, card and End Turn while tools start closed", () => {
+test("board-first layout keeps decisions and objectives visible while advanced tools start closed", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const tools = html.slice(html.indexOf('<details id="playtest-tools"'), html.indexOf('<main id="playtest-main"'));
   assert.match(tools, /<details id="playtest-tools" class="playtest-tools" hidden>/);
-  for (const id of ["scenario", "board-view", "objectives", "orders", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
+  for (const id of ["scenario", "board-view", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
     assert.ok(tools.includes(`id="${id}"`), id);
-  const header = html.slice(html.indexOf("<header>"), html.indexOf("</header>"));
+  const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
   for (const id of ["mode-designer", "mode-playtest"]) assert.ok(header.includes(`id="${id}"`), `${id} is always accessible`);
   assert.match(html, /class="board-stage camera-viewport"[\s\S]*id="camera-world"[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
-  assert.match(html, /class="card-column"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
+  assert.match(html, /class="decision-strip"[\s\S]*id="board-hint"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*class="board-area"/);
+  assert.match(html, /class="card-column"[\s\S]*class="mission-panel" open[\s\S]*id="objectives"[\s\S]*id="orders"[\s\S]*id="unit-card"/);
+  for (const id of ["objectives", "orders", "board-hint", "end-turn", "start-round"]) {
+    assert.equal(html.split(`id="${id}"`).length - 1, 1, `${id} retains one authoritative rendering target`);
+    assert.ok(!tools.includes(`id="${id}"`), `${id} is available without opening Tools`);
+  }
   assert.match(html, /class="play-status"[\s\S]*id="status"[\s\S]*id="active-token"[\s\S]*id="bag-count"/);
   assert.match(html, /data-tooltip-source="scenario-description"/);
   const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
@@ -3116,10 +3126,12 @@ for (const view of ["classic", "enhanced"]) test(`Unit Card affiliation follows 
   assert.deepEqual(h.submitted, []);
 });
 
-test("compact controls precede a content-height card and retain responsive board sizing", () => {
+test("decision controls precede the board and the mission/card column stays responsive", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const column = html.slice(html.indexOf('<aside class="card-column"'), html.indexOf('</aside>', html.indexOf('<aside class="card-column"')));
-  assert.match(column, /class="activation-controls"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*id="unit-card"/);
+  assert.match(column, /class="mission-panel" open[\s\S]*id="objectives"[\s\S]*id="unit-card"/);
+  assert.ok(html.indexOf('class="activation-controls"') < html.indexOf('id="camera-viewport"'));
+  assert.ok(!column.includes('class="activation-controls"'));
   const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
   const card = css.match(/\.card-column \{([^}]+)\}/)[1];
   assert.match(card, /height: auto/);
@@ -3129,6 +3141,87 @@ test("compact controls precede a content-height card and retain responsive board
   assert.match(css, /#playtest-main #board \{ width: min\(100%, calc\(\(100dvh - 126px\)/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.card-column \{[^}]*height: auto/);
   assert.match(css, /#dice\.combat-dice \{ max-height: 25dvh/);
+  const shell = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/experience.css"), "utf8");
+  assert.match(shell, /\.card-column \{[^}]*overflow-y: auto/);
+  assert.match(shell, /@media \(max-width: 760px\)[\s\S]*\.card-column \{[^}]*max-height: none/);
+  assert.match(shell, /#camera-viewport[^{}]*\{[^}]*height: clamp\(/);
+});
+
+test("play heading and return link retain context only for the authoritative session", () => {
+  const initial = response(); initial.sessionId = 'session-one'; initial.scenarioId = 'fixture';
+  initial.scenarios = [{ id: 'fixture', name: 'Supplied scenario name' }];
+  const h = harness(initial);
+  h.run('delveSetPlayContext({ title: "Campaign chapter", returnHash: "#campaign/test-owned", returnLabel: "Back to campaign" })');
+  assert.equal(h.elements.get('session-title').textContent, 'Campaign chapter');
+  assert.equal(h.elements.get('session-return').href, '#campaign/test-owned');
+  h.run('snapshot.revision++; renderSnapshot()');
+  assert.equal(h.elements.get('session-title').textContent, 'Campaign chapter');
+  h.run('snapshot.sessionId = "session-two"; renderSnapshot()');
+  assert.equal(h.elements.get('session-title').textContent, 'Supplied scenario name');
+  assert.equal(h.elements.get('session-return').href, '#scenarios');
+  assert.deepEqual(h.submitted, []);
+});
+
+test("viewport switching targets camera controls inside their disclosure without hiding the disclosure", () => {
+  const h = harness(response(), undefined, { withCamera: true });
+  h.run('document.getElementById("view-disclosure").hidden = false; cameraViewport.previousElementSibling = document.getElementById("view-disclosure")');
+  assert.equal(h.run('domCameraControls === document.querySelector(".camera-controls")'), true);
+  h.run('domViewport.setActive(false)');
+  assert.equal(h.elements.get('camera-viewport').hidden, true);
+  assert.equal(h.elements.get('camera-controls').hidden, true);
+  assert.equal(h.elements.get('view-disclosure').hidden, false);
+  h.run('domViewport.setActive(true)');
+  assert.equal(h.elements.get('camera-viewport').hidden, false);
+  assert.equal(h.elements.get('camera-controls').hidden, false);
+  assert.equal(h.elements.get('view-disclosure').hidden, false);
+});
+
+for (const succeeds of [true, false]) test(`Designer play context uses the unsaved title only after successful replacement (${succeeds})`, async () => {
+  const initial = response(); initial.sessionId = 'session-before';
+  const next = response(); next.sessionId = 'session-after';
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: options.body && JSON.parse(options.body) });
+    return url.endsWith('/scenario/import') && !succeeds
+      ? { ok: false, json: async () => ({ detail: 'Test-owned validation failure' }) }
+      : { ok: true, json: async () => succeeds ? next : initial };
+  }, { location: { hash: '#designer' } });
+  h.run('document.getElementById("designer-title").value = "Unsaved draft name"');
+  assert.equal(await h.run('delvePlayDesign("DELVE1:test-owned")'), succeeds);
+  assert.equal(requests[0].url, '/api/game/scenario/import');
+  assert.equal(requests[0].body.transport, 'DELVE1:test-owned');
+  assert.ok(requests.every(request => !request.url.startsWith('/api/library')), 'Play never saves the workspace');
+  assert.equal(h.elements.get('designer-title').value, 'Unsaved draft name');
+  if (succeeds) {
+    assert.equal(h.elements.get('session-title').textContent, 'Unsaved draft name');
+    assert.equal(h.elements.get('session-return').href, '#designer');
+    assert.equal(h.elements.get('session-return').textContent, 'Back to Designer');
+  } else {
+    assert.equal(h.elements.get('session-return').href, '#scenarios');
+    assert.match(h.elements.get('error').textContent, /validation failure/);
+  }
+});
+
+test("completion actions restart through the existing revisioned operation and retain the return destination", async () => {
+  const initial = response(); initial.sessionId = 'completed-session';
+  initial.result.state.completion = { achievedSideIds: ['test-side'] };
+  const next = response(); next.sessionId = 'restarted-session'; next.result.state.round = 0;
+  const requests = [];
+  const h = harness(initial, async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => next };
+  });
+  h.run('delveSetPlayContext({ title: "Test chapter", returnHash: "#campaign/test-owned", returnLabel: "Back to campaign" }); renderSnapshot()');
+  const result = h.elements.get('game-result');
+  assert.equal(result.hidden, false); assert.match(result.textContent, /Victory: test-side/);
+  const actions = result.children.find(child => child.classList.contains('result-actions'));
+  const back = actions.children.find(child => child.tagName === 'a');
+  assert.equal(back.href, '#campaign/test-owned');
+  await click(buttons(actions).find(button => button.id === 'result-replay'));
+  assert.deepEqual(requests, [{ url: '/api/game/restart', body: { expectedRevision: initial.revision } }]);
+  assert.equal(h.elements.get('game-result').hidden, true);
+  assert.equal(h.elements.get('session-title').textContent, 'Test chapter');
+  assert.equal(h.elements.get('session-return').href, '#campaign/test-owned');
+  assert.equal(h.run('playContext.sessionId'), 'restarted-session');
 });
 
 test("card portraits reuse the Unit Type catalog and preserve fallback through loading and errors", () => {
