@@ -1,5 +1,6 @@
 import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDraftDocument, draftStorageKey, sameCell } from "./designer-state.js";
 import { styleSide } from "./side-colors.js";
+import { prepareCover } from "./cover-upload.js";
 
 const element = (tag, value = "") => {
   const node = document.createElement(tag); node.textContent = value;
@@ -33,7 +34,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
     "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy",
-    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom", "resource-label", "resource-type"];
+    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom", "resource-label", "resource-type",
+    "library-save", "library-copy", "library-open", "library-refresh", "library-select", "library-status", "library-cover", "cover-file", "cover-import", "cover-preview", "library-restore", "library-restore-confirm", "library-restore-apply", "library-restore-cancel"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
   const history = new DesignerHistory(draft);
@@ -41,6 +43,21 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   let savedRecovery = null;
   let lastExport = "";
   let generationSource = null;
+  let librarySource = null, libraryBusy = false, librarySequence = 0, libraryOpening = 0;
+  // Opening a different document is undoable. Its identity must travel with its
+  // content so Undo cannot accidentally turn Save into an overwrite of another scenario.
+  const captureHistory = history.capture.bind(history), restoreHistory = history.restore.bind(history);
+  history.capture = () => ({ ...captureHistory(), libraryContext: structuredClone({
+    source: librarySource, title: ui.title.value, coverArt: ui["library-cover"]?.value ?? "", generationSource }) });
+  history.restore = state => {
+    const { libraryContext, ...content } = state;
+    restoreHistory(content);
+    if (libraryContext && libraryContext.source?.id !== librarySource?.id) {
+      librarySource = structuredClone(libraryContext.source); ui.title.value = libraryContext.title;
+      if (ui["library-cover"]) ui["library-cover"].value = libraryContext.coverArt;
+      generationSource = structuredClone(libraryContext.generationSource); librarySequence++; describeLibrary();
+    }
+  };
   let recoveryMessage = "New draft · saved in this browser";
   try {
     const saved = savedRecovery = globalThis.localStorage?.getItem(draftStorageKey);
@@ -48,6 +65,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const doc = readDraftDocument(saved, catalog.maxBoardSize);
       draft.replace(doc.definition); restoreKeys(doc); buffers = doc.buffers ?? {}; ui.title.value = doc.title; ui.transport.value = doc.transportInput ?? "";
       generationSource = doc.generationSource ?? null;
+      librarySource = doc.librarySource ?? null;
+      if (ui["library-cover"]) ui["library-cover"].value = doc.coverArt ?? "";
       recoveryMessage = "Recovered draft · saved in this browser";
     }
   } catch (error) { persistenceBlocked = true; recoveryMessage = `Recovery unavailable: ${error.message} ${savedRecovery ? "Original recovery data retained. Download it before New/Open." : "Save draft to keep a file."}`; }
@@ -64,7 +83,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   function documentData() {
     return { ...draftDocument(draft.snapshot(), ui.title.value, buffers), transportInput: ui.transport.value === lastExport ? "" : ui.transport.value,
-      generationSource,
+      generationSource, librarySource, coverArt: ui["library-cover"]?.value ?? "",
       editorKeys: { unitKeys: [...draft.unitKeys], machineKeys: [...draft.machineKeys], nextKey: draft.nextKey } };
   }
   function restoreKeys(doc) {
@@ -200,7 +219,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) options(select, typeOptions);
   for (const select of [ui.controller, ui["agency-controller"]]) options(select, catalog.controllers);
 
-  function setMode(designer) {
+  function setMode(designer, notify = true) {
     document.getElementById("playtest-main").hidden = designer;
     ui.main.hidden = !designer;
     document.getElementById("mode-designer").setAttribute("aria-pressed", String(designer));
@@ -209,9 +228,12 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     document.getElementById("playtest-tools").open = false;
     try { globalThis.localStorage?.setItem("project-delve.mode", designer ? "designer" : "playtest"); } catch {}
     if (designer) render();
+    if (notify) globalThis.delveNavigate?.(designer ? "designer" : "play");
   }
-  document.getElementById("mode-designer").addEventListener("click", () => setMode(true));
-  document.getElementById("mode-playtest").addEventListener("click", () => setMode(false));
+  globalThis.delveSetDesignerMode = designer => setMode(designer, false);
+  // The application shell owns navigation and its unsaved campaign guard.
+  document.getElementById("mode-designer").addEventListener("click", () => { if (!globalThis.delveNavigate) setMode(true); });
+  document.getElementById("mode-playtest").addEventListener("click", () => { if (!globalThis.delveNavigate) setMode(false); });
 
   function report(result, operation) {
     ui.status.dataset.validation = result.valid ? "valid" : "invalid";
@@ -970,7 +992,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     // Block editing only during game replacement, so the exported version is the one being played.
     ui.main.inert = true;
     try {
-      if (await playDesign(result.transport)) { lastExport = ui.transport.value = result.transport; setMode(false); }
+      if (await playDesign(result.transport)) { persist(); setMode(false); }
       else report({ valid: false, errors: [{ message: "Could not start the design. Check Playtest status, refresh and try again." }] });
     } catch (error) { report({ valid: false, errors: [{ message: error.message }] }); }
     finally { pendingPlay = false; ui.play.disabled = false; ui.main.inert = false; }
@@ -1039,7 +1061,112 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     }
     history.past.push(previous); if (history.past.length > 100) history.past.shift(); history.future = []; persistenceBlocked = false;
     generationSource = doc.generationSource ?? null;
+    librarySource = doc.librarySource ?? null;
+    if (ui["library-cover"]) ui["library-cover"].value = doc.coverArt ?? "";
+    librarySequence++;
+    describeLibrary();
     unchecked(); ui.transport.value = doc.transportInput ?? ""; persist(); updateDocumentState();
+  }
+  function describeLibrary(message) {
+    if (ui["library-status"]) ui["library-status"].textContent = message ?? (librarySource
+      ? `${librarySource.source === "bundled" ? "Bundled scenario · saving creates a local override" : librarySource.source === "override" ? "Local override of bundled scenario" : "Local scenario"} · revision ${librarySource.revision}. Save to library updates this scenario in every campaign.`
+      : "Local workspace · not saved to the shared library. Playtest uses this workspace directly.");
+    if (ui["library-restore"]) ui["library-restore"].hidden = librarySource?.source !== "override";
+    renderCoverPreview();
+  }
+  function renderCoverPreview() {
+    const preview = ui["cover-preview"]; if (!preview) return;
+    preview.replaceChildren();
+    const value = ui["library-cover"]?.value.trim();
+    if (!value || !(/^(\/[^/\\]|https:\/\/)/i.test(value)) || /[\\\u0000-\u001f]/.test(value)) { preview.hidden = true; return; }
+    preview.hidden = false;
+    const image = element("img"); image.alt = "Scenario cover illustration"; image.referrerPolicy = "no-referrer";
+    image.addEventListener("error", () => { if (preview.children[0] === image) preview.replaceChildren(element("small", "Artwork unavailable. The scenario remains playable.")); });
+    image.src = value; preview.append(image);
+  }
+  async function libraryRequest(path, method = "GET", body) {
+    const response = await fetch(`/api/library${path}`, { method, cache: "no-store",
+      ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) });
+    const result = response.status === 204 ? null : await response.json();
+    if (!response.ok) throw new Error(result?.detail ?? result?.errors?.[0]?.message ?? "Library request failed. Your workspace is unchanged.");
+    return result;
+  }
+  async function refreshLibrary() {
+    try {
+      const result = await libraryRequest("");
+      const selected = ui["library-select"].value;
+      options(ui["library-select"], result.scenarios.map(s => ({ value: s.id, label: s.name })));
+      if (result.scenarios.some(s => s.id === selected)) ui["library-select"].value = selected;
+      ui["library-open"].disabled = !result.scenarios.length;
+    } catch (error) { describeLibrary(error.message); }
+  }
+  async function openLibraryScenario(id) {
+    if (libraryBusy || pendingPlay) return false;
+    const before = JSON.stringify(documentData()), sequence = ++librarySequence;
+    libraryOpening++;
+    ui.main.setAttribute("aria-busy", "true");
+    try {
+      const saved = await libraryRequest(`/scenarios/${encodeURIComponent(id)}`);
+      // Include title and unfinished forms in the guard, not just committed board changes.
+      const now = documentData(), then = JSON.parse(before); delete now.savedAt; delete then.savedAt;
+      if (sequence !== librarySequence || JSON.stringify(now) !== JSON.stringify(then)) {
+        describeLibrary("Workspace changed while opening. Try again."); return false;
+      }
+      if (!canReplace()) return false;
+      loadDocument(JSON.stringify({ ...draftDocument(saved.definition, saved.name), coverArt: saved.coverArt ?? "",
+        librarySource: libraryIdentity(saved) }));
+      setMode(true); return true;
+    } catch (error) { describeLibrary(error.message); return false; }
+    finally { ui.main.setAttribute("aria-busy", String(--libraryOpening > 0)); }
+  }
+  async function saveLibrary(asNew = false) {
+    if (libraryBusy || pendingPlay || !ready()) return false;
+    const source = asNew ? null : librarySource, sequence = librarySequence;
+    const body = { name: ui.title.value, coverArt: ui["library-cover"]?.value || null, definition: draft.snapshot(),
+      ...(source ? { revision: source.revision, changeToken: source.changeToken } : {}) };
+    libraryBusy = true;
+    ui["library-save"].disabled = ui["library-copy"].disabled = true;
+    describeLibrary("Saving to the shared library…");
+    try {
+      const saved = await libraryRequest(`/scenarios${source ? `/${encodeURIComponent(source.id)}` : ""}`, source ? "PUT" : "POST", body);
+      if (sequence === librarySequence) {
+        librarySource = libraryIdentity(saved); persist();
+        describeLibrary(`Saved “${saved.name}” to the shared library. Further workspace edits remain local until saved.`);
+      }
+      globalThis.dispatchEvent?.(new Event("delve-library-changed"));
+      await refreshLibrary(); return true;
+    } catch (error) { describeLibrary(`${error.message} Use Save as new to keep a separate scenario, or reopen the saved version.`); return false; }
+    finally { libraryBusy = false; ui["library-save"].disabled = ui["library-copy"].disabled = false; }
+  }
+  function libraryIdentity(saved) {
+    return { id: saved.id, revision: saved.revision, ...(saved.source ? { source: saved.source } : {}), ...(saved.changeToken ? { changeToken: saved.changeToken } : {}) };
+  }
+  async function importCover(file) {
+    if (libraryBusy || pendingPlay || !file) return false;
+    const sequence = librarySequence, previousCover = ui["library-cover"].value;
+    libraryBusy = true; ui["cover-import"].disabled = true;
+    describeLibrary("Importing cover image…");
+    try {
+      const png = await prepareCover(file);
+      const response = await fetch("/api/library/covers", { method: "POST", headers: { "Content-Type": "image/png" }, body: png });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.detail ?? "Cover import failed.");
+      if (sequence !== librarySequence || ui["library-cover"].value !== previousCover) { describeLibrary("Workspace or cover changed during import. Existing edits retained; import again when ready."); return false; }
+      ui["library-cover"].value = result.coverArt; persist();
+      describeLibrary("Cover imported locally. Save to library to apply it to this scenario in every campaign."); return true;
+    } catch (error) { describeLibrary(`${error.message} Existing cover retained.`); return false; }
+    finally { libraryBusy = false; ui["cover-import"].disabled = false; ui["cover-file"].value = ""; }
+  }
+  async function restoreBundled() {
+    if (libraryBusy || pendingPlay || librarySource?.source !== "override") return false;
+    libraryBusy = true; ui.main.inert = true;
+    try {
+      const saved = await libraryRequest(`/scenarios/${encodeURIComponent(librarySource.id)}/restore`, "POST", { revision: librarySource.revision, changeToken: librarySource.changeToken });
+      loadDocument(JSON.stringify({ ...draftDocument(saved.definition, saved.name), coverArt: saved.coverArt ?? "", librarySource: libraryIdentity(saved) }));
+      ui["library-restore-confirm"].hidden = true;
+      globalThis.dispatchEvent?.(new Event("delve-library-changed")); return true;
+    } catch (error) { describeLibrary(`${error.message} Workspace retained.`); return false; }
+    finally { libraryBusy = false; ui.main.inert = false; }
   }
   function download(name, text) {
     const link = element("a"); const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
@@ -1102,6 +1229,20 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     });
   }
   installDocumentControls();
+  ui["library-save"]?.addEventListener("click", () => saveLibrary());
+  ui["library-copy"]?.addEventListener("click", () => saveLibrary(true));
+  ui["library-open"]?.addEventListener("click", () => openLibraryScenario(ui["library-select"].value));
+  ui["library-refresh"]?.addEventListener("click", refreshLibrary);
+  ui["library-cover"]?.addEventListener("input", () => { persist(); renderCoverPreview(); });
+  ui["cover-import"]?.addEventListener("click", () => ui["cover-file"].click());
+  ui["cover-file"]?.addEventListener("change", () => importCover(ui["cover-file"].files?.[0]));
+  ui["library-restore"]?.addEventListener("click", () => { ui["library-restore-confirm"].hidden = false; });
+  ui["library-restore-cancel"]?.addEventListener("click", () => { ui["library-restore-confirm"].hidden = true; });
+  ui["library-restore-apply"]?.addEventListener("click", restoreBundled);
+  globalThis.delveOpenLibraryScenario = openLibraryScenario;
+  globalThis.addEventListener?.("delve-library-changed", refreshLibrary);
+  describeLibrary();
+  if (typeof fetch === "function") refreshLibrary();
   globalThis.delveOpenGenerated = result => {
     if (!canReplace()) return false;
     const doc = draftDocument(result.definition, "Generated dungeon");
@@ -1112,15 +1253,17 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   try { syncBoardFields(); render(); }
   catch (error) {
     // A damaged recovery payload must never prevent the author from opening a healthy document.
-    draft.replace(new DesignerDraft(catalog).snapshot()); buffers = {}; selection = null;
+    draft.replace(new DesignerDraft(catalog).snapshot()); buffers = {}; selection = null; librarySource = null;
+    if (ui["library-cover"]) ui["library-cover"].value = "";
     ui.title.value = "Untitled scenario"; ui.transport.value = ""; persistenceBlocked = true;
     recoveryMessage = `Recovery unavailable: ${error.message}. Original recovery data retained. Download it before New/Open.`;
     document.getElementById("designer-recovery-download").hidden = !savedRecovery;
     syncBoardFields(); render();
   }
   recovering = false; ui["save-status"].textContent = recoveryMessage;
-  try { if (globalThis.localStorage?.getItem("project-delve.mode") === "designer") setMode(true); } catch {}
-  return { draft, history, documentData, loadDocument, render, setTool, setMode, requests, selectTarget, ui };
+  try { if (!globalThis.delveNavigate && globalThis.localStorage?.getItem("project-delve.mode") === "designer") setMode(true); } catch {}
+  globalThis.dispatchEvent?.(new Event("delve-designer-ready"));
+  return { draft, history, documentData, loadDocument, render, setTool, setMode, requests, selectTarget, ui, saveLibrary, openLibraryScenario, refreshLibrary, importCover, restoreBundled };
 }
 
 async function startDesigner() {

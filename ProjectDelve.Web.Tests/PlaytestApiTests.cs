@@ -301,7 +301,7 @@ public sealed class PlaytestApiTests
             Enumerable.Range(0, board.Height).SelectMany(y => Enumerable.Range(0, board.Width)
                 .Select(x => board.TerrainAt(new Cell(x, y)))).Distinct().OrderBy(kind => kind));
         Assert.All(second.Result.State.Physical.Figures, figure => Assert.True(board.TerrainAt(figure.Position).Passable()));
-        Assert.Contains("visual playtest", await host.Client.GetStringAsync("/"));
+        Assert.Contains("id=\"library-main\"", await host.Client.GetStringAsync("/"));
         Assert.Contains("case \"Movement\"", await host.Client.GetStringAsync("/app.js"));
     }
 

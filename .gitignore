@@ -1,5 +1,8 @@
 **/bin/
 **/obj/
+ProjectDelve.Web/App_Data/
+ProjectDelve.Web/Content/Library/.promotion.lock
+ProjectDelve.Web/Content/Library/**/*.tmp
 .dotnet-local/
 .artwork-venv/
 .artwork-qa/

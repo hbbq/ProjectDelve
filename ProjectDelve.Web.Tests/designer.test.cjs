@@ -1112,3 +1112,159 @@ test("Asphalt is a standalone brush and default, clears Rail direction and round
   assert.equal(draft.terrainAt({x:1,y:1}), "Asphalt");
   assert.ok(h.cell(0,0).classList.contains("Asphalt"));
 });
+
+function libraryFixture(h, overrides = {}) {
+  const saved = { id: "scenario-fixture", name: "Library fixture", coverArt: "/art/cover.webp", revision: 4, definition: structuredClone(designerSetup) };
+  const calls = [];
+  h.context.fetch = async (url, options = {}) => {
+    const body = options.body ? JSON.parse(options.body) : undefined;
+    calls.push({ url, method: options.method, body });
+    if (overrides.request) return overrides.request(url, options, body, saved);
+    let value;
+    if (url === "/api/library") value = { scenarios: [saved], campaigns: [] };
+    else if (options.method === "GET") value = saved;
+    else value = { ...saved, ...body, id: options.method === "POST" ? "new-scenario" : saved.id, revision: saved.revision + 1 };
+    return { ok: true, status: 200, json: async () => structuredClone(value) };
+  };
+  return { saved, calls };
+}
+
+test("shared library open keeps stable identity, rename updates it, Save as new creates another", async () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage), { calls } = libraryFixture(h);
+  assert.equal(await h.editor.openLibraryScenario("scenario-fixture"), true);
+  assert.equal(h.editor.ui.title.value, "Library fixture");
+  assert.equal(h.editor.ui["library-cover"].value, "/art/cover.webp");
+  h.editor.ui.title.value = "Renamed fixture";
+  h.editor.draft.paintTerrain({x:0,y:0}, "Grass");
+  assert.equal(await h.editor.saveLibrary(), true);
+  const update = calls.find(c => c.method === "PUT");
+  assert.equal(update.url, "/api/library/scenarios/scenario-fixture");
+  assert.equal(update.body.revision, 4); assert.equal(update.body.name, "Renamed fixture");
+  assert.deepEqual(update.body.definition, plain(h.editor.draft.snapshot()));
+  assert.equal(h.editor.documentData().librarySource.id, "scenario-fixture");
+  assert.equal(h.editor.documentData().librarySource.revision, 5);
+  assert.equal(await h.editor.saveLibrary(true), true);
+  assert.equal(calls.find(c => c.method === "POST").url, "/api/library/scenarios");
+  assert.equal(h.editor.documentData().librarySource.id, "new-scenario");
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.documentData().librarySource), plain(h.editor.documentData().librarySource));
+  assert.equal(recovered.editor.ui["library-cover"].value, "/art/cover.webp");
+});
+
+test("unsaved linked workspace playtest returns with title, cover, pasted import and definition intact, without a library write", async () => {
+  const h = harness(async () => ({ transport: "DELVE1:workspace" })), { calls } = libraryFixture(h);
+  await h.editor.openLibraryScenario("scenario-fixture");
+  h.editor.draft.paintTerrain({x:0,y:0}, "Grass");
+  enter(h.editor.ui.title, "Unsaved name"); enter(h.editor.ui["library-cover"], "/art/unsaved.webp");
+  enter(h.editor.ui.transport, "DELVE1:unfinished-input");
+  const before = plain(h.editor.documentData()); delete before.savedAt;
+  await h.click("play"); h.editor.setMode(true);
+  const after = plain(h.editor.documentData()); delete after.savedAt;
+  assert.deepEqual(after, before);
+  assert.ok(calls.every(call => call.method === "GET"));
+});
+
+test("library conflict and missing scenario retain the complete workspace and identity", async () => {
+  const h = harness(); libraryFixture(h); await h.editor.openLibraryScenario("scenario-fixture");
+  const before = plain(h.editor.documentData()); delete before.savedAt;
+  h.context.fetch = async () => ({ ok: false, status: 409, json: async () => ({ detail: "Saved version changed." }) });
+  assert.equal(await h.editor.saveLibrary(), false);
+  assert.match(h.editor.ui["library-status"].textContent, /Saved version changed/);
+  h.context.fetch = async () => ({ ok: false, status: 404, json: async () => ({ detail: "Scenario no longer exists." }) });
+  assert.equal(await h.editor.openLibraryScenario("missing"), false);
+  const after = plain(h.editor.documentData()); delete after.savedAt;
+  assert.deepEqual(after, before);
+  assert.equal(h.editor.ui["library-save"].disabled, false);
+});
+
+test("library opening ignores a response after title or unfinished input changes", async () => {
+  const h = harness(); let resolve;
+  const { saved } = libraryFixture(h, { request: () => new Promise(done => { resolve = done; }) });
+  const opening = h.editor.openLibraryScenario(saved.id);
+  enter(h.editor.ui.title, "Work while loading");
+  resolve({ ok: true, status: 200, json: async () => saved });
+  assert.equal(await opening, false);
+  assert.equal(h.editor.ui.title.value, "Work while loading");
+  assert.equal(h.editor.documentData().librarySource, null);
+});
+
+test("incomplete forms block library save and importing a separate draft clears its library link", async () => {
+  const h = harness(), { calls } = libraryFixture(h);
+  await h.editor.openLibraryScenario("scenario-fixture");
+  enter(h.editor.ui.width, "-");
+  assert.equal(await h.editor.saveLibrary(), false);
+  assert.ok(calls.every(call => call.method === "GET"));
+  const separate = harness().editor.documentData();
+  h.editor.loadDocument(JSON.stringify(separate));
+  assert.equal(h.editor.documentData().librarySource, null);
+  assert.equal(h.editor.ui["library-cover"].value, "");
+});
+
+test("Undo across opened library scenarios restores the matching identity before saving", async () => {
+  const h = harness(), { calls, saved } = libraryFixture(h);
+  await h.editor.openLibraryScenario("scenario-fixture");
+  saved.id = "other-scenario"; saved.name = "Other scenario"; saved.revision = 7;
+  await h.editor.openLibraryScenario("other-scenario");
+  assert.equal(h.editor.documentData().librarySource.id, "other-scenario");
+  await h.click("undo");
+  assert.equal(h.editor.documentData().librarySource.id, "scenario-fixture");
+  assert.equal(h.editor.documentData().librarySource.revision, 4);
+  assert.equal(h.editor.ui.title.value, "Library fixture");
+  await h.editor.saveLibrary();
+  assert.equal(calls.find(c => c.method === "PUT").url, "/api/library/scenarios/scenario-fixture");
+});
+
+test("bundled edits preserve conflict tokens in saves, recovery and Playtest", async () => {
+  const storage = memoryStorage(), h = harness(async () => ({ transport: "DELVE1:workspace" }), async () => true, storage);
+  const { saved, calls } = libraryFixture(h);
+  saved.source = "bundled"; saved.changeToken = "bundle-token";
+  await h.editor.openLibraryScenario(saved.id);
+  assert.equal(h.editor.documentData().librarySource.changeToken, "bundle-token");
+  assert.match(h.editor.ui["library-status"].textContent, /saving creates a local override/);
+  h.editor.ui.title.value = "Local experiment";
+  await h.editor.saveLibrary();
+  assert.equal(calls.find(c => c.method === "PUT").body.changeToken, "bundle-token");
+  const beforePlay = calls.length;
+  await h.click("play");
+  assert.equal(calls.length, beforePlay);
+  assert.equal(h.editor.documentData().librarySource.changeToken, "bundle-token");
+  const recovered = harness(undefined, undefined, storage);
+  assert.equal(recovered.editor.documentData().librarySource.source, "bundled");
+  assert.equal(recovered.editor.documentData().librarySource.changeToken, "bundle-token");
+});
+
+test("cover import changes only workspace artwork and retains a cover edited during upload", async () => {
+  const h = harness(), { saved } = libraryFixture(h);
+  await h.editor.openLibraryScenario(saved.id);
+  const calls = [], png = { size: 12, type: "image/png" };
+  h.context.prepareCover = async file => { assert.equal(file.type, "image/jpeg"); return png; };
+  h.context.fetch = async (url, options) => { calls.push({url, options}); return { ok: true, json: async () => ({coverArt: "/api/library/covers/abc.png"}) }; };
+  assert.equal(await h.editor.importCover({type:"image/jpeg"}), true);
+  assert.equal(h.editor.ui["library-cover"].value, "/api/library/covers/abc.png");
+  assert.equal(calls.length, 1); assert.equal(calls[0].url, "/api/library/covers");
+  assert.equal(calls[0].options.headers["Content-Type"], "image/png");
+  assert.equal(h.editor.documentData().librarySource.revision, 4);
+  let resolve;
+  h.context.prepareCover = () => new Promise(done => { resolve = done; });
+  const pending = h.editor.importCover({type:"image/jpeg"});
+  h.editor.ui["library-cover"].value = "/art/new-choice.webp";
+  resolve(png); await pending;
+  assert.equal(h.editor.ui["library-cover"].value, "/art/new-choice.webp");
+  assert.match(h.editor.ui["library-status"].textContent, /Existing edits retained/);
+});
+
+test("restore bundled scenario uses token and preserves workspace on conflict", async () => {
+  const h = harness(), { saved } = libraryFixture(h);
+  saved.source = "override"; saved.changeToken = "override-token";
+  await h.editor.openLibraryScenario(saved.id);
+  h.editor.ui.title.value = "Unsaved title";
+  h.context.fetch = async (url, options) => {
+    assert.equal(url, "/api/library/scenarios/scenario-fixture/restore");
+    assert.deepEqual(JSON.parse(options.body), {revision:4,changeToken:"override-token"});
+    return {ok:false,json:async () => ({detail:"Changed elsewhere."})};
+  };
+  assert.equal(await h.editor.restoreBundled(), false);
+  assert.equal(h.editor.ui.title.value, "Unsaved title");
+  assert.equal(h.editor.documentData().librarySource.source, "override");
+  assert.equal(h.editor.ui.main.inert, false);
+});

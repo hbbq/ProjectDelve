@@ -335,6 +335,12 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   const doc = JSON.parse(text);
   if (doc?.format !== "ProjectDelveDraft" || doc.version !== 1) throw new Error("Unsupported draft document. Expected Project Delve draft version 1.");
   if (doc.transportInput != null && typeof doc.transportInput !== "string") throw new Error("Invalid saved import text.");
+  if (doc.coverArt != null && typeof doc.coverArt !== "string") throw new Error("Invalid saved cover art.");
+  if (doc.librarySource != null && (typeof doc.librarySource.id !== "string" ||
+      !/^[a-z0-9][a-z0-9-]{0,79}$/.test(doc.librarySource.id) || !Number.isInteger(doc.librarySource.revision) || doc.librarySource.revision < 1))
+    throw new Error("Invalid saved library identity.");
+  if (doc.librarySource?.source != null && !["local", "bundled", "override"].includes(doc.librarySource.source)) throw new Error("Invalid saved library source.");
+  if (doc.librarySource?.changeToken != null && (typeof doc.librarySource.changeToken !== "string" || doc.librarySource.changeToken.length > 256)) throw new Error("Invalid saved library token.");
   if (doc.generationSource != null && (typeof doc.generationSource.code !== "string" || typeof doc.generationSource.definitionJson !== "string"))
     throw new Error("Invalid saved generation source.");
   const d = doc.definition, board = d?.board;

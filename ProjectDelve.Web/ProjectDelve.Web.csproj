@@ -5,6 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Mutable authoring data must never ride along with an application deployment. -->
+    <Content Remove="App_Data\**" />
+    <None Remove="App_Data\**" />
+    <Content Update="Content\Library\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Content\Library\covers\**\*.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="../ProjectDelve.Engine/ProjectDelve.Engine.csproj" />
     <ProjectReference Include="..\ProjectDelve.Generation\ProjectDelve.Generation.csproj" />
   </ItemGroup>

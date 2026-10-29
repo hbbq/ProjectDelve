@@ -62,6 +62,20 @@ The first scenario uses 1×1 figures on Floor cells. Floor is enterable and does
 
 Run the automated tests with `dotnet test ProjectDelve.sln`. The engine targets .NET 10 and remains independent of UI and persistence. The immediate goal remains to use executable scenarios to expose rule ambiguities and evolve from concrete game content.
 
+## Campaigns and the shared scenario library
+
+The browser opens on a campaign menu. **Test Scenarios** contains the original scenarios; **Scenarios** lists every saved scenario, including those outside a campaign. Choose any scenario to start a fresh game. Campaigns only order references: they carry no Units, resources, unlocks or progress between games. One live game is still shared by everyone using the host.
+
+In **Designer**, **Save to library** creates a saved scenario or updates the scenario you opened. **Library & Export** opens saved scenarios, sets their cover art, and provides **Save as new** for an independent copy. Renaming keeps identity and campaign references intact. Saving validates the scenario; incomplete work can still be kept with **Save draft**. **Test scenario** always plays the current workspace without saving it. Return with **Designer** to continue editing; browser recovery retains the workspace, metadata and unfinished form inputs. DELVE1 import/export and draft files remain available.
+
+Use **Create campaign** on the menu or **Edit** on a campaign to set its name, description and cover, add library scenarios, and move or remove references. Editing a scenario updates it in all campaigns. Deleting a scenario from its Details page leaves visible unavailable references, which the campaign editor can remove. **Import cover image** stores PNG/JPEG/WebP artwork through the image picker; manual root-relative/HTTPS URLs remain supported. Use spoiler-free illustrations: browsing never renders the scenario board or its hidden contents. Missing artwork has a decorative fallback.
+
+The library combines bundled content with local overrides by stable ID. The original C# scenarios remain bundled; additional finished content lives in `ProjectDelve.Web/Content/Library/library.json`. Local data defaults to `ProjectDelve.Web/App_Data/library/`, which is excluded from Git and publishing. Configure `Library__Path` or `--Library:Path <directory>` to use a durable directory outside deployment files. Back up the entire local directory, including `covers/`. Source labels, explicit restore controls, deletion markers and change tokens protect local experiments while allowing unmodified bundled content to receive updates.
+
+See [Local and bundled campaign content](CAMPAIGN_CONTENT.md) for migration, backup, cover storage and the reproducible `--promote-campaign` command. This is a trusted local/shared-host tool with the same unauthenticated authoring access as Designer. Library JSON is limited to 64 MB and scenario requests to approximately 2 MB; cover imports have a separate 5 MB limit.
+
+Direct links include `/#home`, `/#scenarios`, `/#campaign/<id>`, `/#scenario/<id>`, `/#designer`, and `/#play` (`/#playtest` also works). Existing game and Designer API routes remain available. Scenario links open selection rather than replacing a running game on page load.
+
 ## Exploratory console host
 
 Run `dotnet run --project ProjectDelve.Console` to play successive Rounds on a hard-coded 6x5 stone floor board with a Barbarian at `(4,2)` and two Grunts at `(1,2)` and `(1,3)`. The barrier between columns 2 and 3 has walls in rows 1 and 3 and a closed door in row 2; rows 0 and 4 provide open routes around its ends. Barbarian can open the door as a Free Action. The Console uses the same named definitions as the Web host.

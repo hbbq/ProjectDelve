@@ -3,23 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Project Delve · Playtest</title>
+  <title>Project Delve</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="board-enhanced.css">
   <link rel="stylesheet" href="three-viewport.css">
+  <link rel="stylesheet" href="library.css">
+  <link rel="stylesheet" href="campaign-editor.css">
+  <script type="module" src="library.js"></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="designer.js"></script>
   <script type="module" src="generator.js"></script>
 </head>
 <body>
-  <header><h1>Project Delve <small>visual playtest</small></h1>
+  <header><h1>Project Delve</h1>
   <nav class="toolbar mode-switch" aria-label="Application mode">
-    <button id="mode-playtest" aria-pressed="true">Playtest</button>
+    <button id="mode-home" aria-pressed="true">Home</button>
+    <button id="mode-scenarios" aria-pressed="false">Scenarios</button>
+    <button id="mode-playtest" aria-pressed="false">Playtest</button>
     <button id="mode-designer" aria-pressed="false">Designer</button>
     <button id="open-generator" data-open-generator>Dungeon generator</button>
   </nav>
   </header>
-  <details id="playtest-tools" class="playtest-tools">
+  <main id="library-main" aria-label="Campaigns and scenarios">
+    <section class="library-hero"><span class="library-eyebrow">PROJECT DELVE</span><h2>Your next adventure</h2><p>Choose a campaign, explore a dungeon, or create a world of your own.</p><div class="toolbar"><button data-open-generator>Generate a dungeon</button><a class="library-button" href="#designer">Open Designer</a></div></section>
+    <section class="library-content"><div class="library-heading"><div><p id="library-breadcrumb" class="library-eyebrow"></p><h2 id="library-title">Campaigns</h2></div><div class="toolbar"><a class="library-button" href="#scenarios">All scenarios</a><a class="library-button" href="#campaigns-edit">Create campaign</a></div></div><p id="library-description"></p><label class="library-search" for="library-search">Find by name <input id="library-search" type="search" placeholder="Search this collection"></label><p id="library-status" role="status" aria-live="polite"></p><div id="library-cards" class="library-grid"></div><details id="library-hidden" hidden></details></section>
+  </main>
+  <section id="campaign-editor" hidden aria-label="Campaign editor"></section>
+  <details id="playtest-tools" class="playtest-tools" hidden>
     <summary id="tools-toggle">Tools &middot; Objectives &amp; Orders</summary>
     <div class="tools-content">
 
@@ -100,7 +110,7 @@
     <img id="portrait-image" alt="">
     <p id="portrait-error" hidden>Portrait unavailable.</p>
   </dialog>
-  <main id="playtest-main">
+  <main id="playtest-main" hidden>
     <section id="generated-game" class="generated-game" hidden aria-label="Generated dungeon recipe">
       <strong>Generated dungeon</strong> <code id="generated-game-code"></code>
       <button id="generated-game-copy">Copy complete code</button><button id="generated-game-inspect">Inspect map (reveals dungeon)</button>
@@ -156,7 +166,7 @@
     <div class="designer-document">
       <div class="designer-identity"><span class="designer-eyebrow">SCENARIO STUDIO</span><label class="sr-only" for="designer-title">Scenario name</label><input id="designer-title" value="Untitled scenario" maxlength="120"><small id="designer-save-status" role="status">New draft</small><button id="designer-recovery-download" hidden>Download recovery data</button></div>
       <div class="toolbar designer-document-actions">
-        <button id="designer-new" title="Start a new draft">New</button><button id="designer-open">Open draft…</button><button id="designer-save">Save draft</button>
+        <button id="designer-new" title="Start a new draft">New</button><button id="designer-open">Open draft…</button><button id="designer-save">Save draft</button><button id="designer-library-save">Save to library</button>
         <span class="designer-divider"></span><button id="designer-undo" title="Undo (Ctrl+Z). History lasts for this page session; recovered drafts start a new history." disabled>↶ Undo</button><button id="designer-redo" title="Redo (Ctrl+Shift+Z)" disabled>↷ Redo</button>
         <button id="designer-validate">Validate</button><button id="designer-play" class="designer-primary">Test scenario →</button>
       </div>
@@ -191,7 +201,13 @@
       <section data-designer-panel="groups" hidden><h2>Sides &amp; groups</h2><p class="legend">One controller and starting Order per Unit Type + Side. Apply each group together.</p><div id="designer-agency"></div><h3>Add a group</h3><form id="designer-agency-form" class="designer-property-form"><label>Unit Type <select id="designer-agency-type"></select></label><label>Side <input id="designer-agency-side" list="designer-sides" value="side-1"></label><label>Controller <select id="designer-agency-controller"></select></label><button>Add / update pair</button></form></section>
       <section data-designer-panel="sides" hidden><h2>Side relationships &amp; Objectives</h2><p class="legend">Each Side has one Objective. Select a Side to edit its goal and highlight its selected Units and area.</p><div id="designer-side-settings"></div></section>
       <section data-designer-panel="routes" hidden><h2>Waypoints &amp; Routes</h2><p class="legend">Create rectangular Waypoints, assemble a shared Route, then assign it in Groups.</p><div id="designer-routes"></div></section>
-      <section data-designer-panel="document" hidden><h2>Start from the library</h2><p class="legend">Open an editable copy. Catalog originals stay in the library.</p><label class="designer-catalog-label">Scenario <select id="designer-catalog"></select></label><button id="designer-catalog-open">Open a copy</button>
+      <section data-designer-panel="document" hidden><h2>Shared scenario library</h2>
+        <p id="designer-library-status" role="status">Save a playable scenario for everyone using this host.</p>
+        <button id="designer-library-restore" hidden>Restore bundled version…</button><div id="designer-library-restore-confirm" hidden><p>Discard this local override and the current workspace edits? The bundled scenario will replace them.</p><button id="designer-library-restore-apply">Restore bundled scenario</button><button id="designer-library-restore-cancel">Keep local edits</button></div>
+        <div id="designer-cover-preview" hidden></div>
+        <label class="designer-catalog-label">Saved scenario <select id="designer-library-select"></select></label><div class="toolbar"><button id="designer-library-open">Open saved scenario</button><button id="designer-library-refresh">Refresh library</button></div>
+        <label>Scenario cover art URL <input id="designer-library-cover" placeholder="Import an image or enter an HTTPS URL"></label><input id="designer-cover-file" type="file" accept="image/png,image/jpeg,image/webp" hidden><button id="designer-cover-import">Import cover image…</button><p class="legend">PNG, JPEG or WebP, up to 12 MB and 4096 × 4096 pixels. Use atmospheric, spoiler-free artwork. Save to library applies this cover across campaigns.</p><button id="designer-library-copy">Save as new</button><a class="library-button" href="#campaigns-edit">Create / edit campaigns</a>
+        <details><summary>Original test scenarios</summary><p class="legend">Open an editable copy of the original development content.</p><label class="designer-catalog-label">Scenario <select id="designer-catalog"></select></label><button id="designer-catalog-open">Open a copy</button></details>
         <h2>Playable scenario</h2><p class="legend">Save draft keeps incomplete content and unfinished inputs in an editable file. DELVE1 is validated by the engine for sharing and Playtest.</p><button id="designer-export">Export DELVE1</button><details class="designer-transport"><summary>DELVE1 import / export</summary><label for="designer-transport">Portable scenario string</label><textarea id="designer-transport" rows="5" spellcheck="false" placeholder="Paste DELVE1:… or export a validated scenario."></textarea><div class="toolbar"><button id="designer-import">Import into designer</button><button id="designer-copy">Copy string</button></div></details>
       </section>
       <datalist id="designer-sides"></datalist><datalist id="designer-unit-ids"></datalist>

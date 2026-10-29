@@ -1291,7 +1291,7 @@ test("compact use circles present supplied remaining and maximum counts accessib
 test("board-first layout reserves status, card and End Turn while tools start closed", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const tools = html.slice(html.indexOf('<details id="playtest-tools"'), html.indexOf('<main id="playtest-main"'));
-  assert.match(tools, /<details id="playtest-tools" class="playtest-tools">/);
+  assert.match(tools, /<details id="playtest-tools" class="playtest-tools" hidden>/);
   for (const id of ["scenario", "board-view", "objectives", "orders", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
     assert.ok(tools.includes(`id="${id}"`), id);
   const header = html.slice(html.indexOf("<header>"), html.indexOf("</header>"));

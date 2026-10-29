@@ -20,6 +20,12 @@ public static class PlaytestHost
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         var randomProvider = random ?? new SystemRandomProvider();
+        var libraryPath = builder.Configuration["Library:Path"]
+            ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "library");
+        var bundledLibraryPath = builder.Configuration["Library:BundlePath"]
+            ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Library");
+        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath));
+        builder.Services.AddSingleton(_ => new LibraryCoverStore(libraryPath, bundledLibraryPath));
         builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
             initialState ?? PlaytestScenarios.Create(PlaytestScenarios.DefaultId), external, replayCapacity, externalSelection));
         var app = builder.Build();
@@ -38,6 +44,8 @@ public static class PlaytestHost
             app.UseStaticFiles(new StaticFileOptions { RequestPath = "/__qa/miniatures", FileProvider = new PhysicalFileProvider(fixtures), ContentTypeProvider = contentTypes });
         }
         DesignerApi.Map(app);
+        LibraryApi.Map(app);
+        LibraryCoverApi.Map(app);
         GenerationApi.Map(app);
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
