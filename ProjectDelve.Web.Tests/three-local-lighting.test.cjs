@@ -13,6 +13,23 @@ test('visible lava illuminates neighbours with falloff; hidden recipes cannot in
   assert.deepEqual(buildLocalLightField(data,[...sources,{...sources[0],x:6.5,z:6.5}]).pixels,f.pixels);
 });
 
+test('unopened Loot adds a warm bounded source per Cell, independent of count and known objects',async()=>{
+  const {buildLocalLightField,lootLightSources,terrainLightSources}=await moduleAt('three-local-lighting.js');
+  const {groundLoot}=await moduleAt('loot-ui.js');
+  const marker={position:{x:2,y:2}},known={position:{x:5,y:5},object:{kind:'LuckyBoots'}};
+  const single=lootLightSources(groundLoot({lootMarkers:[marker]}));
+  const multiple=lootLightSources(groundLoot({lootMarkers:[marker,marker,marker],groundObjects:[known,{...known,position:marker.position}]}));
+  assert.equal(single.length,1);assert.deepEqual(multiple,single);
+  assert.deepEqual(lootLightSources(groundLoot({groundObjects:[known]})),[]);
+  const data=observation(),field=buildLocalLightField(data,single),at=(Math.floor(single[0].z*4)*field.width+Math.floor(single[0].x*4))*4;
+  assert.ok(field.pixels[at]>field.pixels[at+1]);assert.ok(field.pixels[at+1]>field.pixels[at+2]);
+  assert.ok(sample(field,3,2)>0,'nearby terrain receives illumination');assert.equal(sample(field,5,2),0,'illumination remains local');
+  const hidden=observation({'2,2':'Unknown'});assert.equal(buildLocalLightField(hidden,single).sources,0);
+  assert.deepEqual(buildLocalLightField(hidden,single).pixels,buildLocalLightField(hidden,[]).pixels);
+  const lava=observation({'5,5':'Lava'}),combined=buildLocalLightField(lava,[...terrainLightSources(lava),...single]);
+  assert.equal(combined.sources,2);assert.ok(sample(combined,5,5)>0);assert.ok(sample(combined,2,2)>0);
+});
+
 test('observed walls and closed doors block, open doors transmit, unknown and rock stop propagation',async()=>{
   const {buildLocalLightField,terrainLightSources}=await moduleAt('three-local-lighting.js');
   const source=terrainLightSources(observation({'2,2':'Lava'}));

@@ -3,6 +3,13 @@ import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 // Presentation recipes, in board-cell units and linear RGB. No game queries.
 export const localLightRecipes=Object.freeze({Lava:Object.freeze({color:[1,.30,.055],strength:3.4,radius:3.5})});
 
+// Shared with the star's placement. One restrained source per observed pile,
+// regardless of its count; known Items/Equipment do not emit light.
+export const lootStarStyle=Object.freeze({x:.31,z:.75,color:[1,.57,.12],strength:1.35,radius:1.65});
+export function lootLightSources(piles){
+  return piles.filter(p=>p.unopened>0).map(p=>({...lootStarStyle,x:p.position.x+lootStarStyle.x,z:p.position.y+lootStarStyle.z}));
+}
+
 // A bounded irradiance field avoids per-source shader loops and shadow cubes.
 // Unknown space is opaque. Use only the displayed checkpoint's observed data.
 export function buildLocalLightField({board,kindAt},sources,edges=board.edges??[]){

@@ -2,6 +2,7 @@ import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 import { boardVisuals, terrainVariantIndex } from './board-visuals.js';
 import { sideHue } from './side-colors.js';
 import { miniatureBaseLayout } from './unit-visuals.js';
+import { lootStarStyle } from './three-local-lighting.js';
 
 export const tabletopDimensions=Object.freeze({border:.36,boardThickness:.26,tokenThickness:.06,tokenRadius:.46,wallHeight:.52,doorHeight:.6});
 // Only observed neighbours may form an excavated boundary. Unknown neighbours
@@ -270,10 +271,38 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     const group=new THREE.Group(),p=pile.position;
     group.position.set(p.x+.5,0,p.y+.80);
     if(pile.unopened){
-      box(group,'#936030',-.19,.10,0,.27,.18,.22);
-      box(group,'#e3bb63',-.19,.20,0,.29,.05,.24);
-      box(group,'#f2d883',-.19,.11,-.12,.05,.08,.025);
-      group.add(plane(glyph(String(pile.unopened)),-.19,0,.17,.17,.23));
+      if(!geometries.lootStar){
+        // A low, double-sided jewel keeps its five-point silhouette from every
+        // board azimuth. Baked gold facets are self-lit, including Lighting Off.
+        const points=Array.from({length:10},(_,i)=>{const a=i*Math.PI/5,r=i%2?.092:.215;return [Math.sin(a)*r,0,-Math.cos(a)*r];});
+        const positions=[],colors=[],gold=['#fff0aa','#ffd45b','#eaa52e','#ffe38a','#f3bb40'];
+        const triangle=(a,b,c,color)=>{positions.push(...a,...c,...b);const tone=new THREE.Color(color);for(let i=0;i<3;i++)colors.push(tone.r,tone.g,tone.b);};
+        for(let i=0;i<10;i++){
+          const a=points[i],b=points[(i+1)%10],lowA=[a[0],-.035,a[2]],lowB=[b[0],-.035,b[2]];
+          triangle([0,.075,0],a,b,gold[i%gold.length]);
+          triangle(a,lowA,lowB,'#c78624');triangle(a,lowB,b,'#eab343');
+          triangle([0,-.055,0],lowB,lowA,'#eab343');
+        }
+        const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.computeVertexNormals();geometries.lootStar=g;
+      }
+      const x=lootStarStyle.x-.5,z=lootStarStyle.z-.80;
+      const star=new THREE.Mesh(geometries.lootStar,material('#ffffff',null,false,true));
+      star.name='unopened-loot-star';star.position.set(x,.19,z);group.add(star);
+      // Local aura, not a painted pool of light on the floor. Its whole envelope
+      // stays inside the source Cell. Cached materials/geometries own disposal.
+      const glow=material('#ffc14d',null,true);
+      if(!glow.userData.lootAura){
+        glow.userData.lootAura=true;glow.depthWrite=false;
+        glow.onBeforeCompile=shader=>{
+          shader.vertexShader='varying vec2 vLootUV;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvLootUV = uv;');
+          shader.fragmentShader='varying vec2 vLootUV;\n'+shader.fragmentShader.replace('#include <opaque_fragment>',`float radius = length(vLootUV - 0.5) * 2.0;
+            diffuseColor.a *= 0.38 * pow(max(0.0, 1.0 - radius * radius), 3.0);
+            #include <opaque_fragment>`);
+        };
+        glow.customProgramCacheKey=()=> 'delve-loot-aura-v1';
+      }
+      const aura=plane(glow,x,z,.49,.49,.18);aura.name='loot-aura';group.add(aura);
+      if(pile.unopened>1){const count=plane(glyph(String(pile.unopened)),.045,-.015,.24,.24,.285);count.name='loot-count';group.add(count);}
     }
     if(pile.objects.length){
       for(let i=0;i<Math.min(3,pile.objects.length);i++)box(group,'#79c8c0',.17,.025+i*.035,0,.24,.025,.30,i*.15);

@@ -1116,6 +1116,60 @@ test('local illumination follows displayed checkpoints, switches off, survives m
   }finally{h.cleanup();}
 });
 
+test('Loot stars share resources, retain mixed-pile counts and known markers, and preserve Cell picks while idle',async()=>{
+  const f=fixture();f.state.lootMarkers=[{id:'a',position:{x:1,y:1}},{id:'b',position:{x:1,y:1}},{id:'c',position:{x:3,y:1}}];
+  f.state.groundObjects=[{position:{x:1,y:1},object:{id:'boots',kind:'LuckyBoots',content:{name:'Lucky Boots'}}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,items=scene.getObjectByName('items');
+    const stars=[];items.traverse(n=>{if(n.name==='unopened-loot-star')stars.push(n);});assert.equal(stars.length,2);
+    const mixed=stars.find(n=>n.parent.position.x===1.5),single=stars.find(n=>n!==mixed);
+    assert.ok(mixed.parent.getObjectByName('loot-count'));assert.equal(single.parent.getObjectByName('loot-count'),undefined);
+    assert.equal(mixed.geometry,single.geometry);assert.equal(mixed.material,single.material);
+    for(const star of stars){
+      star.parent.updateWorldMatrix(true,true);const bounds=new h.THREE.Box3().setFromObject(star.parent),x=Math.floor(star.parent.position.x),z=Math.floor(star.parent.position.z);
+      assert.ok(bounds.min.x>=x&&bounds.max.x<=x+1&&bounds.min.z>=z&&bounds.max.z<=z+1,'marker and aura stay inside their observed Cell');
+    }
+    const knownNodes=mixed.parent.children.filter(n=>!['unopened-loot-star','loot-aura','loot-count'].includes(n.name));
+    assert.equal(knownNodes.length,2,'known Equipment retains its stack and count beside unopened Loot');
+    const shape=n=>({geometry:n.geometry,position:n.position.toArray(),scale:n.scale.toArray(),color:n.material.color.getHex()});
+    const knownShape=knownNodes.map(shape),starMaterial=mixed.material;
+    for(const enabled of [false,true]){
+      h.viewport.lighting.set({enabled});h.viewport.settle();h.flush();
+      assert.equal(h.viewport.inspect().lighting.local.enabled,enabled);assert.equal(mixed.material,starMaterial);
+      assert.equal(mixed.material.isMeshBasicMaterial,true,'the star stays self-lit with Lighting Off');
+      assert.equal(mixed.visible,true);assert.equal(mixed.parent.getObjectByName('loot-aura').visible,true);
+      for(const [tilt,yaw]of [[0,0],[38,135],[60,270]]){
+        h.viewport.camera.setOrientation({tilt,yaw},false);h.viewport.settle();h.flush();
+        assert.deepEqual(h.viewport.pick(h.viewport.project({x:1.5,y:1.5})).cell,{x:1,y:1});
+      }
+      assert.equal(h.frames.size,0,'stationary Loot does not keep the render loop running');
+    }
+    const unchanged=structuredClone(f);h.viewport.renderFrame(unchanged);h.flush();assert.equal(scene.getObjectByName('unopened-loot-star'),mixed);
+    const opened=structuredClone(f);opened.state.lootMarkers=[];h.viewport.renderFrame(opened);h.flush();
+    assert.equal(scene.getObjectByName('unopened-loot-star'),undefined);assert.equal(h.viewport.inspect().lighting.local.sources,0);
+    assert.equal(items.children.length,1);assert.deepEqual(items.children[0].children.map(shape),knownShape);
+    let disposedGeometry=0,disposedMaterial=0;mixed.geometry.addEventListener('dispose',()=>disposedGeometry++);starMaterial.addEventListener('dispose',()=>disposedMaterial++);
+    h.viewport.dispose();assert.equal(disposedGeometry,1);assert.equal(disposedMaterial,1);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('Loot illumination follows observed marker discovery, removal, view changes and restart',async()=>{
+  const f=fixture(8,'blue'),h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const scene=h.rendered.at(-1).scene;
+    assert.equal(scene.getObjectByName('unopened-loot-star'),undefined);assert.equal(h.viewport.inspect().lighting.local.sources,0);
+    const observed=structuredClone(f);observed.state.exploredCells.blue.push({x:1,y:1});observed.state.lootMarkers=[{id:'a',position:{x:1,y:1}},{id:'b',position:{x:1,y:1}}];
+    h.viewport.renderFrame(observed);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,1);assert.ok(scene.getObjectByName('unopened-loot-star'));
+    const field=h.viewport.inspect().lighting.local;h.viewport.renderFrame(observed);h.flush();assert.deepEqual(h.viewport.inspect().lighting.local,field);
+    h.viewport.lighting.set({enabled:false});h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,false);assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    h.viewport.lighting.set({enabled:true});h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,false);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,true);
+    h.viewport.renderFrame(f);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);assert.equal(scene.getObjectByName('unopened-loot-star'),undefined);
+    h.viewport.renderFrame(observed);h.flush();const restart=structuredClone(f);restart.metadata.sessionId='restart';h.viewport.renderFrame(restart);h.viewport.settle();h.flush();
+    assert.equal(h.viewport.inspect().lighting.local.sources,0);assert.equal(scene.getObjectByName('unopened-loot-star'),undefined);assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('Tabletop batches supplied choices without changing Cell picks and releases replaced instance buffers',async()=>{
   const f=fixture(),h=await harness(f),move={key:'move-a',interaction:{kind:'Position',position:{x:1,y:1}},boardVisual:{kind:'move'}};
   try{

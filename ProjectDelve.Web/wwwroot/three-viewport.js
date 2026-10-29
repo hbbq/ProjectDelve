@@ -13,6 +13,7 @@ import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-faci
 import { createTabletopMarks } from './three-tabletop-marks.js';
 import { layoutTabletopLabels } from './three-label-layout.js';
 import { groundLoot } from './loot-ui.js';
+import { terrainLightSources, lootLightSources } from './three-local-lighting.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
@@ -225,7 +226,8 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     shadowDirty=true;
     if(identity!==session){cancel();session=identity;hoveredUnitId=null;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
     frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
-    lighting.local.update(data);
+    const lootPiles=groundLoot(frame.state);
+    lighting.local.update(data,[...terrainLightSources(data),...lootLightSources(lootPiles)]);
     lighting.setBoard(board);
     // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat
     // terrain and fog by material; all dynamic objects retain ordinary meshes.
@@ -319,7 +321,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
         const fallback=plane(glyph(visual.glyph??'?'),cx,cy,.3,.3,heights.items);artwork(group,fallback,visual.image?material(visual.fill,visual.image,true):null,cx,cy,.36,.36,heights.items+.01);return group;
       });
     }
-    for(const pile of groundLoot(frame.state)){
+    for(const pile of lootPiles){
       retain(`loot:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>physical.loot(pile));
     }
     const labelIds=new Set();
