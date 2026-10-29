@@ -1957,6 +1957,16 @@ Physical play uses dice for drops, unopened markers on the board and cards drawn
 
 Authoritative state, save/resume and replay preserve individual ownership and Loot resolution. Fog of War applies to Loot, ground objects, ownership and effects under the existing observation and event-time visibility rules. Hidden draws and inventories must not disclose card identities. Designer authoring remains omniscient.
 
+### Live Loot configuration
+
+New scenarios use the centrally maintained Classic Loot Deck by default. Classic, Fun, Experimental and Far Out are live references to central card-ID/quantity compositions, resolved when a new game is created. Custom stores only its own card-ID/quantity composition, never card rules. Copy to Custom copies the preset's current quantities and removes the live preset reference. An empty Custom deck disables random Loot drops. Existing no-Loot files and drafts migrate to empty Custom decks; explicit legacy compositions retain their cards and quantities.
+
+Unit Types have canonical d6 drop defaults. Scenario overrides are optional per Unit Type; absence inherits its current definition, whereas explicit zero disables drops. Existing authored Unit Type values retain precedence over canonical content, and explicit scenario Loot overrides take precedence over those values. New Loot-only overrides do not copy Unit Type rules. Summoned Units use the same drop probabilities as other Units of their Type. Farming is allowed: additional enemies and activation pressure create risk, and the finite deck limits total rewards. Balance is evaluated through play, without a special summoned-Unit exclusion.
+
+Preset changes affect new games, not an in-progress game's remaining finite deck. Save/resume retains the actual remaining draw pile and reservations without resolving or replenishing the preset. Card rules remain central. Generator recipes retain the selected live preset and never expand it into Custom cards.
+
+Initial canonical drop values are 1/6 for ordinary Units, 2/6 for stronger or specialist Units, and 3/6 for the Red Dragon, as authored explicitly in the roster. The four canonical Heroes can have Items and Equipment so that default generated parties can use their rewards. Scenario capability overrides remain available and independent.
+
 ### Finite supply
 
 Every unopened Loot marker reserves one available card in the finite draw pile, without assigning its identity. The number of unopened markers must never exceed the number of available draw cards. Reject initial scenarios that violate this invariant. A defeat cannot create a marker when all remaining draw cards are already reserved by unopened markers.

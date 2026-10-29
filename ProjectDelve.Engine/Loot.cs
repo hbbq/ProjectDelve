@@ -28,7 +28,57 @@ public static class LootCards
 }
 
 // Composition contains actual copies, not weights. Draw removes a card permanently.
-public sealed record LootSettings(List<LootCardKind> Cards);
+public sealed record LootCardQuantity(LootCardKind Kind, int Count);
+public sealed record LootPreset(string Id, string Name, string Description, IReadOnlyList<LootCardQuantity> Composition);
+public static class LootPresets
+{
+    public const string Default = "Classic";
+    public static IReadOnlyList<LootPreset> All { get; } = Array.AsReadOnly(new LootPreset[]
+    {
+        new("Classic", "Classic", "Practical supplies: breakfast, extra Actions, boots and keys.", Array.AsReadOnly(new LootCardQuantity[]
+            { new(LootCardKind.PocketBreakfast, 4), new(LootCardKind.SecondWind, 3), new(LootCardKind.LuckyBoots, 2), new(LootCardKind.OfficialKey, 1) })),
+        new("Fun", "Fun", "A little of everything, with extra bedsheets and goat bells.", Array.AsReadOnly(new LootCardQuantity[]
+            { new(LootCardKind.PocketBreakfast, 2), new(LootCardKind.SecondWind, 2), new(LootCardKind.LuckyBoots, 1), new(LootCardKind.OfficialKey, 1), new(LootCardKind.Bedsheet, 2), new(LootCardKind.GoatBell, 2) })),
+        new("Experimental", "Experimental", "Phase, standing allies and extra Actions. Uses existing cards; no new experimental effects yet.", Array.AsReadOnly(new LootCardQuantity[]
+            { new(LootCardKind.Bedsheet, 3), new(LootCardKind.GoatBell, 3), new(LootCardKind.SecondWind, 4) })),
+        new("FarOut", "Far Out", "Bedsheets and goat bells only. A playful placeholder; no presentation-altering effects yet.", Array.AsReadOnly(new LootCardQuantity[]
+            { new(LootCardKind.Bedsheet, 5), new(LootCardKind.GoatBell, 5) }))
+    });
+    public static LootPreset Find(string id) => All.SingleOrDefault(p => p.Id == id)
+        ?? throw new ArgumentException($"Unknown Loot preset '{id}'.");
+}
+public sealed record LootSettings
+{
+    [System.Text.Json.Serialization.JsonConstructor]
+    public LootSettings() { }
+    public LootSettings(List<LootCardKind> cards) => Composition = cards.GroupBy(k => k).Select(g => new LootCardQuantity(g.Key, g.Count())).ToList();
+    public string? Preset { get; init; }
+    public List<LootCardQuantity>? Composition { get; init; }
+    // Read compatibility for the original repeated-ID format; normalized on export.
+    public List<LootCardKind>? Cards { get; init; }
+    public static LootSettings Empty => new() { Composition = [] };
+    public LootSettings Normalize()
+    {
+        if (Cards is not null)
+        {
+            if (Preset is not null || Composition is not null) throw new ArgumentException("Loot must specify either a preset or a Custom composition.");
+            return new(Cards);
+        }
+        if (Preset is not null && Composition is not null) throw new ArgumentException("A live Loot preset cannot contain Custom cards.");
+        return Composition is null ? this with { Preset = Preset ?? LootPresets.Default } : this;
+    }
+    public IReadOnlyList<LootCardQuantity> ResolveComposition()
+    {
+        var normalized = Normalize();
+        var rows = normalized.Composition ?? LootPresets.Find(normalized.Preset!).Composition;
+        if (rows.Any(r => r is null || !Enum.IsDefined(r.Kind) || r.Count is < 1 or > 1000) ||
+            rows.Select(r => r.Kind).Distinct().Count() != rows.Count || rows.Sum(r => r.Count) > 6000)
+            throw new ArgumentException("Custom Loot needs unique card IDs with quantities from 1 to 1000.");
+        return rows;
+    }
+    public List<LootCardKind> ResolveCards() => ResolveComposition().SelectMany(r => Enumerable.Repeat(r.Kind, r.Count)).ToList();
+}
+public sealed record LootUnitOverride(int? DropSuccesses = null, bool? CanHaveItems = null, bool? CanHaveEquipment = null);
 public sealed class LootDeck
 {
     public List<OwnedObject> DrawPile { get; set; } = [];

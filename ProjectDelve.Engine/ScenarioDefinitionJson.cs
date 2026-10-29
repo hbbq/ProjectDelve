@@ -18,7 +18,7 @@ public static class ScenarioDefinitionJson
     public static string ToJson(ScenarioDefinition scenario)
     {
         ArgumentNullException.ThrowIfNull(scenario);
-        return JsonSerializer.Serialize(scenario, Options);
+        return JsonSerializer.Serialize(scenario with { Loot = (scenario.Loot ?? new LootSettings()).Normalize() }, Options);
     }
 
     /// <summary>
@@ -34,6 +34,8 @@ public static class ScenarioDefinitionJson
         ArgumentNullException.ThrowIfNull(json);
         var scenario = JsonSerializer.Deserialize<ScenarioDefinition>(json, Options)
             ?? throw new JsonException("Expected a ScenarioDefinition object, not null.");
+        // Pre-preset files omitted Loot to opt out. New exports always name their deck.
+        scenario = scenario with { Loot = (scenario.Loot ?? LootSettings.Empty).Normalize() };
         beforeCreation?.Invoke(scenario);
         _ = GameEngine.CreateGame(scenario);
         return scenario;

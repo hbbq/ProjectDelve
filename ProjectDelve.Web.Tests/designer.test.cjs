@@ -1268,3 +1268,21 @@ test("restore bundled scenario uses token and preserves workspace on conflict", 
   assert.equal(h.editor.documentData().librarySource.source, "override");
   assert.equal(h.editor.ui.main.inert, false);
 });
+
+test('Loot overrides preserve other unfinished group edits and restore inheritance without copying content', () => {
+  const h = harness(); h.editor.draft.replace(designerSetup); h.editor.render();
+  let form = h.editor.ui.agency.children[0];
+  const id = form.dataset.groupType;
+  enter(inputField(form, 'SideId'), 'unfinished-side');
+  let panel = form.querySelectorAll('details').find(d => d.dataset.lootType === id);
+  change(inputField(panel, 'Drop probability'), '0');
+  press(panel, 'Apply Loot settings');
+  assert.equal(h.editor.draft.snapshot().lootUnitOverrides[id].dropSuccesses, 0);
+  form = h.editor.ui.agency.children[0];
+  assert.equal(inputField(form, 'SideId').value, 'unfinished-side');
+  panel = form.querySelectorAll('details').find(d => d.dataset.lootType === id);
+  change(inputField(panel, 'Drop probability'), 'default');
+  press(panel, 'Apply Loot settings');
+  assert.equal(h.editor.draft.snapshot().lootUnitOverrides, undefined);
+  assert.equal(inputField(h.editor.ui.agency.children[0], 'SideId').value, 'unfinished-side');
+});

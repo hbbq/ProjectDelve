@@ -46,6 +46,13 @@ public static class UnitAuthoring
     public static Entry Footprint2x2() => new FootprintEntry();
     public static Entry OpenDoor() => new OpenDoorEntry();
     public static Entry Phase() => new PhaseEntry();
+    public static Entry Loot(int dropSuccesses, bool items = false, bool equipment = false) => new LootEntry(dropSuccesses, items, equipment);
+    private sealed class LootEntry(int successes, bool items, bool equipment) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => successes is >= 0 and <= 6
+            ? type with { LootDropSuccesses = successes, CanHaveItems = items, CanHaveEquipment = equipment }
+            : throw new ArgumentOutOfRangeException(nameof(successes));
+    }
     public static Entry TransportResource() => new TransportResourceEntry();
     public static Entry ResourceStorage(ResourceType type, int capacity) => new StorageEntry(new([new(type, capacity)]));
     public static Entry ResourceStorage(params ResourceStorageCapacity[] capacities) => new StorageEntry(new([.. capacities]));

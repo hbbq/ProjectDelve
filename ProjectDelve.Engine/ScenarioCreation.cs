@@ -103,6 +103,15 @@ internal static class ScenarioCreation
             throw new ArgumentException("Scenario Unit Types must be unique and declared.", nameof(definition));
         var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id, customTypes)
             ?? throw new ArgumentException($"Unknown Unit Type ID '{id}'.", nameof(definition))).ToList();
+        foreach (var (id, settings) in definition.LootUnitOverrides ?? [])
+        {
+            var index = types.FindIndex(t => t.Id == id);
+            if (index < 0 || settings is null || settings.DropSuccesses is < 0 or > 6)
+                throw new ArgumentException("Loot overrides require declared Unit Types and drop successes from 0 to 6.");
+            var type = types[index];
+            types[index] = type with { LootDropSuccesses = settings.DropSuccesses ?? type.LootDropSuccesses,
+                CanHaveItems = settings.CanHaveItems ?? type.CanHaveItems, CanHaveEquipment = settings.CanHaveEquipment ?? type.CanHaveEquipment };
+        }
         var overrides = board.Cells.ToDictionary(c => c.Position);
         List<TerrainTile> terrain = [];
         if (board.DefaultTerrain == TerrainKind.StoneFloor)
@@ -117,9 +126,9 @@ internal static class ScenarioCreation
             }
         var state = new GameState
         {
-            LootDeck = definition.Loot is null ? null : new LootDeck
+            LootDeck = new LootDeck
             {
-                DrawPile = (definition.Loot.Cards ?? throw new ArgumentException("Loot requires card composition."))
+                DrawPile = (definition.Loot ?? new LootSettings()).ResolveCards()
                     .Select((kind, index) => new OwnedObject($"loot-card-{index + 1}", kind)).ToList()
             },
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],

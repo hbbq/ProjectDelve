@@ -19,7 +19,9 @@ Designer**, **Play this preview**, and **Export DELVE1** operate on that preview
 even when newer controls differ. Designer labels later edits as modifications of
 the original recipe. Designer source metadata is retained in draft recovery;
 it never enters gameplay state. DELVE1 preserves the exact concrete scenario and
-is preferred for long-term preservation, including edited scenarios.
+is preferred for long-term preservation, including edited scenarios. Its Loot preset
+references and central card rules remain live; use Copy to Custom in Designer to
+preserve independent card quantities.
 
 ## DNG1 contract
 
@@ -35,7 +37,13 @@ Complete example:
 DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF
 ```
 
-Fields are strict and ordered. Tokens are uppercase, dimensions use lowercase
+The Loot Deck selector offers Classic (default), Fun, Experimental and Far Out.
+Generated definitions retain a live preset ID and use canonical Unit Type drop rates;
+they do not copy deck contents or create drop overrides. Preset choice does not change
+the generated layout or population. Old DNG1 recipes without a Loot field use Classic.
+DELVE1 files made before presets retain their original no-Loot configuration on import.
+
+Fields are strict and ordered. Tokens are uppercase except the named Loot preset, dimensions use lowercase
 `x`, and hexadecimal seed input accepts either case. Outer whitespace is ignored.
 Canonical output has uppercase hexadecimal seeds, exactly 16 digits, and no
 redundant decimal zeroes. `OR4` normalizes to `ORA`. Missing seeds are completed
@@ -55,6 +63,7 @@ once per generation operation with 64 cryptographically random bits.
 | ORA | All four initial Heroes must Reach Area |
 | OR1–OR3 | At least that many initial Heroes must Reach Area simultaneously |
 | F | 1 enables Hero FoW, 0 disables it; Monster FoW is always disabled |
+| Q | Optional live Loot preset after F, before S: `QClassic`, `QFun`, `QExperimental`, `QFarOut`; Classic is omitted in canonical output |
 | S | Optional unsigned 64-bit hexadecimal seed |
 
 The interior can hold at most `floor((width - 2) / 6) * floor((height - 2) / 6)`

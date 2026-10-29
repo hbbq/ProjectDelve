@@ -23,7 +23,7 @@ public sealed class LootSetupTests
     {
         var definition = Setup() with { Loot = new([LootCardKind.PocketBreakfast]) };
         Assert.Contains("available draw card", Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition)).Message);
-        Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition with { Loot = null }));
+        Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition with { Loot = LootSettings.Empty }));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class LootSetupTests
         Assert.Equal(2, state.LootDeck!.DrawPile.Count);
         Assert.Equal(LootCardKind.LuckyBoots, Assert.Single(state.Units[0].Inventory).Kind);
         Assert.Equal(LootCardKind.GoatBell, Assert.Single(state.Units[1].Inventory).Kind);
-        var withoutDeck = GameEngine.CreateGame(Setup() with { Loot = null, LootMarkers = null });
+        var withoutDeck = GameEngine.CreateGame(Setup() with { Loot = LootSettings.Empty, LootMarkers = null });
         Assert.Single(withoutDeck.Units[0].Inventory);
         Assert.Single(withoutDeck.GroundObjects);
     }

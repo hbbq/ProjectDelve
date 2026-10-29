@@ -325,7 +325,7 @@ public static class DungeonGenerator
             if (shaman && !agency.Any(a => a.UnitTypeId == UnitTypeIds.Goblin)) agency.Add(new(UnitTypeIds.Goblin, HeroesVsMonsters.Monsters, ControllerKind.Automated));
             var required = code.RequiredHeroes;
             var destinationRoom = rooms[destination];
-            var definition = shell with { UnitTypeIds = types, Agency = agency, FogOfWarSides = code.FogOfWar ? [HeroesVsMonsters.Heroes] : null,
+            var definition = shell with { UnitTypeIds = types, Agency = agency, Loot = new() { Preset = code.LootPreset }, FogOfWarSides = code.FogOfWar ? [HeroesVsMonsters.Heroes] : null,
                 Objectives = required == 0 ? [new(HeroesVsMonsters.Heroes), new(HeroesVsMonsters.Monsters)] :
                 [new(HeroesVsMonsters.Heroes, ScenarioObjective.ReachArea) { Count = required == 4 ? 0 : required,
                     Selectors = [UnitSelector.SideAtStart(HeroesVsMonsters.Heroes)], Area = new(destinationRoom.X, destinationRoom.Y, destinationRoom.Width, destinationRoom.Height) },

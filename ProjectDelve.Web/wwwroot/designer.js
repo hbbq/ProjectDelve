@@ -116,10 +116,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
   function reviewForm(key) {
     if (key.startsWith("selection:")) { try { selection = JSON.parse(key.slice(10)); } catch {} showPanel("inspect"); }
-    else showPanel(key.startsWith("route:") || key.startsWith("waypoint:") ? "routes" : key.startsWith("side:") || key.startsWith("objective:") ? "sides" : key.startsWith("agency:") || key === "agency-form" ? "groups" : "board");
+    else showPanel(key.startsWith("route:") || key.startsWith("waypoint:") ? "routes" : key.startsWith("side:") || key.startsWith("objective:") ? "sides" : key.startsWith("agency:") || key.startsWith("loot-type:") || key === "agency-form" ? "groups" : "board");
     if (key.startsWith("objective:")) objectiveSide = key.slice(10);
     render();
-    for (const form of ui.main.querySelectorAll("form")) if (form.dataset.formKey === key) { form.scrollIntoView?.({ block: "nearest" }); form.querySelector?.("input,select")?.focus(); }
+    for (const form of [...ui.main.querySelectorAll("form"), ...ui.main.querySelectorAll("details")]) if (form.dataset.formKey === key) {
+      if (form.dataset.lootType) form.open = true;
+      form.scrollIntoView?.({ block: "nearest" }); form.querySelector?.("input,select")?.focus();
+    }
   }
   function editorForm(key, immediate = false) {
     const form = element("form"); form.className = "designer-property-form"; form.dataset.formKey = key;
@@ -293,11 +296,27 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   });
   function syncWorldFields() {
     const lootForm = editorForm('loot-deck'); lootForm.id = 'designer-loot-deck';
-    lootForm.append(element('h2', 'Loot Deck'), element('p', 'Finite supply. Each unopened marker reserves one card; drawn cards never return.'));
-    const counts = (catalog.lootCards ?? []).map(c => ({ kind: c.kind, input: field(lootForm, c.name,
-      (draft.definition.loot?.cards ?? []).filter(k => k === c.kind).length, { type: 'number' }) }));
-    lootForm.append(element('button', 'Apply Loot Deck'));
-    lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({ kind: c.kind, count: Number(c.input.value) })))); });
+    lootForm.append(element('h2', 'Loot Deck'));
+    const custom = !draft.definition.loot || draft.definition.loot.cards != null || draft.definition.loot.composition != null;
+    const selected = custom ? 'Custom' : draft.definition.loot?.preset ?? catalog.defaultLootPreset ?? 'Classic';
+    const selector = field(lootForm, 'Deck', selected, { entries: [...(catalog.lootPresets ?? []).map(p => ({value:p.id,label:p.name})), {value:'Custom',label:'Custom'}] });
+    selector.id = 'designer-loot-preset';
+    selector.addEventListener('change', () => { delete buffers['loot-deck']; commit(() => selector.value === 'Custom' ? draft.copyLootToCustom() : draft.setLootPreset(selector.value)); });
+    const preset = catalog.lootPresets?.find(p => p.id === selected);
+    lootForm.append(element('p', custom ? 'Custom composition. Card rules stay live; quantities belong to this scenario. An empty deck disables drops.' : 'Live preset. New games use its current composition; saving does not copy its cards.'));
+    if (preset) lootForm.append(element('p', preset.description));
+    const rows = draft.lootComposition();
+    lootForm.append(element('p', `${rows.reduce((sum,r) => sum + r.count,0)} cards. Each unopened marker reserves one card. No reshuffle.`));
+    if (custom) {
+      const counts = (catalog.lootCards ?? []).map(c => ({ kind:c.kind, input:field(lootForm,c.name,rows.find(r => r.kind === c.kind)?.count ?? 0,{type:'number'}) }));
+      lootForm.append(element('button', 'Apply Custom Deck'));
+      lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({kind:c.kind,count:Number(c.input.value)})))); });
+    } else {
+      const list = element('ul'); list.className = 'loot-preset-contents';
+      for (const row of rows) list.append(element('li', `${catalog.lootCards?.find(c => c.kind === row.kind)?.name ?? row.kind} \u00d7${row.count}`));
+      lootForm.append(list, button('Copy to Custom', () => commit(() => draft.copyLootToCustom())));
+      lootForm.addEventListener('submit', event => event.preventDefault());
+    }
     document.getElementById('designer-loot-editor').replaceChildren(lootForm);
     const world = draft.definition.worldEffects;
     ui["world-enabled"].checked = !!world;
@@ -899,12 +918,17 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       form.append(button("Highlight group", () => { highlightedGroup = { unitTypeId: row.unitTypeId, sideId: row.sideId }; objectiveSide = null; renderBoard(); }));
       const capacities = draft.metadata(row.unitTypeId)?.resourceStorage?.capacities ?? [];
       const lootType = draft.definition.unitTypes?.find(t => t.id === row.unitTypeId) ?? draft.metadata(row.unitTypeId)?.definition;
-      const lootPanel = element('details'); lootPanel.append(element('summary', 'Loot & ownership · Unit Type')); form.append(lootPanel);
-      const dropChance = field(lootPanel, 'Drop successes (0–6)', lootType?.lootDropSuccesses ?? 0, { type: 'number' });
-      const items = field(lootPanel, 'Can Have Items', lootType?.canHaveItems ? 'Yes' : 'No', { entries: ['No', 'Yes'] });
-      const equipment = field(lootPanel, 'Can Have Equipment', lootType?.canHaveEquipment ? 'Yes' : 'No', { entries: ['No', 'Yes'] });
-      lootPanel.append(button('Apply Loot capabilities', () => commit(() => draft.configureLootType(row.unitTypeId,
-        Number(dropChance.value), items.value === 'Yes', equipment.value === 'Yes'))));
+      const lootPanel = element('details'); lootPanel.dataset.lootType = row.unitTypeId; lootPanel.dataset.formKey = `loot-type:${row.unitTypeId}`; lootPanel.append(element('summary', 'Loot & ownership · Unit Type')); form.append(lootPanel);
+      const overrides = draft.definition.lootUnitOverrides?.[row.unitTypeId] ?? {};
+      const dropChance = field(lootPanel, 'Drop probability', overrides.dropSuccesses ?? 'default', { entries: [{value:'default',label:`Unit Type default (${lootType?.lootDropSuccesses ?? 0}/6)`}, ...Array.from({length:7},(_,i) => ({value:String(i),label:`Override: ${i}/6`}))] });
+      const capability = (label, key) => field(lootPanel,label,overrides[key] == null ? 'default' : overrides[key] ? 'Yes' : 'No', {entries:[{value:'default',label:`Unit Type default (${lootType?.[key] ? 'Yes' : 'No'})`},'No','Yes']});
+      const items = capability('Can Have Items','canHaveItems'), equipment = capability('Can Have Equipment','canHaveEquipment');
+      const value = input => input.value === 'default' ? null : input.value === 'Yes';
+      lootPanel.append(button('Apply Loot settings', () => commit(() => draft.configureLootType(row.unitTypeId,
+        dropChance.value === 'default' ? null : Number(dropChance.value), value(items), value(equipment)), [lootPanel.dataset.formKey])));
+      if (buffers[lootPanel.dataset.formKey]) lootPanel.append(button('Discard unfinished Loot settings', () => {
+        delete buffers[lootPanel.dataset.formKey]; persist(); render();
+      }));
       const inventoryPanel = element("details"), inventoryFields = element("div"); inventoryFields.className = "designer-coordinate-grid";
       if (capacities.length) {
         const quantity = (draft.definition.storedResources ?? []).filter(r => r.unitTypeId === row.unitTypeId && r.sideId === row.sideId).reduce((sum, r) => sum + r.quantity, 0);

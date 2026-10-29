@@ -17,6 +17,7 @@ public sealed class LavaTests
 
     private static ScenarioDefinition Fixture(params Cell[] lava) => new()
     {
+        Loot = LootSettings.Empty, // This fixture isolates non-Loot resolution and dice.
         Board = new() { Width = 8, Height = 7,
             Cells = lava.Select(c => new CellDefinition(c, TerrainKind.Lava)).ToList() },
         UnitTypeIds = [UnitTypeIds.Worker, UnitTypeIds.Geomancer, UnitTypeIds.Troll, UnitTypeIds.Grunt],
@@ -222,6 +223,7 @@ public sealed class LavaTests
     {
         var definition = new ScenarioDefinition
         {
+            Loot = LootSettings.Empty, // Isolate World/Lava dice and event ordering.
             Board = new() { Width = 8, Height = 7, Cells = [new(new(2, 2), TerrainKind.Lava)] },
             WorldEffects = new(1, 1),
             UnitTypeIds = [UnitTypeIds.BombImp, UnitTypeIds.Worker, UnitTypeIds.Troll, UnitTypeIds.Grunt],

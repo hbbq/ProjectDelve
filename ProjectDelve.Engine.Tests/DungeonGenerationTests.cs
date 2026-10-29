@@ -57,11 +57,11 @@ public sealed class DungeonGenerationTests(ITestOutputHelper output)
         Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition with { Units = [new(UnitTypeIds.Ghost, "side", new(1, 0))] }));
     }
     [Theory]
-    [InlineData(0UL, "43392B608B21A995")]
-    [InlineData(1UL, "3894B26D29C5A6BE")]
-    [InlineData(42UL, "6CB0BAB663D2F5F0")]
-    [InlineData(0x0123456789abcdefUL, "B2AB7BD4D61A1C52")]
-    [InlineData(ulong.MaxValue, "0FEB2AD25453D97F")]
+    [InlineData(0UL, "549EA747A9F23231")]
+    [InlineData(1UL, "F155489827A4183A")]
+    [InlineData(42UL, "BE1FB8CB14460594")]
+    [InlineData(0x0123456789abcdefUL, "7F40B0849B1C4588")]
+    [InlineData(ulong.MaxValue, "A8C2F6E9B5102400")]
     public void Dng1RegressionSeeds(ulong seed, string fingerprint) =>
         Assert.Equal(fingerprint, DungeonGenerator.Generate(new GenerationCode(Seed: seed)).Fingerprint);
     [Theory]

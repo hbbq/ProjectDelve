@@ -20,6 +20,7 @@ public sealed class RailwayTests
 
     private static ScenarioDefinition Fixture(params UnitPlacement[] obstacles) => new()
     {
+        Loot = LootSettings.Empty, // This fixture isolates non-Loot resolution and dice.
         Board = new() { Width = 8, Height = 5,
             Cells = Enumerable.Range(0, 7).Select(x => new CellDefinition(new(x, 1), TerrainKind.Rail, RailDirection.East))
                 .Concat([new(new(7, 1), TerrainKind.Rail, RailDirection.South),

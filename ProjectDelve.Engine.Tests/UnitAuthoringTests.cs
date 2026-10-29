@@ -207,40 +207,40 @@ public sealed class UnitAuthoringTests
         // Independent runtime fixture, including the current printed ability names.
         (Func<string, UnitType> Factory, UnitType Expected)[] content =
         [
-            (UnitType.Grunt, new("grunt-type", 3, 1, 3, 3, 1) { DisplayName = "Grunt" }),
+            (UnitType.Grunt, new("grunt-type", 3, 1, 3, 3, 1) { DisplayName = "Grunt", LootDropSuccesses = 1 }),
             (UnitType.Zombie, new("zombie-type", 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { TransportResource = new(), DisplayName = "Zombie", AbilityNames = new() { TryOpenDoor = "Break Door" } }),
+                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { TransportResource = new(), DisplayName = "Zombie", LootDropSuccesses = 1, AbilityNames = new() { TryOpenDoor = "Break Door" } }),
             (UnitType.SkeletonArcher, new("skeleton-archer-type", 3, 4, 3, 3, 1,
-                Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer" }),
+                Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer", LootDropSuccesses = 1 }),
             (UnitType.Goblin, new("goblin-type", 4, 1, 2, 2, 1, MoveAfterAttack: new(1),
-                Behaviors: UnitBehavior.BackAwayAfterAttack) { DisplayName = "Goblin" }),
-            (UnitType.BombImp, new("bomb-imp-type", 3, 1, 2, 2, 1, Behaviors: UnitBehavior.PreferHostileAdjacency | UnitBehavior.ProtectWithoutAdjacency) { DisplayName = "Bomb Imp", Explosion = new() }),
+                Behaviors: UnitBehavior.BackAwayAfterAttack) { DisplayName = "Goblin", LootDropSuccesses = 1 }),
+            (UnitType.BombImp, new("bomb-imp-type", 3, 1, 2, 2, 1, Behaviors: UnitBehavior.PreferHostileAdjacency | UnitBehavior.ProtectWithoutAdjacency) { DisplayName = "Bomb Imp", LootDropSuccesses = 1, Explosion = new() }),
             (UnitType.Troll, new("troll-type", 2, 1, 4, 4, 1, TryOpenDoor: new(4),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", Undying = new(), AbilityNames = new() { TryOpenDoor = "Smash Door" } }),
+                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", LootDropSuccesses = 2, Undying = new(), AbilityNames = new() { TryOpenDoor = "Smash Door" } }),
             (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent,
-                Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { DisplayName = "Shaman", SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
+                Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { DisplayName = "Shaman", LootDropSuccesses = 2, SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
                 AbilityNames = new() { Summon = "Summon Goblin" } }),
             (UnitType.Geomancer, new("geomancer-type", 2, 0, 0, 3, 1, Actions: UnitAction.PickupResource | UnitAction.SummonWorker | UnitAction.SummonTroll,
-                Behaviors: UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker) { SummonWorker = new(3), SummonTroll = new(1), ResourceStorage = new([new(ResourceTypes.Diamond, 1)]), DisplayName = "Geomancer" }),
+                Behaviors: UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker) { SummonWorker = new(3), SummonTroll = new(1), ResourceStorage = new([new(ResourceTypes.Diamond, 1)]), DisplayName = "Geomancer", LootDropSuccesses = 2 }),
             (UnitType.Barbarian, new("barbarian-type", 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
             {
-                Unique = true, DisplayName = "Barbarian", Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },
+                Unique = true, DisplayName = "Barbarian", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },
                 Cleave = new(2) { TriggerDamage = 2, Damage = 1 }, BonusActions = [new("Rage", 2, [new(Stat.Atk, 2)])]
             }),
             (UnitType.Rogue, new("rogue-type", 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
             {
-                Unique = true, DisplayName = "Rogue", Backstab = new() { AtkBonus = 1 },
+                Unique = true, DisplayName = "Rogue", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Backstab = new() { AtkBonus = 1 },
                 BonusActions = [new("Dash", 2, [new(Stat.Mov, 2)]), new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
             }),
             (UnitType.Cleric, new("cleric-type", 3, 1, 3, 3, 4,
                 Actions: UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave, FreeActions: UnitFreeAction.OpenDoor)
             {
-                Unique = true, DisplayName = "Cleric", Heal = new(2) { Amount = 2 }, HolyWave = new(2), AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
+                Unique = true, DisplayName = "Cleric", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Heal = new(2) { Amount = 2 }, HolyWave = new(2), AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
             }),
             (UnitType.Wizard, new("wizard-type", 3, 4, 3, 2, 4,
                 Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
             {
-                Unique = true, DisplayName = "Wizard", Fireball = new(2),
+                Unique = true, DisplayName = "Wizard", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Fireball = new(2),
                 AttackDefinitionOrder = [UnitAction.NormalAttack, UnitAction.Fireball],
                 BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
             })

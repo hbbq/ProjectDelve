@@ -52,7 +52,8 @@ public sealed class ScenarioDefinitionJsonTests
     {
         using var doc = JsonDocument.Parse(ScenarioDefinitionJson.ToJson(Example()));
         var root = doc.RootElement;
-        Assert.Equal(new[] { "board", "unitTypeIds", "units", "agency" }, root.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(new[] { "loot", "board", "unitTypeIds", "units", "agency" }, root.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("Classic", root.GetProperty("loot").GetProperty("preset").GetString());
         var board = root.GetProperty("board");
         Assert.Equal(new[] { "width", "height", "defaultTerrain", "cells", "edges" }, board.EnumerateObject().Select(p => p.Name));
         Assert.Equal("Grass", board.GetProperty("defaultTerrain").GetString());

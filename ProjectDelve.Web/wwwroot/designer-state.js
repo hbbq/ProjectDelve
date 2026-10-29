@@ -5,7 +5,7 @@ export class DesignerDraft {
     this.nextKey = 0;
     this.revision = 0;
     this.replace({ board: { width: 15, height: 15, defaultTerrain: "StoneFloor", cells: [], edges: [] },
-      unitTypeIds: [], units: [], agency: [] });
+      unitTypeIds: [], units: [], agency: [], loot: { preset: catalog.defaultLootPreset ?? "Classic" } });
   }
   replace(definition) {
     if (!this.dimensionsAllowed(definition.board.width, definition.board.height))
@@ -21,15 +21,32 @@ export class DesignerDraft {
     else delete this.definition.worldEffects;
     this.changed();
   }
-  setLootDeck(rows) {
-    if (rows.some(r => !Number.isInteger(r.count) || r.count < 0 || r.count > 1000)) throw new Error("Use 0–1000 copies per card.");
-    this.definition.loot = { cards: rows.flatMap(r => Array(r.count).fill(r.kind)) }; this.changed();
+  lootComposition() {
+    if (!this.definition.loot) return [];
+    if (this.definition.loot.cards) {
+      const counts = new Map();
+      for (const kind of this.definition.loot.cards) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+      return [...counts].map(([kind,count]) => ({kind,count}));
+    }
+    return this.definition.loot?.composition ?? this.catalog.lootPresets?.find(p => p.id === (this.definition.loot?.preset ?? this.catalog.defaultLootPreset ?? "Classic"))?.composition ?? [];
   }
-  configureLootType(id, lootDropSuccesses, canHaveItems, canHaveEquipment) {
-    const types = this.definition.unitTypes ??= [];
-    const original = types.find(t => t.id === id) ?? this.metadata(id)?.definition;
-    if (!original) throw new Error("Unit Type content is still loading.");
-    upsert(types, t => t.id === id, { ...structuredClone(original), lootDropSuccesses, canHaveItems, canHaveEquipment });
+  setLootPreset(preset) {
+    if (!this.catalog.lootPresets?.some(p => p.id === preset)) throw new Error("Unknown Loot preset.");
+    this.definition.loot = { preset }; this.changed();
+  }
+  copyLootToCustom() {
+    this.definition.loot = { composition: structuredClone(this.lootComposition()) }; this.changed();
+  }
+  setLootDeck(rows) {
+    if (rows.some(r => !Number.isInteger(r.count) || r.count < 0 || r.count > 1000)) throw new Error("Use 0-1000 copies per card.");
+    this.definition.loot = { composition: rows.filter(r => r.count > 0).map(r => ({kind:r.kind, count:r.count})) }; this.changed();
+  }
+  configureLootType(id, dropSuccesses, canHaveItems, canHaveEquipment) {
+    if (dropSuccesses != null && (!Number.isInteger(dropSuccesses) || dropSuccesses < 0 || dropSuccesses > 6)) throw new Error("Use 0-6 drop successes or the Unit Type default.");
+    const values = Object.fromEntries(Object.entries({dropSuccesses, canHaveItems, canHaveEquipment}).filter(([,v]) => v != null));
+    const overrides = this.definition.lootUnitOverrides ??= {};
+    if (Object.keys(values).length) overrides[id] = values; else delete overrides[id];
+    if (!Object.keys(overrides).length) delete this.definition.lootUnitOverrides;
     this.changed();
   }
   objectIdentity(prefix) {
@@ -386,7 +403,7 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
       ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
-      d.loot != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) ||
+      d.loot != null && (typeof d.loot !== 'object' || d.loot.cards != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) || d.loot.composition != null && !Array.isArray(d.loot.composition) || d.loot.preset != null && typeof d.loot.preset !== 'string') ||
       (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
       (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || typeof g.object.kind !== 'string') ||
       d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || typeof o.kind !== 'string'))) ||

@@ -4,7 +4,7 @@ import { styleSide } from "./side-colors.js";
 
 const byId = id => document.getElementById(`generator-${id}`);
 const dialog = document.getElementById("dungeon-generator");
-const fields = ["width", "height", "rooms", "excavation", "connectivity", "doors", "density", "difficulty", "objective", "required", "fog", "seed"];
+const fields = ["width", "height", "rooms", "excavation", "connectivity", "doors", "density", "difficulty", "objective", "required", "fog", "loot", "seed"];
 const state = new GeneratorSession();
 let playing = false, currentGameCode = null;
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));

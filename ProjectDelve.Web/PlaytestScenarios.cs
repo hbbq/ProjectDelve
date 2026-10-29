@@ -55,7 +55,13 @@ public static class PlaytestScenarios
 
     public static GameState Create(string id) => GameEngine.CreateGame(Definition(id));
 
-    public static ScenarioDefinition Definition(string id) => id switch
+    public static ScenarioDefinition Definition(string id)
+    {
+        var definition = AuthoredDefinition(id);
+        return definition with { Loot = definition.Loot ?? LootSettings.Empty };
+    }
+
+    private static ScenarioDefinition AuthoredDefinition(string id) => id switch
     {
         "loot-equipment" => LootPlaytestScenario.Definition(),
         "chess" => DelveChessScenario.ChessDefinition(),

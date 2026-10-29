@@ -4,6 +4,7 @@ namespace ProjectDelve.Engine;
 public sealed record ScenarioDefinition
 {
     public LootSettings? Loot { get; init; }
+    public Dictionary<string, LootUnitOverride>? LootUnitOverrides { get; init; }
     public List<LootMarker>? LootMarkers { get; init; }
     public List<GroundObject>? GroundObjects { get; init; }
     public List<string>? NeutralSides { get; init; }
