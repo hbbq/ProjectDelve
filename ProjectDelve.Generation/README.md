@@ -1,4 +1,4 @@
-# Procedural dungeon generator V1
+# Procedural scenario generators
 
 `DungeonGenerator.Generate(GenerationCode)` produces an ordinary, validated
 `ScenarioDefinition`. Generation is setup/authoring; the game engine owns all
@@ -23,7 +23,7 @@ is preferred for long-term preservation, including edited scenarios. Its Loot pr
 references and central card rules remain live; use Copy to Custom in Designer to
 preserve independent card quantities.
 
-## DNG1 contract
+## Heroes vs Monsters: DNG1 contract
 
 Example prefix:
 
@@ -88,12 +88,9 @@ population or placement through bounded-integer rejection sampling. No runtime h
 sequence participates. Content density/difficulty/Objective changes preserve
 geometry and Hero placement for the same seed and geometry configuration.
 
-**DNG1 is under active development.** Its current implementation is deterministic:
-the same complete configuration and seed produce the same ScenarioDefinition in
-Preview, Designer transfer and Play Unseen. Development refinements may change
-what an earlier DNG1 code generates. There is no historical algorithm, migration
-layer or DNG2. Current regression fingerprints are updated with intentional tuning;
-they check the current implementation, not permanent historical output.
+**DNG1 output is preserved by this implementation.** Overgrown Stronghold uses
+its own `DNG2-OS` recipe and does not alter Heroes vs Monsters seed streams or
+fingerprints. Future output-affecting changes require a distinct generator version.
 
 Use **DELVE1** to preserve a good dungeon exactly, including for campaigns.
 It stores the concrete ScenarioDefinition rather than a generator recipe.
@@ -203,9 +200,13 @@ short, narrow connections at their boundaries. Two Cells is the majority
 measured width in every setting; narrow Door portals remain useful chokepoints.
 These are corpus measurements, not individual-seed balance guarantees.
 
-V1 intentionally has one profile, no combat-balance guarantee, no campaign/runtime
+Heroes vs Monsters has no combat-balance guarantee, no campaign/runtime
 expansion machinery, and no historical compatibility framework. Dedicated Solid
 Rock artwork and playtest-driven balance/layout tuning are future work; output
-tuning continues within DNG1. The approved closed-corner LOS rule is implemented
+tuning requires a new generator version. The approved closed-corner LOS rule is implemented
 in the shared engine geometry; see the follow-up in [VERIFICATION.md](VERIFICATION.md).
 Generator tuning does not define those gameplay rules.
+
+## Overgrown Stronghold
+
+See [Overgrown Stronghold (DNG2-OS)](STRONGHOLD.md) for the mission planner, controls, encounters, treasure scaling and quality gates. DNG1-HVM output remains unchanged.

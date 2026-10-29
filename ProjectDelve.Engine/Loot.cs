@@ -53,12 +53,17 @@ public sealed record LootSettings
     public LootSettings() { }
     public LootSettings(List<LootCardKind> cards) => Composition = cards.GroupBy(k => k).Select(g => new LootCardQuantity(g.Key, g.Count())).ToList();
     public string? Preset { get; init; }
+    // Null preserves the original unscaled serialization and means one copy.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? PresetMultiplier { get; init; }
     public List<LootCardQuantity>? Composition { get; init; }
     // Read compatibility for the original repeated-ID format; normalized on export.
     public List<LootCardKind>? Cards { get; init; }
     public static LootSettings Empty => new() { Composition = [] };
     public LootSettings Normalize()
     {
+        if (PresetMultiplier is < 1 or > 100 || PresetMultiplier is not null && (Composition is not null || Cards is not null))
+            throw new ArgumentException("Loot preset multiplier must be 1..100 and is only valid for live presets.");
         if (Cards is not null)
         {
             if (Preset is not null || Composition is not null) throw new ArgumentException("Loot must specify either a preset or a Custom composition.");
@@ -70,7 +75,8 @@ public sealed record LootSettings
     public IReadOnlyList<LootCardQuantity> ResolveComposition()
     {
         var normalized = Normalize();
-        var rows = normalized.Composition ?? LootPresets.Find(normalized.Preset!).Composition;
+        IReadOnlyList<LootCardQuantity> rows = normalized.Composition ?? LootPresets.Find(normalized.Preset!).Composition
+            .Select(r => r with { Count = checked(r.Count * (normalized.PresetMultiplier ?? 1)) }).ToList();
         if (rows.Any(r => r is null || !Enum.IsDefined(r.Kind) || r.Count is < 1 or > 1000) ||
             rows.Select(r => r.Kind).Distinct().Count() != rows.Count || rows.Sum(r => r.Count) > 6000)
             throw new ArgumentException("Custom Loot needs unique card IDs with quantities from 1 to 1000.");

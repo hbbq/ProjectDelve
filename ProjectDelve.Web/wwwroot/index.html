@@ -258,19 +258,23 @@
     <section class="designer-feedback" aria-label="Editing and validation status"><p id="designer-status" role="status">Unchecked · validate before testing</p><div id="designer-errors" role="alert"></div><div class="designer-pending-row"><div id="designer-pending"></div><button id="designer-discard-inputs">Discard unfinished inputs</button></div></section>
   </main>
   <dialog id="dungeon-generator" aria-labelledby="generator-heading">
-    <div class="generator-heading"><div><span class="designer-eyebrow">DUNGEON WORKSHOP · V1</span><h2 id="generator-heading">Heroes vs Monsters</h2></div><button id="generator-close" type="button">Close</button></div>
+    <div class="generator-heading"><div><span class="designer-eyebrow">ADVENTURE WORKSHOP</span><h2 id="generator-heading">Heroes vs Monsters</h2></div><button id="generator-close" type="button">Close</button></div>
     <div class="generator-body">
-    <p class="legend">Four Heroes. An unknown dungeon. A code you can replay. Preview reveals the whole map; Play Unseen goes straight to gameplay.</p>
+    <p class="legend">Four Heroes. An unknown adventure. A code you can replay. Preview reveals the whole map; Play Unseen goes straight to gameplay.</p>
     <div class="generator-layout">
       <section class="generator-controls" aria-label="Dungeon configuration">
-        <label>Generation profile <select id="generator-profile"><option value="HVM">Heroes vs Monsters</option></select></label>
+        <label>Generation profile <select id="generator-profile"><option value="HVM">Heroes vs Monsters</option><option value="OS">Overgrown Stronghold</option></select></label>
+        <p id="generator-profile-description" class="legend">Connected dungeon rooms, corridors and encounters.</p>
         <div class="generator-fields">
           <label>Width <input id="generator-width" type="number" min="14" max="50" value="30"></label>
           <label>Height <input id="generator-height" type="number" min="14" max="50" value="20"></label>
-          <label>Rooms <input id="generator-rooms" type="number" min="2" max="24" value="8"></label>
-          <label>Excavation <select id="generator-excavation"><option value="1">Compact</option><option value="2" selected>Balanced</option><option value="3">Spacious</option></select></label>
-          <label>Connectivity <select id="generator-connectivity"><option value="0">Tree · no loops</option><option value="1">1 extra route</option><option value="2" selected>2 extra routes</option><option value="3">3 extra routes</option></select></label>
-          <label>Door density <select id="generator-doors"><option value="0">None</option><option value="1">Few</option><option value="2" selected>Normal</option><option value="3">Many</option></select></label>
+          <label id="generator-rooms-label">Rooms <input id="generator-rooms" type="number" min="2" max="24" value="8"></label>
+          <label id="generator-excavation-label">Excavation <select id="generator-excavation"><option value="1">Compact</option><option value="2" selected>Balanced</option><option value="3">Spacious</option></select></label>
+          <label id="generator-connectivity-label">Connectivity <select id="generator-connectivity"><option value="0">Tree · no loops</option><option value="1">1 extra route</option><option value="2" selected>2 extra routes</option><option value="3">3 extra routes</option></select></label>
+          <label id="generator-doors-label">Door density <select id="generator-doors"><option value="0">None</option><option value="1">Few</option><option value="2" selected>Normal</option><option value="3">Many</option></select></label>
+          <label id="generator-openness-label" hidden>Openness <select id="generator-openness"><option value="1">Sheltered</option><option value="2" selected>Balanced</option><option value="3">Open</option></select></label>
+          <label id="generator-terrain-label" hidden>Landscape <select id="generator-terrain"><option value="0">Meadow</option><option value="1">Woodland</option><option value="2" selected>Craggy woodland</option><option value="3">Ember ruins</option></select></label>
+          <label id="generator-treasure-label" hidden>Optional treasure <select id="generator-treasure"><option value="0">None</option><option value="1">A few caches</option><option value="2" selected>Standard caches</option><option value="3">Rich caches</option></select></label>
           <label>Monster density <select id="generator-density"><option value="1">Sparse</option><option value="2" selected>Normal</option><option value="3">Dense</option></select></label>
           <label>Difficulty <select id="generator-difficulty"><option value="1">1 · low Threat</option><option value="2">2</option><option value="3" selected>3 · mixed Threat</option><option value="4">4</option><option value="5">5 · high Threat</option></select></label>
           <label>Objective <select id="generator-objective"><option value="reach" selected>Reach Area</option><option value="eliminate">Eliminate Enemies</option></select></label>
@@ -278,7 +282,8 @@
           <label>Loot Deck <select id="generator-loot"><option value="Classic">Classic</option><option value="Fun">Fun</option><option value="Experimental">Experimental</option><option value="FarOut">Far Out</option></select></label>
           <label>Hero Fog of War <select id="generator-fog"><option value="1" selected>Enabled</option><option value="0">Disabled</option></select></label>
         </div>
-        <small>Dimensions 14–50; rooms need 6 × 6 regions. Extra routes are limited by distinct room pairs. Difficulty selects Threat; density selects population.</small>
+        <small id="generator-configuration-help">Dimensions 14–50; rooms need 6 × 6 regions. Extra routes are limited by distinct room pairs. Difficulty selects Threat; density selects population.</small>
+        <small id="generator-loot-help" hidden>Loot presets stay live. The deck is multiplied at setup when needed for caches and expected drops; the preview shows the multiplier. The deck remains finite.</small>
         <label>Seed · 16 hexadecimal digits, optional <input id="generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" spellcheck="false" autocomplete="off"></label>
         <button id="generator-random" type="button">Random Seed</button>
         <div class="generator-actions"><button id="generator-preview" class="designer-primary">Generate Preview</button><button id="generator-play" class="designer-primary">Play Unseen</button><button id="generator-another">Generate Another</button></div>

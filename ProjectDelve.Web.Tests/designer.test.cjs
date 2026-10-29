@@ -535,6 +535,31 @@ test("Lava paints and renders from the terrain catalog and survives export", asy
   assert.equal(submitted[0].board.cells.find(cell => cell.position.x === 1 && cell.position.y === 1).terrain, "Lava");
 });
 
+test("Lava Coal setting survives inspector edits, undo, recovery and export", async () => {
+  const submitted = [], h = harness(async (operation, body) => { submitted.push(plain(body)); return { transport: "DELVE1:lava" }; });
+  h.editor.draft.paintTerrain({x:1,y:1}, "Lava"); h.editor.render();
+  h.down(h.cell(1,1));
+  let form = h.editor.ui.properties.children[0];
+  assert.equal(inputField(form, "Coal generation").value, "On");
+  inputField(form, "Coal generation").value = "Off"; h.submit(form);
+  assert.equal(h.editor.draft.definition.board.cells[0].coalGeneration, false);
+  h.click("undo"); assert.equal(h.editor.draft.definition.board.cells[0].coalGeneration, undefined);
+  h.click("redo"); assert.equal(h.editor.draft.definition.board.cells[0].coalGeneration, false);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  await h.click("export");
+  assert.equal(submitted[0].board.cells[0].coalGeneration, false);
+  h.down(h.cell(1,1)); form = h.editor.ui.properties.children[0];
+  inputField(form, "Override").value = "Grass"; h.submit(form);
+  assert.equal(h.editor.draft.definition.board.cells[0].coalGeneration, undefined);
+});
+
+test("a default Lava Cell can disable Coal with an explicit Cell override", () => {
+  const h = harness(); h.editor.draft.definition.board.defaultTerrain = "Lava"; h.editor.render();
+  h.down(h.cell(1,1)); const form = h.editor.ui.properties.children[0];
+  inputField(form, "Coal generation").value = "Off"; h.submit(form);
+  assert.deepEqual(plain(h.editor.draft.definition.board.cells), [{position:{x:1,y:1},terrain:"Lava",coalGeneration:false}]);
+});
+
 test("all empty internal boundaries support canonical Right/Down upsert and removal", () => {
   const h = harness(); h.editor.setTool("Edge"); h.editor.ui.edge.value = "ClosedDoor";
   h.down(h.edge(1, 1, "Right")); h.move(h.edge(1, 2, "Right")); h.up();

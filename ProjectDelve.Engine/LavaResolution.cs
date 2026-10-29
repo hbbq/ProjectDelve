@@ -6,7 +6,7 @@ public static partial class GameEngine
     {
         var board = state.Physical.Board;
         // Both sources share the exact attempt order, d8 geometry and placement checks.
-        foreach (var lava in board.Terrain.Where(t => t.Kind is TerrainKind.Lava or TerrainKind.FruitTree)
+        foreach (var lava in board.Terrain.Where(t => t.Kind == TerrainKind.FruitTree || t.Kind == TerrainKind.Lava && t.CoalGeneration != false)
             .OrderBy(t => t.Position.Y).ThenBy(t => t.Position.X))
         {
             var fruit = lava.Kind == TerrainKind.FruitTree;

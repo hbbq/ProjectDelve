@@ -35,7 +35,11 @@ public sealed record BoardDefinition
     public List<EdgeDefinition> Edges { get; init; } = [];
 }
 
-public sealed record CellDefinition(Cell Position, TerrainKind Terrain, RailDirection? Direction = null);
+public sealed record CellDefinition(Cell Position, TerrainKind Terrain, RailDirection? Direction = null)
+{
+    // Omission preserves existing Lava behavior. Only Lava may author this setting.
+    public bool? CoalGeneration { get; init; }
+}
 public enum EdgeDirection { Right, Down }
 public sealed record EdgeDefinition(Cell Position, EdgeDirection Direction, EdgeKind Kind);
 public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor,

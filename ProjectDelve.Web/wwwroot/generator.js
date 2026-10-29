@@ -4,7 +4,7 @@ import { styleSide } from "./side-colors.js";
 
 const byId = id => document.getElementById(`generator-${id}`);
 const dialog = document.getElementById("dungeon-generator");
-const fields = ["width", "height", "rooms", "excavation", "connectivity", "doors", "density", "difficulty", "objective", "required", "fog", "loot", "seed"];
+const fields = ["profile", "width", "height", "rooms", "excavation", "connectivity", "doors", "openness", "terrain", "treasure", "density", "difficulty", "objective", "required", "fog", "loot", "seed"];
 const state = new GeneratorSession();
 let playing = false, currentGameCode = null;
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
@@ -12,16 +12,28 @@ const signature = () => JSON.stringify(config());
 function status(message) { byId("status").textContent = message; }
 function changed() {
   state.changed();
+  const stronghold = byId("profile").value === "OS";
+  byId("heading").textContent = stronghold ? "Overgrown Stronghold" : "Heroes vs Monsters";
+  byId("profile-description").textContent = stronghold ? "Explore a reclaimed fortress: outdoor approaches, ruined buildings, defenders and optional treasure." : "Connected dungeon rooms, corridors and encounters.";
+  for (const id of ["rooms", "excavation", "connectivity", "doors"]) byId(`${id}-label`).hidden = stronghold;
+  for (const id of ["openness", "terrain", "treasure"]) byId(`${id}-label`).hidden = !stronghold;
+  for (const id of ["width", "height"]) byId(id).min = stronghold ? "18" : "14";
+  byId("loot-help").hidden = !stronghold;
+  byId("configuration-help").textContent = stronghold ? "Dimensions 18–50. Try 18 × 18 for a compact encounter, 30 × 24 for an expedition, or 42 × 32 for exploration. Openness shapes approaches; landscape changes cover and atmosphere. Difficulty selects Threat; density selects population." : "Dimensions 14–50; rooms need 6 × 6 regions. Extra routes are limited by distinct room pairs. Difficulty selects Threat; density selects population.";
   byId("required-label").hidden = byId("objective").value !== "reach";
   try { byId("prefix").value = configurationCode(config(), false); }
   catch (error) { byId("prefix").value = ""; status(error.message); return; }
   status(state.result && state.outdated(signature()) ? "Preview outdated · configuration changed. The map and complete code below still belong to the previous generation." : state.result ? "Preview ready · complete map revealed." : "Ready. Preview reveals the map; Play Unseen keeps it hidden.");
 }
-for (const id of fields) byId(id).addEventListener("input", changed);
+for (const id of fields.filter(id => id !== "profile")) byId(id).addEventListener("input", changed);
+byId("profile").addEventListener("input", () => {
+  byId("width").value = "30"; byId("height").value = byId("profile").value === "OS" ? "24" : "20";
+  changed();
+});
 for (const node of document.querySelectorAll("[data-open-generator]")) node.addEventListener("click", () => {
   // Opening configuration must never reveal a retained omniscient preview from earlier work.
   byId("preview-content").hidden = true;
-  status("Configure a dungeon or load a code. Generate Preview reveals the map; Play Unseen keeps it hidden.");
+  status("Choose an adventure profile or load a code. Generate Preview reveals the map; Play Unseen keeps it hidden.");
   dialog.showModal();
 });
 byId("close").addEventListener("click", () => dialog.close());
@@ -40,7 +52,7 @@ function loadCode() {
 byId("load").addEventListener("click", () => { try { loadCode(); } catch (error) { status(error.message); } });
 async function generate(code = configurationCode(config())) {
   const ticket = state.begin(signature());
-  status("Generating dungeon…");
+  status("Generating adventure…");
   try {
     const response = await fetch("/api/generation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), cache: "no-store" });
     const result = await response.json();
@@ -57,12 +69,12 @@ async function play(code) {
   if (playing) return;
   playing = true; state.changed();
   // Hide any authoring result before submitting; the import publishes only the observed board.
-  byId("preview-content").hidden = true; status("Starting unseen dungeon…");
+  byId("preview-content").hidden = true; status("Starting unseen adventure…");
   for (const id of ["play", "code-play", "play-preview"]) byId(id).disabled = true;
   try {
     if (!globalThis.delvePlayGenerated) throw new Error("Playtest is still loading. Try again.");
     const loaded = await globalThis.delvePlayGenerated(code);
-    if (!loaded) throw new Error("Dungeon did not start. Check the Playtest error and retry.");
+    if (!loaded) throw new Error("Adventure did not start. Check the Playtest error and retry.");
     document.getElementById("mode-playtest").click(); dialog.close();
   } catch (error) { status(error.message); }
   finally { playing = false; for (const id of ["play", "code-play", "play-preview"]) byId(id).disabled = false; }
@@ -102,7 +114,7 @@ document.getElementById("generated-game-inspect").addEventListener("click", () =
   // A deliberate second click states the reveal warning; native confirmation dialogs are unnecessary.
   byId("code-input").value = currentGameCode; loadCode();
   byId("preview-content").hidden = true;
-  status("Inspecting reveals the full dungeon and Monster placements. Choose Generate Preview to reveal this map, or Close to continue playing unseen.");
+  status("Inspecting reveals the full map and Monster placements. Choose Generate Preview to reveal this map, or Close to continue playing unseen.");
   dialog.showModal();
 });
 byId("view").addEventListener("change", () => { byId("board").dataset.view = byId("view").value; });
@@ -124,10 +136,22 @@ function renderPreview() {
     const right = edge.direction === "Right";
     Object.assign(node.style, { left: `${(edge.position.x + (right ? 1 : .5)) / board.width * 100}%`, top: `${(edge.position.y + (right ? .5 : 1)) / board.height * 100}%`, width: right ? "4px" : `${100 / board.width}%`, height: right ? `${100 / board.height}%` : "4px" }); root.append(node);
   }
+  const caches = new Map();
+  for (const marker of definition.lootMarkers ?? []) {
+    const key = `${marker.position.x},${marker.position.y}`, cache = caches.get(key) ?? { position: marker.position, count: 0 };
+    cache.count++; caches.set(key, cache);
+  }
+  for (const { position, count } of caches.values()) {
+    const node = element("span", `◆${count}`); node.className = "generator-loot"; node.title = `${count} unopened Loot markers (${position.x},${position.y})`;
+    Object.assign(node.style, { left: `${(position.x + .5) / board.width * 100}%`, top: `${(position.y + .5) / board.height * 100}%` }); root.append(node);
+  }
   for (const unit of definition.units) {
     const name = unit.unitTypeId.replace(/-type$/, "").split("-").map(word => word[0].toUpperCase() + word.slice(1)).join(" ");
     const node = element("div", name.split(" ").map(word => word[0]).join("")); node.className = "figure"; node.title = name; styleSide(node, unit.sideId);
-    Object.assign(node.style, { left: `${(unit.anchor.x + .5) / board.width * 100}%`, top: `${(unit.anchor.y + .5) / board.height * 100}%`, width: `${85 / board.width}%`, height: `${85 / board.height}%` }); root.append(node);
+    const offsets = result.unitMetadata?.find(type => type.unitTypeId === unit.unitTypeId)?.footprintOffsets ?? [{ x: 0, y: 0 }];
+    const width = Math.max(...offsets.map(cell => cell.x)) + 1, height = Math.max(...offsets.map(cell => cell.y)) + 1;
+    if (width > 1 || height > 1) node.className += " large";
+    Object.assign(node.style, { left: `${(unit.anchor.x + width / 2) / board.width * 100}%`, top: `${(unit.anchor.y + height / 2) / board.height * 100}%`, width: `${(width * 100 - 15) / board.width}%`, height: `${(height * 100 - 15) / board.height}%` }); root.append(node);
   }
   for (const objective of definition.objectives ?? []) {
     if (!objective.area) continue;
@@ -135,7 +159,12 @@ function renderPreview() {
     Object.assign(node.style, { left: `${a.x / board.width * 100}%`, top: `${a.y / board.height * 100}%`, width: `${a.w / board.width * 100}%`, height: `${a.h / board.height * 100}%` }); root.append(node);
   }
   byId("complete").value = result.code;
-  byId("preview-summary").textContent = `${result.diagnostics.rooms.length} rooms · ${result.diagnostics.monsters} Monsters · ${result.diagnostics.occupiedRooms} occupied rooms · destination ${result.diagnostics.destinationDistance} steps away · fingerprint ${result.fingerprint}`;
+  const stronghold = result.code.startsWith("DNG2-OS-");
+  const deck = definition.loot;
+  const lootSummary = deck?.preset ? ` · ${deck.preset} Loot ×${deck.presetMultiplier ?? 1}` : "";
+  const planSummary = stronghold && result.diagnostics.sitePlan ? `${result.diagnostics.sitePlan} · ` : "";
+  const routeSummary = stronghold && result.diagnostics.alternateRouteDistance ? ` · alternate approach ${result.diagnostics.alternateRouteDistance} steps` : "";
+  byId("preview-summary").textContent = `${planSummary}${result.diagnostics.rooms.length} ${stronghold ? "sites" : "rooms"} · ${result.diagnostics.monsters} Monsters · ${result.diagnostics.occupiedRooms} occupied ${stronghold ? "sites" : "rooms"} · destination ${result.diagnostics.destinationDistance} steps away${routeSummary}${stronghold ? ` · ${caches.size} caches / ${definition.lootMarkers?.length ?? 0} unopened Loot` : ""}${lootSummary} · fingerprint ${result.fingerprint}`;
   byId("export-label").hidden = true; byId("transport").value = ""; byId("preview-content").hidden = false;
 }
 changed();

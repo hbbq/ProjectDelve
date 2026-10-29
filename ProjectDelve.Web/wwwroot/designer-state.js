@@ -28,7 +28,9 @@ export class DesignerDraft {
       for (const kind of this.definition.loot.cards) counts.set(kind, (counts.get(kind) ?? 0) + 1);
       return [...counts].map(([kind,count]) => ({kind,count}));
     }
-    return this.definition.loot?.composition ?? this.catalog.lootPresets?.find(p => p.id === (this.definition.loot?.preset ?? this.catalog.defaultLootPreset ?? "Classic"))?.composition ?? [];
+    if (this.definition.loot.composition) return this.definition.loot.composition;
+    const rows = this.catalog.lootPresets?.find(p => p.id === (this.definition.loot?.preset ?? this.catalog.defaultLootPreset ?? "Classic"))?.composition ?? [];
+    return rows.map(r => ({ ...r, count: r.count * (this.definition.loot.presetMultiplier ?? 1) }));
   }
   setLootPreset(preset) {
     if (!this.catalog.lootPresets?.some(p => p.id === preset)) throw new Error("Unknown Loot preset.");
@@ -36,6 +38,11 @@ export class DesignerDraft {
   }
   copyLootToCustom() {
     this.definition.loot = { composition: structuredClone(this.lootComposition()) }; this.changed();
+  }
+  setLootMultiplier(value) {
+    if (!Number.isInteger(value) || value < 1 || value > 100) throw new Error("Use a whole deck multiplier from 1 to 100.");
+    if (!this.definition.loot || this.definition.loot.composition || this.definition.loot.cards) throw new Error("Choose a live preset first.");
+    this.definition.loot.presetMultiplier = value; this.changed();
   }
   setLootDeck(rows) {
     if (rows.some(r => !Number.isInteger(r.count) || r.count < 0 || r.count > 1000)) throw new Error("Use 0-1000 copies per card.");
@@ -184,9 +191,10 @@ export class DesignerDraft {
     }
     return unit.unitId;
   }
-  paintTerrain(position, terrain, direction = "East") {
+  paintTerrain(position, terrain, direction = "East", coalGeneration = null) {
     upsert(this.definition.board.cells, entry => sameCell(entry.position, position),
-      terrain === null ? null : { position: { ...position }, terrain, ...(terrain === "Rail" ? { direction } : {}) });
+      terrain === null ? null : { position: { ...position }, terrain, ...(terrain === "Rail" ? { direction } : {}),
+        ...(terrain === "Lava" && coalGeneration != null ? { coalGeneration } : {}) });
     this.changed();
   }
   paintEdge(position, direction, kind) {

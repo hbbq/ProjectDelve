@@ -20,6 +20,12 @@ public sealed record GenerationDiagnostics(IReadOnlyList<DungeonRoom> Rooms, IRe
     int StartRoom, int DestinationRoom, int DestinationDistance, int OccupiedRooms, int Monsters, int Attempts)
 {
     public IReadOnlyList<DungeonCorridor> Corridors { get; init; } = [];
+    public string Profile { get; init; } = "HVM";
+    public string? SitePlan { get; init; }
+    public IReadOnlyList<string> SiteNames { get; init; } = [];
+    public int TreasureCaches { get; init; }
+    public int LootMultiplier { get; init; } = 1;
+    public int AlternateRouteDistance { get; init; }
 }
 public sealed record GeneratedDungeon(GenerationCode Code, ScenarioDefinition Definition, string Fingerprint, GenerationDiagnostics Diagnostics);
 public sealed record MonsterThreat(string UnitTypeId, int Threat);
@@ -46,6 +52,7 @@ public static class DungeonGenerator
     public static GeneratedDungeon Generate(GenerationCode configuration)
     {
         var code = configuration.Complete();
+        if (code.Profile == "OS") return OvergrownStrongholdGenerator.Generate(code);
         for (var attempt = 0; attempt < MaxAttempts; attempt++)
         {
             var layout = new Layout(code, attempt);

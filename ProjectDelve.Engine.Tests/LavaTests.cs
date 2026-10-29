@@ -191,6 +191,55 @@ public sealed class LavaTests
     }
 
     [Fact]
+    public void CoalGenerationOffSkipsRollsButPreservesLavaAndOtherSources()
+    {
+        var definition = Fixture(new Cell(1, 2), new(3, 2));
+        definition = definition with { Board = definition.Board with { Cells =
+            [definition.Board.Cells[0] with { CoalGeneration = false }, definition.Board.Cells[1],
+                new(new(5, 2), TerrainKind.FruitTree)] } };
+        var loaded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(definition));
+        Assert.False(loaded.Board.Cells[0].CoalGeneration);
+        var initial = GameEngine.CreateGame(loaded);
+        Assert.False(initial.Copy().Physical.Board.Terrain[0].CoalGeneration);
+        var dice = new Dice(1);
+        var result = GameEngine.StartRound(initial, dice, false);
+        Assert.Equal(4, dice.Calls);
+        Assert.All(result.Events.Where(e => e.Kind == "LavaCoalRolled"), e => Assert.Equal(new Cell(3, 2), e.Cell));
+        Assert.Equal(2, result.Events.Count(e => e.Kind == "FruitTreeRolled"));
+        Assert.DoesNotContain(result.State.Resources, r => r.Position == new Cell(1, 1));
+        Assert.Contains(result.State.Resources, r => r.Position == new Cell(3, 1) && r.Type == ResourceTypes.Coal);
+        Assert.Contains(result.State.Resources, r => r.Position == new Cell(5, 1) && r.Type == ResourceTypes.Fruit);
+        Assert.Equal(TerrainKind.Lava, result.State.Physical.Board.TerrainAt(new(1, 2)));
+        Assert.ThrowsAny<ArgumentException>(() => GameEngine.CreateGame(loaded with {
+            Units = [loaded.Units[0] with { Anchor = new(1, 2) }, .. loaded.Units.Skip(1)] }));
+    }
+
+    [Theory]
+    [InlineData(false, 0)] [InlineData(true, 2)] [InlineData(null, 2)]
+    public void CoalSettingDefaultsOnAndWorksWithNonStoneDefaultTerrain(bool? enabled, int rolls)
+    {
+        var definition = Fixture(new Cell(2, 2));
+        definition = definition with { Board = definition.Board with { DefaultTerrain = TerrainKind.Grass,
+            Cells = [definition.Board.Cells[0] with { CoalGeneration = enabled }] } };
+        var json = ScenarioDefinitionJson.ToJson(definition);
+        if (enabled is null) Assert.DoesNotContain("coalGeneration", json);
+        var dice = new Dice(1);
+        var result = GameEngine.StartRound(GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(json)), dice, false);
+        Assert.Equal(rolls, dice.Calls);
+        Assert.Equal(rolls / 2, result.State.Resources.Count);
+    }
+
+    [Theory]
+    [InlineData(TerrainKind.Grass)] [InlineData(TerrainKind.FruitTree)]
+    public void CoalSettingIsRejectedForNonLava(TerrainKind terrain)
+    {
+        var definition = Fixture();
+        definition = definition with { Board = definition.Board with {
+            Cells = [new(new(2, 2), terrain) { CoalGeneration = false }] } };
+        Assert.ThrowsAny<ArgumentException>(() => GameEngine.CreateGame(definition));
+    }
+
+    [Fact]
     public void FullySurroundedLavaStillRollsWithoutCreatingResources()
     {
         var definition = Fixture(new Cell(2, 2));

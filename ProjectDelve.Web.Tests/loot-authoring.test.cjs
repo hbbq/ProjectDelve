@@ -59,3 +59,15 @@ test('zero drop overrides are explicit and default reset removes only optional s
   run(`live.configureLootType('unit',null,null,null)`);
   assert.equal(run('live.snapshot().lootUnitOverrides'),undefined);
 });
+
+test('live deck multiplier survives recovery and Copy to Custom copies scaled quantities', () => {
+  run(`live.setLootPreset('Fun'); live.setLootMultiplier(3)`);
+  assert.equal(run('live.lootComposition()[0].count'), 15);
+  const restored = run('readDraftDocument(JSON.stringify(draftDocument(live.snapshot())))');
+  assert.deepEqual(plain(restored.definition.loot), {preset:'Fun',presetMultiplier:3});
+  run('live.copyLootToCustom()');
+  assert.deepEqual(plain(run('live.snapshot().loot')), {composition:[{kind:'GoatBell',count:15}]});
+  assert.throws(() => run('live.setLootMultiplier(2)'), /live preset/);
+  run(`live.setLootPreset('Classic')`);
+  for (const value of [0,-1,1.5,101]) assert.throws(() => run(`live.setLootMultiplier(${value})`), /whole deck multiplier/);
+});

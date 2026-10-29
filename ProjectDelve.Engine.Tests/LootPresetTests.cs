@@ -8,6 +8,38 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class LootPresetTests
 {
+    [Theory]
+    [InlineData("Classic", 3)]
+    [InlineData("Fun", 2)]
+    [InlineData("Experimental", 4)]
+    [InlineData("FarOut", 6)]
+    public void ScaledLivePresetRoundTripsWithProportionalFiniteSupply(string preset, int multiplier)
+    {
+        var definition = Scenario() with { Loot = new() { Preset = preset, PresetMultiplier = multiplier },
+            LootMarkers = Enumerable.Range(0, 12).Select(i => new LootMarker($"cache-{i}", new(0, 0))).ToList() };
+        var json = ScenarioDefinitionJson.ToJson(definition);
+        Assert.DoesNotContain("\"composition\"", json);
+        var loaded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(definition));
+        Assert.Equal(multiplier, loaded.Loot!.PresetMultiplier);
+        var state = GameEngine.CreateGame(loaded);
+        foreach (var row in LootPresets.Find(preset).Composition)
+            Assert.Equal(row.Count * multiplier, state.LootDeck!.DrawPile.Count(c => c.Kind == row.Kind));
+        state.LootDeck!.DiscardPile.AddRange(state.LootDeck.DrawPile); state.LootDeck.DrawPile.Clear();
+        var resumed = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        Assert.Empty(resumed.LootDeck!.DrawPile);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public void RejectsInvalidPresetMultipliers(int multiplier) =>
+        Assert.Throws<ArgumentException>(() => new LootSettings { Preset = "Classic", PresetMultiplier = multiplier }.ResolveCards());
+
+    [Fact]
+    public void CustomDeckCannotApplyPresetScaling() =>
+        Assert.Throws<ArgumentException>(() => new LootSettings { Composition = [], PresetMultiplier = 2 }.ResolveCards());
+
     private static ScenarioDefinition Scenario() => new()
     {
         Board = new() { Width = 3, Height = 3 }, UnitTypeIds = [UnitTypeIds.Goblin],

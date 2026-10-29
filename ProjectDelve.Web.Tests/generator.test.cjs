@@ -18,7 +18,7 @@ function harness() {
     showModal() { this.open = true; } close() { this.open = false; this.listeners.close?.(); }
   }
   const nodes = new Map(), get = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
-  for (const [key, value] of Object.entries({ width:"30", height:"20", rooms:"8", excavation:"2", connectivity:"2", doors:"2", density:"2", difficulty:"3", objective:"reach", required:"2", fog:"1", loot:"Classic", seed:"", view:"enhanced" })) get(`generator-${key}`).value = value;
+  for (const [key, value] of Object.entries({ profile:"HVM", width:"30", height:"20", rooms:"8", excavation:"2", connectivity:"2", doors:"2", openness:"2", terrain:"2", treasure:"2", density:"2", difficulty:"3", objective:"reach", required:"2", fog:"1", loot:"Classic", seed:"", view:"enhanced" })) get(`generator-${key}`).value = value;
   const opened = new Node(), requests = [], plays = [], designs = [], events = {};
   const context = vm.createContext({ structuredClone, Uint32Array, document: { getElementById: get, querySelectorAll: () => [opened], createElement: () => new Node() },
     crypto: { getRandomValues: array => { array[0] = 1; array[1] = 2; return array; } }, navigator: { clipboard: { writeText: async () => {} } },
@@ -97,4 +97,55 @@ test("Loot preset participates in preview, code loading and unseen play", async 
   assert.match(h.requests[0].body.code, /-QFarOut$/);
   h.enter("code-input", code.replace('-S','-QFun-S')); h.click("code-play"); await flush();
   assert.match(h.plays[0], /-QFun-S/); assert.equal(h.get("generator-loot").value, "Fun");
+});
+
+const strongholdCode = "DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F1-QClassic-S0123456789ABCDEF";
+test("Overgrown Stronghold code preserves parameters and rejects invalid sizes", () => {
+  const h = harness();
+  for (const complete of [strongholdCode, strongholdCode.replace("QClassic", "QFarOut").replace("B2", "B0").replace("OR2", "ORA").replace("T2", "T0").replace("O2", "O3")]) {
+    assert.equal(vm.runInContext(`configurationCode(configurationFromCode('${complete}'))`, h.context), complete);
+  }
+  assert.throws(() => vm.runInContext(`configurationFromCode('${strongholdCode.replace("30x24", "17x24")}')`, h.context), /18 to 50/);
+  assert.throws(() => vm.runInContext(`configurationFromCode('${strongholdCode.replace("O2", "O0")}')`, h.context), /DNG2-OS/);
+});
+
+test("switching profile supplies useful dimensions and displays only relevant controls", () => {
+  const h = harness(); h.enter("profile", "OS");
+  assert.equal(h.get("generator-height").value, "24");
+  assert.equal(h.get("generator-rooms-label").hidden, true);
+  assert.equal(h.get("generator-treasure-label").hidden, false);
+  assert.equal(h.get("generator-heading").textContent, "Overgrown Stronghold");
+  h.click("preview");
+  assert.equal(h.requests[0].body.code, strongholdCode.split("-S")[0]);
+  h.enter("profile", "HVM");
+  assert.equal(h.get("generator-height").value, "20");
+  assert.equal(h.get("generator-rooms-label").hidden, false);
+  assert.equal(h.get("generator-treasure-label").hidden, true);
+  assert.equal(h.get("generator-prefix").value, code.split("-S")[0]);
+});
+
+test("Stronghold code starts unseen with no omniscient preview request", async () => {
+  const h = harness(); h.enter("code-input", strongholdCode); h.click("code-play"); await flush();
+  assert.deepEqual(h.plays, [strongholdCode]);
+  assert.equal(h.requests.length, 0);
+  assert.equal(h.get("generator-profile").value, "OS");
+  assert.equal(h.get("generator-board").children.length, 0);
+});
+
+test("Stronghold preview distinguishes unopened caches, displays the live deck multiplier and uses supplied footprints", async () => {
+  const h = harness(); h.enter("profile", "OS"); h.click("preview");
+  const result = h.result(strongholdCode);
+  result.definition.loot = { preset: "Fun", presetMultiplier: 3 };
+  result.definition.lootMarkers = [{ id: "a", position: {x:2,y:3} }, { id: "b", position: {x:2,y:3} }];
+  result.definition.units = [{ unitTypeId: "shaman-type", sideId: "side-2", anchor: {x:5,y:5} }];
+  result.unitMetadata = [{ unitTypeId: "shaman-type", footprintOffsets: [{x:0,y:0}, {x:1,y:0}, {x:0,y:1}, {x:1,y:1}] }];
+  h.requests[0].resolve({ ok:true, json:async () => result }); await flush();
+  assert.match(h.get("generator-preview-summary").textContent, /1 caches \/ 2 unopened Loot.*Fun Loot ×3/);
+  const marker = h.get("generator-board").children.find(node => node.className === "generator-loot");
+  assert.equal(marker.textContent, "◆2");
+  assert.match(marker.title, /unopened Loot/);
+  const figure = h.get("generator-board").children.find(node => node.className === "figure large");
+  assert.equal(figure.style.width, `${185 / 14}%`);
+  h.enter("treasure", "3"); h.click("export");
+  assert.equal(h.get("generator-transport").value, result.transport);
 });

@@ -62,7 +62,7 @@ public static partial class GameEngine
             events.LootArrivals.AddRange(state.Physical.Figures.OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X).Select(f => f.Id));
             ResolveLootArrivals(state, events);
         }
-        var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind is TerrainKind.Lava or TerrainKind.FruitTree);
+        var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind == TerrainKind.FruitTree || t.Kind == TerrainKind.Lava && t.CoalGeneration != false);
         if (state.WorldEffects is not null || hasLava)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);

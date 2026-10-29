@@ -22,19 +22,21 @@ public sealed class GenerationIntegrationTests
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 6;
     }
-    [Fact]
-    public async Task PreviewAndDirectPlayShareExactDefinitionAndRestartKeepsCompletedRecipe()
+    [Theory]
+    [InlineData(Code)]
+    [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F1-QFun-S000000000000002A")]
+    public async Task PreviewAndDirectPlayShareExactDefinitionAndRestartKeepsCompletedRecipe(string recipe)
     {
         await using var host = await Host.Start();
-        using var previewResponse = await host.Client.PostAsJsonAsync("/api/generation", new { code = Code });
+        using var previewResponse = await host.Client.PostAsJsonAsync("/api/generation", new { code = recipe });
         previewResponse.EnsureSuccessStatusCode();
         Assert.Equal("no-store", previewResponse.Headers.CacheControl!.ToString());
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
         var definition = ScenarioDefinitionJson.FromJson(preview.GetProperty("definition").GetRawText());
         var expected = GameEngine.CreateGame(definition);
-        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, generationCode = Code });
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, generationCode = recipe });
         played.EnsureSuccessStatusCode(); var observed = await played.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(Code, observed.GetProperty("generationCode").GetString());
+        Assert.Equal(recipe, observed.GetProperty("generationCode").GetString());
         var actual = host.Game.Snapshot();
         Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(actual.Result.State));
         Assert.Equal("side-1", observed.GetProperty("presentation").GetProperty("viewingSideId").GetString());
@@ -44,9 +46,17 @@ public sealed class GenerationIntegrationTests
         Assert.Equal(JsonSerializer.Serialize(known.Physical.Board), JsonSerializer.Serialize(host.Game.BrowserResponse(actual).Result.State.Physical.Board));
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = actual.Revision });
         restarted.EnsureSuccessStatusCode();
-        Assert.Equal(Code, (await restarted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("generationCode").GetString());
+        Assert.Equal(recipe, (await restarted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("generationCode").GetString());
         Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(host.Game.Snapshot().Result.State));
         Assert.Equal(preview.GetProperty("transport").GetString(), ScenarioDefinitionTransport.Encode(definition));
+        using var exported = await host.Client.PostAsJsonAsync("/api/designer/export", preview.GetProperty("definition"));
+        exported.EnsureSuccessStatusCode();
+        Assert.Equal(preview.GetProperty("transport").GetString(), (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString());
+        foreach (var metadata in preview.GetProperty("unitMetadata").EnumerateArray())
+        {
+            var type = UnitContent.Find(metadata.GetProperty("unitTypeId").GetString()!)!;
+            Assert.Equal(FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)).Count, metadata.GetProperty("footprintOffsets").GetArrayLength());
+        }
     }
     [Fact]
     public async Task PrefixPlayPublishesOneReusableCodeAndRejectsStaleReplacement()

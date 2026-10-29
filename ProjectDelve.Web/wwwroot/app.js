@@ -109,7 +109,7 @@ function renderSessionHeading() {
   const title = document.getElementById("session-title");
   const back = document.getElementById("session-return");
   if (!title || !back) return;
-  title.textContent = playContext?.title ?? (snapshot?.generationCode ? "Generated dungeon"
+  title.textContent = playContext?.title ?? (snapshot?.generationCode ? (snapshot.generationCode.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon")
     : snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.name
       ?? (snapshot?.scenarioId === "imported" ? "Imported scenario" : "Current game"));
   back.textContent = playContext?.returnLabel ?? "Back to scenarios";

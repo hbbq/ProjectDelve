@@ -78,7 +78,11 @@ public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
 public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel, Asphalt, FruitTree, SolidRock }
 public enum RailDirection { North, East, South, West }
 public sealed record TerrainTile(Cell Position, TerrainKind Kind,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? CoalGeneration { get; init; }
+}
 public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);

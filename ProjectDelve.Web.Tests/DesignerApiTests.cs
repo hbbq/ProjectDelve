@@ -150,6 +150,7 @@ public sealed class DesignerApiTests
     [InlineData("complete-data")]
     [InlineData("world-effects")]
     [InlineData("lava")]
+    [InlineData("lava-no-coal")]
     [InlineData("gravel")]
     [InlineData("asphalt")]
     [InlineData("machines")]
@@ -164,7 +165,7 @@ public sealed class DesignerApiTests
              Scenario.Group(UnitTypeIds.GoblinBishop, "blue", ControllerKind.Automated, Scenario.At(5, 5)),
              Scenario.Group(UnitTypeIds.RoyalKnight, "red", ControllerKind.Human, Scenario.At(1, 0)),
              Scenario.Group(UnitTypeIds.HobbyKnight, "blue", ControllerKind.Automated, Scenario.At(4, 5))]) :
-            id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
+            id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "lava-no-coal" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
         if (id == "route") definition = definition with { Orders = [new(definition.Agency[0].UnitTypeId,
             definition.Agency[0].SideId, OrderKind.FollowRoute,
             Route: new("test-route", 1, -1))],
@@ -176,6 +177,7 @@ public sealed class DesignerApiTests
             { StoredResources = [new(ResourceTypes.Coal, 2)] }] };
         if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
         if (id == "lava") definition = definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Lava)] } };
+        if (id == "lava-no-coal") definition = definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Lava) { CoalGeneration = false }] } };
         var before = await host.Client.GetStringAsync("/api/game");
         using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = ScenarioDefinitionTransport.Encode(definition) });
         imported.EnsureSuccessStatusCode();
@@ -220,12 +222,14 @@ public sealed class DesignerApiTests
     [InlineData("world-draws", "worldEffects")]
     [InlineData("lava-unit", "units[0]")]
     [InlineData("lava-resource", "resources[0]")]
+    [InlineData("coal-on-grass", "board.cells[0]")]
     public async Task InvalidDraftUsesAuthoritativeFailureAndNeverMutatesGame(string invalid, string path)
     {
         await using var host = await Host.Start();
         var definition = CompleteData();
         definition = invalid switch
         {
+            "coal-on-grass" => definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Grass) { CoalGeneration = false }] } },
             "lava-unit" => definition with { Board = definition.Board with { Cells = [new(definition.Units[0].Anchor, TerrainKind.Lava)] } },
             "lava-resource" => definition with { Board = definition.Board with { Cells = [new(new(0, 0), TerrainKind.Lava)] },
                 Resources = [new(ResourceTypes.Coal, new(0, 0))] },

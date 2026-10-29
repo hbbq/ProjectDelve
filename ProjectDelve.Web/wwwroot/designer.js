@@ -312,6 +312,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       lootForm.append(element('button', 'Apply Custom Deck'));
       lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({kind:c.kind,count:Number(c.input.value)})))); });
     } else {
+      const multiplier = field(lootForm, 'Deck multiplier', draft.definition.loot?.presetMultiplier ?? 1, {type:'number'});
+      multiplier.id = 'designer-loot-multiplier'; multiplier.min = '1'; multiplier.max = '100'; multiplier.step = '1';
+      multiplier.addEventListener('change', () => commit(() => draft.setLootMultiplier(Number(multiplier.value))));
       const list = element('ul'); list.className = 'loot-preset-contents';
       for (const row of rows) list.append(element('li', `${catalog.lootCards?.find(c => c.kind === row.kind)?.name ?? row.kind} \u00d7${row.count}`));
       lootForm.append(list, button('Copy to Custom', () => commit(() => draft.copyLootToCustom())));
@@ -684,8 +687,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrain ?? "", { entries: terrainOptions });
       const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });
+      const coal = draft.terrainAt(position) === "Lava"
+        ? field(form, "Coal generation", explicit?.coalGeneration === false ? "Off" : "On", { entries: ["On", "Off"] }) : null;
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
-        draft.paintTerrain(position, terrain.value || null, direction.value);
+        const kind = terrain.value || (coal?.value === "Off" && draft.definition.board.defaultTerrain === "Lava" ? "Lava" : null);
+        draft.paintTerrain(position, kind, direction.value, coal ? coal.value !== "Off" : null);
         if (resource && resourceType.value !== resource.type.id) { resource.type = structuredClone(resourceTypes.find(t => t.id === resourceType.value)); draft.changed(); }
       }); });
       form.append(element("button", "Apply terrain"));
@@ -1303,7 +1309,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   if (typeof fetch === "function") refreshLibrary();
   globalThis.delveOpenGenerated = result => {
     if (!canReplace()) return false;
-    const doc = draftDocument(result.definition, "Generated dungeon");
+    const doc = draftDocument(result.definition, result.code.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon");
     doc.generationSource = { code: result.code, definitionJson: JSON.stringify(result.definition) };
     loadDocument(JSON.stringify(doc)); setMode(true); return true;
   };

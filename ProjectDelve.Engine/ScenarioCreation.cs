@@ -18,7 +18,8 @@ internal static class ScenarioCreation
         {
             var cell = board.Cells[index];
             if (cell is null || !Inside(cell.Position) || !Enum.IsDefined(cell.Terrain) ||
-                (cell.Terrain == TerrainKind.Rail ? cell.Direction is null || !Enum.IsDefined(cell.Direction.Value) : cell.Direction is not null))
+                (cell.Terrain == TerrainKind.Rail ? cell.Direction is null || !Enum.IsDefined(cell.Direction.Value) : cell.Direction is not null) ||
+                cell.Terrain != TerrainKind.Lava && cell.CoalGeneration is not null)
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Cell override.", nameof(definition)), $"board.cells[{index}]");
             if (!seenCells.Add(cell.Position))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate Cell override.", nameof(definition)), $"board.cells[{index}]");
@@ -115,14 +116,14 @@ internal static class ScenarioCreation
         var overrides = board.Cells.ToDictionary(c => c.Position);
         List<TerrainTile> terrain = [];
         if (board.DefaultTerrain == TerrainKind.StoneFloor)
-            terrain.AddRange(board.Cells.Select(c => new TerrainTile(c.Position, c.Terrain, c.Direction)));
+            terrain.AddRange(board.Cells.Select(c => new TerrainTile(c.Position, c.Terrain, c.Direction) { CoalGeneration = c.CoalGeneration }));
         else
             for (var y = 0; y < board.Height; y++)
             for (var x = 0; x < board.Width; x++)
             {
                 var cell = new Cell(x, y);
                 var authored = overrides.GetValueOrDefault(cell);
-                terrain.Add(new(cell, authored?.Terrain ?? board.DefaultTerrain, authored?.Direction));
+                terrain.Add(new(cell, authored?.Terrain ?? board.DefaultTerrain, authored?.Direction) { CoalGeneration = authored?.CoalGeneration });
             }
         var state = new GameState
         {
