@@ -780,7 +780,7 @@ public sealed class PlaytestApiTests
         var initial = await host.Read();
         var wizard = initial.Result.State.Units.Single(u => u.Id == Wizard);
         var type = initial.Result.State.Types.Single(t => t.Id == wizard.TypeId);
-        Assert.Equal((2, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
+        Assert.Equal((3, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         var position = initial.Result.State.Physical.Figures.Single(f => f.Id == wizard.Id).Position;
         Assert.True(initial.Result.State.Physical.Board.TerrainAt(position).Passable());
         Assert.Single(initial.Result.State.Physical.Figures, f => f.Position == position);

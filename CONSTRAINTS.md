@@ -780,7 +780,7 @@ The current v0 content roster is deliberately small. The reference implementatio
 #### Wizard
 
 - Unique: yes.
-- Stats: `MOV 2`, `RNG 4`, `ATK 3`, `DEF 2`, `HP 4`.
+- Stats: `MOV 3`, `RNG 4`, `ATK 3`, `DEF 2`, `HP 4`.
 - Actions: Normal Attack; Fireball; Telekinesis.
 - Bonus Actions: Focus.
 - Free Actions: Open Door.

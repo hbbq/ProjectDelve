@@ -42,7 +42,7 @@ public sealed class WizardTests
         Assert.Equal("wizard-type", type.Id);
         Assert.Equal("custom", UnitType.Wizard("custom").Id);
         Assert.Equal("Wizard", type.DisplayName);
-        Assert.Equal((2, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
+        Assert.Equal((3, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, type.Actions);
         Assert.Equal(UnitFreeAction.OpenDoor, type.FreeActions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);

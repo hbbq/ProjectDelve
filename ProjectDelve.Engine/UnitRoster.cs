@@ -210,7 +210,7 @@ public static class UnitRoster
 
     public static UnitType Wizard(string id = UnitTypeIds.Wizard) => UnitType.Define(id,
         "Wizard",
-        Stats(2, 4, 3, 2, 4),
+        Stats(3, 4, 3, 2, 4),
         Unique(),
         OpenDoor(),
         Ability("Fireball", Uses(2), Fireball()),

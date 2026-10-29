@@ -237,7 +237,7 @@ public sealed class UnitAuthoringTests
             {
                 Unique = true, DisplayName = "Cleric", Heal = new(2) { Amount = 2 }, HolyWave = new(2), AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
             }),
-            (UnitType.Wizard, new("wizard-type", 2, 4, 3, 2, 4,
+            (UnitType.Wizard, new("wizard-type", 3, 4, 3, 2, 4,
                 Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
             {
                 Unique = true, DisplayName = "Wizard", Fireball = new(2),
