@@ -769,6 +769,7 @@ function clearAffectedPreview() {
 function previewChoice(candidate) {
   clearAffectedPreview();
   if (busy || !visibleChoice(candidate)) return;
+  threePreview = candidate; syncThreeInteraction();
   for (const id of candidate.affectedUnitIds) figures.get(id)?.classList.add("affected-preview");
   for (const cell of candidate.placementCells ?? []) cells.get(cellKey(cell))?.classList.add("placement-preview");
 }

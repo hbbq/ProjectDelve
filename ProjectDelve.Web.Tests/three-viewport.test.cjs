@@ -1067,3 +1067,81 @@ test('local illumination follows displayed checkpoints, switches off, survives m
     const restart=structuredClone(f);restart.metadata.sessionId='new';h.viewport.renderFrame(restart);h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);assert.equal(h.frames.size,0);
   }finally{h.cleanup();}
 });
+
+test('Tabletop batches supplied choices without changing Cell picks and releases replaced instance buffers',async()=>{
+  const f=fixture(),h=await harness(f),move={key:'move-a',interaction:{kind:'Position',position:{x:1,y:1}},boardVisual:{kind:'move'}};
+  try{
+    h.viewport.showInteraction({candidates:[move]});h.flush();const scene=h.rendered.at(-1).scene;
+    assert.equal(scene.getObjectByName('tabletop-marks'),undefined,'Flat keeps its existing feedback renderer');
+    h.viewport.setPresentation('tabletop');h.viewport.camera.setOrientation({tilt:38,yaw:25},false);h.viewport.settle();h.flush();
+    const feedback=scene.getObjectByName('feedback'),first=feedback.children.find(n=>n.userData.tabletopMarks),counts=first.children.map(m=>m.count);
+    assert.ok(first);assert.ok(first.children.length<=3);let instances=0,finishes=0,geometry=0;
+    for(const mesh of first.children){mesh.addEventListener('dispose',()=>instances++);mesh.material.addEventListener('dispose',()=>finishes++);assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);assert.equal(mesh.material.depthTest,false);assert.equal(mesh.material.depthWrite,false);}
+    first.children[0].geometry.addEventListener('dispose',()=>geometry++);
+    h.viewport.showInteraction({candidates:[move,{...move,key:'another-opaque-choice'}]});h.flush();
+    const second=feedback.children.find(n=>n.userData.tabletopMarks);assert.notEqual(second,first);assert.deepEqual(second.children.map(m=>m.count),counts);
+    assert.equal(instances,first.children.length);assert.equal(finishes,0);assert.equal(geometry,0);
+    const point=h.viewport.project({x:1.5,y:1.5}),hit=h.viewport.pick(point);assert.deepEqual(hit.cell,{x:1,y:1});
+    const {boardCandidates}=await moduleAt('playtest-viewport.js');assert.deepEqual(boardCandidates(hit,{candidates:[move,{...move,key:'another-opaque-choice'}]},f.state,f.presentation.figures).map(c=>c.key),['move-a','another-opaque-choice']);
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('tabletop-marks'),undefined);assert.equal(finishes,0);
+    h.viewport.dispose();assert.equal(finishes,first.children.length);assert.equal(geometry,1);
+  }finally{h.cleanup();}
+});
+
+test('Tabletop important labels retain HP, Side, posture and combat role and Flat labels restore their original text',async()=>{
+  const f=fixture(),h=await harness(f);
+  try{
+    const labels=h.host.querySelector('.three-labels'),hero=()=>labels.children.find(n=>n.appearance?.name==='Hero');
+    const originalState=hero().children[2].textContent;
+    h.viewport.setPresentation('tabletop');h.viewport.camera.manual({...h.viewport.camera.current(),x:3,y:3,scale:100,tilt:38,yaw:0});h.viewport.settle();
+    h.viewport.showInteraction({focusedUnitId:'hero',candidates:[]});h.flush();
+    const label=hero();assert.equal(label.hidden,false);assert.equal(label.dataset.compact,'false');assert.equal(label.children[0].textContent,'3/5');assert.equal(label.children[1].textContent,'Hero');assert.equal(label.children[3].textContent,'blue');assert.match(label.children[2].textContent,/Lying/);assert.match(label.children[2].textContent,/Active/);assert.match(label.title,/Side blue/);
+    h.viewport.showInteraction({relationship:{attackerId:'large',targets:[{targetId:'hero'}]},candidates:[]});h.flush();
+    assert.equal(label.hidden,false);assert.match(label.children[2].textContent,/Lying/);assert.match(label.children[2].textContent,/Target/);assert.equal(label.children[0].textContent,'3/5');
+    h.viewport.setPresentation('flat');h.viewport.camera.manual({...h.viewport.camera.current(),x:3,y:3,scale:100,tilt:0,yaw:0});h.viewport.settle();h.flush();
+    assert.equal(label.children[1].textContent,'Hero');assert.equal(label.children[2].textContent,originalState);assert.equal(label.children[0].textContent,'3/5');
+    assert.equal(labels.attributes['aria-hidden'],'true','visual plaques do not duplicate the accessible Cell descriptions');
+  }finally{h.cleanup();}
+});
+
+test('Tabletop special action symbols and public Objective boundaries survive batching without filling unknown terrain',async()=>{
+  const f=fixture(16,'blue');f.presentation.objectives=[{sideId:'blue',name:'Reach Area',area:{x:10,y:10,w:3,h:2}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.showInteraction({candidates:[{key:'special',interaction:{kind:'Position',position:{x:2,y:2}},boardVisual:{kind:'special',icon:'!'}}]});h.viewport.settle();h.flush();
+    const scene=h.rendered.at(-1).scene,area=scene.getObjectByName('areas').children.find(n=>n.userData.tabletopMarks),feedback=scene.getObjectByName('feedback');
+    assert.ok(area);assert.equal(area.getObjectByName('mark-wash'),undefined);
+    const symbol=feedback.children.find(n=>n.isMesh&&!n.isInstancedMesh);assert.ok(symbol?.material.map);assert.equal(symbol.material.depthTest,false);assert.equal(symbol.castShadow,false);
+    assert.equal(h.viewport.inspect().units,2,'public zones do not manufacture Units or labels in unknown Cells');
+    assert.deepEqual(h.viewport.pick(h.viewport.project({x:2.5,y:2.5})).cell,{x:2,y:2});assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('a Position preview with no placement Cells emphasizes its supplied Cell without changing the pick',async()=>{
+  const f=fixture();f.state.currentUnitId=null;const h=await harness(f);
+  const candidate={key:'opaque-move',interaction:{kind:'Position',position:{x:1,y:1}},placementCells:[],boardVisual:{kind:'move'}},original=structuredClone(candidate);
+  try{
+    h.viewport.setPresentation('tabletop');h.viewport.camera.setMode('full');h.viewport.settle();
+    h.viewport.showInteraction({candidates:[candidate]});h.flush();
+    const scene=h.rendered.at(-1).scene,ink=()=>scene.getObjectByName('feedback').getObjectByName('mark-ink');
+    const ordinaryCount=ink().count,point=h.viewport.project({x:1.5,y:1.5}),before=h.viewport.pick(point);
+    h.viewport.showInteraction({candidates:[candidate],preview:candidate});h.flush();
+    assert.ok(ink().count>ordinaryCount,'hover adds a distinct preview even when placementCells is empty');
+    const matrix=new h.THREE.Matrix4(),position=new h.THREE.Vector3();
+    for(let i=0;i<ink().count;i++){ink().getMatrixAt(i,matrix);position.setFromMatrixPosition(matrix);assert.ok(position.x>=1&&position.x<=2&&position.z>=1&&position.z<=2,'preview stays at the supplied Cell');}
+    assert.deepEqual(h.viewport.pick(point),before);assert.deepEqual(before.cell,{x:1,y:1});assert.deepEqual(candidate,original);
+  }finally{h.cleanup();}
+});
+
+test('replacing a session clears inspected tabletop label emphasis for reused Unit IDs',async()=>{
+  const f=fixture();f.state.currentUnitId=null;f.state.physical.figures[0].posture='Upright';const h=await harness(f);
+  try{
+    h.viewport.setPresentation('tabletop');h.viewport.camera.manual({x:2.5,y:2.5,scale:110});h.viewport.settle();h.flush();
+    const label=()=>h.host.querySelector('.three-token-info');assert.equal(label().dataset.important,'false');
+    for(const key of ['ArrowRight','ArrowRight','ArrowDown','ArrowDown'])h.host.emit('keydown',{key});
+    h.flush();assert.equal(h.hovered.at(-1),'hero');assert.equal(label().dataset.important,'true');
+    h.viewport.renderFrame(structuredClone(f));h.flush();assert.equal(label().dataset.important,'true','inspection survives updates within the same session');
+    const replacement=structuredClone(f);replacement.metadata.sessionId='replacement';h.viewport.renderFrame(replacement);h.viewport.settle();h.flush();
+    assert.equal(label().dataset.important,'false','the same Unit ID in a new session does not inherit inspection');
+    assert.equal(label().dataset.expanded,'false');assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});

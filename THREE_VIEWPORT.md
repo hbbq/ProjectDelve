@@ -306,6 +306,8 @@ server observation or scenario serialization changes are involved.
 
 ## Tabletop presentation and physical components
 
+See [Tabletop gameplay overlays](TABLETOP_OVERLAYS.md) for current labels and marks.
+
 The display selector's `three` and `tabletop` values both resolve to the one
 lazy-created Three viewport. `createViewportRouter` commits representation changes
 at authoritative event checkpoints, including switches within Three. It does not

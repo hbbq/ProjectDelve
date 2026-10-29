@@ -10,6 +10,8 @@ import { createTabletopSurfaces } from './three-surfaces.js';
 import { orientationBasis, groundQuadrilateral, perspectiveLens } from './three-camera-geometry.js';
 import { createModelCache } from './three-models.js';
 import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-facing.js';
+import { createTabletopMarks } from './three-tabletop-marks.js';
+import { layoutTabletopLabels } from './three-label-layout.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
@@ -70,13 +72,14 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   const pointers=new Map(),samples=[],renderTimes=[],unitRenderTimes=[],unitIntervals=[],reconcileTimes=[],cameraRenderTimes=[],cameraIntervals=[];
   let presentationStartedAt=null,presentationFirstFrameMs=null,lastCameraFrame=0;
   let lastUnitFrame=0;
-  let renderCount=0,firstFrameAt=null,readyAt=null,lastHover='',lastRender=0;
+  let renderCount=0,firstFrameAt=null,readyAt=null,lastHover='',lastRender=0,hoveredUnitId=null;
   const started=startedAt;
   function invalidate(){if(active&&!lost&&!disposed&&raf===null)raf=requestAnimationFrame(draw);}
   const visualHeight=unitVisualEnvelope(visualCatalog,modelDescriptors),visualOverhang=unitVisualOverhang(visualCatalog,modelDescriptors);
   const cameraControl=createThreeCamera({controls,invalidate,animate,visualHeight,visualOverhang,onChange:()=>onProject?.()});
   const lighting=createTabletopLighting({scene,root:controls.root,invalidate:()=>{shadowDirty=true;invalidate();}});
   const surfaces=createTabletopSurfaces();
+  const tabletopMarks=createTabletopMarks();
   const physical=createTabletopVisuals({material,physicalMaterial:lighting.material,glyph,plane,artwork,geometries});
   const models=createModelCache({...modelCacheOptions,textureAnisotropy,registerMaterial:lighting.modelMaterial,resolveMaterial:lighting.resolve,onChange(entry){pendingModels.add(entry);bodiesDirty=true;commitBodies();}});
   const representationLabel=document.createElement('label'),representationSelect=document.createElement('select');
@@ -207,7 +210,6 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       nodes.set(key,{signature,object:root});
     }
     const center=presentation==='tabletop'?physicalCenter(figure.position,a):cellCenter(figure.position,a.cellSpan);root.position.set(center.x,heights.units,center.z);
-    if(presentation==='tabletop'&&a.active&&!root.children.some(child=>child.name==='active-mark')){const mark=plane(glyph('▶'),-a.cellSpan*.34,-a.cellSpan*.3,a.cellSpan*.18,a.cellSpan*.18,.095);mark.name='active-mark';root.add(mark);}
     root.userData.appearance={...a};root.userData.footprint=frame.presentation.figures?.[id]?.occupiedCells??[figure.position];
     return root;
   }
@@ -220,7 +222,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function renderFrame(next){
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
     shadowDirty=true;
-    if(identity!==session){cancel();session=identity;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
+    if(identity!==session){cancel();session=identity;hoveredUnitId=null;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
     frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
     lighting.local.update(data);
     lighting.setBoard(board);
@@ -319,7 +321,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const labelIds=new Set();
     for(const figure of frame.state.physical.figures){const a=appearance(figure);
       updateUnit(figure,a);
-      labelIds.add(figure.id);let label=labelNodes.get(figure.id);if(!label){label=document.createElement('div');label.className='three-token-info';label.innerHTML='<span class="three-hp"></span><span class="three-name"></span><span class="three-state"></span>';labels.append(label);labelNodes.set(figure.id,label);}
+      labelIds.add(figure.id);let label=labelNodes.get(figure.id);if(!label){label=document.createElement('div');label.className='three-token-info';label.innerHTML='<span class="three-hp"></span><span class="three-name"></span><span class="three-state"></span><span class="three-side"></span>';labels.append(label);labelNodes.set(figure.id,label);}
       label.appearance=a;label.position=figure.position;label.title=`${a.name} · Side ${a.sideId} · ${a.posture}${a.maxHp>1?` · HP ${a.hp}/${a.maxHp}`:''}`;
       label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[1].textContent=a.name;
     }
@@ -331,7 +333,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     cameraControl.setFrame(frame.state,frame.presentation,frame.metadata);if(frame.state.currentUnitId)focusedCell={...frame.state.physical.figures.find(f=>f.id===frame.state.currentUnitId)?.position??focusedCell};
     showInteraction(view);reconcileTimes.push(performance.now()-begin);if(reconcileTimes.length>120)reconcileTimes.shift();invalidate();
   }
-  function removeRecord(record){record.object.removeFromParent();record.object.traverse(object=>{for(const fallback of object.userData.fallbacks??[])fallback.material.userData.fallbacks.delete(fallback.node);if(object.userData.overlayMaterial)object.material.dispose();});if(record.object.isInstancedMesh)record.object.dispose();if(record.object.userData.owned){record.object.geometry.dispose();record.object.material.dispose();}}
+  function removeRecord(record){record.object.userData.disposeMarks?.();record.object.removeFromParent();record.object.traverse(object=>{for(const fallback of object.userData.fallbacks??[])fallback.material.userData.fallbacks.delete(fallback.node);if(object.userData.overlayMaterial)object.material.dispose();});if(record.object.isInstancedMesh)record.object.dispose();if(record.object.userData.owned){record.object.geometry.dispose();record.object.material.dispose();}}
   function setPresentation(value){
     if(!['flat','tabletop'].includes(value))throw Error('Unknown Three presentation');
     if(presentation===value)return;
@@ -349,6 +351,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   function showInteraction(next){
     view=next??{};if(!frame)return;for(const key of [...nodes.keys()])if(key.startsWith('feedback:')||key.startsWith('area:')){removeRecord(nodes.get(key));nodes.delete(key);}
     retained=new Set(nodes.keys());const figures=frame.state.physical.figures;
+    if(presentation==='tabletop'){showTabletopInteraction(figures);invalidate();return;}
     const add=(key,object)=>retain(`feedback:${key}`,'feedback','feedback',()=>object);
     for(const candidate of view.candidates??[]){const ref=candidate.interaction,kind=candidate.boardVisual?.kind,color=kind==='attack'?'#ff7373':kind==='move'?'#72caff':kind==='activate'?'#ffe06a':'#ffc786';
       let positions=[];
@@ -371,10 +374,44 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     }
     for(const[index,objective]of(frame.presentation.objectives??[]).entries())if(objective.area){const a=objective.area;retain(`area:objective:${index}`,JSON.stringify(objective),'areas',()=>outline(a.x,a.y,a.w,a.h,`hsl(${sideHue(objective.sideId)},70%,78%)`,heights.areas,.055));}
     if(view.waypoints)for(const waypoint of frame.state.waypoints??[]){const a=waypoint.area;retain(`area:waypoint:${waypoint.id}`,JSON.stringify(waypoint),'areas',()=>outline(a.x,a.y,a.w,a.h,'#a99c7d',heights.areas,.02));}
-    if(presentation==='tabletop')for(const name of ['feedback','areas'])groups[name].traverse(object=>{
-      object.renderOrder=100; if(object.material){object.material=object.material.clone();object.material.depthTest=false;object.material.depthWrite=false;object.userData.overlayMaterial=true;}
-    });
     invalidate();
+  }
+  function showTabletopInteraction(figures){
+    const marks=[],areas=[],links=[],icons=new Set();
+    const cell=(p,kind,inset=.08)=>marks.push({kind,x:p.x+inset,y:p.y+inset,w:1-inset*2,h:1-inset*2});
+    const door=(edge,kind)=>{const p=edgePlacement(edge);marks.push({kind,x:p.x-(p.vertical?.12:.5),y:p.z-(p.vertical?.5:.12),w:p.vertical?.24:1,h:p.vertical?1:.24});};
+    for(const candidate of view.candidates??[]){
+      const ref=candidate.interaction,kind=candidate.boardVisual?.kind??'special';let positions=[];
+      if(ref.kind==='Position')positions=[ref.position];
+      else if(ref.kind==='Unit'){const f=figures.find(f=>f.id===ref.unitId);if(f)positions=frame.presentation.figures?.[f.id]?.occupiedCells??[f.position];}
+      else if(ref.kind==='Door')door(ref.door,'door');
+      for(const p of positions){if(kind!=='stay'||ref.unitId!==frame.state.currentUnitId)cell(p,kind);
+        // Preserve authored action symbols; the surrounding mark is shared.
+        const icon=candidate.boardVisual?.icon,key=`${boardCellKey(p)}:${icon}`;
+        if(icon&&!icons.has(key)){icons.add(key);const m=glyph(icon).clone();m.depthTest=false;m.depthWrite=false;
+          const object=plane(m,p.x+.76,p.y+.76,.22,.22,.025);object.renderOrder=104;object.userData.overlayMaterial=true;
+          retain(`feedback:icon:${key}`,'icon','feedback',()=>object);}
+      }
+    }
+    const previewCells=view.preview?.placementCells?.length?view.preview.placementCells:view.preview?.interaction?.kind==='Position'?[view.preview.interaction.position]:[];
+    for(const p of previewCells)cell(p,'preview',.035);
+    const ids=new Set([frame.state.currentUnitId,...(view.preview?.affectedUnitIds??[]),view.focusedUnitId,...(view.relationship?.targets??[]).map(t=>t.targetId),view.relationship?.attackerId].filter(Boolean));
+    for(const id of ids){const f=figures.find(f=>f.id===id);if(!f)continue;
+      const cells=frame.presentation.figures?.[id]?.occupiedCells??[f.position];
+      const x=Math.min(...cells.map(c=>c.x)),y=Math.min(...cells.map(c=>c.y)),w=Math.max(...cells.map(c=>c.x))-x+1,h=Math.max(...cells.map(c=>c.y))-y+1;
+      const kind=id===view.relationship?.attackerId?'source':view.relationship?.targets?.some(t=>t.targetId===id)?'target':id===frame.state.currentUnitId?'activate':'focus';
+      marks.push({kind,x:x+.035,y:y+.035,w:w-.07,h:h-.07,height:.026});
+    }
+    if(view.focusedDoor)door(view.focusedDoor,'focus');
+    const positions=view.combatPositions,source=positions?.get(view.relationship?.attackerId);
+    if(source)for(const target of view.relationship.targets??[]){const destination=positions.get(target.targetId);if(!destination)continue;
+      const a=cellCenter(source,source.cellSpan??1),b=cellCenter(destination,destination.cellSpan??1);
+      links.push({from:{x:a.x,y:a.z,radius:unitRoots.get(view.relationship.attackerId)?.userData.base?.radius??.34*(source.cellSpan??1)},to:{x:b.x,y:b.z,radius:unitRoots.get(target.targetId)?.userData.base?.radius??.34*(destination.cellSpan??1)}});
+    }
+    for(const objective of frame.presentation.objectives??[])if(objective.area)areas.push({...objective.area,kind:'objective',color:`hsl(${sideHue(objective.sideId)},42%,70%)`});
+    if(view.waypoints)for(const waypoint of frame.state.waypoints??[])areas.push({...waypoint.area,kind:'waypoint'});
+    retain('feedback:tabletop-marks','marks','feedback',()=>tabletopMarks.build(marks,links));
+    retain('area:tabletop-marks','areas','areas',()=>tabletopMarks.build(areas));
   }
   function resize(){const rect=host.getBoundingClientRect(),w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;const ratio=Math.min(globalThis.devicePixelRatio||1,2),width=Math.round(w*ratio),height=Math.round(h*ratio);if(canvas.width!==width||canvas.height!==height)renderer.setSize(width,height,false);orthographicCamera.left=-w/2;orthographicCamera.right=w/2;orthographicCamera.top=h/2;orthographicCamera.bottom=-h/2;perspectiveCamera.aspect=w/h;cameraControl.resize(w,h);return rect;}
   function updateCamera(){const pose=cameraControl.current();if(!pose)return;const b=orientationBasis(pose),board=frame.state.physical.board,lens=perspectiveLens(pose,cameraControl.size),distance=lens.perspective?lens.distance:Math.max(100,Math.hypot(board.width,board.height)*2);
@@ -443,10 +480,56 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     metrics.textContent=JSON.stringify({presentation,representation:unitRepresentation,bases:baseDiagnostics(),miniatures:[...unitRoots.values()].filter(r=>r.userData.body?.facingNode).length,models:models.inspect(),lighting:lighting.inspect(),shadowUpdates,materials:models.inspect().reduce((n,e)=>n+(e.materials??0),0)+materials.size+glyphs.size+lighting.inspect().materials,renders:renderCount,initialRenderMs:+(readyAt-started).toFixed(1),presentationFirstFrameMs:presentationFirstFrameMs==null?null:+presentationFirstFrameMs.toFixed(1),reconcileP95Ms:+percentile(reconcileTimes,.95).toFixed(2),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,programs:renderer.info.programs?.length??0,estimatedTextureMiB:+((textureBytes+models.inspect().reduce((n,e)=>n+(e.textureBytes??0),0))/1048576).toFixed(2),renderP50Ms:+percentile(renderTimes,.5).toFixed(2),renderP95Ms:+percentile(renderTimes,.95).toFixed(2),frameP50Ms:+percentile(samples,.5).toFixed(2),frameP95Ms:+percentile(samples,.95).toFixed(2),animationSamples:samples.length,cameraFrames:cameraRenderTimes.length,cameraRenderP95Ms:+percentile(cameraRenderTimes,.95).toFixed(2),cameraFrameP95Ms:+percentile(cameraIntervals,.95).toFixed(2),unitFrames:unitRenderTimes.length,unitRenderP95Ms:+percentile(unitRenderTimes,.95).toFixed(2),unitFrameP95Ms:+percentile(unitIntervals,.95).toFixed(2),textureLoads:[...textures.values()].filter(t=>t.state==='loading').length,missingTextures:[...textures.values()].filter(t=>t.state==='missing').length});
     if(continuous)invalidate();
   }
+  function overlayBounds(){const overlay=host.querySelector('#board-overlays'),r=overlay?.getBoundingClientRect(),b=host.getBoundingClientRect();return r?.width&&r?.height?[{x:r.left-b.left,y:r.top-b.top,w:r.width,h:r.height}]:[];}
+  function updateTabletopLabels(){
+    const size=cameraControl.size,candidates=[];
+    for(const[id,label]of labelNodes){
+      const a=label.appearance,root=unitRoots.get(id),bounds=root?.userData.visualBounds,anchor=root?.userData.infoAnchor??{x:0,y:0,z:0};
+      const center={x:root?.position.x??label.position.x+a.cellSpan/2,y:root?.position.z??label.position.y+a.cellSpan/2},radius=bounds?.radius??a.cellSpan*.42;
+      const points=[0,bounds?.height??.8].flatMap(height=>[-1,1].flatMap(dx=>[-1,1].map(dy=>cameraControl.screen({x:center.x+dx*radius,y:center.y+dy*radius,height:height+(root?.position.y??0)}))));
+      const bodyRect={x:Math.min(...points.map(p=>p.x)),y:Math.min(...points.map(p=>p.y)),w:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),h:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))};
+      const p=cameraControl.screen({x:center.x+anchor.x,y:center.y+anchor.z,height:(root?.position.y??0)+anchor.y});
+      const base=[-radius,radius].map(dx=>cameraControl.screen({x:center.x+dx,y:center.y,height:.084}));
+      const diameter=Math.max(1,Math.hypot(base[0].x-base[1].x,base[0].y-base[1].y));
+      const target=view.relationship?.targets?.some(t=>t.targetId===id),source=view.relationship?.attackerId===id,activeUnit=frame.state.currentUnitId===id;
+      const inspected=id===hoveredUnitId||id===view.focusedUnitId;
+      const priority=inspected?4:activeUnit?3:source||target?2:(view.preview?.affectedUnitIds??[]).includes(id)?1:0;
+      const state=source?'Attack':target?'Target':activeUnit?'Active':a.posture==='Lying'?'Lying':'';
+      const detailed=priority>0||a.posture==='Lying';
+      label.dataset.important=String(priority>0);label.dataset.damaged=String(a.hp<a.maxHp);label.dataset.status=state.toLowerCase();label.dataset.body=root?.userData.body?.facingNode?'miniature':'cardboard';
+      label.style.setProperty('--unit-side',`hsl(${sideHue(a.sideId)},65%,70%)`);
+      label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[2].textContent=[a.posture==='Lying'&&state!=='Lying'?'Lying':'',state].filter(Boolean).join(' · ');label.children[3].textContent=a.sideId??'';
+      const shortName=a.name.split(/\s+/)[0],compactText=shortName.length>8?shortName.slice(0,7)+'…':shortName;
+      label.compactText=compactText;
+      const compactWidth=Math.max(34,compactText.length*6+14)+(a.maxHp>1&&a.hp<a.maxHp?32:0),width=Math.max(detailed?(a.posture==='Lying'?138:118):72,Math.min(180,a.name.length*6.5+(a.maxHp>1?47:18)));
+      const compact=diameter<35&&bodyRect.h<55&&!priority&&a.posture!=='Lying';
+      const offscreen=p.behind||bodyRect.x+bodyRect.w<0||bodyRect.y+bodyRect.h<0||bodyRect.x>size.width||bodyRect.y>size.height||id===transientId;
+      label.hidden=offscreen;
+      if(offscreen)continue;
+      // The authored head anchor is tighter than a rotated model bounding box.
+      // Reserve the central silhouette, leaving room beside overhanging weapons.
+      const obstacle={...bodyRect,x:bodyRect.x+bodyRect.w*.15,w:bodyRect.w*.7};
+      candidates.push({id,x:Math.max(4,Math.min(size.width-4,p.x)),y:Math.max(detailed?50:35,p.y-3),width:bodyRect.h<16&&!priority?0:compact?compactWidth:width,height:detailed?39:24,compactWidth:detailed?undefined:compactWidth,priority,bodyRect:obstacle,compact});
+    }
+    const layout=layoutTabletopLabels(candidates,size,overlayBounds());
+    for(const entry of candidates){const label=labelNodes.get(entry.id),p=layout.get(entry.id);label.hidden=!p||p.hidden;if(label.hidden)continue;
+      const compact=entry.compact||p.compact;
+      label.dataset.compact=String(compact);label.dataset.expanded=String(entry.height>24&&!compact);
+      label.children[1].textContent=compact?label.compactText:label.appearance.name;
+      label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;label.style.width=`${p.width}px`;label.style.height=`${compact?24:p.height}px`;
+      const targetY=p.y>=entry.bodyRect.y+entry.bodyRect.h?entry.bodyRect.y+entry.bodyRect.h:entry.y;
+      const startX=Math.max(p.x,Math.min(p.x+p.width,entry.x)),startY=Math.max(p.y,Math.min(p.y+(compact?24:p.height),targetY));
+      const dx=entry.x-startX,dy=targetY-startY;
+      label.style.setProperty('--leader-x',`${startX-p.x}px`);label.style.setProperty('--leader-y',`${startY-p.y}px`);
+      label.style.setProperty('--leader-length',`${Math.min(110,Math.hypot(dx,dy))}px`);label.style.setProperty('--leader-angle',`${Math.atan2(dy,dx)}rad`);
+    }
+  }
   function updateLabels(){const pose=cameraControl.current(),size=cameraControl.size;if(!pose)return;const placed=[];
     const priority=id=>id===view.focusedUnitId?3:id===frame.state.currentUnitId?2:view.relationship?.targets?.some(t=>t.targetId===id)?1:0;
     const entries=[...labelNodes].sort(([a],[b])=>priority(b)-priority(a));
-    for(const[id,label]of entries){const a=label.appearance,root=unitRoots.get(id),anchor=root?.userData.infoAnchor??{x:0,y:0,z:0},height=(root?.position.y??0)+anchor.y;
+    if(presentation==='tabletop')updateTabletopLabels();
+    else for(const[id,label]of entries){const a=label.appearance,root=unitRoots.get(id),anchor=root?.userData.infoAnchor??{x:0,y:0,z:0},height=(root?.position.y??0)+anchor.y;
+      label.children[1].textContent=a.name;
       const center={x:label.position.x+a.cellSpan/2+anchor.x,y:label.position.y+a.cellSpan/2+anchor.z,height},p=cameraControl.screen(center),radius=root?.userData.body?.pickRadius??root?.userData.visualBounds?.radius??a.cellSpan*.42;
       const samples=presentation==='tabletop'?Array.from({length:16},(_,i)=>cameraControl.screen({...center,height:.084,x:center.x+Math.cos(i*Math.PI/8)*radius,y:center.y+Math.sin(i*Math.PI/8)*radius})):null;
       const diameter=samples?Math.max(...samples.map(p=>p.x))-Math.min(...samples.map(p=>p.x)):pose.scale*.84*a.cellSpan;
@@ -512,7 +595,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   }
   const local=event=>{const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};};
   function candidates(hit){return boardCandidates(hit,{candidates:view.candidates??[]},frame.state,frame.presentation.figures);}
-  function hover(hit){const choices=hit?candidates(hit):[],signature=JSON.stringify([hit,choices.map(c=>c.key)]);if(signature===lastHover)return;lastHover=signature;onHover?.(hit?.unitId??null);onPreview?.(choices.length===1?choices[0]:null);
+  function hover(hit){const choices=hit?candidates(hit):[],signature=JSON.stringify([hit,choices.map(c=>c.key)]);if(signature===lastHover)return;lastHover=signature;const nextHovered=hit?.unitId??null;if(nextHovered!==hoveredUnitId&&presentation==='tabletop')invalidate();hoveredUnitId=nextHovered;onHover?.(hoveredUnitId);onPreview?.(choices.length===1?choices[0]:null);
     canvas.style.cursor=choices.length?'pointer':'grab';host.dataset.hoverCell=hit?boardCellKey(hit.cell):'';
     const description=choices.map(c=>c.boardVisual?.preview??c.displayLabel??c.label).join(' / ');
     const machine=hit&&frame.presentation.machines?.find(m=>boardCellKey(m.position)===boardCellKey(hit.cell));
@@ -547,7 +630,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   bind(canvas,'wheel',event=>{if(!event.altKey||event.ctrlKey)return;event.preventDefault();cameraControl.zoom(Math.exp(-event.deltaY*.002),local(event));},{passive:false});
   bind(host,'keydown',event=>{if(event.target!==host&&event.target!==focus)return;
     const direction={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
-    if(direction){event.preventDefault();if(event.shiftKey){const pose=cameraControl.current();cameraControl.manual({...pose,x:pose.x+direction[0]*2,y:pose.y+direction[1]*2},true);}else{const board=frame.state.physical.board;focusedCell={x:Math.max(0,Math.min(board.width-1,focusedCell.x+direction[0])),y:Math.max(0,Math.min(board.height-1,focusedCell.y+direction[1]))};focus.hidden=false;focus.focus();const pose=cameraControl.current(),p=cameraControl.screen({x:focusedCell.x+.5,y:focusedCell.y+.5});if(p.x<0||p.y<0||p.x>cameraControl.size.width||p.y>cameraControl.size.height)cameraControl.manual({...pose,x:focusedCell.x+.5,y:focusedCell.y+.5},true);onHover?.(frame.state.physical.figures.find(f=>(frame.presentation.figures?.[f.id]?.occupiedCells??[f.position]).some(c=>boardCellKey(c)===boardCellKey(focusedCell)))?.id??null);invalidate();}}
+    if(direction){event.preventDefault();if(event.shiftKey){const pose=cameraControl.current();cameraControl.manual({...pose,x:pose.x+direction[0]*2,y:pose.y+direction[1]*2},true);}else{const board=frame.state.physical.board;focusedCell={x:Math.max(0,Math.min(board.width-1,focusedCell.x+direction[0])),y:Math.max(0,Math.min(board.height-1,focusedCell.y+direction[1]))};focus.hidden=false;focus.focus();const pose=cameraControl.current(),p=cameraControl.screen({x:focusedCell.x+.5,y:focusedCell.y+.5});if(p.x<0||p.y<0||p.x>cameraControl.size.width||p.y>cameraControl.size.height)cameraControl.manual({...pose,x:focusedCell.x+.5,y:focusedCell.y+.5},true);hoveredUnitId=frame.state.physical.figures.find(f=>(frame.presentation.figures?.[f.id]?.occupiedCells??[f.position]).some(c=>boardCellKey(c)===boardCellKey(focusedCell)))?.id??null;onHover?.(hoveredUnitId);invalidate();}}
     if(['+','='].includes(event.key)){event.preventDefault();cameraControl.zoom(1.2,undefined,true);}if(event.key==='-'){event.preventDefault();cameraControl.zoom(1/1.2,undefined,true);}
     if(event.key===' '){space=true;event.preventDefault();}if(event.key==='Enter'){event.preventDefault();select({cell:focusedCell});}
   });
@@ -599,7 +682,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     clipPool?.dispose();clipPool=null;if(transient){transient.removeFromParent();transient=null;transientId=null;for(const root of unitRoots.values())root.visible=true;}
     cameraControl.settle();shadowDirty=true;invalidate();}
   function cancel(){epoch++;settle();motion=null;for(const record of nodes.values())record.object.visible=true;cameraControl.cancel();}
-  function dispose(){if(disposed)return;setActive(false);disposed=true;models.dispose();readyModels.clear();pendingModels.clear();abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();surfaces.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
+  function dispose(){if(disposed)return;setActive(false);disposed=true;models.dispose();readyModels.clear();pendingModels.clear();abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();surfaces.dispose();tabletopMarks.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
   return{host,lighting,models,facing,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,setRepresentation,syncFacing,
     beginEvent(){inEvent=true;},checkpoint(){inEvent=false;commitBodies();},
     afterOccurrence:occurrence=>{

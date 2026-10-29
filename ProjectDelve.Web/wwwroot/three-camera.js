@@ -3,6 +3,7 @@ import { cameraObservedFrame, cameraFootprint, cameraEventIntent, cameraAnchorBo
 import { interpolatePose } from './playtest-viewport.js';
 import { createCameraDirector } from './three-camera-director.js';
 import { interpolateCameraWorld } from './three-camera-geometry.js';
+import { sideHue } from './side-colors.js';
 import { tabletopOrientation, threeProject, threeUnproject, threeSpanScale, threeClampPose, threeFull, threeAutoFit, threeEnsureVisible, threeScreenBounds, threeFitRect, interpolateOrientation, lensFov } from './three-camera-geometry.js';
 
 // Cell-space policy and time-based pose. No CSS transforms or separate RAF loop.
@@ -216,10 +217,13 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
       let location=cameraObjectiveIndicator(screenArea,{x:size.width/2,y:size.height/2,scale:1},size,26); if(!location) continue;
       const key=`${objective.sideId}:${i}`;retained.add(key);
       let node=indicators.get(key);
-      if(!node) {node=document.createElement('button');node.type='button';node.className='camera-objective';node.textContent='➜';node.addEventListener('click',()=>manual({...pose,x:node.area.x+node.area.w/2,y:node.area.y+node.area.h/2},true));controls.objectives.append(node);indicators.set(key,node);}
+      if(!node) {node=document.createElement('button');node.type='button';node.className='camera-objective';
+        const bearing=document.createElement('span'),sideLabel=document.createElement('span');bearing.className='objective-bearing';bearing.textContent='➜';sideLabel.className='objective-side';node.append(bearing,sideLabel);
+        node.addEventListener('click',()=>manual({...pose,x:node.area.x+node.area.w/2,y:node.area.y+node.area.h/2},true));controls.objectives.append(node);indicators.set(key,node);}
       node.area=objective.area; location=cameraIndicatorSlot(location,placed,size,blocked);placed.push(location);
-      node.style.left=`${location.x}px`;node.style.top=`${location.y}px`;node.style.setProperty('--direction',`${location.angle}rad`);node.style.rotate=`${location.angle}rad`;
-      node.title=`Pan to ${objective.sideId} Reach Area`;node.setAttribute('aria-label',node.title);
+      node.style.left=`${location.x}px`;node.style.top=`${location.y}px`;node.style.setProperty('--direction',`${location.angle}rad`);node.style.rotate='0rad';node.children[0].style.rotate=`${location.angle}rad`;
+      node.style.setProperty('--objective-side',`hsl(${sideHue(objective.sideId)},65%,70%)`);node.children[1].textContent=objective.sideId;node.children[1].hidden=!physical;
+      node.title=`Pan to ${objective.name??'Reach Area'} · Side ${objective.sideId}`;node.setAttribute('aria-label',node.title);
     }
     for(const [key,node] of indicators) if(!retained.has(key)){node.remove();indicators.delete(key);}
   }
