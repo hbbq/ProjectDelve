@@ -292,6 +292,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       Number(ui["world-draws"].value), Number(ui["world-cycling"].value)));
   });
   function syncWorldFields() {
+    const lootForm = editorForm('loot-deck'); lootForm.id = 'designer-loot-deck';
+    lootForm.append(element('h2', 'Loot Deck'), element('p', 'Finite supply. Each unopened marker reserves one card; drawn cards never return.'));
+    const counts = (catalog.lootCards ?? []).map(c => ({ kind: c.kind, input: field(lootForm, c.name,
+      (draft.definition.loot?.cards ?? []).filter(k => k === c.kind).length, { type: 'number' }) }));
+    lootForm.append(element('button', 'Apply Loot Deck'));
+    lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({ kind: c.kind, count: Number(c.input.value) })))); });
+    document.getElementById('designer-loot-editor').replaceChildren(lootForm);
     const world = draft.definition.worldEffects;
     ui["world-enabled"].checked = !!world;
     ui["world-draws"].value = world?.cardsPerRound ?? 1;
@@ -506,6 +513,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         node.setAttribute("aria-label", node.title);
         if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
       }
+      const unopened = (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, cell)).length;
+      const known = (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, cell)).length;
+      if (unopened || known) { const loot = element('span', `▣ ${unopened} · ◆ ${known}`); loot.className = 'loot-ground'; node.append(loot); }
       const cellMarker = (draft.definition.cellMarkers ?? []).find(marker => sameCell(marker.position, cell));
       if (cellMarker) {
         const marker = element("span", "\u{1F34C}"); marker.className = "cell-marker";
@@ -585,6 +595,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const agency = draft.definition.agency.find(row => row.unitTypeId === unit.unitTypeId && row.sideId === unit.sideId);
       const controller = field(form, "Controller for new Type + Side", agency?.controller ?? ui.controller.value, { entries: catalog.controllers });
       const unitId = field(form, "Unit ID (optional; blank = generated)", unit.unitId);
+      objectEditor(form, unit.inventory ?? [], { unitKey: key });
       const sync = () => {
         const existing = draft.definition.agency.find(row => row.unitTypeId === type.value && row.sideId === side.value);
         controller.disabled = !!existing; if (existing) controller.value = existing.controller;
@@ -635,6 +646,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     } else if (selection.kind === "cell") {
       const position = { ...selection.position };
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
+      const lootCount = field(form, 'Unopened Loot markers', (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, position)).length, { type: 'number' });
+      form.append(button('Apply Loot markers', () => commit(() => draft.setLootMarkers(position, Number(lootCount.value)))));
+      objectEditor(form, (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, position)).map(g => g.object), { position });
       const resource = draft.definition.resources?.find(row => sameCell(row.position, position));
       let resourceType = null;
       if (resource) {
@@ -884,6 +898,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         order.unitTypeId === row.unitTypeId && order.sideId === row.sideId));
       form.append(button("Highlight group", () => { highlightedGroup = { unitTypeId: row.unitTypeId, sideId: row.sideId }; objectiveSide = null; renderBoard(); }));
       const capacities = draft.metadata(row.unitTypeId)?.resourceStorage?.capacities ?? [];
+      const lootType = draft.definition.unitTypes?.find(t => t.id === row.unitTypeId) ?? draft.metadata(row.unitTypeId)?.definition;
+      const lootPanel = element('details'); lootPanel.append(element('summary', 'Loot & ownership · Unit Type')); form.append(lootPanel);
+      const dropChance = field(lootPanel, 'Drop successes (0–6)', lootType?.lootDropSuccesses ?? 0, { type: 'number' });
+      const items = field(lootPanel, 'Can Have Items', lootType?.canHaveItems ? 'Yes' : 'No', { entries: ['No', 'Yes'] });
+      const equipment = field(lootPanel, 'Can Have Equipment', lootType?.canHaveEquipment ? 'Yes' : 'No', { entries: ['No', 'Yes'] });
+      lootPanel.append(button('Apply Loot capabilities', () => commit(() => draft.configureLootType(row.unitTypeId,
+        Number(dropChance.value), items.value === 'Yes', equipment.value === 'Yes'))));
       const inventoryPanel = element("details"), inventoryFields = element("div"); inventoryFields.className = "designer-coordinate-grid";
       if (capacities.length) {
         const quantity = (draft.definition.storedResources ?? []).filter(r => r.unitTypeId === row.unitTypeId && r.sideId === row.sideId).reduce((sum, r) => sum + r.quantity, 0);
@@ -965,6 +986,19 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.saveRoute(route?.id, { id: id.value, mode: mode.value, waypointIds: sequence }, reset.value === "Yes")); });
       ui.routes.append(form);
     }
+  }
+  function objectEditor(form, objects, destination) {
+    const panel = element('details'); panel.open = objects.length > 0;
+    panel.append(element('summary', `${destination.unitKey != null ? 'Individual inventory' : 'Known ground objects'} · ${objects.length}`));
+    const catalogObjects = (catalog.lootCards ?? []).filter(c => c.category !== 'Immediate');
+    for (const object of objects) {
+      const row = element('div'); row.className = 'designer-loot-row';
+      row.append(element('span', catalogObjects.find(c => c.kind === object.kind)?.name ?? object.kind),
+        button('Remove', () => commit(() => draft.removeObject(object.id)))); panel.append(row);
+    }
+    const kind = field(panel, 'Item or Equipment', catalogObjects[0]?.kind, { entries: catalogObjects.map(c => ({ value: c.kind, label: `${c.name} (${c.category})` })) });
+    panel.append(button('Add object', () => commit(() => draft.addObject(kind.value, destination))));
+    form.append(panel);
   }
   function render() { refreshMetadata(); syncImportedTypes(); renderRoutes(); syncWorldFields(); renderProperties(); renderData(); renderBoard(); updateDocumentState(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });

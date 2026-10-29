@@ -42,6 +42,7 @@ public static partial class GameEngine
             }
             else MoveRailStep();
             ResolveExplosions(state, events);
+            ResolveLootArrivals(state, events);
 
             void MoveRailStep()
             {

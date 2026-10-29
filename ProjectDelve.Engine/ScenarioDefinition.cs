@@ -3,6 +3,9 @@ namespace ProjectDelve.Engine;
 // Initial setup only. Content and runtime identity are resolved during game creation.
 public sealed record ScenarioDefinition
 {
+    public LootSettings? Loot { get; init; }
+    public List<LootMarker>? LootMarkers { get; init; }
+    public List<GroundObject>? GroundObjects { get; init; }
     public List<string>? NeutralSides { get; init; }
     public List<string>? FogOfWarSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }
@@ -35,7 +38,10 @@ public sealed record CellDefinition(Cell Position, TerrainKind Terrain, RailDire
 public enum EdgeDirection { Right, Down }
 public sealed record EdgeDefinition(Cell Position, EdgeDirection Direction, EdgeKind Kind);
 public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor,
-    Posture Posture = Posture.Upright, int? InitialHp = null, string? UnitId = null);
+    Posture Posture = Posture.Upright, int? InitialHp = null, string? UnitId = null)
+{
+    public List<OwnedObject>? Inventory { get; init; }
+}
 public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller);
 public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null,
     OrderTarget? Target = null, FollowRoute? Route = null);

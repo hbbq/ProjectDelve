@@ -23,6 +23,14 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
+        var objectChoice = request.Candidates.FirstOrDefault(c => c.ObjectKind is not null &&
+            (c.Kind == ActivationChoiceKind.FreeAction || c.ObjectKind == LootCardKind.GoatBell));
+        if (objectChoice is not null) return objectChoice.Key;
+        if (request.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn) &&
+            !request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Action) &&
+            request.Candidates.FirstOrDefault(c => c.ObjectKind == LootCardKind.SecondWind) is { } wind)
+            return wind.Key;
+        if (request.Candidates.FirstOrDefault(c => c.EquipmentGranted && c.FreeAction == UnitFreeAction.OpenDoor) is { } open) return open.Key;
         if (request.Candidates.FirstOrDefault(c => c.BonusAction?.Boost is not null) is { } boost) return boost.Key;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
             BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;

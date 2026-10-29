@@ -127,6 +127,7 @@ public static class ContentDescriptions
 
     public static string? EntryId(Candidate candidate) => candidate switch
     {
+        { ObjectKind: { } kind } => $"object:{kind}",
         { BonusAction: { } ability } => BonusEntryId(ability.Name),
         { Kind: ActivationChoiceKind.Cleave } => "cleave",
         { TryOpenDoor: not null } => "try-open-door",

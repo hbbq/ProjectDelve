@@ -21,6 +21,42 @@ export class DesignerDraft {
     else delete this.definition.worldEffects;
     this.changed();
   }
+  setLootDeck(rows) {
+    if (rows.some(r => !Number.isInteger(r.count) || r.count < 0 || r.count > 1000)) throw new Error("Use 0–1000 copies per card.");
+    this.definition.loot = { cards: rows.flatMap(r => Array(r.count).fill(r.kind)) }; this.changed();
+  }
+  configureLootType(id, lootDropSuccesses, canHaveItems, canHaveEquipment) {
+    const types = this.definition.unitTypes ??= [];
+    const original = types.find(t => t.id === id) ?? this.metadata(id)?.definition;
+    if (!original) throw new Error("Unit Type content is still loading.");
+    upsert(types, t => t.id === id, { ...structuredClone(original), lootDropSuccesses, canHaveItems, canHaveEquipment });
+    this.changed();
+  }
+  objectIdentity(prefix) {
+    const ids = new Set([...(this.definition.lootMarkers ?? []).map(m => m.id),
+      ...(this.definition.groundObjects ?? []).map(g => g.object.id), ...this.definition.units.flatMap(u => (u.inventory ?? []).map(o => o.id))]);
+    let number = 1; while (ids.has(`${prefix}-${number}`)) number++;
+    return `${prefix}-${number}`;
+  }
+  setLootMarkers(position, count) {
+    if (!Number.isInteger(count) || count < 0 || count > 1000) throw new Error("Use 0–1000 markers per Cell.");
+    const markers = this.definition.lootMarkers ??= [];
+    const existing = markers.filter(m => sameCell(m.position, position));
+    for (const marker of existing.slice(count)) markers.splice(markers.indexOf(marker), 1);
+    for (let i = existing.length; i < count; i++) markers.push({ id: this.objectIdentity('authored-loot'), position: { ...position } });
+    this.changed();
+  }
+  addObject(kind, { unitKey, position }) {
+    const object = { id: this.objectIdentity('authored-object'), kind };
+    if (unitKey != null) (this.definition.units[this.unitIndex(unitKey)].inventory ??= []).push(object);
+    else (this.definition.groundObjects ??= []).push({ object, position: { ...position } });
+    this.changed();
+  }
+  removeObject(id) {
+    for (const unit of this.definition.units) if (unit.inventory) unit.inventory = unit.inventory.filter(o => o.id !== id);
+    if (this.definition.groundObjects) this.definition.groundObjects = this.definition.groundObjects.filter(g => g.object.id !== id);
+    this.changed();
+  }
   changed() { this.revision++; }
   snapshot() { return structuredClone(this.definition); }
   metadata(id) {
@@ -53,6 +89,8 @@ export class DesignerDraft {
         y: edge.position.y + (edge.direction === "Down" ? 1 : 0) })) ||
       this.definition.units.some(unit => this.occupied(unit).some(hidden)) ||
       (this.definition.cellMarkers ?? []).some(marker => hidden(marker.position)) ||
+      (this.definition.lootMarkers ?? []).some(marker => hidden(marker.position)) ||
+      (this.definition.groundObjects ?? []).some(object => hidden(object.position)) ||
       (this.definition.resources ?? []).some(resource => hidden(resource.position)) ||
       (this.definition.waypoints ?? []).some(w => hidden({ x: w.area.x + w.area.w - 1, y: w.area.y + w.area.h - 1 })) ||
       (this.definition.objectives ?? []).some(o => o.area && hidden({ x: o.area.x + o.area.w - 1, y: o.area.y + o.area.h - 1 })) ||
@@ -347,7 +385,11 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      d.loot != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) ||
+      (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
+      (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || typeof g.object.kind !== 'string') ||
+      d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || typeof o.kind !== 'string'))) ||
       d.units.some(u => !u || typeof u.unitTypeId !== "string" || !u.anchor || !Number.isFinite(u.anchor.x) || !Number.isFinite(u.anchor.y)) ||
       board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
       (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||

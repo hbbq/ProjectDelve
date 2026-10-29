@@ -28,6 +28,8 @@ public static class FogOfWar
     public static GameState Observe(GameState state, string? side)
     {
         var copy = state.Copy();
+        // Unopened card identities are never presentation data, including without FoW.
+        copy.LootDeck = null;
         if (!IsEnabled(state, side)) return copy;
         var visible = state.Units.Where(u => IsUnitObservable(state, side, u.Id)).Select(u => u.Id).ToHashSet();
         var groups = state.Units.Where(u => visible.Contains(u.Id)).Select(u => new ActivationToken(u.TypeId, u.SideId)).ToHashSet();
@@ -43,6 +45,8 @@ public static class FogOfWar
         copy.Types.RemoveAll(t => !copy.Units.Any(u => u.TypeId == t.Id));
         copy.Resources.RemoveAll(r => !IsExplored(state, side, r.Position));
         copy.CellMarkers.RemoveAll(m => !IsExplored(state, side, m.Position));
+        copy.LootMarkers.RemoveAll(m => !IsExplored(state, side, m.Position));
+        copy.GroundObjects.RemoveAll(g => !IsExplored(state, side, g.Position));
         copy.Bag.Clear(); // Generic presentation; authoritative bag is untouched.
         copy.Controllers.RemoveAll(c => c.Token.SideId != side && !groups.Contains(c.Token));
         copy.Orders.RemoveAll(o => o.Token.SideId != side || o.Target is { Kind: OrderTargetKind.Unit, UnitId: { } id } && !visible.Contains(id) ||
@@ -132,6 +136,7 @@ public static class FogOfWar
         var result = e.Attack is null ? null : e.Attack with { Targets = e.Attack.Targets.Where(t => Known(t.TargetId)).ToImmutableArray() };
         var observable = e.Kind switch
         {
+            "LootDropRolled" or "LootCardDrawn" => cell,
             "GameCompleted" or "RoundStarted" or "RoundCompleted" or "ActivationBagPopulated" or
             "WorldDeckShuffled" or "WorldDeckReshuffled" or "WorldDrawSkipped" or "WorldCardDrawn" or
             "WorldContinuousChanged" or "WorldCardDiscarded" => true,
@@ -181,7 +186,7 @@ public static class FogOfWar
     {
         var board = state.Physical.Board;
         const int range = 5;
-        var phase = state.Types.Single(t => t.Id == unit.TypeId).Phase is not null;
+        var phase = state.HasPhase(unit.Id);
         foreach (var from in FootprintGeometry.OccupiedCells(state, unit.Id))
         for (var y = Math.Max(0, from.Y - range); y <= Math.Min(board.Height - 1, from.Y + range); y++)
         for (var x = Math.Max(0, from.X - range); x <= Math.Min(board.Width - 1, from.X + range); x++)

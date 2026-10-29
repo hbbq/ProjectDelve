@@ -117,6 +117,12 @@ internal static class ScenarioCreation
             }
         var state = new GameState
         {
+            LootDeck = definition.Loot is null ? null : new LootDeck
+            {
+                DrawPile = (definition.Loot.Cards ?? throw new ArgumentException("Loot requires card composition."))
+                    .Select((kind, index) => new OwnedObject($"loot-card-{index + 1}", kind)).ToList()
+            },
+            LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
                 e.Kind)).ToList()) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
@@ -151,6 +157,7 @@ internal static class ScenarioCreation
             try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
             if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };
+            state.Units[^1] = state.Units[^1] with { Inventory = [.. placement.Inventory ?? []] };
         }
         for (var index = 0; index < (definition.CellMarkers?.Count ?? 0); index++)
         {

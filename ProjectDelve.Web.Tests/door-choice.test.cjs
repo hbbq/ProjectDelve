@@ -6,6 +6,36 @@ const vm = require("node:vm");
 
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
+test('human Loot cards pause in sequence and Skip dismisses the current reveal', async () => {
+  const h = harness(response());
+  let completed = false;
+  const playing = h.run(`(async () => {
+    skipEffects = false;
+    await revealLoot({lootCard:{kind:'LuckyBoots',name:'Lucky Boots',category:'Equipment',text:'MOV +1.'},humanCollector:true});
+    await revealLoot({lootCard:{kind:'PocketBreakfast',name:'Pocket Breakfast',category:'Immediate',text:'Restore 2 HP.'},humanCollector:true});
+  })()`);
+  playing.then(()=>completed=true);
+  await Promise.resolve();
+  assert.equal(completed,false); assert.match(h.context.document.body.textContent,/Lucky Boots/);
+  h.context.document.body.querySelectorAll('.loot-continue')[0].onclick();
+  await Promise.resolve(); await Promise.resolve();
+  assert.match(h.context.document.body.textContent,/Pocket Breakfast/);
+  assert.doesNotMatch(h.context.document.body.textContent,/Lucky Boots/);
+  h.elements.get('skip').listeners.click(); await playing;
+  assert.equal(completed,true); assert.doesNotMatch(h.context.document.body.textContent,/Pocket Breakfast/);
+});
+
+test('automated Loot reveals dismiss on their timer and replacement can cancel a human reveal', async () => {
+  const h = harness(response()); let callback;
+  h.context.setTimeout = fn => { callback=fn; return 1; }; h.context.clearTimeout=()=>{};
+  const playing = h.run(`revealLoot({lootCard:{kind:'GoatBell',name:'Bell',category:'Equipment',text:'Stand up a friend.'},humanCollector:false})`);
+  assert.equal(typeof callback,'function'); callback(); await playing;
+  assert.doesNotMatch(h.context.document.body.textContent,/Bell/);
+  const human = h.run(`revealLoot({lootCard:{kind:'Bedsheet',name:'Sheet',category:'Equipment',text:'Phase.'},humanCollector:true})`);
+  h.run('playbackGeneration++; cancelPause?.()'); await human;
+  assert.doesNotMatch(h.context.document.body.textContent,/Sheet/);
+});
+
 for (const view of ["classic", "enhanced"]) test(`Reach Area mission marker survives Unknown Cells and Waypoints off (${view})`, () => {
   const initial = response();
   initial.presentation.viewingSideId = "blue";
@@ -171,6 +201,7 @@ function harness(initial, fetchImpl, extras = {}) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/side-colors.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/tooltips.js"), "utf8").replace(/^export /gm, ""), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/loot-ui.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/playtest-viewport.js"), "utf8").replace(/^export /gm, ""), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/unit-facing.js"), "utf8").replace(/^export /gm, ""), context);
   if (extras.withCamera) for (const file of ["camera-geometry.js", "camera-observation.js", "board-camera.js"])
@@ -3823,4 +3854,29 @@ test('combat tray follows restricted observation targets after replacing an unre
   assert.match(h.elements.get('dice').textContent, /1 target/);
   assert.equal(h.run('combatDice.names.has("b")'), false);
   assert.deepEqual(h.submitted, []);
+});
+
+test("inventory rows distinguish sources and consolidate identical use choices", () => {
+  const native = entry("attack", "Attack");
+  const boots = { ...entry("object:LuckyBoots", "Lucky Boots", "Passive"), source: "Equipment", copyCount: 2 };
+  const wind = { ...entry("object:SecondWind", "Second Wind", "Bonus Action"), source: "Item", copyCount: 2 };
+  const initial = response([
+    choice("wind-one", "Direct", {}, { entryId: "object:SecondWind" }),
+    choice("wind-two", "Direct", {}, { entryId: "object:SecondWind" })
+  ], [native, boots, wind]);
+  initial.presentation.cards.actor.inventory = [{name:"Lucky Boots"},{name:"Lucky Boots"},{name:"Second Wind"},{name:"Second Wind"}];
+  initial.result.state.effectiveMov = { actor: 2 };
+  const h = harness(initial), card = h.elements.get("unit-card");
+  const rows = card.querySelectorAll(".card-ability");
+  assert.deepEqual(rows.map(row => row.dataset.source), ["Native", "Equipment", "Item"]);
+  assert.match(rows[1].textContent, /Identical effects apply once/);
+  assert.match(rows[2].textContent, /Single Use Item/);
+  assert.equal(buttons(rows[2]).length, 1);
+  assert.match(card.querySelectorAll(".inventory-summary")[0].textContent, /4 carried objects/);
+  const changes = card.querySelectorAll(".modified-stat");
+  assert.ok(changes.some(stat => stat.dataset.change === "negative"));
+  assert.ok(changes.some(stat => stat.dataset.change === "positive"));
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(buttons(rows[2])[0]); assert.deepEqual(h.submitted, ["wind-one"]);
+  assert.equal(h.run('cardChoiceKeys.has("wind-two")'), true);
 });

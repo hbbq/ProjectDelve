@@ -266,6 +266,21 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     }
     return group;
   }
+  function loot(pile){
+    const group=new THREE.Group(),p=pile.position;
+    group.position.set(p.x+.5,0,p.y+.80);
+    if(pile.unopened){
+      box(group,'#936030',-.19,.10,0,.27,.18,.22);
+      box(group,'#e3bb63',-.19,.20,0,.29,.05,.24);
+      box(group,'#f2d883',-.19,.11,-.12,.05,.08,.025);
+      group.add(plane(glyph(String(pile.unopened)),-.19,0,.17,.17,.23));
+    }
+    if(pile.objects.length){
+      for(let i=0;i<Math.min(3,pile.objects.length);i++)box(group,'#79c8c0',.17,.025+i*.035,0,.24,.025,.30,i*.15);
+      group.add(plane(glyph(String(pile.objects.length)),.17,0,.18,.18,.14));
+    }
+    return group;
+  }
   function miniatureBase(a,layout=miniatureBaseLayout({baseRadius:a.baseRadius,width:a.footprintWidth??a.cellSpan??1,depth:a.footprintDepth??a.cellSpan??1})){
     const group=new THREE.Group(),r=layout.radius;group.name='miniature-base';group.userData.base=layout;
     // A shallow lower chamfer and a sloped Side rim give every miniature the
@@ -287,7 +302,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries[rimKey]));
     return group;
   }
-  return {unit,posture,board,terrain,edge,machine,item,miniatureBase};
+  return {unit,posture,board,terrain,edge,machine,item,loot,miniatureBase};
 }
 
 // One transient mover: small envelopes need nine Cell columns, larger ones

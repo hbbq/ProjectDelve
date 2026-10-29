@@ -22,6 +22,7 @@ public static class PlaytestScenarios
 {
     public const string DefaultId = "basic-combat";
     public static IReadOnlyList<ScenarioDescription> Catalog { get; } = Array.AsReadOnly<ScenarioDescription>([
+        new("loot-equipment", "Loot & Equipment", "Collect mysterious Loot, try individual Equipment, ring the Goat Bell and recover objects from defeated Units. No victory objective."),
         new("chess", "Chess", "Defeat the opposing King."),
         new("delve-chess-peasants-rooks", "Delve Chess — Peasants and Rooks", "Two courts test straight Rook Moves, diagonal melee and Advance On Kill around Walls, Windows and Doors. A neutral Rogue opens Doors. Change controllers to compare manual and automated play."),
         new("delve-chess-phase-2", "Delve Chess — Phase 2: Bishops and Knights", "Both courts add diagonal corridors and single L-shaped leaps to Peasants and Rooks. Test blocked corners, a trapped Bishop, jumping, landing hazards and Advance On Kill. A neutral Rogue opens Doors."),
@@ -56,6 +57,7 @@ public static class PlaytestScenarios
 
     public static ScenarioDefinition Definition(string id) => id switch
     {
+        "loot-equipment" => LootPlaytestScenario.Definition(),
         "chess" => DelveChessScenario.ChessDefinition(),
         "delve-chess-peasants-rooks" => DelveChessScenario.Definition(),
         "delve-chess-phase-2" => DelveChessScenario.Phase2Definition(),

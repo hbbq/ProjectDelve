@@ -227,7 +227,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public bool CanInteractWithDoors(string unitId)
     {
         var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
-        return type.FreeActions.HasFlag(UnitFreeAction.OpenDoor) || type.TryOpenDoor is not null;
+        return world.HasOpenDoor(unitId) || type.TryOpenDoor is not null;
     }
 
     public int? DistanceToDoorInteractionPositionFrom(string unitId, Cell position, DoorTarget door,

@@ -45,6 +45,7 @@ public static partial class GameEngine
         state.AttackInProgress = null;
         state.DoorInProgress = null;
         state.PendingExplosions.Clear();
+        state.ExtraActionsThisActivation = 0;
         state.MoveOpportunityModifierThisActivation = 0;
         state.MovesCompletedThisActivation = 0;
         state.WaypointAdvancedThisActivation = false;
@@ -55,7 +56,12 @@ public static partial class GameEngine
         state.Pending = null;
         state.CompletedUnitIds.Clear();
         state.RoundComplete = false;
-        var events = new ResolutionEvents(state, observe);
+        var events = new ResolutionEvents(state, random, observe);
+        if (state.Round == 1)
+        {
+            events.LootArrivals.AddRange(state.Physical.Figures.OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X).Select(f => f.Id));
+            ResolveLootArrivals(state, events);
+        }
         var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind is TerrainKind.Lava or TerrainKind.FruitTree);
         if (state.WorldEffects is not null || hasLava)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
@@ -84,7 +90,7 @@ public static partial class GameEngine
         if (previous.Pending is null) throw new InvalidOperationException("No decision is pending.");
         var state = previous.Copy();
         EnsureObjectives(state);
-        var events = new ResolutionEvents(state, observe);
+        var events = new ResolutionEvents(state, random, observe);
         if (state.AttackInProgress is null && state.DoorInProgress is null && state.CurrentUnitId is not null &&
             (!state.Units.Any(u => u.Id == state.CurrentUnitId && u.CurrentHp > 0) ||
              !state.IsUpright(state.CurrentUnitId)))
@@ -155,6 +161,11 @@ public static partial class GameEngine
     private static void ApplyDecision(GameState state, DecisionRequest request, string? choice,
         IRandomProvider random, ResolutionEvents events)
     {
+        if (choice is not null && request.Candidates.Single(c => c.Key == choice).ObjectKind is not null)
+        {
+            ResolveObjectChoice(state, request, request.Candidates.Single(c => c.Key == choice), events);
+            return;
+        }
         switch (request.Kind)
         {
             case DecisionKind.RollDice:
@@ -180,7 +191,8 @@ public static partial class GameEngine
                 break;
             case DecisionKind.SelectUnit:
                 state.CurrentUnitId = choice;
-                state.MoveOpportunityModifierThisActivation = 0;
+                state.ExtraActionsThisActivation = 0;
+        state.MoveOpportunityModifierThisActivation = 0;
                 state.MovesCompletedThisActivation = 0;
                 state.WaypointAdvancedThisActivation = false;
                 state.ActionDone = false;
@@ -243,6 +255,7 @@ public static partial class GameEngine
                         AbilityName: ability.DisplayName ?? ability.Name)
                         { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice), Cell = bonusChoice.Destination });
                     if (affected.Position != bonusChoice.Destination) ResolveArrival(state, affected.Id, events);
+                    else events.LootArrivals.Add(affected.Id);
                 }
                 else
                 {
@@ -282,6 +295,7 @@ public static partial class GameEngine
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
                 if (!request.IsMoveAfterAttack) RouteRules.CompleteMove(state, request.UnitId!, events.Add);
                 if (path.Count > 1) ResolveArrival(state, request.UnitId!, events);
+                else events.LootArrivals.Add(request.UnitId!);
                 break;
             case DecisionKind.Activation:
                 state.ActionsUsedThisActivation++;
@@ -412,6 +426,7 @@ public static partial class GameEngine
                 continue;
             }
             ResolveExplosions(state, events);
+            ResolveLootArrivals(state, events);
             if (state.DoorInProgress is not null) { state.Pending = CreateDecision(state); return; }
             if (state.ActiveToken is null)
             {
@@ -461,6 +476,7 @@ public static partial class GameEngine
         state.MoveAfterAttackAllowance = null;
         state.AdvanceOnKillCells = null;
         state.CleavePending = false;
+        state.ExtraActionsThisActivation = 0;
         state.MoveOpportunityModifierThisActivation = 0;
         state.MovesCompletedThisActivation = 0;
         state.WaypointAdvancedThisActivation = false;
@@ -613,10 +629,11 @@ public static partial class GameEngine
     private static IEnumerable<Candidate> FreeActionCandidates(GameState state, Unit unit)
     {
         var type = state.Types.Single(t => t.Id == unit.TypeId);
-        if (!type.FreeActions.HasFlag(UnitFreeAction.OpenDoor)) return [];
+        if (!state.HasOpenDoor(unit.Id)) return [];
         return BorderingClosedDoors(state, unit).Select(edge => new Candidate(
             $"open-door:{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}", Door: edge,
-            Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor));
+            Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor)
+            { EquipmentGranted = !type.FreeActions.HasFlag(UnitFreeAction.OpenDoor) });
     }
 
     private static List<Unit> EligibleUnits(GameState state) =>
@@ -743,6 +760,7 @@ public static partial class GameEngine
         var candidates = new List<Candidate>();
         candidates.AddRange(FreeActionCandidates(state, unit));
         candidates.AddRange(BonusActionCandidates(state, unit));
+        candidates.AddRange(ObjectCandidates(state, unit));
         candidates.AddRange(GameplayCandidates(state, unit));
         if (!state.MoveDone)
         {
@@ -764,7 +782,7 @@ public static partial class GameEngine
         var state = previous.Copy();
         EnsureObjectives(state);
         state.Pending = null;
-        var events = new ResolutionEvents(state, observe);
+        var events = new ResolutionEvents(state, random, observe);
         if (state.Round > 0) RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
@@ -965,6 +983,8 @@ public static partial class GameEngine
             [.. FootprintGeometry.OccupiedCells(type.Footprint, figure.Position)]);
         // Retained records use zero HP to mark absence; removal and defeat are one outcome.
         state.Units[index] = unit with { CurrentHp = 0 };
+        foreach (var item in unit.Inventory) state.GroundObjects.Add(new(item, figure.Position));
+        state.Units[index] = state.Units[index] with { Inventory = [] };
         state.DefeatedUnitIds.Add(unitId);
         state.Physical.Figures.RemoveAll(f => f.Id == unitId);
         if (type.Explosion is not null) state.PendingExplosions.Add(context);
@@ -997,8 +1017,10 @@ public static partial class GameEngine
     }
 
     // Capture at emission time, before later operations mutate this run's working state.
-    private sealed class ResolutionEvents(GameState state, Action<RulesEvent, ResolutionStep>? observe)
+    private sealed class ResolutionEvents(GameState state, IRandomProvider random, Action<RulesEvent, ResolutionStep>? observe)
     {
+        public IRandomProvider Random { get; } = random;
+        public List<string> LootArrivals { get; } = [];
         public List<RulesEvent> Events { get; } = [];
         public List<ResolutionStep> Steps { get; } = [];
 
@@ -1024,11 +1046,14 @@ public static partial class GameEngine
                 observe(resolved with { Path = resolved.Path is null ? null : [.. resolved.Path] },
                     new ResolutionStep(Events.Count - 1, observedState));
             }
+            if (resolved.Kind == "UnitDefeated" && resolved.DefeatContext is { } defeat)
+                ResolveLootDrop(state, defeat, this);
         }
     }
 
     internal static void ValidateScenario(GameState state)
     {
+        LootRules.Validate(state);
         ValidateWorldDeck(state);
         RouteRules.ValidateDefinitions(state);
         ResourceRules.ValidateStorage(state);

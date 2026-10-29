@@ -214,6 +214,9 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
     UnitFreeAction FreeActions = UnitFreeAction.None)
 {
+    public bool CanHaveItems { get; init; }
+    public bool CanHaveEquipment { get; init; }
+    public int LootDropSuccesses { get; init; }
     public ImmutableArray<UnitAction> AttackDefinitionOrder { get; init; } = [];
     public bool Unique { get; init; }
     public Footprint Footprint { get; init; } = Footprint.OneByOne;
@@ -296,6 +299,12 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
 }
 public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
 {
+    private ImmutableArray<OwnedObject> inventory = ImmutableArray<OwnedObject>.Empty;
+    public ImmutableArray<OwnedObject> Inventory
+    {
+        get => inventory;
+        init => inventory = value.IsDefaultOrEmpty ? ImmutableArray<OwnedObject>.Empty : value;
+    }
     public AbilityUses? CleaveUses { get; init; }
     public AbilityUses? HealUses { get; init; }
     public AbilityUses? HolyWaveUses { get; init; }
@@ -333,6 +342,9 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
     bool Relevant = true, BonusActionAbility? BonusAction = null)
 {
+    public string? ObjectId { get; init; }
+    public LootCardKind? ObjectKind { get; init; }
+    public bool EquipmentGranted { get; init; }
     public string? MachineId { get; init; }
     public ImmutableArray<string> TargetIds { get; init; } = [];
 }
@@ -354,6 +366,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    public OwnedObject? ObjectCard { get; init; }
+    public LootMarker? LootMarker { get; init; }
     // Observation-only contiguous paths, with at most one boundary step at each end.
     // Hidden interiors are never transported or joined into an invented route.
     public IReadOnlyList<List<Cell>>? ObservedMovement { get; init; }
@@ -384,6 +398,9 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 public sealed class GameState
 {
+    public LootDeck? LootDeck { get; set; }
+    public List<LootMarker> LootMarkers { get; set; } = [];
+    public List<GroundObject> GroundObjects { get; set; } = [];
     // Only detached Side observations carry these values. Removing hidden providers
     // from presentation must not recalculate the visible Units' authoritative stats.
     internal Dictionary<string, (int Mov, int Rng, int Atk, int Def)>? ObservationValues { get; set; }
@@ -469,8 +486,9 @@ public sealed class GameState
         set => ActionsUsedThisActivation = value ? Math.Max(1, ActionsUsedThisActivation) : 0;
     }
     public int ActionsUsedThisActivation { get; set; }
+    public int ExtraActionsThisActivation { get; set; }
     public Dictionary<string, int> BonusActionUseCountsThisActivation { get; set; } = [];
-    public int EffectiveActionsPerActivation => Math.Max(0, 1 +
+    public int EffectiveActionsPerActivation => Math.Max(0, 1 + ExtraActionsThisActivation +
         (WorldDeck?.Modifier(WorldEffect.Frenzy, WorldEffect.Fatigue) ?? 0));
     public int EffectiveBonusActionUsesPerActivation => Math.Max(0, 1 +
         (WorldDeck?.Modifier(WorldEffect.Surge, WorldEffect.Hesitation) ?? 0));
@@ -488,6 +506,13 @@ public sealed class GameState
 
     public bool IsUpright(string unitId) =>
         Physical.Figures.Any(f => f.Id == unitId && f.Posture == Posture.Upright);
+
+    public bool HasEquipment(string unitId, LootCardKind kind) => IsUpright(unitId) &&
+        Units.Single(u => u.Id == unitId).Inventory.Any(o => o.Kind == kind && LootCards.Content(kind).Category == LootCategory.Equipment);
+    public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Phase is not null ||
+        HasEquipment(unitId, LootCardKind.Bedsheet);
+    public bool HasOpenDoor(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).FreeActions.HasFlag(UnitFreeAction.OpenDoor) ||
+        HasEquipment(unitId, LootCardKind.OfficialKey);
 
     public int EffectiveAtkOf(string unitId)
     {
@@ -526,6 +551,7 @@ public sealed class GameState
     public int EffectiveMovOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
         Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
+        (HasEquipment(unitId, LootCardKind.LuckyBoots) ? LootCards.Content(LootCardKind.LuckyBoots).MovementBonus : 0) +
         (WorldDeck?.Modifier(WorldEffect.Haste, WorldEffect.Sluggishness) ?? 0) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) =>
@@ -590,6 +616,7 @@ public sealed class GameState
 
     internal GameState Copy() => new()
     {
+        LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
@@ -600,6 +627,7 @@ public sealed class GameState
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),
         WorldEffects = WorldEffects, WorldDeck = WorldDeck?.Copy(),
         ActionsUsedThisActivation = ActionsUsedThisActivation,
+        ExtraActionsThisActivation = ExtraActionsThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
         ActiveToken = ActiveToken, Controllers = [.. Controllers], Orders = [.. Orders], Waypoints = [.. Waypoints], Routes = [.. Routes],
         MovesCompletedThisActivation = MovesCompletedThisActivation, MoveOpportunityModifierThisActivation = MoveOpportunityModifierThisActivation,
@@ -629,6 +657,21 @@ public interface IDecisionProvider
 
 public interface IRandomProvider
 {
+    // Uniform finite-deck selection using only injected physical d6 randomness.
+    int LootDrawIndex(int exclusiveMax)
+    {
+        if (exclusiveMax < 1) throw new ArgumentOutOfRangeException(nameof(exclusiveMax));
+        if (exclusiveMax == 1) return 0;
+        long range = 1;
+        var dice = 0;
+        while (range < exclusiveMax) { range *= 6; dice++; }
+        while (true)
+        {
+            long value = 0;
+            for (var i = 0; i < dice; i++) value = value * 6 + RollD6() - 1;
+            if (value < range - range % exclusiveMax) return (int)(value % exclusiveMax);
+        }
+    }
     ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag);
     // Fisher-Yates shuffle selection, replaceable independently of combat dice and token draws.
     int WorldShuffleIndex(int exclusiveMax) => Random.Shared.Next(exclusiveMax);

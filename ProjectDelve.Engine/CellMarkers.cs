@@ -27,6 +27,7 @@ public static partial class GameEngine
     // Called only after an actual relocation/entry, never for Stay or activation start.
     private static void ResolveArrival(GameState state, string unitId, ResolutionEvents events)
     {
+        events.LootArrivals.Add(unitId);
         var cells = FootprintGeometry.OccupiedCells(state, unitId);
         var markers = state.CellMarkers.Where(m => cells.Contains(m.Position)).ToArray();
         foreach (var marker in markers)

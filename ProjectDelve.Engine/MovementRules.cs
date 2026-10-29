@@ -8,7 +8,7 @@ internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = f
 {
     internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
         new(state.IsUpright(unitId) &&
-            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).Phase is not null,
+            state.HasPhase(unitId),
             closedDoorsTraversable,
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain,
             FogOfWar.IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId)

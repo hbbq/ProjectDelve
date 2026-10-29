@@ -12,6 +12,7 @@ import { createModelCache } from './three-models.js';
 import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-facing.js';
 import { createTabletopMarks } from './three-tabletop-marks.js';
 import { layoutTabletopLabels } from './three-label-layout.js';
+import { groundLoot } from './loot-ui.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
@@ -318,11 +319,20 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
         const fallback=plane(glyph(visual.glyph??'?'),cx,cy,.3,.3,heights.items);artwork(group,fallback,visual.image?material(visual.fill,visual.image,true):null,cx,cy,.36,.36,heights.items+.01);return group;
       });
     }
+    for(const pile of groundLoot(frame.state)){
+      retain(`loot:${boardCellKey(pile.position)}`,JSON.stringify(pile),'items',()=>physical.loot(pile));
+    }
     const labelIds=new Set();
     for(const figure of frame.state.physical.figures){const a=appearance(figure);
       updateUnit(figure,a);
-      labelIds.add(figure.id);let label=labelNodes.get(figure.id);if(!label){label=document.createElement('div');label.className='three-token-info';label.innerHTML='<span class="three-hp"></span><span class="three-name"></span><span class="three-state"></span><span class="three-side"></span>';labels.append(label);labelNodes.set(figure.id,label);}
+      labelIds.add(figure.id);let label=labelNodes.get(figure.id);if(!label){label=document.createElement('div');label.className='three-token-info';label.innerHTML='<span class="three-hp"></span><span class="three-name"></span><span class="three-state"></span><span class="three-side"></span><span class="three-inventory"></span>';labels.append(label);labelNodes.set(figure.id,label);}
       label.appearance=a;label.position=figure.position;label.title=`${a.name} · Side ${a.sideId} · ${a.posture}${a.maxHp>1?` · HP ${a.hp}/${a.maxHp}`:''}`;
+      const inventoryCount=frame.state.units.find(u=>u.id===figure.id)?.inventory?.length??0;
+      const inventory = label.children[4];
+      inventory.textContent=inventoryCount?`◆ ${inventoryCount}`:'';
+      inventory.hidden=!inventoryCount;
+      inventory.setAttribute('aria-label', `${inventoryCount} carried objects`);
+      if(inventoryCount) label.title+=` · Inventory: ${inventoryCount}`;
       label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[1].textContent=a.name;
     }
     for(const[id,label]of labelNodes)if(!labelIds.has(id)){label.remove();labelNodes.delete(id);}
@@ -589,7 +599,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
   }
   const local=event=>{const rect=canvas.getBoundingClientRect();return{x:event.clientX-rect.left,y:event.clientY-rect.top};};
   function candidates(hit){return boardCandidates(hit,{candidates:view.candidates??[]},frame.state,frame.presentation.figures);}
-  function hover(hit){const choices=hit?candidates(hit):[],signature=JSON.stringify([hit,choices.map(c=>c.key)]);if(signature===lastHover)return;lastHover=signature;const nextHovered=hit?.unitId??null;if(nextHovered!==hoveredUnitId&&presentation==='tabletop')invalidate();hoveredUnitId=nextHovered;onHover?.(hoveredUnitId);onPreview?.(choices.length===1?choices[0]:null);
+  function hover(hit){const choices=hit?candidates(hit):[],signature=JSON.stringify([hit,choices.map(c=>c.key)]);if(signature===lastHover)return;lastHover=signature;const nextHovered=hit?.unitId??null;if(nextHovered!==hoveredUnitId&&presentation==='tabletop')invalidate();hoveredUnitId=nextHovered;onHover?.(hoveredUnitId,hit?.cell);onPreview?.(choices.length===1?choices[0]:null);
     canvas.style.cursor=choices.length?'pointer':'grab';host.dataset.hoverCell=hit?boardCellKey(hit.cell):'';
     const description=choices.map(c=>c.boardVisual?.preview??c.displayLabel??c.label).join(' / ');
     const machine=hit&&frame.presentation.machines?.find(m=>boardCellKey(m.position)===boardCellKey(hit.cell));

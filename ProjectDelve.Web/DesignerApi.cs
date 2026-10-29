@@ -5,7 +5,10 @@ using ProjectDelve.Engine;
 namespace ProjectDelve.Web;
 
 public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int MaxHp,
-    IReadOnlyList<Cell> FootprintOffsets, int CellSpan, ResourceStorage? ResourceStorage);
+    IReadOnlyList<Cell> FootprintOffsets, int CellSpan, ResourceStorage? ResourceStorage)
+{
+    public UnitType? Definition { get; init; }
+}
 public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null);
 public sealed record DesignerError(string Message, string? Path);
 public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
@@ -22,7 +25,7 @@ public static class DesignerApi
     {
         var offsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0));
         return new(type.Id, type.DisplayName ?? type.Id, type.Hp, offsets,
-            offsets.Max(cell => cell.X) + 1, type.ResourceStorage);
+            offsets.Max(cell => cell.X) + 1, type.ResourceStorage) { Definition = type };
     }
 
     public static void CheckHostLimits(ScenarioDefinition definition)
@@ -38,6 +41,7 @@ public static class DesignerApi
             maxBoardSize = MaxBoardSize,
             scenarios = PlaytestScenarios.Catalog.Select(s => new { s.Id, s.Name }),
             cellMarkerTypes = new[] { CellMarkerTypes.BananaPeel },
+            lootCards = LootCards.All,
             machineTypes = new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine },
             resourceTypes = new[] { ResourceTypes.Coal, ResourceTypes.Diamond, ResourceTypes.Fruit, ResourceTypes.Banana, ResourceTypes.Mushroom, ResourceTypes.Shell },
             unitTypes = CanonicalUnitTypes.All.Select(Metadata).ToArray(),

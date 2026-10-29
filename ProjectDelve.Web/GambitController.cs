@@ -268,6 +268,7 @@ public sealed partial class PlaytestGame
     {
         var copy = FogOfWar.ViewingSide(source) is { } side ? FogOfWar.Observe(source, side) : Detach(source);
         if (copy.WorldDeck is not null) copy.WorldDeck.DrawPile = [];
+        copy.LootDeck = null;
         copy.Bag = copy.Bag.OrderBy(t => t.SideId).ThenBy(t => t.TypeId).ToList();
         return copy;
     }

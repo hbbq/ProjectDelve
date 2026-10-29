@@ -1,4 +1,5 @@
 import { bindTooltip, initializeTooltips } from "./tooltips.js";
+import { groundLoot, lootCardDialog } from "./loot-ui.js";
 import { styleSide, applySideHues } from "./side-colors.js";
 import { applyBoardVisual } from "./board-visuals.js";
 import { createBoardCamera } from "./board-camera.js";
@@ -264,6 +265,7 @@ function clearCommentary() {
   renderCommentary();
 }
 let skipEffects = false;
+let skipLootCards = false;
 let cancelPause;
 let displayedState;
 let latestUnitId;
@@ -361,7 +363,7 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
     const objectives = document.createElement("div"); objectives.className = "three-objectives"; host.append(objectives); controls.objectives = objectives;
     try {
       threeViewport = createThreeViewport({ host, controls, startedAt, facing:unitFacing, visualCatalog, modelDescriptors, animate: () => ui.animate.checked && !skipEffects && !reducedMotion(),
-        onPick: selectThreeHit, onHover: id => { hoveredUnitId = id; renderUnitCard(); },
+        onPick: selectThreeHit, onHover: (id, cell) => { if (cell) inspectCell(cellKey(cell)); else { hoveredUnitId = id; renderUnitCard(); } },
         onPreview: candidate => { if (threePreview === candidate) return; threePreview = candidate; syncThreeInteraction(); },
         onProject: () => positionDecisionPanel(),
         onFailure: error => { ui.error.textContent = error.message; domViewport.mode = "enhanced"; boardView.value = "enhanced"; ui.board.dataset.view = "enhanced"; void viewportRouter.request("enhanced"); } });
@@ -415,6 +417,18 @@ function inspectCell(key) {
   hoveredUnitId = displayedState?.physical.figures.find(figure =>
     figureCells(figure).some(cell => cellKey(cell) === key))?.id ?? null;
   renderUnitCard();
+  const pile = displayedState && groundLoot(displayedState).find(p => cellKey(p.position) === key);
+  if (pile) {
+    const panel = text('section', ''); panel.className = 'card-ability';
+    panel.append(text('h3', `Ground at ${key}`));
+    if (pile.unopened) panel.append(text('p', `${pile.unopened} unopened Loot`));
+    for (const object of pile.objects) {
+      panel.append(text('strong', object.content?.name ?? object.kind), text('p', object.content?.text ?? ''));
+      const candidate = snapshot?.presentation.decision?.candidates.find(c => c.key === `pickup-object:${object.id}`);
+      if (candidate && displayedState === snapshot?.result.state) panel.append(choiceButton(candidate));
+    }
+    ui['unit-card'].append(panel);
+  }
 }
 
 function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives) {
@@ -473,7 +487,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const node = cells.get(key) ?? document.createElement("div");
     node.replaceChildren();
     node.removeAttribute("aria-label");
-    node.className = `cell ${kind}`; node.dataset.cell = key;
+    node.className = `cell ${kind}`; node.dataset.cell = key; node.dataset.x = x; node.dataset.y = y;
     node.dataset.x = String(x); node.dataset.y = String(y);
     applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
       x, y, direction: tile?.direction, terrain });
@@ -511,6 +525,14 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.append(labels);
     node.title = `${machine.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}: ${machine.operation}`;
     node.setAttribute("aria-label", `${node.title}. ${machine.resourceStorage.map(r => `${r.name}: ${r.quantity}/${r.capacity}`).join(", ")}`);
+  }
+  for (const pile of groundLoot(state)) {
+    const node = cells.get(cellKey(pile.position)); if (!node) continue;
+    for (const [count, known] of [[pile.unopened, false], [pile.objects.length, true]]) if (count) {
+      const marker = text("span", `${known ? '◆' : '▣'} ${count}`); marker.className = `loot-ground${known ? ' known' : ''}`;
+      marker.title = pile.label; marker.setAttribute('aria-label', pile.label); node.append(marker);
+    }
+    node.title += ` · ${pile.label}`;
   }
   for (const cellMarker of state.cellMarkers ?? []) {
     const node = cells.get(cellKey(cellMarker.position));
@@ -561,7 +583,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.replaceChildren(label);
     const tokenName = displayedCards[figure.id]?.individualName?.trim()
       || displayedCards[figure.id]?.displayName?.trim() || type?.displayName?.trim() || unit?.typeId || "Unit";
-    const nameplate = text("span", tokenName); nameplate.className = "token-nameplate";
+    const nameplate = text("span", tokenName + (unit?.inventory?.length ? ` · ◆${unit.inventory.length}` : '')); nameplate.className = "token-nameplate";
     nameplate.title = tokenName; node.append(nameplate);
     // Snapshot positions settle any skipped movement without animating a state correction.
     node.style.transition = "none";
@@ -699,10 +721,17 @@ function renderUnitCard() {
   for (const stat of ["Mov", "Rng", "Atk", "Def"]) {
     const base = type[stat.toLowerCase()], effective = state[`effective${stat}`]?.[unit.id] ?? base;
     const value = text("p", `${stat.toUpperCase()} ${base === effective ? base : `${base} → ${effective}`}`);
-    if (base !== effective) value.className = "modified-stat";
+    if (base !== effective) {
+      value.className = "modified-stat"; value.dataset.change = effective > base ? "positive" : "negative";
+      value.title = `${stat.toUpperCase()}: base ${base}, current ${effective}`;
+    }
     stats.append(value);
   }
   card.append(stats);
+  if (content.inventory?.length) {
+    const summary = text("p", `${content.inventory.length} carried objects · listed below`);
+    summary.className = "inventory-summary"; card.append(summary);
+  }
   for (const stored of content.resourceStorage ?? [])
     card.append(text("p", `${stored.name}: ${stored.quantity} / ${stored.capacity} (shared by ${unit.sideId} / ${content.displayName})`));
   const order = displayedOrders?.find(order => order.token.typeId === unit.typeId && order.token.sideId === unit.sideId);
@@ -714,9 +743,12 @@ function renderUnitCard() {
   }
   for (const entry of content.entries) {
     const row = text("div", ""); row.className = "card-ability";
+    row.dataset.source = entry.source ?? "Native";
+    const source = text("small", entry.source === "Item" ? "Single Use Item" : entry.source ?? "Native");
+    source.className = "ability-source"; row.append(source);
     const ability = entry.content;
     const heading = text("div", ""); heading.className = "ability-heading";
-    const name = text("strong", ability.name);
+    const name = text("strong", ability.name + (entry.copyCount > 1 ? ` ×${entry.copyCount}` : ""));
     bindTooltip(name, () => ability.description || ability.name);
     if (ability.useLimitText != null) {
       const limit = text("span", ` [${ability.useLimitText}]`); limit.className = "sr-only";
@@ -726,16 +758,22 @@ function renderUnitCard() {
     if (entry.uses) heading.append(useMarkers(entry.uses));
     row.append(heading);
     row.append(abilityDescription(ability));
+    if (entry.source === "Equipment" && entry.copyCount > 1) {
+      const note = text("small", "Identical effects apply once."); note.className = "inventory-note"; row.append(note);
+    }
     const decision = snapshot?.presentation.decision;
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.candidates.filter(candidate => candidate.entryId === ability.id && candidate.interaction.kind === "Direct") : [];
-    for (const candidate of candidates) {
+    for (const candidate of (entry.source === "Item" ? candidates.slice(0, 1) : candidates)) {
       const button = choiceButton(candidate);
       button.dataset.legal = "true";
       button.disabled = busy;
       button.hidden = !visibleChoice(candidate);
       row.append(button);
-      if (!button.hidden && !document.getElementById("inspector-unit")?.hidden) cardChoiceKeys.add(candidate.key);
+      if (!button.hidden && !document.getElementById("inspector-unit")?.hidden) {
+        cardChoiceKeys.add(candidate.key);
+        if (entry.source === "Item") for (const copy of candidates) cardChoiceKeys.add(copy.key);
+      }
       if (!candidate.relevant && !button.hidden) row.append(text("small", "Currently irrelevant"));
     }
     card.append(row);
@@ -1187,7 +1225,7 @@ async function drainUpdates() {
       snapshot = update.snapshot;
       if (update.kind === "commentary") showCommentary(update.commentary);
       if (update.kind === "event") {
-        if (!playbackOperationActive) { skipEffects = !ui.animate.checked || reducedMotion(); playbackOperationActive = true; }
+        if (!playbackOperationActive) { skipLootCards = false; skipEffects = !ui.animate.checked || reducedMotion(); playbackOperationActive = true; }
         await playEvents(snapshot, generation, false);
       }
       if (generation !== playbackGeneration) return;
@@ -1289,7 +1327,7 @@ async function mutate(operation, body = {}) {
   if (streaming) return sendCommand(operation, body);
   if (busy || !snapshot) return false;
   let succeeded = false;
-  busy = true; skipEffects = !ui.animate.checked || reducedMotion(); updateControls(); ui.error.textContent = "";
+  busy = true; skipLootCards = false; skipEffects = !ui.animate.checked || reducedMotion(); updateControls(); ui.error.textContent = "";
   try {
     // Present from the previous visible state, advancing only with engine snapshots.
     snapshot = await request(`/${operation}`, { expectedRevision: snapshot.revision, ...body });
@@ -1338,6 +1376,7 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
       if (["TokenDrawn", "RoundStarted", "ActivationBagPopulated", "RoundCompleted", "ActivationCompleted"].includes(occurrence?.kind) && steps.has(index)) {
         renderTurn(steps.get(index));
       }
+      if (!skipLootCards && event.lootCard) await revealLoot(event);
       if (!skipEffects) await present(event, occurrence);
       if (generation !== playbackGeneration) return;
       if (skipEffects && event.role === "Movement") playCamera()?.finishMovement();
@@ -1399,6 +1438,16 @@ function journalEntry(event) {
     detail.append(text("summary", "Event details"), text("p", event.text)); entry.append(detail);
   }
   return entry;
+}
+
+function revealLoot(event) {
+  return new Promise(resolve => {
+    let timer, cleanup;
+    const done = () => { clearTimeout(timer); cleanup?.(); if (cancelPause === done) cancelPause = null; resolve(); };
+    cleanup = lootCardDialog(event.lootCard, event.humanCollector, done, () => { skipLootCards = true; skipEffects = true; done(); });
+    cancelPause = done;
+    if (!event.humanCollector) timer = setTimeout(done, 1400);
+  });
 }
 
 function pause(ms) {
@@ -1916,7 +1965,7 @@ const waypointToggle = document.getElementById("waypoints");
 waypointToggle.addEventListener("change", () => { ui.board.classList.toggle("hide-waypoints", !waypointToggle.checked); syncThreeInteraction(); });
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
-ui.skip.addEventListener("click", () => { skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
+ui.skip.addEventListener("click", () => { skipLootCards = true; skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
 ui.animate.addEventListener("change", () => { if (!ui.animate.checked) { threeViewport?.settle(); playCamera()?.settle(); } });
 globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").addEventListener?.("change", event => {
   if (event.matches) { skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); cancelPause?.(); }

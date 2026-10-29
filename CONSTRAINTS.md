@@ -1427,7 +1427,7 @@ Whether a particular Free Action is legal is part of the rules. Whether a legal 
 
 There is no general Free Action phase and no general `Skip Free Action` decision. A legal Free Action appears alongside the other choices currently available to the Unit. If several concrete uses of a Free Action are legal, each is a separate candidate.
 
-The reusable **Open Door** Free Action is available only to Unit Types that explicitly have that Free Action. It is legal whenever the Unit occupies either cell bordering a Closed Door edge, and there is one legal Open Door candidate for each such Closed Door. Resolving the Free Action changes that edge to an Open Door and emits the normal door-open gameplay event.
+The reusable **Open Door** Free Action is available to Units whose Unit Type explicitly has that Free Action or whose Equipment grants it. It is legal whenever the Unit occupies either cell bordering a Closed Door edge, and there is one legal Open Door candidate for each such Closed Door. Resolving the Free Action changes that edge to an Open Door and emits the normal door-open gameplay event.
 
 Open Door has no additional activation-timing restriction. It may therefore be used before or after the Unit's Move and before or after its Action, whenever an adjacent Closed Door makes the Free Action legal and the Unit's activation has not ended. Opening a door consumes no Move or Action opportunity and does not count as using any Bonus Action ability. Legal choices are regenerated afterward, so opening one door may make another Open Door candidate available or change other legal choices.
 
@@ -1906,6 +1906,63 @@ A `When this Unit is defeated` consequence is created by that defeat event and f
 
 This rule applies equally to Heroes and Monsters. **Defeat** is the rules term for this lifecycle outcome; **remove** describes taking a Figure off the Board and is not a synonym for defeat, because future rules may remove a Figure for another reason.
 
+## Loot, Items and Equipment V1
+
+Loot is a mechanism for generating random rewards and effects. Items and Equipment are individually owned objects whose ownership is independent of Loot generation: scenarios may supply them directly. Immediate results resolve without becoming owned objects. Resources retain their existing separate transport and storage rules.
+
+### Drops and unopened Loot
+
+Each Unit Type may specify a d6 drop chance from 0 through 6 success faces. Actual defeat may create one unopened Loot marker at the defeated Unit's former anchor Cell according to that chance. Drops do not depend on the killer, Side or active Unit. A replaced defeat, including Undying, creates no drop.
+
+A scenario specifies a finite Loot Deck composed of individual cards. An unopened marker has no assigned card identity; determine its card by drawing at pickup. Loot is separate from the World Deck. Multiple unopened markers may occupy one Cell, alongside known objects and other Cell contents. Loot does not block movement or LOS and does not reserve occupancy. These markers are distinct from the existing Cell Marker category and its one-marker-per-Cell restriction.
+
+All Units automatically collect unopened Loot at their completed movement or placement destination, including Stay and external relocation. Resolve existing movement hazards and consequences before pickup. Pickup is mandatory regardless of ownership capabilities. Each unopened marker causes exactly one card draw, and that card and its automatic consequences resolve completely before another pickup.
+
+After each card, continue collecting only while the collecting Unit remains alive and its current position contains unopened Loot. If an effect moves it, continue at its new position; uncollected markers at the previous position remain. Defeat stops that Unit's pickup. Newly generated drops must not recursively collect themselves.
+
+For multi-Cell Units, pickup includes every occupied Cell, processed top-to-bottom, then left-to-right. Re-evaluate the surviving collector's current footprint after each marker and its consequences. For simultaneous arrivals, resolve all arrival hazards first, then process the acting Unit before other affected Units in destination anchor board order. Optional known-object pickup is legal from any occupied Cell.
+
+### Card categories and ownership
+
+- **Immediate:** Resolve the mandatory effect with the collecting Unit as actor. V1 Immediate effects require no new player choices, target selection, Attacks or nested activations. They may cause Damage, healing, Posture changes or deterministic movement, including negative outcomes.
+- **Single Use Item:** Assign the individual object to the collector if its Unit Type has **Can Have Items**; otherwise place it face-up as a known Item on the current Cell. Use consumes that object and uses existing Action or Bonus Action opportunities. Items may provide temporary modifiers or extra Actions without adding activation phases.
+- **Equipment:** Assign the individual object to the collector if its Unit Type has **Can Have Equipment**; otherwise place it face-up as known Equipment on the current Cell. Its persistent effects become active immediately under the existing rules, including Posture. Equipment may grant capabilities, stat modifiers or Actions. Identical Equipment effects must not multiply unintentionally.
+
+Can Have Items and Can Have Equipment are independent Unit Type capabilities. Neither is required to trigger unopened Loot. Ownership belongs to individual Units, including individual members of a Monster group. Equipment affects only its bearer; shared base statistics and group activation are unchanged.
+
+Known Items and Equipment may coexist with unopened Loot. Picking up a known object is optional: an active, Upright Unit on its Cell with the corresponding ownership capability may collect it as a Free Action. On actual defeat, all unconsumed Items and Equipment belonging to the defeated Unit become known ground objects at its former anchor Cell.
+
+V1 has no equipment slots, equip/unequip actions, weight or inventory capacity limits, voluntary dropping, transfer, trading, selling, crafting or campaign carryover. Per-item charges, durability and binding are deferred.
+
+### Initial test cards
+
+These cards exercise the system and do not establish a final balanced catalog. Their names are distinct from any same-named World Cards.
+
+| Card | Category | Effect |
+| --- | --- | --- |
+| Pocket Breakfast | Immediate | Restore 2 HP to the collecting Unit, without exceeding its maximum HP. |
+| Second Wind | Single Use Item; Bonus Action | Gain +1 Action this activation. |
+| One-Size-Fits-Most Bedsheet | Equipment | Grants Phase. |
+| Lucky Boots | Equipment | MOV +1. |
+| Official-Looking Key | Equipment | Grants Open Door. |
+| Emergency Goat Bell | Equipment | Grants an unlimited-use Action: stand up one adjacent friendly Lying Unit. |
+
+Pocket Breakfast's healing is mandatory and capped by maximum HP; it does not offer a choice of healing quantity. Existing meanings of Phase, Open Door, adjacent, friendly, Posture, Action and Bonus Action apply. The Goat Bell spends an ordinary Action on each use and has no per-item usage counter.
+
+### Setup, physical representation and observation
+
+Scenarios may configure Loot Deck composition, Unit Type drop chances and ownership capabilities, initial unopened Loot markers, known ground objects and initial individual inventories. Existing scenarios without Loot retain their existing gameplay.
+
+Physical play uses dice for drops, unopened markers on the board and cards drawn at pickup. Keep known ground object cards associated with their Cells and owned cards in the owning Unit's inventory area. Use numbered identity markers and matching inventory areas to distinguish individual group members when necessary; a lone identifiable Unit may use its ordinary Unit card. Resolve cards one at a time and move owned cards to the former anchor Cell when their bearer is defeated. This ownership must remain recoverable from physical components at stable boundaries.
+
+Authoritative state, save/resume and replay preserve individual ownership and Loot resolution. Fog of War applies to Loot, ground objects, ownership and effects under the existing observation and event-time visibility rules. Hidden draws and inventories must not disclose card identities. Designer authoring remains omniscient.
+
+### Finite supply
+
+Every unopened Loot marker reserves one available card in the finite draw pile, without assigning its identity. The number of unopened markers must never exceed the number of available draw cards. Reject initial scenarios that violate this invariant. A defeat cannot create a marker when all remaining draw cards are already reserved by unopened markers.
+
+Drawn cards never become available again, whether resolved, owned, discarded, consumed or lying on the ground as known objects. There is no automatic reshuffle. Initial known objects and inventories do not contribute available draw cards. Attempting pickup with an empty draw pile is an invariant violation, not an empty reward or permission to remove a marker silently.
+
 ## Physical component constraints
 
 The abstract game model and the available physical components are separate concerns.
@@ -1964,7 +2021,7 @@ The following are intentionally not specified yet:
 - LOS effects beyond the currently defined terrain and edge properties,
 - stat modifier rules beyond the currently defined additive `ModifierThisTurn(stat, amount)` behavior,
 - edge effects beyond the currently defined Passable and Blocks LOS properties and the Open Door action,
-- other loose tokens and markers beyond Resources,
+- other loose tokens and markers beyond Resources, established Cell Markers, Loot and known Items/Equipment,
 - exact terrain and edge-feature taxonomies,
 - scenario validation against an inventory of physical components.
 

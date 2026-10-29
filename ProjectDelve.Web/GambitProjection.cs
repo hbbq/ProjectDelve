@@ -13,7 +13,11 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<Cell>? OccupiedCells,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? CellSpan,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Posture? Posture,
-    GambitStats EffectiveStats, IReadOnlyList<GambitAbilityUse> LimitedUses);
+    GambitStats EffectiveStats, IReadOnlyList<GambitAbilityUse> LimitedUses)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<OwnedObject>? Inventory { get; init; }
+}
 public sealed record GambitAbility(string Id, string Name, string Category, string Description,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaximumUses);
 public sealed record GambitType(string Id, string Name, Footprint Footprint, GambitStats Stats, int Hp,
@@ -53,6 +57,10 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     public IReadOnlyList<StoredResource> StoredResources { get; init; } = [];
     public IReadOnlyList<Resource> Resources { get; init; } = [];
     public IReadOnlyList<CellMarker> CellMarkers { get; init; } = [];
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<LootMarker>? LootMarkers { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<GroundObject>? GroundObjects { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ObjectiveStartUnitIds { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
     public IReadOnlyList<string> DefeatedUnitIds { get; init; } = [];
 }
@@ -67,7 +75,13 @@ public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Edge? Door,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? DoorSuccessCount,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] UnitFreeAction? FreeAction,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ObjectId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LootCardContent? ObjectContent { get; init; }
+}
 public sealed record GambitRoll(DiceFamily Family, int Count, string OwnerUnitId, string SourceUnitId,
     string SourceActionId, string Purpose,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TargetId,
@@ -147,7 +161,8 @@ internal static class GambitProjection
     private static GambitCandidate Candidate(Candidate candidate) => new(candidate.Key, candidate.Kind, candidate.Relevant,
         ContentDescriptions.EntryId(candidate), candidate.Destination, candidate.Path,
         candidate.Action, candidate.TargetId, candidate.TargetIds.IsDefaultOrEmpty ? null : candidate.TargetIds,
-        candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId);
+        candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId)
+        { ObjectId = candidate.ObjectId, ObjectContent = candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null };
 
     private static GambitRoll Roll(DicePool pool) => new(pool.Family, pool.Count, pool.OwnerUnitId, pool.SourceUnitId,
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
@@ -177,7 +192,8 @@ internal static class GambitProjection
             return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, agency, unit.CurrentHp, type.Hp,
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
-                new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses);
+                new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
+                { Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.ToArray() };
         }).ToArray();
         var types = state.Types.Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
             new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
@@ -198,6 +214,8 @@ internal static class GambitProjection
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units, unknown))
             { Orders = state.Orders.ToArray(), Waypoints = state.Waypoints.ToArray(), Routes = state.Routes.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
+                LootMarkers = state.LootMarkers.Count == 0 ? null : state.LootMarkers.ToArray(),
+                GroundObjects = state.GroundObjects.Count == 0 ? null : state.GroundObjects.ToArray(),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
                 DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray(), UnknownCells = unknown };
     }
