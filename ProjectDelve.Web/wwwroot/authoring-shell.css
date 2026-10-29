@@ -1,0 +1,35 @@
+﻿/* Authoring stays a workspace, with the same readable surfaces as the player shell. */
+#dungeon-generator { padding: 0; overflow: hidden; }
+#dungeon-generator[open] { display: flex; flex-direction: column; }
+#dungeon-generator .generator-body { min-height: 0; overflow-y: auto; scroll-padding-block: 16px 110px; }
+#dungeon-generator .generator-heading { flex: none; position: relative; z-index: 5; padding: 20px 24px 16px; border-bottom: 1px solid #bda27445; background: #1c2721; box-shadow: 0 5px 16px #0002; }
+#dungeon-generator .generator-heading h2 { margin: 4px 0 0; }
+#generator-close { min-height: 42px; flex: none; }
+#dungeon-generator .generator-body > .legend { padding: 0 24px; line-height: 1.7; }
+#dungeon-generator .generator-layout { padding: 8px 24px 24px; }
+#dungeon-generator .generator-controls { align-content: start; }
+#dungeon-generator .generator-actions { position: sticky; bottom: 0; z-index: 4; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 -10px; padding: 12px 10px; background: #1c2721; border-top: 1px solid #bda27460; box-shadow: 0 -6px 18px #0003; }
+#dungeon-generator .generator-actions button { min-height: 44px; font-size: .8rem; }
+#generator-play { background: #d1b27c; border-color: #dfc28e; color: #182123; font-weight: 750; }
+#generator-play:hover:enabled { background: #e5c995; }
+#generator-another { grid-column: 1 / -1; }
+#generator-code-tools { margin-top: 6px; border-top: 1px solid #bda27435; padding-top: 14px; }
+#generator-code-tools > summary { cursor: pointer; color: #d5c4a2; font-size: .82rem; }
+#generator-status { line-height: 1.65; }
+@media (max-width: 850px) {
+  #dungeon-generator { width: min(620px, calc(100vw - 20px)); max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px); padding: 0; scroll-padding-top: 105px; }
+  #dungeon-generator .generator-heading { padding: 16px 18px; gap: 12px; }
+  #dungeon-generator .generator-heading h2 { font-size: 1.65rem; }
+  #dungeon-generator .generator-body > .legend { padding: 0 18px; font-size: .78rem; margin-block: 14px; }
+  #dungeon-generator .generator-layout { padding: 0 16px 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  #dungeon-generator .generator-result { display: contents; }
+  #generator-status { grid-column: 1; grid-row: 1; margin: 0; padding: 12px 14px; font-size: .82rem; }
+  #dungeon-generator .generator-controls { grid-column: 1; grid-row: 2; padding: 14px; gap: 12px; }
+  #generator-preview-content { grid-column: 1; grid-row: 3; min-width: 0; }
+  #dungeon-generator .generator-controls label { font-size: .8rem; }
+  #dungeon-generator .generator-controls small { font-size: .73rem; }
+  #dungeon-generator .generator-actions { margin-inline: -6px; padding: 10px 6px; }
+  #dungeon-generator .generator-actions button { font-size: .75rem; padding-inline: 8px; }
+  #dungeon-generator .generator-fields { gap: 12px 8px; }
+  #dungeon-generator .generator-fields input, #dungeon-generator .generator-fields select { min-height: 42px; }
+}

@@ -1054,6 +1054,54 @@ test('layout changes during a Fixed transition preserve the selected span',async
  finally{h.cleanup();}
 });
 
+for(const projection of ['orthographic','perspective'])for(const context of ['Decision','Movement','Combat'])test(`Auto ${context} keeps its displayed pose and easing through layout changes (${projection})`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  const c=h.viewport.camera,g=await moduleAt('three-camera-geometry.js');
+  h.viewport.setPresentation('tabletop');c.setProjection(projection,false);c.setMode('auto');h.viewport.settle();
+  c.manual({...c.current(),x:40,y:40});c.resume();
+  if(context==='Decision')c.stable({unitId:'hero',candidates:[]});
+  else if(context==='Combat')c.occurrence({kind:'AttackStarted',attackContext:{attackerId:'hero',targets:[{targetId:'large'}]}},{});
+  else{
+   c.occurrence({kind:'MovementCompleted'},{role:'Movement',unitId:'hero',movementSegments:[[{x:2,y:2},{x:3,y:2}]],movingFigure:{sideId:'blue',cellSpan:1}});
+   c.movementStep({x:3,y:2});
+  }
+  now+=80;h.flush(now);
+  assert.equal(c.inspect().transitionActive,true);
+  assert.ok(Math.hypot(c.current().x-c.inspect().target.x,c.current().y-c.inspect().target.y)>1,'the camera has not reached its destination');
+  for(const [width,height]of [[899,599],[390,700]]){
+   const before=c.current(),span=g.threeSpanScale(c.size,1,before)/before.scale;
+   h.host.clientWidth=width;h.host.clientHeight=height;c.resize(width,height);
+   const after=c.current();
+   for(const key of ['x','y','tilt','yaw','fov','projectionMix'])assert.equal(after[key],before[key],`${key} must not jump to the destination on resize`);
+   assert.ok(Math.abs(g.threeSpanScale(c.size,1,after)/after.scale-span)<1e-8,'resize preserves the displayed span');
+   assert.equal(c.inspect().transitionActive,true,'Auto keeps easing instead of settling');
+   assert.equal(c.inspect().director.context,context,'resize retains the observed shot instead of replacing Movement/Combat with a decision');
+   c.tick(now);
+   for(const key of ['tilt','yaw'])assert.ok(Math.abs(c.current()[key]-after[key])<1e-8,`${key} stays continuous on the next animation frame`);
+   // Orthographic fitting can correct the active footprint when aspect changes;
+   // a one-pixel layout fluctuation must still move it less than one screen pixel.
+   if(width===899||projection==='perspective')for(const key of ['x','y'])
+    assert.ok(Math.abs(c.current()[key]-after[key])<(projection==='perspective'?1e-8:1/after.scale),`${key} must not jump on the next animation frame`);
+  }
+  now+=2000;h.flush(now);
+  assert.equal(c.inspect().transitionActive,false);
+  assert.deepEqual(c.current(),c.inspect().target);
+  assert.deepEqual(h.failures,[]);
+ }finally{h.cleanup();}
+});
+
+for(const mode of ['disabled','reduced'])test(`Auto resize settles immediately when motion is ${mode}`,async()=>{
+ let animated=true;const h=await harness(fixture(50),{animate:()=>animated});try{
+  const c=h.viewport.camera;h.viewport.setPresentation('tabletop');c.setMode('auto');h.viewport.settle();
+  c.manual({...c.current(),x:40,y:40});c.resume();assert.equal(c.inspect().transitionActive,true);
+  if(mode==='disabled')animated=false;else globalThis.matchMedia=()=>({matches:true,addEventListener(){}});
+  h.host.clientWidth=899;c.resize(899,600);
+  assert.equal(c.inspect().transitionActive,false);
+  assert.deepEqual(c.current(),c.inspect().target);
+ }finally{h.cleanup();}
+});
+
 test('local illumination follows displayed checkpoints, switches off, survives movement and clears on restart',async()=>{
   const f=fixture(8,'blue');f.state.physical.board.terrain=[{kind:'Lava',position:{x:3,y:2}}];
   const h=await harness(f);try{

@@ -108,7 +108,7 @@ export function mountCampaignEditor(container, { onSaved = () => {}, onCancel = 
     heading = node("h2", campaign ? "Edit campaign" : "Create a campaign");
     top.append(heading, action("Back to campaigns", onCancel, "campaign-editor-back"));
     status = node("p", "", "campaign-editor-status"); status.id = "campaign-editor-status"; status.setAttribute("role", "status");
-    status.textContent = campaign?.source === "bundled" ? "Bundled campaign · saving creates a local override." : campaign?.source === "override" ? "Local override · the bundled original remains unchanged." : "Local campaign · saved on this host.";
+    status.textContent = !campaign ? "New campaign · not saved yet." : campaign.source === "bundled" ? "Bundled campaign · saving creates a local override." : campaign.source === "override" ? "Local override · the bundled original remains unchanged." : "Local campaign · saved on this host.";
     form = node("form", "", "campaign-editor-form");
     const details = node("section", "", "campaign-details");
     const nameField = field("Campaign name", "campaign-name", "input", campaign?.name, 120);

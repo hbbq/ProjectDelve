@@ -7,7 +7,7 @@ const link = (text, href) => { const el = node('a', text, 'library-button'); el.
 const button = (text, action) => { const el = node('button', text); el.type = 'button'; el.addEventListener('click', action); return el; };
 let route = libraryRoute(location.hash), library = null, requestNumber = 0, playing = false;
 let editor;
-let heroArt, heroCover, routeApplied = false;
+let heroSignature, routeApplied = false;
 async function api(path, options) {
   const response = await fetch(`/api/library${path}`, { cache: 'no-store', ...options });
   if (response.status === 204) return null;
@@ -24,6 +24,7 @@ function showMode() {
   $('playtest-main').hidden = route.mode !== 'play';
   $('playtest-tools').hidden = route.mode !== 'play';
   document.body.classList.toggle('designing', route.mode === 'designer');
+  document.body.classList.toggle('playing', route.mode === 'play');
   document.body.classList.toggle('browsing', browsing || route.mode === 'campaigns-edit');
   const activeMode = ['campaign', 'campaigns-edit'].includes(route.mode) ? 'home' : route.mode === 'scenario' ? 'scenarios' : route.mode;
   for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['designer', 'designer'], ['playtest', 'play']]) $('mode-' + id).setAttribute('aria-pressed', String(activeMode === mode));
@@ -40,16 +41,58 @@ editor = mountCampaignEditor($('campaign-editor'), {
   onSaved: campaign => { library = null; navigate(campaign ? 'campaign' : 'home', campaign?.id); },
   onCancel: () => navigate('home')
 });
-function art(cover, name) {
+function art(cover, name, eager = false) {
   const frame = node('div', null, 'library-art');
   const mark = node('span', '◇', 'library-art-mark'); mark.setAttribute('aria-hidden', 'true'); frame.append(mark);
   if (cover) {
-    const img = node('img'); img.src = cover; img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+    const img = node('img'); img.src = cover; img.alt = ''; img.loading = eager ? 'eager' : 'lazy'; img.referrerPolicy = 'no-referrer';
     img.addEventListener('error', () => img.remove()); frame.append(img);
   }
   return frame;
 }
 function sourceLabel(source) { return source === 'bundled' ? 'Bundled' : source === 'override' ? 'Local override' : 'Local'; }
+function renderHero() {
+  const hero = document.querySelector('.library-hero');
+  const campaign = route.mode === 'campaign' ? library.campaigns.find(entry => entry.id === route.id)
+    : library.campaigns.find(entry => entry.coverArt) ?? library.campaigns[0];
+  hero.hidden = !['home', 'campaign'].includes(route.mode) || (route.mode === 'campaign' && !campaign);
+  if (hero.hidden) return;
+  const signature = JSON.stringify([route.mode, campaign]);
+  if (signature === heroSignature) return;
+  heroSignature = signature;
+  hero.replaceChildren();
+  hero.className = `library-hero ${route.mode === 'home' ? 'library-main-menu' : 'library-campaign-hero'}`;
+  const scene = art(campaign?.coverArt, campaign?.name, true); scene.className = 'library-art library-hero-art'; scene.setAttribute('aria-hidden', 'true');
+  const copy = node('div', null, 'library-hero-copy');
+  if (route.mode === 'home') {
+    copy.append(node('span', 'A WORLD AT YOUR TABLE', 'library-eyebrow'), node('h2', 'Every table.\nAn adventure.', 'library-home-title'));
+    copy.append(node('p', 'Gather your heroes. Choose your story.\nThe next move is yours.', 'library-home-intro'));
+    const menu = node('nav', null, 'library-menu'); menu.setAttribute('aria-label', 'Adventure menu');
+    for (const [number, title, description, href] of [
+      ['01', 'Find an adventure', 'Explore every scenario', '#scenarios'],
+      ['02', 'Return to the table', 'Open the current game', '#play'],
+      ['03', 'Create your world', 'Build in Scenario Designer', '#designer']
+    ]) {
+      const item = link('', href); item.className = 'library-menu-item';
+      item.append(node('span', number, 'library-menu-number'));
+      const label = node('span'); label.append(node('strong', title), node('small', description));
+      item.append(label, node('span', '↗', 'library-menu-arrow')); menu.append(item);
+    }
+    copy.append(menu);
+    if (campaign) {
+      const feature = node('div', null, 'library-featured');
+      feature.append(node('span', 'IN THE SPOTLIGHT', 'library-eyebrow'), node('h3', campaign.name));
+      const enter = link('Explore campaign →', '#campaign/' + encodeURIComponent(campaign.id)); enter.className += ' library-primary'; enter.dataset.featuredCampaign = campaign.id;
+      feature.append(node('p', `${campaign.scenarioIds.length} ${campaign.scenarioIds.length === 1 ? 'scenario' : 'scenarios'} · Choose any adventure`), enter);
+      hero.append(feature);
+    }
+  } else {
+    copy.append(link('← All campaigns', '#home'), node('span', 'THE CAMPAIGN', 'library-eyebrow'), node('h2', campaign.name));
+    if (campaign.description) copy.append(node('p', campaign.description, 'library-campaign-story'));
+    copy.append(node('span', `${campaign.scenarioIds.length} ${campaign.scenarioIds.length === 1 ? 'scenario' : 'scenarios'} · Play in any order`, 'library-campaign-count'));
+  }
+  hero.append(scene, copy);
+}
 function restoreControl(entry, kind, label = 'Restore bundled version') {
   const control = node('div', null, 'library-restore-control');
   const start = button(label + '…', () => {
@@ -90,11 +133,12 @@ async function playScenario(scenario, trigger) {
   finally { playing = false; trigger.disabled = false; trigger.textContent = 'Play scenario'; }
 }
 function scenarioCard(scenario, index, detail = false) {
-  const card = node('article', null, `library-card${detail ? ' library-detail' : ''}${scenario.missing ? ' library-unavailable' : ''}`);
+  const card = node('article', null, `library-card${detail ? ' library-detail' : ''}${index != null ? ' library-expedition' : ''}${scenario.missing ? ' library-unavailable' : ''}`);
   card.dataset.scenarioId = scenario.id;
-  card.append(art(scenario.coverArt, scenario.name));
+  card.append(art(scenario.coverArt, scenario.name, detail));
+  if (index != null) card.append(node('span', String(index + 1).padStart(2, '0'), 'library-expedition-number'));
   const content = node('div', null, 'library-card-content');
-  content.append(node('span', index != null ? `SCENARIO ${index + 1}` : detail ? 'READY FOR THE TABLE' : 'SCENARIO', 'library-eyebrow'));
+  content.append(node('span', index != null ? `SCENARIO ${index + 1}` : detail ? 'SCENARIO BRIEFING' : 'SCENARIO', 'library-eyebrow'));
   content.append(node('h3', scenario.name));
   const actions = node('div', null, 'toolbar library-card-actions');
   if (scenario.missing) content.append(node('p', 'This scenario was removed or is unavailable. Other scenarios can still be played.'));
@@ -102,14 +146,17 @@ function scenarioCard(scenario, index, detail = false) {
     const play = button('Play scenario', () => playScenario(scenario, play)); play.className = 'library-primary'; actions.append(play);
     if (!detail) actions.append(link('Details', '#scenario/' + encodeURIComponent(scenario.id)));
     else {
-      content.append(node('p', 'Start a fresh game, or open this scenario in Designer to explore and make it your own.', 'library-detail-intro'));
+      content.append(node('p', 'A fresh table awaits.', 'library-detail-intro'));
       const campaigns = library.campaigns.filter(campaign => campaign.scenarioIds.includes(scenario.id));
       if (campaigns.length) {
         const collection = node('div', null, 'library-collections');
-        collection.append(node('span', 'PART OF', 'library-eyebrow'));
+        collection.append(node('span', 'FROM THE CAMPAIGN', 'library-eyebrow'));
         for (const campaign of campaigns) collection.append(link(campaign.name, '#campaign/' + encodeURIComponent(campaign.id)));
         content.append(collection);
       }
+      const preparation = node('div', null, 'library-preparation');
+      preparation.append(node('span', 'BEFORE YOU BEGIN', 'library-eyebrow'), node('p', 'Your objectives and available choices appear at the table. Use the board and Unit cards to make your decisions.'));
+      preparation.append(node('small', 'Starting this scenario replaces the shared game. Your saved scenarios and Designer draft stay available.'));
       const design = button('Open in Designer', async () => {
         try { if (!globalThis.delveOpenLibraryScenario) throw new Error('Designer is loading. Please retry.'); await globalThis.delveOpenLibraryScenario(scenario.id); }
         catch (error) { $('library-status').textContent = error.message; }
@@ -127,7 +174,7 @@ function scenarioCard(scenario, index, detail = false) {
         });
         management.append(node('p', bundled ? 'Campaign references will be unavailable locally. Restore the bundled scenario from Hidden bundled content.' : 'Campaign references will remain marked unavailable.'), confirm, button('Cancel', () => render()));
       }); management.append(remove);
-      content.append(actions, management); card.append(content); return card;
+      content.append(actions, preparation, management); card.append(content); return card;
     }
   }
   content.append(actions); card.append(content); return card;
@@ -139,43 +186,41 @@ function render() {
   $('library-status').textContent = '';
   $('library-description').textContent = '';
   $('library-breadcrumb').replaceChildren(link('Campaigns', '#home'));
-  const hero = document.querySelector('.library-hero');
-  hero.hidden = route.mode !== 'home';
-  const cover = library.campaigns.find(campaign => campaign.coverArt)?.coverArt;
-  if (cover !== heroCover) {
-    heroArt?.remove(); heroCover = cover;
-    if (cover) {
-      heroArt = art(cover); heroArt.className = 'library-art library-hero-art';
-      heroArt.setAttribute('aria-hidden', 'true'); hero.append(heroArt);
-    }
-  }
+  renderHero();
+  const headingActions = document.querySelector('.library-heading > .toolbar');
+  if (headingActions) headingActions.replaceChildren(...(route.mode === 'home'
+    ? [link('All scenarios', '#scenarios'), link('Create campaign', '#campaigns-edit')]
+    : route.mode === 'campaign'
+      ? [link('All scenarios', '#scenarios'), link('Edit campaign', '#campaigns-edit/' + encodeURIComponent(route.id))]
+      : route.mode === 'scenario' ? [] : [link('All campaigns', '#home'), link('Create scenario', '#designer')]));
   $('library-main').dataset.route = route.mode;
   cards.classList.toggle('library-detail-grid', route.mode === 'scenario');
+  cards.classList.toggle('library-expedition-list', route.mode === 'campaign');
+  cards.classList.toggle('library-campaign-shelf', route.mode === 'home');
   $('library-search').parentElement.hidden = route.mode === 'scenario';
   $('library-search').placeholder = route.mode === 'home' ? 'Search campaigns' : 'Search scenarios';
   let entries = [], kind = 'scenario';
-  if (route.mode === 'home') { $('library-title').textContent = 'Choose your adventure'; $('library-description').textContent = 'Discover a campaign, then choose a scenario to bring to the table.'; entries = library.campaigns; kind = 'campaign'; }
+  if (route.mode === 'home') { $('library-title').textContent = 'The campaign collection'; $('library-description').textContent = 'Worlds to discover. Stories to bring to the table.'; entries = library.campaigns; kind = 'campaign'; }
   else if (route.mode === 'scenarios') { $('library-title').textContent = 'Scenario library'; entries = library.scenarios; $('library-description').textContent = 'Every saved scenario, ready to play on its own.'; }
   else if (route.mode === 'campaign') {
     const campaign = library.campaigns.find(c => c.id === route.id);
     if (!campaign) { $('library-title').textContent = 'Campaign unavailable'; $('library-status').replaceChildren(node('span', 'It may have been deleted. Choose another adventure.'), link('Browse campaigns', '#home')); return; }
-    $('library-title').textContent = campaign.name;
-    $('library-description').textContent = campaign.description ?? '';
-    $('library-breadcrumb').append(link('Edit campaign', '#campaigns-edit/' + encodeURIComponent(campaign.id)));
+    $('library-title').textContent = 'Choose your scenario';
+    $('library-description').textContent = 'Every scenario is ready to play. Choose where your adventure begins.';
     entries = campaignEntries(campaign, library.scenarios);
   } else if (route.mode === 'scenario') {
     const scenario = library.scenarios.find(s => s.id === route.id);
     $('library-breadcrumb').append(link('All scenarios', '#scenarios'));
-    $('library-title').textContent = scenario?.name ?? 'Scenario unavailable';
+    $('library-title').textContent = scenario ? 'Scenario briefing' : 'Scenario unavailable';
     if (scenario) cards.append(scenarioCard(scenario, null, true));
     else $('library-status').replaceChildren(node('span', 'This scenario is no longer in the library.'), link('Browse scenarios', '#scenarios'));
-    document.title = `${$('library-title').textContent} · Project Delve`;
+    document.title = `${scenario?.name ?? $('library-title').textContent} · Project Delve`;
     return;
   } else return;
   const filtered = filterLibrary(entries, $('library-search').value);
   for (const entry of filtered) {
     if (kind === 'scenario') { cards.append(scenarioCard(entry, route.mode === 'campaign' ? entries.indexOf(entry) : null)); continue; }
-    const card = node('article', null, 'library-card'); card.dataset.campaignId = entry.id;
+    const card = node('article', null, 'library-card library-campaign-cover'); card.dataset.campaignId = entry.id;
     card.append(art(entry.coverArt, entry.name));
     const content = node('div', null, 'library-card-content');
     content.append(node('span', `${entry.scenarioIds.length} ${entry.scenarioIds.length === 1 ? 'SCENARIO' : 'SCENARIOS'}`, 'library-eyebrow'), node('h3', entry.name));
@@ -195,7 +240,8 @@ function render() {
       $('library-status').replaceChildren(node('span', `No ${noun}s match “${$('library-search').value.trim()}”. Try another name.`), clear);
     } else $('library-status').replaceChildren(node('span', kind === 'campaign' ? 'Your next adventure starts here. Browse standalone scenarios or create your first campaign.' : 'This collection is empty. Create a scenario in Designer or explore the library.'), link(kind === 'campaign' ? 'Browse scenarios' : 'Open Designer', kind === 'campaign' ? '#scenarios' : '#designer'));
   }
-  document.title = route.mode === 'home' ? 'Project Delve' : `${$('library-title').textContent} · Project Delve`;
+  const pageTitle = route.mode === 'campaign' ? library.campaigns.find(c => c.id === route.id)?.name : $('library-title').textContent;
+  document.title = route.mode === 'home' ? 'Project Delve' : `${pageTitle} · Project Delve`;
 }
 async function refresh() {
   const request = ++requestNumber; $('library-status').textContent = 'Loading library…';

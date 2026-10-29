@@ -108,9 +108,10 @@ class Element {
   focus() { this.focused = true; this.listeners.focus?.(); }
   showModal() { this.open = true; }
   close() { this.open = false; this.listeners.close?.(); }
+  querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector) {
     return this.children.flatMap(child => [
-      ...(selector === "button" ? child.tagName === "button" : child.classList.contains(selector.slice(1))) ? [child] : [],
+      ...(selector.startsWith(".") ? child.classList.contains(selector.slice(1)) : child.tagName === selector) ? [child] : [],
       ...child.querySelectorAll(selector)
     ]);
   }
@@ -1019,9 +1020,10 @@ for (const mode of ["animate", "disabled", "skip"]) {
     assert.equal(requests.length, 1);
     assert.equal(requests[0].body.candidateKey, "commit-attack");
     assert.match(h.elements.get("prompt").textContent, /Roll 3 Attack dice/);
-    assert.doesNotMatch(h.elements.get("choices").textContent, /Roll 3 Attack dice/, 'The choice area does not repeat the roll instruction');
+    assert.equal(h.elements.get("choices").children.length, 1, "the roll action has no duplicate descriptive paragraph");
     assert.equal(buttons(h.elements.get("choices")).length, 1);
-    assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
+    assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll 3 Attack dice");
+    assert.match(buttons(h.elements.get("choices"))[0].attributes["aria-label"], /Roll 3 Attack dice/);
     assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
     assert.equal(h.run("busy"), false);
     // Refresh only reprojects the supplied pending boundary.
@@ -1293,18 +1295,18 @@ test("compact use circles present supplied remaining and maximum counts accessib
   assert.ok(circles.every(circle => circle.attributes["aria-hidden"] === "true"));
 });
 
-test("board-first layout keeps decisions and objectives visible while advanced tools start closed", () => {
+test("game shell retains one authoritative target for decisions, field guide and advanced controls", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const tools = html.slice(html.indexOf('<details id="playtest-tools"'), html.indexOf('<main id="playtest-main"'));
   assert.match(tools, /<details id="playtest-tools" class="playtest-tools" hidden>/);
-  for (const id of ["scenario", "board-view", "events", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary", "controller-retry"])
+  for (const id of ["scenario", "board-view", "animate", "coordinates", "waypoints", "filter", "auto", "refresh", "commentary-toggle", "decision-commentary"])
     assert.ok(tools.includes(`id="${id}"`), id);
   const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
   for (const id of ["mode-designer", "mode-playtest"]) assert.ok(header.includes(`id="${id}"`), `${id} is always accessible`);
   assert.match(html, /class="board-stage camera-viewport"[\s\S]*id="camera-world"[\s\S]*id="board"[\s\S]*class="board-overlays"[\s\S]*id="dice"[\s\S]*id="choices"/);
   assert.match(html, /class="decision-strip"[\s\S]*id="board-hint"[\s\S]*id="end-turn" disabled[\s\S]*id="start-round" disabled[\s\S]*class="board-area"/);
-  assert.match(html, /class="card-column"[\s\S]*class="mission-panel" open[\s\S]*id="objectives"[\s\S]*id="orders"[\s\S]*id="unit-card"/);
-  for (const id of ["objectives", "orders", "board-hint", "end-turn", "start-round"]) {
+  assert.match(html, /class="card-column"[\s\S]*id="unit-card"[\s\S]*id="inspector-mission"[\s\S]*id="objectives"[\s\S]*id="orders"[\s\S]*id="inspector-journal"[\s\S]*id="events"/);
+  for (const id of ["objectives", "orders", "world-effects", "events", "controller-status", "controller-retry", "controller-cancel", "board-hint", "end-turn", "start-round"]) {
     assert.equal(html.split(`id="${id}"`).length - 1, 1, `${id} retains one authoritative rendering target`);
     assert.ok(!tools.includes(`id="${id}"`), `${id} is available without opening Tools`);
   }
@@ -3009,10 +3011,13 @@ for (const mode of ["animate", "disabled", "reduced", "skip"]) test(`manual Atta
   assert.match(h.elements.get("dice").textContent, /2 Hits/);
   await click(buttons(h.elements.get("choices"))[0]);
   assert.equal(h.elements.get("dice").querySelectorAll(".dice-group").length, 2);
-  assert.match(h.elements.get("dice").textContent, /2 Hits.*Block.*Miss.*1 Blocks.*1 Damage/);
+  assert.match(h.elements.get("dice").textContent, /2 Hits/);
+  const targetRow = h.elements.get("dice").querySelectorAll(".combat-target")[0];
+  assert.match(targetRow.textContent, /1 Damage/);
+  assert.match(targetRow.textContent, /Block.*Miss.*1 Blocks/);
   assert.deepEqual(requests.map(request => request.candidateKey), ["opaque-roll", "opaque-roll"]);
   assert.match(h.elements.get("events").textContent, /DiceRolled raw actor a.*AttackResolved raw actor a/);
-  clock.tick(1799); assert.equal(h.elements.get("dice").hidden, false);
+  clock.tick(7999); assert.equal(h.elements.get("dice").hidden, false);
   clock.tick(1); assert.equal(h.elements.get("dice").hidden, true);
   assert.equal(h.elements.get("dice").children.length, 0);
   assert.match(h.elements.get("events").textContent, /AttackResolved raw actor a/);
@@ -3052,9 +3057,12 @@ test("multi-target Attack retains shared dice across every Defence and supports 
   assert.equal(h.elements.get("dice").hidden, false);
   assert.equal(clock.jobs.length, 0);
   h.run('prepareOccurrence({ kind: "AttackTargetResolved", unitId: "actor", targetId: "b", hits: 2, blocks: 0, damage: 2 }, { text: "Zero Defence Dice" })');
-  assert.match(h.elements.get("dice").textContent, /Goblin Peasant \(4,0\).*1 Damage.*Goblin Peasant \(5,0\).*0 Blocks.*2 Damage/);
+  const rows = h.elements.get("dice").querySelectorAll(".combat-target");
+  assert.deepEqual(rows.map(row => row.dataset.targetId), ['a', 'b']);
+  assert.match(rows[0].textContent, /Goblin Peasant \(4,0\).*1 Damage.*1 Blocks/);
+  assert.match(rows[1].textContent, /Goblin Peasant \(5,0\).*2 Damage.*0 Blocks/);
   assert.equal(h.elements.get("dice").querySelectorAll(".dice-group").length, 2, "No fabricated Defence faces for zero dice");
-  clock.tick(1800); assert.equal(h.elements.get("dice").children.length, 0);
+  clock.tick(8000); assert.equal(h.elements.get("dice").children.length, 0);
 });
 
 test("baseline hydration pins reported Attack dice; interruption, replacement and playback cancellation clear stale dice", () => {
@@ -3122,29 +3130,25 @@ for (const view of ["classic", "enhanced"]) test(`Unit Card affiliation follows 
   assert.equal(card.style["--side-hue"], 140);
   h.run('displayedState.units = []; renderUnitCard()');
   assert.equal(card.style["--unit-side-border"], "var(--ui-border)");
-  assert.match(card.textContent, /hover a Unit/);
+  assert.match(card.textContent, /Inspect a Unit on the board/);
+  assert.ok(buttons(card).some(button => button.textContent === "Read the mission"));
   assert.deepEqual(h.submitted, []);
 });
 
-test("decision controls precede the board and the mission/card column stays responsive", () => {
+test("field guide defaults to Unit with named, separate Mission and Journal panels", () => {
   const html = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/index.html"), "utf8");
   const column = html.slice(html.indexOf('<aside class="card-column"'), html.indexOf('</aside>', html.indexOf('<aside class="card-column"')));
-  assert.match(column, /class="mission-panel" open[\s\S]*id="objectives"[\s\S]*id="unit-card"/);
-  assert.ok(html.indexOf('class="activation-controls"') < html.indexOf('id="camera-viewport"'));
+  for (const [tab, title] of [['unit', 'Unit'], ['mission', 'Mission'], ['journal', 'Journal']]) {
+    assert.match(column, new RegExp(`data-inspector-tab="${tab}" aria-pressed="${tab === 'unit'}" aria-controls="inspector-${tab}">${title}</button>`));
+    const tag = column.match(new RegExp(`<section id="inspector-${tab}"[^>]*>`))[0];
+    assert.equal(/ hidden(?:>|\s)/.test(tag), tab !== 'unit', `${tab} initial visibility`);
+  }
+  assert.match(column, /id="inspector-unit"[^>]*>[\s\S]*?id="unit-card"/);
+  assert.match(column, /id="inspector-mission"[\s\S]*?id="objectives"[\s\S]*?id="orders"[\s\S]*?id="world-effects"/);
+  assert.match(column, /id="inspector-journal"[\s\S]*?id="events"/);
   assert.ok(!column.includes('class="activation-controls"'));
-  const css = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/styles.css"), "utf8");
-  const card = css.match(/\.card-column \{([^}]+)\}/)[1];
-  assert.match(card, /height: auto/);
-  assert.doesNotMatch(card, /(?:^|;)\s*height: calc/);
-  assert.match(css, /\.card-column #unit-card \{[^}]*flex: 0 1 auto/);
-  assert.match(css, /\.activation-controls button \{ height: 48px/);
-  assert.match(css, /#playtest-main #board \{ width: min\(100%, calc\(\(100dvh - 126px\)/);
-  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.card-column \{[^}]*height: auto/);
-  assert.match(css, /#dice\.combat-dice \{ max-height: 25dvh/);
-  const shell = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/experience.css"), "utf8");
-  assert.match(shell, /\.card-column \{[^}]*overflow-y: auto/);
-  assert.match(shell, /@media \(max-width: 760px\)[\s\S]*\.card-column \{[^}]*max-height: none/);
-  assert.match(shell, /#camera-viewport[^{}]*\{[^}]*height: clamp\(/);
+  assert.match(html, /<dialog id="game-menu" aria-labelledby="game-menu-title">/);
+  assert.match(html, /id="open-game-menu" aria-haspopup="dialog" aria-controls="game-menu"/);
 });
 
 test("play heading and return link retain context only for the authoritative session", () => {
@@ -3531,7 +3535,7 @@ test("ranged relationship persists across pending Defence, defeated targets and 
   assert.equal(h.figure("a").classList.contains("attack-target"), true);
   h.run('prepareOccurrence({ kind: "AttackResolved", unitId: "actor", targetId: "a", actionId: "attack" }, { text: "Complete" }); snapshot.result.state.attackInProgress = null; snapshot.result.state.physical.figures = snapshot.result.state.physical.figures.filter(f => f.id !== "a"); renderSnapshot()');
   assert.equal(links().length, 1, "snapshot positions survive figure removal");
-  clock.tick(1800); assert.equal(links().length, 0);
+  clock.tick(8000); assert.equal(links().length, 0);
   assert.equal(h.figure("actor").classList.contains("attack-source"), false);
   h.run('prepareOccurrence({ kind: "AttackStarted", attackContext: { attackerId: "actor", actionId: "attack", targets: [{targetId: "b"}] } }, { text: "Next" }); finishCombatDice()');
   const oldDismiss = clock.jobs[0].callback;
@@ -3598,4 +3602,225 @@ test("Cell feedback layers sit above whole tokens, with non-overlapping click-th
   assert.match(base, /\.board-overlays \{[^}]*z-index: 9/s);
   assert.match(base, /\.shared-tooltip \{[^}]*pointer-events: none/s);
   assert.match(css, /\.cell-choice-feedback:focus-visible \{ outline: none/);
+});
+
+test("hidden Unit panel returns Direct actions to pending choices and tab changes retain opaque submissions", () => {
+  const listeners = new Map();
+  const ability = entry('test-ability', 'Supplied ability');
+  const candidate = choice('opaque-card-action', 'Direct', {}, { entryId: ability.content.id });
+  const h = harness(response([candidate], [ability]), undefined, {
+    addEventListener: (name, listener) => listeners.set(name, listener)
+  });
+  h.run('chooseCandidate = key => submitted.push(key)');
+  assert.equal(buttons(h.elements.get('choices')).length, 0, 'visible card owns its Direct action');
+  h.elements.get('inspector-unit').hidden = true;
+  listeners.get('delve-inspector-change')({ detail: { tab: 'mission' } });
+  const pending = buttons(h.elements.get('choices'));
+  assert.equal(pending.length, 1);
+  assert.equal(h.elements.get('decision-panel').hidden, false);
+  assert.equal(pending[0].disabled, false);
+  click(pending[0]);
+  assert.deepEqual(h.submitted, ['opaque-card-action']);
+  // A new authoritative decision while Mission remains selected must also be reachable.
+  h.run('snapshot.presentation.decision.candidates[0].key = "next-opaque-action"; renderSnapshot()');
+  assert.equal(buttons(h.elements.get('choices')).length, 1);
+  click(buttons(h.elements.get('choices'))[0]);
+  assert.deepEqual(h.submitted, ['opaque-card-action', 'next-opaque-action']);
+  h.elements.get('inspector-unit').hidden = false;
+  listeners.get('delve-inspector-change')({ detail: { tab: 'unit' } });
+  assert.equal(buttons(h.elements.get('choices')).length, 0);
+  const action = buttons(h.elements.get('unit-card')).find(button => button.dataset.legal === 'true');
+  assert.ok(action);
+  click(action);
+  assert.deepEqual(h.submitted, ['opaque-card-action', 'next-opaque-action', 'next-opaque-action']);
+  h.run('busy = true; updateControls()');
+  assert.equal(action.disabled, true, 'tab presentation cannot bypass authoritative busy gating');
+});
+
+test("final-board inspection dismisses only the current result and reopening never changes game state", () => {
+  const initial = response(); initial.sessionId = 'completed-one';
+  initial.result.state.completion = { achievedSideIds: ['same'] };
+  const h = harness(initial);
+  const result = h.elements.get('game-result'), board = h.elements.get('board');
+  const originalState = JSON.stringify(initial.result.state);
+  const firstFigure = h.figure('actor');
+  click(buttons(result).find(button => button.id === 'result-inspect'));
+  assert.equal(result.hidden, true);
+  assert.equal(h.elements.get('show-result').hidden, false);
+  assert.equal(h.elements.get('show-result').focused, true);
+  assert.equal(h.figure('actor'), firstFigure, 'dismissing results leaves the table mounted');
+  h.run('renderSnapshot()');
+  assert.equal(result.hidden, true, 'ordinary refresh must not reopen a dismissed result');
+  assert.equal(h.figure('actor').dataset.unitId, 'actor');
+  assert.equal(h.elements.get('board'), board);
+  click(h.elements.get('show-result'));
+  assert.equal(result.hidden, false);
+  assert.equal(JSON.stringify(initial.result.state), originalState);
+  assert.deepEqual(h.submitted, []);
+  click(buttons(result).find(button => button.id === 'result-inspect'));
+  h.run('snapshot.sessionId = "completed-two"; renderSnapshot()');
+  assert.equal(result.hidden, false, 'a different completed session has its own result');
+  h.run('snapshot.result.state.completion = null; renderSnapshot()');
+  assert.equal(result.hidden, true);
+  assert.equal(h.elements.get('show-result').hidden, true);
+});
+
+test("command dock shows only supplied End Turn and available round transitions", () => {
+  const initial = response(); initial.result.state.round = 0; initial.presentation.decision = null;
+  const h = harness(initial), start = h.elements.get('start-round'), end = h.elements.get('end-turn');
+  assert.equal(start.hidden, false); assert.equal(start.disabled, false); assert.equal(end.hidden, true);
+  h.run('snapshot.result.state.round = 1; snapshot.result.state.roundComplete = false; renderSnapshot()');
+  assert.equal(start.hidden, true); assert.equal(end.hidden, true);
+  h.context.endCandidate = choice('opaque-finish', 'Direct', {}, { isEndTurn: true, label: 'Finish supplied activation' });
+  h.run('snapshot.presentation.decision = { unitId: "actor", prompt: "Supplied", candidates: [endCandidate] }; renderSnapshot(); chooseCandidate = key => submitted.push(key)');
+  assert.equal(end.hidden, false); assert.equal(end.disabled, false);
+  assert.equal(end.textContent, 'Finish supplied activation');
+  click(end); assert.deepEqual(h.submitted, ['opaque-finish']);
+  h.run('busy = true; updateControls()'); assert.equal(end.disabled, true);
+  h.run('busy = false; snapshot.presentation.decision = null; snapshot.result.state.roundComplete = true; renderSnapshot()');
+  assert.equal(start.hidden, false); assert.equal(end.hidden, true); assert.equal(start.disabled, false);
+  h.run('snapshot.result.state.completion = { achievedSideIds: ["same"] }; renderSnapshot()');
+  assert.equal(start.hidden, true); assert.equal(start.disabled, true); assert.equal(end.hidden, true);
+});
+
+for (const saved of ['classic', 'enhanced', 'three', 'tabletop']) test(`view preference ${saved} is retained and library entry does not initialize Three`, () => {
+  const listeners = new Map(), writes = [], requests = [];
+  const h = harness(response(), undefined, { withCamera: true, location: { hash: '#home' },
+    localStorage: { getItem: key => key === 'delve.board.view.v1' ? saved : null, setItem: (key, value) => writes.push([key, value]) },
+    addEventListener: (name, listener) => listeners.set(name, listener)
+  });
+  assert.equal(h.elements.get('board-view').value, saved);
+  assert.equal(h.run('threeViewport'), undefined);
+  assert.equal(h.run('viewportRouter.active === domViewport'), true);
+  h.context.rendererRequests = requests;
+  h.run('viewportRouter = { request: value => rendererRequests.push(value) }; location.hash = "#play"');
+  listeners.get('hashchange')();
+  assert.deepEqual(requests, [saved]);
+  h.run('location.hash = "#scenarios"'); listeners.get('hashchange')();
+  assert.deepEqual(requests, [saved], 'browsing does not request a renderer');
+  h.elements.get('board-view').value = 'enhanced';
+  h.elements.get('board-view').listeners.change();
+  assert.deepEqual(writes, [['delve.board.view.v1', 'enhanced']]);
+  assert.deepEqual(requests, [saved, 'enhanced']);
+});
+
+test('unavailable preference storage does not prevent loading or changing views', () => {
+  const h = harness(response(), undefined, {
+    localStorage: { getItem() { throw Error('Storage unavailable'); }, setItem() { throw Error('Storage unavailable'); } }
+  });
+  h.elements.get('board-view').value = 'classic';
+  assert.doesNotThrow(() => h.elements.get('board-view').listeners.change());
+  assert.equal(h.elements.get('board').dataset.view, 'classic');
+});
+
+test('canvas board alternatives stay in the command dock, submit exact candidates and honor busy state', async () => {
+  const candidate = choice('opaque-board-cell', 'Position', { position: { x: 1, y: 0 } }, { boardVisual: { kind: 'move' } });
+  const h = harness(response([candidate]));
+  attachThree(h); await h.run('viewportRouter.request("three")');
+  h.run('renderSnapshot(); chooseCandidate = key => submitted.push(key)');
+  const host = h.elements.get('board-alternatives');
+  let disclosure = host.querySelectorAll('.three-board-choices')[0];
+  assert.ok(disclosure); assert.equal(disclosure.open, false);
+  assert.equal(h.elements.get('decision-panel').hidden, true, 'a board-only choice does not create an empty overlay');
+  assert.equal(buttons(h.elements.get('choices')).length, 0);
+  let alternative = buttons(host)[0];
+  assert.equal(alternative.dataset.boardChoiceKey, 'opaque-board-cell');
+  assert.equal(alternative.dataset.boardChoiceCell, '1-0');
+  assert.equal(alternative.disabled, false);
+  disclosure.open = true; click(alternative);
+  assert.deepEqual(h.submitted, ['opaque-board-cell']);
+  assert.equal(disclosure.open, false);
+  h.run('busy = true; updateControls()'); assert.equal(alternative.disabled, true);
+  h.run('renderChoicePanel()'); alternative = buttons(host)[0];
+  assert.equal(alternative.disabled, true, 'rerendering alternatives must not bypass busy gating');
+  disclosure = host.querySelectorAll('.three-board-choices')[0]; disclosure.open = true;
+  let prevented = false;
+  host.listeners.keydown({ key: 'Escape', preventDefault() { prevented = true; } });
+  assert.equal(prevented, true); assert.equal(disclosure.open, false);
+  assert.equal(disclosure.querySelector('summary').focused, true);
+  h.run('snapshot.presentation.decision = null; renderSnapshot()');
+  assert.equal(host.children.length, 0, 'obsolete choices are cleared');
+});
+
+test('journal uses only supplied event-time player copy and retains filtered technical details', async () => {
+  const initial = response(), final = response();
+  final.presentation.events = [
+    { role: 'Notice', displayText: 'The named defender blocks.', text: 'Filtered raw target-id: blocks' },
+    { role: 'Notice', text: 'Fallback observation without display copy' },
+    { role: 'Notice', displayText: 'Same supplied line', text: 'Same supplied line' }
+  ];
+  final.result.events = final.presentation.events.map(() => ({ kind: 'Notice' }));
+  const h = harness(initial, async () => ({ ok: true, json: async () => final }));
+  h.run('ui.animate.checked = false');
+  await h.run('mutate("decision", { candidateKey: "opaque" })');
+  const rows = h.elements.get('events').children;
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].content, 'The named defender blocks.');
+  const details = rows[0].querySelectorAll('details');
+  assert.equal(details.length, 1);
+  assert.equal(details[0].open, undefined, 'technical detail is collapsed by default');
+  assert.match(details[0].textContent, /Event details.*Filtered raw target-id: blocks/);
+  assert.equal(rows[1].textContent, 'Fallback observation without display copy');
+  assert.equal(rows[2].textContent, 'Same supplied line');
+  assert.equal(rows[1].querySelectorAll('details').length, 0);
+  assert.equal(rows[2].querySelectorAll('details').length, 0);
+});
+
+test('combat tray groups every supplied defender once and never invents missing defence faces', () => {
+  const initial = combatFixture(['a', 'b', 'c']);
+  initial.result.state.units.push({ ...initial.result.state.units[1], id: 'c' });
+  initial.result.state.physical.figures.push({ id: 'c', position: { x: 6, y: 0 }, posture: 'Upright' });
+  initial.presentation.cards.c = { ...initial.presentation.cards.a, individualName: 'Third defender' };
+  const context = initial.result.state.attackInProgress;
+  context.stage = 'DefenceRoll'; context.targetIndex = 1; context.attackRoll = suppliedCombatRoll('Attack');
+  context.targets[2].defenceDice = 0;
+  context.results = [{ targetId: 'a', blocks: 1, damage: 1 }];
+  const clock = combatClock(), h = harness(initial, undefined, { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  const tray = h.elements.get('dice'), rows = () => tray.querySelectorAll('.combat-target');
+  assert.equal(tray.querySelectorAll('.combat-attack').length, 1, 'one shared Attack roll');
+  assert.deepEqual(rows().map(row => row.dataset.targetId), ['a', 'b', 'c']);
+  assert.equal(rows()[0].querySelector('.combat-target-name').textContent, 'Goblin Peasant (4,0)');
+  assert.equal(rows()[1].querySelector('.combat-target-name').textContent, 'Goblin Peasant (5,0)');
+  assert.equal(rows()[2].querySelector('.combat-target-name').textContent, 'Third defender');
+  assert.deepEqual(rows().map(row => row.dataset.pending), ['false', 'true', 'false']);
+  assert.match(rows()[0].textContent, /1 Damage.*1 Blocks/);
+  assert.equal(rows()[0].querySelectorAll('.dice-faces').length, 0, 'hydrated outcome is not a fabricated defence roll');
+  assert.match(rows()[1].textContent, /Awaiting defence.*2 Defence dice.*Your roll/);
+  assert.equal(rows()[2].querySelectorAll('.dice-faces').length, 0);
+  assert.match(rows()[2].textContent, /0 Defence dice/);
+  assert.equal(tray.querySelectorAll('.combat-dismiss').length, 0, 'pending defence cannot be dismissed');
+  h.context.roll = suppliedCombatRoll('Defence', 'b');
+  h.run('renderDice(roll); prepareOccurrence({ kind: "AttackTargetResolved", unitId: "actor", targetId: "b", hits: 2, blocks: 1, damage: 1 }, { text: "Supplied second result" })');
+  assert.equal(rows().length, 3);
+  assert.match(rows()[1].textContent, /1 Damage.*Block.*Miss.*1 Blocks/);
+  assert.equal(rows()[1].querySelectorAll('.dice-faces').length, 1);
+  h.run('prepareOccurrence({ kind: "AttackTargetResolved", unitId: "actor", targetId: "c", hits: 2, blocks: 0, damage: 2 }, { text: "Supplied zero-dice result" })');
+  assert.equal(rows().length, 3);
+  assert.match(rows()[2].textContent, /2 Damage.*0 Blocks/);
+  assert.equal(rows()[2].querySelectorAll('.dice-faces').length, 0);
+  assert.equal(tray.querySelectorAll('.combat-dismiss').length, 1);
+  assert.equal(tray.querySelectorAll('.combat-dismiss')[0].attributes['aria-label'], 'Dismiss combat results');
+  click(tray.querySelectorAll('.combat-dismiss')[0]);
+  assert.equal(tray.hidden, true); assert.equal(tray.children.length, 0);
+  assert.deepEqual(h.submitted, [], 'inspecting and dismissing results never submits gameplay');
+});
+
+test('combat tray follows restricted observation targets after replacing an unrestricted session', () => {
+  const initial = combatFixture(['a', 'b']);
+  initial.presentation.cards.b.individualName = 'Hidden sentinel';
+  const h = harness(initial);
+  assert.match(h.elements.get('dice').textContent, /Hidden sentinel/);
+  const restricted = combatFixture(['a']); restricted.sessionId = 'restricted-session';
+  restricted.presentation.viewingSideId = 'same';
+  restricted.result.state.units = restricted.result.state.units.filter(unit => unit.id !== 'b');
+  restricted.result.state.physical.figures = restricted.result.state.physical.figures.filter(figure => figure.id !== 'b');
+  delete restricted.presentation.cards.b;
+  h.context.restricted = restricted;
+  h.run('snapshot = restricted; renderSnapshot()');
+  const rows = h.elements.get('dice').querySelectorAll('.combat-target');
+  assert.deepEqual(rows.map(row => row.dataset.targetId), ['a']);
+  assert.doesNotMatch(h.elements.get('dice').textContent, /Hidden sentinel|2 targets/);
+  assert.match(h.elements.get('dice').textContent, /1 target/);
+  assert.equal(h.run('combatDice.names.has("b")'), false);
+  assert.deepEqual(h.submitted, []);
 });

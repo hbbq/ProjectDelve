@@ -10,10 +10,13 @@
   <link rel="stylesheet" href="library.css">
   <link rel="stylesheet" href="campaign-editor.css">
   <link rel="stylesheet" href="experience.css">
+  <link rel="stylesheet" href="combat-sheet.css">
+  <link rel="stylesheet" href="authoring-shell.css">
   <script type="module" src="library.js"></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="designer.js"></script>
   <script type="module" src="generator.js"></script>
+  <script type="module" src="player-shell.js"></script>
 </head>
 <body>
   <header class="app-header"><h1><a href="#home"><span aria-hidden="true" class="brand-mark">◇</span> Project Delve</a></h1>
@@ -31,8 +34,9 @@
   </main>
   <section id="campaign-editor" hidden aria-label="Campaign editor"></section>
   <details id="playtest-tools" class="playtest-tools" hidden>
-    <summary id="tools-toggle">Game tools</summary>
+    <summary id="tools-toggle">Settings</summary>
     <div class="tools-content">
+      <div class="tools-heading"><div><span class="library-eyebrow">YOUR TABLE</span><h2>Game settings</h2></div><button id="close-game-tools" aria-label="Close game settings">Close ×</button></div>
 
       <details id="game-setup" class="game-setup tools-section" open>
         <summary>Game</summary>
@@ -56,9 +60,9 @@
         <div class="toolbar board-view-toolbar">
           <label>Board view <select id="board-view">
             <option value="classic">Classic View</option>
-            <option value="enhanced" selected>Enhanced 2D View</option>
+            <option value="enhanced">Enhanced 2D View</option>
             <option value="three">Three.js Flat 2D</option>
-            <option value="tabletop">Three.js Tabletop 3D</option>
+            <option value="tabletop" selected>Tabletop 3D</option>
           </select></label>
         </div>
         <div class="toolbar">
@@ -76,11 +80,6 @@
           <label><input id="auto" type="checkbox" checked data-tooltip-source="auto-help"> Auto-choose single relevant choice</label>
         </div>
         <details class="setting-help"><summary data-tooltip-source="auto-help">About automatic choices</summary><p id="auto-help">Ordinary sole legal choices resolve automatically; Roll Dice waits for input. This also auto-chooses one relevant choice among multiple legal choices.</p></details>
-        <section id="world-effects" aria-label="World Effects" hidden></section>
-        <section aria-label="Resident player status">
-          <p id="controller-status" role="status" aria-live="polite"></p>
-          <div class="toolbar"><button id="controller-retry" hidden disabled>Retry Gambit</button><button id="controller-cancel" hidden disabled>Cancel Gambit decision</button></div>
-        </section>
       </details>
       <details id="tools-developer" class="tools-section">
         <summary>Developer</summary>
@@ -90,7 +89,6 @@
         <section id="commentary-panel" aria-label="Latest decision commentary" hidden>
           <h2>Latest commentary</h2><small id="commentary-context"></small><p id="commentary-text" aria-live="polite"></p>
         </section>
-        <details><summary>Event History</summary><ol id="events"></ol></details>
         <details class="card-debug"><summary>Unit debug information</summary><div id="unit-debug"></div></details>
         <details class="board-legend"><summary>Board legend</summary>
           <p class="legend">Figures abbreviate Unit names; hover to inspect. Colour distinguishes Sides; tokens show their Side names. Dark edge: wall | Gold: closed door | Dashed green: open door</p>
@@ -106,15 +104,31 @@
     <img id="portrait-image" alt="">
     <p id="portrait-error" hidden>Portrait unavailable.</p>
   </dialog>
+  <dialog id="game-menu" aria-labelledby="game-menu-title">
+    <div class="menu-heading"><span class="library-eyebrow">PROJECT DELVE</span><button id="close-game-menu" aria-label="Close game menu">Close ×</button></div>
+    <h2 id="game-menu-title">At your table</h2>
+    <p class="menu-intro">Take your next step.</p>
+    <button id="resume-game" class="menu-resume">Return to the game <span aria-hidden="true">→</span></button>
+    <nav aria-label="Leave the table">
+      <a id="session-return" href="#scenarios">Back to scenarios</a>
+      <a href="#home">Adventure menu <span>Browse campaigns and scenarios</span></a>
+      <a href="#designer">Scenario Designer <span>Your draft stays exactly as you left it</span></a>
+    </nav>
+    <button id="menu-settings">Game settings &amp; advanced tools</button>
+    <details class="session-details"><summary>About this session</summary>
+      <p>This is a shared table. The game continues while you browse. Starting another scenario replaces the current game.</p>
+      <section id="generated-game" class="generated-game" hidden aria-label="Generated dungeon recipe">
+        <strong>Generated dungeon</strong> <code id="generated-game-code"></code>
+        <button id="generated-game-copy">Copy complete code</button><button id="generated-game-inspect">Inspect map (reveals dungeon)</button>
+        <small>Restart reuses this dungeon. Inspect the map to export the exact scenario as DELVE1.</small>
+      </section>
+    </details>
+  </dialog>
   <main id="playtest-main" hidden>
     <section class="session-heading" aria-label="Current scenario">
-      <div><span class="library-eyebrow">AT THE TABLE</span><h2 id="session-title">Current game</h2></div>
-      <a id="session-return" class="library-button" href="#scenarios">Back to scenarios</a>
-    </section>
-    <section id="generated-game" class="generated-game" hidden aria-label="Generated dungeon recipe">
-      <strong>Generated dungeon</strong> <code id="generated-game-code"></code>
-      <button id="generated-game-copy">Copy complete code</button><button id="generated-game-inspect">Inspect map (reveals dungeon)</button>
-      <small>Restart reuses this dungeon. Inspect the map to export the exact scenario as DELVE1.</small>
+      <button id="open-game-menu" aria-haspopup="dialog" aria-controls="game-menu"><span aria-hidden="true">◇</span> Menu</button>
+      <div><span class="library-eyebrow">PROJECT DELVE</span><h2 id="session-title">Current game</h2></div>
+      <button id="show-result" hidden>View result</button>
     </section>
     <section class="play-status" aria-label="Current play status">
       <p id="status" aria-live="polite">Loading...</p>
@@ -124,8 +138,13 @@
       </details>
     </section>
     <section class="decision-strip" aria-label="Your next step">
-      <div><span class="library-eyebrow">NEXT STEP</span><p id="board-hint" role="status">Preparing the table…</p></div>
+      <div class="decision-instruction"><span id="decision-state" class="library-eyebrow">YOUR NEXT STEP</span><p id="board-hint" role="status">Preparing the table…</p></div>
+      <div id="board-alternatives" aria-label="Board choice list"></div>
       <div class="activation-controls"><button id="end-turn" disabled>End Turn</button><button id="start-round" disabled>Start round</button></div>
+      <section class="controller-notice" aria-label="Resident player status">
+        <p id="controller-status" role="status" aria-live="polite"></p>
+        <div class="toolbar"><button id="controller-retry" hidden disabled>Retry Gambit</button><button id="controller-cancel" hidden disabled>Cancel Gambit decision</button></div>
+      </section>
     </section>
     <section class="board-area" aria-label="Board">
       <section id="game-result" role="status" aria-live="polite" hidden></section>
@@ -157,16 +176,31 @@
           </section>
         </div>
       </div>
-      <div id="attack-context" role="status"></div>
-      <p id="effect" role="status"></p>
+      <!-- Announce playback without changing the table's layout; history lives in the Journal. -->
+      <div id="attack-context" class="sr-only" role="status"></div>
+      <p id="effect" class="sr-only" role="status"></p>
       <p id="error" role="alert"></p>
     </section>
     <aside class="card-column" aria-label="Gameplay and Unit card">
-      <details class="mission-panel" open><summary>Objectives &amp; Orders</summary>
+      <div class="field-guide-heading"><span class="library-eyebrow">FIELD GUIDE</span><span aria-hidden="true">✧</span></div>
+      <nav class="inspector-tabs" aria-label="Field guide sections">
+        <button data-inspector-tab="unit" aria-pressed="true" aria-controls="inspector-unit">Unit</button>
+        <button data-inspector-tab="mission" aria-pressed="false" aria-controls="inspector-mission">Mission</button>
+        <button data-inspector-tab="journal" aria-pressed="false" aria-controls="inspector-journal">Journal</button>
+      </nav>
+      <section id="inspector-unit" class="inspector-page" aria-label="Unit details">
+        <div id="unit-card" aria-label="Unit Card" tabindex="-1"></div>
+      </section>
+      <section id="inspector-mission" class="inspector-page" aria-label="Mission briefing" hidden>
+      <div class="mission-panel">
         <section id="objectives" aria-label="Side objectives"></section>
         <section id="orders" aria-label="Standing Orders" hidden></section>
-      </details>
-      <div id="unit-card" aria-label="Unit Card" tabindex="-1"></div>
+        <section id="world-effects" aria-label="World Effects" hidden></section>
+      </div>
+      </section>
+      <section id="inspector-journal" class="inspector-page" aria-label="Game journal" hidden>
+        <h2>At the table</h2><p class="journal-intro">The story of this game, as it unfolds.</p><ol id="events"></ol>
+      </section>
     </aside>
   </main>
   <main id="designer-main" hidden>
@@ -224,6 +258,7 @@
   </main>
   <dialog id="dungeon-generator" aria-labelledby="generator-heading">
     <div class="generator-heading"><div><span class="designer-eyebrow">DUNGEON WORKSHOP · V1</span><h2 id="generator-heading">Heroes vs Monsters</h2></div><button id="generator-close" type="button">Close</button></div>
+    <div class="generator-body">
     <p class="legend">Four Heroes. An unknown dungeon. A code you can replay. Preview reveals the whole map; Play Unseen goes straight to gameplay.</p>
     <div class="generator-layout">
       <section class="generator-controls" aria-label="Dungeon configuration">
@@ -246,7 +281,7 @@
         <button id="generator-random" type="button">Random Seed</button>
         <div class="generator-actions"><button id="generator-preview" class="designer-primary">Generate Preview</button><button id="generator-play" class="designer-primary">Play Unseen</button><button id="generator-another">Generate Another</button></div>
         <small>Play Unseen replaces the current game. Monsters always act normally, including beyond explored Cells.</small>
-        <details id="generator-code-tools" open><summary>Generation code</summary>
+        <details id="generator-code-tools"><summary>Generation code</summary>
           <label>Load a prefix or complete code <textarea id="generator-code-input" rows="3" spellcheck="false" placeholder="DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1"></textarea></label>
           <div class="toolbar"><button id="generator-load">Load Generation Code</button><button id="generator-code-play">Play code unseen</button></div>
           <label>Configuration prefix <textarea id="generator-prefix" rows="2" readonly spellcheck="false"></textarea></label>
@@ -265,6 +300,7 @@
           <p class="legend">The code is a recipe. DELVE1 preserves the exact scenario, including any later Designer edits. Preserve good dungeons with DELVE1; future releases need not retain every historical generator.</p>
         </div>
       </section>
+    </div>
     </div>
   </dialog>
   <footer><span>Project Delve · A world at your table</span><span>One shared game per host. Browsing keeps it running; starting another scenario replaces it.</span></footer>

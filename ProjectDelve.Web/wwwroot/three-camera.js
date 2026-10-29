@@ -177,6 +177,17 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function resize(width,height) {
     if(!width||!height||width===size.width&&height===size.height) return;
+    const previousSize=size;
+    if(physical&&preferences.mode==='auto'&&transition&&previousSize.width>1&&previousSize.height>1&&animate()&&!reduced()){
+      // Layout changes must not complete an Auto move at its destination. Keep
+      // the displayed pose and remaining easing time in the new dimensions.
+      const remap=p=>({...p,scale:threeSpanScale({width,height},threeSpanScale(previousSize,1,p)/p.scale,p)});
+      const now=environment.performance.now(),remaining=Math.max(1,transition.duration-(now-transition.start));
+      size={width,height};pose=remap(pose);target=remap(target);
+      transition={...transition,from:{...pose},to:target,start:now,duration:remaining};
+      // Preserve an ongoing Movement/Combat shot; only adjust its fit smoothly.
+      direct();renderControls();invalidate();return;
+    }
     const resizedPose=physical?(target??pose):pose;
     const span=resizedPose ? threeSpanScale(size,1,resizedPose)/resizedPose.scale : preferences.fixedSpan;
     size={width,height}; transition=null; target=null;

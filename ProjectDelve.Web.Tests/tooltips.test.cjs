@@ -95,7 +95,7 @@ test("positioning contains popovers at every viewport corner and on narrow scree
   }
 });
 
-test("advanced controls remain once in Tools and objectives remain once in the visible mission panel", () => {
+test("advanced controls and promoted gameplay information each retain one native rendering target", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const sections = new Map(), stack = [];
   for (const token of html.matchAll(/<\/?details\b[^>]*>|<[^>]+\bid="[^"]+"[^>]*>/g)) {
@@ -108,19 +108,19 @@ test("advanced controls remain once in Tools and objectives remain once in the v
   for (const [section, controls] of Object.entries({
     "game-setup": ["scenario", "side-controllers", "start-scenario", "restart-scenario", "scenario-transport", "import-scenario"],
     "tools-display": ["board-view", "coordinates", "waypoints", "animate"],
-    "tools-gameplay": ["filter", "auto", "round", "skip", "world-effects", "controller-status", "controller-retry", "controller-cancel"],
-    "tools-developer": ["events", "unit-debug", "decision-commentary", "commentary-toggle", "commentary-panel", "refresh"]
+    "tools-gameplay": ["filter", "auto", "round", "skip"],
+    "tools-developer": ["unit-debug", "decision-commentary", "commentary-toggle", "commentary-panel", "refresh"]
   })) for (const id of controls) assert.ok(sections.get(id)?.includes(section), `${id} belongs in ${section}`);
-  for (const id of ["mode-playtest", "mode-designer"]) assert.deepEqual(sections.get(id), []); // Primary navigation stays visible with Tools closed.
-  const mission = html.match(/<details class="mission-panel" open>([\s\S]*?)<\/details>/)?.[1];
-  assert.ok(mission, 'Objectives and Orders have a default-open mission disclosure');
-  for (const id of ['objectives', 'orders']) {
-    assert.ok(mission.includes(`id="${id}"`), `${id} belongs in the mission panel`);
-    assert.ok(!sections.get(id)?.includes('playtest-tools'), `${id} is available with Tools closed`);
-  }
+  for (const id of ["mode-playtest", "mode-designer"]) assert.deepEqual(sections.get(id), []); // Primary route controls remain outside Tools.
+  const mission = html.slice(html.indexOf('<section id="inspector-mission"'), html.indexOf('<section id="inspector-journal"'));
+  for (const id of ['objectives', 'orders', 'world-effects']) assert.ok(mission.includes(`id="${id}"`), `${id} belongs in Mission`);
+  for (const id of ['objectives', 'orders', 'world-effects', 'events', 'controller-status', 'controller-retry', 'controller-cancel'])
+    assert.ok(!sections.get(id)?.includes('playtest-tools'), `${id} is available without opening Settings`);
+  const journal = html.slice(html.indexOf('<section id="inspector-journal"'), html.indexOf('</aside>', html.indexOf('<section id="inspector-journal"')));
+  assert.ok(journal.includes('id="events"'));
   assert.match(html, /<details id="game-setup"[^>]* open>/);
   for (const title of ["Game", "Display", "Gameplay", "Developer"]) assert.ok(html.includes(`<summary>${title}</summary>`));
   for (const id of ["tools-display", "tools-gameplay", "tools-developer"])
     assert.match(html, new RegExp(`<details id="${id}" class="tools-section">`));
-  assert.match(html, /<option value="enhanced" selected>/);
+  assert.match(html, /<option value="tabletop" selected>/);
 });

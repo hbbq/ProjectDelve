@@ -1,0 +1,65 @@
+/* A shared Attack roll and its defenders form one readable combat sheet. */
+.board-overlays:has(#dice.combat-dice:not([hidden])) {
+  width: min(600px, calc(100% - 24px)); max-height: calc(100% - 24px);
+  right: 12px; bottom: 12px; gap: 0; overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid #bca06b; border-radius: 5px; box-shadow: 0 12px 36px #0008;
+  background: #1b2722; pointer-events: auto;
+}
+.board-overlays.at-top:has(#dice.combat-dice:not([hidden])) { top: 12px; bottom: auto; }
+#board-overlays #dice.combat-dice {
+  display: block; padding: 0; margin: 0; max-height: none; min-height: 0;
+  overflow: visible; flex: none; border: 0; border-radius: 0; background: transparent;
+  font-family: system-ui, sans-serif; font-size: .73rem;
+}
+.combat-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #bca06b40; }
+.combat-heading > div { min-width: 0; flex: 1; }
+.combat-heading strong { display: block; font: 400 1.25rem/1.3 Georgia, serif; color: #f0d9ab; }
+.combat-heading small { display: block; width: auto; color: #b6bdac; font-size: .67rem; line-height: 1.5; }
+.combat-heading > small { flex: none; }
+.combat-dismiss { width: 32px; height: 32px; padding: 0; background: transparent; border-color: #bca06b55; font-size: 1.1rem; }
+#dice .combat-attack { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0; padding: 10px 14px; background: #bca06b12; border: 0; }
+#dice .combat-attack > small { width: auto; color: #d6ba81; font-size: .57rem; letter-spacing: .13em; }
+#dice .combat-attack > strong { margin-left: auto; font-size: .86rem; color: #f7d58e; }
+#dice .dice-faces { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; }
+#dice.combat-dice .die { min-width: 28px; height: 25px; padding: 0 5px; border-radius: 4px; font-size: .61rem; box-shadow: inset 0 1px #fff2; }
+#dice.combat-dice .die.miss { opacity: .6; }
+.combat-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+#dice .combat-target {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px 8px;
+  padding: 12px 14px; margin: 0; border: 0; border-top: 1px solid #bca06b25; background: transparent;
+}
+#dice .combat-target:nth-child(even) { border-left: 1px solid #bca06b25; }
+#dice .combat-target:only-child { grid-column: 1 / -1; }
+#dice .combat-target[data-pending="true"] { background: #d5b57912; box-shadow: inset 3px 0 #d5b579; }
+.combat-target-name { min-width: 0; font-size: .72rem; line-height: 1.4; color: #eee6d2; overflow-wrap: anywhere; }
+#dice .combat-outcome { margin: 0; font-size: .65rem; color: #aab6a4; white-space: nowrap; }
+#dice .combat-outcome[data-damage="true"] { color: #ffb29c; font-weight: 700; }
+.combat-target > b { text-align: right; font-size: .65rem; color: #c3d6c4; white-space: nowrap; }
+.combat-target-wait { color: #939f91; font-size: .65rem; }
+#board-overlays:has(#dice.combat-dice:not([hidden])) .roll-decision {
+  display: flex; align-items: center; gap: 10px; flex: none; position: sticky; bottom: 0;
+  min-height: 0; padding: 10px 14px; border: 0; border-top: 1px solid #bca06b40;
+  border-radius: 0; overflow: visible; background: #263329;
+}
+#board-overlays:has(#dice.combat-dice:not([hidden])) .roll-decision #prompt { display: none; }
+#board-overlays:has(#dice.combat-dice:not([hidden])) .roll-decision #choices { flex: 1; margin: 0; }
+#board-overlays:has(#dice.combat-dice:not([hidden])) .roll-decision #move-overlay { flex: none; margin: 0; width: auto; background: transparent; border-color: #bca06b40; color: #c5bdab; font-size: .6rem; }
+#board-overlays:has(#dice.combat-dice:not([hidden])) .primary-roll { margin: 0; min-height: 42px; font-size: .8rem; }
+/* A sheet can grow beyond the mobile board without putting results in a tiny scroll box.
+   Extremely long attacks still have one scroll surface with a pinned roll action. */
+@media (max-width: 760px) {
+  #board-overlays:has(#dice.combat-dice:not([hidden])),
+  #board-overlays.at-top:has(#dice.combat-dice:not([hidden])) {
+    position: fixed; top: 112px; bottom: auto; left: 10px; right: 10px; z-index: 19;
+    width: auto; max-height: calc(100dvh - var(--command-dock-height, 120px) - 138px);
+  }
+  .combat-heading { padding: 9px 12px; }
+  .combat-heading strong { font-size: 1.15rem; }
+  #dice .combat-attack { padding: 8px 12px; }
+  .combat-targets { grid-template-columns: minmax(0, 1fr); }
+  #dice .combat-target { padding: 8px 12px; gap: 4px 10px; }
+  #dice .combat-target:nth-child(even) { border-left: 0; }
+  #dice.combat-dice .die { height: 23px; min-width: 26px; }
+  #board-overlays:has(#dice.combat-dice:not([hidden])) .roll-decision { padding: 8px 12px; }
+  .combat-dismiss { min-width: 40px; min-height: 40px; }
+}

@@ -176,3 +176,41 @@ for (const succeeds of [true, false]) test(`library start sets return context on
     assert.match(h.get('library-status').textContent, /retry/i);
   }
 });
+
+test('main menu features public campaign artwork and keeps direct journey routes available', async () => {
+  const h = harness(); await h.run('applyRoute()');
+  h.run('library.campaigns[0].coverArt = "/art/test-cover.webp"; render()');
+  const hero = h.get('.library-hero');
+  assert.match(hero.textContent, /Every table.*An adventure/s);
+  assert.match(hero.textContent, /Campaign/);
+  assert.ok(hero.all('a').some(a => a.dataset.featuredCampaign === 'c-one' && a.href === '#campaign/c-one'));
+  for (const href of ['#scenarios', '#play', '#designer']) assert.ok(hero.all('a').some(a => a.href === href), href);
+  assert.equal(hero.all('img')[0].src, '/art/test-cover.webp');
+  assert.equal(hero.all('img')[0].loading, 'eager');
+  assert.deepEqual(h.calls.map(c => c.url), ['/api/library']);
+});
+
+test('empty campaign library retains an actionable home menu without inventing a featured adventure', async () => {
+  const h = harness(); await h.run('applyRoute()');
+  h.run('library.campaigns = []; render()');
+  const hero = h.get('.library-hero');
+  assert.equal(hero.hidden, false);
+  assert.ok(hero.all('a').some(a => a.href === '#scenarios'));
+  assert.ok(hero.all('a').some(a => a.href === '#designer'));
+  assert.equal(hero.all('a').filter(a => a.dataset.featuredCampaign).length, 0);
+  assert.match(h.get('library-status').textContent, /first campaign/);
+});
+
+test('campaign banner shows authored public story while numbered rows retain source ordering', async () => {
+  const h = harness('#campaign/c-one'); await h.run('applyRoute()');
+  assert.match(h.get('.library-hero').textContent, /Campaign.*Public introduction/s);
+  const rows = h.get('library-cards').children;
+  assert.deepEqual(rows.map(row => row.dataset.scenarioId), ['s-two', 'deleted', 's-one']);
+  assert.ok(rows[0].all('span').some(el => el.className === 'library-expedition-number' && el.textContent === '01'));
+  assert.equal(h.context.document.title, 'Campaign · Project Delve');
+  h.location.hash = '#scenario/s-two'; await h.run('applyRoute()');
+  assert.equal(h.get('.library-hero').hidden, true);
+  assert.equal(h.context.document.title, 'Second · Project Delve');
+  assert.match(h.get('library-cards').textContent, /BEFORE YOU BEGIN/);
+  assert.deepEqual(h.calls.map(c => c.url), ['/api/library', '/api/library']);
+});
