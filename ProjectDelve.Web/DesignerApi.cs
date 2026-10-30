@@ -14,6 +14,8 @@ public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<Unit
 public sealed record DesignerError(string Message, string? Path);
 public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
 public sealed record DesignerImportRequest(string Transport);
+public sealed record DesignerLegacyTerrainMapping(TerrainKind Kind, string TerrainTypeId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CoalGeneration = null);
 public sealed class DesignerBoardLimitException() : ArgumentException(
     $"This host supports boards up to {DesignerApi.MaxBoardSize} × {DesignerApi.MaxBoardSize} (editor policy).");
 
@@ -28,6 +30,10 @@ public static class DesignerApi
         return new(type.Id, type.DisplayName ?? type.Id, type.Hp, offsets,
             offsets.Max(cell => cell.X) + 1, type.ResourceStorage) { Definition = type };
     }
+
+    private static Dictionary<string, string> ProductionDescriptions(IEnumerable<TerrainDefinition> definitions) =>
+        definitions.Where(type => type.ProductionDescription is not null)
+            .ToDictionary(type => type.Id, type => type.ProductionDescription!, StringComparer.Ordinal);
 
     public static void CheckHostLimits(ScenarioDefinition definition)
     {
@@ -56,6 +62,12 @@ public static class DesignerApi
             unitTypes = CanonicalUnitTypes.All.Select(Metadata).ToArray(),
             terrains = Enum.GetNames<TerrainKind>(),
             terrainDefinitions = TerrainCatalog.All,
+            productionDescriptions = ProductionDescriptions(TerrainCatalog.All),
+            legacyTerrainMappings = Enum.GetValues<TerrainKind>()
+                .Select(kind => new DesignerLegacyTerrainMapping(kind, TerrainCatalog.Legacy(kind).Id))
+                .Append(new(TerrainKind.Lava, TerrainCatalog.Legacy(TerrainKind.Lava, false).Id, false)),
+            legacyTerrainTypeAliases = new Dictionary<string, TerrainKind>
+                { [TerrainCompatibility.LegacyLavaId] = TerrainKind.Lava },
             railDirections = Enum.GetNames<RailDirection>(),
             edgeKinds = Enum.GetNames<EdgeKind>(),
             postures = Enum.GetNames<Posture>(),
@@ -74,8 +86,10 @@ public static class DesignerApi
             if (custom.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id)) || custom.Select(t => t.Id).Distinct().Count() != custom.Count)
                 throw new ArgumentException("Custom Unit Types must have unique, nonblank IDs.");
             var ids = CanonicalUnitTypes.All.Select(t => t.Id).Concat(custom.Select(t => t.Id)).Distinct();
+            var terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes);
             return Results.Ok(new { unitTypes = ids.Select(id => Metadata(UnitContent.Find(id, custom)!)).ToArray(),
-                terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes),
+                terrainDefinitions,
+                productionDescriptions = ProductionDescriptions(terrainDefinitions),
                 unitIds = ScenarioIdentity.UnitIds(input!.Units ?? [], input.MachineIds ?? []) });
         }));
         app.MapGet("/api/designer/scenarios/{id}", (string id) =>

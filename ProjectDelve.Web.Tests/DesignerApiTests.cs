@@ -113,6 +113,50 @@ public sealed class DesignerApiTests
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
     }
 
+    [Fact]
+    public async Task ProductionMetadataAndDesignerTransportUseTheTypedEngineDefinition()
+    {
+        await using var host = await Host.Start();
+        var local = new TerrainDefinition("unfamiliar-cupboard", "Unexpected Cupboard", false, false)
+        {
+            Production = new DirectionalResourceProduction(ResourceTypes.Banana.Id, 3,
+                SourceLos: ProductionSourceLos.RespectTerrain)
+        };
+        using var metadataResponse = await host.Client.PostAsJsonAsync("/api/designer/metadata",
+            new { unitTypes = Array.Empty<UnitType>(), terrainTypes = new[] { local } }, Json);
+        metadataResponse.EnsureSuccessStatusCode();
+        var metadata = await metadataResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(local.ProductionDescription, metadata.GetProperty("productionDescriptions").GetProperty(local.Id).GetString());
+        var projected = metadata.GetProperty("terrainDefinitions").EnumerateArray()
+            .Single(type => type.GetProperty("id").GetString() == local.Id).Deserialize<TerrainDefinition>(Json)!;
+        Assert.Equal(local.Production, projected.Production);
+
+        var catalog = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
+        var lavaMappings = catalog.GetProperty("legacyTerrainMappings").EnumerateArray()
+            .Where(mapping => mapping.GetProperty("kind").GetString() == "Lava").ToArray();
+        Assert.Contains(lavaMappings, mapping => !mapping.TryGetProperty("coalGeneration", out _) &&
+            mapping.GetProperty("terrainTypeId").GetString() == TerrainCompatibility.CoalLavaId);
+        Assert.Contains(lavaMappings, mapping => mapping.TryGetProperty("coalGeneration", out var flag) && !flag.GetBoolean() &&
+            mapping.GetProperty("terrainTypeId").GetString() == TerrainCompatibility.OrdinaryLavaId);
+
+        var definition = CompleteData() with { TerrainTypes = [local] };
+        definition.Board.Cells.Add(new(new(4, 3), TerrainKind.StoneFloor) { TerrainTypeId = local.Id });
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import",
+            new { transport = ScenarioDefinitionTransport.Encode(definition) });
+        imported.EnsureSuccessStatusCode();
+        var json = await imported.Content.ReadAsStringAsync();
+        using var exported = await host.PostDraft("export", json);
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        var decoded = ScenarioDefinitionTransport.Decode(transport);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(decoded));
+        Assert.Equal(local.Production, GameEngine.CreateGame(decoded).Physical.Board.TerrainDefinitionAt(new(4, 3)).Production);
+
+        using var invalid = await host.Client.PostAsJsonAsync("/api/designer/metadata",
+            new { unitTypes = Array.Empty<UnitType>(), terrainTypes = new[] { local with { Production = new DirectionalResourceProduction("missing-resource", 3) } } }, Json);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
     public static IEnumerable<object[]> ObjectiveCases()
     {
         foreach (var objective in Enum.GetValues<ScenarioObjective>())
@@ -236,6 +280,10 @@ public sealed class DesignerApiTests
         var game = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         Assert.Equal("imported", game.ScenarioId);
         var publicSetup = GameEngine.CreateGame(definition);
+        // Browser snapshots expose resolved references; the raw scenario transport
+        // equivalence assertions above continue protecting legacy authored meaning.
+        publicSetup.Physical = publicSetup.Physical with { Board = publicSetup.Physical.Board with
+            { Terrain = BrowserProjection.TerrainForPresentation(publicSetup.Physical.Board) } };
         if (publicSetup.WorldDeck is not null)
         {
             using var publicJson = JsonDocument.Parse(await played.Content.ReadAsStringAsync());

@@ -323,13 +323,27 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
     public ImmutableDictionary<string, AbilityUses> BonusActionUses { get; init; } = ImmutableDictionary<string, AbilityUses>.Empty;
 }
 
-public sealed record Board(int Width, int Height, List<Edge> Edges)
+public sealed record Board(int Width, int Height, List<Edge> Edges) : IJsonOnDeserializing, IJsonOnDeserialized
 {
     // Unlisted cells contain stone floor; absent edges have kind None.
     public List<Machine> Machines { get; init; } = [];
     public List<TerrainTile> Terrain { get; init; } = [];
     private ImmutableArray<TerrainDefinition> terrainTypes = TerrainCatalog.All;
     private ImmutableDictionary<string, TerrainDefinition> terrainIndex = TerrainCatalog.All.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
+    private int terrainContentVersion = 2;
+    // Runtime snapshot format only; scenario serialization retains its legacy shape.
+    public int TerrainContentVersion { get => terrainContentVersion; init => terrainContentVersion = value; }
+    void IJsonOnDeserializing.OnDeserializing() => terrainContentVersion = 1;
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        if (terrainContentVersion is not (1 or 2)) throw new ArgumentException("Unsupported Terrain content snapshot version.");
+        if (terrainContentVersion == 1)
+        {
+            terrainTypes = TerrainCompatibility.UpgradeRuntimeCatalog(terrainTypes);
+            terrainIndex = terrainTypes.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
+            terrainContentVersion = 2;
+        }
+    }
     public ImmutableArray<TerrainDefinition> TerrainTypes
     {
         get => terrainTypes;
@@ -342,7 +356,7 @@ public sealed record Board(int Width, int Height, List<Edge> Edges)
     }
     public TerrainDefinition TerrainDefinition(TerrainTile? tile)
     {
-        var id = tile?.TypeId ?? TerrainCatalog.Legacy(tile?.Kind ?? TerrainKind.StoneFloor).Id;
+        var id = TerrainCompatibility.ResolveTypeId(tile?.Kind ?? TerrainKind.StoneFloor, tile?.TypeId, tile?.CoalGeneration);
         return terrainIndex.TryGetValue(id, out var definition) ? definition :
             throw new ArgumentException($"Unknown Terrain Type ID '{id}'.");
     }
@@ -421,6 +435,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     public ImmutableArray<MachineResource> ConsumedResources { get; init; } = [];
     public CellMarkerType? CellMarkerType { get; init; }
     public ResourceType? ResourceType { get; init; }
+    public string? TerrainTypeId { get; init; }
+    public string? TerrainName { get; init; }
     public int? StoredQuantity { get; init; }
     public GameCompletion? Completion { get; init; }
     public ActivationToken? Token { get; init; }

@@ -43,6 +43,8 @@ public sealed record GambitTerrainDefinition(string Id, string Name, bool Passab
     public IReadOnlyList<string>? Categories { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? AllowsResourceMarkers { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ProductionDescription { get; init; }
 }
 public sealed record GambitBoard(int Width, int Height, IReadOnlyList<Edge> Edges,
     IReadOnlyList<Machine> Machines, IReadOnlyList<TerrainTile> Terrain)
@@ -168,7 +170,9 @@ public sealed record GambitEvent(string Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MachineResource>? ConsumedResources = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CellMarkerType? CellMarkerType = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ReplenishedUses = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ReplenishedUses = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TerrainTypeId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TerrainName = null);
 
 internal static class GambitProjection
 {
@@ -244,16 +248,19 @@ internal static class GambitProjection
                 WaypointAdvanced = state.WaypointAdvancedThisActivation };
         var world = BrowserProjection.WorldEffects(state);
         var sourceBoard = state.Physical.Board;
-        var terrainReferences = sourceBoard.Terrain.Where(t => t.TypeId is not null || !sourceBoard.TerrainDefinition(t).Categories.IsEmpty)
+        var terrain = BrowserProjection.TerrainForPresentation(sourceBoard);
+        var terrainReferences = terrain.Where(t => t.TypeId is not null ||
+            !sourceBoard.TerrainDefinition(t).Categories.IsEmpty || sourceBoard.TerrainDefinition(t).Production is not null)
             .Select(t => sourceBoard.TerrainDefinition(t).Id).ToHashSet(StringComparer.Ordinal);
         var terrainTypes = sourceBoard.TerrainTypes.Where(t => terrainReferences.Contains(t.Id))
             .Select(t => new GambitTerrainDefinition(t.Id, t.Name, t.Passable, t.BlocksLos)
             {
                 Categories = t.Categories.IsEmpty ? null : t.Categories,
-                AllowsResourceMarkers = t.AllowsResourceMarkers ? null : false
+                AllowsResourceMarkers = t.AllowsResourceMarkers ? null : false,
+                ProductionDescription = t.ProductionDescription
             }).ToArray();
         var board = new GambitBoard(sourceBoard.Width, sourceBoard.Height, sourceBoard.Edges.ToArray(),
-            sourceBoard.Machines.ToArray(), sourceBoard.Terrain.ToArray())
+            sourceBoard.Machines.ToArray(), terrain)
             { TerrainTypes = terrainTypes.Length == 0 ? null : terrainTypes };
         var glossary = terrainTypes.Length == 0 ? Glossary : Glossary with
         {
@@ -412,7 +419,8 @@ internal static class GambitProjection
             Context(value.AttackContext), value.DefeatContext is null ? null : Defeat(value.DefeatContext),
             value.Dice is null ? null : new(Roll(value.Dice.Pool), value.Dice.Faces, value.Dice.Successes),
             value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity, value.MachineId,
-            value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray(), value.CellMarkerType, value.ReplenishedUses);
+            value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray(), value.CellMarkerType, value.ReplenishedUses,
+            value.TerrainTypeId, value.TerrainName);
     }
 
     private static GambitAttackContext? Context(AttackContinuation? value) => value is null ? null : new(value.AttackerId,

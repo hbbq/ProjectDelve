@@ -2272,27 +2272,32 @@ test("Machine conversion playback shows changed storage and Diamond output in th
   assert.ok(shown.every(frame => /Coal: 0\/3/.test(frame.storage) && frame.output[0] === "Diamond" && frame.symbol === "\u25c6"));
 });
 
-for (const animate of [true, false]) test(`Lava playback renders each authoritative Coal placement (animate=${animate})`, async () => {
+for (const producer of [{event:'LavaCoalRolled',name:'Lava',resource:'Coal'},
+  {event:'TerrainProductionRolled',name:'Glass Orchard',resource:'Banana',typeId:'unfamiliar-orchard'}])
+for (const animate of [true, false]) test(`${producer.name} playback renders each authoritative ${producer.resource} placement (animate=${animate})`, async () => {
   const initial = response();
-  initial.result.state.physical.board.terrain = [{ position: { x: 1, y: 0 }, kind: "Lava" }];
+  initial.result.state.physical.board.terrain = [{ position: { x: 1, y: 0 }, kind: "Lava", ...(producer.typeId ? {typeId:producer.typeId} : {}) }];
+  if (producer.typeId) initial.result.state.physical.board.terrainTypes = [{id:producer.typeId,name:producer.name,
+    passable:false,blocksLos:false,presentation:{recipe:'unknown-producer'},
+    production:{kind:'directionalResourceProduction',resourceTypeId:'banana',attempts:2}}];
   initial.result.state.resources = [];
   const final = structuredClone(initial);
-  const coal = x => ({ type: { id: "coal", name: "Coal" }, position: { x, y: 0 } });
-  const first = structuredClone(initial.result.state); first.resources = [coal(0)];
-  final.result.state.resources = [coal(0), coal(2)];
-  final.result.events = [{ kind: "LavaCoalRolled", dieRoll: 7 }, { kind: "ResourceCreated" },
-    { kind: "LavaCoalRolled", dieRoll: 3 }, { kind: "ResourceCreated" }];
-  final.presentation.events = ["Lava rolled d8 7", "Coal at 0,0", "Lava rolled d8 3", "Coal at 2,0"].map(text => ({ role: "Notice", text }));
+  const resourceAt = x => ({ type: { id: producer.resource.toLowerCase(), name: producer.resource }, position: { x, y: 0 } });
+  const first = structuredClone(initial.result.state); first.resources = [resourceAt(0)];
+  final.result.state.resources = [resourceAt(0), resourceAt(2)];
+  final.result.events = [{ kind: producer.event, dieRoll: 7 }, { kind: "ResourceCreated" },
+    { kind: producer.event, dieRoll: 3 }, { kind: "ResourceCreated" }];
+  final.presentation.events = [`${producer.name} rolled d8 7`, `${producer.resource} at 0,0`, `${producer.name} rolled d8 3`, `${producer.resource} at 2,0`].map(text => ({ role: "Notice", text }));
   final.result.resolutionSteps = [initial.result.state, first, first, final.result.state].map((stateAfter, eventIndex) => ({ eventIndex, stateAfter }));
   final.presentation.resolutionSteps = final.result.resolutionSteps.map(({ eventIndex }) => ({ eventIndex, cards: final.presentation.cards }));
   const h = harness(initial, async () => ({ ok: true, json: async () => final }));
   const shown = []; h.context.shown = shown;
   h.run(`ui.animate.checked = ${animate}; pause = async () => {}; const originalRender = renderState;
     renderState = (...args) => { originalRender(...args); shown.push([0, 2].filter(x => cells.get(x + ",0").querySelectorAll(".resource-marker").length).length); };`);
-  assert.match(h.run('cells.get("1,0").className'), /Lava/);
+  assert.match(h.run('cells.get("1,0").className'), producer.typeId ? /custom-terrain/ : /Lava/);
   await h.run('mutate("decision", { candidateKey: "opaque" })');
   assert.deepEqual(shown.slice(0, 4), [0, 1, 1, 2]);
-  assert.equal(h.run('cells.get("0,0").querySelectorAll(".resource-marker")[0].title'), "Coal");
+  assert.equal(h.run('cells.get("0,0").querySelectorAll(".resource-marker")[0].title'), producer.resource);
 });
 
 

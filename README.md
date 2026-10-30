@@ -106,7 +106,7 @@ The client groups chests and face-up cards by Cell, labels inventories and shows
 
 ## Playtest board views
 
-Terrain now uses a validated per-game catalog with stable Type IDs, declared passability and LOS properties, and Unit-owned category restrictions. Scenario-local JSON Terrain can be painted in Designer and played with existing or generic visual recipes. Open **Local Terrain - Curiosity Room** under Test Scenarios for a playable example; see [Terrain content](TERRAIN_CONTENT.md) for canonical and JSON authoring, compatibility and milestone scope.
+Terrain uses a validated per-game catalog with stable Type IDs, declared passability and LOS properties, Unit-owned category restrictions, and optional typed Round Start resource production. Scenario-local JSON Terrain can be painted in Designer and played with existing or generic visual recipes. Open **Environmental Production - Three Sources** or **Local Terrain - Curiosity Room** under Test Scenarios for playable examples; see [Terrain content](TERRAIN_CONTENT.md) for canonical and JSON authoring, legacy Lava compatibility and milestone scope.
 
 Playtest also offers **Three.js Flat 2D** alongside Classic and Enhanced. It shares
 the existing session, observed state, decisions, playback and surrounding UI.

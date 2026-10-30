@@ -563,9 +563,11 @@ test("terrain drag upserts sparse overrides and Use default removes them", () =>
   assert.match(h.cell(1, 1).className, /StoneFloor/);
 });
 
-test("Lava paints and renders from the terrain catalog and survives export", async () => {
+test("imported legacy Lava remains paintable and survives export", async () => {
   const submitted = [];
   const h = harness(async (operation, body) => { submitted.push(plain(body)); return { transport: "DELVE1:lava" }; });
+  h.editor.draft.definition.board.cells = [{position:{x:0,y:0},terrain:'Lava'}];
+  h.editor.draft.changed(); h.editor.render();
   assert.ok(h.editor.ui.terrain.children.some(option => option.value === "Lava"));
   h.editor.setTool("Terrain"); h.editor.ui.terrain.value = "Lava";
   h.down(h.cell(1, 1)); h.up();
@@ -607,6 +609,65 @@ test('typed default Terrain survives ordinary default changes without stale ID p
   draft.setDefaultTerrain('Grass');assert.equal(draft.definition.board.defaultTerrainTypeId,undefined);
   assert.equal(draft.terrainAt({x:0,y:0}),'Grass');
   draft.setDefaultTerrain('paper');assert.equal(draft.definition.board.defaultTerrain,'StoneFloor');
+});
+
+test('production metadata is Engine-owned and local declarations survive editing, recovery, export and Playtest', async () => {
+  const submitted = [], played = [];
+  const type = {id:'unfamiliar-cupboard',name:'Unexpected Cupboard',passable:false,blocksLos:false,
+    production:{kind:'directionalResourceProduction',resourceTypeId:'banana',attempts:3,placement:'SurroundingCellD8',sourceLos:'RespectTerrain'}};
+  const description = 'At Round Start, make 3 d8 attempts to place one Banana. Respect the producing Cell\'s LOS blocking.';
+  const h = harness(async(operation,body) => {submitted.push(plain(body));return {transport:'DELVE1:producer'};},
+    async transport => {played.push(transport);return true;}, undefined,
+    async body => ({unitTypes:catalog.unitTypes,unitIds:[],terrainDefinitions:body.terrainTypes,
+      productionDescriptions:{'unfamiliar-cupboard':description}}));
+  h.editor.draft.definition.terrainTypes = [type]; h.editor.draft.changed(); h.editor.render();
+  await new Promise(setImmediate);
+  h.editor.setTool('Terrain'); h.editor.ui.terrain.value = 'type:unfamiliar-cupboard'; h.down(h.cell(1,1)); h.up();
+  h.editor.setTool('Select'); h.down(h.cell(1,1));
+  assert.ok(h.editor.ui.properties.textContent.includes(description));
+  assert.equal(inputField(h.editor.ui.properties.children[0], 'Coal generation'), undefined);
+  h.click('undo'); h.click('redo');
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  await new Promise(setImmediate);
+  await h.click('export'); await h.click('play');
+  assert.ok(submitted.every(draft => JSON.stringify(draft.terrainTypes) === JSON.stringify([type])));
+  assert.ok(submitted.every(draft => draft.board.cells[0].terrainTypeId === type.id));
+  assert.deepEqual(played,['DELVE1:producer']);
+});
+
+test('separate typed Lava entries never acquire legacy Coal toggles and legacy references resolve the authored setting', () => {
+  const keys = ['terrainDefinitions','legacyTerrainMappings','legacyTerrainTypeAliases','productionDescriptions'];
+  const saved = Object.fromEntries(keys.map(key => [key,catalog[key]]));
+  try {
+    catalog.terrainDefinitions = [
+      {id:'ordinary-lava',name:'Lava',passable:false,blocksLos:false,legacyKind:'Lava',presentation:{recipe:'Lava'}},
+      {id:'coal-lava',name:'Coal Lava',passable:false,blocksLos:false,legacyKind:'Lava',presentation:{recipe:'Lava'},
+        production:{kind:'directionalResourceProduction',resourceTypeId:'coal',attempts:2}}];
+    catalog.legacyTerrainMappings = [{kind:'Lava',terrainTypeId:'coal-lava'}, {kind:'Lava',terrainTypeId:'ordinary-lava',coalGeneration:false}];
+    catalog.legacyTerrainTypeAliases = {lava:'Lava'};
+    catalog.productionDescriptions = {'coal-lava':'At Round Start, make 2 d8 attempts to place one Coal.'};
+    const h = harness(), draft = h.editor.draft;
+    assert.ok(!h.editor.ui.terrain.children.some(option => option.value === 'Lava'));
+    assert.ok(!h.editor.ui.default.children.some(option => option.value === 'Lava'));
+    for (const id of ['ordinary-lava','coal-lava']) {
+      assert.ok(h.editor.ui.terrain.children.some(option => option.value === `type:${id}`));
+      draft.paintTerrain({x:1,y:1},`type:${id}`,'East',false);h.editor.render();h.down(h.cell(1,1));
+      assert.equal(draft.definition.board.cells[0].coalGeneration,undefined);
+      assert.equal(inputField(h.editor.ui.properties.children[0],'Coal generation'),undefined);
+      assert.ok(h.editor.ui.properties.textContent.includes(id === 'ordinary-lava' ? 'No environmental resource production.' : catalog.productionDescriptions[id]));
+    }
+    for (const reference of ['Lava','type:lava']) {
+      draft.paintTerrain({x:1,y:1},reference,'East',false); h.editor.render(); h.down(h.cell(1,1));
+      assert.ok(h.editor.ui.terrain.children.some(option => option.value === 'Lava'));
+      assert.equal(draft.terrainDefinitionAt({x:1,y:1}).id,'ordinary-lava');
+      assert.equal(inputField(h.editor.ui.properties.children[0],'Coal generation').value,'Off');
+      draft.paintTerrain({x:1,y:1},reference); assert.equal(draft.terrainDefinitionAt({x:1,y:1}).id,'coal-lava');
+    }
+    draft.paintTerrain({x:1,y:1},null); h.editor.render();
+    assert.ok(!h.editor.ui.terrain.children.some(option => option.value === 'Lava'));
+    draft.setDefaultTerrain('Lava'); h.editor.render();
+    assert.ok(h.editor.ui.default.children.some(option => option.value === 'Lava'));
+  } finally { for (const key of keys) catalog[key] = saved[key]; }
 });
 
 test('a local Type ID matching a legacy Terrain spelling remains a distinct Designer selection', () => {

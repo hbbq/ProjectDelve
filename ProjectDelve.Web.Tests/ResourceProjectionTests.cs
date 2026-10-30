@@ -7,6 +7,73 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class ResourceProjectionTests
 {
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, null)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public void LegacyLavaPresentationResolvesTypesWithoutChangingAuthoritativeState(bool alias, bool? coalGeneration)
+    {
+        var definition = Scenario.Define(Scenario.Map(4, 3, cells:
+            [new(new(1, 1), TerrainKind.Lava) { TerrainTypeId = alias ? TerrainCompatibility.LegacyLavaId : null,
+                CoalGeneration = coalGeneration }]),
+            [Scenario.Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human, Scenario.At(0, 0))]) with
+            { Objectives = [new("blue", ScenarioObjective.NoObjective)] };
+        using var game = new PlaytestGame(new FirstDice(), GameEngine.CreateGame(definition));
+        var source = game.StartRound(0);
+        var before = JsonSerializer.Serialize(source.Result);
+        var browser = game.BrowserResponse(source);
+        var expected = TerrainCatalog.Legacy(TerrainKind.Lava, coalGeneration);
+        foreach (var state in browser.Result.ResolutionSteps.Select(step => step.StateAfter).Append(browser.Result.State))
+        {
+            var board = state.Physical.Board;
+            var tile = Assert.Single(board.Terrain);
+            Assert.Equal(expected.Id, tile.TypeId);
+            Assert.Null(tile.CoalGeneration);
+            Assert.Equal("Lava", board.TerrainDefinition(tile).Presentation.Recipe);
+            Assert.Equal(expected.Name, board.TerrainDefinition(tile).Name);
+        }
+        var observed = GambitProjection.Observation(source.Result.State);
+        Assert.Equal(expected.Id, Assert.Single(observed.Board.Terrain).TypeId);
+        Assert.Equal(expected.ProductionDescription, Assert.Single(observed.Board.TerrainTypes!).ProductionDescription);
+        Assert.Equal(before, JsonSerializer.Serialize(source.Result));
+        Assert.Equal(alias ? TerrainCompatibility.LegacyLavaId : null, Assert.Single(source.Result.State.Physical.Board.Terrain).TypeId);
+        Assert.Equal(coalGeneration, Assert.Single(source.Result.State.Physical.Board.Terrain).CoalGeneration);
+    }
+
+    [Fact]
+    public void UnfamiliarTerrainProductionProjectsDeclaredNamesAndOnlyObservedSources()
+    {
+        var local = new TerrainDefinition("unfamiliar-cupboard", "Unexpected Cupboard", false, false)
+            { Production = new DirectionalResourceProduction(ResourceTypes.Banana.Id, 2) };
+        var secret = local with { Id = "secret-fountain", Name = "Hidden Fountain" };
+        var definition = Scenario.Define(Scenario.Map(12, 4, cells:
+            [new(new(1, 1), TerrainKind.StoneFloor) { TerrainTypeId = local.Id },
+             new(new(10, 1), TerrainKind.StoneFloor) { TerrainTypeId = secret.Id }]),
+            [Scenario.Group(UnitTypeIds.Grunt, "blue", ControllerKind.Human, Scenario.At(0, 0))]) with
+            { TerrainTypes = [local, secret], FogOfWarSides = ["blue"], Objectives = [new("blue", ScenarioObjective.NoObjective)] };
+        using var game = new PlaytestGame(new FirstDice(), GameEngine.CreateGame(definition));
+        var result = game.StartRound(0);
+        var browser = game.BrowserResponse(result);
+        Assert.Equal(4, result.Result.Events.Count(e => e.Kind == "TerrainProductionRolled"));
+        Assert.Equal(2, browser.Result.Events.Count(e => e.Kind == "TerrainProductionRolled"));
+        Assert.Contains(browser.Presentation.Events, e => e.Text == "Unexpected Cupboard at 1,1: rolled d8 8 for Banana direction");
+        var roll = browser.Result.Events.First(e => e.Kind == "TerrainProductionRolled");
+        var projected = GambitProjection.Event(roll);
+        Assert.Equal(local.Id, projected.TerrainTypeId);
+        Assert.Equal(local.Name, projected.TerrainName);
+        Assert.Equal(ResourceTypes.Banana, projected.ResourceType);
+        var observation = GambitProjection.Observation(result.Result.State);
+        Assert.Equal(local.ProductionDescription, Assert.Single(observation.Board.TerrainTypes!, t => t.Id == local.Id).ProductionDescription);
+        Assert.DoesNotContain(observation.Board.TerrainTypes!, t => t.Id == secret.Id);
+        var serialized = JsonSerializer.Serialize(browser);
+        Assert.DoesNotContain(secret.Name, serialized);
+        Assert.DoesNotContain(secret.Id, serialized);
+        Assert.Single(browser.Result.State.Resources);
+    }
+
     [Fact]
     public void LavaGenerationProjectsRollPlacementsAndDetachedPlaybackStates()
     {

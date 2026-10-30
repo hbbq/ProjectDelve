@@ -176,7 +176,7 @@ public static class FogOfWar
             "AttackResolved" => unit || target || result is { Targets.IsEmpty: false },
             "AttackTargetResolved" or "WorldDamageResolved" or "ExplosionDamageResolved" or "CleaveResolved" or "HealResolved" => target,
             "DiceRolled" => unit,
-            "ResourceCreated" or "LavaCoalRolled" or "FruitTreeRolled" or "CellMarkerPlaced" => cell,
+            "ResourceCreated" or "LavaCoalRolled" or "FruitTreeRolled" or "TerrainProductionRolled" or "CellMarkerPlaced" => cell,
             _ => unit // Existing local abilities, resources, posture, creation and lifecycle events.
         };
         if (!observable) return null;
@@ -185,6 +185,8 @@ public static class FogOfWar
             UnitId = unit || path?.Count > 0 || segments?.Count > 0 ? e.UnitId : null, TargetId = target ? e.TargetId : null,
             SourceUnitId = Known(e.SourceUnitId) ? e.SourceUnitId : null,
             TypeId = unit || e.Kind == "TokenDrawn" ? e.TypeId : null,
+            TerrainTypeId = cell ? e.TerrainTypeId : null,
+            TerrainName = cell ? e.TerrainName : null,
             SideId = unit || e.Kind == "TokenDrawn" ? e.SideId : null,
             Token = e.Kind == "TokenDrawn" || unit ? e.Token : null,
             Cell = cell ? e.Cell : null, Door = door ? e.Door : null, Path = fragmentedMovement ? null : path,

@@ -101,6 +101,20 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
 // Internal engine results remain authoritative; transport boundaries sanitize future draw information.
 public static class BrowserProjection
 {
+    private static readonly HashSet<TerrainKind> AmbiguousLegacyTerrainKinds = TerrainCatalog.All
+        .Where(type => type.LegacyKind is not null).GroupBy(type => type.LegacyKind!.Value)
+        .Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
+
+    // Resolve compatibility references once at the transport boundary. Clients see the
+    // same declared Type as the Engine without interpreting legacy per-Cell settings.
+    internal static List<TerrainTile> TerrainForPresentation(Board board) => board.Terrain.Select(tile =>
+    {
+        var definition = board.TerrainDefinition(tile);
+        return tile.TypeId is not null && tile.TypeId != definition.Id ||
+            tile.TypeId is null && AmbiguousLegacyTerrainKinds.Contains(tile.Kind)
+            ? tile with { TypeId = definition.Id, CoalGeneration = null } : tile;
+    }).ToList();
+
     public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null)
     {
         var side = FogOfWar.ViewingSide(result.State);
@@ -445,6 +459,9 @@ public static class BrowserProjection
                 break;
             case "FruitTreeRolled":
                 description = $"Fruit Tree at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for Fruit direction";
+                break;
+            case "TerrainProductionRolled":
+                description = $"{e.TerrainName} at {e.Cell?.X},{e.Cell?.Y}: rolled d8 {e.DieRoll} for {e.ResourceType?.Name} direction";
                 break;
             case "WaypointReached":
                 description = $"{name(e.UnitId)}: reached {e.WaypointId} on Route {e.RouteId}";

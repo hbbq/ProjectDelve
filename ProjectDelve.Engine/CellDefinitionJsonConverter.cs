@@ -21,12 +21,13 @@ public sealed class CellDefinitionJsonConverter : JsonConverter<CellDefinition>
         if (hasType && string.IsNullOrWhiteSpace(typeId) || !hasLegacy && !hasType)
             throw new JsonException("A Cell requires a Terrain or a nonblank Terrain Type ID.");
         var kind = hasLegacy ? legacy.Deserialize<TerrainKind>(options) : TerrainKind.StoneFloor;
-        if (hasLegacy && hasType && TerrainCatalog.Legacy(kind).Id != typeId)
-            throw new JsonException("A Cell cannot reference conflicting legacy and typed Terrain.");
         var direction = root.TryGetProperty(Name(nameof(CellDefinition.Direction)), out var directionValue)
             ? directionValue.Deserialize<RailDirection?>(options) : null;
         var coal = root.TryGetProperty(Name(nameof(CellDefinition.CoalGeneration)), out var coalValue)
             ? coalValue.Deserialize<bool?>(options) : null;
+        if (hasLegacy && hasType &&
+            TerrainCompatibility.ResolveTypeId(kind, null, coal) != TerrainCompatibility.ResolveTypeId(kind, typeId, coal))
+            throw new JsonException("A Cell cannot reference conflicting legacy and typed Terrain.");
         return new(position.Deserialize<Cell>(options) ?? throw new JsonException("Cell Position cannot be null."), kind, direction)
         {
             TerrainTypeId = typeId,

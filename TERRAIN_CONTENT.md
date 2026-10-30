@@ -1,8 +1,16 @@
-# Terrain content — milestone 1
+# Terrain content and environmental production
 
 Terrain Types have stable Type IDs, display names and declared gameplay properties. Canonical C# and scenario-local JSON definitions resolve through the same per-game catalog. Movement, placement, pathfinding, geometric LOS and Fog of War consume the resolved properties; an unfamiliar Type ID does not need an Engine handler.
 
-This follows the catalog boundary used by [Equipment](EQUIPMENT_CONTENT.md), [Abilities and Items](ABILITY_CONTENT.md) and [World Cards](WORLD_CARD_CONTENT.md). One Cell still contains one terrain tile. A Table rendered on a floor does not become a separately movable or targetable object.
+This follows the catalog boundary used by [Equipment](EQUIPMENT_CONTENT.md), [Abilities and Items](ABILITY_CONTENT.md) and [World Cards](WORLD_CARD_CONTENT.md). One Cell still contains one terrain tile. A Table rendered on a floor does not become a separately movable or targetable object. The production milestone adds one concrete, parameterized Round Start mechanic to these same Terrain definitions.
+
+## Playable example: Environmental Production - Three Sources
+
+Open **Home → Test Scenarios → Environmental Production - Three Sources → Play scenario**. From left to right, the board contains ordinary non-producing Lava, Coal-producing Lava, and a scenario-local **Copper Orchard**. Start a round and inspect the Journal: ordinary Lava makes no rolls; Coal Lava makes two ordered d8 attempts; the Copper Orchard makes one attempt to produce Fruit. Resources appear on the selected neighboring Cells when placement succeeds. A failed attempt is not rerolled.
+
+The Copper Orchard has a completely unfamiliar Type ID and uses the existing Tree appearance. Its LOS-blocking property remains active for normal vision and attacks; its production declaration ignores only the producing Cell's own terrain obstruction for its production LOS check. The appearance does not supply its resource, attempt count or rules.
+
+There are no enemies, victory conditions, World Cards or random Loot. Choose **Stay**, then **Next round** to observe production against the Resources already on the board. With automatic choices disabled, choose **End Turn** when offered. **Restart current** restores the empty initial board. **Details → Open in Designer** exposes the declared production description, and ordinary painting, undo/redo, export and Playtest preserve the same declarations. **View & camera → Full Board** shows all three sources together in either Classic or 3D. These coordinates explain the current authored example; tests use dedicated fixtures rather than depending on this layout.
 
 ## Playable example: Local Terrain - Curiosity Room
 
@@ -94,7 +102,7 @@ var surface = new TerrainDefinition("practice-track", "Practice Track", true, fa
     Presentation = new("Asphalt")
 };
 
-var runner = new UnitType("practice-runner", 3, 1, 1, 1, 2)
+var runner = new UnitType("practice-runner", 3, 1, 1, 1, 1)
 {
     TerrainRestriction = new([TerrainCategories.RacingGround])
 };
@@ -126,9 +134,95 @@ The restriction accepts a Cell matching **any** category in its nonempty list. T
 
 Only Asphalt among existing canonical Terrain carries `racing-ground`, preserving existing Kart layouts and legality. Declaring the category on new authored Terrain explicitly makes that Terrain match the same Unit requirement; the Terrain does not name a Kart or any vehicle. Legacy `terrainRestrictedMovement` input remains readable through its compatibility adapter.
 
+## Environmental resource production
+
+`TerrainDefinition.Production` is optional. Its absence means that Terrain does not produce Resources. A producing Terrain uses the same typed definition and execution path whether it was declared in the canonical C# roster or scenario JSON.
+
+The supported mechanic is `directionalResourceProduction`. Its placement policy is the existing eight surrounding Cells at range one, with a d8 selecting the attempted Cell. It is not an arbitrary placement expression or a general trigger system. Production always runs after Round Start World Cards and all their consequences, before Activation Bag population.
+
+The canonical catalog distinguishes ordinary Lava from Coal Lava. Both are impassable, do not block gameplay LOS, forbid Resource markers on their own Cell, and use the existing Lava appearance and lighting. Only Coal Lava declares production. Fruit Tree declares the same mechanic with Fruit and its existing source-LOS exemption.
+
+The typed C# declaration for an unfamiliar producer is ordinary content data:
+
+```csharp
+new TerrainDefinition("copper-orchard", "Copper Orchard", false, true)
+{
+    Presentation = new("Tree"),
+    Production = new DirectionalResourceProduction("fruit", 1,
+        Placement: ProductionPlacement.SurroundingCellD8,
+        SourceLos: ProductionSourceLos.IgnoreProducingCell)
+};
+```
+
+New canonical references can be authored as:
+
+```json
+{
+  "board": {
+    "width": 7,
+    "height": 3,
+    "cells": [
+      { "position": { "x": 1, "y": 1 }, "terrainTypeId": "ordinary-lava" },
+      { "position": { "x": 3, "y": 1 }, "terrainTypeId": "coal-lava" },
+      { "position": { "x": 5, "y": 1 }, "terrainTypeId": "fruit-tree" }
+    ]
+  }
+}
+```
+
+A scenario-local producer needs only a definition and a placement:
+
+```json
+{
+  "terrainTypes": [
+    {
+      "id": "copper-orchard", "name": "Copper Orchard",
+      "passable": false, "blocksLos": true,
+      "presentation": { "recipe": "Tree" },
+      "production": {
+        "kind": "directionalResourceProduction",
+        "resourceTypeId": "fruit",
+        "attempts": 1,
+        "placement": "SurroundingCellD8",
+        "sourceLos": "IgnoreProducingCell"
+      }
+    }
+  ],
+  "board": {
+    "width": 3, "height": 3,
+    "cells": [
+      { "position": { "x": 1, "y": 1 }, "terrainTypeId": "copper-orchard" }
+    ]
+  }
+}
+```
+
+These are fragments to combine with ordinary scenario Units, agency, objectives and Loot settings. The bundled example contains a complete playable definition.
+
+`resourceTypeId` must resolve to an existing Resource Type, and `attempts` must be an integer from 1 through 100. Unknown mechanic kinds, resource IDs, placement policies, source LOS policies and unsupported properties are rejected. `placement` defaults to `SurroundingCellD8`; `sourceLos` defaults to `RespectTerrain`. Spell out both when copying a declaration so its intended rules remain visible. A producer may be passable or impassable and may block LOS or not; these properties remain independent of production. With `RespectTerrain`, an LOS-blocking source cannot satisfy its own production LOS check.
+
+Each attempt rolls exactly once: 1 North, 2 Northeast, 3 East, 4 Southeast, 5 South, 6 Southwest, 7 West, 8 Northwest. It attempts to create one Resource on that Cell. Board bounds, passable destination terrain, Resource-marker permission, no Machine, no existing Resource and geometric LOS all remain authoritative. Units do not prevent placement. The next attempt sees previous successful placements; repeated rolls toward the same Cell cannot create two Resources there. Sources resolve in ascending y, then x, independently of declaration or catalog order.
+
+`sourceLos` is explicit: `RespectTerrain` uses ordinary geometric terrain LOS; `IgnoreProducingCell` exempts only the producing Cell's own terrain from that query. Other terrain, Machines, Edges and corner restrictions still apply. This does not change gameplay LOS, vision or lighting for any other purpose. The existing Coal Lava and Fruit Tree declarations preserve the existing producing-Cell exemption.
+
+Production descriptions come from Engine-owned declarations. Designer and browser presentation consume those descriptions and event metadata rather than maintaining independent production rules. Existing `LavaCoalRolled` / `FruitTreeRolled` events retain their compatibility identities; unfamiliar producers use `TerrainProductionRolled`. Those event identities do not select the production mechanic. Resource creation remains an authoritative state transition. FoW filters sources, definitions and events using the observation at the displayed checkpoint, including replay.
+
 ## Compatibility and scope
 
-Legacy enum-based scenario fields remain readable, including implicit Stone Floor, Rail direction and per-Cell Lava Coal settings. Existing scenarios need no rewrite. Canonical legacy identities remain available to mechanics that are intentionally outside this milestone:
+Legacy enum-based scenario fields remain readable, including implicit Stone Floor, Rail direction and per-Cell Lava Coal settings. Existing scenarios need no rewrite. The Lava adapter preserves serialized meaning:
+
+| Existing reference | Coal setting | Resolved production |
+| --- | --- | --- |
+| Legacy `terrain: "Lava"` | Omitted or `true` | Coal Lava, two attempts |
+| Legacy `terrain: "Lava"` | `false` | Ordinary Lava, no attempts |
+| Previous milestone `terrainTypeId: "lava"` | Omitted or `true` | Coal Lava, two attempts |
+| Previous milestone `terrainTypeId: "lava"` | `false` | Ordinary Lava, no attempts |
+| New `terrainTypeId: "ordinary-lava"` | Not authored | Ordinary Lava, no attempts |
+| New `terrainTypeId: "coal-lava"` | Not authored | Coal Lava, two attempts |
+
+Use the explicit new Type IDs for new content. The old `lava` reference is a reserved input alias retained for compatibility instead of silently changing earlier typed scenarios; it is not a third canonical definition and cannot be used as a local definition ID. New explicit `ordinary-lava` and `coal-lava` references reject the legacy `coalGeneration` setting. Legacy default Lava also retains production on every unspecified Cell; Stronghold's explicit `coalGeneration: false` continues to make no rolls. Legacy generator documents and their exact JSON fingerprints remain unchanged.
+
+Resolved runtime catalogs and snapshots retain production data. Runtime Boards write `terrainContentVersion: 2`. An older save with no version is treated as version 1: its former canonical `lava` and Fruit Tree definitions and legacy tile references migrate at the deserialization boundary. A former Lava definition supplies both resolved Lava types; unrelated definitions absent from an old filtered observation remain absent. Normal observations still include only discovered Terrain Types. The scenario format version stays unchanged. Migration does not change remaining Resources, round progress or random state, and never replays production merely because a save is loaded.
 
 - Lava stays impassable. Omitted or `true` Coal generation still produces Coal; `false` still makes no rolls.
 - Fruit Tree production, its source-LOS exception and all production ordering remain unchanged.
@@ -136,6 +230,6 @@ Legacy enum-based scenario fields remain readable, including implicit Stone Floo
 - Water/Wall restrictions and Door/Wall semantics remain unchanged.
 - Legacy artwork identities, visual seeds and existing generator serialized output remain stable.
 
-`legacyKind` is compatibility metadata for canonical content, not a way for local definitions to acquire production, Rail behavior or other specialized mechanics. Selecting a Lava or Rail visual recipe does not grant those rules.
+`legacyKind` is compatibility metadata for canonical content, not a way for local definitions to acquire Rail behavior or other specialized mechanics. Selecting a Lava, Fruit Tree or Rail visual recipe does not grant production or movement rules. Production requires a typed declaration.
 
-This milestone does not implement inheritance, Create Variant, Create Copy, floor/furniture composition, generic environmental Actions, production authoring or runtime terrain mutation. Future authoring transformations should resolve to the same immutable Terrain definition boundary; they must not mutate a running game's catalog or turn presentation recipes into game rules.
+This milestone does not implement inheritance, Create Variant, Create Copy, floor/furniture composition, multiple producers on one Cell, generic environmental Actions or runtime terrain mutation. Future authoring transformations should resolve to the same immutable Terrain definition boundary; they must not mutate a running game's catalog or turn presentation recipes into game rules.

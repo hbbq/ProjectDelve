@@ -2,6 +2,52 @@
   "version": 1,
   "scenarios": [
     {
+      "id": "local-environmental-production",
+      "name": "Environmental Production - Three Sources",
+      "coverArt": null,
+      "revision": 1,
+      "definition": {
+        "terrainTypes": [
+          {
+            "id": "copper-orchard",
+            "name": "Copper Orchard",
+            "passable": false,
+            "blocksLos": true,
+            "presentation": { "recipe": "Tree" },
+            "production": {
+              "kind": "directionalResourceProduction",
+              "resourceTypeId": "fruit",
+              "attempts": 1,
+              "placement": "SurroundingCellD8",
+              "sourceLos": "IgnoreProducingCell"
+            }
+          }
+        ],
+        "board": {
+          "width": 11,
+          "height": 5,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            { "position": { "x": 2, "y": 2 }, "terrainTypeId": "ordinary-lava" },
+            { "position": { "x": 5, "y": 2 }, "terrainTypeId": "coal-lava" },
+            { "position": { "x": 8, "y": 2 }, "terrainTypeId": "copper-orchard" }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": ["wizard-type"],
+        "units": [
+          { "unitTypeId": "wizard-type", "sideId": "heroes", "anchor": { "x": 0, "y": 0 }, "unitId": "production-observer" }
+        ],
+        "agency": [
+          { "unitTypeId": "wizard-type", "sideId": "heroes", "controller": "Human" }
+        ],
+        "objectives": [
+          { "sideId": "heroes", "objective": "NoObjective" }
+        ],
+        "loot": { "composition": [] }
+      }
+    },
+    {
       "id": "local-terrain-curiosity-room",
       "name": "Local Terrain - Curiosity Room",
       "coverArt": null,
@@ -432,9 +478,10 @@
     {
       "id": "test-scenarios",
       "name": "Test Scenarios",
-      "description": "Explore Project Delve test scenarios. Local Terrain - Curiosity Room, Local World Cards - Weather Room, Local Abilities - Three Sources and Local Equipment - Fitting Room demonstrate scenario-local content.",
+      "description": "Explore Project Delve test scenarios. Environmental Production - Three Sources and the Local Terrain, World Cards, Abilities and Equipment rooms demonstrate scenario-local content.",
       "coverArt": null,
       "scenarioIds": [
+        "local-environmental-production",
         "local-terrain-curiosity-room",
         "local-world-weather-room",
         "local-abilities-three-sources",
@@ -469,7 +516,7 @@
         "labyrinth-shaper",
         "genombrottet"
       ],
-      "revision": 4
+      "revision": 5
     }
   ]
 }

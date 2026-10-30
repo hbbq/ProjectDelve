@@ -267,6 +267,8 @@ public sealed partial class PlaytestGame
     private static GameState SanitizeState(GameState source)
     {
         var copy = FogOfWar.ViewingSide(source) is { } side ? FogOfWar.Observe(source, side) : Detach(source);
+        copy.Physical = copy.Physical with { Board = copy.Physical.Board with
+            { Terrain = BrowserProjection.TerrainForPresentation(copy.Physical.Board) } };
         if (copy.WorldDeck is not null) copy.WorldDeck.DrawPile = [];
         if (copy.WorldEffects is not null) copy.WorldEffects = copy.WorldEffects with { Composition = null };
         var knownWorldTypes = (copy.WorldDeck?.ActiveContinuous ?? [])

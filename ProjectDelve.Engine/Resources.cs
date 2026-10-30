@@ -10,6 +10,9 @@ public static class ResourceTypes
     public static ResourceType Banana { get; } = new("banana", "Banana");
     public static ResourceType Mushroom { get; } = new("mushroom", "Mushroom");
     public static ResourceType Shell { get; } = new("shell", "Shell");
+    public static System.Collections.Immutable.ImmutableArray<ResourceType> All { get; } = [Coal, Diamond, Fruit, Banana, Mushroom, Shell];
+    public static ResourceType Find(string id) => All.SingleOrDefault(type => type.Id == id)
+        ?? throw new ArgumentException($"Unknown Resource Type ID '{id}'.");
 }
 public sealed record Resource(ResourceType Type, Cell Position);
 

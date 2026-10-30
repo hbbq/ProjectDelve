@@ -11,11 +11,10 @@ internal static class ScenarioCreation
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
         var terrainTypes = TerrainCatalog.Resolve(definition.TerrainTypes);
-        TerrainDefinition ResolveTerrain(TerrainKind legacy, string? typeId)
+        TerrainDefinition ResolveTerrain(TerrainKind legacy, string? typeId, bool? coalGeneration = null)
         {
-            if (typeId is null) return TerrainCatalog.Legacy(legacy);
-            return terrainTypes.SingleOrDefault(t => t.Id == typeId)
-                ?? throw new ArgumentException($"Unknown Terrain Type ID '{typeId}'.");
+            var resolvedId = TerrainCompatibility.ResolveTypeId(legacy, typeId, coalGeneration);
+            return TerrainCatalog.Find(terrainTypes, resolvedId);
         }
         var defaultTerrain = ResolveTerrain(board.DefaultTerrain, board.DefaultTerrainTypeId);
         if (board.Width < 1 || board.Height < 1 || !Enum.IsDefined(board.DefaultTerrain) || defaultTerrain.LegacyKind == TerrainKind.Rail ||
@@ -29,7 +28,7 @@ internal static class ScenarioCreation
             if (cell is null || !Inside(cell.Position) || !Enum.IsDefined(cell.Terrain))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Cell override.", nameof(definition)), $"board.cells[{index}]");
             TerrainDefinition resolved;
-            try { resolved = ResolveTerrain(cell.Terrain, cell.TerrainTypeId); }
+            try { resolved = ResolveTerrain(cell.Terrain, cell.TerrainTypeId, cell.CoalGeneration); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"board.cells[{index}]"); }
             if ((resolved.LegacyKind == TerrainKind.Rail ? cell.Direction is null || !Enum.IsDefined(cell.Direction.Value) : cell.Direction is not null) ||
                 resolved.LegacyKind != TerrainKind.Lava && cell.CoalGeneration is not null ||
@@ -131,7 +130,7 @@ internal static class ScenarioCreation
         List<TerrainTile> terrain = [];
         TerrainTile Tile(Cell position, CellDefinition? authored)
         {
-            var resolved = authored is null ? defaultTerrain : ResolveTerrain(authored.Terrain, authored.TerrainTypeId);
+            var resolved = authored is null ? defaultTerrain : ResolveTerrain(authored.Terrain, authored.TerrainTypeId, authored.CoalGeneration);
             return new(position, resolved.LegacyKind ?? TerrainKind.StoneFloor, authored?.Direction)
             {
                 TypeId = authored is null ? board.DefaultTerrainTypeId : authored.TerrainTypeId,

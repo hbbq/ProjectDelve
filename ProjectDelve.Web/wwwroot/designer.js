@@ -195,6 +195,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     if (signature === metadataSignature) return;
     metadataSignature = signature; draft.effectiveUnitIds = null;
     draft.effectiveTerrainMetadata = null;
+    draft.effectiveProductionDescriptions = null;
     if (draft.metadataContentSignature !== JSON.stringify(custom)) draft.effectiveMetadata = null;
     draft.metadataContentSignature = JSON.stringify(custom);
     const sequence = ++metadataSequence;
@@ -202,6 +203,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       if (sequence !== metadataSequence) return;
       if (!Array.isArray(result?.unitTypes)) throw new Error("Custom metadata unavailable");
       draft.effectiveMetadata = result.unitTypes; draft.effectiveTerrainMetadata = result.terrainDefinitions;
+      draft.effectiveProductionDescriptions = result.productionDescriptions;
       draft.effectiveUnitIds = result.unitIds; render();
     }).catch(() => { if (sequence === metadataSequence && custom.length) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only. Validate for engine diagnostics."; });
   }
@@ -215,13 +217,17 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   const terrainLabel = kind => kind === "SolidRock" ? { value: kind, label: "Solid Rock" } : kind;
   const terrainOptions = [];
   function syncTerrainTypes() {
-    const entries = catalog.terrains.map(kind => ({ value: kind, label: draft.terrainMetadata(kind)?.name ?? (kind === 'SolidRock' ? 'Solid Rock' : kind) }));
+    const hasLegacyLava = draft.legacyTerrainKind(draft.defaultTerrainSelection()) === 'Lava' ||
+      draft.definition.board.cells.some(cell => draft.legacyTerrainKind(cell.terrainTypeId != null ? draft.terrainTypeSelection(cell.terrainTypeId) : cell.terrain) === 'Lava');
+    const entries = catalog.terrains.filter(kind => kind !== 'Lava' || hasLegacyLava)
+      .map(kind => ({ value: kind, label: kind === 'Lava' ? 'Lava (per-Cell Coal setting)' : draft.terrainMetadata(kind)?.name ?? (kind === 'SolidRock' ? 'Solid Rock' : kind) }));
     for (const type of draft.terrainCatalog())
-      if (!type.legacyKind || draft.definition.board.defaultTerrainTypeId === type.id || draft.definition.board.cells.some(cell => cell.terrainTypeId === type.id))
+      if (!type.legacyKind || draft.terrainCatalog().filter(other => other.legacyKind === type.legacyKind).length > 1 || draft.definition.board.defaultTerrainTypeId === type.id || draft.definition.board.cells.some(cell => cell.terrainTypeId === type.id))
         entries.push({ value: draft.terrainTypeSelection(type.id), label: type.name });
     // Invalid references remain visible and recoverable until authoritative validation.
     for (const id of [draft.definition.board.defaultTerrainTypeId, ...draft.definition.board.cells.map(cell => cell.terrainTypeId)].filter(Boolean))
-      if (!entries.some(entry => entry.value === draft.terrainTypeSelection(id))) entries.push({ value: draft.terrainTypeSelection(id), label: `${id} (unresolved)` });
+      if (!entries.some(entry => entry.value === draft.terrainTypeSelection(id))) entries.push({ value: draft.terrainTypeSelection(id),
+        label: draft.terrainMetadata(draft.terrainTypeSelection(id)) ? `${id} (legacy reference)` : `${id} (unresolved)` });
     terrainOptions.splice(0, terrainOptions.length, { value: '', label: 'Use default (remove override)' }, ...entries);
     const selected = ui.terrain.value;
     options(ui.terrain, terrainOptions);
@@ -705,10 +711,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       }
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrainTypeId != null ? draft.terrainTypeSelection(explicit.terrainTypeId) : explicit?.terrain ?? "", { entries: terrainOptions });
-      const terrainDefinition = draft.terrainMetadata(draft.terrainSelectionAt(position));
+      const terrainDefinition = draft.terrainDefinitionAt(position);
       if (terrainDefinition) form.append(element('p', `${terrainDefinition.name} · Type ${terrainDefinition.id} · ${terrainDefinition.passable ? 'Passable' : 'Blocks movement'} · ${terrainDefinition.blocksLos ? 'Blocks LOS' : 'Does not block LOS'}`));
+      const productionDescription = draft.productionDescriptionAt(position);
+      if (productionDescription) form.append(element('p', productionDescription));
+      else if (terrainDefinition && !terrainDefinition.production) form.append(element('p', 'No environmental resource production.'));
       const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });
-      const coal = (terrainDefinition?.legacyKind ?? draft.terrainAt(position)) === "Lava"
+      const coal = draft.legacyTerrainKind(draft.terrainSelectionAt(position)) === "Lava"
         ? field(form, "Coal generation", explicit?.coalGeneration === false ? "Off" : "On", { entries: ["On", "Off"] }) : null;
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         const defaultReference = draft.defaultTerrainSelection();

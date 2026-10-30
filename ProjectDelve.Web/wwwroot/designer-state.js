@@ -12,6 +12,7 @@ export class DesignerDraft {
       throw new Error(`Designer boards must be 1..${this.catalog.maxBoardSize} cells in each dimension.`);
     this.definition = structuredClone(definition);
     this.effectiveTerrainMetadata = null;
+    this.effectiveProductionDescriptions = null;
     this.unitKeys = this.definition.units.map(() => ++this.nextKey);
     this.machineKeys = (this.definition.machines ?? []).map(() => ++this.nextKey);
     this.changed();
@@ -175,15 +176,32 @@ export class DesignerDraft {
     const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
     return entry ? entry.terrainTypeId != null ? this.terrainTypeSelection(entry.terrainTypeId) : entry.terrain : this.defaultTerrainSelection();
   }
-  terrainMetadata(reference) {
+  legacyTerrainKind(reference) {
+    return reference?.startsWith('type:') ? this.catalog.legacyTerrainTypeAliases?.[decodeURIComponent(reference.slice(5))]
+      : this.catalog.terrains.includes(reference) ? reference : null;
+  }
+  terrainMetadata(reference, coalGeneration = null) {
+    const legacy = this.legacyTerrainKind(reference);
+    const mappings = (this.catalog.legacyTerrainMappings ?? []).filter(mapping => mapping.kind === legacy);
+    const mapping = mappings.find(mapping => mapping.coalGeneration === coalGeneration)
+      ?? mappings.find(mapping => mapping.coalGeneration == null);
+    if (mapping) return this.terrainCatalog().find(type => type.id === mapping.terrainTypeId);
     if (reference?.startsWith('type:')) return this.terrainCatalog().find(type => type.id === decodeURIComponent(reference.slice(5)));
     return this.terrainCatalog().find(type => type.legacyKind === reference) ?? this.terrainCatalog().find(type => type.id === reference);
   }
+  terrainDefinitionAt(cell) {
+    const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
+    return this.terrainMetadata(this.terrainSelectionAt(cell), entry?.coalGeneration);
+  }
+  productionDescriptionAt(cell) {
+    const definition = this.terrainDefinitionAt(cell);
+    return (this.effectiveProductionDescriptions ?? this.catalog.productionDescriptions)?.[definition?.id];
+  }
   terrainNameAt(cell) {
-    return this.terrainMetadata(this.terrainSelectionAt(cell))?.name ?? this.terrainAt(cell);
+    return this.terrainDefinitionAt(cell)?.name ?? this.terrainAt(cell);
   }
   terrainRecipeAt(cell) {
-    const reference = this.terrainSelectionAt(cell), definition = this.terrainMetadata(reference);
+    const reference = this.terrainSelectionAt(cell), definition = this.terrainDefinitionAt(cell);
     const recipe = definition?.presentation?.recipe ?? reference;
     return this.catalog.terrains.includes(recipe) ? recipe : 'custom-terrain';
   }
@@ -268,7 +286,7 @@ export class DesignerDraft {
     const reference = this.catalog.terrains.includes(terrain) ? { terrain } : { terrainTypeId: terrain?.startsWith('type:') ? decodeURIComponent(terrain.slice(5)) : terrain };
     upsert(this.definition.board.cells, entry => sameCell(entry.position, position),
       terrain === null ? null : { position: { ...position }, ...reference, ...(legacy === "Rail" ? { direction } : {}),
-        ...(legacy === "Lava" && coalGeneration != null ? { coalGeneration } : {}) });
+        ...(this.legacyTerrainKind(terrain) === "Lava" && coalGeneration != null ? { coalGeneration } : {}) });
     this.changed();
   }
   paintEdge(position, direction, kind) {

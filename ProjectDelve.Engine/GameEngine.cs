@@ -62,11 +62,11 @@ public static partial class GameEngine
             events.LootArrivals.AddRange(state.Physical.Figures.OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X).Select(f => f.Id));
             ResolveLootArrivals(state, events);
         }
-        var hasLava = state.Physical.Board.Terrain.Any(t => state.Physical.Board.TerrainDefinition(t).LegacyKind == TerrainKind.FruitTree || state.Physical.Board.TerrainDefinition(t).LegacyKind == TerrainKind.Lava && t.CoalGeneration != false);
-        if (state.WorldEffects is not null || hasLava)
+        var hasProduction = state.Physical.Board.Terrain.Any(t => state.Physical.Board.TerrainDefinition(t).Production is not null);
+        if (state.WorldEffects is not null || hasProduction)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
-        ResolveLavaCoalGeneration(state, random, events);
+        ResolveEnvironmentalProduction(state, random, events);
         if (state.WorldEffects is { CardsPerRound: > 0 })
         {
             EvaluateObjectives(state, events);
@@ -77,7 +77,7 @@ public static partial class GameEngine
             .Distinct().OrderBy(side => side, StringComparer.Ordinal)
             .Select(side => new ActivationToken(t.Id, side))).ToList();
         // Automatic Round Start operations expose a separate bag-population boundary.
-        events.Add(new RulesEvent(state.WorldEffects is null && !hasLava ? "RoundStarted" : "ActivationBagPopulated") { Round = state.Round });
+        events.Add(new RulesEvent(state.WorldEffects is null && !hasProduction ? "RoundStarted" : "ActivationBagPopulated") { Round = state.Round });
         RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
         return new(state, events.Events, state.Pending) { ResolutionSteps = events.Steps };
     }
@@ -1084,7 +1084,7 @@ public static partial class GameEngine
         if (board.Terrain.Any(tile => tile is null || !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind) ||
                 (tile.TypeId is not null && !TerrainCatalog.ValidKey(tile.TypeId)) ||
                 (board.TerrainDefinition(tile).LegacyKind == TerrainKind.Rail ? tile.Direction is null || !Enum.IsDefined(tile.Direction.Value) : tile.Direction is not null) ||
-                board.TerrainDefinition(tile).LegacyKind != TerrainKind.Lava && tile.CoalGeneration is not null) ||
+                !TerrainCompatibility.IsLegacyLavaReference(tile.Kind, tile.TypeId) && tile.CoalGeneration is not null) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
             throw new ArgumentException("Invalid terrain tiles.");
         if (figures.Any(f => !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||
