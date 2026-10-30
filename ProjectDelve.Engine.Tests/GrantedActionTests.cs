@@ -88,11 +88,62 @@ public sealed class GrantedActionTests
     }
 
     [Fact]
+    public void LegacySecondWindIdentityStillReportsConsumptionWhenItsSavedGrantIsAnAction()
+    {
+        var scenario = Scenario();
+        scenario.Units[0] = scenario.Units[0] with
+        { Inventory = [new("wind-one", LootCardKind.SecondWind), new("wind-two", LootCardKind.SecondWind)] };
+        var state = Ready(scenario);
+        var index = state.AbilityDefinitions.FindIndex(a => a.Id == "second-wind");
+        state.AbilityDefinitions[index] = Wave("second-wind", "Folded Wind");
+        state = GameEngine.RefreshChoices(Restore(state), new Dice(), false).State;
+        var choice = state.Pending!.Candidates.Single(c => c.Key == "use-object:wind-one");
+        Assert.Equal(LegacyAbilityKind.SecondWind, choice.GrantedAbility!.Legacy);
+        var result = Use(state, choice);
+
+        var consumed = Assert.Single(result.Events.Where(e => e.Kind == "ItemUsed"));
+        Assert.Equal("wind-one", consumed.ObjectCard!.Id);
+        Assert.Equal("Folded Wind", consumed.AbilityName);
+        Assert.Equal("object:SecondWind", consumed.ActionId);
+        Assert.Equal(ActivationChoiceKind.Action, consumed.Category);
+        Assert.Equal(new[] { "ItemUsed", "ActionUsed", "PostureChanged", "PostureChanged" },
+            result.Events.Take(4).Select(e => e.Kind));
+        var committed = result.ResolutionSteps[0].StateAfter;
+        Assert.Equal(1, committed.ActionsUsedThisActivation);
+        Assert.Empty(committed.BonusActionUseCountsThisActivation);
+        Assert.True(committed.IsUpright("actor"));
+        Assert.Equal("wind-two", Assert.Single(committed.Units.Single(u => u.Id == "actor").Inventory).Id);
+        Assert.Equal("wind-one", Assert.Single(result.State.LootDeck!.DiscardPile).Id);
+        Assert.False(result.State.IsUpright("actor"));
+        Assert.False(result.State.IsUpright("enemy"));
+    }
+
+    [Fact]
+    public void CanonicalSecondWindKeepsItsHistoricalPostEffectConsumptionEvent()
+    {
+        var scenario = Scenario();
+        scenario.Units[0] = scenario.Units[0] with { Inventory = [new("wind-one", LootCardKind.SecondWind)] };
+        var state = Ready(scenario);
+        var result = Use(state, state.Pending!.Candidates.Single(c => c.Key == "use-object:wind-one"));
+
+        var consumed = Assert.Single(result.Events.Where(e => e.Kind == "ItemUsed"));
+        Assert.Equal("second-wind", consumed.ActionId);
+        Assert.Equal(ActivationChoiceKind.BonusAction, consumed.Category);
+        Assert.DoesNotContain(result.Events, e => e.Kind == "ActionUsed");
+        var checkpoint = result.ResolutionSteps.Single(step => result.Events[step.EventIndex].Kind == "ItemUsed").StateAfter;
+        Assert.Equal(1, checkpoint.ExtraActionsThisActivation);
+        Assert.Equal(1, checkpoint.BonusActionUseCountsThisActivation["Second Wind"]);
+        Assert.Equal(0, checkpoint.ActionsUsedThisActivation);
+        Assert.Empty(checkpoint.Units.Single(u => u.Id == "actor").Inventory);
+        Assert.Equal("wind-one", Assert.Single(checkpoint.LootDeck!.DiscardPile).Id);
+    }
+
+    [Fact]
     public void DistinctUnitGrantsOfOneMechanicHaveIndependentLimits()
     {
         var scenario = Scenario(Wave("one-song", "One Song", 1), Wave("two-songs", "Two Songs", 2));
         scenario = scenario with { UnitTypes = [.. scenario.UnitTypes!, UnitRoster.Cleric() with
-            { AbilityGrants = [new("first", "one-song"), new("second", "two-songs")] }] };
+            { AbilityGrants = [.. UnitRoster.Cleric().AbilityGrants, new("first", "one-song"), new("second", "two-songs")] }] };
         var state = Ready(scenario);
         var firstGrant = Grant(state, AbilitySourceKind.Unit, "first").GrantedAbility!;
         var secondGrant = Grant(state, AbilitySourceKind.Unit, "second").GrantedAbility!;

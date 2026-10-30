@@ -58,7 +58,7 @@ public sealed class FuryTests
         Assert.Equal("Fury", type.Fury.Name);
         Assert.Equal(new PassiveDescription("Fury", "ATK +1 while adjacent to 2 or more enemies"),
             Assert.Single(type.Passives));
-        Assert.Equal("Rage", Assert.Single(type.BonusActions).Name);
+        Assert.Equal("Rage", Assert.Single(AbilityQueries.NativeAbilities(type, "hero")).Definition.Name);
         Assert.Null(UnitType.Cleric().Fury);
         Assert.Empty(UnitType.Grunt().Passives);
     }
@@ -217,7 +217,8 @@ public sealed class FuryTests
         Assert.Equal(5, hypothetical.EffectiveAtkOf("hero"));
         Assert.Equal(4, original.EffectiveAtk["hero"]);
         Assert.Equal(5, hypothetical.EffectiveAtk["hero"]);
-        hypothetical.ModifiersThisTurn.AddRange(UnitType.Barbarian().BonusActions[0].Modifiers);
+        hypothetical.ModifiersThisTurn.AddRange(Assert.IsType<SelfModifiersMechanic>(
+            Assert.Single(hypothetical.AbilitiesOf("hero"), g => g.GrantId == "rage").Definition.Mechanic).Modifiers);
         Assert.Equal(7, hypothetical.EffectiveAtkOf("hero"));
         Assert.Equal(4, original.EffectiveAtkOf("hero"));
         hypothetical.Physical.Board.Edges.Add(new(new(2, 2), new(2, 3), EdgeKind.ClosedDoor));
@@ -239,7 +240,9 @@ public sealed class FuryTests
         state.Physical.Figures.Add(new("cleric", new(1, 2)));
         Assert.Equal(5, state.EffectiveAtkOf("hero"));
         Assert.Equal(4, state.EffectiveDefOf("hero"));
-        Assert.Equal(new PassiveDescription("Aura", "Adjacent friendly Units get DEF +1"), Assert.Single(cleric.Passives));
+        var aura = Assert.Single(cleric.CardEntries(), entry => entry.Category == "Passive");
+        Assert.Equal("Aura", aura.Name);
+        Assert.Equal("Adjacent friendly Units get DEF +1", aura.Description);
         Assert.Equal(3, state.EffectiveDefOf("enemy-0"));
     }
 }

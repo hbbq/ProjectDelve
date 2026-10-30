@@ -12,9 +12,17 @@ public sealed record CardEntryDescription(string Id, string Name, string Categor
 
 public static class ContentDescriptions
 {
-    public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null)
+    public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null,
+        IReadOnlyList<AbilityDefinition>? abilityDefinitions = null)
     {
         List<CardEntryDescription> entries = [];
+        var native = AbilityQueries.NativeAbilities(type, "content", abilityDefinitions).ToArray();
+        HashSet<string> emittedGrants = new(StringComparer.Ordinal);
+        void AddNative(LegacyAbilityKind kind)
+        {
+            foreach (var grant in native.Where(grant => grant.Legacy == kind))
+                if (emittedGrants.Add(grant.EntryId)) entries.Add(grant.CardEntry());
+        }
         var names = type.AbilityNames;
         if (type.MovementPattern == MovementPattern.StraightOrthogonalOrDiagonalCorridor)
             entries.Add(new("straight-orthogonal-or-diagonal-corridor", "Straight Orthogonal or Diagonal Corridor Movement", "Capability",
@@ -53,13 +61,9 @@ public static class ContentDescriptions
             entries.Add(new("fire-breath", names.FireBreath ?? "Fire Breath", "Action", "Attack all enemies within RNG."));
         if (type.Actions.HasFlag(UnitAction.ClawAttack) && type.ClawAttack is { } claw)
             entries.Add(new("claw-attack", names.ClawAttack ?? "Claw Attack", "Action", $"Attack an adjacent enemy with ATK {claw.AtkBonus:+0;-0;0}."));
-        if (type.Actions.HasFlag(UnitAction.Heal) && type.Heal is { } heal)
-            entries.Add(new("heal", names.Heal ?? "Heal", "Action", $"Heal an adjacent damaged friendly Unit for {heal.Amount} HP.", heal.MaxUses));
-        if (type.Actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is { } wave)
-            entries.Add(new("holy-wave", names.HolyWave ?? "Holy Wave", "Action", "Lay down all adjacent upright enemies.\nThen lay down this Unit.", wave.MaxUses, ShortDescription: "Lay down adjacent Upright enemies, then this Unit."));
-        if (type.Actions.HasFlag(UnitAction.Fireball) && type.Fireball is { } fireball)
-            entries.Add(new("fireball", names.Fireball ?? "Fireball", "Action",
-                "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", fireball.MaxUses, ShortDescription: "Attack all Units on or adjacent to a chosen Cell within RNG and LOS."));
+        AddNative(LegacyAbilityKind.Heal);
+        AddNative(LegacyAbilityKind.HolyWave);
+        AddNative(LegacyAbilityKind.Fireball);
         if (type.Actions.HasFlag(UnitAction.Telekinesis))
             entries.Add(new("telekinesis", names.Telekinesis ?? "Telekinesis", "Action", "Lay down an upright enemy within RNG and LOS."));
         if (type.Actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon)
@@ -90,6 +94,14 @@ public static class ContentDescriptions
         if (type.FreeActions.HasFlag(UnitFreeAction.OpenDoor))
             entries.Add(new("open-door", "Open Door", "Free Action", "Open a bordering Closed Door."));
         foreach (var ability in type.BonusActions)
+        {
+            if (AbilityQueries.IsSimpleBonus(ability))
+            {
+                var grant = native.Single(g => g.Legacy == LegacyAbilityKind.BonusAction && g.LegacyKey == ability.Name);
+                emittedGrants.Add(grant.EntryId);
+                entries.Add(grant.CardEntry());
+                continue;
+            }
             entries.Add(new(BonusEntryId(ability.Name), ability.DisplayName ?? ability.Name, "Bonus Action",
                 ability.PlaceBananaPeel is { } banana ? $"Spend {banana.BananaCost} Banana from shared Resource Storage to place a Banana Peel in an adjacent passable Cell with no Unit, Machine or Cell Marker. Loose Resources may remain there." :
                 ability.Boost is { } boost ? $"Spend {boost.MushroomCost} Mushroom to gain one additional Move this activation. Use before any normal Action, even after an earlier Move." :
@@ -99,8 +111,9 @@ public static class ContentDescriptions
                 string.Join(" & ", ability.Modifiers.Select(m =>
                     $"{(m.Amount >= 0 ? "+" : "")}{m.Amount} {m.Stat.ToString().ToUpperInvariant()}")) + " this turn",
                 ability.MaxUses));
-        if (type.AdjacentFriendlyUnitsDefenceBonus is { } aura)
-            entries.Add(new($"passive:{aura.Name}", names.Aura ?? aura.Name, "Passive", $"Adjacent friendly Units get DEF +{aura.Amount}"));
+        }
+        AddNative(LegacyAbilityKind.BonusAction);
+        AddNative(LegacyAbilityKind.Aura);
         if (type.Fury is { } fury)
             entries.Add(new("passive:Fury", names.Fury ?? fury.Name, "Passive", fury.DisplayText));
         if (type.Backstab is { } backstab)
@@ -123,6 +136,8 @@ public static class ContentDescriptions
         if (type.MoveAfterAttack is { } move)
             entries.Add(new("move-after-attack", names.MoveAfterAttack ?? "Move After Attack", "Follow-up",
                 $"After an Attack, immediately Move up to {move.MaxSteps} steps."));
+        foreach (var grant in native)
+            if (emittedGrants.Add(grant.EntryId)) entries.Add(grant.CardEntry());
         return entries;
     }
 
@@ -163,7 +178,15 @@ public static class ContentDescriptions
         "heal" => unit.HealUses,
         "holy-wave" => unit.HolyWaveUses,
         "fireball" => unit.FireballUses,
-        _ => type.BonusActions.FirstOrDefault(a => BonusEntryId(a.Name) == entryId) is { } ability
-            ? unit.BonusActionUses.GetValueOrDefault(ability.Name) : null
+        _ => BonusUsesFor(type, unit, entryId)
     };
+
+    private static AbilityUses? BonusUsesFor(UnitType type, Unit unit, string entryId)
+    {
+        var key = type.BonusActions.FirstOrDefault(ability => BonusEntryId(ability.Name) == entryId)?.Name
+            ?? type.AbilityGrants.Select(grant => grant.Compatibility)
+                .FirstOrDefault(binding => binding is { Kind: LegacyAbilityKind.BonusAction, Key: not null } &&
+                    BonusEntryId(binding.Key) == entryId)?.Key;
+        return key is null ? null : unit.BonusActionUses.GetValueOrDefault(key);
+    }
 }

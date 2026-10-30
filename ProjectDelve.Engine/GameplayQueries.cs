@@ -256,10 +256,11 @@ internal sealed class GameplayQueries : IGameplayQueries
             .Any(action => AttackRules.EvaluateApproachFrom(world, unitId, position, targetId, action)
                 == UnitTargetEvaluation.Possible)) return true;
 
-        var unit = world.Units.Single(u => u.Id == unitId);
-        var type = world.Types.Single(t => t.Id == unit.TypeId);
-        if (!world.IsUpright(unitId) || !type.Actions.HasFlag(UnitAction.Fireball) || type.Fireball is null ||
-            unit.FireballUses is not { RemainingUses: > 0 }) return false;
+        // Approach planning asks whether a source can supply the Attack, independently
+        // of this activation's spent Action budget. Native and acquired grants share
+        // the same remaining-use and Posture checks as current Action candidates.
+        if (!world.AbilitiesOf(unitId).Any(grant => grant.Definition.Mechanic is FireballMechanic &&
+                world.CanUseAbility(unitId, grant))) return false;
         var targetCells = OccupiedCellsOf(targetId);
         var range = world.EffectiveRngOf(unitId);
         return FootprintGeometry.OccupiedCells(world, unitId, position).Any(source =>
@@ -327,7 +328,9 @@ internal sealed class GameplayQueries : IGameplayQueries
             candidate.Action is UnitAction.FireBreath or UnitAction.Fireball ? null : target, candidate.Action.Value));
     }
 
-    public bool IsUnlimitedAttack(string unitId, Candidate candidate) => candidate.Action != UnitAction.Fireball;
+    public bool IsUnlimitedAttack(string unitId, Candidate candidate) => candidate.GrantedAbility is { } grant
+        ? grant.Definition.Usage.MaxUses is null
+        : candidate.Action != UnitAction.Fireball; // Historical candidates without resolved source metadata.
 
     public int AttackDefinitionOrder(string unitId, Candidate candidate)
     {

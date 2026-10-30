@@ -67,7 +67,8 @@ public sealed class DisplacerDemonTests
             Assert.Single(type.CardEntries(), e => e.Id == "bonus:Swap"));
         Assert.Equal(new CardEntryDescription("bonus:Displace", "Displace", "Bonus Action", "Move an adjacent enemy Unit up to 1 Cell."),
             Assert.Single(type.CardEntries(), e => e.Id == "bonus:Displace"));
-        Assert.Equal(1, type.AdjacentFriendlyUnitsDefenceBonus!.Amount);
+        Assert.Equal(new ModifierThisTurn(Stat.Def, 1), Assert.Single(Assert.IsType<AdjacentModifiersMechanic>(
+            Assert.Single(AbilityQueries.NativeAbilities(type, "demon"), g => g.GrantId == "aura").Definition.Mechanic).Modifiers));
         var start = Start();
         Assert.Empty(start.State.Units[0].BonusActionUses);
         Assert.All(type.BonusActions, a => Assert.Null(type.UsesFor(start.State.Units[0], ContentDescriptions.BonusEntryId(a.Name))));
@@ -232,8 +233,8 @@ public sealed class DisplacerDemonTests
     public void BonusesCombineWithLimitedModifiersAndResetEachActivationWithoutCounters()
     {
         var demon = UnitRoster.DisplacerDemon();
-        var rage = UnitRoster.Barbarian().BonusActions.Single();
-        var start = Start(World(actor: demon with { BonusActions = demon.BonusActions.Add(rage) }));
+        var rage = Assert.Single(UnitRoster.Barbarian().AbilityGrants);
+        var start = Start(World(actor: demon with { AbilityGrants = demon.AbilityGrants.Add(rage) }));
         var result = Pick(start, "bonus-action:Rage");
         result = Pick(result, "bonus-action:Swap:enemy");
         result = Pick(result, "bonus-action:Displace:enemy:2,2");

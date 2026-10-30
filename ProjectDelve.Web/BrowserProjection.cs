@@ -209,7 +209,7 @@ public static class BrowserProjection
     {
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var native = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind == AbilitySourceKind.Unit).ToDictionary(g => g.EntryId);
-        foreach (var entry in type.CardEntries(state.Types))
+        foreach (var entry in type.CardEntries(state.Types, state.AbilityDefinitions))
         {
             if (native.Remove(entry.Id, out var grant)) yield return GrantedEntry(state, unit, grant);
             else yield return new(entry, type.UsesFor(unit, entry.Id));
@@ -235,7 +235,7 @@ public static class BrowserProjection
             var definition = state.Equipment(objects.Key!);
             var equipmentGrants = grants.Where(g => g.SourceKind == AbilitySourceKind.Equipment && g.SourceTypeId == definition.Id).ToArray();
             var grantedEntryIds = equipmentGrants.Select(g => g.EntryId).ToHashSet(StringComparer.Ordinal);
-            foreach (var entry in definition.CardEntries().Where(e => !grantedEntryIds.Contains(e.Id)))
+            foreach (var entry in definition.CardEntries(state.AbilityDefinitions).Where(e => !grantedEntryIds.Contains(e.Id)))
                 yield return new(entry, null) { Source = "Equipment", SourceName = definition.Name,
                     SourceTypeId = definition.Id, SourceInstanceId = objects.First().Id, CopyCount = objects.Count() };
             foreach (var grant in equipmentGrants) yield return GrantedEntry(state, unit, grant);
@@ -267,11 +267,11 @@ public static class BrowserProjection
     {
         if (request is null) return null;
         var type = state.Types.Single(t => t.Id == request.TypeId);
-        var entries = type.CardEntries(state.Types).ToDictionary(e => e.Id);
+        var entries = type.CardEntries(state.Types, state.AbilityDefinitions).ToDictionary(e => e.Id);
         if (request.UnitId is { } bearer && state.HasOpenDoor(bearer) && !entries.ContainsKey("open-door"))
         {
             var sources = state.ActiveEquipment(bearer).Where(e => e.Capabilities.Contains(EquipmentCapability.OpenDoor)).ToArray();
-            var content = sources[0].CardEntries().Single(e => e.Id == sources[0].EntryId("open-door"));
+            var content = sources[0].CardEntries(state.AbilityDefinitions).Single(e => e.Id == sources[0].EntryId("open-door"));
             entries["open-door"] = content with { Id = "open-door", Name = $"{content.Name} · {string.Join(", ", sources.Select(e => e.Name))}" };
         }
         if (request.UnitId is { } owner)
@@ -375,7 +375,7 @@ public static class BrowserProjection
             subject = $"{name(e.UnitId)} · {e.AbilityName} (during {subject})";
         var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
         var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
-            .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId || entry.Id == $"bonus:{e.ActionId}")?.Name ?? e.ActionId;
+            .CardEntries(state.Types, state.AbilityDefinitions).FirstOrDefault(entry => entry.Id == e.ActionId || entry.Id == $"bonus:{e.ActionId}")?.Name ?? e.ActionId;
         var role = OutcomeRole.Notice;
         string description;
         switch (e.Kind)

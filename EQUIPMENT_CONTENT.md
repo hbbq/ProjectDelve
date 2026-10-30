@@ -26,20 +26,24 @@ new EquipmentDefinition("trail-medallion", "Trail Medallion")
 }
 ```
 
-`Modifiers` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amount. `Capabilities` supports Phase and Open Door. `Abilities` associates an authored stable Ability ID and name with `EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit` and `EquipmentUsage.Unlimited`. This is the existing Emergency Goat Bell Action: it spends an ordinary Action and stands one adjacent friendly Lying Unit. An unlimited usage restriction does not grant extra Actions.
+`Modifiers` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amount. `Capabilities` supports Phase and Open Door. Use `Grants` for Actions and other supported shared Abilities. Canonical Emergency Goat Bell now grants `goat-bell-stand-up`, an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. An unlimited usage restriction does not grant extra Actions.
 
 For example, a second Equipment source can grant that same mechanic with its own name:
 
 ```csharp
+new AbilityDefinition("stand-up", "Stand Up", AbilityTiming.Action,
+    new StandAdjacentFriendlyMechanic())
+{
+    Usage = new(MaxUses: null)
+};
+
 new EquipmentDefinition("holy-bell", "Holy Bell")
 {
-    Abilities = [new("stand-up", "Stand Up",
-        EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit,
-        EquipmentUsage.Unlimited)]
+    Grants = [new("ring", "stand-up")]
 }
 ```
 
-Use `DescriptionOverride` on an Ability only when the generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Stat descriptions always come from the typed amounts. The legacy Goat Bell's `CandidatePrefix` preserves existing saved decision keys; leave it unset for new content, whose keys derive from source Instance ID and Ability ID.
+Use `DescriptionOverride` on an Ability definition only when the generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Stat descriptions always come from the typed amounts. Canonical Goat Bell's grant has explicit compatibility metadata preserving existing saved decision keys; leave it unset for new content, whose keys derive from source Instance ID and grant ID. The older inline `Abilities`/`EquipmentAbility` representation remains a reader for historical scenarios and saved catalogs.
 
 These are ordinary serializable C# definitions. JSON produces the same model and passes the same validation. No delegate, script, parsed Ability prose, content-specific Engine handler or Web switch is required. Adding a genuinely new mechanic still requires a rules decision and implementation; this milestone deliberately supports only the established mechanics above.
 
@@ -61,8 +65,7 @@ The following complete small scenario declares an unfamiliar Equipment Type, giv
         { "stat": "Mov", "amount": 2 },
         { "stat": "Def", "amount": 1 }
       ],
-      "capabilities": ["Phase"],
-      "abilities": []
+      "capabilities": ["Phase"]
     }
   ],
   "loot": {

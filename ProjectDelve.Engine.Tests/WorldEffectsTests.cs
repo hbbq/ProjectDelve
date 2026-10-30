@@ -385,7 +385,7 @@ public sealed class WorldEffectsTests
     public void SurgeChangesTheLimitOfEveryUniqueUnlimitedBonusIndependently()
     {
         var state = State(WorldEffect.Surge);
-        state.Types[0] = state.Types[0] with { BonusActions = [
+        state.Types[0] = state.Types[0] with { AbilityGrants = [], BonusActions = [
             new("Stride", null, [new(Stat.Mov, 1)]), new("Strength", null, [new(Stat.Atk, 1)])] };
         state.Units[0] = state.Types[0].CreateUnit("hero", "red");
         var result = Start(state);

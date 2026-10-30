@@ -35,6 +35,13 @@ public static class UnitAuthoring
     public static UnlimitedUsage Unlimited() => new();
     public static ModifierThisTurn Modifier(Stat stat, int amount) => new(stat, amount);
     public static SelfModifiers BonusActionSelfModifier(params ModifierThisTurn[] modifiers) => new([.. modifiers]);
+    public static Entry Grant(string id, string abilityId, AbilityGrantCompatibility? compatibility = null) =>
+        new GrantEntry(new(id, abilityId) { Compatibility = compatibility });
+
+    private sealed class GrantEntry(AbilityGrant grant) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { AbilityGrants = type.AbilityGrants.Add(grant) };
+    }
 
     public static Entry RunRails(int steps) => steps > 0 ? new RailEntry(new(steps)) : throw new ArgumentOutOfRangeException(nameof(steps));
     private sealed class RailEntry(RunRails mechanic) : Entry
@@ -172,12 +179,15 @@ public static class UnitAuthoring
         foreach (var entry in entries)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            if (entry.Slot != typeof(BonusEntry) && !slots.Add(entry.Slot))
+            if (entry.Slot != typeof(BonusEntry) && entry.Slot != typeof(GrantEntry) && !slots.Add(entry.Slot))
                 throw new ArgumentException("A concrete mechanic may only be attached once.", nameof(entries));
             type = entry.Apply(type);
         }
         if (type.BonusActions.Select(a => a.Name).Distinct().Count() != type.BonusActions.Length)
             throw new ArgumentException("Bonus ability ids must be unique.", nameof(entries));
+        if (type.AbilityGrants.Any(g => string.IsNullOrWhiteSpace(g.Id) || string.IsNullOrWhiteSpace(g.AbilityId)) ||
+            type.AbilityGrants.Select(g => g.Id).Distinct(StringComparer.Ordinal).Count() != type.AbilityGrants.Length)
+            throw new ArgumentException("Ability grants need distinct IDs and an Ability reference.", nameof(entries));
         if (type.Hp > 1 && !type.Unique)
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(entries));
         var attackOrder = (type.Actions.HasFlag(UnitAction.NormalAttack)

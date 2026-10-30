@@ -62,6 +62,48 @@ test('Custom Loot editor keeps local Loot Card and Item quantities independent',
   assert.ok(plain(draft.objectCatalog()).some(c => c.reference.itemTypeId === 'paper-moon' && c.name === 'Paper Moon'));
 });
 
+test('Immediate Loot definitions survive deck editing and recovery without becoming owned objects', () => {
+  const h = harness(), draft = h.editor.draft;
+  const card = {id:'restorative-letter',name:'A Restorative Letter',immediate:{kind:'healCollector',amount:3}};
+  draft.definition.lootCardDefinitions = [card];
+  draft.setLootDeck([{lootCardId:card.id,count:2}]);
+  h.editor.render();
+  const form = h.run('document.getElementById("designer-loot-editor")').children[0];
+  assert.equal(inputField(form,card.name).value,'2');
+  h.submit(form);
+  assert.deepEqual(plain(draft.snapshot().loot.composition),[{lootCardId:card.id,count:2}]);
+  assert.ok(!plain(draft.objectCatalog()).some(c => c.reference.lootCardId === card.id));
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.deepEqual(plain(h.editor.draft.snapshot().lootCardDefinitions),[card]);
+});
+
+test('older local Loot IDs retain their name and one deck row beside canonical legacy choices', () => {
+  const savedDefinitions = catalog.lootCardDefinitions, savedCards = catalog.lootCards;
+  try {
+    catalog.lootCardDefinitions = [{id:'pocket-breakfast',name:'Pocket Breakfast',immediate:{kind:'healCollector',amount:2}}];
+    catalog.lootCards = [{kind:'PocketBreakfast',name:'Pocket Breakfast',category:'Immediate'}];
+    const h = harness(), draft = h.editor.draft;
+    const local = {id:'pocket-breakfast',name:'A Folded Letter',itemTypeId:'paper-moon'};
+    draft.definition.lootCardDefinitions = [local];
+    draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',grants:[{id:'read',abilityId:'fold'}]}];
+    draft.definition.abilityDefinitions = [{id:'fold',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}];
+    const composition = [{kind:'PocketBreakfast',count:1},{lootCardId:local.id,count:3}];
+    draft.setLootDeck(composition);
+    h.editor.render();
+    assert.equal(draft.objectName({lootCardId:local.id}),local.name);
+    assert.equal(draft.objectName({kind:'PocketBreakfast'}),'Pocket Breakfast');
+    assert.equal(draft.lootCardCatalog().filter(card => card.reference.lootCardId === local.id).length,1);
+    const form = h.run('document.getElementById("designer-loot-editor")').children[0];
+    assert.equal(inputField(form,'Pocket Breakfast').value,'1');
+    assert.equal(inputField(form,local.name).value,'3');
+    h.submit(form);
+    assert.deepEqual(plain(draft.snapshot().loot.composition),composition);
+    assert.deepEqual(plain(draft.snapshot().lootCardDefinitions),[local]);
+  } finally {
+    catalog.lootCardDefinitions = savedDefinitions; catalog.lootCards = savedCards;
+  }
+});
+
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const press = (root, label) => root.querySelectorAll("button").find(b => b.textContent === label).listeners.click();
 const change = (input, value) => { input.value = value; input.listeners.change?.(); };

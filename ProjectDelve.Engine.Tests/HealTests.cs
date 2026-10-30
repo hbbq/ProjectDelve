@@ -73,7 +73,10 @@ public sealed class HealTests
     public void ContentAndBareUnitsInitializeTwoUsesAndSerialize()
     {
         var type = UnitType.Cleric();
-        Assert.Equal(new Heal(2), type.Heal);
+        var heal = Assert.Single(AbilityQueries.NativeAbilities(type, "c"), g => g.Definition.Mechanic is HealMechanic).Definition;
+        Assert.Equal(new HealMechanic(2), heal.Mechanic);
+        Assert.Equal(2, heal.Usage.MaxUses);
+        Assert.Null(type.Heal);
         Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("c", "blue").HealUses);
         Assert.Null(UnitType.Grunt().Heal);
         var scenario = Scenario();
@@ -81,7 +84,7 @@ public sealed class HealTests
         var started = TestGame.StartRound(scenario, new Dice(), false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(started.State))!;
         Assert.Equal(new AbilityUses(2, 2), restored.Units[0].HealUses);
-        Assert.Equal(type.Heal, restored.Types[0].Heal);
+        Assert.Equal(heal, Assert.Single(restored.AbilitiesOf("cleric"), g => g.Definition.Mechanic is HealMechanic).Definition);
         Assert.Null(scenario.Units[0].HealUses);
     }
 

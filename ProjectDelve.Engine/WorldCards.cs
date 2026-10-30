@@ -153,6 +153,19 @@ public static class WorldCards
     public static string ActionId(WorldCard card) => LegacyEffect(card.ResolvedTypeId) is { } legacy ? $"world-{legacy}" : $"world:{Uri.EscapeDataString(card.ResolvedTypeId)}";
     public static IReadOnlyList<WorldCardContent> All => WorldCardRoster.All;
     public static WorldCardContent Content(WorldEffect effect) => All.Single(c => c.Effect == effect);
+    // This legacy-shaped view contains only mapped Types. Definitions omitted from
+    // a deck still exist, with zero copies; all Types remain in the typed catalog.
+    public static IReadOnlyList<WorldCardContent> ProjectLegacyContent(
+        IReadOnlyList<WorldCardDefinition> definitions, IReadOnlyList<WorldCardQuantity> composition)
+    {
+        List<WorldCardContent> result = [];
+        foreach (var definition in definitions)
+            if (LegacyEffect(definition.Id) is { } effect)
+                result.Add(new(effect, definition.Name, definition.Description, definition.Continuous,
+                    composition.SingleOrDefault(row => row.TypeId == definition.Id)?.Count ?? 0));
+        return result;
+    }
+
     public static IReadOnlyList<WorldCardQuantity> ResolveComposition(WorldEffectsSettings? settings, IReadOnlyList<WorldCardDefinition>? definitions = null)
     {
         var rows = settings?.Composition ?? WorldCardRoster.Composition;

@@ -217,9 +217,9 @@ internal static class GambitProjection
             var entries = BrowserProjection.Entries(state, unit).ToArray();
             var uses = entries.Where(entry => entry.Uses is not null)
                 .Select(entry => new GambitAbilityUse(entry.Content.Id, entry.Uses!.RemainingUses, entry.Uses.MaxUses)).ToArray();
-            var typeEntryIds = type.CardEntries(state.Types).Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
-            // Ordinary native entries are already described once by Types. Only
-            // individual grants and newly authored native grants need extra copy.
+            var typeEntryIds = type.CardEntries(state.Types, state.AbilityDefinitions).Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
+            // Native entries, including authored grants, are described once by
+            // Types. Acquired sources retain their individual source metadata.
             var individualAbilities = entries.Where(e => e.Source != "Native" || !typeEntryIds.Contains(e.Content.Id))
                 .Select(e => new GambitGrantedAbility(new(e.Content.Id, e.Content.Name, e.Content.Category, e.Content.Description, e.Content.MaxUses),
                     e.Source, e.SourceName, e.SourceTypeId, e.SourceInstanceId, e.AccountingId, e.CopyCount)).ToArray();
@@ -235,7 +235,7 @@ internal static class GambitProjection
         }).ToArray();
         var types = state.Types.Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
             new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
-            type.CardEntries(state.Types).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
+            type.CardEntries(state.Types, state.AbilityDefinitions).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
                 entry.Description, entry.MaxUses)).ToArray())).ToArray();
         var bag = state.Bag.GroupBy(token => token).OrderBy(group => group.Key.SideId).ThenBy(group => group.Key.TypeId)
             .Select(group => new GambitBagEntry(group.Key.TypeId, group.Key.SideId, group.Count())).ToArray();

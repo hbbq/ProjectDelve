@@ -450,11 +450,13 @@ public sealed class DesignerApiTests
         Assert.Contains(response.Presentation.Cards["hero"].Entries, e => e.Content.Name == "Awaken" && e.SourceTypeId == equipment.Id);
     }
 
-    [Fact]
-    public async Task LocalAbilitiesItemsAndLootSurviveDesignerRoundTripAndRestart()
+    [Theory]
+    [InlineData("fold-sky")]
+    [InlineData("holy-wave")]
+    public async Task LocalAbilitiesItemsAndLootSurviveDesignerRoundTripAndRestart(string abilityId)
     {
         await using var host = await Host.Start();
-        var ability = new AbilityDefinition("fold-sky", "Fold the Sky", AbilityTiming.Action, new HolyWaveMechanic());
+        var ability = new AbilityDefinition(abilityId, "Fold the Sky", AbilityTiming.Action, new HolyWaveMechanic());
         var item = new ItemDefinition("paper-moon", "Paper Moon") { Grants = [new("unfold", ability.Id)] };
         var loot = new LootCardDefinition("moon-reward", "A Folded Reward") { ItemTypeId = item.Id };
         var definition = WebScenarioFixtures.Combat();
@@ -489,10 +491,39 @@ public sealed class DesignerApiTests
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = response.Revision });
         restarted.EnsureSuccessStatusCode();
         var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;
-        Assert.Contains(fresh.Result.State.AbilityDefinitions, a => a.Id == ability.Id && a.Name == ability.Name);
-        Assert.Contains(fresh.Result.State.ItemTypes, i => i.Id == item.Id && i.Grants.Single().AbilityId == ability.Id);
+        var restoredAbility = Assert.Single(fresh.Result.State.AbilityDefinitions, a => a.Name == ability.Name);
+        Assert.Contains(fresh.Result.State.ItemTypes, i => i.Id == item.Id && i.Grants.Single().AbilityId == restoredAbility.Id);
+        if (abilityId == "fold-sky") Assert.Equal(abilityId, restoredAbility.Id);
+        Assert.Equal("Holy Wave", AbilityCatalog.All.Single(a => a.Id == "holy-wave").Name);
         Assert.Equal(new[] { "moon-one", "moon-two" }, fresh.Result.State.Units.Single(u => u.Id == "hero").Inventory.Select(o => o.Id));
         Assert.Equal(item.Name, Assert.Single(fresh.Presentation.GroundObjects).Object.Content.Name);
+    }
+
+    [Fact]
+    public async Task ImmediateLootDefinitionsAndDeckReferencesSurviveDesignerRoundTrip()
+    {
+        await using var host = await Host.Start();
+        var card = new LootCardDefinition("restorative-letter", "A Restorative Letter")
+        { Immediate = new HealCollectorMechanic(3) };
+        var definition = WebScenarioFixtures.Combat() with
+        {
+            LootCardDefinitions = [card],
+            Loot = new() { Composition = [new() { LootCardId = card.Id, Count = 2 }] }
+        };
+        var json = ScenarioDefinitionJson.ToJson(definition);
+        using var validation = await host.PostDraft("validate", json);
+        Assert.True((await validation.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", json);
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport });
+        imported.EnsureSuccessStatusCode();
+        Assert.Equal(json, await imported.Content.ReadAsStringAsync());
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
+        played.EnsureSuccessStatusCode();
+        var restored = ScenarioDefinitionTransport.Decode(transport);
+        Assert.Equal(card, Assert.Single(restored.LootCardDefinitions!));
+        Assert.All(GameEngine.CreateGame(restored).LootDeck!.DrawPile, physical => Assert.Equal(card.Id, physical.LootCardId));
     }
 
     [Theory]

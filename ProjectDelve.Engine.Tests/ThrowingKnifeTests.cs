@@ -45,9 +45,10 @@ public sealed class ThrowingKnifeTests
     public void RogueStartsWithIndependentTwoOfTwoUsesForDashAndThrowingKnife()
     {
         var state = State();
-        var knife = Assert.Single(state.Types[0].BonusActions, a => a.Name == "Throwing Knife");
-        Assert.Equal(2, knife.MaxUses);
-        Assert.Equal(new[] { new ModifierThisTurn(Stat.Rng, 2), new ModifierThisTurn(Stat.Atk, -1) }, knife.Modifiers);
+        var knife = Assert.Single(state.AbilitiesOf("rogue"), a => a.GrantId == "throwing-knife").Definition;
+        Assert.Equal(2, knife.Usage.MaxUses);
+        Assert.Equal(new[] { new ModifierThisTurn(Stat.Rng, 2), new ModifierThisTurn(Stat.Atk, -1) },
+            Assert.IsType<SelfModifiersMechanic>(knife.Mechanic).Modifiers);
         Assert.Equal(new AbilityUses(2, 2), Uses(state));
         Assert.Equal(new AbilityUses(2, 2), Uses(state, "Dash"));
 
@@ -241,7 +242,7 @@ public sealed class ThrowingKnifeTests
         var type = UnitType.Rogue() with
         {
             Rng = package is "atk-positive-range-negative" or "range-negative-only" ? 3 : 1,
-            BonusActions = [new("Combined", 2, modifiers)]
+            AbilityGrants = [], BonusActions = [new("Combined", 2, modifiers)]
         };
         var state = State(targetX, type);
         var beforeMove = package.StartsWith("movement");
@@ -265,7 +266,7 @@ public sealed class ThrowingKnifeTests
     {
         var type = UnitType.Rogue() with
         {
-            BonusActions = [new("Attack Boost", 2, [new(Stat.Atk, 2)])],
+            AbilityGrants = [], BonusActions = [new("Attack Boost", 2, [new(Stat.Atk, 2)])],
             Actions = restriction == "no-normal-attack" ? UnitAction.None : UnitAction.NormalAttack
         };
         var state = State(restriction == "out-of-range" ? 4 : 1, type);
@@ -288,7 +289,7 @@ public sealed class ThrowingKnifeTests
     {
         var type = UnitType.Rogue() with
         {
-            BonusActions = [
+            AbilityGrants = [], BonusActions = [
                 new("Dash", 2, [new(Stat.Mov, 2)]),
                 new("Attack Boost", 2, [new(Stat.Atk, 2)])]
         };
@@ -310,7 +311,7 @@ public sealed class ThrowingKnifeTests
     [Fact]
     public void AtkAndRangeQuestionsBothSeeJointlyEnabledAttackAtZeroBaseAtk()
     {
-        var type = UnitType.Rogue() with { Atk = 0, BonusActions = [new("Combined", 2, [new(Stat.Rng, 2), new(Stat.Atk, 1)])] };
+        var type = UnitType.Rogue() with { Atk = 0, AbilityGrants = [], BonusActions = [new("Combined", 2, [new(Stat.Rng, 2), new(Stat.Atk, 1)])] };
         var moved = Moved(State(3, type));
         Assert.True(Ability(moved, "Combined").Relevant);
         var used = Choose(moved.State, Ability(moved, "Combined").Key);
@@ -385,7 +386,7 @@ public sealed class ThrowingKnifeTests
     {
         var type = UnitType.Hero("custom-type", 4, 1, 3, 2, 4) with
         { Unique = true,
-            BonusActions = [new("Stride", 2, [new(Stat.Mov, 2)]),
+            AbilityGrants = [], BonusActions = [new("Stride", 2, [new(Stat.Mov, 2)]),
                 new("Reach", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
         };
         var started = Start(State(rogue: type));

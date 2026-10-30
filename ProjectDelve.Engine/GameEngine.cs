@@ -21,20 +21,8 @@ public static partial class GameEngine
         EnsureObjectives(state);
         // Scenario constructors may supply bare Units; initialize content once at game start.
         if (state.Round == 0)
-            state.Units = state.Units.Select(u => u with
-            {
-                CleaveUses = u.CleaveUses ?? (state.Types.Single(t => t.Id == u.TypeId).Cleave is { } cleave
-                    ? new(cleave.MaxUses, cleave.MaxUses) : null),
-                HealUses = u.HealUses ?? (state.Types.Single(t => t.Id == u.TypeId).Heal is { } heal
-                    ? new(heal.MaxUses, heal.MaxUses) : null),
-                HolyWaveUses = u.HolyWaveUses ?? (state.Types.Single(t => t.Id == u.TypeId).HolyWave is { } wave
-                    ? new(wave.MaxUses, wave.MaxUses) : null),
-                FireballUses = u.FireballUses ?? (state.Types.Single(t => t.Id == u.TypeId).Fireball is { } fireball
-                    ? new(fireball.MaxUses, fireball.MaxUses) : null),
-                BonusActionUses = state.Types.Single(t => t.Id == u.TypeId).BonusActions.Where(a => a.MaxUses.HasValue)
-                    .Aggregate(u.BonusActionUses, (uses, ability) => uses.ContainsKey(ability.Name)
-                        ? uses : uses.Add(ability.Name, new(ability.MaxUses!.Value, ability.MaxUses.Value)))
-            }).ToList();
+            state.Units = state.Units.Select(u => AbilityCompatibility.InitializeUses(
+                state.Types.Single(t => t.Id == u.TypeId), u, state.AbilityDefinitions)).ToList();
         state.Round++;
         state.Bag.Clear();
         state.ActiveToken = null;
@@ -379,7 +367,7 @@ public static partial class GameEngine
                                 action.Destination!, summon.InitialPosture);
                             if (spending is not null) events.Add(spending);
                             events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
-                                AbilityName: summoner.CardEntries(state.Types).Single(e => e.Id == ActionIdentity(action)).Name, Posture: summon.InitialPosture)
+                                AbilityName: summoner.CardEntries(state.Types, state.AbilityDefinitions).Single(e => e.Id == ActionIdentity(action)).Name, Posture: summon.InitialPosture)
                                 { SourceUnitId = source.Id, SideId = source.SideId, Cell = action.Destination, ActionId = ActionIdentity(action) });
                             ResolveArrival(state, summonedId, events);
                             break;
@@ -1064,22 +1052,10 @@ public static partial class GameEngine
         if (state.Types.Any(t => t.Unique && state.Units.Where(u => u.TypeId == t.Id && u.CurrentHp > 0)
                 .GroupBy(u => u.SideId).Any(g => g.Count() > 1)))
             throw new ArgumentException("Only one Unit of a Unique Unit Type per Side may be in play.");
-        if (state.Units.Any(u => u.BonusActionUses.Any(entry =>
-                state.Types.Single(t => t.Id == u.TypeId).BonusActions
-                    .SingleOrDefault(a => a.Name == entry.Key)?.MaxUses != entry.Value.MaxUses)))
-            throw new ArgumentException("Ability uses must match Unit Type content.");
+        AbilityCompatibility.ValidateUses(state);
         if (state.Units.Any(u => u.CleaveUses is { } uses &&
             state.Types.Single(t => t.Id == u.TypeId).Cleave?.MaxUses != uses.MaxUses))
             throw new ArgumentException("Cleave uses must match Unit Type content.");
-        if (state.Units.Any(u => u.HealUses is { } uses &&
-            state.Types.Single(t => t.Id == u.TypeId).Heal?.MaxUses != uses.MaxUses))
-            throw new ArgumentException("Heal uses must match Unit Type content.");
-        if (state.Units.Any(u => u.HolyWaveUses is { } uses &&
-            state.Types.Single(t => t.Id == u.TypeId).HolyWave?.MaxUses != uses.MaxUses))
-            throw new ArgumentException("Holy Wave uses must match Unit Type content.");
-        if (state.Units.Any(u => u.FireballUses is { } uses &&
-            state.Types.Single(t => t.Id == u.TypeId).Fireball?.MaxUses != uses.MaxUses))
-            throw new ArgumentException("Fireball uses must match Unit Type content.");
         var figures = state.Physical.Figures;
         if (board.Terrain.Any(tile => tile is null || !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind) ||
                 (tile.TypeId is not null && !TerrainCatalog.ValidKey(tile.TypeId)) ||

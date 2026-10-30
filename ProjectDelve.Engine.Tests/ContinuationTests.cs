@@ -29,7 +29,7 @@ public sealed class ContinuationTests
     private static GameState AttackState(int defence = 1, ControllerKind attacker = ControllerKind.Human,
         ControllerKind defender = ControllerKind.Automated)
     {
-        var type = UnitType.Barbarian() with { Atk = 2, Fury = null, BonusActions = [] };
+        var type = UnitType.Barbarian() with { Atk = 2, Fury = null, AbilityGrants = [], BonusActions = [] };
         var target = new UnitType("ordinary", 1, 1, 1, defence, 1);
         var state = new GameState
         {

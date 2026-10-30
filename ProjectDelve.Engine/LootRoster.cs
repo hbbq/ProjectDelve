@@ -5,15 +5,18 @@ namespace ProjectDelve.Engine;
 public static class LootRoster
 {
     public const string DefaultPresetId = "Classic";
-    public static IReadOnlyList<LootCardDefinition> Definitions { get; } = Array.AsReadOnly(Array.Empty<LootCardDefinition>());
-
-    public static IReadOnlyList<LootCardContent> All { get; } = Array.AsReadOnly(new LootCardContent[]
+    public static IReadOnlyList<LootCardDefinition> Definitions { get; } = Array.AsReadOnly(new LootCardDefinition[]
     {
-        new(LootCardKind.PocketBreakfast, "Pocket Breakfast", LootCategory.Immediate, "Restore 2 HP, without exceeding maximum HP.", Healing: 2),
-        LootCards.SecondWindCard(),
-        LootCards.EquipmentCard(LootCardKind.Bedsheet), LootCards.EquipmentCard(LootCardKind.LuckyBoots),
-        LootCards.EquipmentCard(LootCardKind.OfficialKey), LootCards.EquipmentCard(LootCardKind.GoatBell)
+        new("pocket-breakfast", "Pocket Breakfast") { Immediate = new HealCollectorMechanic(Amount: 2) },
+        new("second-wind", "Second Wind") { ItemTypeId = "second-wind" },
+        new("bedsheet", "One-Size-Fits-Most Bedsheet") { EquipmentTypeId = "bedsheet" },
+        new("lucky-boots", "Lucky Boots") { EquipmentTypeId = "lucky-boots" },
+        new("official-key", "Official-Looking Key") { EquipmentTypeId = "official-key" },
+        new("goat-bell", "Emergency Goat Bell") { EquipmentTypeId = "goat-bell" }
     });
+
+    public static IReadOnlyList<LootCardContent> All => LootCompatibility.ProjectLegacyCards(
+        Definitions, ItemCatalog.All, EquipmentCatalog.All, AbilityCatalog.All);
 
     public static IReadOnlyList<LootPreset> Presets { get; } = Array.AsReadOnly(new LootPreset[]
     {

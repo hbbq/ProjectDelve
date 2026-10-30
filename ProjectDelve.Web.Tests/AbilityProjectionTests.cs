@@ -7,6 +7,87 @@ namespace ProjectDelve.Web.Tests;
 
 public sealed class AbilityProjectionTests
 {
+    [Theory]
+    [InlineData("cleric-type", "attack,heal,holy-wave,open-door,passive:Aura")]
+    [InlineData("wizard-type", "attack,fireball,telekinesis,open-door,bonus:Focus")]
+    [InlineData("barbarian-type", "attack,open-door,bonus:Rage,passive:Fury,cleave")]
+    [InlineData("rogue-type", "attack,open-door,bonus:Dash,bonus:Throwing Knife,passive:Backstab")]
+    public void CanonicalGrantsKeepPrintedEntryOrderAndAppearOnceInGambitTypes(string typeId, string ids)
+    {
+        var type = UnitContent.Find(typeId)!;
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
+            Types = [type], Units = [type.CreateUnit("actor", "blue")]
+        };
+        var expected = ids.Split(',');
+        var entries = BrowserProjection.Cards(state)["actor"].Entries;
+        Assert.Equal(expected, entries.Select(entry => entry.Content.Id));
+        Assert.Equal(expected.Length, entries.Select(entry => entry.Content.Id).Distinct().Count());
+        var observation = GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>());
+        Assert.Equal(expected, Assert.Single(observation.Types).Abilities.Select(ability => ability.Id));
+        Assert.DoesNotContain(Assert.Single(observation.Units).Abilities ?? [], ability => ability.Source == "Native");
+        foreach (var entry in entries.Where(entry => entry.Content.MaxUses is not null))
+            Assert.Equal(entry.Content.MaxUses, entry.Uses!.RemainingUses);
+    }
+
+    [Fact]
+    public void NativeAndEquipmentDescriptionsUseTheSuppliedCatalogWithoutDuplicateGrantText()
+    {
+        var type = UnitType.Cleric();
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
+            Types = [type], Units = [type.CreateUnit("actor", "blue")]
+        };
+        var index = state.AbilityDefinitions.FindIndex(ability => ability.Id == "heal");
+        state.AbilityDefinitions[index] = state.AbilityDefinitions[index] with
+        { Name = "Mending Verse", Mechanic = new HealMechanic(4) };
+        state.AbilityDefinitions.Add(new("portable-remedy", "Lantern Remedy", AbilityTiming.Action, new HealMechanic(7)));
+        var equipment = new EquipmentDefinition("restoring-lantern", "Restoring Lantern")
+        { Grants = [new("restore", "portable-remedy")] };
+        state.EquipmentTypes.Add(equipment);
+        state.Units[0] = state.Units[0] with { Inventory = [new("lantern-one", equipment.Id)] };
+
+        var entries = BrowserProjection.Cards(state)["actor"].Entries;
+        var native = Assert.Single(entries, entry => entry.Content.Id == "heal");
+        Assert.Equal("Mending Verse", native.Content.Name);
+        Assert.Equal("Heal an adjacent damaged friendly Unit for 4 HP.", native.Content.Description);
+        var acquired = Assert.Single(entries, entry => entry.Source == "Equipment");
+        Assert.Equal("Lantern Remedy", acquired.Content.Name);
+        Assert.Equal("Action: Heal an adjacent damaged friendly Unit for 7 HP.",
+            Assert.Single(BrowserProjection.Cards(state)["actor"].Inventory).Text);
+        Assert.Equal(acquired.Content, Assert.Single(equipment.CardEntries(state.AbilityDefinitions)));
+        var observation = GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>());
+        Assert.Contains(Assert.Single(observation.Types).Abilities,
+            ability => ability.Id == "heal" && ability.Name == "Mending Verse" && ability.Description.Contains("4 HP"));
+        Assert.Contains(Assert.Single(observation.Units).Abilities!, ability => ability.Content.Name == "Lantern Remedy");
+        Assert.Equal("Heal", AbilityCatalog.All.Single(ability => ability.Id == "heal").Name);
+        Assert.Throws<ArgumentException>(() => type.CardEntries(state.Types, []));
+        Assert.Throws<ArgumentException>(() => equipment.CardEntries([]));
+    }
+
+    [Fact]
+    public void HiddenNativeGrantsDoNotRevealTheirResolvedDefinitions()
+    {
+        var visible = UnitType.Grunt();
+        var hidden = UnitType.Cleric();
+        var state = new GameState
+        {
+            Physical = new(new Board(20, 3, []), [new("observer", new(0, 0)), new("hidden", new(19, 0))]),
+            Types = [visible, hidden], Units = [visible.CreateUnit("observer", "blue"), hidden.CreateUnit("hidden", "red")],
+            FogOfWarSides = ["blue"]
+        };
+        var index = state.AbilityDefinitions.FindIndex(ability => ability.Id == "heal");
+        state.AbilityDefinitions[index] = state.AbilityDefinitions[index] with { Name = "Secret Mending Verse" };
+        FogOfWar.Refresh(state);
+        var observed = FogOfWar.Observe(state, "blue");
+        Assert.DoesNotContain("Secret Mending Verse", JsonSerializer.Serialize(observed));
+        Assert.DoesNotContain("Secret Mending Verse", JsonSerializer.Serialize(BrowserProjection.Cards(observed)));
+        Assert.DoesNotContain("Secret Mending Verse", JsonSerializer.Serialize(
+            GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>())));
+    }
+
     private static GameState State(bool fog = false)
     {
         var type = new UnitType("wave-bearer", 3, 1, 1, 0, 2)

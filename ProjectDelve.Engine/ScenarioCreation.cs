@@ -8,6 +8,8 @@ internal static class ScenarioCreation
         if (definition.Board is not { } board || definition.UnitTypeIds is null ||
             definition.Units is null || definition.Agency is null || board.Cells is null || board.Edges is null)
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
+        definition = LootCompatibility.ResolveLocalIdCollisions(definition);
+        definition = AbilityCatalogCompatibility.ResolveLocalIdCollisions(definition);
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
         var terrainTypes = TerrainCatalog.Resolve(definition.TerrainTypes, definition.TerrainAssemblies, definition.FixedComponentTypes);

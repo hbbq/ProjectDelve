@@ -50,7 +50,9 @@ public sealed class FireballTests
     public void ContentInitializesBareAndCreatedUnitsAndPrintsExactCardText()
     {
         var type = UnitType.Wizard();
-        Assert.Equal(new Fireball(2), type.Fireball);
+        var fireball = Assert.Single(AbilityQueries.NativeAbilities(type, "w"), g => g.Definition.Mechanic is FireballMechanic).Definition;
+        Assert.Equal(2, fireball.Usage.MaxUses);
+        Assert.Null(type.Fireball);
         Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("w", "side").FireballUses);
         Assert.Null(UnitType.Grunt().Fireball);
         var entry = Assert.Single(type.CardEntries(), e => e.Id == "fireball");
@@ -374,6 +376,7 @@ public sealed class FireballTests
         var cleric = UnitRoster.Cleric("cleric") with
         {
             Def = 0,
+            AbilityGrants = [],
             AdjacentFriendlyUnitsDefenceBonus = new(modifier),
             Undying = undying ? new() : null
         };

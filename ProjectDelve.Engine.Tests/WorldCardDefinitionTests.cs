@@ -55,6 +55,27 @@ public sealed class WorldCardDefinitionTests
     }
 
     [Fact]
+    public void LegacyProjectionDoesNotRequireNewDefinitionsToHaveLegacyIdentitiesOrDeckRows()
+    {
+        var added = new WorldCardDefinition("restoring-weather", "Restoring Weather", WorldCardLifecycle.Immediate)
+        { Immediate = new HealDamagedUnitsMechanic(2) };
+        WorldCardDefinition[] definitions = [.. WorldCardCatalog.All, added];
+        WorldCardCatalog.Validate(definitions);
+
+        Assert.Null(WorldCards.LegacyEffect(added.Id));
+        Assert.Equal(WorldCards.All, WorldCards.ProjectLegacyContent(definitions, WorldCardRoster.Composition));
+        Assert.Equal(WorldCards.CreateDeck().DrawPile, WorldCards.CreateDeck(definitions: definitions).DrawPile);
+
+        var selected = WorldCards.CreateDeck(new(1, 1) { Composition = [new(added.Id, 1)] }, definitions);
+        Assert.Equal(added.Id, Assert.Single(selected.DrawPile).ResolvedTypeId);
+        var withoutCalm = WorldCardRoster.Composition.Where(row => row.TypeId != "calm").ToArray();
+        var projected = WorldCards.ProjectLegacyContent(definitions, withoutCalm);
+        Assert.Equal(0, projected.Single(card => card.Effect == WorldEffect.Calm).Copies);
+        Assert.Equal(WorldCards.All.Where(card => card.Effect != WorldEffect.Calm),
+            projected.Where(card => card.Effect != WorldEffect.Calm));
+    }
+
+    [Fact]
     public void ExplicitTypeReferenceWinsOverLegacyFieldWithoutSelectingLegacyMechanics()
     {
         var card = JsonSerializer.Deserialize<WorldCard>("""{"id":"physical-91","effect":"Earthquake","typeId":"local-rain"}""", Json)!;

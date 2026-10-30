@@ -65,6 +65,31 @@ public sealed class LootProjectionTests
     }
 
     [Fact]
+    public void TypedImmediateLootUsesDeclaredNameAndAmountAndPreservesEventVisibility()
+    {
+        var state = State(true);
+        var card = new LootCardDefinition("restorative-letter", "A Restorative Letter")
+        { Immediate = new HealCollectorMechanic(3) };
+        var secret = card with { Id = "secret-letter", Name = "Unseen Remedy" };
+        state.LootCardDefinitions.AddRange([card, secret]);
+        var hidden = new RulesEvent("LootCardDrawn", "b")
+        { Cell = new(19, 0), ObjectCard = new("hidden-card") { LootCardId = secret.Id } };
+        var visible = new RulesEvent("LootCardDrawn", "a")
+        { Cell = new(0, 0), ObjectCard = new("revealed-card") { LootCardId = card.Id } };
+        var result = new EngineResult(state, [hidden, visible], null)
+        { ResolutionSteps = [new(0, state), new(1, state)] };
+
+        var presentation = BrowserProjection.Create(result);
+        var draw = Assert.Single(presentation.Events);
+        Assert.Equal(card.Id, draw.LootCard!.LootCardId);
+        Assert.Equal(card.Name, draw.LootCard.Name);
+        Assert.Equal(LootCategory.Immediate, draw.LootCard.Category);
+        Assert.Equal("Restore 3 HP, without exceeding maximum HP.", draw.LootCard.Text);
+        Assert.True(draw.HumanCollector);
+        Assert.DoesNotContain(secret.Name, System.Text.Json.JsonSerializer.Serialize(presentation));
+    }
+
+    [Fact]
     public void GroundObjectChoicesRemainExplicitAndUseSuppliedObjectIdentity()
     {
         var state = State();

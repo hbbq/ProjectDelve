@@ -178,7 +178,8 @@ public sealed partial class DelveChessTests
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
         Assert.Equal(!king, type.AdvanceOnKill is not null);
-        Assert.Equal(king ? UnitRoster.Cleric().AdjacentFriendlyUnitsDefenceBonus : null, type.AdjacentFriendlyUnitsDefenceBonus);
+        Assert.Equal(king, AbilityQueries.NativeAbilities(type, "piece").Any(g => g.Definition.Mechanic is AdjacentModifiersMechanic));
+        if (king) Assert.Equal(Assert.Single(UnitRoster.Cleric().AbilityGrants, g => g.Id == "aura"), Assert.Single(type.AbilityGrants));
         var counterpart = king ? UnitRoster.GoblinKing(id) : UnitRoster.WitchQueen(id);
         Assert.Equal(JsonSerializer.Serialize(type with { DisplayName = "pair" }), JsonSerializer.Serialize(counterpart with { DisplayName = "pair" }));
         var definition = Scenario.Define(Scenario.Map(7, 7), [

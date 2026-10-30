@@ -96,7 +96,7 @@ public sealed class WorldCardMechanicsTests
     {
         var state = State(Immediate(new ReplenishLimitedAbilitiesMechanic(2)));
         state.AbilityDefinitions.Add(new("test-wave", "Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(3) });
-        state.Types[0] = state.Types[0] with { AbilityGrants = [new("grant-test", "test-wave")] };
+        state.Types[0] = state.Types[0] with { AbilityGrants = state.Types[0].AbilityGrants.Add(new("grant-test", "test-wave")) };
         var accounting = state.AbilitiesOf("first").Single(a => a.GrantId == "grant-test").AccountingId;
         state.Units[0] = state.Units[0] with { CleaveUses = new(2, 0), AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add(accounting, 3) };
         var result = Start(state);

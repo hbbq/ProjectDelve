@@ -14,7 +14,9 @@ public sealed class MechanicConfigurationTests
         Assert.Equal(new Cleave(3), JsonSerializer.Deserialize<Cleave>("{\"MaxUses\":3}"));
         Assert.Equal(new Fury(), JsonSerializer.Deserialize<Fury>("{}"));
         Assert.Equal(new Backstab(), JsonSerializer.Deserialize<Backstab>("{}"));
-        Assert.Equal(new Heal(2), UnitType.Cleric().Heal);
+        var heal = Assert.Single(AbilityQueries.NativeAbilities(UnitType.Cleric(), "cleric"), g => g.GrantId == "heal").Definition;
+        Assert.Equal(new HealMechanic(2), heal.Mechanic);
+        Assert.Equal(2, heal.Usage.MaxUses);
         Assert.Equal(new Fury(), UnitType.Barbarian().Fury);
         Assert.Equal(new Cleave(2), UnitType.Barbarian().Cleave);
         Assert.Equal(new Backstab(), UnitType.Rogue().Backstab);

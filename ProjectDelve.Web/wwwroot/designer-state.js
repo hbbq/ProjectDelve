@@ -60,7 +60,12 @@ export class DesignerDraft {
     return `${field}:${value}`;
   }
   lootDefinitionCatalog() {
-    return [...(this.catalog.lootCardDefinitions ?? []), ...(this.definition.lootCardDefinitions ?? [])];
+    const local = this.definition.lootCardDefinitions ?? [];
+    const localIds = new Set(local.map(card => card.id));
+    // Older scenarios could use IDs that were later added to canonical Loot.
+    // Explicit authored references keep their local meaning; legacy kind choices
+    // still use the canonical compatibility catalog. Runtime resolution is Engine-owned.
+    return [...(this.catalog.lootCardDefinitions ?? []).filter(card => !localIds.has(card.id)), ...local];
   }
   itemCatalog() {
     return [...(this.catalog.itemTypes ?? []), ...(this.definition.itemTypes ?? [])];

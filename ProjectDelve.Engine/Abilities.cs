@@ -5,9 +5,15 @@ namespace ProjectDelve.Engine;
 
 public enum AbilityTiming { Action, BonusAction, FreeAction, Passive }
 public enum AbilitySourceKind { Unit, Equipment, Item }
-public enum LegacyAbilityKind { None, Heal, HolyWave, Fireball, BonusAction, EquipmentAction, SecondWind }
+public enum LegacyAbilityKind { None, Heal, HolyWave, Fireball, BonusAction, EquipmentAction, SecondWind, Aura }
 public sealed record AbilityUsage(int? MaxUses = null);
-public sealed record AbilityGrant(string Id, string AbilityId);
+// Persisted identity/counter bindings only. The referenced definition supplies all rules values.
+public sealed record AbilityGrantCompatibility(LegacyAbilityKind Kind, string? Key = null, string? CandidatePrefix = null);
+public sealed record AbilityGrant(string Id, string AbilityId)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AbilityGrantCompatibility? Compatibility { get; init; }
+}
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(HolyWaveMechanic), "holyWave")]
@@ -66,13 +72,13 @@ public sealed record ResolvedAbility(AbilityDefinition Definition, AbilitySource
         // Parameters still come from the typed mechanic, never from separate prose.
         return Legacy switch
         {
-            LegacyAbilityKind.HolyWave => entry with { ShortDescription = "Lay down adjacent Upright enemies, then this Unit." },
-            LegacyAbilityKind.Fireball => entry with { ShortDescription = "Attack all Units on or adjacent to a chosen Cell within RNG and LOS." },
+            LegacyAbilityKind.HolyWave when Definition.Mechanic is HolyWaveMechanic => entry with { ShortDescription = "Lay down adjacent Upright enemies, then this Unit." },
+            LegacyAbilityKind.Fireball when Definition.Mechanic is FireballMechanic => entry with { ShortDescription = "Attack all Units on or adjacent to a chosen Cell within RNG and LOS." },
             LegacyAbilityKind.BonusAction when Definition.Mechanic is SelfModifiersMechanic m => entry with
             {
                 Description = string.Join(" & ", m.Modifiers.Select(v => $"{(v.Amount >= 0 ? "+" : "")}{v.Amount} {v.Stat.ToString().ToUpperInvariant()}")) + " this turn"
             },
-            _ when SourceKind == AbilitySourceKind.Unit && EntryId == GrantId && Definition.Mechanic is AdjacentModifiersMechanic =>
+            _ when SourceKind == AbilitySourceKind.Unit && (Legacy == LegacyAbilityKind.Aura || EntryId == GrantId) && Definition.Mechanic is AdjacentModifiersMechanic =>
                 entry with { Description = entry.Description.TrimEnd('.') },
             _ => entry
         };
@@ -131,15 +137,25 @@ public static class AbilityCatalog
             {
                 if (g is null || string.IsNullOrWhiteSpace(g.Id) || !seen.Add(g.Id)) throw new ArgumentException("Ability grants require distinct nonblank IDs.");
                 var ability = state.Ability(g.AbilityId);
+                AbilityCompatibility.Validate(g, ability, source);
                 if (source != AbilitySourceKind.Unit && ability.Usage.MaxUses is not null || source == AbilitySourceKind.Item && ability.Timing == AbilityTiming.Passive)
                     throw new ArgumentException("Equipment and Items cannot carry charges; Items must grant an active ability.");
             }
         }
-        foreach (var type in state.Types) Grants(type.AbilityGrants, AbilitySourceKind.Unit, AbilityQueries.LegacyNative(type, "validation").Select(g => g.GrantId));
+        foreach (var type in state.Types)
+        {
+            Grants(type.AbilityGrants, AbilitySourceKind.Unit, AbilityQueries.LegacyNative(type, "validation").Select(g => g.GrantId));
+            AbilityCompatibility.ValidateNativeIdentities(type, state.AbilityDefinitions);
+        }
         foreach (var type in state.EquipmentTypes) Grants(type.Grants, AbilitySourceKind.Equipment, type.Abilities.Select(a => a.Id).Concat(["modifiers", "phase", "open-door"]));
         foreach (var type in state.ItemTypes) Grants(type.Grants, AbilitySourceKind.Item);
+        var prefixes = state.EquipmentTypes.SelectMany(t => t.Abilities.Select(a => a.CandidatePrefix)
+            .Concat(t.Grants.Select(g => g.Compatibility?.CandidatePrefix))).OfType<string>().ToArray();
+        if (prefixes.Distinct(StringComparer.Ordinal).Count() != prefixes.Length)
+            throw new ArgumentException("Equipment compatibility candidate prefixes must be unique.");
         foreach (var card in state.LootCardDefinitions)
-            if (card.ItemTypeId is { } item) _ = state.Item(item); else _ = state.Equipment(card.EquipmentTypeId!);
+            if (card.ItemTypeId is { } item) _ = state.Item(item);
+            else if (card.EquipmentTypeId is { } equipment) _ = state.Equipment(equipment);
         foreach (var unit in state.Units)
         {
             var limited = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind == AbilitySourceKind.Unit && g.Legacy == LegacyAbilityKind.None && g.Definition.Usage.MaxUses is not null)
@@ -157,10 +173,23 @@ public static class AbilityQueries
     // keys readable by old saves while placing new source identities outside their
     // occupied namespace. Prefixing is deterministic from the Unit's definition;
     // physical Item copies still resolve to the same allowance.
-    private static string SourceAccountingId(UnitType bearer, string key)
+    internal static string SourceAccountingId(UnitType bearer, string key)
     {
-        while (bearer.BonusActions.Any(b => b.Name == key)) key = "grant:" + key;
+        while (bearer.BonusActions.Any(b => b.Name == key) || bearer.AbilityGrants.Any(g =>
+                   g.Compatibility is { Kind: LegacyAbilityKind.BonusAction } binding && binding.Key == key)) key = "grant:" + key;
         return key;
+    }
+    public static IEnumerable<ResolvedAbility> NativeAbilities(UnitType type, string unitId,
+        IReadOnlyList<AbilityDefinition>? definitions = null)
+    {
+        foreach (var ability in LegacyNative(type, unitId)) yield return ability;
+        definitions ??= AbilityCatalog.All;
+        foreach (var grant in type.AbilityGrants)
+        {
+            var definition = definitions.SingleOrDefault(a => a.Id == grant.AbilityId)
+                ?? throw new ArgumentException($"Unknown Ability ID '{grant.AbilityId}'.");
+            yield return AbilityCompatibility.ResolveNative(type, unitId, grant, definition);
+        }
     }
     public static AbilityDefinition Ability(this GameState state, string id) => state.AbilityDefinitions.SingleOrDefault(a => a.Id == id)
         ?? throw new ArgumentException($"Unknown Ability ID '{id}'.");
@@ -168,9 +197,7 @@ public static class AbilityQueries
     {
         var unit = state.Units.Single(u => u.Id == unitId);
         var type = state.Types.Single(t => t.Id == unit.TypeId);
-        foreach (var a in LegacyNative(type, unit.Id)) yield return a;
-        foreach (var g in type.AbilityGrants)
-            yield return new(state.Ability(g.AbilityId), AbilitySourceKind.Unit, type.Id, unit.Id, g.Id, SourceAccountingId(type, $"unit:{Key(g.Id)}"), $"ability:{Key(g.Id)}", $"ability:{Key(g.Id)}", SourceName: type.DisplayName ?? type.Id);
+        foreach (var a in NativeAbilities(type, unit.Id, state.AbilityDefinitions)) yield return a;
         foreach (var obj in unit.Inventory)
         {
             if (state.EquipmentTypeId(obj) is { } equipmentId)
@@ -182,7 +209,10 @@ public static class AbilityQueries
                         old.CandidatePrefix ?? $"equipment:{Key(obj.Id)}:{Key(old.Id)}", LegacyAbilityKind.EquipmentAction, SourceName: equipment.Name, LegacyActionId: old.CandidatePrefix);
                 foreach (var g in equipment.Grants)
                     yield return new(state.Ability(g.AbilityId), AbilitySourceKind.Equipment, equipment.Id, obj.Id, g.Id,
-                        SourceAccountingId(type, $"equipment:{Key(obj.Id)}:{Key(g.Id)}"), equipment.EntryId(g.Id), $"equipment:{Key(obj.Id)}:{Key(g.Id)}", SourceName: equipment.Name);
+                        SourceAccountingId(type, $"equipment:{Key(obj.Id)}:{Key(g.Id)}"), equipment.EntryId(g.Id),
+                        g.Compatibility?.CandidatePrefix ?? $"equipment:{Key(obj.Id)}:{Key(g.Id)}",
+                        g.Compatibility?.Kind ?? LegacyAbilityKind.None, SourceName: equipment.Name,
+                        LegacyActionId: g.Compatibility?.CandidatePrefix);
             }
             else if (state.ItemTypeId(obj) is { } itemId)
             {
@@ -210,7 +240,7 @@ public static class AbilityQueries
         foreach (var bonus in type.BonusActions.Where(IsSimpleBonus))
             yield return Native($"bonus:{bonus.Name}", bonus.DisplayName ?? bonus.Name, AbilityTiming.BonusAction, new SelfModifiersMechanic(bonus.Modifiers), bonus.MaxUses, LegacyAbilityKind.BonusAction, bonus.Name);
         if (type.AdjacentFriendlyUnitsDefenceBonus is { } aura)
-            yield return Native($"passive:{aura.Name}", type.AbilityNames.Aura ?? aura.Name, AbilityTiming.Passive, AuraMechanic(aura), null, LegacyAbilityKind.None);
+            yield return Native($"passive:{aura.Name}", type.AbilityNames.Aura ?? aura.Name, AbilityTiming.Passive, AuraMechanic(aura), null, LegacyAbilityKind.Aura);
     }
     private static AdjacentModifiersMechanic AuraMechanic(AdjacentFriendlyUnitsDefenceBonus aura) => new([new(Stat.Def, aura.Amount)]);
     public static bool IsSimpleBonus(BonusActionAbility b) => b.Boost is null && b.PlaceBananaPeel is null && b.ReshapeRoom is null && b.Swap is null && b.Displace is null;
@@ -232,7 +262,12 @@ public static class AbilityQueries
         // Stat queries run for every displayed Unit and hypothetical move. Resolve
         // only passive payloads here, without constructing active choices or looking
         // up each source Unit again through the full grant/accounting adapter.
-        var declaredPassives = state.AbilityDefinitions.Any(a => a.Timing == AbilityTiming.Passive);
+        var declaredPassives = state.AbilityDefinitions.Any(a => a.Timing == AbilityTiming.Passive && (a.Mechanic switch
+        {
+            SelfModifiersMechanic m => m.Modifiers.Any(v => v.Stat == stat),
+            AdjacentModifiersMechanic m => m.Modifiers.Any(v => v.Stat == stat),
+            _ => false
+        }));
         if (!declaredPassives && (stat != Stat.Def || !state.Types.Any(t => t.AdjacentFriendlyUnitsDefenceBonus is not null))) return 0;
         var target = state.Units.Single(u => u.Id == unitId);
         if (target.CurrentHp <= 0 || !state.Physical.Figures.Any(f => f.Id == unitId)) return 0;

@@ -45,10 +45,10 @@ public sealed class RageTests
     public void BarbarianExplicitlySuppliesRageAndStartsWithTwoOfTwoUses()
     {
         var type = UnitType.Barbarian();
-        var ability = Assert.Single(type.BonusActions);
+        var ability = Assert.Single(AbilityQueries.NativeAbilities(type, "hero")).Definition;
         Assert.Equal("Rage", ability.Name);
-        Assert.Equal(2, ability.MaxUses);
-        Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(ability.Modifiers));
+        Assert.Equal(2, ability.Usage.MaxUses);
+        Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(Assert.IsType<SelfModifiersMechanic>(ability.Mechanic).Modifiers));
         Assert.Equal(new AbilityUses(2, 2), Uses(State()));
         Assert.Empty(UnitType.Hero("hero", 1, 1, 1, 1, 1).BonusActions);
         Assert.All(new[] { UnitType.Grunt(), UnitType.Zombie(), UnitType.SkeletonArcher(), UnitType.Goblin() },
@@ -205,7 +205,7 @@ public sealed class RageTests
     {
         var type = UnitType.Barbarian("other") with
         {
-            Atk = 0, BonusActions = [new("Battle Focus", 2, [new(Stat.Atk, 2)])]
+            Atk = 0, AbilityGrants = [], BonusActions = [new("Battle Focus", 2, [new(Stat.Atk, 2)])]
         };
         var started = TestGame.StartRound(State(type: type), new Random(), false);
         var moved = Choose(started.State, "stay");

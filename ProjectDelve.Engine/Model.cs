@@ -177,14 +177,14 @@ public sealed record Fury
 {
     public int AdjacentEnemyThreshold { get; init; } = 2;
     public int AtkBonus { get; init; } = 1;
-    public string Name => "Fury";
-    public string DisplayText => $"ATK {AtkBonus:+0;-0;0} while adjacent to {AdjacentEnemyThreshold} or more enemies";
+    [JsonIgnore] public string Name => "Fury";
+    [JsonIgnore] public string DisplayText => $"ATK {AtkBonus:+0;-0;0} while adjacent to {AdjacentEnemyThreshold} or more enemies";
 }
 public sealed record Backstab
 {
     public int AtkBonus { get; init; } = 1;
-    public string Name => "Backstab";
-    public string DisplayText => $"{AtkBonus:+0;-0;0} ATK when attacking an enemy adjacent to another friendly Unit";
+    [JsonIgnore] public string Name => "Backstab";
+    [JsonIgnore] public string DisplayText => $"{AtkBonus:+0;-0;0} ATK when attacking an enemy adjacent to another friendly Unit";
 }
 // Presentation metadata only; passive rules retain their concrete representations.
 public sealed record PassiveDescription(string Name, string DisplayText);
@@ -254,6 +254,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public HolyWave? HolyWave { get; init; }
     public Fireball? Fireball { get; init; }
     public ClawAttack? ClawAttack { get; init; }
+    [JsonIgnore]
     public IReadOnlyList<PassiveDescription> Passives
     {
         get
@@ -270,16 +271,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
 
-    public Unit CreateUnit(string id, string sideId) => 
-        new(id, Id, sideId, Hp)
-        {
-            CleaveUses = Cleave is { } cleave ? new(cleave.MaxUses, cleave.MaxUses) : null,
-            HealUses = Heal is { } heal ? new(heal.MaxUses, heal.MaxUses) : null,
-            HolyWaveUses = HolyWave is { } wave ? new(wave.MaxUses, wave.MaxUses) : null,
-            FireballUses = Fireball is { } fireball ? new(fireball.MaxUses, fireball.MaxUses) : null,
-            BonusActionUses = BonusActions.Where(a => a.MaxUses.HasValue)
-                .ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses!.Value, a.MaxUses.Value))
-        };
+    public Unit CreateUnit(string id, string sideId, IReadOnlyList<AbilityDefinition>? abilityDefinitions = null) =>
+        AbilityCompatibility.InitializeUses(this, new(id, Id, sideId, Hp), abilityDefinitions ?? AbilityCatalog.All);
 
     public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
         UnitAuthoring.Define(id, name, stats, entries);
@@ -459,12 +452,23 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 public sealed class GameState : IJsonOnDeserialized
 {
-    void IJsonOnDeserialized.OnDeserialized() => EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        AbilityCatalogCompatibility.NormalizeMissingEquipmentCatalog(this, equipmentCatalogProvided);
+        LootCompatibility.MigrateLegacyCatalog(this);
+        EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
+    }
     public List<WorldCardDefinition> WorldCardDefinitions { get; set; } = WorldCardCatalog.Resolve(null);
     public List<AbilityDefinition> AbilityDefinitions { get; set; } = AbilityCatalog.Resolve(null);
     public List<ItemDefinition> ItemTypes { get; set; } = ItemCatalog.Resolve(null);
     public List<LootCardDefinition> LootCardDefinitions { get; set; } = LootCardCatalog.Resolve(null);
-    public List<EquipmentDefinition> EquipmentTypes { get; set; } = EquipmentCatalog.Resolve(null);
+    private List<EquipmentDefinition> equipmentTypes = EquipmentCatalog.Resolve(null);
+    private bool equipmentCatalogProvided;
+    public List<EquipmentDefinition> EquipmentTypes
+    {
+        get => equipmentTypes;
+        set { equipmentTypes = value; equipmentCatalogProvided = true; }
+    }
     public LootDeck? LootDeck { get; set; }
     public List<LootMarker> LootMarkers { get; set; } = [];
     public List<GroundObject> GroundObjects { get; set; } = [];
@@ -493,7 +497,7 @@ public sealed class GameState : IJsonOnDeserialized
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
-        Units.Add(type.CreateUnit(id, sideId));
+        Units.Add(type.CreateUnit(id, sideId, AbilityDefinitions));
         Physical.Figures.Add(new(id, cell, posture));
         FogOfWar.Refresh(this);
     }

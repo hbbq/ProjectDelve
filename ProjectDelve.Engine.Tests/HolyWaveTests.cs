@@ -40,7 +40,9 @@ public sealed class HolyWaveTests
         var scenario = Scenario();
         scenario.Units[0] = new("cleric", scenario.Types[0].Id, "blue", 4);
         var restored = Restore(Action(scenario).State);
-        Assert.Equal(new HolyWave(2), scenario.Types[0].HolyWave);
+        var wave = Assert.Single(restored.AbilitiesOf("cleric"), g => g.Definition.Mechanic is HolyWaveMechanic).Definition;
+        Assert.Equal(2, wave.Usage.MaxUses);
+        Assert.Null(scenario.Types[0].HolyWave);
         Assert.Equal(new AbilityUses(2, 2), restored.Units[0].HolyWaveUses);
         Assert.Equal(new[] { "a", "b" }, restored.Pending!.Candidates.Single(c => c.Action == UnitAction.HolyWave).TargetIds);
         Assert.Null(scenario.Units[0].HolyWaveUses);

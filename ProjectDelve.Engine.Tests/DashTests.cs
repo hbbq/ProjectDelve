@@ -43,9 +43,9 @@ public sealed class DashTests
     public void RogueHasDashWithTwoOfTwoUsesIncludingBareScenarioInitialization()
     {
         var state = State();
-        var ability = Assert.Single(state.Types[0].BonusActions, a => a.Name == "Dash");
-        Assert.Equal(2, ability.MaxUses);
-        Assert.Equal(new ModifierThisTurn(Stat.Mov, 2), Assert.Single(ability.Modifiers));
+        var ability = Assert.Single(state.AbilitiesOf("rogue"), a => a.GrantId == "dash").Definition;
+        Assert.Equal(2, ability.Usage.MaxUses);
+        Assert.Equal(new ModifierThisTurn(Stat.Mov, 2), Assert.Single(Assert.IsType<SelfModifiersMechanic>(ability.Mechanic).Modifiers));
         Assert.Equal(new AbilityUses(2, 2), Uses(state));
         state.Units[0] = new("rogue", state.Types[0].Id, "blue", 4);
         var started = Start(state);

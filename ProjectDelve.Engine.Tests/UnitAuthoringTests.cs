@@ -245,16 +245,32 @@ public sealed class UnitAuthoringTests
                 BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
             })
         ];
+        static UnitType OtherContent(UnitType type) => type with
+        {
+            Actions = type.Actions & ~(UnitAction.Heal | UnitAction.HolyWave | UnitAction.Fireball),
+            Heal = null, HolyWave = null, Fireball = null, AdjacentFriendlyUnitsDefenceBonus = null,
+            BonusActions = [.. type.BonusActions.Where(b => !AbilityQueries.IsSimpleBonus(b))], AbilityGrants = []
+        };
+        static string NativeContent(UnitType type) => JsonSerializer.Serialize(
+            AbilityQueries.NativeAbilities(type, "figure").Select(grant => new
+            {
+                Ability = grant.Definition with { Id = grant.EntryId },
+                grant.EntryId, grant.CandidatePrefix, grant.AccountingId
+            }));
         foreach (var (factory, expected) in content)
         {
             var actual = factory(expected.Id);
-            Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(actual));
+            // Keep the independent old declaration fixture: compare every shared
+            // mechanic/parameter and all remaining fields across the representation change.
+            Assert.Equal(NativeContent(expected), NativeContent(actual));
+            Assert.Equal(JsonSerializer.Serialize(OtherContent(expected)), JsonSerializer.Serialize(OtherContent(actual)));
             Assert.Equal(expected.CardEntries(), actual.CardEntries());
             Assert.Equal(JsonSerializer.Serialize(expected.CreateUnit("figure", "side")),
                 JsonSerializer.Serialize(actual.CreateUnit("figure", "side")));
             var custom = factory("custom-id");
             Assert.Equal("custom-id", custom.Id);
-            Assert.Equal(JsonSerializer.Serialize(expected with { Id = "custom-id" }), JsonSerializer.Serialize(custom));
+            Assert.Equal(NativeContent(expected), NativeContent(custom));
+            Assert.Equal(JsonSerializer.Serialize(OtherContent(expected with { Id = "custom-id" })), JsonSerializer.Serialize(OtherContent(custom)));
             Assert.Equal(JsonSerializer.Serialize(actual), JsonSerializer.Serialize(JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(actual))));
         }
     }

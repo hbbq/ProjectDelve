@@ -93,6 +93,8 @@ Each physical Instance ID remains unchanged through draw, active row and discard
 
 Legacy `WorldEffect` values have explicit canonical Type-ID mappings. Existing canonical physical IDs and event Action IDs retain their compatibility identities; the enum selects no gameplay handler. Old saves lacking a World Card catalog receive canonical defaults, and old physical cards carrying `effect` remain readable. New runtime saves carry resolved definitions and Type references, including local mechanics, so resume does not depend on an external scenario file changing. Scenario JSON, DELVE1, replay and Designer round-trips preserve the same definitions and composition.
 
+The legacy `WorldCardContent` view includes only Types with historical enum mappings. A mapped definition absent from the baseline composition has zero copies in that view. New canonical definitions require neither a legacy enum entry nor membership in the default deck; typed catalog inspection and explicit compositions use their Type IDs directly.
+
 World Cards are public global content when drawn. Player projections hide the unrevealed draw identities, deck composition and unrevealed definitions; active/resolving cards use authoritative names and descriptions, and already revealed discard cards remain known. Unit consequences still pass through ordinary Fog of War observation filtering.
 
 ## Remaining scope

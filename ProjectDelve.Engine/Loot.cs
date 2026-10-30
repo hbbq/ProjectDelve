@@ -11,7 +11,7 @@ public sealed record OwnedObject(string Id, LootCardKind Kind = LootCardKind.Poc
     public string? EquipmentTypeId { get; init; }
     public OwnedObject(string id, string equipmentTypeId) : this(id) => EquipmentTypeId = equipmentTypeId;
     [System.Text.Json.Serialization.JsonIgnore]
-    public LootCardContent Content => EquipmentTypeId is null && ItemTypeId is null ? LootCards.Content(Kind) : throw new InvalidOperationException("Resolve Equipment through the game content context.");
+    public LootCardContent Content => EquipmentTypeId is null && ItemTypeId is null && LootCardId is null ? LootCards.Content(Kind) : throw new InvalidOperationException("Resolve typed objects through the game content context.");
 }
 public sealed record GroundObject(OwnedObject Object, Cell Position);
 public sealed record LootMarker(string Id, Cell Position);
@@ -21,31 +21,36 @@ public sealed record LootCardContent(LootCardKind Kind, string Name, LootCategor
     public string? ItemTypeId { get; init; }
     public string? LootCardId { get; init; }
     public string? EquipmentTypeId { get; init; }
+    // Optional artwork compatibility metadata, never an effect selector.
+    public LootCardKind? LegacyKind { get; init; }
 }
 
 public static class LootCards
 {
     public static IReadOnlyList<LootCardContent> All => LootRoster.All;
 
-    internal static LootCardContent SecondWindCard()
-    {
-        var item = ItemCatalog.All.Single(i => i.Id == "second-wind");
-        var ability = AbilityCatalog.All.Single(a => a.Id == item.Grants.Single().AbilityId);
-        var entry = ability.CardEntry();
-        // Keep the printed legacy card's sentence casing, with its name, timing
-        // and parameter supplied by the independent Item and Ability definitions.
-        var description = char.ToLowerInvariant(entry.Description[0]) + entry.Description[1..];
-        return new(LootCardKind.SecondWind, item.Name, LootCategory.Item,
-            $"{entry.Category}: {description} Consume this Item.", ExtraActions: ((ExtraActionsMechanic)ability.Mechanic).Amount);
-    }
-
-    internal static LootCardContent EquipmentCard(LootCardKind kind)
-    {
-        var definition = EquipmentCatalog.All.Single(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
-        return new(kind, definition.Name, LootCategory.Equipment, definition.Description,
-            MovementBonus: definition.Modifiers.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount)) { EquipmentTypeId = definition.Id };
-    }
     public static LootCardContent Content(LootCardKind kind) => All.Single(c => c.Kind == kind);
+}
+
+public static class LootQueries
+{
+    public static LootCardDefinition LootCard(this GameState state, OwnedObject card)
+    {
+        // Source-less enum cards predate the catalog. A historical local card may
+        // have the same ID as a newly canonical card, so it must not intercept
+        // this compatibility reference. New deck instances always have typed IDs.
+        if (card.LootCardId is not { } id) return LootCompatibility.Definition(card.Kind);
+        return state.LootCardDefinitions.SingleOrDefault(d => d.Id == id)
+            ?? throw new ArgumentException($"Unknown Loot Card ID '{id}'.");
+    }
+    public static LootCardContent LootContent(this GameState state, OwnedObject card)
+    {
+        var definition = state.LootCard(card);
+        if (definition.Immediate is not HealCollectorMechanic heal)
+            throw new ArgumentException("An object reward requires its resolved Item or Equipment Type reference.");
+        return new(card.Kind, definition.Name, LootCategory.Immediate, definition.Description!, Healing: heal.Amount)
+            { LootCardId = definition.Id, LegacyKind = LootCompatibility.LegacyKind(definition.Id) };
+    }
 }
 
 // Composition contains actual copies, not weights. Draw removes a card permanently.
@@ -105,10 +110,11 @@ public sealed record LootSettings
         {
             if (new[] { r.ItemTypeId, r.EquipmentTypeId, r.LootCardId }.Count(x => x is not null) > 1)
                 throw new ArgumentException("Loot composition needs one typed reference per row.");
-            var card = r.LootCardId is { } id ? (cards ?? []).SingleOrDefault(c => c.Id == id)
+            var id = r.LootCardId ?? (r.ItemTypeId is null && r.EquipmentTypeId is null ? LootCompatibility.TypeId(r.Kind) : null);
+            var card = id is not null ? (cards ?? LootCardCatalog.All).SingleOrDefault(c => c.Id == id)
                 ?? throw new ArgumentException($"Unknown Loot Card ID '{id}'.") : null;
             return new OwnedObject($"loot-card-{i + 1}", r.Kind)
-            { EquipmentTypeId = card?.EquipmentTypeId ?? r.EquipmentTypeId, ItemTypeId = card?.ItemTypeId ?? r.ItemTypeId, LootCardId = r.LootCardId };
+            { EquipmentTypeId = card?.EquipmentTypeId ?? r.EquipmentTypeId, ItemTypeId = card?.ItemTypeId ?? r.ItemTypeId, LootCardId = id };
         }).ToList();
     public List<LootCardKind> ResolveCards()
     {
@@ -136,16 +142,9 @@ internal static class LootRules
             throw new ArgumentException($"Object '{obj.Id}' does not match its source Loot Card '{id}'.");
     }
 
-    internal static bool CanOwn(UnitType type, LootCardKind kind) => LootCards.Content(kind).Category switch
-    {
-        LootCategory.Item => type.CanHaveItems,
-        LootCategory.Equipment => type.CanHaveEquipment,
-        _ => false
-    };
-
     internal static bool CanOwn(GameState state, Unit unit, OwnedObject obj) => state.EquipmentTypeId(obj) is { } id
         ? state.Types.Single(t => t.Id == unit.TypeId).CanHaveEquipment && !unit.Inventory.Any(o => state.EquipmentTypeId(o) == id)
-        : state.ItemTypeId(obj) is not null ? state.Types.Single(t => t.Id == unit.TypeId).CanHaveItems : CanOwn(state.Types.Single(t => t.Id == unit.TypeId), obj.Kind);
+        : state.ItemTypeId(obj) is not null && state.Types.Single(t => t.Id == unit.TypeId).CanHaveItems;
 
     internal static void Validate(GameState state)
     {
@@ -180,7 +179,7 @@ internal static class LootRules
             if (equipment.Distinct(StringComparer.Ordinal).Count() != equipment.Length)
                 throw new ArgumentException("A Unit may own at most one Equipment instance of each Equipment Type ID.");
             var type = state.Types.Single(t => t.Id == unit.TypeId);
-            if (unit.Inventory.Any(o => unit.CurrentHp <= 0 || (state.EquipmentTypeId(o) is not null ? !type.CanHaveEquipment : state.ItemTypeId(o) is not null ? !type.CanHaveItems : !CanOwn(type, o.Kind))))
+            if (unit.Inventory.Any(o => unit.CurrentHp <= 0 || (state.EquipmentTypeId(o) is not null ? !type.CanHaveEquipment : state.ItemTypeId(o) is null || !type.CanHaveItems)))
                 throw new ArgumentException("An inventory requires a living owner with the corresponding ownership capability.");
         }
     }

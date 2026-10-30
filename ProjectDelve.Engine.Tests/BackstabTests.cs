@@ -238,7 +238,7 @@ public sealed class BackstabTests
         var state = State();
         state.Types[0] = state.Types[0] with
         {
-            BonusActions = [new("Attack Boost", 2, [new(Stat.Atk, 1)])]
+            AbilityGrants = [], BonusActions = [new("Attack Boost", 2, [new(Stat.Atk, 1)])]
         };
         state.Units[0] = state.Types[0].CreateUnit("rogue", "blue");
         var ready = Ready(state);

@@ -21,7 +21,7 @@ public sealed record EquipmentDefinition(string Id, string Name)
     public ImmutableArray<EquipmentCapability> Capabilities { get; init; } = [];
     public ImmutableArray<EquipmentAbility> Abilities { get; init; } = [];
     public string EntryId(string grant) => $"equipment:{Uri.EscapeDataString(Id)}:{Uri.EscapeDataString(grant)}";
-    public IReadOnlyList<CardEntryDescription> CardEntries()
+    public IReadOnlyList<CardEntryDescription> CardEntries(IReadOnlyList<AbilityDefinition>? abilityDefinitions = null)
     {
         List<CardEntryDescription> entries = [];
         if (!Modifiers.IsEmpty) entries.Add(new(EntryId("modifiers"), Name, "Equipment",
@@ -39,10 +39,19 @@ public sealed record EquipmentDefinition(string Id, string Name)
                 EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit => "Stand up one adjacent friendly Lying Unit.",
                 _ => throw new ArgumentException("Unsupported Equipment Action.")
             })));
+        var definitions = abilityDefinitions ?? AbilityCatalog.All;
+        foreach (var grant in Grants)
+        {
+            var ability = definitions.SingleOrDefault(definition => definition.Id == grant.AbilityId)
+                ?? throw new ArgumentException($"Unknown Ability ID '{grant.AbilityId}'.");
+            entries.Add(ability.CardEntry(EntryId(grant.Id)));
+        }
         return entries;
     }
     [System.Text.Json.Serialization.JsonIgnore]
-    public string Description => string.Join(" ", CardEntries().Select(e => e.Category is "Action" or "Free Action" ? $"{e.Category}: {e.Description}" : e.Description));
+    public string Description => Describe();
+    public string Describe(IReadOnlyList<AbilityDefinition>? abilityDefinitions = null) =>
+        string.Join(" ", CardEntries(abilityDefinitions).Select(e => e.Category is "Action" or "Free Action" or "Bonus Action" or "Passive" ? $"{e.Category}: {e.Description}" : e.Description));
 }
 
 public static class EquipmentCatalog
@@ -83,12 +92,12 @@ public static class EquipmentCatalog
 
 public static class EquipmentQueries
 {
-    public static string? EquipmentTypeId(this GameState state, OwnedObject obj) => obj.EquipmentTypeId ?? (obj.ItemTypeId is null ? EquipmentCatalog.LegacyTypeId(obj.Kind) : null);
+    public static string? EquipmentTypeId(this GameState state, OwnedObject obj) => obj.EquipmentTypeId ?? (obj.ItemTypeId is null && obj.LootCardId is null ? EquipmentCatalog.LegacyTypeId(obj.Kind) : null);
     public static EquipmentDefinition Equipment(this GameState state, string id) => state.EquipmentTypes.SingleOrDefault(d => d.Id == id)
         ?? throw new ArgumentException($"Unknown Equipment Type ID '{id}'.");
     public static LootCardContent ObjectContent(this GameState state, OwnedObject obj) => state.EquipmentTypeId(obj) is { } id
-        ? new(obj.Kind, state.Equipment(id).Name, LootCategory.Equipment, string.Join(" ", new[] { state.Equipment(id).Description }.Concat(state.Equipment(id).Grants.Select(g => { var e = state.Ability(g.AbilityId).CardEntry(); return $"{e.Category}: {e.Description}"; })))) { EquipmentTypeId = id }
-        : state.ItemTypeId(obj) is not null ? state.ItemContent(obj) : LootCards.Content(obj.Kind);
+        ? new(obj.Kind, state.Equipment(id).Name, LootCategory.Equipment, state.Equipment(id).Describe(state.AbilityDefinitions)) { EquipmentTypeId = id }
+        : state.ItemTypeId(obj) is not null ? state.ItemContent(obj) : state.LootContent(obj);
     public static LootCardContent? CandidateObjectContent(this GameState state, Candidate candidate) => candidate.ItemTypeId is { } itemId
         ? state.ObjectContent(new OwnedObject(candidate.ObjectId ?? "candidate") { ItemTypeId = itemId })
         : candidate.EquipmentTypeId is { } id

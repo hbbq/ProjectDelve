@@ -32,7 +32,10 @@ public static partial class GameEngine
             state.LootDeck.DiscardPile.Add(consumed);
         }
         state.Units[index] = unit;
-        if (consumed is not null && grant.Legacy != LegacyAbilityKind.SecondWind)
+        // Only the legacy Bonus Action path defers ItemUsed until after its effect.
+        // An Action granted by that same Item identity uses ordinary consumption events.
+        if (consumed is not null && !(grant.Legacy == LegacyAbilityKind.SecondWind &&
+                grant.Definition.Timing == AbilityTiming.BonusAction))
             events.Add(new RulesEvent("ItemUsed", unitId, AbilityName: grant.Definition.Name)
                 { ObjectCard = consumed, ActionId = grant.EntryId, Category = grant.Definition.Timing == AbilityTiming.Action ? ActivationChoiceKind.Action : ActivationChoiceKind.BonusAction });
     }

@@ -36,8 +36,6 @@ public static class WorldCardRoster
         new("repulsion", 1), new("loneliness", 1), new("renewal", 2)
     });
 
-    // Legacy metadata is projected, never maintained as a second rules declaration.
-    public static IReadOnlyList<WorldCardContent> All => Definitions.Select(d => new WorldCardContent(
-        WorldCards.LegacyEffect(d.Id)!.Value, d.Name, d.Description, d.Continuous,
-        Composition.Single(q => q.TypeId == d.Id).Count)).ToArray();
+    // Compatibility view only; new definitions need neither a legacy enum nor a deck row.
+    public static IReadOnlyList<WorldCardContent> All => WorldCards.ProjectLegacyContent(Definitions, Composition);
 }

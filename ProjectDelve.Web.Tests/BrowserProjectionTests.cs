@@ -437,21 +437,23 @@ public sealed class BrowserProjectionTests
         foreach (var type in new[] { UnitType.Cleric(), UnitType.Barbarian(), UnitType.Rogue(), UnitType.Goblin() })
         {
             var state = State(type);
+            var native = state.AbilitiesOf("actor").ToArray();
             state.Units[0] = state.Units[0] with
             {
-                HealUses = type.Heal is null ? null : new(2, 0),
-                HolyWaveUses = type.HolyWave is null ? null : new(2, 1),
+                HealUses = native.Any(g => g.Legacy == LegacyAbilityKind.Heal) ? new(2, 0) : null,
+                HolyWaveUses = native.Any(g => g.Legacy == LegacyAbilityKind.HolyWave) ? new(2, 1) : null,
                 CleaveUses = type.Cleave is null ? null : new(2, 0),
-                BonusActionUses = type.BonusActions.Where(a => a.MaxUses.HasValue)
-                    .ToImmutableDictionary(a => a.Name, a => new AbilityUses(a.MaxUses!.Value, 1))
+                BonusActionUses = native.Where(g => g.Legacy == LegacyAbilityKind.BonusAction && g.Definition.Usage.MaxUses.HasValue)
+                    .ToImmutableDictionary(g => g.LegacyKey!, g => new AbilityUses(g.Definition.Usage.MaxUses!.Value, 1))
             };
             var card = BrowserProjection.Cards(state)["actor"];
             Assert.Equal(type.DisplayName, card.DisplayName);
-            Assert.Equal(type.CardEntries(), card.Entries.Select(e => e.Content).ToArray());
+            Assert.Equal(type.CardEntries(state.Types, state.AbilityDefinitions), card.Entries.Select(e => e.Content).ToArray());
             foreach (var entry in card.Entries)
-                Assert.Equal(type.UsesFor(state.Units[0], entry.Content.Id), entry.Uses);
-            if (type.HolyWave is not null) Assert.Equal(new AbilityUses(2, 1), card.Entries.Single(e => e.Content.Id == "holy-wave").Uses);
-            if (type.Heal is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "heal").Uses);
+                Assert.Equal(native.SingleOrDefault(g => g.EntryId == entry.Content.Id) is { } grant
+                    ? state.AbilityUsesOf("actor", grant) : type.UsesFor(state.Units[0], entry.Content.Id), entry.Uses);
+            if (native.Any(g => g.Legacy == LegacyAbilityKind.HolyWave)) Assert.Equal(new AbilityUses(2, 1), card.Entries.Single(e => e.Content.Id == "holy-wave").Uses);
+            if (native.Any(g => g.Legacy == LegacyAbilityKind.Heal)) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "heal").Uses);
             if (type.Cleave is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "cleave").Uses);
             Assert.Null(card.Entries.Single(e => e.Content.Id == "attack").Uses);
         }

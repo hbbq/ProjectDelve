@@ -48,8 +48,17 @@ public static partial class GameEngine
                 else state.GroundObjects.Add(new(card, state.Physical.Figures.Single(f => f.Id == unitId).Position));
                 events.Add(new RulesEvent("LootCardDrawn", unitId)
                     { Cell = marker.Position, ObjectCard = card, LootMarker = marker });
-                if (category == LootCategory.Immediate && card.Kind == LootCardKind.PocketBreakfast)
-                    RestoreHp(state, unitId, LootCards.Content(card.Kind).Healing, unitId, LootCards.Content(card.Kind).Name, "pocket-breakfast", events);
+                if (category == LootCategory.Immediate)
+                {
+                    var definition = state.LootCard(card);
+                    switch (definition.Immediate)
+                    {
+                        case HealCollectorMechanic healing:
+                            RestoreHp(state, unitId, healing.Amount, unitId, definition.Name, LootCompatibility.ActionId(definition.Id), events);
+                            break;
+                        default: throw new InvalidOperationException("Unsupported Immediate Loot mechanic.");
+                    }
+                }
                 ResolveExplosions(state, events);
             }
         }

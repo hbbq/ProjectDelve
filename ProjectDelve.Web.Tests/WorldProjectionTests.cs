@@ -190,20 +190,21 @@ public sealed class WorldProjectionTests
     }
 
     [Fact]
-    public async Task BrowserJournalReplayRetainsLocalDrawAndConsequencePresentation()
+    public void BrowserJournalReplayRetainsLocalDrawAndConsequencePresentation()
     {
         using var game = new PlaytestGame(new Dice(), LocalState(fog: true));
         using var live = game.Subscribe(null);
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var baseline = await live.Reader.ReadAsync(timeout.Token);
+        Assert.True(live.Reader.TryRead(out var baseline));
         game.StartRound(0);
         var updates = new List<GameUpdate>();
         while (live.Reader.TryRead(out var update)) updates.Add(update);
         Assert.Contains(updates, update => update.Snapshot.Result.Events.Any(e => e.Kind == "WorldCardDrawn"));
         using var replay = game.Subscribe($"{baseline.SessionId}:{baseline.Sequence}");
+        // Subscribe synchronously queues retained updates. Assert that contract
+        // directly, without a deadline also spent on StartRound and serialization.
         foreach (var original in updates)
         {
-            var repeated = await replay.Reader.ReadAsync(timeout.Token);
+            Assert.True(replay.Reader.TryRead(out var repeated));
             Assert.Equal(original.Sequence, repeated.Sequence);
             var json = JsonSerializer.Serialize(game.BrowserUpdate(repeated));
             Assert.Equal(JsonSerializer.Serialize(game.BrowserUpdate(original)), json);

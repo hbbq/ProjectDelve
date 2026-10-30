@@ -53,9 +53,11 @@ public sealed class ScenarioDefinitionJsonTests
         {
             // Record fields compare by value; ImmutableArray needs explicit sequence comparison.
             Assert.Equal(expected.AttackDefinitionOrder.ToArray(), actual.AttackDefinitionOrder.ToArray());
+            Assert.Equal(expected.AbilityGrants.ToArray(), actual.AbilityGrants.ToArray());
             Assert.Equal(expected with
             {
-                BonusActions = actual.BonusActions, AttackDefinitionOrder = actual.AttackDefinitionOrder
+                BonusActions = actual.BonusActions, AttackDefinitionOrder = actual.AttackDefinitionOrder,
+                AbilityGrants = actual.AbilityGrants
             }, actual);
             Assert.Equal(expected.BonusActions.Length, actual.BonusActions.Length);
             foreach (var (expectedAbility, actualAbility) in expected.BonusActions.Zip(actual.BonusActions))
@@ -68,8 +70,9 @@ public sealed class ScenarioDefinitionJsonTests
         foreach (var (expected, actual) in authoredState.Units.Zip(loadedState.Units))
         {
             // Includes deterministic ID, type identity, Side, HP and every named use counter.
-            Assert.Equal(expected with { BonusActionUses = actual.BonusActionUses }, actual);
+            Assert.Equal(expected with { BonusActionUses = actual.BonusActionUses, AbilityUseCounts = actual.AbilityUseCounts }, actual);
             Assert.Equal(expected.BonusActionUses.OrderBy(p => p.Key), actual.BonusActionUses.OrderBy(p => p.Key));
+            Assert.Equal(expected.AbilityUseCounts.OrderBy(p => p.Key), actual.AbilityUseCounts.OrderBy(p => p.Key));
             Assert.Equal(FootprintGeometry.OccupiedCells(authoredState, expected.Id),
                 FootprintGeometry.OccupiedCells(loadedState, actual.Id));
             Assert.Equal((authoredState.EffectiveAtkOf(expected.Id), authoredState.EffectiveMovOf(expected.Id),

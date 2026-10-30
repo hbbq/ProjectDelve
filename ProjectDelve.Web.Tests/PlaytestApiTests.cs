@@ -243,27 +243,39 @@ public sealed class PlaytestApiTests
         using var json = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var state = json.RootElement.GetProperty("result").GetProperty("state");
         var types = state.GetProperty("types").EnumerateArray().ToArray();
+        var cards = json.RootElement.GetProperty("presentation").GetProperty("cards");
+        JsonElement Entry(string unitId, string entryId) => cards.GetProperty(unitId).GetProperty("entries")
+            .EnumerateArray().Single(entry => entry.GetProperty("content").GetProperty("id").GetString() == entryId).GetProperty("content");
         var barbarian = types.Single(t => t.GetProperty("id").GetString() == "barbarian-type");
         Assert.Equal(3, barbarian.GetProperty("mov").GetInt32());
         Assert.Equal(1, barbarian.GetProperty("rng").GetInt32());
         Assert.Equal(4, barbarian.GetProperty("atk").GetInt32());
         Assert.Equal(3, barbarian.GetProperty("def").GetInt32());
         Assert.Equal(5, barbarian.GetProperty("hp").GetInt32());
-        Assert.Equal("Rage", barbarian.GetProperty("bonusActions")[0].GetProperty("name").GetString());
-        Assert.Equal("Fury", barbarian.GetProperty("fury").GetProperty("name").GetString());
-        var fury = barbarian.GetProperty("passives")[0];
+        Assert.Equal("Rage", Entry(Barbarian, "bonus:Rage").GetProperty("name").GetString());
+        Assert.Equal(1, barbarian.GetProperty("fury").GetProperty("atkBonus").GetInt32());
+        Assert.Equal(2, barbarian.GetProperty("fury").GetProperty("adjacentEnemyThreshold").GetInt32());
+        Assert.False(barbarian.GetProperty("fury").TryGetProperty("name", out _));
+        Assert.False(barbarian.TryGetProperty("passives", out _));
+        var fury = Entry(Barbarian, "passive:Fury");
         Assert.Equal("Fury", fury.GetProperty("name").GetString());
-        Assert.Equal("ATK +1 while adjacent to 2 or more enemies", fury.GetProperty("displayText").GetString());
+        Assert.Equal("ATK +1 while adjacent to 2 or more enemies", fury.GetProperty("description").GetString());
         Assert.Equal(4, state.GetProperty("effectiveAtk").GetProperty(Barbarian).GetInt32());
         var rogue = types.Single(t => t.GetProperty("id").GetString() == "rogue-type");
-        Assert.Equal(new[] { "Dash", "Throwing Knife" }, rogue.GetProperty("bonusActions").EnumerateArray()
-            .Select(a => a.GetProperty("name").GetString()));
+        Assert.Equal(new[] { "Dash", "Throwing Knife" }, new[] { "bonus:Dash", "bonus:Throwing Knife" }
+            .Select(id => Entry(Rogue, id).GetProperty("name").GetString()));
         var cleric = types.Single(t => t.GetProperty("id").GetString() == "cleric-type");
-        var aura = cleric.GetProperty("adjacentFriendlyUnitsDefenceBonus");
+        var auraId = cleric.GetProperty("abilityGrants").EnumerateArray().Single(grant => grant.GetProperty("id").GetString() == "aura")
+            .GetProperty("abilityId").GetString();
+        var aura = state.GetProperty("abilityDefinitions").EnumerateArray().Single(ability => ability.GetProperty("id").GetString() == auraId);
         Assert.Equal("Aura", aura.GetProperty("name").GetString());
-        Assert.Equal(1, aura.GetProperty("amount").GetInt32());
-        Assert.Equal("Aura", cleric.GetProperty("passives")[0].GetProperty("name").GetString());
-        Assert.Equal("Adjacent friendly Units get DEF +1", cleric.GetProperty("passives")[0].GetProperty("displayText").GetString());
+        Assert.Equal("Passive", aura.GetProperty("timing").GetString());
+        Assert.Equal("adjacentModifiers", aura.GetProperty("mechanic").GetProperty("kind").GetString());
+        var modifier = Assert.Single(aura.GetProperty("mechanic").GetProperty("modifiers").EnumerateArray());
+        Assert.Equal("Def", modifier.GetProperty("stat").GetString());
+        Assert.Equal(1, modifier.GetProperty("amount").GetInt32());
+        Assert.Equal("Aura", Entry(Cleric, "passive:Aura").GetProperty("name").GetString());
+        Assert.Equal("Adjacent friendly Units get DEF +1", Entry(Cleric, "passive:Aura").GetProperty("description").GetString());
         // Rogue starts adjacent to Cleric; base DEF remains unchanged in content.
         Assert.Equal(2, rogue.GetProperty("def").GetInt32());
         Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty(Rogue).GetInt32());
@@ -287,9 +299,11 @@ public sealed class PlaytestApiTests
         Assert.Equal(new[] { Barbarian, Rogue, Cleric, Wizard }, heroes.Select(u => u.Id));
         Assert.Equal(4, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
-            type => Assert.Equal(type.Id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
-                : type.Id == "wizard-type" ? UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis
+            type => Assert.Equal(type.Id == "wizard-type" ? UnitAction.NormalAttack | UnitAction.Telekinesis
                 : UnitAction.NormalAttack, type.Actions));
+        Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is HealMechanic { Amount: 2 });
+        Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is HolyWaveMechanic);
+        Assert.Contains(second.Result.State.AbilitiesOf(Wizard), grant => grant.Definition.Mechanic is FireballMechanic);
         Assert.Equal(new[] { 2, 2, 2, 1, 2 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
         Assert.Equal(4, second.Result.State.Physical.Board.Edges.Count(e => e.Kind == EdgeKind.ClosedDoor));
@@ -315,13 +329,17 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         var type = (await host.Read()).Result.State.Types.Single(t => t.Id == id);
         Assert.Equal((mov, rng, atk, def, hp), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(id == "cleric-type" ? UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave
-            : UnitAction.NormalAttack, type.Actions);
+        Assert.Equal(UnitAction.NormalAttack, type.Actions);
         if (id == "cleric-type")
         {
-            Assert.Equal(new Heal(2), type.Heal);
+            Assert.Null(type.Heal);
+            var state = (await host.Read()).Result.State;
+            var cleric = state.Units.Single(u => u.TypeId == id);
+            var heal = Assert.Single(state.AbilitiesOf(cleric.Id), grant => grant.Definition.Mechanic is HealMechanic);
+            Assert.Equal(new HealMechanic(2), heal.Definition.Mechanic);
+            Assert.Equal(2, heal.Definition.Usage.MaxUses);
             Assert.Equal(new AbilityUses(2, 2),
-                (await host.Read()).Result.State.Units.Single(u => u.TypeId == id).HealUses);
+                cleric.HealUses);
         }
         Assert.Equal(id == "grunt-type" ? UnitFreeAction.None : UnitFreeAction.OpenDoor, type.FreeActions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
@@ -786,7 +804,7 @@ public sealed class PlaytestApiTests
         Assert.Single(initial.Result.State.Physical.Figures, f => f.Position == position);
         var card = initial.Presentation.Cards[Wizard];
         Assert.Equal("Wizard", card.DisplayName);
-        Assert.Equal(type.CardEntries(), card.Entries.Select(e => e.Content).ToArray());
+        Assert.Equal(type.CardEntries(initial.Result.State.Types, initial.Result.State.AbilityDefinitions), card.Entries.Select(e => e.Content).ToArray());
         var focusCard = Assert.Single(card.Entries, e => e.Content.Name == "Focus");
         Assert.Equal("Bonus Action", focusCard.Content.Category);
         Assert.Equal("+1 ATK this turn", focusCard.Content.Description);
