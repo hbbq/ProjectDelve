@@ -74,6 +74,7 @@ public static class UnitAuthoring
         internal override UnitType Apply(UnitType type) => type with { WaypointSlotMachine = new() };
     }
     public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
+    public static Entry TerrainRestriction(params string[] categories) => new TerrainCategoryEntry(new([.. categories]));
     public static Entry StraightOrthogonal() => new PatternEntry(MovementPattern.StraightOrthogonal);
     public static Entry DiagonalCorridor() => new PatternEntry(MovementPattern.DiagonalCorridor);
     public static Entry StraightOrthogonalOrDiagonalCorridor() => new PatternEntry(MovementPattern.StraightOrthogonalOrDiagonalCorridor);
@@ -96,6 +97,10 @@ public static class UnitAuthoring
     private sealed class TerrainMovementEntry(TerrainRestrictedMovement capability) : Entry
     {
         internal override UnitType Apply(UnitType type) => type with { TerrainRestrictedMovement = capability };
+    }
+    private sealed class TerrainCategoryEntry(TerrainRestriction restriction) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => type with { TerrainRestriction = restriction };
     }
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);

@@ -5,6 +5,34 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
 
+test('observed local Terrain uses recipe and declared name without revealing hidden definitions',async()=>{
+  const {observedTerrain}=await moduleAt('three-viewport.js');
+  const frame={state:{physical:{board:{width:3,height:1,terrain:[
+    {position:{x:0,y:0},typeId:'plinth'}, {position:{x:1,y:0},typeId:'paper'}, {position:{x:2,y:0},typeId:'hidden'}],
+    terrainTypes:[{id:'plinth',name:'Velvet Plinth',presentation:{recipe:'StoneFloorWithTable'}},
+      {id:'paper',name:'Moon Paper',presentation:{recipe:'unknown-recipe'}},
+      {id:'hidden',name:'Secret Lava',presentation:{recipe:'Lava'}}]}},exploredCells:{blue:[{x:0,y:0},{x:1,y:0}]}},presentation:{viewingSideId:'blue'}};
+  const observed=observedTerrain(frame);
+  assert.equal(observed.kindAt(0,0),'StoneFloorWithTable');assert.equal(observed.displayAt(0,0).name,'Velvet Plinth');
+  assert.equal(observed.kindAt(1,0),'default');assert.equal(observed.displayAt(1,0).fallback,true);
+  assert.deepEqual(observed.displayAt(2,0),{kind:'Unknown',name:'Unknown'});
+  const {terrainLightSources}=await moduleAt('three-local-lighting.js');assert.equal(terrainLightSources(observed).length,0);
+});
+
+test('unfamiliar Terrain fallback is batched in flat and Tabletop views and preserves Cell picking',async()=>{
+  const frame=fixture();frame.state.physical.board.terrainTypes=[{id:'paper',name:'Moon Paper',presentation:{recipe:'unpublished'}}];
+  frame.state.physical.board.terrain=[{position:{x:0,y:0},typeId:'paper'}];
+  const h=await harness(frame);try{
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.settle();h.flush();
+      assert.deepEqual(h.viewport.pick(h.viewport.project({x:.5,y:.5})).cell,{x:0,y:0});
+      const meshes=[];h.rendered.at(-1).scene.traverse(node=>{if(node.isInstancedMesh&&node.material.map?.isCanvasTexture)meshes.push(node);});
+      assert.equal(meshes.length,1);assert.equal(meshes[0].count,1);
+      assert.deepEqual(h.failures,[]);
+    }
+  }finally{h.cleanup();}
+});
+
 test('viewport handoff waits for the authoritative event checkpoint and preserves overlay identity',async()=>{
   const {createViewportRouter}=await moduleAt('playtest-viewport.js');
   const overlay={dice:{faces:['Hit']},decision:{key:'opaque'},history:['once']},calls=[];

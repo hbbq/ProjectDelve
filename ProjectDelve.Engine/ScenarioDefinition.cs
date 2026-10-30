@@ -13,6 +13,7 @@ public sealed record ScenarioDefinition
     public List<ItemDefinition>? ItemTypes { get; init; }
     public List<LootCardDefinition>? LootCardDefinitions { get; init; }
     public List<WorldCardDefinition>? WorldCardDefinitions { get; init; }
+    public List<TerrainDefinition>? TerrainTypes { get; init; }
     public List<string>? NeutralSides { get; init; }
     public List<string>? FogOfWarSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }
@@ -37,12 +38,15 @@ public sealed record BoardDefinition
     public required int Width { get; init; }
     public required int Height { get; init; }
     public TerrainKind DefaultTerrain { get; init; } = TerrainKind.StoneFloor;
+    public string? DefaultTerrainTypeId { get; init; }
     public List<CellDefinition> Cells { get; init; } = [];
     public List<EdgeDefinition> Edges { get; init; } = [];
 }
 
+[System.Text.Json.Serialization.JsonConverter(typeof(CellDefinitionJsonConverter))]
 public sealed record CellDefinition(Cell Position, TerrainKind Terrain, RailDirection? Direction = null)
 {
+    public string? TerrainTypeId { get; init; }
     // Omission preserves existing Lava behavior. Only Lava may author this setting.
     public bool? CoalGeneration { get; init; }
 }

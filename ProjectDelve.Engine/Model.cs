@@ -78,9 +78,11 @@ public enum Footprint { OneByOne, TwoByTwo }
 public enum EdgeKind { Wall, ClosedDoor, OpenDoor, None, WallWithWindow }
 public enum TerrainKind { Grass, Tree, Water, StoneFloor, StoneFloorWithTable, Lava, Rail, Gravel, Asphalt, FruitTree, SolidRock }
 public enum RailDirection { North, East, South, West }
-public sealed record TerrainTile(Cell Position, TerrainKind Kind,
+public sealed record TerrainTile(Cell Position, TerrainKind Kind = TerrainKind.StoneFloor,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RailDirection? Direction = null)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TypeId { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? CoalGeneration { get; init; }
 }
@@ -233,6 +235,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public ShootShell? ShootShell { get; init; }
     public WaypointSlotMachine? WaypointSlotMachine { get; init; }
     public TerrainRestrictedMovement? TerrainRestrictedMovement { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TerrainRestriction? TerrainRestriction { get; init; }
     public MovementPattern? MovementPattern { get; init; }
     public AdvanceOnKill? AdvanceOnKill { get; init; }
     public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
@@ -324,16 +328,43 @@ public sealed record Board(int Width, int Height, List<Edge> Edges)
     // Unlisted cells contain stone floor; absent edges have kind None.
     public List<Machine> Machines { get; init; } = [];
     public List<TerrainTile> Terrain { get; init; } = [];
-    public TerrainKind TerrainAt(Cell cell) =>
-        Terrain.FirstOrDefault(tile => tile.Position == cell)?.Kind ?? TerrainKind.StoneFloor;
+    private ImmutableArray<TerrainDefinition> terrainTypes = TerrainCatalog.All;
+    private ImmutableDictionary<string, TerrainDefinition> terrainIndex = TerrainCatalog.All.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
+    public ImmutableArray<TerrainDefinition> TerrainTypes
+    {
+        get => terrainTypes;
+        init
+        {
+            terrainTypes = value;
+            terrainIndex = value.IsDefault ? ImmutableDictionary<string, TerrainDefinition>.Empty :
+                value.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
+        }
+    }
+    public TerrainDefinition TerrainDefinition(TerrainTile? tile)
+    {
+        var id = tile?.TypeId ?? TerrainCatalog.Legacy(tile?.Kind ?? TerrainKind.StoneFloor).Id;
+        return terrainIndex.TryGetValue(id, out var definition) ? definition :
+            throw new ArgumentException($"Unknown Terrain Type ID '{id}'.");
+    }
+    public TerrainDefinition TerrainDefinitionAt(Cell cell)
+    {
+        var tile = Terrain.FirstOrDefault(t => t.Position == cell);
+        return TerrainDefinition(tile);
+    }
+    // Compatibility identity is not a property lookup. Local Types have no enum identity.
+    public TerrainKind TerrainAt(Cell cell)
+    {
+        var tile = Terrain.FirstOrDefault(t => t.Position == cell);
+        return tile?.TypeId is null ? tile?.Kind ?? TerrainKind.StoneFloor : TerrainDefinition(tile).LegacyKind ?? (TerrainKind)(-1);
+    }
     public EdgeKind EdgeBetween(Cell a, Cell b) =>
         Edges.FirstOrDefault(e => e.A == a && e.B == b || e.A == b && e.B == a)?.Kind ?? EdgeKind.None;
 }
 
 public static class BoardProperties
 {
-    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail or TerrainKind.Gravel or TerrainKind.Asphalt;
-    public static bool BlocksLos(this TerrainKind kind) => kind is TerrainKind.Tree or TerrainKind.FruitTree or TerrainKind.SolidRock;
+    public static bool Passable(this TerrainKind kind) => TerrainCatalog.Legacy(kind).Passable;
+    public static bool BlocksLos(this TerrainKind kind) => TerrainCatalog.Legacy(kind).BlocksLos;
     public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
 }
@@ -442,8 +473,8 @@ public sealed class GameState : IJsonOnDeserialized
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
         if (Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
             !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell) ||
-            type.TerrainRestrictedMovement is { } restriction && FootprintGeometry.OccupiedCells(type.Footprint, cell)
-                .Any(c => Physical.Board.TerrainAt(c) != restriction.Terrain))
+            FootprintGeometry.OccupiedCells(type.Footprint, cell)
+                .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
         Units.Add(type.CreateUnit(id, sideId));
@@ -631,7 +662,7 @@ public sealed class GameState : IJsonOnDeserialized
         EquipmentTypes = [.. EquipmentTypes],
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
-            [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
+            [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], TerrainTypes = Physical.Board.TerrainTypes, Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
         FogOfWarSides = [.. FogOfWarSides],

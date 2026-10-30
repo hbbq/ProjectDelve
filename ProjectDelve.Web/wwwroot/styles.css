@@ -44,6 +44,8 @@ aside { overflow-wrap: anywhere; max-height: calc(100dvh - 120px); overflow-y: a
   aside { max-height: none; overflow-y: visible; }
 }
 .cell.Grass { background: #365b3d; }
+.cell.custom-terrain { background: repeating-linear-gradient(135deg, #666a68 0 13px, #535b60 14px 16px); color: #f1ead6; }
+.cell.custom-terrain .terrain-label { overflow: hidden; text-overflow: ellipsis; max-width: 95%; white-space: nowrap; }
 .cell.Tree { background: #1a4028; color: #b2d5a0; }
 .cell.SolidRock { background: repeating-linear-gradient(135deg, #34303e 0 12px, #605366 13px 15px, #34303e 16px 24px); color: #dbcedf; }
 

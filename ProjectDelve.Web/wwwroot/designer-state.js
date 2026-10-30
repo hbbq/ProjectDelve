@@ -11,6 +11,7 @@ export class DesignerDraft {
     if (!this.dimensionsAllowed(definition.board.width, definition.board.height))
       throw new Error(`Designer boards must be 1..${this.catalog.maxBoardSize} cells in each dimension.`);
     this.definition = structuredClone(definition);
+    this.effectiveTerrainMetadata = null;
     this.unitKeys = this.definition.units.map(() => ++this.nextKey);
     this.machineKeys = (this.definition.machines ?? []).map(() => ++this.nextKey);
     this.changed();
@@ -160,7 +161,41 @@ export class DesignerDraft {
     board.width = width; board.height = height; this.changed();
   }
   terrainAt(cell) {
-    return this.definition.board.cells.find(entry => sameCell(entry.position, cell))?.terrain ?? this.definition.board.defaultTerrain;
+    const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
+    return entry ? entry.terrainTypeId ?? entry.terrain : this.definition.board.defaultTerrainTypeId ?? this.definition.board.defaultTerrain;
+  }
+  terrainCatalog() {
+    return this.effectiveTerrainMetadata ?? [...(this.catalog.terrainDefinitions ?? []), ...(this.definition.terrainTypes ?? [])];
+  }
+  terrainTypeSelection(id) { return `type:${encodeURIComponent(id)}`; }
+  defaultTerrainSelection() {
+    return this.definition.board.defaultTerrainTypeId != null ? this.terrainTypeSelection(this.definition.board.defaultTerrainTypeId) : this.definition.board.defaultTerrain;
+  }
+  terrainSelectionAt(cell) {
+    const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
+    return entry ? entry.terrainTypeId != null ? this.terrainTypeSelection(entry.terrainTypeId) : entry.terrain : this.defaultTerrainSelection();
+  }
+  terrainMetadata(reference) {
+    if (reference?.startsWith('type:')) return this.terrainCatalog().find(type => type.id === decodeURIComponent(reference.slice(5)));
+    return this.terrainCatalog().find(type => type.legacyKind === reference) ?? this.terrainCatalog().find(type => type.id === reference);
+  }
+  terrainNameAt(cell) {
+    return this.terrainMetadata(this.terrainSelectionAt(cell))?.name ?? this.terrainAt(cell);
+  }
+  terrainRecipeAt(cell) {
+    const reference = this.terrainSelectionAt(cell), definition = this.terrainMetadata(reference);
+    const recipe = definition?.presentation?.recipe ?? reference;
+    return this.catalog.terrains.includes(recipe) ? recipe : 'custom-terrain';
+  }
+  setDefaultTerrain(reference) {
+    if (this.catalog.terrains.includes(reference)) {
+      this.definition.board.defaultTerrain = reference;
+      delete this.definition.board.defaultTerrainTypeId;
+    } else {
+      this.definition.board.defaultTerrain = 'StoneFloor';
+      this.definition.board.defaultTerrainTypeId = reference.startsWith('type:') ? decodeURIComponent(reference.slice(5)) : reference;
+    }
+    this.changed();
   }
   railDirectionAt(cell) {
     return this.definition.board.cells.find(entry => sameCell(entry.position, cell))?.direction;
@@ -229,9 +264,11 @@ export class DesignerDraft {
     return unit.unitId;
   }
   paintTerrain(position, terrain, direction = "East", coalGeneration = null) {
+    const legacy = this.terrainMetadata(terrain)?.legacyKind ?? terrain;
+    const reference = this.catalog.terrains.includes(terrain) ? { terrain } : { terrainTypeId: terrain?.startsWith('type:') ? decodeURIComponent(terrain.slice(5)) : terrain };
     upsert(this.definition.board.cells, entry => sameCell(entry.position, position),
-      terrain === null ? null : { position: { ...position }, terrain, ...(terrain === "Rail" ? { direction } : {}),
-        ...(terrain === "Lava" && coalGeneration != null ? { coalGeneration } : {}) });
+      terrain === null ? null : { position: { ...position }, ...reference, ...(legacy === "Rail" ? { direction } : {}),
+        ...(legacy === "Lava" && coalGeneration != null ? { coalGeneration } : {}) });
     this.changed();
   }
   paintEdge(position, direction, kind) {
@@ -447,17 +484,20 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "equipmentTypes", "itemTypes", "abilityDefinitions", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "terrainTypes", "equipmentTypes", "itemTypes", "abilityDefinitions", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
       d.loot != null && (typeof d.loot !== 'object' || d.loot.cards != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) || d.loot.composition != null && !Array.isArray(d.loot.composition) || d.loot.preset != null && typeof d.loot.preset !== 'string') ||
       (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
       (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || (typeof g.object.kind !== 'string' && typeof g.object.equipmentTypeId !== 'string' && typeof g.object.itemTypeId !== 'string' && typeof g.object.lootCardId !== 'string')) ||
       d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || (typeof o.kind !== 'string' && typeof o.equipmentTypeId !== 'string' && typeof o.itemTypeId !== 'string' && typeof o.lootCardId !== 'string')))) ||
       d.units.some(u => !u || typeof u.unitTypeId !== "string" || !u.anchor || !Number.isFinite(u.anchor.x) || !Number.isFinite(u.anchor.y)) ||
       board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
+      (d.terrainTypes ?? []).some(t => !t || typeof t.id !== 'string' || typeof t.name !== 'string' || t.presentation != null && typeof t.presentation.recipe !== 'string') ||
       (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||
       (d.machines ?? []).some(m => !m?.position || !m.type?.storage?.capacities))
     throw new Error("The saved draft is damaged or has an unsupported structure. The current draft was retained.");
-  if (typeof board.defaultTerrain !== "string" ||
+  if (typeof board.defaultTerrain !== "string" && typeof board.defaultTerrainTypeId !== "string" ||
+      board.defaultTerrainTypeId != null && typeof board.defaultTerrainTypeId !== 'string' ||
+      board.cells.some(c => c.terrainTypeId != null && typeof c.terrainTypeId !== 'string') ||
       d.agency.some(a => !a || typeof a.unitTypeId !== "string" || typeof a.sideId !== "string") ||
       (d.orders ?? []).some(o => !o || typeof o.kind !== "string") ||
       (d.objectives ?? []).some(o => !o || typeof o.sideId !== "string") ||

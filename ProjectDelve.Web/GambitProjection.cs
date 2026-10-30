@@ -36,6 +36,20 @@ public sealed record GambitWorldEffects(int CardsPerRound, int Cycling, int Draw
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BrowserWorldCard? ResolvingCard);
 public sealed record GambitGlossary(string MOV, string RNG, string ATK, string DEF, string HP,
     string Posture, string LOS, string Actions, string Board);
+// Model observations need terrain rules, not artwork recipes or unused canonical definitions.
+public sealed record GambitTerrainDefinition(string Id, string Name, bool Passable, bool BlocksLos)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Categories { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AllowsResourceMarkers { get; init; }
+}
+public sealed record GambitBoard(int Width, int Height, IReadOnlyList<Edge> Edges,
+    IReadOnlyList<Machine> Machines, IReadOnlyList<TerrainTile> Terrain)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<GambitTerrainDefinition>? TerrainTypes { get; init; }
+}
 public sealed record GambitActivation(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ActivationToken? ActiveToken,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CurrentUnitId,
@@ -51,7 +65,7 @@ public sealed record GambitActivation(
     public int MovesAvailable { get; init; }
     public bool WaypointAdvanced { get; init; }
 }
-public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Units, IReadOnlyList<GambitType> Types,
+public sealed record GambitObservation(GambitBoard Board, IReadOnlyList<GambitUnit> Units, IReadOnlyList<GambitType> Types,
     IReadOnlyList<GambitBagEntry> Bag, GambitActivation Activation,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GambitWorldEffects? WorldEffects,
     IReadOnlyList<SideObjective> Objectives,
@@ -229,10 +243,26 @@ internal static class GambitProjection
             { MovesCompleted = state.MovesCompletedThisActivation, MovesAvailable = state.EffectiveMovesPerActivation,
                 WaypointAdvanced = state.WaypointAdvancedThisActivation };
         var world = BrowserProjection.WorldEffects(state);
-        return new(state.Physical.Board with { Edges = [.. state.Physical.Board.Edges], Terrain = [.. state.Physical.Board.Terrain], Machines = [.. state.Physical.Board.Machines] }, units, types, bag, activation,
+        var sourceBoard = state.Physical.Board;
+        var terrainReferences = sourceBoard.Terrain.Where(t => t.TypeId is not null || !sourceBoard.TerrainDefinition(t).Categories.IsEmpty)
+            .Select(t => sourceBoard.TerrainDefinition(t).Id).ToHashSet(StringComparer.Ordinal);
+        var terrainTypes = sourceBoard.TerrainTypes.Where(t => terrainReferences.Contains(t.Id))
+            .Select(t => new GambitTerrainDefinition(t.Id, t.Name, t.Passable, t.BlocksLos)
+            {
+                Categories = t.Categories.IsEmpty ? null : t.Categories,
+                AllowsResourceMarkers = t.AllowsResourceMarkers ? null : false
+            }).ToArray();
+        var board = new GambitBoard(sourceBoard.Width, sourceBoard.Height, sourceBoard.Edges.ToArray(),
+            sourceBoard.Machines.ToArray(), sourceBoard.Terrain.ToArray())
+            { TerrainTypes = terrainTypes.Length == 0 ? null : terrainTypes };
+        var glossary = terrainTypes.Length == 0 ? Glossary : Glossary with
+        {
+            Board = Glossary.Board + " A terrain typeId references terrainTypes and overrides kind; omitted allowsResourceMarkers means true."
+        };
+        return new(board, units, types, bag, activation,
             world is null ? null : new(world.CardsPerRound, world.Cycling, world.DrawPileCount, world.DiscardPileCount,
                 world.ActiveContinuous, world.ResolvingCard), state.Objectives.ToArray(), state.Completion,
-            state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units, unknown))
+            state.Round, state.RoundComplete, glossary, RenderAsciiBoard(sourceBoard, units, unknown))
             { Orders = state.Orders.ToArray(), Waypoints = state.Waypoints.ToArray(), Routes = state.Routes.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
                 LootMarkers = state.LootMarkers.Count == 0 ? null : state.LootMarkers.ToArray(),
                 GroundObjects = state.GroundObjects.Count == 0 ? null : BrowserProjection.GroundObjects(state),
@@ -257,7 +287,10 @@ internal static class GambitProjection
 
         var result = new StringBuilder();
         result.AppendLine("ASCII map (derived; structured Board/Units authoritative). x->right; y->down.");
-        result.AppendLine("cell=terrain+unit: .=StoneFloor :=Gravel a=Asphalt g=Grass t=Tree ~=Water #=StoneFloorWithTable ^=Lava R=Rail (outgoing direction in terrain data); -=empty; repeated unit symbol=2x2 footprint.");
+        result.Append("cell=terrain+unit: .=StoneFloor :=Gravel a=Asphalt g=Grass t=Tree ~=Water #=StoneFloorWithTable ^=Lava R=Rail (outgoing direction in terrain data); -=empty; repeated unit symbol=2x2 footprint.");
+        if (board.Terrain.Any(t => board.TerrainDefinition(t).LegacyKind is null)) result.Append(" *=custom Terrain; see terrainTypes.");
+        if (board.Terrain.Any(t => board.TerrainDefinition(t).LegacyKind == TerrainKind.SolidRock)) result.Append(" s=SolidRock.");
+        result.AppendLine();
         result.AppendLine("edge between cells: V |/C/O/X/:; H -/C/O/X/:; Wall/ClosedDoor/OpenDoor/WallWithWindow/None(open).");
 
         var line = new StringBuilder("x>".PadRight(axisWidth));
@@ -340,7 +373,8 @@ internal static class GambitProjection
         TerrainKind.Lava => '^',
         TerrainKind.Rail => 'R',
         TerrainKind.StoneFloorWithTable => '#',
-        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        TerrainKind.SolidRock => 's',
+        _ => '*'
     };
 
     private static char VerticalEdge(EdgeKind kind) => kind switch

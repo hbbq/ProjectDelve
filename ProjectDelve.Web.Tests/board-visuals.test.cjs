@@ -6,6 +6,20 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
+test('Terrain presentation resolves declared names and recipes without registering unfamiliar IDs', () => {
+  const run = catalog();
+  run(`const terrainBoard = {terrainTypes:[
+    {id:'odd-plinth',name:'Velvet Puzzle',presentation:{recipe:'StoneFloorWithTable'}},
+    {id:'odd-paper',name:'Moon Paper',presentation:{recipe:'unpublished-material'}}]};`);
+  assert.equal(run("terrainDisplay(terrainBoard,{typeId:'odd-plinth',kind:'StoneFloor'}).kind"),'StoneFloorWithTable');
+  assert.equal(run("terrainDisplay(terrainBoard,{typeId:'odd-plinth'}).name"),'Velvet Puzzle');
+  assert.equal(run("terrainDisplay(terrainBoard,{typeId:'odd-paper'}).kind"),'default');
+  assert.equal(run("terrainDisplay(terrainBoard,{typeId:'odd-paper'}).fallback"),true);
+  assert.equal(run("terrainDisplay(terrainBoard,{typeId:'missing',kind:'Lava'}).kind"),'default');
+  assert.equal(run("terrainDisplay({}, {kind:'Lava'}).kind"),'Lava');
+  assert.equal(run("Object.hasOwn(boardVisuals.terrain,'odd-plinth')"),false);
+});
+
 test("Solid Rock uses full-Cell bedrock variants and retains a distinct material fallback", () => {
   const run = catalog();
   assert.notEqual(run('terrainLayers("SolidRock").base.fill'), run('terrainLayers("Tree").base.fill'));

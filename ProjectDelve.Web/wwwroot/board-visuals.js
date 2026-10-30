@@ -106,6 +106,18 @@ export const boardVisuals = {
   }
 };
 
+// Resolve presentation from the displayed board's catalog, never from Designer
+// or a global mutable registry. Callers mask unexplored Cells before using this.
+export function terrainDisplay(board, tile) {
+  const definition = tile?.typeId != null
+    ? board.terrainTypes?.find(type => type.id === tile.typeId)
+    : board.terrainTypes?.find(type => type.legacyKind === (tile?.kind ?? 'StoneFloor'));
+  const recipe = definition?.presentation?.recipe ?? (tile?.typeId != null ? 'default' : tile?.kind ?? 'StoneFloor');
+  const known = recipe !== 'Unknown' && Object.hasOwn(boardVisuals.terrain, recipe);
+  return { kind: known ? recipe : 'default', name: definition?.name ?? tile?.typeId ?? tile?.kind ?? 'Stone Floor',
+    typeId: definition?.id ?? tile?.typeId, fallback: !known || recipe === 'default', custom: tile?.typeId != null };
+}
+
 // FNV-1a over UTF-16LE bytes. Math.imul and >>> keep unsigned 32-bit results
 // identical across browsers. Version the input so a future algorithm is explicit.
 export function terrainVariantIndex(seed, id, x, y, count) {

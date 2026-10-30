@@ -6,6 +6,24 @@ const vm = require("node:vm");
 
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
+for (const view of ['classic','enhanced']) test(`local Terrain uses declared labels and fallback without exposing unknown Cells (${view})`, () => {
+  const initial=response();initial.presentation.viewingSideId='blue';
+  initial.result.state.exploredCells={blue:[{x:0,y:0},{x:1,y:0},{x:2,y:0}]};
+  initial.result.state.physical.board.terrainTypes=[
+    {id:'velvet',name:'Velvet Plinth',presentation:{recipe:'StoneFloorWithTable'}},
+    {id:'paper',name:'Moon Paper',presentation:{recipe:'new-material'}},
+    {id:'secret',name:'Hidden Ember',presentation:{recipe:'Lava'}}];
+  initial.result.state.physical.board.terrain=[{position:{x:1,y:0},typeId:'velvet'},
+    {position:{x:2,y:0},typeId:'paper'},{position:{x:3,y:0},typeId:'secret'}];
+  const h=harness(initial);h.context.view=view;h.run('boardView.value=view; updateBoardView(); renderState(snapshot.result.state)');
+  assert.equal(h.run('cells.get("1,0").title'),'Velvet Plinth');
+  assert.equal(h.run('cells.get("1,0").dataset.visualId'),'StoneFloorWithTable');
+  assert.match(h.run('cells.get("2,0").className'),/custom-terrain/);
+  assert.match(h.run('cells.get("2,0").textContent'),/Moon Paper/);
+  assert.equal(h.run('cells.get("3,0").title'),'Unknown');
+  assert.doesNotMatch(h.run('ui.board.textContent'),/Hidden Ember/);
+});
+
 test('human Loot cards pause in sequence and Skip dismisses the current reveal', async () => {
   const h = harness(response());
   let completed = false;

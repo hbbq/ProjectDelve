@@ -50,6 +50,9 @@ public sealed class DesignerApiTests
         Assert.Contains("Asphalt", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Contains("Gravel", catalog.GetProperty("terrains").Deserialize<string[]>()!);
         Assert.Contains("Lava", catalog.GetProperty("terrains").Deserialize<string[]>()!);
+        var terrain = catalog.GetProperty("terrainDefinitions").Deserialize<TerrainDefinition[]>(Json)!;
+        Assert.Equal(TerrainCatalog.All.Select(t => t.Id), terrain.Select(t => t.Id));
+        Assert.Contains(terrain, t => t.LegacyKind == TerrainKind.StoneFloorWithTable && !t.Passable && !t.BlocksLos);
         Assert.Equal(Enum.GetNames<OrderKind>(), catalog.GetProperty("orderKinds").Deserialize<string[]>());
         var projected = catalog.GetProperty("unitTypes").EnumerateArray().ToArray();
         Assert.Equal(CanonicalUnitTypes.All.Select(type => type.Id).Order(),
@@ -88,6 +91,25 @@ public sealed class DesignerApiTests
             Assert.Equal(2, entry.GetProperty("cellSpan").GetInt32());
         }
         using var duplicate = await host.Client.PostAsJsonAsync("/api/designer/metadata", new { unitTypes = new[] { custom, custom } }, Json);
+        Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
+    }
+
+    [Fact]
+    public async Task TerrainMetadataUsesTheCatalogResolverWithoutRequiringAValidBoard()
+    {
+        await using var host = await Host.Start();
+        var local = new TerrainDefinition("unfamiliar-satin", "Satin Obstruction", false, false)
+            { Presentation = new("StoneFloorWithTable") };
+        using var response = await host.Client.PostAsJsonAsync("/api/designer/metadata",
+            new { unitTypes = Array.Empty<UnitType>(), terrainTypes = new[] { local } }, Json);
+        response.EnsureSuccessStatusCode();
+        var metadata = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var result = Assert.Single(metadata.GetProperty("terrainDefinitions").EnumerateArray(),
+            t => t.GetProperty("id").GetString() == local.Id);
+        Assert.Equal(local.Name, result.GetProperty("name").GetString());
+        Assert.False(result.GetProperty("passable").GetBoolean());
+        using var duplicate = await host.Client.PostAsJsonAsync("/api/designer/metadata",
+            new { unitTypes = Array.Empty<UnitType>(), terrainTypes = new[] { local, local } }, Json);
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
     }
 

@@ -39,7 +39,7 @@ public sealed class DiamondKartTests
         Assert.True(type.Unique);
         Assert.Equal(UnitAction.ShootShell, type.Actions);
         Assert.Equal(1, Assert.Single(type.BonusActions, a => a.PlaceBananaPeel is not null).PlaceBananaPeel!.BananaCost);
-        Assert.Equal(TerrainKind.Asphalt, type.TerrainRestrictedMovement!.Terrain);
+        Assert.Equal(TerrainCategories.RacingGround, Assert.Single(type.TerrainRestriction!.Categories));
         Assert.Null(type.Undying);
         Assert.Contains(type.CardEntries(), e => e.Id == "bonus:place-banana-peel" && e.Description.Contains("1 Banana"));
         var result = Start(Fixture());

@@ -104,11 +104,11 @@ internal static class AttackRules
     {
         // The same exemptions apply to interiors and flank Cells. Unit figures
         // remain separate: only their interiors can block Unit-origin LOS.
-        bool TerrainBlocks(Cell cell, TerrainKind kind) => cell != ignoredTerrainCell && kind.BlocksLos();
+        bool TerrainBlocks(Cell cell, TerrainDefinition terrain) => cell != ignoredTerrainCell && terrain.BlocksLos;
         bool MachineBlocks(Machine machine) => machine.Id != interactionMachineId && (!discoverDestination || machine.Position != to);
-        bool CellBlocks(Cell cell) => TerrainBlocks(cell, board.TerrainAt(cell)) ||
+        bool CellBlocks(Cell cell) => TerrainBlocks(cell, board.TerrainDefinitionAt(cell)) ||
             board.Machines.Any(m => m.Position == cell && MachineBlocks(m));
-        return !board.Terrain.Any(tile => TerrainBlocks(tile.Position, tile.Kind) && CrossesInterior(from, to, tile.Position)) &&
+        return !board.Terrain.Any(tile => TerrainBlocks(tile.Position, board.TerrainDefinition(tile)) && CrossesInterior(from, to, tile.Position)) &&
             !board.Machines.Any(m => MachineBlocks(m) && CrossesInterior(from, to, m.Position)) &&
             (phaseVision || !board.Edges.Any(edge => edge.Kind.BlocksLos() && CrossesEdgeInterior(from, to, edge))) &&
             !HasBlockingCornerLos(board, from, to, CellBlocks, phaseVision);

@@ -10,7 +10,7 @@ public static partial class GameEngine
             if (figure is not { Posture: Posture.Upright }) break;
             var board = state.Physical.Board;
             var tile = board.Terrain.SingleOrDefault(t => t.Position == figure.Position);
-            if (tile is not { Kind: TerrainKind.Rail, Direction: { } direction }) break;
+            if (tile is not { Direction: { } direction } || board.TerrainAt(tile.Position) != TerrainKind.Rail) break;
             var destination = direction switch
             {
                 RailDirection.North => new Cell(figure.Position.X, figure.Position.Y - 1),

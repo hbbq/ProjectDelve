@@ -12,7 +12,7 @@ internal static class CellMarkerRules
     internal static void Validate(CellMarker marker, Board board)
     {
         if (marker is null || marker.Type != CellMarkerTypes.BananaPeel || marker.Position is null ||
-            !MovementRules.Inside(board, marker.Position) || !board.TerrainAt(marker.Position).Passable() ||
+            !MovementRules.Inside(board, marker.Position) || !board.TerrainDefinitionAt(marker.Position).Passable ||
             board.Machines.Any(m => m.Position == marker.Position))
             throw new ArgumentException("A Cell Marker requires a supported Type and a passable Cell without a Machine.");
     }

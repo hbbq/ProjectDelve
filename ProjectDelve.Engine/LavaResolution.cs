@@ -6,10 +6,10 @@ public static partial class GameEngine
     {
         var board = state.Physical.Board;
         // Both sources share the exact attempt order, d8 geometry and placement checks.
-        foreach (var lava in board.Terrain.Where(t => t.Kind == TerrainKind.FruitTree || t.Kind == TerrainKind.Lava && t.CoalGeneration != false)
+        foreach (var lava in board.Terrain.Where(t => board.TerrainDefinition(t).LegacyKind == TerrainKind.FruitTree || board.TerrainDefinition(t).LegacyKind == TerrainKind.Lava && t.CoalGeneration != false)
             .OrderBy(t => t.Position.Y).ThenBy(t => t.Position.X))
         {
-            var fruit = lava.Kind == TerrainKind.FruitTree;
+            var fruit = board.TerrainDefinition(lava).LegacyKind == TerrainKind.FruitTree;
             var resource = fruit ? ResourceTypes.Fruit : ResourceTypes.Coal;
             var actionId = fruit ? "fruit-tree" : "lava-coal";
             for (var attempt = 0; attempt < 2; attempt++)

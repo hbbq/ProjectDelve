@@ -10,7 +10,7 @@ internal static class BananaPlacementRules
         for (var x = 0; x < board.Width; x++)
         {
             var cell = new Cell(x, y);
-            if (board.TerrainAt(cell).Passable() && !board.Machines.Any(m => m.Position == cell) &&
+            if (board.TerrainDefinitionAt(cell).Passable && !board.Machines.Any(m => m.Position == cell) &&
                 FootprintGeometry.UnitAtCell(state, cell) is null && !state.CellMarkers.Any(m => m.Position == cell) &&
                 FootprintGeometry.OccupiedCells(state, unit.Id).Any(c => SpatialRules.AreAdjacent(board, c, cell)))
                 yield return new($"place-banana-peel:{x},{y}", Destination: cell, Action: UnitAction.PlaceBananaPeel);

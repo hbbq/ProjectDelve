@@ -37,6 +37,9 @@ public static class ContentDescriptions
         if (type.TerrainRestrictedMovement is { } restriction)
             entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
                 $"Ordinary Moves may only enter {restriction.Terrain} Cells."));
+        if (type.TerrainRestriction is { } categories)
+            entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
+                $"Ordinary Moves may only enter Terrain in one of these categories: {string.Join(", ", categories.Categories)}."));
         if (type.ShootShell is { } shell)
             entries.Add(new("shoot-shell", "Shoot Shell", "Action", $"Spend {shell.ShellCost} Shell to attack an enemy with RNG {shell.Rng} and ATK {shell.Atk}."));
         if (type.WaypointSlotMachine is not null)

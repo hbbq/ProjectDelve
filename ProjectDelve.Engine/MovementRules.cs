@@ -4,7 +4,8 @@ namespace ProjectDelve.Engine;
 
 // Shared terrain/edge traversal parameters. Occupancy and stopping legality stay separate.
 internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = false,
-    bool ClosedDoorsTraversable = false, TerrainKind? RequiredTerrain = null, IReadOnlySet<Cell>? KnownCells = null)
+    bool ClosedDoorsTraversable = false, TerrainKind? RequiredTerrain = null, IReadOnlySet<Cell>? KnownCells = null,
+    TerrainRestriction? Restriction = null)
 {
     internal static MovementTraversal For(GameState state, string unitId, bool closedDoorsTraversable = false) =>
         new(state.IsUpright(unitId) &&
@@ -12,10 +13,12 @@ internal readonly record struct MovementTraversal(bool IgnoreTerrainAndEdges = f
             closedDoorsTraversable,
             state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestrictedMovement?.Terrain,
             FogOfWar.IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId)
-                ? state.ExploredCells.GetValueOrDefault(state.Units.Single(u => u.Id == unitId).SideId) ?? [] : null);
+                ? state.ExploredCells.GetValueOrDefault(state.Units.Single(u => u.Id == unitId).SideId) ?? [] : null,
+            state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId).TerrainRestriction);
 
-    internal bool CanTraverse(TerrainKind terrain) => (!RequiredTerrain.HasValue || terrain == RequiredTerrain) &&
-        (IgnoreTerrainAndEdges || terrain.Passable());
+    internal bool CanTraverse(TerrainDefinition terrain) =>
+        (!RequiredTerrain.HasValue || TerrainCatalog.AcceptsLegacy(RequiredTerrain.Value, terrain)) &&
+        (Restriction is null || Restriction.Accepts(terrain)) && (IgnoreTerrainAndEdges || terrain.Passable);
     internal bool CanTraverse(EdgeKind edge) => IgnoreTerrainAndEdges || edge.Passable() ||
         ClosedDoorsTraversable && edge == EdgeKind.ClosedDoor;
 }

@@ -44,8 +44,12 @@ public static class FogOfWar
         copy.ObservationValues = visible.ToDictionary(id => id, id =>
             (state.EffectiveMovOf(id), state.EffectiveRngOf(id), state.EffectiveAtkOf(id), state.EffectiveDefOf(id)));
         var board = copy.Physical.Board;
+        var observedTerrain = board.Terrain.Where(t => IsExplored(state, side, t.Position)).ToList();
+        var observedTerrainTypes = observedTerrain.Select(t => board.TerrainDefinition(t).Id)
+            .Append(TerrainCatalog.Legacy(TerrainKind.StoneFloor).Id).ToHashSet(StringComparer.Ordinal);
         copy.Physical = new(board with {
-            Terrain = board.Terrain.Where(t => IsExplored(state, side, t.Position)).ToList(),
+            Terrain = observedTerrain,
+            TerrainTypes = [.. board.TerrainTypes.Where(t => observedTerrainTypes.Contains(t.Id))],
             Edges = board.Edges.Where(e => IsEdgeObservable(state, side, e)).ToList(),
             Machines = board.Machines.Where(m => IsExplored(state, side, m.Position)).ToList()
         }, copy.Physical.Figures.Where(f => visible.Contains(f.Id)).ToList());

@@ -237,6 +237,7 @@ public sealed class GambitControllerTests
         Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(second));
         Assert.Equal(EdgeKind.ClosedDoor, Assert.Single(first.Board.Edges).Kind);
         Assert.Equal(TerrainKind.Water, Assert.Single(first.Board.Terrain).Kind);
+        Assert.Null(first.Board.TerrainTypes);
         var unit = Assert.Single(first.Units, unit => unit.Id == "one");
         Assert.Equal(1, unit.MaximumHp); Assert.Equal(new GambitStats(1, 1, 2, 1), unit.EffectiveStats);
         Assert.Null(unit.OccupiedCells); Assert.Null(unit.CellSpan);
@@ -347,6 +348,40 @@ public sealed class GambitControllerTests
         Console.WriteLine($"ASCII board adds {delta} serialized UTF-8 bytes to the focused 3x1 observation.");
         Assert.True(delta > observation.AsciiBoard.Length,
             $"Expected the JSON property and newline escaping to exceed {observation.AsciiBoard.Length} text characters; got {delta} bytes.");
+    }
+
+    [Fact]
+    public void TerrainProjectionIncludesOnlyObservedReferencedRulesAndSupportsUnknownAsciiTerrain()
+    {
+        var local = new TerrainDefinition("velvet-81", "Velvet Island", false, false)
+            { Categories = ["soft-ground"], AllowsResourceMarkers = false, Presentation = new("visual-only-secret") };
+        var hidden = new TerrainDefinition("unseen-64", "Unseen Island", false, true);
+        var unused = new TerrainDefinition("unused-90", "Unused Terrain", true, false);
+        var state = Setup();
+        state.Physical = state.Physical with { Board = new Board(9, 1, [])
+        {
+            TerrainTypes = TerrainCatalog.Resolve([local, hidden, unused]),
+            Terrain = [new(new(2, 0)) { TypeId = local.Id }, new(new(8, 0)) { TypeId = hidden.Id }]
+        } };
+        state.FogOfWarSides = ["amber"];
+        FogOfWar.Refresh(state);
+        var observation = GambitProjection.Observation(state);
+        var terrain = Assert.Single(observation.Board.TerrainTypes!);
+        Assert.Equal(local.Id, terrain.Id);
+        Assert.Equal(local.Name, terrain.Name);
+        Assert.False(terrain.Passable); Assert.False(terrain.BlocksLos);
+        Assert.False(terrain.AllowsResourceMarkers);
+        Assert.Equal("soft-ground", Assert.Single(terrain.Categories!));
+        Assert.Contains("*-", observation.AsciiBoard);
+        Assert.Contains("*=custom Terrain", observation.AsciiBoard);
+        var json = JsonSerializer.Serialize(observation, GambitJson.Options);
+        Assert.DoesNotContain(hidden.Id, json);
+        Assert.DoesNotContain(unused.Id, json);
+        Assert.DoesNotContain("visual-only-secret", json);
+        Assert.DoesNotContain("legacyKind", json);
+        var restored = JsonSerializer.Deserialize<GambitObservation>(json, GambitJson.Options)!;
+        Assert.Equal(local.Id, Assert.Single(restored.Board.TerrainTypes!).Id);
+        Assert.Equal(local.Id, Assert.Single(restored.Board.Terrain).TypeId);
     }
 
     [Fact]

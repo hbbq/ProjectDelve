@@ -1,7 +1,7 @@
 import { bindTooltip, initializeTooltips } from "./tooltips.js";
 import { groundLoot, lootCardDialog } from "./loot-ui.js";
 import { styleSide, applySideHues } from "./side-colors.js";
-import { applyBoardVisual } from "./board-visuals.js";
+import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 import { createBoardCamera } from "./board-camera.js";
 import { createViewportRouter, boardCandidates } from "./playtest-viewport.js";
 import { createUnitFacing } from "./unit-facing.js";
@@ -482,12 +482,13 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   const explored = viewingSide ? new Set((state.exploredCells?.[viewingSide] ?? []).map(cellKey)) : null;
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const tile = terrain.get(cellKey({ x, y }));
-    const kind = explored && !explored.has(cellKey({ x, y })) ? "Unknown" : tile?.kind ?? "StoneFloor";
+    const display = explored && !explored.has(cellKey({ x, y })) ? { kind: 'Unknown', name: 'Unknown' } : terrainDisplay(board, tile);
+    const kind = display.kind;
     const key = cellKey({ x, y });
     const node = cells.get(key) ?? document.createElement("div");
     node.replaceChildren();
     node.removeAttribute("aria-label");
-    node.className = `cell ${kind}`; node.dataset.cell = key; node.dataset.x = x; node.dataset.y = y;
+    node.className = `cell ${kind}${display.fallback ? ' custom-terrain' : ''}`; node.dataset.cell = key; node.dataset.x = x; node.dataset.y = y;
     node.dataset.x = String(x); node.dataset.y = String(y);
     applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
       x, y, direction: tile?.direction, terrain });
@@ -496,9 +497,9 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const coordinates = text("span", node.dataset.cell);
     coordinates.className = "cell-coordinates";
     node.append(coordinates);
-    node.title = kind === "Rail" ? `Rail: ${tile.direction}` : kind;
+    node.title = kind === "Rail" ? `${display.name}: ${tile.direction}` : display.name;
     if (kind === "Unknown") node.setAttribute("aria-label", `Unknown Cell (${x},${y})`);
-    const symbol = { Unknown: "?", SolidRock: "Rock", Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
+    const symbol = display.custom ? display.name : { Unknown: "?", SolidRock: "Rock", Asphalt: "Asphalt", Gravel: "Gravel", Grass: "Grass", Tree: "Tree", FruitTree: "Fruit Tree", Water: "Water", Lava: "Lava", StoneFloorWithTable: "Table" }[kind];
     if (symbol) { const label = text("span", symbol); label.className = "terrain-label"; node.append(label); }
     if (!cells.has(key)) {
       node.addEventListener("mouseenter", () => inspectCell(key));

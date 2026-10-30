@@ -190,17 +190,19 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   });
   function refreshMetadata() {
     const custom = draft.definition.unitTypes ?? [];
-    const body = { unitTypes: custom, units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
-    const signature = JSON.stringify([custom, body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds]);
+    const body = { unitTypes: custom, terrainTypes: draft.definition.terrainTypes ?? [], units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
+    const signature = JSON.stringify([custom, body.terrainTypes, body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds]);
     if (signature === metadataSignature) return;
     metadataSignature = signature; draft.effectiveUnitIds = null;
+    draft.effectiveTerrainMetadata = null;
     if (draft.metadataContentSignature !== JSON.stringify(custom)) draft.effectiveMetadata = null;
     draft.metadataContentSignature = JSON.stringify(custom);
     const sequence = ++metadataSequence;
     Promise.resolve(projectMetadata(body)).then(result => {
       if (sequence !== metadataSequence) return;
       if (!Array.isArray(result?.unitTypes)) throw new Error("Custom metadata unavailable");
-      draft.effectiveMetadata = result.unitTypes; draft.effectiveUnitIds = result.unitIds; render();
+      draft.effectiveMetadata = result.unitTypes; draft.effectiveTerrainMetadata = result.terrainDefinitions;
+      draft.effectiveUnitIds = result.unitIds; render();
     }).catch(() => { if (sequence === metadataSequence && custom.length) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only. Validate for engine diagnostics."; });
   }
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
@@ -211,7 +213,23 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) { const value = select.value; options(select, typeOptions); if (typeOptions.some(t => t.value === value)) select.value = value; }
   }
   const terrainLabel = kind => kind === "SolidRock" ? { value: kind, label: "Solid Rock" } : kind;
-  const terrainOptions = [{ value: "", label: "Use default (remove override)" }, ...catalog.terrains.map(terrainLabel)];
+  const terrainOptions = [];
+  function syncTerrainTypes() {
+    const entries = catalog.terrains.map(kind => ({ value: kind, label: draft.terrainMetadata(kind)?.name ?? (kind === 'SolidRock' ? 'Solid Rock' : kind) }));
+    for (const type of draft.terrainCatalog())
+      if (!type.legacyKind || draft.definition.board.defaultTerrainTypeId === type.id || draft.definition.board.cells.some(cell => cell.terrainTypeId === type.id))
+        entries.push({ value: draft.terrainTypeSelection(type.id), label: type.name });
+    // Invalid references remain visible and recoverable until authoritative validation.
+    for (const id of [draft.definition.board.defaultTerrainTypeId, ...draft.definition.board.cells.map(cell => cell.terrainTypeId)].filter(Boolean))
+      if (!entries.some(entry => entry.value === draft.terrainTypeSelection(id))) entries.push({ value: draft.terrainTypeSelection(id), label: `${id} (unresolved)` });
+    terrainOptions.splice(0, terrainOptions.length, { value: '', label: 'Use default (remove override)' }, ...entries);
+    const selected = ui.terrain.value;
+    options(ui.terrain, terrainOptions);
+    if (terrainOptions.some(entry => entry.value === selected)) ui.terrain.value = selected;
+    const defaultSelection = ui.default.value;
+    options(ui.default, entries.filter(entry => (draft.terrainMetadata(entry.value)?.legacyKind ?? entry.value) !== 'Rail'));
+    ui.default.value = entries.some(entry => entry.value === defaultSelection) ? defaultSelection : draft.defaultTerrainSelection();
+  }
   const edgeOptions = [{ value: "", label: "Remove" }, ...catalog.edgeKinds.filter(kind => kind !== "None")];
   options(ui["rail-direction"], catalog.railDirections ?? ["North", "East", "South", "West"]); ui["rail-direction"].value = "East";
   options(ui.zoom, [{value:"fit",label:"Fit board"},{value:"24",label:"Comfortable"},{value:"36",label:"Large"},{value:"48",label:"Extra large"}]); ui.zoom.value = "fit";
@@ -283,7 +301,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     event.preventDefault();
     if (commit(() => {
       draft.resize(Number(ui.width.value), Number(ui.height.value));
-      draft.definition.board.defaultTerrain = ui.default.value;
+      draft.setDefaultTerrain(ui.default.value);
     })) syncBoardFields();
   });
   ui["world-enabled"].addEventListener("change", () => {
@@ -330,8 +348,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     ui["world-draws"].disabled = ui["world-cycling"].disabled = !ui["world-enabled"].checked;
   }
   function syncBoardFields() {
+    syncTerrainTypes();
     ui.width.value = draft.definition.board.width; ui.height.value = draft.definition.board.height;
-    ui.default.value = draft.definition.board.defaultTerrain;
+    ui.default.value = draft.defaultTerrainSelection();
     restoreStatic("board-form");
   }
   function setTool(value) {
@@ -368,7 +387,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     if (lastPaint === key) return;
     if (tool === "Terrain" && !target.direction) {
       draft.paintTerrain(target.position, ui.terrain.value || null, ui["rail-direction"].value);
-      target.node.className = `cell ${draft.terrainAt(target.position)}`;
+      target.node.className = `cell ${draft.terrainRecipeAt(target.position)}`;
       target.node.dataset.railDirection = draft.railDirectionAt(target.position) ?? "";
     } else if (tool === "Edge" && target.direction) {
       draft.paintEdge(target.position, target.direction, ui.edge.value || null);
@@ -400,7 +419,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     for (const node of ui.board.querySelectorAll(".placement-preview")) node.classList.remove("placement-preview");
     if (!target) return;
     ui.hover.textContent = target.direction ? `Edge (${target.position.x}, ${target.position.y}) ${target.direction}`
-      : `Cell (${target.position.x}, ${target.position.y}) · ${draft.terrainAt(target.position)}`;
+      : `Cell (${target.position.x}, ${target.position.y}) · ${draft.terrainNameAt(target.position)}`;
     if ((tool === "Unit" || picker?.unitTypeId) && !target.direction) {
       const preview = draft.occupied({ unitTypeId: picker?.unitTypeId ?? ui.type.value, anchor: target.position });
       for (const cell of preview) cellNodes.get(`${cell.x},${cell.y}`)?.classList.add("placement-preview");
@@ -514,12 +533,12 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     }
     for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
       const cell = { x, y }, node = element("div");
-      node.className = `cell ${draft.terrainAt(cell)}`;
+      node.className = `cell ${draft.terrainRecipeAt(cell)}`;
       node.dataset.railDirection = draft.railDirectionAt(cell) ?? "";
       node.dataset.editorHit = "cell"; node.dataset.x = x; node.dataset.y = y;
       node.tabIndex = 0; node.setAttribute("role", "button");
-      node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainAt(cell)} ${draft.railDirectionAt(cell) ?? ""}`);
-      node.title = `${x},${y} · ${draft.terrainAt(cell)}`;
+      node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainNameAt(cell)} ${draft.railDirectionAt(cell) ?? ""}`);
+      node.title = `${x},${y} · ${draft.terrainNameAt(cell)}`;
       node.append(element("span", `${x},${y}`));
       if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
       for (const [index, machine] of (draft.definition.machines ?? []).entries()) {
@@ -685,12 +704,16 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         form.append(button("Remove Cell Marker", () => commit(() => draft.setCellMarker(position, null))));
       }
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
-      const terrain = field(form, "Override", explicit?.terrain ?? "", { entries: terrainOptions });
+      const terrain = field(form, "Override", explicit?.terrainTypeId != null ? draft.terrainTypeSelection(explicit.terrainTypeId) : explicit?.terrain ?? "", { entries: terrainOptions });
+      const terrainDefinition = draft.terrainMetadata(draft.terrainSelectionAt(position));
+      if (terrainDefinition) form.append(element('p', `${terrainDefinition.name} · Type ${terrainDefinition.id} · ${terrainDefinition.passable ? 'Passable' : 'Blocks movement'} · ${terrainDefinition.blocksLos ? 'Blocks LOS' : 'Does not block LOS'}`));
       const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });
-      const coal = draft.terrainAt(position) === "Lava"
+      const coal = (terrainDefinition?.legacyKind ?? draft.terrainAt(position)) === "Lava"
         ? field(form, "Coal generation", explicit?.coalGeneration === false ? "Off" : "On", { entries: ["On", "Off"] }) : null;
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
-        const kind = terrain.value || (coal?.value === "Off" && draft.definition.board.defaultTerrain === "Lava" ? "Lava" : null);
+        const defaultReference = draft.defaultTerrainSelection();
+        const defaultKind = draft.terrainMetadata(defaultReference)?.legacyKind ?? defaultReference;
+        const kind = terrain.value || (coal?.value === "Off" && defaultKind === "Lava" ? defaultReference : null);
         draft.paintTerrain(position, kind, direction.value, coal ? coal.value !== "Off" : null);
         if (resource && resourceType.value !== resource.type.id) { resource.type = structuredClone(resourceTypes.find(t => t.id === resourceType.value)); draft.changed(); }
       }); });
@@ -1030,7 +1053,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     panel.append(button('Add object', () => commit(() => draft.addObject(catalogObjects.find(c => c.key === kind.value).reference, destination))));
     form.append(panel);
   }
-  function render() { refreshMetadata(); syncImportedTypes(); renderRoutes(); syncWorldFields(); renderProperties(); renderData(); renderBoard(); updateDocumentState(); }
+  function render() { refreshMetadata(); syncImportedTypes(); syncTerrainTypes(); renderRoutes(); syncWorldFields(); renderProperties(); renderData(); renderBoard(); updateDocumentState(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
     draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });

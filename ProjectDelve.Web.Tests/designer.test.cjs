@@ -574,6 +574,59 @@ test("Lava paints and renders from the terrain catalog and survives export", asy
   assert.equal(submitted[0].board.cells.find(cell => cell.position.x === 1 && cell.position.y === 1).terrain, "Lava");
 });
 
+test('scenario-local Terrain is named, paintable, inspectable and retained through undo, recovery and Playtest', async () => {
+  const submitted=[], played=[];
+  const h=harness(async(operation,body)=>{submitted.push({operation,body:plain(body)});return{transport:'DELVE1:local-terrain'};},async value=>{played.push(value);return true;});
+  const definitions=[{id:'velvet-puzzle',name:'An Unfamiliar Plinth',passable:false,blocksLos:false,presentation:{recipe:'StoneFloorWithTable'}},
+    {id:'moon-paper',name:'Moon Paper',passable:true,blocksLos:false,presentation:{recipe:'never-seen-before'}}];
+  h.editor.draft.definition.terrainTypes=definitions;h.editor.draft.changed();h.editor.render();
+  assert.ok(h.editor.ui.terrain.children.some(o=>o.value==='type:velvet-puzzle'&&o.textContent==='An Unfamiliar Plinth'));
+  h.editor.setTool('Terrain');h.editor.ui.terrain.value='type:velvet-puzzle';h.down(h.cell(1,1));h.up();
+  assert.equal(h.editor.draft.definition.board.cells[0].terrainTypeId,'velvet-puzzle');
+  assert.equal(h.editor.draft.definition.board.cells[0].terrain,undefined);
+  assert.match(h.cell(1,1).className,/StoneFloorWithTable/);
+  assert.match(h.cell(1,1).title,/An Unfamiliar Plinth/);
+  h.click('undo');assert.equal(h.editor.draft.definition.board.cells.length,0);
+  h.click('redo');assert.equal(h.editor.draft.definition.board.cells[0].terrainTypeId,'velvet-puzzle');
+  h.editor.setTool('Select');h.down(h.cell(1,1));
+  assert.match(h.editor.ui.properties.textContent,/Blocks movement.*Does not block LOS/);
+  h.editor.draft.paintTerrain({x:2,y:1},'moon-paper');h.editor.render();
+  assert.match(h.cell(2,1).className,/custom-terrain/);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  assert.deepEqual(plain(h.editor.draft.definition.terrainTypes),definitions);
+  await h.click('export');await h.click('play');
+  assert.deepEqual(submitted[0].body.terrainTypes,definitions);
+  assert.equal(submitted[0].body.board.cells[0].terrainTypeId,'velvet-puzzle');
+  assert.deepEqual(played,['DELVE1:local-terrain']);
+});
+
+test('typed default Terrain survives ordinary default changes without stale ID precedence', () => {
+  const h=harness(),draft=h.editor.draft;
+  draft.definition.terrainTypes=[{id:'paper',name:'Paper',passable:true,blocksLos:false}];
+  draft.setDefaultTerrain('paper');assert.equal(draft.terrainAt({x:0,y:0}),'paper');
+  draft.setDefaultTerrain('Grass');assert.equal(draft.definition.board.defaultTerrainTypeId,undefined);
+  assert.equal(draft.terrainAt({x:0,y:0}),'Grass');
+  draft.setDefaultTerrain('paper');assert.equal(draft.definition.board.defaultTerrain,'StoneFloor');
+});
+
+test('a local Type ID matching a legacy Terrain spelling remains a distinct Designer selection', () => {
+  const saved = catalog.terrainDefinitions;
+  try {
+    catalog.terrainDefinitions=[{id:'grass',name:'Grass',legacyKind:'Grass',presentation:{recipe:'Grass'}}];
+    const h=harness(),draft=h.editor.draft;
+    draft.definition.terrainTypes=[{id:'Grass',name:'Misleading Identity',passable:false,blocksLos:false,presentation:{recipe:'StoneFloorWithTable'}}];
+    draft.setDefaultTerrain('Grass');h.editor.render();
+    assert.equal(draft.terrainNameAt({x:0,y:0}),'Grass');
+    h.editor.setTool('Terrain');h.editor.ui.terrain.value='type:Grass';h.down(h.cell(1,1));h.up();
+    assert.equal(draft.definition.board.cells[0].terrainTypeId,'Grass');
+    assert.equal(draft.terrainNameAt({x:1,y:1}),'Misleading Identity');
+    assert.match(h.cell(1,1).className,/StoneFloorWithTable/);
+    h.editor.ui.terrain.value='Grass';h.down(h.cell(2,1));h.up();
+    assert.equal(draft.definition.board.cells[1].terrain,'Grass');
+    draft.setDefaultTerrain('type:Grass');assert.equal(draft.definition.board.defaultTerrainTypeId,'Grass');
+  } finally { catalog.terrainDefinitions=saved; }
+});
+
 test("Lava Coal setting survives inspector edits, undo, recovery and export", async () => {
   const submitted = [], h = harness(async (operation, body) => { submitted.push(plain(body)); return { transport: "DELVE1:lava" }; });
   h.editor.draft.paintTerrain({x:1,y:1}, "Lava"); h.editor.render();

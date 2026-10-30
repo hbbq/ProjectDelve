@@ -10,17 +10,31 @@ internal static class ScenarioCreation
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
-        if (board.Width < 1 || board.Height < 1 || !Enum.IsDefined(board.DefaultTerrain) || board.DefaultTerrain == TerrainKind.Rail)
+        var terrainTypes = TerrainCatalog.Resolve(definition.TerrainTypes);
+        TerrainDefinition ResolveTerrain(TerrainKind legacy, string? typeId)
+        {
+            if (typeId is null) return TerrainCatalog.Legacy(legacy);
+            return terrainTypes.SingleOrDefault(t => t.Id == typeId)
+                ?? throw new ArgumentException($"Unknown Terrain Type ID '{typeId}'.");
+        }
+        var defaultTerrain = ResolveTerrain(board.DefaultTerrain, board.DefaultTerrainTypeId);
+        if (board.Width < 1 || board.Height < 1 || !Enum.IsDefined(board.DefaultTerrain) || defaultTerrain.LegacyKind == TerrainKind.Rail ||
+            board.DefaultTerrainTypeId is not null && board.DefaultTerrain != TerrainKind.StoneFloor && defaultTerrain.LegacyKind != board.DefaultTerrain)
             throw ScenarioValidationContext.At(new ArgumentException("Invalid board dimensions or default terrain.", nameof(definition)), "board");
         bool Inside(Cell? cell) => cell is not null && cell.X >= 0 && cell.Y >= 0 && cell.X < board.Width && cell.Y < board.Height;
         HashSet<Cell> seenCells = [];
         for (var index = 0; index < board.Cells.Count; index++)
         {
             var cell = board.Cells[index];
-            if (cell is null || !Inside(cell.Position) || !Enum.IsDefined(cell.Terrain) ||
-                (cell.Terrain == TerrainKind.Rail ? cell.Direction is null || !Enum.IsDefined(cell.Direction.Value) : cell.Direction is not null) ||
-                cell.Terrain != TerrainKind.Lava && cell.CoalGeneration is not null)
+            if (cell is null || !Inside(cell.Position) || !Enum.IsDefined(cell.Terrain))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Cell override.", nameof(definition)), $"board.cells[{index}]");
+            TerrainDefinition resolved;
+            try { resolved = ResolveTerrain(cell.Terrain, cell.TerrainTypeId); }
+            catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"board.cells[{index}]"); }
+            if ((resolved.LegacyKind == TerrainKind.Rail ? cell.Direction is null || !Enum.IsDefined(cell.Direction.Value) : cell.Direction is not null) ||
+                resolved.LegacyKind != TerrainKind.Lava && cell.CoalGeneration is not null ||
+                cell.TerrainTypeId is not null && cell.Terrain != TerrainKind.StoneFloor && resolved.LegacyKind != cell.Terrain)
+                throw ScenarioValidationContext.At(new ArgumentException("Invalid Terrain placement properties.", nameof(definition)), $"board.cells[{index}]");
             if (!seenCells.Add(cell.Position))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate Cell override.", nameof(definition)), $"board.cells[{index}]");
         }
@@ -115,15 +129,24 @@ internal static class ScenarioCreation
         }
         var overrides = board.Cells.ToDictionary(c => c.Position);
         List<TerrainTile> terrain = [];
-        if (board.DefaultTerrain == TerrainKind.StoneFloor)
-            terrain.AddRange(board.Cells.Select(c => new TerrainTile(c.Position, c.Terrain, c.Direction) { CoalGeneration = c.CoalGeneration }));
+        TerrainTile Tile(Cell position, CellDefinition? authored)
+        {
+            var resolved = authored is null ? defaultTerrain : ResolveTerrain(authored.Terrain, authored.TerrainTypeId);
+            return new(position, resolved.LegacyKind ?? TerrainKind.StoneFloor, authored?.Direction)
+            {
+                TypeId = authored is null ? board.DefaultTerrainTypeId : authored.TerrainTypeId,
+                CoalGeneration = authored?.CoalGeneration
+            };
+        }
+        if (board.DefaultTerrain == TerrainKind.StoneFloor && board.DefaultTerrainTypeId is null)
+            terrain.AddRange(board.Cells.Select(c => Tile(c.Position, c)));
         else
             for (var y = 0; y < board.Height; y++)
             for (var x = 0; x < board.Width; x++)
             {
                 var cell = new Cell(x, y);
                 var authored = overrides.GetValueOrDefault(cell);
-                terrain.Add(new(cell, authored?.Terrain ?? board.DefaultTerrain, authored?.Direction) { CoalGeneration = authored?.CoalGeneration });
+                terrain.Add(Tile(cell, authored));
             }
         var state = new GameState
         {
@@ -136,7 +159,7 @@ internal static class ScenarioCreation
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
-                e.Kind)).ToList()) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
+                e.Kind)).ToList()) { Terrain = terrain, TerrainTypes = terrainTypes, Machines = [.. definition.Machines ?? []] }, []),
             NeutralSides = [.. definition.NeutralSides ?? []], Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects,
             Waypoints = [.. definition.Waypoints ?? []], Routes = [.. definition.Routes ?? []],
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)

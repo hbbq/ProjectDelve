@@ -62,7 +62,7 @@ public static partial class GameEngine
             events.LootArrivals.AddRange(state.Physical.Figures.OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X).Select(f => f.Id));
             ResolveLootArrivals(state, events);
         }
-        var hasLava = state.Physical.Board.Terrain.Any(t => t.Kind == TerrainKind.FruitTree || t.Kind == TerrainKind.Lava && t.CoalGeneration != false);
+        var hasLava = state.Physical.Board.Terrain.Any(t => state.Physical.Board.TerrainDefinition(t).LegacyKind == TerrainKind.FruitTree || state.Physical.Board.TerrainDefinition(t).LegacyKind == TerrainKind.Lava && t.CoalGeneration != false);
         if (state.WorldEffects is not null || hasLava)
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
@@ -999,6 +999,7 @@ public static partial class GameEngine
 
     internal static void ValidateScenario(GameState state)
     {
+        TerrainCatalog.Validate(state.Physical.Board.TerrainTypes);
         LootRules.Validate(state);
         ValidateWorldDeck(state);
         RouteRules.ValidateDefinitions(state);
@@ -1037,6 +1038,8 @@ public static partial class GameEngine
                 t.Actions.HasFlag(UnitAction.PlaceBananaPeel) ||
                 (t.MovementPattern is { } pattern && !Enum.IsDefined(pattern)) ||
                 (t.TerrainRestrictedMovement is { } restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
+                t.TerrainRestriction is { IsValid: false } ||
+                t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null ||
                 (t.Actions.HasFlag(UnitAction.SummonAdjacent) && t.SummonAdjacent is null) ||
                 (t.Actions.HasFlag(UnitAction.ClawAttack) && t.ClawAttack is null) ||
                 (t.SummonAdjacent is { } summon && (string.IsNullOrWhiteSpace(summon.UnitTypeId) ||
@@ -1078,8 +1081,10 @@ public static partial class GameEngine
             state.Types.Single(t => t.Id == u.TypeId).Fireball?.MaxUses != uses.MaxUses))
             throw new ArgumentException("Fireball uses must match Unit Type content.");
         var figures = state.Physical.Figures;
-        if (board.Terrain.Any(tile => !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind) ||
-                (tile.Kind == TerrainKind.Rail ? tile.Direction is null || !Enum.IsDefined(tile.Direction.Value) : tile.Direction is not null)) ||
+        if (board.Terrain.Any(tile => tile is null || !Inside(board, tile.Position) || !Enum.IsDefined(tile.Kind) ||
+                (tile.TypeId is not null && !TerrainCatalog.ValidKey(tile.TypeId)) ||
+                (board.TerrainDefinition(tile).LegacyKind == TerrainKind.Rail ? tile.Direction is null || !Enum.IsDefined(tile.Direction.Value) : tile.Direction is not null) ||
+                board.TerrainDefinition(tile).LegacyKind != TerrainKind.Lava && tile.CoalGeneration is not null) ||
             board.Terrain.Select(tile => tile.Position).Distinct().Count() != board.Terrain.Count)
             throw new ArgumentException("Invalid terrain tiles.");
         if (figures.Any(f => !Enum.IsDefined(f.Posture) || !state.Units.Any(u => u.Id == f.Id && u.CurrentHp > 0)) ||

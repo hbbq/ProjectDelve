@@ -7,6 +7,7 @@ public interface IGameplayQueries
     Route RouteDefinition(string id) => throw new NotSupportedException();
     ObjectiveArea WaypointArea(string id) => throw new NotSupportedException();
     TerrainKind TerrainAt(Cell cell) => throw new NotSupportedException();
+    TerrainDefinition TerrainDefinitionAt(Cell cell) => throw new NotSupportedException();
     int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false) => throw new NotSupportedException();
     int StoredQuantityFor(string unitId, ResourceType resource) => throw new NotSupportedException();
     IReadOnlyList<Resource> Resources => throw new NotSupportedException();
@@ -79,6 +80,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public Route RouteDefinition(string id) => world.Routes.Single(r => r.Id == id);
     public ObjectiveArea WaypointArea(string id) => world.Waypoints.Single(w => w.Id == id).Area;
     public TerrainKind TerrainAt(Cell cell) => world.Physical.Board.TerrainAt(cell);
+    public TerrainDefinition TerrainDefinitionAt(Cell cell) => world.Physical.Board.TerrainDefinitionAt(cell);
     public int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false)
     {
         HypotheticalPosition.Validate(world, unitId, position);

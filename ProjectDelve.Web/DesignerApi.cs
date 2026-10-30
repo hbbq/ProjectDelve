@@ -9,7 +9,8 @@ public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int
 {
     public UnitType? Definition { get; init; }
 }
-public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null);
+public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null,
+    List<TerrainDefinition>? TerrainTypes = null);
 public sealed record DesignerError(string Message, string? Path);
 public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
 public sealed record DesignerImportRequest(string Transport);
@@ -54,6 +55,7 @@ public static class DesignerApi
             resourceTypes = new[] { ResourceTypes.Coal, ResourceTypes.Diamond, ResourceTypes.Fruit, ResourceTypes.Banana, ResourceTypes.Mushroom, ResourceTypes.Shell },
             unitTypes = CanonicalUnitTypes.All.Select(Metadata).ToArray(),
             terrains = Enum.GetNames<TerrainKind>(),
+            terrainDefinitions = TerrainCatalog.All,
             railDirections = Enum.GetNames<RailDirection>(),
             edgeKinds = Enum.GetNames<EdgeKind>(),
             postures = Enum.GetNames<Posture>(),
@@ -73,6 +75,7 @@ public static class DesignerApi
                 throw new ArgumentException("Custom Unit Types must have unique, nonblank IDs.");
             var ids = CanonicalUnitTypes.All.Select(t => t.Id).Concat(custom.Select(t => t.Id)).Distinct();
             return Results.Ok(new { unitTypes = ids.Select(id => Metadata(UnitContent.Find(id, custom)!)).ToArray(),
+                terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes),
                 unitIds = ScenarioIdentity.UnitIds(input!.Units ?? [], input.MachineIds ?? []) });
         }));
         app.MapGet("/api/designer/scenarios/{id}", (string id) =>

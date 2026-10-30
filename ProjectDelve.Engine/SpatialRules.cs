@@ -39,7 +39,7 @@ internal static class SpatialRules
 
     internal static bool Fits(Board board, Footprint footprint, Cell anchor, MovementTraversal traversal = default) =>
         FootprintGeometry.OccupiedCells(footprint, anchor)
-            .All(c => MovementRules.Inside(board, c) && traversal.CanTraverse(board.TerrainAt(c)) &&
+            .All(c => MovementRules.Inside(board, c) && traversal.CanTraverse(board.TerrainDefinitionAt(c)) &&
                 (traversal.IgnoreTerrainAndEdges || !board.Machines.Any(m => m.Position == c))) &&
         InternalEdges(footprint, anchor).All(e => traversal.CanTraverse(board.EdgeBetween(e.A, e.B)));
 

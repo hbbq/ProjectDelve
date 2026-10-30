@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
-import { boardVisuals, terrainLayers, railConnections, railGeometry } from './board-visuals.js';
+import { boardVisuals, terrainLayers, terrainDisplay, railConnections, railGeometry } from './board-visuals.js';
 import { resolveUnitModel, unitVisualEnvelope, unitVisualOverhang, miniatureBaseLayout } from './unit-visuals.js';
 import { sideHue } from './side-colors.js';
 import { createThreeCamera } from './three-camera.js';
@@ -26,7 +26,8 @@ export function observedTerrain(frame) {
   const board=frame.state.physical.board, terrain=new Map((board.terrain??[]).map(t=>[boardCellKey(t.position),t]));
   const side=frame.presentation.viewingSideId;
   const explored=side?new Set((frame.state.exploredCells?.[side]??[]).map(boardCellKey)):null;
-  return {board,terrain,explored,kindAt:(x,y)=>explored&&!explored.has(`${x},${y}`)?'Unknown':terrain.get(`${x},${y}`)?.kind??'StoneFloor'};
+  const displayAt=(x,y)=>explored&&!explored.has(`${x},${y}`)?{kind:'Unknown',name:'Unknown'}:terrainDisplay(board,terrain.get(`${x},${y}`));
+  return {board,terrain,explored,displayAt,kindAt:(x,y)=>displayAt(x,y).kind};
 }
 
 // Only browser observations enter this renderer. All game decisions stay in app.js.
@@ -247,6 +248,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }
       const layer=terrainLayers(kind,{seed:frame.visualSeed,x,y,direction:tile?.direction,terrain});
       batchCell('terrain',material(layer.base.fill,layer.base.image,false,false,true),x,y,layer.rotation);
+      if(data.displayAt(x,y).fallback)batchCell('objects',glyph('?'),x,y);
       if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt));
       else if(layer.object){retain(`object:${x},${y}`,JSON.stringify(layer.object)+layer.objectRotation,'objects',()=>{
         const group=new THREE.Group(),fallback=plane(glyph(kind==='StoneFloorWithTable'?'▰':'♣'),x+.5,y+.5,.65,.65,heights.objects);
@@ -606,7 +608,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const description=choices.map(c=>c.boardVisual?.preview??c.displayLabel??c.label).join(' / ');
     const machine=hit&&frame.presentation.machines?.find(m=>boardCellKey(m.position)===boardCellKey(hit.cell));
     const resource=hit&&frame.state.resources?.find(r=>boardCellKey(r.position)===boardCellKey(hit.cell));
-    host.title=description||(hit?.unitId?labelNodes.get(hit.unitId)?.title:machine?`${machine.name} · Owner ${machine.ownerSide??'Public'} · ${(machine.resourceStorage??[]).map(r=>`${r.name}: ${r.quantity}/${r.capacity}`).join(', ')}`:resource?.type.name??(hit?data.kindAt(hit.cell.x,hit.cell.y):''))||'';
+    host.title=description||(hit?.unitId?labelNodes.get(hit.unitId)?.title:machine?`${machine.name} · Owner ${machine.ownerSide??'Public'} · ${(machine.resourceStorage??[]).map(r=>`${r.name}: ${r.quantity}/${r.capacity}`).join(', ')}`:resource?.type.name??(hit?data.displayAt(hit.cell.x,hit.cell.y).name:''))||'';
   }
   function select(hit){if(!hit||view.busy)return;onPick(hit);}
   function updateFocus(){if(!frame)return;const p=cameraControl.screen({x:focusedCell.x+.5,y:focusedCell.y+.5}),s=cameraControl.current()?.scale??1;

@@ -72,7 +72,7 @@ public static class UnitRoster
         id, "Diamond Kart", Stats(5, 0, 0, 3, 4), Loot(1), Unique(), CantAttack(),
         ResourceStorage(new(ResourceTypes.Banana, 1), new(ResourceTypes.Mushroom, 1), new(ResourceTypes.Shell, 1)),
         PlaceBananaPeel(bananaCost: 1), Boost(mushroomCost: 1), ShootShell(shellCost: 1, rng: 4, atk: 3), WaypointSlotMachine(),
-        TerrainRestrictedMovement(TerrainKind.Asphalt)
+        TerrainRestriction(TerrainCategories.RacingGround)
     ).WithBehaviors(UnitBehavior.RouteLookahead, UnitBehavior.PreferBananaPeel);
 
     public static UnitType ChiefMechanic(string id = UnitTypeIds.ChiefMechanic) => UnitType.Define(

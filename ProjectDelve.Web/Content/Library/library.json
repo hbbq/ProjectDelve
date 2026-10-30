@@ -2,6 +2,78 @@
   "version": 1,
   "scenarios": [
     {
+      "id": "local-terrain-curiosity-room",
+      "name": "Local Terrain - Curiosity Room",
+      "coverArt": null,
+      "revision": 1,
+      "definition": {
+        "terrainTypes": [
+          {
+            "id": "curiosity-velvet-plinth",
+            "name": "Velvet Plinth",
+            "passable": false,
+            "blocksLos": false,
+            "presentation": { "recipe": "StoneFloorWithTable" }
+          },
+          {
+            "id": "curiosity-midnight-column",
+            "name": "Midnight Column",
+            "passable": false,
+            "blocksLos": true,
+            "presentation": { "recipe": "SolidRock" }
+          },
+          {
+            "id": "curiosity-moon-paper",
+            "name": "Moon Paper",
+            "passable": true,
+            "blocksLos": false,
+            "presentation": { "recipe": "unpublished-moon-pattern" }
+          }
+        ],
+        "board": {
+          "width": 7,
+          "height": 5,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            { "position": { "x": 2, "y": 1 }, "terrainTypeId": "curiosity-velvet-plinth" },
+            { "position": { "x": 1, "y": 2 }, "terrainTypeId": "curiosity-midnight-column" },
+            { "position": { "x": 4, "y": 1 }, "terrainTypeId": "curiosity-moon-paper" },
+            { "position": { "x": 4, "y": 2 }, "terrainTypeId": "curiosity-moon-paper" },
+            { "position": { "x": 4, "y": 3 }, "terrainTypeId": "curiosity-moon-paper" }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": ["wizard-type", "curiosity-practice-dummy"],
+        "unitTypes": [
+          {
+            "id": "curiosity-practice-dummy",
+            "displayName": "Practice Dummy",
+            "mov": 0,
+            "rng": 0,
+            "atk": 0,
+            "def": 0,
+            "hp": 1,
+            "actions": "None",
+            "lootDropSuccesses": 0
+          }
+        ],
+        "units": [
+          { "unitTypeId": "wizard-type", "sideId": "heroes", "anchor": { "x": 1, "y": 1 }, "unitId": "curiosity-wizard" },
+          { "unitTypeId": "curiosity-practice-dummy", "sideId": "targets", "anchor": { "x": 3, "y": 1 }, "unitId": "plinth-target" },
+          { "unitTypeId": "curiosity-practice-dummy", "sideId": "targets", "anchor": { "x": 1, "y": 3 }, "unitId": "column-target" }
+        ],
+        "agency": [
+          { "unitTypeId": "wizard-type", "sideId": "heroes", "controller": "Human" },
+          { "unitTypeId": "curiosity-practice-dummy", "sideId": "targets", "controller": "Automated" }
+        ],
+        "objectives": [
+          { "sideId": "heroes", "objective": "NoObjective" },
+          { "sideId": "targets", "objective": "NoObjective" }
+        ],
+        "loot": { "composition": [] }
+      }
+    },
+    {
       "id": "local-world-weather-room",
       "name": "Local World Cards - Weather Room",
       "coverArt": null,
@@ -360,9 +432,10 @@
     {
       "id": "test-scenarios",
       "name": "Test Scenarios",
-      "description": "Explore Project Delve test scenarios. Local World Cards - Weather Room, Local Abilities - Three Sources and Local Equipment - Fitting Room demonstrate scenario-local content.",
+      "description": "Explore Project Delve test scenarios. Local Terrain - Curiosity Room, Local World Cards - Weather Room, Local Abilities - Three Sources and Local Equipment - Fitting Room demonstrate scenario-local content.",
       "coverArt": null,
       "scenarioIds": [
+        "local-terrain-curiosity-room",
         "local-world-weather-room",
         "local-abilities-three-sources",
         "local-equipment-fitting-room",
@@ -396,7 +469,7 @@
         "labyrinth-shaper",
         "genombrottet"
       ],
-      "revision": 3
+      "revision": 4
     }
   ]
 }
