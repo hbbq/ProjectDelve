@@ -33,6 +33,20 @@ Keep Unit and other content definitions readable as declarations of the authored
 
 This is a content/readability boundary, not a mandate to parameterize everything. Do not expose incidental implementation details or add parameters solely for hypothetical future reuse.
 
+## Data-driven game content architecture
+
+**Engine code defines reusable mechanics; game content is declarative data that composes them.** This is the required development direction for Units, Abilities, Items, Equipment, Loot Cards, World Cards and future content. Follow the existing typed content definitions, catalogs and validation pipeline; do not introduce a separate execution path for a new content entry.
+
+When adding content that uses existing mechanics, add or reference content definitions rather than new content-ID/name-specific Engine, automation or Web branches. When a genuinely new mechanic is needed, first establish its rules in accordance with the rules-authority process, then implement the concrete Engine mechanic, expose it through typed authoring/serialization/validation and presentation metadata, and finally declare the content that uses it. This applies even when only one Unit or card initially uses that mechanic.
+
+Keep **mechanic**, **Ability** (identity, display name, timing and usage), **source/grant**, **content Type ID**, and **physical Instance ID** conceptually distinct. Names are presentation, not dispatch or accounting keys. Stable IDs are legitimate for references, ownership, compatibility and explicitly identity-dependent rules, but must not silently select an object's gameplay behavior. Review any new content-specific branch for a real rules justification.
+
+Prefer explicit, parameterized and composable declarations for straightforward effects, including lists of modifiers or grants where useful. Keep specialized concrete mechanics (such as Holy Wave or Cleave) when decomposing their internals would obscure the rules. Declarations must actually drive behavior, validation and relevant UI metadata; do not maintain independent rule values in display prose or client switches. Source-aware reuse must preserve timing, posture, counters, deterministic resolution and Fog of War.
+
+Canonical content currently uses separate C# roster files; scenario-local content can use JSON. **Both must resolve to the same typed content model and Engine semantics.** Do not force a format migration or duplicate content across formats. The longer-term direction is authorable, inspectable content through a Content Viewer/Designer, potentially with JSON as the canonical storage format; the final storage choice is not yet fixed. Source-file aesthetics are secondary to a single authoritative model, discoverability in the client and easy creation of new content.
+
+Scenario-local definitions and variants should remain scoped to their scenario and must not mutate canonical definitions. Preserve established identity, save/replay and physical-object semantics. Future runtime editing or generated content must use the same validation and resolution boundary, not arbitrary executable scripts.
+
 ## Physical-first boundary
 
 Every game mechanic must remain executable and representable in the physical game.
