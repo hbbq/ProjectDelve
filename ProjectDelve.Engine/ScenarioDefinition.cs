@@ -14,6 +14,8 @@ public sealed record ScenarioDefinition
     public List<LootCardDefinition>? LootCardDefinitions { get; init; }
     public List<WorldCardDefinition>? WorldCardDefinitions { get; init; }
     public List<TerrainDefinition>? TerrainTypes { get; init; }
+    public List<TerrainAssemblyDefinition>? TerrainAssemblies { get; init; }
+    public List<FixedComponentDefinition>? FixedComponentTypes { get; init; }
     public List<string>? NeutralSides { get; init; }
     public List<string>? FogOfWarSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }

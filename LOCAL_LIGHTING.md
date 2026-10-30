@@ -1,12 +1,20 @@
 # Tabletop local lighting V1
 
 `three-local-lighting.js` supplies a shared, observation-derived RGB irradiance
-field. Lava has a data recipe (linear color, strength and radius). Contributions
+field. Lava and the Campfire fixed-component presentation have data recipes
+(linear color, strength and radius). Contributions
 fall off smoothly with horizontal distance and receiver height, accumulate with
 a brightness ceiling, and illuminate terrain, Lambert props and imported model
 materials. Existing key/fill lights and printed artwork retain their behavior.
 Lighting Off and Flat presentation disable the field's shared uniform. Lava's
 authored texture remains bright.
+
+Composed Terrain supplies its surface recipe and resolved component recipes to
+the same source collector. A Campfire on the `Object` layer emits warm light
+with a 2.5-Cell radius; a flat `Decal` depiction does not emit. Neither component
+IDs nor movement/LOS properties select lighting. Hidden assemblies contribute
+no sources, and these additional recipes use the existing shared texture,
+checkpoint cache and source-count-independent shader cost.
 
 The atmospheric Tabletop palette uses a darker, cooler printed floor and walnut
 surround, a warm key and restrained cool fill/rim. Lava's 3.5-Cell radius and

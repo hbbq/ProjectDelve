@@ -306,6 +306,21 @@ server observation or scenario serialization changes are involved.
 
 ## Tabletop presentation and physical components
 
+Resolved Terrain assemblies carry one atomic surface and up to four fixed
+components, with at most one raised `Object`. The renderer consumes the printed
+surface and the declared component recipes; flat `Decal` components use corner
+stamps in declaration order. Assembly IDs do not select rendering behavior.
+Canonical Table and Tree assemblies retain their original artwork sampling,
+rotation and geometry batches. Table and Tree recipes reuse the existing models;
+Bed, Statue and Campfire use shared primitive geometry, and unfamiliar recipes
+receive a marked generic fallback. A composed tile remains one Cell for picking,
+highlighting and gameplay: its visible geometry does not define movement or LOS.
+
+Fog of War filtering precedes component artwork, geometry and lighting creation.
+Campfire components use the same bounded local-lighting field as Lava; see
+`LOCAL_LIGHTING.md`. Authoring and assembly validation are described in
+`TERRAIN_CONTENT.md`.
+
 See [Tabletop gameplay overlays](TABLETOP_OVERLAYS.md) for current labels and marks.
 
 The display selector's `three` and `tabletop` values both resolve to the one

@@ -6,6 +6,25 @@ const vm = require("node:vm");
 
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/app.js"), "utf8");
 
+for (const view of ['classic','enhanced']) test(`composed Terrain preserves base, component artwork, names and whole Cell targets (${view})`, () => {
+  const initial=response();
+  const assembly={surface:{presentation:{recipe:'Grass'}},components:[
+    {slot:'furniture',definition:{id:'table',name:'Table',presentation:{recipe:'Table',layer:'Object'}},quarterTurns:1},
+    {slot:'decoration',definition:{id:'crest',name:'A Crest',presentation:{recipe:'new-emblem',layer:'Decal'}}}]};
+  initial.result.state.physical.board.terrainTypes=[{id:'foreign-assembly',name:'Meadow Workbench',presentation:{recipe:'generic'},assembly}];
+  initial.result.state.physical.board.terrain=[{position:{x:1,y:0},typeId:'foreign-assembly'}];
+  const h=harness(initial);h.context.view=view;h.run('boardView.value=view; updateBoardView(); renderState(snapshot.result.state)');
+  assert.equal(h.run('cells.get("1,0").title'),'Meadow Workbench');
+  assert.equal(h.run('cells.get("1,0").dataset.visualId'),'Grass');
+  assert.equal(h.run('cells.get("1,0").fixedComponentArtwork.size'),2);
+  assert.match(h.run('cells.get("1,0").fixedComponentArtwork.get("furniture").image.src'),/terrain\/objects\/table/);
+  assert.equal(h.run('cells.get("1,0").fixedComponentArtwork.get("furniture").style.transform'),'rotate(90deg)');
+  assert.equal(h.run('cells.get("1,0").fixedComponentArtwork.get("decoration").fallback.textContent'),'?');
+  h.run('snapshot.result.state.physical.board.terrain=[]; renderState(snapshot.result.state)');
+  assert.equal(h.run('cells.get("1,0").fixedComponentArtwork.size'),0);
+  assert.equal(h.run('cells.get("1,0").dataset.fixedComponents'),undefined);
+});
+
 for (const view of ['classic','enhanced']) test(`local Terrain uses declared labels and fallback without exposing unknown Cells (${view})`, () => {
   const initial=response();initial.presentation.viewingSideId='blue';
   initial.result.state.exploredCells={blue:[{x:0,y:0},{x:1,y:0},{x:2,y:0}]};

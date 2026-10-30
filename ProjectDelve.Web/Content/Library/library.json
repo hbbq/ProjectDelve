@@ -2,6 +2,64 @@
   "version": 1,
   "scenarios": [
     {
+      "id": "local-fixed-furniture",
+      "name": "Fixed Furniture - Shared Components",
+      "coverArt": null,
+      "revision": 1,
+      "definition": {
+        "fixedComponentTypes": [
+          { "id": "guest-room-bed", "name": "Guest Bed", "blocksMovement": true, "blocksLos": false,
+            "presentation": { "recipe": "Bed", "layer": "Object" } },
+          { "id": "garden-statue", "name": "Garden Statue", "blocksMovement": true, "blocksLos": true,
+            "presentation": { "recipe": "Statue", "layer": "Object" } },
+          { "id": "courtyard-fire", "name": "Campfire", "blocksMovement": true, "blocksLos": false,
+            "presentation": { "recipe": "Campfire", "layer": "Object" } }
+        ],
+        "terrainAssemblies": [
+          { "id": "garden-table-tile", "name": "Grass with Table", "surfaceId": "grass",
+            "components": [{ "slot": "furniture", "componentId": "table" }] },
+          { "id": "guest-bedroom-tile", "name": "Stone Floor with Bed", "surfaceId": "stone-floor",
+            "components": [{ "slot": "furniture", "componentId": "guest-room-bed", "quarterTurns": 1 }] },
+          { "id": "garden-statue-tile", "name": "Grass with Statue", "surfaceId": "grass",
+            "components": [{ "slot": "furniture", "componentId": "garden-statue" }] },
+          { "id": "courtyard-campfire-tile", "name": "Gravel with Campfire", "surfaceId": "gravel",
+            "components": [{ "slot": "furniture", "componentId": "courtyard-fire" }] }
+        ],
+        "board": {
+          "width": 8,
+          "height": 5,
+          "defaultTerrain": "StoneFloor",
+          "cells": [
+            { "position": { "x": 2, "y": 1 }, "terrainTypeId": "stone-floor-with-table" },
+            { "position": { "x": 5, "y": 1 }, "terrainTypeId": "garden-table-tile" },
+            { "position": { "x": 4, "y": 3 }, "terrainTypeId": "guest-bedroom-tile" },
+            { "position": { "x": 1, "y": 2 }, "terrainTypeId": "garden-statue-tile" },
+            { "position": { "x": 6, "y": 3 }, "terrainTypeId": "courtyard-campfire-tile" }
+          ],
+          "edges": []
+        },
+        "unitTypeIds": ["wizard-type", "furniture-practice-dummy"],
+        "unitTypes": [
+          { "id": "furniture-practice-dummy", "displayName": "Practice Dummy", "mov": 0, "rng": 0, "atk": 0, "def": 0, "hp": 1 }
+        ],
+        "units": [
+          { "unitTypeId": "wizard-type", "sideId": "heroes", "anchor": { "x": 1, "y": 1 }, "unitId": "furniture-observer" },
+          { "unitTypeId": "furniture-practice-dummy", "sideId": "practice", "anchor": { "x": 3, "y": 1 }, "unitId": "table-target" },
+          { "unitTypeId": "furniture-practice-dummy", "sideId": "practice", "anchor": { "x": 1, "y": 3 }, "unitId": "statue-target" }
+        ],
+        "agency": [
+          { "unitTypeId": "wizard-type", "sideId": "heroes", "controller": "Human" },
+          { "unitTypeId": "furniture-practice-dummy", "sideId": "practice", "controller": "Automated" }
+        ],
+        "orders": [{ "unitTypeId": "furniture-practice-dummy", "sideId": "practice", "kind": "DoNothing" }],
+        "objectives": [
+          { "sideId": "heroes", "objective": "NoObjective" },
+          { "sideId": "practice", "objective": "NoObjective" }
+        ],
+        "loot": { "composition": [] }
+      }
+    },
+    {
       "id": "local-environmental-production",
       "name": "Environmental Production - Three Sources",
       "coverArt": null,
@@ -478,9 +536,10 @@
     {
       "id": "test-scenarios",
       "name": "Test Scenarios",
-      "description": "Explore Project Delve test scenarios. Environmental Production - Three Sources and the Local Terrain, World Cards, Abilities and Equipment rooms demonstrate scenario-local content.",
+      "description": "Explore Project Delve test scenarios. Fixed Furniture - Shared Components, Environmental Production - Three Sources and the Local Terrain, World Cards, Abilities and Equipment rooms demonstrate scenario-local content.",
       "coverArt": null,
       "scenarioIds": [
+        "local-fixed-furniture",
         "local-environmental-production",
         "local-terrain-curiosity-room",
         "local-world-weather-room",
@@ -516,7 +575,7 @@
         "labyrinth-shaper",
         "genombrottet"
       ],
-      "revision": 5
+      "revision": 6
     }
   ]
 }

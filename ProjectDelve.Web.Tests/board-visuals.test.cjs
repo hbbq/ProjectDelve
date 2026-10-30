@@ -6,6 +6,57 @@ const vm = require("node:vm");
 const script = fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot/board-visuals.js"), "utf8").replace(/^export /gm, "");
 const catalog = () => { const context = vm.createContext({}); vm.runInContext(script, context); return code => vm.runInContext(code, context); };
 
+test('assemblies reuse component artwork independently of their surface and identity', () => {
+  const run = catalog();
+  run(`const table={id:'a-table',name:'A Table',presentation:{recipe:'Table',layer:'Object'}};
+    const assembly=surface=>({surface:{presentation:{recipe:surface}},components:[{slot:'furniture',definition:table}]});
+    const sample=surface=>terrainLayers(surface,{seed:'fixture',x:2,y:4,assembly:assembly(surface)});
+    const stone=sample('StoneFloor'),grass=sample('Grass');`);
+  assert.match(run('stone.base.image'),/stone-floor/);
+  assert.match(run('grass.base.image'),/grass/);
+  assert.equal(run('stone.components[0].object.image'),run('grass.components[0].object.image'));
+  assert.equal(run('stone.components[0].objectRotation'),run('grass.components[0].objectRotation'));
+  assert.equal(run('stone.components[0].object.image'),run("terrainLayers('StoneFloorWithTable',{seed:'fixture',x:2,y:4}).object.image"));
+  run(`const board={terrainTypes:[{id:'unheard-of',name:'Grass & Furniture',presentation:{recipe:'generic'},assembly:assembly('Grass')}]};`);
+  assert.equal(run("terrainDisplay(board,{typeId:'unheard-of'}).kind"),'Grass');
+  assert.equal(run("terrainDisplay(board,{typeId:'unheard-of'}).name"),'Grass & Furniture');
+  assert.equal(run("Object.hasOwn(boardVisuals.terrain,'unheard-of')"),false);
+});
+
+test('canonical Table and Tree assemblies preserve every existing sampled layer', () => {
+  const run = catalog();
+  for(const [recipe,surface,component] of [['StoneFloorWithTable','StoneFloor','Table'],['Tree','Grass','Tree']])
+    for(let i=0;i<12;i++){
+      const context={seed:'legacy-fixture',x:i%4,y:Math.floor(i/4)};
+      const assembly={surface:{presentation:{recipe:surface}},components:[{slot:'furniture',definition:{presentation:{recipe:component,layer:'Object'}}}]};
+      assert.equal(run(`JSON.stringify(terrainLayers(${JSON.stringify(recipe)},${JSON.stringify(context)}))`),
+        run(`JSON.stringify(terrainLayers(${JSON.stringify(recipe)},${JSON.stringify({...context,assembly})}))`));
+    }
+});
+
+test('unfamiliar component recipes have explicit fallbacks and orientation is independent of floor rotation', () => {
+  const run = catalog();
+  run(`const assembly={surface:{presentation:{recipe:'Grass'}},components:[
+    {slot:'furniture',definition:{name:'Odd Plinth',presentation:{recipe:'undiscovered-model',layer:'Object'}},quarterTurns:3},
+    {slot:'seal',definition:{name:'First Seal',presentation:{recipe:'unknown-stamp',layer:'Decal'}},quarterTurns:0},
+    {slot:'badge',definition:{name:'Other Seal',presentation:{recipe:'unknown-stamp',layer:'Decal'}},quarterTurns:1}]};
+    const before=terrainLayers('Grass',{seed:'fixture',x:1,y:2});
+    const after=terrainLayers('Grass',{seed:'fixture',x:1,y:2,assembly});`);
+  assert.equal(run('before.rotation'),run('after.rotation'));
+  assert.equal(run('after.components[0].fallback'),true);
+  assert.equal(run('after.components[0].object.glyph'),'?');
+  assert.equal(run('after.components[0].objectRotation'),270);
+  assert.equal(run('after.components[1].objectRotation'),0);
+  assert.equal(run('after.components[2].objectRotation'),90);
+  assert.notEqual(run('after.components[1].x'),run('after.components[2].x'));
+  assert.equal(run('after.components[1].decal'),true);
+  for (const recipe of ['constructor', '__proto__']) {
+    run(`assembly.components[0].definition.presentation.recipe=${JSON.stringify(recipe)};`);
+    assert.equal(run("terrainLayers('Grass',{assembly}).components[0].fallback"),true);
+    assert.equal(run("terrainLayers('Grass',{assembly}).components[0].object.glyph"),'?');
+  }
+});
+
 test('Terrain presentation resolves declared names and recipes without registering unfamiliar IDs', () => {
   const run = catalog();
   run(`const terrainBoard = {terrainTypes:[

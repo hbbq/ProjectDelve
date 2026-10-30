@@ -611,6 +611,52 @@ test('typed default Terrain survives ordinary default changes without stale ID p
   draft.setDefaultTerrain('paper');assert.equal(draft.definition.board.defaultTerrain,'StoneFloor');
 });
 
+test('fixed assemblies retain authoring references while Engine metadata supplies the combined properties', async () => {
+  const submitted = [], played = [], projected = [], storage = memoryStorage();
+  const component = {id:'fixture-bed',name:'Folded Bed',blocksMovement:true,blocksLos:false,presentation:{recipe:'UnfamiliarBed',layer:'Object'}};
+  const assembly = {id:'fixture-grass-bed',name:'Grassy Rest',surfaceId:'grass',components:[{slot:'furniture',componentId:component.id,quarterTurns:1}]};
+  const grass = {id:'grass',name:'Grass',passable:true,blocksLos:false,presentation:{recipe:'Grass'}};
+  const resolved = {...grass,id:assembly.id,name:assembly.name,passable:false,
+    assembly:{surface:grass,components:[{slot:'furniture',definition:component,quarterTurns:1}]}};
+  const metadata = async body => { projected.push(plain(body)); return {unitTypes:catalog.unitTypes,unitIds:[],
+    terrainDefinitions:[grass,...(body.terrainAssemblies.length ? [resolved] : [])],fixedComponentDefinitions:body.fixedComponentTypes}; };
+  const h = harness(async(operation,body) => {submitted.push(plain(body));return {transport:'DELVE1:assembly'};},
+    async transport => {played.push(transport);return true;}, storage, metadata);
+  h.editor.draft.definition.fixedComponentTypes = [component];
+  h.editor.draft.definition.terrainAssemblies = [assembly];
+  h.editor.draft.changed(); h.editor.render();
+  assert.ok(h.editor.ui.terrain.children.some(option => option.value === 'type:fixture-grass-bed' && option.textContent === assembly.name));
+  h.editor.setTool('Terrain'); h.editor.ui.terrain.value = 'type:fixture-grass-bed'; h.down(h.cell(1,1)); h.up();
+  h.editor.setTool('Select'); h.down(h.cell(1,1));
+  assert.match(h.editor.ui.properties.textContent,/Effective properties awaiting Engine validation/);
+  await new Promise(setImmediate);
+  assert.match(h.editor.ui.properties.textContent,/Blocks movement.*Does not block LOS/);
+  assert.match(h.editor.ui.properties.textContent,/Surface: Grass/);
+  assert.match(h.editor.ui.properties.textContent,/Fixed furniture: Folded Bed.*90°/);
+  assert.match(h.cell(1,1).className,/Grass/);
+  assert.ok(h.cell(1,1).children.some(child => child.className === 'designer-fixed-component' && child.textContent === component.name));
+  assert.deepEqual(projected.at(-1).terrainAssemblies,[assembly]);
+  assert.deepEqual(projected.at(-1).fixedComponentTypes,[component]);
+  h.click('undo'); assert.equal(h.editor.draft.definition.board.cells.length,0);
+  h.click('redo'); assert.equal(h.editor.draft.definition.board.cells[0].terrainTypeId,assembly.id);
+  const document = plain(h.editor.documentData());
+  h.editor.loadDocument(JSON.stringify(document));
+  await new Promise(setImmediate);
+  assert.deepEqual(plain(h.editor.draft.definition.terrainAssemblies),[assembly]);
+  assert.deepEqual(plain(h.editor.draft.definition.fixedComponentTypes),[component]);
+  const recovered = harness(undefined,undefined,storage,metadata);
+  await new Promise(setImmediate);
+  assert.deepEqual(plain(recovered.editor.draft.definition.terrainAssemblies),[assembly]);
+  assert.deepEqual(plain(recovered.editor.draft.definition.fixedComponentTypes),[component]);
+  await h.click('export'); await h.click('play');
+  assert.ok(submitted.every(draft => JSON.stringify(draft.terrainAssemblies) === JSON.stringify([assembly])));
+  assert.ok(submitted.every(draft => JSON.stringify(draft.fixedComponentTypes) === JSON.stringify([component])));
+  assert.deepEqual(played,['DELVE1:assembly']);
+  recovered.editor.draft.paintTerrain({x:1,y:1},null); recovered.editor.render();
+  assert.equal(recovered.editor.draft.definition.board.cells.length,0);
+  assert.deepEqual(plain(recovered.editor.draft.definition.terrainAssemblies),[assembly]);
+});
+
 test('production metadata is Engine-owned and local declarations survive editing, recovery, export and Playtest', async () => {
   const submitted = [], played = [];
   const type = {id:'unfamiliar-cupboard',name:'Unexpected Cupboard',passable:false,blocksLos:false,

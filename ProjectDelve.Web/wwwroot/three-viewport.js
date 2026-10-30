@@ -246,15 +246,24 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       if(kind==='Unknown'){
         batchCell('fog',material('#161b22'),x,y);continue;
       }
-      const layer=terrainLayers(kind,{seed:frame.visualSeed,x,y,direction:tile?.direction,terrain});
+      const layer=terrainLayers(kind,{seed:frame.visualSeed,x,y,direction:tile?.direction,terrain,assembly:data.displayAt(x,y).assembly});
       batchCell('terrain',material(layer.base.fill,layer.base.image,false,false,true),x,y,layer.rotation);
       if(data.displayAt(x,y).fallback)batchCell('objects',glyph('?'),x,y);
-      if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt));
+      if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'&&!layer.components))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt));
       else if(layer.object){retain(`object:${x},${y}`,JSON.stringify(layer.object)+layer.objectRotation,'objects',()=>{
         const group=new THREE.Group(),fallback=plane(glyph(kind==='StoneFloorWithTable'?'▰':'♣'),x+.5,y+.5,.65,.65,heights.objects);
         artwork(group,fallback,layer.object.image?material('#254737',layer.object.image,true):null,x+.5,y+.5,1,1,heights.objects+.005,layer.objectRotation);return group;
       });}
-      if(kind==='Rail'){
+      for(const component of layer.components??[]){
+        if(presentation==='tabletop'&&!component.decal)batchSolid(physical.component(component.recipe,component,x,y,frame.visualSeed));
+        else retain(`component:${x},${y}:${component.slot}`,JSON.stringify(component),'objects',()=>{
+          const group=new THREE.Group(),cx=x+component.x,cy=y+component.y,size=component.scale;
+          const fallback=plane(glyph(component.object.glyph??'?'),cx,cy,.65*size,.65*size,heights.objects,component.objectRotation);
+          artwork(group,fallback,component.object.image?material(component.object.fill??'#9a8aab',component.object.image,true):null,
+            cx,cy,size,size,heights.objects+.005,component.objectRotation);return group;
+        });
+      }
+      if(kind==='Rail'&&!layer.components){
         const connections=railConnections(terrain,x,y,tile?.direction),rail=railGeometry(connections);
         retain(`rail:${x},${y}`,JSON.stringify([rail,tile?.direction]),'rails',()=>{
           const group=new THREE.Group(),fallback=new THREE.Group();

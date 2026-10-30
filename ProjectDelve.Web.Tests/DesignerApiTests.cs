@@ -37,6 +37,92 @@ public sealed class DesignerApiTests
     };
 
     [Fact]
+    public async Task FixedAssemblyMetadataAndDesignerTransportRetainReferencesAndEffectiveProperties()
+    {
+        await using var host = await Host.Start();
+        var definition = ScenarioDefinitionJson.FromJson("""
+        {
+          "fixedComponentTypes": [
+            { "id": "fixture-bed", "name": "Folded Bed", "blocksMovement": true, "blocksLos": false,
+              "presentation": { "recipe": "unknown-bed-recipe", "layer": "Object" } }
+          ],
+          "terrainAssemblies": [
+            { "id": "fixture-grassy-table", "name": "Grassy Table", "surfaceId": "grass",
+              "components": [{ "slot": "furniture", "componentId": "table" }] },
+            { "id": "fixture-stone-bed", "name": "Stone Bedroom", "surfaceId": "stone-floor",
+              "components": [{ "slot": "furniture", "componentId": "fixture-bed", "quarterTurns": 1 }] }
+          ],
+          "board": { "width": 4, "height": 4, "cells": [
+            { "position": { "x": 2, "y": 1 }, "terrainTypeId": "fixture-grassy-table" },
+            { "position": { "x": 2, "y": 2 }, "terrainTypeId": "fixture-stone-bed" }
+          ] },
+          "unitTypeIds": ["wizard-type"],
+          "units": [{ "unitTypeId": "wizard-type", "sideId": "blue", "anchor": { "x": 0, "y": 0 }, "unitId": "observer" }],
+          "agency": [{ "unitTypeId": "wizard-type", "sideId": "blue", "controller": "Human" }],
+          "objectives": [{ "sideId": "blue", "objective": "NoObjective" }],
+          "loot": { "composition": [] }
+        }
+        """);
+        var catalog = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
+        Assert.Contains(catalog.GetProperty("fixedComponentDefinitions").EnumerateArray(), component =>
+            component.GetProperty("id").GetString() == "table" && component.GetProperty("blocksMovement").GetBoolean() &&
+            !component.GetProperty("blocksLos").GetBoolean());
+        using var metadata = await host.Client.PostAsJsonAsync("/api/designer/metadata", new
+        {
+            unitTypes = Array.Empty<UnitType>(), terrainAssemblies = definition.TerrainAssemblies,
+            fixedComponentTypes = definition.FixedComponentTypes
+        }, Json);
+        metadata.EnsureSuccessStatusCode();
+        var projected = await metadata.Content.ReadFromJsonAsync<JsonElement>();
+        var table = projected.GetProperty("terrainDefinitions").EnumerateArray().Single(type => type.GetProperty("id").GetString() == "fixture-grassy-table");
+        Assert.False(table.GetProperty("passable").GetBoolean());
+        Assert.False(table.GetProperty("blocksLos").GetBoolean());
+        Assert.Equal("grass", table.GetProperty("assembly").GetProperty("surface").GetProperty("id").GetString());
+        Assert.Equal("table", table.GetProperty("assembly").GetProperty("components")[0].GetProperty("definition").GetProperty("id").GetString());
+        Assert.Contains(projected.GetProperty("fixedComponentDefinitions").EnumerateArray(), type => type.GetProperty("id").GetString() == "fixture-bed");
+        Assert.DoesNotContain(FixedComponentCatalog.All, type => type.Id == "fixture-bed");
+
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = ScenarioDefinitionTransport.Encode(definition) });
+        imported.EnsureSuccessStatusCode();
+        var draft = ScenarioDefinitionJson.FromJson(await imported.Content.ReadAsStringAsync());
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(draft));
+        draft.Board.Cells.Add(new(new(3, 3), TerrainKind.StoneFloor) { TerrainTypeId = "fixture-grassy-table" });
+        using var valid = await host.PostDraft("validate", ScenarioDefinitionJson.ToJson(draft));
+        Assert.True((await valid.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", ScenarioDefinitionJson.ToJson(draft));
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        Assert.Equal(ScenarioDefinitionJson.ToJson(draft), ScenarioDefinitionJson.ToJson(ScenarioDefinitionTransport.Decode(transport)));
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
+        played.EnsureSuccessStatusCode();
+        var state = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!.Result.State;
+        var bed = state.Physical.Board.TerrainDefinitionAt(new(2, 2));
+        Assert.False(bed.Passable); Assert.False(bed.BlocksLos);
+        Assert.Equal("fixture-bed", Assert.Single(bed.Assembly!.Components).Definition.Id);
+        Assert.Equal(1, Assert.Single(bed.Assembly.Components).QuarterTurns);
+        Assert.Equal("fixture-grassy-table", state.Physical.Board.TerrainDefinitionAt(new(3, 3)).Id);
+    }
+
+    [Theory]
+    [InlineData("surfaceId", "unknown-surface")]
+    [InlineData("componentId", "unknown-component")]
+    public async Task FixedAssemblyMetadataRejectsUnresolvedReferencesWithoutAValidBoard(string property, string value)
+    {
+        await using var host = await Host.Start();
+        var request = JsonNode.Parse("""
+        { "unitTypes": [], "terrainAssemblies": [
+          { "id": "fixture-assembly", "name": "Assembly", "surfaceId": "grass",
+            "components": [{ "slot": "furniture", "componentId": "table" }] }
+        ] }
+        """)!;
+        if (property == "surfaceId") request["terrainAssemblies"]![0]![property] = value;
+        else request["terrainAssemblies"]![0]!["components"]![0]![property] = value;
+        using var response = await host.Client.PostAsync("/api/designer/metadata", new StringContent(request.ToJsonString(), Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False((await response.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+    }
+
+    [Fact]
     public async Task CatalogProjectsOnlyCanonicalEditorMetadata()
     {
         await using var host = await Host.Start();

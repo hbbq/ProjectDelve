@@ -174,6 +174,7 @@ body.designing h1 small { display: none; }
 #designer-main .designer-board { width: min(100%, calc(45dvh * var(--board-ratio, 1))); outline: 1px solid #7b7c72; box-shadow: 0 8px 30px #0005; }
 .designer-board .cell.StoneFloor { background: linear-gradient(135deg, #555b5d, #464e52); color: #b5babc; border-color: #737c7d66; }
 .designer-board .cell { transition: box-shadow .08s; }
+.designer-board .designer-fixed-component { max-width: 95%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7em; color: #f5e4b8; background: #302b23bb; border-radius: 2px; padding: 0 2px; pointer-events: none; }
 .designer-board .cell > span:first-child { opacity: .5; }
 .designer-board .cell:hover > span:first-child, .designer-board .editor-selected > span:first-child { opacity: 1; }
 .designer-board .editor-selected { box-shadow: inset 0 0 0 3px #ffe084; }

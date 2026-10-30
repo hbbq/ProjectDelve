@@ -10,7 +10,8 @@ public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int
     public UnitType? Definition { get; init; }
 }
 public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null,
-    List<TerrainDefinition>? TerrainTypes = null);
+    List<TerrainDefinition>? TerrainTypes = null, List<TerrainAssemblyDefinition>? TerrainAssemblies = null,
+    List<FixedComponentDefinition>? FixedComponentTypes = null);
 public sealed record DesignerError(string Message, string? Path);
 public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
 public sealed record DesignerImportRequest(string Transport);
@@ -62,6 +63,7 @@ public static class DesignerApi
             unitTypes = CanonicalUnitTypes.All.Select(Metadata).ToArray(),
             terrains = Enum.GetNames<TerrainKind>(),
             terrainDefinitions = TerrainCatalog.All,
+            fixedComponentDefinitions = FixedComponentCatalog.All,
             productionDescriptions = ProductionDescriptions(TerrainCatalog.All),
             legacyTerrainMappings = Enum.GetValues<TerrainKind>()
                 .Select(kind => new DesignerLegacyTerrainMapping(kind, TerrainCatalog.Legacy(kind).Id))
@@ -86,9 +88,10 @@ public static class DesignerApi
             if (custom.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id)) || custom.Select(t => t.Id).Distinct().Count() != custom.Count)
                 throw new ArgumentException("Custom Unit Types must have unique, nonblank IDs.");
             var ids = CanonicalUnitTypes.All.Select(t => t.Id).Concat(custom.Select(t => t.Id)).Distinct();
-            var terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes);
+            var terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes, input.TerrainAssemblies, input.FixedComponentTypes);
             return Results.Ok(new { unitTypes = ids.Select(id => Metadata(UnitContent.Find(id, custom)!)).ToArray(),
                 terrainDefinitions,
+                fixedComponentDefinitions = FixedComponentCatalog.All.Concat(input.FixedComponentTypes ?? []).ToArray(),
                 productionDescriptions = ProductionDescriptions(terrainDefinitions),
                 unitIds = ScenarioIdentity.UnitIds(input!.Units ?? [], input.MachineIds ?? []) });
         }));

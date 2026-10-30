@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
-import { boardVisuals, terrainVariantIndex } from './board-visuals.js';
+import { boardVisuals, fixedComponentVisuals, terrainVariantIndex } from './board-visuals.js';
 import { sideHue } from './side-colors.js';
 import { miniatureBaseLayout } from './unit-visuals.js';
 import { lootStarStyle } from './three-local-lighting.js';
@@ -217,6 +217,35 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     }
     return group;
   }
+  function component(recipe,layer,x,z,seed){
+    const existing=Object.hasOwn(fixedComponentVisuals,recipe)?fixedComponentVisuals[recipe].terrainRecipe:null;
+    if(existing)return terrain(existing,layer,x,z,seed);
+    const group=new THREE.Group();group.name='fixed-component';group.position.set(x+.5,0,z+.5);
+    group.rotation.y=(layer.objectRotation??0)*Math.PI/180;
+    if(recipe==='Bed'){
+      for(const dx of [-.29,.29])for(const dz of [-.34,.34])box(group,'#614632',dx,.11,dz,.08,.22,.08);
+      box(group,'#795538',0,.18,0,.72,.12,.88);
+      box(group,'#526d96',0,.29,0,.65,.13,.80);
+      box(group,'#b8c8d6',0,.38,-.23,.52,.07,.23);
+      box(group,'#795538',0,.31,-.43,.76,.43,.07);
+    }else if(recipe==='Statue'){
+      box(group,'#777f7d',0,.06,0,.65,.12,.65);
+      box(group,'#a8afa7',0,.18,0,.39,.18,.39);
+      mesh(group,geometries.gem,'#a8afa7',0,.49,0,.22,.32,.19);
+      mesh(group,geometries.dome,'#b8beb5',0,.85,0,.13,.14,.13);
+    }else if(recipe==='Campfire'){
+      for(let i=0;i<8;i++){const a=i*Math.PI/4;mesh(group,geometries.lump,'#747370',Math.cos(a)*.29,.06,Math.sin(a)*.29,.08,.06,.08);}
+      box(group,'#785333',0,.075,0,.46,.10,.10,.6);
+      box(group,'#60452f',0,.12,0,.46,.10,.10,-.7);
+      mesh(group,geometries.gem,'#dc7526',0,.29,0,.15,.24,.15);
+      mesh(group,geometries.gem,'#ffe5a0',.025,.29,.025,.07,.16,.07);
+    }else{
+      box(group,'#72617e',0,.13,0,.58,.26,.58);
+      box(group,'#aa9ab7',0,.285,0,.65,.05,.65);
+      group.add(plane(glyph('?'),0,0,.38,.38,.312));
+    }
+    return group;
+  }
   function edge(edge,at){
     const group=new THREE.Group(),r=at.vertical?Math.PI/2:0;
     group.position.set(at.x,0,at.z);group.rotation.y=r;
@@ -331,7 +360,7 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries[rimKey]));
     return group;
   }
-  return {unit,posture,board,terrain,edge,machine,item,loot,miniatureBase};
+  return {unit,posture,board,terrain,component,edge,machine,item,loot,miniatureBase};
 }
 
 // One transient mover: small envelopes need nine Cell columns, larger ones

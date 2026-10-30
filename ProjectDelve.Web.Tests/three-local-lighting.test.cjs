@@ -6,6 +6,22 @@ const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelv
 const observation=(cells={},edges=[])=>({board:{width:8,height:8,edges},kindAt:(x,y)=>cells[`${x},${y}`]??'StoneFloor'});
 const sample=(field,x,y)=>field.pixels[(Math.floor(y*4)*field.width+Math.floor(x*4))*4];
 
+test('assembly surface light and component light use observed presentation, while flat decals do not emit',async()=>{
+  const {terrainLightSources,localLightRecipes}=await moduleAt('three-local-lighting.js');
+  const definitions=[
+    {surface:{presentation:{recipe:'Lava'}},components:[]},
+    {surface:{presentation:{recipe:'Grass'}},components:[{definition:{blocksLos:true,presentation:{recipe:'Campfire',layer:'Object'}}}]},
+    {surface:{presentation:{recipe:'Grass'}},components:[{definition:{presentation:{recipe:'Campfire',layer:'Decal'}}}]}
+  ];
+  const data={board:{width:3,height:1},kindAt:()=> 'Grass',displayAt:x=>({assembly:definitions[x]})};
+  const sources=terrainLightSources(data);
+  assert.deepEqual(sources,[{x:.5,z:.5,...localLightRecipes.Lava},{x:1.5,z:.5,...localLightRecipes.Campfire}]);
+  definitions[1].components[0].definition.blocksLos=false;
+  assert.deepEqual(terrainLightSources(data),sources);
+  data.kindAt=x=>x===1?'Unknown':'Grass';
+  assert.deepEqual(terrainLightSources(data),[sources[0]]);
+});
+
 test('known Equipment uses supplied observed content and never invents names from legacy card IDs',async()=>{
   const {groundLoot}=await moduleAt('loot-ui.js');
   const state={groundObjects:[{position:{x:1,y:1},object:{id:'opaque',kind:'PocketBreakfast',equipmentTypeId:'unfamiliar'}}]};

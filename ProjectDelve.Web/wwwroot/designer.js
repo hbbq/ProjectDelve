@@ -190,11 +190,15 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   });
   function refreshMetadata() {
     const custom = draft.definition.unitTypes ?? [];
-    const body = { unitTypes: custom, terrainTypes: draft.definition.terrainTypes ?? [], units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
-    const signature = JSON.stringify([custom, body.terrainTypes, body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds]);
+    const body = { unitTypes: custom, terrainTypes: draft.definition.terrainTypes ?? [],
+      terrainAssemblies: draft.definition.terrainAssemblies ?? [], fixedComponentTypes: draft.definition.fixedComponentTypes ?? [],
+      units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
+    const signature = JSON.stringify([custom, body.terrainTypes, body.terrainAssemblies, body.fixedComponentTypes,
+      body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds]);
     if (signature === metadataSignature) return;
     metadataSignature = signature; draft.effectiveUnitIds = null;
     draft.effectiveTerrainMetadata = null;
+    draft.effectiveFixedComponentMetadata = null;
     draft.effectiveProductionDescriptions = null;
     if (draft.metadataContentSignature !== JSON.stringify(custom)) draft.effectiveMetadata = null;
     draft.metadataContentSignature = JSON.stringify(custom);
@@ -203,9 +207,10 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       if (sequence !== metadataSequence) return;
       if (!Array.isArray(result?.unitTypes)) throw new Error("Custom metadata unavailable");
       draft.effectiveMetadata = result.unitTypes; draft.effectiveTerrainMetadata = result.terrainDefinitions;
+      draft.effectiveFixedComponentMetadata = result.fixedComponentDefinitions;
       draft.effectiveProductionDescriptions = result.productionDescriptions;
       draft.effectiveUnitIds = result.unitIds; render();
-    }).catch(() => { if (sequence === metadataSequence && custom.length) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only. Validate for engine diagnostics."; });
+    }).catch(() => { if (sequence === metadataSequence && (custom.length || body.terrainTypes.length || body.terrainAssemblies.length || body.fixedComponentTypes.length)) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only. Validate for engine diagnostics."; });
   }
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
   function syncImportedTypes() {
@@ -546,6 +551,10 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainNameAt(cell)} ${draft.railDirectionAt(cell) ?? ""}`);
       node.title = `${x},${y} · ${draft.terrainNameAt(cell)}`;
       node.append(element("span", `${x},${y}`));
+      for (const component of draft.terrainComponentsAt(cell)) {
+        const fixed = element('span', component.name); fixed.className = 'designer-fixed-component';
+        fixed.title = `${component.slot}: ${component.name}`; node.append(fixed);
+      }
       if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
       for (const [index, machine] of (draft.definition.machines ?? []).entries()) {
         if (!sameCell(machine.position, cell)) continue;
@@ -712,10 +721,15 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const explicit = draft.definition.board.cells.find(cell => sameCell(cell.position, position));
       const terrain = field(form, "Override", explicit?.terrainTypeId != null ? draft.terrainTypeSelection(explicit.terrainTypeId) : explicit?.terrain ?? "", { entries: terrainOptions });
       const terrainDefinition = draft.terrainDefinitionAt(position);
-      if (terrainDefinition) form.append(element('p', `${terrainDefinition.name} · Type ${terrainDefinition.id} · ${terrainDefinition.passable ? 'Passable' : 'Blocks movement'} · ${terrainDefinition.blocksLos ? 'Blocks LOS' : 'Does not block LOS'}`));
+      if (terrainDefinition) form.append(element('p', `${terrainDefinition.name} · Type ${terrainDefinition.id} · ${typeof terrainDefinition.passable === 'boolean' && typeof terrainDefinition.blocksLos === 'boolean'
+        ? `${terrainDefinition.passable ? 'Passable' : 'Blocks movement'} · ${terrainDefinition.blocksLos ? 'Blocks LOS' : 'Does not block LOS'}` : 'Effective properties awaiting Engine validation'}`));
+      const surface = draft.terrainSurfaceAt(position), components = draft.terrainComponentsAt(position);
+      if (surface) form.append(element('p', `Surface: ${surface.name} · Type ${surface.id}`));
+      for (const component of components) form.append(element('p', `Fixed ${component.slot}: ${component.name} · Type ${component.componentId}${component.quarterTurns != null ? ` · ${component.quarterTurns * 90}°` : ''}`));
+      if (surface || components.length) form.append(element('p', 'One physical tile. Fixed components are not separate pieces or targets.'));
       const productionDescription = draft.productionDescriptionAt(position);
       if (productionDescription) form.append(element('p', productionDescription));
-      else if (terrainDefinition && !terrainDefinition.production) form.append(element('p', 'No environmental resource production.'));
+      else if (terrainDefinition && typeof terrainDefinition.passable === 'boolean' && !terrainDefinition.production) form.append(element('p', 'No environmental resource production.'));
       const direction = field(form, "Rail outgoing direction", explicit?.direction ?? "East", { entries: catalog.railDirections ?? ["North", "East", "South", "West"] });
       const coal = draft.legacyTerrainKind(draft.terrainSelectionAt(position)) === "Lava"
         ? field(form, "Coal generation", explicit?.coalGeneration === false ? "Off" : "On", { entries: ["On", "Off"] }) : null;

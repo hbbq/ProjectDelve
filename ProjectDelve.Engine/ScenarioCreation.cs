@@ -10,7 +10,7 @@ internal static class ScenarioCreation
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
-        var terrainTypes = TerrainCatalog.Resolve(definition.TerrainTypes);
+        var terrainTypes = TerrainCatalog.Resolve(definition.TerrainTypes, definition.TerrainAssemblies, definition.FixedComponentTypes);
         TerrainDefinition ResolveTerrain(TerrainKind legacy, string? typeId, bool? coalGeneration = null)
         {
             var resolvedId = TerrainCompatibility.ResolveTypeId(legacy, typeId, coalGeneration);

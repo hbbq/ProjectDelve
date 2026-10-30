@@ -5,6 +5,85 @@ const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',name)).href);
 
+const componentAssembly=(surface,recipe,quarterTurns=null)=>({surface:{presentation:{recipe:surface}},
+  components:[{slot:'furniture',definition:{id:`fixture-${recipe}`,name:recipe,presentation:{recipe,layer:'Object'}},quarterTurns}]});
+
+test('an assembly consumes only the printed surface of a borrowed combined visual recipe',async()=>{
+  const f=fixture(),board=f.state.physical.board;
+  board.terrainTypes=['Tree','StoneFloorWithTable','Rail','SolidRock'].map((recipe,i)=>({id:`printed-${i}`,name:`Printed ${recipe}`,
+    presentation:{recipe:'generic'},assembly:{surface:{presentation:{recipe}},components:[]}}));
+  board.terrain=board.terrainTypes.map((type,x)=>({position:{x,y:0},typeId:type.id}));
+  const h=await harness(f);try{
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.settle();h.flush();
+      assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').children.length,0);
+      assert.equal(h.rendered.at(-1).scene.getObjectByName('rails').children.length,0);
+    }
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('Table component reuses its batched geometry on two surfaces while new recipes and fallbacks keep Cell picking',async()=>{
+  const f=fixture(10),board=f.state.physical.board;
+  board.terrainTypes=[['stone-table','StoneFloor','Table'],['grass-table','Grass','Table'],['bed','StoneFloor','Bed'],
+    ['statue','Gravel','Statue'],['camp','Grass','Campfire'],['new-object','Grass','uninstalled-object']]
+    .map(([id,surface,recipe])=>({id,name:`Fixture ${id}`,presentation:{recipe:'generic'},assembly:componentAssembly(surface,recipe,1)}));
+  board.terrain=board.terrainTypes.map((type,x)=>({position:{x,y:0},typeId:type.id}));
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+    const objects=h.rendered.at(-1).scene.getObjectByName('objects'),m=new h.THREE.Matrix4();
+    let tableLegs=0;
+    for(const batch of objects.children)for(let i=0;i<batch.count;i++){
+      batch.getMatrixAt(i,m);const size=new h.THREE.Vector3().setFromMatrixScale(m);
+      if(Math.abs(size.y-.34)<1e-6&&Math.abs(size.x-.085)<1e-6)tableLegs++;
+    }
+    assert.equal(tableLegs,8);assert.ok(objects.children.every(n=>n.isInstancedMesh));
+    assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    for(const [width,height]of [[900,600],[390,700]]){
+      h.host.clientWidth=width;h.host.clientHeight=height;
+      const canvas=h.host.children.find(n=>n.tagName==='canvas');canvas.clientWidth=width;canvas.clientHeight=height;
+      h.viewport.camera.resize(width,height);h.viewport.settle();h.flush();
+      for(const tile of board.terrain)assert.deepEqual(h.viewport.pick(h.viewport.project({x:tile.position.x+.5,y:.5})).cell,tile.position);
+    }
+    const cached=[...objects.children];h.viewport.renderFrame(f);h.flush();assert.deepEqual(objects.children,cached);
+    h.viewport.setPresentation('flat');h.viewport.settle();h.flush();
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').children.length,6);
+    assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('canonical Table and Tree assemblies retain identical physical batches and artwork requests',async()=>{
+  const f=fixture(8);f.state.physical.board.terrain=[{kind:'StoneFloorWithTable',position:{x:0,y:0}},{kind:'Tree',position:{x:1,y:0}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const previous=[...h.rendered.at(-1).scene.getObjectByName('objects').children],requests=h.requests.length;
+    const resolved=structuredClone(f);resolved.state.physical.board.terrainTypes=[
+      {id:'fixture-table',name:'Table',presentation:{recipe:'StoneFloorWithTable'},assembly:componentAssembly('StoneFloor','Table')},
+      {id:'fixture-tree',name:'Tree',presentation:{recipe:'Tree'},assembly:componentAssembly('Grass','Tree')}];
+    resolved.state.physical.board.terrain.forEach((tile,i)=>tile.typeId=resolved.state.physical.board.terrainTypes[i].id);
+    h.viewport.renderFrame(resolved);h.flush();
+    assert.deepEqual(h.rendered.at(-1).scene.getObjectByName('objects').children,previous);
+    assert.equal(h.requests.length,requests);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('hidden assembly components never create bodies, artwork or light, and reveal uses only the checkpoint',async()=>{
+  const f=fixture(8,'blue');f.state.physical.board.terrainTypes=[
+    {id:'secret-camp',name:'Hidden Flame',presentation:{recipe:'generic'},assembly:componentAssembly('Grass','Campfire')}];
+  f.state.physical.board.terrain=[{typeId:'secret-camp',position:{x:7,y:7}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').children.length,0);
+    assert.equal(h.viewport.inspect().lighting.local.sources,0);
+    const revealed=structuredClone(f);revealed.state.exploredCells.blue.push({x:7,y:7});h.viewport.renderFrame(revealed);h.flush();
+    assert.ok(h.rendered.at(-1).scene.getObjectByName('objects').children.length>0);
+    assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    h.viewport.renderFrame(f);h.flush();
+    assert.equal(h.rendered.at(-1).scene.getObjectByName('objects').children.length,0);
+    assert.equal(h.viewport.inspect().lighting.local.sources,0);assert.equal(h.frames.size,0);
+  }finally{h.cleanup();}
+});
+
 test('observed local Terrain uses recipe and declared name without revealing hidden definitions',async()=>{
   const {observedTerrain}=await moduleAt('three-viewport.js');
   const frame={state:{physical:{board:{width:3,height:1,terrain:[

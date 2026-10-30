@@ -1,7 +1,8 @@
 import * as THREE from './vendor/three/0.180.0/build/three.module.js';
 
 // Presentation recipes, in board-cell units and linear RGB. No game queries.
-export const localLightRecipes=Object.freeze({Lava:Object.freeze({color:[1,.30,.055],strength:3.4,radius:3.5})});
+export const localLightRecipes=Object.freeze({Lava:Object.freeze({color:[1,.30,.055],strength:3.4,radius:3.5}),
+  Campfire:Object.freeze({color:[1,.48,.12],strength:1.8,radius:2.5})});
 
 // Shared with the star's placement. One restrained source per observed pile,
 // regardless of its count; known Items/Equipment do not emit light.
@@ -57,9 +58,22 @@ export function buildLocalLightField({board,kindAt},sources,edges=board.edges??[
   return {width,height,pixels,sources:accepted};
 }
 
-export function terrainLightSources({board,kindAt}){
+export function terrainLightSources({board,kindAt,displayAt}){
   const sources=[];
-  for(let z=0;z<board.height;z++)for(let x=0;x<board.width;x++){const recipe=localLightRecipes[kindAt(x,z)];if(recipe)sources.push({x:x+.5,z:z+.5,...recipe});}
+  for(let z=0;z<board.height;z++)for(let x=0;x<board.width;x++){
+    const kind=kindAt(x,z);if(kind==='Unknown')continue;
+    const assembly=displayAt?.(x,z)?.assembly;
+    const surfaceRecipe=assembly?.surface.presentation.recipe??kind;
+    const recipe=Object.hasOwn(localLightRecipes,surfaceRecipe)?localLightRecipes[surfaceRecipe]:null;
+    if(recipe)sources.push({x:x+.5,z:z+.5,...recipe});
+    for(const component of assembly?.components??[]){
+      // Flat decorative stamps do not emit light. This policy belongs to their
+      // visible representation, never to movement or gameplay LOS properties.
+      const componentRecipe=component.definition.presentation.recipe;
+      const light=component.definition.presentation.layer!=='Decal'&&Object.hasOwn(localLightRecipes,componentRecipe)?localLightRecipes[componentRecipe]:null;
+      if(light)sources.push({x:x+.5,z:z+.5,...light});
+    }
+  }
   return sources;
 }
 

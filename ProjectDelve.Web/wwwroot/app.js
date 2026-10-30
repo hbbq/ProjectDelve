@@ -491,7 +491,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.className = `cell ${kind}${display.fallback ? ' custom-terrain' : ''}`; node.dataset.cell = key; node.dataset.x = x; node.dataset.y = y;
     node.dataset.x = String(x); node.dataset.y = String(y);
     applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
-      x, y, direction: tile?.direction, terrain });
+      x, y, direction: tile?.direction, terrain, assembly: display.assembly });
     node.dataset.railDirection = tile?.direction ?? "";
     retainedCells.add(key);
     const coordinates = text("span", node.dataset.cell);

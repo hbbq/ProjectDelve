@@ -112,11 +112,29 @@ export function terrainDisplay(board, tile) {
   const definition = tile?.typeId != null
     ? board.terrainTypes?.find(type => type.id === tile.typeId)
     : board.terrainTypes?.find(type => type.legacyKind === (tile?.kind ?? 'StoneFloor'));
-  const recipe = definition?.presentation?.recipe ?? (tile?.typeId != null ? 'default' : tile?.kind ?? 'StoneFloor');
+  const assembly = definition?.assembly;
+  const authoredRecipe = definition?.presentation?.recipe;
+  const surfaceRecipe = assembly?.surface.presentation.recipe;
+  const recipe = assembly && !Object.hasOwn(boardVisuals.terrain, authoredRecipe)
+    ? boardVisuals.terrain[surfaceRecipe]?.baseTerrain ?? surfaceRecipe
+    : authoredRecipe ?? (tile?.typeId != null ? 'default' : tile?.kind ?? 'StoneFloor');
   const known = recipe !== 'Unknown' && Object.hasOwn(boardVisuals.terrain, recipe);
   return { kind: known ? recipe : 'default', name: definition?.name ?? tile?.typeId ?? tile?.kind ?? 'Stone Floor',
-    typeId: definition?.id ?? tile?.typeId, fallback: !known || recipe === 'default', custom: tile?.typeId != null };
+    typeId: definition?.id ?? tile?.typeId, fallback: !known || recipe === 'default', custom: tile?.typeId != null,
+    assembly };
 }
+
+// Reusable presentation recipes, independent of Component and Terrain Type IDs.
+// Table deliberately samples the existing recipe's variation domain.
+export const fixedComponentVisuals = {
+  Table: { terrainRecipe: 'StoneFloorWithTable', glyph: '▰', fill: '#d6b17b' },
+  Tree: { terrainRecipe: 'Tree', glyph: '♣', fill: '#91ba63' },
+  FruitTree: { terrainRecipe: 'FruitTree', glyph: '♣', fill: '#91ba63' },
+  Bed: { glyph: '▰', fill: '#697e9c', detail: 'linear-gradient(90deg, transparent 10%, #795538 11% 17%, #a6b9d1 18% 35%, #526d96 36% 78%, #795538 79% 86%, transparent 87%)' },
+  Statue: { glyph: '◆', fill: '#a6aaa5', detail: 'radial-gradient(ellipse, #c3c5bb 0 20%, #747d7b 22% 34%, transparent 36%)' },
+  Campfire: { glyph: '♨', fill: '#e99b36', detail: 'radial-gradient(ellipse, #ffe49a 0 10%, #ee982d 12% 24%, #7f4b28 26% 35%, transparent 37%)' },
+  generic: { glyph: '?', fill: '#a897ba', detail: 'linear-gradient(45deg, transparent 25%, #9783a5 26% 72%, transparent 73%)' }
+};
 
 // FNV-1a over UTF-16LE bytes. Math.imul and >>> keep unsigned 32-bit results
 // identical across browsers. Version the input so a future algorithm is explicit.
@@ -145,6 +163,7 @@ export function terrainRotation(seed, id, x, y, layer = "base") {
 }
 
 export function terrainLayers(id, context = {}) {
+  if (context.assembly) return assembledTerrainLayers(id, context);
   const entry = Object.hasOwn(boardVisuals.terrain, id) ? boardVisuals.terrain[id] : {};
   const seed = context.seed ?? "legacy", x = context.x ?? 0, y = context.y ?? 0;
   const baseId = entry.baseTerrain ?? id;
@@ -162,6 +181,37 @@ export function terrainLayers(id, context = {}) {
     objectRotation: entry.object?.rotation ? terrainRotation(seed, id, x, y, "object") : 0,
     objectDetail: entry.detail ?? "none"
   };
+}
+
+function assembledTerrainLayers(id, context) {
+  const assembly = context.assembly, plain = { ...context, assembly: null };
+  const surfaceRecipe = assembly.surface.presentation.recipe;
+  const components = assembly.components ?? [];
+  const only = components.length === 1 ? components[0] : null;
+  const onlyRecipe = only?.definition.presentation.recipe;
+  const oldRecipe = Object.hasOwn(fixedComponentVisuals, onlyRecipe) ? fixedComponentVisuals[onlyRecipe].terrainRecipe : null;
+  // The canonical assembled pieces keep their original floor/object sampling,
+  // quarter turns, artwork and DOM path, including the old floor rotation domain.
+  if (only?.definition.presentation.layer !== 'Decal' && only?.quarterTurns == null &&
+      oldRecipe === id && boardVisuals.terrain[id]?.baseTerrain === surfaceRecipe)
+    return terrainLayers(id, plain);
+  const surface = terrainLayers(surfaceRecipe, plain);
+  let decalIndex = 0;
+  const layers = components.map(binding => {
+    const recipe = binding.definition.presentation.recipe;
+    const registered = Object.hasOwn(fixedComponentVisuals, recipe) ? fixedComponentVisuals[recipe] : null;
+    const visual = registered ?? fixedComponentVisuals.generic;
+    const sampled = visual.terrainRecipe ? terrainLayers(visual.terrainRecipe, plain) : null;
+    const decal = binding.definition.presentation.layer === 'Decal';
+    const corner = decal ? [[.23,.23],[.77,.23],[.77,.77],[.23,.77]][decalIndex++] : [.5,.5];
+    const rotation = binding.quarterTurns == null ? sampled?.objectRotation ??
+      terrainRotation(context.seed ?? 'legacy', `component:${recipe}`, context.x ?? 0, context.y ?? 0, 'object') : binding.quarterTurns * 90;
+    return { recipe, slot: binding.slot, name: binding.definition.name, decal,
+      object: { ...visual, ...sampled?.object }, objectIndex: sampled?.objectIndex ?? 0,
+      objectRotation: rotation, objectDetail: sampled?.objectDetail ?? visual.detail ?? 'none',
+      x: corner[0], y: corner[1], scale: decal ? .28 : 1, fallback: !registered };
+  });
+  return { ...surface, object: null, components: layers };
 }
 
 const railDirections = ["North", "East", "South", "West"];
@@ -208,12 +258,46 @@ export function applyBoardVisual(node, category, id, context = {}) {
   if (layers) {
     node.dataset.visualRotation = String(layers.rotation);
     node.style.setProperty("--visual-rotation", `${layers.rotation}deg`);
-    applyTerrainObject(node, layers);
-    applyRailArtwork(node, id === "Rail" ? context : null);
+    applyTerrainObject(node, layers.components ? { object: null } : layers);
+    applyTerrainComponents(node, layers.components);
+    applyRailArtwork(node, id === "Rail" && !layers.components ? context : null);
   }
   if (category === "edge") applyEdgeArtwork(node, visual.image);
   if (category === "machine" || category === "resource" || category === "cellMarker") applyObjectArtwork(node, visual);
   return visual;
+}
+
+function applyTerrainComponents(node, components) {
+  const previous = node.fixedComponentArtwork ?? new Map(), retained = new Map();
+  for (const component of components ?? []) {
+    let layer = previous.get(component.slot);
+    if (!layer) {
+      layer = document.createElement('span'); layer.className = 'fixed-component-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      const fallback = document.createElement('span'); fallback.className = 'fixed-component-fallback';
+      layer.append(fallback); layer.fallback = fallback;
+      const image = document.createElement('img'); image.className = 'fixed-component-artwork';
+      image.alt = ''; image.draggable = false; layer.append(image); layer.image = image;
+      image.addEventListener('load', () => { layer.dataset.artwork = 'ready'; });
+      image.addEventListener('error', () => { layer.dataset.artwork = 'missing'; });
+    }
+    layer.dataset.componentRecipe = component.recipe; layer.dataset.slot = component.slot;
+    layer.dataset.decal = String(component.decal); layer.title = component.name;
+    layer.fallback.textContent = component.object.glyph ?? '?';
+    layer.style.setProperty('--component-detail', component.objectDetail);
+    layer.style.setProperty('--component-fill', component.object.fill ?? '#a897ba');
+    Object.assign(layer.style, { left: `${(component.x-component.scale/2)*100}%`, top: `${(component.y-component.scale/2)*100}%`,
+      width: `${component.scale*100}%`, height: `${component.scale*100}%`, transform: `rotate(${component.objectRotation}deg)` });
+    const source = component.object.image;
+    if (!source) { layer.dataset.artwork = 'missing'; layer.image.removeAttribute('src'); delete layer.image.dataset.source; }
+    else if (layer.image.dataset.source !== source) {
+      layer.dataset.artwork = 'loading'; layer.image.dataset.source = source; layer.image.src = source;
+    }
+    node.append(layer); retained.set(component.slot, layer);
+  }
+  for (const [slot, layer] of previous) if (!retained.has(slot)) layer.remove();
+  node.fixedComponentArtwork = retained;
+  if (components?.length) node.dataset.fixedComponents = 'true'; else delete node.dataset.fixedComponents;
 }
 
 function applyObjectArtwork(node, visual) {

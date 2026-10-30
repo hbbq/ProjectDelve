@@ -12,6 +12,7 @@ export class DesignerDraft {
       throw new Error(`Designer boards must be 1..${this.catalog.maxBoardSize} cells in each dimension.`);
     this.definition = structuredClone(definition);
     this.effectiveTerrainMetadata = null;
+    this.effectiveFixedComponentMetadata = null;
     this.effectiveProductionDescriptions = null;
     this.unitKeys = this.definition.units.map(() => ++this.nextKey);
     this.machineKeys = (this.definition.machines ?? []).map(() => ++this.nextKey);
@@ -166,7 +167,10 @@ export class DesignerDraft {
     return entry ? entry.terrainTypeId ?? entry.terrain : this.definition.board.defaultTerrainTypeId ?? this.definition.board.defaultTerrain;
   }
   terrainCatalog() {
-    return this.effectiveTerrainMetadata ?? [...(this.catalog.terrainDefinitions ?? []), ...(this.definition.terrainTypes ?? [])];
+    return this.effectiveTerrainMetadata ?? [...(this.catalog.terrainDefinitions ?? []), ...(this.definition.terrainTypes ?? []), ...(this.definition.terrainAssemblies ?? [])];
+  }
+  fixedComponentCatalog() {
+    return this.effectiveFixedComponentMetadata ?? [...(this.catalog.fixedComponentDefinitions ?? []), ...(this.definition.fixedComponentTypes ?? [])];
   }
   terrainTypeSelection(id) { return `type:${encodeURIComponent(id)}`; }
   defaultTerrainSelection() {
@@ -202,8 +206,22 @@ export class DesignerDraft {
   }
   terrainRecipeAt(cell) {
     const reference = this.terrainSelectionAt(cell), definition = this.terrainDefinitionAt(cell);
-    const recipe = definition?.presentation?.recipe ?? reference;
+    const recipe = (definition?.legacyKind ? definition.presentation?.recipe : this.terrainSurfaceAt(cell)?.presentation?.recipe)
+      ?? definition?.presentation?.recipe ?? reference;
     return this.catalog.terrains.includes(recipe) ? recipe : 'custom-terrain';
+  }
+  terrainSurfaceAt(cell) {
+    const definition = this.terrainDefinitionAt(cell);
+    return definition?.assembly?.surface ?? (definition?.surfaceId ? this.terrainCatalog().find(type => type.id === definition.surfaceId) : null);
+  }
+  terrainComponentsAt(cell) {
+    const definition = this.terrainDefinitionAt(cell);
+    // Resolve presentation names only. Gameplay properties always come from Engine metadata.
+    return (definition?.assembly?.components ?? definition?.components ?? []).map(component => {
+      const content = component.definition ?? this.fixedComponentCatalog().find(type => type.id === component.componentId);
+      return { slot: component.slot, componentId: content?.id ?? component.componentId,
+        name: content?.name ?? component.componentId, quarterTurns: component.quarterTurns, presentation: content?.presentation };
+    });
   }
   setDefaultTerrain(reference) {
     if (this.catalog.terrains.includes(reference)) {
