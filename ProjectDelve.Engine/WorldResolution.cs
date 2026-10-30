@@ -144,6 +144,7 @@ public static partial class GameEngine
             new(uses.MaxUses, Math.Min(uses.MaxUses, uses.RemainingUses + 1));
         state.Units[index] = unit with
         {
+            AbilityUseCounts = unit.AbilityUseCounts.ToImmutableDictionary(p => p.Key, p => Math.Max(0, p.Value - 1)),
             CleaveUses = Replenish(unit.CleaveUses), HealUses = Replenish(unit.HealUses),
             HolyWaveUses = Replenish(unit.HolyWaveUses), FireballUses = Replenish(unit.FireballUses),
             BonusActionUses = unit.BonusActionUses.ToImmutableDictionary(e => e.Key, e => Replenish(e.Value)!)

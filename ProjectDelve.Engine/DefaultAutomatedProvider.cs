@@ -27,7 +27,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         if (objectChoice is not null) return objectChoice.Key;
         if (request.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn) &&
             !request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Action) &&
-            request.Candidates.FirstOrDefault(c => c.ObjectKind == LootCardKind.SecondWind) is { } wind)
+            request.Candidates.FirstOrDefault(c => c.GrantedAbility?.Definition.Mechanic is ExtraActionsMechanic) is { } wind)
             return wind.Key;
         if (request.Candidates.FirstOrDefault(c => c.EquipmentGranted && c.FreeAction == UnitFreeAction.OpenDoor) is { } open) return open.Key;
         if (request.Candidates.FirstOrDefault(c => c.BonusAction?.Boost is not null) is { } boost) return boost.Key;

@@ -69,6 +69,7 @@ public sealed record AttackContinuation(string AttackerId, string ActionId, stri
     public DiceResult? AttackRoll { get; init; }
     public ImmutableArray<Cell> DefeatedHostileCells { get; init; } = [];
     public bool IsNormalMelee { get; init; }
+    public UnitAction? SemanticAction { get; init; }
 }
 public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount, string ActionId);
 
@@ -245,6 +246,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public ResourceStorage? ResourceStorage { get; init; }
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
+    public ImmutableArray<AbilityGrant> AbilityGrants { get; init; } = [];
     public HolyWave? HolyWave { get; init; }
     public Fireball? Fireball { get; init; }
     public ClawAttack? ClawAttack { get; init; }
@@ -309,6 +311,7 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
         get => inventory;
         init => inventory = value.IsDefaultOrEmpty ? ImmutableArray<OwnedObject>.Empty : value;
     }
+    public ImmutableDictionary<string, int> AbilityUseCounts { get; init; } = ImmutableDictionary<string, int>.Empty;
     public AbilityUses? CleaveUses { get; init; }
     public AbilityUses? HealUses { get; init; }
     public AbilityUses? HolyWaveUses { get; init; }
@@ -346,6 +349,8 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
     bool Relevant = true, BonusActionAbility? BonusAction = null)
 {
+    public ResolvedAbility? GrantedAbility { get; init; }
+    public string? ItemTypeId { get; init; }
     public string? ObjectId { get; init; }
     public LootCardKind? ObjectKind { get; init; }
     public string? EquipmentTypeId { get; init; }
@@ -407,6 +412,9 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
 public sealed class GameState : IJsonOnDeserialized
 {
     void IJsonOnDeserialized.OnDeserialized() => EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
+    public List<AbilityDefinition> AbilityDefinitions { get; set; } = AbilityCatalog.Resolve(null);
+    public List<ItemDefinition> ItemTypes { get; set; } = ItemCatalog.Resolve(null);
+    public List<LootCardDefinition> LootCardDefinitions { get; set; } = LootCardCatalog.Resolve(null);
     public List<EquipmentDefinition> EquipmentTypes { get; set; } = EquipmentCatalog.Resolve(null);
     public LootDeck? LootDeck { get; set; }
     public List<LootMarker> LootMarkers { get; set; } = [];
@@ -529,7 +537,7 @@ public sealed class GameState : IJsonOnDeserialized
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Atk;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var attack = type.Atk + this.EquipmentModifier(unitId, Stat.Atk) + (WorldDeck?.Modifier(WorldEffect.Bloodlust, WorldEffect.Weakness) ?? 0) + (CurrentUnitId == unitId
+        var attack = type.Atk + this.EquipmentModifier(unitId, Stat.Atk) + this.AbilityModifier(unitId, Stat.Atk) + (WorldDeck?.Modifier(WorldEffect.Bloodlust, WorldEffect.Weakness) ?? 0) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
@@ -561,33 +569,23 @@ public sealed class GameState : IJsonOnDeserialized
     public int EffectiveMovOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
         Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
-        this.EquipmentModifier(unitId, Stat.Mov) +
+        this.EquipmentModifier(unitId, Stat.Mov) + this.AbilityModifier(unitId, Stat.Mov) +
         (WorldDeck?.Modifier(WorldEffect.Haste, WorldEffect.Sluggishness) ?? 0) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Rng :
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + this.EquipmentModifier(unitId, Stat.Rng) +
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + this.EquipmentModifier(unitId, Stat.Rng) + this.AbilityModifier(unitId, Stat.Rng) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
     public int EffectiveDefOf(string unitId)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Def;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var defence = type.Def + this.EquipmentModifier(unitId, Stat.Def) + (WorldDeck?.Modifier(WorldEffect.IronSkin, WorldEffect.Vulnerability) ?? 0) + (CurrentUnitId == unitId
+        var defence = type.Def + this.EquipmentModifier(unitId, Stat.Def) + this.AbilityModifier(unitId, Stat.Def) + (WorldDeck?.Modifier(WorldEffect.IronSkin, WorldEffect.Vulnerability) ?? 0) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (unit.CurrentHp <= 0 || figure is null) return Math.Max(0, defence);
 
-        // Derive passives from this state's content and physical situation on every query.
-        // No derived state is shared with live, copied or hypothetical worlds.
-        foreach (var source in Units.Where(u => u.Id != unitId && u.CurrentHp > 0 && u.SideId == unit.SideId))
-        {
-            var bonus = Types.Single(t => t.Id == source.TypeId).AdjacentFriendlyUnitsDefenceBonus;
-            if (bonus is null) continue;
-            var sourceFigure = Physical.Figures.SingleOrDefault(f => f.Id == source.Id);
-            if (sourceFigure is { Posture: Posture.Upright } && SpatialRules.AreAdjacent(this, source.Id, unitId))
-                defence += bonus.Amount;
-        }
         return Math.Max(0, defence);
     }
     public List<string> CompletedUnitIds { get; set; } = [];
@@ -626,6 +624,7 @@ public sealed class GameState : IJsonOnDeserialized
 
     internal GameState Copy() => new()
     {
+        AbilityDefinitions = [.. AbilityDefinitions], ItemTypes = [.. ItemTypes], LootCardDefinitions = [.. LootCardDefinitions],
         EquipmentTypes = [.. EquipmentTypes],
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,

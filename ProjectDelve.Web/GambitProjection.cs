@@ -17,9 +17,17 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ObjectDisplay>? Inventory { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<GambitGrantedAbility>? Abilities { get; init; }
 }
 public sealed record GambitAbility(string Id, string Name, string Category, string Description,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaximumUses);
+public sealed record GambitGrantedAbility(GambitAbility Content, string Source,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SourceName,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SourceTypeId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SourceInstanceId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AccountingId,
+    int CopyCount);
 public sealed record GambitType(string Id, string Name, Footprint Footprint, GambitStats Stats, int Hp,
     IReadOnlyList<GambitAbility> Abilities);
 public sealed record GambitBagEntry(string TypeId, string SideId, int Count);
@@ -79,6 +87,10 @@ public sealed record GambitCandidate(string Key, ActivationChoiceKind Kind, bool
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ObjectId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AccountingId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AbilityName { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public LootCardContent? ObjectContent { get; init; }
 }
@@ -162,7 +174,7 @@ internal static class GambitProjection
         ContentDescriptions.EntryId(candidate), candidate.Destination, candidate.Path,
         candidate.Action, candidate.TargetId, candidate.TargetIds.IsDefaultOrEmpty ? null : candidate.TargetIds,
         candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId)
-        { ObjectId = candidate.ObjectId, ObjectContent = state?.CandidateObjectContent(candidate) ?? (candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null) };
+        { ObjectId = candidate.ObjectId, AccountingId = candidate.GrantedAbility?.AccountingId, AbilityName = candidate.GrantedAbility?.Definition.Name, ObjectContent = state?.CandidateObjectContent(candidate) ?? (candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null) };
 
     private static GambitRoll Roll(DicePool pool) => new(pool.Family, pool.Count, pool.OwnerUnitId, pool.SourceUnitId,
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
@@ -183,9 +195,15 @@ internal static class GambitProjection
             var type = state.Types.Single(t => t.Id == unit.TypeId);
             geometries.TryGetValue(unit.Id, out var geometry);
             var posture = state.Physical.Figures.FirstOrDefault(f => f.Id == unit.Id)?.Posture;
-            var uses = type.CardEntries(state.Types).Select(entry => (entry, uses: type.UsesFor(unit, entry.Id)))
-                .Where(pair => pair.uses is not null)
-                .Select(pair => new GambitAbilityUse(pair.entry.Id, pair.uses!.RemainingUses, pair.uses.MaxUses)).ToArray();
+            var entries = BrowserProjection.Entries(state, unit).ToArray();
+            var uses = entries.Where(entry => entry.Uses is not null)
+                .Select(entry => new GambitAbilityUse(entry.Content.Id, entry.Uses!.RemainingUses, entry.Uses.MaxUses)).ToArray();
+            var typeEntryIds = type.CardEntries(state.Types).Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
+            // Ordinary native entries are already described once by Types. Only
+            // individual grants and newly authored native grants need extra copy.
+            var individualAbilities = entries.Where(e => e.Source != "Native" || !typeEntryIds.Contains(e.Content.Id))
+                .Select(e => new GambitGrantedAbility(new(e.Content.Id, e.Content.Name, e.Content.Category, e.Content.Description, e.Content.MaxUses),
+                    e.Source, e.SourceName, e.SourceTypeId, e.SourceInstanceId, e.AccountingId, e.CopyCount)).ToArray();
             var token = new ActivationToken(unit.TypeId, unit.SideId);
             var agency = unit.SideId != bindingSide ? (state.AreHostile(bindingSide, unit.SideId) ? GambitAgency.Hostile : GambitAgency.Neutral)
                 : controllerBindings.GetValueOrDefault(token) == "Gambit" ? GambitAgency.Direct : GambitAgency.Allied;
@@ -193,7 +211,8 @@ internal static class GambitProjection
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
-                { Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
+                { Abilities = individualAbilities.Length == 0 ? null : individualAbilities,
+                    Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
         }).ToArray();
         var types = state.Types.Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
             new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,

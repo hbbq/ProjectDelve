@@ -76,6 +76,13 @@ public static class FogOfWar
         var known = observed.Units.SelectMany(u => u.Inventory).Concat(observed.GroundObjects.Select(g => g.Object))
             .Select(observed.EquipmentTypeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
         observed.EquipmentTypes.RemoveAll(d => !known.Contains(d.Id));
+        var items = observed.Units.SelectMany(u => u.Inventory).Concat(observed.GroundObjects.Select(g => g.Object))
+            .Select(observed.ItemTypeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        observed.ItemTypes.RemoveAll(d => !items.Contains(d.Id));
+        var abilities = observed.Types.SelectMany(t => t.AbilityGrants).Concat(observed.EquipmentTypes.SelectMany(t => t.Grants))
+            .Concat(observed.ItemTypes.SelectMany(t => t.Grants)).Select(g => g.AbilityId).ToHashSet(StringComparer.Ordinal);
+        observed.AbilityDefinitions.RemoveAll(d => !abilities.Contains(d.Id));
+        observed.LootCardDefinitions.Clear();
     }
 
     public static DecisionRequest? ObserveDecision(GameState state, string? side, DecisionRequest? request)
@@ -248,9 +255,16 @@ public static class FogOfWar
     {
         if (state.FogOfWarSides.Count == 0) return;
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
-        var range = attack.ActionId == "shoot-shell"
+        // Old continuations predate typed Attack semantics. Identity is read only
+        // by this compatibility adapter; newly begun Attacks always carry semantics.
+        var semantic = attack.SemanticAction ?? attack.ActionId switch
+        {
+            "shoot-shell" => UnitAction.ShootShell, "claw-attack" => UnitAction.ClawAttack,
+            "fireball" => UnitAction.Fireball, _ => UnitAction.NormalAttack
+        };
+        var range = semantic == UnitAction.ShootShell
             ? state.Types.Single(t => t.Id == attacker.TypeId).ShootShell!.Rng
-            : attack.ActionId == "claw-attack" ? 1 : state.EffectiveRngOf(attacker.Id);
+            : semantic == UnitAction.ClawAttack ? 1 : state.EffectiveRngOf(attacker.Id);
         // Fireball has an established direct source-to-selected-Cell path. Its explosion
         // has no trajectory. Other direct Attacks use each established target line.
         var endpoints = attack.SelectedCell is { } cell
@@ -265,7 +279,7 @@ public static class FogOfWar
         {
             var line = (from source in FootprintGeometry.OccupiedCells(state, attacker.Id)
                         from endpoint in endpointsForTarget
-                        where (attack.ActionId == "fireball"
+                        where (semantic == UnitAction.Fireball
                             ? Math.Abs(source.X - endpoint.Cell.X) + Math.Abs(source.Y - endpoint.Cell.Y) <= range
                             : AttackRules.InRange(source, endpoint.Cell, range)) &&
                             AttackRules.HasUnitLineOfSight(state, attacker.Id, source, endpoint.Cell, endpoint.TargetId)

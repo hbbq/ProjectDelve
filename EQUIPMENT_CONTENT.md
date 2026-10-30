@@ -1,5 +1,7 @@
 # Equipment content — milestone 1
 
+Milestone 2 extends this model with shared Ability grants and independent Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for new Equipment Actions that reuse Unit mechanics, supported source/timing combinations and scenario-local Item authoring. The milestone 1 declarations below remain compatible.
+
 ## Playable example: Local Equipment - Fitting Room
 
 Open **Home → Test Scenarios → Local Equipment - Fitting Room → Play scenario** (or find the same title under **Scenarios**). Its complete definition lives in `ProjectDelve.Web/Content/Library/library.json`; Paperwind Cape is local test content, not a canonical Equipment Type.
@@ -14,7 +16,7 @@ The engine resolves canonical definitions and a scenario's local definitions int
 
 ## Adding canonical Equipment
 
-Add an `EquipmentDefinition` to `EquipmentCatalog` using supported declarations. For example:
+Add an `EquipmentDefinition` to `EquipmentRoster.All` in [EquipmentRoster.cs](ProjectDelve.Engine/EquipmentRoster.cs) using supported declarations. `EquipmentCatalog` retains validation and scenario-local resolution separately from the authored content. For example:
 
 ```csharp
 new EquipmentDefinition("trail-medallion", "Trail Medallion")
@@ -40,6 +42,8 @@ new EquipmentDefinition("holy-bell", "Holy Bell")
 Use `DescriptionOverride` on an Ability only when the generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Stat descriptions always come from the typed amounts. The legacy Goat Bell's `CandidatePrefix` preserves existing saved decision keys; leave it unset for new content, whose keys derive from source Instance ID and Ability ID.
 
 These are ordinary serializable C# definitions. JSON produces the same model and passes the same validation. No delegate, script, parsed Ability prose, content-specific Engine handler or Web switch is required. Adding a genuinely new mechanic still requires a rules decision and implementation; this milestone deliberately supports only the established mechanics above.
+
+Canonical Ability, Item, Loot and existing World Card declarations likewise live in `AbilityRoster.cs`, `ItemRoster.cs`, `LootRoster.cs` and `WorldCardRoster.cs`, separate from their mechanics. See [the content authoring files](ABILITY_CONTENT.md#definitions-and-grants) for their paths. A future JSON provider can replace these roster providers at the same typed catalog boundary; the current extraction changes no IDs or serialized formats.
 
 Give an instance directly with `new OwnedObject("physical-medallion-1", "trail-medallion")`. Keep its Instance ID unchanged when moving it between inventory and ground. To offer it as random Loot, add `new LootCardQuantity("trail-medallion", 2)` to a Custom Loot composition. Canonical presets continue to reference their existing centrally maintained cards.
 

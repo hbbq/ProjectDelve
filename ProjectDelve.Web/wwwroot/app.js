@@ -746,7 +746,7 @@ function renderUnitCard() {
     row.dataset.source = entry.source ?? "Native";
     const source = text("small", entry.source === "Item" ? "Single Use Item" : entry.source ?? "Native");
     source.className = "ability-source";
-    if (entry.sourceName && entry.source === "Equipment") source.textContent += ` · ${entry.sourceName}`;
+    if (entry.sourceName && ["Equipment", "Item"].includes(entry.source)) source.textContent += ` · ${entry.sourceName}`;
     row.append(source);
     const ability = entry.content;
     const heading = text("div", ""); heading.className = "ability-heading";
@@ -762,7 +762,7 @@ function renderUnitCard() {
     row.append(abilityDescription(ability));
     const decision = snapshot?.presentation.decision;
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
-      ? decision.candidates.filter(candidate => candidate.entryId === ability.id && candidate.interaction.kind === "Direct") : [];
+      ? decision.candidates.filter(candidate => (candidate.accountingId ?? candidate.entryId) === (entry.accountingId ?? ability.id) && candidate.interaction.kind === "Direct") : [];
     for (const candidate of (entry.source === "Item" ? candidates.slice(0, 1) : candidates)) {
       const button = choiceButton(candidate);
       button.dataset.legal = "true";
@@ -1698,6 +1698,9 @@ function renderTurn(state) {
 }
 
 function actionLabel(pool) {
+  const context = combatDice?.context ?? displayedState?.attackInProgress ?? snapshot?.result.state.attackInProgress;
+  if (context && context.attackerId === pool.sourceUnitId && context.actionId === pool.sourceActionId && context.abilityName)
+    return context.abilityName;
   const card = displayedCards?.[pool.sourceUnitId];
   return card?.entries.find(entry => entry.content.id === pool.sourceActionId)?.content.name ?? pool.sourceActionId;
 }

@@ -16,6 +16,7 @@ public sealed record EquipmentAbility(string Id, string Name, EquipmentActionMec
 
 public sealed record EquipmentDefinition(string Id, string Name)
 {
+    public ImmutableArray<AbilityGrant> Grants { get; init; } = [];
     public ImmutableArray<EquipmentStatModifier> Modifiers { get; init; } = [];
     public ImmutableArray<EquipmentCapability> Capabilities { get; init; } = [];
     public ImmutableArray<EquipmentAbility> Abilities { get; init; } = [];
@@ -46,13 +47,7 @@ public sealed record EquipmentDefinition(string Id, string Name)
 
 public static class EquipmentCatalog
 {
-    public static IReadOnlyList<EquipmentDefinition> All { get; } = Array.AsReadOnly(new EquipmentDefinition[]
-    {
-        new("bedsheet", "One-Size-Fits-Most Bedsheet") { Capabilities = [EquipmentCapability.Phase] },
-        new("lucky-boots", "Lucky Boots") { Modifiers = [new(Stat.Mov, 1)] },
-        new("official-key", "Official-Looking Key") { Capabilities = [EquipmentCapability.OpenDoor] },
-        new("goat-bell", "Emergency Goat Bell") { Abilities = [new("stand-up", "Emergency Goat Bell", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit) { CandidatePrefix = "goat-bell" }] }
-    });
+    public static IReadOnlyList<EquipmentDefinition> All => EquipmentRoster.All;
     public static List<EquipmentDefinition> Resolve(IEnumerable<EquipmentDefinition>? local)
     {
         var definitions = All.Concat(local ?? []).ToList();
@@ -88,13 +83,15 @@ public static class EquipmentCatalog
 
 public static class EquipmentQueries
 {
-    public static string? EquipmentTypeId(this GameState state, OwnedObject obj) => obj.EquipmentTypeId ?? EquipmentCatalog.LegacyTypeId(obj.Kind);
+    public static string? EquipmentTypeId(this GameState state, OwnedObject obj) => obj.EquipmentTypeId ?? (obj.ItemTypeId is null ? EquipmentCatalog.LegacyTypeId(obj.Kind) : null);
     public static EquipmentDefinition Equipment(this GameState state, string id) => state.EquipmentTypes.SingleOrDefault(d => d.Id == id)
         ?? throw new ArgumentException($"Unknown Equipment Type ID '{id}'.");
     public static LootCardContent ObjectContent(this GameState state, OwnedObject obj) => state.EquipmentTypeId(obj) is { } id
-        ? new(obj.Kind, state.Equipment(id).Name, LootCategory.Equipment, state.Equipment(id).Description) { EquipmentTypeId = id }
-        : LootCards.Content(obj.Kind);
-    public static LootCardContent? CandidateObjectContent(this GameState state, Candidate candidate) => candidate.EquipmentTypeId is { } id
+        ? new(obj.Kind, state.Equipment(id).Name, LootCategory.Equipment, string.Join(" ", new[] { state.Equipment(id).Description }.Concat(state.Equipment(id).Grants.Select(g => { var e = state.Ability(g.AbilityId).CardEntry(); return $"{e.Category}: {e.Description}"; })))) { EquipmentTypeId = id }
+        : state.ItemTypeId(obj) is not null ? state.ItemContent(obj) : LootCards.Content(obj.Kind);
+    public static LootCardContent? CandidateObjectContent(this GameState state, Candidate candidate) => candidate.ItemTypeId is { } itemId
+        ? state.ObjectContent(new OwnedObject(candidate.ObjectId ?? "candidate") { ItemTypeId = itemId })
+        : candidate.EquipmentTypeId is { } id
         ? state.ObjectContent(new OwnedObject(candidate.ObjectId ?? "candidate", id))
         : candidate.ObjectKind is { } kind ? state.ObjectContent(new OwnedObject(candidate.ObjectId ?? "candidate", kind)) : null;
     public static IEnumerable<EquipmentDefinition> ActiveEquipment(this GameState state, string unitId) => state.IsUpright(unitId)

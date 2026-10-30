@@ -127,11 +127,11 @@ internal static class ScenarioCreation
             }
         var state = new GameState
         {
-            LootDeck = new LootDeck
-            {
-                DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects()
-            },
+            LootDeck = new LootDeck(),
             EquipmentTypes = EquipmentCatalog.Resolve(definition.EquipmentTypes),
+            AbilityDefinitions = AbilityCatalog.Resolve(definition.AbilityDefinitions),
+            ItemTypes = ItemCatalog.Resolve(definition.ItemTypes),
+            LootCardDefinitions = LootCardCatalog.Resolve(definition.LootCardDefinitions),
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
@@ -143,6 +143,7 @@ internal static class ScenarioCreation
             WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };
+        state.LootDeck.DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects(state.LootCardDefinitions);
         for (var index = 0; index < (definition.Resources?.Count ?? 0); index++)
         {
             try

@@ -2,6 +2,224 @@
   "version": 1,
   "scenarios": [
     {
+      "id": "local-abilities-three-sources",
+      "name": "Local Abilities - Three Sources",
+      "coverArt": null,
+      "revision": 1,
+      "definition": {
+        "abilityDefinitions": [
+          {
+            "id": "curtain-call",
+            "name": "Curtain Call",
+            "timing": "Action",
+            "usage": {},
+            "mechanic": {
+              "kind": "holyWave"
+            }
+          },
+          {
+            "id": "quiet-please",
+            "name": "Quiet Please",
+            "timing": "Action",
+            "usage": {},
+            "mechanic": {
+              "kind": "holyWave"
+            }
+          }
+        ],
+        "equipmentTypes": [
+          {
+            "id": "velvet-reliquary",
+            "name": "Velvet Reliquary",
+            "grants": [
+              {
+                "id": "curtain",
+                "abilityId": "curtain-call"
+              }
+            ]
+          }
+        ],
+        "itemTypes": [
+          {
+            "id": "hush-scroll",
+            "name": "Hush Scroll",
+            "grants": [
+              {
+                "id": "read",
+                "abilityId": "quiet-please"
+              }
+            ]
+          }
+        ],
+        "lootCardDefinitions": [
+          {
+            "id": "sealed-hush-scroll",
+            "name": "A Sealed Hush Scroll",
+            "itemTypeId": "hush-scroll"
+          }
+        ],
+        "board": {
+          "width": 9,
+          "height": 4,
+          "defaultTerrain": "StoneFloor",
+          "cells": [],
+          "edges": []
+        },
+        "unitTypeIds": [
+          "cleric-type",
+          "barbarian-type",
+          "wizard-type",
+          "wave-practice-dummy"
+        ],
+        "unitTypes": [
+          {
+            "id": "wave-practice-dummy",
+            "displayName": "Practice Dummy",
+            "mov": 0,
+            "rng": 0,
+            "atk": 0,
+            "def": 0,
+            "hp": 1,
+            "actions": "None",
+            "lootDropSuccesses": 0
+          }
+        ],
+        "units": [
+          {
+            "unitTypeId": "cleric-type",
+            "sideId": "heroes",
+            "anchor": {
+              "x": 1,
+              "y": 1
+            },
+            "unitId": "native-wave"
+          },
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "heroes",
+            "anchor": {
+              "x": 4,
+              "y": 1
+            },
+            "unitId": "equipment-wave",
+            "inventory": [
+              {
+                "id": "reliquary-1",
+                "equipmentTypeId": "velvet-reliquary"
+              }
+            ]
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "heroes",
+            "anchor": {
+              "x": 7,
+              "y": 1
+            },
+            "unitId": "item-wave",
+            "inventory": [
+              {
+                "id": "scroll-1",
+                "itemTypeId": "hush-scroll"
+              },
+              {
+                "id": "scroll-2",
+                "itemTypeId": "hush-scroll"
+              }
+            ]
+          },
+          {
+            "unitTypeId": "wave-practice-dummy",
+            "sideId": "targets",
+            "anchor": {
+              "x": 1,
+              "y": 2
+            },
+            "unitId": "dummy-1"
+          },
+          {
+            "unitTypeId": "wave-practice-dummy",
+            "sideId": "targets",
+            "anchor": {
+              "x": 4,
+              "y": 2
+            },
+            "unitId": "dummy-4"
+          },
+          {
+            "unitTypeId": "wave-practice-dummy",
+            "sideId": "targets",
+            "anchor": {
+              "x": 7,
+              "y": 2
+            },
+            "unitId": "dummy-7"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "cleric-type",
+            "sideId": "heroes",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "heroes",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "heroes",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wave-practice-dummy",
+            "sideId": "targets",
+            "controller": "Automated"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "heroes",
+            "objective": "NoObjective"
+          },
+          {
+            "sideId": "targets",
+            "objective": "NoObjective"
+          }
+        ],
+        "loot": {
+          "composition": [
+            {
+              "lootCardId": "sealed-hush-scroll",
+              "count": 1
+            }
+          ]
+        },
+        "lootMarkers": [
+          {
+            "id": "sealed-scroll-marker",
+            "position": {
+              "x": 8,
+              "y": 1
+            }
+          }
+        ],
+        "groundObjects": [
+          {
+            "object": {
+              "id": "spare-scroll",
+              "itemTypeId": "hush-scroll"
+            },
+            "position": {
+              "x": 7,
+              "y": 1
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "local-equipment-fitting-room",
       "name": "Local Equipment - Fitting Room",
       "coverArt": null,
@@ -100,9 +318,10 @@
     {
       "id": "test-scenarios",
       "name": "Test Scenarios",
-      "description": "Explore Project Delve test scenarios. Start with Local Equipment - Fitting Room to try scenario-local Equipment without combat.",
+      "description": "Explore Project Delve test scenarios. Local Abilities - Three Sources and Local Equipment - Fitting Room demonstrate scenario-local content with immediate choices.",
       "coverArt": null,
       "scenarioIds": [
+        "local-abilities-three-sources",
         "local-equipment-fitting-room",
         "loot-equipment",
         "chess",
@@ -134,7 +353,7 @@
         "labyrinth-shaper",
         "genombrottet"
       ],
-      "revision": 2
+      "revision": 3
     }
   ]
 }

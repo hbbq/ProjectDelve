@@ -46,7 +46,21 @@ export class DesignerDraft {
   }
   setLootDeck(rows) {
     if (rows.some(r => !Number.isInteger(r.count) || r.count < 0 || r.count > 1000)) throw new Error("Use 0-1000 copies per card.");
-    this.definition.loot = { composition: rows.filter(r => r.count > 0).map(r => r.equipmentTypeId != null ? ({equipmentTypeId:r.equipmentTypeId, count:r.count}) : ({kind:r.kind, count:r.count})) }; this.changed();
+    this.definition.loot = { composition: rows.filter(r => r.count > 0).map(r => ({ ...this.objectReference(r), count:r.count })) }; this.changed();
+  }
+  objectReference(object) {
+    for (const field of ['lootCardId', 'itemTypeId', 'equipmentTypeId']) if (object[field] != null) return {[field]:object[field]};
+    return {kind:object.kind};
+  }
+  referenceKey(object) {
+    const [field,value] = Object.entries(this.objectReference(object))[0];
+    return `${field}:${value}`;
+  }
+  lootDefinitionCatalog() {
+    return [...(this.catalog.lootCardDefinitions ?? []), ...(this.definition.lootCardDefinitions ?? [])];
+  }
+  itemCatalog() {
+    return [...(this.catalog.itemTypes ?? []), ...(this.definition.itemTypes ?? [])];
   }
   equipmentCatalog() {
     return [...(this.catalog.equipmentTypes ?? []), ...(this.definition.equipmentTypes ?? [])];
@@ -54,14 +68,19 @@ export class DesignerDraft {
   lootCardCatalog() {
     return [...(this.catalog.lootCards ?? []).map(c => ({ ...c, reference: {kind:c.kind}, key:`card:${c.kind}` })),
       ...this.equipmentCatalog().map(c => ({ name:c.name, category:'Equipment',
-        equipmentTypeId:c.id, reference:{equipmentTypeId:c.id}, key:`equipment:${c.id}` }))];
+        equipmentTypeId:c.id, reference:{equipmentTypeId:c.id}, key:`equipment:${c.id}` })),
+      ...this.itemCatalog().map(c => ({ name:c.name, category:'Item', itemTypeId:c.id, reference:{itemTypeId:c.id}, key:`item:${c.id}` })),
+      ...this.lootDefinitionCatalog().map(c => ({ name:c.name, reference:{lootCardId:c.id}, key:`loot:${c.id}` }))];
   }
   objectCatalog() {
-    return [...(this.catalog.lootCards ?? []).filter(c => c.category === 'Item').map(c => ({ ...c, reference:{kind:c.kind}, key:`card:${c.kind}` })),
+    return [...(this.itemCatalog().length ? [] : (this.catalog.lootCards ?? []).filter(c => c.category === 'Item').map(c => ({ ...c, reference:{kind:c.kind}, key:`card:${c.kind}` }))),
+      ...this.itemCatalog().map(c => ({ name:c.name, category:'Item', itemTypeId:c.id, reference:{itemTypeId:c.id}, key:`item:${c.id}` })),
       ...this.equipmentCatalog().map(c => ({ name:c.name, category:'Equipment', equipmentTypeId:c.id,
         reference:{equipmentTypeId:c.id}, key:`equipment:${c.id}` }))];
   }
   objectName(object) {
+    if (object.lootCardId != null) return this.lootDefinitionCatalog().find(c => c.id === object.lootCardId)?.name ?? object.lootCardId;
+    if (object.itemTypeId != null) return this.itemCatalog().find(c => c.id === object.itemTypeId)?.name ?? object.itemTypeId;
     return object.equipmentTypeId != null ? this.equipmentCatalog().find(c => c.id === object.equipmentTypeId)?.name ?? object.equipmentTypeId
       : this.catalog.lootCards?.find(c => c.kind === object.kind)?.name ?? object.kind;
   }
@@ -428,11 +447,11 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "equipmentTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "equipmentTypes", "itemTypes", "abilityDefinitions", "lootCardDefinitions", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
       d.loot != null && (typeof d.loot !== 'object' || d.loot.cards != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) || d.loot.composition != null && !Array.isArray(d.loot.composition) || d.loot.preset != null && typeof d.loot.preset !== 'string') ||
       (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
-      (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || (typeof g.object.kind !== 'string' && typeof g.object.equipmentTypeId !== 'string')) ||
-      d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || (typeof o.kind !== 'string' && typeof o.equipmentTypeId !== 'string')))) ||
+      (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || (typeof g.object.kind !== 'string' && typeof g.object.equipmentTypeId !== 'string' && typeof g.object.itemTypeId !== 'string' && typeof g.object.lootCardId !== 'string')) ||
+      d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || (typeof o.kind !== 'string' && typeof o.equipmentTypeId !== 'string' && typeof o.itemTypeId !== 'string' && typeof o.lootCardId !== 'string')))) ||
       d.units.some(u => !u || typeof u.unitTypeId !== "string" || !u.anchor || !Number.isFinite(u.anchor.x) || !Number.isFinite(u.anchor.y)) ||
       board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
       (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||

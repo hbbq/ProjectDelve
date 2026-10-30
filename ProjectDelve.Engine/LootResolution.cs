@@ -63,30 +63,7 @@ public static partial class GameEngine
         var cells = FootprintGeometry.OccupiedCells(state, unit.Id);
         foreach (var ground in state.GroundObjects.Where(g => cells.Contains(g.Position) && LootRules.CanOwn(state, unit, g.Object)))
             yield return new($"pickup-object:{ground.Object.Id}", ground.Position, Kind: ActivationChoiceKind.FreeAction)
-            { ObjectId = ground.Object.Id, ObjectKind = ground.Object.Kind, EquipmentTypeId = state.EquipmentTypeId(ground.Object) };
-        if (state.BonusActionUsesThisActivation("Second Wind") < state.EffectiveBonusActionUsesPerActivation)
-            foreach (var item in unit.Inventory.Where(o => state.EquipmentTypeId(o) is null && o.Kind == LootCardKind.SecondWind))
-                yield return new($"use-object:{item.Id}", Kind: ActivationChoiceKind.BonusAction,
-                    BonusAction: new("Second Wind", null, [])) { ObjectId = item.Id, ObjectKind = item.Kind };
-        if (state.MoveDone && state.ActionsRemaining > 0)
-            foreach (var source in unit.Inventory.Where(o => state.EquipmentTypeId(o) is not null))
-            foreach (var ability in state.Equipment(state.EquipmentTypeId(source)!).Abilities)
-            {
-                switch (ability.Mechanic)
-                {
-                    case EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit:
-                        foreach (var target in state.Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId &&
-                                     state.Physical.Figures.Any(f => f.Id == u.Id && f.Posture == Posture.Lying) &&
-                                     SpatialRules.AreAdjacent(state, unit.Id, u.Id)))
-                        {
-                            var prefix = ability.CandidatePrefix ?? $"equipment:{Uri.EscapeDataString(source.Id)}:{Uri.EscapeDataString(ability.Id)}";
-                            yield return new($"{prefix}:{target.Id}", TargetId: target.Id)
-                            { ObjectId = source.Id, EquipmentTypeId = state.EquipmentTypeId(source), EquipmentAbilityId = ability.Id,
-                                AbilityName = ability.Name, EquipmentMechanic = ability.Mechanic };
-                        }
-                        break;
-                }
-            }
+            { ObjectId = ground.Object.Id, ObjectKind = ground.Object.Kind, EquipmentTypeId = state.EquipmentTypeId(ground.Object), ItemTypeId = state.ItemTypeId(ground.Object) };
     }
 
     private static void ResolveObjectChoice(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
@@ -101,33 +78,6 @@ public static partial class GameEngine
             state.Units[index] = unit with { Inventory = unit.Inventory.Add(ground.Object) };
             events.Add(new RulesEvent("ObjectCollected", unit.Id, AbilityName: content.Name)
                 { ObjectCard = ground.Object, Cell = ground.Position, Category = choice.Kind });
-        }
-        else if (choice.EquipmentTypeId is null && choice.ObjectKind == LootCardKind.SecondWind)
-        {
-            var item = unit.Inventory.Single(o => o.Id == choice.ObjectId);
-            state.Units[index] = unit with { Inventory = unit.Inventory.Remove(item) };
-            state.LootDeck ??= new(); // Discard records do not create a draw supply.
-            state.LootDeck.DiscardPile.Add(item);
-            state.ExtraActionsThisActivation += content.ExtraActions;
-            state.BonusActionUseCountsThisActivation["Second Wind"] = state.BonusActionUsesThisActivation("Second Wind") + 1;
-            events.Add(new RulesEvent("ItemUsed", unit.Id, AbilityName: content.Name)
-                { ObjectCard = item, ActionId = "second-wind", Category = choice.Kind });
-        }
-        else
-        {
-            var source = unit.Inventory.Single(o => o.Id == choice.ObjectId);
-            var ability = state.Equipment(state.EquipmentTypeId(source)!).Abilities.Single(a => a.Id == choice.EquipmentAbilityId);
-            var actionId = ability.CandidatePrefix ?? state.Equipment(choice.EquipmentTypeId!).EntryId(ability.Id);
-            state.ActionsUsedThisActivation++;
-            events.Add(new RulesEvent("ActionUsed", unit.Id, choice.TargetId, AbilityName: ability.Name)
-                { ActionId = actionId, Category = choice.Kind, ObjectCard = source });
-            switch (ability.Mechanic)
-            {
-                case EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit:
-                    ChangePosture(state, choice.TargetId!, Posture.Upright, events, unit.Id, actionId);
-                    break;
-                default: throw new InvalidOperationException("Unsupported Equipment Action.");
-            }
         }
     }
 }

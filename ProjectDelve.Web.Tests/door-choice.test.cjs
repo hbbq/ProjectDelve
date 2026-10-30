@@ -3881,3 +3881,29 @@ test("inventory rows distinguish sources and consolidate identical use choices",
   click(buttons(rows[2])[0]); assert.deepEqual(h.submitted, ["wind-one"]);
   assert.equal(h.run('cardChoiceKeys.has("wind-two")'), true);
 });
+
+test('renamed Item abilities group choices by supplied accounting identity and show their source', () => {
+  const item = { ...entry('first-physical-entry', 'Fold the Sky', 'Action'), source: 'Item',
+    sourceName: 'Paper Moon', accountingId: 'item:paper:unfold', copyCount: 2 };
+  const initial = response([
+    choice('physical-first', 'Direct', {}, { entryId: 'first-physical-entry', accountingId: 'item:paper:unfold' }),
+    choice('physical-second', 'Direct', {}, { entryId: 'other-physical-entry', accountingId: 'item:paper:unfold' })
+  ], [item]);
+  const h = harness(initial), row = h.elements.get('unit-card').querySelectorAll('.card-ability')[0];
+  assert.match(row.textContent, /Fold the Sky/);
+  assert.match(row.textContent, /Single Use Item · Paper Moon/);
+  assert.equal(buttons(row).length, 1);
+  assert.equal(h.run('cardChoiceKeys.has("physical-second")'), true);
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(buttons(row)[0]);
+  assert.deepEqual(h.submitted, ['physical-first']);
+});
+
+test('a consumed Item keeps its authoritative ability name during the pending Attack', () => {
+  const initial = combatFixture(['a']);
+  initial.result.state.attackInProgress.actionId = 'item:blue-seed:plant';
+  initial.result.state.attackInProgress.abilityName = 'Blue Ember';
+  const h = harness(initial);
+  assert.equal(h.run('actionLabel({ sourceUnitId: "actor", sourceActionId: "item:blue-seed:plant" })'), 'Blue Ember');
+  assert.equal(h.run('actionLabel({ sourceUnitId: "actor", sourceActionId: "other-source" })'), 'other-source');
+});

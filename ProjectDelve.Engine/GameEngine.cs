@@ -161,6 +161,11 @@ public static partial class GameEngine
     private static void ApplyDecision(GameState state, DecisionRequest request, string? choice,
         IRandomProvider random, ResolutionEvents events)
     {
+        if (choice is not null && request.Candidates.Single(c => c.Key == choice).GrantedAbility is not null)
+        {
+            ResolveGrantedAbility(state, request, request.Candidates.Single(c => c.Key == choice), events);
+            return;
+        }
         if (choice is not null && (request.Candidates.Single(c => c.Key == choice).ObjectKind is not null || request.Candidates.Single(c => c.Key == choice).EquipmentTypeId is not null))
         {
             ResolveObjectChoice(state, request, request.Candidates.Single(c => c.Key == choice), events);
@@ -325,50 +330,25 @@ public static partial class GameEngine
                             EmitActionUsed(request, choice!, events);
                             var shell = state.Types.Single(t => t.Id == request.TypeId).ShootShell!;
                             RacingRules.Spend(state, request.UnitId!, ResourceTypes.Shell, shell.ShellCost, "shoot-shell", events.Add);
-                            BeginAttack(state, request.UnitId!, new([action.TargetId!], shell.Atk, "Shoot Shell"), events, "shoot-shell", null);
+                            BeginAttack(state, request.UnitId!, new([action.TargetId!], shell.Atk, "Shoot Shell"), events, "shoot-shell", null, UnitAction.ShootShell);
                             break;
                         case UnitAction.NormalAttack:
                             EmitActionUsed(request, choice!, events);
                             BeginAttack(state, request.UnitId!,
-                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.NormalAttack)), events, ActionIdentity(action), action.Destination);
+                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.NormalAttack)), events, ActionIdentity(action), action.Destination, action.Action);
                             break;
                         case UnitAction.ClawAttack:
                             var clawType = state.Types.Single(t => t.Id == request.TypeId);
                             EmitActionUsed(request, choice!, events);
                             BeginAttack(state, request.UnitId!,
                                 new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.ClawAttack),
-                                    clawType.AbilityNames.ClawAttack ?? "Claw Attack"), events, ActionIdentity(action), action.Destination);
+                                    clawType.AbilityNames.ClawAttack ?? "Claw Attack"), events, ActionIdentity(action), action.Destination, action.Action);
                             break;
                         case UnitAction.FireBreath:
                             EmitActionUsed(request, choice!, events);
                             BeginAttack(state, request.UnitId!,
                                 new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.FireBreath),
-                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.FireBreath ?? "Fire Breath"), events, ActionIdentity(action), action.Destination);
-                            break;
-                        case UnitAction.HolyWave:
-                            var waveIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
-                            var waveUses = state.Units[waveIndex].HolyWaveUses!;
-                            state.Units[waveIndex] = state.Units[waveIndex] with
-                            {
-                                HolyWaveUses = new(waveUses.MaxUses, waveUses.RemainingUses - 1)
-                            };
-                            EmitActionUsed(request, choice!, events);
-                            foreach (var targetId in action.TargetIds)
-                                if (state.Physical.Figures.Any(f => f.Id == targetId))
-                                    ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ActionIdentity(action));
-                            ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ActionIdentity(action));
-                            break;
-                        case UnitAction.Fireball:
-                            var fireballIndex = state.Units.FindIndex(u => u.Id == request.UnitId);
-                            var fireballUses = state.Units[fireballIndex].FireballUses!;
-                            state.Units[fireballIndex] = state.Units[fireballIndex] with
-                            {
-                                FireballUses = new(fireballUses.MaxUses, fireballUses.RemainingUses - 1)
-                            };
-                            EmitActionUsed(request, choice!, events);
-                            BeginAttack(state, request.UnitId!,
-                                new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.Fireball),
-                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.Fireball ?? "Fireball"), events, ActionIdentity(action), action.Destination);
+                                    state.Types.Single(t => t.Id == request.TypeId).AbilityNames.FireBreath ?? "Fire Breath"), events, ActionIdentity(action), action.Destination, action.Action);
                             break;
                         case UnitAction.Telekinesis:
                             EmitActionUsed(request, choice!, events);
@@ -402,9 +382,6 @@ public static partial class GameEngine
                                 AbilityName: summoner.CardEntries(state.Types).Single(e => e.Id == ActionIdentity(action)).Name, Posture: summon.InitialPosture)
                                 { SourceUnitId = source.Id, SideId = source.SideId, Cell = action.Destination, ActionId = ActionIdentity(action) });
                             ResolveArrival(state, summonedId, events);
-                            break;
-                        case UnitAction.Heal:
-                            ResolveHeal(state, request, choice!, action.TargetId!, events);
                             break;
                         default:
                             throw new InvalidOperationException("Unsupported action.");
@@ -553,25 +530,7 @@ public static partial class GameEngine
             if (!targets.IsEmpty)
                 candidates.Add(new Candidate("fire-breath", Action: UnitAction.FireBreath) { TargetIds = targets });
         }
-        if (actions.HasFlag(UnitAction.Heal) && type.Heal is not null &&
-            unit.HealUses is { RemainingUses: > 0 })
-            candidates.AddRange(state.Units.Where(target => target.Id != unit.Id &&
-                    target.SideId == unit.SideId && target.CurrentHp > 0 &&
-                    target.CurrentHp < state.Types.Single(t => t.Id == target.TypeId).Hp &&
-                    SpatialRules.AreAdjacent(state, unit.Id, target.Id))
-                .Select(target => new Candidate($"heal:{target.Id}",
-                    Action: UnitAction.Heal, TargetId: target.Id)));
-        if (actions.HasFlag(UnitAction.HolyWave) && type.HolyWave is not null &&
-            unit.HolyWaveUses is { RemainingUses: > 0 })
-        {
-            var targets = AdjacentHostiles(state, unit).Where(u => state.IsUpright(u.Id))
-                .Select(u => u.Id).ToImmutableArray();
-            candidates.Add(new Candidate("holy-wave", Action: UnitAction.HolyWave,
-                Relevant: !targets.IsEmpty) { TargetIds = targets });
-        }
-        if (actions.HasFlag(UnitAction.Fireball) && type.Fireball is not null &&
-            unit.FireballUses is { RemainingUses: > 0 })
-            candidates.AddRange(FireballCandidates(state, unit));
+        candidates.AddRange(GrantedActionCandidates(state, unit));
         if (actions.HasFlag(UnitAction.Telekinesis))
             candidates.AddRange(state.Units
                 .Where(target => state.IsUpright(target.Id) &&
@@ -590,7 +549,7 @@ public static partial class GameEngine
         return candidates;
     }
 
-    private static IEnumerable<Candidate> FireballCandidates(GameState state, Unit unit)
+    private static IEnumerable<Candidate> FireballCandidates(GameState state, Unit unit, string candidatePrefix)
     {
         var board = state.Physical.Board;
         var sources = FootprintGeometry.OccupiedCells(state, unit.Id);
@@ -608,7 +567,7 @@ public static partial class GameEngine
                         Math.Max(Math.Abs(position.X - x), Math.Abs(position.Y - y)) <= 1 &&
                         AttackRules.HasGeometricLineOfSight(board, center, position));
                 }).Select(u => u.Id).ToImmutableArray();
-            yield return new Candidate($"fireball:{x},{y}", Destination: center,
+            yield return new Candidate($"{candidatePrefix}:{x},{y}", Destination: center,
                 Action: UnitAction.Fireball,
                 Relevant: targets.Any(id => state.Units.Single(u => u.Id == id).SideId != unit.SideId))
                 { TargetIds = targets };
@@ -645,7 +604,7 @@ public static partial class GameEngine
 
     private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
     {
-        foreach (var ability in state.Types.Single(t => t.Id == unit.TypeId).BonusActions)
+        foreach (var ability in state.Types.Single(t => t.Id == unit.TypeId).BonusActions.Where(a => !AbilityQueries.IsSimpleBonus(a)))
             if (state.BonusActionUsesThisActivation(ability.Name) < state.EffectiveBonusActionUsesPerActivation &&
                 (ability.MaxUses is null || unit.BonusActionUses.TryGetValue(ability.Name, out var uses) && uses.RemainingUses > 0))
             {
@@ -760,6 +719,7 @@ public static partial class GameEngine
         var candidates = new List<Candidate>();
         candidates.AddRange(FreeActionCandidates(state, unit));
         candidates.AddRange(BonusActionCandidates(state, unit));
+        candidates.AddRange(GrantedOtherCandidates(state, unit));
         candidates.AddRange(ObjectCandidates(state, unit));
         candidates.AddRange(GameplayCandidates(state, unit));
         if (!state.MoveDone)
@@ -803,11 +763,11 @@ public static partial class GameEngine
         ?? throw new InvalidOperationException("Action has no stable identity.");
 
     private static void BeginAttack(GameState state, string attackerId, SharedRollAttack attack,
-        ResolutionEvents events, string actionId, Cell? selectedCell)
+        ResolutionEvents events, string actionId, Cell? selectedCell, UnitAction? semanticAction = null)
     {
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
-            attack.AttackDice, Results: []) { IsNormalMelee = actionId == "attack" && state.EffectiveRngOf(attackerId) == 1 };
+            attack.AttackDice, Results: []) { SemanticAction = semanticAction, IsNormalMelee = semanticAction == UnitAction.NormalAttack && state.EffectiveRngOf(attackerId) == 1 };
         FogOfWar.DiscoverAttack(state, state.AttackInProgress);
         events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
             { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId });
@@ -919,20 +879,6 @@ public static partial class GameEngine
                 DieRoll: roll, SuccessCount: door.SuccessCount, Succeeded: successes > 0) { ActionId = door.ActionId });
             if (successes > 0) OpenDoor(state, door.UnitId, door.Door, events, door.ActionId);
         }
-    }
-
-    private static void ResolveHeal(GameState state, DecisionRequest request, string choice, string targetId, ResolutionEvents events)
-    {
-        var healerId = request.UnitId!;
-        var healerIndex = state.Units.FindIndex(u => u.Id == healerId);
-        var uses = state.Units[healerIndex].HealUses!;
-        state.Units[healerIndex] = state.Units[healerIndex] with
-        {
-            HealUses = new(uses.MaxUses, uses.RemainingUses - 1)
-        };
-        EmitActionUsed(request, choice, events);
-        var type = state.Types.Single(t => t.Id == state.Units[healerIndex].TypeId);
-        RestoreHp(state, targetId, type.Heal!.Amount, healerId, type.AbilityNames.Heal ?? "Heal", "heal", events);
     }
 
     private static List<Candidate> CleaveCandidates(GameState state, Unit unit)

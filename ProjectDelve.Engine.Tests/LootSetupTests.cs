@@ -5,6 +5,19 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class LootSetupTests
 {
+    [Fact]
+    public void LegacySecondWindCardUsesItsIndependentItemAndAbilityParameters()
+    {
+        var item = Assert.Single(ItemCatalog.All.Where(i => i.Id == "second-wind"));
+        var ability = Assert.Single(AbilityCatalog.All.Where(a => a.Id == Assert.Single(item.Grants).AbilityId));
+        var mechanic = Assert.IsType<ExtraActionsMechanic>(ability.Mechanic);
+        var card = LootCards.Content(LootCardKind.SecondWind);
+        Assert.Equal(item.Name, card.Name);
+        Assert.Equal(LootCategory.Item, card.Category);
+        Assert.Equal(mechanic.Amount, card.ExtraActions);
+        Assert.Equal($"{ability.CardEntry().Category}: gain +{mechanic.Amount} Action this activation. Consume this Item.", card.Text);
+    }
+
     private static ScenarioDefinition Setup() => new()
     {
         Board = new() { Width = 20, Height = 3 },

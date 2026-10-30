@@ -46,6 +46,22 @@ test("Custom Loot editor retains distinct legacy card and Equipment Type quantit
   }
 });
 const plain = value => JSON.parse(JSON.stringify(value));
+
+test('Custom Loot editor keeps local Loot Card and Item quantities independent', () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',grants:[{id:'read',abilityId:'fold'}]}];
+  draft.definition.abilityDefinitions = [{id:'fold',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}];
+  draft.definition.lootCardDefinitions = [{id:'letter',name:'Unexpected Letter',itemTypeId:'paper-moon'}];
+  draft.setLootDeck([{lootCardId:'letter',count:2},{itemTypeId:'paper-moon',count:3}]);
+  h.editor.render();
+  const form = h.run('document.getElementById("designer-loot-editor")').children[0];
+  assert.equal(inputField(form,'Unexpected Letter').value,'2');
+  assert.equal(inputField(form,'Paper Moon (Item Type)').value,'3');
+  h.submit(form);
+  assert.deepEqual(plain(draft.snapshot().loot.composition),[{itemTypeId:'paper-moon',count:3},{lootCardId:'letter',count:2}]);
+  assert.ok(plain(draft.objectCatalog()).some(c => c.reference.itemTypeId === 'paper-moon' && c.name === 'Paper Moon'));
+});
+
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const press = (root, label) => root.querySelectorAll("button").find(b => b.textContent === label).listeners.click();
 const change = (input, value) => { input.value = value; input.listeners.change?.(); };

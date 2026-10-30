@@ -9,6 +9,7 @@ public sealed record BoardChoiceVisual(string Kind, string Preview, string? Icon
 public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
     bool Relevant, ChoiceInteraction Interaction, IReadOnlyList<string> AffectedUnitIds)
 {
+    public string? AccountingId { get; init; }
     public IReadOnlyList<Cell> PlacementCells { get; init; } = [];
     public bool IsEndTurn { get; init; }
     public BoardChoiceVisual? BoardVisual { get; init; }
@@ -26,9 +27,14 @@ public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
     public string Source { get; init; } = "Native";
     public string? SourceName { get; init; }
     public string? SourceTypeId { get; init; }
+    public string? AccountingId { get; init; }
+    public string? SourceInstanceId { get; init; }
     public int CopyCount { get; init; } = 1;
 }
-public sealed record ObjectDisplay(string Id, LootCardKind Kind, string? EquipmentTypeId, LootCardContent Content);
+public sealed record ObjectDisplay(string Id, LootCardKind Kind, string? EquipmentTypeId, LootCardContent Content)
+{
+    public string? ItemTypeId { get; init; }
+}
 public sealed record GroundObjectDisplay(ObjectDisplay Object, Cell Position);
 public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null)
 {
@@ -164,8 +170,7 @@ public static class BrowserProjection
     {
         var type = state.Types.Single(t => t.Id == u.TypeId);
         return new UnitCard(type.DisplayName ?? type.Id,
-            type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id)))
-                .Concat(AcquiredEntries(state, u)).ToArray())
+            Entries(state, u).ToArray())
         {
             Inventory = u.Inventory.Select(state.ObjectContent).ToArray(),
             IndividualName = individualNames?.GetValueOrDefault(u.Id),
@@ -177,30 +182,48 @@ public static class BrowserProjection
     });
 
     public static ObjectDisplay Object(GameState state, OwnedObject item) =>
-        new(item.Id, item.Kind, state.EquipmentTypeId(item), state.ObjectContent(item));
+        new(item.Id, item.Kind, state.EquipmentTypeId(item), state.ObjectContent(item)) { ItemTypeId = state.ItemTypeId(item) };
 
     public static IReadOnlyList<GroundObjectDisplay> GroundObjects(GameState state) =>
         state.GroundObjects.Select(g => new GroundObjectDisplay(Object(state, g.Object), g.Position)).ToArray();
 
+    public static IEnumerable<CardEntry> Entries(GameState state, Unit unit)
+    {
+        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var native = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind == AbilitySourceKind.Unit).ToDictionary(g => g.EntryId);
+        foreach (var entry in type.CardEntries(state.Types))
+        {
+            if (native.Remove(entry.Id, out var grant)) yield return GrantedEntry(state, unit, grant);
+            else yield return new(entry, type.UsesFor(unit, entry.Id));
+        }
+        foreach (var grant in native.Values) yield return GrantedEntry(state, unit, grant);
+        foreach (var entry in AcquiredEntries(state, unit)) yield return entry;
+    }
+
+    private static CardEntry GrantedEntry(GameState state, Unit unit, ResolvedAbility grant, int copies = 1) =>
+        new(grant.CardEntry(), state.AbilityUsesOf(unit.Id, grant))
+        {
+            Source = grant.SourceKind == AbilitySourceKind.Unit ? "Native" : grant.SourceKind.ToString(),
+            SourceName = grant.SourceName, SourceTypeId = grant.SourceTypeId,
+            SourceInstanceId = copies == 1 ? grant.SourceInstanceId : null,
+            AccountingId = grant.AccountingId, CopyCount = copies
+        };
+
     private static IEnumerable<CardEntry> AcquiredEntries(GameState state, Unit unit)
     {
-        foreach (var group in unit.Inventory.GroupBy(o => state.EquipmentTypeId(o)).OrderBy(g => g.Key is null ? 1 : 0))
+        var grants = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind != AbilitySourceKind.Unit).ToArray();
+        foreach (var objects in unit.Inventory.Where(o => state.EquipmentTypeId(o) is not null).GroupBy(state.EquipmentTypeId))
         {
-            if (group.Key is { } equipmentId)
-            {
-                var definition = state.Equipment(equipmentId);
-                foreach (var entry in definition.CardEntries())
-                    yield return new(entry, null) { Source = "Equipment", SourceName = definition.Name,
-                        SourceTypeId = definition.Id, CopyCount = group.Count() };
-            }
-            else
-                foreach (var items in group.GroupBy(o => o.Kind))
-                {
-                    var content = state.ObjectContent(items.First());
-                    yield return new(new($"object:{items.Key}", content.Name, "Bonus Action", content.Text), null)
-                        { Source = "Item", SourceName = content.Name, CopyCount = items.Count() };
-                }
+            var definition = state.Equipment(objects.Key!);
+            var equipmentGrants = grants.Where(g => g.SourceKind == AbilitySourceKind.Equipment && g.SourceTypeId == definition.Id).ToArray();
+            var grantedEntryIds = equipmentGrants.Select(g => g.EntryId).ToHashSet(StringComparer.Ordinal);
+            foreach (var entry in definition.CardEntries().Where(e => !grantedEntryIds.Contains(e.Id)))
+                yield return new(entry, null) { Source = "Equipment", SourceName = definition.Name,
+                    SourceTypeId = definition.Id, SourceInstanceId = objects.First().Id, CopyCount = objects.Count() };
+            foreach (var grant in equipmentGrants) yield return GrantedEntry(state, unit, grant);
         }
+        foreach (var group in grants.Where(g => g.SourceKind == AbilitySourceKind.Item).GroupBy(g => g.AccountingId))
+            yield return GrantedEntry(state, unit, group.First(), group.Select(g => g.SourceInstanceId).Distinct().Count());
     }
 
     // Display labels never replace authoritative identifiers or debug wording.
@@ -234,7 +257,7 @@ public static class BrowserProjection
             entries["open-door"] = content with { Id = "open-door", Name = $"{content.Name} · {string.Join(", ", sources.Select(e => e.Name))}" };
         }
         if (request.UnitId is { } owner)
-            foreach (var entry in AcquiredEntries(state, state.Units.Single(u => u.Id == owner)))
+            foreach (var entry in Entries(state, state.Units.Single(u => u.Id == owner)))
                 entries[entry.Content.Id] = entry.Content;
         var candidates = request.Candidates.Select(c =>
         {
@@ -251,6 +274,8 @@ public static class BrowserProjection
                 : new ChoiceInteraction(InteractionKind.Direct);
             string Label(Func<string, string> name) => c.Kind switch
             {
+                _ when c.GrantedAbility is { } grant => $"{grant.Definition.Name} ({grant.CardEntry().Category})" +
+                    (c.TargetId is not null ? $" → {name(c.TargetId)}" : c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" : ""),
                 _ when state.CandidateObjectContent(c) is { } objectContent => (c.Kind == ActivationChoiceKind.FreeAction ? "Collect " : "Use ") +
                     (c.AbilityName ?? objectContent.Name) + (c.TargetId is null ? "" : $" → {name(c.TargetId)}"),
                 ActivationChoiceKind.RollDice => "Roll Dice",
@@ -272,13 +297,14 @@ public static class BrowserProjection
                 : c.TargetId is not null ? [c.TargetId] : [];
             return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
             {
+                AccountingId = c.GrantedAbility?.AccountingId,
                 BoardVisual = c.Kind switch
                 {
                     ActivationChoiceKind.SelectUnit => new("activate", $"Activate {PlayerName(state, c.Key, individualNames)}"),
                     ActivationChoiceKind.Move => new("move", $"Move {PlayerName(state, request.UnitId, individualNames)} to ({c.Destination!.X},{c.Destination.Y})"),
                     ActivationChoiceKind.Stay => new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ"),
                     _ when c.Action == UnitAction.NormalAttack => new("attack", $"Attack {PlayerName(state, c.TargetId, individualNames)}", "⌖"),
-                    _ when c.Action == UnitAction.Fireball => new("special", $"Fireball at ({c.Destination!.X},{c.Destination.Y})", "🔥"),
+                    _ when c.Action == UnitAction.Fireball => new("special", $"{c.GrantedAbility?.Definition.Name ?? entry?.Name ?? "Fireball"} at ({c.Destination!.X},{c.Destination.Y})", "🔥"),
                     _ => new("special", Label(id => PlayerName(state, id, individualNames)), "◆")
                 },
                 DisplayLabel = Label(id => PlayerName(state, id, individualNames)),

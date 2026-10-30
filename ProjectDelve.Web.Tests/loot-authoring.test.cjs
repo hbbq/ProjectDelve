@@ -100,3 +100,31 @@ test('local Equipment references survive editing, undo, draft recovery and isola
   run('globalThis.equipmentPlaytest = equipmentDraft.snapshot(); equipmentPlaytest.equipmentTypes[0].modifiers[0].amount = 99; equipmentPlaytest.units[0].inventory.length = 0');
   assert.deepEqual(plain(run('equipmentDraft.snapshot()')),saved);
 });
+
+
+test('local Abilities, Items and Loot references survive Designer editing and playtest snapshots', () => {
+  run(`globalThis.itemDraft = new DesignerDraft({maxBoardSize:50,unitTypes:[],itemTypes:[{id:'second-wind',name:'Second Wind'}],lootCards:[]});
+    itemDraft.replace({board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:['reader'],
+      units:[{unitTypeId:'reader',sideId:'blue',anchor:{x:0,y:0}}],agency:[{unitTypeId:'reader',sideId:'blue',controller:'Human'}],
+      abilityDefinitions:[{id:'local-silence',name:'A Quiet Ending',timing:'Action',mechanic:{kind:'holyWave'}}],
+      itemTypes:[{id:'folded-sky',name:'Folded Sky',grants:[{id:'read',abilityId:'local-silence'}]}],
+      lootCardDefinitions:[{id:'sky-reward',name:'An Unexpected Letter',itemTypeId:'folded-sky'}],loot:{composition:[]}});
+    globalThis.itemHistory = new DesignerHistory(itemDraft); itemHistory.begin();
+    itemDraft.addObject({itemTypeId:'folded-sky'},{unitKey:itemDraft.unitKeys[0]});
+    itemDraft.addObject({itemTypeId:'folded-sky'},{unitKey:itemDraft.unitKeys[0]});
+    itemDraft.addObject({itemTypeId:'folded-sky'},{position:{x:1,y:0}});
+    itemDraft.setLootDeck([{lootCardId:'sky-reward',count:2},{itemTypeId:'second-wind',count:1}]);
+    itemHistory.finish();`);
+  const saved = plain(run('itemDraft.snapshot()'));
+  assert.equal(saved.units[0].inventory.length,2);
+  assert.notEqual(saved.units[0].inventory[0].id,saved.units[0].inventory[1].id);
+  assert.equal(run('itemDraft.objectName(itemDraft.definition.units[0].inventory[0])'),'Folded Sky');
+  assert.equal(run(`itemDraft.objectName({lootCardId:'sky-reward'})`),'An Unexpected Letter');
+  assert.deepEqual(saved.loot.composition,[{lootCardId:'sky-reward',count:2},{itemTypeId:'second-wind',count:1}]);
+  assert.ok(plain(run('itemDraft.lootCardCatalog()')).some(c=>c.reference.lootCardId==='sky-reward'));
+  run('itemHistory.undo(); itemHistory.redo()');
+  assert.deepEqual(plain(run('itemDraft.snapshot()')),saved);
+  assert.deepEqual(plain(run('readDraftDocument(JSON.stringify(draftDocument(itemDraft.snapshot()))).definition')),saved);
+  run('globalThis.itemPlaytest=itemDraft.snapshot(); itemPlaytest.itemTypes[0].name="Modified copy"; itemPlaytest.abilityDefinitions[0].name="Other name"; itemPlaytest.units[0].inventory.pop()');
+  assert.deepEqual(plain(run('itemDraft.snapshot()')),saved);
+});

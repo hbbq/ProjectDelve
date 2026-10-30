@@ -308,7 +308,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const rows = draft.lootComposition();
     lootForm.append(element('p', `${rows.reduce((sum,r) => sum + r.count,0)} cards. Each unopened marker reserves one card. No reshuffle.`));
     if (custom) {
-      const counts = draft.lootCardCatalog().map(c => ({ reference:c.reference, input:field(lootForm,c.reference.equipmentTypeId != null ? `${c.name} (Equipment Type)` : c.name,rows.find(r => c.reference.equipmentTypeId != null ? r.equipmentTypeId === c.reference.equipmentTypeId : r.equipmentTypeId == null && r.kind === c.reference.kind)?.count ?? 0,{type:'number'}) }));
+      const counts = draft.lootCardCatalog().map(c => ({ reference:c.reference, input:field(lootForm, c.reference.equipmentTypeId != null ? `${c.name} (Equipment Type)` : c.reference.itemTypeId != null ? `${c.name} (Item Type)` : c.name, rows.find(r => draft.referenceKey(r) === draft.referenceKey(c.reference))?.count ?? 0, {type:'number'}) }));
       lootForm.append(element('button', 'Apply Custom Deck'));
       lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({...c.reference,count:Number(c.input.value)})))); });
     } else {
