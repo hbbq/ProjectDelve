@@ -22,6 +22,29 @@ test("generated Designer transfer preserves the exact definition and identifies 
   assert.equal(h.editor.draft.terrainAt({x:0,y:0}), "SolidRock");
 });
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
+
+test("Custom Loot editor retains distinct legacy card and Equipment Type quantities", () => {
+  const savedCards = catalog.lootCards, savedEquipment = catalog.equipmentTypes;
+  try {
+    catalog.lootCards = [{kind:"LuckyBoots",equipmentTypeId:"lucky-boots",name:"Lucky Boots",category:"Equipment"}];
+    catalog.equipmentTypes = [{id:"lucky-boots",name:"Lucky Boots"},{id:"new-canonical",name:"Cloud Compass"}];
+    const h = harness(), draft = h.editor.draft;
+    draft.definition.equipmentTypes = [{id:"local",name:"Scenario Compass"}];
+    draft.setLootDeck([{kind:"LuckyBoots",count:2},{equipmentTypeId:"lucky-boots",count:3},
+      {equipmentTypeId:"new-canonical",count:4},{equipmentTypeId:"local",count:5}]);
+    h.editor.render();
+    const form = h.run('document.getElementById("designer-loot-editor")').children[0];
+    assert.equal(inputField(form,"Lucky Boots").value,"2");
+    assert.equal(inputField(form,"Lucky Boots (Equipment Type)").value,"3");
+    assert.equal(inputField(form,"Cloud Compass (Equipment Type)").value,"4");
+    assert.equal(inputField(form,"Scenario Compass (Equipment Type)").value,"5");
+    const before = plain(draft.snapshot().loot);
+    h.submit(form);
+    assert.deepEqual(plain(draft.snapshot().loot),before);
+  } finally {
+    catalog.lootCards = savedCards; catalog.equipmentTypes = savedEquipment;
+  }
+});
 const plain = value => JSON.parse(JSON.stringify(value));
 const inputField = (form, label) => form.querySelectorAll("label").find(node => node._text === label)?.children[0];
 const press = (root, label) => root.querySelectorAll("button").find(b => b.textContent === label).listeners.click();

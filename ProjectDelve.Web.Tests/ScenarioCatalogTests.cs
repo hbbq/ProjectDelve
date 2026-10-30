@@ -24,10 +24,11 @@ public sealed class ScenarioCatalogTests
     }
 
     [Fact]
-    public void AuthoredCampaignLibrariesAreValidAndLoadable()
+    public void AuthoredAndShippedLibrariesAreValidAndLoadable()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../campaigns"));
-        foreach (var directory in Directory.EnumerateDirectories(root).Order(StringComparer.Ordinal))
+        var shipped = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web/Content/Library"));
+        foreach (var directory in Directory.EnumerateDirectories(root).Append(shipped).Order(StringComparer.Ordinal))
         {
             var path = Path.Combine(directory, "library.json");
             if (!File.Exists(path)) continue;
@@ -49,7 +50,7 @@ public sealed class ScenarioCatalogTests
             {
                 var campaign = library.Campaign(entry.GetProperty("id").GetString()!);
                 foreach (var reference in campaign.ScenarioIds)
-                    Assert.Contains(reference, scenarioIds);
+                    _ = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(library.Scenario(reference).Definition.GetRawText()));
             }
         }
     }

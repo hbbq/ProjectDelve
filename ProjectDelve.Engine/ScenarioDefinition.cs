@@ -7,6 +7,8 @@ public sealed record ScenarioDefinition
     public Dictionary<string, LootUnitOverride>? LootUnitOverrides { get; init; }
     public List<LootMarker>? LootMarkers { get; init; }
     public List<GroundObject>? GroundObjects { get; init; }
+    // Local definitions are resolved with canonical Equipment without changing either catalog.
+    public List<EquipmentDefinition>? EquipmentTypes { get; init; }
     public List<string>? NeutralSides { get; init; }
     public List<string>? FogOfWarSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }

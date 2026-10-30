@@ -226,7 +226,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     shadowDirty=true;
     if(identity!==session){cancel();session=identity;hoveredUnitId=null;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
     frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
-    const lootPiles=groundLoot(frame.state);
+    const lootPiles=groundLoot(frame.state, frame.presentation.groundObjects);
     lighting.local.update(data,[...terrainLightSources(data),...lootLightSources(lootPiles)]);
     lighting.setBoard(board);
     // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat

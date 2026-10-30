@@ -129,9 +129,9 @@ internal static class ScenarioCreation
         {
             LootDeck = new LootDeck
             {
-                DrawPile = (definition.Loot ?? new LootSettings()).ResolveCards()
-                    .Select((kind, index) => new OwnedObject($"loot-card-{index + 1}", kind)).ToList()
+                DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects()
             },
+            EquipmentTypes = EquipmentCatalog.Resolve(definition.EquipmentTypes),
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
@@ -191,6 +191,7 @@ internal static class ScenarioCreation
         }
         ValidateObjectiveSelections(state, definition);
         GameEngine.CaptureObjectiveStartUnits(state);
+        EquipmentCompatibility.MigrateLegacyDuplicateOwnership(state);
         GameEngine.ValidateScenario(state);
         // Defer vision until every Unit, terrain object and initial setting exists.
         state.FogOfWarSides = [.. definition.FogOfWarSides ?? []];

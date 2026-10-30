@@ -30,7 +30,7 @@ public static class FogOfWar
         var copy = state.Copy();
         // Unopened card identities are never presentation data, including without FoW.
         copy.LootDeck = null;
-        if (!IsEnabled(state, side)) return copy;
+        if (!IsEnabled(state, side)) { FilterEquipment(copy); return copy; }
         var visible = state.Units.Where(u => IsUnitObservable(state, side, u.Id)).Select(u => u.Id).ToHashSet();
         var groups = state.Units.Where(u => visible.Contains(u.Id)).Select(u => new ActivationToken(u.TypeId, u.SideId)).ToHashSet();
         copy.ObservationValues = visible.ToDictionary(id => id, id =>
@@ -67,7 +67,15 @@ public static class FogOfWar
         if (copy.CurrentUnitId is null) copy.ModifiersThisTurn.Clear();
         copy.FogOfWarSides = [side!];
         copy.ExploredCells = new(StringComparer.Ordinal) { [side!] = new(state.ExploredCells.GetValueOrDefault(side!) ?? []) };
+        FilterEquipment(copy);
         return copy;
+    }
+
+    private static void FilterEquipment(GameState observed)
+    {
+        var known = observed.Units.SelectMany(u => u.Inventory).Concat(observed.GroundObjects.Select(g => g.Object))
+            .Select(observed.EquipmentTypeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        observed.EquipmentTypes.RemoveAll(d => !known.Contains(d.Id));
     }
 
     public static DecisionRequest? ObserveDecision(GameState state, string? side, DecisionRequest? request)

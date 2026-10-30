@@ -308,15 +308,15 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const rows = draft.lootComposition();
     lootForm.append(element('p', `${rows.reduce((sum,r) => sum + r.count,0)} cards. Each unopened marker reserves one card. No reshuffle.`));
     if (custom) {
-      const counts = (catalog.lootCards ?? []).map(c => ({ kind:c.kind, input:field(lootForm,c.name,rows.find(r => r.kind === c.kind)?.count ?? 0,{type:'number'}) }));
+      const counts = draft.lootCardCatalog().map(c => ({ reference:c.reference, input:field(lootForm,c.reference.equipmentTypeId != null ? `${c.name} (Equipment Type)` : c.name,rows.find(r => c.reference.equipmentTypeId != null ? r.equipmentTypeId === c.reference.equipmentTypeId : r.equipmentTypeId == null && r.kind === c.reference.kind)?.count ?? 0,{type:'number'}) }));
       lootForm.append(element('button', 'Apply Custom Deck'));
-      lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({kind:c.kind,count:Number(c.input.value)})))); });
+      lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({...c.reference,count:Number(c.input.value)})))); });
     } else {
       const multiplier = field(lootForm, 'Deck multiplier', draft.definition.loot?.presetMultiplier ?? 1, {type:'number'});
       multiplier.id = 'designer-loot-multiplier'; multiplier.min = '1'; multiplier.max = '100'; multiplier.step = '1';
       multiplier.addEventListener('change', () => commit(() => draft.setLootMultiplier(Number(multiplier.value))));
       const list = element('ul'); list.className = 'loot-preset-contents';
-      for (const row of rows) list.append(element('li', `${catalog.lootCards?.find(c => c.kind === row.kind)?.name ?? row.kind} \u00d7${row.count}`));
+      for (const row of rows) list.append(element('li', `${draft.objectName(row)} \u00d7${row.count}`));
       lootForm.append(list, button('Copy to Custom', () => commit(() => draft.copyLootToCustom())));
       lootForm.addEventListener('submit', event => event.preventDefault());
     }
@@ -1020,14 +1020,14 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   function objectEditor(form, objects, destination) {
     const panel = element('details'); panel.open = objects.length > 0;
     panel.append(element('summary', `${destination.unitKey != null ? 'Individual inventory' : 'Known ground objects'} · ${objects.length}`));
-    const catalogObjects = (catalog.lootCards ?? []).filter(c => c.category !== 'Immediate');
+    const catalogObjects = draft.objectCatalog();
     for (const object of objects) {
       const row = element('div'); row.className = 'designer-loot-row';
-      row.append(element('span', catalogObjects.find(c => c.kind === object.kind)?.name ?? object.kind),
+      row.append(element('span', draft.objectName(object)),
         button('Remove', () => commit(() => draft.removeObject(object.id)))); panel.append(row);
     }
-    const kind = field(panel, 'Item or Equipment', catalogObjects[0]?.kind, { entries: catalogObjects.map(c => ({ value: c.kind, label: `${c.name} (${c.category})` })) });
-    panel.append(button('Add object', () => commit(() => draft.addObject(kind.value, destination))));
+    const kind = field(panel, 'Item or Equipment', catalogObjects[0]?.key, { entries: catalogObjects.map(c => ({ value: c.key, label: `${c.name} (${c.category})` })) });
+    panel.append(button('Add object', () => commit(() => draft.addObject(catalogObjects.find(c => c.key === kind.value).reference, destination))));
     form.append(panel);
   }
   function render() { refreshMetadata(); syncImportedTypes(); renderRoutes(); syncWorldFields(); renderProperties(); renderData(); renderBoard(); updateDocumentState(); }

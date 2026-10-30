@@ -127,6 +127,8 @@ public static class ContentDescriptions
 
     public static string? EntryId(Candidate candidate) => candidate switch
     {
+        { EquipmentTypeId: { } typeId, EquipmentAbilityId: { } abilityId } => $"equipment:{Uri.EscapeDataString(typeId)}:{Uri.EscapeDataString(abilityId)}",
+        { EquipmentTypeId: { } typeId } => $"equipment:{Uri.EscapeDataString(typeId)}:modifiers",
         { ObjectKind: { } kind } => $"object:{kind}",
         { BonusAction: { } ability } => BonusEntryId(ability.Name),
         { Kind: ActivationChoiceKind.Cleave } => "cleave",

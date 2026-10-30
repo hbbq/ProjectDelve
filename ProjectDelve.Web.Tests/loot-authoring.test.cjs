@@ -71,3 +71,32 @@ test('live deck multiplier survives recovery and Copy to Custom copies scaled qu
   run(`live.setLootPreset('Classic')`);
   for (const value of [0,-1,1.5,101]) assert.throws(() => run(`live.setLootMultiplier(${value})`), /whole deck multiplier/);
 });
+
+
+test('local Equipment references survive editing, undo, draft recovery and isolated playtest snapshots', () => {
+  run(`globalThis.equipmentDraft = new DesignerDraft({maxBoardSize:50,unitTypes:[],equipmentTypes:[{id:'canonical',name:'Canonical Boots'}],lootCards:[]});
+    equipmentDraft.replace({board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:['local-unit'],
+      unitTypes:[{id:'local-unit',mov:2,rng:1,atk:1,def:0,hp:2}],
+      units:[{unitTypeId:'local-unit',sideId:'blue',anchor:{x:0,y:0}}],agency:[{unitTypeId:'local-unit',sideId:'blue',controller:'Human'}],
+      equipmentTypes:[{id:'unfamiliar',name:'Cloud Compass',modifiers:[{stat:'Mov',amount:2},{stat:'Def',amount:1}],
+        capabilities:['Phase','OpenDoor'],abilities:[{id:'wake',name:'Awaken',mechanic:'StandAdjacentFriendlyLyingUnit',usage:'Unlimited'}]}],
+      loot:{composition:[]}});
+    globalThis.equipmentHistory = new DesignerHistory(equipmentDraft);
+    equipmentHistory.begin();
+    equipmentDraft.setLootDeck([{equipmentTypeId:'unfamiliar',count:3}]);
+    equipmentDraft.addObject({equipmentTypeId:'unfamiliar'},{unitKey:equipmentDraft.unitKeys[0]});
+    equipmentDraft.addObject({equipmentTypeId:'unfamiliar'},{position:{x:1,y:0}});
+    equipmentHistory.finish();`);
+  const saved = plain(run('equipmentDraft.snapshot()'));
+  assert.equal(saved.units[0].inventory[0].equipmentTypeId,'unfamiliar');
+  assert.equal(saved.groundObjects[0].object.equipmentTypeId,'unfamiliar');
+  assert.deepEqual(saved.loot.composition,[{equipmentTypeId:'unfamiliar',count:3}]);
+  assert.equal(run('equipmentDraft.objectName(equipmentDraft.definition.units[0].inventory[0])'),'Cloud Compass');
+  assert.equal(run('equipmentDraft.objectCatalog().length'),2);
+  assert.deepEqual(plain(run('equipmentDraft.lootCardCatalog().map(c => c.reference.equipmentTypeId)')),['canonical','unfamiliar']);
+  run('equipmentHistory.undo(); equipmentHistory.redo()');
+  assert.deepEqual(plain(run('equipmentDraft.snapshot()')),saved);
+  assert.deepEqual(plain(run('readDraftDocument(JSON.stringify(draftDocument(equipmentDraft.snapshot()))).definition')),saved);
+  run('globalThis.equipmentPlaytest = equipmentDraft.snapshot(); equipmentPlaytest.equipmentTypes[0].modifiers[0].amount = 99; equipmentPlaytest.units[0].inventory.length = 0');
+  assert.deepEqual(plain(run('equipmentDraft.snapshot()')),saved);
+});

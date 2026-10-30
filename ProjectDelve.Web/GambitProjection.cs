@@ -16,7 +16,7 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
     GambitStats EffectiveStats, IReadOnlyList<GambitAbilityUse> LimitedUses)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<OwnedObject>? Inventory { get; init; }
+    public IReadOnlyList<ObjectDisplay>? Inventory { get; init; }
 }
 public sealed record GambitAbility(string Id, string Name, string Category, string Description,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaximumUses);
@@ -60,7 +60,7 @@ public sealed record GambitObservation(Board Board, IReadOnlyList<GambitUnit> Un
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<LootMarker>? LootMarkers { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<GroundObject>? GroundObjects { get; init; }
+    public IReadOnlyList<GroundObjectDisplay>? GroundObjects { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ObjectiveStartUnitIds { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
     public IReadOnlyList<string> DefeatedUnitIds { get; init; } = [];
 }
@@ -154,15 +154,15 @@ internal static class GambitProjection
         "A Unit normally has one Move and one Action per activation; legal candidates are authoritative.",
         "Unlisted terrain is StoneFloor; absent Edges are open (None). Walls and Closed Doors block movement; Open Doors do not.");
 
-    internal static GambitDecision Decision(DecisionRequest request) => new(request.Kind, request.TypeId, request.UnitId,
-        request.Candidates.Select(Candidate).ToArray(), request.AllowsNone, request.IsMoveAfterAttack, request.Token,
+    internal static GambitDecision Decision(DecisionRequest request, GameState? state = null) => new(request.Kind, request.TypeId, request.UnitId,
+        request.Candidates.Select(c => Candidate(c, state)).ToArray(), request.AllowsNone, request.IsMoveAfterAttack, request.Token,
         request.Roll is null ? null : Roll(request.Roll));
 
-    private static GambitCandidate Candidate(Candidate candidate) => new(candidate.Key, candidate.Kind, candidate.Relevant,
+    private static GambitCandidate Candidate(Candidate candidate, GameState? state) => new(candidate.Key, candidate.Kind, candidate.Relevant,
         ContentDescriptions.EntryId(candidate), candidate.Destination, candidate.Path,
         candidate.Action, candidate.TargetId, candidate.TargetIds.IsDefaultOrEmpty ? null : candidate.TargetIds,
         candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId)
-        { ObjectId = candidate.ObjectId, ObjectContent = candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null };
+        { ObjectId = candidate.ObjectId, ObjectContent = state?.CandidateObjectContent(candidate) ?? (candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null) };
 
     private static GambitRoll Roll(DicePool pool) => new(pool.Family, pool.Count, pool.OwnerUnitId, pool.SourceUnitId,
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
@@ -193,7 +193,7 @@ internal static class GambitProjection
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
-                { Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.ToArray() };
+                { Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
         }).ToArray();
         var types = state.Types.Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
             new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
@@ -215,7 +215,7 @@ internal static class GambitProjection
             state.Round, state.RoundComplete, Glossary, RenderAsciiBoard(state.Physical.Board, units, unknown))
             { Orders = state.Orders.ToArray(), Waypoints = state.Waypoints.ToArray(), Routes = state.Routes.ToArray(), CellMarkers = state.CellMarkers.ToArray(), Resources = state.Resources.ToArray(), StoredResources = state.StoredResources.ToArray(),
                 LootMarkers = state.LootMarkers.Count == 0 ? null : state.LootMarkers.ToArray(),
-                GroundObjects = state.GroundObjects.Count == 0 ? null : state.GroundObjects.ToArray(),
+                GroundObjects = state.GroundObjects.Count == 0 ? null : BrowserProjection.GroundObjects(state),
                 ObjectiveStartUnitIds = state.ObjectiveStartUnitIds.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value.ToArray()),
                 DefeatedUnitIds = state.DefeatedUnitIds.Order(StringComparer.Ordinal).ToArray(), UnknownCells = unknown };
     }

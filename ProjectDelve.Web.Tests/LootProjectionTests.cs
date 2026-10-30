@@ -12,7 +12,7 @@ public sealed class LootProjectionTests
         var state = new GameState
         {
             Physical = new(new Board(20, 3, []), [new("a", new(0, 0)), new("b", new(19, 0))]),
-            Types = [type], Units = [type.CreateUnit("a", "blue") with { Inventory = [new("boots", LootCardKind.LuckyBoots), new("boots-2", LootCardKind.LuckyBoots)] },
+            Types = [type], Units = [type.CreateUnit("a", "blue") with { Inventory = [new("boots", LootCardKind.LuckyBoots), new("wind-1", LootCardKind.SecondWind), new("wind-2", LootCardKind.SecondWind)] },
                 type.CreateUnit("b", "red") with { Inventory = [new("sheet", LootCardKind.Bedsheet)] }],
             Controllers = [new(new(type.Id, "blue"), ControllerKind.Human), new(new(type.Id, "red"), ControllerKind.Automated)],
             FogOfWarSides = fog ? ["blue"] : [],
@@ -43,7 +43,8 @@ public sealed class LootProjectionTests
         Assert.Equal(fog ? 0 : 1, response.Result.State.LootMarkers.Count);
         Assert.Equal(fog ? 0 : 1, response.Result.State.GroundObjects.Count);
         Assert.Equal(fog ? 1 : 2, response.Presentation.Cards.Count);
-        Assert.Equal(2, Assert.Single(response.Presentation.Cards["a"].Entries.Where(e => e.Source == "Equipment")).CopyCount);
+        Assert.Equal(1, Assert.Single(response.Presentation.Cards["a"].Entries.Where(e => e.Source == "Equipment")).CopyCount);
+        Assert.Equal(2, Assert.Single(response.Presentation.Cards["a"].Entries.Where(e => e.Source == "Item")).CopyCount);
         Assert.Contains(response.Presentation.Cards["a"].Entries, e => e.Source == "Equipment" && e.Content.Description == "MOV +1.");
     }
 
@@ -83,7 +84,61 @@ public sealed class LootProjectionTests
         var observation = GambitProjection.Observation(state, "blue", state.Controllers.ToDictionary(c => c.Token, _ => "Gambit"));
         Assert.Null(observation.LootMarkers); Assert.Null(observation.GroundObjects);
         var unit = Assert.Single(observation.Units);
-        Assert.Equal(2, unit.Inventory!.Count);
-        Assert.All(unit.Inventory, o => Assert.Equal(LootCardKind.LuckyBoots, o.Kind));
+        Assert.Equal(3, unit.Inventory!.Count);
+        Assert.Equal(2, unit.Inventory.Count(o => o.Kind == LootCardKind.SecondWind));
     }
+
+    [Fact]
+    public void UnfamiliarEquipmentProjectsEveryGrantAndSourceWithoutContentSpecificWebCode()
+    {
+        var state = State();
+        var equipment = new EquipmentDefinition("untold-moon", "Velvet Astrolabe")
+        {
+            Modifiers = [new(Stat.Mov, 2), new(Stat.Def, 3)],
+            Capabilities = [EquipmentCapability.Phase, EquipmentCapability.OpenDoor],
+            Abilities = [new("wake", "Morning Chorus", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)]
+        };
+        state.EquipmentTypes.Add(equipment);
+        state.Units[0] = state.Units[0] with { Inventory = [new("unique-physical-object", equipment.Id)] };
+        state.GroundObjects.Add(new(new("other-physical-object", equipment.Id), new(0, 0)));
+        var card = BrowserProjection.Cards(state)["a"];
+        Assert.Equal(equipment.Name, Assert.Single(card.Inventory).Name);
+        var acquired = card.Entries.Where(e => e.Source == "Equipment").ToArray();
+        Assert.Equal(equipment.CardEntries(), acquired.Select(e => e.Content));
+        Assert.All(acquired, e => { Assert.Equal(equipment.Id, e.SourceTypeId); Assert.Equal(equipment.Name, e.SourceName); });
+        Assert.Contains(acquired, e => e.Content.Description == "MOV +2; DEF +3.");
+        var choice = new Candidate("equipment:untold-moon:wake:target", TargetId: "b")
+            { EquipmentTypeId = equipment.Id, EquipmentAbilityId = "wake", AbilityName = "Morning Chorus" };
+        var request = new DecisionRequest(DecisionKind.Activation, "collector", "a", [choice], false);
+        var projected = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
+        Assert.Equal(equipment.EntryId("wake"), projected.EntryId);
+        Assert.Contains("Morning Chorus", projected.Label);
+        Assert.Equal(equipment.Name, Assert.Single(GambitProjection.Decision(request, state).Candidates).ObjectContent!.Name);
+        Assert.Equal(equipment.Name, BrowserProjection.GroundObjects(state).Single(g => g.Object.Id == "other-physical-object").Object.Content.Name);
+        var door = new Candidate("open-door:0,0:0,1", Door: new(new(0, 0), new(0, 1), EdgeKind.ClosedDoor),
+            Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor) { EquipmentGranted = true };
+        var doorRequest = new DecisionRequest(DecisionKind.Activation, "collector", "a", [door], false);
+        var doorChoice = Assert.Single(BrowserProjection.Decision(doorRequest, state)!.Candidates);
+        Assert.Contains(equipment.Name, doorChoice.Label);
+        Assert.DoesNotContain("Official-Looking Key", doorChoice.Label);
+    }
+
+    [Fact]
+    public void HiddenScenarioEquipmentDoesNotLeakThroughObservationOrPresentation()
+    {
+        var state = State(true);
+        var secret = new EquipmentDefinition("hidden-type", "Unseen Prism") { Modifiers = [new(Stat.Atk, 2)] };
+        state.EquipmentTypes.Add(secret);
+        state.Units[1] = state.Units[1] with { Inventory = [new("hidden-instance", secret.Id)] };
+        state.GroundObjects = [new(new("hidden-ground-instance", secret.Id), new(19, 1))];
+        using var game = new PlaytestGame(new Dice(), state);
+        var response = game.BrowserResponse(game.Snapshot());
+        var json = System.Text.Json.JsonSerializer.Serialize(response);
+        Assert.DoesNotContain(secret.Name, json);
+        Assert.DoesNotContain("hidden-instance", json);
+        Assert.Empty(response.Presentation.GroundObjects);
+        var observation = GambitProjection.Observation(state, "blue", state.Controllers.ToDictionary(c => c.Token, _ => "Gambit"));
+        Assert.DoesNotContain(secret.Name, System.Text.Json.JsonSerializer.Serialize(observation));
+    }
+
 }

@@ -46,7 +46,24 @@ export class DesignerDraft {
   }
   setLootDeck(rows) {
     if (rows.some(r => !Number.isInteger(r.count) || r.count < 0 || r.count > 1000)) throw new Error("Use 0-1000 copies per card.");
-    this.definition.loot = { composition: rows.filter(r => r.count > 0).map(r => ({kind:r.kind, count:r.count})) }; this.changed();
+    this.definition.loot = { composition: rows.filter(r => r.count > 0).map(r => r.equipmentTypeId != null ? ({equipmentTypeId:r.equipmentTypeId, count:r.count}) : ({kind:r.kind, count:r.count})) }; this.changed();
+  }
+  equipmentCatalog() {
+    return [...(this.catalog.equipmentTypes ?? []), ...(this.definition.equipmentTypes ?? [])];
+  }
+  lootCardCatalog() {
+    return [...(this.catalog.lootCards ?? []).map(c => ({ ...c, reference: {kind:c.kind}, key:`card:${c.kind}` })),
+      ...this.equipmentCatalog().map(c => ({ name:c.name, category:'Equipment',
+        equipmentTypeId:c.id, reference:{equipmentTypeId:c.id}, key:`equipment:${c.id}` }))];
+  }
+  objectCatalog() {
+    return [...(this.catalog.lootCards ?? []).filter(c => c.category === 'Item').map(c => ({ ...c, reference:{kind:c.kind}, key:`card:${c.kind}` })),
+      ...this.equipmentCatalog().map(c => ({ name:c.name, category:'Equipment', equipmentTypeId:c.id,
+        reference:{equipmentTypeId:c.id}, key:`equipment:${c.id}` }))];
+  }
+  objectName(object) {
+    return object.equipmentTypeId != null ? this.equipmentCatalog().find(c => c.id === object.equipmentTypeId)?.name ?? object.equipmentTypeId
+      : this.catalog.lootCards?.find(c => c.kind === object.kind)?.name ?? object.kind;
   }
   configureLootType(id, dropSuccesses, canHaveItems, canHaveEquipment) {
     if (dropSuccesses != null && (!Number.isInteger(dropSuccesses) || dropSuccesses < 0 || dropSuccesses > 6)) throw new Error("Use 0-6 drop successes or the Unit Type default.");
@@ -71,7 +88,8 @@ export class DesignerDraft {
     this.changed();
   }
   addObject(kind, { unitKey, position }) {
-    const object = { id: this.objectIdentity('authored-object'), kind };
+    const reference = typeof kind === 'string' ? {kind} : structuredClone(kind);
+    const object = { id: this.objectIdentity('authored-object'), ...reference };
     if (unitKey != null) (this.definition.units[this.unitIndex(unitKey)].inventory ??= []).push(object);
     else (this.definition.groundObjects ??= []).push({ object, position: { ...position } });
     this.changed();
@@ -410,11 +428,11 @@ export function readDraftDocument(text, maxBoardSize = 50) {
   // Shape and rendering limits only. Incomplete/illegal game content is the engine's concern.
   if (!board || ![board.width, board.height].every(n => Number.isInteger(n) && n >= 1 && n <= maxBoardSize) ||
       ![board.cells, board.edges, d.units, d.unitTypeIds, d.agency].every(Array.isArray) ||
-      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
+      ["orders", "routes", "waypoints", "machines", "resources", "cellMarkers", "lootMarkers", "groundObjects", "objectives", "neutralSides", "fogOfWarSides", "unitTypes", "equipmentTypes", "storedResources"].some(key => d[key] != null && !Array.isArray(d[key])) ||
       d.loot != null && (typeof d.loot !== 'object' || d.loot.cards != null && (!Array.isArray(d.loot.cards) || d.loot.cards.some(k => typeof k !== 'string')) || d.loot.composition != null && !Array.isArray(d.loot.composition) || d.loot.preset != null && typeof d.loot.preset !== 'string') ||
       (d.lootMarkers ?? []).some(m => !m || typeof m.id !== 'string' || !m.position) ||
-      (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || typeof g.object.kind !== 'string') ||
-      d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || typeof o.kind !== 'string'))) ||
+      (d.groundObjects ?? []).some(g => !g?.position || !g.object || typeof g.object.id !== 'string' || (typeof g.object.kind !== 'string' && typeof g.object.equipmentTypeId !== 'string')) ||
+      d.units.some(u => u?.inventory != null && (!Array.isArray(u.inventory) || u.inventory.some(o => !o || typeof o.id !== 'string' || (typeof o.kind !== 'string' && typeof o.equipmentTypeId !== 'string')))) ||
       d.units.some(u => !u || typeof u.unitTypeId !== "string" || !u.anchor || !Number.isFinite(u.anchor.x) || !Number.isFinite(u.anchor.y)) ||
       board.cells.some(c => !c?.position) || board.edges.some(e => !e?.position) ||
       (d.waypoints ?? []).some(w => !w?.area) || (d.routes ?? []).some(r => !Array.isArray(r?.waypointIds)) ||

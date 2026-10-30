@@ -6,6 +6,16 @@ const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelv
 const observation=(cells={},edges=[])=>({board:{width:8,height:8,edges},kindAt:(x,y)=>cells[`${x},${y}`]??'StoneFloor'});
 const sample=(field,x,y)=>field.pixels[(Math.floor(y*4)*field.width+Math.floor(x*4))*4];
 
+test('known Equipment uses supplied observed content and never invents names from legacy card IDs',async()=>{
+  const {groundLoot}=await moduleAt('loot-ui.js');
+  const state={groundObjects:[{position:{x:1,y:1},object:{id:'opaque',kind:'PocketBreakfast',equipmentTypeId:'unfamiliar'}}]};
+  const presentation=[{position:{x:1,y:1},object:{...state.groundObjects[0].object,content:{name:'Cloud Compass',text:'MOV +2.'}}}];
+  const [pile]=groundLoot(state,presentation);
+  assert.equal(pile.label,'Cloud Compass');
+  assert.equal(pile.objects[0].content.text,'MOV +2.');
+  assert.deepEqual(groundLoot(state,[]),[],'empty observed presentation does not fall back to state objects');
+});
+
 test('visible lava illuminates neighbours with falloff; hidden recipes cannot influence the field',async()=>{
   const {buildLocalLightField,terrainLightSources}=await moduleAt('three-local-lighting.js');
   const data=observation({'2,2':'Lava','6,6':'Unknown'}),sources=terrainLightSources(data),f=buildLocalLightField(data,sources);

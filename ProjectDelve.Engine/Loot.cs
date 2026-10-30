@@ -3,14 +3,21 @@ namespace ProjectDelve.Engine;
 public enum LootCardKind { PocketBreakfast, SecondWind, Bedsheet, LuckyBoots, OfficialKey, GoatBell }
 public enum LootCategory { Immediate, Item, Equipment }
 // Card identity is independent of its source: initial inventories need no Loot Deck.
-public sealed record OwnedObject(string Id, LootCardKind Kind)
+[method: System.Text.Json.Serialization.JsonConstructor]
+public sealed record OwnedObject(string Id, LootCardKind Kind = LootCardKind.PocketBreakfast)
 {
-    public LootCardContent Content => LootCards.Content(Kind);
+    public string? EquipmentTypeId { get; init; }
+    public OwnedObject(string id, string equipmentTypeId) : this(id) => EquipmentTypeId = equipmentTypeId;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public LootCardContent Content => EquipmentTypeId is null ? LootCards.Content(Kind) : throw new InvalidOperationException("Resolve Equipment through the game content context.");
 }
 public sealed record GroundObject(OwnedObject Object, Cell Position);
 public sealed record LootMarker(string Id, Cell Position);
 public sealed record LootCardContent(LootCardKind Kind, string Name, LootCategory Category, string Text,
-    int Healing = 0, int MovementBonus = 0, int ExtraActions = 0);
+    int Healing = 0, int MovementBonus = 0, int ExtraActions = 0)
+{
+    public string? EquipmentTypeId { get; init; }
+}
 
 public static class LootCards
 {
@@ -18,17 +25,26 @@ public static class LootCards
     {
         new(LootCardKind.PocketBreakfast, "Pocket Breakfast", LootCategory.Immediate, "Restore 2 HP, without exceeding maximum HP.", Healing: 2),
         new(LootCardKind.SecondWind, "Second Wind", LootCategory.Item, "Bonus Action: gain +1 Action this activation. Consume this Item.", ExtraActions: 1),
-        new(LootCardKind.Bedsheet, "One-Size-Fits-Most Bedsheet", LootCategory.Equipment, "Grants Phase."),
-        new(LootCardKind.LuckyBoots, "Lucky Boots", LootCategory.Equipment, "MOV +1.", MovementBonus: 1),
-        new(LootCardKind.OfficialKey, "Official-Looking Key", LootCategory.Equipment, "Grants Open Door."),
-        new(LootCardKind.GoatBell, "Emergency Goat Bell", LootCategory.Equipment, "Action: stand up one adjacent friendly Lying Unit.")
+        EquipmentCard(LootCardKind.Bedsheet), EquipmentCard(LootCardKind.LuckyBoots),
+        EquipmentCard(LootCardKind.OfficialKey), EquipmentCard(LootCardKind.GoatBell)
     });
 
+    private static LootCardContent EquipmentCard(LootCardKind kind)
+    {
+        var definition = EquipmentCatalog.All.Single(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
+        return new(kind, definition.Name, LootCategory.Equipment, definition.Description,
+            MovementBonus: definition.Modifiers.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount)) { EquipmentTypeId = definition.Id };
+    }
     public static LootCardContent Content(LootCardKind kind) => All.Single(c => c.Kind == kind);
 }
 
 // Composition contains actual copies, not weights. Draw removes a card permanently.
-public sealed record LootCardQuantity(LootCardKind Kind, int Count);
+[method: System.Text.Json.Serialization.JsonConstructor]
+public sealed record LootCardQuantity(LootCardKind Kind = LootCardKind.PocketBreakfast, int Count = 1)
+{
+    public string? EquipmentTypeId { get; init; }
+    public LootCardQuantity(string equipmentTypeId, int count) : this(Count: count) => EquipmentTypeId = equipmentTypeId;
+}
 public sealed record LootPreset(string Id, string Name, string Description, IReadOnlyList<LootCardQuantity> Composition);
 public static class LootPresets
 {
@@ -78,11 +94,19 @@ public sealed record LootSettings
         IReadOnlyList<LootCardQuantity> rows = normalized.Composition ?? LootPresets.Find(normalized.Preset!).Composition
             .Select(r => r with { Count = checked(r.Count * (normalized.PresetMultiplier ?? 1)) }).ToList();
         if (rows.Any(r => r is null || !Enum.IsDefined(r.Kind) || r.Count is < 1 or > 1000) ||
-            rows.Select(r => r.Kind).Distinct().Count() != rows.Count || rows.Sum(r => r.Count) > 6000)
+            rows.Select(r => (r.EquipmentTypeId ?? EquipmentCatalog.LegacyTypeId(r.Kind)) is { } id ? ("equipment", id) : ("card", r.Kind.ToString())).Distinct().Count() != rows.Count || rows.Sum(r => r.Count) > 6000)
             throw new ArgumentException("Custom Loot needs unique card IDs with quantities from 1 to 1000.");
         return rows;
     }
-    public List<LootCardKind> ResolveCards() => ResolveComposition().SelectMany(r => Enumerable.Repeat(r.Kind, r.Count)).ToList();
+    public List<OwnedObject> ResolveObjects() => ResolveComposition()
+        .SelectMany(r => Enumerable.Repeat(r, r.Count))
+        .Select((r, i) => r.EquipmentTypeId is { } id ? new OwnedObject($"loot-card-{i + 1}", id) : new OwnedObject($"loot-card-{i + 1}", r.Kind)).ToList();
+    public List<LootCardKind> ResolveCards()
+    {
+        var rows = ResolveComposition();
+        if (rows.Any(r => r.EquipmentTypeId is not null)) throw new InvalidOperationException("Use ResolveObjects for independent Equipment references.");
+        return rows.SelectMany(r => Enumerable.Repeat(r.Kind, r.Count)).ToList();
+    }
 }
 public sealed record LootUnitOverride(int? DropSuccesses = null, bool? CanHaveItems = null, bool? CanHaveEquipment = null);
 public sealed class LootDeck
@@ -101,8 +125,13 @@ internal static class LootRules
         _ => false
     };
 
+    internal static bool CanOwn(GameState state, Unit unit, OwnedObject obj) => state.EquipmentTypeId(obj) is { } id
+        ? state.Types.Single(t => t.Id == unit.TypeId).CanHaveEquipment && !unit.Inventory.Any(o => state.EquipmentTypeId(o) == id)
+        : CanOwn(state.Types.Single(t => t.Id == unit.TypeId), obj.Kind);
+
     internal static void Validate(GameState state)
     {
+        EquipmentCatalog.Validate(state.EquipmentTypes);
         if (state.LootMarkers.Count > (state.LootDeck?.DrawPile.Count ?? 0))
             throw new ArgumentException("Every unopened Loot marker requires an available draw card.");
         if (state.Types.Any(t => t.LootDropSuccesses is < 0 or > 6))
@@ -114,15 +143,22 @@ internal static class LootRules
         if (objects.Any(o => o is null || string.IsNullOrWhiteSpace(o.Id) || !Enum.IsDefined(o.Kind)) ||
             objects.Select(o => o.Id).Distinct(StringComparer.Ordinal).Count() != objects.Length)
             throw new ArgumentException("Object cards require unique identities and supported kinds.");
+        foreach (var obj in objects) _ = state.ObjectContent(obj);
         if (state.LootMarkers.Any(m => m is null || string.IsNullOrWhiteSpace(m.Id) || m.Position is null ||
                 !MovementRules.Inside(state.Physical.Board, m.Position)) ||
             state.LootMarkers.Select(m => m.Id).Distinct(StringComparer.Ordinal).Count() != state.LootMarkers.Count)
             throw new ArgumentException("Loot markers require unique identities and Cells on the board.");
         if (state.GroundObjects.Any(g => g is null || g.Position is null ||
-                !MovementRules.Inside(state.Physical.Board, g.Position) || LootCards.Content(g.Object.Kind).Category == LootCategory.Immediate))
+                !MovementRules.Inside(state.Physical.Board, g.Position) || state.ObjectContent(g.Object).Category == LootCategory.Immediate))
             throw new ArgumentException("Known ground objects require an Item or Equipment and a Cell on the board.");
         foreach (var unit in state.Units)
-            if (unit.Inventory.Any(o => unit.CurrentHp <= 0 || !CanOwn(state.Types.Single(t => t.Id == unit.TypeId), o.Kind)))
+        {
+            var equipment = unit.Inventory.Select(state.EquipmentTypeId).OfType<string>().ToArray();
+            if (equipment.Distinct(StringComparer.Ordinal).Count() != equipment.Length)
+                throw new ArgumentException("A Unit may own at most one Equipment instance of each Equipment Type ID.");
+            var type = state.Types.Single(t => t.Id == unit.TypeId);
+            if (unit.Inventory.Any(o => unit.CurrentHp <= 0 || (state.EquipmentTypeId(o) is not null ? !type.CanHaveEquipment : !CanOwn(type, o.Kind))))
                 throw new ArgumentException("An inventory requires a living owner with the corresponding ownership capability.");
+        }
     }
 }

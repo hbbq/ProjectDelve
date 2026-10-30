@@ -1118,7 +1118,8 @@ test('local illumination follows displayed checkpoints, switches off, survives m
 
 test('Loot stars share resources, retain mixed-pile counts and known markers, and preserve Cell picks while idle',async()=>{
   const f=fixture();f.state.lootMarkers=[{id:'a',position:{x:1,y:1}},{id:'b',position:{x:1,y:1}},{id:'c',position:{x:3,y:1}}];
-  f.state.groundObjects=[{position:{x:1,y:1},object:{id:'boots',kind:'LuckyBoots',content:{name:'Lucky Boots'}}}];
+  f.state.groundObjects=[{position:{x:1,y:1},object:{id:'compass',equipmentTypeId:'unfamiliar'}}];
+  f.presentation.groundObjects=[{position:{x:1,y:1},object:{id:'compass',equipmentTypeId:'unfamiliar',content:{name:'Cloud Compass'}}}];
   const h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
     const scene=h.rendered.at(-1).scene,items=scene.getObjectByName('items');

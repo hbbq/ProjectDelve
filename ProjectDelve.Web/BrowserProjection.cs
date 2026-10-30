@@ -24,8 +24,12 @@ public sealed record BrowserDecision(string? UnitId, string Prompt,
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
 {
     public string Source { get; init; } = "Native";
+    public string? SourceName { get; init; }
+    public string? SourceTypeId { get; init; }
     public int CopyCount { get; init; } = 1;
 }
+public sealed record ObjectDisplay(string Id, LootCardKind Kind, string? EquipmentTypeId, LootCardContent Content);
+public sealed record GroundObjectDisplay(ObjectDisplay Object, Cell Position);
 public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null)
 {
     public string? TypeId { get; init; }
@@ -61,6 +65,7 @@ public sealed record BrowserOutcome(OutcomeRole Role, string Text, string? UnitI
 }
 public sealed record BrowserResolutionStep(int EventIndex, IReadOnlyDictionary<string, UnitCard> Cards)
 {
+    public IReadOnlyList<GroundObjectDisplay> GroundObjects { get; init; } = [];
     public GameCompletion? Completion { get; init; }
     public IReadOnlyList<BrowserObjective> Objectives { get; init; } = [];
     public BrowserWorldEffects? WorldEffects { get; init; }
@@ -72,6 +77,7 @@ public sealed record BrowserPresentation(IReadOnlyDictionary<string, UnitCard> C
     BrowserDecision? Decision, IReadOnlyList<BrowserOutcome> Events,
     IReadOnlyList<BrowserResolutionStep> ResolutionSteps)
 {
+    public IReadOnlyList<GroundObjectDisplay> GroundObjects { get; init; } = [];
     public string? ViewingSideId { get; init; }
     public IReadOnlyList<Cell> UnknownCells { get; init; } = [];
     public GameCompletion? Completion { get; init; }
@@ -103,9 +109,9 @@ public static class BrowserProjection
         Cards(result.State, individualNames), Decision(result.NextInput, result.State, individualNames),
         outcomes,
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter, individualNames))
-            { Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
+            { GroundObjects = GroundObjects(s.StateAfter), Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
                 Completion = s.StateAfter.Completion, Orders = s.StateAfter.Orders.ToArray() }).ToArray())
-        { Machines = Machines(result.State), Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
+        { GroundObjects = GroundObjects(result.State), Machines = Machines(result.State), Figures = Figures(result.State), WorldEffects = WorldEffects(result.State), Objectives = Objectives(result.State), Completion = result.State.Completion,
             Orders = result.State.Orders.ToArray(), ViewingSideId = side, UnknownCells = FogOfWar.UnknownCells(result.State, side) };
     }
 
@@ -159,25 +165,9 @@ public static class BrowserProjection
         var type = state.Types.Single(t => t.Id == u.TypeId);
         return new UnitCard(type.DisplayName ?? type.Id,
             type.CardEntries(state.Types).Select(entry => new CardEntry(entry, type.UsesFor(u, entry.Id)))
-                .Concat(u.Inventory.Select(o => o.Kind).Distinct()
-                    .OrderBy(kind => LootCards.Content(kind).Category == LootCategory.Item ? 1 : 0).Select(kind =>
-                {
-                    var item = LootCards.Content(kind);
-                    var category = kind switch
-                    {
-                        LootCardKind.SecondWind => "Bonus Action",
-                        LootCardKind.GoatBell => "Action",
-                        LootCardKind.OfficialKey => "Free Action",
-                        _ => "Passive"
-                    };
-                    return new CardEntry(new($"object:{kind}", item.Name, category, item.Text), null)
-                    {
-                        Source = item.Category == LootCategory.Item ? "Item" : "Equipment",
-                        CopyCount = u.Inventory.Count(o => o.Kind == kind)
-                    };
-                })).ToArray())
+                .Concat(AcquiredEntries(state, u)).ToArray())
         {
-            Inventory = u.Inventory.Select(o => LootCards.Content(o.Kind)).ToArray(),
+            Inventory = u.Inventory.Select(state.ObjectContent).ToArray(),
             IndividualName = individualNames?.GetValueOrDefault(u.Id),
             PlayerName = PlayerName(state, u.Id, individualNames),
             ResourceStorage = type.ResourceStorage?.Capacities.Select(c => new StoredResourceDisplay(c.Type.Id, c.Type.Name,
@@ -185,6 +175,33 @@ public static class BrowserProjection
             FootprintLabel = type.Footprint == Footprint.TwoByTwo ? "Footprint 2 × 2" : null
         };
     });
+
+    public static ObjectDisplay Object(GameState state, OwnedObject item) =>
+        new(item.Id, item.Kind, state.EquipmentTypeId(item), state.ObjectContent(item));
+
+    public static IReadOnlyList<GroundObjectDisplay> GroundObjects(GameState state) =>
+        state.GroundObjects.Select(g => new GroundObjectDisplay(Object(state, g.Object), g.Position)).ToArray();
+
+    private static IEnumerable<CardEntry> AcquiredEntries(GameState state, Unit unit)
+    {
+        foreach (var group in unit.Inventory.GroupBy(o => state.EquipmentTypeId(o)).OrderBy(g => g.Key is null ? 1 : 0))
+        {
+            if (group.Key is { } equipmentId)
+            {
+                var definition = state.Equipment(equipmentId);
+                foreach (var entry in definition.CardEntries())
+                    yield return new(entry, null) { Source = "Equipment", SourceName = definition.Name,
+                        SourceTypeId = definition.Id, CopyCount = group.Count() };
+            }
+            else
+                foreach (var items in group.GroupBy(o => o.Kind))
+                {
+                    var content = state.ObjectContent(items.First());
+                    yield return new(new($"object:{items.Key}", content.Name, "Bonus Action", content.Text), null)
+                        { Source = "Item", SourceName = content.Name, CopyCount = items.Count() };
+                }
+        }
+    }
 
     // Display labels never replace authoritative identifiers or debug wording.
     public static string PlayerName(GameState state, string? id, IReadOnlyDictionary<string, string>? individualNames = null)
@@ -211,7 +228,14 @@ public static class BrowserProjection
         var type = state.Types.Single(t => t.Id == request.TypeId);
         var entries = type.CardEntries(state.Types).ToDictionary(e => e.Id);
         if (request.UnitId is { } bearer && state.HasOpenDoor(bearer) && !entries.ContainsKey("open-door"))
-            entries["open-door"] = new("open-door", "Open Door · Official-Looking Key", "Free Action", "Open a bordering Closed Door.");
+        {
+            var sources = state.ActiveEquipment(bearer).Where(e => e.Capabilities.Contains(EquipmentCapability.OpenDoor)).ToArray();
+            var content = sources[0].CardEntries().Single(e => e.Id == sources[0].EntryId("open-door"));
+            entries["open-door"] = content with { Id = "open-door", Name = $"{content.Name} · {string.Join(", ", sources.Select(e => e.Name))}" };
+        }
+        if (request.UnitId is { } owner)
+            foreach (var entry in AcquiredEntries(state, state.Units.Single(u => u.Id == owner)))
+                entries[entry.Content.Id] = entry.Content;
         var candidates = request.Candidates.Select(c =>
         {
             var entryId = ContentDescriptions.EntryId(c);
@@ -227,8 +251,8 @@ public static class BrowserProjection
                 : new ChoiceInteraction(InteractionKind.Direct);
             string Label(Func<string, string> name) => c.Kind switch
             {
-                _ when c.ObjectKind is { } kind => (c.Kind == ActivationChoiceKind.FreeAction ? "Collect " : "Use ") +
-                    LootCards.Content(kind).Name + (c.TargetId is null ? "" : $" → {name(c.TargetId)}"),
+                _ when state.CandidateObjectContent(c) is { } objectContent => (c.Kind == ActivationChoiceKind.FreeAction ? "Collect " : "Use ") +
+                    (c.AbilityName ?? objectContent.Name) + (c.TargetId is null ? "" : $" → {name(c.TargetId)}"),
                 ActivationChoiceKind.RollDice => "Roll Dice",
                 ActivationChoiceKind.Stay => "Stay here",
                 ActivationChoiceKind.EndTurn => "End Turn",
@@ -294,7 +318,7 @@ public static class BrowserProjection
         var display = OutcomeCore(e, state, id => fog && string.IsNullOrEmpty(id) ? "Unseen source" : PlayerName(state, id, individualNames));
         var collector = state.Units.FirstOrDefault(u => u.Id == e.UnitId);
         return raw with { DisplayText = display.Text, MovingFigure = display.MovingFigure,
-            LootCard = e.Kind == "LootCardDrawn" ? LootCards.Content(e.ObjectCard!.Kind) : null,
+            LootCard = e.Kind == "LootCardDrawn" ? state.ObjectContent(e.ObjectCard!) : null,
             HumanCollector = collector is not null && state.Controllers.Any(c => c.Token == new ActivationToken(collector.TypeId, collector.SideId) && c.Controller == ControllerKind.Human) };
     }
 
@@ -313,12 +337,12 @@ public static class BrowserProjection
         switch (e.Kind)
         {
             case "LootCardDrawn":
-                var loot = LootCards.Content(e.ObjectCard!.Kind);
+                var loot = state.ObjectContent(e.ObjectCard!);
                 description = $"{name(e.UnitId)} drew {loot.Name} ({loot.Category}): {loot.Text}";
                 break;
             case "ObjectCollected":
             case "ItemUsed":
-                description = $"{name(e.UnitId)} {(e.Kind == "ItemUsed" ? "used" : "collected")} {LootCards.Content(e.ObjectCard!.Kind).Name}";
+                description = $"{name(e.UnitId)} {(e.Kind == "ItemUsed" ? "used" : "collected")} {state.ObjectContent(e.ObjectCard!).Name}";
                 break;
             case "LootDropRolled":
                 description = e.Succeeded == true ? $"Loot dropped at {CellLabel(e.Cell!)} ({e.DieRoll}/{e.SuccessCount})" : $"No Loot drop ({e.DieRoll}/{e.SuccessCount})";

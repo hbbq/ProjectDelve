@@ -164,7 +164,7 @@ public sealed partial class PlaytestGame
                 ? [PreviewDefaultBehavior(new(activeUnit, Kind: ActivationChoiceKind.SelectUnit))]
                 : [];
         var candidate = new GambitRequest(3, binding, state.Objectives.Single(o => o.SideId == binding.SideId),
-            "waiting-external", null, GambitProjection.Decision(pending), observation,
+            "waiting-external", null, GambitProjection.Decision(pending, state), observation,
             committed.Skip((int)(acknowledgedCursor - historyOffset)).Select(GambitProjection.Event).ToArray(), previews);
         if (System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(candidate, GambitJson.Options).Length > payloadLimit)
         { historyOverflow = true; status = "controller-error"; controllerError = "Controller observation limit exceeded. Restart the match."; return; }

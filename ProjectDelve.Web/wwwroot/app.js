@@ -417,7 +417,7 @@ function inspectCell(key) {
   hoveredUnitId = displayedState?.physical.figures.find(figure =>
     figureCells(figure).some(cell => cellKey(cell) === key))?.id ?? null;
   renderUnitCard();
-  const pile = displayedState && groundLoot(displayedState).find(p => cellKey(p.position) === key);
+  const pile = displayedState && groundLoot(displayedState, displayedFrame?.presentation.groundObjects).find(p => cellKey(p.position) === key);
   if (pile) {
     const panel = text('section', ''); panel.className = 'card-ability';
     panel.append(text('h3', `Ground at ${key}`));
@@ -431,7 +431,7 @@ function inspectCell(key) {
   }
 }
 
-function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives) {
+function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives, groundObjects = snapshot.presentation.groundObjects) {
   const board = state.physical.board;
   for (const node of choiceFeedback.values()) node.remove();
   choiceFeedback.clear();
@@ -526,7 +526,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.title = `${machine.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}: ${machine.operation}`;
     node.setAttribute("aria-label", `${node.title}. ${machine.resourceStorage.map(r => `${r.name}: ${r.quantity}/${r.capacity}`).join(", ")}`);
   }
-  for (const pile of groundLoot(state)) {
+  for (const pile of groundLoot(state, groundObjects)) {
     const node = cells.get(cellKey(pile.position)); if (!node) continue;
     for (const [count, known] of [[pile.unopened, false], [pile.objects.length, true]]) if (count) {
       const marker = text("span", `${known ? '◆' : '▣'} ${count}`); marker.className = `loot-ground${known ? ' known' : ''}`;
@@ -644,7 +644,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   }
 }
 
-function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives) {
+function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives, groundObjects = snapshot.presentation.groundObjects) {
   applySideHues(snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.sideHues);
   displayedCards = cards;
   displayedFigures = geometry;
@@ -652,9 +652,9 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   const isSetup = state.round === 0;
   if (setupPhase === undefined || setupPhase !== isSetup) ui["game-setup"].open = isSetup;
   setupPhase = isSetup;
-  renderBoard(state, preserveNodes, machines, objectives);
+  renderBoard(state, preserveNodes, machines, objectives, groundObjects);
   displayedState = state;
-  displayedFrame = { state, presentation: { cards, figures: geometry, worldEffects: world, orders, machines, objectives, viewingSideId: snapshot.presentation.viewingSideId },
+  displayedFrame = { state, presentation: { cards, figures: geometry, worldEffects: world, orders, machines, objectives, groundObjects, viewingSideId: snapshot.presentation.viewingSideId },
     metadata: { sessionId: snapshot.sessionId, scenarioId: snapshot.scenarioId, assignments: snapshot.controllerAssignments, controllers: snapshot.controllers, round: state.round }, visualSeed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}` };
   unitFacing.setFrame(displayedFrame);
   if (threeActive()) threeViewport.renderFrame(displayedFrame);
@@ -745,7 +745,9 @@ function renderUnitCard() {
     const row = text("div", ""); row.className = "card-ability";
     row.dataset.source = entry.source ?? "Native";
     const source = text("small", entry.source === "Item" ? "Single Use Item" : entry.source ?? "Native");
-    source.className = "ability-source"; row.append(source);
+    source.className = "ability-source";
+    if (entry.sourceName && entry.source === "Equipment") source.textContent += ` · ${entry.sourceName}`;
+    row.append(source);
     const ability = entry.content;
     const heading = text("div", ""); heading.className = "ability-heading";
     const name = text("strong", ability.name + (entry.copyCount > 1 ? ` ×${entry.copyCount}` : ""));
@@ -758,9 +760,6 @@ function renderUnitCard() {
     if (entry.uses) heading.append(useMarkers(entry.uses));
     row.append(heading);
     row.append(abilityDescription(ability));
-    if (entry.source === "Equipment" && entry.copyCount > 1) {
-      const note = text("small", "Identical effects apply once."); note.className = "inventory-note"; row.append(note);
-    }
     const decision = snapshot?.presentation.decision;
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.candidates.filter(candidate => candidate.entryId === ability.id && candidate.interaction.kind === "Direct") : [];
@@ -1383,7 +1382,7 @@ async function playEvents(view, generation = playbackGeneration, includeCommenta
       if (steps.has(index)) {
         const before = displayedState;
         const after = steps.get(index);
-        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders, projected.machines, projected.objectives);
+        renderState(after, true, projected.cards, projected.figures, projected.worldEffects, projected.orders, projected.machines, projected.objectives, projected.groundObjects);
         if (["UnitCreated", "AttackStarted"].includes(occurrence?.kind)) playCamera()?.occurrence(occurrence, event, skipEffects);
         if (["AttackTarget", "Damage", "Healing"].includes(event.role) && event.targetId) {
           const hpBefore = before?.units.find(unit => unit.id === event.targetId)?.currentHp;

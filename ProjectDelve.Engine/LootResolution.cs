@@ -41,14 +41,14 @@ public static partial class GameEngine
                 state.LootMarkers.Remove(marker);
                 var index = state.Units.FindIndex(u => u.Id == unitId);
                 var unit = state.Units[index];
-                var category = LootCards.Content(card.Kind).Category;
+                var category = state.ObjectContent(card).Category;
                 if (category == LootCategory.Immediate) deck.DiscardPile.Add(card);
-                else if (LootRules.CanOwn(state.Types.Single(t => t.Id == unit.TypeId), card.Kind))
+                else if (LootRules.CanOwn(state, unit, card))
                     state.Units[index] = unit with { Inventory = unit.Inventory.Add(card) };
                 else state.GroundObjects.Add(new(card, state.Physical.Figures.Single(f => f.Id == unitId).Position));
                 events.Add(new RulesEvent("LootCardDrawn", unitId)
                     { Cell = marker.Position, ObjectCard = card, LootMarker = marker });
-                if (card.Kind == LootCardKind.PocketBreakfast)
+                if (category == LootCategory.Immediate && card.Kind == LootCardKind.PocketBreakfast)
                     RestoreHp(state, unitId, LootCards.Content(card.Kind).Healing, unitId, LootCards.Content(card.Kind).Name, "pocket-breakfast", events);
                 ResolveExplosions(state, events);
             }
@@ -61,26 +61,39 @@ public static partial class GameEngine
         if (!state.IsUpright(unit.Id)) yield break;
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var cells = FootprintGeometry.OccupiedCells(state, unit.Id);
-        foreach (var ground in state.GroundObjects.Where(g => cells.Contains(g.Position) && LootRules.CanOwn(type, g.Object.Kind)))
+        foreach (var ground in state.GroundObjects.Where(g => cells.Contains(g.Position) && LootRules.CanOwn(state, unit, g.Object)))
             yield return new($"pickup-object:{ground.Object.Id}", ground.Position, Kind: ActivationChoiceKind.FreeAction)
-            { ObjectId = ground.Object.Id, ObjectKind = ground.Object.Kind };
+            { ObjectId = ground.Object.Id, ObjectKind = ground.Object.Kind, EquipmentTypeId = state.EquipmentTypeId(ground.Object) };
         if (state.BonusActionUsesThisActivation("Second Wind") < state.EffectiveBonusActionUsesPerActivation)
-            foreach (var item in unit.Inventory.Where(o => o.Kind == LootCardKind.SecondWind))
+            foreach (var item in unit.Inventory.Where(o => state.EquipmentTypeId(o) is null && o.Kind == LootCardKind.SecondWind))
                 yield return new($"use-object:{item.Id}", Kind: ActivationChoiceKind.BonusAction,
                     BonusAction: new("Second Wind", null, [])) { ObjectId = item.Id, ObjectKind = item.Kind };
-        if (state.MoveDone && state.ActionsRemaining > 0 && state.HasEquipment(unit.Id, LootCardKind.GoatBell))
-            foreach (var target in state.Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId &&
-                         state.Physical.Figures.Any(f => f.Id == u.Id && f.Posture == Posture.Lying) &&
-                         SpatialRules.AreAdjacent(state, unit.Id, u.Id)))
-                yield return new($"goat-bell:{target.Id}", TargetId: target.Id)
-                { ObjectKind = LootCardKind.GoatBell };
+        if (state.MoveDone && state.ActionsRemaining > 0)
+            foreach (var source in unit.Inventory.Where(o => state.EquipmentTypeId(o) is not null))
+            foreach (var ability in state.Equipment(state.EquipmentTypeId(source)!).Abilities)
+            {
+                switch (ability.Mechanic)
+                {
+                    case EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit:
+                        foreach (var target in state.Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId &&
+                                     state.Physical.Figures.Any(f => f.Id == u.Id && f.Posture == Posture.Lying) &&
+                                     SpatialRules.AreAdjacent(state, unit.Id, u.Id)))
+                        {
+                            var prefix = ability.CandidatePrefix ?? $"equipment:{Uri.EscapeDataString(source.Id)}:{Uri.EscapeDataString(ability.Id)}";
+                            yield return new($"{prefix}:{target.Id}", TargetId: target.Id)
+                            { ObjectId = source.Id, EquipmentTypeId = state.EquipmentTypeId(source), EquipmentAbilityId = ability.Id,
+                                AbilityName = ability.Name, EquipmentMechanic = ability.Mechanic };
+                        }
+                        break;
+                }
+            }
     }
 
     private static void ResolveObjectChoice(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
     {
         var index = state.Units.FindIndex(u => u.Id == request.UnitId);
         var unit = state.Units[index];
-        var content = LootCards.Content(choice.ObjectKind!.Value);
+        var content = state.CandidateObjectContent(choice)!;
         if (choice.Kind == ActivationChoiceKind.FreeAction)
         {
             var ground = state.GroundObjects.Single(g => g.Object.Id == choice.ObjectId);
@@ -89,7 +102,7 @@ public static partial class GameEngine
             events.Add(new RulesEvent("ObjectCollected", unit.Id, AbilityName: content.Name)
                 { ObjectCard = ground.Object, Cell = ground.Position, Category = choice.Kind });
         }
-        else if (choice.ObjectKind == LootCardKind.SecondWind)
+        else if (choice.EquipmentTypeId is null && choice.ObjectKind == LootCardKind.SecondWind)
         {
             var item = unit.Inventory.Single(o => o.Id == choice.ObjectId);
             state.Units[index] = unit with { Inventory = unit.Inventory.Remove(item) };
@@ -102,10 +115,19 @@ public static partial class GameEngine
         }
         else
         {
+            var source = unit.Inventory.Single(o => o.Id == choice.ObjectId);
+            var ability = state.Equipment(state.EquipmentTypeId(source)!).Abilities.Single(a => a.Id == choice.EquipmentAbilityId);
+            var actionId = ability.CandidatePrefix ?? state.Equipment(choice.EquipmentTypeId!).EntryId(ability.Id);
             state.ActionsUsedThisActivation++;
-            events.Add(new RulesEvent("ActionUsed", unit.Id, choice.TargetId, AbilityName: content.Name)
-                { ActionId = "goat-bell", Category = choice.Kind });
-            ChangePosture(state, choice.TargetId!, Posture.Upright, events, unit.Id, "goat-bell");
+            events.Add(new RulesEvent("ActionUsed", unit.Id, choice.TargetId, AbilityName: ability.Name)
+                { ActionId = actionId, Category = choice.Kind, ObjectCard = source });
+            switch (ability.Mechanic)
+            {
+                case EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit:
+                    ChangePosture(state, choice.TargetId!, Posture.Upright, events, unit.Id, actionId);
+                    break;
+                default: throw new InvalidOperationException("Unsupported Equipment Action.");
+            }
         }
     }
 }

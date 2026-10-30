@@ -348,6 +348,10 @@ public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>?
 {
     public string? ObjectId { get; init; }
     public LootCardKind? ObjectKind { get; init; }
+    public string? EquipmentTypeId { get; init; }
+    public string? EquipmentAbilityId { get; init; }
+    public string? AbilityName { get; init; }
+    public EquipmentActionMechanic? EquipmentMechanic { get; init; }
     public bool EquipmentGranted { get; init; }
     public string? MachineId { get; init; }
     public ImmutableArray<string> TargetIds { get; init; } = [];
@@ -400,8 +404,10 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(
     System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-public sealed class GameState
+public sealed class GameState : IJsonOnDeserialized
 {
+    void IJsonOnDeserialized.OnDeserialized() => EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
+    public List<EquipmentDefinition> EquipmentTypes { get; set; } = EquipmentCatalog.Resolve(null);
     public LootDeck? LootDeck { get; set; }
     public List<LootMarker> LootMarkers { get; set; } = [];
     public List<GroundObject> GroundObjects { get; set; } = [];
@@ -512,18 +518,18 @@ public sealed class GameState
         Physical.Figures.Any(f => f.Id == unitId && f.Posture == Posture.Upright);
 
     public bool HasEquipment(string unitId, LootCardKind kind) => IsUpright(unitId) &&
-        Units.Single(u => u.Id == unitId).Inventory.Any(o => o.Kind == kind && LootCards.Content(kind).Category == LootCategory.Equipment);
+        this.ActiveEquipment(unitId).Any(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
     public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Phase is not null ||
-        HasEquipment(unitId, LootCardKind.Bedsheet);
+        this.EquipmentGrants(unitId, EquipmentCapability.Phase);
     public bool HasOpenDoor(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).FreeActions.HasFlag(UnitFreeAction.OpenDoor) ||
-        HasEquipment(unitId, LootCardKind.OfficialKey);
+        this.EquipmentGrants(unitId, EquipmentCapability.OpenDoor);
 
     public int EffectiveAtkOf(string unitId)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Atk;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var attack = type.Atk + (WorldDeck?.Modifier(WorldEffect.Bloodlust, WorldEffect.Weakness) ?? 0) + (CurrentUnitId == unitId
+        var attack = type.Atk + this.EquipmentModifier(unitId, Stat.Atk) + (WorldDeck?.Modifier(WorldEffect.Bloodlust, WorldEffect.Weakness) ?? 0) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
@@ -555,19 +561,19 @@ public sealed class GameState
     public int EffectiveMovOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
         Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
-        (HasEquipment(unitId, LootCardKind.LuckyBoots) ? LootCards.Content(LootCardKind.LuckyBoots).MovementBonus : 0) +
+        this.EquipmentModifier(unitId, Stat.Mov) +
         (WorldDeck?.Modifier(WorldEffect.Haste, WorldEffect.Sluggishness) ?? 0) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Rng :
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng +
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + this.EquipmentModifier(unitId, Stat.Rng) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
     public int EffectiveDefOf(string unitId)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Def;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var defence = type.Def + (WorldDeck?.Modifier(WorldEffect.IronSkin, WorldEffect.Vulnerability) ?? 0) + (CurrentUnitId == unitId
+        var defence = type.Def + this.EquipmentModifier(unitId, Stat.Def) + (WorldDeck?.Modifier(WorldEffect.IronSkin, WorldEffect.Vulnerability) ?? 0) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (unit.CurrentHp <= 0 || figure is null) return Math.Max(0, defence);
@@ -620,6 +626,7 @@ public sealed class GameState
 
     internal GameState Copy() => new()
     {
+        EquipmentTypes = [.. EquipmentTypes],
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
             [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),

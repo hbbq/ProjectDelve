@@ -161,7 +161,7 @@ public static partial class GameEngine
     private static void ApplyDecision(GameState state, DecisionRequest request, string? choice,
         IRandomProvider random, ResolutionEvents events)
     {
-        if (choice is not null && request.Candidates.Single(c => c.Key == choice).ObjectKind is not null)
+        if (choice is not null && (request.Candidates.Single(c => c.Key == choice).ObjectKind is not null || request.Candidates.Single(c => c.Key == choice).EquipmentTypeId is not null))
         {
             ResolveObjectChoice(state, request, request.Candidates.Single(c => c.Key == choice), events);
             return;

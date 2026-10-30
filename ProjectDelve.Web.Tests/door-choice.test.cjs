@@ -3858,21 +3858,22 @@ test('combat tray follows restricted observation targets after replacing an unre
 
 test("inventory rows distinguish sources and consolidate identical use choices", () => {
   const native = entry("attack", "Attack");
-  const boots = { ...entry("object:LuckyBoots", "Lucky Boots", "Passive"), source: "Equipment", copyCount: 2 };
+  const boots = { ...entry("equipment:walking:modifiers", "Walking Charm", "Equipment"), source: "Equipment", sourceName: "Walking Charm", copyCount: 1 };
   const wind = { ...entry("object:SecondWind", "Second Wind", "Bonus Action"), source: "Item", copyCount: 2 };
   const initial = response([
     choice("wind-one", "Direct", {}, { entryId: "object:SecondWind" }),
     choice("wind-two", "Direct", {}, { entryId: "object:SecondWind" })
   ], [native, boots, wind]);
-  initial.presentation.cards.actor.inventory = [{name:"Lucky Boots"},{name:"Lucky Boots"},{name:"Second Wind"},{name:"Second Wind"}];
+  initial.presentation.cards.actor.inventory = [{name:"Walking Charm"},{name:"Second Wind"},{name:"Second Wind"}];
   initial.result.state.effectiveMov = { actor: 2 };
   const h = harness(initial), card = h.elements.get("unit-card");
   const rows = card.querySelectorAll(".card-ability");
   assert.deepEqual(rows.map(row => row.dataset.source), ["Native", "Equipment", "Item"]);
-  assert.match(rows[1].textContent, /Identical effects apply once/);
+  assert.match(rows[1].textContent, /Equipment · Walking Charm/);
+  assert.doesNotMatch(rows[1].textContent, /Identical effects apply once/);
   assert.match(rows[2].textContent, /Single Use Item/);
   assert.equal(buttons(rows[2]).length, 1);
-  assert.match(card.querySelectorAll(".inventory-summary")[0].textContent, /4 carried objects/);
+  assert.match(card.querySelectorAll(".inventory-summary")[0].textContent, /3 carried objects/);
   const changes = card.querySelectorAll(".modified-stat");
   assert.ok(changes.some(stat => stat.dataset.change === "negative"));
   assert.ok(changes.some(stat => stat.dataset.change === "positive"));

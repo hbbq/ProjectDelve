@@ -211,6 +211,41 @@ public sealed class DesignerApiTests
             (await restartImported.Content.ReadFromJsonAsync<GameResponse>(Json))!.Result.State);
     }
 
+    [Fact]
+    public async Task LocalEquipmentSurvivesDesignerValidationExportImportAndPlaytest()
+    {
+        await using var host = await Host.Start();
+        var equipment = new EquipmentDefinition("copper-cloud", "Cloud Compass")
+        {
+            Modifiers = [new(Stat.Mov, 2), new(Stat.Def, 1)],
+            Capabilities = [EquipmentCapability.Phase, EquipmentCapability.OpenDoor],
+            Abilities = [new("wake", "Awaken", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)]
+        };
+        var definition = WebScenarioFixtures.Combat();
+        definition = definition with
+        {
+            EquipmentTypes = [equipment],
+            Units = definition.Units.Select(u => u.UnitId == "hero" ? u with { Inventory = [new("starting-compass", equipment.Id)] } : u).ToList(),
+            GroundObjects = [new(new("ground-compass", equipment.Id), new(0, 0))],
+            Loot = new() { Composition = [new(equipment.Id, 2)] }
+        };
+        using var validation = await host.PostDraft("validate", ScenarioDefinitionJson.ToJson(definition));
+        Assert.True((await validation.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", ScenarioDefinitionJson.ToJson(definition));
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport });
+        imported.EnsureSuccessStatusCode();
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), await imported.Content.ReadAsStringAsync());
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
+        played.EnsureSuccessStatusCode();
+        var response = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        Assert.Equal("starting-compass", Assert.Single(response.Result.State.Units.Single(u => u.Id == "hero").Inventory).Id);
+        Assert.Equal(equipment.Name, Assert.Single(response.Presentation.Cards["hero"].Inventory).Name);
+        Assert.Equal(equipment.Name, Assert.Single(response.Presentation.GroundObjects).Object.Content.Name);
+        Assert.Contains(response.Presentation.Cards["hero"].Entries, e => e.Content.Name == "Awaken" && e.SourceTypeId == equipment.Id);
+    }
+
     [Theory]
     [InlineData("placement", "units[1]")]
     [InlineData("hp", "units[0]")]

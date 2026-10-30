@@ -23,8 +23,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
-        var objectChoice = request.Candidates.FirstOrDefault(c => c.ObjectKind is not null &&
-            (c.Kind == ActivationChoiceKind.FreeAction || c.ObjectKind == LootCardKind.GoatBell));
+        var objectChoice = request.Candidates.FirstOrDefault(c => (c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.EquipmentMechanic == EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit));
         if (objectChoice is not null) return objectChoice.Key;
         if (request.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn) &&
             !request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Action) &&

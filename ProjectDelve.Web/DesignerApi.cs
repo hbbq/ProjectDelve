@@ -42,6 +42,7 @@ public static class DesignerApi
             scenarios = PlaytestScenarios.Catalog.Select(s => new { s.Id, s.Name }),
             cellMarkerTypes = new[] { CellMarkerTypes.BananaPeel },
             lootCards = LootCards.All,
+            equipmentTypes = EquipmentCatalog.All,
             lootPresets = LootPresets.All,
             defaultLootPreset = LootPresets.Default,
             machineTypes = new[] { MachineTypes.DiamondPress, MachineTypes.SlotMachine },

@@ -1,5 +1,140 @@
 {
   "version": 1,
-  "scenarios": [],
-  "campaigns": []
+  "scenarios": [
+    {
+      "id": "local-equipment-fitting-room",
+      "name": "Local Equipment - Fitting Room",
+      "coverArt": null,
+      "revision": 1,
+      "definition": {
+        "equipmentTypes": [
+          {
+            "id": "fitting-room-paperwind-cape",
+            "name": "Paperwind Cape",
+            "modifiers": [
+              {
+                "stat": "Mov",
+                "amount": 1
+              },
+              {
+                "stat": "Def",
+                "amount": -1
+              }
+            ]
+          }
+        ],
+        "board": {
+          "width": 5,
+          "height": 3,
+          "defaultTerrain": "StoneFloor",
+          "cells": [],
+          "edges": []
+        },
+        "unitTypeIds": [
+          "barbarian-type",
+          "wizard-type"
+        ],
+        "units": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "heroes",
+            "anchor": {
+              "x": 1,
+              "y": 1
+            },
+            "unitId": "cape-bearer",
+            "inventory": [
+              {
+                "id": "paperwind-starting-copy",
+                "equipmentTypeId": "fitting-room-paperwind-cape"
+              }
+            ]
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "heroes",
+            "anchor": {
+              "x": 3,
+              "y": 1
+            },
+            "unitId": "cape-collector"
+          }
+        ],
+        "agency": [
+          {
+            "unitTypeId": "barbarian-type",
+            "sideId": "heroes",
+            "controller": "Human"
+          },
+          {
+            "unitTypeId": "wizard-type",
+            "sideId": "heroes",
+            "controller": "Human"
+          }
+        ],
+        "objectives": [
+          {
+            "sideId": "heroes",
+            "objective": "NoObjective"
+          }
+        ],
+        "loot": {
+          "composition": []
+        },
+        "groundObjects": [
+          {
+            "object": {
+              "id": "paperwind-ground-copy",
+              "equipmentTypeId": "fitting-room-paperwind-cape"
+            },
+            "position": {
+              "x": 3,
+              "y": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "test-scenarios",
+      "name": "Test Scenarios",
+      "description": "Explore Project Delve test scenarios. Start with Local Equipment - Fitting Room to try scenario-local Equipment without combat.",
+      "coverArt": null,
+      "scenarioIds": [
+        "local-equipment-fitting-room",
+        "loot-equipment",
+        "chess",
+        "delve-chess-peasants-rooks",
+        "delve-chess-phase-2",
+        "simple-racing",
+        "racing-and-industry",
+        "a-day-at-the-race-track",
+        "diamond-kart-racing",
+        "chief-mechanic-production",
+        "banana-peel",
+        "railway",
+        "basic-combat",
+        "goblins",
+        "archers",
+        "wizard-doors",
+        "resource-storage",
+        "geomancer-production",
+        "lava-production",
+        "autonomous-production",
+        "machine-ownership",
+        "diamond-press",
+        "resource-transport",
+        "full-party-trolls",
+        "shaman-hunt",
+        "orders-playground",
+        "orders-assault",
+        "orders-escort-retreat",
+        "labyrinth-shaper",
+        "genombrottet"
+      ],
+      "revision": 2
+    }
+  ]
 }

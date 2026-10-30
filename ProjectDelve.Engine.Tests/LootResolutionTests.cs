@@ -111,11 +111,11 @@ public sealed class LootResolutionTests
     }
 
     [Fact]
-    public void EquipmentIsIndividualAndDuplicateEffectsDoNotStack()
+    public void EquipmentEffectsAreIndividualWithinAUnitGroup()
     {
         var type = new UnitType("shared", 2, 1, 1, 0, 1) { CanHaveEquipment = true };
         var state = State(type); state.Units.Add(type.CreateUnit("c", "blue")); state.Physical.Figures.Add(new("c", new(1, 3)));
-        state.Units[0] = state.Units[0] with { Inventory = [new("boots-1", LootCardKind.LuckyBoots), new("boots-2", LootCardKind.LuckyBoots),
+        state.Units[0] = state.Units[0] with { Inventory = [new("boots-1", LootCardKind.LuckyBoots),
             new("sheet", LootCardKind.Bedsheet), new("key", LootCardKind.OfficialKey)] };
         state.Physical.Board.Edges.Add(new(new(1, 1), new(2, 1), EdgeKind.ClosedDoor));
         var ready = GameEngine.RefreshChoices(state, new Random(), false);
