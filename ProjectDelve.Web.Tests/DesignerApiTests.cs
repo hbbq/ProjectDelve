@@ -149,6 +149,7 @@ public sealed class DesignerApiTests
     [InlineData("shaper")]
     [InlineData("complete-data")]
     [InlineData("world-effects")]
+    [InlineData("local-world-cards")]
     [InlineData("lava")]
     [InlineData("lava-no-coal")]
     [InlineData("gravel")]
@@ -165,7 +166,7 @@ public sealed class DesignerApiTests
              Scenario.Group(UnitTypeIds.GoblinBishop, "blue", ControllerKind.Automated, Scenario.At(5, 5)),
              Scenario.Group(UnitTypeIds.RoyalKnight, "red", ControllerKind.Human, Scenario.At(1, 0)),
              Scenario.Group(UnitTypeIds.HobbyKnight, "blue", ControllerKind.Automated, Scenario.At(4, 5))]) :
-            id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "lava" or "lava-no-coal" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
+            id == "railway-fixture" ? RailwayProjectionTests.Fixture() : id is "complete-data" or "world-effects" or "local-world-cards" or "lava" or "lava-no-coal" or "gravel" or "asphalt" or "machines" or "route" ? CompleteData() : WebScenarioFixtures.Named(id);
         if (id == "route") definition = definition with { Orders = [new(definition.Agency[0].UnitTypeId,
             definition.Agency[0].SideId, OrderKind.FollowRoute,
             Route: new("test-route", 1, -1))],
@@ -176,6 +177,20 @@ public sealed class DesignerApiTests
         if (id == "machines") definition = definition with { Machines = [new("press", new(3, 0), MachineTypes.DiamondPress)
             { StoredResources = [new(ResourceTypes.Coal, 2)] }] };
         if (id == "world-effects") definition = definition with { WorldEffects = new(3, 2) };
+        if (id == "local-world-cards")
+        {
+            var local = ScenarioDefinitionJson.FromJson("""
+            { "board": { "width": 2, "height": 2 }, "unitTypeIds": [], "units": [], "agency": [],
+              "worldCardDefinitions": [
+                { "id": "unknown-wind", "name": "An Unfamiliar Wind", "lifecycle": "Continuous", "modifiers": [{ "target": "Mov", "amount": 2 }] },
+                { "id": "unknown-rain", "name": "An Unfamiliar Rain", "lifecycle": "Immediate", "immediate": { "kind": "healDamagedUnits", "amount": 2 } }
+              ],
+              "worldEffects": { "cardsPerRound": 2, "cycling": 2,
+                "composition": [{ "typeId": "unknown-wind", "count": 2 }, { "typeId": "unknown-rain", "count": 1 }] }
+            }
+            """);
+            definition = definition with { WorldCardDefinitions = local.WorldCardDefinitions, WorldEffects = local.WorldEffects };
+        }
         if (id == "lava") definition = definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Lava)] } };
         if (id == "lava-no-coal") definition = definition with { Board = definition.Board with { Cells = [new(new(4, 4), TerrainKind.Lava) { CoalGeneration = false }] } };
         var before = await host.Client.GetStringAsync("/api/game");
@@ -204,6 +219,8 @@ public sealed class DesignerApiTests
             using var publicJson = JsonDocument.Parse(await played.Content.ReadAsStringAsync());
             Assert.Equal(publicSetup.WorldDeck.DrawPile.Count, publicJson.RootElement.GetProperty("presentation").GetProperty("worldEffects").GetProperty("drawPileCount").GetInt32());
             publicSetup.WorldDeck.DrawPile = [];
+            // The imported/exported definition above retains composition; player state hides deck contents.
+            publicSetup.WorldEffects = publicSetup.WorldEffects! with { Composition = null };
         }
         ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(publicSetup, game.Result.State);
         using var restartImported = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = game.Revision });

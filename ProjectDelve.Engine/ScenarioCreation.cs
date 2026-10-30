@@ -132,6 +132,7 @@ internal static class ScenarioCreation
             AbilityDefinitions = AbilityCatalog.Resolve(definition.AbilityDefinitions),
             ItemTypes = ItemCatalog.Resolve(definition.ItemTypes),
             LootCardDefinitions = LootCardCatalog.Resolve(definition.LootCardDefinitions),
+            WorldCardDefinitions = WorldCardCatalog.Resolve(definition.WorldCardDefinitions),
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
@@ -140,9 +141,14 @@ internal static class ScenarioCreation
             Waypoints = [.. definition.Waypoints ?? []], Routes = [.. definition.Routes ?? []],
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
-            WorldDeck = definition.WorldEffects is null ? null : WorldCards.CreateDeck(),
             Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
         };
+        try
+        {
+            state.WorldDeck = definition.WorldEffects is null ? null
+                : WorldCards.CreateDeck(definition.WorldEffects, state.WorldCardDefinitions);
+        }
+        catch (ArgumentException error) { throw ScenarioValidationContext.At(error, "worldEffects.composition"); }
         state.LootDeck.DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects(state.LootCardDefinitions);
         for (var index = 0; index < (definition.Resources?.Count ?? 0); index++)
         {

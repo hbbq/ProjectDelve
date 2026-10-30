@@ -54,7 +54,10 @@ public sealed record BrowserObjective(string SideId, string Name)
     public string Meaning { get; init; } = "";
     public ObjectiveArea? Area { get; init; }
 }
-public sealed record BrowserWorldCard(string Id, string Name, string Text, bool Continuous);
+public sealed record BrowserWorldCard(string Id, string Name, string Text, bool Continuous)
+{
+    public string? TypeId { get; init; }
+}
 public sealed record BrowserWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
     IReadOnlyList<BrowserWorldCard> ActiveContinuous, BrowserWorldCard? ResolvingCard);
 public enum OutcomeRole { Notice, Movement, AttackTarget, AttackSummary, Damage, Healing, Defeat, DoorAttempt, DoorOpened, DoorClosed }
@@ -149,15 +152,16 @@ public static class BrowserProjection
         new BrowserObjective(o.SideId, ObjectivePresentation.Name(o)) { Meaning = ObjectivePresentation.Meaning(o),
             Area = o.Objective == ScenarioObjective.ReachArea ? o.Area : null }).ToArray();
 
-    public static BrowserWorldCard WorldCard(WorldCard card)
+    public static BrowserWorldCard WorldCard(WorldCard card, GameState state)
     {
-        var content = WorldCards.Content(card.Effect);
-        return new(card.Id, content.Name, content.Text, content.Continuous);
+        var content = state.WorldCard(card);
+        return new(card.Id, content.Name, content.Description, content.Continuous) { TypeId = content.Id };
     }
     public static BrowserWorldEffects? WorldEffects(GameState state) =>
         state.WorldEffects is not { } settings || state.WorldDeck is not { } deck ? null :
         new(settings.CardsPerRound, settings.Cycling, deck.DrawPile.Count, deck.DiscardPile.Count,
-            deck.ActiveContinuous.Select(WorldCard).ToArray(), deck.ResolvingCard is null ? null : WorldCard(deck.ResolvingCard));
+            deck.ActiveContinuous.Select(card => WorldCard(card, state)).ToArray(),
+            deck.ResolvingCard is null ? null : WorldCard(deck.ResolvingCard, state));
 
     public static IReadOnlyDictionary<string, FigureGeometry> Figures(GameState state) =>
         state.Physical.Figures.ToDictionary(f => f.Id, f =>
@@ -351,7 +355,7 @@ public static class BrowserProjection
     private static BrowserOutcome OutcomeCore(RulesEvent e, GameState state, Func<string?, string> name)
     {
         string CellLabel(Cell cell) => $"{cell.X},{cell.Y}";
-        var subject = e.WorldCard is { } worldCard ? WorldCards.Content(worldCard.Effect).Name
+        var subject = e.WorldCard is { } worldCard ? state.WorldCard(worldCard).Name
             : e.AbilityName is null ? name(e.UnitId) : $"{name(e.UnitId)} · {e.AbilityName}";
         if (e.Kind == "ExplosionDamageResolved" && e.WorldCard is not null)
             subject = $"{name(e.UnitId)} · {e.AbilityName} (during {subject})";
@@ -388,18 +392,19 @@ public static class BrowserProjection
                 description = "No World Card drawn: draw and discard piles are empty";
                 break;
             case "WorldCardDrawn":
-                var content = WorldCards.Content(e.WorldCard!.Effect);
-                description = $"World Card drawn: {content.Name} ({(content.Continuous ? "Continuous" : "Immediate")}) — {content.Text}";
+                var content = state.WorldCard(e.WorldCard!);
+                description = $"World Card drawn: {content.Name} ({(content.Continuous ? "Continuous" : "Immediate")}) — {content.Description}";
                 break;
             case "WorldContinuousChanged":
                 description = $"{subject} is now active" + (e.CycledWorldCard is { } cycled
-                    ? $"; {WorldCards.Content(cycled.Effect).Name} simultaneously cycles out to discard" : "");
+                    ? $"; {state.WorldCard(cycled).Name} simultaneously cycles out to discard" : "");
                 break;
             case "WorldCardDiscarded":
                 description = $"{subject} finished resolving, including automatic consequences; card discarded";
                 break;
             case "AbilityUsesReplenished":
-                description = $"{subject} → {name(e.UnitId)}: replenish 1 use of each limited-use Ability, up to its maximum";
+                var replenished = e.ReplenishedUses ?? 1; // Previously saved occurrences always replenished one use.
+                description = $"{subject} → {name(e.UnitId)}: replenish {replenished} {(replenished == 1 ? "use" : "uses")} of each limited-use Ability, up to its maximum";
                 break;
             case "RoundStarted":
                 description = $"Round {e.Round} started";

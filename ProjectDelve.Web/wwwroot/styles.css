@@ -330,6 +330,7 @@ section[aria-label="Board"] > .toolbar:first-child { margin-bottom: 14px; }
 #active-token { flex-wrap: wrap; }
 
 #world-effects { margin: .8rem 0; padding: .6rem; border: 1px solid var(--ui-border); border-radius: .4rem; }
+#world-effects > small { display: block; margin: .3rem 0; }
 .world-card { margin: .4rem 0; padding: .5rem; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: .3rem; }
 .world-card p { margin: .3rem 0 0; font-size: .9rem; }
 .world-draw { border-color: var(--ui-accent); }

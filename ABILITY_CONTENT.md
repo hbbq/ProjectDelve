@@ -2,7 +2,7 @@
 
 Mechanics, Ability definitions, and sources are separate data. A mechanic describes the existing rules operation. An Ability gives it a stable ID, a display name, an explicit timing and usage restriction. A grant attaches that Ability to a Unit Type, Equipment Type or Item Type. The selected source supplies the mechanic; the Engine does not look up a Unit-specific field or dispatch on a display name to perform it.
 
-This extends the Equipment catalog described in [EQUIPMENT_CONTENT.md](EQUIPMENT_CONTENT.md). It does not introduce a second Equipment system, arbitrary scripts, a sequence language or a new rules engine.
+This extends the Equipment catalog described in [EQUIPMENT_CONTENT.md](EQUIPMENT_CONTENT.md). It does not introduce a second Equipment system, arbitrary scripts, a sequence language or a new rules engine. Milestone 3 adds independent World Card definitions through the same content boundary; see [WORLD_CARD_CONTENT.md](WORLD_CARD_CONTENT.md).
 
 ## Playable example
 
@@ -61,7 +61,7 @@ Canonical declarations live separately from mechanic implementations and catalog
 | Loot Cards and presets | [LootRoster.cs](ProjectDelve.Engine/LootRoster.cs) |
 | Existing World Cards | [WorldCardRoster.cs](ProjectDelve.Engine/WorldCardRoster.cs) |
 
-The catalogs expose these rosters through their existing APIs and retain validation and scenario-local resolution. Loot's legacy card metadata is projected from the independent Item and Equipment definitions; `LootRoster.Definitions` is the declaration list for independent canonical object-reward cards. The World Card extraction only separates existing declarations into a file; its mechanics and format have not migrated. A future JSON provider can replace a roster at this boundary while producing the same typed definitions and passing the same validation. No content loader or format migration is needed for this file separation.
+The catalogs expose these rosters through their existing APIs and retain validation and scenario-local resolution. Loot's legacy card metadata is projected from the independent Item and Equipment definitions; `LootRoster.Definitions` is the declaration list for independent canonical object-reward cards. World Cards now use the independent typed definitions documented in milestone 3. A future JSON provider can replace a roster at this boundary while producing the same typed definitions and passing the same validation.
 
 Supported modifier lists remain ordinary data:
 

@@ -30,6 +30,14 @@ public static class FogOfWar
         var copy = state.Copy();
         // Unopened card identities are never presentation data, including without FoW.
         copy.LootDeck = null;
+        // Only revealed World Card definitions belong to an observation. Keep the
+        // physical pile here for count projection; transport removes its identities.
+        var revealedWorldTypes = copy.WorldDeck is { } world
+            ? world.ActiveContinuous.Concat(world.DiscardPile)
+                .Concat(world.ResolvingCard is { } resolving ? [resolving] : Array.Empty<WorldCard>())
+                .Select(c => c.ResolvedTypeId).ToHashSet(StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+        copy.WorldCardDefinitions.RemoveAll(d => !revealedWorldTypes.Contains(d.Id));
         if (!IsEnabled(state, side)) { FilterEquipment(copy); return copy; }
         var visible = state.Units.Where(u => IsUnitObservable(state, side, u.Id)).Select(u => u.Id).ToHashSet();
         var groups = state.Units.Where(u => visible.Contains(u.Id)).Select(u => new ActivationToken(u.TypeId, u.SideId)).ToHashSet();

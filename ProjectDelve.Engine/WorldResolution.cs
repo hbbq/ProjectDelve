@@ -7,7 +7,7 @@ public static partial class GameEngine
     private static void ResolveRoundStartWorldCards(GameState state, IRandomProvider random, ResolutionEvents events)
     {
         if (state.WorldEffects is not { } settings) return;
-        var deck = state.WorldDeck ??= WorldCards.CreateDeck();
+        var deck = state.WorldDeck ??= WorldCards.CreateDeck(settings, state.WorldCardDefinitions);
         if (state.Round == 1)
         {
             ShuffleWorldPile(deck.DrawPile, random);
@@ -31,7 +31,7 @@ public static partial class GameEngine
             deck.DrawPile.RemoveAt(0);
             deck.ResolvingCard = card;
             events.Add(new RulesEvent("WorldCardDrawn") { WorldCard = card });
-            if (WorldCards.Content(card.Effect).Continuous)
+            if (state.WorldCard(card).Lifecycle == WorldCardLifecycle.Continuous)
             {
                 WorldCard? cycled = null;
                 if (deck.ActiveContinuous.Count == settings.Cycling)
@@ -69,16 +69,17 @@ public static partial class GameEngine
 
     private static void ResolveImmediateWorldCard(GameState state, WorldCard card, ResolutionEvents events)
     {
-        var content = WorldCards.Content(card.Effect);
-        var actionId = $"world-{card.Effect}";
-        if (card.Effect is WorldEffect.OpenSesame or WorldEffect.Lockdown)
+        var content = state.WorldCard(card);
+        var mechanic = content.Immediate;
+        var actionId = WorldCards.ActionId(card);
+        if (mechanic is SetAllDoorsMechanic doorsMechanic)
         {
-            var from = card.Effect == WorldEffect.OpenSesame ? EdgeKind.ClosedDoor : EdgeKind.OpenDoor;
+            var from = doorsMechanic.Open ? EdgeKind.ClosedDoor : EdgeKind.OpenDoor;
             var doors = state.Physical.Board.Edges.Where(e => e.Kind == from)
                 .OrderBy(e => Math.Min(e.A.Y, e.B.Y)).ThenBy(e => Math.Min(e.A.X, e.B.X)).ToArray();
             foreach (var door in doors)
             {
-                if (card.Effect == WorldEffect.OpenSesame) OpenDoor(state, null, door, events, actionId);
+                if (doorsMechanic.Open) OpenDoor(state, null, door, events, actionId);
                 else
                 {
                     var closed = door with { Kind = EdgeKind.ClosedDoor };
@@ -90,36 +91,35 @@ public static partial class GameEngine
         }
         // Snapshot membership, including adjacency, before resolving any recipient.
         var recipients = state.Physical.Figures.OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X)
-            .Where(f => card.Effect switch
+            .Where(f => mechanic switch
             {
-                WorldEffect.SecondWind => state.Units.Single(u => u.Id == f.Id).CurrentHp <
+                HealDamagedUnitsMechanic => state.Units.Single(u => u.Id == f.Id).CurrentHp <
                     state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == f.Id).TypeId).Hp,
-                WorldEffect.Repulsion => state.Physical.Figures.Any(other => other.Id != f.Id && SpatialRules.AreAdjacent(state, f.Id, other.Id)),
-                WorldEffect.Loneliness => !state.Physical.Figures.Any(other => other.Id != f.Id && SpatialRules.AreAdjacent(state, f.Id, other.Id)),
+                DamageUnitsByAdjacencyMechanic { Adjacent: true } => state.Physical.Figures.Any(other => other.Id != f.Id && SpatialRules.AreAdjacent(state, f.Id, other.Id)),
+                DamageUnitsByAdjacencyMechanic { Adjacent: false } => !state.Physical.Figures.Any(other => other.Id != f.Id && SpatialRules.AreAdjacent(state, f.Id, other.Id)),
                 _ => true
             }).Select(f => f.Id).ToArray();
         foreach (var id in recipients)
         {
             if (!state.Physical.Figures.Any(f => f.Id == id)) continue;
-            switch (card.Effect)
+            switch (mechanic)
             {
-                case WorldEffect.Earthquake:
+                case LayDownAllUnitsMechanic:
                     if (state.IsUpright(id)) ChangePosture(state, id, Posture.Lying, events, actionId: actionId);
                     break;
-                case WorldEffect.Miracle:
-                case WorldEffect.SecondWind:
-                    RestoreHp(state, id, card.Effect == WorldEffect.Miracle
-                        ? state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == id).TypeId).Hp : 1,
+                case FullyHealUnitsMechanic:
+                case HealDamagedUnitsMechanic:
+                    RestoreHp(state, id, mechanic is FullyHealUnitsMechanic
+                        ? state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == id).TypeId).Hp : ((HealDamagedUnitsMechanic)mechanic).Amount,
                         null, content.Name, actionId, events);
                     break;
-                case WorldEffect.Repulsion:
-                case WorldEffect.Loneliness:
-                    DealDamage(state, id, 1,
-                        new RulesEvent("WorldDamageResolved", TargetId: id, Damage: 1, AbilityName: content.Name)
+                case DamageUnitsByAdjacencyMechanic damage:
+                    DealDamage(state, id, damage.Amount,
+                        new RulesEvent("WorldDamageResolved", TargetId: id, Damage: damage.Amount, AbilityName: content.Name)
                             { ActionId = actionId }, events);
                     break;
-                case WorldEffect.Renewal:
-                    ReplenishUnitAbilities(state, id, events, actionId);
+                case ReplenishLimitedAbilitiesMechanic renewal:
+                    ReplenishUnitAbilities(state, id, renewal.Amount, events, actionId);
                     break;
             }
         }
@@ -136,34 +136,35 @@ public static partial class GameEngine
             { SourceUnitId = sourceId, ActionId = actionId });
     }
 
-    private static void ReplenishUnitAbilities(GameState state, string id, ResolutionEvents events, string actionId)
+    private static void ReplenishUnitAbilities(GameState state, string id, int amount, ResolutionEvents events, string actionId)
     {
         var index = state.Units.FindIndex(u => u.Id == id);
         var unit = state.Units[index];
         AbilityUses? Replenish(AbilityUses? uses) => uses is null ? null :
-            new(uses.MaxUses, Math.Min(uses.MaxUses, uses.RemainingUses + 1));
+            new(uses.MaxUses, Math.Min(uses.MaxUses, (int)Math.Min(int.MaxValue, (long)uses.RemainingUses + amount)));
         state.Units[index] = unit with
         {
-            AbilityUseCounts = unit.AbilityUseCounts.ToImmutableDictionary(p => p.Key, p => Math.Max(0, p.Value - 1)),
+            AbilityUseCounts = unit.AbilityUseCounts.ToImmutableDictionary(p => p.Key, p => Math.Max(0, p.Value - amount)),
             CleaveUses = Replenish(unit.CleaveUses), HealUses = Replenish(unit.HealUses),
             HolyWaveUses = Replenish(unit.HolyWaveUses), FireballUses = Replenish(unit.FireballUses),
             BonusActionUses = unit.BonusActionUses.ToImmutableDictionary(e => e.Key, e => Replenish(e.Value)!)
         };
-        events.Add(new RulesEvent("AbilityUsesReplenished", id) { ActionId = actionId });
+        events.Add(new RulesEvent("AbilityUsesReplenished", id) { ActionId = actionId, ReplenishedUses = amount });
     }
 
     private static void ValidateWorldDeck(GameState state)
     {
+        WorldCardCatalog.Validate(state.WorldCardDefinitions);
         if (state.WorldEffects is { } settings && (settings.CardsPerRound < 0 || settings.Cycling < 1))
             throw new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.");
         if (state.WorldDeck is not { } deck) return;
         if (state.WorldEffects is null) throw new ArgumentException("A World Deck requires World Effects settings.");
         var cards = deck.DrawPile.Concat(deck.DiscardPile).Concat(deck.ActiveContinuous)
             .Concat(deck.ResolvingCard is { } card ? [card] : Array.Empty<WorldCard>()).ToArray();
-        if (cards.Any(c => c is null || string.IsNullOrWhiteSpace(c.Id) || !Enum.IsDefined(c.Effect)) ||
+        if (cards.Any(c => c is null || string.IsNullOrWhiteSpace(c.Id) || !state.WorldCardDefinitions.Any(d => d.Id == c.ResolvedTypeId)) ||
             cards.Select(c => c.Id).Distinct(StringComparer.Ordinal).Count() != cards.Length ||
             deck.ActiveContinuous.Count > state.WorldEffects.Cycling ||
-            deck.ActiveContinuous.Any(c => !WorldCards.Content(c.Effect).Continuous) || deck.ResolvingCard is not null)
+            deck.ActiveContinuous.Any(c => state.WorldCard(c).Lifecycle != WorldCardLifecycle.Continuous) || deck.ResolvingCard is not null)
             throw new ArgumentException("Invalid World Card locations or active Continuous row.");
     }
 }

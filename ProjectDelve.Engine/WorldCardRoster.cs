@@ -1,28 +1,43 @@
 namespace ProjectDelve.Engine;
 
-// Canonical World Card content; the existing concrete mechanics are unchanged.
+// Authored Types and physical deck composition are independent declarations.
 public static class WorldCardRoster
 {
-    public static IReadOnlyList<WorldCardContent> All { get; } = Array.AsReadOnly(new WorldCardContent[]
+    public static IReadOnlyList<WorldCardDefinition> Definitions { get; } = Array.AsReadOnly(new WorldCardDefinition[]
     {
-        new(WorldEffect.Bloodlust, "Bloodlust", "All Units have ATK +1.", true, 3),
-        new(WorldEffect.Weakness, "Weakness", "All Units have ATK -1.", true, 3),
-        new(WorldEffect.IronSkin, "Iron Skin", "All Units have DEF +1.", true, 3),
-        new(WorldEffect.Vulnerability, "Vulnerability", "All Units have DEF -1.", true, 3),
-        new(WorldEffect.Haste, "Haste", "All Units have MOV +1.", true, 3),
-        new(WorldEffect.Sluggishness, "Sluggishness", "All Units have MOV -1.", true, 3),
-        new(WorldEffect.Frenzy, "Frenzy", "All Units have +1 Action per activation.", true, 1),
-        new(WorldEffect.Fatigue, "Fatigue", "All Units have -1 Action per activation.", true, 1),
-        new(WorldEffect.Surge, "Surge", "Each unique Bonus Action may be used one additional time per activation.", true, 1),
-        new(WorldEffect.Hesitation, "Hesitation", "Each unique Bonus Action may be used one fewer time per activation.", true, 1),
-        new(WorldEffect.Calm, "Calm", "No Effect.", true, 8),
-        new(WorldEffect.Earthquake, "Earthquake", "Lay down all Units.", false, 1),
-        new(WorldEffect.OpenSesame, "Open Sesame!", "Open all Doors.", false, 1),
-        new(WorldEffect.Lockdown, "Lockdown", "Close all Doors.", false, 1),
-        new(WorldEffect.Miracle, "Miracle", "Fully heal all Units.", false, 1),
-        new(WorldEffect.SecondWind, "Second Wind", "Heal every damaged Unit for 1 HP.", false, 2),
-        new(WorldEffect.Repulsion, "Repulsion", "Deal 1 damage to every Unit adjacent to another Unit.", false, 1),
-        new(WorldEffect.Loneliness, "Loneliness", "Deal 1 damage to every Unit not adjacent to another Unit.", false, 1),
-        new(WorldEffect.Renewal, "Renewal", "Replenish 1 use of every limited-use Ability.", false, 2)
+        new("bloodlust", "Bloodlust", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Atk, 1)] },
+        new("weakness", "Weakness", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Atk, -1)] },
+        new("iron-skin", "Iron Skin", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Def, 1)] },
+        new("vulnerability", "Vulnerability", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Def, -1)] },
+        new("haste", "Haste", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Mov, 1)] },
+        new("sluggishness", "Sluggishness", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Mov, -1)] },
+        new("frenzy", "Frenzy", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Actions, 1)] },
+        new("fatigue", "Fatigue", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.Actions, -1)] },
+        new("surge", "Surge", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.BonusActionUses, 1)] },
+        new("hesitation", "Hesitation", WorldCardLifecycle.Continuous) { Modifiers = [new(WorldModifierTarget.BonusActionUses, -1)] },
+        new("calm", "Calm", WorldCardLifecycle.Continuous),
+        new("earthquake", "Earthquake", WorldCardLifecycle.Immediate) { Immediate = new LayDownAllUnitsMechanic() },
+        new("open-sesame", "Open Sesame!", WorldCardLifecycle.Immediate) { Immediate = new SetAllDoorsMechanic(Open: true) },
+        new("lockdown", "Lockdown", WorldCardLifecycle.Immediate) { Immediate = new SetAllDoorsMechanic(Open: false) },
+        new("miracle", "Miracle", WorldCardLifecycle.Immediate) { Immediate = new FullyHealUnitsMechanic() },
+        new("second-wind", "Second Wind", WorldCardLifecycle.Immediate) { Immediate = new HealDamagedUnitsMechanic(Amount: 1) },
+        new("repulsion", "Repulsion", WorldCardLifecycle.Immediate) { Immediate = new DamageUnitsByAdjacencyMechanic(Amount: 1, Adjacent: true) },
+        new("loneliness", "Loneliness", WorldCardLifecycle.Immediate) { Immediate = new DamageUnitsByAdjacencyMechanic(Amount: 1, Adjacent: false) },
+        new("renewal", "Renewal", WorldCardLifecycle.Immediate) { Immediate = new ReplenishLimitedAbilitiesMechanic(Amount: 1) }
     });
+
+    // Preserve baseline order as well as quantities: shuffling consumes the same randomness.
+    public static IReadOnlyList<WorldCardQuantity> Composition { get; } = Array.AsReadOnly(new WorldCardQuantity[]
+    {
+        new("bloodlust", 3), new("weakness", 3), new("iron-skin", 3), new("vulnerability", 3),
+        new("haste", 3), new("sluggishness", 3), new("frenzy", 1), new("fatigue", 1),
+        new("surge", 1), new("hesitation", 1), new("calm", 8), new("earthquake", 1),
+        new("open-sesame", 1), new("lockdown", 1), new("miracle", 1), new("second-wind", 2),
+        new("repulsion", 1), new("loneliness", 1), new("renewal", 2)
+    });
+
+    // Legacy metadata is projected, never maintained as a second rules declaration.
+    public static IReadOnlyList<WorldCardContent> All => Definitions.Select(d => new WorldCardContent(
+        WorldCards.LegacyEffect(d.Id)!.Value, d.Name, d.Description, d.Continuous,
+        Composition.Single(q => q.TypeId == d.Id).Count)).ToArray();
 }

@@ -1,6 +1,6 @@
 # Equipment content — milestone 1
 
-Milestone 2 extends this model with shared Ability grants and independent Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for new Equipment Actions that reuse Unit mechanics, supported source/timing combinations and scenario-local Item authoring. The milestone 1 declarations below remain compatible.
+Milestone 2 extends this model with shared Ability grants and independent Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for new Equipment Actions that reuse Unit mechanics, supported source/timing combinations and scenario-local Item authoring. Milestone 3 adds independent [World Card content](WORLD_CARD_CONTENT.md). The milestone 1 declarations below remain compatible.
 
 ## Playable example: Local Equipment - Fitting Room
 

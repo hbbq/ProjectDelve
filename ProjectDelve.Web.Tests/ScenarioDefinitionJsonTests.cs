@@ -92,7 +92,9 @@ public sealed class ScenarioDefinitionJsonTests
             Assert.Equal(authoredState.ObjectiveStartUnitIds[side].ToArray(), loadedState.ObjectiveStartUnitIds[side].ToArray());
         Assert.Equal(authoredState.DefeatedUnitIds.Order(), loadedState.DefeatedUnitIds.Order());
         Assert.Equal(authoredState.Completion, loadedState.Completion);
-        Assert.Equal(authoredState.WorldEffects, loadedState.WorldEffects);
+        Assert.Equal(authoredState.WorldEffects?.CardsPerRound, loadedState.WorldEffects?.CardsPerRound);
+        Assert.Equal(authoredState.WorldEffects?.Cycling, loadedState.WorldEffects?.Cycling);
+        Assert.Equal(authoredState.WorldEffects?.Composition, loadedState.WorldEffects?.Composition);
         Assert.Equal(authoredState.WorldDeck?.DrawPile, loadedState.WorldDeck?.DrawPile);
         Assert.Equal(authoredState.WorldDeck?.DiscardPile, loadedState.WorldDeck?.DiscardPile);
         Assert.Equal(authoredState.WorldDeck?.ActiveContinuous, loadedState.WorldDeck?.ActiveContinuous);

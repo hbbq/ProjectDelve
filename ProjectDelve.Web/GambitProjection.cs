@@ -153,7 +153,8 @@ public sealed record GambitEvent(string Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? StoredQuantity = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? MachineId = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MachineResource>? ConsumedResources = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CellMarkerType? CellMarkerType = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CellMarkerType? CellMarkerType = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ReplenishedUses = null);
 
 internal static class GambitProjection
 {
@@ -377,7 +378,7 @@ internal static class GambitProjection
             Context(value.AttackContext), value.DefeatContext is null ? null : Defeat(value.DefeatContext),
             value.Dice is null ? null : new(Roll(value.Dice.Pool), value.Dice.Faces, value.Dice.Successes),
             value.WorldCard, value.CycledWorldCard, value.ResourceType, value.StoredQuantity, value.MachineId,
-            value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray(), value.CellMarkerType);
+            value.ConsumedResources.IsEmpty ? null : value.ConsumedResources.ToArray(), value.CellMarkerType, value.ReplenishedUses);
     }
 
     private static GambitAttackContext? Context(AttackContinuation? value) => value is null ? null : new(value.AttackerId,

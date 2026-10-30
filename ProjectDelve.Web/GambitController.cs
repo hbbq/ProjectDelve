@@ -268,6 +268,12 @@ public sealed partial class PlaytestGame
     {
         var copy = FogOfWar.ViewingSide(source) is { } side ? FogOfWar.Observe(source, side) : Detach(source);
         if (copy.WorldDeck is not null) copy.WorldDeck.DrawPile = [];
+        if (copy.WorldEffects is not null) copy.WorldEffects = copy.WorldEffects with { Composition = null };
+        var knownWorldTypes = (copy.WorldDeck?.ActiveContinuous ?? [])
+            .Concat(copy.WorldDeck?.DiscardPile ?? [])
+            .Concat(copy.WorldDeck?.ResolvingCard is { } resolving ? [resolving] : [])
+            .Select(card => card.ResolvedTypeId).ToHashSet(StringComparer.Ordinal);
+        copy.WorldCardDefinitions.RemoveAll(definition => !knownWorldTypes.Contains(definition.Id));
         copy.LootDeck = null;
         copy.Bag = copy.Bag.OrderBy(t => t.SideId).ThenBy(t => t.TypeId).ToList();
         return copy;

@@ -827,6 +827,33 @@ test("World Effects settings survive import, edits, validation, export and play"
   assert.deepEqual(played, ["DELVE1:world-fixture"]);
 });
 
+test("local World Cards survive World settings edits, recovery, export and play", async () => {
+  const definition = structuredClone(designerSetup);
+  definition.worldCardDefinitions = [
+    { id: "paper-wind", name: "Paper Wind", lifecycle: "Continuous", modifiers: [{ target: "Mov", amount: 2 }] },
+    { id: "silver-rain", name: "Silver Rain", lifecycle: "Immediate", immediate: { kind: "healDamagedUnits", amount: 2 } }
+  ];
+  definition.worldEffects = { cardsPerRound: 2, cycling: 1,
+    composition: [{ typeId: "paper-wind", count: 2 }, { typeId: "silver-rain", count: 1 }] };
+  const submitted = [], played = [];
+  const h = harness(async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === "import" ? structuredClone(definition) : operation === "validate"
+      ? { valid: true, errors: [] } : { transport: "DELVE1:local-world" };
+  }, async transport => { played.push(transport); return true; });
+  h.editor.ui.transport.value = "DELVE1:local-world"; await h.click("import");
+  h.editor.ui["world-draws"].value = "3";
+  h.editor.ui["world-cycling"].value = "2";
+  h.editor.ui["world-form"].listeners.submit({ preventDefault() {} });
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  await h.click("validate"); await h.click("export"); await h.click("play");
+  for (const request of submitted.filter(row => row.operation !== "import")) {
+    assert.deepEqual(request.body.worldCardDefinitions, definition.worldCardDefinitions);
+    assert.deepEqual(request.body.worldEffects, { ...definition.worldEffects, cardsPerRound: 3, cycling: 2 });
+  }
+  assert.deepEqual(played, ["DELVE1:local-world"]);
+});
+
 
 test("imported Resources render, survive export and prevent shrinking off their Cells", async () => {
   const definition = structuredClone(designerSetup);

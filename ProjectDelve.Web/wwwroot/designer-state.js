@@ -17,7 +17,7 @@ export class DesignerDraft {
   }
   setWorldEffects(enabled, cardsPerRound, cycling) {
     // Drafts remain editable; the engine validates these scenario values.
-    if (enabled) this.definition.worldEffects = { cardsPerRound, cycling };
+    if (enabled) this.definition.worldEffects = { ...this.definition.worldEffects, cardsPerRound, cycling };
     else delete this.definition.worldEffects;
     this.changed();
   }

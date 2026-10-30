@@ -12,6 +12,7 @@ public sealed record ScenarioDefinition
     public List<AbilityDefinition>? AbilityDefinitions { get; init; }
     public List<ItemDefinition>? ItemTypes { get; init; }
     public List<LootCardDefinition>? LootCardDefinitions { get; init; }
+    public List<WorldCardDefinition>? WorldCardDefinitions { get; init; }
     public List<string>? NeutralSides { get; init; }
     public List<string>? FogOfWarSides { get; init; }
     public List<SideObjective>? Objectives { get; init; }
