@@ -14,6 +14,42 @@ public sealed class TerrainAssemblyTests
         TerrainCatalog.Find(catalog, id);
 
     [Fact]
+    public void CanonicalCampfireUsesGrassAndReusableComponentWithoutBlockingLos()
+    {
+        var campfire = TerrainCatalog.Find(TerrainCatalog.Resolve(null), "campfire");
+        Assert.Equal("Campfire", campfire.Name);
+        Assert.Null(campfire.LegacyKind);
+        Assert.Null(campfire.Production);
+        Assert.Null(campfire.LegacyProductionIdentity);
+        Assert.Equal("grass", campfire.Assembly!.Surface.Id);
+        var component = Assert.Single(campfire.Assembly.Components).Definition;
+        Assert.Equal(Assert.Single(FixedComponentCatalog.All, c => c.Id == "campfire"), component);
+        Assert.Equal("Campfire", component.Presentation.Recipe);
+        Assert.Equal(FixedComponentLayer.Object, component.Presentation.Layer);
+        Assert.True(component.BlocksMovement);
+        Assert.False(component.BlocksLos);
+        var json = JsonSerializer.Serialize(campfire);
+        var restored = JsonSerializer.Deserialize<TerrainDefinition>(json)!;
+        TerrainCatalog.Validate([restored]);
+        Assert.Equal(json, JsonSerializer.Serialize(restored));
+
+        var state = new GameState
+        {
+            Physical = new(new Board(5, 1, []) { Terrain = [new(new(2, 0)) { TypeId = "campfire" }] },
+                [new("actor", new(0, 0)), new("target", new(4, 0))]),
+            Types = [new("observer", 4, 4, 1, 0, 1)],
+            Units = [new("actor", "observer", "blue", 1), new("target", "observer", "red", 1)]
+        };
+        var paths = MovementRules.FindPaths(state, "actor", new(0, 0));
+        Assert.Contains(new Cell(1, 0), paths.Keys);
+        Assert.DoesNotContain(new Cell(2, 0), paths.Keys);
+        Assert.DoesNotContain(new Cell(3, 0), paths.Keys);
+        Assert.False(SpatialRules.Fits(state.Physical.Board, Footprint.OneByOne, new(2, 0)));
+        Assert.True(AttackRules.HasGeometricLineOfSight(state.Physical.Board, new(0, 0), new(4, 0)));
+        Assert.Equal(UnitTargetEvaluation.Possible, AttackRules.EvaluateFrom(state, "actor", new(0, 0), "target"));
+    }
+
+    [Fact]
     public void SameTableResolvesOnDifferentSurfacesWithoutNewRules()
     {
         var types = TerrainCatalog.Resolve(null, [Assembly(), Assembly("other-98", "stone-floor")]);

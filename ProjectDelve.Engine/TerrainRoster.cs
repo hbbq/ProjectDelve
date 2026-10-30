@@ -7,7 +7,8 @@ public static class TerrainRoster
     public static ImmutableArray<TerrainAssemblyDefinition> Assemblies { get; } =
     [
         new("tree", "Tree", "grass") { Components = [new("object", "tree")] },
-        new("stone-floor-with-table", "Stone Floor with Table", "stone-floor") { Components = [new("furniture", "table")] }
+        new("stone-floor-with-table", "Stone Floor with Table", "stone-floor") { Components = [new("furniture", "table")] },
+        new("campfire", "Campfire", "grass") { Components = [new("object", "campfire")] }
     ];
 
     public static ImmutableArray<TerrainDefinition> All { get; } = Create();
@@ -20,6 +21,7 @@ public static class TerrainRoster
             { LegacyKind = TerrainKind.Tree, Presentation = new("Tree") };
         var table = TerrainAssemblyContent.Compose(Assemblies[1], floor, FixedComponentCatalog.All) with
             { LegacyKind = TerrainKind.StoneFloorWithTable, Presentation = new("StoneFloorWithTable") };
+        var campfire = TerrainAssemblyContent.Compose(Assemblies[2], grass, FixedComponentCatalog.All);
         return
         [
             grass,
@@ -42,7 +44,8 @@ public static class TerrainRoster
                 Production = new DirectionalResourceProduction("fruit", 2, SourceLos: ProductionSourceLos.IgnoreProducingCell),
                 LegacyProductionIdentity = LegacyTerrainProductionIdentity.FruitTree
             },
-            Define("solid-rock", "Solid Rock", false, true, TerrainKind.SolidRock)
+            Define("solid-rock", "Solid Rock", false, true, TerrainKind.SolidRock),
+            campfire
         ];
     }
 

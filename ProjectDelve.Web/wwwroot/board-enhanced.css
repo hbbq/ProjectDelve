@@ -6,15 +6,15 @@
 #board .visual-glyph { font-size: inherit; }
 #board .object-artwork { display: none; pointer-events: none; }
 #board .terrain-object-artwork { display: none; pointer-events: none; }
-#board .cell[data-fixed-components] { position: relative; isolation: isolate; }
+#board .cell[data-fixed-components], #generator-board .cell[data-fixed-components] { position: relative; isolation: isolate; }
 #board .cell[data-fixed-components] .terrain-label { color: #fff3d8; text-shadow: 0 1px 2px #161b22, 1px 0 2px #161b22; }
-#board .fixed-component-layer { position: absolute; pointer-events: none; z-index: -1; display: grid; place-items: center;
+#board .fixed-component-layer, #generator-board .fixed-component-layer { position: absolute; pointer-events: none; z-index: -1; display: grid; place-items: center;
   background-image: var(--component-detail); background-size: contain; color: var(--component-fill); }
-#board .fixed-component-artwork { display: none; pointer-events: none; }
-#board .fixed-component-fallback { font-size: 1.8em; text-shadow: 0 1px 2px #161b22; }
-#board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] { background-image: none; }
-#board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] .fixed-component-artwork { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-#board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] .fixed-component-fallback { display: none; }
+#board .fixed-component-artwork, #generator-board .fixed-component-artwork { display: none; pointer-events: none; }
+#board .fixed-component-fallback, #generator-board .fixed-component-fallback { font-size: 1.8em; text-shadow: 0 1px 2px #161b22; }
+#board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"], #generator-board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] { background-image: none; }
+#board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] .fixed-component-artwork, #generator-board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] .fixed-component-artwork { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+#board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] .fixed-component-fallback, #generator-board[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"] .fixed-component-fallback { display: none; }
 #board .edge-artwork { display: none; pointer-events: none; }
 #board[data-view="enhanced"] {
   outline: 3px solid #887c65;

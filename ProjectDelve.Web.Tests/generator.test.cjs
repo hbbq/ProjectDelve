@@ -19,20 +19,43 @@ function harness() {
   }
   const nodes = new Map(), get = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
   for (const [key, value] of Object.entries({ profile:"HVM", width:"30", height:"20", rooms:"8", excavation:"2", connectivity:"2", doors:"2", openness:"2", terrain:"2", treasure:"2", density:"2", difficulty:"3", objective:"reach", required:"2", fog:"1", loot:"Classic", seed:"", view:"enhanced" })) get(`generator-${key}`).value = value;
-  const opened = new Node(), requests = [], plays = [], designs = [], events = {};
+  const opened = new Node(), requests = [], plays = [], designs = [], events = {}, visuals = [];
   const context = vm.createContext({ structuredClone, Uint32Array, document: { getElementById: get, querySelectorAll: () => [opened], createElement: () => new Node() },
     crypto: { getRandomValues: array => { array[0] = 1; array[1] = 2; return array; } }, navigator: { clipboard: { writeText: async () => {} } },
     addEventListener: (name, callback) => events[name] = callback,
     fetch: (url, options) => new Promise(resolve => requests.push({ url, body: JSON.parse(options.body), resolve })),
     delvePlayGenerated: async value => { plays.push(value); return true; }, delveOpenGenerated: value => { designs.push(value); return true; },
-    applyBoardVisual: () => {}, styleSide: () => {} });
+    styleSide: () => {} });
+  vm.runInContext(source("board-visuals.js").replace(/^export /gm, ""), context);
+  context.applyBoardVisual = (node, category, kind, options) => visuals.push({ node, category, kind, options });
   vm.runInContext(source("generator-state.js").replace(/^export /gm, "") + "\n" + source("generator.js").replace(/^import .*;\r?\n/gm, ""), context);
   const click = name => get(`generator-${name}`).click();
   const enter = (name, value) => { get(`generator-${name}`).value = value; get(`generator-${name}`).listeners.input?.(); };
   const result = complete => ({ code:complete, prefix:complete.split("-S")[0], fingerprint:"test", transport:"DELVE1:fixture",
     definition: { board:{ width:14, height:14, defaultTerrain:"SolidRock", cells:[], edges:[] }, units:[] }, diagnostics:{ rooms:[], monsters:0, occupiedRooms:0, destinationDistance:10 } });
-  return { nodes, get, click, enter, requests, plays, designs, opened, context, result };
+  return { nodes, get, click, enter, requests, plays, designs, opened, context, result, visuals };
 }
+
+test("preview resolves unfamiliar typed assemblies and defaults through shared presentation metadata", async () => {
+  const h = harness(); h.click("preview");
+  const result = h.result(code);
+  const assembly = { surface: { presentation: { recipe: 'Grass' } },
+    components: [{ slot: 'ornament', definition: { id: 'unknown-component', name: 'Brazier', presentation: { recipe: 'Campfire' } } }] };
+  result.terrainDefinitions = [
+    { id: 'unfamiliar-tile', name: 'Watchfire Clearing', presentation: { recipe: 'generic' }, assembly },
+    { id: 'unfamiliar-ground', name: 'Old Paving', presentation: { recipe: 'Gravel' } }
+  ];
+  result.definition.board = { width: 2, height: 1, defaultTerrain: 'StoneFloor', defaultTerrainTypeId: 'unfamiliar-ground',
+    cells: [{ position: { x: 0, y: 0 }, terrain: 'StoneFloor', terrainTypeId: 'unfamiliar-tile' }], edges: [] };
+  h.requests[0].resolve({ ok: true, json: async () => result }); await flush();
+  const cells = h.get('generator-board').children;
+  assert.equal(cells[0].className, 'cell Grass');
+  assert.equal(cells[0].title, 'Watchfire Clearing (0,0)');
+  assert.deepEqual(h.visuals[0].options.assembly, assembly);
+  assert.equal(h.visuals[0].options.seed, code);
+  assert.equal(cells[1].className, 'cell Gravel');
+  assert.equal(cells[1].title, 'Old Paving (1,0)');
+});
 test("a loaded complete code starts unseen without fetching or rendering an authoring preview", async () => {
   const h = harness(); h.opened.click();
   h.enter("code-input", code); h.click("code-play"); await flush();

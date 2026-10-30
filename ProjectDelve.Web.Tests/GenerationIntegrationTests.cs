@@ -25,6 +25,7 @@ public sealed class GenerationIntegrationTests
     [Theory]
     [InlineData(Code)]
     [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F1-QFun-S000000000000002A")]
+    [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000002")]
     public async Task PreviewAndDirectPlayShareExactDefinitionAndRestartKeepsCompletedRecipe(string recipe)
     {
         await using var host = await Host.Start();
@@ -34,14 +35,19 @@ public sealed class GenerationIntegrationTests
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
         var definition = ScenarioDefinitionJson.FromJson(preview.GetProperty("definition").GetRawText());
         var expected = GameEngine.CreateGame(definition);
+        Assert.Equal(JsonSerializer.Serialize(expected.Physical.Board.TerrainTypes, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } }),
+            preview.GetProperty("terrainDefinitions").GetRawText());
         using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, generationCode = recipe });
         played.EnsureSuccessStatusCode(); var observed = await played.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(recipe, observed.GetProperty("generationCode").GetString());
         var actual = host.Game.Snapshot();
         Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(actual.Result.State));
-        Assert.Equal("side-1", observed.GetProperty("presentation").GetProperty("viewingSideId").GetString());
+        var fog = GenerationCode.Parse(recipe).FogOfWar;
+        Assert.Equal(fog ? HeroesVsMonsters.Heroes : null, observed.GetProperty("presentation").GetProperty("viewingSideId").GetString());
         var shown = observed.GetProperty("result").GetProperty("state");
-        Assert.True(shown.GetProperty("units").GetArrayLength() < expected.Units.Count);
+        if (fog) Assert.True(shown.GetProperty("units").GetArrayLength() < expected.Units.Count);
+        else Assert.Equal(expected.Units.Count, shown.GetProperty("units").GetArrayLength());
         var known = FogOfWar.Observe(expected, HeroesVsMonsters.Heroes);
         Assert.Equal(JsonSerializer.Serialize(known.Physical.Board), JsonSerializer.Serialize(host.Game.BrowserResponse(actual).Result.State.Physical.Board));
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = actual.Revision });

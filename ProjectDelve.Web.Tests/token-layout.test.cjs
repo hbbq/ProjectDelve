@@ -16,6 +16,24 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body
 const enhanced = selector => `#board[data-view="enhanced"] ${selector}`;
 const style = selector => Object.assign({}, ...rules.filter(r => r.selectors.includes(selector)).map(r => r.declarations));
 
+test("fixed component artwork and fallbacks share visible isolated layers in gameplay and generator previews", () => {
+  for (const root of ["#board", "#generator-board"]) {
+    assert.equal(style(`${root} .cell[data-fixed-components]`).isolation, "isolate");
+    const layer = style(`${root} .fixed-component-layer`);
+    assert.equal(layer.position, "absolute");
+    assert.equal(layer.display, "grid");
+    assert.equal(layer["z-index"], "-1");
+    assert.equal(layer["pointer-events"], "none");
+    assert.equal(layer["background-image"], "var(--component-detail)");
+    assert.equal(style(`${root} .fixed-component-artwork`).display, "none");
+    assert.equal(style(`${root} .fixed-component-fallback`)["font-size"], "1.8em");
+    const ready = `${root}[data-view="enhanced"] .fixed-component-layer[data-artwork="ready"]`;
+    assert.equal(style(`${ready} .fixed-component-artwork`).display, "block");
+    assert.equal(style(`${ready} .fixed-component-artwork`)["object-fit"], "contain");
+    assert.equal(style(`${ready} .fixed-component-fallback`).display, "none");
+  }
+});
+
 test("object artwork uses 24px markers and full-Cell Machines while Classic and failed loads retain glyphs", () => {
   assert.equal(style("#board .object-artwork").display, "none");
   assert.equal(style("#board .object-artwork")["pointer-events"], "none");

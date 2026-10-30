@@ -41,6 +41,7 @@ public static class OvergrownStrongholdGenerator
         private readonly List<RoomConnection> links = [];
         private readonly List<DungeonCorridor> paths = [];
         private readonly Dictionary<Cell, TerrainKind> terrain = [];
+        private readonly Dictionary<Cell, TerrainDefinition> terrainOverrides = [];
         private readonly Dictionary<(Cell, Cell), EdgeKind> edges = [];
         private readonly HashSet<Cell> protectedGround = [];
         private readonly HashSet<Cell> portals = [];
@@ -52,7 +53,8 @@ public static class OvergrownStrongholdGenerator
         private int cacheCount;
         private const int Goal = 2;
         private bool Inside(Cell c) => c.X > 0 && c.Y > 0 && c.X < code.Width - 1 && c.Y < code.Height - 1;
-        private bool Passable(Cell c) => terrain.TryGetValue(c, out var kind) && kind.Passable();
+        private bool Passable(Cell c) => terrainOverrides.TryGetValue(c, out var definition)
+            ? definition.Passable : terrain.TryGetValue(c, out var kind) && kind.Passable();
         private static (Cell, Cell) Key(Cell a, Cell b) => a.Y < b.Y || a.Y == b.Y && a.X < b.X ? (a, b) : (b, a);
         private static IEnumerable<Cell> Neighbors(Cell c)
         { yield return new(c.X, c.Y - 1); yield return new(c.X + 1, c.Y); yield return new(c.X, c.Y + 1); yield return new(c.X - 1, c.Y); }
@@ -85,13 +87,14 @@ public static class OvergrownStrongholdGenerator
             foreach (var connection in links) CarveApproach(connection);
             foreach (var site in sites) RealizeSite(site);
             AddLandmarks();
+            AddCampfires();
 
             // Four Heroes stand together; no initial monster, loot or furnishing occupies this apron.
             var start = sites[0].Room.Center;
             var starts = new[] { start, new(start.X - 1, start.Y), new(start.X, start.Y - 1), new Cell(start.X - 1, start.Y - 1) };
             units.AddRange(HeroesVsMonsters.HeroTypes.Select((type, i) => new UnitPlacement(type, HeroesVsMonsters.Heroes, starts[i], UnitId: $"hero-{i + 1}")));
             var all = Flood(start);
-            if (all.Count != terrain.Count(p => p.Value.Passable()) || !all.TryGetValue(sites[Goal].Room.Center, out destinationDistance)) return false;
+            if (all.Count != terrain.Keys.Count(Passable) || !all.TryGetValue(sites[Goal].Room.Center, out destinationDistance)) return false;
             if (destinationDistance < Math.Min(code.Width, code.Height) / 3) return false;
             var direct = Path(start, sites[Goal].Room.Center);
             // Check actual emitted terrain AND edges. Wide roads alone do not excuse a mandatory one-Cell throat.
@@ -258,7 +261,7 @@ public static class OvergrownStrongholdGenerator
                 var old = patch.Select(c => terrain[c]).ToArray();
                 var kind = code.Terrain >= 2 && ground.Next(3) == 0 ? TerrainKind.SolidRock : TerrainKind.Tree;
                 foreach (var c in patch) terrain[c] = kind;
-                if (Flood(sites[0].Room.Center).Count != terrain.Count(p => p.Value.Passable()))
+                if (Flood(sites[0].Room.Center).Count != terrain.Keys.Count(Passable))
                 { for (var i = 0; i < patch.Length; i++) terrain[patch[i]] = old[i]; }
                 else groveBudget--;
             }
@@ -273,12 +276,46 @@ public static class OvergrownStrongholdGenerator
                 terrain[c] = code.Terrain == 3 && ground.Next(3) == 0 ? TerrainKind.Lava :
                     code.Terrain >= 2 && ground.Next(3) == 0 ? TerrainKind.SolidRock : TerrainKind.Tree;
                 // Avoid decorative islands and sealed pockets. Connected floor is a quality invariant.
-                if (Flood(sites[0].Room.Center).Count != terrain.Count(p => p.Value.Passable())) terrain[c] = old;
+                if (Flood(sites[0].Room.Center).Count != terrain.Keys.Count(Passable)) terrain[c] = old;
             }
             // Meadow remains open around routes; tree-lined boundaries provide a readable board edge.
             if (code.Terrain == 0)
                 foreach (var c in terrain.Keys.ToArray())
                     if (Inside(c) && terrain[c] == TerrainKind.Tree && Neighbors(c).Any(Passable) && ground.Next(3) == 0) terrain[c] = TerrainKind.Grass;
+        }
+
+        private void AddCampfires()
+        {
+            // A fire belongs to a clearing or ruined encampment, not to a random road Cell.
+            // Keep the mission destination and its complete interior available to every Hero.
+            var eligible = sites.Where((site, index) => index != Goal &&
+                site.Kind is SiteKind.Grove or SiteKind.Court or SiteKind.Ruin).ToList();
+            ground.Shuffle(eligible);
+            var routes = paths.SelectMany(path => path.Cells).ToHashSet();
+            var budget = Math.Clamp(1 + code.Width * code.Height / 600, 1, 4);
+            var campfire = TerrainCatalog.Find(TerrainCatalog.All, "campfire");
+            foreach (var site in eligible)
+            {
+                if (terrainOverrides.Count >= budget) break;
+                var chance = (site.Kind == SiteKind.Grove ? 65 : 45) - (code.Openness == 3 ? 15 : 0);
+                if (ground.Next(100) >= chance) continue;
+                var room = site.Room;
+                var candidates = room.Cells().Where(c => Passable(c) && !routes.Contains(c) &&
+                    !portals.Any(p => Distance(c, p) <= 1) && Distance(c, sites[0].Room.Center) >= 6 &&
+                    !(c.X >= room.Center.X - 1 && c.X <= room.Center.X && c.Y >= room.Center.Y - 1 && c.Y <= room.Center.Y) &&
+                    terrainOverrides.Keys.All(other => Distance(c, other) >= 6) &&
+                    Neighbors(c).All(n => Passable(n) && CanCross(c, n)) &&
+                    Enumerable.Range(-1, 3).SelectMany(dy => Enumerable.Range(-1, 3)
+                        .Where(dx => dx != 0 || dy != 0).Select(dx => new Cell(c.X + dx, c.Y + dy))).Count(Passable) >= 6).ToList();
+                ground.Shuffle(candidates);
+                foreach (var cell in candidates.OrderBy(c => Distance(c, room.Center)))
+                {
+                    terrainOverrides[cell] = campfire;
+                    // Even a spacious-looking clearing can hide a cut vertex. Never seal a pocket.
+                    if (Flood(sites[0].Room.Center).Count == terrain.Keys.Count(Passable)) break;
+                    terrainOverrides.Remove(cell);
+                }
+            }
         }
 
         private Dictionary<Cell, int> Flood(Cell start, Func<Cell, bool>? blocked = null)
@@ -390,8 +427,10 @@ public static class OvergrownStrongholdGenerator
             var definition = new ScenarioDefinition
             {
                 Board = new() { Width = code.Width, Height = code.Height, DefaultTerrain = TerrainKind.Grass,
-                    Cells = terrain.OrderBy(p => p.Key.Y).ThenBy(p => p.Key.X).Where(p => p.Value != TerrainKind.Grass)
-                        .Select(p => new CellDefinition(p.Key, p.Value) { CoalGeneration = p.Value == TerrainKind.Lava ? false : null }).ToList(),
+                    Cells = terrain.OrderBy(p => p.Key.Y).ThenBy(p => p.Key.X).Where(p => p.Value != TerrainKind.Grass || terrainOverrides.ContainsKey(p.Key))
+                        .Select(p => new CellDefinition(p.Key, terrainOverrides.ContainsKey(p.Key) ? TerrainKind.StoneFloor : p.Value)
+                        { TerrainTypeId = terrainOverrides.GetValueOrDefault(p.Key)?.Id,
+                            CoalGeneration = p.Value == TerrainKind.Lava ? false : null }).ToList(),
                     Edges = edges.OrderBy(p => p.Key.Item1.Y).ThenBy(p => p.Key.Item1.X).ThenBy(p => p.Key.Item2.Y)
                         .Select(p => new EdgeDefinition(p.Key.Item1, p.Key.Item1.X == p.Key.Item2.X ? EdgeDirection.Down : EdgeDirection.Right, p.Value)).ToList() },
                 UnitTypeIds = types, Units = units, Agency = agency, Orders = orders,

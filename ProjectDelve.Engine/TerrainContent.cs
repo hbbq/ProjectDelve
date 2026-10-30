@@ -46,7 +46,8 @@ public static class TerrainCatalog
 {
     public static ImmutableArray<TerrainDefinition> All => TerrainRoster.All;
     private static readonly ImmutableDictionary<TerrainKind, TerrainDefinition> LegacyDefinitions =
-        TerrainRoster.All.Where(d => d.Id != TerrainCompatibility.OrdinaryLavaId).ToImmutableDictionary(d => d.LegacyKind!.Value);
+        TerrainRoster.All.Where(d => d.LegacyKind is not null && d.Id != TerrainCompatibility.OrdinaryLavaId)
+            .ToImmutableDictionary(d => d.LegacyKind!.Value);
     public static ImmutableArray<TerrainDefinition> Resolve(IEnumerable<TerrainDefinition>? local,
         IEnumerable<TerrainAssemblyDefinition>? assemblies = null,
         IEnumerable<FixedComponentDefinition>? fixedComponents = null)

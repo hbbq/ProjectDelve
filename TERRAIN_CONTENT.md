@@ -144,6 +144,10 @@ Only Asphalt among existing canonical Terrain carries `racing-ground`, preservin
 
 ## Fixed components and assemblies
 
+The standard Designer Terrain palette includes **Campfire** (`campfire`): Grass plus the canonical `campfire` Fixed Component. It blocks movement but not gameplay LOS, has no Resource production or other gameplay effect, and reuses the existing Campfire model and warm presentation lighting. Place it with `"terrainTypeId": "campfire"`; no scenario-local definitions are needed. Existing authored Campfire assemblies keep their own surfaces and references unchanged.
+
+To reuse the same canonical component on another suitable surface, declare a local assembly with that `surfaceId` and `"components": [{ "slot": "object", "componentId": "campfire" }]`. Its recipe supplies only presentation; its declared obstruction properties supply gameplay behavior.
+
 Scenario JSON keeps three kinds of environmental content distinct:
 
 - `terrainTypes` defines atomic Terrain, including its gameplay properties and optional production.

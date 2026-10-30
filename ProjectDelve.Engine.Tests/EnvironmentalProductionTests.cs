@@ -58,6 +58,18 @@ public sealed class EnvironmentalProductionTests
         Assert.Throws<ArgumentException>(() => initial.PlaceResource(ResourceTypes.Coal, new(2, 2)));
     }
 
+    [Fact]
+    public void CanonicalCampfireDoesNotProduceOrConsumeProductionRollsAtRoundStart()
+    {
+        var dice = new Dice(1);
+        var initial = GameEngine.CreateGame(Fixture(Tile(2, 2, "campfire")));
+        var result = GameEngine.StartRound(initial, dice, false);
+        Assert.Equal(0, dice.Calls);
+        Assert.Empty(result.State.Resources);
+        Assert.DoesNotContain(result.Events, e => e.Kind is "TerrainProductionRolled" or "LavaCoalRolled" or "FruitTreeRolled");
+        Assert.Equal(initial.Units.Select(u => u.CurrentHp), result.State.Units.Select(u => u.CurrentHp));
+    }
+
     [Theory]
     [InlineData("coal")] [InlineData("diamond")] [InlineData("fruit")]
     [InlineData("banana")] [InlineData("mushroom")] [InlineData("shell")]

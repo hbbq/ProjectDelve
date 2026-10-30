@@ -16,6 +16,8 @@ public static class GenerationApi
             {
                 var result = DungeonGenerator.Generate(request.Code);
                 return Results.Ok(new { code = result.Code.ToString(), prefix = result.Code.Prefix,
+                    terrainDefinitions = TerrainCatalog.Resolve(result.Definition.TerrainTypes,
+                        result.Definition.TerrainAssemblies, result.Definition.FixedComponentTypes),
                     unitMetadata = result.Definition.UnitTypeIds.Select(id => UnitContent.Find(id, result.Definition.UnitTypes)!).Select(type => new
                     { unitTypeId = type.Id, footprintOffsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)) }),
                     definition = JsonSerializer.Deserialize<JsonElement>(ScenarioDefinitionJson.ToJson(result.Definition)),

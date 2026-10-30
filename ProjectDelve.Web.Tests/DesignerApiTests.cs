@@ -123,6 +123,37 @@ public sealed class DesignerApiTests
     }
 
     [Fact]
+    public async Task CanonicalCampfireIsAvailableWithoutLocalDefinitionsAndSurvivesDesignerPlaytest()
+    {
+        await using var host = await Host.Start();
+        var catalog = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
+        var campfire = Assert.Single(catalog.GetProperty("terrainDefinitions").Deserialize<TerrainDefinition[]>(Json)!, t => t.Id == "campfire");
+        Assert.Equal("Campfire", campfire.Name);
+        Assert.False(campfire.Passable);
+        Assert.False(campfire.BlocksLos);
+        Assert.Null(campfire.Production);
+        Assert.Equal("grass", campfire.Assembly!.Surface.Id);
+        Assert.Equal("Campfire", Assert.Single(campfire.Assembly.Components).Definition.Presentation.Recipe);
+
+        var definition = CompleteData();
+        definition.Board.Cells.Add(new(new(4, 3), TerrainKind.StoneFloor) { TerrainTypeId = campfire.Id });
+        var json = ScenarioDefinitionJson.ToJson(definition);
+        using var validated = await host.PostDraft("validate", json);
+        Assert.True((await validated.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", json);
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport });
+        imported.EnsureSuccessStatusCode();
+        Assert.Equal(json, await imported.Content.ReadAsStringAsync());
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
+        played.EnsureSuccessStatusCode();
+        var response = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var board = response.Result.State.Physical.Board;
+        Assert.Equal(JsonSerializer.Serialize(campfire, Json), JsonSerializer.Serialize(board.TerrainDefinitionAt(new(4, 3)), Json));
+    }
+
+    [Fact]
     public async Task CatalogProjectsOnlyCanonicalEditorMetadata()
     {
         await using var host = await Host.Start();

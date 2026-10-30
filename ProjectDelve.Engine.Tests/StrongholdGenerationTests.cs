@@ -7,6 +7,35 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class StrongholdGenerationTests(ITestOutputHelper output)
 {
     [Theory]
+    [InlineData(0, "Generated start is impassable.")]
+    [InlineData(1, "Generated floor is disconnected.")]
+    public void ConnectivityVerifierUsesTypedObstructionsInsteadOfLegacyFallback(int fireX, string error)
+    {
+        var definition = Scenario.Define(Scenario.Map(3, 1,
+                cells: [new(new(fireX, 0), TerrainKind.StoneFloor) { TerrainTypeId = "campfire" }]),
+            [Scenario.Group(UnitTypeIds.Wizard, HeroesVsMonsters.Heroes, ControllerKind.Human, Scenario.At(0, 0))]);
+        Assert.Equal(error, Assert.Throws<InvalidOperationException>(() => DungeonGenerator.VerifyConnectivity(definition)).Message);
+    }
+
+    [Fact]
+    public void ConnectivityVerifierResolvesTypedDefaultTerrain()
+    {
+        var board = Scenario.Map(3, 1, cells: [Scenario.Tile(0, 0, TerrainKind.Grass), Scenario.Tile(1, 0, TerrainKind.Grass)])
+            with { DefaultTerrainTypeId = "campfire" };
+        var definition = Scenario.Define(board,
+            [Scenario.Group(UnitTypeIds.Wizard, HeroesVsMonsters.Heroes, ControllerKind.Human, Scenario.At(0, 0))]);
+        var distances = DungeonGenerator.VerifyConnectivity(definition);
+        Assert.Equal(new[] { new Cell(0, 0), new Cell(1, 0) }, distances.Keys);
+    }
+
+    [Theory]
+    [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000000", "DEC4D7AEC2F8EC2C")]
+    [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000001", "E4F0B56DC91F7C07")]
+    [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000002", "9555E84506A01C0E")]
+    public void CampfireRegressionRecipesPreserveDeterministicOutput(string recipe, string fingerprint) =>
+        Assert.Equal(fingerprint, DungeonGenerator.Generate(recipe).Fingerprint);
+
+    [Theory]
     [InlineData(0UL)]
     [InlineData(42UL)]
     [InlineData(ulong.MaxValue)]
@@ -26,6 +55,7 @@ public sealed class StrongholdGenerationTests(ITestOutputHelper output)
     {
         HashSet<string> plans = []; HashSet<string> unusual = [];
         var count = 0; var mostAttempts = 0; var mostEnemies = 0; var largestMultiplier = 0;
+        var campfires = 0; var mapsWithCampfires = 0; var mostCampfires = 0;
         foreach (var dimensions in new[] { (18, 18), (24, 20), (30, 24), (42, 30), (50, 50), (18, 50), (50, 18) })
         for (ulong seed = 0; seed < 12; seed++)
         {
@@ -36,6 +66,11 @@ public sealed class StrongholdGenerationTests(ITestOutputHelper output)
             try { generated = DungeonGenerator.Generate(code); }
             catch (Exception e) { throw new Exception($"Failed {code}", e); }
             AssertGeometry(generated);
+            Assert.Equal(generated.Fingerprint, DungeonGenerator.Generate(code).Fingerprint);
+            var fireCount = generated.Definition.Board.Cells.Count(c => c.TerrainTypeId == "campfire");
+            campfires += fireCount;
+            if (fireCount > 0) mapsWithCampfires++;
+            mostCampfires = Math.Max(mostCampfires, fireCount);
             plans.Add(generated.Diagnostics.SitePlan!);
             foreach (var unit in generated.Definition.Units.Where(u => new[] { UnitTypeIds.RedDragon, UnitTypeIds.GoblinKing, UnitTypeIds.TowerTroll }.Contains(u.UnitTypeId))) unusual.Add(unit.UnitTypeId);
             mostAttempts = Math.Max(mostAttempts, generated.Diagnostics.Attempts);
@@ -46,7 +81,9 @@ public sealed class StrongholdGenerationTests(ITestOutputHelper output)
         }
         Assert.Equal(3, plans.Count);
         Assert.NotEmpty(unusual);
+        Assert.True(campfires > 0, "The seed corpus must exercise canonical Campfire placement.");
         output.WriteLine($"{count} scenarios; plans={string.Join(", ", plans)}; max attempts={mostAttempts}; max defenders={mostEnemies}; max multiplier={largestMultiplier}; unusual={string.Join(", ", unusual)}");
+        output.WriteLine($"Campfires: {campfires} across {count} maps; {mapsWithCampfires} maps contain fires; max per map={mostCampfires}.");
     }
 
     [Fact]
@@ -120,6 +157,8 @@ public sealed class StrongholdGenerationTests(ITestOutputHelper output)
         var definition = generated.Definition; var diagnostics = generated.Diagnostics;
         var state = GameEngine.CreateGame(definition);
         var distances = DungeonGenerator.VerifyConnectivity(definition);
+        var reachable = ApproachRules.Distances(state.Physical.Board, definition.Units[0].Anchor, closedDoorsTraversable: true);
+        Assert.Equal(reachable.Keys.OrderBy(c => c.Y).ThenBy(c => c.X), distances.Keys.OrderBy(c => c.Y).ThenBy(c => c.X));
         Assert.Equal(4, definition.Units.Count(u => u.SideId == HeroesVsMonsters.Heroes));
         Assert.True(diagnostics.DestinationDistance >= Math.Min(definition.Board.Width, definition.Board.Height) / 3);
         Assert.InRange(diagnostics.AlternateRouteDistance, diagnostics.DestinationDistance, diagnostics.DestinationDistance * 3);
@@ -136,10 +175,42 @@ public sealed class StrongholdGenerationTests(ITestOutputHelper output)
         // Engine validates initial footprints; independently ensure no cache starts under any footprint.
         var occupied = definition.Units.SelectMany(u => FootprintGeometry.OccupiedCells(UnitContent.Find(u.UnitTypeId)!.Footprint, u.Anchor)).ToHashSet();
         Assert.All(definition.LootMarkers!, marker => Assert.DoesNotContain(marker.Position, occupied));
+        Assert.Null(definition.TerrainTypes);
+        Assert.Null(definition.FixedComponentTypes);
+        Assert.Null(definition.TerrainAssemblies);
+        var fires = definition.Board.Cells.Where(c => c.TerrainTypeId == "campfire").ToArray();
+        Assert.InRange(fires.Length, 0, 4);
+        Assert.All(diagnostics.Rooms, room => Assert.True(fires.Count(fire => room.Contains(fire.Position)) <= 1));
+        foreach (var fire in fires)
+        {
+            Assert.Equal(TerrainCatalog.Find(TerrainCatalog.All, "campfire"), state.Physical.Board.TerrainDefinitionAt(fire.Position));
+            Assert.DoesNotContain(fire.Position, reachable.Keys);
+            Assert.DoesNotContain(fire.Position, occupied);
+            Assert.DoesNotContain(definition.LootMarkers!, marker => marker.Position == fire.Position);
+            Assert.False(diagnostics.Rooms[diagnostics.StartRoom].Contains(fire.Position));
+            Assert.False(diagnostics.Rooms[diagnostics.DestinationRoom].Contains(fire.Position));
+            Assert.Single(diagnostics.Rooms.Where(room => room.Contains(fire.Position)));
+            Assert.DoesNotContain(fire.Position, diagnostics.Corridors.SelectMany(path => path.Cells));
+            Assert.True(Manhattan(fire.Position, heroStart) >= 6);
+            Assert.All(fires.Where(other => other != fire), other => Assert.True(Manhattan(fire.Position, other.Position) >= 6));
+            // A fire is a feature within a usable clearing, never a plug in a passage.
+            Assert.All(MovementRules.Neighbors(fire.Position), neighbor =>
+            {
+                Assert.True(state.Physical.Board.TerrainDefinitionAt(neighbor).Passable);
+                Assert.True(state.Physical.Board.EdgeBetween(fire.Position, neighbor).Passable());
+            });
+            var surrounding = from dx in Enumerable.Range(-1, 3)
+                              from dy in Enumerable.Range(-1, 3)
+                              where dx != 0 || dy != 0
+                              select new Cell(fire.Position.X + dx, fire.Position.Y + dy);
+            Assert.True(surrounding.Count(c => state.Physical.Board.TerrainDefinitionAt(c).Passable) >= 6);
+        }
         foreach (var u in definition.Units.Where(u => UnitContent.Find(u.UnitTypeId)!.Footprint == Footprint.TwoByTwo))
         {
             var queries = new GameplayQueries(state);
             Assert.True(queries.MovementPathsFrom(u.UnitId!, u.Anchor).Count > 1);
         }
     }
+
+    private static int Manhattan(Cell a, Cell b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
 }

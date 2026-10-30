@@ -31,6 +31,22 @@ offer screening at the cost of distance; the more direct stone approach is wider
 and more exposed. Clustered trees and masonry divide larger lawns into flanks.
 There are no new terrain identities in this profile.
 
+Occasional Campfires reuse the canonical Grass-based `campfire` assembly in
+groves, courts and ruined encampments. Each site gets at most one, away from the
+central 2 × 2 maneuvering square, doorway approaches and reserved road/trail lanes.
+The arrival site, destination and enclosed halls/vaults are excluded. A fire needs
+four accessible neighboring Cells and at least six passable Cells in its surrounding
+ring; fires are at least six Manhattan steps apart. Placement retains connected
+floor and then passes the ordinary mission-route checks before Units or treasure
+are placed. Campfires block movement, permit LOS and supply only presentation light.
+
+The geography stream tries a fire in 65% of groves and 45% of eligible courts/ruins;
+Open Clearings (`O3`) lowers each chance by 15 percentage points. Unsuitable sites
+are skipped without forcing a fire elsewhere. The map cap is one plus area/600
+(integer division), capped at four. These are placement opportunities, not a
+guaranteed frequency: small or heavily traversed sites may have no suitable spot.
+Difficulty, defender density and treasure do not choose fire locations.
+
 The Reach Area Objective is the interior of the destination hall or sanctuary,
 so merely touching the outside wall does not complete the mission. The existing
 all-Heroes / at-least-X-Heroes semantics and opposing Defeat Units Objective are
@@ -114,8 +130,9 @@ DNG2-OS has its own SHA-256-derived PCG streams, named
 `DNG2:OS:{seed:X16}:{domain}:{attempt}`. The domains are `mission`, `geography` and
 `encounters`; no runtime hash ordering or `System.Random` is used. Its first
 release is independent of DNG1-HVM. Existing Heroes vs Monsters seed output remains
-unchanged. Future output-affecting Stronghold changes require a new generator
-version; do not silently retune published DNG2 recipes.
+unchanged. The Campfire integration intentionally retunes DNG2-OS output, so
+pre-Campfire Stronghold fingerprints are not retained. Identical seeds and settings
+remain deterministic under this policy; use DELVE1 to retain a concrete old setup.
 
 ## Quality gates and verification
 
@@ -141,7 +158,44 @@ movement and approach queries across 45 additional configurations, including nin
 large-footprint placements. It checks mission and treasure accessibility through
 the actual emitted terrain and edges, not the planner's connection graph.
 
-## Verification on 2026-10-29
+## Campfire verification on 2026-10-30
+
+The final solution build had no warnings or errors. Full verification passed
+1,917 Engine tests, 494 Web tests (serialized test collections), and 798 JavaScript
+and browser-dispatcher tests. Existing Heroes vs Monsters fingerprints are unchanged;
+three Stronghold recipes now pin the Campfire policy's new fingerprints.
+
+The Campfire policy was sampled through the generation API across 124 settings/seed
+combinations: 40 standard 30 × 24 maps (`O2-T2-N2-L3-B2`, seeds 0–39) plus the
+84-map varying-control corpus above (seeds 0–11). All generated and validated
+successfully. The standard sample produced 45 fires across 33 of 40 maps (1.13 per
+map, range 0–2). The varied sample produced 79 across 60 of 84 maps (0.94 per map,
+range 0–3). These are approximate sample frequencies, not guarantees. The compact
+18 × 18 sample averaged 0.42 fires; the 42 × 30 sample averaged 1.58.
+
+The corpus now compares generator connectivity with authoritative Engine spatial
+queries, checks fire clearance from routes, objectives, Units and Loot, and repeats
+each recipe to verify deterministic fingerprints. Independent 2 × 2 accessibility
+checks and Heroes vs Monsters fingerprint tests remain in place. Canonical Campfire
+content is reused unchanged; neither local definitions nor new effects are emitted.
+
+Representative Campfire recipes inspected in Edge preview, Designer and 3D:
+
+| Recipe suffix after `DNG2-OS-` | Layout and context | Fires |
+| --- | --- | ---: |
+| `18x18-O3-T1-N3-L1-B1-OR2-F0-QClassic-S0000000000000005` | Broken Bailey, orchard clearing | 1 |
+| `30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000000` | Broken Bailey, ruined gatecourt | 1 |
+| `30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000002` | Twin Halls, court and hunter's grove | 2 |
+| `42x30-O2-T1-N2-L2-B1-OR2-F0-QClassic-S0000000000000001` | Crown Ring, guarded eastern cloister | 1 |
+
+Desktop/mobile inspections confirmed placement context, generic preview symbols,
+Designer properties and warm 3D lighting without failed requests or browser errors.
+Some sites intentionally receive no fire because their road lanes or door approaches
+leave insufficient space. Fires do not imply sleeping defenders, healing, damage,
+production or any other new rule. The samples test placement safety and variety,
+not long-term mission balance.
+
+## Original profile verification on 2026-10-29
 
 The full solution build completed without warnings or errors. The broad existing
 suite passed 2,135 .NET tests (1,689 Engine and 446 Web) and 758 Node tests. Following

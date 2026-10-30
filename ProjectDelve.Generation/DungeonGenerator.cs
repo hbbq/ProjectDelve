@@ -69,12 +69,16 @@ public static class DungeonGenerator
     public static IReadOnlyDictionary<Cell, int> VerifyConnectivity(ScenarioDefinition scenario)
     {
         var board = scenario.Board;
-        var terrain = board.Cells.ToDictionary(c => c.Position, c => c.Terrain);
+        var catalog = TerrainCatalog.Resolve(scenario.TerrainTypes, scenario.TerrainAssemblies, scenario.FixedComponentTypes);
+        var defaultTerrain = TerrainCatalog.Find(catalog, TerrainCompatibility.ResolveTypeId(board.DefaultTerrain, board.DefaultTerrainTypeId));
+        var terrain = board.Cells.ToDictionary(c => c.Position, c => TerrainCatalog.Find(catalog,
+            TerrainCompatibility.ResolveTypeId(c.Terrain, c.TerrainTypeId, c.CoalGeneration)));
         bool Passable(Cell c) => c.X >= 0 && c.Y >= 0 && c.X < board.Width && c.Y < board.Height &&
-            terrain.GetValueOrDefault(c, board.DefaultTerrain).Passable();
+            terrain.GetValueOrDefault(c, defaultTerrain).Passable;
         var edges = board.Edges.ToDictionary(e => Key(e.Position,
             new(e.Position.X + (e.Direction == EdgeDirection.Right ? 1 : 0), e.Position.Y + (e.Direction == EdgeDirection.Down ? 1 : 0))), e => e.Kind);
         var start = scenario.Units.First(u => u.SideId == HeroesVsMonsters.Heroes).Anchor;
+        if (!Passable(start)) throw new InvalidOperationException("Generated start is impassable.");
         Dictionary<Cell, int> distances = new() { [start] = 0 };
         Queue<Cell> queue = new(); queue.Enqueue(start);
         while (queue.TryDequeue(out var cell))

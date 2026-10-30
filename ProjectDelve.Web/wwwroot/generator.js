@@ -1,5 +1,5 @@
 import { configurationCode, configurationFromCode, GeneratorSession } from "./generator-state.js";
-import { applyBoardVisual } from "./board-visuals.js";
+import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 import { styleSide } from "./side-colors.js";
 
 const byId = id => document.getElementById(`generator-${id}`);
@@ -125,11 +125,14 @@ function renderPreview() {
   root.dataset.generationCode = result.code;
   root.replaceChildren(); root.style.gridTemplateColumns = `repeat(${board.width}, 1fr)`; root.style.gridTemplateRows = `repeat(${board.height}, 1fr)`;
   root.style.aspectRatio = `${board.width} / ${board.height}`; root.style.setProperty("--columns", board.width);
-  const terrain = new Map(board.cells.map(c => [`${c.position.x},${c.position.y}`, c.terrain]));
+  const terrain = new Map(board.cells.map(c => [`${c.position.x},${c.position.y}`,
+    { kind: c.terrain, typeId: c.terrainTypeId, direction: c.direction }]));
+  const presentationBoard = { terrainTypes: result.terrainDefinitions };
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
-    const kind = terrain.get(`${x},${y}`) ?? board.defaultTerrain;
-    const node = element("div"); node.className = `cell ${kind}`; node.title = `${kind} (${x},${y})`;
-    applyBoardVisual(node, "terrain", kind, { seed: result.code, x, y }); root.append(node);
+    const tile = terrain.get(`${x},${y}`) ?? { kind: board.defaultTerrain, typeId: board.defaultTerrainTypeId };
+    const display = terrainDisplay(presentationBoard, tile), kind = display.kind;
+    const node = element("div"); node.className = `cell ${kind}${display.fallback ? ' custom-terrain' : ''}`; node.title = `${display.name} (${x},${y})`;
+    applyBoardVisual(node, "terrain", kind, { seed: result.code, x, y, direction: tile.direction, terrain, assembly: display.assembly }); root.append(node);
   }
   for (const edge of board.edges) {
     const node = element("div"); node.className = `edge ${edge.kind}`;
