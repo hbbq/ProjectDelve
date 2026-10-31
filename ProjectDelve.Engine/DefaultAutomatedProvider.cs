@@ -254,7 +254,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
 
         if (attack is not null) return attack.Key;
         var occupied = queries.OccupiedCellsOf(request.UnitId!);
-        var door = request.Candidates.Where(c => c.TryOpenDoor is not null)
+        var door = request.Candidates.Where(c => c.TryOpenDoor is not null || c.Ability?.Definition.Mechanic is OpenDoor)
             .OrderBy(c => (occupied.Contains(c.Door!.A) ? c.Door.B : c.Door.A).Y)
             .ThenBy(c => (occupied.Contains(c.Door!.A) ? c.Door.B : c.Door.A).X)
             .FirstOrDefault();

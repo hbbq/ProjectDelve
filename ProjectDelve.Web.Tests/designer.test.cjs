@@ -179,6 +179,40 @@ test('Immediate Loot definitions survive deck editing and recovery without becom
   assert.deepEqual(plain(h.editor.draft.snapshot().lootCardDefinitions),[card]);
 });
 
+test('choosing newly authored Equipment keeps the inventory or ground picker open until Add object commits', () => {
+  for (const destination of ['unit', 'ground']) {
+    const h = harness(), draft = h.editor.draft;
+    draft.applyContentDefinition('equipment', { id: 'first-object', name: 'First Object', localAbilities: [] });
+    draft.applyContentDefinition('equipment', { id: 'new-equipment', name: 'New Equipment', localAbilities: [] });
+    if (destination === 'unit') draft.place('goblin-type', 'blue', 'Human', { x: 1, y: 1 });
+    h.editor.render(); h.editor.setTool('Select'); h.down(h.cell(1, 1));
+    const form = h.editor.ui.properties.children[0];
+    const picker = inputField(form, 'Item or Equipment'), panel = picker.closest('details');
+    panel.open = true;
+    const before = plain(draft.snapshot()), historyCount = h.editor.history.past.length;
+    picker.value = draft.objectCatalog().find(row => row.reference.equipmentTypeId === 'new-equipment').key;
+    // Dispatch the real bubbling path: the immediate Unit/Cell form submits and
+    // replaces itself if the selection change escapes the object picker.
+    let stopped = false;
+    const event = { stopPropagation() { stopped = true; } };
+    for (let node = picker; node; node = node.parent) {
+      node.listeners.change?.(event);
+      if (stopped) break;
+    }
+    assert.equal(h.editor.ui.properties.children[0], form);
+    assert.equal(panel.open, true);
+    assert.deepEqual(plain(draft.snapshot()), before);
+    assert.equal(h.editor.history.past.length, historyCount);
+    press(panel, 'Add object');
+    const objects = destination === 'unit' ? draft.snapshot().units[0].inventory : draft.snapshot().groundObjects.map(row => row.object);
+    assert.equal(objects.length, 1);
+    assert.equal(objects[0].equipmentTypeId, 'new-equipment');
+    assert.equal(h.editor.history.past.length, historyCount + 1);
+    h.click('undo');
+    assert.deepEqual(plain(draft.snapshot()), before);
+  }
+});
+
 test('Cell Loot marker change commits before Apply and survives export without retained form inputs', async () => {
   const operations = [];
   const h = harness(async (operation, body) => {

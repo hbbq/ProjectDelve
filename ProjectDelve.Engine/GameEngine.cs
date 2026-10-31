@@ -148,8 +148,7 @@ public static partial class GameEngine
         {
             if (ability.Definition.Timing == AbilityTiming.Action) state.ActionsUsedThisActivation++;
             ConsumeAbilityUse(state, request.UnitId!, ability, events);
-            if (ability.Definition.Mechanic is HealMechanic or HolyWaveMechanic or FireballMechanic or
-                StandAdjacentFriendlyMechanic or SelfModifiersMechanic or ExtraActionsMechanic)
+            if (IsSharedActiveMechanic(ability.Definition.Mechanic))
             {
                 ResolveAbility(state, request, request.Candidates.Single(c => c.Key == choice), events);
                 return;
@@ -243,11 +242,6 @@ public static partial class GameEngine
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state, random, events);
                 break;
-            case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).FreeAction == UnitFreeAction.OpenDoor:
-                EmitActionUsed(request, choice!, events);
-                OpenDoor(state, request.UnitId!, request.Candidates.Single(c => c.Key == choice).Door!, events,
-                    request.Candidates.Single(c => c.Key == choice).Ability!.ActionId);
-                break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay:
             case DecisionKind.Move:
                 var figure = state.Physical.Figures.Single(f => f.Id == request.UnitId);
@@ -280,12 +274,7 @@ public static partial class GameEngine
                 if (choice is not null)
                 {
                     var action = request.Candidates.Single(c => c.Key == choice);
-                    if (action.TryOpenDoor is { } attempt)
-                    {
-                        EmitActionUsed(request, choice!, events);
-                        state.DoorInProgress = new(request.UnitId!, action.Door!, attempt.SuccessCount, action.Ability!.EntryId);
-                    }
-                    else switch (action.Action)
+                    switch (action.Action)
                     {
                         case UnitAction.Operate:
                             EmitActionUsed(request, choice!, events);
@@ -321,10 +310,6 @@ public static partial class GameEngine
                             BeginAttack(state, request.UnitId!,
                                 new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.FireBreath),
                                     action.Ability!.Definition.Name), events, ActionIdentity(action), action.Destination, action.Action);
-                            break;
-                        case UnitAction.Telekinesis:
-                            EmitActionUsed(request, choice!, events);
-                            ChangePosture(state, action.TargetId!, Posture.Lying, events, request.UnitId, ActionIdentity(action));
                             break;
                         case UnitAction.SummonWorker:
                         case UnitAction.SummonTroll:
@@ -500,22 +485,7 @@ public static partial class GameEngine
             if (!targets.IsEmpty)
                 candidates.Add(new Candidate("fire-breath", Action: UnitAction.FireBreath) { TargetIds = targets });
         }
-        candidates.AddRange(AbilityActionCandidates(state, unit));
-        if (type.HasAction(UnitAction.Telekinesis))
-            candidates.AddRange(state.Units
-                .Where(target => state.IsUpright(target.Id) &&
-                    AttackRules.EvaluateHostileTargetFrom(state, unit.Id, from, target.Id)
-                        == UnitTargetEvaluation.Possible)
-                .Select(target => new Candidate($"telekinesis:{target.Id}",
-                    Action: UnitAction.Telekinesis, TargetId: target.Id)));
-        if (type.Mechanic<TryOpenDoor>() is not null)
-        {
-            foreach (var edge in BorderingClosedDoors(state, unit))
-            {
-                var key = $"{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}";
-                candidates.Add(new Candidate($"try-open-door:{key}", Door: edge, TryOpenDoor: type.Mechanic<TryOpenDoor>()));
-            }
-        }
+        candidates.AddRange(ActiveAbilityCandidates(state, unit, AbilityTiming.Action));
         return candidates.Select(candidate =>
         {
             if (candidate.Ability is not null || candidate.Action == UnitAction.NormalAttack) return candidate;
@@ -565,20 +535,8 @@ public static partial class GameEngine
             .ThenBy(edge => edge.B.Y).ThenBy(edge => edge.B.X);
     }
 
-    private static IEnumerable<Candidate> FreeActionCandidates(GameState state, Unit unit)
-    {
-        foreach (var ability in state.AbilitiesOf(unit.Id).Where(ability =>
-                     ability.Definition is { Timing: AbilityTiming.FreeAction, Mechanic: ProjectDelve.Engine.OpenDoor } &&
-                     state.CanUseAbility(unit.Id, ability)))
-        foreach (var edge in BorderingClosedDoors(state, unit))
-            yield return new Candidate($"{ability.CandidatePrefix}:{edge.A.X},{edge.A.Y}:{edge.B.X},{edge.B.Y}", Door: edge,
-                Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor)
-            {
-                Ability = ability, AbilityName = ability.Definition.Name,
-                ObjectId = ability.SourceKind == AbilitySourceKind.Equipment ? ability.SourceInstanceId : null,
-                EquipmentTypeId = ability.SourceKind == AbilitySourceKind.Equipment ? ability.SourceTypeId : null
-            };
-    }
+    private static IEnumerable<Candidate> FreeActionCandidates(GameState state, Unit unit) =>
+        ActiveAbilityCandidates(state, unit, AbilityTiming.FreeAction);
 
     private static List<Unit> EligibleUnits(GameState state) =>
         state.Units.Where(u => u.TypeId == state.ActiveToken!.TypeId && u.SideId == state.ActiveToken.SideId && u.CurrentHp > 0 &&
@@ -589,9 +547,10 @@ public static partial class GameEngine
 
     private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
     {
+        foreach (var candidate in ActiveAbilityCandidates(state, unit, AbilityTiming.BonusAction)) yield return candidate;
         foreach (var ability in state.AbilitiesOf(unit.Id).Where(a => a.Definition.Timing == AbilityTiming.BonusAction && state.CanUseAbility(unit.Id, a)))
         {
-            Candidate Bind(Candidate candidate) => candidate with { Kind = ActivationChoiceKind.BonusAction, Ability = ability, AbilityName = ability.Definition.Name };
+            Candidate Bind(Candidate candidate) => BindAbilityCandidate(ability, candidate);
             switch (ability.Definition.Mechanic)
             {
                 case Boost boost when !state.ActionDone && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Mushroom.Id) >= boost.MushroomCost:
@@ -689,7 +648,6 @@ public static partial class GameEngine
         var candidates = new List<Candidate>();
         candidates.AddRange(FreeActionCandidates(state, unit));
         candidates.AddRange(BonusActionCandidates(state, unit));
-        candidates.AddRange(OtherAbilityCandidates(state, unit));
         candidates.AddRange(ObjectCandidates(state, unit));
         candidates.AddRange(GameplayCandidates(state, unit));
         if (!state.MoveDone)
@@ -733,11 +691,13 @@ public static partial class GameEngine
         ?? throw new InvalidOperationException("Action has no stable identity.");
 
     private static void BeginAttack(GameState state, string attackerId, SharedRollAttack attack,
-        ResolutionEvents events, string actionId, Cell? selectedCell, UnitAction? semanticAction = null)
+        ResolutionEvents events, string actionId, Cell? selectedCell, UnitAction? semanticAction = null,
+        AbilityTiming originTiming = AbilityTiming.Action)
     {
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
-            attack.AttackDice, Results: []) { SemanticAction = semanticAction, IsNormalMelee = semanticAction == UnitAction.NormalAttack && state.EffectiveRngOf(attackerId) == 1 };
+            attack.AttackDice, Results: []) { SemanticAction = semanticAction, OriginTiming = originTiming,
+                IsNormalMelee = semanticAction == UnitAction.NormalAttack && state.EffectiveRngOf(attackerId) == 1 };
         FogOfWar.DiscoverAttack(state, state.AttackInProgress);
         events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
             { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId });
@@ -776,7 +736,8 @@ public static partial class GameEngine
         {
             if (type.Mechanic<Cleave>() is { } cleave && attack.Results.Any(r => r.Damage >= cleave.TriggerDamage) && CleaveCandidates(state, attacker).Count > 0)
                 state.CleavePending = true;
-            if (type.Mechanic<MoveAfterAttack>() is { } move) state.MoveAfterAttackAllowance = move.MaxSteps;
+            if (attack.OriginTiming == AbilityTiming.Action && type.Mechanic<MoveAfterAttack>() is { } move)
+                state.MoveAfterAttackAllowance = move.MaxSteps;
             if (type.Mechanic<AdvanceOnKill>() is not null && attack.IsNormalMelee && !attack.DefeatedHostileCells.IsEmpty)
             {
                 state.AdvanceOnKillCells = attack.DefeatedHostileCells;

@@ -60,6 +60,9 @@ public sealed record MechanicDescriptor(string Id, string Name, MechanicFamily F
     public MechanicContext Context { get; init; }
     public MechanicTargeting Targeting { get; init; } = new(MechanicTargetSelection.None, "");
     public ImmutableArray<string> Dependencies { get; init; } = [];
+    public string ContextRequirements { get; init; } = "";
+    public string UnsupportedContextReason => $"Supported contexts: {string.Join(", ", Profiles.Select(p => $"{p.Source} / {p.Timing}"))}. " +
+        (ContextRequirements.Length == 0 ? "Other execution contexts are not implemented." : ContextRequirements);
     public MechanicDescription Description { get; init; } = new("", []);
     public bool Grantable { get; init; }
     public int? MaxPerSource { get; init; }

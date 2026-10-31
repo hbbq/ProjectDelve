@@ -140,10 +140,9 @@ public static partial class GameEngine
     {
         var index = state.Units.FindIndex(u => u.Id == id);
         var unit = state.Units[index];
-        state.Units[index] = unit with
-        {
-            AbilityUseCounts = unit.AbilityUseCounts.ToImmutableDictionary(p => p.Key, p => Math.Max(0, p.Value - amount))
-        };
+        foreach (var ability in state.AbilitiesOf(id).Where(ability => ability.Definition.Usage.MaxUses is not null))
+            unit = ChangeAbilityUseCount(unit, ability, spent => Math.Max(0, spent - amount));
+        state.Units[index] = unit;
         events.Add(new RulesEvent("AbilityUsesReplenished", id) { ActionId = actionId, ReplenishedUses = amount });
     }
 

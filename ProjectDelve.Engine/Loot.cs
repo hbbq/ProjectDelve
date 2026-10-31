@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace ProjectDelve.Engine;
 
 public enum LootCardKind { PocketBreakfast, SecondWind, Bedsheet, LuckyBoots, OfficialKey, GoatBell }
@@ -9,6 +11,9 @@ public sealed record OwnedObject(string Id, LootCardKind Kind = LootCardKind.Poc
     public string? ItemTypeId { get; init; }
     public string? LootCardId { get; init; }
     public string? EquipmentTypeId { get; init; }
+    // Charges belong to this physical Equipment object, including while on the ground.
+    // Keys are the Equipment definition's local Ability keys, not mechanic identities.
+    public ImmutableDictionary<string, int> AbilityUseCounts { get; init; } = ImmutableDictionary<string, int>.Empty;
     public OwnedObject(string id, string equipmentTypeId) : this(id) => EquipmentTypeId = equipmentTypeId;
     [System.Text.Json.Serialization.JsonIgnore]
     public LootCardContent Content => EquipmentTypeId is null && ItemTypeId is null && LootCardId is null ? LootCards.Content(Kind) : throw new InvalidOperationException("Resolve typed objects through the game content context.");

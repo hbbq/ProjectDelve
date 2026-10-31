@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace ProjectDelve.Engine;
 
 public static partial class GameEngine
@@ -9,11 +11,7 @@ public static partial class GameEngine
         var index = state.Units.FindIndex(unit => unit.Id == unitId);
         var unit = state.Units[index];
         if (ability.Definition.Usage.MaxUses is not null)
-            unit = unit with
-            {
-                AbilityUseCounts = unit.AbilityUseCounts.SetItem(ability.AccountingId,
-                    unit.AbilityUseCounts.GetValueOrDefault(ability.AccountingId) + 1)
-            };
+            unit = ChangeAbilityUseCount(unit, ability, spent => spent + 1);
         if (ability.Definition.Timing == AbilityTiming.BonusAction)
             state.BonusActionUseCountsThisActivation[ability.AccountingId] = state.BonusActionUsesThisActivation(ability.AccountingId) + 1;
         OwnedObject? consumed = null;
@@ -29,42 +27,33 @@ public static partial class GameEngine
             events.Add(new RulesEvent("ItemUsed", unitId, AbilityName: ability.Definition.Name)
             {
                 ObjectCard = consumed, ActionId = ability.ActionId,
-                Category = ability.Definition.Timing == AbilityTiming.Action ? ActivationChoiceKind.Action : ActivationChoiceKind.BonusAction
+                Category = ability.Definition.Timing switch
+                {
+                    AbilityTiming.Action => ActivationChoiceKind.Action,
+                    AbilityTiming.BonusAction => ActivationChoiceKind.BonusAction,
+                    AbilityTiming.FreeAction => ActivationChoiceKind.FreeAction,
+                    _ => throw new InvalidOperationException("Single Use Items require an active Ability timing.")
+                }
             });
     }
 
-    private static IEnumerable<Candidate> OtherAbilityCandidates(GameState state, Unit unit)
+    // Spending and replenishment resolve the same physical source and local key.
+    private static Unit ChangeAbilityUseCount(Unit unit, ResolvedAbility ability, Func<int, int> change)
     {
-        foreach (var ability in state.AbilitiesOf(unit.Id).Where(ability =>
-                     ability.Definition.Timing == AbilityTiming.BonusAction &&
-                     ability.Definition.Mechanic is SelfModifiersMechanic or ExtraActionsMechanic &&
-                     state.CanUseAbility(unit.Id, ability)))
+        ImmutableDictionary<string, int> Change(ImmutableDictionary<string, int> counts, string key)
         {
-            yield return new(ability.CandidatePrefix, Kind: ActivationChoiceKind.BonusAction,
-                Relevant: ability.Definition.Mechanic is not SelfModifiersMechanic self || BonusActionRelevant(state, unit, self))
-            {
-                Ability = ability, AbilityName = ability.Definition.Name,
-                ObjectId = ability.SourceKind == AbilitySourceKind.Unit ? null : ability.SourceInstanceId,
-                EquipmentTypeId = ability.SourceKind == AbilitySourceKind.Equipment ? ability.SourceTypeId : null,
-                ItemTypeId = ability.SourceKind == AbilitySourceKind.Item ? ability.SourceTypeId : null
-            };
+            var spent = counts.GetValueOrDefault(key);
+            var updated = change(spent);
+            return updated == spent ? counts : counts.SetItem(key, updated);
         }
-    }
-
-    private static void ResolveOtherAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
-    {
-        var ability = choice.Ability!;
-        switch (ability.Definition.Mechanic)
+        if (ability.SourceKind == AbilitySourceKind.Unit)
+            return unit with { AbilityUseCounts = Change(unit.AbilityUseCounts, ability.AccountingId) };
+        if (ability.SourceKind == AbilitySourceKind.Equipment)
         {
-            case SelfModifiersMechanic self:
-                state.ModifiersThisTurn.AddRange(self.Modifiers);
-                break;
-            case ExtraActionsMechanic extra:
-                state.ExtraActionsThisActivation += extra.Amount;
-                break;
-            default: throw new InvalidOperationException("Unsupported Bonus Action mechanic.");
+            var equipment = unit.Inventory.Single(obj => obj.Id == ability.SourceInstanceId);
+            return unit with { Inventory = unit.Inventory.Replace(equipment, equipment with
+            { AbilityUseCounts = Change(equipment.AbilityUseCounts, ability.Key) }) };
         }
-        events.Add(new RulesEvent("ActionUsed", request.UnitId, AbilityName: ability.Definition.Name)
-            { ActionId = ability.ActionId, Category = choice.Kind, SourceUnitId = request.UnitId });
+        throw new InvalidOperationException("Single Use Items use physical consumption rather than Ability charges.");
     }
 }

@@ -52,14 +52,20 @@ public static partial class MechanicCatalog
     {
         var profile = descriptor.Profiles.SingleOrDefault(p => p.Source == context.Source && p.Timing == context.Timing);
         if (profile is null)
-            MechanicChecks.Error(errors, path, "unsupportedContext", "This mechanic does not support the requested source and timing.");
+            MechanicChecks.Error(errors, path, "unsupportedContext", $"{descriptor.Name} cannot execute as {context.Source} / {context.Timing}. {descriptor.UnsupportedContextReason}");
         else if (context.MaxUses is < 1 || (profile.Usage switch
         {
             MechanicUsageSupport.UnlimitedOnly or MechanicUsageSupport.NotApplicable => context.MaxUses is not null,
             MechanicUsageSupport.LimitedOnly => context.MaxUses is null,
             _ => false
         }))
-            MechanicChecks.Error(errors, path + ".usage", "unsupportedUsage", "This mechanic does not support the requested use restriction.");
+            MechanicChecks.Error(errors, path + ".usage", "unsupportedUsage", context.MaxUses is < 1
+                ? "A limited Ability requires a positive maximum number of uses."
+                : context.Source == MechanicSource.Item
+                    ? "A Single Use Item consumes its physical object when used; its Ability envelope must use unlimited counters."
+                    : context.Timing == MechanicTiming.Passive
+                        ? "A continuous Passive has no discrete use to spend; limited Passive usage is not defined."
+                        : $"{descriptor.Name} supports {profile.Usage} usage in this context.");
         if (!context.HasUnitContext && descriptor.Context is MechanicContext.ActingUnit or MechanicContext.BearingUnit or MechanicContext.CollectorUnit)
             MechanicChecks.Error(errors, path, "unitContextRequired", "This mechanic requires its declared Unit context.");
     }

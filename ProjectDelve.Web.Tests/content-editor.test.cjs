@@ -199,3 +199,25 @@ test('unavailable existing mechanic data is preserved until an explicit mechanic
   await h.editor.validate(); assert.deepEqual(h.validated[0].definition, definition);
   assert.match(h.root.textContent, /mechanic is unavailable/);
 });
+
+test('Engine profiles expose free timing and physical Equipment uses without mechanic name rules', async () => {
+  const mechanic = { ...action, id: 'unfamiliar-active', name: 'Unfamiliar Active',
+    profiles: ['Action', 'BonusAction', 'FreeAction'].map(timing => ({ source: 'Equipment', timing, usage: 'LimitedOrUnlimited' })),
+    contextRequirements: 'Requires an acting Unit.', unsupportedContextReason: 'This trigger requires a completed Attack.' };
+  const h = harness({ callbacks: { catalog: { entries: [{ family: 'mechanics', id: mechanic.id, mechanic }] } } });
+  await h.editor.open({ family: 'equipment' });
+  h.byId('content-editor-add-mechanic').value = mechanic.id; h.clickText('Add Ability');
+  h.change('definition.localAbilities[0].timing', 'FreeAction', 'change');
+  h.change('definition.localAbilities[0].usage', 'limited', 'change');
+  h.change('definition.localAbilities[0].usage.maxUses', '4');
+  await h.editor.validate();
+  assert.equal(h.validated[0].definition.localAbilities[0].timing, 'FreeAction');
+  assert.equal(h.validated[0].definition.localAbilities[0].usage.maxUses, 4);
+  assert.match(h.root.textContent, /Requires an acting Unit/);
+
+  const second = harness({ callbacks: { catalog: { entries: [{ family: 'mechanics', id: mechanic.id, mechanic }] } } });
+  await second.editor.open({ family: 'equipment', definition: { id: 'old', name: 'Old', localAbilities: [
+    { key: 'old', name: 'Old Ability', timing: 'AfterAttack', mechanic: { kind: mechanic.id, amount: 1 } }
+  ] } });
+  assert.match(second.root.textContent, /This trigger requires a completed Attack/);
+});

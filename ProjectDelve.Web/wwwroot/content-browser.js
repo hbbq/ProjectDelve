@@ -204,6 +204,7 @@ export function mountContentBrowser(root, options = {}) {
     detail.append(supported);
     const fixed = fields([
       { label: 'Context', value: contentLabel(mechanic.context) },
+      { label: 'Execution requirements', value: mechanic.contextRequirements },
       { label: 'Target selection', value: contentLabel(mechanic.targeting?.selection) },
       { label: 'Recipients and targeting', value: mechanic.targeting?.recipients },
       { label: 'Dependencies', value: mechanic.dependencies }

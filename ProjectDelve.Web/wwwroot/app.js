@@ -424,6 +424,9 @@ function inspectCell(key) {
     if (pile.unopened) panel.append(text('p', `${pile.unopened} unopened Loot`));
     for (const object of pile.objects) {
       panel.append(text('strong', object.content?.name ?? object.kind), text('p', object.content?.text ?? ''));
+      for (const entry of object.entries ?? []) if (entry.uses) {
+        const uses = text('p', `${entry.content.name}: `); uses.append(useMarkers(entry.uses)); panel.append(uses);
+      }
       const candidate = snapshot?.presentation.decision?.candidates.find(c => c.key === `pickup-object:${object.id}`);
       if (candidate && displayedState === snapshot?.result.state) panel.append(choiceButton(candidate));
     }

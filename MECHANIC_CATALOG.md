@@ -38,11 +38,14 @@ Each `Profiles` entry is one complete supported combination. Do not combine sour
 
 | Mechanic IDs | Timing | Unit usage | Equipment usage | Item usage |
 | --- | --- | --- | --- | --- |
-| `heal`, `holyWave`, `fireball`, `standAdjacentFriendly` | Action | Limited or unlimited | Unlimited | Unlimited |
-| `selfModifiers`, `extraActions` | BonusAction | Limited or unlimited | Unlimited | Unlimited |
+| `heal`, `holyWave`, `standAdjacentFriendly` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `fireball` | Action, BonusAction, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `selfModifiers`, `extraActions` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `selfModifiers`, `adjacentModifiers` | Passive | Unlimited | Unlimited | Unsupported |
 | `phase` | Passive | Unlimited | Unlimited | Unsupported |
-| `openDoor` | FreeAction | Unlimited | Unlimited | Unsupported |
+| `openDoor` | Action, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `telekinesis`, `tryOpenDoor` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `reshapeRoom`, `swap`, `displace` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 
 Equipment stat changes use local Passive `selfModifiers`; Phase and Open Door use their local typed payloads. There are no separate Equipment modifier/capability execution paths. Modifier lists accept ATK, MOV, RNG, and DEF amounts from -100 through 100, including zero and repeated stats. An empty modifier list is invalid; an Equipment definition with no stat changes simply has no such Ability. This preserves the previous direct Equipment modifier domain.
 
@@ -50,23 +53,25 @@ The remaining specialized mechanics currently support Unit sources only. Their l
 
 | Mechanic IDs | Timing | Usage |
 | --- | --- | --- |
-| `telekinesis`, `fireBreath`, `clawAttack`, `tryOpenDoor`, `summonAdjacent`, `summonWorker`, `summonTroll`, `pickupResource`, `giveResource`, `operate`, `shootShell` | Action | Unlimited |
-| `reshapeRoom`, `swap`, `displace`, `placeBananaPeel`, `boost` | BonusAction | Unlimited |
+| `fireBreath`, `clawAttack`, `summonAdjacent`, `summonWorker`, `summonTroll`, `pickupResource`, `giveResource`, `operate`, `shootShell` | Action | Limited or unlimited |
+| `placeBananaPeel`, `boost` | BonusAction | Limited or unlimited |
 | `fury`, `backstab`, `transportResource` | Passive | Unlimited |
-| `cleave` | AfterAttack | Limited |
+| `cleave` | AfterAttack | Limited or unlimited |
 | `moveAfterAttack`, `advanceOnKill` | AfterAttack | Unlimited |
 | `explosion` | WhenDefeated | Unlimited |
 | `undying` | InsteadOfDefeat | Unlimited |
 | `runRails` | InsteadOfActivation | Unlimited |
 | `waypointSlotMachine` | EndActivation | Unlimited |
 
-Specialized payloads have `MaxPerSource: 1` within each owner definition, including Phase and Open Door. This preserves current ordering and stacking semantics. Reusable shared modifiers and direct Actions can occur under different local keys where their contracts allow it. Specialized names and use limits belong to the envelope: for example, Cleave's payload contains its trigger damage and damage, while its local Ability contains its name and maximum uses.
+Open Door, Telekinesis, Try Open Door, Reshape Room, Swap and Displace accept independent declarations under distinct local keys, as do the shared active mechanics. Remaining specialized payloads retain `MaxPerSource: 1`, including Phase and Cleave, where current execution depends on one concrete capability, follow-up or ordering. Specialized names and use limits belong to the envelope: for example, Cleave's payload contains its trigger damage and damage, while its local Ability contains its name and optional maximum uses.
 
 `waypointSlotMachine` authors a six-face `ResourceOutputTable`; both reward resolution and card text read it. Summon Worker and Summon Troll retain their concrete, rules-established target/resource semantics. Summon Adjacent instead authors its target Unit Type and initial Posture explicitly.
 
 All Ability sources require an acting or bearing Unit. Item consumption remains the selected physical object's lifecycle, not a one-use Ability restriction. No Item Passives, arbitrary triggers, or unsupported source/timing combinations are advertised.
 
 ## Structural validity and gameplay legality
+
+`ContextRequirements` describes required execution context. `UnsupportedContextReason` lists implemented combinations and their requirements; validation uses the same Engine explanation displayed by the Designer. These descriptions explain support without client-side mechanic eligibility rules.
 
 `Context`, `Targeting`, and `Dependencies` explain the participating Engine systems and recipients. They are inspection metadata, not executable targeting predicates. Authoritative gameplay queries additionally check Posture, Action budgets, uses, ownership, adjacency, LOS, target health, placement, resource availability, and Fog of War. An empty Holy Wave retains its established legality. Structural validation does not infer a new Activation Bag membership requirement.
 

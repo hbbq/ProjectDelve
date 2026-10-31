@@ -76,9 +76,9 @@ Resolution binds each local declaration to its source through `ResolvedAbility`.
 | Item Bonus Action allowance | Activating Unit, Item Type and local Ability key |
 | Item selection and consumption | Selected physical Item instance plus local Ability key |
 
-`Unit.AbilityUseCounts` records spent uses by source/key. Remaining uses are computed from the declaration's maximum. An absent count means zero spent uses; creation and resume do not refill counters. Two supported Abilities using the same mechanic have independent keys and counters. `BonusActionUseCountsThisActivation` records activation allowances independently of persistent use limits and clears at activation end. World effects still control the allowed number of Bonus Actions and ordinary Actions.
+`Unit.AbilityUseCounts` records spent native uses by source/key. Remaining uses are computed from the declaration's maximum. An absent count means zero spent uses; creation and resume do not refill counters. Two supported Abilities using the same mechanic have independent keys and counters. `BonusActionUseCountsThisActivation` records activation allowances independently of persistent use limits and clears at activation end. World effects still control the allowed number of Bonus Actions and ordinary Actions.
 
-Equipment and Item Abilities currently require unlimited usage. Equipment charges are not implemented. A Single Use Item's lifecycle is physical consumption, not a one-use Ability counter: the selected object moves from inventory to discard when its choice is applied. Multiple copies of the same Item Type and local key share the per-activation Bonus Action allowance, while consuming only the selected copy. Renewal restores eligible native limited uses and cannot recreate an Item.
+Supported active Equipment Abilities may be limited or unlimited. Their spent counts live on the physical `OwnedObject.AbilityUseCounts`, keyed by local Ability key, and remain with that object through defeat, ground placement and later pickup. Ground and inventory projections show the same remaining uses. Unit counters remain on the individual Unit. A Single Use Item's lifecycle is physical consumption, not a one-use Ability counter: its envelope remains unlimited and the selected object moves from inventory to discard when its choice is applied. Multiple copies of the same Item Type and local key share the per-activation Bonus Action allowance, while consuming only the selected copy. Renewal restores limited Unit and currently owned Equipment uses, capped at their maxima; ground Equipment is unaffected and consumed Items are not recreated.
 
 Candidate IDs are deterministic source/key identities with target information where needed. Unit entries use `ability:<escaped-key>`; Equipment and Item candidate prefixes include their physical Instance ID. Card entries use source Type and key. Display names do not affect any of these identities. Usage is committed centrally when a legal candidate is applied; concrete handlers resolve the mechanic and its established consequences. Ordinary Action budgets remain shared across sources.
 
@@ -88,16 +88,20 @@ Use `MechanicCatalog.All` for authoritative discovery; the following is an overv
 
 | Mechanic | Established contexts |
 | --- | --- |
-| Heal, Holy Wave, Fireball, Stand Adjacent Friendly | Unit, Equipment or Item Action |
+| Heal, Holy Wave, Stand Adjacent Friendly | Unit, Equipment or Item Action |
+| Fireball | Unit, Equipment or Item Action, Bonus Action or Free Action |
 | Self Modifiers | Unit, Equipment or Item Bonus Action; Unit or Equipment Passive |
 | Adjacent Modifiers | Unit or Equipment Passive |
 | Extra Actions | Unit, Equipment or Item Bonus Action |
-| Phase, Open Door | Unit or Equipment Passive / Free Action respectively |
+| Phase | Unit or Equipment Passive |
+| Open Door | Unit, Equipment or Item Action or Free Action |
 | Cleave, Move After Attack, Advance On Kill | Concrete Unit After Attack paths |
 | Explosion, Undying | Unit defeat consequence / immediate defeat replacement |
 | Fury, Backstab, Transport Resource | Concrete Unit Passives |
-| Telekinesis, Fire Breath, Claw Attack, Try Open Door, Summoning, Resource Actions, Shoot Shell | Concrete Unit Actions |
-| Swap, Displace, Reshape Room, Place Banana Peel, Boost | Concrete Unit Bonus Actions |
+| Telekinesis, Try Open Door | Unit, Equipment or Item Action |
+| Swap, Displace, Reshape Room | Unit, Equipment or Item Bonus Action |
+| Fire Breath, Claw Attack, Summoning, Resource Actions, Shoot Shell | Concrete Unit Actions |
+| Place Banana Peel, Boost | Concrete Unit Bonus Actions |
 | Run Rails, Waypoint Slot Machine | Instead of Activation / End Activation respectively |
 
 The catalog exposes allowed usage and per-source multiplicity too. Specialized mechanics remain single instances per owner where existing execution depends on one concrete follow-up, capability or ordering. This does not imply arbitrary stacking, Equipment versions of every Unit mechanic, Item Passives, or freely interchangeable trigger timings. Specialized handlers remain concrete Engine code, using typed local payloads. Waypoint Slot Machine's six-face Resource output table is authored in its payload.
@@ -122,4 +126,4 @@ These scenarios are mutable playtest content in `ProjectDelve.Web/Content/Librar
 
 Normal Attack availability, base stats, movement patterns, terrain restrictions, footprint, Resource Storage and automated Behaviors remain structural Unit properties. They are not alternate named Ability declarations. `UnitAction` identifies concrete candidate/Attack operations; only Normal Attack/None remains authored in `UnitType.Actions`. Attack ordering preserves existing automated tie-breaking and does not supply mechanic parameters.
 
-Inheritance, runtime content mutation, arbitrary triggers, scripting, Equipment charges and full canonical JSON catalog export/load remain outside this model. Content Designer now edits Equipment-owned Abilities through these contracts. Adding content using an already supported mechanic/context needs only its owner-local declaration; adding a new mechanic still requires a concrete Engine implementation and catalog contract.
+Inheritance, runtime content mutation, arbitrary triggers, scripting and full canonical JSON catalog export/load remain outside this model. Content Designer edits Equipment-owned Abilities through these contracts, including supported limited uses and timing choices. Adding content using an already supported mechanic/context needs only its owner-local declaration; adding a new mechanic still requires a concrete Engine implementation and catalog contract.

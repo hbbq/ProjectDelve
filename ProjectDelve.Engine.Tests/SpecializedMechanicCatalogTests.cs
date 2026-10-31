@@ -8,12 +8,11 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class SpecializedMechanicCatalogTests
 {
     [Fact]
-    public void NativeContractsUseLocalPayloadsAndAdvertiseOnlyEstablishedSourceAndTiming()
+    public void TriggerAndPassiveContractsRetainTheirRequiredContexts()
     {
         (string Id, AbilityMechanic Payload, MechanicTiming Timing)[] expected =
         [
             ("cleave", new Cleave(), MechanicTiming.AfterAttack),
-            ("telekinesis", new Telekinesis(), MechanicTiming.Action),
             ("fury", new Fury(), MechanicTiming.Passive),
             ("backstab", new Backstab(), MechanicTiming.Passive)
         ];
@@ -28,7 +27,7 @@ public sealed class SpecializedMechanicCatalogTests
             var profile = Assert.Single(descriptor.Profiles);
             Assert.Equal(MechanicSource.Unit, profile.Source);
             Assert.Equal(timing, profile.Timing);
-            Assert.Equal(id == "cleave" ? MechanicUsageSupport.LimitedOnly : MechanicUsageSupport.UnlimitedOnly, profile.Usage);
+            Assert.Equal(id == "cleave" ? MechanicUsageSupport.LimitedOrUnlimited : MechanicUsageSupport.UnlimitedOnly, profile.Usage);
             Assert.Empty(MechanicCatalog.Validate(payload, new(MechanicSource.Unit, timing, id == "cleave" ? 2 : null)));
             Assert.NotEmpty(MechanicCatalog.Validate(payload, new(MechanicSource.Equipment, timing, id == "cleave" ? 2 : null)));
             Assert.NotEmpty(MechanicCatalog.Validate(payload, new(MechanicSource.Item, timing, id == "cleave" ? 2 : null)));
@@ -117,8 +116,46 @@ public sealed class SpecializedMechanicCatalogTests
     {
         Assert.Throws<ArgumentException>(() => UnitType.Define("duplicate", "Duplicate", Stats(0, 1, 1, 0, 1),
             Ability("First", Uses(2), Cleave(2, 1), "one"), Ability("Second", Uses(3), Cleave(3, 2), "two")));
-        Assert.Throws<ArgumentException>(() => UnitType.Define("duplicate", "Duplicate", Stats(0, 1, 1, 0, 1),
-            Ability("First", Unlimited(), Telekinesis(), "one"), Ability("Second", Unlimited(), Telekinesis(), "two")));
+        var multiple = UnitType.Define("multiple", "Multiple", Stats(0, 1, 1, 0, 1),
+            Ability("First", Uses(1), Telekinesis(), "one"), Ability("Second", Uses(2), Telekinesis(), "two"));
+        Assert.Equal(2, multiple.LocalAbilities.Length);
+    }
+
+    [Fact]
+    public void ActiveProfilesPermitSourceLocalLimitsWithoutAdvertisingUnsupportedTriggersOrPassives()
+    {
+        (AbilityMechanic Payload, MechanicTiming[] Timings)[] active =
+        [
+            (new FireballMechanic(), [MechanicTiming.Action, MechanicTiming.BonusAction, MechanicTiming.FreeAction]),
+            (new OpenDoor(), [MechanicTiming.Action, MechanicTiming.FreeAction]),
+            (new Telekinesis(), [MechanicTiming.Action]),
+            (new TryOpenDoor(3), [MechanicTiming.Action]),
+            (new Swap(), [MechanicTiming.BonusAction]),
+            (new Displace(1), [MechanicTiming.BonusAction]),
+            (new ReshapeRoom(), [MechanicTiming.BonusAction])
+        ];
+        foreach (var (payload, timings) in active)
+        {
+            var descriptor = MechanicCatalog.FindByPayload(payload)!;
+            Assert.Null(descriptor.MaxPerSource);
+            Assert.Equal(timings.Length * 3, descriptor.Profiles.Length);
+            foreach (var timing in timings)
+            {
+                foreach (var source in new[] { MechanicSource.Unit, MechanicSource.Equipment })
+                {
+                    Assert.Empty(MechanicCatalog.Validate(payload, new(source, timing)));
+                    Assert.Empty(MechanicCatalog.Validate(payload, new(source, timing, 2)));
+                }
+                Assert.Empty(MechanicCatalog.Validate(payload, new(MechanicSource.Item, timing)));
+                Assert.Contains(MechanicCatalog.Validate(payload, new(MechanicSource.Item, timing, 1)),
+                    issue => issue.Code == "unsupportedUsage" && issue.Message.Contains("physical object"));
+            }
+        }
+        var missingAttack = Assert.Single(MechanicCatalog.Validate(new Cleave(), new(MechanicSource.Unit, MechanicTiming.Action)));
+        Assert.Contains("completed Attack", missingAttack.Message);
+        Assert.Contains(MechanicCatalog.Validate(new Phase(), new(MechanicSource.Equipment, MechanicTiming.Passive, 1)),
+            issue => issue.Message.Contains("no discrete use"));
+        Assert.NotEmpty(MechanicCatalog.Validate(new SummonAdjacent("grunt", Posture.Upright), new(MechanicSource.Equipment, MechanicTiming.Action)));
     }
 
     [Theory]
@@ -167,7 +204,7 @@ public sealed class SpecializedMechanicCatalogTests
     }
 
     [Fact]
-    public void ExistingEquipmentCapabilitiesUseTheSameUnlimitedLocalContracts()
+    public void PassiveCapabilitiesRemainContinuousWhileOpenDoorSupportsUsesAndIndependentDeclarations()
     {
         foreach (var ability in new LocalAbilityDefinition[]
         {
@@ -177,10 +214,18 @@ public sealed class SpecializedMechanicCatalogTests
         {
             AbilityContent.Validate([ability], AbilitySourceKind.Unit);
             AbilityContent.Validate([ability], AbilitySourceKind.Equipment);
-            Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability], AbilitySourceKind.Item));
-            Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability with { Usage = new(2) }], AbilitySourceKind.Equipment));
-            Assert.Throws<ArgumentException>(() => AbilityContent.Validate(
-                [ability, ability with { Key = "other" }], AbilitySourceKind.Equipment));
+            if (ability.Mechanic is Phase)
+            {
+                Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability], AbilitySourceKind.Item));
+                Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability with { Usage = new(2) }], AbilitySourceKind.Equipment));
+                Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability, ability with { Key = "other" }], AbilitySourceKind.Equipment));
+            }
+            else
+            {
+                AbilityContent.Validate([ability], AbilitySourceKind.Item);
+                AbilityContent.Validate([ability with { Usage = new(2) }], AbilitySourceKind.Equipment);
+                AbilityContent.Validate([ability, ability with { Key = "other" }], AbilitySourceKind.Equipment);
+            }
         }
     }
 

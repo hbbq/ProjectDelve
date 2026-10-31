@@ -1085,6 +1085,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         button('Remove', () => commit(() => draft.removeObject(object.id)))); panel.append(row);
     }
     const kind = field(panel, 'Item or Equipment', catalogObjects[0]?.key, { entries: catalogObjects.map(c => ({ value: c.key, label: `${c.name} (${c.category})` })) });
+    // This picker prepares Add object; it does not edit the enclosing Unit/Cell.
+    // Submitting that immediate form would replace the picker before the click.
+    kind.addEventListener('change', event => event.stopPropagation());
     panel.append(button('Add object', () => commit(() => draft.addObject(catalogObjects.find(c => c.key === kind.value).reference, destination))));
     form.append(panel);
   }

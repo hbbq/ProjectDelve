@@ -70,6 +70,8 @@ public sealed record AttackContinuation(string AttackerId, string ActionId, stri
     public ImmutableArray<Cell> DefeatedHostileCells { get; init; } = [];
     public bool IsNormalMelee { get; init; }
     public UnitAction? SemanticAction { get; init; }
+    // Existing saves predate non-Action Attacks, so omission preserves their origin.
+    public AbilityTiming OriginTiming { get; init; } = AbilityTiming.Action;
 }
 public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount, string ActionId);
 
@@ -507,8 +509,8 @@ public sealed class GameState : IJsonOnDeserialized
         this.ActiveEquipment(unitId).Any(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
     public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<Phase>() is not null ||
         this.ActiveEquipment(unitId).Any(equipment => equipment.LocalAbilities.Any(ability => ability.Mechanic is Phase));
-    public bool HasOpenDoor(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<OpenDoor>() is not null ||
-        this.ActiveEquipment(unitId).Any(equipment => equipment.LocalAbilities.Any(ability => ability.Mechanic is OpenDoor));
+    public bool HasOpenDoor(string unitId) => this.AbilitiesOf(unitId).Any(ability =>
+        ability.Definition.Mechanic is OpenDoor && this.CanUseAbility(unitId, ability));
 
     public int EffectiveAtkOf(string unitId)
     {

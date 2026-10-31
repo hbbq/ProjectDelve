@@ -156,6 +156,34 @@ public sealed class LootProjectionTests
     }
 
     [Fact]
+    public void EquipmentRemainingUsesStayVisibleOnTheGroundAndHiddenObjectsStayPrivate()
+    {
+        var state = State(true);
+        var equipment = new EquipmentDefinition("charged-bell", "Charged Bell")
+        { LocalAbilities = [new("ring", "Ring", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(3) }] };
+        state.EquipmentTypes.Add(equipment);
+        var spent = new OwnedObject("visible-bell", equipment.Id)
+        { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("ring", 2) };
+        state.GroundObjects = [new(spent, new(0, 0)), new(spent with { Id = "secret-bell" }, new(19, 1))];
+        state.Units[0] = state.Units[0] with { Inventory = [spent with { Id = "owned-bell" }] };
+        state.Units[1] = state.Units[1] with { Inventory = [spent with { Id = "secret-owned-bell" }] };
+
+        var presentation = BrowserProjection.Create(new(state, [], null));
+        var ground = Assert.Single(presentation.GroundObjects);
+        Assert.Equal("visible-bell", ground.Object.Id);
+        var entry = Assert.Single(ground.Object.Entries);
+        Assert.Equal(new AbilityUses(3, 1), entry.Uses);
+        Assert.Equal("visible-bell", entry.SourceInstanceId);
+        Assert.Equal(entry.Uses, Assert.Single(presentation.Cards["a"].Entries.Where(e => e.Source == "Equipment")).Uses);
+        Assert.DoesNotContain("secret-bell", System.Text.Json.JsonSerializer.Serialize(presentation));
+        Assert.DoesNotContain("secret-owned-bell", System.Text.Json.JsonSerializer.Serialize(presentation));
+        var external = GambitProjection.Observation(state, "blue", state.Controllers.ToDictionary(c => c.Token, _ => "Gambit"));
+        var observedJson = System.Text.Json.JsonSerializer.Serialize(external);
+        Assert.DoesNotContain("secret-bell", observedJson);
+        Assert.DoesNotContain("secret-owned-bell", observedJson);
+    }
+
+    [Fact]
     public void HiddenScenarioEquipmentDoesNotLeakThroughObservationOrPresentation()
     {
         var state = State(true);

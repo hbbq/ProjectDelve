@@ -122,6 +122,9 @@ public sealed class LocalAbilityDefinitionTests
         var equipment = ContentState(Bearer());
         equipment.EquipmentTypes.Add(new("charged", "Charged")
         { LocalAbilities = [Heal() with { Usage = new(2) }] });
+        AbilityContent.ValidateState(equipment);
+        equipment.EquipmentTypes[0] = equipment.EquipmentTypes[0] with
+        { LocalAbilities = [Heal() with { Usage = new(0) }] };
         var error = Assert.Throws<ArgumentException>(() => AbilityContent.ValidateState(equipment));
         Assert.Equal("equipmentTypes[0].localAbilities[0].usage", ScenarioValidationContext.PathOf(error));
         var item = ContentState(Bearer());

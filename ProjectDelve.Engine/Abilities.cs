@@ -120,10 +120,24 @@ public static class AbilityContent
             Validate(state.Types[index].LocalAbilities, AbilitySourceKind.Unit, $"unitTypes[{index}].localAbilities");
         foreach (var unit in state.Units)
         {
-            var limited = state.AbilitiesOf(unit.Id).Where(ability => ability.SourceKind == AbilitySourceKind.Unit && ability.Definition.Usage.MaxUses is not null)
+            var type = state.Types.Single(type => type.Id == unit.TypeId);
+            var limited = AbilityQueries.NativeAbilities(type, unit.Id).Where(ability => ability.Definition.Usage.MaxUses is not null)
                 .ToDictionary(ability => ability.AccountingId, ability => ability.Definition.Usage.MaxUses!.Value);
-            if (unit.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
+            if (unit.AbilityUseCounts is null || unit.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
                 throw new ArgumentException("Ability use counters must match the Unit's limited Abilities.");
+        }
+        var objects = (state.LootDeck?.DrawPile ?? []).Concat(state.LootDeck?.DiscardPile ?? [])
+            .Concat(state.GroundObjects.Select(ground => ground?.Object)).Concat(state.Units.SelectMany(unit => unit.Inventory));
+        foreach (var obj in objects)
+        {
+            if (obj is null || obj.AbilityUseCounts is null)
+                throw new ArgumentException("Physical objects require nonnull Ability use counters.");
+            var limited = state.EquipmentTypeId(obj) is { } equipmentId
+                ? state.Equipment(equipmentId).LocalAbilities.Where(ability => ability.Usage.MaxUses is not null)
+                    .ToDictionary(ability => ability.Key, ability => ability.Usage.MaxUses!.Value, StringComparer.Ordinal)
+                : new Dictionary<string, int>(StringComparer.Ordinal);
+            if (obj.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
+                throw new ArgumentException("Physical object use counters must match its limited Equipment Abilities.");
         }
     }
 
@@ -178,10 +192,21 @@ public static class AbilityQueries
         }
     }
 
-    public static AbilityUses? AbilityUsesOf(this GameState state, string unitId, ResolvedAbility ability) =>
-        ability.Definition.Usage.MaxUses is { } max
-            ? new(max, max - state.Units.Single(unit => unit.Id == unitId).AbilityUseCounts.GetValueOrDefault(ability.AccountingId))
-            : null;
+    public static AbilityUses? AbilityUsesOf(this GameState state, string unitId, ResolvedAbility ability)
+    {
+        if (ability.Definition.Usage.MaxUses is not { } max) return null;
+        var unit = state.Units.Single(unit => unit.Id == unitId);
+        return ability.SourceKind switch
+        {
+            AbilitySourceKind.Unit => new(max, max - unit.AbilityUseCounts.GetValueOrDefault(ability.AccountingId)),
+            AbilitySourceKind.Equipment => state.EquipmentAbilityUsesOf(
+                unit.Inventory.Single(obj => obj.Id == ability.SourceInstanceId), ability.Definition),
+            _ => throw new ArgumentException("Single Use Items use physical consumption rather than Ability charges.")
+        };
+    }
+
+    public static AbilityUses? EquipmentAbilityUsesOf(this GameState state, OwnedObject obj, LocalAbilityDefinition ability) =>
+        ability.Usage.MaxUses is { } max ? new(max, max - obj.AbilityUseCounts.GetValueOrDefault(ability.Key)) : null;
     public static bool CanUseAbility(this GameState state, string unitId, ResolvedAbility ability) => state.IsUpright(unitId) &&
         state.Units.Single(unit => unit.Id == unitId).CurrentHp > 0 && state.AbilityUsesOf(unitId, ability) is not { RemainingUses: <= 0 } &&
         (ability.Definition.Timing != AbilityTiming.BonusAction || state.BonusActionUsesThisActivation(ability.AccountingId) < state.EffectiveBonusActionUsesPerActivation);

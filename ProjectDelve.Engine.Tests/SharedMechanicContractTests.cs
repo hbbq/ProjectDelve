@@ -12,7 +12,7 @@ public sealed class SharedMechanicContractTests
     [
         (new HolyWaveMechanic(), [AbilityTiming.Action]),
         (new HealMechanic(2), [AbilityTiming.Action]),
-        (new FireballMechanic(), [AbilityTiming.Action]),
+        (new FireballMechanic(), [AbilityTiming.Action, AbilityTiming.BonusAction, AbilityTiming.FreeAction]),
         (new SelfModifiersMechanic([new(Stat.Atk, 1)]), [AbilityTiming.BonusAction, AbilityTiming.Passive]),
         (new AdjacentModifiersMechanic([new(Stat.Def, 1)]), [AbilityTiming.Passive]),
         (new ExtraActionsMechanic(1), [AbilityTiming.BonusAction]),
@@ -50,16 +50,17 @@ public sealed class SharedMechanicContractTests
     }
 
     [Fact]
-    public void ContractsAndEngineAgreeOnTheExistingSourceTimingAndUsageMatrix()
+    public void ContractsAndEngineAgreeOnSupportedTimingPhysicalEquipmentLimitsAndItemConsumption()
     {
         foreach (var (payload, timings) in Supported())
         foreach (var timing in Enum.GetValues<AbilityTiming>())
         foreach (var source in Enum.GetValues<AbilitySourceKind>())
-        foreach (var maxUses in new int?[] { null, 2 })
+        foreach (var maxUses in new int?[] { null, 2, 0, -1 })
         {
             var expected = timings.Contains(timing) &&
+                (maxUses is null or > 0) &&
                 (timing != AbilityTiming.Passive || maxUses is null && source != AbilitySourceKind.Item) &&
-                (source == AbilitySourceKind.Unit || maxUses is null);
+                (source != AbilitySourceKind.Item || maxUses is null);
             var context = new MechanicValidationContext(Enum.Parse<MechanicSource>(source.ToString()),
                 Enum.Parse<MechanicTiming>(timing.ToString()), maxUses);
             Assert.Equal(expected, MechanicCatalog.Validate(payload, context).IsEmpty);

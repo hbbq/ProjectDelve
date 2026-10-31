@@ -34,6 +34,7 @@ public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
 public sealed record ObjectDisplay(string Id, LootCardKind Kind, string? EquipmentTypeId, LootCardContent Content)
 {
     public string? ItemTypeId { get; init; }
+    public IReadOnlyList<CardEntry> Entries { get; init; } = [];
 }
 public sealed record GroundObjectDisplay(ObjectDisplay Object, Cell Position);
 public sealed record MachineDisplay(string Id, Cell Position, string Name, string Operation, IReadOnlyList<StoredResourceDisplay> ResourceStorage, string? OwnerSide = null)
@@ -199,8 +200,21 @@ public static class BrowserProjection
         };
     });
 
-    public static ObjectDisplay Object(GameState state, OwnedObject item) =>
-        new(item.Id, item.Kind, state.EquipmentTypeId(item), state.ObjectContent(item)) { ItemTypeId = state.ItemTypeId(item) };
+    public static ObjectDisplay Object(GameState state, OwnedObject item)
+    {
+        var equipment = state.EquipmentTypeId(item) is { } typeId ? state.Equipment(typeId) : null;
+        return new(item.Id, item.Kind, equipment?.Id, state.ObjectContent(item))
+        {
+            ItemTypeId = state.ItemTypeId(item),
+            Entries = equipment?.LocalAbilities.Select(ability => new CardEntry(
+                ContentDescriptions.AbilityEntry(ability, equipment.EntryId(ability.Key), state.Types),
+                state.EquipmentAbilityUsesOf(item, ability))
+            {
+                Source = "Equipment", SourceName = equipment.Name, SourceTypeId = equipment.Id,
+                SourceInstanceId = item.Id
+            }).ToArray() ?? []
+        };
+    }
 
     public static IReadOnlyList<GroundObjectDisplay> GroundObjects(GameState state) =>
         state.GroundObjects.Select(g => new GroundObjectDisplay(Object(state, g.Object), g.Position)).ToArray();

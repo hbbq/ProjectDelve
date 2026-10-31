@@ -151,7 +151,7 @@ public sealed class AbilityScenarioTests
     [InlineData("mismatched-source-card")]
     [InlineData("duplicate-grant")]
     [InlineData("wrong-timing")]
-    [InlineData("equipment-charges")]
+    [InlineData("invalid-equipment-charges")]
     public void InvalidReferencesAndUnsupportedCombinationsUseNormalCreationValidation(string invalid)
     {
         var node = JsonNode.Parse(LocalContent)!;
@@ -167,8 +167,8 @@ public sealed class AbilityScenarioTests
             case "unknown-source-card": node["units"]![0]!["inventory"]![1]!["lootCardId"] = "missing"; break;
             case "mismatched-source-card": node["units"]![0]!["inventory"]![0]!["lootCardId"] = "local-scroll-card"; break;
             case "duplicate-grant": node["unitTypes"]![0]!["localAbilities"]![1]!["key"] = "first-wave"; break;
-            case "wrong-timing": node["itemTypes"]![0]!["localAbilities"]![0]!["timing"] = "FreeAction"; break;
-            case "equipment-charges": node["equipmentTypes"]![0]!["localAbilities"]![0]!["usage"] = JsonNode.Parse("{\"maxUses\": 2}"); break;
+            case "wrong-timing": node["itemTypes"]![0]!["localAbilities"]![0]!["timing"] = "Passive"; break;
+            case "invalid-equipment-charges": node["equipmentTypes"]![0]!["localAbilities"]![0]!["usage"] = JsonNode.Parse("{\"maxUses\": 0}"); break;
         }
         Assert.Throws<ArgumentException>(() => ScenarioDefinitionJson.FromJson(node.ToJsonString()));
     }

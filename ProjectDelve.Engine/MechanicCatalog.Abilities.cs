@@ -21,10 +21,10 @@ public static partial class MechanicCatalog
             (payload, path, errors) => MechanicChecks.Integer(errors, healAmount, payload.Amount, path + ".amount"));
 
         yield return MechanicRegistration.Create<FireballMechanic>(AbilityContract("fireball", "Fireball",
-            [MechanicTiming.Action], MechanicContext.ActingUnit,
+            [MechanicTiming.Action, MechanicTiming.BonusAction, MechanicTiming.FreeAction], MechanicContext.ActingUnit,
             new(MechanicTargetSelection.Cell, "Choose a Cell within effective RNG and Unit-origin LOS; automatically Attack every living Unit in its established explosion area and geometric LOS."),
             "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", [],
-            ["effectiveRange", "effectiveAttack", "lineOfSight", "attack", "dice", "actionOpportunity"]), (_, _, _) => { });
+            ["effectiveRange", "effectiveAttack", "lineOfSight", "attack", "dice"]), (_, _, _) => { });
 
         var selfModifiers = AbilityModifiersParameter();
         var self = AbilityContract("selfModifiers", "Self Modifiers", [MechanicTiming.BonusAction, MechanicTiming.Passive],
@@ -63,11 +63,14 @@ public static partial class MechanicCatalog
         ImmutableArray<string> dependencies) => new(id, name, MechanicFamily.Ability)
         {
             Grantable = true, SerializedBinding = id, Context = context, Targeting = targeting, Dependencies = dependencies,
+            ContextRequirements = context == MechanicContext.BearingUnit
+                ? "Requires a bearing Unit; continuous modifiers require an Upright source and temporary modifiers require its current activation."
+                : "Requires an acting Unit and the declared timing opportunity. Other source or timing adapters are not implemented.",
             Profiles = timings.SelectMany(timing => timing == MechanicTiming.Passive
                 ? new[] { new MechanicSupportProfile(MechanicSource.Unit, timing, MechanicUsageSupport.UnlimitedOnly),
                     new MechanicSupportProfile(MechanicSource.Equipment, timing, MechanicUsageSupport.UnlimitedOnly) }
                 : new[] { new MechanicSupportProfile(MechanicSource.Unit, timing, MechanicUsageSupport.LimitedOrUnlimited),
-                    new MechanicSupportProfile(MechanicSource.Equipment, timing, MechanicUsageSupport.UnlimitedOnly),
+                    new MechanicSupportProfile(MechanicSource.Equipment, timing, MechanicUsageSupport.LimitedOrUnlimited),
                     new MechanicSupportProfile(MechanicSource.Item, timing, MechanicUsageSupport.UnlimitedOnly) }).ToImmutableArray(),
             Description = new(description, placeholders)
             {

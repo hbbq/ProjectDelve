@@ -30,7 +30,7 @@ new EquipmentDefinition("trail-medallion", "Trail Medallion")
 }
 ```
 
-`LocalAbilities` is the sole Equipment mechanic declaration list. Passive `SelfModifiersMechanic` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amounts. `Phase` uses Passive timing, and `OpenDoor` uses Free Action timing. These abilities are active only while the bearer is Upright. Canonical Emergency Goat Bell owns an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. Unlimited usage does not grant extra Actions. Equipment has no per-game Ability charges.
+`LocalAbilities` is the sole Equipment mechanic declaration list. Passive `SelfModifiersMechanic` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amounts. `Phase` uses Passive timing; `OpenDoor` supports Action or Free Action timing. These abilities are active only while the bearer is Upright. Canonical Emergency Goat Bell owns an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. Unlimited usage does not grant extra Actions. Supported active Equipment Abilities may instead declare a positive `usage.maxUses`.
 
 For example, a second Equipment source can grant that same mechanic with its own name:
 
@@ -43,6 +43,8 @@ new EquipmentDefinition("holy-bell", "Holy Bell")
 ```
 
 Each local declaration owns an explicit key, name, timing, usage and typed mechanic. Keys must be unique within the Equipment Type; different owners can reuse a key. Keep the key stable when renaming or reordering an Ability. Candidate and accounting identities bind the local key to the physical Equipment Instance ID; card entries bind it to the Equipment Type. Open Door choices retain their individual source binding even when several owned sources can open the same Door.
+
+Spent uses are stored on the physical Equipment instance by local Ability key. Defeat and later pickup preserve its remaining uses, including zero. Separate objects and separate local keys have independent counts. Renewal replenishes limited Abilities of currently owned Equipment on board Units, up to each declared maximum; Equipment on the ground is unaffected. Use counters are visible with the physical object, including in ground inspection. This does not add voluntary transfer or trading actions.
 
 Use `DescriptionOverride` only when generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Generated stat descriptions use the typed amounts. The old top-level `Modifiers`, `Capabilities`, inline `Abilities`, and global `Grants` formats are removed; author them as local Abilities instead. Removed Ability formats and their old decision/counter identities are not save compatibility contracts.
 
@@ -123,4 +125,4 @@ Mechanical descriptions and inventory metadata come from the resolved definition
 
 ## Scope
 
-The model adds no Equipment slots, equip/unequip actions, per-instance charges, generic effect interpreter, trigger language or scripting support. Specialized Unit-only mechanics remain restricted by their catalog profiles. Content Designer supports scenario-local Equipment authoring; runtime content editing and canonical JSON export remain future work.
+The model adds no Equipment slots, equip/unequip actions, generic effect interpreter, trigger language or scripting support. Specialized mechanics without source adapters remain restricted by their catalog profiles. Content Designer supports scenario-local Equipment authoring, including the Engine's supported timing and use-limit combinations; runtime content editing and canonical JSON export remain future work.

@@ -107,7 +107,9 @@ public sealed class ContentEditorApiTests
         var duplicate = Equipment() with { LocalAbilities = [new("same", "First", AbilityTiming.Action, new HealMechanic(1)), new("same", "Second", AbilityTiming.Action, new HealMechanic(2))] };
         AssertError(await host.Validate("equipment", duplicate), "definition.localAbilities[1].key");
         var charges = Equipment() with { LocalAbilities = [new("mend", "Mend", AbilityTiming.Action, new HealMechanic(1)) { Usage = new(2) }] };
-        AssertError(await host.Validate("equipment", charges), "definition.localAbilities[0].usage");
+        Assert.True((await host.Validate("equipment", charges)).Valid);
+        var invalidCharges = charges with { LocalAbilities = [charges.LocalAbilities[0] with { Usage = new(0) }] };
+        AssertError(await host.Validate("equipment", invalidCharges), "definition.localAbilities[0].usage");
         var wrongTiming = Equipment() with { LocalAbilities = [new("phase", "Phase", AbilityTiming.Action, new Phase())] };
         AssertError(await host.Validate("equipment", wrongTiming), "definition.localAbilities[0].timing");
         var wrongAmount = Equipment() with { LocalAbilities = [new("stride", "Stride", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 101)]))] };

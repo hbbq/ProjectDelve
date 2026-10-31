@@ -169,7 +169,7 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
             return normal.Choose(request, queries);
         var interaction = request.Candidates.Where(candidate =>
                 candidate.Door is not null && Canonical(candidate.Door) == door &&
-                (candidate.FreeAction == UnitFreeAction.OpenDoor || candidate.TryOpenDoor is not null))
+                (candidate.FreeAction == UnitFreeAction.OpenDoor || candidate.Ability?.Definition.Mechanic is OpenDoor || candidate.TryOpenDoor is not null))
             .OrderBy(candidate => candidate.Key, StringComparer.Ordinal).FirstOrDefault();
         if (interaction is not null) return interaction.Key;
         if (Has(request, queries, UnitBehavior.Flee))

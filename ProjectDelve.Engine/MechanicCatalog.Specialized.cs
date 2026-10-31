@@ -5,17 +5,17 @@ namespace ProjectDelve.Engine;
 
 public static partial class MechanicCatalog
 {
-    // Concrete native mechanics use the same local Ability envelope. Their
-    // single-instance Unit profiles preserve established ordering and stacking.
+    // Concrete mechanics use the same local Ability envelope. Only handlers
+    // with source-bound invocation advertise Equipment, Items or multiplicity.
     private static partial IEnumerable<MechanicRegistration> SpecializedRegistrations()
     {
         yield return SpecializedNumbers<Cleave>("cleave", "Cleave", MechanicTiming.AfterAttack,
             "After this Unit's Attack, if it dealt {triggerDamage} or more damage to a Unit, you may immediately deal {damage} damage to an adjacent enemy.",
-            MechanicUsageSupport.LimitedOnly, MechanicTargetSelection.Unit,
+            MechanicUsageSupport.LimitedOrUnlimited, MechanicTargetSelection.Unit,
             "One living adjacent hostile Unit, Upright or Lying, using ordinary adjacency and LOS.",
             (NativeInteger("triggerDamage", 2, 1), p => p.TriggerDamage), (NativeInteger("damage", 1, 1), p => p.Damage));
-        yield return SpecializedMarker<Telekinesis>("telekinesis", "Telekinesis", MechanicTiming.Action,
-            "Lay down an upright enemy within RNG and LOS.", MechanicTargetSelection.Unit);
+        yield return ReusableActive(SpecializedMarker<Telekinesis>("telekinesis", "Telekinesis", MechanicTiming.Action,
+            "Lay down an upright enemy within RNG and LOS.", MechanicTargetSelection.Unit));
         yield return SpecializedNumbers<Fury>("fury", "Fury", MechanicTiming.Passive,
             "ATK {atkBonus} while adjacent to {adjacentEnemyThreshold} or more enemies", MechanicUsageSupport.UnlimitedOnly,
             (NativeInteger("adjacentEnemyThreshold", 2, 1), p => p.AdjacentEnemyThreshold),
@@ -38,24 +38,24 @@ public static partial class MechanicCatalog
         yield return SpecializedNumbers<RunRails>("runRails", "Run Rails", MechanicTiming.InsteadOfActivation,
             "When this Unit activates Upright, follow the outgoing Rail directions for up to {steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place.", MechanicUsageSupport.UnlimitedOnly,
             (RequiredInteger("steps", 1), p => p.Steps));
-        yield return SpecializedNumbers<TryOpenDoor>("tryOpenDoor", "Try Open Door", MechanicTiming.Action,
+        yield return ReusableActive(SpecializedNumbers<TryOpenDoor>("tryOpenDoor", "Try Open Door", MechanicTiming.Action,
             "Try to open a bordering Closed Door. Roll a D6: success on {successCount} of 6 faces.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Edge, "One bordering Closed Door.",
-            (RequiredInteger("successCount", 0, 6), p => p.SuccessCount));
+            (RequiredInteger("successCount", 0, 6), p => p.SuccessCount)));
         yield return SpecializedMarker<FireBreath>("fireBreath", "Fire Breath", MechanicTiming.Action,
             "Attack all enemies within RNG.");
         yield return SpecializedNumbers<ClawAttack>("clawAttack", "Claw Attack", MechanicTiming.Action,
             "Attack an adjacent enemy with ATK {atkBonus}.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "One adjacent living hostile Unit using ordinary adjacency and LOS.",
             (NativeInteger("atkBonus", 1), p => p.AtkBonus));
-        yield return SpecializedMarker<ReshapeRoom>("reshapeRoom", "Reshape Room", MechanicTiming.BonusAction,
-            "Replace Edges in the 3 × 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides.");
-        yield return SpecializedMarker<Swap>("swap", "Swap", MechanicTiming.BonusAction,
-            "Swap places with an adjacent enemy Unit.", MechanicTargetSelection.Unit);
-        yield return SpecializedNumbers<Displace>("displace", "Displace", MechanicTiming.BonusAction,
+        yield return ReusableActive(SpecializedMarker<ReshapeRoom>("reshapeRoom", "Reshape Room", MechanicTiming.BonusAction,
+            "Replace Edges in the 3 × 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides."));
+        yield return ReusableActive(SpecializedMarker<Swap>("swap", "Swap", MechanicTiming.BonusAction,
+            "Swap places with an adjacent enemy Unit.", MechanicTargetSelection.Unit));
+        yield return ReusableActive(SpecializedNumbers<Displace>("displace", "Displace", MechanicTiming.BonusAction,
             "Move an adjacent enemy Unit up to {maxMove} Cell.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "An adjacent hostile one-Cell Unit and one legal external movement destination, including its current Cell.",
-            (RequiredInteger("maxMove", 0, 1), p => p.MaxMove));
+            (RequiredInteger("maxMove", 0, 1), p => p.MaxMove)));
         yield return SpecializedNumbers<SummonWorker>("summonWorker", "Summon Worker", MechanicTiming.Action,
             "If fewer than {sideLimit} living Workers are on this Unit's Side, place one Upright Worker in an adjacent empty Cell on this Unit's Side.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Cell, "A legal adjacent placement Cell with LOS, subject to the Side's living Worker limit.",
@@ -91,8 +91,8 @@ public static partial class MechanicCatalog
             "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.",
             MechanicTargetSelection.Machine,
             recipients: "An adjacent Machine that is public or owned by this Unit's Side, with sufficient stored inputs and no impassable Edge separating it from this Unit. This Unit's Cell must contain no Resource.");
-        yield return SpecializedMarker<OpenDoor>("openDoor", "Open Door", MechanicTiming.FreeAction,
-            "Open a bordering Closed Door.", MechanicTargetSelection.Edge, equipment: true);
+        yield return ReusableActive(SpecializedMarker<OpenDoor>("openDoor", "Open Door", MechanicTiming.FreeAction,
+            "Open a bordering Closed Door.", MechanicTargetSelection.Edge), MechanicTiming.Action, MechanicTiming.FreeAction);
 
         var target = new MechanicParameter("unitTypeId", MechanicParameterKind.Reference) { ReferenceCatalog = "units" };
         var posture = new MechanicParameter("initialPosture", MechanicParameterKind.Enum) { AllowedValues = ["Upright", "Lying"] };
@@ -126,11 +126,37 @@ public static partial class MechanicCatalog
         });
     }
 
+    private static MechanicRegistration ReusableActive(MechanicRegistration registration, params MechanicTiming[] timings)
+    {
+        var supportedTimings = timings.Length == 0 ? registration.Descriptor.Profiles.Select(p => p.Timing).Distinct() : timings;
+        return registration with { Descriptor = registration.Descriptor with
+        {
+            Profiles = supportedTimings.SelectMany(timing => new[]
+            {
+                new MechanicSupportProfile(MechanicSource.Unit, timing, MechanicUsageSupport.LimitedOrUnlimited),
+                new MechanicSupportProfile(MechanicSource.Equipment, timing, MechanicUsageSupport.LimitedOrUnlimited),
+                new MechanicSupportProfile(MechanicSource.Item, timing, MechanicUsageSupport.UnlimitedOnly)
+            }).ToImmutableArray(),
+            MaxPerSource = null
+        } };
+    }
+
     private static MechanicDescriptor SpecializedDescriptor(string id, string name, MechanicTiming timing, string description,
         MechanicUsageSupport usage = MechanicUsageSupport.UnlimitedOnly) => new(id, name, MechanicFamily.Ability)
     {
-        Profiles = [new(MechanicSource.Unit, timing, usage)],
+        Profiles = [new(MechanicSource.Unit, timing, timing is MechanicTiming.Action or MechanicTiming.BonusAction
+            ? MechanicUsageSupport.LimitedOrUnlimited : usage)],
         Context = timing == MechanicTiming.Passive ? MechanicContext.BearingUnit : MechanicContext.ActingUnit,
+        ContextRequirements = timing switch
+        {
+            MechanicTiming.AfterAttack => "Requires a qualifying completed Attack and its immediate follow-up continuation.",
+            MechanicTiming.WhenDefeated => "Requires an actual defeat snapshot and the automatic consequence queue.",
+            MechanicTiming.InsteadOfDefeat => "Requires a pending defeat to replace and the source's stated Posture.",
+            MechanicTiming.InsteadOfActivation => "Requires the Unit's activation to replace.",
+            MechanicTiming.EndActivation => "Requires the ending activation and its own-Move waypoint progress.",
+            MechanicTiming.Passive => "Requires a bearing Unit and an ongoing Passive; limited use and Item Passive lifecycles are not defined.",
+            _ => "Requires an acting Unit and the declared timing opportunity. Other source or timing adapters are not implemented."
+        },
         Dependencies = timing switch
         {
             MechanicTiming.Action => ["actingUnit", "uprightSource", "ordinaryActionOpportunity"],
@@ -152,7 +178,8 @@ public static partial class MechanicCatalog
         MechanicRegistration.Create<T>(SpecializedDescriptor(id, name, timing, description) with
             { Targeting = new(selection, recipients ?? description), Profiles = equipment
                 ? [new(MechanicSource.Unit, timing, MechanicUsageSupport.UnlimitedOnly), new(MechanicSource.Equipment, timing, MechanicUsageSupport.UnlimitedOnly)]
-                : [new(MechanicSource.Unit, timing, MechanicUsageSupport.UnlimitedOnly)] }, (_, _, _) => { });
+                : [new(MechanicSource.Unit, timing, timing is MechanicTiming.Action or MechanicTiming.BonusAction
+                    ? MechanicUsageSupport.LimitedOrUnlimited : MechanicUsageSupport.UnlimitedOnly)] }, (_, _, _) => { });
     private static MechanicRegistration SpecializedNumbers<T>(string id, string name, MechanicTiming timing, string description,
         MechanicUsageSupport usage, params (MechanicParameter Parameter, Func<T, int> Value)[] parameters) where T : AbilityMechanic =>
         SpecializedNumbers(id, name, timing, description, usage, MechanicTargetSelection.None, description, parameters);

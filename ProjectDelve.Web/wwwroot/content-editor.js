@@ -157,6 +157,8 @@ export function mountContentEditor(root, options) {
     mechanicSelect.value = ability.mechanic?.kind ?? '';
     card.append(field('Mechanic', mechanicSelect, [...path, 'mechanic', 'kind']));
     const profiles = state.profiles(mechanic), profile = profiles.find(candidate => candidate.timing === ability.timing);
+    if (mechanic?.contextRequirements) card.append(text(mechanic.contextRequirements));
+    if (mechanic && !profile) card.append(text(mechanic.unsupportedContextReason));
     const timing = select(profiles.map(candidate => ({ value: candidate.timing, label: contentLabel(candidate.timing) })), ability.timing,
       value => { state.changeTiming(index, value); changed(); render(); });
     card.append(field('Timing', timing, [...path, 'timing']));
