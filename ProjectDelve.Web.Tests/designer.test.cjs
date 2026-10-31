@@ -150,6 +150,18 @@ test('Content destination refuses stale saves after another document opens or th
   assert.equal(destination.label, 'Scenario draft · Another draft');
 });
 
+test('Content destination includes detached local Unit definitions for Equipment summon references', () => {
+  const h = harness(); let destination;
+  const local = { id: 'paper-helper', displayName: 'Paper Helper', mov: 1, rng: 1, atk: 1, def: 0, hp: 2 };
+  h.editor.draft.definition.unitTypes = [structuredClone(local)];
+  h.context.delveInspectContent = (definition, name, target) => { destination = target; };
+  h.click('content');
+  const context = destination.getContext();
+  assert.deepEqual(plain(context.unitTypes), [local]);
+  context.unitTypes[0].displayName = 'Changed outside the draft';
+  assert.equal(h.editor.draft.definition.unitTypes[0].displayName, 'Paper Helper');
+});
+
 test('Custom Loot editor keeps local Loot Card and Item quantities independent', () => {
   const h = harness(), draft = h.editor.draft;
   draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];

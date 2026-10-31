@@ -13,8 +13,7 @@ public sealed class SpecializedMechanicCatalogTests
         (string Id, AbilityMechanic Payload, MechanicTiming Timing)[] expected =
         [
             ("cleave", new Cleave(), MechanicTiming.AfterAttack),
-            ("fury", new Fury(), MechanicTiming.Passive),
-            ("backstab", new Backstab(), MechanicTiming.Passive)
+            ("moveAfterAttack", new MoveAfterAttack(1), MechanicTiming.AfterAttack)
         ];
         foreach (var (id, payload, timing) in expected)
         {
@@ -132,7 +131,18 @@ public sealed class SpecializedMechanicCatalogTests
             (new TryOpenDoor(3), [MechanicTiming.Action]),
             (new Swap(), [MechanicTiming.BonusAction]),
             (new Displace(1), [MechanicTiming.BonusAction]),
-            (new ReshapeRoom(), [MechanicTiming.BonusAction])
+            (new ReshapeRoom(), [MechanicTiming.BonusAction]),
+            (new SummonAdjacent(UnitTypeIds.Grunt, Posture.Upright), [MechanicTiming.Action]),
+            (new SummonWorker(3), [MechanicTiming.Action]),
+            (new SummonTroll(1), [MechanicTiming.Action]),
+            (new FireBreath(), [MechanicTiming.Action]),
+            (new ClawAttack(), [MechanicTiming.Action]),
+            (new PickupResource(), [MechanicTiming.Action]),
+            (new GiveResource(), [MechanicTiming.Action]),
+            (new Operate(), [MechanicTiming.Action]),
+            (new ShootShell(1, 4, 3), [MechanicTiming.Action]),
+            (new PlaceBananaPeel(1), [MechanicTiming.BonusAction]),
+            (new Boost(1), [MechanicTiming.BonusAction])
         ];
         foreach (var (payload, timings) in active)
         {
@@ -155,7 +165,24 @@ public sealed class SpecializedMechanicCatalogTests
         Assert.Contains("completed Attack", missingAttack.Message);
         Assert.Contains(MechanicCatalog.Validate(new Phase(), new(MechanicSource.Equipment, MechanicTiming.Passive, 1)),
             issue => issue.Message.Contains("no discrete use"));
-        Assert.NotEmpty(MechanicCatalog.Validate(new SummonAdjacent("grunt", Posture.Upright), new(MechanicSource.Equipment, MechanicTiming.Action)));
+        Assert.NotEmpty(MechanicCatalog.Validate(new SummonAdjacent(UnitTypeIds.Grunt, Posture.Upright), new(MechanicSource.Equipment, MechanicTiming.FreeAction)));
+    }
+
+    [Fact]
+    public void SourceIndependentPassivesAllowEquipmentAndMultiplicityButRequireAnOngoingUnlimitedBearer()
+    {
+        foreach (var payload in new AbilityMechanic[] { new Fury(), new Backstab(), new TransportResource(), new ProjectDelve.Engine.Phase() })
+        {
+            Assert.Null(MechanicCatalog.FindByPayload(payload)!.MaxPerSource);
+            var ability = new LocalAbilityDefinition("first", "First", AbilityTiming.Passive, payload);
+            foreach (var source in new[] { AbilitySourceKind.Unit, AbilitySourceKind.Equipment })
+            {
+                AbilityContent.Validate([ability, ability with { Key = "second" }], source);
+                Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability with { Usage = new(1) }], source));
+                Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability with { Timing = AbilityTiming.Action }], source));
+            }
+            Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability], AbilitySourceKind.Item));
+        }
     }
 
     [Theory]
@@ -218,7 +245,7 @@ public sealed class SpecializedMechanicCatalogTests
             {
                 Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability], AbilitySourceKind.Item));
                 Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability with { Usage = new(2) }], AbilitySourceKind.Equipment));
-                Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability, ability with { Key = "other" }], AbilitySourceKind.Equipment));
+                AbilityContent.Validate([ability, ability with { Key = "other" }], AbilitySourceKind.Equipment);
             }
             else
             {

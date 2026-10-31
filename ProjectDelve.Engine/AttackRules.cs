@@ -16,8 +16,14 @@ internal static class AttackRules
     // A future attack position can currently contain a figure. Occupancy is
     // ignored for this evaluation; range and LOS still use the shared rules.
     internal static UnitTargetEvaluation EvaluateApproachFrom(
-        GameState state, string attackerId, Cell from, string targetId, UnitAction action = UnitAction.NormalAttack)
+        GameState state, string attackerId, Cell from, string targetId, UnitAction action = UnitAction.NormalAttack,
+        AbilityMechanic? mechanic = null)
     {
+        if (action != UnitAction.NormalAttack && mechanic is null)
+            return state.AbilitiesOf(attackerId).Where(ability => ability.Definition.Timing == AbilityTiming.Action &&
+                    Matches(ability.Definition.Mechanic, action) && state.CanUseAbility(attackerId, ability))
+                .Any(ability => EvaluateAbilityFrom(state, attackerId, from, targetId, ability) == UnitTargetEvaluation.Possible)
+                ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
         // Position-dependent passives must see the same placement as targeting geometry.
         var figure = state.Physical.Figures.Single(f => f.Id == attackerId);
         if (figure.Position != from)
@@ -27,28 +33,56 @@ internal static class AttackRules
         }
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
-        var attackDice = AttackDice(state, attackerId, targetId, action);
-        if (!state.IsUpright(attackerId) || !stats.HasAction(action) || attackDice <= 0)
+        var attackDice = AttackDice(state, attackerId, targetId, action, mechanic);
+        if (!state.IsUpright(attackerId) || attacker.CurrentHp <= 0 ||
+            (action == UnitAction.NormalAttack ? !stats.HasAction(action) : !Matches(mechanic, action)) || attackDice <= 0)
             return UnitTargetEvaluation.NotPossible;
 
         if (action == UnitAction.ClawAttack)
         {
             var target = state.Units.Single(u => u.Id == targetId);
-            return stats.Mechanic<ClawAttack>() is not null && target.CurrentHp > 0 && state.AreHostile(attacker.SideId, target.SideId) &&
+            return target.CurrentHp > 0 && state.AreHostile(attacker.SideId, target.SideId) &&
                 SpatialRules.AreAdjacent(state, attackerId, targetId)
                 ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
         }
-        return EvaluateHostileTargetFrom(state, attackerId, from, targetId);
+        return EvaluateHostileTargetFrom(state, attackerId, from, targetId, (mechanic as ShootShell)?.Rng);
     }
 
-    internal static int AttackDice(GameState state, string attackerId, string? targetId, UnitAction action)
+    internal static UnitTargetEvaluation EvaluateAbilityFrom(GameState state, string attackerId, Cell from,
+        string targetId, ResolvedAbility ability) =>
+        !state.CanUseAbility(attackerId, ability) || ability.Definition.Mechanic is ShootShell shell &&
+            state.StoredQuantity(state.Units.Single(unit => unit.Id == attackerId).SideId,
+                state.Units.Single(unit => unit.Id == attackerId).TypeId, ResourceTypes.Shell.Id) < shell.ShellCost
+            ? UnitTargetEvaluation.NotPossible
+            : EvaluateApproachFrom(state, attackerId, from, targetId, SemanticAction(ability.Definition.Mechanic), ability.Definition.Mechanic);
+
+    private static UnitAction SemanticAction(AbilityMechanic mechanic) => mechanic switch
+    {
+        FireBreath => UnitAction.FireBreath,
+        ClawAttack => UnitAction.ClawAttack,
+        ShootShell => UnitAction.ShootShell,
+        FireballMechanic => UnitAction.Fireball,
+        _ => throw new ArgumentException("This Ability does not use direct Attack targeting.")
+    };
+    private static bool Matches(AbilityMechanic? mechanic, UnitAction action) => (mechanic, action) switch
+    {
+        (FireBreath, UnitAction.FireBreath) or (ClawAttack, UnitAction.ClawAttack) or
+            (ShootShell, UnitAction.ShootShell) or (FireballMechanic, UnitAction.Fireball) => true,
+        _ => false
+    };
+
+    internal static int AttackDice(GameState state, string attackerId, string? targetId, ResolvedAbility ability) =>
+        AttackDice(state, attackerId, targetId, SemanticAction(ability.Definition.Mechanic), ability.Definition.Mechanic);
+
+    internal static int AttackDice(GameState state, string attackerId, string? targetId, UnitAction action,
+        AbilityMechanic? mechanic = null)
     {
         // Fireball and the Dragon's Fire Breath use general effective ATK.
         // Single-target Attacks retain target-specific modifiers such as Backstab.
         if (action is UnitAction.FireBreath or UnitAction.Fireball) return state.EffectiveAtkOf(attackerId);
-        var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == attackerId).TypeId);
-        return state.EffectiveAtkAgainst(attackerId, targetId!) +
-            (action == UnitAction.ClawAttack ? type.Mechanic<ClawAttack>()?.AtkBonus ?? 0 : 0);
+        if (mechanic is ShootShell shell) return shell.Atk;
+        return (targetId is null ? state.EffectiveAtkOf(attackerId) : state.EffectiveAtkAgainst(attackerId, targetId)) +
+            (mechanic is ClawAttack claw ? claw.AtkBonus : 0);
     }
 
     // Movement asks whether any supported Attack is possible, using the same

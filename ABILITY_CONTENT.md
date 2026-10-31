@@ -97,14 +97,16 @@ Use `MechanicCatalog.All` for authoritative discovery; the following is an overv
 | Open Door | Unit, Equipment or Item Action or Free Action |
 | Cleave, Move After Attack, Advance On Kill | Concrete Unit After Attack paths |
 | Explosion, Undying | Unit defeat consequence / immediate defeat replacement |
-| Fury, Backstab, Transport Resource | Concrete Unit Passives |
+| Fury, Backstab, Transport Resource | Unit or Equipment Passive |
 | Telekinesis, Try Open Door | Unit, Equipment or Item Action |
 | Swap, Displace, Reshape Room | Unit, Equipment or Item Bonus Action |
-| Fire Breath, Claw Attack, Summoning, Resource Actions, Shoot Shell | Concrete Unit Actions |
-| Place Banana Peel, Boost | Concrete Unit Bonus Actions |
+| Fire Breath, Claw Attack, Summoning, Resource Actions, Shoot Shell | Unit, Equipment or Item Action |
+| Place Banana Peel, Boost | Unit, Equipment or Item Bonus Action |
 | Run Rails, Waypoint Slot Machine | Instead of Activation / End Activation respectively |
 
-The catalog exposes allowed usage and per-source multiplicity too. Specialized mechanics remain single instances per owner where existing execution depends on one concrete follow-up, capability or ordering. This does not imply arbitrary stacking, Equipment versions of every Unit mechanic, Item Passives, or freely interchangeable trigger timings. Specialized handlers remain concrete Engine code, using typed local payloads. Waypoint Slot Machine's six-face Resource output table is authored in its payload.
+The catalog exposes allowed usage and per-source multiplicity too. Active mechanics accept independent local declarations and source counters. Fury and Backstab bonuses add when each declaration's conditions hold; Transport Resource is an idempotent capability and retains its one-Cell, own-Move restrictions. Specialized mechanics remain single instances per owner where existing execution depends on one concrete follow-up, capability or ordering. Item Passives, finite-use Passives and freely interchangeable trigger timings remain unsupported. Specialized handlers remain concrete Engine code, using typed local payloads. Waypoint Slot Machine's six-face Resource output table is authored in its payload.
+
+Summon Adjacent uses the selected declaration's Unit Type and initial Posture across all three sources. References resolve through the effective scenario Unit catalog, including scoped canonical overrides, rather than a content name or the bearer's native summon. Resource operations likewise use the selected declaration while retaining the bearer's shared Side + Unit Type storage and ordinary Machine ownership/capacity rules. Source reuse grants neither storage nor additional activation opportunities.
 
 Passive modifiers retain ordinary posture and adjacency semantics. Holy Wave remains legal without an Upright hostile recipient and still lays down the acting Unit. Fireball planning reads available sources and actual usage restrictions; exhausting one source does not exhaust another. Mechanic validation is structural; dynamic legality still uses authoritative state, physical geometry, budgets, posture, targets and Fog of War.
 

@@ -3,41 +3,49 @@ namespace ProjectDelve.Engine;
 // The concrete summon Actions share placement and creation, but keep their own prerequisites.
 public static class SummoningRules
 {
-    public static SummonAdjacent? Placement(UnitType type, UnitAction action) => action switch
+    public static SummonAdjacent? Placement(AbilityMechanic mechanic) => mechanic switch
     {
-        UnitAction.SummonAdjacent => type.Mechanic<SummonAdjacent>(),
-        UnitAction.SummonWorker when type.Mechanic<SummonWorker>() is not null => new(UnitTypeIds.Worker, Posture.Upright),
-        UnitAction.SummonTroll when type.Mechanic<SummonTroll>() is not null => new(UnitTypeIds.Troll, Posture.Upright),
+        SummonAdjacent summon => summon,
+        SummonWorker => new(UnitTypeIds.Worker, Posture.Upright),
+        SummonTroll => new(UnitTypeIds.Troll, Posture.Upright),
         _ => null
     };
 
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit) => state.AbilitiesOf(unit.Id)
+        .Where(ability => Placement(ability.Definition.Mechanic) is not null && state.CanUseAbility(unit.Id, ability))
+        .SelectMany(ability => Candidates(state, unit, ability));
+
+    // A committed invocation keeps its selected source even after its final charge
+    // or Item is spent. Recheck physical prerequisites using that bound payload.
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility ability)
     {
-        var type = state.Types.Single(t => t.Id == unit.TypeId);
-        foreach (var action in new[] { UnitAction.SummonAdjacent, UnitAction.SummonWorker, UnitAction.SummonTroll })
+        var mechanic = ability.Definition.Mechanic;
+        if (Placement(mechanic) is not { } summon) yield break;
+        var action = mechanic switch
         {
-            if (type.AbilityFor(action) is not { } declaration || Placement(type, action) is not { } summon) continue;
-            var ability = new ResolvedAbility(declaration, AbilitySourceKind.Unit, type.Id, unit.Id);
-            if (action == UnitAction.SummonWorker && state.Units.Count(u => u.CurrentHp > 0 &&
-                    u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= type.Mechanic<SummonWorker>()!.SideLimit) continue;
-            if (action == UnitAction.SummonTroll && state.StoredQuantity(unit.SideId, unit.TypeId,
-                    ResourceTypes.Diamond.Id) < type.Mechanic<SummonTroll>()!.DiamondCost) continue;
-            if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
-                !state.CanPlaceUnitType(summonedType, unit.SideId)) continue;
-            for (var y = 0; y < state.Physical.Board.Height; y++)
-                for (var x = 0; x < state.Physical.Board.Width; x++)
-                {
-                    var cell = new Cell(x, y);
-                    if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell) &&
-                        SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id),
-                            FootprintGeometry.OccupiedCells(summonedType.Footprint, cell)))
-                        yield return new($"{ability.CandidatePrefix}:{x},{y}",
-                            Destination: cell, Action: action) { Ability = ability };
-                }
+            SummonWorker => UnitAction.SummonWorker, SummonTroll => UnitAction.SummonTroll,
+            _ => UnitAction.SummonAdjacent
+        };
+        if (mechanic is SummonWorker worker && state.Units.Count(u => u.CurrentHp > 0 &&
+                u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= worker.SideLimit) yield break;
+        if (mechanic is SummonTroll troll && state.StoredQuantity(unit.SideId, unit.TypeId,
+                ResourceTypes.Diamond.Id) < troll.DiamondCost) yield break;
+        if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
+            !state.CanPlaceUnitType(summonedType, unit.SideId)) yield break;
+        for (var y = 0; y < state.Physical.Board.Height; y++)
+        for (var x = 0; x < state.Physical.Board.Width; x++)
+        {
+            var cell = new Cell(x, y);
+            var footprint = FootprintGeometry.OccupiedCells(summonedType.Footprint, cell);
+            if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell) &&
+                footprint.All(c => TerrainCatalog.Accepts(summonedType, state.Physical.Board.TerrainDefinitionAt(c))) &&
+                SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id), footprint))
+                yield return new($"{ability.CandidatePrefix}:{x},{y}",
+                    Destination: cell, Action: action) { Ability = ability };
         }
     }
 
-    internal static RulesEvent SpendDiamond(GameState state, Unit source, SummonTroll summon)
+    internal static RulesEvent SpendDiamond(GameState state, Unit source, SummonTroll summon, ResolvedAbility ability)
     {
         var index = state.StoredResources.FindIndex(r => r.SideId == source.SideId &&
             r.UnitTypeId == source.TypeId && r.Type.Id == ResourceTypes.Diamond.Id);
@@ -46,7 +54,7 @@ public static class SummoningRules
         return new("ResourceSpent", source.Id, TypeId: source.TypeId)
         {
             SourceUnitId = source.Id, SideId = source.SideId,
-            ActionId = new ResolvedAbility(state.Types.Single(t => t.Id == source.TypeId).Ability<SummonTroll>()!, AbilitySourceKind.Unit, source.TypeId, source.Id).ActionId,
+            ActionId = ability.ActionId,
             ResourceType = stored.Type, StoredQuantity = stored.Quantity - summon.DiamondCost
         };
     }

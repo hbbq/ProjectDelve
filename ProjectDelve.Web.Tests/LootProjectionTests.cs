@@ -156,6 +156,52 @@ public sealed class LootProjectionTests
     }
 
     [Fact]
+    public void SummonNamesUseTheEffectiveUnitCatalogInNativeOwnedGroundAndCandidateCards()
+    {
+        var state = State();
+        var local = new UnitType("paper-friend", 0, 0, 0, 0, 1) { DisplayName = "Paper Friend" };
+        var replacement = CanonicalUnitTypes.Find(UnitTypeIds.Wizard)! with { DisplayName = "Scoped Sage" };
+        var equipment = new EquipmentDefinition("summon-charm", "Summon Charm")
+        { LocalAbilities =
+        [
+            new("paper", "Fold", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying)),
+            new("sage", "Read", AbilityTiming.Action, new SummonAdjacent(replacement.Id, Posture.Upright))
+        ] };
+        var item = new ItemDefinition("summon-note", "Summon Note") { LocalAbilities = equipment.LocalAbilities };
+        state.Types[0] = state.Types[0] with { LocalAbilities = equipment.LocalAbilities };
+        state.Types.AddRange([local, replacement]);
+        state.EquipmentTypes.Add(equipment);
+        state.ItemTypes.Add(item);
+        var charm = new OwnedObject("physical-charm", equipment.Id);
+        var note = new OwnedObject("physical-note") { ItemTypeId = item.Id };
+        state.Units[0] = state.Units[0] with { Inventory = [charm, note] };
+        state.GroundObjects = [new(charm with { Id = "ground-charm" }, new(1, 0)), new(note with { Id = "ground-note" }, new(2, 0))];
+
+        static void Names(string text)
+        {
+            Assert.Contains("Lying Paper Friend", text);
+            Assert.Contains("Upright Scoped Sage", text);
+            Assert.DoesNotContain("paper-friend", text);
+        }
+        var card = BrowserProjection.Cards(state)["a"];
+        foreach (var source in new[] { "Native", "Equipment", "Item" })
+            Names(string.Join(" ", card.Entries.Where(entry => entry.Source == source).Select(entry => entry.Content.Description)));
+        Assert.All(card.Inventory, content => Names(content.Text));
+        Assert.All(BrowserProjection.GroundObjects(state), ground => Names(ground.Object.Content.Text));
+        Names(string.Join(" ", equipment.CardEntries(state.Types).Select(entry => entry.Description)));
+        foreach (var source in new[] { AbilitySourceKind.Equipment, AbilitySourceKind.Item })
+        {
+            var ability = state.AbilitiesOf("a").Single(ability => ability.SourceKind == source && ability.Key == "paper");
+            var candidate = new Candidate(ability.CandidatePrefix + ":1,1", Destination: new(1, 1), Action: UnitAction.SummonAdjacent)
+            { Ability = ability, ObjectId = ability.SourceInstanceId, EquipmentTypeId = source == AbilitySourceKind.Equipment ? equipment.Id : null,
+                ItemTypeId = source == AbilitySourceKind.Item ? item.Id : null };
+            var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "a", [candidate], false);
+            Names(Assert.Single(GambitProjection.Decision(request, state).Candidates).ObjectContent!.Text);
+        }
+        Assert.NotEqual("Scoped Sage", CanonicalUnitTypes.Find(UnitTypeIds.Wizard)!.DisplayName);
+    }
+
+    [Fact]
     public void EquipmentRemainingUsesStayVisibleOnTheGroundAndHiddenObjectsStayPrivate()
     {
         var state = State(true);

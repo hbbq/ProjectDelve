@@ -136,10 +136,10 @@ public sealed class ContentEditorApiTests
         response.EnsureSuccessStatusCode();
         var catalog = (await response.Content.ReadFromJsonAsync<ContentBrowserResponse>(Json))!;
         Assert.Equal("definitions", catalog.Context.Kind);
-        Assert.Equal(new[] { "equipment", "items", "lootCards", "mechanics" }, catalog.Categories.Select(category => category.Id));
+        Assert.Equal(new[] { "units", "equipment", "items", "lootCards", "mechanics", "resources" }, catalog.Categories.Select(category => category.Id));
         Assert.Contains(catalog.Entries, entry => entry.Id == equipment.Id && entry.Origin == "local");
         Assert.All(catalog.Entries.SelectMany(entry => entry.References), reference => Assert.True(reference.Exists));
-        Assert.DoesNotContain(catalog.Entries, entry => entry.Family == "units");
+        Assert.Contains(catalog.Entries, entry => entry.Family == "units" && entry.Id == UnitTypeIds.Grunt);
         Assert.True((await host.Validate("equipment", Equipment("other"))).Valid);
         AssertError(await host.Validate("lootCards", new LootCardDefinition("bad", "Bad") { EquipmentTypeId = "missing" }), "definition.equipmentTypeId");
         Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
@@ -148,6 +148,40 @@ public sealed class ContentEditorApiTests
         { LootCardDefinitions = [new("bad", "Bad") { EquipmentTypeId = "missing" }] }, Json);
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
         Assert.Equal("lootCardDefinitions[0].equipmentTypeId", Assert.Single((await missing.Content.ReadFromJsonAsync<ContentBrowserFailure>(Json))!.Diagnostics).Path);
+    }
+
+    [Fact]
+    public async Task SummoningEquipmentUsesEffectiveUnitReferencesWithoutPlacementOrGlobalMutation()
+    {
+        await using var host = await Host.Start();
+        var local = new UnitType("paper-helper", 1, 1, 1, 0, 1) { DisplayName = "Paper Helper" };
+        var overridden = CanonicalUnitTypes.Find(UnitTypeIds.Grunt)! with { DisplayName = "Scarlet Helper" };
+        var equipment = new EquipmentDefinition("helper-bell", "Helper Bell") { LocalAbilities =
+        [
+            new("paper", "Fold", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying)) { Usage = new(2) },
+            new("scarlet", "Ring", AbilityTiming.Action, new SummonAdjacent(overridden.Id, Posture.Upright))
+        ] };
+        var context = new ContentEditorContext { UnitTypes = [local, overridden] };
+        var result = await host.Validate("equipment", equipment, context: context);
+        Assert.True(result.Valid);
+        Assert.Contains(result.Entry!.Abilities, ability => ability.Key == "paper" && ability.Description.Contains("Lying Paper Helper"));
+        Assert.Contains(result.Entry.Abilities, ability => ability.Key == "scarlet" && ability.Description.Contains("Upright Scarlet Helper"));
+        Assert.All(result.Entry.References, reference => Assert.True(reference.Exists));
+        Assert.Contains(result.Entry.References, reference => reference.TargetKey == "units:" + local.Id);
+
+        using var response = await host.Client.PostAsJsonAsync("/api/content/context", context, Json);
+        response.EnsureSuccessStatusCode();
+        var catalog = (await response.Content.ReadFromJsonAsync<ContentBrowserResponse>(Json))!;
+        Assert.Equal("Paper Helper", Assert.Single(catalog.Entries, entry => entry.Family == "units" && entry.Id == local.Id).Name);
+        var scoped = Assert.Single(catalog.Entries, entry => entry.Family == "units" && entry.Id == overridden.Id);
+        Assert.Equal("Scarlet Helper", scoped.Name);
+        Assert.Equal("scenario-override", scoped.Origin);
+        Assert.NotEqual("Scarlet Helper", CanonicalUnitTypes.Find(overridden.Id)!.DisplayName);
+
+        AssertError(await host.Validate("equipment", equipment), "definition.localAbilities[0].mechanic.unitTypeId");
+        var missing = equipment with { LocalAbilities = [equipment.LocalAbilities[0] with { Mechanic = new SummonAdjacent("missing", Posture.Upright) }] };
+        AssertError(await host.Validate("equipment", missing, context: context), "definition.localAbilities[0].mechanic.unitTypeId");
+        AssertError(await host.Validate("equipment", equipment, context: new() { UnitTypes = [local, local] }), "context.unitTypes[1].id");
     }
 
     [Fact]

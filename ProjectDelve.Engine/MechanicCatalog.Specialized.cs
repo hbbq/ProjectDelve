@@ -16,13 +16,13 @@ public static partial class MechanicCatalog
             (NativeInteger("triggerDamage", 2, 1), p => p.TriggerDamage), (NativeInteger("damage", 1, 1), p => p.Damage));
         yield return ReusableActive(SpecializedMarker<Telekinesis>("telekinesis", "Telekinesis", MechanicTiming.Action,
             "Lay down an upright enemy within RNG and LOS.", MechanicTargetSelection.Unit));
-        yield return SpecializedNumbers<Fury>("fury", "Fury", MechanicTiming.Passive,
+        yield return ReusablePassive(SpecializedNumbers<Fury>("fury", "Fury", MechanicTiming.Passive,
             "ATK {atkBonus} while adjacent to {adjacentEnemyThreshold} or more enemies", MechanicUsageSupport.UnlimitedOnly,
             (NativeInteger("adjacentEnemyThreshold", 2, 1), p => p.AdjacentEnemyThreshold),
-            (NativeInteger("atkBonus", 1), p => p.AtkBonus));
-        yield return SpecializedNumbers<Backstab>("backstab", "Backstab", MechanicTiming.Passive,
+            (NativeInteger("atkBonus", 1), p => p.AtkBonus)));
+        yield return ReusablePassive(SpecializedNumbers<Backstab>("backstab", "Backstab", MechanicTiming.Passive,
             "{atkBonus} ATK when attacking an enemy adjacent to another friendly Unit", MechanicUsageSupport.UnlimitedOnly,
-            (NativeInteger("atkBonus", 1), p => p.AtkBonus));
+            (NativeInteger("atkBonus", 1), p => p.AtkBonus)));
         yield return SpecializedNumbers<MoveAfterAttack>("moveAfterAttack", "Move After Attack", MechanicTiming.AfterAttack,
             "After an Attack, immediately Move up to {maxSteps} steps.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Cell, "A legal own-Move destination within the authored step allowance, including Stay.",
@@ -42,12 +42,12 @@ public static partial class MechanicCatalog
             "Try to open a bordering Closed Door. Roll a D6: success on {successCount} of 6 faces.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Edge, "One bordering Closed Door.",
             (RequiredInteger("successCount", 0, 6), p => p.SuccessCount)));
-        yield return SpecializedMarker<FireBreath>("fireBreath", "Fire Breath", MechanicTiming.Action,
-            "Attack all enemies within RNG.");
-        yield return SpecializedNumbers<ClawAttack>("clawAttack", "Claw Attack", MechanicTiming.Action,
+        yield return ReusableActive(SpecializedMarker<FireBreath>("fireBreath", "Fire Breath", MechanicTiming.Action,
+            "Attack all enemies within RNG."));
+        yield return ReusableActive(SpecializedNumbers<ClawAttack>("clawAttack", "Claw Attack", MechanicTiming.Action,
             "Attack an adjacent enemy with ATK {atkBonus}.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "One adjacent living hostile Unit using ordinary adjacency and LOS.",
-            (NativeInteger("atkBonus", 1), p => p.AtkBonus));
+            (NativeInteger("atkBonus", 1), p => p.AtkBonus)));
         yield return ReusableActive(SpecializedMarker<ReshapeRoom>("reshapeRoom", "Reshape Room", MechanicTiming.BonusAction,
             "Replace Edges in the 3 × 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides."));
         yield return ReusableActive(SpecializedMarker<Swap>("swap", "Swap", MechanicTiming.BonusAction,
@@ -56,56 +56,58 @@ public static partial class MechanicCatalog
             "Move an adjacent enemy Unit up to {maxMove} Cell.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "An adjacent hostile one-Cell Unit and one legal external movement destination, including its current Cell.",
             (RequiredInteger("maxMove", 0, 1), p => p.MaxMove)));
-        yield return SpecializedNumbers<SummonWorker>("summonWorker", "Summon Worker", MechanicTiming.Action,
+        yield return ReusableActive(SpecializedNumbers<SummonWorker>("summonWorker", "Summon Worker", MechanicTiming.Action,
             "If fewer than {sideLimit} living Workers are on this Unit's Side, place one Upright Worker in an adjacent empty Cell on this Unit's Side.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Cell, "A legal adjacent placement Cell with LOS, subject to the Side's living Worker limit.",
-            (RequiredInteger("sideLimit", 1), p => p.SideLimit));
-        yield return SpecializedNumbers<SummonTroll>("summonTroll", "Summon Troll", MechanicTiming.Action,
+            (RequiredInteger("sideLimit", 1), p => p.SideLimit)));
+        yield return ReusableActive(SpecializedNumbers<SummonTroll>("summonTroll", "Summon Troll", MechanicTiming.Action,
             "Spend {diamondCost} Diamond from this Unit's shared Resource Storage and place one Upright Troll in an adjacent empty Cell on this Unit's Side.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Cell, "A legal adjacent placement Cell with LOS and sufficient shared Diamond storage.",
-            (RequiredInteger("diamondCost", 1), p => p.DiamondCost));
-        yield return SpecializedNumbers<PlaceBananaPeel>("placeBananaPeel", "Place Banana Peel", MechanicTiming.BonusAction,
+            (RequiredInteger("diamondCost", 1), p => p.DiamondCost)));
+        yield return ReusableActive(SpecializedNumbers<PlaceBananaPeel>("placeBananaPeel", "Place Banana Peel", MechanicTiming.BonusAction,
             "Spend {bananaCost} Banana from shared Resource Storage to place a Banana Peel in an adjacent passable Cell with no Unit, Machine or Cell Marker. Loose Resources may remain there.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Cell, "An adjacent passable Cell without a Unit, Machine, or Cell Marker; loose Resources do not block it.",
-            (RequiredInteger("bananaCost", 1), p => p.BananaCost));
-        yield return SpecializedNumbers<Boost>("boost", "Boost", MechanicTiming.BonusAction,
+            (RequiredInteger("bananaCost", 1), p => p.BananaCost)));
+        yield return ReusableActive(SpecializedNumbers<Boost>("boost", "Boost", MechanicTiming.BonusAction,
             "Spend {mushroomCost} Mushroom to gain one additional Move this activation. Use before any normal Action, even after an earlier Move.", MechanicUsageSupport.UnlimitedOnly,
-            (RequiredInteger("mushroomCost", 1), p => p.MushroomCost));
-        yield return SpecializedNumbers<ShootShell>("shootShell", "Shoot Shell", MechanicTiming.Action,
+            (RequiredInteger("mushroomCost", 1), p => p.MushroomCost)));
+        yield return ReusableActive(SpecializedNumbers<ShootShell>("shootShell", "Shoot Shell", MechanicTiming.Action,
             "Spend {shellCost} Shell to attack an enemy with RNG {rng} and ATK {atk}.", MechanicUsageSupport.UnlimitedOnly,
             MechanicTargetSelection.Unit, "One living hostile Unit within the authored range and normal LOS, with sufficient shared Shell storage.",
             (RequiredInteger("shellCost", 1), p => p.ShellCost), (RequiredInteger("rng", 1), p => p.Rng),
-            (RequiredInteger("atk", 1), p => p.Atk));
-        yield return SpecializedMarker<Phase>("phase", "Phase", MechanicTiming.Passive,
+            (RequiredInteger("atk", 1), p => p.Atk)));
+        yield return ReusablePassive(SpecializedMarker<Phase>("phase", "Phase", MechanicTiming.Passive,
             "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.",
-            equipment: true);
-        yield return SpecializedMarker<TransportResource>("transportResource", "Transport Resource", MechanicTiming.Passive,
-            "During this Unit's own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources.");
-        yield return SpecializedMarker<PickupResource>("pickupResource", "Pick Up Resource", MechanicTiming.Action,
-            "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room.");
-        yield return SpecializedMarker<GiveResource>("giveResource", "Give Resource", MechanicTiming.Action,
+            equipment: true), "Requires the bearer's established Phase movement and vision context. Multiple declarations grant the same capability once; no Item Passive or finite-use lifecycle is defined.");
+        yield return ReusablePassive(SpecializedMarker<TransportResource>("transportResource", "Transport Resource", MechanicTiming.Passive,
+            "During this Unit's own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources."),
+            "Requires an Upright one-Cell bearer and its own Move. Multiple declarations grant the same transport capability once; no Item Passive or finite-use lifecycle is defined.");
+        yield return ReusableActive(SpecializedMarker<PickupResource>("pickupResource", "Pick Up Resource", MechanicTiming.Action,
+            "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room."));
+        yield return ReusableActive(SpecializedMarker<GiveResource>("giveResource", "Give Resource", MechanicTiming.Action,
             "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room.",
             MechanicTargetSelection.UnitOrMachine,
-            recipients: "An adjacent friendly Unit or adjacent Machine that is public or owned by this Unit's Side. Its storage must accept the Resource on this Unit's Cell and have room.");
-        yield return SpecializedMarker<Operate>("operate", "Operate", MechanicTiming.Action,
+            recipients: "An adjacent friendly Unit or adjacent Machine that is public or owned by this Unit's Side. Its storage must accept the Resource on this Unit's Cell and have room."));
+        yield return ReusableActive(SpecializedMarker<Operate>("operate", "Operate", MechanicTiming.Action,
             "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.",
             MechanicTargetSelection.Machine,
-            recipients: "An adjacent Machine that is public or owned by this Unit's Side, with sufficient stored inputs and no impassable Edge separating it from this Unit. This Unit's Cell must contain no Resource.");
+            recipients: "An adjacent Machine that is public or owned by this Unit's Side, with sufficient stored inputs and no impassable Edge separating it from this Unit. This Unit's Cell must contain no Resource."));
         yield return ReusableActive(SpecializedMarker<OpenDoor>("openDoor", "Open Door", MechanicTiming.FreeAction,
             "Open a bordering Closed Door.", MechanicTargetSelection.Edge), MechanicTiming.Action, MechanicTiming.FreeAction);
 
         var target = new MechanicParameter("unitTypeId", MechanicParameterKind.Reference) { ReferenceCatalog = "units" };
         var posture = new MechanicParameter("initialPosture", MechanicParameterKind.Enum) { AllowedValues = ["Upright", "Lying"] };
-        yield return MechanicRegistration.Create<SummonAdjacent>(SpecializedDescriptor("summonAdjacent", "Summon", MechanicTiming.Action,
+        yield return ReusableActive(MechanicRegistration.Create<SummonAdjacent>(SpecializedDescriptor("summonAdjacent", "Summon", MechanicTiming.Action,
             "Place one {initialPosture} {unitTypeId} in an adjacent empty Cell.") with
         {
             Parameters = [target, posture], Targeting = new(MechanicTargetSelection.Cell, "A legal adjacent footprint with LOS."),
+            ContextRequirements = "Requires an Upright acting Unit with an Action available. Resolve the summoned Unit Type from the effective scenario catalog, then require a legal empty adjacent footprint with LOS and respect that Unit Type's uniqueness. Equipment and Items use their bearer's context.",
             Description = new("Place one {initialPosture} {unitTypeId} in an adjacent empty Cell.", ["initialPosture", "unitTypeId"])
         }, (payload, path, errors) =>
         {
             MechanicChecks.Reference(errors, target, payload.UnitTypeId, path + ".unitTypeId");
             MechanicChecks.Enum(errors, posture, payload.InitialPosture, path + ".initialPosture");
-        });
+        }));
         var resourceId = new MechanicParameter("id", MechanicParameterKind.Reference) { ReferenceCatalog = "resources" };
         var resource = new MechanicParameter("resource", MechanicParameterKind.Object)
         {
@@ -141,6 +143,16 @@ public static partial class MechanicCatalog
         } };
     }
 
+    private static MechanicRegistration ReusablePassive(MechanicRegistration registration, string? requirements = null) => registration with
+    { Descriptor = registration.Descriptor with
+        {
+            Profiles = [new(MechanicSource.Unit, MechanicTiming.Passive, MechanicUsageSupport.UnlimitedOnly),
+                new(MechanicSource.Equipment, MechanicTiming.Passive, MechanicUsageSupport.UnlimitedOnly)],
+            MaxPerSource = null,
+            ContextRequirements = requirements ?? registration.Descriptor.ContextRequirements
+        }
+    };
+
     private static MechanicDescriptor SpecializedDescriptor(string id, string name, MechanicTiming timing, string description,
         MechanicUsageSupport usage = MechanicUsageSupport.UnlimitedOnly) => new(id, name, MechanicFamily.Ability)
     {
@@ -155,7 +167,7 @@ public static partial class MechanicCatalog
             MechanicTiming.InsteadOfActivation => "Requires the Unit's activation to replace.",
             MechanicTiming.EndActivation => "Requires the ending activation and its own-Move waypoint progress.",
             MechanicTiming.Passive => "Requires a bearing Unit and an ongoing Passive; limited use and Item Passive lifecycles are not defined.",
-            _ => "Requires an acting Unit and the declared timing opportunity. Other source or timing adapters are not implemented."
+            _ => "Requires an Upright acting Unit, the declared timing opportunity and the mechanic's legal target or effect conditions. Equipment and Items use their bearer's context; ownership and remaining uses are checked for the selected source."
         },
         Dependencies = timing switch
         {

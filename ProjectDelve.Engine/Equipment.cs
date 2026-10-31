@@ -8,12 +8,12 @@ public sealed record EquipmentDefinition(string Id, string Name)
 {
     public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
     public string EntryId(string key) => $"equipment:{Uri.EscapeDataString(Id)}:{Uri.EscapeDataString(key)}";
-    public IReadOnlyList<CardEntryDescription> CardEntries() =>
-        LocalAbilities.Select(ability => ability.CardEntry(EntryId(ability.Key))).ToArray();
+    public IReadOnlyList<CardEntryDescription> CardEntries(IReadOnlyList<UnitType>? existingTypes = null) =>
+        LocalAbilities.Select(ability => ability.CardEntry(EntryId(ability.Key), existingTypes)).ToArray();
     [System.Text.Json.Serialization.JsonIgnore]
     public string Description => Describe();
-    public string Describe() =>
-        string.Join(" ", CardEntries().Select(e => e.Category is "Action" or "Free Action" or "Bonus Action" or "Passive" ? $"{e.Category}: {e.Description}" : e.Description));
+    public string Describe(IReadOnlyList<UnitType>? existingTypes = null) =>
+        string.Join(" ", CardEntries(existingTypes).Select(e => e.Category is "Action" or "Free Action" or "Bonus Action" or "Passive" ? $"{e.Category}: {e.Description}" : e.Description));
 }
 
 public static class EquipmentCatalog
@@ -53,7 +53,7 @@ public static class EquipmentQueries
     public static EquipmentDefinition Equipment(this GameState state, string id) => state.EquipmentTypes.SingleOrDefault(d => d.Id == id)
         ?? throw new ArgumentException($"Unknown Equipment Type ID '{id}'.");
     public static LootCardContent ObjectContent(this GameState state, OwnedObject obj) => state.EquipmentTypeId(obj) is { } id
-        ? new(obj.Kind, state.Equipment(id).Name, LootCategory.Equipment, state.Equipment(id).Describe()) { EquipmentTypeId = id }
+        ? new(obj.Kind, state.Equipment(id).Name, LootCategory.Equipment, state.Equipment(id).Describe(state.Types)) { EquipmentTypeId = id }
         : state.ItemTypeId(obj) is not null ? state.ItemContent(obj) : state.LootContent(obj);
     public static LootCardContent? CandidateObjectContent(this GameState state, Candidate candidate) => candidate.ItemTypeId is { } itemId
         ? state.ObjectContent(new OwnedObject(candidate.ObjectId ?? "candidate") { ItemTypeId = itemId })

@@ -1,4 +1,4 @@
-﻿# Engine Mechanic Catalog
+# Engine Mechanic Catalog
 
 `MechanicCatalog` is the discovery and structural-validation boundary for the registered mechanics. Its immutable descriptors contain data only: stable mechanic IDs, parameter schemas, supported source/timing/usage profiles, Unit context requirements, targeting notes, dependencies, and description metadata. Explicit registrations bind those descriptors to typed payload validators. Execution remains in concrete Engine handlers.
 
@@ -46,6 +46,9 @@ Each `Profiles` entry is one complete supported combination. Do not combine sour
 | `openDoor` | Action, FreeAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `telekinesis`, `tryOpenDoor` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
 | `reshapeRoom`, `swap`, `displace` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `summonAdjacent`, `summonWorker`, `summonTroll`, `fireBreath`, `clawAttack`, `pickupResource`, `giveResource`, `operate`, `shootShell` | Action | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `placeBananaPeel`, `boost` | BonusAction | Limited or unlimited | Limited or unlimited | Unlimited; consumes Item |
+| `fury`, `backstab`, `transportResource` | Passive | Unlimited | Unlimited | Unsupported |
 
 Equipment stat changes use local Passive `selfModifiers`; Phase and Open Door use their local typed payloads. There are no separate Equipment modifier/capability execution paths. Modifier lists accept ATK, MOV, RNG, and DEF amounts from -100 through 100, including zero and repeated stats. An empty modifier list is invalid; an Equipment definition with no stat changes simply has no such Ability. This preserves the previous direct Equipment modifier domain.
 
@@ -53,9 +56,6 @@ The remaining specialized mechanics currently support Unit sources only. Their l
 
 | Mechanic IDs | Timing | Usage |
 | --- | --- | --- |
-| `fireBreath`, `clawAttack`, `summonAdjacent`, `summonWorker`, `summonTroll`, `pickupResource`, `giveResource`, `operate`, `shootShell` | Action | Limited or unlimited |
-| `placeBananaPeel`, `boost` | BonusAction | Limited or unlimited |
-| `fury`, `backstab`, `transportResource` | Passive | Unlimited |
 | `cleave` | AfterAttack | Limited or unlimited |
 | `moveAfterAttack`, `advanceOnKill` | AfterAttack | Unlimited |
 | `explosion` | WhenDefeated | Unlimited |
@@ -63,9 +63,11 @@ The remaining specialized mechanics currently support Unit sources only. Their l
 | `runRails` | InsteadOfActivation | Unlimited |
 | `waypointSlotMachine` | EndActivation | Unlimited |
 
-Open Door, Telekinesis, Try Open Door, Reshape Room, Swap and Displace accept independent declarations under distinct local keys, as do the shared active mechanics. Remaining specialized payloads retain `MaxPerSource: 1`, including Phase and Cleave, where current execution depends on one concrete capability, follow-up or ordering. Specialized names and use limits belong to the envelope: for example, Cleave's payload contains its trigger damage and damage, while its local Ability contains its name and optional maximum uses.
+All supported Action, Bonus Action and Free Action mechanics accept independent declarations under distinct local keys. Fury and Backstab also accept multiple declarations, each contributing its authored bonus when its own conditions hold. Multiple Phase or Transport Resource declarations grant their capability once; Transport Resource retains its one-Cell and own-Move requirements. Remaining triggered or automatic specialized payloads retain `MaxPerSource: 1` where current execution depends on one concrete follow-up or ordering. Specialized names and use limits belong to the envelope: for example, Cleave's payload contains its trigger damage and damage, while its local Ability contains its name and optional maximum uses.
 
 `waypointSlotMachine` authors a six-face `ResourceOutputTable`; both reward resolution and card text read it. Summon Worker and Summon Troll retain their concrete, rules-established target/resource semantics. Summon Adjacent instead authors its target Unit Type and initial Posture explicitly.
+
+Summoning resolves Unit references against the effective scenario catalog, with local definitions taking precedence over canonical fallbacks. Definition-only validation uses this same lookup, and the Designer supplies scoped Unit definitions to its reference picker and preview. Resource costs and storage access use the acting bearer's Side + Unit Type; granting an Ability does not grant Resource Storage. Machine ownership, capacities, placement, posture and other dynamic requirements still determine whether any candidate exists.
 
 All Ability sources require an acting or bearing Unit. Item consumption remains the selected physical object's lifecycle, not a one-use Ability restriction. No Item Passives, arbitrary triggers, or unsupported source/timing combinations are advertised.
 

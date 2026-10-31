@@ -9,5 +9,6 @@ public sealed record LocalAbilityDefinition(string Key, string Name, AbilityTimi
 {
     public AbilityUsage Usage { get; init; } = new();
     public string? DescriptionOverride { get; init; }
-    public CardEntryDescription CardEntry(string? entryId = null) => ContentDescriptions.AbilityEntry(this, entryId ?? Key);
+    public CardEntryDescription CardEntry(string? entryId = null, IReadOnlyList<UnitType>? existingTypes = null) =>
+        ContentDescriptions.AbilityEntry(this, entryId ?? Key, existingTypes);
 }

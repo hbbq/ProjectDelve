@@ -31,9 +31,9 @@ export class ContentEditorState {
   }
   profiles(mechanic) { return (mechanic?.profiles ?? []).filter(profile => profile.source === 'Equipment'); }
   references(family) {
-    const field = { equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
     const combined = new Map(this.entries.filter(entry => entry.family === family).map(entry => [entry.id, { id: entry.id, name: entry.name }]));
-    for (const definition of this.context?.[field] ?? []) combined.set(definition.id, { id: definition.id, name: definition.name });
+    for (const definition of this.context?.[field] ?? []) combined.set(definition.id, { id: definition.id, name: definition.displayName ?? definition.name ?? definition.id });
     return [...combined.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
   open({ family, definition, existingId, copy = false, context = {} }) {

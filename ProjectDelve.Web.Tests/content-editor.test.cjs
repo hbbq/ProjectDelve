@@ -221,3 +221,27 @@ test('Engine profiles expose free timing and physical Equipment uses without mec
   ] } });
   assert.match(second.root.textContent, /This trigger requires a completed Attack/);
 });
+
+test('typed Unit reference picker merges scenario-local Units and scoped canonical names into the validation context', async () => {
+  const mechanic = { id: 'summonAdjacent', name: 'Summon', family: 'Ability',
+    profiles: [{ source: 'Equipment', timing: 'Action', usage: 'LimitedOrUnlimited' }],
+    parameters: [{ name: 'unitTypeId', kind: 'Reference', required: true, referenceCatalog: 'units' },
+      { name: 'initialPosture', kind: 'Enum', required: true, allowedValues: ['Upright', 'Lying'] }], description: {} };
+  const unitTypes = [{ id: 'grunt', displayName: 'Scoped Guard' }, { id: 'paper-unit', displayName: 'Paper Friend' }];
+  const effective = { entries: [{ family: 'mechanics', id: mechanic.id, mechanic },
+    { family: 'units', id: 'grunt', name: 'Canonical Guard' }, { family: 'units', id: 'worker', name: 'Worker' }] };
+  const h = harness({ callbacks: { catalog: effective } });
+  await h.editor.open({ family: 'equipment', context: { unitTypes } });
+  h.byId('content-editor-add-mechanic').value = mechanic.id; h.clickText('Add Ability');
+  const picker = h.field('definition.localAbilities[0].mechanic.unitTypeId');
+  assert.equal(picker.children.filter(option => option.value === 'grunt').length, 1);
+  assert.match(picker.textContent, /Scoped Guard/);
+  assert.ok(!picker.textContent.includes('Canonical Guard'));
+  assert.match(picker.textContent, /Paper Friend/);
+  h.change('definition.localAbilities[0].mechanic.unitTypeId', 'paper-unit', 'change');
+  h.change('definition.localAbilities[0].mechanic.initialPosture', 'Lying', 'change');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[0].context.unitTypes, unitTypes);
+  assert.deepEqual(h.validated[0].definition.localAbilities[0].mechanic,
+    { kind: 'summonAdjacent', unitTypeId: 'paper-unit', initialPosture: 'Lying' });
+});

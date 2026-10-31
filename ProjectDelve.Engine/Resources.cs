@@ -72,7 +72,11 @@ internal static class ResourceRules
         state.StoredQuantity(recipient.SideId, recipient.TypeId, resource.Type.Id) <
             (Capacity(state, recipient.TypeId, resource.Type.Id) ?? 0);
 
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit actor)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit actor) => state.AbilitiesOf(actor.Id)
+        .Where(ability => ability.Definition.Mechanic is PickupResource or GiveResource && state.CanUseAbility(actor.Id, ability))
+        .SelectMany(ability => Candidates(state, actor, ability));
+
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit actor, ResolvedAbility ability)
     {
         var type = state.Types.Single(t => t.Id == actor.TypeId);
         foreach (var cell in FootprintGeometry.OccupiedCells(state, actor.Id))
@@ -82,14 +86,12 @@ internal static class ResourceRules
             // One-Cell content retains its simple keys; larger figures choose an occupied source Cell.
             var sourceCell = type.Footprint == Footprint.OneByOne ? null : cell;
             var suffix = sourceCell is null ? "" : $":{cell.X},{cell.Y}";
-            if (type.Ability<PickupResource>() is { } pickup && CanReceive(state, actor, resource))
+            if (ability.Definition.Mechanic is PickupResource && CanReceive(state, actor, resource))
             {
-                var ability = new ResolvedAbility(pickup, AbilitySourceKind.Unit, type.Id, actor.Id);
                 yield return new($"{ability.CandidatePrefix}{suffix}", Destination: sourceCell, Action: UnitAction.PickupResource) { Ability = ability };
             }
-            if (type.Ability<GiveResource>() is { } give)
+            if (ability.Definition.Mechanic is GiveResource)
             {
-                var ability = new ResolvedAbility(give, AbilitySourceKind.Unit, type.Id, actor.Id);
                 foreach (var recipient in state.Units.Where(u => u.Id != actor.Id && u.SideId == actor.SideId &&
                     u.CurrentHp > 0 && SpatialRules.AreAdjacent(state, actor.Id, u.Id) && CanReceive(state, u, resource)))
                     yield return new($"{ability.CandidatePrefix}:{recipient.Id}{suffix}", Destination: sourceCell,
@@ -100,7 +102,7 @@ internal static class ResourceRules
 
     internal static RulesEvent Transfer(GameState state, string actorId, Candidate action)
     {
-        if (!Candidates(state, state.Units.Single(u => u.Id == actorId)).Any(c => c == action))
+        if (!Candidates(state, state.Units.Single(u => u.Id == actorId), action.Ability!).Any(c => c.Key == action.Key))
             throw new InvalidOperationException("Resource transfer is unavailable.");
         var cell = action.Destination ?? state.Physical.Figures.Single(f => f.Id == actorId).Position;
         var resource = state.Resources.Single(r => r.Position == cell);
@@ -130,7 +132,7 @@ internal static class ResourceRules
     {
         var type = state.Types.Single(type => type.Id == state.Units.Single(unit => unit.Id == unitId).TypeId);
         // Larger-footprint transport has no established rules.
-        if (from == to || type.Mechanic<TransportResource>() is null || type.Footprint != Footprint.OneByOne ||
+        if (from == to || !state.ActivePassives<TransportResource>(unitId).Any() || type.Footprint != Footprint.OneByOne ||
             state.Resources.Any(resource => resource.Position == to)) return;
         var index = state.Resources.FindIndex(resource => resource.Position == from);
         if (index >= 0) state.Resources[index] = state.Resources[index] with { Position = to };

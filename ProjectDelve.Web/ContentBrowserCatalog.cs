@@ -53,20 +53,31 @@ public static class ContentBrowserCatalog
 
     // Resolved, validated dependencies only: no scenario or runtime state.
     public static ContentBrowserResponse Definitions(IReadOnlyList<EquipmentDefinition> equipment,
-        IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot)
+        IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot,
+        IReadOnlyList<UnitType>? units = null, IReadOnlySet<string>? localUnitIds = null)
     {
+        units ??= CanonicalUnitTypes.All.ToArray();
         List<ContentBrowserEntry> entries = [];
-        entries.AddRange(equipment.Select(type => EquipmentEntry(type, EquipmentCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local")));
-        entries.AddRange(items.Select(type => ItemEntry(type, ItemCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local")));
+        foreach (var type in units)
+            entries.Add(Entry("units", type.Id, type.DisplayName ?? type.Id, type,
+                localUnitIds?.Contains(type.Id) == true ? CanonicalUnitTypes.Find(type.Id) is null ? "scenario-local" : "scenario-override" : "canonical",
+                $"MOV {type.Mov} · RNG {type.Rng} · ATK {type.Atk} · DEF {type.Def} · HP {type.Hp}. {AbilitySummary(type.LocalAbilities.Length)}",
+                type.LocalAbilities, AbilityReferences(type.LocalAbilities), units) with { Sections = UnitSections(type) });
+        entries.AddRange(equipment.Select(type => EquipmentEntry(type, EquipmentCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local", units)));
+        entries.AddRange(items.Select(type => ItemEntry(type, ItemCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local", units)));
         entries.AddRange(loot.Select((type, index) => LootEntry(type, index < LootCardCatalog.All.Count ? "canonical" : "local") with
         {
             Availability = index >= LootCardCatalog.All.Count && LootCardCatalog.All.Any(canonical => canonical.Id == type.Id)
                 ? "legacy-collision" : null
         }));
         entries.AddRange(MechanicCatalog.All.Select(MechanicEntry));
+        var resources = ResourceTypes.All.Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
+            .OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces))).DistinctBy(type => Element(type).GetRawText());
+        entries.AddRange(resources.Select(type => Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name,
+            type, ResourceTypes.All.Contains(type) ? "canonical" : "scenario-override")));
         entries = ResolveReferences(entries);
         return new(new("definitions", "Draft content"),
-            Families.Where(family => family.Id is "equipment" or "items" or "lootCards" or "mechanics")
+            Families.Where(family => family.Id is "units" or "equipment" or "items" or "lootCards" or "mechanics" or "resources")
                 .Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(entry => entry.Family == family.Id))).ToArray(), entries, []);
     }
 
@@ -82,15 +93,18 @@ public static class ContentBrowserCatalog
         List<ContentBrowserEntry> entries = [];
         var units = state?.Types.ToList() ?? CanonicalUnitTypes.All.ToList();
         var declaredUnitIds = units.Select(type => type.Id).ToHashSet(StringComparer.Ordinal);
+        IReadOnlyList<EquipmentDefinition> equipment = state is null ? EquipmentCatalog.All : state.EquipmentTypes;
+        IReadOnlyList<ItemDefinition> items = state is null ? ItemCatalog.All : state.ItemTypes;
+        foreach (var summon in Summons(equipment.SelectMany(type => type.LocalAbilities).Concat(items.SelectMany(type => type.LocalAbilities))))
+            if (units.All(type => type.Id != summon.UnitTypeId) && UnitContent.Find(summon.UnitTypeId, state?.Types) is { } target)
+                units.Add(target);
         // Summoning may resolve a canonical type lazily. Expose only these reachable
         // fallbacks, rather than claiming every canonical Unit is in the scenario.
         for (var index = 0; index < units.Count; index++)
-            foreach (var summon in Summons(units[index]))
+            foreach (var summon in Summons(units[index].LocalAbilities))
                 if (units.All(type => type.Id != summon.UnitTypeId) && UnitContent.Find(summon.UnitTypeId, state?.Types) is { } target)
                     units.Add(target);
 
-        IReadOnlyList<EquipmentDefinition> equipment = state is null ? EquipmentCatalog.All : state.EquipmentTypes;
-        IReadOnlyList<ItemDefinition> items = state is null ? ItemCatalog.All : state.ItemTypes;
         IReadOnlyList<LootCardDefinition> loot = state is null ? LootCardCatalog.All : state.LootCardDefinitions;
         IReadOnlyList<WorldCardDefinition> world = state is null ? WorldCardCatalog.All : state.WorldCardDefinitions;
         var terrain = state?.Physical.Board.TerrainTypes ?? TerrainCatalog.All;
@@ -104,7 +118,6 @@ public static class ContentBrowserCatalog
             var origin = authored is null && lootOverride is null ? "canonical" :
                 CanonicalUnitTypes.Find(type.Id) is null ? "scenario-local" : "scenario-override";
             var refs = AbilityReferences(type.LocalAbilities).ToList();
-            refs.AddRange(Summons(type).Select(summon => Reference("Summoned Unit", "units", summon.UnitTypeId)));
             if (type.ResourceStorage is { } storage) refs.AddRange(StorageReferences(storage));
             if (type.TerrainRestrictedMovement is { } restriction)
                 refs.Add(Reference("Restricted terrain", "terrain", TerrainCatalog.Legacy(restriction.Terrain).Id));
@@ -269,7 +282,7 @@ public static class ContentBrowserCatalog
         Entry("equipment", type.Id, type.Name, type, origin, AbilitySummary(type.LocalAbilities.Length),
             type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
     private static ContentBrowserEntry ItemEntry(ItemDefinition type, string origin, IReadOnlyList<UnitType>? units = null) =>
-        Entry("items", type.Id, type.Name, type, origin, type.Describe(), type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
+        Entry("items", type.Id, type.Name, type, origin, type.Describe(units), type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
     private static ContentBrowserEntry LootEntry(LootCardDefinition type, string origin)
     {
         List<ContentBrowserReference> references = [];
@@ -307,9 +320,8 @@ public static class ContentBrowserCatalog
     }
 
     private static JsonElement Element<T>(T value) => JsonSerializer.SerializeToElement(value, Json);
-    private static IEnumerable<SummonAdjacent> Summons(UnitType type) =>
-        new[] { UnitAction.SummonAdjacent, UnitAction.SummonWorker, UnitAction.SummonTroll }
-            .Select(action => SummoningRules.Placement(type, action)).OfType<SummonAdjacent>();
+    private static IEnumerable<SummonAdjacent> Summons(IEnumerable<LocalAbilityDefinition> abilities) =>
+        abilities.Select(ability => SummoningRules.Placement(ability.Mechanic)).OfType<SummonAdjacent>();
     private static ContentBrowserSection[] UnitSections(UnitType type) =>
     [
         new("Stats", Fields(Element(new { type.Mov, type.Rng, type.Atk, type.Def, type.Hp }))),
@@ -342,7 +354,8 @@ public static class ContentBrowserCatalog
     private static JsonElement Parameters(AbilityMechanic payload) => Element(Element(payload).EnumerateObject()
         .Where(property => property.Name != "kind").ToDictionary(property => property.Name, property => property.Value.Clone()));
     private static IEnumerable<ContentBrowserReference> AbilityReferences(IEnumerable<LocalAbilityDefinition> abilities) =>
-        abilities.SelectMany(ability => MechanicReferences(ability.Mechanic));
+        abilities.SelectMany(ability => MechanicReferences(ability.Mechanic))
+            .Concat(Summons(abilities).Select(summon => Reference("Summoned Unit", "units", summon.UnitTypeId)));
     private static IEnumerable<ContentBrowserReference> MechanicReferences(object payload)
     {
         var descriptor = MechanicCatalog.FindByPayload(payload)!;

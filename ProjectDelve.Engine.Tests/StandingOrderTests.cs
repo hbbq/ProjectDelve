@@ -521,13 +521,16 @@ public sealed class StandingOrderTests
     [Fact]
     public void SharedAttackRankingUsesOrderedHitsEffectiveAtkHostileHitsUsageAndDefinitionOrder()
     {
+        static ResolvedAbility Bound<T>(GameState state) where T : AbilityMechanic =>
+            state.AbilitiesOf("actor").Single(ability => ability.Definition.Mechanic is T);
+
         var dragon = State(UnitType.RedDragon(), actor: new(0, 0), enemy: new(2, 0), board: new Board(7, 4, []));
         dragon.PlaceUnit("enemy", "other", "blue", new(4, 0));
         var candidates = new DecisionRequest(DecisionKind.Act, dragon.Units[0].TypeId, "actor",
         [
             new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
-            new("claw", Action: UnitAction.ClawAttack, TargetId: "enemy"),
-            new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy", "other"] }
+            new("claw", Action: UnitAction.ClawAttack, TargetId: "enemy") { Ability = Bound<ClawAttack>(dragon) },
+            new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy", "other"], Ability = Bound<FireBreath>(dragon) }
         ], true);
         var provider = new OrderAwareAutomatedProvider();
         Assert.Equal("claw", provider.Choose(candidates, new GameplayQueries(dragon)));
@@ -538,14 +541,14 @@ public sealed class StandingOrderTests
         dragon.AssignOrder(dragon.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
         var missesOrderedTarget = candidates with { Candidates = [
             new("normal-other", Action: UnitAction.NormalAttack, TargetId: "other"),
-            new("claw-other", Action: UnitAction.ClawAttack, TargetId: "other") ] };
+            new("claw-other", Action: UnitAction.ClawAttack, TargetId: "other") { Ability = Bound<ClawAttack>(dragon) } ] };
         Assert.Equal("claw-other", provider.Choose(missesOrderedTarget, new GameplayQueries(dragon)));
 
         var wizard = State(UnitType.Wizard(), enemy: new(3, 1));
         var usageTie = new DecisionRequest(DecisionKind.Act, wizard.Units[0].TypeId, "actor",
         [
             new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
-            new Candidate("fireball", Action: UnitAction.Fireball) { TargetIds = ["enemy"] }
+            new Candidate("fireball", Action: UnitAction.Fireball) { TargetIds = ["enemy"], Ability = Bound<FireballMechanic>(wizard) }
         ], true);
         Assert.Equal("normal", new DefaultAutomatedProvider().Choose(usageTie, new GameplayQueries(wizard)));
 
@@ -554,7 +557,7 @@ public sealed class StandingOrderTests
         var definitionTie = State(authored, enemy: new(2, 0), board: new Board(7, 4, []));
         var tied = new DecisionRequest(DecisionKind.Act, authored.Id, "actor",
         [new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
-         new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy"] }], true);
+         new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy"], Ability = Bound<FireBreath>(definitionTie) }], true);
         Assert.Equal("normal", new DefaultAutomatedProvider().Choose(tied, new GameplayQueries(definitionTie)));
 
         var custom = UnitType.Define("custom-attacker", "Custom Attacker", UnitAuthoring.Stats(2, 4, 3, 3, 1),
@@ -567,8 +570,8 @@ public sealed class StandingOrderTests
         var customState = State(restored, enemy: new(1, 1));
         var customTie = new DecisionRequest(DecisionKind.Act, restored.Id, "actor",
         [
-            new("claw", Action: UnitAction.ClawAttack, TargetId: "enemy"),
-            new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy"] }
+            new("claw", Action: UnitAction.ClawAttack, TargetId: "enemy") { Ability = Bound<ClawAttack>(customState) },
+            new Candidate("breath", Action: UnitAction.FireBreath) { TargetIds = ["enemy"], Ability = Bound<FireBreath>(customState) }
         ], true);
         Assert.Equal("claw", new DefaultAutomatedProvider().Choose(customTie, new GameplayQueries(customState)));
     }

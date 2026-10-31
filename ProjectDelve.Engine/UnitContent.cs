@@ -41,6 +41,25 @@ public static class UnitContent
 {
     public static UnitType? Find(string id, IReadOnlyList<UnitType>? existing = null) =>
         existing?.SingleOrDefault(t => t.Id == id) ?? CanonicalUnitTypes.Find(id);
+
+    // Definition-only consumers use the same scenario-local precedence as Find.
+    // Full stat, board and placement validation remains at scenario creation.
+    public static List<UnitType> Resolve(IEnumerable<UnitType>? local)
+    {
+        var authored = (local ?? []).ToList();
+        HashSet<string> ids = new(StringComparer.Ordinal);
+        for (var index = 0; index < authored.Count; index++)
+            if (authored[index] is not { } type || string.IsNullOrWhiteSpace(type.Id) || !ids.Add(type.Id))
+                throw ScenarioValidationContext.At(new ArgumentException("Local Unit Types require unique nonblank IDs."), $"unitTypes[{index}].id");
+        var resolved = CanonicalUnitTypes.All.Where(type => !ids.Contains(type.Id)).Concat(authored).ToList();
+        for (var index = 0; index < authored.Count; index++)
+        {
+            var path = $"unitTypes[{index}].localAbilities";
+            AbilityContent.Validate(authored[index].LocalAbilities, AbilitySourceKind.Unit, path);
+            AbilityContent.ValidateReferences(authored[index].LocalAbilities, resolved, path);
+        }
+        return resolved;
+    }
 }
 
 // One registry for canonical lookup and enumeration. Factories keep each creation detached.

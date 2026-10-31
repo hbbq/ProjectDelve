@@ -107,8 +107,8 @@ internal sealed class GameplayQueries : IGameplayQueries
     }
 
     public bool CanTransportResource(string unitId) =>
-        world.IsUpright(unitId) && FootprintGeometry.FootprintOf(world, unitId) == Footprint.OneByOne &&
-        world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Mechanic<TransportResource>() is not null;
+        FootprintGeometry.FootprintOf(world, unitId) == Footprint.OneByOne &&
+        world.ActivePassives<TransportResource>(unitId).Any();
 
     public IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) =>
         MovementRules.FindPaths(world, unitId, position);
@@ -252,9 +252,10 @@ internal sealed class GameplayQueries : IGameplayQueries
         var attacker = world.Units.Single(u => u.Id == unitId);
         if (!Knows(unitId, targetId) || world.Units.SingleOrDefault(u => u.Id == targetId) is not { CurrentHp: > 0 } target ||
             !world.AreHostile(attacker.SideId, target.SideId) || !world.Physical.Figures.Any(f => f.Id == targetId)) return false;
-        if (new[] { UnitAction.NormalAttack, UnitAction.ClawAttack, UnitAction.FireBreath }
-            .Any(action => AttackRules.EvaluateApproachFrom(world, unitId, position, targetId, action)
-                == UnitTargetEvaluation.Possible)) return true;
+        if (AttackRules.EvaluateApproachFrom(world, unitId, position, targetId) == UnitTargetEvaluation.Possible ||
+            world.AbilitiesOf(unitId).Where(ability => ability.Definition.Mechanic is ClawAttack or FireBreath or ShootShell)
+                .Any(ability => AttackRules.EvaluateAbilityFrom(world, unitId, position, targetId, ability)
+                    == UnitTargetEvaluation.Possible)) return true;
 
         // Approach planning asks whether a source can supply the Attack, independently
         // of this activation's spent Action budget. Native and acquired grants share
@@ -318,14 +319,15 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public int EffectiveAttackDice(string unitId, Candidate candidate)
     {
-        if (candidate.Action == UnitAction.ShootShell) return world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Mechanic<ShootShell>()!.Atk;
+        if (candidate.Ability?.Definition.Mechanic is ShootShell shell) return shell.Atk;
         if (candidate.Action is not (UnitAction.NormalAttack or UnitAction.ClawAttack or
             UnitAction.FireBreath or UnitAction.Fireball)) return -1;
         var targets = CandidateTargets(candidate).Where(id => IsHostileTo(unitId, id)).ToList();
         if (targets.Count == 0)
-            return AttackRules.AttackDice(world, unitId, null, candidate.Action.Value);
+            return AttackRules.AttackDice(world, unitId, null, candidate.Action.Value, candidate.Ability?.Definition.Mechanic);
         return targets.Max(target => AttackRules.AttackDice(world, unitId,
-            candidate.Action is UnitAction.FireBreath or UnitAction.Fireball ? null : target, candidate.Action.Value));
+            candidate.Action is UnitAction.FireBreath or UnitAction.Fireball ? null : target, candidate.Action.Value,
+            candidate.Ability?.Definition.Mechanic));
     }
 
     public bool IsUnlimitedAttack(string unitId, Candidate candidate) => candidate.Ability is { } grant
@@ -347,8 +349,6 @@ internal sealed class GameplayQueries : IGameplayQueries
     public int? OpenRouteDistanceFromSummonPlacement(string unitId, Cell placement,
         IReadOnlyCollection<string> targetIds)
     {
-        var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
-        if (type.Mechanic<SummonAdjacent>() is null) return null;
         return targetIds.Where(targetId => Knows(unitId, targetId)).SelectMany(targetId => OccupiedCellsOf(targetId).Select(targetCell =>
                 ApproachRules.Distance(world.Physical.Board, placement, targetCell,
                     traversal: new(KnownCells: MovementTraversal.For(world, unitId).KnownCells))))

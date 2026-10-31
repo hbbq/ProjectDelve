@@ -14,7 +14,9 @@ selector lists only operations that support Equipment. Timing, usage, parameters
 list entries and description overrides follow the Mechanic Catalog's contracts.
 For a stat bonus, select Self Modifiers and configure its modifier list. Phase and
 Open Door are also owned Ability declarations, with their established timing.
-Equipment has no per-game Ability charges.
+Supported active Equipment Abilities may have unlimited usage or a positive number
+of uses per game. Counters belong to the physical Equipment instance and survive
+defeat and pickup; continuous Passives remain unlimited.
 
 Preview validates the definition and displays Engine-generated descriptions.
 Save validates again and applies one undoable change to the destination. Cancel
@@ -26,6 +28,13 @@ After saving Equipment, create a Loot Card that references its Type ID. Loot can
 instead reference an existing Item or use a supported Immediate mechanic. A reward
 references its independent definition; it never copies that object's mechanics.
 Search the effective catalog by name or ID to choose references.
+
+For Summon Adjacent, select a Unit Type and initial Posture. The picker includes
+canonical Units and scenario-local definitions, using the scenario's display names
+and overrides. Preview and validation resolve the same references as the Engine;
+the content form needs no Unit placement or running game. Other supported summoning,
+Resource, racing and specialized mechanics appear through their catalog profiles.
+Their normal storage, geometry, posture and timing requirements still apply.
 
 Return to Designer and select **All** Loot to include one of each effective Loot
 Card, including newly authored cards. Alternatively, select Custom Loot, set the
@@ -65,8 +74,10 @@ remains intact. New definitions cannot introduce such collisions.
 
 ## Validation and preview APIs
 
-- `POST /api/content/context`: dependency arrays `equipmentTypes`, `itemTypes` and
-  `lootCardDefinitions`; returns the effective object-content and Mechanic catalogs.
+- `POST /api/content/context`: dependency arrays `unitTypes`, `equipmentTypes`,
+  `itemTypes` and `lootCardDefinitions`; returns effective Unit and object-content
+  catalogs, Mechanic contracts and Resource references. Local Unit definitions
+  override canonical definitions only in that supplied context.
 - `POST /api/content/validate`: `family` (`equipment` or `lootCards`), `definition`,
   optional `existingId`, and the dependency `context`. Returns `valid`, field
   diagnostics and, on success, the typed definition and authoritative preview entry.
@@ -74,7 +85,7 @@ remains intact. New definitions cannot introduce such collisions.
 Neither endpoint persists content or creates a game. `existingId` identifies an
 existing destination entry, not a canonical override. New definitions must not
 collide with canonical or destination IDs. Engine catalog validation,
-`AbilityContent.ValidateObjectCatalogs` and Mechanic Catalog contracts supply the
+`UnitContent.Resolve`, `AbilityContent.ValidateObjectCatalogs` and Mechanic Catalog contracts supply the
 authoritative checks. Form constraints prevent unsupported choices where practical;
 they do not replace Engine validation or determine gameplay legality.
 

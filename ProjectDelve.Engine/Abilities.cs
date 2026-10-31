@@ -70,7 +70,7 @@ public sealed record ResolvedAbility(LocalAbilityDefinition Definition, AbilityS
     public string CandidatePrefix => SourceKind == AbilitySourceKind.Unit ? EntryId
         : $"{SourceKind.ToString().ToLowerInvariant()}:{AbilityQueries.Key(SourceInstanceId)}:{AbilityQueries.Key(Key)}";
     public string ActionId => EntryId;
-    public CardEntryDescription CardEntry() => Definition.CardEntry(EntryId);
+    public CardEntryDescription CardEntry(IReadOnlyList<UnitType>? existingTypes = null) => Definition.CardEntry(EntryId, existingTypes);
 }
 
 public static class AbilityContent
@@ -115,9 +115,12 @@ public static class AbilityContent
 
     public static void ValidateState(GameState state)
     {
-        ValidateObjectCatalogs(state.EquipmentTypes, state.ItemTypes, state.LootCardDefinitions);
+        ValidateObjectCatalogs(state.EquipmentTypes, state.ItemTypes, state.LootCardDefinitions, state.Types);
         for (var index = 0; index < state.Types.Count; index++)
+        {
             Validate(state.Types[index].LocalAbilities, AbilitySourceKind.Unit, $"unitTypes[{index}].localAbilities");
+            ValidateReferences(state.Types[index].LocalAbilities, state.Types, $"unitTypes[{index}].localAbilities");
+        }
         foreach (var unit in state.Units)
         {
             var type = state.Types.Single(type => type.Id == unit.TypeId);
@@ -144,15 +147,22 @@ public static class AbilityContent
     // The definition boundary is shared by scenario/runtime validation and
     // authoring tools. It needs catalogs, never a Board, Unit or live game.
     public static void ValidateObjectCatalogs(IReadOnlyList<EquipmentDefinition> equipment,
-        IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot)
+        IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot,
+        IReadOnlyList<UnitType>? unitTypes = null)
     {
         EquipmentCatalog.Validate(equipment);
         ItemCatalog.Validate(items);
         LootCardCatalog.Validate(loot);
         for (var index = 0; index < equipment.Count; index++)
+        {
             Validate(equipment[index].LocalAbilities, AbilitySourceKind.Equipment, $"equipmentTypes[{index}].localAbilities");
+            ValidateReferences(equipment[index].LocalAbilities, unitTypes, $"equipmentTypes[{index}].localAbilities");
+        }
         for (var index = 0; index < items.Count; index++)
+        {
             Validate(items[index].LocalAbilities, AbilitySourceKind.Item, $"itemTypes[{index}].localAbilities");
+            ValidateReferences(items[index].LocalAbilities, unitTypes, $"itemTypes[{index}].localAbilities");
+        }
         for (var index = 0; index < loot.Count; index++)
         {
             var card = loot[index];
@@ -161,6 +171,17 @@ public static class AbilityContent
             if (card.EquipmentTypeId is { } typeId && !equipment.Any(type => type.Id == typeId))
                 throw ScenarioValidationContext.At(new ArgumentException($"Unknown Equipment Type ID '{typeId}'."), $"lootCardDefinitions[{index}].equipmentTypeId");
         }
+    }
+
+    // Payload validation establishes a well-formed reference. Resolve it only at
+    // the content boundary, where scenario-local definitions are available.
+    public static void ValidateReferences(ImmutableArray<LocalAbilityDefinition> abilities,
+        IReadOnlyList<UnitType>? unitTypes, string path = "localAbilities")
+    {
+        for (var index = 0; index < abilities.Length; index++)
+            if (abilities[index].Mechanic is SummonAdjacent summon && UnitContent.Find(summon.UnitTypeId, unitTypes) is null)
+                throw ScenarioValidationContext.At(new ArgumentException($"Unknown summoned Unit Type ID '{summon.UnitTypeId}'."),
+                    $"{path}[{index}].mechanic.unitTypeId");
     }
 }
 

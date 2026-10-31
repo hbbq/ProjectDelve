@@ -222,6 +222,43 @@ public sealed class ContentBrowserApiTests
     }
 
     [Fact]
+    public async Task EquipmentAndItemSummonReferencesDiscoverEveryDeclarationAndUseScopedNames()
+    {
+        await using var host = await Host.Start();
+        var bearer = new UnitType("summon-bearer", 1, 1, 1, 0, 1) { CanHaveEquipment = true, CanHaveItems = true };
+        var local = new UnitType("local-summon", 0, 0, 0, 0, 1) { DisplayName = "Paper Friend" };
+        var replacement = CanonicalUnitTypes.Find(UnitTypeIds.Wizard)! with { DisplayName = "Scoped Sage" };
+        var equipment = new EquipmentDefinition("summon-kit", "Summon Kit") { LocalAbilities =
+        [
+            new("canonical", "First", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Grunt, Posture.Upright)),
+            new("local", "Second", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying))
+        ] };
+        var item = new ItemDefinition("worker-note", "Worker Note")
+        { LocalAbilities =
+        [
+            new("call", "Call", AbilityTiming.Action, new SummonWorker(3)),
+            new("paper", "Fold", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying)),
+            new("sage", "Read", AbilityTiming.Action, new SummonAdjacent(replacement.Id, Posture.Upright))
+        ] };
+        var source = Fixture(bearer) with
+        {
+            UnitTypeIds = [bearer.Id, local.Id, replacement.Id], UnitTypes = [bearer, local, replacement],
+            EquipmentTypes = [equipment], ItemTypes = [item]
+        };
+        var catalog = await host.Inspect(source);
+        Assert.Equal("referenced", Entry(catalog, "units", UnitTypeIds.Grunt).Availability);
+        Assert.Equal("referenced", Entry(catalog, "units", UnitTypeIds.Worker).Availability);
+        var kit = Entry(catalog, "equipment", equipment.Id);
+        Assert.Contains(kit.References, reference => reference.TargetKey == "units:" + UnitTypeIds.Grunt && reference.Exists);
+        Assert.Contains(kit.References, reference => reference.TargetKey == "units:" + local.Id && reference.Exists);
+        Assert.Contains("Lying Paper Friend", kit.Abilities.Single(ability => ability.Key == "local").Description);
+        Assert.Contains(Entry(catalog, "items", item.Id).References, reference => reference.TargetKey == "units:" + UnitTypeIds.Worker && reference.Exists);
+        Assert.Contains("Lying Paper Friend", Entry(catalog, "items", item.Id).Summary);
+        Assert.Contains("Upright Scoped Sage", Entry(catalog, "items", item.Id).Summary);
+        Assert.DoesNotContain(local.Id, Entry(catalog, "items", item.Id).Summary);
+    }
+
+    [Fact]
     public async Task InlineResourceAndMachineVariantsKeepTheirActualDefinitionsAndReferenceTargets()
     {
         await using var host = await Host.Start();

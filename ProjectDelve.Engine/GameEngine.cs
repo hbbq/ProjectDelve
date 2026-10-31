@@ -199,46 +199,6 @@ public static partial class GameEngine
                     CompleteUnit(state, random, events);
                 }
                 break;
-            case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.BonusAction:
-                var bonusChoice = request.Candidates.Single(c => c.Key == choice);
-                var bonus = bonusChoice.Ability!.Definition;
-                // Movement/resource mechanics publish their own result events.
-                // Reshape has only this event, so capture its resulting board below.
-                if (bonus.Mechanic is not ReshapeRoom) EmitActionUsed(request, choice!, events);
-                switch (bonus.Mechanic)
-                {
-                    case PlaceBananaPeel:
-                        BananaPlacementRules.Resolve(state, request.UnitId!, bonusChoice, events.Add);
-                        break;
-                    case Boost boost:
-                        state.MoveOpportunityModifierThisActivation++;
-                        RacingRules.Spend(state, request.UnitId!, ResourceTypes.Mushroom, boost.MushroomCost, bonusChoice.Ability.EntryId, events.Add);
-                        break;
-                    case Swap:
-                        ExternalMovementRules.SwapPlaces(state, request.UnitId!, bonusChoice.TargetId!);
-                        events.Add(new RulesEvent("PlacesSwapped", request.UnitId, bonusChoice.TargetId, AbilityName: bonus.Name)
-                            { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice) });
-                        ResolveArrival(state, request.UnitId!, events);
-                        ResolveArrival(state, bonusChoice.TargetId!, events);
-                        break;
-                    case Displace:
-                        var affectedIndex = state.Physical.Figures.FindIndex(f => f.Id == bonusChoice.TargetId);
-                        var affected = state.Physical.Figures[affectedIndex];
-                        state.Physical.Figures[affectedIndex] = affected with { Position = bonusChoice.Destination! };
-                        events.Add(new RulesEvent("UnitRepositioned", affected.Id,
-                            Path: affected.Position == bonusChoice.Destination ? [affected.Position] : [affected.Position, bonusChoice.Destination!],
-                            AbilityName: bonus.Name)
-                            { SourceUnitId = request.UnitId, ActionId = ActionIdentity(bonusChoice), Cell = bonusChoice.Destination });
-                        if (affected.Position != bonusChoice.Destination) ResolveArrival(state, affected.Id, events);
-                        else events.LootArrivals.Add(affected.Id);
-                        break;
-                    case ReshapeRoom:
-                        ReshapeRoomRules.Apply(state, request.UnitId!);
-                        break;
-                    default: throw new InvalidOperationException("Unsupported Bonus Action mechanic.");
-                }
-                if (bonus.Mechanic is ReshapeRoom) EmitActionUsed(request, choice!, events);
-                break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind == ActivationChoiceKind.EndTurn:
                 CompleteUnit(state, random, events);
                 break;
@@ -276,69 +236,10 @@ public static partial class GameEngine
                     var action = request.Candidates.Single(c => c.Key == choice);
                     switch (action.Action)
                     {
-                        case UnitAction.Operate:
-                            EmitActionUsed(request, choice!, events);
-                            events.Add(MachineRules.Resolve(state, request.UnitId!, action, random));
-                            break;
-                        case UnitAction.PickupResource:
-                        case UnitAction.GiveResource:
-                            EmitActionUsed(request, choice!, events);
-                            events.Add(action.MachineId is not null
-                                ? MachineRules.Resolve(state, request.UnitId!, action, random)
-                                : ResourceRules.Transfer(state, request.UnitId!, action));
-                            break;
-                        case UnitAction.ShootShell:
-                            EmitActionUsed(request, choice!, events);
-                            var shell = state.Types.Single(t => t.Id == request.TypeId).Mechanic<ShootShell>()!;
-                            RacingRules.Spend(state, request.UnitId!, ResourceTypes.Shell, shell.ShellCost, action.Ability!.EntryId, events.Add);
-                            BeginAttack(state, request.UnitId!, new([action.TargetId!], shell.Atk, action.Ability!.Definition.Name), events, action.Ability.EntryId, null, UnitAction.ShootShell);
-                            break;
                         case UnitAction.NormalAttack:
                             EmitActionUsed(request, choice!, events);
                             BeginAttack(state, request.UnitId!,
                                 new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.NormalAttack)), events, ActionIdentity(action), action.Destination, action.Action);
-                            break;
-                        case UnitAction.ClawAttack:
-                            var clawType = state.Types.Single(t => t.Id == request.TypeId);
-                            EmitActionUsed(request, choice!, events);
-                            BeginAttack(state, request.UnitId!,
-                                new([action.TargetId!], AttackRules.AttackDice(state, request.UnitId!, action.TargetId, UnitAction.ClawAttack),
-                                    action.Ability!.Definition.Name), events, ActionIdentity(action), action.Destination, action.Action);
-                            break;
-                        case UnitAction.FireBreath:
-                            EmitActionUsed(request, choice!, events);
-                            BeginAttack(state, request.UnitId!,
-                                new(action.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, UnitAction.FireBreath),
-                                    action.Ability!.Definition.Name), events, ActionIdentity(action), action.Destination, action.Action);
-                            break;
-                        case UnitAction.SummonWorker:
-                        case UnitAction.SummonTroll:
-                        case UnitAction.SummonAdjacent:
-                            var summoner = state.Types.Single(t => t.Id == request.TypeId);
-                            var summon = SummoningRules.Placement(summoner, action.Action!.Value)!;
-                            var summonedType = UnitContent.Find(summon.UnitTypeId, state.Types)
-                                ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
-                            var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal)
-                                ? summonedType.Id[..^5] : summonedType.Id;
-                            var number = 1;
-                            while (state.Units.Any(u => u.Id == $"{prefix}-{number}")) number++;
-                            var summonedId = $"{prefix}-{number}";
-                            var source = state.Units.Single(u => u.Id == request.UnitId);
-                            if (!SummoningRules.Candidates(state, source).Contains(action))
-                                throw new InvalidOperationException("Summoning is unavailable.");
-                            var group = new ActivationToken(summonedType.Id, source.SideId);
-                            if (!state.Controllers.Any(c => c.Token == group))
-                                state.Controllers.Add(new(group, state.ControllerFor(new ActivationToken(source.TypeId, source.SideId))));
-                            EmitActionUsed(request, choice!, events);
-                            var spending = action.Action == UnitAction.SummonTroll
-                                ? SummoningRules.SpendDiamond(state, source, summoner.Mechanic<SummonTroll>()!) : null;
-                            state.PlaceUnit(summonedType.Id, summonedId, source.SideId,
-                                action.Destination!, summon.InitialPosture);
-                            if (spending is not null) events.Add(spending);
-                            events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
-                                AbilityName: action.Ability!.Definition.Name, Posture: summon.InitialPosture)
-                                { SourceUnitId = source.Id, SideId = source.SideId, Cell = action.Destination, ActionId = ActionIdentity(action) });
-                            ResolveArrival(state, summonedId, events);
                             break;
                         default:
                             throw new InvalidOperationException("Unsupported action.");
@@ -459,44 +360,14 @@ public static partial class GameEngine
         var from = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var candidates = new List<Candidate>();
-        candidates.AddRange(ResourceRules.Candidates(state, unit));
-        candidates.AddRange(MachineRules.Candidates(state, unit));
-        candidates.AddRange(SummoningRules.Candidates(state, unit));
-        if (type.HasAction(UnitAction.ShootShell) && type.Mechanic<ShootShell>() is { } shell &&
-            state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Shell.Id) >= shell.ShellCost)
-            candidates.AddRange(state.Units.Where(target => AttackRules.EvaluateHostileTargetFrom(state, unit.Id, from, target.Id, shell.Rng)
-                == UnitTargetEvaluation.Possible).Select(target => new Candidate($"shoot-shell:{target.Id}", Action: UnitAction.ShootShell, TargetId: target.Id)));
         if (type.HasAction(UnitAction.NormalAttack))
             candidates.AddRange(state.Units
                 .Where(target => AttackRules.EvaluateFrom(state, unit.Id, from, target.Id)
                     == UnitTargetEvaluation.Possible)
                 .Select(target => new Candidate($"attack:{target.Id}",
                     Action: UnitAction.NormalAttack, TargetId: target.Id)));
-        if (type.HasAction(UnitAction.ClawAttack))
-            candidates.AddRange(state.Units
-                .Where(target => AttackRules.EvaluateApproachFrom(state, unit.Id, from, target.Id, UnitAction.ClawAttack)
-                    == UnitTargetEvaluation.Possible)
-                .Select(target => new Candidate($"claw-attack:{target.Id}", Action: UnitAction.ClawAttack, TargetId: target.Id)));
-        if (type.HasAction(UnitAction.FireBreath))
-        {
-            var targets = state.Units.Where(target =>
-                AttackRules.EvaluateApproachFrom(state, unit.Id, from, target.Id, UnitAction.FireBreath)
-                    == UnitTargetEvaluation.Possible).Select(target => target.Id).ToImmutableArray();
-            if (!targets.IsEmpty)
-                candidates.Add(new Candidate("fire-breath", Action: UnitAction.FireBreath) { TargetIds = targets });
-        }
         candidates.AddRange(ActiveAbilityCandidates(state, unit, AbilityTiming.Action));
-        return candidates.Select(candidate =>
-        {
-            if (candidate.Ability is not null || candidate.Action == UnitAction.NormalAttack) return candidate;
-            var declaration = candidate.TryOpenDoor is not null ? type.Ability<TryOpenDoor>()
-                : candidate.Action is { } action ? type.AbilityFor(action) : null;
-            if (declaration is null) throw new InvalidOperationException("An Ability candidate requires its owning declaration.");
-            var ability = new ResolvedAbility(declaration, AbilitySourceKind.Unit, type.Id, unit.Id, type.DisplayName ?? type.Id);
-            var delimiter = candidate.Key.IndexOf(':');
-            return candidate with { Key = ability.CandidatePrefix + (delimiter < 0 ? "" : candidate.Key[delimiter..]),
-                Ability = ability, AbilityName = declaration.Name };
-        }).Where(candidate => candidate.Ability is null || state.CanUseAbility(unit.Id, candidate.Ability)).ToList();
+        return candidates;
     }
 
     private static IEnumerable<Candidate> FireballCandidates(GameState state, Unit unit, string candidatePrefix)
@@ -545,35 +416,8 @@ public static partial class GameEngine
             .ThenBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.X)
             .ToList();
 
-    private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit)
-    {
-        foreach (var candidate in ActiveAbilityCandidates(state, unit, AbilityTiming.BonusAction)) yield return candidate;
-        foreach (var ability in state.AbilitiesOf(unit.Id).Where(a => a.Definition.Timing == AbilityTiming.BonusAction && state.CanUseAbility(unit.Id, a)))
-        {
-            Candidate Bind(Candidate candidate) => BindAbilityCandidate(ability, candidate);
-            switch (ability.Definition.Mechanic)
-            {
-                case Boost boost when !state.ActionDone && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Mushroom.Id) >= boost.MushroomCost:
-                    yield return Bind(new(ability.CandidatePrefix));
-                    break;
-                case PlaceBananaPeel banana:
-                    foreach (var candidate in BananaPlacementRules.Candidates(state, unit, banana)) yield return Bind(candidate);
-                    break;
-                case Swap:
-                    foreach (var target in AdjacentHostiles(state, unit).Where(t => ExternalMovementRules.CanSwap(state, unit.Id, t.Id)))
-                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", TargetId: target.Id));
-                    break;
-                case Displace displace:
-                    foreach (var target in AdjacentHostiles(state, unit))
-                    foreach (var destination in ExternalMovementRules.Destinations(state, unit.Id, target.Id, displace.MaxMove))
-                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}:{destination.X},{destination.Y}", Destination: destination, TargetId: target.Id));
-                    break;
-                case ReshapeRoom:
-                    yield return Bind(new(ability.CandidatePrefix));
-                    break;
-            }
-        }
-    }
+    private static IEnumerable<Candidate> BonusActionCandidates(GameState state, Unit unit) =>
+        ActiveAbilityCandidates(state, unit, AbilityTiming.BonusAction);
 
     private static bool BonusActionRelevant(GameState state, Unit unit, SelfModifiersMechanic ability)
     {
@@ -692,11 +536,11 @@ public static partial class GameEngine
 
     private static void BeginAttack(GameState state, string attackerId, SharedRollAttack attack,
         ResolutionEvents events, string actionId, Cell? selectedCell, UnitAction? semanticAction = null,
-        AbilityTiming originTiming = AbilityTiming.Action)
+        AbilityTiming originTiming = AbilityTiming.Action, int? rangeOverride = null)
     {
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
-            attack.AttackDice, Results: []) { SemanticAction = semanticAction, OriginTiming = originTiming,
+            attack.AttackDice, Results: []) { SemanticAction = semanticAction, OriginTiming = originTiming, RangeOverride = rangeOverride,
                 IsNormalMelee = semanticAction == UnitAction.NormalAttack && state.EffectiveRngOf(attackerId) == 1 };
         FogOfWar.DiscoverAttack(state, state.AttackInProgress);
         events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
@@ -962,8 +806,7 @@ public static partial class GameEngine
                 (t.MovementPattern is { } pattern && !Enum.IsDefined(pattern)) ||
                 (t.TerrainRestrictedMovement is { } restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
                 t.TerrainRestriction is { IsValid: false } ||
-                t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null ||
-                (t.Mechanic<SummonAdjacent>() is { } summon && UnitContent.Find(summon.UnitTypeId, state.Types) is null)))
+                t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||

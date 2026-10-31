@@ -7,7 +7,7 @@ namespace ProjectDelve.Engine;
 public sealed record ItemDefinition(string Id, string Name)
 {
     public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
-    public string Describe() => string.Join(" ", LocalAbilities.Select(ability => ability.CardEntry())
+    public string Describe(IReadOnlyList<UnitType>? existingTypes = null) => string.Join(" ", LocalAbilities.Select(ability => ability.CardEntry(existingTypes: existingTypes))
         .Select(entry => $"{entry.Category}: {entry.Description}")) + " Consume this Item.";
 }
 public static class ItemCatalog
@@ -114,7 +114,7 @@ public static class ItemQueries
     public static LootCardContent ItemContent(this GameState state, OwnedObject obj)
     {
         var item = state.Item(state.ItemTypeId(obj)!);
-        return new(obj.Kind, item.Name, LootCategory.Item, item.Describe())
+        return new(obj.Kind, item.Name, LootCategory.Item, item.Describe(state.Types))
             { ItemTypeId = item.Id };
     }
 }

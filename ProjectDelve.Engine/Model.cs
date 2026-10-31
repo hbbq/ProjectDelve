@@ -70,6 +70,7 @@ public sealed record AttackContinuation(string AttackerId, string ActionId, stri
     public ImmutableArray<Cell> DefeatedHostileCells { get; init; } = [];
     public bool IsNormalMelee { get; init; }
     public UnitAction? SemanticAction { get; init; }
+    public int? RangeOverride { get; init; }
     // Existing saves predate non-Action Attacks, so omission preserves their origin.
     public AbilityTiming OriginTiming { get; init; } = AbilityTiming.Action;
 }
@@ -520,13 +521,16 @@ public sealed class GameState : IJsonOnDeserialized
         var attack = type.Atk + this.AbilityModifier(unitId, Stat.Atk) + this.WorldModifier(WorldModifierTarget.Atk) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
-        if (type.Mechanic<Fury>() is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
+        if (unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
+        var furies = this.ActivePassives<Fury>(unitId).ToArray();
+        if (furies.Length == 0) return Math.Max(0, attack);
 
         // Derive Fury solely from the evaluated world, including hypothetical copies.
         var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && AreHostile(unit.SideId, u.SideId))
             .Count(enemy => Physical.Figures.SingleOrDefault(f => f.Id == enemy.Id) is { } enemyFigure &&
                 SpatialRules.AreAdjacent(this, unitId, enemy.Id));
-        return Math.Max(0, attack + (adjacentEnemies >= fury.AdjacentEnemyThreshold ? fury.AtkBonus : 0));
+        return Math.Max(0, attack + furies
+            .Where(fury => adjacentEnemies >= fury.AdjacentEnemyThreshold).Sum(fury => fury.AtkBonus));
     }
     // Target-specific Attack Dice, shared by legality, effectiveness and resolution.
     // General EffectiveAtk remains independent of the selected target.
@@ -535,16 +539,17 @@ public sealed class GameState : IJsonOnDeserialized
         var attack = EffectiveAtkOf(attackerId);
         var attacker = Units.Single(u => u.Id == attackerId);
         var target = Units.Single(u => u.Id == targetId);
-        if (Types.Single(t => t.Id == attacker.TypeId).Mechanic<Backstab>() is not { } backstab ||
-            attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || !AreHostile(attacker.SideId, target.SideId))
+        if (attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || !AreHostile(attacker.SideId, target.SideId))
             return Math.Max(0, attack);
+        var backstabs = this.ActivePassives<Backstab>(attackerId).ToArray();
+        if (backstabs.Length == 0) return Math.Max(0, attack);
 
         var targetFigure = Physical.Figures.SingleOrDefault(f => f.Id == targetId);
         if (targetFigure is null) return Math.Max(0, attack);
         var supported = Units.Any(u => u.Id != attackerId && u.CurrentHp > 0 && u.SideId == attacker.SideId &&
             Physical.Figures.SingleOrDefault(f => f.Id == u.Id) is { } friendlyFigure &&
             SpatialRules.AreAdjacent(this, targetId, u.Id));
-        return Math.Max(0, attack + (supported ? backstab.AtkBonus : 0));
+        return Math.Max(0, attack + (supported ? backstabs.Sum(backstab => backstab.AtkBonus) : 0));
     }
     public int EffectiveMovOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :

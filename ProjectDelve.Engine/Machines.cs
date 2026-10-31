@@ -67,7 +67,11 @@ internal static class MachineRules
         Math.Max(Math.Abs(cell.X - machine.Position.X), Math.Abs(cell.Y - machine.Position.Y)) == 1 &&
         AttackRules.HasGeometricLineOfSight(board, cell, machine.Position, machine.Id);
 
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit actor)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit actor) => state.AbilitiesOf(actor.Id)
+        .Where(ability => ability.Definition.Mechanic is GiveResource or Operate && state.CanUseAbility(actor.Id, ability))
+        .SelectMany(ability => Candidates(state, actor, ability));
+
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit actor, ResolvedAbility ability)
     {
         var type = state.Types.Single(t => t.Id == actor.TypeId);
         var board = state.Physical.Board;
@@ -77,18 +81,16 @@ internal static class MachineRules
             var source = type.Footprint == Footprint.OneByOne ? null : cell;
             var suffix = source is null ? "" : $":{cell.X},{cell.Y}";
             var resource = state.Resources.SingleOrDefault(r => r.Position == cell);
-            if (type.Ability<GiveResource>() is { } give && resource is not null &&
+            if (ability.Definition.Mechanic is GiveResource && resource is not null &&
                 machine.StoredQuantity(resource.Type.Id) < Capacity(machine, resource.Type.Id))
             {
-                var ability = new ResolvedAbility(give, AbilitySourceKind.Unit, type.Id, actor.Id);
                 yield return new($"{ability.CandidatePrefix}:machine:{machine.Id}{suffix}", Destination: source,
                     Action: UnitAction.GiveResource) { MachineId = machine.Id, Ability = ability };
             }
-            if (type.Ability<Operate>() is { } operate && resource is null &&
+            if (ability.Definition.Mechanic is Operate && resource is null &&
                 board.EdgeBetween(cell, machine.Position).Passable() &&
                 machine.Type.Operation.Costs.All(c => machine.StoredQuantity(c.Type.Id) >= c.Quantity))
             {
-                var ability = new ResolvedAbility(operate, AbilitySourceKind.Unit, type.Id, actor.Id);
                 yield return new($"{ability.CandidatePrefix}:{machine.Id}{suffix}", Destination: source,
                     Action: UnitAction.Operate) { MachineId = machine.Id, Ability = ability };
             }
@@ -97,7 +99,7 @@ internal static class MachineRules
 
     internal static RulesEvent Resolve(GameState state, string actorId, Candidate action, IRandomProvider random)
     {
-        if (!Candidates(state, state.Units.Single(u => u.Id == actorId)).Contains(action))
+        if (!Candidates(state, state.Units.Single(u => u.Id == actorId), action.Ability!).Any(c => c.Key == action.Key))
             throw new InvalidOperationException("Machine interaction is unavailable.");
         var machines = state.Physical.Board.Machines;
         var index = machines.FindIndex(m => m.Id == action.MachineId);

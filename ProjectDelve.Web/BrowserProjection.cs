@@ -333,7 +333,7 @@ public static class BrowserProjection
                 PlacementCells = c.Destination is null ? [] :
                     c.Kind == ActivationChoiceKind.Move
                         ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
-                        : c.Action is { } summonAction && SummoningRules.Placement(type, summonAction) is { } summon
+                        : c.Ability is { } summonAbility && SummoningRules.Placement(summonAbility.Definition.Mechanic) is { } summon
                             ? FootprintGeometry.PlacementCells(state, summon.UnitTypeId, c.Destination)
                             : c.Ability?.Definition.Mechanic is Displace
                                 ? FootprintGeometry.OccupiedCells(state, c.TargetId!, c.Destination)

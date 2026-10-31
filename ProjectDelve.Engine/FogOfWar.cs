@@ -268,9 +268,7 @@ public static class FogOfWar
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
         // Attack semantics are explicit continuation data, independent of its Ability key.
         var semantic = attack.SemanticAction;
-        var range = semantic == UnitAction.ShootShell
-            ? state.Types.Single(t => t.Id == attacker.TypeId).Mechanic<ShootShell>()!.Rng
-            : semantic == UnitAction.ClawAttack ? 1 : state.EffectiveRngOf(attacker.Id);
+        var range = attack.RangeOverride ?? (semantic == UnitAction.ClawAttack ? 1 : state.EffectiveRngOf(attacker.Id));
         // Fireball has an established direct source-to-selected-Cell path. Its explosion
         // has no trajectory. Other direct Attacks use each established target line.
         var endpoints = attack.SelectedCell is { } cell

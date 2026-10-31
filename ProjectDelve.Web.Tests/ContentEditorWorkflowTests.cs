@@ -129,6 +129,90 @@ public sealed class ContentEditorWorkflowTests
         Assert.Equal(reward.Id, Assert.Single(definition.Loot!.Composition!).LootCardId);
     }
 
+    [Fact]
+    public async Task KnightlyBootsLootGrantsTwoPhysicalSummonUsesWithPlacementPreviewAndPendingResume()
+    {
+        await using var host = await Host.Start();
+        var boots = await host.Validate<EquipmentDefinition>("equipment", new EquipmentDefinition("knightly-boots", "Knightly Boots")
+        { LocalAbilities = [new("call", "Call a Knight", AbilityTiming.Action,
+            new SummonAdjacent(UnitTypeIds.HobbyKnight, Posture.Lying)) { Usage = new(2) }] });
+        var reward = await host.Validate<LootCardDefinition>("lootCards", new LootCardDefinition("knightly-gift", "Knightly Gift")
+        { EquipmentTypeId = boots.Id }, new() { EquipmentTypes = [boots] });
+        var bearer = new UnitType("knightly-bearer", 1, 0, 0, 0, 4)
+        {
+            CanHaveEquipment = true, Unique = true,
+            LocalAbilities =
+            [
+                new("practice", "Practice Time", AbilityTiming.BonusAction, new ExtraActionsMechanic(2)),
+                new("rest", "Rest", AbilityTiming.Action, new HealMechanic(1))
+            ]
+        };
+        var patient = new UnitType("knightly-patient", 0, 0, 0, 0, 2) { Unique = true };
+        var scenario = Scenario.Define(Scenario.Map(5, 4),
+            [
+                Scenario.Group(bearer.Id, "blue", ControllerKind.Human, Scenario.At(1, 1, unitId: HeroId)),
+                Scenario.Group(patient.Id, "blue", ControllerKind.Human, Scenario.At(3, 1, initialHp: 1, unitId: FriendId))
+            ]) with
+        {
+            UnitTypes = [bearer, patient], EquipmentTypes = [boots], LootCardDefinitions = [reward],
+            Loot = new() { Composition = [new(Count: 1) { LootCardId = reward.Id }] },
+            LootMarkers = [new("boots-marker", new(2, 1))],
+            Objectives = [new("blue", ScenarioObjective.NoObjective)]
+        };
+        using var exported = await host.Client.PostAsync("/api/designer/export", JsonBody(ScenarioDefinitionJson.ToJson(scenario)));
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        var game = await host.Command("scenario/import", new { expectedRevision = 0, transport });
+        game = await host.Command("preferences", new { expectedRevision = game.Revision, autoChooseSingleRelevantChoice = false });
+        game = await host.Command("round", new { expectedRevision = game.Revision });
+        if (game.Result.NextInput!.Kind == DecisionKind.SelectUnit)
+            game = await host.Command("decision", new { expectedRevision = game.Revision, candidateKey = HeroId });
+        var move = game.Result.NextInput!.Candidates.Single(candidate => candidate.Kind == ActivationChoiceKind.Move && candidate.Destination == new Cell(2, 1));
+        game = await host.Command("decision", new { expectedRevision = game.Revision, candidateKey = move.Key });
+        var owned = Assert.Single(game.Result.State.Units.Single(unit => unit.Id == HeroId).Inventory);
+        Assert.Equal(boots.Id, owned.EquipmentTypeId);
+        Assert.Equal(reward.Id, owned.LootCardId);
+        Assert.Empty(game.Result.State.LootMarkers);
+        Assert.Equal(new AbilityUses(2, 2), Assert.Single(game.Presentation.Cards[HeroId].Entries.Where(entry => entry.SourceTypeId == boots.Id)).Uses);
+        var practice = Assert.Single(game.Result.NextInput!.Candidates, candidate => candidate.Ability?.Key == "practice");
+        game = await host.Command("decision", new { expectedRevision = game.Revision, candidateKey = practice.Key });
+
+        Candidate Summon(GameResponse response) => response.Result.NextInput!.Candidates.First(candidate => candidate.Ability is
+            { SourceKind: AbilitySourceKind.Equipment, Key: "call" });
+        var first = Summon(game);
+        var preview = Assert.Single(game.Presentation.Decision!.Candidates, candidate => candidate.Key == first.Key);
+        Assert.Equal(new[] { first.Destination! }, preview.PlacementCells);
+        game = await host.Command("decision", new { expectedRevision = game.Revision, candidateKey = first.Key });
+        Assert.Equal(new AbilityUses(2, 1), Assert.Single(game.Presentation.Cards[HeroId].Entries.Where(entry => entry.SourceTypeId == boots.Id)).Uses);
+
+        var authoritative = host.Game.Snapshot().Result.State;
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(authoritative, Json), Json)!;
+        using var resumed = new PlaytestGame(new Dice(), restored);
+        var afterResume = resumed.SetRelevanceAutoChoice(0, false);
+        var second = Summon(game);
+        Assert.Contains(afterResume.Result.NextInput!.Candidates, candidate => candidate.Key == second.Key);
+        Assert.Equal(owned.Id, second.Ability!.SourceInstanceId);
+        afterResume = resumed.Decide(afterResume.Revision, second.Key);
+        game = await host.Command("decision", new { expectedRevision = game.Revision, candidateKey = second.Key });
+        Assert.Equal(JsonSerializer.Serialize(host.Game.Snapshot().Result.State, Json), JsonSerializer.Serialize(afterResume.Result.State, Json));
+
+        var knights = game.Result.State.Units.Where(unit => unit.TypeId == UnitTypeIds.HobbyKnight).ToArray();
+        Assert.Equal(2, knights.Length);
+        Assert.All(knights, unit =>
+        {
+            Assert.Equal("blue", unit.SideId);
+            Assert.Equal(Posture.Lying, game.Result.State.Physical.Figures.Single(figure => figure.Id == unit.Id).Posture);
+        });
+        Assert.Equal(ControllerKind.Human, game.Result.State.ControllerFor(new ActivationToken(UnitTypeIds.HobbyKnight, "blue")));
+        Assert.DoesNotContain(game.Result.State.Bag, token => token.TypeId == UnitTypeIds.HobbyKnight);
+        Assert.Equal(1, game.Result.State.ActionsRemaining);
+        Assert.Contains(game.Result.NextInput!.Candidates, candidate => candidate.Ability?.Key == "rest" && candidate.TargetId == FriendId);
+        Assert.DoesNotContain(game.Result.NextInput!.Candidates, candidate => candidate.Ability?.Key == "call");
+        Assert.Equal(new AbilityUses(2, 0), Assert.Single(game.Presentation.Cards[HeroId].Entries.Where(entry => entry.SourceTypeId == boots.Id)).Uses);
+        Assert.Equal(owned.Id, Assert.Single(game.Result.State.Units.Single(unit => unit.Id == HeroId).Inventory).Id);
+        AssertContent(boots, reward, ScenarioDefinitionTransport.Decode(transport));
+    }
+
     private static ScenarioDefinition Fixture(EquipmentDefinition? equipment = null, LootCardDefinition? reward = null)
     {
         var friend = new UnitType("content-patient-type", 0, 0, 0, 0, 4) { DisplayName = "Practice patient", Unique = true };
