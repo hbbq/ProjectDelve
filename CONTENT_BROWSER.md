@@ -1,7 +1,9 @@
 # Content Browser
 
 Open **Content** from the Web header or **Explore game content** from Home.
-The read-only browser exposes the typed definitions used by Engine. Search by
+The browser exposes the typed definitions used by Engine. Canonical content is
+read-only; [Content Designer](CONTENT_DESIGNER.md) can create or edit Equipment and
+Loot Cards in an explicitly attached scenario draft. Search by
 display name or Type ID, filter by category or origin, and select a definition.
 Reference links open the related definition; **Previous definition** returns
 to the previous selection and filters. At narrow widths, **All results** returns
@@ -35,11 +37,13 @@ recipient rule is fixed. The browser does not make that rule configurable.
 
 ## Scenario context
 
-In Designer, choose **Inspect content** to inspect a snapshot of the current draft.
-This validates and resolves the snapshot using the existing scenario pipeline.
-The context selector switches between canonical content and that inspected draft.
-Editing the draft afterward requires another **Inspect content** to refresh it.
-Returning to Designer preserves the workspace.
+In Designer, choose **Inspect content** to attach the current draft. The focused
+draft-content view validates Equipment, Items and Loot dependencies without requiring
+a complete board. The context selector also offers canonical content and **Full
+scenario inspection**, which uses the existing complete-scenario resolution pipeline.
+Returning to Designer preserves the workspace. Applied content edits participate in
+Designer history and recovery; reopening content after draft changes refreshes its
+context. Saves from stale editor sessions are rejected.
 
 Scenario results identify canonical, scenario-local, scenario override and resolved
 entries. Units are limited to the scenario's declared types plus canonical types
@@ -62,6 +66,8 @@ authoring boundary as Designer, not a way to inspect hidden running-game state.
 - `POST /api/content/inspect` accepts a full scenario JSON document and returns
   its scoped effective catalog. Invalid input returns HTTP 400 with diagnostic
   message, code and available field path, without substituting canonical content.
+- Definition-only context, validation and preview endpoints are documented in
+  [Content Designer](CONTENT_DESIGNER.md).
 
 `ContentBrowserCatalog` projects Engine catalogs into entries, structured fields,
 owned Ability cards and references. Mechanic schemas and reference annotations
@@ -76,10 +82,11 @@ the viewer consumes their descriptor, including nested parameter metadata.
 
 ## Milestone limits
 
-- Inspection is read-only. There is no content editing, variant creation,
+- Canonical and full-scenario inspection are read-only. Equipment and Loot editing
+  uses an explicit draft destination; other families remain read-only. There is no
   inheritance, runtime mutation or canonical JSON catalog migration.
-- Scenario inspection currently requires a valid complete scenario, including
-  board and setup validation. Incomplete drafts report validation diagnostics.
+- Full scenario inspection requires a valid complete scenario, including board
+  and setup validation. Focused content editing only requires valid dependencies.
 - Resources, Machines and Cell Markers expose their existing typed definitions;
   this milestone does not introduce new catalogs or effect models for them.
 - Fixed behavior is described by Engine metadata and generated rules text, not

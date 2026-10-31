@@ -12,6 +12,7 @@ public sealed class StrongholdGenerationCodeTests
     [InlineData("Fun", 42UL)]
     [InlineData("Experimental", 0x0123456789abcdefUL)]
     [InlineData("FarOut", ulong.MaxValue)]
+    [InlineData("All", 42UL)]
     public void RecipesPreserveEveryStrongholdParameterAndCanonicalSeed(string preset, ulong seed)
     {
         var expected = new GenerationCode(Width: 50, Height: 18, Profile: "OS", Openness: 3,

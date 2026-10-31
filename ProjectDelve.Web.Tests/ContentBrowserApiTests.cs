@@ -70,6 +70,55 @@ public sealed class ContentBrowserApiTests
     }
 
     [Fact]
+    public async Task AllLootPresetLinksEveryCanonicalCardAndScenarioDeckUsesEffectiveLocalCardsExactlyOnce()
+    {
+        await using var host = await Host.Start();
+        var canonical = await host.Canonical();
+        var all = Entry(canonical, "lootPresets", "All");
+        var canonicalIds = LootCardCatalog.All.Select(card => card.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        Assert.True(all.Definition.GetProperty("isDynamic").GetBoolean());
+        Assert.Equal(canonicalIds, CardIds(all));
+        Assert.Equal(canonicalIds.Select(id => "lootCards:" + id), all.References.Select(reference => reference.TargetKey));
+        Assert.All(all.References, reference => Assert.True(reference.Exists));
+        Assert.All(all.Definition.GetProperty("composition").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("count").GetInt32()));
+
+        var scenario = Fixture() with
+        {
+            LootCardDefinitions =
+            [
+                new(canonicalIds[0], "Scoped replacement card") { Immediate = new HealCollectorMechanic(7) },
+                new("browser-orchard", "Orchard card") { Immediate = new HealCollectorMechanic(3) }
+            ],
+            Loot = new() { Preset = "All" }
+        };
+        var original = ScenarioDefinitionJson.ToJson(scenario);
+        var scoped = await host.Inspect(scenario);
+        var local = scoped.Entries.Single(entry => entry.Family == "lootCards" && entry.Name == "Scoped replacement card");
+        Assert.NotEqual(canonicalIds[0], local.Id);
+        Assert.Equal(canonicalIds[0], local.AuthoredDefinition!.Value.GetProperty("id").GetString());
+        var scopedAll = Entry(scoped, "lootPresets", "All");
+        var actualDeck = Entry(scoped, "lootPresets", "scenario");
+        var expectedIds = canonicalIds.Where(id => id != canonicalIds[0]).Append(local.Id).Append("browser-orchard")
+            .OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        Assert.Equal("resolved", scopedAll.Origin);
+        foreach (var entry in new[] { scopedAll, actualDeck })
+        {
+            Assert.Equal(expectedIds, CardIds(entry).OrderBy(id => id, StringComparer.Ordinal));
+            Assert.All(entry.Definition.GetProperty("composition").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("count").GetInt32()));
+            Assert.Equal(expectedIds.Select(id => "lootCards:" + id), entry.References.Select(reference => reference.TargetKey).OrderBy(key => key, StringComparer.Ordinal));
+            Assert.All(entry.References, reference => Assert.True(reference.Exists));
+            Assert.DoesNotContain(entry.References, reference => reference.TargetKey == "lootCards:" + canonicalIds[0]);
+        }
+        Assert.Equal("All", actualDeck.AuthoredDefinition!.Value.GetProperty("preset").GetString());
+        Assert.Equal(original, ScenarioDefinitionJson.ToJson(scenario));
+        Assert.Equal(canonicalIds, CardIds(Entry(await host.Canonical(), "lootPresets", "All")));
+        return;
+
+        static string?[] CardIds(ContentBrowserEntry entry) => entry.Definition.GetProperty("composition").EnumerateArray()
+            .Select(row => row.GetProperty("lootCardId").GetString()).ToArray();
+    }
+
+    [Fact]
     public async Task ScenarioCatalogUsesScopedNamesPayloadsLootOverridesAndOwnerLocalKeys()
     {
         await using var host = await Host.Start();

@@ -31,9 +31,13 @@ public static class EquipmentCatalog
         for (var index = 0; index < definitions.Count; index++)
         {
             var d = definitions[index];
-            if (d is null || string.IsNullOrWhiteSpace(d.Id) || string.IsNullOrWhiteSpace(d.Name) || !ids.Add(d.Id))
-                throw new ArgumentException("Equipment Types require unique nonblank IDs and names.");
-
+            var path = $"equipmentTypes[{index}]";
+            if (d is null)
+                throw ScenarioValidationContext.At(new ArgumentException("An Equipment Type definition is required."), path);
+            if (string.IsNullOrWhiteSpace(d.Id) || !ids.Add(d.Id))
+                throw ScenarioValidationContext.At(new ArgumentException("Equipment Types require unique nonblank IDs."), path + ".id");
+            if (string.IsNullOrWhiteSpace(d.Name))
+                throw ScenarioValidationContext.At(new ArgumentException("Equipment Types require nonblank names."), path + ".name");
         }
     }
     public static string? LegacyTypeId(LootCardKind kind) => kind switch

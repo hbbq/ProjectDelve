@@ -192,9 +192,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const custom = draft.definition.unitTypes ?? [];
     const body = { unitTypes: custom, terrainTypes: draft.definition.terrainTypes ?? [],
       terrainAssemblies: draft.definition.terrainAssemblies ?? [], fixedComponentTypes: draft.definition.fixedComponentTypes ?? [],
+      lootCardDefinitions: draft.definition.lootCardDefinitions ?? [],
       units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
+    const lootSignature = JSON.stringify(body.lootCardDefinitions);
     const signature = JSON.stringify([custom, body.terrainTypes, body.terrainAssemblies, body.fixedComponentTypes,
-      body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds]);
+      body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds, lootSignature]);
     if (signature === metadataSignature) return;
     metadataSignature = signature; draft.effectiveUnitIds = null;
     draft.effectiveTerrainMetadata = null;
@@ -209,8 +211,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       draft.effectiveMetadata = result.unitTypes; draft.effectiveTerrainMetadata = result.terrainDefinitions;
       draft.effectiveFixedComponentMetadata = result.fixedComponentDefinitions;
       draft.effectiveProductionDescriptions = result.productionDescriptions;
+      if (Array.isArray(result.lootPresets)) { draft.effectiveLootPresets = result.lootPresets; draft.effectiveLootSignature = lootSignature; }
       draft.effectiveUnitIds = result.unitIds; render();
-    }).catch(() => { if (sequence === metadataSequence && (custom.length || body.terrainTypes.length || body.terrainAssemblies.length || body.fixedComponentTypes.length)) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only. Validate for engine diagnostics."; });
+    }).catch(() => { if (sequence === metadataSequence && (custom.length || body.terrainTypes.length || body.terrainAssemblies.length || body.fixedComponentTypes.length || body.lootCardDefinitions.length)) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only and dynamic Loot cannot be copied. Validate for engine diagnostics."; });
   }
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
   function syncImportedTypes() {
@@ -330,23 +333,29 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const selected = custom ? 'Custom' : draft.definition.loot?.preset ?? catalog.defaultLootPreset ?? 'Classic';
     const selector = field(lootForm, 'Deck', selected, { entries: [...(catalog.lootPresets ?? []).map(p => ({value:p.id,label:p.name})), {value:'Custom',label:'Custom'}] });
     selector.id = 'designer-loot-preset';
-    selector.addEventListener('change', () => { delete buffers['loot-deck']; commit(() => selector.value === 'Custom' ? draft.copyLootToCustom() : draft.setLootPreset(selector.value)); });
+    selector.addEventListener('change', () => {
+      if (selector.value === 'Custom' && !draft.lootCompositionReady()) { selector.value = selected; ui.status.textContent = 'Wait for the effective Loot catalog before copying this preset.'; return; }
+      delete buffers['loot-deck']; commit(() => selector.value === 'Custom' ? draft.copyLootToCustom() : draft.setLootPreset(selector.value));
+    });
     const preset = catalog.lootPresets?.find(p => p.id === selected);
     lootForm.append(element('p', custom ? 'Custom composition. Card rules stay live; quantities belong to this scenario. An empty deck disables drops.' : 'Live preset. New games use its current composition; saving does not copy its cards.'));
     if (preset) lootForm.append(element('p', preset.description));
     const rows = draft.lootComposition();
-    lootForm.append(element('p', `${rows.reduce((sum,r) => sum + r.count,0)} cards. Each unopened marker reserves one card. No reshuffle.`));
+    lootForm.append(element('p', draft.lootCompositionReady() ? `${rows.reduce((sum,r) => sum + r.count,0)} cards. Each unopened marker reserves one card. No reshuffle.` : 'Resolving the effective Loot catalog…'));
     if (custom) {
       const counts = draft.lootCardCatalog().map(c => ({ reference:c.reference, input:field(lootForm, c.reference.equipmentTypeId != null ? `${c.name} (Equipment Type)` : c.reference.itemTypeId != null ? `${c.name} (Item Type)` : c.name, rows.find(r => draft.referenceKey(r) === draft.referenceKey(c.reference))?.count ?? 0, {type:'number'}) }));
       lootForm.append(element('button', 'Apply Custom Deck'));
       lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({...c.reference,count:Number(c.input.value)})))); });
     } else {
-      const multiplier = field(lootForm, 'Deck multiplier', draft.definition.loot?.presetMultiplier ?? 1, {type:'number'});
-      multiplier.id = 'designer-loot-multiplier'; multiplier.min = '1'; multiplier.max = '100'; multiplier.step = '1';
-      multiplier.addEventListener('change', () => commit(() => draft.setLootMultiplier(Number(multiplier.value))));
+      if (!preset?.isDynamic) {
+        const multiplier = field(lootForm, 'Deck multiplier', draft.definition.loot?.presetMultiplier ?? 1, {type:'number'});
+        multiplier.id = 'designer-loot-multiplier'; multiplier.min = '1'; multiplier.max = '100'; multiplier.step = '1';
+        multiplier.addEventListener('change', () => commit(() => draft.setLootMultiplier(Number(multiplier.value))));
+      }
       const list = element('ul'); list.className = 'loot-preset-contents';
       for (const row of rows) list.append(element('li', `${draft.objectName(row)} \u00d7${row.count}`));
-      lootForm.append(list, button('Copy to Custom', () => commit(() => draft.copyLootToCustom())));
+      const copy = button('Copy to Custom', () => commit(() => draft.copyLootToCustom())); copy.disabled = !draft.lootCompositionReady();
+      lootForm.append(list, copy);
       lootForm.addEventListener('submit', event => event.preventDefault());
     }
     document.getElementById('designer-loot-editor').replaceChildren(lootForm);
@@ -703,7 +712,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const position = { ...selection.position };
       form.append(element("p", `Cell (${position.x}, ${position.y})`));
       const lootCount = field(form, 'Unopened Loot markers', (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, position)).length, { type: 'number' });
-      form.append(button('Apply Loot markers', () => commit(() => draft.setLootMarkers(position, Number(lootCount.value)))));
+      form.append(button('Apply Loot markers', () => commit(() => draft.setLootMarkers(position, Number(lootCount.value)), [form.dataset.formKey])));
       objectEditor(form, (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, position)).map(g => g.object), { position });
       const resource = draft.definition.resources?.find(row => sameCell(row.position, position));
       let resourceType = null;
@@ -734,6 +743,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const coal = draft.legacyTerrainKind(draft.terrainSelectionAt(position)) === "Lava"
         ? field(form, "Coal generation", explicit?.coalGeneration === false ? "Off" : "On", { entries: ["On", "Off"] }) : null;
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
+        const markerCount = Number(lootCount.value);
+        if (markerCount !== (draft.definition.lootMarkers ?? []).filter(marker => sameCell(marker.position, position)).length)
+          draft.setLootMarkers(position, markerCount);
         const defaultReference = draft.defaultTerrainSelection();
         const defaultKind = draft.terrainMetadata(defaultReference)?.legacyKind ?? defaultReference;
         const kind = terrain.value || (coal?.value === "Off" && defaultKind === "Lava" ? defaultReference : null);
@@ -1087,8 +1099,33 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       ui.status.textContent = "Content Browser is loading. Please retry.";
       return;
     }
-    void globalThis.delveInspectContent(draft.snapshot(), ui.title.value);
+    void globalThis.delveInspectContent(draft.snapshot(), ui.title.value, contentDestination());
   });
+
+  // A persistence destination for content definitions, not part of their identity.
+  // The form/validator can be reused by another destination without scenario data.
+  function contentDestination() {
+    const revision = () => `${draft.revision}:${librarySource?.id ?? "unsaved"}`;
+    const snapshot = () => ({ definition: draft.snapshot(), name: ui.title.value });
+    return {
+      get label() { return `Scenario draft · ${ui.title.value}`; },
+      getRevision: revision,
+      getSnapshot: snapshot,
+      getContext: () => structuredClone({
+        equipmentTypes: draft.definition.equipmentTypes ?? [],
+        itemTypes: draft.definition.itemTypes ?? [],
+        lootCardDefinitions: draft.definition.lootCardDefinitions ?? []
+      }),
+      save: async ({ family, definition, existingId = null, expectedRevision }) => {
+        if (expectedRevision !== revision()) throw new Error("The scenario draft changed while this definition was open. Cancel and reopen it from the current draft.");
+        if (pendingPlay || libraryOpening || libraryBusy || !ready())
+          throw new Error("Finish the pending Designer operation before saving this definition.");
+        if (!commit(() => draft.applyContentDefinition(family, definition, existingId)))
+          throw new Error("The definition could not be applied. The scenario draft was retained.");
+        return snapshot();
+      }
+    };
+  }
   ui.export.addEventListener("click", async () => {
     if (!ready()) return;
     const result = await requests.run("export", draft.snapshot());

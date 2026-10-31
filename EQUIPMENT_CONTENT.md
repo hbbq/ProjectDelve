@@ -1,6 +1,6 @@
 # Equipment content
 
-Equipment owns complete local Ability declarations, using the same typed model as Units and Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for the shared model and [MECHANIC_CATALOG.md](MECHANIC_CATALOG.md) for supported source, timing and usage combinations. [World Card content](WORLD_CARD_CONTENT.md) and [Loot content](LOOT_CONTENT.md) have their own typed definitions.
+Equipment owns complete local Ability declarations, using the same typed model as Units and Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for the shared model and [MECHANIC_CATALOG.md](MECHANIC_CATALOG.md) for supported source, timing and usage combinations. [World Card content](WORLD_CARD_CONTENT.md) and [Loot content](LOOT_CONTENT.md) have their own typed definitions. [Content Designer](CONTENT_DESIGNER.md) provides form-based scenario-local Equipment and Loot authoring using these same declarations.
 
 ## Playable example: Local Equipment - Fitting Room
 
@@ -123,4 +123,4 @@ Mechanical descriptions and inventory metadata come from the resolved definition
 
 ## Scope
 
-The model adds no Equipment slots, equip/unequip actions, per-instance charges, generic effect interpreter, trigger language or scripting support. Specialized Unit-only mechanics remain restricted by their catalog profiles. Runtime content editing, canonical JSON export and a Content Designer remain future work.
+The model adds no Equipment slots, equip/unequip actions, per-instance charges, generic effect interpreter, trigger language or scripting support. Specialized Unit-only mechanics remain restricted by their catalog profiles. Content Designer supports scenario-local Equipment authoring; runtime content editing and canonical JSON export remain future work.

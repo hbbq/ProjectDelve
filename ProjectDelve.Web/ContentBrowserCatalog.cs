@@ -51,6 +51,25 @@ public static class ContentBrowserCatalog
 
     public static ContentBrowserResponse Canonical() => Build(null, null);
 
+    // Resolved, validated dependencies only: no scenario or runtime state.
+    public static ContentBrowserResponse Definitions(IReadOnlyList<EquipmentDefinition> equipment,
+        IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot)
+    {
+        List<ContentBrowserEntry> entries = [];
+        entries.AddRange(equipment.Select(type => EquipmentEntry(type, EquipmentCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local")));
+        entries.AddRange(items.Select(type => ItemEntry(type, ItemCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local")));
+        entries.AddRange(loot.Select((type, index) => LootEntry(type, index < LootCardCatalog.All.Count ? "canonical" : "local") with
+        {
+            Availability = index >= LootCardCatalog.All.Count && LootCardCatalog.All.Any(canonical => canonical.Id == type.Id)
+                ? "legacy-collision" : null
+        }));
+        entries.AddRange(MechanicCatalog.All.Select(MechanicEntry));
+        entries = ResolveReferences(entries);
+        return new(new("definitions", "Draft content"),
+            Families.Where(family => family.Id is "equipment" or "items" or "lootCards" or "mechanics")
+                .Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(entry => entry.Family == family.Id))).ToArray(), entries, []);
+    }
+
     public static ContentBrowserResponse Scenario(ScenarioDefinition definition)
     {
         // This state is detached, remains before Round Start, and is never returned.
@@ -101,12 +120,9 @@ public static class ContentBrowserCatalog
             entries.Add(entry);
         }
         foreach (var type in equipment)
-            entries.Add(Entry("equipment", type.Id, type.Name, type, Local(source?.EquipmentTypes?.Any(t => t.Id == type.Id) == true),
-                AbilitySummary(type.LocalAbilities.Length), type.LocalAbilities, AbilityReferences(type.LocalAbilities), units));
+            entries.Add(EquipmentEntry(type, Local(source?.EquipmentTypes?.Any(t => t.Id == type.Id) == true), units));
         foreach (var type in items)
-            entries.Add(Entry("items", type.Id, type.Name, type, Local(source?.ItemTypes?.Any(t => t.Id == type.Id) == true),
-                type.Describe(),
-                type.LocalAbilities, AbilityReferences(type.LocalAbilities), units));
+            entries.Add(ItemEntry(type, Local(source?.ItemTypes?.Any(t => t.Id == type.Id) == true), units));
         for (var index = 0; index < loot.Count; index++)
         {
             var type = loot[index];
@@ -114,17 +130,24 @@ public static class ContentBrowserCatalog
             // ID collision; retain the exact authored identity alongside the result.
             var localIndex = index - LootCardCatalog.All.Count;
             var authored = localIndex >= 0 ? source?.LootCardDefinitions?[localIndex] : null;
-            List<ContentBrowserReference> refs = [];
-            if (type.EquipmentTypeId is { } equipmentId) refs.Add(Reference("Equipment reward", "equipment", equipmentId));
-            if (type.ItemTypeId is { } itemId) refs.Add(Reference("Item reward", "items", itemId));
-            if (type.Immediate is { } immediate) refs.AddRange(MechanicReferences(immediate));
-            entries.Add(Entry("lootCards", type.Id, type.Name, type, Local(authored is not null),
-                type.Description ?? type.Category.ToString(), references: refs) with
+            entries.Add(LootEntry(type, Local(authored is not null)) with
             { AuthoredDefinition = authored is not null && authored.Id != type.Id ? Element(authored) : null });
         }
         foreach (var preset in LootPresets.All)
-            entries.Add(Entry("lootPresets", preset.Id, preset.Name, preset, "canonical", preset.Description,
-                references: LootReferences(new LootSettings { Composition = preset.Composition.ToList() }.ResolveObjects())));
+        {
+            var composition = LootPresets.Resolve(preset.Id, LootCardCatalog.Effective(source?.LootCardDefinitions));
+            // Dynamic selection uses authored IDs and local precedence. References
+            // in this resolved view follow the historical runtime aliases, if any.
+            if (preset.IsDynamic && source?.LootCardDefinitions is { } local)
+                composition = composition.Select(row =>
+                {
+                    var localIndex = local.FindIndex(card => card.Id == row.LootCardId);
+                    return localIndex < 0 ? row : row with { LootCardId = loot[LootCardCatalog.All.Count + localIndex].Id };
+                }).ToArray();
+            entries.Add(Entry("lootPresets", preset.Id, preset.Name, preset with { Composition = composition },
+                preset.IsDynamic && source is not null ? "resolved" : "canonical", preset.Description,
+                references: LootReferences(new LootSettings { Composition = composition.ToList() }.ResolveObjects(loot))));
+        }
         if (source is not null && state is not null)
             entries.Add(Entry("lootPresets", "scenario", "Scenario Loot composition",
                 new { composition = ResolvedLootComposition(state.LootDeck!.DrawPile) }, "resolved", "Resolved initial Loot composition.",
@@ -186,19 +209,7 @@ public static class ContentBrowserCatalog
             });
         }
         foreach (var mechanic in MechanicCatalog.All)
-            entries.Add(Entry("mechanics", mechanic.Id, mechanic.Name, mechanic, "canonical", mechanic.Description.Template) with
-            {
-                Mechanic = mechanic,
-                Sections =
-                [
-                    new("Configurable parameters", [new("Parameters", Element(mechanic.Parameters))]),
-                    new("Fixed Engine behavior", Fields(Element(new
-                    {
-                        mechanic.Family, mechanic.Profiles, mechanic.Context, mechanic.Targeting,
-                        mechanic.Dependencies, mechanic.Grantable, mechanic.MaxPerSource, mechanic.SerializedBinding, mechanic.Description
-                    })))
-                ]
-            });
+            entries.Add(MechanicEntry(mechanic));
 
         var machineTypes = MachineTypes.All.Concat(source?.Machines?.Select(m => m.Type) ?? []).DistinctBy(type => Element(type).GetRawText()).ToList();
         var resourceTypes = ResourceTypes.All.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
@@ -224,6 +235,13 @@ public static class ContentBrowserCatalog
         foreach (var type in CellMarkerTypes.All)
             entries.Add(Entry("cellMarkers", type.Id, type.Name, type, "canonical", CellMarkerTypes.Describe(type)));
 
+        entries = ResolveReferences(entries);
+        return new(new(source is null ? "canonical" : "scenario", source is null ? "Canonical content" : "Scenario context"),
+            Families.Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(e => e.Family == family.Id))).ToArray(), entries, []);
+    }
+
+    private static List<ContentBrowserEntry> ResolveReferences(List<ContentBrowserEntry> entries)
+    {
         // Inline Machine/Resource definitions can share an ID while carrying
         // distinct values. Preserve each definition rather than dropping one.
         HashSet<string> keys = new(StringComparer.Ordinal);
@@ -234,7 +252,7 @@ public static class ContentBrowserCatalog
             for (var variant = 2; !keys.Add(key); variant++) key = $"{entry.Key}:variant:{variant}";
             entries[index] = entry with { Key = key };
         }
-        entries = entries.Select(entry => entry with
+        return entries.Select(entry => entry with
         {
             References = entry.References.DistinctBy(reference => (reference.Label, reference.TargetKey, reference.DefinitionIdentity))
                 .Select(reference =>
@@ -245,9 +263,35 @@ public static class ContentBrowserCatalog
                     return reference with { TargetKey = target?.Key ?? reference.TargetKey, Exists = target is not null };
                 }).ToArray()
         }).ToList();
-        return new(new(source is null ? "canonical" : "scenario", source is null ? "Canonical content" : "Scenario context"),
-            Families.Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(e => e.Family == family.Id))).ToArray(), entries, []);
     }
+
+    private static ContentBrowserEntry EquipmentEntry(EquipmentDefinition type, string origin, IReadOnlyList<UnitType>? units = null) =>
+        Entry("equipment", type.Id, type.Name, type, origin, AbilitySummary(type.LocalAbilities.Length),
+            type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
+    private static ContentBrowserEntry ItemEntry(ItemDefinition type, string origin, IReadOnlyList<UnitType>? units = null) =>
+        Entry("items", type.Id, type.Name, type, origin, type.Describe(), type.LocalAbilities, AbilityReferences(type.LocalAbilities), units);
+    private static ContentBrowserEntry LootEntry(LootCardDefinition type, string origin)
+    {
+        List<ContentBrowserReference> references = [];
+        if (type.EquipmentTypeId is { } equipmentId) references.Add(Reference("Equipment reward", "equipment", equipmentId));
+        if (type.ItemTypeId is { } itemId) references.Add(Reference("Item reward", "items", itemId));
+        if (type.Immediate is { } immediate) references.AddRange(MechanicReferences(immediate));
+        return Entry("lootCards", type.Id, type.Name, type, origin, type.Description ?? type.Category.ToString(), references: references);
+    }
+    private static ContentBrowserEntry MechanicEntry(MechanicDescriptor mechanic) =>
+        Entry("mechanics", mechanic.Id, mechanic.Name, mechanic, "canonical", mechanic.Description.Template) with
+        {
+            Mechanic = mechanic,
+            Sections =
+            [
+                new("Configurable parameters", [new("Parameters", Element(mechanic.Parameters))]),
+                new("Fixed Engine behavior", Fields(Element(new
+                {
+                    mechanic.Family, mechanic.Profiles, mechanic.Context, mechanic.Targeting,
+                    mechanic.Dependencies, mechanic.Grantable, mechanic.MaxPerSource, mechanic.SerializedBinding, mechanic.Description
+                })))
+            ]
+        };
 
     private static ContentBrowserEntry Entry<T>(string family, string id, string name, T definition, string origin,
         string summary = "", IEnumerable<LocalAbilityDefinition>? abilities = null,

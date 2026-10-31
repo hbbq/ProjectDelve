@@ -25,6 +25,11 @@ var json = JsonSerializer.Serialize(descriptors,
 
 Metadata enums serialize as readable strings without changing gameplay JSON settings. Descriptors expose no delegates, CLR types, executable expressions, or handler names. The catalog is an Engine API; clients do not implement its execution rules.
 
+[Content Designer](CONTENT_DESIGNER.md) consumes these descriptors for Equipment
+Abilities and Immediate Loot forms, including nested parameters, reference pickers
+and supported context combinations. Its definition-only validation endpoint uses
+the same Engine checks as scenario creation; it does not require a running game.
+
 `Required` describes omission; `AllowNull` describes explicit null/default collections. Defaults are recorded only when the typed model supplies them. Heal and Extra Actions require a positive amount without an additional upper bound. Immediate Loot and World healing retain their existing upper bound of 100. Fury, Backstab, Claw Attack, and Explosion retain their previously accepted Int32 parameter domains; the catalog does not silently tighten them. Canonical Explosion still declares damage 1.
 
 ## Ability source and timing profiles
@@ -82,7 +87,7 @@ Outer validators still check content references, finite-deck composition, exactl
 
 The catalog is not an inventory of every Engine rule. Normal Attack availability and base stats, Footprint, uniqueness, movement patterns, terrain restrictions, Resource Storage, inventory/loot policies, automated Behaviors, and Fixed Component assembly remain typed structural content. Machine inputs/outputs and terrain placement retain their established content models. These structures do not become Ability payloads merely because they influence gameplay. The specialized Unit-only profiles above do not promise Equipment or Item support.
 
-Canonical JSON export, a Content Designer, and a dedicated runtime-editing interface remain separate work. Current canonical C# and scenario JSON use the same local Ability model and validation; no format migration or duplicate global catalog is required.
+Canonical JSON export and a dedicated runtime-editing interface remain separate work. Content Designer now uses the catalog to edit Equipment Abilities and Immediate Loot mechanics. Current canonical C# and scenario JSON use the same local Ability model and validation; no format migration or duplicate global catalog is required.
 
 ## Registering another mechanic
 

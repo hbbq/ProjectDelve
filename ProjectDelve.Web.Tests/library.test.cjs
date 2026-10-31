@@ -26,18 +26,19 @@ function harness(hash = '#home') {
   const get = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   get('library-search').parentElement = new Element();
   const editor = { canLeave: () => true, open: async id => { editor.opened = id; } };
+  const browser = { show: async () => { inspections.push({ kind: 'show' }); }, requestCloseEditor: async () => true,
+    showScenario: async (definition, name, destination) => { inspections.push({ definition, name, ...(destination ? { destination } : {}) }); } };
   const context = vm.createContext({ location, document: { getElementById: get, querySelector: get, createElement: tag => new Element(tag), body: new Element() },
     history: { replaceState: (_, unused, hash) => { location.hash = hash; } },
     mountCampaignEditor: () => editor,
-    mountContentBrowser: () => ({ show: async () => { inspections.push({ kind: 'show' }); },
-      showScenario: async (definition, name) => { inspections.push({ definition, name }); } }),
+    mountContentBrowser: () => browser,
     addEventListener: (name, action) => { events[name] = action; },
     delveSetDesignerMode: designer => modes.push(designer), delvePlayDesign: async transport => { played.push(transport); return true; },
     fetch: async (url, options) => { calls.push({ url, ...options }); return { ok: true, status: 200, json: async () => url.endsWith('/transport') ? { transport: 'DELVE1:test-owned' } : structuredClone(fixture) }; }
   });
   vm.runInContext(source('library-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('library.js').replace(/^import .*\r?\n/gm, '').replace(/void applyRoute\(\);\s*$/, ''), context);
-  return { run: code => vm.runInContext(code, context), get, context, location, events, calls, modes, played, inspections, editor };
+  return { run: code => vm.runInContext(code, context), get, context, location, events, calls, modes, played, inspections, editor, browser };
 }
 
 test('library routes retain direct Designer/playtest links and decode scenario identities', () => {
@@ -69,6 +70,22 @@ test('explicit Designer content inspection forwards only its draft and does not 
   assert.equal(h.location.hash, '#content');
   assert.deepEqual(h.inspections, [{ definition: draft, name: 'Draft for inspection' }]);
   assert.deepEqual(h.calls, []); assert.deepEqual(h.played, []);
+});
+
+test('Content receives an explicit persistence destination and guards navigation away from unfinished edits', async () => {
+  const h = harness('#designer'); await h.run('applyRoute()');
+  const destination = { label: 'Scenario draft', save: async () => {} };
+  await h.context.delveInspectContent({ equipmentTypes: [] }, 'Draft', destination);
+  assert.equal(h.inspections[0].destination, destination);
+  await h.run('applyRoute()');
+  h.browser.requestCloseEditor = async () => false;
+  h.location.hash = '#home'; await h.run('applyRoute()');
+  assert.equal(h.location.hash, '#content'); assert.equal(h.get('content-browser').hidden, false);
+  assert.equal(h.calls.length, 0);
+  h.browser.requestCloseEditor = async () => true;
+  h.location.hash = '#home'; await h.run('applyRoute()');
+  assert.equal(h.get('content-browser').hidden, true);
+  assert.equal(h.calls[0].url, '/api/library');
 });
 
 test('home navigation renders only public campaign metadata and keeps game and Designer hidden', async () => {

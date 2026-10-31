@@ -1,4 +1,5 @@
 import { ContentBrowserState, contentLabel, contentUsage } from './content-browser-state.js';
+import { mountContentEditor } from './content-editor.js';
 
 // Read-only viewer: only explicit catalog / Designer snapshot requests are made.
 export function mountContentBrowser(root, options = {}) {
@@ -8,6 +9,7 @@ export function mountContentBrowser(root, options = {}) {
   const cache = new Map();
   let context = 'canonical', draftName = 'Designer draft', pending = null, requestVersion = 0;
   let error = '', retry = null;
+  let destination = null, scenarioSnapshot = null, catalogRevision = null, editDestination = null, editRevision = null;
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -38,13 +40,19 @@ export function mountContentBrowser(root, options = {}) {
   const heading = node('div');
   heading.append(node('p', 'cb-eyebrow', 'THE GAME, IN DETAIL'), node('h2', '', 'Content Browser'),
     node('p', 'cb-intro', 'Explore the content, the abilities it owns, and the mechanics behind them.'));
-  const contextControl = select('Content context', value => { if (value === 'canonical') void showCanonical(); else showCachedDraft(); });
+  const contextControl = select('Content context', value => void switchContext(value));
   contextControl.id = 'content-context';
   const contextArea = node('div', 'cb-context');
   const contextNote = node('p', 'cb-context-note');
   const returnLink = node('a', 'cb-return', 'Return to Designer'); returnLink.href = '#designer'; returnLink.hidden = true;
   contextArea.append(label('Inspect', contextControl), contextNote, returnLink);
   header.append(heading, contextArea);
+
+  const authoring = node('div', 'cb-authoring');
+  const newEquipment = button('Create Equipment', () => void openEditor({ family: 'equipment' })); newEquipment.id = 'content-create-equipment';
+  const newLoot = button('Create Loot Card', () => void openEditor({ family: 'lootCards' })); newLoot.id = 'content-create-loot';
+  const destinationNote = node('p', 'cb-authoring-note');
+  authoring.append(newEquipment, newLoot, destinationNote);
 
   const status = node('div', 'cb-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   const diagnostics = node('details', 'cb-diagnostics');
@@ -69,7 +77,57 @@ export function mountContentBrowser(root, options = {}) {
   const detail = node('article', 'cb-detail'); detail.setAttribute('aria-label', 'Selected definition');
   detail.id = 'content-detail';
   workspace.append(master, detail);
-  root.replaceChildren(header, status, diagnostics, toolbar, workspace);
+  const editorRoot = node('section');
+  root.replaceChildren(header, authoring, status, diagnostics, toolbar, workspace, editorRoot);
+  const editor = mountContentEditor(editorRoot, {
+    catalog: () => {
+      const entries = new Map();
+      for (const catalog of [cache.get('canonical'), cache.get('draft'), state.catalog])
+        for (const entry of catalog?.entries ?? []) entries.set(entry.key, entry);
+      return { entries: [...entries.values()] };
+    },
+    validate: async payload => {
+      const response = await request('/api/content/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await response.json();
+      if (!Array.isArray(result.diagnostics)) throw new Error('Validation could not be completed.');
+      return result;
+    },
+    save: payload => editDestination.save({ ...payload, expectedRevision: editRevision }),
+    onSaved: async (saved, content) => {
+      await showScenario(saved.definition, saved.name, editDestination);
+      state.open(`${content.family}:${content.definition.id}`); render(); focusDetail();
+    },
+    onClose: () => { root.classList.remove('cb-editing'); detail.querySelector('h3')?.focus({ preventScroll: true }); },
+    onDirtyChange: () => {}
+  });
+  globalThis.addEventListener?.('beforeunload', event => { if (editor.isDirty()) { event.preventDefault(); event.returnValue = ''; } });
+
+  async function refreshDestination() {
+    if (!destination || catalogRevision === destination.getRevision()) return;
+    const snapshot = destination.getSnapshot();
+    await showScenario(snapshot.definition, snapshot.name, destination);
+  }
+  function canAuthor() { return !!destination && !pending && state.entries.some(entry => entry.mechanic); }
+  async function openEditor(specification, entryKey = null, makeLoot = false) {
+    if (!canAuthor() || !await editor.requestClose()) return false;
+    await refreshDestination();
+    if (!canAuthor()) return false;
+    if (entryKey) {
+      const entry = state.entries.find(candidate => candidate.key === entryKey) ?? cache.get('canonical')?.entries.find(candidate => candidate.key === entryKey);
+      if (!entry) return false;
+      specification = makeLoot ? { family: 'lootCards', definition: { id: '', name: `${entry.name} Loot`, equipmentTypeId: entry.id } }
+        : { ...specification, family: entry.family, definition: entry.authoredDefinition ?? entry.definition };
+    }
+    editDestination = destination; editRevision = destination.getRevision();
+    const opened = await editor.open({ ...specification, context: destination.getContext() });
+    if (opened) { root.classList.add('cb-editing'); editorRoot.scrollIntoView?.({ block: 'start' }); }
+    return opened;
+  }
+  async function switchContext(next) {
+    if (!await editor.requestClose()) { contextControl.value = context; return; }
+    await refreshDestination();
+    if (next === 'canonical') await showCanonical(); else if (next === 'scenario') await showFullScenario(); else await showCachedDraft();
+  }
 
   function value(value, depth = 0) {
     if (value == null) return node('span', 'cb-muted', 'None');
@@ -197,6 +255,17 @@ export function mountContentBrowser(root, options = {}) {
     const title = node('h3', '', entry.name); title.tabIndex = -1;
     const familyName = state.categories.find(category => category.id === entry.family)?.name ?? contentLabel(entry.family);
     detail.append(navigation, node('p', 'cb-eyebrow', familyName), title, node('code', 'cb-content-id', entry.id));
+    if (entry.family === 'equipment' || entry.family === 'lootCards') {
+      const actions = node('div', 'cb-definition-actions');
+      const copy = button('Copy as new', () => void openEditor({ copy: true }, entry.key)); copy.id = 'content-copy-definition'; copy.disabled = !destination; actions.append(copy);
+      const contextField = entry.family === 'equipment' ? 'equipmentTypes' : 'lootCardDefinitions';
+      if (destination && entry.origin !== 'canonical' && entry.availability !== 'legacy-collision' && destination.getContext()[contextField]?.some(definition => definition.id === entry.id)) {
+        const edit = button('Edit definition', () => void openEditor({ existingId: entry.id }, entry.key)); edit.id = 'content-edit-definition'; actions.append(edit);
+      }
+      if (entry.family === 'equipment') { const loot = button('Create Loot Card for this Equipment', () => void openEditor({}, entry.key, true)); loot.id = 'content-create-linked-loot'; loot.disabled = !destination; actions.append(loot); }
+      if (entry.availability === 'legacy-collision') actions.append(empty('This historical local ID overlaps canonical content. Copy it with a new ID to edit it.'));
+      detail.append(actions);
+    }
     if (entry.summary) detail.append(node('p', 'cb-summary', entry.summary));
     if (!entry.mechanic)
       for (const group of entry.sections ?? [])
@@ -224,10 +293,17 @@ export function mountContentBrowser(root, options = {}) {
     root.classList.toggle('cb-show-detail', state.detailOpen);
     root.setAttribute('aria-busy', String(!!pending));
     contextControl.replaceChildren(option('canonical', 'Canonical catalog'));
-    if (cache.has('draft') || context === 'draft') contextControl.append(option('draft', `Designer draft · ${draftName}`));
+    if (cache.has('draft') || context === 'draft') contextControl.append(option('draft', `${destination ? 'Draft content' : 'Designer draft'} · ${draftName}`));
+    if (destination && scenarioSnapshot) contextControl.append(option('scenario', `Full scenario inspection · ${draftName}`));
     contextControl.value = context;
-    contextNote.textContent = context === 'draft' ? 'Effective definitions for this Designer snapshot · read only. Local content stays scoped to this draft.' : 'Canonical definitions · read only';
-    returnLink.hidden = context !== 'draft';
+    contextNote.textContent = context === 'canonical' ? 'Canonical definitions · read only'
+      : destination && context === 'draft' ? 'Equipment, Items, Loot Cards and mechanics for this destination. Definitions are saved only to the attached draft.'
+      : 'Effective definitions for this Designer snapshot · read only. Local content stays scoped to this draft.';
+    returnLink.hidden = context === 'canonical';
+    newEquipment.disabled = !canAuthor(); newLoot.disabled = !canAuthor();
+    destinationNote.replaceChildren();
+    if (destination) destinationNote.textContent = `Save destination: ${destination.label ?? draftName}`;
+    else { destinationNote.append(node('span', '', 'To create or copy content, ')); const link = node('a', '', 'open a draft in Designer'); link.href = '#designer'; destinationNote.append(link, node('span', '', ' and choose Content.')); }
     search.value = state.query;
     const categories = state.categories;
     const categoryNames = new Map(categories.map(category => [category.id, category.name]));
@@ -298,18 +374,22 @@ export function mountContentBrowser(root, options = {}) {
     })();
     pending = operation; render(); return operation;
   }
-  function showCanonical() { return load('canonical', '/api/content/catalog'); }
-  function showCachedDraft() { return load('draft', '/api/content/inspect'); }
-  function showScenario(definition, name = 'Designer draft') {
+  async function showCanonical() { if (editor.isOpen() && !await editor.requestClose()) return null; return load('canonical', '/api/content/catalog'); }
+  function showCachedDraft() { return load('draft', destination ? '/api/content/context' : '/api/content/inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(destination ? destination.getContext() : scenarioSnapshot) }); }
+  function showFullScenario() { return load('scenario', '/api/content/inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(scenarioSnapshot) }); }
+  async function showScenario(definition, name = 'Designer draft', target = null) {
+    if (editor.isOpen() && !await editor.requestClose()) return null;
     draftName = name || 'Designer draft';
     const snapshot = structuredClone(definition);
-    cache.delete('draft');
-    return load('draft', '/api/content/inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot) }, true);
+    destination = target; scenarioSnapshot = snapshot; catalogRevision = target?.getRevision() ?? null;
+    cache.delete('draft'); cache.delete('scenario');
+    return load('draft', target ? '/api/content/context' : '/api/content/inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(target ? target.getContext() : snapshot) }, true);
   }
   render();
   return {
-    show: () => pending ?? (state.catalog ? Promise.resolve(state.catalog) : showCanonical()),
+    show: async () => { if (destination && !editor.isOpen()) await refreshDestination(); return pending ?? (state.catalog ? Promise.resolve(state.catalog) : showCanonical()); },
     showCanonical, showScenario,
+    requestCloseEditor: () => editor.requestClose(),
     open: key => { const opened = state.open(key, true); if (opened) { render(); focusDetail(); } return opened; }
   };
 }

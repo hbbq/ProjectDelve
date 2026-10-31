@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="combat-sheet.css">
   <link rel="stylesheet" href="authoring-shell.css">
   <link rel="stylesheet" href="content-browser.css">
+  <link rel="stylesheet" href="content-editor.css">
   <script type="module" src="library.js"></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="designer.js"></script>
@@ -282,11 +283,11 @@
           <label>Difficulty <select id="generator-difficulty"><option value="1">1 · low Threat</option><option value="2">2</option><option value="3" selected>3 · mixed Threat</option><option value="4">4</option><option value="5">5 · high Threat</option></select></label>
           <label>Objective <select id="generator-objective"><option value="reach" selected>Reach Area</option><option value="eliminate">Eliminate Enemies</option></select></label>
           <label id="generator-required-label">Required Heroes <select id="generator-required"><option value="1">At least 1</option><option value="2" selected>At least 2</option><option value="3">At least 3</option><option value="A">All 4</option></select></label>
-          <label>Loot Deck <select id="generator-loot"><option value="Classic">Classic</option><option value="Fun">Fun</option><option value="Experimental">Experimental</option><option value="FarOut">Far Out</option></select></label>
+          <label>Loot Deck <select id="generator-loot"><option value="Classic">Classic</option><option value="Fun">Fun</option><option value="Experimental">Experimental</option><option value="FarOut">Far Out</option><option value="All">All</option></select></label>
           <label>Hero Fog of War <select id="generator-fog"><option value="1" selected>Enabled</option><option value="0">Disabled</option></select></label>
         </div>
         <small id="generator-configuration-help">Dimensions 14–50; rooms need 6 × 6 regions. Extra routes are limited by distinct room pairs. Difficulty selects Threat; density selects population.</small>
-        <small id="generator-loot-help" hidden>Loot presets stay live. The deck is multiplied at setup when needed for caches and expected drops; the preview shows the multiplier. The deck remains finite.</small>
+        <small id="generator-loot-help" hidden>Loot presets stay live. Fixed presets may be multiplied at setup for caches and expected drops. All keeps one copy of each available Loot Card and caps initial cache markers at that finite supply. The preview shows the multiplier; every deck remains finite.</small>
         <label>Seed · 16 hexadecimal digits, optional <input id="generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" spellcheck="false" autocomplete="off"></label>
         <button id="generator-random" type="button">Random Seed</button>
         <div class="generator-actions"><button id="generator-preview" class="designer-primary">Generate Preview</button><button id="generator-play" class="designer-primary">Play Unseen</button><button id="generator-another">Generate Another</button></div>

@@ -115,24 +115,37 @@ public static class AbilityContent
 
     public static void ValidateState(GameState state)
     {
-        ItemCatalog.Validate(state.ItemTypes);
-        LootCardCatalog.Validate(state.LootCardDefinitions);
+        ValidateObjectCatalogs(state.EquipmentTypes, state.ItemTypes, state.LootCardDefinitions);
         for (var index = 0; index < state.Types.Count; index++)
             Validate(state.Types[index].LocalAbilities, AbilitySourceKind.Unit, $"unitTypes[{index}].localAbilities");
-        for (var index = 0; index < state.EquipmentTypes.Count; index++)
-            Validate(state.EquipmentTypes[index].LocalAbilities, AbilitySourceKind.Equipment,
-                $"equipmentTypes[{index}].localAbilities");
-        for (var index = 0; index < state.ItemTypes.Count; index++)
-            Validate(state.ItemTypes[index].LocalAbilities, AbilitySourceKind.Item, $"itemTypes[{index}].localAbilities");
-        foreach (var card in state.LootCardDefinitions)
-            if (card.ItemTypeId is { } item) _ = state.Item(item);
-            else if (card.EquipmentTypeId is { } equipment) _ = state.Equipment(equipment);
         foreach (var unit in state.Units)
         {
             var limited = state.AbilitiesOf(unit.Id).Where(ability => ability.SourceKind == AbilitySourceKind.Unit && ability.Definition.Usage.MaxUses is not null)
                 .ToDictionary(ability => ability.AccountingId, ability => ability.Definition.Usage.MaxUses!.Value);
             if (unit.AbilityUseCounts.Any(pair => !limited.TryGetValue(pair.Key, out var max) || pair.Value < 0 || pair.Value > max))
                 throw new ArgumentException("Ability use counters must match the Unit's limited Abilities.");
+        }
+    }
+
+    // The definition boundary is shared by scenario/runtime validation and
+    // authoring tools. It needs catalogs, never a Board, Unit or live game.
+    public static void ValidateObjectCatalogs(IReadOnlyList<EquipmentDefinition> equipment,
+        IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot)
+    {
+        EquipmentCatalog.Validate(equipment);
+        ItemCatalog.Validate(items);
+        LootCardCatalog.Validate(loot);
+        for (var index = 0; index < equipment.Count; index++)
+            Validate(equipment[index].LocalAbilities, AbilitySourceKind.Equipment, $"equipmentTypes[{index}].localAbilities");
+        for (var index = 0; index < items.Count; index++)
+            Validate(items[index].LocalAbilities, AbilitySourceKind.Item, $"itemTypes[{index}].localAbilities");
+        for (var index = 0; index < loot.Count; index++)
+        {
+            var card = loot[index];
+            if (card.ItemTypeId is { } item && !items.Any(type => type.Id == item))
+                throw ScenarioValidationContext.At(new ArgumentException($"Unknown Item Type ID '{item}'."), $"lootCardDefinitions[{index}].itemTypeId");
+            if (card.EquipmentTypeId is { } typeId && !equipment.Any(type => type.Id == typeId))
+                throw ScenarioValidationContext.At(new ArgumentException($"Unknown Equipment Type ID '{typeId}'."), $"lootCardDefinitions[{index}].equipmentTypeId");
         }
     }
 }

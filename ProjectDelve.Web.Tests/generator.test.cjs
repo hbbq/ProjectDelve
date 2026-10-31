@@ -123,6 +123,36 @@ test("Loot preset participates in preview, code loading and unseen play", async 
 });
 
 const strongholdCode = "DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F1-QClassic-S0123456789ABCDEF";
+test("all selectable Loot presets round-trip for both generator profiles without changing existing code forms", () => {
+  const h = harness();
+  const markup = source('index.html').match(/<select id="generator-loot">([\s\S]*?)<\/select>/)[1];
+  const presets = [...markup.matchAll(/<option value="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(presets, ['Classic', 'Fun', 'Experimental', 'FarOut', 'All']);
+  for (const preset of presets) {
+    const completeCodes = [preset === 'Classic' ? code : code.replace('-S', `-Q${preset}-S`), strongholdCode.replace('QClassic', `Q${preset}`)];
+    for (const complete of completeCodes) {
+      h.context.complete = complete;
+      assert.equal(vm.runInContext('configurationCode(configurationFromCode(complete))', h.context), complete);
+      assert.equal(vm.runInContext('configurationFromCode(complete).loot', h.context), preset);
+      assert.equal(vm.runInContext('configurationCode(configurationFromCode(complete), false)', h.context), complete.split('-S')[0]);
+    }
+  }
+  assert.throws(() => vm.runInContext(`configurationFromCode('${strongholdCode.replace('QClassic', 'QUnknown')}')`, h.context), /DNG2-OS/);
+});
+
+for (const profile of ['HVM', 'OS']) test(`All Loot remains a live server-resolved preset in ${profile} preview, Designer transfer and unseen play`, async () => {
+  const h = harness(); h.enter('profile', profile); h.enter('loot', 'All'); h.click('preview');
+  assert.match(h.requests[0].body.code, /-QAll$/);
+  const complete = profile === 'HVM' ? code.replace('-S', '-QAll-S') : strongholdCode.replace('QClassic', 'QAll');
+  const result = h.result(complete); result.definition.loot = { preset: 'All', presetMultiplier: 1 };
+  h.requests[0].resolve({ ok: true, json: async () => result }); await flush();
+  assert.match(h.get('generator-preview-summary').textContent, /All Loot ×1/);
+  h.click('designer'); assert.deepEqual(h.designs[0].definition.loot, { preset: 'All', presetMultiplier: 1 });
+  const unseen = harness(); unseen.enter('code-input', complete); unseen.click('code-play'); await flush();
+  assert.equal(unseen.get('generator-loot').value, 'All');
+  assert.deepEqual(unseen.plays, [complete]); assert.equal(unseen.requests.length, 0);
+});
+
 test("Overgrown Stronghold code preserves parameters and rejects invalid sizes", () => {
   const h = harness();
   for (const complete of [strongholdCode, strongholdCode.replace("QClassic", "QFarOut").replace("B2", "B0").replace("OR2", "ORA").replace("T2", "T0").replace("O2", "O3")]) {

@@ -45,6 +45,7 @@ public static class PlaytestHost
         }
         DesignerApi.Map(app);
         ContentBrowserApi.Map(app);
+        ContentEditorApi.Map(app);
         LibraryApi.Map(app);
         LibraryCoverApi.Map(app);
         GenerationApi.Map(app);

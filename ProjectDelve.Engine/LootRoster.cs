@@ -27,6 +27,7 @@ public static class LootRoster
         new("Experimental", "Experimental", "Phase, standing allies and extra Actions. Uses existing cards; no new experimental effects yet.", Array.AsReadOnly(new LootCardQuantity[]
             { new(LootCardKind.Bedsheet, 3), new(LootCardKind.GoatBell, 3), new(LootCardKind.SecondWind, 4) })),
         new("FarOut", "Far Out", "Bedsheets and goat bells only. A playful placeholder; no presentation-altering effects yet.", Array.AsReadOnly(new LootCardQuantity[]
-            { new(LootCardKind.Bedsheet, 5), new(LootCardKind.GoatBell, 5) }))
+            { new(LootCardKind.Bedsheet, 5), new(LootCardKind.GoatBell, 5) })),
+        new(LootPresets.AllPresetId, "All", "Exactly one of every effective Loot Card definition, including local cards.", []) { IsDynamic = true }
     });
 }

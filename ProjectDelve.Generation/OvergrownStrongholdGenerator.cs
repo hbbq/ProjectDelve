@@ -397,7 +397,8 @@ public static class OvergrownStrongholdGenerator
             if (code.Difficulty >= 4 && code.Density >= 2 && encounters.Next(3) == 0) Place(UnitTypeIds.Shaman, Goal);
 
             // Treasure lives off the mission destination, with multiple unopened markers per cache.
-            // Its size is independent of the currently small card catalog.
+            // Fixed presets can scale to provision these caches. Dynamic presets
+            // retain their exact quantities and cap reservations below.
             var cacheSites = new[] { 5, 4, 3 };
             foreach (var index in cacheSites.Take(code.Treasure))
             {
@@ -412,8 +413,19 @@ public static class OvergrownStrongholdGenerator
             // Canonical drop expectations include every initial Unit. Summons retain their canonical drops;
             // this is finite setup provision, never a promise of an inexhaustible farming supply.
             var expectedDrops = (units.Sum(u => UnitContent.Find(u.UnitTypeId)!.LootDropSuccesses) + 5) / 6;
-            var presetSize = LootPresets.Find(code.LootPreset).Composition.Sum(row => row.Count);
-            var multiplier = Math.Max(1, (loot.Count + expectedDrops + presetSize - 1) / presetSize);
+            var preset = LootPresets.Find(code.LootPreset);
+            var presetSize = new LootSettings { Preset = code.LootPreset }.ResolveComposition().Sum(row => row.Count);
+            var multiplier = preset.IsDynamic ? 1 : Math.Max(1, (loot.Count + expectedDrops + presetSize - 1) / presetSize);
+            if (preset.IsDynamic && loot.Count > presetSize)
+            {
+                // Keep one marker per cache per pass, after all original random
+                // draws. Positions, physical IDs and other seeded content stay intact.
+                var retained = loot.GroupBy(marker => marker.Position)
+                    .SelectMany(cache => cache.Select((marker, index) => (marker, index)))
+                    .OrderBy(row => row.index).Take(presetSize).Select(row => row.marker.Id).ToHashSet(StringComparer.Ordinal);
+                loot.RemoveAll(marker => !retained.Contains(marker.Id));
+                cacheCount = loot.Select(marker => marker.Position).Distinct().Count();
+            }
             var types = units.Select(u => u.UnitTypeId).Distinct(StringComparer.Ordinal).ToList();
             if (types.Contains(UnitTypeIds.Shaman) && !types.Contains(UnitTypeIds.Goblin)) types.Add(UnitTypeIds.Goblin);
             var agency = units.Select(u => new AgencyAssignment(u.UnitTypeId, u.SideId, u.SideId == HeroesVsMonsters.Heroes ? ControllerKind.Human : ControllerKind.Automated)).Distinct().ToList();

@@ -37,6 +37,49 @@ public sealed class DesignerApiTests
     };
 
     [Fact]
+    public async Task AllLootMetadataResolvesCanonicalAndScopedCardsWithoutExpandingAuthoringIdentities()
+    {
+        await using var host = await Host.Start();
+        var canonical = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
+        var canonicalAll = Preset(canonical, "All");
+        var canonicalIds = LootCardCatalog.All.Select(card => card.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        Assert.True(canonicalAll.GetProperty("isDynamic").GetBoolean());
+        Assert.Equal(canonicalIds, CardIds(canonicalAll));
+        Assert.All(canonicalAll.GetProperty("composition").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("count").GetInt32()));
+        Assert.Equal(LootPresets.Default, canonical.GetProperty("defaultLootPreset").GetString());
+        foreach (var preset in LootPresets.All.Where(preset => !preset.IsDynamic))
+        {
+            var projected = Preset(canonical, preset.Id).Deserialize<LootPreset>(Json)!;
+            Assert.False(projected.IsDynamic);
+            Assert.Equal(preset.Composition, projected.Composition);
+        }
+
+        LootCardDefinition[] local =
+        [
+            new(canonicalIds[0], "Local shadow reward") { Immediate = new HealCollectorMechanic(7) },
+            new("metadata-orchard", "Orchard reward") { Immediate = new HealCollectorMechanic(3) }
+        ];
+        var authored = JsonSerializer.Serialize(local, Json);
+        using var response = await host.Client.PostAsJsonAsync("/api/designer/metadata", new
+        { unitTypes = Array.Empty<UnitType>(), lootCardDefinitions = local }, Json);
+        response.EnsureSuccessStatusCode();
+        var scoped = Preset(await response.Content.ReadFromJsonAsync<JsonElement>(), "All");
+        var expected = canonicalIds.Append("metadata-orchard").OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        Assert.Equal(expected, CardIds(scoped));
+        Assert.Equal(expected.Length, CardIds(scoped).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(scoped.GetProperty("composition").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("count").GetInt32()));
+        Assert.Equal(authored, JsonSerializer.Serialize(local, Json));
+        var canonicalAgain = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
+        Assert.Equal(canonicalAll.GetRawText(), Preset(canonicalAgain, "All").GetRawText());
+        return;
+
+        static JsonElement Preset(JsonElement response, string id) => response.GetProperty("lootPresets").EnumerateArray()
+            .Single(preset => preset.GetProperty("id").GetString() == id);
+        static string?[] CardIds(JsonElement preset) => preset.GetProperty("composition").EnumerateArray()
+            .Select(row => row.GetProperty("lootCardId").GetString()).ToArray();
+    }
+
+    [Fact]
     public async Task FixedAssemblyMetadataAndDesignerTransportRetainReferencesAndEffectiveProperties()
     {
         await using var host = await Host.Start();

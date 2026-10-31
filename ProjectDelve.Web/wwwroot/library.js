@@ -6,7 +6,7 @@ const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const el = document.createElement(tag); if (text) el.textContent = text; if (className) el.className = className; return el; };
 const link = (text, href) => { const el = node('a', text, 'library-button'); el.href = href; return el; };
 const button = (text, action) => { const el = node('button', text); el.type = 'button'; el.addEventListener('click', action); return el; };
-let route = libraryRoute(location.hash), library = null, requestNumber = 0, playing = false;
+let route = libraryRoute(location.hash), library = null, requestNumber = 0, routeSequence = 0, playing = false;
 let editor;
 let heroSignature, routeApplied = false;
 const contentBrowser = mountContentBrowser($('content-browser'));
@@ -40,8 +40,8 @@ function navigate(mode, id) {
 }
 globalThis.delveNavigate = navigate;
 // Explicit authoring snapshot only. The Viewer never requests the running game.
-globalThis.delveInspectContent = (definition, name) => {
-  const inspection = contentBrowser.showScenario(definition, name);
+globalThis.delveInspectContent = (definition, name, destination = null) => {
+  const inspection = contentBrowser.showScenario(definition, name, destination);
   navigate('content');
   return inspection;
 };
@@ -261,7 +261,13 @@ async function refresh() {
   finally { if (request === requestNumber) $('library-main').setAttribute('aria-busy', 'false'); }
 }
 async function applyRoute() {
+  const sequence = ++routeSequence;
   const next = libraryRoute(location.hash);
+  if (route.mode === 'content' && next.mode !== 'content') {
+    const allowed = await contentBrowser.requestCloseEditor();
+    if (sequence !== routeSequence) return;
+    if (!allowed) { history.replaceState(null, '', '#content'); return; }
+  }
   if (route.mode === 'campaigns-edit' && (next.mode !== route.mode || next.id !== route.id) && !editor.canLeave()) {
     history.replaceState(null, '', '#' + route.mode + (route.id ? '/' + encodeURIComponent(route.id) : '')); return;
   }

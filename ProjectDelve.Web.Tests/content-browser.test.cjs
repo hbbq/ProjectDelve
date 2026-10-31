@@ -12,6 +12,7 @@ class Element {
     this.listeners = {}; this.className = ''; this.hidden = false; this.value = '';
     this.classList = {
       add: name => { this.className = [...new Set([...this.className.split(' '), name])].filter(Boolean).join(' '); },
+      remove: name => { this.className = this.className.split(' ').filter(value => value !== name).join(' '); },
       toggle: (name, on) => { const values = new Set(this.className.split(' ').filter(Boolean)); if (on) values.add(name); else values.delete(name); this.className = [...values].join(' '); },
       contains: name => this.className.split(' ').includes(name)
     };
@@ -34,13 +35,15 @@ class Element {
 }
 
 function harness(fetcher) {
-  const calls = [], document = { activeElement: null };
+  const calls = [], events = {}, document = { activeElement: null };
   document.createElement = tag => new Element(tag, document);
   const root = document.createElement('main');
-  const context = vm.createContext({ document, structuredClone, fetch: async (url, options) => {
+  const context = vm.createContext({ document, structuredClone, addEventListener: (name, listener) => { events[name] = listener; }, fetch: async (url, options) => {
     calls.push({ url, options }); return fetcher ? fetcher(url, options) : { ok: true, json: async () => structuredClone(catalog) };
   } });
   vm.runInContext(source('content-browser-state.js').replace(/^export /gm, ''), context);
+  vm.runInContext(source('content-editor-state.js').replace(/^export /gm, ''), context);
+  vm.runInContext(source('content-editor.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-browser.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   context.root = root;
   const viewer = vm.runInContext('mountContentBrowser(root)', context);
@@ -52,7 +55,7 @@ function harness(fetcher) {
     return element.listeners.click?.();
   };
   const change = (id, value, event = 'change') => { const control = byId(id); control.value = value; return control.listeners[event](); };
-  return { context, viewer, root, document, calls, byId, byClass, click, change, run: code => vm.runInContext(code, context) };
+  return { context, viewer, root, document, calls, events, byId, byClass, click, change, run: code => vm.runInContext(code, context) };
 }
 
 const heal = {
@@ -222,4 +225,104 @@ test('filtering preserves search focus and does not scroll the detail on every k
   assert.match(h.root.textContent, /0 of 3 definitions.*No definitions match/s);
   h.click(h.byClass('cb-text-button').find(element => element.textContent === 'Clear filters'));
   assert.equal(h.byId('content-list').children.length, 3);
+});
+
+const settle = () => new Promise(resolve => setImmediate(resolve));
+function authoringHarness() {
+  let definition = { equipmentTypes: [], itemTypes: [], lootCardDefinitions: [] }, revision = 1;
+  const saves = [];
+  const destination = { label: 'Test destination', getRevision: () => String(revision), getContext: () => structuredClone(definition),
+    getSnapshot: () => ({ definition: structuredClone(definition), name: 'Test draft' }),
+    save: async payload => {
+      if (payload.expectedRevision !== String(revision)) throw new Error('The draft changed. Reopen the definition.');
+      saves.push(plain(payload)); const field = payload.family === 'equipment' ? 'equipmentTypes' : 'lootCardDefinitions';
+      definition[field] = definition[field].filter(row => row.id !== payload.existingId).concat([structuredClone(payload.definition)]); revision++;
+      return destination.getSnapshot();
+    } };
+  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.name, family, origin: 'local', definition: row, sections: [], abilities: [], references: [] });
+  const h = harness(async (url, options) => {
+    if (url.endsWith('/validate')) {
+      const request = JSON.parse(options.body); return { ok: true, json: async () => ({ valid: true, diagnostics: [], definition: request.definition, entry: asEntry(request.definition, request.family) }) };
+    }
+    const data = structuredClone(catalog);
+    data.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [{ key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }] };
+    if (url.endsWith('/context')) data.entries = data.entries.filter(entry => ['equipment', 'mechanics'].includes(entry.family))
+      .concat(definition.equipmentTypes.map(row => asEntry(row, 'equipment')), definition.lootCardDefinitions.map(row => asEntry(row, 'lootCards')));
+    return { ok: true, json: async () => data };
+  });
+  return { ...h, destination, saves, snapshot: () => destination.getSnapshot(), changeDraft: rows => { definition = { ...definition, ...rows }; revision++; } };
+}
+
+test('standalone browsing has no implicit save destination; explicit draft context enables create and linked Loot', async () => {
+  const h = authoringHarness(); await h.viewer.showCanonical();
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  h.viewer.open('equipment:chime'); assert.equal(h.byId('content-copy-definition').disabled, true);
+  const snapshot = h.snapshot(); await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
+  assert.equal(h.calls.at(-1).url, '/api/content/context');
+  assert.equal(h.byId('content-create-equipment').disabled, false);
+  assert.ok(h.byId('content-context').children.some(option => option.value === 'scenario'));
+  h.click(h.byId('content-create-equipment')); await settle();
+  h.change('content-editor-id', 'linen-sash', 'input'); h.change('content-editor-name', 'Linen Sash', 'input');
+  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
+  assert.equal(h.saves.length, 1); assert.equal(h.saves[0].expectedRevision, '1');
+  assert.equal(h.saves[0].definition.localAbilities[0].mechanic.kind, 'mend');
+  assert.match(h.byId('content-detail').textContent, /Linen Sash/); assert.equal(h.byId('content-editor').hidden, true);
+  h.click(h.byId('content-create-linked-loot')); await settle();
+  const reference = h.root.all(element => element.dataset.fieldPath === 'definition.equipmentTypeId')[0];
+  assert.equal(reference.value, 'linen-sash');
+  h.change('content-editor-id', 'linen-package', 'input'); h.click(h.byId('content-editor-save')); await settle();
+  assert.deepEqual(h.saves[1].definition, { id: 'linen-package', name: 'Linen Sash Loot', equipmentTypeId: 'linen-sash' });
+  assert.equal(h.calls.some(call => /game|gambit|observation/.test(call.url)), false);
+});
+
+test('copying canonical content stays new; context navigation and beforeunload guard dirty forms', async () => {
+  const h = authoringHarness(), snapshot = h.snapshot(); await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
+  h.viewer.open('equipment:chime'); h.click(h.byId('content-copy-definition')); await settle();
+  assert.equal(h.byId('content-editor-id').value, ''); assert.equal(h.byId('content-editor-id').readOnly, false);
+  const key = h.root.all(element => element.dataset.fieldPath === 'definition.localAbilities[0].key')[0];
+  assert.equal(key.value, 'stitch'); assert.equal(key.readOnly, false);
+  h.change('content-editor-id', 'copy-chime', 'input');
+  const event = { prevented: false, preventDefault() { this.prevented = true; } }; h.events.beforeunload(event); assert.equal(event.prevented, true);
+  h.change('content-context', 'canonical'); await settle(); h.click(h.byId('content-editor-keep')); await settle();
+  assert.equal(h.byId('content-context').value, 'draft'); assert.equal(h.byId('content-editor').hidden, false);
+  h.change('content-context', 'scenario'); await settle(); h.click(h.byId('content-editor-discard')); await settle();
+  assert.equal(h.byId('content-context').value, 'scenario'); assert.equal(h.calls.at(-1).url, '/api/content/inspect');
+  assert.equal(h.saves.length, 0);
+});
+
+test('cached draft refreshes after external edits and save carries the opening revision to reject later changes', async () => {
+  const h = authoringHarness(), snapshot = h.snapshot(); await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
+  h.changeDraft({ equipmentTypes: [{ id: 'local-sash', name: 'Current Sash', localAbilities: [] }] });
+  await h.viewer.show(); h.viewer.open('equipment:local-sash');
+  assert.match(h.byId('content-detail').textContent, /Current Sash/);
+  h.click(h.byId('content-edit-definition')); await settle();
+  assert.equal(h.byId('content-editor-id').readOnly, true);
+  h.change('content-editor-name', 'Pending rename', 'input');
+  h.changeDraft({ equipmentTypes: [{ id: 'local-sash', name: 'Newer Sash', localAbilities: [] }] });
+  h.click(h.byId('content-editor-save')); await settle();
+  assert.equal(h.saves.length, 0); assert.match(h.byId('content-editor').textContent, /draft changed/);
+  assert.equal(h.byId('content-editor').hidden, false);
+});
+
+test('creation waits for current catalog metadata and ignores an older context response', async () => {
+  let finishFirst, contextRequests = 0;
+  const latest = structuredClone(catalog); latest.entries[1].name = 'Current Chime';
+  const h = harness(url => {
+    assert.equal(url, '/api/content/context'); contextRequests++;
+    return contextRequests === 1 ? new Promise(resolve => { finishFirst = resolve; }) : Promise.resolve({ ok: true, json: async () => latest });
+  });
+  const destination = { label: 'Current draft', getContext: () => ({}), getRevision: () => '1', getSnapshot: () => ({ definition: {}, name: 'Current draft' }) };
+  const first = h.viewer.showScenario({}, 'First', destination);
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  assert.equal(h.byId('content-create-loot').disabled, true);
+  h.click(h.byId('content-create-equipment')); await settle();
+  assert.equal(h.byId('content-editor').hidden, true);
+  await h.viewer.showScenario({}, 'Current draft', destination);
+  assert.equal(h.byId('content-create-equipment').disabled, false);
+  h.viewer.open('equipment:chime');
+  finishFirst({ ok: true, json: async () => catalog }); await first;
+  assert.match(h.byId('content-detail').textContent, /Current Chime/);
+  h.click(h.byId('content-create-equipment')); await settle();
+  assert.equal(h.byId('content-editor-add-mechanic').children[0].value, 'mend');
+  assert.equal(h.byId('content-editor-add-ability').disabled, false);
 });

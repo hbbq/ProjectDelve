@@ -89,7 +89,7 @@ public sealed class StrongholdGenerationTests(ITestOutputHelper output)
     [Fact]
     public void PresetRemainsLiveAndScalingPreservesEveryCardRatio()
     {
-        foreach (var preset in LootPresets.All)
+        foreach (var preset in LootPresets.All.Where(preset => !preset.IsDynamic))
         {
             var generated = DungeonGenerator.Generate(new GenerationCode(Profile: "OS", Width: 42, Height: 30, Treasure: 3, LootPreset: preset.Id, Seed: 42));
             var definition = generated.Definition;

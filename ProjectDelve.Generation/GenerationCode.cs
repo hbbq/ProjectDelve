@@ -58,14 +58,14 @@ public sealed record GenerationCode(int Width = 30, int Height = 20, int Rooms =
         var code = input.Trim();
         if (code.StartsWith("DNG2-OS-", StringComparison.Ordinal))
         {
-            var os = Regex.Match(code, @"\ADNG2-OS-([1-9][0-9]?)x([1-9][0-9]?)-O([1-3])-T([0-3])-N([1-3])-L([1-5])-B([0-3])-(OEE|ORA|OR[1-4])-F([01])-Q(Classic|Fun|Experimental|FarOut)(?:-S([0-9A-Fa-f]{16}))?\z", RegexOptions.CultureInvariant);
+            var os = Regex.Match(code, @"\ADNG2-OS-([1-9][0-9]?)x([1-9][0-9]?)-O([1-3])-T([0-3])-N([1-3])-L([1-5])-B([0-3])-(OEE|ORA|OR[1-4])-F([01])-Q(Classic|Fun|Experimental|FarOut|All)(?:-S([0-9A-Fa-f]{16}))?\z", RegexOptions.CultureInvariant);
             if (!os.Success) throw new FormatException("Expected DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F1-QClassic, optionally followed by -S and 16 hexadecimal seed digits.");
             int N(int i) => int.Parse(os.Groups[i].Value, CultureInfo.InvariantCulture);
             return new GenerationCode(Width: N(1), Height: N(2), Openness: N(3), Terrain: N(4), Density: N(5), Difficulty: N(6), Treasure: N(7), Objective: os.Groups[8].Value, FogOfWar: N(9) == 1, LootPreset: os.Groups[10].Value, Profile: "OS",
                 Seed: os.Groups[11].Success ? ulong.Parse(os.Groups[11].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture) : null).Validate();
         }
         if (!code.StartsWith("DNG1-", StringComparison.Ordinal)) throw new FormatException("Unsupported generator version/profile. This host supports DNG1-HVM and DNG2-OS.");
-        var match = Regex.Match(code, @"\ADNG1-HVM-([1-9][0-9]?)x([1-9][0-9]?)-R([1-9][0-9]?)-E([1-3])-C([0-3])-D([0-3])-N([1-3])-L([1-5])-(OEE|ORA|OR[1-4])-F([01])(?:-Q(Classic|Fun|Experimental|FarOut))?(?:-S([0-9A-Fa-f]{16}))?\z", RegexOptions.CultureInvariant);
+        var match = Regex.Match(code, @"\ADNG1-HVM-([1-9][0-9]?)x([1-9][0-9]?)-R([1-9][0-9]?)-E([1-3])-C([0-3])-D([0-3])-N([1-3])-L([1-5])-(OEE|ORA|OR[1-4])-F([01])(?:-Q(Classic|Fun|Experimental|FarOut|All))?(?:-S([0-9A-Fa-f]{16}))?\z", RegexOptions.CultureInvariant);
         if (!match.Success) throw new FormatException("Expected DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1, optionally followed by -S and exactly 16 hexadecimal seed digits. Fields and profile are strict and ordered.");
         int Number(int i) => int.Parse(match.Groups[i].Value, CultureInfo.InvariantCulture);
         return new GenerationCode(Number(1), Number(2), Number(3), Number(5), Number(6), Number(7), Number(8),

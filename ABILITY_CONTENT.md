@@ -4,6 +4,10 @@ Units, Equipment and Single Use Items own their complete Ability declarations. E
 
 The [Mechanic Catalog](MECHANIC_CATALOG.md) registers reusable Engine operations and their supported contexts. It owns parameter constraints, validation and description metadata. It does not own authored Abilities or runtime state. Names and local keys never select an implementation.
 
+[Content Designer](CONTENT_DESIGNER.md) uses those contracts to edit Equipment-owned
+Abilities through forms. Modifiers and capabilities remain ordinary local Abilities;
+there is no separate editor gameplay model.
+
 ## Authoring
 
 Canonical content lives in [UnitRoster.cs](ProjectDelve.Engine/UnitRoster.cs), [EquipmentRoster.cs](ProjectDelve.Engine/EquipmentRoster.cs) and [ItemRoster.cs](ProjectDelve.Engine/ItemRoster.cs). A declaration in any of these owners produces the same typed data as scenario-local JSON. Small C# helpers may construct or copy declarations, but no second definition is registered or consulted at runtime.
@@ -118,4 +122,4 @@ These scenarios are mutable playtest content in `ProjectDelve.Web/Content/Librar
 
 Normal Attack availability, base stats, movement patterns, terrain restrictions, footprint, Resource Storage and automated Behaviors remain structural Unit properties. They are not alternate named Ability declarations. `UnitAction` identifies concrete candidate/Attack operations; only Normal Attack/None remains authored in `UnitType.Actions`. Attack ordering preserves existing automated tie-breaking and does not supply mechanic parameters.
 
-This consolidation does not add inheritance, runtime content mutation, arbitrary triggers, scripting, Equipment charges, a Content Designer or full canonical JSON catalog export/load. Adding content using an already supported mechanic/context needs only its owner-local declaration; adding a new mechanic still requires a concrete Engine implementation and catalog contract.
+Inheritance, runtime content mutation, arbitrary triggers, scripting, Equipment charges and full canonical JSON catalog export/load remain outside this model. Content Designer now edits Equipment-owned Abilities through these contracts. Adding content using an already supported mechanic/context needs only its owner-local declaration; adding a new mechanic still requires a concrete Engine implementation and catalog contract.

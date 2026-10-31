@@ -18,6 +18,14 @@
 .cb-intro { color: #bfc8b8; margin: 0; max-width: 62ch; }
 .cb-context { flex: 0 1 310px; min-width: 235px; }
 .cb-context-note { margin: 7px 0 0; color: #b4bfad; font-size: .73rem; }
+.cb-authoring { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 20px; }
+.cb-authoring button, .cb-definition-actions button { padding: 9px 12px; border: 1px solid #95a1717a; border-radius: 4px; background: #294034; color: #e8dfc5; font-size: .76rem; min-height: 40px; }
+.cb-authoring button:disabled, .cb-definition-actions button:disabled { opacity: .45; cursor: default; }
+.cb-authoring-note { margin: 0 0 0 auto; color: #b7c0a9; font-size: .73rem; }
+.cb-authoring-note a { color: #dec794; }
+.cb-definition-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.cb-definition-actions button { background: #f6efdd; color: #36553b; border-color: #6b855764; }
+.cb-editing > .cb-toolbar, .cb-editing > .cb-workspace, .cb-editing > .cb-authoring, .cb-editing > .cb-diagnostics { display: none; }
 .cb-return { display: inline-block; color: #dec794; font-size: .76rem; margin-top: 5px; text-underline-offset: 4px; }
 .cb-control { display: flex; flex-direction: column; min-width: 0; gap: 6px; }
 .cb-control > span { color: #c4cbbb; font-size: .7rem; font-weight: 650; }

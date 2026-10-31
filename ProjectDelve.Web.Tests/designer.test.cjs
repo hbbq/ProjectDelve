@@ -23,6 +23,49 @@ test("generated Designer transfer preserves the exact definition and identifies 
 });
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
 
+test("All Loot uses current Engine metadata and waits before Copy to Custom when local content changes", async () => {
+  const savedPresets = catalog.lootPresets;
+  try {
+    const all = { id: 'All', name: 'All', isDynamic: true, composition: [{ lootCardId: 'canonical', count: 1 }] };
+    catalog.lootPresets = [all];
+    const pending = [];
+    const h = harness(undefined, undefined, undefined, body => new Promise(resolve => pending.push({ body: plain(body), resolve })));
+    const draft = h.editor.draft;
+    draft.setLootPreset('All');
+    assert.deepEqual(plain(draft.lootComposition()), all.composition);
+    assert.throws(() => draft.setLootMultiplier(2), /exactly one/);
+    draft.applyContentDefinition('lootCards', { id: 'new-card', name: 'New Card', immediate: { kind: 'healCollector', amount: 3 } });
+    h.editor.render();
+    const form = () => h.run('document.getElementById("designer-loot-editor")').children[0];
+    const copy = () => form().querySelectorAll('button').find(button => button.textContent === 'Copy to Custom');
+    assert.equal(copy().disabled, true);
+    assert.throws(() => draft.copyLootToCustom(), /Wait for/);
+    assert.equal(form().querySelectorAll('input').some(input => input.id === 'designer-loot-multiplier'), false);
+    assert.equal(pending.at(-1).body.lootCardDefinitions[0].id, 'new-card');
+    const currentRows = [...all.composition, { lootCardId: 'new-card', count: 1 }];
+    pending.at(-1).resolve({ unitTypes: catalog.unitTypes, unitIds: [], lootPresets: [{ ...all, composition: currentRows }] });
+    await new Promise(setImmediate);
+    assert.equal(copy().disabled, false);
+    assert.deepEqual(plain(draft.lootComposition()), currentRows);
+    // A late canonical response must not replace the effective local result.
+    pending[0].resolve({ unitTypes: catalog.unitTypes, unitIds: [], lootPresets: [all] });
+    await new Promise(setImmediate);
+    assert.deepEqual(plain(draft.lootComposition()), currentRows);
+    press(form(), 'Copy to Custom');
+    assert.deepEqual(plain(draft.snapshot().loot), { composition: currentRows });
+    h.click('undo');
+    assert.deepEqual(plain(draft.snapshot().loot), { preset: 'All' });
+    draft.applyContentDefinition('lootCards', { id: 'later-card', name: 'Later Card', immediate: { kind: 'healCollector', amount: 1 } });
+    h.editor.render();
+    assert.equal(copy().disabled, true);
+    assert.deepEqual(plain(draft.snapshot().loot), { preset: 'All' });
+    const laterRows = [...currentRows, { lootCardId: 'later-card', count: 1 }];
+    pending.at(-1).resolve({ unitTypes: catalog.unitTypes, unitIds: [], lootPresets: [{ ...all, composition: laterRows }] });
+    await new Promise(setImmediate);
+    assert.deepEqual(plain(draft.lootComposition()), laterRows);
+  } finally { catalog.lootPresets = savedPresets; }
+});
+
 test("Custom Loot editor retains distinct legacy card and Equipment Type quantities", () => {
   const savedCards = catalog.lootCards, savedEquipment = catalog.equipmentTypes;
   try {
@@ -62,6 +105,51 @@ test('Inspect content sends a detached draft snapshot without export or Playtest
   assert.deepEqual(requests, []); assert.deepEqual(played, []);
 });
 
+test('Content destination commits definitions through Designer history, recovery and Playtest snapshots', async () => {
+  const storage = memoryStorage(), submitted = [], played = [];
+  const h = harness(async (operation, body) => { submitted.push({ operation, body: plain(body) }); return { transport: 'DELVE1:content-fixture' }; },
+    async transport => { played.push(transport); return true; }, storage);
+  let destination;
+  h.context.delveInspectContent = (definition, name, target) => { destination = target; };
+  h.click('content');
+  const equipment = { id: 'new-medallion', name: 'New Medallion', localAbilities: [
+    { key: 'stride', name: 'Steady Stride', timing: 'Passive', mechanic: { kind: 'selfModifiers', modifiers: [{ stat: 'Mov', amount: 1 }, { stat: 'Def', amount: 1 }] } }
+  ] };
+  await destination.save({ family: 'equipment', definition: equipment, expectedRevision: destination.getRevision() });
+  const context = destination.getContext();
+  assert.deepEqual(plain(context.equipmentTypes), [equipment]);
+  context.equipmentTypes[0].name = 'Detached context';
+  const loot = { id: 'medallion-reward', name: 'Medallion Reward', equipmentTypeId: equipment.id };
+  await destination.save({ family: 'lootCards', definition: loot, expectedRevision: destination.getRevision() });
+  const saved = plain(h.editor.draft.snapshot());
+  assert.deepEqual(saved.equipmentTypes, [equipment]); assert.deepEqual(saved.lootCardDefinitions, [loot]);
+  assert.ok(h.editor.draft.objectCatalog().some(row => row.reference.equipmentTypeId === equipment.id));
+  h.click('undo'); assert.equal(h.editor.draft.definition.lootCardDefinitions, undefined);
+  h.click('redo'); assert.deepEqual(plain(h.editor.draft.snapshot()), saved);
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()), saved);
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  await h.click('play');
+  assert.deepEqual(submitted.at(-1), { operation: 'export', body: saved });
+  assert.deepEqual(played, ['DELVE1:content-fixture']);
+});
+
+test('Content destination refuses stale saves after another document opens or the draft changes', async () => {
+  const h = harness(); let destination;
+  h.context.delveInspectContent = (definition, name, target) => { destination = target; };
+  h.click('content'); const revision = destination.getRevision();
+  h.editor.ui.title.value = 'Renamed destination';
+  assert.equal(destination.label, 'Scenario draft · Renamed destination');
+  assert.equal(destination.getRevision(), revision);
+  const doc = h.editor.documentData(); doc.title = 'Another draft';
+  h.editor.loadDocument(JSON.stringify(doc));
+  const before = plain(h.editor.draft.snapshot());
+  await assert.rejects(destination.save({ family: 'equipment', definition: { id: 'stale', name: 'Stale', localAbilities: [] }, expectedRevision: revision }), /draft changed/);
+  assert.deepEqual(plain(h.editor.draft.snapshot()), before);
+  assert.equal(destination.getSnapshot().name, 'Another draft');
+  assert.equal(destination.label, 'Scenario draft · Another draft');
+});
+
 test('Custom Loot editor keeps local Loot Card and Item quantities independent', () => {
   const h = harness(), draft = h.editor.draft;
   draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];
@@ -89,6 +177,46 @@ test('Immediate Loot definitions survive deck editing and recovery without becom
   assert.ok(!plain(draft.objectCatalog()).some(c => c.reference.lootCardId === card.id));
   h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
   assert.deepEqual(plain(h.editor.draft.snapshot().lootCardDefinitions),[card]);
+});
+
+test('Cell Loot marker change commits before Apply and survives export without retained form inputs', async () => {
+  const operations = [];
+  const h = harness(async (operation, body) => {
+    operations.push({ operation, body: plain(body) });
+    return { transport: 'DELVE1:marker-fixture' };
+  });
+  const draft = h.editor.draft;
+  draft.setLootDeck([{ kind: 'LuckyBoots', count: 2 }]);
+  h.editor.setTool('Select'); h.down(h.cell(2, 2));
+  let form = h.editor.ui.properties.children[0];
+  const key = form.dataset.formKey;
+  const count = inputField(form, 'Unopened Loot markers');
+  enter(count, '1'); count.listeners.change();
+  // A browser's bubbled change submits this immediate inspector before the
+  // Apply button receives its click, replacing the form in the meantime.
+  form.listeners.change();
+  form = h.editor.ui.properties.children[0];
+  assert.equal(inputField(form, 'Unopened Loot markers').value, '1');
+  assert.deepEqual(plain(draft.definition.lootMarkers).map(marker => marker.position), [{ x: 2, y: 2 }]);
+  const firstId = draft.definition.lootMarkers[0].id;
+  press(form, 'Apply Loot markers');
+  assert.equal(draft.definition.lootMarkers.length, 1);
+  assert.equal(draft.definition.lootMarkers[0].id, firstId);
+  assert.equal(h.editor.documentData().buffers[key], undefined);
+  await h.click('export');
+  assert.equal(operations.length, 1);
+  assert.equal(operations[0].operation, 'export');
+  assert.deepEqual(operations[0].body.lootMarkers, plain(draft.definition.lootMarkers));
+
+  // The explicit button also commits an input without relying on change bubbling.
+  form = h.editor.ui.properties.children[0];
+  enter(inputField(form, 'Unopened Loot markers'), '2');
+  press(form, 'Apply Loot markers');
+  assert.equal(draft.definition.lootMarkers.length, 2);
+  assert.equal(h.editor.documentData().buffers[key], undefined);
+  await h.click('export');
+  assert.equal(operations.length, 2);
+  assert.equal(operations[1].body.lootMarkers.length, 2);
 });
 
 test('older local Loot IDs retain their name and one deck row beside canonical legacy choices', () => {

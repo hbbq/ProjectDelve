@@ -68,6 +68,8 @@ Open **Content** from the header or **Explore game content** from Home to browse
 canonical Units, objects, cards, Terrain and Engine mechanics. In Designer,
 **Inspect content** opens the effective definitions from the current draft, with
 origin labels and links between related content. See the [Content Browser guide](CONTENT_BROWSER.md).
+The [Content Designer](CONTENT_DESIGNER.md) adds form-based Equipment and Loot Card
+editing with the current scenario draft as its save destination.
 
 The browser opens on a campaign menu. **Test Scenarios** contains the original scenarios; **Scenarios** lists every saved scenario, including those outside a campaign. Choose any scenario to start a fresh game. Campaigns only order references: they carry no Units, resources, unlocks or progress between games. One live game is still shared by everyone using the host.
 

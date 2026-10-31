@@ -8,6 +8,13 @@ internal static class ScenarioCreation
         if (definition.Board is not { } board || definition.UnitTypeIds is null ||
             definition.Units is null || definition.Agency is null || board.Cells is null || board.Edges is null)
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
+        if (definition.Loot is { Preset: { } preset } lootSettings && LootPresets.Find(preset).IsDynamic)
+        {
+            // Select effective authored identities before historical collisions
+            // acquire aliases. Only this detached setup copy is materialized.
+            var composition = lootSettings.ResolveComposition(LootCardCatalog.Effective(definition.LootCardDefinitions));
+            definition = definition with { Loot = new() { Composition = composition.ToList() } };
+        }
         definition = LootCompatibility.ResolveLocalIdCollisions(definition);
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
@@ -148,12 +155,17 @@ internal static class ScenarioCreation
                 var authored = overrides.GetValueOrDefault(cell);
                 terrain.Add(Tile(cell, authored));
             }
+        T ResolveCatalog<T>(Func<T> resolve, int canonicalCount)
+        {
+            try { return resolve(); }
+            catch (ArgumentException error) { throw ScenarioValidationContext.ForLocalCatalog(error, canonicalCount); }
+        }
         var state = new GameState
         {
             LootDeck = new LootDeck(),
-            EquipmentTypes = EquipmentCatalog.Resolve(definition.EquipmentTypes),
-            ItemTypes = ItemCatalog.Resolve(definition.ItemTypes),
-            LootCardDefinitions = LootCardCatalog.Resolve(definition.LootCardDefinitions),
+            EquipmentTypes = ResolveCatalog(() => EquipmentCatalog.Resolve(definition.EquipmentTypes), EquipmentCatalog.All.Count),
+            ItemTypes = ResolveCatalog(() => ItemCatalog.Resolve(definition.ItemTypes), ItemCatalog.All.Count),
+            LootCardDefinitions = ResolveCatalog(() => LootCardCatalog.Resolve(definition.LootCardDefinitions), LootCardCatalog.All.Count),
             WorldCardDefinitions = WorldCardCatalog.Resolve(definition.WorldCardDefinitions),
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,

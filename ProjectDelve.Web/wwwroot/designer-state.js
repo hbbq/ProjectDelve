@@ -32,19 +32,31 @@ export class DesignerDraft {
       return [...counts].map(([kind,count]) => ({kind,count}));
     }
     if (this.definition.loot.composition) return this.definition.loot.composition;
-    const rows = this.catalog.lootPresets?.find(p => p.id === (this.definition.loot?.preset ?? this.catalog.defaultLootPreset ?? "Classic"))?.composition ?? [];
+    const preset = this.lootPreset();
+    if (!this.lootCompositionReady()) return [];
+    const rows = preset?.isDynamic && (this.definition.lootCardDefinitions?.length ?? 0) > 0
+      ? this.effectiveLootPresets?.find(p => p.id === preset.id)?.composition ?? [] : preset?.composition ?? [];
     return rows.map(r => ({ ...r, count: r.count * (this.definition.loot.presetMultiplier ?? 1) }));
+  }
+  lootPreset() {
+    return this.catalog.lootPresets?.find(p => p.id === (this.definition.loot?.preset ?? this.catalog.defaultLootPreset ?? "Classic"));
+  }
+  lootCompositionReady() {
+    return !this.lootPreset()?.isDynamic || !(this.definition.lootCardDefinitions?.length) ||
+      this.effectiveLootSignature === JSON.stringify(this.definition.lootCardDefinitions ?? []) && Array.isArray(this.effectiveLootPresets);
   }
   setLootPreset(preset) {
     if (!this.catalog.lootPresets?.some(p => p.id === preset)) throw new Error("Unknown Loot preset.");
     this.definition.loot = { preset }; this.changed();
   }
   copyLootToCustom() {
+    if (!this.lootCompositionReady()) throw new Error("Wait for the effective Loot catalog before copying this preset.");
     this.definition.loot = { composition: structuredClone(this.lootComposition()) }; this.changed();
   }
   setLootMultiplier(value) {
     if (!Number.isInteger(value) || value < 1 || value > 100) throw new Error("Use a whole deck multiplier from 1 to 100.");
     if (!this.definition.loot || this.definition.loot.composition || this.definition.loot.cards) throw new Error("Choose a live preset first.");
+    if (this.lootPreset()?.isDynamic && value !== 1) throw new Error("All contains exactly one copy of each available Loot Card Type.");
     this.definition.loot.presetMultiplier = value; this.changed();
   }
   setLootDeck(rows) {
@@ -72,6 +84,30 @@ export class DesignerDraft {
   }
   equipmentCatalog() {
     return [...(this.catalog.equipmentTypes ?? []), ...(this.definition.equipmentTypes ?? [])];
+  }
+  applyContentDefinition(family, definition, existingId = null) {
+    const field = family === 'equipment' ? 'equipmentTypes' : family === 'lootCards' ? 'lootCardDefinitions' : null;
+    if (!field) throw new Error('Only Equipment and Loot Card definitions can be saved here.');
+    if (!definition || typeof definition !== 'object' || Array.isArray(definition) ||
+        !Object.hasOwn(definition, 'id') || typeof definition.id !== 'string' || !definition.id.trim())
+      throw new Error('A content definition requires a nonempty ID.');
+    if (existingId !== null && (typeof existingId !== 'string' || !existingId.trim()))
+      throw new Error('An existing content definition requires its original ID.');
+    if (existingId !== null && definition.id !== existingId)
+      throw new Error('An existing content definition ID cannot change. Copy it to a new definition instead.');
+    const rows = this.definition[field] ?? [];
+    if (!Array.isArray(rows)) throw new Error('The local content collection must be an array.');
+    const matches = rows.flatMap((row, index) => row?.id === definition.id ? [index] : []);
+    if (matches.length > 1 || existingId === null && matches.length)
+      throw new Error(`A local content definition already uses ID '${definition.id}'.`);
+    if (existingId !== null && !matches.length)
+      throw new Error(`The local content definition '${existingId}' no longer exists.`);
+    // Engine validation owns content rules. This operation only applies an isolated
+    // payload to the intended local identity; the caller supplies its history boundary.
+    const saved = structuredClone(definition), updated = [...rows];
+    if (existingId === null) updated.push(saved); else updated[matches[0]] = saved;
+    this.definition[field] = updated;
+    this.changed();
   }
   lootCardCatalog() {
     return [...(this.catalog.lootCards ?? []).map(c => ({ ...c, reference: {kind:c.kind}, key:`card:${c.kind}` })),

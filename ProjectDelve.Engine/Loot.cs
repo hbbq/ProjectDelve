@@ -62,13 +62,26 @@ public sealed record LootCardQuantity(LootCardKind Kind = LootCardKind.PocketBre
     public string? EquipmentTypeId { get; init; }
     public LootCardQuantity(string equipmentTypeId, int count) : this(Count: count) => EquipmentTypeId = equipmentTypeId;
 }
-public sealed record LootPreset(string Id, string Name, string Description, IReadOnlyList<LootCardQuantity> Composition);
+public sealed record LootPreset(string Id, string Name, string Description, IReadOnlyList<LootCardQuantity> Composition)
+{
+    public bool IsDynamic { get; init; }
+}
 public static class LootPresets
 {
     public const string Default = LootRoster.DefaultPresetId;
+    public const string AllPresetId = "All";
     public static IReadOnlyList<LootPreset> All => LootRoster.Presets;
     public static LootPreset Find(string id) => All.SingleOrDefault(p => p.Id == id)
         ?? throw new ArgumentException($"Unknown Loot preset '{id}'.");
+    public static IReadOnlyList<LootCardQuantity> Resolve(string id, IReadOnlyList<LootCardDefinition>? definitions = null)
+    {
+        var preset = Find(id);
+        if (!preset.IsDynamic) return preset.Composition;
+        var effective = definitions ?? LootCardCatalog.All;
+        LootCardCatalog.Validate(effective);
+        return effective.OrderBy(card => card.Id, StringComparer.Ordinal)
+            .Select(card => new LootCardQuantity { LootCardId = card.Id, Count = 1 }).ToArray();
+    }
 }
 public sealed record LootSettings
 {
@@ -93,19 +106,22 @@ public sealed record LootSettings
             return new(Cards);
         }
         if (Preset is not null && Composition is not null) throw new ArgumentException("A live Loot preset cannot contain Custom cards.");
-        return Composition is null ? this with { Preset = Preset ?? LootPresets.Default } : this;
+        var normalized = Composition is null ? this with { Preset = Preset ?? LootPresets.Default } : this;
+        if (normalized.Preset is { } preset && normalized.PresetMultiplier is > 1 && LootPresets.Find(preset).IsDynamic)
+            throw new ArgumentException("A dynamic All Loot preset contains exactly one of each card and cannot be multiplied.");
+        return normalized;
     }
-    public IReadOnlyList<LootCardQuantity> ResolveComposition()
+    public IReadOnlyList<LootCardQuantity> ResolveComposition(IReadOnlyList<LootCardDefinition>? cards = null)
     {
         var normalized = Normalize();
-        IReadOnlyList<LootCardQuantity> rows = normalized.Composition ?? LootPresets.Find(normalized.Preset!).Composition
+        IReadOnlyList<LootCardQuantity> rows = normalized.Composition ?? LootPresets.Resolve(normalized.Preset!, cards)
             .Select(r => r with { Count = checked(r.Count * (normalized.PresetMultiplier ?? 1)) }).ToList();
         if (rows.Any(r => r is null || !Enum.IsDefined(r.Kind) || r.Count is < 1 or > 1000) ||
             rows.Select(r => r.LootCardId is { } cardId ? ("loot", cardId) : r.ItemTypeId is { } itemId ? ("item", itemId) : (r.EquipmentTypeId ?? EquipmentCatalog.LegacyTypeId(r.Kind)) is { } id ? ("equipment", id) : ("card", r.Kind.ToString())).Distinct().Count() != rows.Count || rows.Sum(r => r.Count) > 6000)
             throw new ArgumentException("Custom Loot needs unique card IDs with quantities from 1 to 1000.");
         return rows;
     }
-    public List<OwnedObject> ResolveObjects(IReadOnlyList<LootCardDefinition>? cards = null) => ResolveComposition()
+    public List<OwnedObject> ResolveObjects(IReadOnlyList<LootCardDefinition>? cards = null) => ResolveComposition(cards)
         .SelectMany(r => Enumerable.Repeat(r, r.Count)).Select((r, i) =>
         {
             if (new[] { r.ItemTypeId, r.EquipmentTypeId, r.LootCardId }.Count(x => x is not null) > 1)

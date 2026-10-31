@@ -11,7 +11,7 @@ public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int
 }
 public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null,
     List<TerrainDefinition>? TerrainTypes = null, List<TerrainAssemblyDefinition>? TerrainAssemblies = null,
-    List<FixedComponentDefinition>? FixedComponentTypes = null);
+    List<FixedComponentDefinition>? FixedComponentTypes = null, List<LootCardDefinition>? LootCardDefinitions = null);
 public sealed record DesignerError(string Message, string? Path);
 public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError> Errors);
 public sealed record DesignerImportRequest(string Transport);
@@ -55,7 +55,7 @@ public static class DesignerApi
             lootCardDefinitions = LootCardCatalog.All,
             worldCardDefinitions = WorldCardCatalog.All.Select(card => new
                 { card.Id, card.Name, card.Lifecycle, card.Modifiers, card.Immediate, description = card.Description }),
-            lootPresets = LootPresets.All,
+            lootPresets = ResolvedLootPresets(),
             defaultLootPreset = LootPresets.Default,
             machineTypes = MachineTypes.All,
             resourceTypes = ResourceTypes.All,
@@ -92,6 +92,7 @@ public static class DesignerApi
                 terrainDefinitions,
                 fixedComponentDefinitions = FixedComponentCatalog.All.Concat(input.FixedComponentTypes ?? []).ToArray(),
                 productionDescriptions = ProductionDescriptions(terrainDefinitions),
+                lootPresets = ResolvedLootPresets(input.LootCardDefinitions),
                 unitIds = ScenarioIdentity.UnitIds(input!.Units ?? [], input.MachineIds ?? []) });
         }));
         app.MapGet("/api/designer/scenarios/{id}", (string id) =>
@@ -114,6 +115,12 @@ public static class DesignerApi
             var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits);
             return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(definition) });
         }));
+    }
+
+    private static IEnumerable<LootPreset> ResolvedLootPresets(IEnumerable<LootCardDefinition>? local = null)
+    {
+        var effective = LootCardCatalog.Effective(local);
+        return LootPresets.All.Select(preset => preset with { Composition = LootPresets.Resolve(preset.Id, effective) });
     }
 
     private static IResult Execute(Func<IResult> operation, bool validation = false)
