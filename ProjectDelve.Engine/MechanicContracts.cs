@@ -18,7 +18,7 @@ public enum MechanicUsageSupport { NotApplicable, UnlimitedOnly, LimitedOrUnlimi
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicContext>))]
 public enum MechanicContext { ActingUnit, BearingUnit, CollectorUnit, TerrainCell, Global }
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicTargetSelection>))]
-public enum MechanicTargetSelection { None, Unit, Cell }
+public enum MechanicTargetSelection { None, Unit, Cell, Edge, Machine, UnitOrMachine }
 
 // Public contracts contain serializable data only. Typed accessors and execution
 // remain inside the Engine; these descriptions cannot execute game rules.

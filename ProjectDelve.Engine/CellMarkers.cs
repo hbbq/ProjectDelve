@@ -4,6 +4,15 @@ public sealed record CellMarkerType(string Id, string Name);
 public static class CellMarkerTypes
 {
     public static CellMarkerType BananaPeel { get; } = new("banana-peel", "Banana Peel");
+    public static System.Collections.Immutable.ImmutableArray<CellMarkerType> All { get; } = [BananaPeel];
+
+    // The initial Cell Marker has fixed Engine behavior, not an authored effect payload.
+    public static string Describe(CellMarkerType type) => type == BananaPeel
+        ? "May be placed on a passable Cell without a Unit, Machine or Cell Marker; loose Resources may remain. " +
+          "Does not change Terrain or block Line of Sight. An ordinary Move may end here but cannot pass through this Cell. " +
+          "When a Unit arrives by movement or placement, remove the Banana Peel, lay the Unit down, and end its remaining activation if it is currently activating. " +
+          "Starting an activation on the marker does not trigger it. Hypothetical route planning ignores the marker."
+        : throw new ArgumentException($"Unsupported Cell Marker Type '{type?.Id}'.", nameof(type));
 }
 public sealed record CellMarker(CellMarkerType Type, Cell Position);
 

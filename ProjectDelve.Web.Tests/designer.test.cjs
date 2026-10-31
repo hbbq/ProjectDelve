@@ -47,6 +47,21 @@ test("Custom Loot editor retains distinct legacy card and Equipment Type quantit
 });
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('Inspect content sends a detached draft snapshot without export or Playtest', async () => {
+  const requests = [], played = [], inspected = [];
+  const h = harness(async (...args) => { requests.push(args); return { valid: true, errors: [] }; },
+    async (...args) => { played.push(args); return true; });
+  h.context.delveInspectContent = (definition, name) => { inspected.push({ definition, name }); };
+  h.editor.ui.title.value = 'Inspection draft';
+  const expected = plain(h.editor.draft.snapshot());
+  h.editor.ui.content.listeners.click();
+  assert.equal(inspected.length, 1);
+  assert.deepEqual(plain(inspected[0]), { definition: expected, name: 'Inspection draft' });
+  inspected[0].definition.board.width = 99;
+  assert.deepEqual(plain(h.editor.draft.snapshot()), expected);
+  assert.deepEqual(requests, []); assert.deepEqual(played, []);
+});
+
 test('Custom Loot editor keeps local Loot Card and Item quantities independent', () => {
   const h = harness(), draft = h.editor.draft;
   draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];

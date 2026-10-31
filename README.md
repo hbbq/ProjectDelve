@@ -64,6 +64,11 @@ Run the automated tests with `dotnet test ProjectDelve.sln`. The engine targets 
 
 ## Campaigns and the shared scenario library
 
+Open **Content** from the header or **Explore game content** from Home to browse
+canonical Units, objects, cards, Terrain and Engine mechanics. In Designer,
+**Inspect content** opens the effective definitions from the current draft, with
+origin labels and links between related content. See the [Content Browser guide](CONTENT_BROWSER.md).
+
 The browser opens on a campaign menu. **Test Scenarios** contains the original scenarios; **Scenarios** lists every saved scenario, including those outside a campaign. Choose any scenario to start a fresh game. Campaigns only order references: they carry no Units, resources, unlocks or progress between games. One live game is still shared by everyone using the host.
 
 In **Designer**, **Save to library** creates a saved scenario or updates the scenario you opened. **Library & Export** opens saved scenarios, sets their cover art, and provides **Save as new** for an independent copy. Renaming keeps identity and campaign references intact. Saving validates the scenario; incomplete work can still be kept with **Save draft**. **Test scenario** always plays the current workspace without saving it. Return with **Designer** to continue editing; browser recovery retains the workspace, metadata and unfinished form inputs. DELVE1 import/export and draft files remain available.

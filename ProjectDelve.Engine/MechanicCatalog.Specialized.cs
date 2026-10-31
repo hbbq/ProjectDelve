@@ -28,7 +28,8 @@ public static partial class MechanicCatalog
             MechanicTargetSelection.Cell, "A legal own-Move destination within the authored step allowance, including Stay.",
             (RequiredInteger("maxSteps", 0), p => p.MaxSteps));
         yield return SpecializedMarker<AdvanceOnKill>("advanceOnKill", "Advance on Kill", MechanicTiming.AfterAttack,
-            "After this Unit's normal melee Attack fully resolves, if it defeated a hostile target, immediately Move to that target's former adjacent Cell or Stay. Use one cardinal step for an orthogonal Cell or two through either intermediate Cell for a diagonal Cell. Respect physical passage; ignore ordinary MOV and Movement Pattern. Normal arrival effects apply.");
+            "After this Unit's normal melee Attack fully resolves, if it defeated a hostile target, immediately Move to that target's former adjacent Cell or Stay. Use one cardinal step for an orthogonal Cell or two through either intermediate Cell for a diagonal Cell. Respect physical passage; ignore ordinary MOV and Movement Pattern. Normal arrival effects apply.",
+            MechanicTargetSelection.Cell);
         yield return SpecializedNumbers<Explosion>("explosion", "Explosion", MechanicTiming.WhenDefeated,
             "When this Unit is defeated, deal {damage} damage to every adjacent Unit.", MechanicUsageSupport.UnlimitedOnly,
             (NativeInteger("damage", 1), p => p.Damage));
@@ -39,6 +40,7 @@ public static partial class MechanicCatalog
             (RequiredInteger("steps", 1), p => p.Steps));
         yield return SpecializedNumbers<TryOpenDoor>("tryOpenDoor", "Try Open Door", MechanicTiming.Action,
             "Try to open a bordering Closed Door. Roll a D6: success on {successCount} of 6 faces.", MechanicUsageSupport.UnlimitedOnly,
+            MechanicTargetSelection.Edge, "One bordering Closed Door.",
             (RequiredInteger("successCount", 0, 6), p => p.SuccessCount));
         yield return SpecializedMarker<FireBreath>("fireBreath", "Fire Breath", MechanicTiming.Action,
             "Attack all enemies within RNG.");
@@ -82,11 +84,15 @@ public static partial class MechanicCatalog
         yield return SpecializedMarker<PickupResource>("pickupResource", "Pick Up Resource", MechanicTiming.Action,
             "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room.");
         yield return SpecializedMarker<GiveResource>("giveResource", "Give Resource", MechanicTiming.Action,
-            "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room.", MechanicTargetSelection.Unit);
+            "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room.",
+            MechanicTargetSelection.UnitOrMachine,
+            recipients: "An adjacent friendly Unit or adjacent Machine that is public or owned by this Unit's Side. Its storage must accept the Resource on this Unit's Cell and have room.");
         yield return SpecializedMarker<Operate>("operate", "Operate", MechanicTiming.Action,
-            "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.");
+            "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.",
+            MechanicTargetSelection.Machine,
+            recipients: "An adjacent Machine that is public or owned by this Unit's Side, with sufficient stored inputs and no impassable Edge separating it from this Unit. This Unit's Cell must contain no Resource.");
         yield return SpecializedMarker<OpenDoor>("openDoor", "Open Door", MechanicTiming.FreeAction,
-            "Open a bordering Closed Door.", equipment: true);
+            "Open a bordering Closed Door.", MechanicTargetSelection.Edge, equipment: true);
 
         var target = new MechanicParameter("unitTypeId", MechanicParameterKind.Reference) { ReferenceCatalog = "units" };
         var posture = new MechanicParameter("initialPosture", MechanicParameterKind.Enum) { AllowedValues = ["Upright", "Lying"] };
@@ -142,9 +148,9 @@ public static partial class MechanicCatalog
         Description = new(description, []), SerializedBinding = id, Grantable = true, MaxPerSource = 1
     };
     private static MechanicRegistration SpecializedMarker<T>(string id, string name, MechanicTiming timing, string description,
-        MechanicTargetSelection selection = MechanicTargetSelection.None, bool equipment = false) where T : AbilityMechanic =>
+        MechanicTargetSelection selection = MechanicTargetSelection.None, bool equipment = false, string? recipients = null) where T : AbilityMechanic =>
         MechanicRegistration.Create<T>(SpecializedDescriptor(id, name, timing, description) with
-            { Targeting = new(selection, description), Profiles = equipment
+            { Targeting = new(selection, recipients ?? description), Profiles = equipment
                 ? [new(MechanicSource.Unit, timing, MechanicUsageSupport.UnlimitedOnly), new(MechanicSource.Equipment, timing, MechanicUsageSupport.UnlimitedOnly)]
                 : [new(MechanicSource.Unit, timing, MechanicUsageSupport.UnlimitedOnly)] }, (_, _, _) => { });
     private static MechanicRegistration SpecializedNumbers<T>(string id, string name, MechanicTiming timing, string description,

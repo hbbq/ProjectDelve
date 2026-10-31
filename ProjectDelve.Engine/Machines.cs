@@ -23,6 +23,7 @@ public static class MachineTypes
         new([new(ResourceTypes.Coal, 3)]), new([new(ResourceTypes.Coal, 3)], ResourceTypes.Diamond, OutputQuantity: 1));
     public static MachineType SlotMachine { get; } = new("slot-machine", "Slot Machine",
         new([new(ResourceTypes.Fruit, 3)]), new([new(ResourceTypes.Fruit, 3)], null) { OutputTable = RacingSlotTable.Table });
+    public static ImmutableArray<MachineType> All { get; } = [DiamondPress, SlotMachine];
 }
 
 internal static class MachineRules

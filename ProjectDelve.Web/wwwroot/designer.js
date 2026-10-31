@@ -34,7 +34,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
     "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy",
-    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom", "resource-label", "resource-type",
+    "title", "save-status", "pending", "undo", "redo", "save", "open", "file", "new", "catalog", "catalog-open", "zoom", "resource-label", "resource-type", "content",
     "library-save", "library-copy", "library-open", "library-refresh", "library-select", "library-status", "library-cover", "cover-file", "cover-import", "cover-preview", "library-restore", "library-restore-confirm", "library-restore-apply", "library-restore-cancel"];
   const ui = Object.fromEntries(ids.map(id => [id, document.getElementById(`designer-${id}`)]));
   const draft = new DesignerDraft(catalog);
@@ -1081,6 +1081,14 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
     draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });
   ui.validate.addEventListener("click", () => ready() ? requests.run("validate", draft.snapshot()) : null);
+  ui.content.addEventListener("click", () => {
+    if (pendingPlay || !ready()) return;
+    if (!globalThis.delveInspectContent) {
+      ui.status.textContent = "Content Browser is loading. Please retry.";
+      return;
+    }
+    void globalThis.delveInspectContent(draft.snapshot(), ui.title.value);
+  });
   ui.export.addEventListener("click", async () => {
     if (!ready()) return;
     const result = await requests.run("export", draft.snapshot());

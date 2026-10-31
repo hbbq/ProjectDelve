@@ -44,6 +44,7 @@ public static class PlaytestHost
             app.UseStaticFiles(new StaticFileOptions { RequestPath = "/__qa/miniatures", FileProvider = new PhysicalFileProvider(fixtures), ContentTypeProvider = contentTypes });
         }
         DesignerApi.Map(app);
+        ContentBrowserApi.Map(app);
         LibraryApi.Map(app);
         LibraryCoverApi.Map(app);
         GenerationApi.Map(app);

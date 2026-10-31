@@ -22,19 +22,22 @@ const fixture = {
   campaigns: [{ id: 'c-one', name: 'Campaign', description: 'Public introduction', revision: 2, scenarioIds: ['s-two', 'deleted', 's-one'] }]
 };
 function harness(hash = '#home') {
-  const elements = new Map(), events = {}, calls = [], modes = [], played = [], location = { hash };
+  const elements = new Map(), events = {}, calls = [], modes = [], played = [], inspections = [], location = { hash };
   const get = id => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   get('library-search').parentElement = new Element();
   const editor = { canLeave: () => true, open: async id => { editor.opened = id; } };
   const context = vm.createContext({ location, document: { getElementById: get, querySelector: get, createElement: tag => new Element(tag), body: new Element() },
     history: { replaceState: (_, unused, hash) => { location.hash = hash; } },
-    mountCampaignEditor: () => editor, addEventListener: (name, action) => { events[name] = action; },
+    mountCampaignEditor: () => editor,
+    mountContentBrowser: () => ({ show: async () => { inspections.push({ kind: 'show' }); },
+      showScenario: async (definition, name) => { inspections.push({ definition, name }); } }),
+    addEventListener: (name, action) => { events[name] = action; },
     delveSetDesignerMode: designer => modes.push(designer), delvePlayDesign: async transport => { played.push(transport); return true; },
     fetch: async (url, options) => { calls.push({ url, ...options }); return { ok: true, status: 200, json: async () => url.endsWith('/transport') ? { transport: 'DELVE1:test-owned' } : structuredClone(fixture) }; }
   });
   vm.runInContext(source('library-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('library.js').replace(/^import .*\r?\n/gm, '').replace(/void applyRoute\(\);\s*$/, ''), context);
-  return { run: code => vm.runInContext(code, context), get, context, location, events, calls, modes, played, editor };
+  return { run: code => vm.runInContext(code, context), get, context, location, events, calls, modes, played, inspections, editor };
 }
 
 test('library routes retain direct Designer/playtest links and decode scenario identities', () => {
@@ -42,7 +45,30 @@ test('library routes retain direct Designer/playtest links and decode scenario i
   for (const hash of ['', '#unknown', '#campaign/%ZZ']) assert.equal(h.run(`libraryRoute(${JSON.stringify(hash)}).mode`), 'home');
   assert.deepEqual(plain(h.run("libraryRoute('#playtest')")), { mode: 'play' });
   assert.deepEqual(plain(h.run("libraryRoute('#designer')")), { mode: 'designer' });
+  assert.deepEqual(plain(h.run("libraryRoute('#content')")), { mode: 'content' });
   assert.deepEqual(plain(h.run("libraryRoute('#scenario/s-one')")), { mode: 'scenario', id: 's-one' });
+});
+
+test('Content navigation is discoverable and keeps the gameplay and Designer surfaces separate', async () => {
+  const h = harness(); await h.run('applyRoute()');
+  assert.ok(h.get('.library-hero').all('a').some(a => a.href === '#content'));
+  h.calls.length = 0;
+  h.get('mode-content').listeners.click(); await h.run('applyRoute()');
+  assert.equal(h.location.hash, '#content');
+  assert.equal(h.get('content-browser').hidden, false);
+  for (const id of ['library-main', 'designer-main', 'playtest-main', 'playtest-tools']) assert.equal(h.get(id).hidden, true);
+  assert.equal(h.get('mode-content').attributes['aria-pressed'], 'true');
+  assert.deepEqual(h.calls, []); assert.deepEqual(h.played, []);
+  assert.deepEqual(h.inspections, [{ kind: 'show' }]);
+});
+
+test('explicit Designer content inspection forwards only its draft and does not start a game', async () => {
+  const h = harness('#designer'); await h.run('applyRoute()');
+  const draft = { unitTypes: [{ id: 'local-medic', localAbilities: [] }] };
+  await h.context.delveInspectContent(draft, 'Draft for inspection');
+  assert.equal(h.location.hash, '#content');
+  assert.deepEqual(h.inspections, [{ definition: draft, name: 'Draft for inspection' }]);
+  assert.deepEqual(h.calls, []); assert.deepEqual(h.played, []);
 });
 
 test('home navigation renders only public campaign metadata and keeps game and Designer hidden', async () => {

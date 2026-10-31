@@ -2,7 +2,7 @@
 export function libraryRoute(hash) {
   const [kind, rawId] = String(hash || '#home').replace(/^#/, '').split('/');
   const mode = kind === 'playtest' ? 'play' : kind;
-  if (!['home', 'scenarios', 'scenario', 'campaign', 'campaigns-edit', 'designer', 'play'].includes(mode)) return { mode: 'home' };
+  if (!['home', 'scenarios', 'scenario', 'campaign', 'campaigns-edit', 'designer', 'content', 'play'].includes(mode)) return { mode: 'home' };
   let id;
   try { id = rawId ? decodeURIComponent(rawId) : undefined; } catch { return { mode: 'home' }; }
   return { mode, id };

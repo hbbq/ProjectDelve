@@ -1,5 +1,6 @@
 import { libraryRoute, campaignEntries, filterLibrary } from './library-state.js';
 import { mountCampaignEditor } from './campaign-editor.js';
+import { mountContentBrowser } from './content-browser.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const el = document.createElement(tag); if (text) el.textContent = text; if (className) el.className = className; return el; };
@@ -8,6 +9,7 @@ const button = (text, action) => { const el = node('button', text); el.type = 'b
 let route = libraryRoute(location.hash), library = null, requestNumber = 0, playing = false;
 let editor;
 let heroSignature, routeApplied = false;
+const contentBrowser = mountContentBrowser($('content-browser'));
 async function api(path, options) {
   const response = await fetch(`/api/library${path}`, { cache: 'no-store', ...options });
   if (response.status === 204) return null;
@@ -21,14 +23,15 @@ function showMode() {
   $('library-main').hidden = !browsing;
   $('campaign-editor').hidden = route.mode !== 'campaigns-edit';
   $('designer-main').hidden = route.mode !== 'designer';
+  $('content-browser').hidden = route.mode !== 'content';
   $('playtest-main').hidden = route.mode !== 'play';
   $('playtest-tools').hidden = route.mode !== 'play';
   document.body.classList.toggle('designing', route.mode === 'designer');
   document.body.classList.toggle('playing', route.mode === 'play');
-  document.body.classList.toggle('browsing', browsing || route.mode === 'campaigns-edit');
+  document.body.classList.toggle('browsing', browsing || route.mode === 'campaigns-edit' || route.mode === 'content');
   const activeMode = ['campaign', 'campaigns-edit'].includes(route.mode) ? 'home' : route.mode === 'scenario' ? 'scenarios' : route.mode;
-  for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['designer', 'designer'], ['playtest', 'play']]) $('mode-' + id).setAttribute('aria-pressed', String(activeMode === mode));
-  document.title = `Project Delve${route.mode === 'designer' ? ' · Designer' : route.mode === 'play' ? ' · Play' : ''}`;
+  for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['designer', 'designer'], ['content', 'content'], ['playtest', 'play']]) $('mode-' + id).setAttribute('aria-pressed', String(activeMode === mode));
+  document.title = `Project Delve${route.mode === 'designer' ? ' · Designer' : route.mode === 'content' ? ' · Content' : route.mode === 'play' ? ' · Play' : ''}`;
 }
 function navigate(mode, id) {
   const next = '#' + mode + (id ? '/' + encodeURIComponent(id) : '');
@@ -36,6 +39,12 @@ function navigate(mode, id) {
   location.hash = next;
 }
 globalThis.delveNavigate = navigate;
+// Explicit authoring snapshot only. The Viewer never requests the running game.
+globalThis.delveInspectContent = (definition, name) => {
+  const inspection = contentBrowser.showScenario(definition, name);
+  navigate('content');
+  return inspection;
+};
 globalThis.delveDesignerReady = showMode;
 editor = mountCampaignEditor($('campaign-editor'), {
   onSaved: campaign => { library = null; navigate(campaign ? 'campaign' : 'home', campaign?.id); },
@@ -71,7 +80,8 @@ function renderHero() {
     for (const [number, title, description, href] of [
       ['01', 'Find an adventure', 'Explore every scenario', '#scenarios'],
       ['02', 'Return to the table', 'Open the current game', '#play'],
-      ['03', 'Create your world', 'Build in Scenario Designer', '#designer']
+      ['03', 'Create your world', 'Build in Scenario Designer', '#designer'],
+      ['04', 'Explore game content', 'Units, objects, terrain and mechanics', '#content']
     ]) {
       const item = link('', href); item.className = 'library-menu-item';
       item.append(node('span', number, 'library-menu-number'));
@@ -260,6 +270,7 @@ async function applyRoute() {
   route = next; showMode(); $('library-search').value = '';
   const destination = location.hash;
   if (route.mode === 'campaigns-edit') await editor.open(route.id);
+  else if (route.mode === 'content') await contentBrowser.show();
   else if (['home', 'scenarios', 'scenario', 'campaign'].includes(route.mode)) {
     await refresh();
     if (moved && location.hash === destination) {
@@ -269,7 +280,7 @@ async function applyRoute() {
     }
   }
 }
-for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['playtest', 'play'], ['designer', 'designer']]) $('mode-' + id).addEventListener('click', () => navigate(mode));
+for (const [id, mode] of [['home', 'home'], ['scenarios', 'scenarios'], ['playtest', 'play'], ['designer', 'designer'], ['content', 'content']]) $('mode-' + id).addEventListener('click', () => navigate(mode));
 $('library-search').addEventListener('input', render);
 globalThis.addEventListener('hashchange', applyRoute);
 globalThis.addEventListener('delve-designer-ready', showMode);
