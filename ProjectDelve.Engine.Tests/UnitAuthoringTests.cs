@@ -233,9 +233,18 @@ public sealed class UnitAuthoringTests
                 BonusActions = [new("Dash", 2, [new(Stat.Mov, 2)]), new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
             }),
             (UnitType.Cleric, new("cleric-type", 3, 1, 3, 3, 4,
-                Actions: UnitAction.NormalAttack | UnitAction.Heal | UnitAction.HolyWave, FreeActions: UnitFreeAction.OpenDoor)
+                Actions: UnitAction.NormalAttack, FreeActions: UnitFreeAction.OpenDoor)
             {
-                Unique = true, DisplayName = "Cleric", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Heal = new(2) { Amount = 2 }, HolyWave = new(2), AdjacentFriendlyUnitsDefenceBonus = new(1, "Aura")
+                Unique = true, DisplayName = "Cleric", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true,
+                LocalAbilities =
+                [
+                    new("heal", "Heal", AbilityTiming.Action, new HealMechanic(2))
+                        { Usage = new(2), Compatibility = new(LegacyAbilityKind.Heal) },
+                    new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic())
+                        { Usage = new(2), Compatibility = new(LegacyAbilityKind.HolyWave) },
+                    new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)]))
+                        { Usage = new(null), Compatibility = new(LegacyAbilityKind.Aura, Key: "Aura") }
+                ]
             }),
             (UnitType.Wizard, new("wizard-type", 3, 4, 3, 2, 4,
                 Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
@@ -260,8 +269,8 @@ public sealed class UnitAuthoringTests
         foreach (var (factory, expected) in content)
         {
             var actual = factory(expected.Id);
-            // Keep the independent old declaration fixture: compare every shared
-            // mechanic/parameter and all remaining fields across the representation change.
+            // Compare every mechanic/parameter and all remaining fields against
+            // independent fixtures for the legacy and local declaration shapes.
             Assert.Equal(NativeContent(expected), NativeContent(actual));
             Assert.Equal(JsonSerializer.Serialize(OtherContent(expected)), JsonSerializer.Serialize(OtherContent(actual)));
             Assert.Equal(expected.CardEntries(), actual.CardEntries());

@@ -77,6 +77,19 @@ internal static class AbilityCatalogCompatibility
         }).ToList();
     }
 
+    // Before source-owned Abilities, the default Item catalog referenced the saved
+    // Second Wind definition. Omission must retain that live reference, including
+    // authored variants; an explicit Item catalog always remains authoritative.
+    internal static void NormalizeMissingItemCatalog(GameState state, bool itemCatalogProvided)
+    {
+        if (itemCatalogProvided || !state.AbilityDefinitions.OfType<AbilityDefinition>().Any(definition => definition.Id == "second-wind")) return;
+        state.ItemTypes = state.ItemTypes.Select(item => item.Id == "second-wind" ? item with
+        {
+            LocalAbilities = [],
+            Grants = [new("use", "second-wind")]
+        } : item).ToList();
+    }
+
     private static IEnumerable<AbilityGrant> Grants(ImmutableArray<AbilityGrant> grants) => grants.IsDefault
         ? [] : grants.OfType<AbilityGrant>();
 

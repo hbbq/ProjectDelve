@@ -201,9 +201,18 @@ public static class UnitRoster
         Stats(3, 1, 3, 3, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(),
-        Grant("heal", "heal", new(LegacyAbilityKind.Heal)),
-        Grant("holy-wave", "holy-wave", new(LegacyAbilityKind.HolyWave)),
-        Grant("aura", "aura", new(LegacyAbilityKind.Aura, Key: "Aura"))
+        LocalAbility(new("heal", "Heal", AbilityTiming.Action, new HealMechanic(Amount: 2))
+        {
+            Usage = new(MaxUses: 2), Compatibility = new(LegacyAbilityKind.Heal)
+        }),
+        LocalAbility(new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic())
+        {
+            Usage = new(MaxUses: 2), Compatibility = new(LegacyAbilityKind.HolyWave)
+        }),
+        LocalAbility(new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, +1)]))
+        {
+            Usage = new(MaxUses: null), Compatibility = new(LegacyAbilityKind.Aura, Key: "Aura")
+        })
     );
 
     public static UnitType Wizard(string id = UnitTypeIds.Wizard) => UnitType.Define(id,

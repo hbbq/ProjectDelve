@@ -500,6 +500,56 @@ public sealed class DesignerApiTests
     }
 
     [Fact]
+    public async Task OwnedAbilitiesRemainInlineAcrossMetadataDesignerExportPlaytestAndRestart()
+    {
+        await using var host = await Host.Start();
+        var definition = OwnedAbilityWebFixture.Definition();
+        var authoredJson = ScenarioDefinitionJson.ToJson(definition);
+        Assert.Null(definition.AbilityDefinitions);
+        using var metadata = await host.Client.PostAsJsonAsync("/api/designer/metadata", new
+        {
+            unitTypes = definition.UnitTypes,
+            units = definition.Units
+        }, Json);
+        metadata.EnsureSuccessStatusCode();
+        var metadataJson = await metadata.Content.ReadFromJsonAsync<JsonElement>();
+        var keeper = metadataJson.GetProperty("unitTypes").EnumerateArray()
+            .Single(type => type.GetProperty("unitTypeId").GetString() == "woven-keeper");
+        Assert.Equal(new[] { "pulse", "shade" }, keeper.GetProperty("definition").GetProperty("localAbilities")
+            .EnumerateArray().Select(ability => ability.GetProperty("key").GetString()));
+
+        using var validation = await host.PostDraft("validate", authoredJson);
+        Assert.True((await validation.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var exported = await host.PostDraft("export", authoredJson);
+        exported.EnsureSuccessStatusCode();
+        var transport = (await exported.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString()!;
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport });
+        imported.EnsureSuccessStatusCode();
+        Assert.Equal(authoredJson, await imported.Content.ReadAsStringAsync());
+        var restored = ScenarioDefinitionTransport.Decode(transport);
+        Assert.Null(restored.AbilityDefinitions);
+        Assert.Equal("Silver Stitch", restored.UnitTypes!.Single(type => type.Id == "woven-keeper").LocalAbilities[0].Name);
+        Assert.Equal("Lantern Hush", restored.EquipmentTypes!.Single(type => type.Id == "hollow-lantern").LocalAbilities[0].Name);
+        Assert.Equal("Paper Stitch", restored.ItemTypes!.Single(type => type.Id == "folded-remedy").LocalAbilities[0].Name);
+
+        using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
+        played.EnsureSuccessStatusCode();
+        var response = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        var entries = response.Presentation.Cards["actor"].Entries;
+        Assert.Equal(new AbilityUses(2, 2), Assert.Single(entries, entry => entry.Content.Name == "Silver Stitch").Uses);
+        Assert.Equal(2, Assert.Single(entries, entry => entry.Content.Name == "Paper Stitch").CopyCount);
+        Assert.Equal(2, Assert.Single(entries, entry => entry.Content.Name == "Borrow a Moment").CopyCount);
+        Assert.DoesNotContain(response.Result.State.AbilityDefinitions, ability => ability.Name == "Silver Stitch" || ability.Name == "Paper Stitch");
+        using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = response.Revision });
+        restarted.EnsureSuccessStatusCode();
+        var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;
+        Assert.Equal(new[] { "pulse", "shade" }, fresh.Result.State.Types.Single(type => type.Id == "woven-keeper")
+            .LocalAbilities.Select(ability => ability.Key));
+        Assert.Equal(5, fresh.Result.State.Units.Single(unit => unit.Id == "actor").Inventory.Length);
+        Assert.Equal(2, Assert.Single(fresh.Presentation.Cards["actor"].Entries, entry => entry.Content.Name == "Paper Stitch").CopyCount);
+    }
+
+    [Fact]
     public async Task ImmediateLootDefinitionsAndDeckReferencesSurviveDesignerRoundTrip()
     {
         await using var host = await Host.Start();
@@ -524,6 +574,49 @@ public sealed class DesignerApiTests
         var restored = ScenarioDefinitionTransport.Decode(transport);
         Assert.Equal(card, Assert.Single(restored.LootCardDefinitions!));
         Assert.All(GameEngine.CreateGame(restored).LootDeck!.DrawPile, physical => Assert.Equal(card.Id, physical.LootCardId));
+    }
+
+    [Theory]
+    [InlineData("unitTypes", "unitTypes[0].localAbilities[0].mechanic.amount")]
+    [InlineData("equipmentTypes", "equipmentTypes[1].localAbilities[0].mechanic.amount")]
+    [InlineData("itemTypes", "itemTypes[1].localAbilities[0].mechanic.amount")]
+    public async Task OwnedAbilityErrorsUseAuthoredOwnerIndexesInsteadOfRuntimeCatalogIndexes(string owner, string path)
+    {
+        await using var host = await Host.Start();
+        var definition = OwnedAbilityWebFixture.Definition();
+        if (owner == "unitTypes")
+        {
+            // Runtime Unit order follows UnitTypeIds, not the local definitions list.
+            definition = definition with { UnitTypeIds = [.. definition.UnitTypeIds.Skip(1), definition.UnitTypeIds[0]] };
+            var type = definition.UnitTypes![0];
+            definition.UnitTypes[0] = type with
+            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new HealMechanic(0) }) };
+        }
+        else if (owner == "equipmentTypes")
+        {
+            var type = definition.EquipmentTypes![1];
+            definition.EquipmentTypes[1] = type with
+            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new HealMechanic(0) }) };
+        }
+        else
+        {
+            var type = definition.ItemTypes![1];
+            definition.ItemTypes[1] = type with
+            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new ExtraActionsMechanic(0) }) };
+        }
+        var error = Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(definition));
+        Assert.Equal(path, ScenarioValidationContext.PathOf(error));
+        Assert.StartsWith(path + ":", error.Message);
+        foreach (var operation in new[] { "validate", "export" })
+        {
+            using var response = await host.PostDraft(operation, ScenarioDefinitionJson.ToJson(definition));
+            Assert.Equal(operation == "validate" ? HttpStatusCode.OK : HttpStatusCode.BadRequest, response.StatusCode);
+            var validation = (await response.Content.ReadFromJsonAsync<DesignerValidation>())!;
+            Assert.False(validation.Valid);
+            var diagnostic = Assert.Single(validation.Errors);
+            Assert.Equal(path, diagnostic.Path);
+            Assert.Equal(error.Message, diagnostic.Message);
+        }
     }
 
     [Theory]

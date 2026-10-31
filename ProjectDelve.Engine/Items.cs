@@ -6,6 +6,7 @@ namespace ProjectDelve.Engine;
 public sealed record ItemDefinition(string Id, string Name)
 {
     public ImmutableArray<AbilityGrant> Grants { get; init; } = [];
+    public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
 }
 public static class ItemCatalog
 {
@@ -18,9 +19,19 @@ public static class ItemCatalog
     }
     public static void Validate(IReadOnlyList<ItemDefinition> definitions)
     {
-        if (definitions.Any(d => d is null || string.IsNullOrWhiteSpace(d.Id) || string.IsNullOrWhiteSpace(d.Name) || d.Grants.IsDefaultOrEmpty) ||
+        for (var i = 0; i < definitions.Count; i++)
+        {
+            var definition = definitions[i];
+            if (definition is null) continue;
+            if (definition.LocalAbilities.IsDefault)
+                throw ScenarioValidationContext.At(new ArgumentException("Local Abilities cannot be null."), $"itemTypes[{i}].localAbilities");
+            if (definition.Grants.IsDefault)
+                throw ScenarioValidationContext.At(new ArgumentException("Ability grants cannot be null."), $"itemTypes[{i}].grants");
+        }
+        if (definitions.Any(d => d is null || string.IsNullOrWhiteSpace(d.Id) || string.IsNullOrWhiteSpace(d.Name) ||
+                d.Grants.IsEmpty && d.LocalAbilities.IsEmpty) ||
             definitions.Select(d => d.Id).Distinct(StringComparer.Ordinal).Count() != definitions.Count)
-            throw new ArgumentException("Items require unique IDs, names and at least one Ability grant.");
+            throw new ArgumentException("Items require unique IDs, names and at least one Ability grant or local Ability.");
     }
 }
 
@@ -55,10 +66,12 @@ public static class LootCardCatalog
         if (definitions.Any(d => d is null || string.IsNullOrWhiteSpace(d.Id) || string.IsNullOrWhiteSpace(d.Name) ||
             new object?[] { d.ItemTypeId, d.EquipmentTypeId, d.Immediate }.Count(v => v is not null) != 1 ||
             d.ItemTypeId is not null && string.IsNullOrWhiteSpace(d.ItemTypeId) ||
-            d.EquipmentTypeId is not null && string.IsNullOrWhiteSpace(d.EquipmentTypeId) ||
-            d.Immediate is not null and not HealCollectorMechanic || d.Immediate is HealCollectorMechanic { Amount: < 1 or > 100 }) ||
+            d.EquipmentTypeId is not null && string.IsNullOrWhiteSpace(d.EquipmentTypeId)) ||
             definitions.Select(d => d.Id).Distinct(StringComparer.Ordinal).Count() != definitions.Count)
-            throw new ArgumentException("Loot Cards need unique IDs, names and exactly one Item, Equipment or supported Immediate reward; healing amounts must be 1..100.");
+            throw new ArgumentException("Loot Cards need unique IDs, names and exactly one Item, Equipment or supported Immediate reward.");
+        foreach (var definition in definitions)
+            if (definition.Immediate is { } immediate)
+                MechanicCatalog.ThrowIfInvalid(immediate, path: "immediate");
     }
 }
 public static class ItemQueries
@@ -70,7 +83,8 @@ public static class ItemQueries
     public static LootCardContent ItemContent(this GameState state, OwnedObject obj)
     {
         var item = state.Item(state.ItemTypeId(obj)!);
-        var entries = item.Grants.Select(g => state.Ability(g.AbilityId).CardEntry());
+        var entries = AbilityDeclarations.Resolve(item.LocalAbilities, item.Grants, state.AbilityDefinitions, legacyItemTypeId: item.Id)
+            .Select(declaration => declaration.Definition.CardEntry());
         return new(obj.Kind, item.Name, LootCategory.Item, string.Join(" ", entries.Select(e => $"{e.Category}: {e.Description}")) + " Consume this Item.")
             { ItemTypeId = item.Id };
     }

@@ -1,11 +1,17 @@
 namespace ProjectDelve.Engine;
 
-// Canonical Item content only. A grant references the authoritative Ability;
+// Canonical Item content only. Each Item owns its complete local Abilities;
 // physical consumption and use accounting are shared Engine operations.
 public static class ItemRoster
 {
     public static IReadOnlyList<ItemDefinition> All { get; } = Array.AsReadOnly(new ItemDefinition[]
     {
-        new("second-wind", "Second Wind") { Grants = [new("use", "second-wind")] }
+        new("second-wind", "Second Wind")
+        {
+            LocalAbilities = [new("use", "Second Wind", AbilityTiming.BonusAction, new ExtraActionsMechanic(Amount: 1))
+            {
+                Usage = new(MaxUses: null), Compatibility = new(LegacyAbilityKind.SecondWind)
+            }]
+        }
     });
 }

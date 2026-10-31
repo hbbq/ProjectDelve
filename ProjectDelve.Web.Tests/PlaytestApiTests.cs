@@ -265,9 +265,8 @@ public sealed class PlaytestApiTests
         Assert.Equal(new[] { "Dash", "Throwing Knife" }, new[] { "bonus:Dash", "bonus:Throwing Knife" }
             .Select(id => Entry(Rogue, id).GetProperty("name").GetString()));
         var cleric = types.Single(t => t.GetProperty("id").GetString() == "cleric-type");
-        var auraId = cleric.GetProperty("abilityGrants").EnumerateArray().Single(grant => grant.GetProperty("id").GetString() == "aura")
-            .GetProperty("abilityId").GetString();
-        var aura = state.GetProperty("abilityDefinitions").EnumerateArray().Single(ability => ability.GetProperty("id").GetString() == auraId);
+        var aura = cleric.GetProperty("localAbilities").EnumerateArray()
+            .Single(ability => ability.GetProperty("key").GetString() == "aura");
         Assert.Equal("Aura", aura.GetProperty("name").GetString());
         Assert.Equal("Passive", aura.GetProperty("timing").GetString());
         Assert.Equal("adjacentModifiers", aura.GetProperty("mechanic").GetProperty("kind").GetString());

@@ -17,6 +17,7 @@ public sealed record EquipmentAbility(string Id, string Name, EquipmentActionMec
 public sealed record EquipmentDefinition(string Id, string Name)
 {
     public ImmutableArray<AbilityGrant> Grants { get; init; } = [];
+    public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
     public ImmutableArray<EquipmentStatModifier> Modifiers { get; init; } = [];
     public ImmutableArray<EquipmentCapability> Capabilities { get; init; } = [];
     public ImmutableArray<EquipmentAbility> Abilities { get; init; } = [];
@@ -39,13 +40,8 @@ public sealed record EquipmentDefinition(string Id, string Name)
                 EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit => "Stand up one adjacent friendly Lying Unit.",
                 _ => throw new ArgumentException("Unsupported Equipment Action.")
             })));
-        var definitions = abilityDefinitions ?? AbilityCatalog.All;
-        foreach (var grant in Grants)
-        {
-            var ability = definitions.SingleOrDefault(definition => definition.Id == grant.AbilityId)
-                ?? throw new ArgumentException($"Unknown Ability ID '{grant.AbilityId}'.");
-            entries.Add(ability.CardEntry(EntryId(grant.Id)));
-        }
+        foreach (var declaration in AbilityDeclarations.Resolve(LocalAbilities, Grants, abilityDefinitions))
+            entries.Add(declaration.Definition.CardEntry(EntryId(declaration.Key)));
         return entries;
     }
     [System.Text.Json.Serialization.JsonIgnore]

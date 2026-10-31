@@ -1057,6 +1057,47 @@ test("local World Cards survive World settings edits, recovery, export and play"
 });
 
 
+test("owned Abilities remain nested through import, editing, recovery, export and play", async () => {
+  const definition = structuredClone(designerSetup);
+  definition.unitTypes = [{ id: "woven-keeper", displayName: "Woven Keeper", mov: 2, rng: 1, atk: 0, def: 1, hp: 3,
+    localAbilities: [
+      { key: "pulse", name: "Silver Stitch", timing: "Action", usage: { maxUses: 2 }, mechanic: { kind: "heal", amount: 2 } },
+      { key: "shade", name: "Woven Shade", timing: "Passive", mechanic: { kind: "adjacentModifiers", modifiers: [{ stat: "Def", amount: 2 }] } }
+    ] }];
+  definition.equipmentTypes = [{ id: "hollow-lantern", name: "Hollow Lantern",
+    localAbilities: [{ key: "pulse", name: "Lantern Hush", timing: "Action", mechanic: { kind: "holyWave" } }] }];
+  definition.itemTypes = [{ id: "folded-remedy", name: "Folded Remedy",
+    localAbilities: [{ key: "pulse", name: "Paper Stitch", timing: "Action", mechanic: { kind: "heal", amount: 3 } }] },
+    { id: "spare-moment", name: "Spare Moment",
+      localAbilities: [{ key: "pulse", name: "Borrow a Moment", timing: "BonusAction", mechanic: { kind: "extraActions", amount: 1 } }] }];
+  definition.unitTypeIds.push("woven-keeper");
+  definition.units.push({ unitTypeId: "woven-keeper", sideId: "amber", unitId: "keeper", anchor: { x: 1, y: 1 },
+    inventory: [{ id: "lantern", equipmentTypeId: "hollow-lantern" },
+      { id: "remedy-one", itemTypeId: "folded-remedy" }, { id: "remedy-two", itemTypeId: "folded-remedy" },
+      { id: "moment-one", itemTypeId: "spare-moment" }, { id: "moment-two", itemTypeId: "spare-moment" }] });
+  definition.agency.push({ unitTypeId: "woven-keeper", sideId: "amber", controller: "Human" });
+  const storage = memoryStorage(), submitted = [], played = [];
+  const h = harness(async (operation, body) => {
+    submitted.push({ operation, body: plain(body) });
+    return operation === "import" ? structuredClone(definition) : operation === "validate"
+      ? { valid: true, errors: [] } : { transport: "DELVE1:owned-abilities" };
+  }, async transport => { played.push(transport); return true; }, storage);
+  h.editor.ui.transport.value = "DELVE1:owned-abilities"; await h.click("import");
+  h.editor.draft.paintTerrain({ x: 0, y: 0 }, "Grass"); h.editor.render();
+  h.click("undo"); h.click("redo");
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()), plain(h.editor.draft.snapshot()));
+  h.editor.loadDocument(JSON.stringify(h.editor.documentData()));
+  await h.click("validate"); await h.click("export"); await h.click("play");
+  for (const request of submitted.filter(row => row.operation !== "import")) {
+    for (const field of ["unitTypes", "equipmentTypes", "itemTypes"])
+      assert.deepEqual(request.body[field], definition[field]);
+    assert.deepEqual(request.body.units.find(unit => unit.unitId === "keeper").inventory, definition.units.at(-1).inventory);
+    assert.equal(request.body.abilityDefinitions, undefined);
+  }
+  assert.deepEqual(played, ["DELVE1:owned-abilities"]);
+});
+
 test("imported Resources render, survive export and prevent shrinking off their Cells", async () => {
   const definition = structuredClone(designerSetup);
   definition.resources = [{ type: { id: "coal", name: "Coal" }, position: { x: 5, y: 4 } }];

@@ -66,7 +66,8 @@ internal static class LootCompatibility
             if (definition.ItemTypeId is { } itemId)
             {
                 var item = items.Single(i => i.Id == itemId);
-                var granted = item.Grants.Select(g => abilities.Single(a => a.Id == g.AbilityId)).ToArray();
+                var granted = AbilityDeclarations.Resolve(item.LocalAbilities, item.Grants, abilities, legacyItemTypeId: item.Id)
+                    .Select(declaration => declaration.Definition).ToArray();
                 var entries = granted.Select(a => a.CardEntry()).ToArray();
                 // Historical metadata retains sentence casing; any supported
                 // grant list can supply it, without requiring Second Wind's shape.

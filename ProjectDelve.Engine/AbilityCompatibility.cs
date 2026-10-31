@@ -16,6 +16,7 @@ internal static class AbilityCompatibility
             LegacyAbilityKind.BonusAction => source == AbilitySourceKind.Unit && definition.Timing == AbilityTiming.BonusAction,
             LegacyAbilityKind.Aura => source == AbilitySourceKind.Unit && definition.Timing == AbilityTiming.Passive,
             LegacyAbilityKind.EquipmentAction => source == AbilitySourceKind.Equipment && definition.Timing == AbilityTiming.Action,
+            LegacyAbilityKind.SecondWind => source == AbilitySourceKind.Item && definition.Timing is AbilityTiming.Action or AbilityTiming.BonusAction,
             _ => false
         };
         var keyed = binding.Kind is LegacyAbilityKind.BonusAction or LegacyAbilityKind.Aura;
@@ -71,20 +72,22 @@ internal static class AbilityCompatibility
         };
         // Ordinary grants keep their existing lazy generic accounting. Only historical
         // storage bindings need dedicated counters when constructing a detached Unit.
-        foreach (var grant in type.AbilityGrants.Where(g => g.Compatibility?.Kind is
-                     LegacyAbilityKind.Heal or LegacyAbilityKind.HolyWave or LegacyAbilityKind.Fireball or LegacyAbilityKind.BonusAction))
+        static bool UsesHistoricalCounter(AbilityGrantCompatibility? binding) => binding?.Kind is
+            LegacyAbilityKind.Heal or LegacyAbilityKind.HolyWave or LegacyAbilityKind.Fireball or LegacyAbilityKind.BonusAction;
+        var localCounters = type.LocalAbilities.Where(ability => UsesHistoricalCounter(ability.Compatibility)).ToImmutableArray();
+        var referencedCounters = type.AbilityGrants.Where(grant => UsesHistoricalCounter(grant.Compatibility)).ToImmutableArray();
+        foreach (var declaration in AbilityDeclarations.Resolve(localCounters, referencedCounters, definitions))
         {
-            var definition = definitions.SingleOrDefault(d => d.Id == grant.AbilityId)
-                ?? throw new ArgumentException($"Unknown Ability ID '{grant.AbilityId}'.");
+            var definition = declaration.Definition;
             if (definition.Usage.MaxUses is not { } max) continue;
             var uses = new AbilityUses(max, max);
-            unit = grant.Compatibility!.Kind switch
+            unit = declaration.Compatibility!.Kind switch
             {
                 LegacyAbilityKind.Heal => unit with { HealUses = unit.HealUses ?? uses },
                 LegacyAbilityKind.HolyWave => unit with { HolyWaveUses = unit.HolyWaveUses ?? uses },
                 LegacyAbilityKind.Fireball => unit with { FireballUses = unit.FireballUses ?? uses },
-                LegacyAbilityKind.BonusAction when !unit.BonusActionUses.ContainsKey(grant.Compatibility.Key!) =>
-                    unit with { BonusActionUses = unit.BonusActionUses.Add(grant.Compatibility.Key!, uses) },
+                LegacyAbilityKind.BonusAction when !unit.BonusActionUses.ContainsKey(declaration.Compatibility.Key!) =>
+                    unit with { BonusActionUses = unit.BonusActionUses.Add(declaration.Compatibility.Key!, uses) },
                 _ => unit
             };
         }

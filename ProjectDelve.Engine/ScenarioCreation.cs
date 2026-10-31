@@ -185,7 +185,12 @@ internal static class ScenarioCreation
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"resources[{index}]"); }
         }
         // The same validation also remains at round start. Validate content before CreateUnit.
-        GameEngine.ValidateScenario(state);
+        void ValidateScenario()
+        {
+            try { GameEngine.ValidateScenario(state); }
+            catch (ArgumentException error) { throw ScenarioValidationContext.ForDefinition(error, state, definition); }
+        }
+        ValidateScenario();
         var initialUnitIds = ScenarioIdentity.UnitIds(definition.Units, (definition.Machines ?? []).Select(m => m.Id));
         for (var index = 0; index < definition.Units.Count; index++)
         {
@@ -223,7 +228,7 @@ internal static class ScenarioCreation
         ValidateObjectiveSelections(state, definition);
         GameEngine.CaptureObjectiveStartUnits(state);
         EquipmentCompatibility.MigrateLegacyDuplicateOwnership(state);
-        GameEngine.ValidateScenario(state);
+        ValidateScenario();
         // Defer vision until every Unit, terrain object and initial setting exists.
         state.FogOfWarSides = [.. definition.FogOfWarSides ?? []];
         FogOfWar.Refresh(state);

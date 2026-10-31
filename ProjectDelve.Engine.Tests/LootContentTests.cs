@@ -286,7 +286,8 @@ public sealed class LootContentTests
     [Fact]
     public void LegacyItemMetadataAcceptsMultipleAndDifferentSupportedGrants()
     {
-        var items = ItemCatalog.All.Select(i => i with { Grants = [new("heal", "heal-example"), new("actions", "actions-example")] }).ToArray();
+        var items = ItemCatalog.All.Select(i => i with
+        { LocalAbilities = [], Grants = [new("heal", "heal-example"), new("actions", "actions-example")] }).ToArray();
         AbilityDefinition[] abilities = [.. AbilityCatalog.All, new("heal-example", "Restore", AbilityTiming.Action, new HealMechanic(2)),
             new("actions-example", "Again", AbilityTiming.BonusAction, new ExtraActionsMechanic(3))];
         var cards = LootCompatibility.ProjectLegacyCards(LootCardCatalog.All, items, EquipmentCatalog.All, abilities);

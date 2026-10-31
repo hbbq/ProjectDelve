@@ -8,7 +8,7 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class CanonicalAbilityRosterTests
 {
     [Fact]
-    public void CanonicalSupportedNativeContentIsDeclaredThroughSharedGrants()
+    public void CanonicalSupportedNativeContentUsesTypedLocalDeclarationsOrSupportedLegacyGrants()
     {
         foreach (var type in CanonicalUnitTypes.All)
         {
@@ -19,7 +19,8 @@ public sealed class CanonicalAbilityRosterTests
             Assert.DoesNotContain(type.BonusActions, AbilityQueries.IsSimpleBonus);
             Assert.All(type.AbilityGrants, grant => Assert.Contains(AbilityRoster.All, ability => ability.Id == grant.AbilityId));
         }
-        Assert.Equal(new[] { "heal", "holy-wave", "aura" }, UnitRoster.Cleric().AbilityGrants.Select(g => g.AbilityId));
+        Assert.Empty(UnitRoster.Cleric().AbilityGrants);
+        Assert.Equal(new[] { "heal", "holy-wave", "aura" }, UnitRoster.Cleric().LocalAbilities.Select(ability => ability.Key));
         Assert.Equal(new[] { "fireball", "focus" }, UnitRoster.Wizard().AbilityGrants.Select(g => g.AbilityId));
         Assert.Equal(new[] { "dash", "throwing-knife" }, UnitRoster.Rogue().AbilityGrants.Select(g => g.AbilityId));
         Assert.Equal("rage", Assert.Single(UnitRoster.Barbarian().AbilityGrants).AbilityId);
@@ -36,6 +37,7 @@ public sealed class CanonicalAbilityRosterTests
         {
             var restored = JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))!;
             Assert.Equal(type.AbilityGrants.ToArray(), restored.AbilityGrants.ToArray());
+            Assert.Equal(JsonSerializer.Serialize(type.LocalAbilities), JsonSerializer.Serialize(restored.LocalAbilities));
             Assert.Equal(type.CardEntries(abilityDefinitions: definitions), restored.CardEntries(abilityDefinitions: definitions));
             Assert.Equal(JsonSerializer.Serialize(type.CreateUnit("original", "side", definitions)),
                 JsonSerializer.Serialize(restored.CreateUnit("original", "side", definitions)));

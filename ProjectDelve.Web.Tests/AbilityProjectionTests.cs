@@ -34,7 +34,7 @@ public sealed class AbilityProjectionTests
     [Fact]
     public void NativeAndEquipmentDescriptionsUseTheSuppliedCatalogWithoutDuplicateGrantText()
     {
-        var type = UnitType.Cleric();
+        var type = LegacyReferenceCleric();
         var state = new GameState
         {
             Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
@@ -71,7 +71,7 @@ public sealed class AbilityProjectionTests
     public void HiddenNativeGrantsDoNotRevealTheirResolvedDefinitions()
     {
         var visible = UnitType.Grunt();
-        var hidden = UnitType.Cleric();
+        var hidden = LegacyReferenceCleric();
         var state = new GameState
         {
             Physical = new(new Board(20, 3, []), [new("observer", new(0, 0)), new("hidden", new(19, 0))]),
@@ -80,6 +80,7 @@ public sealed class AbilityProjectionTests
         };
         var index = state.AbilityDefinitions.FindIndex(ability => ability.Id == "heal");
         state.AbilityDefinitions[index] = state.AbilityDefinitions[index] with { Name = "Secret Mending Verse" };
+        Assert.Contains(state.AbilitiesOf("hidden"), ability => ability.Definition.Name == "Secret Mending Verse");
         FogOfWar.Refresh(state);
         var observed = FogOfWar.Observe(state, "blue");
         Assert.DoesNotContain("Secret Mending Verse", JsonSerializer.Serialize(observed));
@@ -87,6 +88,19 @@ public sealed class AbilityProjectionTests
         Assert.DoesNotContain("Secret Mending Verse", JsonSerializer.Serialize(
             GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>())));
     }
+
+    // Retain the historical reference representation to exercise supplied-catalog
+    // resolution independently of the canonical Cleric's owned declarations.
+    private static UnitType LegacyReferenceCleric() => UnitType.Cleric() with
+    {
+        LocalAbilities = [],
+        AbilityGrants =
+        [
+            new("heal", "heal") { Compatibility = new(LegacyAbilityKind.Heal) },
+            new("holy-wave", "holy-wave") { Compatibility = new(LegacyAbilityKind.HolyWave) },
+            new("aura", "aura") { Compatibility = new(LegacyAbilityKind.Aura, Key: "Aura") }
+        ]
+    };
 
     private static GameState State(bool fog = false)
     {

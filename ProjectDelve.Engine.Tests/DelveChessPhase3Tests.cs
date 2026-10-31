@@ -179,7 +179,9 @@ public sealed partial class DelveChessTests
         Assert.Equal(UnitBehavior.None, type.Behaviors);
         Assert.Equal(!king, type.AdvanceOnKill is not null);
         Assert.Equal(king, AbilityQueries.NativeAbilities(type, "piece").Any(g => g.Definition.Mechanic is AdjacentModifiersMechanic));
-        if (king) Assert.Equal(Assert.Single(UnitRoster.Cleric().AbilityGrants, g => g.Id == "aura"), Assert.Single(type.AbilityGrants));
+        if (king) Assert.Equal(
+            JsonSerializer.Serialize(Assert.Single(AbilityQueries.NativeAbilities(UnitRoster.Cleric(), "cleric"), ability => ability.GrantId == "aura").Definition),
+            JsonSerializer.Serialize(Assert.Single(AbilityQueries.NativeAbilities(type, "king")).Definition));
         var counterpart = king ? UnitRoster.GoblinKing(id) : UnitRoster.WitchQueen(id);
         Assert.Equal(JsonSerializer.Serialize(type with { DisplayName = "pair" }), JsonSerializer.Serialize(counterpart with { DisplayName = "pair" }));
         var definition = Scenario.Define(Scenario.Map(7, 7), [

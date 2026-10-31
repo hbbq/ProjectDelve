@@ -377,6 +377,7 @@ public sealed class FireballTests
         {
             Def = 0,
             AbilityGrants = [],
+            LocalAbilities = [],
             AdjacentFriendlyUnitsDefenceBonus = new(modifier),
             Undying = undying ? new() : null
         };

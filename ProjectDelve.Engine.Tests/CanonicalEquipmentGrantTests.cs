@@ -39,16 +39,21 @@ public sealed class CanonicalEquipmentGrantTests
         Abilities = [new("stand-up", "Emergency Goat Bell", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)
             { CandidatePrefix = "goat-bell" }]
     };
+    private static EquipmentDefinition ReferencedBell() => new("goat-bell", "Emergency Goat Bell")
+    {
+        Grants = [new("stand-up", "goat-bell-stand-up")
+            { Compatibility = new(LegacyAbilityKind.EquipmentAction, CandidatePrefix: "goat-bell") }]
+    };
 
     [Fact]
-    public void CanonicalBellUsesSharedAbilityAndKeepsHistoricalSourceIdentities()
+    public void CanonicalBellOwnsItsAbilityAndKeepsHistoricalSourceIdentities()
     {
         var state = Ready();
         var equipment = state.Equipment("goat-bell");
         Assert.Empty(equipment.Abilities);
-        var declared = Assert.Single(equipment.Grants);
-        Assert.Equal("stand-up", declared.Id); Assert.Equal("goat-bell-stand-up", declared.AbilityId);
-        var ability = state.Ability(declared.AbilityId);
+        Assert.Empty(equipment.Grants);
+        var ability = Assert.Single(equipment.LocalAbilities);
+        Assert.Equal("stand-up", ability.Key);
         Assert.Equal(AbilityTiming.Action, ability.Timing); Assert.Null(ability.Usage.MaxUses);
         Assert.IsType<StandAdjacentFriendlyMechanic>(ability.Mechanic);
         var grant = Assert.Single(state.AbilitiesOf("actor"));
@@ -65,12 +70,15 @@ public sealed class CanonicalEquipmentGrantTests
         var shared = Ready();
         var legacy = Ready();
         legacy.EquipmentTypes[legacy.EquipmentTypes.FindIndex(d => d.Id == "goat-bell")] = LegacyBell();
+        var referenced = Ready();
+        referenced.EquipmentTypes[referenced.EquipmentTypes.FindIndex(d => d.Id == "goat-bell")] = ReferencedBell();
         var resumed = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(shared))!;
-        var first = Ring(shared); var old = Ring(legacy); var saved = Ring(resumed);
+        var first = Ring(shared); var old = Ring(legacy); var saved = Ring(resumed); var global = Ring(referenced);
         Assert.Equal(first.Events, old.Events);
         Assert.Equal(first.Events, saved.Events);
+        Assert.Equal(first.Events, global.Events);
         Assert.True(first.State.IsUpright("friend"));
-        foreach (var result in new[] { first, old, saved })
+        foreach (var result in new[] { first, old, saved, global })
         {
             var actionIndex = result.Events.FindIndex(e => e.Kind == "ActionUsed");
             var actionState = Assert.Single(result.ResolutionSteps.Where(s => s.EventIndex == actionIndex)).StateAfter;
@@ -87,9 +95,11 @@ public sealed class CanonicalEquipmentGrantTests
     {
         var state = Ready();
         var equipment = state.EquipmentTypes.FindIndex(d => d.Id == "goat-bell");
-        state.EquipmentTypes[equipment] = state.EquipmentTypes[equipment] with { Name = "Silver Chime" };
-        var ability = state.AbilityDefinitions.FindIndex(d => d.Id == "goat-bell-stand-up");
-        state.AbilityDefinitions[ability] = state.AbilityDefinitions[ability] with { Name = "Rise Again" };
+        state.EquipmentTypes[equipment] = state.EquipmentTypes[equipment] with
+        {
+            Name = "Silver Chime",
+            LocalAbilities = [Assert.Single(state.EquipmentTypes[equipment].LocalAbilities) with { Name = "Rise Again" }]
+        };
         state.AbilityDefinitions.Reverse();
         var grant = Assert.Single(state.AbilitiesOf("actor"));
         Assert.Equal("Rise Again", grant.Definition.Name); Assert.Equal("Silver Chime", grant.SourceName);
@@ -100,7 +110,26 @@ public sealed class CanonicalEquipmentGrantTests
     }
 
     [Fact]
-    public void OmittedOldEquipmentCatalogReceivesItsMissingCanonicalAbilityDependency()
+    public void HistoricalReferencedBellReadsItsSavedCatalogAfterAnAbilityRename()
+    {
+        var state = Ready();
+        var equipmentIndex = state.EquipmentTypes.FindIndex(equipment => equipment.Id == "goat-bell");
+        state.EquipmentTypes[equipmentIndex] = ReferencedBell();
+        state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        var definitionIndex = state.AbilityDefinitions.FindIndex(ability => ability.Id == "goat-bell-stand-up");
+        state.AbilityDefinitions[definitionIndex] = state.AbilityDefinitions[definitionIndex] with { Name = "Saved Chime" };
+        state = GameEngine.RefreshChoices(state, new Random(), false).State;
+        var candidate = state.Pending!.Candidates.Single(choice => choice.Key == "goat-bell:friend");
+        Assert.Equal("goat-bell-stand-up", candidate.GrantedAbility!.Definition.Id);
+        Assert.Equal("Saved Chime", candidate.GrantedAbility.Definition.Name);
+        Assert.Empty(state.Equipment("goat-bell").LocalAbilities);
+        var result = Ring(JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!);
+        Assert.True(result.State.IsUpright("friend"));
+        Assert.Equal("Saved Chime", Assert.Single(result.Events.Where(gameEvent => gameEvent.Kind == "ActionUsed")).AbilityName);
+    }
+
+    [Fact]
+    public void OmittedOldEquipmentCatalogReceivesCompleteCanonicalLocalAbilities()
     {
         var state = Ready();
         state.AbilityDefinitions = [AbilityCatalog.All.Single(a => a.Id == "second-wind")];
@@ -108,7 +137,8 @@ public sealed class CanonicalEquipmentGrantTests
         json.Remove("EquipmentTypes");
         var restored = JsonSerializer.Deserialize<GameState>(json.ToJsonString())!;
         GameEngine.ValidateScenario(restored);
-        Assert.IsType<StandAdjacentFriendlyMechanic>(restored.Ability("goat-bell-stand-up").Mechanic);
+        Assert.DoesNotContain(restored.AbilityDefinitions, ability => ability.Id == "goat-bell-stand-up");
+        Assert.IsType<StandAdjacentFriendlyMechanic>(Assert.Single(restored.Equipment("goat-bell").LocalAbilities).Mechanic);
         Assert.True(Ring(restored).State.IsUpright("friend"));
         var again = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(restored))!;
         Assert.Equal(JsonSerializer.Serialize(restored), JsonSerializer.Serialize(again));
@@ -128,9 +158,9 @@ public sealed class CanonicalEquipmentGrantTests
         GameEngine.ValidateScenario(restored);
         Assert.Equal(3, Assert.IsType<ExtraActionsMechanic>(restored.Ability("goat-bell-stand-up").Mechanic).Amount);
         Assert.Equal("goat-bell-stand-up", Assert.Single(restored.Types[0].AbilityGrants).AbilityId);
-        var canonicalId = Assert.Single(restored.Equipment("goat-bell").Grants).AbilityId;
-        Assert.Equal("canonical-equipment:canonical-equipment:goat-bell-stand-up", canonicalId);
-        Assert.IsType<StandAdjacentFriendlyMechanic>(restored.Ability(canonicalId).Mechanic);
+        Assert.Empty(restored.Equipment("goat-bell").Grants);
+        Assert.IsType<StandAdjacentFriendlyMechanic>(Assert.Single(restored.Equipment("goat-bell").LocalAbilities).Mechanic);
+        Assert.Equal(3, restored.AbilityDefinitions.Count);
         Assert.Equal("bell-physical", Assert.Single(restored.Units[0].Inventory).Id);
         Assert.True(Ring(restored).State.IsUpright("friend"));
         var again = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(restored))!;
@@ -178,7 +208,8 @@ public sealed class CanonicalEquipmentGrantTests
         Assert.Equal(alias, Assert.Single(state.Types[0].AbilityGrants).AbilityId);
         Assert.Equal(alias, Assert.Single(state.Equipment("local-equipment").Grants).AbilityId);
         Assert.Equal(alias, Assert.Single(state.Item("local-item").Grants).AbilityId);
-        Assert.Equal("goat-bell-stand-up", Assert.Single(state.Equipment("goat-bell").Grants).AbilityId);
+        Assert.Empty(state.Equipment("goat-bell").Grants);
+        Assert.Equal("stand-up", Assert.Single(state.Equipment("goat-bell").LocalAbilities).Key);
         Assert.Equal(3, Assert.IsType<ExtraActionsMechanic>(state.Ability(alias).Mechanic).Amount);
         Assert.True(Ring(state).State.IsUpright("friend"));
     }

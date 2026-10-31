@@ -438,6 +438,74 @@
       }
     },
     {
+      "id": "local-abilities-owned",
+      "name": "Local Abilities - Pocket Workshop",
+      "coverArt": null,
+      "revision": 1,
+      "definition": {
+        "board": { "width": 5, "height": 4, "defaultTerrain": "StoneFloor", "cells": [], "edges": [] },
+        "unitTypeIds": ["pocket-threadkeeper", "pocket-patient", "pocket-practice-target"],
+        "unitTypes": [
+          {
+            "id": "pocket-threadkeeper", "displayName": "Threadkeeper",
+            "mov": 2, "rng": 1, "atk": 0, "def": 1, "hp": 3,
+            "unique": true, "actions": "None", "canHaveEquipment": true, "canHaveItems": true,
+            "localAbilities": [
+              { "key": "mend", "name": "Stitch the Air", "timing": "Action", "usage": { "maxUses": 2 }, "mechanic": { "kind": "heal", "amount": 2 } },
+              { "key": "step", "name": "Unhurried Step", "timing": "Passive", "mechanic": { "kind": "selfModifiers", "modifiers": [{ "stat": "Mov", "amount": 1 }] } }
+            ]
+          },
+          {
+            "id": "pocket-patient", "displayName": "Patient Friend",
+            "mov": 0, "rng": 0, "atk": 0, "def": 1, "hp": 5,
+            "unique": true, "actions": "None", "lootDropSuccesses": 0
+          },
+          {
+            "id": "pocket-practice-target", "displayName": "Practice Target",
+            "mov": 0, "rng": 0, "atk": 0, "def": 0, "hp": 1,
+            "actions": "None", "lootDropSuccesses": 0
+          }
+        ],
+        "equipmentTypes": [
+          {
+            "id": "amber-chime", "name": "Amber Chime",
+            "localAbilities": [{ "key": "use", "name": "Evening Hush", "timing": "Action", "mechanic": { "kind": "holyWave" } }]
+          }
+        ],
+        "itemTypes": [
+          {
+            "id": "folded-remedy", "name": "Folded Remedy",
+            "localAbilities": [{ "key": "use", "name": "Folded Relief", "timing": "Action", "mechanic": { "kind": "heal", "amount": 3 } }]
+          },
+          {
+            "id": "spare-moment", "name": "Spare Moment",
+            "localAbilities": [{ "key": "use", "name": "A Moment More", "timing": "BonusAction", "mechanic": { "kind": "extraActions", "amount": 1 } }]
+          }
+        ],
+        "units": [
+          {
+            "unitTypeId": "pocket-threadkeeper", "sideId": "friends", "anchor": { "x": 1, "y": 1 }, "unitId": "threadkeeper",
+            "inventory": [
+              { "id": "amber-chime-one", "equipmentTypeId": "amber-chime" },
+              { "id": "folded-remedy-one", "itemTypeId": "folded-remedy" },
+              { "id": "folded-remedy-two", "itemTypeId": "folded-remedy" },
+              { "id": "spare-moment-one", "itemTypeId": "spare-moment" },
+              { "id": "spare-moment-two", "itemTypeId": "spare-moment" }
+            ]
+          },
+          { "unitTypeId": "pocket-patient", "sideId": "friends", "anchor": { "x": 1, "y": 2 }, "initialHp": 1, "unitId": "patient" },
+          { "unitTypeId": "pocket-practice-target", "sideId": "targets", "anchor": { "x": 2, "y": 1 }, "unitId": "practice-target" }
+        ],
+        "agency": [
+          { "unitTypeId": "pocket-threadkeeper", "sideId": "friends", "controller": "Human" },
+          { "unitTypeId": "pocket-patient", "sideId": "friends", "controller": "Human" },
+          { "unitTypeId": "pocket-practice-target", "sideId": "targets", "controller": "Human" }
+        ],
+        "objectives": [{ "sideId": "friends", "objective": "NoObjective" }, { "sideId": "targets", "objective": "NoObjective" }],
+        "loot": { "composition": [] }
+      }
+    },
+    {
       "id": "local-equipment-fitting-room",
       "name": "Local Equipment - Fitting Room",
       "coverArt": null,
@@ -544,6 +612,7 @@
         "local-terrain-curiosity-room",
         "local-world-weather-room",
         "local-abilities-three-sources",
+        "local-abilities-owned",
         "local-equipment-fitting-room",
         "loot-equipment",
         "chess",
@@ -575,7 +644,7 @@
         "labyrinth-shaper",
         "genombrottet"
       ],
-      "revision": 6
+      "revision": 7
     }
   ]
 }

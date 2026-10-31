@@ -88,21 +88,19 @@ public static class WorldCardCatalog
         {
             if (d is null || string.IsNullOrWhiteSpace(d.Id) || string.IsNullOrWhiteSpace(d.Name) || !ids.Add(d.Id) || !Enum.IsDefined(d.Lifecycle))
                 throw new ArgumentException("World Cards require unique nonblank Type IDs, names and supported lifecycles.");
-            if (d.Modifiers.IsDefault || d.Modifiers.Any(m => m is null || !Enum.IsDefined(m.Target) || m.Amount is < -100 or > 100))
-                throw new ArgumentException("Invalid World Card modifiers.");
-            if (d.Continuous ? d.Immediate is not null : !d.Modifiers.IsEmpty || d.Immediate is not
-                (LayDownAllUnitsMechanic or SetAllDoorsMechanic or FullyHealUnitsMechanic or HealDamagedUnitsMechanic or DamageUnitsByAdjacencyMechanic or ReplenishLimitedAbilitiesMechanic))
+            MechanicCatalog.ThrowIfInvalid(d.Modifiers, path: "worldCard");
+            if (d.Continuous ? d.Immediate is not null : !d.Modifiers.IsEmpty || d.Immediate is null)
                 throw new ArgumentException("Continuous cards accept modifiers; Immediate cards require one supported Immediate mechanic.");
-            if (d.Immediate is HealDamagedUnitsMechanic { Amount: < 1 or > 100 } or DamageUnitsByAdjacencyMechanic { Amount: < 1 or > 100 } or ReplenishLimitedAbilitiesMechanic { Amount: < 1 or > 100 })
-                throw new ArgumentException("World Card amounts must be from 1 to 100.");
+            if (d.Immediate is { } immediate)
+                MechanicCatalog.ThrowIfInvalid(immediate, path: "immediate");
             if (d.DescriptionOverride is { } text)
             {
-                var amount = d.Immediate is HealDamagedUnitsMechanic or DamageUnitsByAdjacencyMechanic or ReplenishLimitedAbilitiesMechanic;
-                var modifiers = !d.Modifiers.IsEmpty;
-                var remainder = text.Replace("{amount}", "").Replace("{modifiers}", "");
-                if (string.IsNullOrWhiteSpace(text) || text.Any(char.IsDigit) || amount && !text.Contains("{amount}") || modifiers && !text.Contains("{modifiers}") ||
-                    !amount && text.Contains("{amount}") || !modifiers && text.Contains("{modifiers}") || remainder.Contains('{') || remainder.Contains('}'))
-                    throw new ArgumentException("World Card overrides must insert authoritative {amount} or {modifiers}, without duplicate numbers or unsupported placeholders.");
+                var policy = MechanicCatalog.FindByPayload(d.Continuous ? (object)d.Modifiers : d.Immediate!)!.Description;
+                List<MechanicDiagnostic> errors = [];
+                HashSet<string> nonemptyLists = d.Modifiers.IsEmpty ? [] : ["modifiers"];
+                MechanicChecks.Description(errors, policy, text, "descriptionOverride", nonemptyLists);
+                if (errors.Count != 0)
+                    throw new ArgumentException(string.Join(" ", errors.Select(error => $"{error.Path}: {error.Message}")));
             }
         }
     }

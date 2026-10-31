@@ -251,6 +251,7 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public Cleave? Cleave { get; init; }
     public Heal? Heal { get; init; }
     public ImmutableArray<AbilityGrant> AbilityGrants { get; init; } = [];
+    public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
     public HolyWave? HolyWave { get; init; }
     public Fireball? Fireball { get; init; }
     public ClawAttack? ClawAttack { get; init; }
@@ -455,12 +456,19 @@ public sealed class GameState : IJsonOnDeserialized
     void IJsonOnDeserialized.OnDeserialized()
     {
         AbilityCatalogCompatibility.NormalizeMissingEquipmentCatalog(this, equipmentCatalogProvided);
+        AbilityCatalogCompatibility.NormalizeMissingItemCatalog(this, itemCatalogProvided);
         LootCompatibility.MigrateLegacyCatalog(this);
         EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
     }
     public List<WorldCardDefinition> WorldCardDefinitions { get; set; } = WorldCardCatalog.Resolve(null);
     public List<AbilityDefinition> AbilityDefinitions { get; set; } = AbilityCatalog.Resolve(null);
-    public List<ItemDefinition> ItemTypes { get; set; } = ItemCatalog.Resolve(null);
+    private List<ItemDefinition> itemTypes = ItemCatalog.Resolve(null);
+    private bool itemCatalogProvided;
+    public List<ItemDefinition> ItemTypes
+    {
+        get => itemTypes;
+        set { itemTypes = value; itemCatalogProvided = true; }
+    }
     public List<LootCardDefinition> LootCardDefinitions { get; set; } = LootCardCatalog.Resolve(null);
     private List<EquipmentDefinition> equipmentTypes = EquipmentCatalog.Resolve(null);
     private bool equipmentCatalogProvided;

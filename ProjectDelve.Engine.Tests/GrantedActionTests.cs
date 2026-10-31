@@ -94,6 +94,8 @@ public sealed class GrantedActionTests
         scenario.Units[0] = scenario.Units[0] with
         { Inventory = [new("wind-one", LootCardKind.SecondWind), new("wind-two", LootCardKind.SecondWind)] };
         var state = Ready(scenario);
+        var itemIndex = state.ItemTypes.FindIndex(item => item.Id == "second-wind");
+        state.ItemTypes[itemIndex] = state.ItemTypes[itemIndex] with { LocalAbilities = [], Grants = [new("use", "second-wind")] };
         var index = state.AbilityDefinitions.FindIndex(a => a.Id == "second-wind");
         state.AbilityDefinitions[index] = Wave("second-wind", "Folded Wind");
         state = GameEngine.RefreshChoices(Restore(state), new Dice(), false).State;

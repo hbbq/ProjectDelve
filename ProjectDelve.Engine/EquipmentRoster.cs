@@ -10,8 +10,9 @@ public static class EquipmentRoster
         new("official-key", "Official-Looking Key") { Capabilities = [EquipmentCapability.OpenDoor] },
         new("goat-bell", "Emergency Goat Bell")
         {
-            Grants = [new("stand-up", "goat-bell-stand-up")
+            LocalAbilities = [new("stand-up", "Emergency Goat Bell", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())
             {
+                Usage = new(MaxUses: null),
                 Compatibility = new(LegacyAbilityKind.EquipmentAction, CandidatePrefix: "goat-bell")
             }]
         }

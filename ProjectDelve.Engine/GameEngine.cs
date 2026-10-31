@@ -1015,9 +1015,8 @@ public static partial class GameEngine
             state.Types.Any(t => !Enum.IsDefined(t.Footprint) || t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
                 (t.RunRails is { } rails && (rails.Steps < 1 || t.Footprint != Footprint.OneByOne)) ||
                 t.TryOpenDoor is { SuccessCount: < 0 or > 6 } || t.MoveAfterAttack is { MaxSteps: < 0 } ||
-                t.Cleave is { MaxUses: < 1 } or { TriggerDamage: < 1 } or { Damage: < 1 } ||
+                !MechanicCatalog.HasValidSpecializedNativeMechanics(t) ||
                 t.Heal is { MaxUses: < 1 } or { Amount: < 1 } ||
-                t.Fury is { AdjacentEnemyThreshold: < 1 } ||
                 (t.Actions.HasFlag(UnitAction.SummonWorker) && t.SummonWorker is null) ||
                 (t.Actions.HasFlag(UnitAction.SummonTroll) && t.SummonTroll is null) ||
                 t.SummonWorker is { SideLimit: < 1 } || t.SummonTroll is { DiamondCost: < 1 } ||

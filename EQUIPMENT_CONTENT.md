@@ -26,28 +26,23 @@ new EquipmentDefinition("trail-medallion", "Trail Medallion")
 }
 ```
 
-`Modifiers` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amount. `Capabilities` supports Phase and Open Door. Use `Grants` for Actions and other supported shared Abilities. Canonical Emergency Goat Bell now grants `goat-bell-stand-up`, an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. An unlimited usage restriction does not grant extra Actions.
+`Modifiers` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amount. `Capabilities` supports Phase and Open Door. Use `LocalAbilities` for complete owned Actions and other supported Abilities. Canonical Emergency Goat Bell owns an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. An unlimited usage restriction does not grant extra Actions. Existing `Grants` references remain supported for compatibility and intentional sharing.
 
 For example, a second Equipment source can grant that same mechanic with its own name:
 
 ```csharp
-new AbilityDefinition("stand-up", "Stand Up", AbilityTiming.Action,
-    new StandAdjacentFriendlyMechanic())
-{
-    Usage = new(MaxUses: null)
-};
-
 new EquipmentDefinition("holy-bell", "Holy Bell")
 {
-    Grants = [new("ring", "stand-up")]
+    LocalAbilities = [new("ring", "Stand Up", AbilityTiming.Action,
+        new StandAdjacentFriendlyMechanic()) { Usage = new(MaxUses: null) }]
 }
 ```
 
-Use `DescriptionOverride` on an Ability definition only when the generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Stat descriptions always come from the typed amounts. Canonical Goat Bell's grant has explicit compatibility metadata preserving existing saved decision keys; leave it unset for new content, whose keys derive from source Instance ID and grant ID. The older inline `Abilities`/`EquipmentAbility` representation remains a reader for historical scenarios and saved catalogs.
+Use `DescriptionOverride` on an Ability definition only when the generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Stat descriptions always come from the typed amounts. Canonical Goat Bell's local declaration has explicit compatibility metadata preserving existing saved decision keys; leave it unset for new content, whose keys derive from source Instance ID and local Ability key. The older inline `Abilities`/`EquipmentAbility` representation remains a reader for historical scenarios and saved catalogs.
 
 These are ordinary serializable C# definitions. JSON produces the same model and passes the same validation. No delegate, script, parsed Ability prose, content-specific Engine handler or Web switch is required. Adding a genuinely new mechanic still requires a rules decision and implementation; this milestone deliberately supports only the established mechanics above.
 
-Canonical Ability, Item, Loot and existing World Card declarations likewise live in `AbilityRoster.cs`, `ItemRoster.cs`, `LootRoster.cs` and `WorldCardRoster.cs`, separate from their mechanics. See [the content authoring files](ABILITY_CONTENT.md#definitions-and-grants) for their paths. A future JSON provider can replace these roster providers at the same typed catalog boundary; the current extraction changes no IDs or serialized formats.
+Canonical Ability, Item, Loot and existing World Card declarations likewise live in `AbilityRoster.cs`, `ItemRoster.cs`, `LootRoster.cs` and `WorldCardRoster.cs`, separate from their mechanics. See [Ability content](ABILITY_CONTENT.md) for the authoring model and roster responsibilities. A future JSON provider can replace these roster providers at the same typed catalog boundary; the current extraction changes no IDs or serialized formats.
 
 Give an instance directly with `new OwnedObject("physical-medallion-1", "trail-medallion")`. Keep its Instance ID unchanged when moving it between inventory and ground. To offer it as random Loot, add `new LootCardQuantity("trail-medallion", 2)` to a Custom Loot composition. Canonical presets continue to reference their existing centrally maintained cards.
 

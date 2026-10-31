@@ -26,10 +26,7 @@ public static class EnvironmentalProductionContent
     public static void Validate(EnvironmentalProduction? production)
     {
         if (production is null) return;
-        if (production is not DirectionalResourceProduction directional || directional.Attempts is < 1 or > 100 ||
-            directional.Placement != ProductionPlacement.SurroundingCellD8 || !Enum.IsDefined(directional.SourceLos))
-            throw new ArgumentException("Directional production requires 1–100 attempts and supported placement and source LOS policies.");
-        _ = ResourceTypes.Find(directional.ResourceTypeId);
+        MechanicCatalog.ThrowIfInvalid(production, path: "production");
     }
 
     public static string? Describe(EnvironmentalProduction? production) => production switch

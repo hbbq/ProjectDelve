@@ -37,6 +37,16 @@ public static class UnitAuthoring
     public static SelfModifiers BonusActionSelfModifier(params ModifierThisTurn[] modifiers) => new([.. modifiers]);
     public static Entry Grant(string id, string abilityId, AbilityGrantCompatibility? compatibility = null) =>
         new GrantEntry(new(id, abilityId) { Compatibility = compatibility });
+    public static Entry LocalAbility(LocalAbilityDefinition ability) => new LocalAbilityEntry(ability);
+
+    private sealed class LocalAbilityEntry(LocalAbilityDefinition ability) : Entry
+    {
+        internal override UnitType Apply(UnitType type)
+        {
+            ArgumentNullException.ThrowIfNull(ability);
+            return type with { LocalAbilities = type.LocalAbilities.Add(ability) };
+        }
+    }
 
     private sealed class GrantEntry(AbilityGrant grant) : Entry
     {
@@ -179,7 +189,7 @@ public static class UnitAuthoring
         foreach (var entry in entries)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            if (entry.Slot != typeof(BonusEntry) && entry.Slot != typeof(GrantEntry) && !slots.Add(entry.Slot))
+            if (entry.Slot != typeof(BonusEntry) && entry.Slot != typeof(GrantEntry) && entry.Slot != typeof(LocalAbilityEntry) && !slots.Add(entry.Slot))
                 throw new ArgumentException("A concrete mechanic may only be attached once.", nameof(entries));
             type = entry.Apply(type);
         }
@@ -188,6 +198,10 @@ public static class UnitAuthoring
         if (type.AbilityGrants.Any(g => string.IsNullOrWhiteSpace(g.Id) || string.IsNullOrWhiteSpace(g.AbilityId)) ||
             type.AbilityGrants.Select(g => g.Id).Distinct(StringComparer.Ordinal).Count() != type.AbilityGrants.Length)
             throw new ArgumentException("Ability grants need distinct IDs and an Ability reference.", nameof(entries));
+        if (type.LocalAbilities.Any(a => string.IsNullOrWhiteSpace(a.Key)) ||
+            type.LocalAbilities.Select(a => a.Key).Concat(type.AbilityGrants.Select(g => g.Id)).Distinct(StringComparer.Ordinal).Count() !=
+                type.LocalAbilities.Length + type.AbilityGrants.Length)
+            throw new ArgumentException("Local Abilities and grants need distinct nonblank keys within their source.", nameof(entries));
         if (type.Hp > 1 && !type.Unique)
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(entries));
         var attackOrder = (type.Actions.HasFlag(UnitAction.NormalAttack)

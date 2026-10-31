@@ -1,10 +1,73 @@
 # Abilities and Single Use Items
 
-Mechanics, Ability definitions, and sources are separate data. A mechanic describes the existing rules operation. An Ability gives it a stable ID, a display name, an explicit timing and usage restriction. A grant attaches that Ability to a Unit Type, Equipment Type or Item Type. The selected source supplies the mechanic; the Engine does not look up a Unit-specific field or dispatch on a display name to perform it.
+Mechanics, Ability declarations, and runtime sources are separate data. A mechanic describes an existing Engine operation. A Unit Type, Equipment Type or Item Type can own a complete Ability declaration: a stable local key, display name, timing, usage restriction and typed mechanic parameters. The selected source supplies the mechanic; the Engine does not dispatch on a display name or content identity. Existing global `AbilityDefinition`/`AbilityGrant` content remains supported through compatibility resolution.
 
 This extends the Equipment catalog described in [EQUIPMENT_CONTENT.md](EQUIPMENT_CONTENT.md). It does not introduce a second Equipment system, arbitrary scripts, a sequence language or a new rules engine. Milestone 3 adds independent World Card definitions through the same content boundary; see [WORLD_CARD_CONTENT.md](WORLD_CARD_CONTENT.md).
 
-## Playable example
+The [Engine Mechanic Catalog](MECHANIC_CATALOG.md) exposes supported mechanic parameters, constraints and source/timing/usage profiles as immutable, serializable metadata. The same contracts drive structural validation for both owned Abilities and legacy global definitions.
+
+## Owned local Abilities
+
+Use `LocalAbilityDefinition` in `LocalAbilities` for new content. JSON uses `localAbilities` on each owner, separate from older `abilities`, `abilityGrants` and `grants` fields. No entry in `AbilityRoster.All` or scenario `abilityDefinitions` is needed.
+
+```csharp
+var medic = new UnitType("field-medic", 3, 1, 1, 1, 1)
+{
+    LocalAbilities =
+    [
+        new("mend", "Heal", AbilityTiming.Action, new HealMechanic(2))
+            { Usage = new(MaxUses: 2) },
+        new("ward", "Aura", AbilityTiming.Passive,
+            new AdjacentModifiersMechanic([new(Stat.Def, 1)]))
+    ]
+};
+```
+
+The equivalent owner definitions in scenario JSON are:
+
+```json
+{
+  "unitTypes": [{
+    "id": "field-medic", "mov": 3, "rng": 1, "atk": 1, "def": 1, "hp": 1,
+    "localAbilities": [
+      { "key": "mend", "name": "Heal", "timing": "Action",
+        "usage": { "maxUses": 2 }, "mechanic": { "kind": "heal", "amount": 2 } },
+      { "key": "ward", "name": "Aura", "timing": "Passive",
+        "mechanic": { "kind": "adjacentModifiers", "modifiers": [{ "stat": "Def", "amount": 1 }] } }
+    ]
+  }],
+  "equipmentTypes": [{
+    "id": "quiet-lantern", "name": "Quiet Lantern",
+    "localAbilities": [{ "key": "use", "name": "Curtain Call", "timing": "Action",
+      "mechanic": { "kind": "holyWave" } }]
+  }],
+  "itemTypes": [{
+    "id": "paper-lantern", "name": "Paper Lantern",
+    "localAbilities": [{ "key": "use", "name": "Quiet Please", "timing": "Action",
+      "mechanic": { "kind": "holyWave" } }]
+  }]
+}
+```
+
+These are catalog fragments; ordinary scenario placement, agency and inventory fields still select the owners and physical objects. Omitted `usage` means unlimited. Equipment and Item Abilities must be unlimited, and Items cannot have Passives. Consumption applies to the selected physical Item, independently of its Ability usage restriction. Supported combinations remain exactly those listed in the Mechanic Catalog.
+
+Keys are explicit and unique within an owner, including its legacy grant namespace. Different owners may use the same key. Keep a key unchanged when renaming an Ability, adjusting its parameters or reordering the list; none of those changes derives or rewrites identity. Two local keys using the same mechanic have independent accounting. New content normally omits `compatibility`. For C# Unit authoring, `UnitAuthoring.LocalAbility(new(...))` attaches the same typed declaration without introducing a new execution model.
+
+Owned and legacy declarations may coexist. Local entries resolve in authored order, followed by legacy references in their existing order. Legacy references normalize into a transient complete local view using the actual scenario/saved definition. The adapter does not copy current canonical parameters over saved content, mutate the scenario, or persist a second mechanical source. Local declarations are read directly from their owners, including Passives when the global Ability catalog is empty.
+
+Runtime identities retain the existing source/key formulas: Unit counters use the acting Unit and local key; Equipment accounting uses its physical Instance ID and local key; Item Bonus Action allowances use the activating Unit, Item Type and local key. Item candidate IDs additionally identify the consumed physical copy. Existing pending decisions retain their `ResolvedAbility` payload shape; its `Definition` is a resolution payload, not a new global registration. Compatibility initialization preserves spent counters rather than refilling them.
+
+## Owned Ability playtest
+
+Open **Home → Test Scenarios → Local Abilities - Pocket Workshop → Play scenario** (`#scenario/local-abilities-owned`). This small authored scenario uses `localAbilities` for every demonstrated Ability and has no `abilityDefinitions` section.
+
+Threadkeeper owns the limited Action **Stitch the Air** and Passive **Unhurried Step**. Its **Amber Chime** owns **Evening Hush**, an unlimited Holy Wave Action. Two **Folded Remedy** Items each own **Folded Relief**, a Heal Action; two **Spare Moment** Items each own **A Moment More**, the additional-Action Bonus Action. The nearby Patient Friend starts at 1 of 5 HP, and the adjacent Practice Target makes Holy Wave easy to inspect. All controllers are human, with no victory conditions or hazards.
+
+On Threadkeeper's activation, choose Stay, use A Moment More, then Stitch the Air and Folded Relief. The patient heals from 1 to 3 to 5 HP; Stitch the Air spends one native use, and exactly one copy of each selected Item is consumed. The second Spare Moment does not create another Bonus Action allowance in that activation. Restart and use Evening Hush to lay down Threadkeeper and its hostile neighbor. The Unit card also shows the local Passive's MOV contribution. If another activation token is drawn first, complete its Stay/End choices to reach Threadkeeper.
+
+The scenario lives in `ProjectDelve.Web/Content/Library/library.json`; its content is editable playtest material. Regression tests use separate dedicated fixtures rather than depending on this layout.
+
+## Earlier shared Ability example
 
 Open **Home → Test Scenarios → Local Abilities - Three Sources → Play scenario**. It is also listed under **Scenarios** and available at `#scenario/local-abilities-three-sources`.
 
@@ -18,7 +81,7 @@ For each Hero's first activation, choose **Stay**, then the relevant Action. It 
 
 A spare known Hush Scroll lies under the Wizard, available for optional pickup. The unopened marker immediately to the Wizard's right draws a scenario-local Loot Card that references the same Item Type. These examples are authored only in `ProjectDelve.Web/Content/Library/library.json`; none is a permanent canonical Item or Equipment.
 
-## Definitions and grants
+## Legacy shared definitions and grants
 
 The concrete C# records are also the JSON model:
 
@@ -50,13 +113,13 @@ var unit = new UnitType("quiet-adept", 3, 1, 2, 2, 1)
 
 Add these records to a scenario's `AbilityDefinitions`, `EquipmentTypes`, `ItemTypes` and `UnitTypes`, or add permanent definitions to their canonical roster files. An Ability reference resolves within the current game's catalog. A grant's own ID is stable within its source definition and is independent of the referenced Ability ID.
 
-For C# Unit authoring, the equivalent `UnitAuthoring.Grant("prayer", "quiet-wave")` entry adds the same typed grant to `UnitType.AbilityGrants`. Use definitions and grants for the supported mechanics rather than the older `Heal`, `HolyWave`, `Fireball`, Aura or simple `BonusActions` fields. New content normally needs no compatibility metadata.
+For C# Unit authoring, the equivalent `UnitAuthoring.Grant("prayer", "quiet-wave")` entry adds the same typed grant to `UnitType.AbilityGrants`. These references remain supported for existing content and intentional sharing. Prefer owned declarations for ordinary new content rather than the older `Heal`, `HolyWave`, `Fireball`, Aura or simple `BonusActions` fields.
 
 ## Canonical normalization
 
-`AbilityRoster.All` is the canonical catalog for Heal, Holy Wave, Fireball, Aura, Rage, Dash, Throwing Knife, Focus, Emergency Goat Bell's stand-up Action and Second Wind. Each definition declares its name, timing, usage and typed mechanic. Unit, Equipment and Item rosters reference these definitions through the same `AbilityGrant` record.
+`AbilityRoster.All` remains the compatibility/shared catalog for Heal, Holy Wave, Fireball, Aura, Rage, Dash, Throwing Knife, Focus, Emergency Goat Bell's stand-up Action and Second Wind. Existing references continue to resolve. Local Abilities are not collected into this catalog.
 
-Cleric, Wizard, Barbarian and Rogue grant their supported Abilities explicitly. Cleric, Royal King, Goblin King and Displacer Demon reference the same Aura definition. Rage, Dash, Throwing Knife and Focus use modifier lists; Throwing Knife does not have a separate implementation. Goat Bell uses `Grants`, while simple Equipment modifiers and capabilities remain their existing direct typed declarations.
+The Milestone 2 canonical slice owns complete declarations for Cleric's Heal, Holy Wave and Aura, Emergency Goat Bell's Action, and Second Wind's Bonus Action. Their local keys and compatibility bindings preserve their existing candidate IDs, printed entries, counters and events. Wizard, Barbarian, Rogue and the other Aura-bearing Units still use their existing shared references. Rage, Dash, Throwing Knife and Focus use modifier lists; Throwing Knife does not have a separate implementation. Simple Equipment modifiers and capabilities remain their existing direct typed declarations. The full roster/DSL migration is deferred.
 
 The remaining specialized Unit declarations, including Cleave, Fury, Backstab, Fire Breath, Summoning and Telekinesis, retain their concrete representations. Their mechanics are not yet part of the shared Ability model. Normalizing the supported subset does not introduce new mechanic/timing combinations.
 
@@ -90,7 +153,7 @@ new AbilityDefinition("protective-presence", "Protective Presence",
 
 Self modifiers used as a Bonus Action last through the current activation using the existing temporary-modifier lifecycle. Adjacent modifiers affect other adjacent friendly Units while the source is Upright, using ordinary authoritative adjacency. Numeric amounts belong in these declarations, not in independently maintained description strings.
 
-## Scenario-local JSON
+## Legacy shared scenario-local JSON
 
 These fields can be added to an ordinary scenario definition:
 
@@ -145,11 +208,12 @@ A new local Unit uses `abilityGrants` with the same `{ "id", "abilityId" }` shap
 
 ## Identity and accounting
 
-Four identities have distinct purposes:
+The following identities have distinct purposes:
 
 | Identity | Example | Purpose |
 | --- | --- | --- |
-| Ability definition | `curtain-call` | Resolves name, timing, restriction and mechanic. |
+| Owner-local key | `use` | Identifies a complete declaration within its owner. |
+| Legacy shared definition | `curtain-call` | Resolves the content of an older or intentionally shared reference. |
 | Grant | `curtain` | Identifies the attached Ability within a source definition. |
 | Physical source instance | `reliquary-instance-17` | Identifies the object being used or consumed. |
 | Accounting | Source and grant-derived key | Tracks the relevant Unit's use allowance without relying on names or mechanic equality. |
@@ -162,15 +226,19 @@ Usage is recorded and an Item is consumed when its legal choice is applied, befo
 
 ## Compatibility and presentation
 
-Normalized canonical grants carry explicit `Compatibility` metadata where historical identities must remain stable. `AbilityGrantCompatibility` records only the old identity/storage kind, an optional raw key and an Equipment candidate prefix. It supplies no mechanic, name, timing, amount or use limit. The referenced Ability definition remains authoritative, even when its name or source changes. Ordinary new grants omit this metadata.
+Selected canonical owned Abilities and legacy grants carry explicit `Compatibility` metadata where historical identities must remain stable. `AbilityGrantCompatibility` records only the old identity/storage kind, an optional raw key and an Equipment candidate prefix. It supplies no mechanic, name, timing, amount or use limit. The local declaration or resolved shared definition remains authoritative, even when its name or source changes. Ordinary new declarations omit this metadata.
 
 Native Holy Wave, Heal and Fireball retain their historical candidate and Action IDs and dedicated serialized counters. Simple native Bonus Action modifiers retain their raw keys (`Rage`, `Dash`, `Throwing Knife`, `Focus`), per-activation accounting and historical events. Aura retains its `passive:Aura` card entry. Goat Bell retains `goat-bell:<target>` choices, the `goat-bell` Action ID and its Equipment card entry. Initial counter maxima come from the resolved definition's usage restriction; initialization never replenishes an existing spent counter.
 
 New grants use source/grant accounting rather than display names or mechanic types. If a source-derived key collides with a legacy raw Bonus Action key, including a normalized compatibility-bound grant, it receives a deterministic `grant:` prefix until distinct. Physical copies of the same Item grant still share one allowance. Multiple grants using one mechanic remain independent; two compatibility bindings cannot claim the same historical counter or entry.
 
+Compatibility aliases are reserved historical slots, not reusable authoring presets. Distinct Item Types cannot both claim the Second Wind allowance; physical copies of its owning Item Type remain supported. Omit `Compatibility` when copying a declaration into new independent content.
+
 `AbilityQueries.LegacyNative` still adapts old concrete Unit fields, and the inline `EquipmentAbility` adapter still reads older Equipment definitions. These paths preserve saved authored values instead of replacing them with today's canonical roster. Do not combine a concrete legacy field and a normalized grant for the same historical slot: validation rejects the duplicate. Compatibility is isolated in `AbilityCompatibility` and `AbilityCatalogCompatibility`; it does not select the executed mechanic.
 
 Before these canonical Ability IDs existed, scenarios could use them for local definitions. Game creation now aliases those local definitions and their explicit Unit, Equipment and Item references in a resolved copy. The original scenario document and grant IDs remain unchanged. For old saves that omit the Equipment catalog but contain an older Ability catalog, the adapter supplies missing default-Equipment dependencies, or gives them distinct IDs when a saved local definition already occupies that ID. Existing saved definitions and explicit Equipment catalogs remain authoritative.
+
+Default Equipment now owns the migrated Goat Bell declaration, so it no longer needs that global dependency. Historical saves that omit `itemTypes` but contain a saved global `second-wind` definition retain the old Item reference to that actual saved definition, including its name, amount and supported mechanic variants. Explicit Item catalogs, including empty filtered catalogs and owned local declarations, are never replaced by this omission adapter.
 
 Legacy Second Wind objects still load and use the independent `second-wind` Item definition. Multiple copies still share the established Bonus Action allowance and each use grants the authored number of additional Actions while consuming one instance. Existing Loot presets and object Instance IDs are preserved. Milestone 1 Equipment declarations remain readable through compatibility adapters.
 

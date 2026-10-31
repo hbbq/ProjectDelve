@@ -184,7 +184,7 @@ public static class ContentDescriptions
     private static AbilityUses? BonusUsesFor(UnitType type, Unit unit, string entryId)
     {
         var key = type.BonusActions.FirstOrDefault(ability => BonusEntryId(ability.Name) == entryId)?.Name
-            ?? type.AbilityGrants.Select(grant => grant.Compatibility)
+            ?? type.LocalAbilities.Select(ability => ability.Compatibility).Concat(type.AbilityGrants.Select(grant => grant.Compatibility))
                 .FirstOrDefault(binding => binding is { Kind: LegacyAbilityKind.BonusAction, Key: not null } &&
                     BonusEntryId(binding.Key) == entryId)?.Key;
         return key is null ? null : unit.BonusActionUses.GetValueOrDefault(key);
