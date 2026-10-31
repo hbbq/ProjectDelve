@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
 
@@ -46,10 +46,11 @@ public sealed class ChiefMechanicTests
         Assert.Equal("Chief Mechanic", type.DisplayName);
         Assert.Equal((3, 0, 0, 4, 3), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.True(type.Unique);
-        Assert.Equal(UnitAction.GiveResource | UnitAction.Operate | UnitAction.SummonWorker, type.Actions);
-        Assert.NotNull(type.TransportResource);
+        Assert.Equal(UnitAction.None, type.Actions);
+        Assert.All(new[] { UnitAction.GiveResource, UnitAction.Operate, UnitAction.SummonWorker }, action => Assert.True(type.HasAction(action)));
+        Assert.NotNull(type.Mechanic<TransportResource>());
         Assert.Null(type.ResourceStorage);
-        Assert.Equal(3, type.SummonWorker!.SideLimit);
+        Assert.Equal(3, type.Mechanic<SummonWorker>()!.SideLimit);
         Assert.Equal(UnitBehavior.Worker | UnitBehavior.PreferSummonWorker, type.Behaviors);
     }
 

@@ -39,8 +39,7 @@ public sealed class OwnedAbilityProjectionTests
             Assert.Null(entry.Uses);
         });
         Assert.Equal(4, new[] { native, equipment, item, bonus }.Select(entry => entry.AccountingId).Distinct().Count());
-        Assert.DoesNotContain(state.AbilityDefinitions, definition =>
-            new[] { "Silver Stitch", "Woven Shade", "Lantern Hush", "Paper Stitch", "Borrow a Moment" }.Contains(definition.Name));
+        Assert.DoesNotContain("AbilityDefinitions", JsonSerializer.Serialize(state));
 
         var observation = GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>());
         var type = Assert.Single(observation.Types, type => type.Id == "woven-keeper");
@@ -55,7 +54,7 @@ public sealed class OwnedAbilityProjectionTests
     public void RenamingOwnedContentChangesLabelsWithoutChangingCandidateOrAccountingIdentity()
     {
         var state = Ready(OwnedAbilityWebFixture.State());
-        var original = state.AbilitiesOf("actor").Where(ability => ability.GrantId == "pulse")
+        var original = state.AbilitiesOf("actor").Where(ability => ability.Key == "pulse")
             .ToDictionary(ability => ability.SourceInstanceId, ability => (ability.EntryId, ability.AccountingId, ability.CandidatePrefix));
         var keys = state.Pending!.Candidates.Select(candidate => candidate.Key).ToArray();
         var index = state.Types.FindIndex(type => type.Id == "woven-keeper");
@@ -70,7 +69,7 @@ public sealed class OwnedAbilityProjectionTests
         state.ItemTypes[index] = item with { LocalAbilities = item.LocalAbilities.SetItem(0, item.LocalAbilities[0] with { Name = "A New Fold" }) };
         state = Ready(JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!);
         Assert.Equal(keys, state.Pending!.Candidates.Select(candidate => candidate.Key));
-        foreach (var ability in state.AbilitiesOf("actor").Where(ability => ability.GrantId == "pulse"))
+        foreach (var ability in state.AbilitiesOf("actor").Where(ability => ability.Key == "pulse"))
             Assert.Equal(original[ability.SourceInstanceId], (ability.EntryId, ability.AccountingId, ability.CandidatePrefix));
         var decision = BrowserProjection.Decision(state.Pending, state)!;
         Assert.Contains(decision.Candidates, choice => choice.Label.StartsWith("A New Stitch (Action)"));
@@ -82,18 +81,18 @@ public sealed class OwnedAbilityProjectionTests
     public void ItemConsumptionAndNativeUsesStaySourceAwareAcrossSavedPendingChoices()
     {
         var state = Ready(OwnedAbilityWebFixture.State());
-        var bonus = state.Pending!.Candidates.Single(candidate => candidate.ObjectId == "moment-one" && candidate.GrantedAbility is not null);
+        var bonus = state.Pending!.Candidates.Single(candidate => candidate.ObjectId == "moment-one" && candidate.Ability is not null);
         var used = GameEngine.Advance(state, new Choice(bonus.Key), new Dice(), false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(used.State))!;
-        var heal = restored.Pending!.Candidates.Single(candidate => candidate.GrantedAbility is
-            { SourceKind: AbilitySourceKind.Unit, GrantId: "pulse" });
+        var heal = restored.Pending!.Candidates.Single(candidate => candidate.Ability is
+            { SourceKind: AbilitySourceKind.Unit, Key: "pulse" });
         var healed = GameEngine.Advance(restored, new Choice(heal.Key), new Dice(), false);
         var card = BrowserProjection.Cards(healed.State)["actor"];
         Assert.Equal(new AbilityUses(2, 1), Assert.Single(card.Entries, entry => entry.Content.Name == "Silver Stitch").Uses);
         Assert.Equal(3, healed.State.Units.Single(unit => unit.Id == "friend").CurrentHp);
         Assert.Equal(1, Assert.Single(card.Entries, entry => entry.Content.Name == "Borrow a Moment").CopyCount);
-        Assert.DoesNotContain(healed.NextInput!.Candidates, candidate => candidate.ItemTypeId == "spare-moment" && candidate.GrantedAbility is not null);
-        var itemHeal = healed.NextInput.Candidates.Single(candidate => candidate.ObjectId == "remedy-two" && candidate.GrantedAbility is not null);
+        Assert.DoesNotContain(healed.NextInput!.Candidates, candidate => candidate.ItemTypeId == "spare-moment" && candidate.Ability is not null);
+        var itemHeal = healed.NextInput.Candidates.Single(candidate => candidate.ObjectId == "remedy-two" && candidate.Ability is not null);
         var after = GameEngine.Advance(healed.State, new Choice(itemHeal.Key), new Dice(), false);
         Assert.Equal(5, after.State.Units.Single(unit => unit.Id == "friend").CurrentHp);
         var entries = BrowserProjection.Cards(after.State)["actor"].Entries;

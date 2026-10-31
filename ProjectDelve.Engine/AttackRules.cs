@@ -28,13 +28,13 @@ internal static class AttackRules
         var attacker = state.Units.Single(u => u.Id == attackerId);
         var stats = state.Types.Single(t => t.Id == attacker.TypeId);
         var attackDice = AttackDice(state, attackerId, targetId, action);
-        if (!state.IsUpright(attackerId) || !stats.Actions.HasFlag(action) || attackDice <= 0)
+        if (!state.IsUpright(attackerId) || !stats.HasAction(action) || attackDice <= 0)
             return UnitTargetEvaluation.NotPossible;
 
         if (action == UnitAction.ClawAttack)
         {
             var target = state.Units.Single(u => u.Id == targetId);
-            return stats.ClawAttack is not null && target.CurrentHp > 0 && state.AreHostile(attacker.SideId, target.SideId) &&
+            return stats.Mechanic<ClawAttack>() is not null && target.CurrentHp > 0 && state.AreHostile(attacker.SideId, target.SideId) &&
                 SpatialRules.AreAdjacent(state, attackerId, targetId)
                 ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
         }
@@ -48,7 +48,7 @@ internal static class AttackRules
         if (action is UnitAction.FireBreath or UnitAction.Fireball) return state.EffectiveAtkOf(attackerId);
         var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == attackerId).TypeId);
         return state.EffectiveAtkAgainst(attackerId, targetId!) +
-            (action == UnitAction.ClawAttack ? type.ClawAttack?.AtkBonus ?? 0 : 0);
+            (action == UnitAction.ClawAttack ? type.Mechanic<ClawAttack>()?.AtkBonus ?? 0 : 0);
     }
 
     // Movement asks whether any supported Attack is possible, using the same

@@ -115,94 +115,55 @@ public enum UnitBehavior
     PreferLowestEffectiveDefense = 65536
 }
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
-public sealed record AdvanceOnKill;
-public sealed record ReshapeRoom;
-public sealed record Swap;
+public sealed record AdvanceOnKill : AbilityMechanic;
+public sealed record ReshapeRoom : AbilityMechanic;
+public sealed record Swap : AbilityMechanic;
 // Current external movement supports zero or one ordinary step only.
-public sealed record Displace(int MaxMove);
-public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture);
-public sealed record SummonWorker(int SideLimit);
-public sealed record SummonTroll(int DiamondCost);
-public sealed record PlaceBananaPeel(int BananaCost);
-public sealed record Boost(int MushroomCost);
-public sealed record ShootShell(int ShellCost, int Rng, int Atk);
-public sealed record WaypointSlotMachine;
+public sealed record Displace(int MaxMove) : AbilityMechanic;
+public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture) : AbilityMechanic;
+public sealed record SummonWorker(int SideLimit) : AbilityMechanic;
+public sealed record SummonTroll(int DiamondCost) : AbilityMechanic;
+public sealed record PlaceBananaPeel(int BananaCost) : AbilityMechanic;
+public sealed record Boost(int MushroomCost) : AbilityMechanic;
+public sealed record ShootShell(int ShellCost, int Rng, int Atk) : AbilityMechanic;
+public sealed record WaypointSlotMachine(ResourceOutputTable OutputTable) : AbilityMechanic;
 public sealed record TerrainRestrictedMovement(TerrainKind Terrain);
-public sealed record Telekinesis;
-// Presentation only: fixed mechanic/counter identities never depend on these names.
-public sealed record AbilityPresentationNames
-{
-    public string? Heal { get; init; }
-    public string? Cleave { get; init; }
-    public string? HolyWave { get; init; }
-    public string? Fireball { get; init; }
-    public string? FireBreath { get; init; }
-    public string? ClawAttack { get; init; }
-    public string? Aura { get; init; }
-    public string? Fury { get; init; }
-    public string? Backstab { get; init; }
-    public string? Undying { get; init; }
-    public string? Explosion { get; init; }
-    public string? Telekinesis { get; init; }
-    public string? TryOpenDoor { get; init; }
-    public string? Summon { get; init; }
-    public string? MoveAfterAttack { get; init; }
-}
-public sealed record TryOpenDoor(int SuccessCount);
-public sealed record MoveAfterAttack(int MaxSteps);
-public sealed record Undying;
-public sealed record Explosion
+public sealed record Telekinesis : AbilityMechanic;
+public sealed record TryOpenDoor(int SuccessCount) : AbilityMechanic;
+public sealed record MoveAfterAttack(int MaxSteps) : AbilityMechanic;
+public sealed record Undying : AbilityMechanic;
+public sealed record Explosion : AbilityMechanic
 {
     public int Damage { get; init; } = 1;
 }
-public sealed record RunRails(int Steps);
-public sealed record Phase;
-public sealed record TransportResource;
-public sealed record Cleave(int MaxUses = 2)
+public sealed record RunRails(int Steps) : AbilityMechanic;
+public sealed record Phase : AbilityMechanic;
+public sealed record TransportResource : AbilityMechanic;
+public sealed record PickupResource : AbilityMechanic;
+public sealed record GiveResource : AbilityMechanic;
+public sealed record Operate : AbilityMechanic;
+public sealed record OpenDoor : AbilityMechanic;
+public sealed record Cleave : AbilityMechanic
 {
     public int TriggerDamage { get; init; } = 2;
     public int Damage { get; init; } = 1;
 }
-// The positional argument remains MaxUses; configure healing through the named Amount property.
-public sealed record Heal(int MaxUses = 2)
-{
-    public int Amount { get; init; } = 2;
-}
-public sealed record HolyWave(int MaxUses = 2);
-public sealed record Fireball(int MaxUses = 2);
-public sealed record FireBreath;
-public sealed record ClawAttack(int AtkBonus = 1);
-public sealed record AdjacentFriendlyUnitsDefenceBonus(int Amount, string Name = "Aura");
-public sealed record Fury
+public sealed record FireBreath : AbilityMechanic;
+public sealed record ClawAttack(int AtkBonus = 1) : AbilityMechanic;
+public sealed record Fury : AbilityMechanic
 {
     public int AdjacentEnemyThreshold { get; init; } = 2;
     public int AtkBonus { get; init; } = 1;
-    [JsonIgnore] public string Name => "Fury";
-    [JsonIgnore] public string DisplayText => $"ATK {AtkBonus:+0;-0;0} while adjacent to {AdjacentEnemyThreshold} or more enemies";
 }
-public sealed record Backstab
+public sealed record Backstab : AbilityMechanic
 {
     public int AtkBonus { get; init; } = 1;
-    [JsonIgnore] public string Name => "Backstab";
-    [JsonIgnore] public string DisplayText => $"{AtkBonus:+0;-0;0} ATK when attacking an enemy adjacent to another friendly Unit";
 }
 // Presentation metadata only; passive rules retain their concrete representations.
 public sealed record PassiveDescription(string Name, string DisplayText);
 // Current HP is never a modifier stat.
 public enum Stat { Atk, Mov, Rng, Def }
 public sealed record ModifierThisTurn(Stat Stat, int Amount);
-// Immutable content and per-ability counters may be shared safely by state copies.
-public sealed record BonusActionAbility(string Name, int? MaxUses, ImmutableArray<ModifierThisTurn> Modifiers)
-{
-    public PlaceBananaPeel? PlaceBananaPeel { get; init; }
-    public Boost? Boost { get; init; }
-    public ReshapeRoom? ReshapeRoom { get; init; }
-    public Swap? Swap { get; init; }
-    public Displace? Displace { get; init; }
-    // Name remains the existing persisted key; presentation can vary independently.
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public string? DisplayName { get; init; }
-}
 public sealed record AbilityUses
 {
     public int MaxUses { get; }
@@ -216,10 +177,9 @@ public sealed record AbilityUses
         RemainingUses = remainingUses;
     }
 }
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
-    UnitAction Actions = UnitAction.NormalAttack, TryOpenDoor? TryOpenDoor = null,
-    UnitBehavior Behaviors = UnitBehavior.None, MoveAfterAttack? MoveAfterAttack = null,
-    UnitFreeAction FreeActions = UnitFreeAction.None)
+    UnitAction Actions = UnitAction.NormalAttack, UnitBehavior Behaviors = UnitBehavior.None)
 {
     public bool CanHaveItems { get; init; }
     public bool CanHaveEquipment { get; init; }
@@ -228,52 +188,35 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public bool Unique { get; init; }
     public Footprint Footprint { get; init; } = Footprint.OneByOne;
     public string? DisplayName { get; init; }
-    public AbilityPresentationNames AbilityNames { get; init; } = new();
-    public SummonAdjacent? SummonAdjacent { get; init; }
-    public SummonWorker? SummonWorker { get; init; }
-    public SummonTroll? SummonTroll { get; init; }
-    public ShootShell? ShootShell { get; init; }
-    public WaypointSlotMachine? WaypointSlotMachine { get; init; }
     public TerrainRestrictedMovement? TerrainRestrictedMovement { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public TerrainRestriction? TerrainRestriction { get; init; }
     public MovementPattern? MovementPattern { get; init; }
-    public AdvanceOnKill? AdvanceOnKill { get; init; }
-    public AdjacentFriendlyUnitsDefenceBonus? AdjacentFriendlyUnitsDefenceBonus { get; init; }
-    public Fury? Fury { get; init; }
-    public Backstab? Backstab { get; init; }
-    public Undying? Undying { get; init; }
-    public Explosion? Explosion { get; init; }
-    public RunRails? RunRails { get; init; }
-    public Phase? Phase { get; init; }
-    public TransportResource? TransportResource { get; init; }
     public ResourceStorage? ResourceStorage { get; init; }
-    public Cleave? Cleave { get; init; }
-    public Heal? Heal { get; init; }
-    public ImmutableArray<AbilityGrant> AbilityGrants { get; init; } = [];
     public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
-    public HolyWave? HolyWave { get; init; }
-    public Fireball? Fireball { get; init; }
-    public ClawAttack? ClawAttack { get; init; }
-    [JsonIgnore]
-    public IReadOnlyList<PassiveDescription> Passives
+
+    // These queries inspect the authoritative local declarations; they do not
+    // duplicate Ability payloads in persisted Unit data.
+    public LocalAbilityDefinition? Ability<T>() where T : AbilityMechanic =>
+        LocalAbilities.FirstOrDefault(a => a.Mechanic is T);
+    public T? Mechanic<T>() where T : AbilityMechanic => Ability<T>()?.Mechanic as T;
+    public LocalAbilityDefinition? AbilityFor(UnitAction action) => action switch
     {
-        get
-        {
-            List<PassiveDescription> passives = [];
-            if (AdjacentFriendlyUnitsDefenceBonus is { } aura)
-                passives.Add(new(AbilityNames.Aura ?? aura.Name, $"Adjacent friendly Units get DEF +{aura.Amount}"));
-            if (Fury is { } fury) passives.Add(new(AbilityNames.Fury ?? fury.Name, fury.DisplayText));
-            if (Backstab is { } backstab) passives.Add(new(AbilityNames.Backstab ?? backstab.Name, backstab.DisplayText));
-            return passives;
-        }
-    }
-    public ImmutableArray<BonusActionAbility> BonusActions { get; init; } = [];
+        UnitAction.Heal => Ability<HealMechanic>(), UnitAction.HolyWave => Ability<HolyWaveMechanic>(),
+        UnitAction.Fireball => Ability<FireballMechanic>(), UnitAction.Telekinesis => Ability<Telekinesis>(),
+        UnitAction.SummonAdjacent => Ability<SummonAdjacent>(), UnitAction.SummonWorker => Ability<SummonWorker>(),
+        UnitAction.SummonTroll => Ability<SummonTroll>(), UnitAction.FireBreath => Ability<FireBreath>(),
+        UnitAction.ClawAttack => Ability<ClawAttack>(), UnitAction.PickupResource => Ability<PickupResource>(),
+        UnitAction.GiveResource => Ability<GiveResource>(), UnitAction.Operate => Ability<Operate>(),
+        UnitAction.PlaceBananaPeel => Ability<PlaceBananaPeel>(), UnitAction.ShootShell => Ability<ShootShell>(),
+        _ => null
+    };
+    public bool HasAction(UnitAction action) => action == UnitAction.NormalAttack
+        ? Actions.HasFlag(UnitAction.NormalAttack) : AbilityFor(action) is not null;
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
 
-    public Unit CreateUnit(string id, string sideId, IReadOnlyList<AbilityDefinition>? abilityDefinitions = null) =>
-        AbilityCompatibility.InitializeUses(this, new(id, Id, sideId, Hp), abilityDefinitions ?? AbilityCatalog.All);
+    public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp);
 
     public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
         UnitAuthoring.Define(id, name, stats, entries);
@@ -310,11 +253,6 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
         init => inventory = value.IsDefaultOrEmpty ? ImmutableArray<OwnedObject>.Empty : value;
     }
     public ImmutableDictionary<string, int> AbilityUseCounts { get; init; } = ImmutableDictionary<string, int>.Empty;
-    public AbilityUses? CleaveUses { get; init; }
-    public AbilityUses? HealUses { get; init; }
-    public AbilityUses? HolyWaveUses { get; init; }
-    public AbilityUses? FireballUses { get; init; }
-    public ImmutableDictionary<string, AbilityUses> BonusActionUses { get; init; } = ImmutableDictionary<string, AbilityUses>.Empty;
 }
 
 public sealed record Board(int Width, int Height, List<Edge> Edges) : IJsonOnDeserializing, IJsonOnDeserialized
@@ -386,17 +324,14 @@ public enum ActivationChoiceKind { Action, Move, Stay, EndTurn, SelectUnit, Free
 public sealed record Candidate(string Key, Cell? Destination = null, List<Cell>? Path = null,
     UnitAction? Action = null, string? TargetId = null, Edge? Door = null, TryOpenDoor? TryOpenDoor = null,
     ActivationChoiceKind Kind = ActivationChoiceKind.Action, UnitFreeAction? FreeAction = null,
-    bool Relevant = true, BonusActionAbility? BonusAction = null)
+    bool Relevant = true)
 {
-    public ResolvedAbility? GrantedAbility { get; init; }
+    public ResolvedAbility? Ability { get; init; }
     public string? ItemTypeId { get; init; }
     public string? ObjectId { get; init; }
     public LootCardKind? ObjectKind { get; init; }
     public string? EquipmentTypeId { get; init; }
-    public string? EquipmentAbilityId { get; init; }
     public string? AbilityName { get; init; }
-    public EquipmentActionMechanic? EquipmentMechanic { get; init; }
-    public bool EquipmentGranted { get; init; }
     public string? MachineId { get; init; }
     public ImmutableArray<string> TargetIds { get; init; } = [];
 }
@@ -455,28 +390,13 @@ public sealed class GameState : IJsonOnDeserialized
 {
     void IJsonOnDeserialized.OnDeserialized()
     {
-        AbilityCatalogCompatibility.NormalizeMissingEquipmentCatalog(this, equipmentCatalogProvided);
-        AbilityCatalogCompatibility.NormalizeMissingItemCatalog(this, itemCatalogProvided);
         LootCompatibility.MigrateLegacyCatalog(this);
         EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
     }
     public List<WorldCardDefinition> WorldCardDefinitions { get; set; } = WorldCardCatalog.Resolve(null);
-    public List<AbilityDefinition> AbilityDefinitions { get; set; } = AbilityCatalog.Resolve(null);
-    private List<ItemDefinition> itemTypes = ItemCatalog.Resolve(null);
-    private bool itemCatalogProvided;
-    public List<ItemDefinition> ItemTypes
-    {
-        get => itemTypes;
-        set { itemTypes = value; itemCatalogProvided = true; }
-    }
+    public List<ItemDefinition> ItemTypes { get; set; } = ItemCatalog.Resolve(null);
     public List<LootCardDefinition> LootCardDefinitions { get; set; } = LootCardCatalog.Resolve(null);
-    private List<EquipmentDefinition> equipmentTypes = EquipmentCatalog.Resolve(null);
-    private bool equipmentCatalogProvided;
-    public List<EquipmentDefinition> EquipmentTypes
-    {
-        get => equipmentTypes;
-        set { equipmentTypes = value; equipmentCatalogProvided = true; }
-    }
+    public List<EquipmentDefinition> EquipmentTypes { get; set; } = EquipmentCatalog.Resolve(null);
     public LootDeck? LootDeck { get; set; }
     public List<LootMarker> LootMarkers { get; set; } = [];
     public List<GroundObject> GroundObjects { get; set; } = [];
@@ -505,7 +425,7 @@ public sealed class GameState : IJsonOnDeserialized
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
-        Units.Add(type.CreateUnit(id, sideId, AbilityDefinitions));
+        Units.Add(type.CreateUnit(id, sideId));
         Physical.Figures.Add(new(id, cell, posture));
         FogOfWar.Refresh(this);
     }
@@ -572,10 +492,7 @@ public sealed class GameState : IJsonOnDeserialized
     public int EffectiveBonusActionUsesPerActivation => Math.Max(0, 1 +
         this.WorldModifier(WorldModifierTarget.BonusActionUses));
     public int ActionsRemaining => Math.Max(0, EffectiveActionsPerActivation - ActionsUsedThisActivation);
-    public int BonusActionUsesThisActivation(string name) => Math.Max(
-        BonusActionUseCountsThisActivation.GetValueOrDefault(name), BonusActionsUsedThisActivation.Contains(name) ? 1 : 0);
-    // Ability names are the existing content identities, shared with persistent use counters.
-    public HashSet<string> BonusActionsUsedThisActivation { get; set; } = [];
+    public int BonusActionUsesThisActivation(string accountingId) => BonusActionUseCountsThisActivation.GetValueOrDefault(accountingId);
     public List<ModifierThisTurn> ModifiersThisTurn { get; set; } = [];
     // Derived authoritative values are also serialized for rule-independent clients.
     public Dictionary<string, int> EffectiveAtk => Units.ToDictionary(u => u.Id, u => EffectiveAtkOf(u.Id));
@@ -588,20 +505,20 @@ public sealed class GameState : IJsonOnDeserialized
 
     public bool HasEquipment(string unitId, LootCardKind kind) => IsUpright(unitId) &&
         this.ActiveEquipment(unitId).Any(e => e.Id == EquipmentCatalog.LegacyTypeId(kind));
-    public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Phase is not null ||
-        this.EquipmentGrants(unitId, EquipmentCapability.Phase);
-    public bool HasOpenDoor(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).FreeActions.HasFlag(UnitFreeAction.OpenDoor) ||
-        this.EquipmentGrants(unitId, EquipmentCapability.OpenDoor);
+    public bool HasPhase(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<Phase>() is not null ||
+        this.ActiveEquipment(unitId).Any(equipment => equipment.LocalAbilities.Any(ability => ability.Mechanic is Phase));
+    public bool HasOpenDoor(string unitId) => Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mechanic<OpenDoor>() is not null ||
+        this.ActiveEquipment(unitId).Any(equipment => equipment.LocalAbilities.Any(ability => ability.Mechanic is OpenDoor));
 
     public int EffectiveAtkOf(string unitId)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Atk;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var attack = type.Atk + this.EquipmentModifier(unitId, Stat.Atk) + this.AbilityModifier(unitId, Stat.Atk) + this.WorldModifier(WorldModifierTarget.Atk) + (CurrentUnitId == unitId
+        var attack = type.Atk + this.AbilityModifier(unitId, Stat.Atk) + this.WorldModifier(WorldModifierTarget.Atk) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Atk).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
-        if (type.Fury is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
+        if (type.Mechanic<Fury>() is not { } fury || unit.CurrentHp <= 0 || figure is null || !IsUpright(unitId)) return Math.Max(0, attack);
 
         // Derive Fury solely from the evaluated world, including hypothetical copies.
         var adjacentEnemies = Units.Where(u => u.CurrentHp > 0 && AreHostile(unit.SideId, u.SideId))
@@ -616,7 +533,7 @@ public sealed class GameState : IJsonOnDeserialized
         var attack = EffectiveAtkOf(attackerId);
         var attacker = Units.Single(u => u.Id == attackerId);
         var target = Units.Single(u => u.Id == targetId);
-        if (Types.Single(t => t.Id == attacker.TypeId).Backstab is not { } backstab ||
+        if (Types.Single(t => t.Id == attacker.TypeId).Mechanic<Backstab>() is not { } backstab ||
             attacker.CurrentHp <= 0 || !IsUpright(attackerId) || target.CurrentHp <= 0 || !AreHostile(attacker.SideId, target.SideId))
             return Math.Max(0, attack);
 
@@ -630,19 +547,19 @@ public sealed class GameState : IJsonOnDeserialized
     public int EffectiveMovOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Mov :
         Math.Max(0, Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Mov +
-        this.EquipmentModifier(unitId, Stat.Mov) + this.AbilityModifier(unitId, Stat.Mov) +
+        this.AbilityModifier(unitId, Stat.Mov) +
         this.WorldModifier(WorldModifierTarget.Mov) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount) : 0));
     public int EffectiveRngOf(string unitId) =>
         ObservationValues?.TryGetValue(unitId, out var observed) == true ? observed.Rng :
-        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + this.EquipmentModifier(unitId, Stat.Rng) + this.AbilityModifier(unitId, Stat.Rng) +
+        Types.Single(t => t.Id == Units.Single(u => u.Id == unitId).TypeId).Rng + this.AbilityModifier(unitId, Stat.Rng) +
         (CurrentUnitId == unitId ? ModifiersThisTurn.Where(m => m.Stat == Stat.Rng).Sum(m => m.Amount) : 0);
     public int EffectiveDefOf(string unitId)
     {
         if (ObservationValues?.TryGetValue(unitId, out var observed) == true) return observed.Def;
         var unit = Units.Single(u => u.Id == unitId);
         var type = Types.Single(t => t.Id == unit.TypeId);
-        var defence = type.Def + this.EquipmentModifier(unitId, Stat.Def) + this.AbilityModifier(unitId, Stat.Def) + this.WorldModifier(WorldModifierTarget.Def) + (CurrentUnitId == unitId
+        var defence = type.Def + this.AbilityModifier(unitId, Stat.Def) + this.WorldModifier(WorldModifierTarget.Def) + (CurrentUnitId == unitId
             ? ModifiersThisTurn.Where(m => m.Stat == Stat.Def).Sum(m => m.Amount) : 0);
         var figure = Physical.Figures.SingleOrDefault(f => f.Id == unitId);
         if (unit.CurrentHp <= 0 || figure is null) return Math.Max(0, defence);
@@ -686,7 +603,7 @@ public sealed class GameState : IJsonOnDeserialized
     internal GameState Copy() => new()
     {
         WorldCardDefinitions = [.. WorldCardDefinitions],
-        AbilityDefinitions = [.. AbilityDefinitions], ItemTypes = [.. ItemTypes], LootCardDefinitions = [.. LootCardDefinitions],
+        ItemTypes = [.. ItemTypes], LootCardDefinitions = [.. LootCardDefinitions],
         EquipmentTypes = [.. EquipmentTypes],
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
         Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
@@ -705,7 +622,7 @@ public sealed class GameState : IJsonOnDeserialized
         MovesCompletedThisActivation = MovesCompletedThisActivation, MoveOpportunityModifierThisActivation = MoveOpportunityModifierThisActivation,
         WaypointAdvancedThisActivation = WaypointAdvancedThisActivation,
         AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, ActionDone = ActionDone,
-        BonusActionsUsedThisActivation = [.. BonusActionsUsedThisActivation], CompletedUnitIds = [.. CompletedUnitIds],
+        CompletedUnitIds = [.. CompletedUnitIds],
         ModifiersThisTurn = [.. ModifiersThisTurn],
         CurrentUnitId = CurrentUnitId, MoveAfterAttackAllowance = MoveAfterAttackAllowance,
         AdvanceOnKillCells = AdvanceOnKillCells,

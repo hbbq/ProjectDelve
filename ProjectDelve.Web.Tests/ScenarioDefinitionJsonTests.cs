@@ -51,27 +51,14 @@ public sealed class ScenarioDefinitionJsonTests
         Assert.Equal(authoredState.Types.Count, loadedState.Types.Count);
         foreach (var (expected, actual) in authoredState.Types.Zip(loadedState.Types))
         {
-            // Record fields compare by value; ImmutableArray needs explicit sequence comparison.
-            Assert.Equal(expected.AttackDefinitionOrder.ToArray(), actual.AttackDefinitionOrder.ToArray());
-            Assert.Equal(expected.AbilityGrants.ToArray(), actual.AbilityGrants.ToArray());
-            Assert.Equal(expected with
-            {
-                BonusActions = actual.BonusActions, AttackDefinitionOrder = actual.AttackDefinitionOrder,
-                AbilityGrants = actual.AbilityGrants
-            }, actual);
-            Assert.Equal(expected.BonusActions.Length, actual.BonusActions.Length);
-            foreach (var (expectedAbility, actualAbility) in expected.BonusActions.Zip(actual.BonusActions))
-            {
-                Assert.Equal(expectedAbility with { Modifiers = actualAbility.Modifiers }, actualAbility);
-                Assert.Equal(expectedAbility.Modifiers.ToArray(), actualAbility.Modifiers.ToArray());
-            }
+            // Compare the complete declarations, including nested mechanic arrays by value.
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected), System.Text.Json.JsonSerializer.Serialize(actual));
         }
         Assert.Equal(authoredState.Units.Count, loadedState.Units.Count);
         foreach (var (expected, actual) in authoredState.Units.Zip(loadedState.Units))
         {
             // Includes deterministic ID, type identity, Side, HP and every named use counter.
-            Assert.Equal(expected with { BonusActionUses = actual.BonusActionUses, AbilityUseCounts = actual.AbilityUseCounts }, actual);
-            Assert.Equal(expected.BonusActionUses.OrderBy(p => p.Key), actual.BonusActionUses.OrderBy(p => p.Key));
+            Assert.Equal(expected with { AbilityUseCounts = actual.AbilityUseCounts }, actual);
             Assert.Equal(expected.AbilityUseCounts.OrderBy(p => p.Key), actual.AbilityUseCounts.OrderBy(p => p.Key));
             Assert.Equal(FootprintGeometry.OccupiedCells(authoredState, expected.Id),
                 FootprintGeometry.OccupiedCells(loadedState, actual.Id));
@@ -119,7 +106,7 @@ public sealed class ScenarioDefinitionJsonTests
         Assert.False(state.CleavePending);
         Assert.False(state.MoveDone);
         Assert.False(state.ActionDone);
-        Assert.Empty(state.BonusActionsUsedThisActivation);
+        Assert.Empty(state.BonusActionUseCountsThisActivation);
         Assert.Empty(state.ModifiersThisTurn);
         Assert.Empty(state.CompletedUnitIds);
     }

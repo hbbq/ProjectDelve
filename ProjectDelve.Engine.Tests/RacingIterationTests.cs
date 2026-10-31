@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -41,8 +41,8 @@ public sealed class RacingIterationTests
     public void BoostBeforeMoveSpendsOnceAndRequiresBothMovesBeforeActionsOrEnd()
     {
         var start = Start();
-        Assert.Equal("bonus-action:boost", new OrderAwareAutomatedProvider().Choose(start.NextInput!, new GameplayQueries(start.State)));
-        var boosted = Step(start, "bonus-action:boost");
+        Assert.Equal("ability:boost", new OrderAwareAutomatedProvider().Choose(start.NextInput!, new GameplayQueries(start.State)));
+        var boosted = Step(start, "ability:boost");
         Assert.Equal(0, boosted.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "mushroom"));
         Assert.Equal(2, boosted.State.EffectiveMovesPerActivation);
         var spent = boosted.Events.FindIndex(e => e.Kind == "ResourceSpent");
@@ -60,23 +60,23 @@ public sealed class RacingIterationTests
         Assert.Equal(0, moved.State.Orders.Single().Route!.CurrentIndex);
         Assert.Contains(moved.NextInput!.Candidates, c => c.Action == UnitAction.ShootShell);
         Assert.Contains(moved.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
-        Assert.DoesNotContain(moved.NextInput.Candidates, c => c.BonusAction?.Boost is not null);
+        Assert.DoesNotContain(moved.NextInput.Candidates, c => c.Ability?.Definition.Mechanic is Boost);
     }
 
     [Fact]
     public void BoostReopensMovesAfterStayButNotAfterNormalAction()
     {
         var moved = Step(Start(), "stay");
-        var boosted = Step(moved, "bonus-action:boost");
+        var boosted = Step(moved, "ability:boost");
         Assert.False(boosted.State.MoveDone);
         Assert.Contains(boosted.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Move);
         Assert.DoesNotContain(boosted.NextInput.Candidates, c => c.Kind is ActivationChoiceKind.EndTurn or ActivationChoiceKind.Action);
-        var shot = Step(moved, "shoot-shell:target");
+        var shot = Step(moved, "ability:shoot-shell:target");
         Assert.Equal(0, shot.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "shell"));
         Assert.Equal(1, shot.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "mushroom"));
         while (shot.NextInput?.Kind == DecisionKind.RollDice) shot = Step(shot, "roll-dice");
-        Assert.DoesNotContain(shot.NextInput!.Candidates, c => c.BonusAction?.Boost is not null);
-        Assert.Contains(shot.NextInput.Candidates, c => c.BonusAction?.PlaceBananaPeel is not null);
+        Assert.DoesNotContain(shot.NextInput!.Candidates, c => c.Ability?.Definition.Mechanic is Boost);
+        Assert.Contains(shot.NextInput.Candidates, c => c.Ability?.Definition.Mechanic is PlaceBananaPeel);
         Assert.Contains(shot.Events, e => e.Kind == "UnitDefeated");
     }
 
@@ -84,19 +84,19 @@ public sealed class RacingIterationTests
     public void BananaIsFlexibleBonusAndAutomationWaitsForAllMoves()
     {
         var initial = Start();
-        Assert.Contains(initial.NextInput!.Candidates, c => c.BonusAction?.PlaceBananaPeel is not null);
-        var placed = Step(initial, "place-banana-peel:0,1");
+        Assert.Contains(initial.NextInput!.Candidates, c => c.Ability?.Definition.Mechanic is PlaceBananaPeel);
+        var placed = Step(initial, "ability:place-banana-peel:0,1");
         Assert.Equal(0, placed.State.ActionsUsedThisActivation);
         Assert.False(placed.State.MoveDone);
         Assert.Single(placed.State.CellMarkers);
         Assert.Equal(0, placed.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "banana"));
-        var boosted = Step(Step(initial, "stay"), "bonus-action:boost");
+        var boosted = Step(Step(initial, "stay"), "ability:boost");
         var provider = new OrderAwareAutomatedProvider();
         var key = provider.Choose(boosted.NextInput!, new GameplayQueries(boosted.State));
         Assert.Contains(boosted.NextInput!.Candidates, c => c.Key == key && c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay);
         var moved = Step(boosted, "stay");
         key = provider.Choose(moved.NextInput!, new GameplayQueries(moved.State));
-        Assert.Contains(moved.NextInput!.Candidates, c => c.Key == key && c.BonusAction?.PlaceBananaPeel is not null);
+        Assert.Contains(moved.NextInput!.Candidates, c => c.Key == key && c.Ability?.Definition.Mechanic is PlaceBananaPeel);
     }
 
     [Fact]
@@ -104,9 +104,9 @@ public sealed class RacingIterationTests
     {
         var moved = Step(Start(), "stay");
         Assert.DoesNotContain(moved.NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
-        var shot = Step(moved, "shoot-shell:target");
+        var shot = Step(moved, "ability:shoot-shell:target");
         Assert.Equal(3, shot.State.AttackInProgress!.AttackDice);
-        Assert.Equal("shoot-shell", shot.State.AttackInProgress.ActionId);
+        Assert.Equal("ability:shoot-shell", shot.State.AttackInProgress.ActionId);
         shot = Step(shot, "roll-dice");
         if (shot.NextInput?.Kind == DecisionKind.RollDice) shot = Step(shot, "roll-dice");
         Assert.Equal(0, shot.State.Units.Single(u => u.Id == "target").CurrentHp);
@@ -127,8 +127,9 @@ public sealed class RacingIterationTests
         var dice = new Dice(roll);
         var kart = UnitRoster.DiamondKart();
         var fixture = Fixture() with { StoredResources = [new("blue", UnitTypeIds.DiamondKart, ResourceTypes.Mushroom, 1)],
-            UnitTypes = [.. Fixture().UnitTypes!, kart with { BonusActions = kart.BonusActions.Add(new("hold", null, [])) }] };
-        var result = Step(Start(fixture, dice), "bonus-action:boost", dice);
+            UnitTypes = [.. Fixture().UnitTypes!, kart.WithLocal(new("hold", "Hold", AbilityTiming.BonusAction,
+                new SelfModifiersMechanic([new(Stat.Atk, 0)])))] };
+        var result = Step(Start(fixture, dice), "ability:boost", dice);
         result = Step(result, "stay", dice);
         result = Step(result, "stay", dice);
         Assert.Equal(0, dice.Slots);
@@ -137,6 +138,27 @@ public sealed class RacingIterationTests
         Assert.Equal(1, dice.Slots);
         Assert.Equal(1, result.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, resource));
         Assert.Single(result.Events, e => e.Kind == "RacingSlotRolled");
+    }
+
+    [Fact]
+    public void LocalWaypointRewardUsesItsAuthoredTableAndKeyAfterJsonRoundTrip()
+    {
+        var kart = UnitRoster.DiamondKart().Without<WaypointSlotMachine>().WithLocal(
+            new("prize", "Finish Prize", AbilityTiming.EndActivation,
+                new WaypointSlotMachine(new([ResourceTypes.Shell, ResourceTypes.Shell, ResourceTypes.Shell,
+                    ResourceTypes.Shell, ResourceTypes.Shell, ResourceTypes.Shell]))));
+        var definition = Fixture() with
+        {
+            UnitTypes = [.. Fixture().UnitTypes!, kart], StoredResources = []
+        };
+        var restored = ScenarioDefinitionJson.FromJson(ScenarioDefinitionJson.ToJson(definition));
+        var dice = new Dice(1);
+        var result = Step(Start(restored, dice), "stay", dice);
+        Assert.Equal(1, dice.Slots);
+        Assert.Equal(1, result.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "shell"));
+        Assert.Equal(0, result.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "banana"));
+        Assert.Equal("ability:prize", Assert.Single(result.Events, e => e.Kind == "RacingSlotRolled").ActionId);
+        Assert.Contains("Shell", kart.Ability<WaypointSlotMachine>()!.CardEntry().Description);
     }
 
     [Fact]
@@ -201,7 +223,7 @@ public sealed class RacingIterationTests
         };
         var result = Step(Start(fixture), "stay");
         Assert.Equal(3, result.NextInput!.Candidates.Count(c => c.Action == UnitAction.ShootShell));
-        Assert.Equal("shoot-shell:east", new OrderAwareAutomatedProvider().Choose(result.NextInput, new GameplayQueries(result.State)));
+        Assert.Equal("ability:shoot-shell:east", new OrderAwareAutomatedProvider().Choose(result.NextInput, new GameplayQueries(result.State)));
     }
 
     [Theory]
@@ -219,7 +241,7 @@ public sealed class RacingIterationTests
         var result = Step(Start(fixture), "2,1");
         Assert.Equal(new Cell(2, 1), Assert.Single(result.State.Resources).Position);
         var key = new OrderAwareAutomatedProvider().Choose(result.NextInput!, new GameplayQueries(result.State));
-        Assert.Equal("give-resource:kart", key);
+        Assert.Equal("ability:give-resource:kart", key);
         result = Step(result, key!);
         Assert.Empty(result.State.Resources);
         Assert.Equal(1, result.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, id));
@@ -230,7 +252,7 @@ public sealed class RacingIterationTests
     {
         var dice = new Dice(4);
         var result = Start(Fixture() with { CellMarkers = [new(CellMarkerTypes.BananaPeel, new(2, 2))] }, dice);
-        result = Step(result, "bonus-action:boost", dice);
+        result = Step(result, "ability:boost", dice);
         result = Step(result, "2,2", dice);
         Assert.False(result.State.IsUpright("kart"));
         Assert.Single(result.Events, e => e.Kind == "WaypointReached");
@@ -275,7 +297,7 @@ public sealed class RacingIterationTests
         };
         fixture = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(fixture));
         var dice = new Dice(roll);
-        var result = Step(Step(Start(fixture, dice), "stay", dice), "operate:slot", dice);
+        var result = Step(Step(Start(fixture, dice), "stay", dice), "ability:operate:slot", dice);
         Assert.Equal(output, Assert.Single(result.State.Resources).Type.Id);
         Assert.Equal(new Cell(1, 1), result.State.Resources[0].Position);
         Assert.Equal(0, result.State.Physical.Board.Machines.Single().StoredQuantity("fruit"));

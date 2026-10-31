@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -6,20 +6,20 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class MechanicConfigurationTests
 {
     [Fact]
-    public void ExistingConstructorsAndSerializedConfigurationsKeepCanonicalDefaults()
+    public void SerializedLocalConfigurationsKeepCanonicalParametersAndUsageSeparate()
     {
-        Assert.Equal(3, new Heal(3).MaxUses);
-        Assert.Equal(2, new Heal(3).Amount);
-        Assert.Equal(new Heal(3), JsonSerializer.Deserialize<Heal>("{\"MaxUses\":3}"));
-        Assert.Equal(new Cleave(3), JsonSerializer.Deserialize<Cleave>("{\"MaxUses\":3}"));
         Assert.Equal(new Fury(), JsonSerializer.Deserialize<Fury>("{}"));
         Assert.Equal(new Backstab(), JsonSerializer.Deserialize<Backstab>("{}"));
-        var heal = Assert.Single(AbilityQueries.NativeAbilities(UnitType.Cleric(), "cleric"), g => g.GrantId == "heal").Definition;
+        Assert.Equal(new Cleave(), JsonSerializer.Deserialize<Cleave>("{}"));
+        var heal = UnitType.Cleric().Ability<HealMechanic>()!;
         Assert.Equal(new HealMechanic(2), heal.Mechanic);
         Assert.Equal(2, heal.Usage.MaxUses);
-        Assert.Equal(new Fury(), UnitType.Barbarian().Fury);
-        Assert.Equal(new Cleave(2), UnitType.Barbarian().Cleave);
-        Assert.Equal(new Backstab(), UnitType.Rogue().Backstab);
+        Assert.Equal(new Fury(), UnitType.Barbarian().Mechanic<Fury>());
+        Assert.Equal(new Cleave(), UnitType.Barbarian().Mechanic<Cleave>());
+        Assert.Equal(new Backstab(), UnitType.Rogue().Mechanic<Backstab>());
+        var restored = JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(UnitType.Barbarian()))!;
+        Assert.Equal(2, restored.Ability<Cleave>()!.Usage.MaxUses);
+        Assert.Equal(new Cleave(), restored.Mechanic<Cleave>());
     }
 
     [Theory]
@@ -33,14 +33,18 @@ public sealed class MechanicConfigurationTests
     [InlineData("fury-threshold", -1)]
     public void NonpositiveHealingDamageAndEnemyThresholdsAreRejected(string parameter, int value)
     {
-        var type = new UnitType("configured", 0, 0, 0, 0, 1);
-        type = parameter switch
+        AbilityMechanic mechanic = parameter switch
         {
-            "heal" => type with { Heal = new() { Amount = value } },
-            "cleave-trigger" => type with { Cleave = new() { TriggerDamage = value } },
-            "cleave-damage" => type with { Cleave = new() { Damage = value } },
-            "fury-threshold" => type with { Fury = new() { AdjacentEnemyThreshold = value } },
+            "heal" => new HealMechanic(value),
+            "cleave-trigger" => new Cleave { TriggerDamage = value },
+            "cleave-damage" => new Cleave { Damage = value },
+            "fury-threshold" => new Fury { AdjacentEnemyThreshold = value },
             _ => throw new ArgumentOutOfRangeException(nameof(parameter))
+        };
+        var timing = mechanic is Cleave ? AbilityTiming.AfterAttack : mechanic is Fury ? AbilityTiming.Passive : AbilityTiming.Action;
+        var type = new UnitType("configured", 0, 0, 0, 0, 1)
+        {
+            LocalAbilities = [new("configured", "Configured", timing, mechanic) { Usage = new(mechanic is Fury ? null : 2) }]
         };
         var state = new GameState
         {

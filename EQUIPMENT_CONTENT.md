@@ -1,6 +1,6 @@
-# Equipment content — milestone 1
+# Equipment content
 
-Milestone 2 extends this model with shared Ability grants and independent Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for new Equipment Actions that reuse Unit mechanics, supported source/timing combinations and scenario-local Item authoring. Milestone 3 adds independent [World Card content](WORLD_CARD_CONTENT.md). The milestone 1 declarations below remain compatible.
+Equipment owns complete local Ability declarations, using the same typed model as Units and Single Use Items. See [ABILITY_CONTENT.md](ABILITY_CONTENT.md) for the shared model and [MECHANIC_CATALOG.md](MECHANIC_CATALOG.md) for supported source, timing and usage combinations. [World Card content](WORLD_CARD_CONTENT.md) and [Loot content](LOOT_CONTENT.md) have their own typed definitions.
 
 ## Playable example: Local Equipment - Fitting Room
 
@@ -21,12 +21,16 @@ Add an `EquipmentDefinition` to `EquipmentRoster.All` in [EquipmentRoster.cs](Pr
 ```csharp
 new EquipmentDefinition("trail-medallion", "Trail Medallion")
 {
-    Modifiers = [new(Stat.Mov, 1), new(Stat.Def, 1)],
-    Capabilities = [EquipmentCapability.Phase]
+    LocalAbilities =
+    [
+        new("stride", "Steady Stride", AbilityTiming.Passive,
+            new SelfModifiersMechanic([new(Stat.Mov, 1), new(Stat.Def, 1)])),
+        new("phase", "Phase", AbilityTiming.Passive, new Phase())
+    ]
 }
 ```
 
-`Modifiers` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amount. `Capabilities` supports Phase and Open Door. Use `LocalAbilities` for complete owned Actions and other supported Abilities. Canonical Emergency Goat Bell owns an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. An unlimited usage restriction does not grant extra Actions. Existing `Grants` references remain supported for compatibility and intentional sharing.
+`LocalAbilities` is the sole Equipment mechanic declaration list. Passive `SelfModifiersMechanic` supports MOV, RNG, ATK and DEF through `Stat`; each declaration owns its numeric amounts. `Phase` uses Passive timing, and `OpenDoor` uses Free Action timing. These abilities are active only while the bearer is Upright. Canonical Emergency Goat Bell owns an unlimited Action with `StandAdjacentFriendlyMechanic`. It spends an ordinary Action and stands one adjacent friendly Lying Unit. Unlimited usage does not grant extra Actions. Equipment has no per-game Ability charges.
 
 For example, a second Equipment source can grant that same mechanic with its own name:
 
@@ -38,11 +42,13 @@ new EquipmentDefinition("holy-bell", "Holy Bell")
 }
 ```
 
-Use `DescriptionOverride` on an Ability definition only when the generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Stat descriptions always come from the typed amounts. Canonical Goat Bell's local declaration has explicit compatibility metadata preserving existing saved decision keys; leave it unset for new content, whose keys derive from source Instance ID and local Ability key. The older inline `Abilities`/`EquipmentAbility` representation remains a reader for historical scenarios and saved catalogs.
+Each local declaration owns an explicit key, name, timing, usage and typed mechanic. Keys must be unique within the Equipment Type; different owners can reuse a key. Keep the key stable when renaming or reordering an Ability. Candidate and accounting identities bind the local key to the physical Equipment Instance ID; card entries bind it to the Equipment Type. Open Door choices retain their individual source binding even when several owned sources can open the same Door.
 
-These are ordinary serializable C# definitions. JSON produces the same model and passes the same validation. No delegate, script, parsed Ability prose, content-specific Engine handler or Web switch is required. Adding a genuinely new mechanic still requires a rules decision and implementation; this milestone deliberately supports only the established mechanics above.
+Use `DescriptionOverride` only when generated wording needs an authored presentation override. It does not alter the mechanic, targets, category or usage. Generated stat descriptions use the typed amounts. The old top-level `Modifiers`, `Capabilities`, inline `Abilities`, and global `Grants` formats are removed; author them as local Abilities instead. Removed Ability formats and their old decision/counter identities are not save compatibility contracts.
 
-Canonical Ability, Item, Loot and existing World Card declarations likewise live in `AbilityRoster.cs`, `ItemRoster.cs`, `LootRoster.cs` and `WorldCardRoster.cs`, separate from their mechanics. See [Ability content](ABILITY_CONTENT.md) for the authoring model and roster responsibilities. A future JSON provider can replace these roster providers at the same typed catalog boundary; the current extraction changes no IDs or serialized formats.
+These are ordinary serializable C# definitions. JSON produces the same model and passes the same validation. No delegate, script, parsed Ability prose, content-specific Engine handler or Web switch is required. Adding a genuinely new mechanic still requires a rules decision and implementation. The Mechanic Catalog is authoritative for which existing mechanics support Equipment.
+
+Canonical Units, Items, Loot and World Cards likewise live in `UnitRoster.cs`, `ItemRoster.cs`, `LootRoster.cs` and `WorldCardRoster.cs`, separate from their mechanics. Abilities are nested in their owners; there is no global Ability roster or registration. Canonical declarations remain C# data and local definitions use the same typed model. A future JSON provider can use this catalog boundary without introducing another execution path.
 
 Give an instance directly with `new OwnedObject("physical-medallion-1", "trail-medallion")`. Keep its Instance ID unchanged when moving it between inventory and ground. To offer it as random Loot, add `new LootCardQuantity("trail-medallion", 2)` to a Custom Loot composition. Canonical presets continue to reference their existing centrally maintained cards.
 
@@ -56,11 +62,14 @@ The following complete small scenario declares an unfamiliar Equipment Type, giv
     {
       "id": "amber-sandals",
       "name": "Sandals of a Very Different Name",
-      "modifiers": [
-        { "stat": "Mov", "amount": 2 },
-        { "stat": "Def", "amount": 1 }
-      ],
-      "capabilities": ["Phase"]
+      "localAbilities": [
+        { "key": "stride", "name": "Steady Stride", "timing": "Passive",
+          "mechanic": { "kind": "selfModifiers", "modifiers": [
+            { "stat": "Mov", "amount": 2 }, { "stat": "Def", "amount": 1 }
+          ] } },
+        { "key": "phase", "name": "Phase", "timing": "Passive",
+          "mechanic": { "kind": "phase" } }
+      ]
     }
   ],
   "loot": {
@@ -106,12 +115,12 @@ Scenario JSON and DELVE1 transport carry local definitions. Designer imports, ex
 
 A Unit can own one instance of each Equipment Type and any number of different Types. Stat modifiers from different Types add independently, including equal modifiers. Two copies of one Type can belong to different Units or lie on the ground. Automatic Loot acquisition puts a duplicate Type on the ground; optional pickup does not offer it to a Unit that already owns that Type. Effects belong to the individual bearer, including individual members of one Unit group.
 
-Single Use Items retain their existing behavior: multiple copies are permitted, one use consumes one physical instance, and ordinary Action and Bonus Action limits still apply. This is not an Item migration.
+Single Use Items use the same owned Ability model with their supported Action and Bonus Action profiles. Multiple copies are permitted, one use consumes one physical instance, and ordinary Action and Bonus Action limits still apply.
 
-Legacy `LootCardKind` Equipment values remain readable: `Bedsheet` maps to `bedsheet`, `LuckyBoots` to `lucky-boots`, `OfficialKey` to `official-key`, and `GoatBell` to `goat-bell`. Existing Instance IDs, preset compositions and candidate compatibility are preserved. New content should reference Equipment Type IDs directly. When loading legacy inventories with repeated card-linked Equipment Types, keep the first instance and place excess legacy instances on the ground at the owner's anchor. This explicit compatibility migration preserves every physical Instance ID while applying the new ownership rule. Newly authored duplicate Equipment Type references are rejected. The engine never destroys or combines physical objects to resolve duplicates.
+Legacy `LootCardKind` Equipment values remain readable: `Bedsheet` maps to `bedsheet`, `LuckyBoots` to `lucky-boots`, `OfficialKey` to `official-key`, and `GoatBell` to `goat-bell`. Existing physical Instance IDs and preset compositions are preserved. This object-provenance compatibility is separate from the removed Ability formats. New content should reference Equipment Type IDs directly. When loading legacy inventories with repeated card-linked Equipment Types, keep the first instance and place excess legacy instances on the ground at the owner's anchor. This explicit compatibility migration preserves every physical Instance ID while applying the ownership rule. Newly authored duplicate Equipment Type references are rejected. The engine never destroys or combines physical objects to resolve duplicates.
 
 Mechanical descriptions and inventory metadata come from the resolved definitions. Numeric parameters remain authoritative in typed declarations. Equipment names and Ability names are presentation data. Fog of War must reveal only observed objects and their content, never unopened draw identities or hidden inventories.
 
-## Next milestone
+## Scope
 
-This slice does not migrate Unit Actions, Single Use Items or World Cards to source-independent Ability definitions. It adds no Equipment slots, equip/unequip actions, per-instance charges, generic effect interpreter, trigger language or scripting support. Later work can generalize the shared definition/validation boundary and separate mechanic, source, name and usage fields when concrete content requires it. Runtime content editing and broader content libraries remain future work.
+The model adds no Equipment slots, equip/unequip actions, per-instance charges, generic effect interpreter, trigger language or scripting support. Specialized Unit-only mechanics remain restricted by their catalog profiles. Runtime content editing, canonical JSON export and a Content Designer remain future work.

@@ -189,14 +189,14 @@ public sealed class PlaytestApiTests
         var cards = initialJson.RootElement.GetProperty("presentation").GetProperty("cards");
         Assert.Equal("Cleric", cards.GetProperty(Cleric).GetProperty("displayName").GetString());
         var telekinesis = cards.GetProperty(Wizard).GetProperty("entries").EnumerateArray()
-            .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "telekinesis");
+            .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "ability:telekinesis");
         Assert.Equal("Telekinesis", telekinesis.GetProperty("content").GetProperty("name").GetString());
         Assert.Equal("Action", telekinesis.GetProperty("content").GetProperty("category").GetString());
         Assert.Equal("Lay down an upright enemy within RNG and LOS.", telekinesis.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("uses").ValueKind);
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("content").GetProperty("maxUses").ValueKind);
         var cardWave = cards.GetProperty(Cleric).GetProperty("entries").EnumerateArray()
-            .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "holy-wave");
+            .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "ability:holy-wave");
         Assert.Equal("Lay down all adjacent upright enemies.\nThen lay down this Unit.", cardWave.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(2, cardWave.GetProperty("uses").GetProperty("remainingUses").GetInt32());
         using var preference = await host.Post("preferences", new { expectedRevision = 0, autoChooseSingleRelevantChoice = false });
@@ -233,7 +233,7 @@ public sealed class PlaytestApiTests
         foreach (var step in resolved.Result.ResolutionSteps)
             Assert.Equal(BrowserProjection.Cards(step.StateAfter)[Cleric].Entries,
                 resolved.Presentation.ResolutionSteps.Single(s => s.EventIndex == step.EventIndex).Cards[Cleric].Entries);
-        Assert.Equal(1, resolved.Presentation.Cards[Cleric].Entries.Single(e => e.Content.Id == "holy-wave").Uses!.RemainingUses);
+        Assert.Equal(1, resolved.Presentation.Cards[Cleric].Entries.Single(e => e.Content.Id == "ability:holy-wave").Uses!.RemainingUses);
     }
 
     [Fact]
@@ -252,17 +252,19 @@ public sealed class PlaytestApiTests
         Assert.Equal(4, barbarian.GetProperty("atk").GetInt32());
         Assert.Equal(3, barbarian.GetProperty("def").GetInt32());
         Assert.Equal(5, barbarian.GetProperty("hp").GetInt32());
-        Assert.Equal("Rage", Entry(Barbarian, "bonus:Rage").GetProperty("name").GetString());
-        Assert.Equal(1, barbarian.GetProperty("fury").GetProperty("atkBonus").GetInt32());
-        Assert.Equal(2, barbarian.GetProperty("fury").GetProperty("adjacentEnemyThreshold").GetInt32());
-        Assert.False(barbarian.GetProperty("fury").TryGetProperty("name", out _));
+        Assert.Equal("Rage", Entry(Barbarian, "ability:rage").GetProperty("name").GetString());
+        var furyMechanic = barbarian.GetProperty("localAbilities").EnumerateArray()
+            .Single(ability => ability.GetProperty("key").GetString() == "fury").GetProperty("mechanic");
+        Assert.Equal(1, furyMechanic.GetProperty("atkBonus").GetInt32());
+        Assert.Equal(2, furyMechanic.GetProperty("adjacentEnemyThreshold").GetInt32());
+        Assert.False(furyMechanic.TryGetProperty("name", out _));
         Assert.False(barbarian.TryGetProperty("passives", out _));
-        var fury = Entry(Barbarian, "passive:Fury");
+        var fury = Entry(Barbarian, "ability:fury");
         Assert.Equal("Fury", fury.GetProperty("name").GetString());
         Assert.Equal("ATK +1 while adjacent to 2 or more enemies", fury.GetProperty("description").GetString());
         Assert.Equal(4, state.GetProperty("effectiveAtk").GetProperty(Barbarian).GetInt32());
         var rogue = types.Single(t => t.GetProperty("id").GetString() == "rogue-type");
-        Assert.Equal(new[] { "Dash", "Throwing Knife" }, new[] { "bonus:Dash", "bonus:Throwing Knife" }
+        Assert.Equal(new[] { "Dash", "Throwing Knife" }, new[] { "ability:dash", "ability:throwing-knife" }
             .Select(id => Entry(Rogue, id).GetProperty("name").GetString()));
         var cleric = types.Single(t => t.GetProperty("id").GetString() == "cleric-type");
         var aura = cleric.GetProperty("localAbilities").EnumerateArray()
@@ -273,8 +275,8 @@ public sealed class PlaytestApiTests
         var modifier = Assert.Single(aura.GetProperty("mechanic").GetProperty("modifiers").EnumerateArray());
         Assert.Equal("Def", modifier.GetProperty("stat").GetString());
         Assert.Equal(1, modifier.GetProperty("amount").GetInt32());
-        Assert.Equal("Aura", Entry(Cleric, "passive:Aura").GetProperty("name").GetString());
-        Assert.Equal("Adjacent friendly Units get DEF +1", Entry(Cleric, "passive:Aura").GetProperty("description").GetString());
+        Assert.Equal("Aura", Entry(Cleric, "ability:aura").GetProperty("name").GetString());
+        Assert.Equal("Adjacent friendly Units get DEF +1.", Entry(Cleric, "ability:aura").GetProperty("description").GetString());
         // Rogue starts adjacent to Cleric; base DEF remains unchanged in content.
         Assert.Equal(2, rogue.GetProperty("def").GetInt32());
         Assert.Equal(3, state.GetProperty("effectiveDef").GetProperty(Rogue).GetInt32());
@@ -298,8 +300,8 @@ public sealed class PlaytestApiTests
         Assert.Equal(new[] { Barbarian, Rogue, Cleric, Wizard }, heroes.Select(u => u.Id));
         Assert.Equal(4, heroes.Select(u => u.TypeId).Distinct().Count());
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
-            type => Assert.Equal(type.Id == "wizard-type" ? UnitAction.NormalAttack | UnitAction.Telekinesis
-                : UnitAction.NormalAttack, type.Actions));
+            type => Assert.Equal(UnitAction.NormalAttack, type.Actions));
+        Assert.NotNull(second.Result.State.Types.Single(type => type.Id == UnitTypeIds.Wizard).AbilityFor(UnitAction.Telekinesis));
         Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is HealMechanic { Amount: 2 });
         Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is HolyWaveMechanic);
         Assert.Contains(second.Result.State.AbilitiesOf(Wizard), grant => grant.Definition.Mechanic is FireballMechanic);
@@ -331,19 +333,20 @@ public sealed class PlaytestApiTests
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         if (id == "cleric-type")
         {
-            Assert.Null(type.Heal);
+            Assert.NotNull(type.AbilityFor(UnitAction.Heal));
             var state = (await host.Read()).Result.State;
             var cleric = state.Units.Single(u => u.TypeId == id);
             var heal = Assert.Single(state.AbilitiesOf(cleric.Id), grant => grant.Definition.Mechanic is HealMechanic);
             Assert.Equal(new HealMechanic(2), heal.Definition.Mechanic);
             Assert.Equal(2, heal.Definition.Usage.MaxUses);
             Assert.Equal(new AbilityUses(2, 2),
-                cleric.HealUses);
+                state.AbilityUsesOf(cleric.Id, heal));
         }
-        Assert.Equal(id == "grunt-type" ? UnitFreeAction.None : UnitFreeAction.OpenDoor, type.FreeActions);
+        var initial = (await host.Read()).Result.State;
+        Assert.Equal(id != "grunt-type", initial.HasOpenDoor(initial.Units.First(unit => unit.TypeId == id).Id));
         Assert.Equal(UnitBehavior.None, type.Behaviors);
-        Assert.Null(type.TryOpenDoor);
-        Assert.Null(type.MoveAfterAttack);
+        Assert.Null(type.Mechanic<TryOpenDoor>());
+        Assert.Null(type.Mechanic<MoveAfterAttack>());
     }
 
     [Fact]
@@ -355,7 +358,7 @@ public sealed class PlaytestApiTests
         var afterMove = Assert.Single(moved.Result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
         Assert.Equal(ActivationChoiceKind.FreeAction, afterMove.Kind);
         Assert.Null(afterMove.Action);
-        Assert.Equal("open-door:3,4:4,4", afterMove.Key);
+        Assert.Equal("ability:open-door:3,4:4,4", afterMove.Key);
         // Decline it for this activation so the next activation can open before Move.
         var completed = await FinishRound(host, await host.Decide(moved.Revision, "end-turn"));
         var next = await host.Round(completed.Revision);
@@ -366,7 +369,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(Barbarian, opened.Result.NextInput!.UnitId);
         Assert.False(opened.Result.State.MoveDone);
         Assert.False(opened.Result.State.ActionDone);
-        Assert.Empty(opened.Result.State.BonusActionsUsedThisActivation);
+        Assert.Empty(opened.Result.State.BonusActionUseCountsThisActivation);
         Assert.Contains(opened.Result.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.Stay);
         Assert.DoesNotContain(opened.Result.NextInput.Candidates, c => c.Key == beforeMove.Key);
         Assert.Equal(EdgeKind.OpenDoor, opened.Result.State.Physical.Board.EdgeBetween(new(3, 4), new(4, 4)));
@@ -440,8 +443,8 @@ public sealed class PlaytestApiTests
         Assert.Contains(state.Units, u => u.TypeId == "shaman-type");
         Assert.DoesNotContain(state.Units, u => u.TypeId == "goblin-type");
         var rogue = state.Units.Single(u => u.Id == Rogue);
-        Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Dash"]);
-        Assert.Equal(new AbilityUses(2, 2), rogue.BonusActionUses["Throwing Knife"]);
+        Assert.Equal(new AbilityUses(2, 2), WebAbilityTestQueries.Uses(state, rogue.Id, "dash"));
+        Assert.Equal(new AbilityUses(2, 2), WebAbilityTestQueries.Uses(state, rogue.Id, "throwing-knife"));
         var board = state.Physical.Board;
         var room = Enumerable.Range(1, 3).SelectMany(x => Enumerable.Range(2, 4).Select(y => new Cell(x, y))).ToHashSet();
         var zombies = state.Units.Where(u => u.TypeId == "zombie-type").ToArray();
@@ -642,7 +645,8 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start();
         var initial = (await host.Read()).Result.State;
-        Assert.Equal(UnitType.Shaman(), initial.Types.Single(t => t.Id == "shaman-type"));
+        Assert.Equal(JsonSerializer.Serialize(UnitType.Shaman()),
+            JsonSerializer.Serialize(initial.Types.Single(t => t.Id == "shaman-type")));
         Assert.DoesNotContain(initial.Units, u => u.TypeId == "goblin-type");
         var started = await host.Round(0);
         Assert.DoesNotContain("goblin-type", started.Result.State.Bag.Select(t => t.TypeId));
@@ -742,21 +746,21 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(hit: true);
         var initial = await host.Read();
-        Assert.Equal(new AbilityUses(2, 2), initial.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 2), WebAbilityTestQueries.Uses(initial.Result.State, Barbarian, "rage"));
         using var preference = await host.Post("preferences", new {
             expectedRevision = 0, autoChooseSingleRelevantChoice = false });
         preference.EnsureSuccessStatusCode();
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var started = await host.Round(changed.Revision);
-        var rage = Assert.Single(started.Result.NextInput!.Candidates, c => c.BonusAction is not null);
+        var rage = Assert.Single(started.Result.NextInput!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction);
         Assert.False(rage.Relevant);
-        Assert.Equal("Rage", rage.BonusAction!.Name);
+        Assert.Equal("Rage", rage.Ability!.Definition.Name);
         var moved = await host.Decide(started.Revision, "5,7");
-        rage = Assert.Single(moved.Result.NextInput!.Candidates, c => c.BonusAction is not null);
+        rage = Assert.Single(moved.Result.NextInput!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction);
         Assert.True(rage.Relevant);
         var raging = await host.Decide(moved.Revision, rage.Key);
-        Assert.Equal(new AbilityUses(2, 1), raging.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
-        Assert.Equal("Rage", Assert.Single(raging.Result.State.BonusActionsUsedThisActivation));
+        Assert.Equal(new AbilityUses(2, 1), WebAbilityTestQueries.Uses(raging.Result.State, Barbarian, "rage"));
+        Assert.Equal(new KeyValuePair<string, int>("unit:rage", 1), Assert.Single(raging.Result.State.BonusActionUseCountsThisActivation));
         Assert.Equal(6, raging.Result.State.EffectiveAtk[Barbarian]);
         Assert.Equal(4, raging.Result.State.Types.Single(t => t.Id == "barbarian-type").Atk);
         Assert.Equal(new ModifierThisTurn(Stat.Atk, 2), Assert.Single(raging.Result.State.ModifiersThisTurn));
@@ -767,7 +771,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(6, Assert.Single(attacked.Result.Events, e => e.Kind == "AttackResolved").Hits);
         Assert.Empty(attacked.Result.State.ModifiersThisTurn);
         Assert.Equal(4, attacked.Result.State.EffectiveAtk[Barbarian]);
-        Assert.Equal(new AbilityUses(2, 1), attacked.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 1), WebAbilityTestQueries.Uses(attacked.Result.State, Barbarian, "rage"));
     }
 
     [Fact]
@@ -780,12 +784,13 @@ public sealed class PlaytestApiTests
         var changed = (await preference.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var moved = await host.Decide((await host.Round(changed.Revision)).Revision, "5,7");
         var attacked = await host.Decide(moved.Revision, $"attack:{Archer1}");
-        var rage = Assert.Single(attacked.Result.NextInput!.Candidates, c => c.BonusAction is not null);
+        var rage = Assert.Single(attacked.Result.NextInput!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction);
         Assert.True(attacked.Result.State.ActionDone);
         Assert.False(rage.Relevant);
         var used = await host.Decide(attacked.Revision, rage.Key);
-        Assert.Contains(used.Result.Events, e => e.Kind == "AbilityUsed" && e.AbilityName == "Rage");
-        Assert.Equal(new AbilityUses(2, 1), used.Result.State.Units.Single(u => u.Id == Barbarian).BonusActionUses["Rage"]);
+        Assert.Contains(used.Result.Events, e => e.Kind == "ActionUsed" && e.AbilityName == "Rage" &&
+            e.Category == ActivationChoiceKind.BonusAction && e.ActionId == "ability:rage");
+        Assert.Equal(new AbilityUses(2, 1), WebAbilityTestQueries.Uses(used.Result.State, Barbarian, "rage"));
         Assert.Empty(used.Result.State.ModifiersThisTurn);
         Assert.Equal(Rogue, used.Result.NextInput!.UnitId);
     }
@@ -803,10 +808,10 @@ public sealed class PlaytestApiTests
         Assert.Single(initial.Result.State.Physical.Figures, f => f.Position == position);
         var card = initial.Presentation.Cards[Wizard];
         Assert.Equal("Wizard", card.DisplayName);
-        Assert.Equal(type.CardEntries(initial.Result.State.Types, initial.Result.State.AbilityDefinitions), card.Entries.Select(e => e.Content).ToArray());
+        Assert.Equal(type.CardEntries(initial.Result.State.Types), card.Entries.Select(e => e.Content).ToArray());
         var focusCard = Assert.Single(card.Entries, e => e.Content.Name == "Focus");
         Assert.Equal("Bonus Action", focusCard.Content.Category);
-        Assert.Equal("+1 ATK this turn", focusCard.Content.Description);
+        Assert.Equal("ATK +1 this activation.", focusCard.Content.Description);
         Assert.Equal("2/game", focusCard.Content.UseLimitText);
         Assert.Equal(new AbilityUses(2, 2), focusCard.Uses);
 
@@ -823,7 +828,7 @@ public sealed class PlaytestApiTests
         }
         Assert.Equal(Wizard, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "4,8");
-        var focus = Assert.Single(result.Result.NextInput!.Candidates, c => c.BonusAction?.Name == "Focus");
+        var focus = Assert.Single(result.Result.NextInput!.Candidates, c => c.Ability?.Key == "focus");
         Assert.True(focus.Relevant);
         var projected = Assert.Single(result.Presentation.Decision!.Candidates, c => c.Key == focus.Key);
         Assert.Equal(focusCard.Content.Id, projected.EntryId);
@@ -835,7 +840,7 @@ public sealed class PlaytestApiTests
         Assert.False(focused.Result.State.ActionDone);
         Assert.Equal(new AbilityUses(2, 1), focused.Presentation.Cards[Wizard].Entries.Single(e => e.Content.Name == "Focus").Uses);
         Assert.Equal(OutcomeRole.Notice, focused.Presentation.Events.Last().Role);
-        Assert.Equal($"{Wizard} used Focus", focused.Presentation.Events.Last().Text);
+        Assert.Equal($"{Wizard} used Focus (Bonus Action)", focused.Presentation.Events.Last().Text);
         Assert.Equal(new AbilityUses(2, 1), focused.Presentation.ResolutionSteps.Last().Cards[Wizard].Entries.Single(e => e.Content.Name == "Focus").Uses);
         Assert.DoesNotContain(focused.Presentation.Decision!.Candidates, c => c.EntryId == focusCard.Content.Id);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Post("decision", new { expectedRevision = focused.Revision, candidateKey = focus.Key })).StatusCode);
@@ -868,20 +873,20 @@ public sealed class PlaytestApiTests
         result = await host.Decide(result.Revision, "4,8");
         var action = result.Result.NextInput!.Candidates.First(c => c.Action == UnitAction.Telekinesis);
         var projected = result.Presentation.Decision!.Candidates.Single(c => c.Key == action.Key);
-        Assert.Equal("telekinesis", projected.EntryId);
+        Assert.Equal("ability:telekinesis", projected.EntryId);
         Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: action.TargetId), projected.Interaction);
         Assert.Equal(new[] { action.TargetId! }, projected.AffectedUnitIds);
         var before = result.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId);
         var hp = result.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp;
         var resolved = await host.Decide(result.Revision, projected.Key);
-        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying) { SourceUnitId = Wizard, ActionId = "telekinesis" }, Assert.Single(resolved.Result.Events, e => e.Kind == "PostureChanged"));
+        Assert.Equal(new RulesEvent("PostureChanged", action.TargetId, Posture: Posture.Lying) { SourceUnitId = Wizard, ActionId = action.Ability!.ActionId }, Assert.Single(resolved.Result.Events, e => e.Kind == "PostureChanged"));
         Assert.Equal(before with { Posture = Posture.Lying }, resolved.Result.State.Physical.Figures.Single(f => f.Id == action.TargetId));
         Assert.Equal(hp, resolved.Result.State.Units.Single(u => u.Id == action.TargetId).CurrentHp);
         Assert.True(resolved.Result.State.ActionDone);
         Assert.DoesNotContain(resolved.Result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
         Assert.Equal(Posture.Lying, resolved.Result.ResolutionSteps.Last().StateAfter.Physical.Figures.Single(f => f.Id == action.TargetId).Posture);
         Assert.Equal(OutcomeRole.Notice, resolved.Presentation.Events.Last().Role);
-        Assert.Null(resolved.Presentation.Cards[Wizard].Entries.Single(e => e.Content.Id == "telekinesis").Uses);
+        Assert.Null(resolved.Presentation.Cards[Wizard].Entries.Single(e => e.Content.Id == "ability:telekinesis").Uses);
         using var repeated = await host.Post("decision", new { expectedRevision = resolved.Revision, candidateKey = projected.Key });
         Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
     }
@@ -891,8 +896,9 @@ public sealed class PlaytestApiTests
     {
         await using var host = await Host.Start(doorRoll: 1);
         var result = await host.Read();
-        Assert.Equal(UnitType.Troll(), result.Result.State.Types.Single(t => t.Id == "troll-type"));
-        Assert.Equal("Undying", result.Presentation.Cards[Troll1].Entries.Single(e => e.Content.Id == "undying").Content.Name);
+        Assert.Equal(JsonSerializer.Serialize(UnitType.Troll()),
+            JsonSerializer.Serialize(result.Result.State.Types.Single(t => t.Id == "troll-type")));
+        Assert.Equal("Undying", result.Presentation.Cards[Troll1].Entries.Single(e => e.Content.Id == "ability:undying").Content.Name);
         var gates = new[] { new Edge(new(11, 1), new(11, 2), EdgeKind.ClosedDoor),
             new Edge(new(11, 2), new(11, 3), EdgeKind.ClosedDoor),
             new Edge(new(11, 4), new(11, 5), EdgeKind.ClosedDoor) };
@@ -961,8 +967,8 @@ public sealed class PlaytestApiTests
         var attacked = await host.Decide(moved.Revision, $"attack:{Grunt2}");
         Assert.Equal(5, attacked.Result.Events.First(e => e.Kind == "AttackResolved").Damage);
         Assert.Equal(DecisionKind.Cleave, attacked.Result.NextInput!.Kind);
-        Assert.Contains(attacked.Result.NextInput.Candidates, c => c.Key == $"cleave:{Archer1}");
-        var cleaved = await host.Decide(attacked.Revision, $"cleave:{Archer1}");
+        Assert.Contains(attacked.Result.NextInput.Candidates, c => c.Key == $"ability:cleave:{Archer1}");
+        var cleaved = await host.Decide(attacked.Revision, $"ability:cleave:{Archer1}");
         Assert.Contains(cleaved.Result.Events, e => e.Kind == "CleaveResolved" && e.TargetId == Archer1);
     }
 
@@ -994,11 +1000,11 @@ public sealed class PlaytestApiTests
         }
         Assert.Equal(Cleric, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "stay");
-        result = await host.Decide(result.Revision, $"heal:{Wizard}");
+        result = await host.Decide(result.Revision, $"ability:heal:{Wizard}");
         Assert.Contains(result.Result.Events, e => e.Kind == "HealResolved" && e.TargetId == Wizard && e.Healing == 2);
         Assert.Equal(4, result.Result.State.Units.Single(u => u.Id == Wizard).CurrentHp);
         result = await host.Decide(result.Revision, "4,8");
-        var fireball = result.Result.NextInput!.Candidates.Single(c => c.Key == "fireball:6,8");
+        var fireball = result.Result.NextInput!.Candidates.Single(c => c.Key == "ability:fireball:6,8");
         Assert.Equal(new[] { Archer1, Grunt2 }.OrderBy(id => id), fireball.TargetIds.OrderBy(id => id));
         var resolved = await host.Decide(result.Revision, fireball.Key);
         Assert.All(new[] { Archer1, Grunt2 }, id => Assert.Contains(resolved.Result.Events, e => e.Kind == "UnitDefeated" && e.UnitId == id));

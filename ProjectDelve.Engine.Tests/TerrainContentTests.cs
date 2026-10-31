@@ -43,7 +43,7 @@ public sealed class TerrainContentTests
     public void PhaseTraversesDeclaredObstructionButCannotStopThereOrIgnoreAttackLos()
     {
         var state = Corridor(Tile(2, 0, Rock.Id));
-        state.Types[0] = state.Types[0] with { Phase = new() };
+        state.Types[0] = state.Types[0].WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
         state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor));
         var paths = MovementRules.FindPaths(state, "actor", new(0, 0));
         Assert.Contains(new Cell(3, 0), paths.Keys);

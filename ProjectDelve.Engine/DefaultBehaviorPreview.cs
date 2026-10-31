@@ -99,12 +99,13 @@ public static partial class GameEngine
         if (candidate.Kind == ActivationChoiceKind.Stay) return "Stay in place";
         if (candidate.Kind == ActivationChoiceKind.EndTurn) return "End the Unit activation";
         if (candidate.TryOpenDoor is not null) return $"Try to open the door at {candidate.Door}";
+        if (candidate.Ability is { } ability) return candidate.TargetId is { } abilityTarget
+            ? $"Use {ability.Definition.Name} on {abilityTarget}" : $"Use {ability.Definition.Name}";
         if (candidate.Action is { } action)
             return candidate.TargetId is { } target ? $"Use {action} on {target}" : $"Use {action}";
         if (candidate.Kind == ActivationChoiceKind.Move)
             return $"Move to {candidate.Destination}";
         if (candidate.FreeAction is { } freeAction) return $"Use {freeAction}";
-        if (candidate.BonusAction is { } bonusAction) return $"Use {bonusAction.DisplayName ?? bonusAction.Name}";
         return $"Choose {candidate.Kind}";
     }
 

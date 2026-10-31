@@ -20,7 +20,7 @@ public sealed class LocalAbilityDefinitionTests
     private static GameState ContentState(UnitType type) => new()
     {
         Physical = new(new Board(1, 1, []), []), Units = [],
-        Types = [type], AbilityDefinitions = [], EquipmentTypes = [], ItemTypes = [], LootCardDefinitions = []
+        Types = [type], EquipmentTypes = [], ItemTypes = [], LootCardDefinitions = []
     };
     private static UnitType Bearer(params LocalAbilityDefinition[] abilities) =>
         new("bearer", 1, 1, 1, 1, 1) { LocalAbilities = [.. abilities], CanHaveEquipment = true, CanHaveItems = true };
@@ -36,14 +36,13 @@ public sealed class LocalAbilityDefinitionTests
     };
 
     [Fact]
-    public void LocalKeysAreScopedToOwnersAndNeverResolveThroughMatchingGlobalIds()
+    public void LocalKeysAreScopedToOwnersWithIndependentPayloads()
     {
         var first = Bearer(Heal(amount: 3));
         var second = new UnitType("second", 1, 1, 1, 1, 1)
         { LocalAbilities = [new("use", "Different Name", AbilityTiming.BonusAction, new ExtraActionsMechanic(2))] };
         var state = ContentState(first);
         state.Types.Add(second);
-        state.AbilityDefinitions.Add(new("use", "Unrelated Global", AbilityTiming.Action, new FireballMechanic()));
         state.EquipmentTypes.Add(new("equipment", "Equipment")
         { LocalAbilities = [new("use", "Equipment Wave", AbilityTiming.Action, new HolyWaveMechanic())] });
         state.ItemTypes.Add(new("item", "Item")
@@ -51,32 +50,14 @@ public sealed class LocalAbilityDefinitionTests
         state.Units = [new("actor", first.Id, "blue", 1)
             { Inventory = [new("equipment-copy", "equipment"), new("item-copy") { ItemTypeId = "item" }] },
             new("other", second.Id, "blue", 1)];
-        AbilityCatalog.ValidateState(state);
+        AbilityContent.ValidateState(state);
         var abilities = state.AbilitiesOf("actor").ToArray();
         Assert.Equal(3, abilities.Length);
-        Assert.All(abilities, a => Assert.Equal("use", a.GrantId));
+        Assert.All(abilities, a => Assert.Equal("use", a.Key));
         Assert.Equal(3, Assert.IsType<HealMechanic>(abilities[0].Definition.Mechanic).Amount);
         Assert.IsType<HolyWaveMechanic>(abilities[1].Definition.Mechanic);
         Assert.IsType<FireballMechanic>(abilities[2].Definition.Mechanic);
         Assert.IsType<ExtraActionsMechanic>(Assert.Single(state.AbilitiesOf("other")).Definition.Mechanic);
-        Assert.Single(state.AbilityDefinitions);
-        Assert.Equal("Unrelated Global", state.AbilityDefinitions[0].Name);
-    }
-
-    [Fact]
-    public void LegacyReferencesRetainTheirOriginalDefinitionIdentityAndCurrentSavedPayload()
-    {
-        var type = Bearer(Heal("owned")) with { AbilityGrants = [new("borrowed", "shared-remedy")] };
-        var state = ContentState(type);
-        state.AbilityDefinitions = [new("shared-remedy", "Saved Remedy", AbilityTiming.Action, new HealMechanic(4))];
-        state.Units = [new("actor", type.Id, "blue", 1)];
-        var borrowed = state.AbilitiesOf("actor").Single(a => a.GrantId == "borrowed");
-        Assert.Equal("shared-remedy", borrowed.Definition.Id);
-        state.AbilityDefinitions[0] = state.AbilityDefinitions[0] with { Name = "Edited Saved Name", Mechanic = new HealMechanic(5) };
-        var refreshed = state.AbilitiesOf("actor").Single(a => a.GrantId == "borrowed");
-        Assert.Equal("Edited Saved Name", refreshed.Definition.Name);
-        Assert.Equal(5, Assert.IsType<HealMechanic>(refreshed.Definition.Mechanic).Amount);
-        Assert.Equal("owned", state.AbilitiesOf("actor").Single(a => a.GrantId == "owned").Definition.Id);
     }
 
     [Fact]
@@ -128,25 +109,11 @@ public sealed class LocalAbilityDefinitionTests
         ];
         foreach (var (ability, field) in cases)
         {
-            var error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(ContentState(Bearer(ability))));
+            var error = Assert.Throws<ArgumentException>(() => AbilityContent.ValidateState(ContentState(Bearer(ability))));
             Assert.Equal("unitTypes[0].localAbilities[0]." + field, ScenarioValidationContext.PathOf(error));
         }
-        var duplicate = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(ContentState(Bearer(Heal(), Heal()))));
+        var duplicate = Assert.Throws<ArgumentException>(() => AbilityContent.ValidateState(ContentState(Bearer(Heal(), Heal()))));
         Assert.Equal("unitTypes[0].localAbilities[1].key", ScenarioValidationContext.PathOf(duplicate));
-    }
-
-    [Fact]
-    public void LegacyAndLocalKeysShareOneOwnerNamespaceAndMissingLegacyReferencesKeepTheirPath()
-    {
-        var collision = ContentState(Bearer(Heal()) with { AbilityGrants = [new("use", "shared")] });
-        collision.AbilityDefinitions = [new("shared", "Shared", AbilityTiming.Action, new HolyWaveMechanic())];
-        var error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(collision));
-        Assert.Equal("unitTypes[0].abilityGrants[0].id", ScenarioValidationContext.PathOf(error));
-        var unresolved = ContentState(Bearer(Heal()) with { AbilityGrants = [new("other", "missing")] });
-        error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(unresolved));
-        Assert.Equal("unitTypes[0].abilityGrants[0].abilityId", ScenarioValidationContext.PathOf(error));
-        var oldSlot = ContentState(Bearer(Heal("heal")) with { Actions = UnitAction.Heal, Heal = new() });
-        Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(oldSlot));
     }
 
     [Fact]
@@ -155,55 +122,19 @@ public sealed class LocalAbilityDefinitionTests
         var equipment = ContentState(Bearer());
         equipment.EquipmentTypes.Add(new("charged", "Charged")
         { LocalAbilities = [Heal() with { Usage = new(2) }] });
-        var error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(equipment));
+        var error = Assert.Throws<ArgumentException>(() => AbilityContent.ValidateState(equipment));
         Assert.Equal("equipmentTypes[0].localAbilities[0].usage", ScenarioValidationContext.PathOf(error));
         var item = ContentState(Bearer());
         item.ItemTypes.Add(new("passive", "Passive")
         { LocalAbilities = [new("passive", "Passive", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Def, 1)]))] });
-        error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(item));
+        error = Assert.Throws<ArgumentException>(() => AbilityContent.ValidateState(item));
         Assert.Equal("itemTypes[0].localAbilities[0].timing", ScenarioValidationContext.PathOf(error));
         item.ItemTypes[0] = item.ItemTypes[0] with { LocalAbilities = default };
-        error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(item));
+        error = Assert.Throws<ArgumentException>(() => AbilityContent.ValidateState(item));
         Assert.Equal("itemTypes[0].localAbilities", ScenarioValidationContext.PathOf(error));
         var reserved = ContentState(Bearer());
         reserved.EquipmentTypes.Add(new("bell", "Bell") { LocalAbilities = [Heal("open-door")] });
-        Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(reserved));
+        AbilityContent.ValidateState(reserved); // Former structural entry names are ordinary owner-local keys.
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void HistoricalSecondWindBindingCannotBeSharedByDistinctItemTypes(bool firstUsesLegacyReference)
-    {
-        var ability = new LocalAbilityDefinition("use", "Printed Name", AbilityTiming.BonusAction, new ExtraActionsMechanic(1))
-        { Compatibility = new(LegacyAbilityKind.SecondWind) };
-        var state = ContentState(Bearer());
-        var firstId = firstUsesLegacyReference ? "second-wind" : "renamed-historical-item";
-        state.ItemTypes.Add(firstUsesLegacyReference
-            ? new(firstId, "Historical Item") { Grants = [new("use", "saved-definition")] }
-            : new(firstId, "Historical Item") { LocalAbilities = [ability] });
-        if (firstUsesLegacyReference)
-            state.AbilityDefinitions.Add(new("saved-definition", "Saved Name", AbilityTiming.BonusAction, new ExtraActionsMechanic(1)));
-        state.Units = [new("actor", "bearer", "blue", 1)
-        {
-            Inventory = [new("first-copy") { ItemTypeId = firstId }, new("second-copy") { ItemTypeId = firstId }]
-        }];
-        AbilityCatalog.ValidateState(state);
-        var copies = state.AbilitiesOf("actor").ToArray();
-        Assert.Equal(2, copies.Length);
-        Assert.All(copies, copy => Assert.Equal("Second Wind", copy.AccountingId));
-        Assert.NotEqual(copies[0].SourceInstanceId, copies[1].SourceInstanceId);
-
-        state.ItemTypes.Add(new("different-item", "Different Item") { LocalAbilities = [ability] });
-        var error = Assert.Throws<ArgumentException>(() => AbilityCatalog.ValidateState(state));
-        Assert.Equal("itemTypes[1]", ScenarioValidationContext.PathOf(error));
-        Assert.Contains("historical Second Wind accounting identity", error.Message);
-
-        state.ItemTypes[1] = state.ItemTypes[1] with { LocalAbilities = [ability with { Compatibility = null }] };
-        state.Units[0] = state.Units[0] with
-        { Inventory = state.Units[0].Inventory.Add(new("ordinary-copy") { ItemTypeId = "different-item" }) };
-        AbilityCatalog.ValidateState(state);
-        Assert.Equal("item:different-item:use", state.AbilitiesOf("actor")
-            .Single(a => a.SourceTypeId == "different-item").AccountingId);
-    }
 }

@@ -44,7 +44,7 @@ public sealed class FogOfWarTests
     public void OpeningDoorExploresAndClosingItDoesNotForget()
     {
         var state = Dungeon(); Relocate(state, "hero", new(5, 4)); Ready(state, "hero");
-        var result = GameEngine.Advance(state, new Pick("open-door:5,4:6,4"), new Random(), false);
+        var result = GameEngine.Advance(state, new Pick("ability:open-door:5,4:6,4"), new Random(), false);
         Assert.True(Known(result.State, 8, 4));
         Assert.True(FogOfWar.IsUnitObservable(result.State, "explorers", "guard"));
         var door = result.State.Physical.Board.Edges.FindIndex(e => e.Kind == EdgeKind.OpenDoor);
@@ -87,7 +87,7 @@ public sealed class FogOfWarTests
     public void PhaseVisionIgnoresWallsAndDoorsButNotTreesOrAttackLos(TerrainKind terrain)
     {
         var state = Dungeon();
-        state.Types[0] = state.Types[0] with { Phase = new() };
+        state.Types[0] = state.Types[0].WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
         FogOfWar.Refresh(state); Assert.True(Known(state, 8, 4));
         Assert.False(AttackRules.HasUnitLineOfSight(state, "hero", new(3, 4), new(8, 4), "guard"));
         state.Physical.Board.Terrain.Add(new(new(4, 4), terrain));
@@ -132,7 +132,7 @@ public sealed class FogOfWarTests
     public void PathsRejectUnknownTransitEvenWhenDestinationKnownAndPhaseEnabled()
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
-        state.Types[0] = state.Types[0] with { Phase = new() };
+        state.Types[0] = state.Types[0].WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
         state.ExploredCells["explorers"] = [new(3, 4), new(5, 4)];
         Assert.DoesNotContain(new Cell(5, 4), MovementRules.FindPaths(state, "hero", new(3, 4)).Keys);
         state.ExploredCells["explorers"].UnionWith([new(3, 3), new(4, 3), new(5, 3)]);
@@ -251,7 +251,7 @@ public sealed class FogOfWarTests
         var state = GameEngine.CreateGame(definition); Ready(state, "wizard", true);
         Assert.False(FogOfWar.IsUnitObservable(state, "explorers", "hidden"));
         var ready = GameEngine.RefreshChoices(state, new Random(), false);
-        var fireball = ready.NextInput!.Candidates.Single(c => c.Key == "fireball:4,3");
+        var fireball = ready.NextInput!.Candidates.Single(c => c.Key == "ability:fireball:4,3");
         Assert.DoesNotContain("hidden", fireball.TargetIds);
         Assert.Equal(new[] { "wizard" }, fireball.TargetIds);
         Assert.False(fireball.Relevant); // A hidden enemy must not make a self-only preview relevant.
@@ -279,13 +279,15 @@ public sealed class FogOfWarTests
     public void UnknownExplicitTargetsAreRejectedEvenWithLongerAbilityRange()
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
-        state.Types[0] = state.Types[0] with { Rng = 0, ShootShell = new(1, 20, 1), Actions = UnitAction.ShootShell,
+        state.Types[0] = state.Types[0] with { Rng = 0, Actions = UnitAction.None,
+            LocalAbilities = [.. state.Types[0].LocalAbilities.Where(a => a.Timing != AbilityTiming.Action),
+                new("shoot-shell", "Shoot Shell", AbilityTiming.Action, new ShootShell(1, 20, 1))],
             ResourceStorage = new([new(ResourceTypes.Shell, 1)]) };
         state.StoredResources.Add(new(UnitTypeIds.Barbarian, "explorers", ResourceTypes.Shell, 1));
         Ready(state, "hero", true);
         var result = GameEngine.RefreshChoices(state, new Random(), false);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.TargetId == "sleeper");
-        Assert.Throws<ArgumentException>(() => GameEngine.Advance(result.State, new Pick("shoot-shell:sleeper"), new Random(), false));
+        Assert.Throws<ArgumentException>(() => GameEngine.Advance(result.State, new Pick("ability:shoot-shell:sleeper"), new Random(), false));
     }
 
     [Fact]
@@ -307,13 +309,13 @@ public sealed class FogOfWarTests
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         state.Types[0] = state.Types[0] with { Rng = 4,
-            BonusActions = [new("Scout", null, [new(Stat.Rng, 2)])] };
+            LocalAbilities = [new("scout", "Scout", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Rng, 2)]))] };
         state.ExploredCells.Clear(); FogOfWar.Refresh(state); Ready(state, "hero");
         Assert.False(Known(state, 12, 4));
         var ready = GameEngine.RefreshChoices(state, new Random(), false);
-        Assert.False(ready.NextInput!.Candidates.Single(c => c.Key == "bonus-action:Scout").Relevant);
+        Assert.False(ready.NextInput!.Candidates.Single(c => c.Key == "ability:scout").Relevant);
         Assert.False(Known(state, 12, 4));
-        var scouted = GameEngine.Advance(ready.State, new Pick("bonus-action:Scout"), new Random(), false);
+        var scouted = GameEngine.Advance(ready.State, new Pick("ability:scout"), new Random(), false);
         Assert.False(Known(scouted.State, 12, 4));
         scouted.State.ModifiersThisTurn.Clear(); FogOfWar.Refresh(scouted.State);
         Assert.False(Known(scouted.State, 12, 4));
@@ -369,10 +371,10 @@ public sealed class FogOfWarTests
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         Relocate(state, "guard", new(4, 4));
-        state.Types[0] = state.Types[0] with { BonusActions = [new("Swap", null, []) { Swap = new() }] };
+        state.Types[0] = state.Types[0].WithLocal(new("swap", "Swap", AbilityTiming.BonusAction, new Swap()));
         Ready(state, "hero", true); FogOfWar.Refresh(state);
         Assert.False(Known(state, 9, 4));
-        var result = GameEngine.Advance(state, new Pick("bonus-action:Swap:guard"), new Random(), false);
+        var result = GameEngine.Advance(state, new Pick("ability:swap:guard"), new Random(), false);
         var step = result.ResolutionSteps.Single(s => result.Events[s.EventIndex].Kind == "PlacesSwapped");
         Assert.Equal(new(4, 4), step.StateAfter.Physical.Figures.Single(f => f.Id == "hero").Position);
         Assert.Equal(new(3, 4), step.StateAfter.Physical.Figures.Single(f => f.Id == "guard").Position);

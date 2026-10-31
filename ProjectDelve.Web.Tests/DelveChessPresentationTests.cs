@@ -68,7 +68,7 @@ public sealed class DelveChessPresentationTests
         Assert.Equal("Stay here", presentation.Decision.NoneChoice!.Label);
         Assert.Equal(result.NextInput.Candidates.Select(c => c.Key), presentation.Decision.Candidates.Select(c => c.Key));
         Assert.Contains(presentation.Cards["actor"].Entries, e => e.Content.Id == "straight-orthogonal");
-        Assert.Contains(presentation.Cards["actor"].Entries, e => e.Content.Id == "advance-on-kill");
+        Assert.Contains(presentation.Cards["actor"].Entries, e => e.Content.Id == "ability:advance-on-kill");
         var moved = TestGame.Advance(result.State, new Choice("2,1"), random, false);
         var projectedMove = Assert.Single(BrowserProjection.Create(moved).Events, e => e.Role == OutcomeRole.Movement);
         Assert.Equal(new Cell[] { new(1, 1), new(2, 1) }, projectedMove.Path);

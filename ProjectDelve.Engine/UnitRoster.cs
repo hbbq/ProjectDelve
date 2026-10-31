@@ -1,4 +1,4 @@
-using static ProjectDelve.Engine.UnitAuthoring;
+﻿using static ProjectDelve.Engine.UnitAuthoring;
 
 namespace ProjectDelve.Engine;
 
@@ -11,8 +11,8 @@ namespace ProjectDelve.Engine;
 //     Stats(2, 4, 4, 4, 8),
 //     Unique(),
 //     Footprint2x2(),
-//     Ability("Fire Breath", Unlimited(), FireBreath()),
-//     Ability("Claw Attack", Unlimited(), ClawAttack(atkBonus: +1))
+//     Ability("Fire Breath", Unlimited(), FireBreath(), id: "fire-breath"),
+//     Ability("Claw Attack", Unlimited(), ClawAttack(atkBonus: +1), id: "claw-attack")
 // );
 
 public static class UnitRoster
@@ -27,12 +27,12 @@ public static class UnitRoster
 
     public static UnitType RoyalKing(string id = UnitTypeIds.RoyalKing) => UnitType.Define(id,
         "Royal King", Stats(2, 1, 2, 3, 5), Loot(2), Unique(), Adjacent(),
-        Grant("aura", "aura", new(LegacyAbilityKind.Aura, Key: "Aura"))
+        Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(amount: +1), id: "aura")
     );
 
     public static UnitType GoblinKing(string id = UnitTypeIds.GoblinKing) => UnitType.Define(id,
         "Goblin King", Stats(2, 1, 2, 3, 5), Loot(2), Unique(), Adjacent(),
-        Grant("aura", "aura", new(LegacyAbilityKind.Aura, Key: "Aura"))
+        Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(amount: +1), id: "aura")
     );
 
     public static UnitType RoyalBishop(string id = UnitTypeIds.RoyalBishop) => UnitType.Define(id,
@@ -89,9 +89,9 @@ public static class UnitRoster
     public static UnitType DisplacerDemon(string id = UnitTypeIds.DisplacerDemon) => UnitType.Define(id,
         "Displacer Demon",
         Stats(3, 1, 4, 4, 1), Loot(2),
-        Ability("Swap", Unlimited(), Swap(), id: "Swap"),
-        Ability("Displace", Unlimited(), Displace(maxMove: 1), id: "Displace"),
-        Grant("aura", "aura", new(LegacyAbilityKind.Aura, Key: "Aura"))
+        Ability("Swap", Unlimited(), Swap(), id: "swap"),
+        Ability("Displace", Unlimited(), Displace(maxMove: 1), id: "displace"),
+        Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(amount: +1), id: "aura")
     ).WithBehaviors(UnitBehavior.SwapThenAttackThenDisplace);
 
     // Digital-only playtest content.
@@ -99,7 +99,7 @@ public static class UnitRoster
         "Labyrinth Shaper",
         Stats(2, 1, 2, 2, 5), Loot(2),
         Unique(),
-        Ability("Reshape Room", Unlimited(), ReshapeRoom(), id: "Reshape Room")
+        Ability("Reshape Room", Unlimited(), ReshapeRoom(), id: "reshape-room")
     ).WithBehaviors(UnitBehavior.PreferReshapeRoom);
 
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitType.Define(id,
@@ -107,8 +107,8 @@ public static class UnitRoster
         Stats(2, 4, 4, 4, 8), Loot(3),
         Unique(),
         Footprint2x2(),
-        Ability("Fire Breath", Unlimited(), FireBreath()),
-        Ability("Claw Attack", Unlimited(), ClawAttack(atkBonus: +1))
+        Ability("Fire Breath", Unlimited(), FireBreath(), id: "fire-breath"),
+        Ability("Claw Attack", Unlimited(), ClawAttack(atkBonus: +1), id: "claw-attack")
     );
 
     public static UnitType Ghost(string id = UnitTypeIds.Ghost) => UnitType.Define(id,
@@ -126,7 +126,7 @@ public static class UnitRoster
         "Zombie",
         Stats(2, 1, 3, 3, 1), Loot(1),
         TransportResource(),
-        Ability("Break Door", Unlimited(), TryOpenDoor(successes: 2))
+        Ability("Break Door", Unlimited(), TryOpenDoor(successes: 2), id: "break-door")
     ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
     public static UnitType SkeletonArcher(string id = UnitTypeIds.SkeletonArcher) => UnitType.Define(id,
@@ -137,20 +137,20 @@ public static class UnitRoster
     public static UnitType Goblin(string id = UnitTypeIds.Goblin) => UnitType.Define(id,
         "Goblin",
         Stats(4, 1, 2, 2, 1), Loot(1),
-        Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 1))
+        Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 1), id: "move-after-attack")
     ).WithBehaviors(UnitBehavior.BackAwayAfterAttack);
 
     public static UnitType BombImp(string id = UnitTypeIds.BombImp) => UnitType.Define(id,
         "Bomb Imp",
         Stats(3, 1, 2, 2, 1), Loot(1),
-        Ability("Explosion", Unlimited(), Explosion(damage: 1))
+        Ability("Explosion", Unlimited(), Explosion(damage: 1), id: "explosion")
     ).WithBehaviors(UnitBehavior.PreferHostileAdjacency, UnitBehavior.ProtectWithoutAdjacency);
 
     public static UnitType Troll(string id = UnitTypeIds.Troll) => UnitType.Define(id,
         "Troll",
         Stats(2, 1, 4, 4, 1), Loot(2),
-        Ability("Smash Door", Unlimited(), TryOpenDoor(successes: 4)),
-        Ability("Undying", Unlimited(), Undying())
+        Ability("Smash Door", Unlimited(), TryOpenDoor(successes: 4), id: "smash-door"),
+        Ability("Undying", Unlimited(), Undying(), id: "undying")
     ).WithBehaviors(UnitBehavior.ApproachThroughClosedDoors);
 
     public static UnitType Worker(string id = UnitTypeIds.Worker) => UnitType.Define(id,
@@ -173,7 +173,7 @@ public static class UnitRoster
         "Shaman",
         Stats(2, 0, 0, 3, 1), Loot(2),
         CantAttack(),
-        Ability("Summon Goblin", Unlimited(), SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))
+        Ability("Summon Goblin", Unlimited(), SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying), id: "summon-goblin")
     ).WithBehaviors(UnitBehavior.Flee, UnitBehavior.UseSummon);
 
     public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) => UnitType.Define(id,
@@ -181,9 +181,9 @@ public static class UnitRoster
         Stats(3, 1, 4, 3, 5), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(),
-        Ability("Fury", Unlimited(), Fury(atkBonus: +1, adjacentEnemies: 2)),
-        Ability("Cleave", Uses(2), Cleave(triggerDamage: 2, damage: 1)),
-        Grant("rage", "rage", new(LegacyAbilityKind.BonusAction, Key: "Rage"))
+        Ability("Fury", Unlimited(), Fury(atkBonus: +1, adjacentEnemies: 2), id: "fury"),
+        Ability("Cleave", Uses(2), Cleave(triggerDamage: 2, damage: 1), id: "cleave"),
+        Ability("Rage", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +2)), id: "rage")
     );
 
     public static UnitType Rogue(string id = UnitTypeIds.Rogue) => UnitType.Define(id,
@@ -191,9 +191,9 @@ public static class UnitRoster
         Stats(4, 1, 3, 2, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(),
-        Ability("Backstab", Unlimited(), Backstab(atkBonus: +1)),
-        Grant("dash", "dash", new(LegacyAbilityKind.BonusAction, Key: "Dash")),
-        Grant("throwing-knife", "throwing-knife", new(LegacyAbilityKind.BonusAction, Key: "Throwing Knife"))
+        Ability("Backstab", Unlimited(), Backstab(atkBonus: +1), id: "backstab"),
+        Ability("Dash", Uses(2), BonusActionSelfModifier(Modifier(Stat.Mov, +2)), id: "dash"),
+        Ability("Throwing Knife", Uses(2), BonusActionSelfModifier(Modifier(Stat.Rng, +2), Modifier(Stat.Atk, -1)), id: "throwing-knife")
     );
 
     public static UnitType Cleric(string id = UnitTypeIds.Cleric) => UnitType.Define(id,
@@ -203,15 +203,15 @@ public static class UnitRoster
         OpenDoor(),
         LocalAbility(new("heal", "Heal", AbilityTiming.Action, new HealMechanic(Amount: 2))
         {
-            Usage = new(MaxUses: 2), Compatibility = new(LegacyAbilityKind.Heal)
+            Usage = new(MaxUses: 2)
         }),
         LocalAbility(new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic())
         {
-            Usage = new(MaxUses: 2), Compatibility = new(LegacyAbilityKind.HolyWave)
+            Usage = new(MaxUses: 2)
         }),
         LocalAbility(new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, +1)]))
         {
-            Usage = new(MaxUses: null), Compatibility = new(LegacyAbilityKind.Aura, Key: "Aura")
+            Usage = new(MaxUses: null)
         })
     );
 
@@ -220,9 +220,9 @@ public static class UnitRoster
         Stats(3, 4, 3, 2, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(),
-        Grant("fireball", "fireball", new(LegacyAbilityKind.Fireball)),
-        Ability("Telekinesis", Unlimited(), Telekinesis()),
-        Grant("focus", "focus", new(LegacyAbilityKind.BonusAction, Key: "Focus"))
+        Ability("Fireball", Uses(2), Fireball(), id: "fireball"),
+        Ability("Telekinesis", Unlimited(), Telekinesis(), id: "telekinesis"),
+        Ability("Focus", Uses(2), BonusActionSelfModifier(Modifier(Stat.Atk, +1)), id: "focus")
     ) with { AttackDefinitionOrder = [UnitAction.NormalAttack, UnitAction.Fireball] };
 
 }

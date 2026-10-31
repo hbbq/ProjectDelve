@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 using static ProjectDelve.Engine.UnitAuthoring;
 
@@ -42,9 +42,9 @@ public sealed class GhostTests
         Assert.Equal(UnitAction.NormalAttack, ghost.Actions);
         Assert.Equal(UnitBehavior.None, ghost.Behaviors);
         Assert.Equal(UnitTypeIds.Ghost, ghost.Id);
-        Assert.Empty(ghost.BonusActions);
-        var capability = Assert.Single(ghost.CardEntries(), e => e.Id == "phase");
-        Assert.Equal("Capability", capability.Category);
+        Assert.Empty(ghost.LocalAbilities.Where(a => a.Timing == AbilityTiming.BonusAction));
+        var capability = Assert.Single(ghost.CardEntries(), e => e.Id == "ability:phase");
+        Assert.Equal("Passive", capability.Category);
         Assert.Null(capability.MaxUses);
         Assert.Contains("normally passable", capability.Description);
         Assert.Equal("Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.", capability.Description);
@@ -53,7 +53,7 @@ public sealed class GhostTests
         state.Units[0] = state.Types[0].CreateUnit("ghost", "red");
         state.Physical.Board.Edges.Add(new(new(0, 0), new(1, 0), EdgeKind.Wall));
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
-        Assert.NotNull(restored.Types[0].Phase);
+        Assert.NotNull(restored.Types[0].Mechanic<Phase>());
         Assert.Contains(new Cell(2, 0), Paths(restored).Keys);
         Assert.Throws<ArgumentException>(() => UnitType.Define("duplicate", "Duplicate", Stats(2, 1, 3, 3, 1), Phase(), Phase()));
     }

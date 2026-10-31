@@ -2,7 +2,7 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Engine.Tests;
 
-// Legacy tests focus on completed rules operations. Author all test groups as human
+// Gameplay tests focus on completed rules operations. Author all test groups as human
 // and explicitly submit every intervening dice continuation through the normal API.
 internal static class TestGame
 {
@@ -47,9 +47,13 @@ internal static class TestGame
     }
     // Additional occurrences do not change the semantics of these existing operation assertions.
     private static bool IsOperation(RulesEvent e) => e.Kind is not ("RoundStarted" or "ActivationStarted" or "ActivationCompleted" or "ActionUsed" or "AttackStarted" or "DiceRolled");
-    internal static List<RulesEvent> OperationEvents(EngineResult result) => result.Events.Where(IsOperation).ToList();
+    // A simple Bonus Action's sole operation event is now the generic ActionUsed.
+    // Effects with their own outcome events retain those outcomes for these assertions.
+    private static bool IsOperation(EngineResult result, RulesEvent e) => IsOperation(e) ||
+        !result.Events.Any(IsOperation) && e.Kind == "ActionUsed" && e.Category == ActivationChoiceKind.BonusAction;
+    internal static List<RulesEvent> OperationEvents(EngineResult result) => result.Events.Where(e => IsOperation(result, e)).ToList();
     internal static List<ResolutionStep> OperationSteps(EngineResult result) => result.ResolutionSteps
-        .Where(s => IsOperation(result.Events[s.EventIndex]))
+        .Where(s => IsOperation(result, result.Events[s.EventIndex]))
         .Select((s, index) => s with { EventIndex = index }).ToList();
     private sealed class Roll : IDecisionProvider
     {

@@ -119,9 +119,11 @@ public sealed class LootProjectionTests
         var state = State();
         var equipment = new EquipmentDefinition("untold-moon", "Velvet Astrolabe")
         {
-            Modifiers = [new(Stat.Mov, 2), new(Stat.Def, 3)],
-            Capabilities = [EquipmentCapability.Phase, EquipmentCapability.OpenDoor],
-            Abilities = [new("wake", "Morning Chorus", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)]
+            LocalAbilities = [
+                new("wind", "Tailwind", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, 3)])),
+                new("phase", "Phase", AbilityTiming.Passive, new Phase()),
+                new("door", "Moonlit Entrance", AbilityTiming.FreeAction, new OpenDoor()),
+                new("wake", "Morning Chorus", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())]
         };
         state.EquipmentTypes.Add(equipment);
         state.Units[0] = state.Units[0] with { Inventory = [new("unique-physical-object", equipment.Id)] };
@@ -132,19 +134,24 @@ public sealed class LootProjectionTests
         Assert.Equal(equipment.CardEntries(), acquired.Select(e => e.Content));
         Assert.All(acquired, e => { Assert.Equal(equipment.Id, e.SourceTypeId); Assert.Equal(equipment.Name, e.SourceName); });
         Assert.Contains(acquired, e => e.Content.Description == "MOV +2; DEF +3.");
-        var choice = new Candidate("equipment:untold-moon:wake:target", TargetId: "b")
-            { EquipmentTypeId = equipment.Id, EquipmentAbilityId = "wake", AbilityName = "Morning Chorus" };
+        var ability = state.AbilitiesOf("a").Single(a => a.SourceTypeId == equipment.Id && a.Key == "wake");
+        var choice = new Candidate(ability.CandidatePrefix + ":b", TargetId: "b")
+            { EquipmentTypeId = equipment.Id, ObjectId = ability.SourceInstanceId, Ability = ability, AbilityName = ability.Definition.Name };
         var request = new DecisionRequest(DecisionKind.Activation, "collector", "a", [choice], false);
         var projected = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
         Assert.Equal(equipment.EntryId("wake"), projected.EntryId);
         Assert.Contains("Morning Chorus", projected.Label);
         Assert.Equal(equipment.Name, Assert.Single(GambitProjection.Decision(request, state).Candidates).ObjectContent!.Name);
         Assert.Equal(equipment.Name, BrowserProjection.GroundObjects(state).Single(g => g.Object.Id == "other-physical-object").Object.Content.Name);
-        var door = new Candidate("open-door:0,0:0,1", Door: new(new(0, 0), new(0, 1), EdgeKind.ClosedDoor),
-            Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor) { EquipmentGranted = true };
+        var doorAbility = state.AbilitiesOf("a").Single(a => a.SourceTypeId == equipment.Id && a.Key == "door");
+        var door = new Candidate(doorAbility.CandidatePrefix + ":0,0:0,1", Door: new(new(0, 0), new(0, 1), EdgeKind.ClosedDoor),
+            Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor)
+            { Ability = doorAbility, EquipmentTypeId = equipment.Id, ObjectId = doorAbility.SourceInstanceId };
         var doorRequest = new DecisionRequest(DecisionKind.Activation, "collector", "a", [door], false);
         var doorChoice = Assert.Single(BrowserProjection.Decision(doorRequest, state)!.Candidates);
-        Assert.Contains(equipment.Name, doorChoice.Label);
+        Assert.Contains("Moonlit Entrance", doorChoice.Label);
+        Assert.Equal(equipment.EntryId("door"), doorChoice.EntryId);
+        Assert.Equal(doorAbility.AccountingId, doorChoice.AccountingId);
         Assert.DoesNotContain("Official-Looking Key", doorChoice.Label);
     }
 
@@ -152,7 +159,8 @@ public sealed class LootProjectionTests
     public void HiddenScenarioEquipmentDoesNotLeakThroughObservationOrPresentation()
     {
         var state = State(true);
-        var secret = new EquipmentDefinition("hidden-type", "Unseen Prism") { Modifiers = [new(Stat.Atk, 2)] };
+        var secret = new EquipmentDefinition("hidden-type", "Unseen Prism") { LocalAbilities = [
+            new("strength", "Unseen Strength", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Atk, 2)]))] };
         state.EquipmentTypes.Add(secret);
         state.Units[1] = state.Units[1] with { Inventory = [new("hidden-instance", secret.Id)] };
         state.GroundObjects = [new(new("hidden-ground-instance", secret.Id), new(19, 1))];

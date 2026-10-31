@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -18,11 +18,15 @@ public sealed class ResourceStorageTests
     }
     private static GameState World(bool give = false)
     {
-        var store = new UnitType("store", 3, 1, 0, 0, 1, UnitAction.PickupResource)
+        var store = new UnitType("store", 3, 1, 0, 0, 1, UnitAction.None)
         {
-            ResourceStorage = new([new(ResourceTypes.Coal, 3)]), TransportResource = new()
+            ResourceStorage = new([new(ResourceTypes.Coal, 3)]),
+            LocalAbilities = [new("pickup-resource", "Pick Up Resource", AbilityTiming.Action, new PickupResource()),
+                new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource())]
         };
-        var courier = new UnitType("courier", 3, 1, 0, 0, 1, UnitAction.GiveResource) { TransportResource = new() };
+        var courier = new UnitType("courier", 3, 1, 0, 0, 1, UnitAction.None)
+        { LocalAbilities = [new("give-resource", "Give Resource", AbilityTiming.Action, new GiveResource()),
+            new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource())] };
         var actor = give ? courier : store;
         var state = new GameState
         {
@@ -52,7 +56,7 @@ public sealed class ResourceStorageTests
     {
         var world = World(give);
         var start = Actor(world);
-        var result = Pick(start, give ? "give-resource:friend" : "pickup-resource");
+        var result = Pick(start, give ? "ability:give-resource:friend" : "ability:pickup-resource");
         Assert.Empty(result.State.Resources);
         Assert.Single(start.State.Resources);
         Assert.Single(world.Resources);
@@ -80,7 +84,7 @@ public sealed class ResourceStorageTests
     {
         var world = World(give);
         world.StoredResources.Add(new("blue", "store", ResourceTypes.Coal, 2));
-        var result = Pick(Actor(world), give ? "give-resource:friend" : "pickup-resource");
+        var result = Pick(Actor(world), give ? "ability:give-resource:friend" : "ability:pickup-resource");
         Assert.Equal(3, result.State.StoredQuantity("blue", "store", "coal"));
         var fullWorld = World();
         fullWorld.StoredResources = [.. result.State.StoredResources];
@@ -100,11 +104,11 @@ public sealed class ResourceStorageTests
             if (reason == "full") world.StoredResources.Add(new("blue", "store", ResourceTypes.Coal, 3));
             if (reason == "wrong-type") world.Resources[0] = new(new("iron", "Iron"), new(1, 1));
             if (reason == "no-storage") world.Types[0] = world.Types[0] with { ResourceStorage = null };
-            if (reason == "no-action") world.Types[give ? 1 : 0] = world.Types[give ? 1 : 0] with { Actions = UnitAction.None };
+            if (reason == "no-action") world.Types[give ? 1 : 0] = world.Types[give ? 1 : 0] with { LocalAbilities = [] };
             if (reason == "no-resource") world.Resources.Clear();
             var start = Actor(world);
             Assert.DoesNotContain(start.NextInput!.Candidates, c => c.Action is UnitAction.PickupResource or UnitAction.GiveResource);
-            Assert.Throws<ArgumentException>(() => Pick(start, give ? "give-resource:friend" : "pickup-resource"));
+            Assert.Throws<ArgumentException>(() => Pick(start, give ? "ability:give-resource:friend" : "ability:pickup-resource"));
             Assert.Equal(world.Resources, start.State.Resources);
             Assert.Equal(world.StoredResources, start.State.StoredResources);
         }
@@ -136,7 +140,7 @@ public sealed class ResourceStorageTests
         world.Units[0] = world.Units[0] with { SideId = "red" };
         world.Physical.Figures[0] = new("actor", new(4, 3));
         world.Resources[0] = new(ResourceTypes.Coal, new(4, 3));
-        var given = Pick(Actor(world), "give-resource:other");
+        var given = Pick(Actor(world), "ability:give-resource:other");
         Assert.Equal(2, given.State.StoredQuantity("red", "store", "coal"));
         Assert.Equal(3, given.State.StoredQuantity("blue", "store", "coal"));
     }
@@ -145,9 +149,9 @@ public sealed class ResourceStorageTests
     public void GiveRecipientNeedsStorageButDoesNotNeedPickupOrUprightPosture()
     {
         var world = World(true);
-        world.Types[0] = world.Types[0] with { Actions = UnitAction.None };
+        world.Types[0] = world.Types[0] with { LocalAbilities = [] };
         world.Physical.Figures[1] = world.Physical.Figures[1] with { Posture = Posture.Lying };
-        var result = Pick(Actor(world), "give-resource:friend");
+        var result = Pick(Actor(world), "ability:give-resource:friend");
         Assert.Empty(result.State.Resources);
         Assert.Equal(1, result.State.StoredQuantity("blue", "store", "coal"));
     }
@@ -157,7 +161,7 @@ public sealed class ResourceStorageTests
     {
         var moved = Pick(Actor(World(), false), "1,2");
         Assert.Equal(new(1, 2), moved.State.Resources.Single().Position);
-        var picked = Pick(moved, "pickup-resource");
+        var picked = Pick(moved, "ability:pickup-resource");
         Assert.Empty(picked.State.Resources);
         Assert.Equal(1, picked.State.StoredQuantity("blue", "store", "coal"));
         Assert.DoesNotContain(picked.Events, e => e.Kind == "MovementCompleted");
@@ -180,7 +184,7 @@ public sealed class ResourceStorageTests
         Assert.Equal(2, state.StoredQuantity("blue", "store", "coal"));
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
         Assert.Equal(state.StoredResources, restored.StoredResources);
-        Assert.True(restored.Types[1].Actions.HasFlag(UnitAction.GiveResource));
+        Assert.True(restored.Types[1].HasAction(UnitAction.GiveResource));
         state.StoredResources.Clear();
         Assert.Equal(2, GameEngine.CreateGame(definition).StoredQuantity("blue", "store", "coal"));
         Assert.Empty(GameEngine.CreateGame(definition with { StoredResources = null }).StoredResources);
@@ -229,9 +233,9 @@ public sealed class ResourceStorageTests
     public void StaleChoicesAreRevalidatedWithoutChangingBoardOrStorage()
     {
         var pending = Actor(World(true));
-        Assert.Contains(pending.NextInput!.Candidates, c => c.Key == "give-resource:friend");
+        Assert.Contains(pending.NextInput!.Candidates, c => c.Key == "ability:give-resource:friend");
         pending.State.StoredResources.Add(new("blue", "store", ResourceTypes.Coal, 3));
-        var result = Pick(pending, "give-resource:friend");
+        var result = Pick(pending, "ability:give-resource:friend");
         Assert.DoesNotContain(result.Events, e => e.Kind == "ResourceStored");
         Assert.Single(result.State.Resources);
         Assert.Single(pending.State.Resources);
@@ -246,10 +250,10 @@ public sealed class ResourceStorageTests
         world.Types[0] = world.Types[0] with { ResourceStorage = new([new(ResourceTypes.Coal, 3), new(iron, 1)]) };
         world.StoredResources.Add(new("blue", "store", ResourceTypes.Coal, 3));
         world.Resources[0] = new(iron, new(1, 1));
-        var picked = Pick(Actor(world), "pickup-resource");
+        var picked = Pick(Actor(world), "ability:pickup-resource");
         Assert.Equal(1, picked.State.StoredQuantity("blue", "store", "iron"));
         Assert.Equal(3, picked.State.StoredQuantity("blue", "store", "coal"));
-        world.Types[0] = world.Types[0] with { Actions = UnitAction.None };
+        world.Types[0] = world.Types[0] with { LocalAbilities = [] };
         Assert.DoesNotContain(Actor(world).NextInput!.Candidates, c => c.Action == UnitAction.PickupResource);
     }
 
@@ -257,7 +261,8 @@ public sealed class ResourceStorageTests
     public void AutomatedSummonerDoesNotCollectWhenNoSummonPlacementExists()
     {
         var world = World();
-        world.Types[0] = UnitRoster.Shaman() with { Id = "store", Actions = UnitAction.SummonAdjacent | UnitAction.PickupResource, ResourceStorage = new([new(ResourceTypes.Coal, 3)]) };
+        world.Types[0] = UnitRoster.Shaman().WithLocal(new("pickup-resource", "Pick Up Resource", AbilityTiming.Action, new PickupResource()))
+            with { Id = "store", ResourceStorage = new([new(ResourceTypes.Coal, 3)]) };
         // Surround the actor with Water while leaving its own Cell legal.
         for (var y = 0; y <= 2; y++)
         for (var x = 0; x <= 2; x++)
@@ -274,13 +279,14 @@ public sealed class ResourceStorageTests
     {
         var shaman = UnitRoster.Shaman();
         Assert.Null(shaman.ResourceStorage);
-        Assert.Equal(UnitAction.SummonAdjacent, shaman.Actions);
+        Assert.Equal(UnitAction.None, shaman.Actions);
+        Assert.True(shaman.HasAction(UnitAction.SummonAdjacent));
         Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, shaman.Behaviors);
-        Assert.DoesNotContain(shaman.CardEntries(), e => e.Id == "pickup-resource");
+        Assert.DoesNotContain(shaman.CardEntries(), e => e.Id == "ability:pickup-resource");
         var world = World();
         world.Types[0] = shaman with { Id = "store" };
         var start = Actor(world);
-        Assert.StartsWith("spawn-goblin:", new DefaultAutomatedProvider().Choose(start.NextInput! with
+        Assert.StartsWith("ability:summon-goblin:", new DefaultAutomatedProvider().Choose(start.NextInput! with
         { Kind = DecisionKind.Act, AllowsNone = true, Candidates = start.NextInput!.Candidates.Where(c => c.Action is not null).ToList() }, new GameplayQueries(start.State)));
     }
 }

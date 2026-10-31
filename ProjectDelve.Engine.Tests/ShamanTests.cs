@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -36,12 +36,13 @@ public sealed class ShamanTests
     {
         var type = UnitType.Shaman();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.SummonAdjacent, type.Actions);
+        Assert.Equal(UnitAction.None, type.Actions);
+        Assert.True(type.HasAction(UnitAction.SummonAdjacent));
         Assert.Null(type.ResourceStorage);
         Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, type.Behaviors);
-        Assert.Null(type.TryOpenDoor);
+        Assert.Null(type.Mechanic<TryOpenDoor>());
         Assert.Equal(new[] { "Summon Goblin" }, type.CardEntries().Select(e => e.Name));
-        Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
+        Assert.Equal(JsonSerializer.Serialize(type), JsonSerializer.Serialize(JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))));
         var state = State(enemy: new(3, 2));
         state.Types[0] = type with { Atk = 10, Rng = 10 };
         Assert.DoesNotContain(Action(state).NextInput!.Candidates, c => c.Action == UnitAction.NormalAttack);
@@ -57,7 +58,7 @@ public sealed class ShamanTests
         var summoner = UnitType.Define("summoner", "Summoner", UnitAuthoring.Stats(2, 0, 0, 3, 1),
             UnitAuthoring.CantAttack(),
             UnitAuthoring.Ability("Call Ally", UnitAuthoring.Unlimited(),
-                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, posture)))
+                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, posture), id: "summon-ally"))
             .WithBehaviors(UnitBehavior.UseSummon);
         var initial = State(enemy: new(4, 4));
         initial.Types[0] = summoner;
@@ -66,19 +67,19 @@ public sealed class ShamanTests
         if (existing) initial.Types.Add(expectedType);
         var action = Action(Restore(initial));
         var entry = Assert.Single(action.State.Types[0].CardEntries(action.State.Types));
-        Assert.Equal("spawn-goblin", entry.Id); // Existing opaque presentation identity is retained.
+        Assert.Equal("ability:summon-ally", entry.Id);
         Assert.Equal("Call Ally", entry.Name);
         Assert.Null(entry.MaxUses);
         Assert.Equal($"Place one {posture} {expectedType.DisplayName} in an adjacent empty Cell.", entry.Description);
         var restored = Restore(action.State);
-        Assert.Equal(new SummonAdjacent(UnitTypeIds.Wizard, posture), restored.Types[0].SummonAdjacent);
+        Assert.Equal(new SummonAdjacent(UnitTypeIds.Wizard, posture), restored.Types[0].Mechanic<SummonAdjacent>());
         var result = TestGame.Advance(restored, new DefaultAutomatedProvider(), new Random(), false);
         var step = Assert.Single(TestGame.OperationSteps(result), s => TestGame.OperationEvents(result)[s.EventIndex].Kind == "UnitCreated");
         var created = Assert.Single(step.StateAfter.Units, u => u.TypeId == UnitTypeIds.Wizard);
         Assert.Equal(expectedType.Hp, created.CurrentHp);
         Assert.Equal("red", created.SideId);
-        Assert.Equal(new AbilityUses(2, 2), created.FireballUses);
-        Assert.Equal(new AbilityUses(2, 2), created.BonusActionUses["Focus"]);
+        Assert.Equal(new AbilityUses(2, 2), created.Uses("fireball"));
+        Assert.Equal(new AbilityUses(2, 2), created.Uses("focus"));
         Assert.Equal(new Figure(created.Id, new(1, 1), posture), step.StateAfter.Physical.Figures.Single(f => f.Id == created.Id));
         Assert.Equal(JsonSerializer.Serialize(expectedType), JsonSerializer.Serialize(
             Assert.Single(step.StateAfter.Types, t => t.Id == UnitTypeIds.Wizard)));
@@ -96,7 +97,7 @@ public sealed class ShamanTests
     public void InvalidSummonConfigurationIsRejectedBeforeResolution(string typeId, Posture posture)
     {
         var state = State();
-        state.Types[0] = state.Types[0] with { SummonAdjacent = new(typeId, posture) };
+        state.Types[0] = state.Types[0].Without<SummonAdjacent>().WithLocal(new("summon-goblin", "Summon Goblin", AbilityTiming.Action, new SummonAdjacent(typeId, posture)));
         Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random(), false));
         Assert.Single(state.Units);
     }
@@ -108,8 +109,8 @@ public sealed class ShamanTests
         var spawns = result.NextInput!.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent).ToArray();
         Assert.Equal(8, spawns.Length);
         Assert.All(spawns, c => Assert.True(SpatialRules.AreAdjacent(result.State.Physical.Board, new(2, 2), c.Destination!)));
-        Assert.Throws<ArgumentException>(() => Choose(result.State, "spawn-goblin:0,0"));
-        Assert.Throws<ArgumentException>(() => Choose(result.State, "spawn-goblin:2,2"));
+        Assert.Throws<ArgumentException>(() => Choose(result.State, "ability:summon-goblin:0,0"));
+        Assert.Throws<ArgumentException>(() => Choose(result.State, "ability:summon-goblin:2,2"));
     }
 
     [Theory]
@@ -140,7 +141,7 @@ public sealed class ShamanTests
             default: state.Physical.Board.Edges.Add(new(new(2, 2), cell,
                 blocker == "wall" ? EdgeKind.Wall : EdgeKind.ClosedDoor)); break;
         }
-        var key = $"spawn-goblin:{cell.X},{cell.Y}";
+        var key = $"ability:summon-goblin:{cell.X},{cell.Y}";
         Assert.DoesNotContain(GameEngine.RefreshChoices(state, new Random(), false).NextInput!.Candidates, c => c.Key == key);
         Assert.Throws<ArgumentException>(() => Choose(state, key));
     }
@@ -156,7 +157,7 @@ public sealed class ShamanTests
         Assert.True(step.ActionDone);
         Assert.Equal(action.State.Bag, step.Bag);
         var goblin = Assert.Single(step.Units, u => u.TypeId == "goblin-type");
-        Assert.Equal(UnitType.Goblin(), step.Types.Single(t => t.Id == goblin.TypeId));
+        Assert.Equal(JsonSerializer.Serialize(UnitType.Goblin()), JsonSerializer.Serialize(step.Types.Single(t => t.Id == goblin.TypeId)));
         Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red"), goblin);
         Assert.Equal(new Figure(goblin.Id, new(1, 1), Posture.Lying), step.Physical.Figures.Single(f => f.Id == goblin.Id));
         Assert.Equal(2, initial.Units.Count);
@@ -187,7 +188,7 @@ public sealed class ShamanTests
         state.Physical.Board.Terrain.Add(new(new(1, 1), TerrainKind.Water));
         var action = Action(state);
         var provider = new DefaultAutomatedProvider();
-        Assert.Equal("spawn-goblin:2,1", provider.Choose(action.NextInput!, new GameplayQueries(action.State)));
+        Assert.Equal("ability:summon-goblin:2,1", provider.Choose(action.NextInput!, new GameplayQueries(action.State)));
         for (var y = 1; y <= 3; y++)
             for (var x = 1; x <= 3; x++)
                 if ((x != 2 || y != 2) && (x != 1 || y != 1))

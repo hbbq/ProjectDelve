@@ -59,15 +59,14 @@ internal static class LootCompatibility
     }
 
     internal static IReadOnlyList<LootCardContent> ProjectLegacyCards(IReadOnlyList<LootCardDefinition> definitions,
-        IReadOnlyList<ItemDefinition> items, IReadOnlyList<EquipmentDefinition> equipment, IReadOnlyList<AbilityDefinition> abilities) =>
+        IReadOnlyList<ItemDefinition> items, IReadOnlyList<EquipmentDefinition> equipment) =>
         TypeIds.Select(pair =>
         {
             var definition = definitions.Single(d => d.Id == pair.Value);
             if (definition.ItemTypeId is { } itemId)
             {
                 var item = items.Single(i => i.Id == itemId);
-                var granted = AbilityDeclarations.Resolve(item.LocalAbilities, item.Grants, abilities, legacyItemTypeId: item.Id)
-                    .Select(declaration => declaration.Definition).ToArray();
+                var granted = item.LocalAbilities;
                 var entries = granted.Select(a => a.CardEntry()).ToArray();
                 // Historical metadata retains sentence casing; any supported
                 // grant list can supply it, without requiring Second Wind's shape.
@@ -80,8 +79,9 @@ internal static class LootCompatibility
             if (definition.EquipmentTypeId is { } equipmentId)
             {
                 var type = equipment.Single(e => e.Id == equipmentId);
-                return new LootCardContent(pair.Key, type.Name, LootCategory.Equipment, type.Describe(abilities),
-                    MovementBonus: type.Modifiers.Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount))
+                return new LootCardContent(pair.Key, type.Name, LootCategory.Equipment, type.Describe(),
+                    MovementBonus: type.LocalAbilities.Where(a => a.Timing == AbilityTiming.Passive).Select(a => a.Mechanic)
+                        .OfType<SelfModifiersMechanic>().SelectMany(m => m.Modifiers).Where(m => m.Stat == Stat.Mov).Sum(m => m.Amount))
                     { EquipmentTypeId = type.Id, LegacyKind = pair.Key };
             }
             return new LootCardContent(pair.Key, definition.Name, LootCategory.Immediate, definition.Description!,

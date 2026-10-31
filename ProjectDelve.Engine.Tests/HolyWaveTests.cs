@@ -42,10 +42,10 @@ public sealed class HolyWaveTests
         var restored = Restore(Action(scenario).State);
         var wave = Assert.Single(restored.AbilitiesOf("cleric"), g => g.Definition.Mechanic is HolyWaveMechanic).Definition;
         Assert.Equal(2, wave.Usage.MaxUses);
-        Assert.Null(scenario.Types[0].HolyWave);
-        Assert.Equal(new AbilityUses(2, 2), restored.Units[0].HolyWaveUses);
+        Assert.Equal(wave, scenario.Types[0].Ability<HolyWaveMechanic>());
+        Assert.Equal(new AbilityUses(2, 2), restored.Units[0].Uses("holy-wave"));
         Assert.Equal(new[] { "a", "b" }, restored.Pending!.Candidates.Single(c => c.Action == UnitAction.HolyWave).TargetIds);
-        Assert.Null(scenario.Units[0].HolyWaveUses);
+        Assert.Empty(scenario.Units[0].AbilityUseCounts);
     }
 
     [Theory]
@@ -60,7 +60,7 @@ public sealed class HolyWaveTests
         var action = Action(state);
         Assert.Equal(new[] { "a" }, WaveChoice(action).TargetIds);
         Assert.True(WaveChoice(action).Relevant);
-        Assert.Equal(Posture.Lying, TestGame.OperationSteps(Choose(action.State, "holy-wave"))[0].StateAfter.Physical.Figures[1].Posture);
+        Assert.Equal(Posture.Lying, TestGame.OperationSteps(Choose(action.State, "ability:holy-wave"))[0].StateAfter.Physical.Figures[1].Posture);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class HolyWaveTests
             new("blocked", new(2, 3)), new("lying", new(1, 2), Posture.Lying)]);
         var action = Action(state);
         Assert.Equal(new[] { "a", "b" }, WaveChoice(action).TargetIds);
-        var result = Choose(action.State, "holy-wave");
+        var result = Choose(action.State, "ability:holy-wave");
         Assert.Equal(new[] { "a", "b", "cleric" }, TestGame.OperationEvents(result).Where(e => e.Posture == Posture.Lying).Select(e => e.UnitId));
         Assert.All(result.State.Physical.Figures.Where(f => f.Id is "friend" or "far" or "blocked"), f => Assert.Equal(Posture.Upright, f.Posture));
     }
@@ -83,24 +83,26 @@ public sealed class HolyWaveTests
     [Fact]
     public void PostureChangesInOrderWithActionAndUseSpentAndNoAttackOrFollowUps()
     {
-        var type = UnitType.Cleric() with { Cleave = new(), MoveAfterAttack = new(1), Atk = 0, Rng = 0 };
+        var type = UnitType.Cleric() with { LocalAbilities = [.. UnitType.Cleric().LocalAbilities,
+            new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) },
+            new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(1))], Atk = 0, Rng = 0 };
         var action = Action(Scenario(type));
-        var result = Choose(Restore(action.State), "holy-wave");
+        var result = Choose(Restore(action.State), "ability:holy-wave");
         Assert.Equal(new[] { "a", "b", "cleric" }, TestGame.OperationEvents(result).Where(e => e.Posture == Posture.Lying).Select(e => e.UnitId));
         Assert.All(TestGame.OperationEvents(result), e => { Assert.Null(e.Attack); Assert.Equal(0, e.Damage); Assert.Equal(0, e.Hits); Assert.Equal(0, e.Blocks); });
         Assert.DoesNotContain(TestGame.OperationEvents(result), e => e.Kind.Contains("Attack") || e.Kind is "CleaveResolved" or "UnitDefeated" or "MovementCompleted");
         Assert.False(result.State.CleavePending); Assert.Null(result.State.MoveAfterAttackAllowance);
-        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].CleaveUses);
-        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].HealUses);
+        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("cleave"));
+        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("heal"));
         Assert.All(result.State.Units, u => Assert.Equal(4, u.CurrentHp));
         var steps = TestGame.OperationSteps(result).Take(3).Select(s => s.StateAfter).ToArray();
         Assert.Equal(new[] { Posture.Upright, Posture.Lying, Posture.Upright }, steps[0].Physical.Figures.Select(f => f.Posture));
         Assert.Equal(new[] { Posture.Upright, Posture.Lying, Posture.Lying }, steps[1].Physical.Figures.Select(f => f.Posture));
         Assert.All(steps[2].Physical.Figures, f => Assert.Equal(Posture.Lying, f.Posture));
-        Assert.All(steps, s => { Assert.True(s.ActionDone); Assert.Equal(new AbilityUses(2, 1), s.Units[0].HolyWaveUses); });
+        Assert.All(steps, s => { Assert.True(s.ActionDone); Assert.Equal(new AbilityUses(2, 1), s.Units[0].Uses("holy-wave")); });
         Assert.Null(result.State.CurrentUnitId);
         Assert.Equal(Posture.Upright, action.State.Physical.Figures[0].Posture);
-        Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].HolyWaveUses);
+        Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].Uses("holy-wave"));
     }
 
     [Theory]
@@ -118,11 +120,11 @@ public sealed class HolyWaveTests
         }
         var action = Action(state);
         Assert.Empty(WaveChoice(action).TargetIds); Assert.False(WaveChoice(action).Relevant);
-        var result = Choose(action.State, "holy-wave");
+        var result = Choose(action.State, "ability:holy-wave");
         Assert.Equal("cleric", Assert.Single(TestGame.OperationEvents(result), e => e.Posture == Posture.Lying).UnitId);
         Assert.Equal(Posture.Lying, result.State.Physical.Figures[0].Posture);
         Assert.True(TestGame.OperationSteps(result)[0].StateAfter.ActionDone);
-        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].HolyWaveUses);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("holy-wave"));
     }
 
     [Theory]
@@ -132,23 +134,23 @@ public sealed class HolyWaveTests
         var action = Action();
         switch (condition)
         {
-            case "uses": action.State.Units[0] = action.State.Units[0] with { HolyWaveUses = new(2, 0) }; break;
+            case "uses": action.State.Units[0] = action.State.Units[0] with { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("unit:holy-wave", 2) }; break;
             case "action": action.State.ActionDone = true; break;
             case "move": action.State.MoveDone = false; break;
         }
-        Assert.Throws<ArgumentException>(() => Choose(action.State, "holy-wave"));
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "ability:holy-wave"));
         Assert.DoesNotContain(GameEngine.RefreshChoices(action.State, new Random(), false).NextInput!.Candidates, c => c.Action == UnitAction.HolyWave);
     }
 
     [Fact]
     public void LastUseDoesNotRefillAndNextActivationOnlyStandsClericUp()
     {
-        var state = Scenario(); state.Units[0] = state.Units[0] with { HolyWaveUses = new(2, 1) };
-        var result = Choose(Action(state).State, "holy-wave");
+        var state = Scenario(); state.Units[0] = state.Units[0] with { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("unit:holy-wave", 1) };
+        var result = Choose(Action(state).State, "ability:holy-wave");
         while (!result.State.RoundComplete) result = Choose(result.State, result.NextInput!.Candidates[0].Key);
         result = TestGame.StartRound(Restore(result.State), new Random(), false);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[0].Posture);
-        Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].HolyWaveUses);
+        Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].Uses("holy-wave"));
         Assert.DoesNotContain(result.NextInput?.Candidates ?? [], c => c.Action == UnitAction.HolyWave);
         Assert.Contains(TestGame.OperationEvents(result), e => e.UnitId == "cleric" && e.Posture == Posture.Upright);
     }
@@ -158,7 +160,7 @@ public sealed class HolyWaveTests
     {
         var action = Action(); action.State.Pending!.Candidates.Clear();
         action.State.Physical.Figures[2] = new("b", new(5, 5));
-        var result = Choose(Restore(action.State), "holy-wave");
+        var result = Choose(Restore(action.State), "ability:holy-wave");
         Assert.Equal(new[] { "a", "cleric" }, TestGame.OperationEvents(result).Where(e => e.Posture == Posture.Lying).Select(e => e.UnitId));
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[2].Posture);
     }

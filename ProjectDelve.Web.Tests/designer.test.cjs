@@ -49,8 +49,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 test('Custom Loot editor keeps local Loot Card and Item quantities independent', () => {
   const h = harness(), draft = h.editor.draft;
-  draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',grants:[{id:'read',abilityId:'fold'}]}];
-  draft.definition.abilityDefinitions = [{id:'fold',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}];
+  draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];
   draft.definition.lootCardDefinitions = [{id:'letter',name:'Unexpected Letter',itemTypeId:'paper-moon'}];
   draft.setLootDeck([{lootCardId:'letter',count:2},{itemTypeId:'paper-moon',count:3}]);
   h.editor.render();
@@ -85,8 +84,7 @@ test('older local Loot IDs retain their name and one deck row beside canonical l
     const h = harness(), draft = h.editor.draft;
     const local = {id:'pocket-breakfast',name:'A Folded Letter',itemTypeId:'paper-moon'};
     draft.definition.lootCardDefinitions = [local];
-    draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',grants:[{id:'read',abilityId:'fold'}]}];
-    draft.definition.abilityDefinitions = [{id:'fold',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}];
+    draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];
     const composition = [{kind:'PocketBreakfast',count:1},{lootCardId:local.id,count:3}];
     draft.setLootDeck(composition);
     h.editor.render();

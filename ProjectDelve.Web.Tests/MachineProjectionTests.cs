@@ -21,7 +21,9 @@ public sealed class MachineProjectionTests
     {
         Board = new() { Width = 5, Height = 4, Edges = [new(new(2, 1), EdgeDirection.Right, EdgeKind.Wall)] },
         UnitTypeIds = ["operator", UnitTypeIds.Grunt],
-        UnitTypes = [new("operator", 2, 0, 0, 1, 1, UnitAction.Operate | UnitAction.GiveResource)],
+        UnitTypes = [new("operator", 2, 0, 0, 1, 1, UnitAction.None)
+        { LocalAbilities = [new("operate", "Operate", AbilityTiming.Action, new Operate()),
+            new("give-resource", "Give Resource", AbilityTiming.Action, new GiveResource())] }],
         Units = [new("operator", "blue", new(1, 1), UnitId: "actor"), new(UnitTypeIds.Grunt, "red", new(4, 3))],
         Agency = [new("operator", "blue", ControllerKind.Human), new(UnitTypeIds.Grunt, "red", ControllerKind.Human)],
         Machines = [new("press", new(2, 1), MachineTypes.DiamondPress) { StoredResources = [new(ResourceTypes.Coal, coal)] }]
@@ -44,8 +46,8 @@ public sealed class MachineProjectionTests
         Assert.Contains("3 Coal", machine.Operation);
         Assert.Contains("1 Diamond", machine.Operation);
         Assert.Equal(new StoredResourceDisplay("coal", "Coal", 3, 3), Assert.Single(machine.ResourceStorage));
-        var choice = presentation.Decision!.Candidates.Single(c => c.Key == "operate:press");
-        Assert.Equal("operate", choice.EntryId);
+        var choice = presentation.Decision!.Candidates.Single(c => c.Key == "ability:operate:press");
+        Assert.Equal("ability:operate", choice.EntryId);
         Assert.Equal(InteractionKind.Position, choice.Interaction.Kind);
         Assert.Equal(new Cell(2, 1), choice.Interaction.Position);
         Assert.Empty(choice.AffectedUnitIds);
@@ -79,7 +81,7 @@ public sealed class MachineProjectionTests
         var ready = Ready(Fixture() with { Machines = [Fixture().Machines![0] with { OwnerSide = "blue" }] });
         Assert.Equal("blue", BrowserProjection.Create(ready).Machines.Single().OwnerSide);
         Assert.Equal("blue", GambitProjection.Observation(ready.State).Board.Machines.Single().OwnerSide);
-        var operated = GameEngine.Advance(ready.State, new Choice("operate:press"), new Dice(), false);
+        var operated = GameEngine.Advance(ready.State, new Choice("ability:operate:press"), new Dice(), false);
         Assert.Equal("blue", BrowserProjection.Create(operated).Machines.Single().OwnerSide);
         Assert.All(BrowserProjection.Create(operated).ResolutionSteps,
             step => Assert.Equal("blue", step.Machines.Single().OwnerSide));
@@ -89,7 +91,7 @@ public sealed class MachineProjectionTests
     public void GiveTargetsMachineWithoutPretendingItIsAUnitAndProjectsResult()
     {
         var ready = Ready(Fixture(2) with { Resources = [new(ResourceTypes.Coal, new(1, 1))] });
-        var choice = BrowserProjection.Create(ready).Decision!.Candidates.Single(c => c.EntryId == "give-resource");
+        var choice = BrowserProjection.Create(ready).Decision!.Candidates.Single(c => c.EntryId == "ability:give-resource");
         Assert.Equal(InteractionKind.Position, choice.Interaction.Kind);
         Assert.Equal(new Cell(2, 1), choice.Interaction.Position);
         Assert.Null(choice.Interaction.UnitId);
@@ -111,7 +113,7 @@ public sealed class MachineProjectionTests
         Assert.Equal(3, imported.Presentation.Machines.Single().ResourceStorage.Single().Quantity);
         var moved = game.StartRound(imported.Revision);
         var ready = game.Decide(moved.Revision, "stay");
-        var operated = game.Decide(ready.Revision, "operate:press");
+        var operated = game.Decide(ready.Revision, "ability:operate:press");
         Assert.Equal(0, operated.Presentation.Machines.Single().ResourceStorage.Single().Quantity);
         Assert.Equal(ResourceTypes.Diamond, operated.Result.State.Resources.Single().Type);
         var restarted = game.Restart(operated.Revision);

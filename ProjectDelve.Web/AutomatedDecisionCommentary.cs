@@ -11,7 +11,7 @@ internal static class AutomatedDecisionCommentary
         if (candidate is null || request.UnitId is null) return null;
         var type = state.Types.Single(t => t.Id == request.TypeId);
         var behaviors = queries.BehaviorsOf(request.UnitId);
-        if (type.DisplayName == "Labyrinth Shaper" && candidate.BonusAction?.ReshapeRoom is not null &&
+        if (type.DisplayName == "Labyrinth Shaper" && candidate.Ability?.Definition.Mechanic is ReshapeRoom &&
             behaviors.HasFlag(UnitBehavior.PreferReshapeRoom)) return "The room shall take a new shape.";
         if (type.DisplayName == "Troll" && candidate.TryOpenDoor is not null) return "I'll smash this door!";
         if (candidate.Destination is not null && candidate.Path is { Count: > 1 } &&

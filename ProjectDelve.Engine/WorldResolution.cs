@@ -140,14 +140,9 @@ public static partial class GameEngine
     {
         var index = state.Units.FindIndex(u => u.Id == id);
         var unit = state.Units[index];
-        AbilityUses? Replenish(AbilityUses? uses) => uses is null ? null :
-            new(uses.MaxUses, Math.Min(uses.MaxUses, (int)Math.Min(int.MaxValue, (long)uses.RemainingUses + amount)));
         state.Units[index] = unit with
         {
-            AbilityUseCounts = unit.AbilityUseCounts.ToImmutableDictionary(p => p.Key, p => Math.Max(0, p.Value - amount)),
-            CleaveUses = Replenish(unit.CleaveUses), HealUses = Replenish(unit.HealUses),
-            HolyWaveUses = Replenish(unit.HolyWaveUses), FireballUses = Replenish(unit.FireballUses),
-            BonusActionUses = unit.BonusActionUses.ToImmutableDictionary(e => e.Key, e => Replenish(e.Value)!)
+            AbilityUseCounts = unit.AbilityUseCounts.ToImmutableDictionary(p => p.Key, p => Math.Max(0, p.Value - amount))
         };
         events.Add(new RulesEvent("AbilityUsesReplenished", id) { ActionId = actionId, ReplenishedUses = amount });
     }

@@ -174,7 +174,8 @@ public sealed class DecisionCommentaryTests
         var reshape = Assert.Single(reshaped.Commentaries);
         Assert.Equal("The room shall take a new shape.", reshape.Text);
         Assert.Equal("ActionUsed", reshaped.Result.Events[reshape.EventIndex].Kind);
-        Assert.Contains(reshaped.Result.Events, e => e.Kind == "AbilityUsed" && e.AbilityName == "Reshape Room");
+        Assert.Contains(reshaped.Result.Events, e => e.Kind == "ActionUsed" && e.AbilityName == "Reshape Room" &&
+            e.Category == ActivationChoiceKind.BonusAction && e.ActionId == "ability:reshape-room");
 
         using var ordinary = new PlaytestGame(new Dice(), Setup(ControllerKind.Automated));
         Assert.Empty(ordinary.StartRound(0).Commentaries);

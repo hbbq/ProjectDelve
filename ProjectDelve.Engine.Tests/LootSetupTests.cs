@@ -9,7 +9,6 @@ public sealed class LootSetupTests
     public void LegacySecondWindCardUsesItsIndependentItemAndAbilityParameters()
     {
         var item = Assert.Single(ItemCatalog.All.Where(i => i.Id == "second-wind"));
-        Assert.Empty(item.Grants);
         var ability = Assert.Single(item.LocalAbilities);
         Assert.Equal(AbilityTiming.BonusAction, ability.Timing);
         var mechanic = Assert.IsType<ExtraActionsMechanic>(ability.Mechanic);

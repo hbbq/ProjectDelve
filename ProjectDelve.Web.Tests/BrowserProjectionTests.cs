@@ -10,6 +10,29 @@ namespace ProjectDelve.Web.Tests;
 public sealed class BrowserProjectionTests
 {
     [Fact]
+    public void RailRepositionPresentationUsesOwnedMechanicRatherThanItsAuthoredKey()
+    {
+        var type = new UnitType("runner", 0, 0, 0, 0, 1, Actions: UnitAction.None)
+        {
+            LocalAbilities = [new("follow-track", "Track Runner", AbilityTiming.InsteadOfActivation, new RunRails(3))]
+        };
+        var state = new GameState
+        {
+            Physical = new(new Board(3, 1, []), [new("runner-copy", new(1, 0))]),
+            Types = [type], Units = [type.CreateUnit("runner-copy", "blue")]
+        };
+        var repositioned = new RulesEvent("UnitRepositioned", "runner-copy")
+        {
+            ActionId = "ability:follow-track", Path = [new(0, 0), new(1, 0)]
+        };
+        var before = JsonSerializer.Serialize(state);
+        var outcome = BrowserProjection.Outcome(repositioned, state);
+        Assert.Equal(OutcomeRole.Movement, outcome.Role);
+        Assert.Equal("runner-copy ran Rails: 0,0 -> 1,0", outcome.Text);
+        Assert.Equal(before, JsonSerializer.Serialize(state));
+    }
+
+    [Fact]
     public void BoardVisualsDescribeSuppliedChoicesWithoutChangingTheirIdentityOrLegality()
     {
         var state = State(UnitType.Wizard());
@@ -19,7 +42,8 @@ public sealed class BrowserProjectionTests
              new("opaque-move", Destination: new(2, 0), Kind: ActivationChoiceKind.Move),
              new("opaque-stay", Kind: ActivationChoiceKind.Stay),
              new("opaque-attack", TargetId: "target", Action: UnitAction.NormalAttack),
-             new("opaque-fireball", Destination: new(2, 0), Action: UnitAction.Fireball, Relevant: false)], false);
+             new("opaque-fireball", Destination: new(2, 0), Action: UnitAction.Fireball, Relevant: false)
+             { Ability = WebAbilityTestQueries.Ability(state, "actor", "fireball") }], false);
         var before = JsonSerializer.Serialize(request);
         var projected = BrowserProjection.Decision(request, state, names)!.Candidates;
         Assert.Equal(new[] { "activate", "move", "stay", "attack", "special" }, projected.Select(c => c.BoardVisual!.Kind));
@@ -134,13 +158,13 @@ public sealed class BrowserProjectionTests
             Units = [imp.CreateUnit("imp", "red") with { CurrentHp = 0 }, target.CreateUnit("target", "blue")]
         };
         var outcome = BrowserProjection.Outcome(new RulesEvent("ExplosionDamageResolved", "imp", "target",
-            Damage: 1, AbilityName: "Explosion") { ActionId = "explosion", SourceUnitId = "imp" }, state);
+            Damage: 1, AbilityName: "Explosion") { ActionId = "ability:explosion", SourceUnitId = "imp" }, state);
         Assert.Equal(OutcomeRole.Damage, outcome.Role);
         Assert.Equal(1, outcome.Damage);
         Assert.Contains("Explosion", outcome.Text);
         Assert.Contains("target", outcome.Text);
         Assert.DoesNotContain("Dice", outcome.Text);
-        Assert.Contains(BrowserProjection.Cards(state)["imp"].Entries, e => e.Content.Id == "explosion");
+        Assert.Contains(BrowserProjection.Cards(state)["imp"].Entries, e => e.Content.Id == "ability:explosion");
     }
 
     [Theory]
@@ -148,7 +172,8 @@ public sealed class BrowserProjectionTests
     public void DragonActionsUseGenericCardsDirectAndUnitChoicesWithAuthoritativeTargets(bool aliases)
     {
         var dragon = UnitType.RedDragon();
-        if (aliases) dragon = dragon with { AbilityNames = new() { FireBreath = "Embers", ClawAttack = "Slash" } };
+        if (aliases) dragon = dragon with { LocalAbilities = dragon.LocalAbilities.Select(ability => ability with
+            { Name = ability.Mechanic is FireBreath ? "Embers" : ability.Mechanic is ClawAttack ? "Slash" : ability.Name }).ToImmutableArray() };
         var enemy = new UnitType("enemy", 0, 0, 0, 0, 1);
         var state = new GameState
         {
@@ -160,15 +185,15 @@ public sealed class BrowserProjectionTests
         var candidates = request.Candidates;
         var presentation = BrowserProjection.Decision(request, state)!;
         var cards = BrowserProjection.Cards(state)["dragon"].Entries.ToDictionary(e => e.Content.Id);
-        Assert.Equal("Attack all enemies within RNG.", cards["fire-breath"].Content.Description);
-        Assert.Equal("Attack an adjacent enemy with ATK +1.", cards["claw-attack"].Content.Description);
-        Assert.Null(cards["fire-breath"].Uses); Assert.Null(cards["claw-attack"].Uses);
-        var breath = Assert.Single(presentation.Candidates, c => c.EntryId == "fire-breath");
+        Assert.Equal("Attack all enemies within RNG.", cards["ability:fire-breath"].Content.Description);
+        Assert.Equal("Attack an adjacent enemy with ATK +1.", cards["ability:claw-attack"].Content.Description);
+        Assert.Null(cards["ability:fire-breath"].Uses); Assert.Null(cards["ability:claw-attack"].Uses);
+        var breath = Assert.Single(presentation.Candidates, c => c.EntryId == "ability:fire-breath");
         Assert.Equal(InteractionKind.Direct, breath.Interaction.Kind);
         Assert.Equal(new[] { "a", "b" }, breath.AffectedUnitIds);
         Assert.Contains(aliases ? "Embers" : "Fire Breath", breath.Label);
         Assert.True(breath.Relevant);
-        var claw = Assert.Single(presentation.Candidates, c => c.EntryId == "claw-attack");
+        var claw = Assert.Single(presentation.Candidates, c => c.EntryId == "ability:claw-attack");
         Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: "a"), claw.Interaction);
         Assert.Equal(new[] { "a" }, claw.AffectedUnitIds);
         Assert.Contains(aliases ? "Slash" : "Claw Attack", claw.Label);
@@ -181,7 +206,7 @@ public sealed class BrowserProjectionTests
         var summoner = UnitType.Define("caller", "Caller", UnitAuthoring.Stats(2, 0, 0, 3, 1),
             UnitAuthoring.CantAttack(),
             UnitAuthoring.Ability("Call Sage", UnitAuthoring.Unlimited(),
-                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, Posture.Upright)));
+                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, Posture.Upright), id: "call-sage"));
         var sage = UnitType.Wizard() with { DisplayName = "Sage" };
         var state = new GameState
         {
@@ -196,9 +221,10 @@ public sealed class BrowserProjectionTests
         Assert.Null(entry.Content.MaxUses);
         Assert.Null(entry.Uses);
         var request = new DecisionRequest(DecisionKind.Activation, summoner.Id, "actor",
-            [new("opaque-summon-choice", Destination: new(0, 0), Action: UnitAction.SummonAdjacent)], false);
+            [new("opaque-summon-choice", Destination: new(0, 0), Action: UnitAction.SummonAdjacent)
+            { Ability = WebAbilityTestQueries.Ability(state, "actor", "call-sage") }], false);
         var choice = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
-        Assert.Equal("spawn-goblin", choice.EntryId);
+        Assert.Equal("ability:call-sage", choice.EntryId);
         Assert.Equal("opaque-summon-choice", choice.Key);
         Assert.Equal(new ChoiceInteraction(InteractionKind.Position, Position: new(0, 0)), choice.Interaction);
         Assert.Contains("Call Sage (Action)", choice.Label);
@@ -210,18 +236,18 @@ public sealed class BrowserProjectionTests
         var type = UnitType.Define("unfamiliar", "Unfamiliar", UnitAuthoring.Stats(1, 1, 3, 2, 4),
             UnitAuthoring.Unique(),
             UnitAuthoring.CantAttack(),
-            UnitAuthoring.Ability("Heal", UnitAuthoring.Uses(2), UnitAuthoring.Heal(amount: 3)),
-            UnitAuthoring.Ability("Fury", UnitAuthoring.Unlimited(), UnitAuthoring.Fury(atkBonus: 2, adjacentEnemies: 3)),
-            UnitAuthoring.Ability("Backstab", UnitAuthoring.Unlimited(), UnitAuthoring.Backstab(atkBonus: 4)),
-            UnitAuthoring.Ability("Cleave", UnitAuthoring.Uses(2), UnitAuthoring.Cleave(triggerDamage: 4, damage: 2)));
+            UnitAuthoring.Ability("Heal", UnitAuthoring.Uses(2), UnitAuthoring.Heal(amount: 3), id: "heal"),
+            UnitAuthoring.Ability("Fury", UnitAuthoring.Unlimited(), UnitAuthoring.Fury(atkBonus: 2, adjacentEnemies: 3), id: "fury"),
+            UnitAuthoring.Ability("Backstab", UnitAuthoring.Unlimited(), UnitAuthoring.Backstab(atkBonus: 4), id: "backstab"),
+            UnitAuthoring.Ability("Cleave", UnitAuthoring.Uses(2), UnitAuthoring.Cleave(triggerDamage: 4, damage: 2), id: "cleave"));
         var state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(State(type)))!;
         var entries = BrowserProjection.Cards(state)["actor"].Entries.ToDictionary(e => e.Content.Id);
-        Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", entries["heal"].Content.Description);
-        Assert.Equal("ATK +2 while adjacent to 3 or more enemies", entries["passive:Fury"].Content.Description);
-        Assert.Equal("+4 ATK when attacking an enemy adjacent to another friendly Unit", entries["passive:Backstab"].Content.Description);
-        Assert.Equal("After this Unit's Attack, if it dealt 4 or more damage to a Unit, you may immediately deal 2 damage to an adjacent enemy.", entries["cleave"].Content.Description);
-        Assert.Equal(new AbilityUses(2, 2), entries["heal"].Uses);
-        Assert.Equal(new AbilityUses(2, 2), entries["cleave"].Uses);
+        Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", entries["ability:heal"].Content.Description);
+        Assert.Equal("ATK +2 while adjacent to 3 or more enemies", entries["ability:fury"].Content.Description);
+        Assert.Equal("+4 ATK when attacking an enemy adjacent to another friendly Unit", entries["ability:backstab"].Content.Description);
+        Assert.Equal("After this Unit's Attack, if it dealt 4 or more damage to a Unit, you may immediately deal 2 damage to an adjacent enemy.", entries["ability:cleave"].Content.Description);
+        Assert.Equal(new AbilityUses(2, 2), entries["ability:heal"].Uses);
+        Assert.Equal(new AbilityUses(2, 2), entries["ability:cleave"].Uses);
         Assert.Equal(type.CardEntries(), entries.Values.Select(e => e.Content));
     }
 
@@ -233,14 +259,14 @@ public sealed class BrowserProjectionTests
             UnitAuthoring.Ability("Battle Cry", UnitAuthoring.Uses(3),
                 UnitAuthoring.BonusActionSelfModifier(UnitAuthoring.Modifier(Stat.Atk, 2)), id: "stable-key"));
         var state = State(type);
-        var ability = type.BonusActions[0];
-        var candidate = new Candidate("bonus-action:stable-key", Kind: ActivationChoiceKind.BonusAction, BonusAction: ability);
+        var ability = WebAbilityTestQueries.Ability(state, "actor", "stable-key");
+        var candidate = new Candidate(ability.CandidatePrefix, Kind: ActivationChoiceKind.BonusAction) { Ability = ability };
         var request = new DecisionRequest(DecisionKind.Activation, type.Id, "actor", [candidate], false);
-        var card = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries, e => e.Content.Id == "bonus:stable-key");
+        var card = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries, e => e.Content.Id == "ability:stable-key");
         var choice = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
         Assert.Equal("Battle Cry", card.Content.Name);
         Assert.Equal(new AbilityUses(3, 3), card.Uses);
-        Assert.Equal("bonus:stable-key", choice.EntryId);
+        Assert.Equal("ability:stable-key", choice.EntryId);
         Assert.Equal(candidate.Key, choice.Key);
         Assert.Contains("Battle Cry", choice.Label);
     }
@@ -257,12 +283,12 @@ public sealed class BrowserProjectionTests
         var started = TestGame.StartRound(state, new Dice(), false);
         var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var decision = BrowserProjection.Create(action).Decision!;
-        var spawn = decision.Candidates.Single(c => c.Key == "spawn-goblin:0,0");
-        Assert.Equal("spawn-goblin", spawn.EntryId);
+        var spawn = decision.Candidates.Single(c => c.Key == "ability:summon-goblin:0,0");
+        Assert.Equal("ability:summon-goblin", spawn.EntryId);
         Assert.Equal(new ChoiceInteraction(InteractionKind.Position, Position: new(0, 0)), spawn.Interaction);
         Assert.Contains("Summon Goblin (Action)", spawn.Label);
         Assert.Empty(spawn.AffectedUnitIds);
-        Assert.Equal("spawn-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries, e => e.Content.Id == "spawn-goblin").Content.Id);
+        Assert.Equal("ability:summon-goblin", Assert.Single(BrowserProjection.Cards(action.State)["actor"].Entries, e => e.Content.Id == "ability:summon-goblin").Content.Id);
         var result = TestGame.Advance(action.State, new Choice(spawn.Key!), new Dice(), false);
         var presentation = BrowserProjection.Create(result);
         var step = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "UnitCreated");
@@ -289,11 +315,11 @@ public sealed class BrowserProjectionTests
         var presentation = BrowserProjection.Create(result);
         var card = presentation.Cards["target"];
         Assert.Equal("Troll", card.DisplayName);
-        var capability = Assert.Single(card.Entries, e => e.Content.Id == "undying");
+        var capability = Assert.Single(card.Entries, e => e.Content.Id == "ability:undying");
         Assert.Equal("Undying", capability.Content.Name);
         Assert.Equal("Capability", capability.Content.Category);
         Assert.Null(capability.Uses);
-        Assert.Contains("4 of 6", card.Entries.Single(e => e.Content.Id == "try-open-door").Content.Description);
+        Assert.Contains("4 of 6", card.Entries.Single(e => e.Content.Id == "ability:smash-door").Content.Description);
         Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         Assert.Equal("target: Lying", presentation.Events.Last().Text);
         Assert.All(result.ResolutionSteps.Where(s => result.Events[s.EventIndex].Kind is "AttackResolved" or "PostureChanged"), step =>
@@ -354,10 +380,10 @@ public sealed class BrowserProjectionTests
         var started = TestGame.StartRound(state, new Dice(), false);
         var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var presentation = BrowserProjection.Create(action);
-        var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "fireball");
+        var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "ability:fireball");
         Assert.Equal(new AbilityUses(2, 2), card.Uses);
         Assert.Equal("Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", card.Content.Description);
-        var fireball = presentation.Decision!.Candidates.Single(c => c.Key == "fireball:4,0");
+        var fireball = presentation.Decision!.Candidates.Single(c => c.Key == "ability:fireball:4,0");
         var attack = presentation.Decision.Candidates.Single(c => c.Key == "attack:target");
         Assert.Equal(InteractionKind.Position, fireball.Interaction.Kind);
         Assert.Equal(new Cell(4, 0), fireball.Interaction.Position);
@@ -365,12 +391,12 @@ public sealed class BrowserProjectionTests
         Assert.Equal("target", attack.Interaction.UnitId);
         Assert.Equal(new[] { "target" }, fireball.AffectedUnitIds);
         Assert.Equal("Fireball (Action) → (4,0)", fireball.Label);
-        Assert.Empty(presentation.Decision.Candidates.Single(c => c.Key == "fireball:2,0").AffectedUnitIds);
+        Assert.Empty(presentation.Decision.Candidates.Single(c => c.Key == "ability:fireball:2,0").AffectedUnitIds);
         var result = TestGame.Advance(action.State, new Choice(fireball.Key!), new Dice(), false);
         var resolved = BrowserProjection.Create(result);
         Assert.Equal(OutcomeRole.AttackSummary, resolved.Events.Last(e => e.Role == OutcomeRole.AttackSummary).Role);
         Assert.All(resolved.ResolutionSteps, s => Assert.Equal(1,
-            s.Cards["actor"].Entries.Single(e => e.Content.Id == "fireball").Uses!.RemainingUses));
+            s.Cards["actor"].Entries.Single(e => e.Content.Id == "ability:fireball").Uses!.RemainingUses));
         Assert.Contains(result.ResolutionSteps[0].StateAfter.Physical.Figures, f => f.Id == "target");
         Assert.DoesNotContain(result.ResolutionSteps.First(s => result.Events[s.EventIndex].Kind == "UnitDefeated").StateAfter.Physical.Figures, f => f.Id == "target");
     }
@@ -381,11 +407,11 @@ public sealed class BrowserProjectionTests
         var state = State(UnitType.Wizard());
         var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "actor",
             [new("opaque cell", Destination: new(4, 0), Action: UnitAction.Fireball)
-                { TargetIds = ["not-on-board", "actor"] }], false);
+                { TargetIds = ["not-on-board", "actor"], Ability = WebAbilityTestQueries.Ability(state, "actor", "fireball") }], false);
         var projected = BrowserProjection.Decision(request, state)!.Candidates[0];
         Assert.Equal(new[] { "not-on-board", "actor" }, projected.AffectedUnitIds);
         Assert.Equal("opaque cell", projected.Key);
-        Assert.Equal("fireball", projected.EntryId);
+        Assert.Equal("ability:fireball", projected.EntryId);
     }
 
     [Fact]
@@ -396,11 +422,11 @@ public sealed class BrowserProjectionTests
         var started = TestGame.StartRound(state, new Dice(), false);
         var action = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var presentation = BrowserProjection.Create(action);
-        var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "telekinesis");
-        Assert.Equal(new CardEntryDescription("telekinesis", "Telekinesis", "Action",
+        var card = presentation.Cards["actor"].Entries.Single(e => e.Content.Id == "ability:telekinesis");
+        Assert.Equal(new CardEntryDescription("ability:telekinesis", "Telekinesis", "Action",
             "Lay down an upright enemy within RNG and LOS."), card.Content);
         Assert.Null(card.Uses);
-        var choice = presentation.Decision!.Candidates.Single(c => c.EntryId == "telekinesis");
+        var choice = presentation.Decision!.Candidates.Single(c => c.EntryId == "ability:telekinesis");
         Assert.Equal(new ChoiceInteraction(InteractionKind.Unit, UnitId: "target"), choice.Interaction);
         Assert.Equal("Telekinesis (Action) → target", choice.Label);
         Assert.Equal(new[] { "target" }, choice.AffectedUnitIds);
@@ -440,22 +466,22 @@ public sealed class BrowserProjectionTests
             var native = state.AbilitiesOf("actor").ToArray();
             state.Units[0] = state.Units[0] with
             {
-                HealUses = native.Any(g => g.Legacy == LegacyAbilityKind.Heal) ? new(2, 0) : null,
-                HolyWaveUses = native.Any(g => g.Legacy == LegacyAbilityKind.HolyWave) ? new(2, 1) : null,
-                CleaveUses = type.Cleave is null ? null : new(2, 0),
-                BonusActionUses = native.Where(g => g.Legacy == LegacyAbilityKind.BonusAction && g.Definition.Usage.MaxUses.HasValue)
-                    .ToImmutableDictionary(g => g.LegacyKey!, g => new AbilityUses(g.Definition.Usage.MaxUses!.Value, 1))
+                AbilityUseCounts = native.Where(ability => ability.Definition.Usage.MaxUses.HasValue)
+                    .ToImmutableDictionary(ability => ability.AccountingId,
+                        ability => ability.Definition.Usage.MaxUses!.Value - (ability.Definition.Mechanic is HolyWaveMechanic or SelfModifiersMechanic ? 1 : 0))
             };
+            var before = JsonSerializer.Serialize(state);
             var card = BrowserProjection.Cards(state)["actor"];
             Assert.Equal(type.DisplayName, card.DisplayName);
-            Assert.Equal(type.CardEntries(state.Types, state.AbilityDefinitions), card.Entries.Select(e => e.Content).ToArray());
+            Assert.Equal(type.CardEntries(state.Types), card.Entries.Select(e => e.Content).ToArray());
             foreach (var entry in card.Entries)
                 Assert.Equal(native.SingleOrDefault(g => g.EntryId == entry.Content.Id) is { } grant
-                    ? state.AbilityUsesOf("actor", grant) : type.UsesFor(state.Units[0], entry.Content.Id), entry.Uses);
-            if (native.Any(g => g.Legacy == LegacyAbilityKind.HolyWave)) Assert.Equal(new AbilityUses(2, 1), card.Entries.Single(e => e.Content.Id == "holy-wave").Uses);
-            if (native.Any(g => g.Legacy == LegacyAbilityKind.Heal)) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "heal").Uses);
-            if (type.Cleave is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "cleave").Uses);
+                    ? state.AbilityUsesOf("actor", grant) : null, entry.Uses);
+            if (type.Mechanic<HolyWaveMechanic>() is not null) Assert.Equal(new AbilityUses(2, 1), card.Entries.Single(e => e.Content.Id == "ability:holy-wave").Uses);
+            if (type.Mechanic<HealMechanic>() is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "ability:heal").Uses);
+            if (type.Mechanic<Cleave>() is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "ability:cleave").Uses);
             Assert.Null(card.Entries.Single(e => e.Content.Id == "attack").Uses);
+            Assert.Equal(before, JsonSerializer.Serialize(state));
         }
     }
 
@@ -468,8 +494,8 @@ public sealed class BrowserProjectionTests
         var door = new Edge(new(0, 0), new(1, 0), EdgeKind.ClosedDoor);
         var targets = new[] { "target", "not-on-board" }.Take(targetCount).ToImmutableArray();
         var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "actor", [
-            new("opaque direct", Action: UnitAction.HolyWave) { TargetIds = targets },
-            new("opaque unit", Action: UnitAction.Heal, TargetId: "target"),
+            new("opaque direct", Action: UnitAction.HolyWave) { TargetIds = targets, Ability = WebAbilityTestQueries.Ability(state, "actor", "holy-wave") },
+            new("opaque unit", Action: UnitAction.Heal, TargetId: "target") { Ability = WebAbilityTestQueries.Ability(state, "actor", "heal") },
             new("opaque position", Destination: new(3, 0), Kind: ActivationChoiceKind.Move),
             new("opaque door", Door: door, Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor)
         ], false);
@@ -482,7 +508,7 @@ public sealed class BrowserProjectionTests
         Assert.Equal(new[] { "Direct", "Unit", "Position", "Door" }, projected.EnumerateArray().Select(c => c.GetProperty("interaction").GetProperty("kind").GetString()));
         Assert.Equal(targets, projected[0].GetProperty("affectedUnitIds").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal("opaque direct", projected[0].GetProperty("key").GetString());
-        Assert.Equal("holy-wave", projected[0].GetProperty("entryId").GetString());
+        Assert.Equal("ability:holy-wave", projected[0].GetProperty("entryId").GetString());
         Assert.Equal("target", projected[1].GetProperty("interaction").GetProperty("unitId").GetString());
         Assert.Equal(3, projected[2].GetProperty("interaction").GetProperty("position").GetProperty("x").GetInt32());
         Assert.Equal(1, projected[3].GetProperty("interaction").GetProperty("door").GetProperty("b").GetProperty("x").GetInt32());
@@ -492,12 +518,19 @@ public sealed class BrowserProjectionTests
     [Fact]
     public void OptionalChoicesAndUnitSelectionHaveExplicitReferencesAndWording()
     {
-        var state = State(UnitType.Barbarian());
+        var type = UnitType.Barbarian();
+        type = type with { LocalAbilities = type.LocalAbilities.Select(ability => ability.Mechanic is Cleave
+            ? ability with { Key = "arc", Name = "Finishing Arc" } : ability).ToImmutableArray() };
+        var state = State(type);
         var cleave = BrowserProjection.Decision(new(DecisionKind.Cleave, state.Types[0].Id, "actor",
-            [new("opaque", TargetId: "target", Kind: ActivationChoiceKind.Cleave)], true), state)!;
-        Assert.Equal("Decline Cleave", cleave.NoneChoice!.Label);
+            [new("opaque", TargetId: "target", Kind: ActivationChoiceKind.Cleave)
+            { Ability = WebAbilityTestQueries.Ability(state, "actor", "arc") }], true), state)!;
+        Assert.Equal("Finishing Arc", cleave.Prompt);
+        Assert.Equal("Decline Finishing Arc", cleave.NoneChoice!.Label);
         Assert.Null(cleave.NoneChoice.Key);
         Assert.Equal(InteractionKind.Unit, cleave.Candidates[0].Interaction.Kind);
+        Assert.Equal("ability:arc", cleave.Candidates[0].EntryId);
+        Assert.Equal("unit:arc", cleave.Candidates[0].AccountingId);
         var move = BrowserProjection.Decision(new(DecisionKind.Move, state.Types[0].Id, "actor", [], true, true), state)!;
         Assert.Equal("Stay here", move.NoneChoice!.Label);
         Assert.Equal("stay", move.NoneChoice.BoardVisual!.Kind);
@@ -510,9 +543,11 @@ public sealed class BrowserProjectionTests
     [Fact]
     public void UnfamiliarBonusNameMatchesItsEntryAndPreservesIrrelevantChoice()
     {
-        var ability = new BonusActionAbility("Unknown name", 4, [new(Stat.Mov, 2)]);
-        var state = State(UnitType.Grunt("unfamiliar-type") with { BonusActions = [ability] });
-        var candidate = new Candidate("unparsed:opaque", Kind: ActivationChoiceKind.BonusAction, BonusAction: ability, Relevant: false);
+        var ability = new LocalAbilityDefinition("unfamiliar", "Unknown name", AbilityTiming.BonusAction,
+            new SelfModifiersMechanic([new(Stat.Mov, 2)])) { Usage = new(4) };
+        var state = State(UnitType.Grunt("unfamiliar-type") with { LocalAbilities = [ability] });
+        var candidate = new Candidate("unparsed:opaque", Kind: ActivationChoiceKind.BonusAction, Relevant: false)
+        { Ability = WebAbilityTestQueries.Ability(state, "actor", ability.Key) };
         var choice = BrowserProjection.Decision(new(DecisionKind.Activation, state.Types[0].Id, "actor", [candidate], false), state)!.Candidates[0];
         Assert.Equal(BrowserProjection.Cards(state)["actor"].Entries.Single(e => e.Content.Name == ability.Name).Content.Id, choice.EntryId);
         Assert.Equal(InteractionKind.Direct, choice.Interaction.Kind);
@@ -527,7 +562,7 @@ public sealed class BrowserProjectionTests
     {
         var before = State();
         var after = State();
-        after.Units[0] = after.Units[0] with { HolyWaveUses = new(2, 0), CurrentHp = 1 };
+        after.Units[0] = after.Units[0] with { AbilityUseCounts = after.Units[0].AbilityUseCounts.SetItem("unit:holy-wave", 2), CurrentHp = 1 };
         var aggregate = new RulesEvent("AttackResolved", "actor", AbilityName: name,
             Attack: new(2, 1, [new("target", 3, 0, 1)]));
         var result = new EngineResult(after, [aggregate,
@@ -537,8 +572,8 @@ public sealed class BrowserProjectionTests
         var presentation = BrowserProjection.Create(result);
         Assert.Equal(new[] { OutcomeRole.AttackSummary, OutcomeRole.Damage, OutcomeRole.Healing }, presentation.Events.Select(e => e.Role));
         Assert.Contains("2 Attack Dice, 1 shared Hits", presentation.Events[0].Text);
-        Assert.Equal(2, presentation.ResolutionSteps[0].Cards["actor"].Entries.Single(e => e.Content.Id == "holy-wave").Uses!.RemainingUses);
-        Assert.Equal(0, presentation.ResolutionSteps[1].Cards["actor"].Entries.Single(e => e.Content.Id == "holy-wave").Uses!.RemainingUses);
+        Assert.Equal(2, presentation.ResolutionSteps[0].Cards["actor"].Entries.Single(e => e.Content.Id == "ability:holy-wave").Uses!.RemainingUses);
+        Assert.Equal(0, presentation.ResolutionSteps[1].Cards["actor"].Entries.Single(e => e.Content.Id == "ability:holy-wave").Uses!.RemainingUses);
         Assert.Equal(new[] { 0, 2 }, presentation.ResolutionSteps.Select(s => s.EventIndex));
         Assert.Equal(OutcomeRole.AttackTarget, BrowserProjection.Outcome(aggregate with { TargetId = "target" }, after).Role);
     }

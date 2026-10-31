@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -50,7 +50,7 @@ public sealed class MachineTests
         definition = definition with { Machines = [definition.Machines![0] with { OwnerSide = owner }],
             Resources = give ? [new(ResourceTypes.Coal, new(1, 1))] : [] };
         var start = Start(definition);
-        var key = give ? "give-resource-machine:press" : "operate:press";
+        var key = give ? "ability:give-resource:machine:press" : "ability:operate:press";
         Assert.Equal(allowed, start.NextInput!.Candidates.Any(c => c.Key == key));
         if (!allowed)
         {
@@ -97,13 +97,13 @@ public sealed class MachineTests
     public void OperateConsumesOnlyTargetStoreAndOutputsAtomicallyAtOperator()
     {
         var start = Start();
-        var result = Pick(start, "operate:press");
+        var result = Pick(start, "ability:operate:press");
         Assert.Equal(3, Machine(start.State).StoredQuantity("coal"));
         Assert.Equal(0, Machine(result.State).StoredQuantity("coal"));
         Assert.Equal(1, Machine(result.State, "other-press").StoredQuantity("coal"));
         Assert.Equal(new Resource(ResourceTypes.Diamond, new(1, 1)), Assert.Single(result.State.Resources));
         Assert.Equal(1, result.ResolutionSteps.Single(s => result.Events[s.EventIndex].Kind == "MachineOperated").StateAfter.ActionsUsedThisActivation);
-        Assert.Contains(result.Events, e => e.Kind == "ActionUsed" && e.ActionId == "operate");
+        Assert.Contains(result.Events, e => e.Kind == "ActionUsed" && e.ActionId == "ability:operate");
         var operated = Assert.Single(result.Events.Where(e => e.Kind == "MachineOperated"));
         Assert.Equal("press", operated.MachineId);
         Assert.Equal(new MachineResource(ResourceTypes.Coal, 3), Assert.Single(operated.ConsumedResources));
@@ -124,7 +124,7 @@ public sealed class MachineTests
         var start = Start(definition);
         Assert.Null(start.State.Types.Single(t => t.Id == "worker").ResourceStorage);
         Assert.Equal(2, start.NextInput!.Candidates.Count(c => c.Action == UnitAction.GiveResource));
-        var given = Pick(start, "give-resource-machine:press");
+        var given = Pick(start, "ability:give-resource:machine:press");
         Assert.Empty(given.State.Resources);
         Assert.Equal(3, Machine(given.State).StoredQuantity("coal"));
         Assert.Equal(1, Machine(given.State, "other-press").StoredQuantity("coal"));
@@ -152,10 +152,10 @@ public sealed class MachineTests
         var definition = Fixture() with { Board = new() { Width = 7, Height = 5,
             Edges = [new(new(1, 1), EdgeDirection.Right, edge)] } };
         var start = Start(definition);
-        Assert.Equal(canOperate, start.NextInput!.Candidates.Any(c => c.Key == "operate:press"));
+        Assert.Equal(canOperate, start.NextInput!.Candidates.Any(c => c.Key == "ability:operate:press"));
         var give = Start(definition with { Machines = [Press("press", new(2, 1), 2)],
             Resources = [new(ResourceTypes.Coal, new(1, 1))] });
-        Assert.Equal(canGive, give.NextInput!.Candidates.Any(c => c.Key == "give-resource-machine:press"));
+        Assert.Equal(canGive, give.NextInput!.Candidates.Any(c => c.Key == "ability:give-resource:machine:press"));
         var board = start.State.Physical.Board;
         Assert.True(EdgeReplacementRules.CanReplace(start.State, new(new(1, 1), new(2, 1), EdgeKind.Wall)));
         Assert.Equal(edge, board.EdgeBetween(new(1, 1), new(2, 1)));
@@ -171,7 +171,7 @@ public sealed class MachineTests
     {
         var definition = Fixture(reason == "inputs" ? 2 : 3);
         if (reason == "occupied-output") definition = definition with { Resources = [new(ResourceTypes.Coal, new(1, 1))] };
-        if (reason == "no-action") definition = definition with { UnitTypes = [definition.UnitTypes![0] with { Actions = UnitAction.None }] };
+        if (reason == "no-action") definition = definition with { UnitTypes = [definition.UnitTypes![0] with { LocalAbilities = [] }] };
         if (reason == "distant") definition = definition with { Units = [definition.Units[0] with { Anchor = new(0, 0) }, .. definition.Units.Skip(1)] };
         if (reason == "lying") definition = definition with { Units = [definition.Units[0] with { Posture = Posture.Lying }, .. definition.Units.Skip(1)] };
         var start = Start(definition);
@@ -186,7 +186,7 @@ public sealed class MachineTests
     public void MachineBlocksPlacementMovementAndLosWhilePhaseOnlyChangesTraversal(bool phase)
     {
         var state = GameEngine.CreateGame(Fixture());
-        if (phase) state.Types[0] = state.Types[0] with { Phase = new() };
+        if (phase) state.Types[0] = state.Types[0] .WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
         var paths = MovementRules.FindPaths(state, "actor", new(1, 1), 2);
         Assert.DoesNotContain(new Cell(2, 1), paths.Keys);
         Assert.Equal(phase, paths.ContainsKey(new(3, 1)));
@@ -215,7 +215,7 @@ public sealed class MachineTests
         Assert.Equal(new Cell(2, 1), Machine(restored).Position);
         Assert.Equal("diamond-press", Machine(restored).Type.Id);
         var start = Ready(GameEngine.StartRound(restored, new Dice(), false));
-        Assert.Equal(ResourceTypes.Diamond, Pick(start, "operate:press").State.Resources.Single().Type);
+        Assert.Equal(ResourceTypes.Diamond, Pick(start, "ability:operate:press").State.Resources.Single().Type);
         Assert.Equal(3, Machine(original).StoredQuantity("coal"));
         Assert.Equal(3, GameEngine.CreateGame(definition).Physical.Board.Machines[0].StoredQuantity("coal"));
     }
@@ -241,12 +241,12 @@ public sealed class MachineTests
     {
         var start = Start();
         start.State.PlaceResource(ResourceTypes.Coal, new(1, 1));
-        Assert.Throws<ArgumentException>(() => Pick(start, "operate:press"));
+        Assert.Throws<ArgumentException>(() => Pick(start, "ability:operate:press"));
         Assert.Equal(3, Machine(start.State).StoredQuantity("coal"));
         Assert.Equal(ResourceTypes.Coal, Assert.Single(start.State.Resources).Type);
         start = Start(Fixture(2) with { Resources = [new(ResourceTypes.Coal, new(1, 1))] });
         start.State.Physical.Board.Machines[0] = Press("press", new(2, 1), 3);
-        Assert.Throws<ArgumentException>(() => Pick(start, "give-resource-machine:press"));
+        Assert.Throws<ArgumentException>(() => Pick(start, "ability:give-resource:machine:press"));
         Assert.Single(start.State.Resources);
         Assert.Equal(3, Machine(start.State).StoredQuantity("coal"));
     }
@@ -258,26 +258,26 @@ public sealed class MachineTests
     {
         var type = UnitRoster.Geomancer();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.PickupResource | UnitAction.SummonWorker | UnitAction.SummonTroll, type.Actions);
+        Assert.Equal(UnitAction.None, type.Actions);
+        Assert.All(new[] { UnitAction.PickupResource, UnitAction.SummonWorker, UnitAction.SummonTroll }, action => Assert.True(type.HasAction(action)));
         Assert.Equal(UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker, type.Behaviors);
-        Assert.Null(type.SummonAdjacent);
+        Assert.Null(type.Mechanic<SummonAdjacent>());
         var fixture = Fixture();
-        fixture = fixture with { UnitTypes = [fixture.UnitTypes![0] with { TransportResource = null }],
+        fixture = fixture with { UnitTypes = [fixture.UnitTypes![0] .Without<TransportResource>()],
             Machines = [fixture.Machines![0] with { OwnerSide = owner }, fixture.Machines[1]],
             Units = [fixture.Units[0], fixture.Units[1] with { SideId = collectorSide }, fixture.Units[2]],
             Agency = [fixture.Agency[0], fixture.Agency[1] with { SideId = collectorSide }, fixture.Agency[2]] };
-        var result = Pick(Start(fixture), "operate:press");
+        var result = Pick(Start(fixture), "ability:operate:press");
         // Finish the first round. The operator can vacate its output Cell on its next Move.
         while (!result.State.RoundComplete) result = Pick(result,
             result.NextInput!.Candidates.Any(c => c.Key == "stay") ? "stay" : "end-turn");
         result = GameEngine.StartRound(result.State, new Dice(), false);
         result = Pick(result, "0,1");
         result = Pick(result, "1,1");
-        result = Pick(result, "pickup-resource");
+        result = Pick(result, "ability:pickup-resource");
         Assert.Empty(result.State.Resources);
         Assert.Equal(1, result.State.StoredQuantity(collectorSide, UnitTypeIds.Geomancer, "diamond"));
         Assert.Equal(owner, Machine(result.State).OwnerSide);
         Assert.Equal(0, Machine(result.State).StoredQuantity("coal"));
     }
 }
-

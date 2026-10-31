@@ -73,7 +73,7 @@ public sealed class FootprintTests
     [InlineData(TerrainKind.Tree)] [InlineData(TerrainKind.Water)] [InlineData(TerrainKind.StoneFloorWithTable)]
     public void NonAnchorTerrainRejectsPlacementEvenWithPhase(TerrainKind terrain)
     {
-        var state = World(Large() with { Phase = new() });
+        var state = World(Large().WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase())));
         state.Physical.Board.Terrain.Add(new(new(2, 2), terrain));
         Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Dice()));
         Assert.False(SpatialRules.CanPlaceUnit(state, Footprint.TwoByTwo, new(1, 1), "actor"));
@@ -172,7 +172,7 @@ public sealed class FootprintTests
     [Fact]
     public void PhaseTraversesWholeFootprintButStopsOnlyOnNormalLegalPlacements()
     {
-        var state = World(Large() with { Phase = new() }, new(0, 0), 8, 2);
+        var state = World(Large().WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase())), new(0, 0), 8, 2);
         state.Physical.Board.Terrain.Add(new(new(2, 1), TerrainKind.Tree));
         state.Physical.Board.Edges.Add(new(new(3, 0), new(4, 0), EdgeKind.Wall));
         var paths = MovementRules.FindPaths(state, "actor", new(0, 0));
@@ -204,19 +204,20 @@ public sealed class FootprintTests
     [Fact]
     public void RangeAndLosCannotBeCombinedAcrossDifferentCellPairsIncludingFireballCast()
     {
-        var state = World(Large() with { Rng = 2, Actions = UnitAction.NormalAttack | UnitAction.Telekinesis | UnitAction.Fireball,
-            Fireball = new() }, new(0, 0));
+        var state = World(Large() with { Rng = 2, LocalAbilities = [
+            new("telekinesis", "Telekinesis", AbilityTiming.Action, new Telekinesis()),
+            new("fireball", "Fireball", AbilityTiming.Action, new FireballMechanic()) { Usage = new(2) }] }, new(0, 0));
         Add(state, "target", new("small", 0, 0, 0, 0, 1), new(3, 0));
         state.Physical.Board.Edges.Add(new(new(1, 0), new(2, 0), EdgeKind.Wall));
         Assert.False(AttackRules.HasUnitLineOfSight(state, "actor", new(1, 0), new(3, 0)));
         Assert.True(AttackRules.HasUnitLineOfSight(state, "actor", new(1, 1), new(3, 0)));
         Assert.True(AttackRules.HasUnitLineOfSight(state, "actor", "target"));
         Assert.Equal(UnitTargetEvaluation.NotPossible, AttackRules.EvaluateFrom(state, "actor", new(0, 0), "target"));
-        Assert.DoesNotContain(Actions(state), c => c.Key is "attack:target" or "telekinesis:target" or "fireball:3,0");
+        Assert.DoesNotContain(Actions(state), c => c.Key is "attack:target" or "ability:telekinesis:target" or "ability:fireball:3,0");
         state.Types[0] = state.Types[0] with { Rng = 3 };
         Assert.Contains(Actions(state), c => c.Key == "attack:target");
-        Assert.Contains(Actions(state), c => c.Key == "telekinesis:target");
-        Assert.Contains(Actions(state), c => c.Key == "fireball:3,0");
+        Assert.Contains(Actions(state), c => c.Key == "ability:telekinesis:target");
+        Assert.Contains(Actions(state), c => c.Key == "ability:fireball:3,0");
     }
 
     [Fact]
@@ -268,13 +269,17 @@ public sealed class FootprintTests
     [Fact]
     public void FuryBackstabAndAuraCountUnitsOnceAndNeverSelf()
     {
-        var state = World(Large() with { Fury = new(), Backstab = new(), AdjacentFriendlyUnitsDefenceBonus = new(1) });
+        var state = World(Large() with { LocalAbilities = [
+            new("fury", "Fury", AbilityTiming.Passive, new Fury()),
+            new("backstab", "Backstab", AbilityTiming.Passive, new Backstab()),
+            new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)]))] });
         Add(state, "target", Large("target"), new(3, 1));
         Assert.False(SpatialRules.AreAdjacent(state, "actor", "actor"));
         Assert.True(SpatialRules.AreAdjacent(state, "actor", "target"));
         Assert.Equal(2, state.EffectiveAtkOf("actor")); // One large enemy does not meet threshold 2.
         Assert.Equal(1, state.EffectiveDefOf("actor")); // No self-Aura.
-        Add(state, "support", Large("support") with { AdjacentFriendlyUnitsDefenceBonus = new(1) }, new(3, 3), "blue");
+        Add(state, "support", Large("support").WithLocal(new("aura", "Aura", AbilityTiming.Passive,
+            new AdjacentModifiersMechanic([new(Stat.Def, 1)]))), new(3, 3), "blue");
         Assert.Equal(2, state.EffectiveDefOf("actor"));
         Assert.Equal(3, state.EffectiveAtkAgainst("actor", "target"));
         Add(state, "second", new("small", 0, 0, 0, 0, 1), new(0, 2));
@@ -284,21 +289,24 @@ public sealed class FootprintTests
     [Fact]
     public void HealHolyWaveAndCleaveProduceOneTargetPerLargeUnit()
     {
-        var type = Large() with { Actions = UnitAction.Heal | UnitAction.HolyWave, Heal = new(), HolyWave = new(), Cleave = new() };
+        var type = Large() with { Actions = UnitAction.None, LocalAbilities = [
+            new("heal", "Heal", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
+            new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) },
+            new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) }] };
         var state = World(type);
         Add(state, "friend", Large("friend") with { Hp = 4, Unique = true }, new(3, 1), "blue");
         state.Units[1] = state.Units[1] with { CurrentHp = 1 };
         Add(state, "enemy", Large("enemy"), new(1, 3));
         Assert.Single(Actions(state).Where(c => c.TargetId == "friend"));
-        Assert.Equal(new[] { "enemy" }, Actions(state).Single(c => c.Key == "holy-wave").TargetIds.ToArray());
-        var healed = Act(state, "heal:friend");
+        Assert.Equal(new[] { "enemy" }, Actions(state).Single(c => c.Key == "ability:holy-wave").TargetIds.ToArray());
+        var healed = Act(state, "ability:heal:friend");
         Assert.Equal(3, healed.State.Units.Single(u => u.Id == "friend").CurrentHp);
         Assert.Single(TestGame.OperationEvents(healed).Where(e => e.Kind == "HealResolved"));
-        var waved = Act(state, "holy-wave");
+        var waved = Act(state, "ability:holy-wave");
         Assert.Single(TestGame.OperationEvents(waved).Where(e => e.Kind == "PostureChanged" && e.UnitId == "enemy"));
         Assert.Equal(4, FootprintGeometry.OccupiedCells(waved.State, "enemy").Count);
         state.CleavePending = true;
-        var cleaved = Act(state, "cleave:enemy");
+        var cleaved = Act(state, "ability:cleave:enemy");
         Assert.Single(TestGame.OperationEvents(cleaved).Where(e => e.Kind == "CleaveResolved"));
         Assert.DoesNotContain(cleaved.State.Physical.Figures, f => f.Id == "enemy");
     }
@@ -306,10 +314,12 @@ public sealed class FootprintTests
     [Fact]
     public void FireballIntersectionsSnapshotDefenceAndResolveDamageAndFollowupsOnce()
     {
-        var state = World(Large() with { Rng = 6, Atk = 2, Actions = UnitAction.Fireball, Fireball = new(),
-            Cleave = new(), MoveAfterAttack = new(1) }, new(0, 0));
+        var state = World(Large() with { Rng = 6, Atk = 2, Actions = UnitAction.None, LocalAbilities = [
+            new("fireball", "Fireball", AbilityTiming.Action, new FireballMechanic()) { Usage = new(2) },
+            new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) },
+            new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(1))] }, new(0, 0));
         Add(state, "target", Large("target") with { Hp = 8, Unique = true, Def = 3 }, new(2, 0));
-        var candidate = Actions(state).Single(c => c.Key == "fireball:3,0");
+        var candidate = Actions(state).Single(c => c.Key == "ability:fireball:3,0");
         Assert.Equal(new[] { "target" }, candidate.TargetIds.ToArray()); // Four intersecting Cells, one target.
         var dice = new Dice();
         var result = Act(state, candidate.Key, dice);
@@ -322,24 +332,25 @@ public sealed class FootprintTests
         Assert.Equal(1, result.State.MoveAfterAttackAllowance);
         Assert.True(result.State.CleavePending);
         Assert.Single(result.NextInput!.Candidates.Where(c => c.TargetId == "target"));
-        Assert.Equal(1, result.State.Units[0].FireballUses!.RemainingUses);
+        Assert.Equal(1, result.State.Units[0].Uses("fireball")!.RemainingUses);
     }
 
     [Fact]
     public void FireballUsesNonAnchorIntersectionAndGeometricExplosionLos()
     {
-        var state = World(Large() with { Rng = 6, Actions = UnitAction.Fireball, Fireball = new() }, new(6, 0));
+        var state = World(Large() with { Rng = 6, Actions = UnitAction.None, LocalAbilities = [
+            new("fireball", "Fireball", AbilityTiming.Action, new FireballMechanic()) { Usage = new(2) }] }, new(6, 0));
         Add(state, "target", Large("target"), new(4, 2));
-        Assert.Contains("target", Actions(state).Single(c => c.Key == "fireball:6,3").TargetIds);
+        Assert.Contains("target", Actions(state).Single(c => c.Key == "ability:fireball:6,3").TargetIds);
         state.Physical.Board.Edges.Add(new(new(5, 2), new(6, 2), EdgeKind.Wall));
         state.Physical.Board.Edges.Add(new(new(5, 3), new(6, 3), EdgeKind.Wall));
-        Assert.DoesNotContain("target", Actions(state).Single(c => c.Key == "fireball:6,3").TargetIds);
+        Assert.DoesNotContain("target", Actions(state).Single(c => c.Key == "ability:fireball:6,3").TargetIds);
     }
 
     [Fact]
     public void HypotheticalAttackPassivesUseRelocatedFootprintWithoutChangingWorld()
     {
-        var state = World(Large() with { Atk = 0, Fury = new() }, new(0, 0));
+        var state = World(Large() with { Atk = 0, LocalAbilities = [new("fury", "Fury", AbilityTiming.Passive, new Fury())] }, new(0, 0));
         Add(state, "target", new("small", 0, 0, 0, 0, 1), new(4, 1));
         Add(state, "other", new("small", 0, 0, 0, 0, 1), new(4, 2));
         Assert.Equal(0, state.EffectiveAtkOf("actor"));
@@ -373,8 +384,10 @@ public sealed class FootprintTests
     [Fact]
     public void DoorsAndSummonedLargeFootprintsUseAllCellsAndOneCandidatePerPlacement()
     {
-        var state = World(Large() with { FreeActions = UnitFreeAction.OpenDoor, TryOpenDoor = new(6),
-            Actions = UnitAction.SummonAdjacent, SummonAdjacent = new("spawn", Posture.Lying) });
+        var state = World(Large() with { Actions = UnitAction.None, LocalAbilities = [
+            new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()),
+            new("try-open-door", "Try Open Door", AbilityTiming.Action, new TryOpenDoor(6)),
+            new("summon-adjacent", "Summon Adjacent", AbilityTiming.Action, new SummonAdjacent("spawn", Posture.Lying))] });
         state.Types.Add(Large("spawn"));
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.ClosedDoor));
         var actions = Actions(state);
@@ -397,13 +410,14 @@ public sealed class FootprintTests
         Assert.Equal("Red Dragon", dragon.DisplayName);
         Assert.True(dragon.Unique);
         Assert.Equal(Footprint.TwoByTwo, dragon.Footprint);
-        Assert.Equal(UnitAction.NormalAttack | UnitAction.FireBreath | UnitAction.ClawAttack, dragon.Actions);
-        Assert.Equal(UnitFreeAction.None, dragon.FreeActions);
+        Assert.Equal(UnitAction.NormalAttack, dragon.Actions);
+        Assert.True(dragon.HasAction(UnitAction.FireBreath));
+        Assert.True(dragon.HasAction(UnitAction.ClawAttack));
+        Assert.DoesNotContain(dragon.LocalAbilities, a => a.Timing == AbilityTiming.FreeAction);
         Assert.Equal(UnitBehavior.None, dragon.Behaviors);
         Assert.Equal(3, dragon.CardEntries().Count);
-        Assert.Empty(dragon.BonusActions);
-        Assert.Empty(dragon.Passives);
-        Assert.Null(dragon.Phase); Assert.Null(dragon.Undying); Assert.Null(dragon.MoveAfterAttack);
+        Assert.DoesNotContain(dragon.LocalAbilities, a => a.Timing is AbilityTiming.BonusAction or AbilityTiming.Passive);
+        Assert.Null(dragon.Mechanic<Phase>()); Assert.Null(dragon.Mechanic<Undying>()); Assert.Null(dragon.Mechanic<MoveAfterAttack>());
         var state = World(dragon, new(0, 0));
         Add(state, "target", new("small", 0, 0, 0, 0, 1), new(6, 1));
         var dice = new Dice();
@@ -420,11 +434,13 @@ public sealed class FootprintTests
     [Fact]
     public void LargeAuraDefeatDoesNotChangeCapturedDefenceForLaterLargeTarget()
     {
-        var state = World(Large() with { Rng = 8, Actions = UnitAction.Fireball, Fireball = new() }, new(0, 0));
-        Add(state, "aura", Large("aura") with { Def = 0, AdjacentFriendlyUnitsDefenceBonus = new(2) }, new(3, 0));
+        var state = World(Large() with { Rng = 8, Actions = UnitAction.None, LocalAbilities = [
+            new("fireball", "Fireball", AbilityTiming.Action, new FireballMechanic()) { Usage = new(2) }] }, new(0, 0));
+        Add(state, "aura", Large("aura") with { Def = 0, LocalAbilities = [
+            new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2)]))] }, new(3, 0));
         Add(state, "recipient", Large("recipient") with { Hp = 8, Unique = true, Def = 1 }, new(5, 0));
         Assert.Equal(3, state.EffectiveDefOf("recipient"));
-        var result = Act(state, "fireball:4,1");
+        var result = Act(state, "ability:fireball:4,1");
         var attack = TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(2, attack.Targets.Length);
         Assert.Equal(3, attack.Targets.Single(t => t.TargetId == "recipient").DefenceDice);
@@ -446,7 +462,7 @@ public sealed class FootprintTests
         Assert.DoesNotContain(new Cell(4, 0), MovementRules.FindPaths(state, "actor", new(0, 0)).Keys);
         state.Physical.Board.Edges[1] = state.Physical.Board.Edges[1] with { Kind = EdgeKind.Wall };
         Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("actor", new(0, 0), true));
-        state.Types[0] = state.Types[0] with { Phase = new() };
+        state.Types[0] = state.Types[0].WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
         Assert.NotNull(new GameplayQueries(state).DistanceToAttackPositionFrom("actor", new(0, 0)));
         Assert.Contains(new Cell(4, 0), MovementRules.FindPaths(state, "actor", new(0, 0)).Keys);
         Assert.DoesNotContain(new Cell(2, 0), MovementRules.FindPaths(state, "actor", new(0, 0)).Keys);
@@ -455,7 +471,8 @@ public sealed class FootprintTests
     [Fact]
     public void DefaultDoorOrderingUsesOppositeCellOfNonAnchorBorders()
     {
-        var state = World(Large() with { Actions = UnitAction.None, TryOpenDoor = new(6) });
+        var state = World(Large() with { Actions = UnitAction.None, LocalAbilities = [
+            new("try-open-door", "Try Open Door", AbilityTiming.Action, new TryOpenDoor(6))] });
         state.Physical.Board.Edges.Add(new(new(1, 2), new(1, 3), EdgeKind.ClosedDoor));
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.ClosedDoor));
         var candidates = Actions(state);
@@ -498,12 +515,12 @@ public sealed class FootprintTests
         Add(state, "target", new("small", 0, 0, 0, 0, 1), new(3, 0));
         state.Round = 1; state.ActiveToken = new(state.Units[0].TypeId, state.Units.First(u => u.TypeId == state.Units[0].TypeId).SideId); state.CurrentUnitId = "actor";
         var beforeMove = GameEngine.RefreshChoices(state, new Dice(), false);
-        Assert.True(beforeMove.NextInput!.Candidates.Single(c => c.Key == "bonus-action:Dash").Relevant);
+        Assert.True(beforeMove.NextInput!.Candidates.Single(c => c.Key == "ability:dash").Relevant);
         state.MoveDone = true;
         var beforeAttack = GameEngine.RefreshChoices(state, new Dice(), false);
         Assert.DoesNotContain(beforeAttack.NextInput!.Candidates, c => c.Key == "attack:target");
-        Assert.True(beforeAttack.NextInput.Candidates.Single(c => c.Key == "bonus-action:Throwing Knife").Relevant);
-        var knife = TestGame.Advance(beforeAttack.State, new Choice("bonus-action:Throwing Knife"), new Dice(), false);
+        Assert.True(beforeAttack.NextInput.Candidates.Single(c => c.Key == "ability:throwing-knife").Relevant);
+        var knife = TestGame.Advance(beforeAttack.State, new Choice("ability:throwing-knife"), new Dice(), false);
         Assert.Contains(knife.NextInput!.Candidates, c => c.Key == "attack:target");
     }
 }

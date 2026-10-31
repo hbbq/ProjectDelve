@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
 
@@ -37,11 +37,12 @@ public sealed class DiamondKartTests
         var type = CanonicalUnitTypes.Find(UnitTypeIds.DiamondKart)!;
         Assert.Equal((5, 0, 0, 3, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.True(type.Unique);
-        Assert.Equal(UnitAction.ShootShell, type.Actions);
-        Assert.Equal(1, Assert.Single(type.BonusActions, a => a.PlaceBananaPeel is not null).PlaceBananaPeel!.BananaCost);
+        Assert.Equal(UnitAction.None, type.Actions);
+        Assert.True(type.HasAction(UnitAction.ShootShell));
+        Assert.Equal(1, type.Mechanic<PlaceBananaPeel>()!.BananaCost);
         Assert.Equal(TerrainCategories.RacingGround, Assert.Single(type.TerrainRestriction!.Categories));
-        Assert.Null(type.Undying);
-        Assert.Contains(type.CardEntries(), e => e.Id == "bonus:place-banana-peel" && e.Description.Contains("1 Banana"));
+        Assert.Null(type.Mechanic<Undying>());
+        Assert.Contains(type.CardEntries(), e => e.Id == "ability:place-banana-peel" && e.Description.Contains("1 Banana"));
         var result = Start(Fixture());
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Move && c.Destination == new Cell(2, 1));
         Assert.Contains(result.NextInput.Candidates, c => c.Destination == new Cell(3, 2));
@@ -70,19 +71,19 @@ public sealed class DiamondKartTests
         Assert.DoesNotContain(new Cell(1, 3), cells); // Unit
         Assert.DoesNotContain(new Cell(3, 3), cells); // Machine
         Assert.DoesNotContain(new Cell(1, 1), cells); // Marker
-        var invalid = Assert.Throws<ArgumentException>(() => Step(result, "place-banana-peel:3,3"));
+        var invalid = Assert.Throws<ArgumentException>(() => Step(result, "ability:place-banana-peel:3,3"));
         Assert.Equal(1, result.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, ResourceTypes.Banana.Id));
         Assert.Single(result.State.CellMarkers);
-        var human = Step(result, "place-banana-peel:2,1");
+        var human = Step(result, "ability:place-banana-peel:2,1");
         Assert.Equal(0, human.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, ResourceTypes.Banana.Id));
         Assert.Contains(human.State.CellMarkers, m => m.Position == new Cell(2, 1));
-        Assert.Contains(human.Events, e => e.Kind == "ResourceSpent" && e.ActionId == "place-banana-peel");
+        Assert.Contains(human.Events, e => e.Kind == "ResourceSpent" && e.ActionId == "ability:place-banana-peel");
         foreach (var step in human.ResolutionSteps.SkipWhile(s => human.Events[s.EventIndex].Kind == "ActionUsed"))
         {
             Assert.Equal(0, step.StateAfter.StoredQuantity("blue", UnitTypeIds.DiamondKart, ResourceTypes.Banana.Id));
             Assert.Contains(step.StateAfter.CellMarkers, m => m.Position == new Cell(2, 1));
         }
-        var onResource = Step(result, "place-banana-peel:3,1");
+        var onResource = Step(result, "ability:place-banana-peel:3,1");
         Assert.Contains(onResource.State.Resources, r => r.Position == new Cell(3, 1));
         var empty = Step(Start(Fixture(false)), "stay");
         Assert.DoesNotContain(empty.NextInput!.Candidates, c => c.Action == UnitAction.PlaceBananaPeel);
@@ -104,10 +105,10 @@ public sealed class DiamondKartTests
         var definition = Fixture() with { Orders = [new(UnitTypeIds.DiamondKart, "blue", OrderKind.FollowRoute,
             Route: new("test-route"))], Waypoints = [new("east", new(6, 0, 1, 5)), new("west", new(0, 0, 1, 5))], Routes = [new("test-route", ["east", "west"], RouteMode.Loop)] };
         var result = Step(Start(definition), "stay");
-        Assert.Equal("place-banana-peel:3,1", Choose(result)); // Grass blocks the direct west route; this target is farthest.
-        Assert.Contains(result.NextInput!.Candidates, c => c.Key == "place-banana-peel:2,1");
+        Assert.Equal("ability:place-banana-peel:3,1", Choose(result)); // Grass blocks the direct west route; this target is farthest.
+        Assert.Contains(result.NextInput!.Candidates, c => c.Key == "ability:place-banana-peel:2,1");
         var noRoute = Step(Start(Fixture()), "stay");
-        Assert.Equal("place-banana-peel:1,1", Choose(noRoute));
+        Assert.Equal("ability:place-banana-peel:1,1", Choose(noRoute));
         var idle = Step(Start(definition with { Orders = [new(UnitTypeIds.DiamondKart, "blue", OrderKind.DoNothing)] }), "stay");
         Assert.Equal("end-turn", Choose(idle));
     }
@@ -141,7 +142,7 @@ public sealed class DiamondKartTests
             Waypoints = [new("grass", new(2, 1, 1, 1))], Routes = [new("test-route", ["grass"])]
         };
         var result = Start(definition);
-        var displace = Assert.Single(result.NextInput!.Candidates, c => c.BonusAction?.Displace is not null && c.Destination == new Cell(2, 1));
+        var displace = Assert.Single(result.NextInput!.Candidates, c => c.Ability?.Definition.Mechanic is Displace && c.Destination == new Cell(2, 1));
         result = Step(result, displace.Key);
         Assert.Equal(new Cell(2, 1), result.State.Physical.Figures.Single(f => f.Id == "kart").Position);
         Assert.Single(result.State.Orders);
@@ -162,7 +163,7 @@ public sealed class DiamondKartTests
             StoredResources = [new("blue", type.Id, ResourceTypes.Banana, 2)]
         };
         var result = Step(Start(definition), "stay");
-        Assert.Equal("place-banana-peel:0,0", Choose(result)); // No Asphalt and no route: canonical Cell order.
+        Assert.Equal("ability:place-banana-peel:0,0", Choose(result)); // No Asphalt and no route: canonical Cell order.
         result = Step(result, Choose(result)!);
         Assert.Equal(0, result.State.StoredResources.Single().Quantity);
         Assert.Single(result.State.CellMarkers);

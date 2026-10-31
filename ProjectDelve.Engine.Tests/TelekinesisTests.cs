@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -36,8 +36,8 @@ public sealed class TelekinesisTests
     public void UnlimitedActionHasDomainCardAndNoUsageStateAcrossGamesRoundsOrSerialization()
     {
         var type = UnitType.Wizard();
-        var entry = Assert.Single(type.CardEntries(), e => e.Id == "telekinesis");
-        Assert.Equal(new CardEntryDescription("telekinesis", "Telekinesis", "Action",
+        var entry = Assert.Single(type.CardEntries(), e => e.Id == "ability:telekinesis");
+        Assert.Equal(new CardEntryDescription("ability:telekinesis", "Telekinesis", "Action",
             "Lay down an upright enemy within RNG and LOS."), entry);
         Assert.Null(entry.MaxUses);
         Assert.Null(entry.UseLimitText);
@@ -56,7 +56,7 @@ public sealed class TelekinesisTests
             state = Choose(result.State, "end-turn").State;
             Assert.True(state.RoundComplete);
             Assert.Equal(Posture.Upright, state.Physical.Figures[1].Posture);
-            Assert.Equal(new AbilityUses(2, 2), state.Units[0].FireballUses);
+            Assert.Equal(new AbilityUses(2, 2), state.Units[0].Uses("fireball"));
         }
     }
 
@@ -100,9 +100,9 @@ public sealed class TelekinesisTests
                 state.Physical.Figures.Add(new("blocker", new(2, 0)));
                 break;
         }
-        Assert.Throws<ArgumentException>(() => Choose(Restore(state), "telekinesis:enemy"));
+        Assert.Throws<ArgumentException>(() => Choose(Restore(state), "ability:telekinesis:enemy"));
         Assert.DoesNotContain(GameEngine.RefreshChoices(state, new NoDice(), false).NextInput!.Candidates,
-            c => c.Key == "telekinesis:enemy");
+            c => c.Key == "ability:telekinesis:enemy");
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class TelekinesisTests
         state.Types.Add(state.Types.Single(t => t.Id == "enemy-type") with { Id = "friend-type" });
         state.Units.Add(new("friend", "friend-type", "blue", 8));
         state.Physical.Figures.Add(new("friend", new(2, 0)));
-        Assert.Contains(Action(state).NextInput!.Candidates, c => c.Key == "telekinesis:enemy");
+        Assert.Contains(Action(state).NextInput!.Candidates, c => c.Key == "ability:telekinesis:enemy");
     }
 
     [Theory]
@@ -127,26 +127,29 @@ public sealed class TelekinesisTests
         var refreshed = GameEngine.RefreshChoices(Restore(action.State), new NoDice(), false);
         Assert.Equal(4 + modifier, refreshed.State.EffectiveRngOf("wizard"));
         Assert.Equal(legal, refreshed.NextInput!.Candidates.Any(c => c.Action == UnitAction.Telekinesis));
-        if (legal) Assert.Equal(Posture.Lying, Choose(refreshed.State, "telekinesis:enemy").State.Physical.Figures[1].Posture);
-        else Assert.Throws<ArgumentException>(() => Choose(refreshed.State, "telekinesis:enemy"));
+        if (legal) Assert.Equal(Posture.Lying, Choose(refreshed.State, "ability:telekinesis:enemy").State.Physical.Figures[1].Posture);
+        else Assert.Throws<ArgumentException>(() => Choose(refreshed.State, "ability:telekinesis:enemy"));
     }
 
     [Fact]
     public void LaysDownWithoutMovementDamageDiceAttackOrFollowUpsAndConsumesOnlyAction()
     {
-        var type = UnitType.Wizard() with { Atk = 0, Actions = UnitAction.Telekinesis, Cleave = new(), MoveAfterAttack = new(2) };
+        var type = UnitType.Wizard() with { Atk = 0, Actions = UnitAction.None,
+            LocalAbilities = [.. UnitType.Wizard().LocalAbilities,
+                new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) },
+                new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(2))] };
         var action = Action(Scenario(type));
-        var result = Choose(Restore(action.State), "telekinesis:enemy");
+        var result = Choose(Restore(action.State), "ability:telekinesis:enemy");
         var changed = Assert.Single(TestGame.OperationEvents(result));
-        Assert.Equal(new RulesEvent("PostureChanged", "enemy", Posture: Posture.Lying) { SourceUnitId = "wizard", ActionId = "telekinesis" }, changed);
+        Assert.Equal(new RulesEvent("PostureChanged", "enemy", Posture: Posture.Lying) { SourceUnitId = "wizard", ActionId = "ability:telekinesis" }, changed);
         Assert.True(result.State.ActionDone);
         Assert.False(result.State.CleavePending);
         Assert.Null(result.State.MoveAfterAttackAllowance);
         Assert.Equal(action.State.Units.Select(u => u.CurrentHp), result.State.Units.Select(u => u.CurrentHp));
-        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].CleaveUses);
-        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].FireballUses);
-        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].BonusActionUses["Focus"]);
-        Assert.Empty(result.State.BonusActionsUsedThisActivation);
+        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("cleave"));
+        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("fireball"));
+        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("focus"));
+        Assert.Empty(result.State.BonusActionUseCountsThisActivation.Keys);
         Assert.Equal(new Cell(4, 0), result.State.Physical.Figures[1].Position);
         Assert.Equal(Posture.Lying, result.State.Physical.Figures[1].Posture);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[0].Posture);
@@ -155,19 +158,19 @@ public sealed class TelekinesisTests
         Assert.True(step.ActionDone);
         Assert.Equal(Posture.Lying, Restore(step).Physical.Figures[1].Posture);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
-        Assert.Throws<ArgumentException>(() => Choose(result.State, "telekinesis:enemy"));
+        Assert.Throws<ArgumentException>(() => Choose(result.State, "ability:telekinesis:enemy"));
     }
 
     [Theory]
-    [InlineData("telekinesis:enemy")]
+    [InlineData("ability:telekinesis:enemy")]
     [InlineData("attack:enemy")]
-    [InlineData("fireball:4,0")]
+    [InlineData("ability:fireball:4,0")]
     public void CompetesWithNormalAttackAndFireballForSingleAction(string key)
     {
         var action = Action();
         Assert.Contains(action.NextInput!.Candidates, c => c.Key == "attack:enemy");
-        Assert.Contains(action.NextInput.Candidates, c => c.Key == "fireball:4,0");
-        Assert.Contains(action.NextInput.Candidates, c => c.Key == "telekinesis:enemy");
+        Assert.Contains(action.NextInput.Candidates, c => c.Key == "ability:fireball:4,0");
+        Assert.Contains(action.NextInput.Candidates, c => c.Key == "ability:telekinesis:enemy");
         // Attack choices need a deterministic dice provider; reuse the existing physical faces.
         var result = TestGame.Advance(action.State, new Choice(key), new Dice(), false);
         Assert.True(result.State.ActionDone);

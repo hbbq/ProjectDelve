@@ -97,14 +97,14 @@ public sealed class LootResolutionTests
     public void SimultaneousSwapCollectsActorFirstAfterBothArrivalHazards()
     {
         var actor = new UnitType("actor", 2, 1, 1, 0, 1) { CanHaveEquipment = true,
-            BonusActions = [new("Swap", null, []) { Swap = new() }] };
+            LocalAbilities = [new("swap", "Swap", AbilityTiming.BonusAction, new Swap())] };
         var state = State(actor, new UnitType("other", 2, 1, 1, 0, 1) { CanHaveEquipment = true });
         state.Physical.Figures[1] = new("b", new(2, 1));
         Deck(state, LootCardKind.Bedsheet, LootCardKind.LuckyBoots);
         state.LootMarkers = [new("left", new(1, 1)), new("right", new(2, 1))];
         state.CellMarkers = [new(CellMarkerTypes.BananaPeel, new(1, 1))];
         var ready = GameEngine.RefreshChoices(state, new Random(), false);
-        var result = Do(ready.State, ready.NextInput!.Candidates.Single(c => c.BonusAction?.Swap is not null).Key);
+        var result = Do(ready.State, ready.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Swap).Key);
         Assert.Equal(new[] { "a", "b" }, result.Events.Where(e => e.Kind == "LootCardDrawn").Select(e => e.UnitId));
         Assert.True(result.Events.FindIndex(e => e.Kind == "PostureChanged") < result.Events.FindIndex(e => e.Kind == "LootCardDrawn"));
         Assert.Equal(LootCardKind.Bedsheet, Assert.Single(result.State.Units[0].Inventory).Kind);
@@ -131,9 +131,9 @@ public sealed class LootResolutionTests
         var state = State(); state.MoveDone = true; state.ActionsUsedThisActivation = 1;
         state.Physical.Figures[1] = new("b", new(2, 1));
         state.Units[0] = state.Units[0] with { Inventory = [new("wind", LootCardKind.SecondWind), new("other-wind", LootCardKind.SecondWind)] };
-        var used = Do(state, "use-object:wind");
+        var used = Do(state, "item:wind:use");
         Assert.Equal(1, used.State.ActionsRemaining); Assert.Single(used.State.Units[0].Inventory);
-        Assert.DoesNotContain(used.NextInput!.Candidates, c => c.ObjectKind == LootCardKind.SecondWind);
+        Assert.DoesNotContain(used.NextInput!.Candidates, c => c.ItemTypeId == "second-wind");
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(used.State))!;
         Assert.Equal(1, restored.ActionsRemaining);
         var ended = Do(restored, "end-turn");
@@ -148,10 +148,10 @@ public sealed class LootResolutionTests
         state.Physical.Figures.Add(new("friend", new(2, 1), Posture.Lying));
         state.Controllers.Add(new(new(state.Types[1].Id, "blue"), ControllerKind.Human));
         state.Units[0] = state.Units[0] with { Inventory = [new("bell", LootCardKind.GoatBell), new("wind", LootCardKind.SecondWind)] };
-        var result = Do(state, "goat-bell:friend");
+        var result = Do(state, "equipment:bell:stand-up:friend");
         Assert.True(result.State.IsUpright("friend")); Assert.Equal(1, result.State.ActionsUsedThisActivation);
         Assert.Equal(2, result.State.Units[0].Inventory.Length);
-        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.ObjectKind == LootCardKind.GoatBell);
+        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.EquipmentTypeId == "goat-bell");
     }
 
     [Theory]
@@ -160,7 +160,8 @@ public sealed class LootResolutionTests
     [InlineData(true, false, false)]
     public void ActualDefeatDropsOnlyWithUnreservedSupply(bool undying, bool reserved, bool drops)
     {
-        var victim = new UnitType("other", 2, 1, 1, 0, 1) { Undying = undying ? new() : null, LootDropSuccesses = 6, CanHaveEquipment = true };
+        var victim = new UnitType("other", 2, 1, 1, 0, 1) { LocalAbilities = undying
+            ? [new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying())] : [], LootDropSuccesses = 6, CanHaveEquipment = true };
         var state = State(other: victim); state.MoveDone = true;
         state.Physical.Figures[1] = new("b", new(2, 1));
         state.Units[1] = state.Units[1] with { Inventory = [new("victim-key", LootCardKind.OfficialKey)] };
@@ -188,7 +189,7 @@ public sealed class LootResolutionTests
     public void ExplosionDefeatChainReservesFiniteSupplyAndDoesNotCollectDrops()
     {
         var actor = new UnitType("actor", 2, 1, 2, 0, 1) { LootDropSuccesses = 6, CanHaveItems = true };
-        var bomb = new UnitType("other", 2, 1, 1, 0, 1) { Explosion = new() { Damage = 1 }, LootDropSuccesses = 6 };
+        var bomb = new UnitType("other", 2, 1, 1, 0, 1) { LocalAbilities = [new("explosion", "Explosion", AbilityTiming.WhenDefeated, new Explosion { Damage = 1 })], LootDropSuccesses = 6 };
         var state = State(actor, bomb); state.MoveDone = true;
         state.Physical.Figures[1] = new("b", new(2, 1));
         state.Types.Add(new("third", 2, 1, 1, 0, 1) { LootDropSuccesses = 6 });

@@ -195,7 +195,7 @@ function state(hp = 4, actorX = 0) {
       { id: "b", position: { x: 5, y: 0 }, posture: "Upright" }
     ] },
     units: ["actor", "a", "b"].map(id => ({ id, typeId: "opaque-type", sideId: "same", currentHp: id === "actor" ? hp : 4,
-      holyWaveUses: { maxUses: 2, remainingUses: 0 }, healUses: { maxUses: 2, remainingUses: 0 }, cleaveUses: { maxUses: 2, remainingUses: 0 } })),
+      abilityUseCounts: { "unit:wave": 2, "unit:heal": 2, "unit:cleave": 2 } })),
     types: [{ id: "opaque-type", displayName: "A printed name", mov: 3, rng: 1, atk: 3, def: 2, hp: 4 }],
     effectiveAtk: { actor: 17 }, effectiveDef: { actor: 9 }
   };
@@ -665,8 +665,10 @@ test("all card wording, categories, counters and effective stats are supplied", 
   entries[3].uses = null; entries[3].content.maxUses = null; entries[3].content.useLimitText = null;
   const initial = response([], entries);
   // Raw engine content should not influence names, descriptions or ability counter lookup.
-  initial.result.state.types[0].passives = [{ name: "Wrong name", displayText: "Wrong wording" }];
-  initial.result.state.types[0].bonusActions = [{ name: "Wrong name", modifiers: [{ amount: 999, stat: "Atk" }] }];
+  initial.result.state.types[0].localAbilities = [{
+    key: "wrong", name: "Wrong name", timing: "BonusAction", descriptionOverride: "Wrong wording",
+    usage: { maxUses: 999 }, mechanic: { kind: "selfModifiers", modifiers: [{ amount: 999, stat: "Atk" }] }
+  }];
   const h = harness(initial);
   const content = h.elements.get("unit-card").textContent;
   assert.match(content, /A printed name/);
@@ -1441,7 +1443,7 @@ for (const mode of ["animate", "disabled", "skip"]) {
     const created = { a: { x: 3, y: 0 }, b: { x: 4, y: 0 }, kind: "Wall" };
     initial.result.state.physical.board.edges = [replaced, removed];
     final.result.state.physical.board.edges = [{ ...replaced, kind: "Wall" }, created];
-    final.result.events = [{ kind: "AbilityUsed", unitId: "actor", abilityName: "Reshape Room" }];
+    final.result.events = [{ kind: "ActionUsed", unitId: "actor", abilityName: "Reshape Room", actionId: "ability:reshape-room", category: "BonusAction" }];
     final.presentation.events = [{ role: "Notice", text: "actor used Reshape Room", unitId: "actor" }];
     final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: final.result.state }];
     final.presentation.resolutionSteps = [{ eventIndex: 0, cards: final.presentation.cards }];

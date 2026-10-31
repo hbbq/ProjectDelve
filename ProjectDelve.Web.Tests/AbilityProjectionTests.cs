@@ -8,11 +8,11 @@ namespace ProjectDelve.Web.Tests;
 public sealed class AbilityProjectionTests
 {
     [Theory]
-    [InlineData("cleric-type", "attack,heal,holy-wave,open-door,passive:Aura")]
-    [InlineData("wizard-type", "attack,fireball,telekinesis,open-door,bonus:Focus")]
-    [InlineData("barbarian-type", "attack,open-door,bonus:Rage,passive:Fury,cleave")]
-    [InlineData("rogue-type", "attack,open-door,bonus:Dash,bonus:Throwing Knife,passive:Backstab")]
-    public void CanonicalGrantsKeepPrintedEntryOrderAndAppearOnceInGambitTypes(string typeId, string ids)
+    [InlineData("cleric-type")]
+    [InlineData("wizard-type")]
+    [InlineData("barbarian-type")]
+    [InlineData("rogue-type")]
+    public void CanonicalAbilitiesKeepAuthoredOrderAndAppearOnceInGambitTypes(string typeId)
     {
         var type = UnitContent.Find(typeId)!;
         var state = new GameState
@@ -20,10 +20,11 @@ public sealed class AbilityProjectionTests
             Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "blue")]
         };
-        var expected = ids.Split(',');
         var entries = BrowserProjection.Cards(state)["actor"].Entries;
-        Assert.Equal(expected, entries.Select(entry => entry.Content.Id));
-        Assert.Equal(expected.Length, entries.Select(entry => entry.Content.Id).Distinct().Count());
+        var expected = entries.Select(entry => entry.Content.Id).ToArray();
+        Assert.Equal(type.LocalAbilities.Select(ability => "ability:" + Uri.EscapeDataString(ability.Key)),
+            expected.Where(id => id.StartsWith("ability:", StringComparison.Ordinal)));
+        Assert.Equal(expected.Length, expected.Distinct().Count());
         var observation = GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>());
         Assert.Equal(expected, Assert.Single(observation.Types).Abilities.Select(ability => ability.Id));
         Assert.DoesNotContain(Assert.Single(observation.Units).Abilities ?? [], ability => ability.Source == "Native");
@@ -32,54 +33,48 @@ public sealed class AbilityProjectionTests
     }
 
     [Fact]
-    public void NativeAndEquipmentDescriptionsUseTheSuppliedCatalogWithoutDuplicateGrantText()
+    public void NativeAndEquipmentDescriptionsUseTheirOwnedParametersWithoutDuplicateText()
     {
-        var type = LegacyReferenceCleric();
+        var type = new UnitType("mender", 1, 1, 0, 1, 1)
+        { LocalAbilities = [new("restore", "Mending Verse", AbilityTiming.Action, new HealMechanic(4))] };
         var state = new GameState
         {
             Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "blue")]
         };
-        var index = state.AbilityDefinitions.FindIndex(ability => ability.Id == "heal");
-        state.AbilityDefinitions[index] = state.AbilityDefinitions[index] with
-        { Name = "Mending Verse", Mechanic = new HealMechanic(4) };
-        state.AbilityDefinitions.Add(new("portable-remedy", "Lantern Remedy", AbilityTiming.Action, new HealMechanic(7)));
         var equipment = new EquipmentDefinition("restoring-lantern", "Restoring Lantern")
-        { Grants = [new("restore", "portable-remedy")] };
+        { LocalAbilities = [new("restore", "Lantern Remedy", AbilityTiming.Action, new HealMechanic(7))] };
         state.EquipmentTypes.Add(equipment);
         state.Units[0] = state.Units[0] with { Inventory = [new("lantern-one", equipment.Id)] };
 
         var entries = BrowserProjection.Cards(state)["actor"].Entries;
-        var native = Assert.Single(entries, entry => entry.Content.Id == "heal");
+        var native = Assert.Single(entries, entry => entry.Content.Id == "ability:restore");
         Assert.Equal("Mending Verse", native.Content.Name);
         Assert.Equal("Heal an adjacent damaged friendly Unit for 4 HP.", native.Content.Description);
         var acquired = Assert.Single(entries, entry => entry.Source == "Equipment");
         Assert.Equal("Lantern Remedy", acquired.Content.Name);
         Assert.Equal("Action: Heal an adjacent damaged friendly Unit for 7 HP.",
             Assert.Single(BrowserProjection.Cards(state)["actor"].Inventory).Text);
-        Assert.Equal(acquired.Content, Assert.Single(equipment.CardEntries(state.AbilityDefinitions)));
+        Assert.Equal(acquired.Content, Assert.Single(equipment.CardEntries()));
         var observation = GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>());
         Assert.Contains(Assert.Single(observation.Types).Abilities,
-            ability => ability.Id == "heal" && ability.Name == "Mending Verse" && ability.Description.Contains("4 HP"));
+            ability => ability.Id == "ability:restore" && ability.Name == "Mending Verse" && ability.Description.Contains("4 HP"));
         Assert.Contains(Assert.Single(observation.Units).Abilities!, ability => ability.Content.Name == "Lantern Remedy");
-        Assert.Equal("Heal", AbilityCatalog.All.Single(ability => ability.Id == "heal").Name);
-        Assert.Throws<ArgumentException>(() => type.CardEntries(state.Types, []));
-        Assert.Throws<ArgumentException>(() => equipment.CardEntries([]));
+        Assert.Equal("Heal", UnitType.Cleric().LocalAbilities.Single(ability => ability.Mechanic is HealMechanic).Name);
     }
 
     [Fact]
-    public void HiddenNativeGrantsDoNotRevealTheirResolvedDefinitions()
+    public void HiddenNativeAbilitiesDoNotRevealTheirOwnedDefinitions()
     {
         var visible = UnitType.Grunt();
-        var hidden = LegacyReferenceCleric();
+        var hidden = new UnitType("hidden-mender", 1, 1, 0, 1, 1)
+        { LocalAbilities = [new("restore", "Secret Mending Verse", AbilityTiming.Action, new HealMechanic(4))] };
         var state = new GameState
         {
             Physical = new(new Board(20, 3, []), [new("observer", new(0, 0)), new("hidden", new(19, 0))]),
             Types = [visible, hidden], Units = [visible.CreateUnit("observer", "blue"), hidden.CreateUnit("hidden", "red")],
             FogOfWarSides = ["blue"]
         };
-        var index = state.AbilityDefinitions.FindIndex(ability => ability.Id == "heal");
-        state.AbilityDefinitions[index] = state.AbilityDefinitions[index] with { Name = "Secret Mending Verse" };
         Assert.Contains(state.AbilitiesOf("hidden"), ability => ability.Definition.Name == "Secret Mending Verse");
         FogOfWar.Refresh(state);
         var observed = FogOfWar.Observe(state, "blue");
@@ -89,24 +84,12 @@ public sealed class AbilityProjectionTests
             GambitProjection.Observation(state, "blue", new Dictionary<ActivationToken, string>())));
     }
 
-    // Retain the historical reference representation to exercise supplied-catalog
-    // resolution independently of the canonical Cleric's owned declarations.
-    private static UnitType LegacyReferenceCleric() => UnitType.Cleric() with
-    {
-        LocalAbilities = [],
-        AbilityGrants =
-        [
-            new("heal", "heal") { Compatibility = new(LegacyAbilityKind.Heal) },
-            new("holy-wave", "holy-wave") { Compatibility = new(LegacyAbilityKind.HolyWave) },
-            new("aura", "aura") { Compatibility = new(LegacyAbilityKind.Aura, Key: "Aura") }
-        ]
-    };
-
     private static GameState State(bool fog = false)
     {
         var type = new UnitType("wave-bearer", 3, 1, 1, 0, 2)
         {
-            Actions = UnitAction.HolyWave, HolyWave = new(2),
+            Actions = UnitAction.None, Unique = true,
+            LocalAbilities = [new("wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) }],
             CanHaveItems = true, CanHaveEquipment = true
         };
         var state = new GameState
@@ -116,13 +99,12 @@ public sealed class AbilityProjectionTests
             Controllers = [new(new(type.Id, "blue"), ControllerKind.Human), new(new(type.Id, "red"), ControllerKind.Automated)],
             FogOfWarSides = fog ? ["blue"] : []
         };
-        state.AbilityDefinitions.AddRange([
-            new("dusk-call", "Gathering Dusk", AbilityTiming.Action, new HolyWaveMechanic()),
-            new("unfold", "Fold the Horizon", AbilityTiming.Action, new HolyWaveMechanic()),
-            new("blue-ember", "Blue Ember", AbilityTiming.Action, new FireballMechanic())]);
-        state.EquipmentTypes.Add(new("sunken-chime", "Sunken Chime") { Grants = [new("ring", "dusk-call")] });
-        state.ItemTypes.Add(new("paper-horizon", "Paper Horizon") { Grants = [new("read", "unfold")] });
-        state.ItemTypes.Add(new("blue-seed", "Blue Seed") { Grants = [new("plant", "blue-ember")] });
+        state.EquipmentTypes.Add(new("sunken-chime", "Sunken Chime")
+        { LocalAbilities = [new("ring", "Gathering Dusk", AbilityTiming.Action, new HolyWaveMechanic())] });
+        state.ItemTypes.Add(new("paper-horizon", "Paper Horizon")
+        { LocalAbilities = [new("read", "Fold the Horizon", AbilityTiming.Action, new HolyWaveMechanic())] });
+        state.ItemTypes.Add(new("blue-seed", "Blue Seed")
+        { LocalAbilities = [new("plant", "Blue Ember", AbilityTiming.Action, new FireballMechanic())] });
         state.Units[0] = state.Units[0] with
         {
             Inventory = [new("chime-physical", "sunken-chime"),
@@ -137,7 +119,7 @@ public sealed class AbilityProjectionTests
     {
         var state = State();
         var entries = BrowserProjection.Cards(state)["a"].Entries;
-        var native = Assert.Single(entries.Where(e => e.Content.Id == "holy-wave"));
+        var native = Assert.Single(entries.Where(e => e.Content.Id == "ability:wave"));
         Assert.Equal("Holy Wave", native.Content.Name);
         Assert.Equal(new AbilityUses(2, 2), native.Uses);
         var equipment = Assert.Single(entries.Where(e => e.Source == "Equipment"));
@@ -160,7 +142,7 @@ public sealed class AbilityProjectionTests
 
         var grants = state.AbilitiesOf("a").ToArray();
         var candidates = grants.Select(g => new Candidate(g.CandidatePrefix, Action: UnitAction.HolyWave, Kind: ActivationChoiceKind.Action)
-            { GrantedAbility = g, ObjectId = g.SourceKind == AbilitySourceKind.Unit ? null : g.SourceInstanceId }).ToList();
+            { Ability = g, ObjectId = g.SourceKind == AbilitySourceKind.Unit ? null : g.SourceInstanceId }).ToList();
         var request = new DecisionRequest(DecisionKind.Activation, "wave-bearer", "a", candidates, false);
         var choices = BrowserProjection.Decision(request, state)!.Candidates;
         Assert.Equal(2, choices.Count(c => c.AccountingId == item.AccountingId));
@@ -180,7 +162,7 @@ public sealed class AbilityProjectionTests
         state.Units[0] = state.Units[0] with { Inventory = [new("seed") { ItemTypeId = "blue-seed" }] };
         var grant = state.AbilitiesOf("a").Single(g => g.SourceKind == AbilitySourceKind.Item);
         var candidate = new Candidate(grant.CandidatePrefix + ":1,0", Destination: new(1, 0), Action: UnitAction.Fireball, Kind: ActivationChoiceKind.Action)
-            { GrantedAbility = grant, ObjectId = grant.SourceInstanceId };
+            { Ability = grant, ObjectId = grant.SourceInstanceId };
         var request = new DecisionRequest(DecisionKind.Activation, "wave-bearer", "a", [candidate], false);
         var choice = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
         Assert.Equal("Blue Ember (Action) → (1,0)", choice.Label);

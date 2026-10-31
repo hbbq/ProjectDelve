@@ -29,7 +29,8 @@ public sealed class ContinuationTests
     private static GameState AttackState(int defence = 1, ControllerKind attacker = ControllerKind.Human,
         ControllerKind defender = ControllerKind.Automated)
     {
-        var type = UnitType.Barbarian() with { Atk = 2, Fury = null, AbilityGrants = [], BonusActions = [] };
+        var type = UnitType.Barbarian() with { Atk = 2,
+            LocalAbilities = [.. UnitType.Barbarian().LocalAbilities.Where(a => a.Mechanic is not Fury && a.Timing != AbilityTiming.BonusAction)] };
         var target = new UnitType("ordinary", 1, 1, 1, defence, 1);
         var state = new GameState
         {
@@ -123,13 +124,13 @@ public sealed class ContinuationTests
         Assert.Single(roll.Events, e => e.Kind == "DiceRolled");
         Assert.Equal(DecisionKind.Cleave, roll.NextInput!.Kind);
         Assert.Null(roll.State.AttackInProgress);
-        Assert.Equal(2, roll.State.Units[0].CleaveUses!.RemainingUses);
+        Assert.Equal(2, roll.State.Units[0].Uses("cleave")!.RemainingUses);
     }
 
     [Fact]
     public void MultiTargetAttackFinishesReplacementAndDefeatBeforeAfterFollowUp()
     {
-        var caster = UnitType.Wizard() with { Atk = 2, Cleave = new() };
+        var caster = (UnitType.Wizard() with { Atk = 2 }).WithLocal(new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) });
         var troll = UnitType.Troll();
         var ordinary = UnitType.Grunt() with { Def = 1 };
         var state = new GameState
@@ -145,7 +146,7 @@ public sealed class ContinuationTests
             state.Controllers.Add(new(token, ControllerKind.Human));
         var dice = new Dice();
         state = GameEngine.RefreshChoices(state, dice, false).State;
-        var commit = Submit(state, "fireball:2,1", dice, false);
+        var commit = Submit(state, "ability:fireball:2,1", dice, false);
         Assert.Equal(new[] { "troll", "last" }, commit.State.AttackInProgress!.Targets.Select(t => t.TargetId));
         var attackRoll = Submit(Restore(commit.State), "roll-dice", dice, false);
         var first = Submit(Restore(attackRoll.State), "roll-dice", dice, false);
@@ -182,7 +183,9 @@ public sealed class ContinuationTests
     public void FireballFinishesAfterCasterDefeatOrLyingWithFixedTargetsDefenceAndSpentUse(bool undying)
     {
         var caster = UnitType.Wizard() with { Atk = 2, Def = 0, Hp = 1,
-            Undying = undying ? new() : null, AdjacentFriendlyUnitsDefenceBonus = new(1) };
+            LocalAbilities = [.. UnitType.Wizard().LocalAbilities,
+                new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)])),
+                .. undying ? new LocalAbilityDefinition[] { new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()) } : []] };
         var a = new UnitType("a-type", 1, 1, 1, 1, 1);
         var b = a with { Id = "b-type" };
         var state = new GameState
@@ -196,13 +199,13 @@ public sealed class ContinuationTests
         Assign(state, state.Units[2], ControllerKind.Human);
         var dice = new Dice();
         state = GameEngine.RefreshChoices(state, dice, false).State;
-        var commit = Submit(state, "fireball:1,1", dice, false);
+        var commit = Submit(state, "ability:fireball:1,1", dice, false);
         var context = commit.State.AttackInProgress!;
         Assert.Equal(new[] { "caster", "a", "b" }, context.Targets.Select(t => t.TargetId));
         Assert.Equal(new[] { 0, 2, 2 }, context.Targets.Select(t => t.DefenceDice));
         Assert.Equal(new Cell(1, 1), context.SelectedCell);
-        Assert.Equal(1, commit.State.Units[0].FireballUses!.RemainingUses);
-        Assert.All(commit.ResolutionSteps, s => Assert.Equal(1, s.StateAfter.Units[0].FireballUses!.RemainingUses));
+        Assert.Equal(1, commit.State.Units[0].Uses("fireball")!.RemainingUses);
+        Assert.All(commit.ResolutionSteps, s => Assert.Equal(1, s.StateAfter.Units[0].Uses("fireball")!.RemainingUses));
         var attackRoll = Submit(Restore(commit.State), "roll-dice", dice, false);
         Assert.Equal("a", attackRoll.NextInput!.UnitId);
         Assert.Equal(ControllerKind.Automated, attackRoll.State.ControllerFor(attackRoll.NextInput));
@@ -226,7 +229,7 @@ public sealed class ContinuationTests
         Assert.Equal(new[] { "caster", "a", "b" }, summary.Targets.Select(t => t.TargetId));
         Assert.All(summary.Targets, t => Assert.Equal(2, t.Damage));
         Assert.Equal(1, defenceB.State.Units.Single(u => u.Id == "new").CurrentHp);
-        Assert.Equal(1, defenceB.State.Units[0].FireballUses!.RemainingUses);
+        Assert.Equal(1, defenceB.State.Units[0].Uses("fireball")!.RemainingUses);
         Assert.Null(defenceB.State.MoveAfterAttackAllowance);
         Assert.Contains(defenceB.Events, e => e.Kind == "ActivationCompleted" && e.UnitId == "caster");
     }
@@ -259,7 +262,7 @@ public sealed class ContinuationTests
         Assert.Equal(1, dice.Checks);
         Assert.Equal(face.ToString(), result.Events[0].Dice!.Faces.Single());
         Assert.Equal(success ? 1 : 0, result.Events[0].Dice!.Successes);
-        Assert.Equal("try-open-door", result.Events[0].ActionId);
+        Assert.Equal("ability:break-door", result.Events[0].ActionId);
         Assert.Equal(success, result.Events.Single(e => e.Kind == "DoorOpeningAttemptResolved").Succeeded);
         Assert.Equal(success ? EdgeKind.OpenDoor : EdgeKind.ClosedDoor, result.State.Physical.Board.Edges[0].Kind);
         Assert.Equal(success ? 1 : 0, result.Events.Count(e => e.Kind == "DoorOpened"));
@@ -317,7 +320,7 @@ public sealed class ContinuationTests
         var dice = new Dice();
         var start = GameEngine.StartRound(state, dice, false);
         var action = Submit(start.State, "stay", dice, false);
-        var summon = Submit(action.State, "spawn-goblin:0,0", dice, false);
+        var summon = Submit(action.State, "ability:summon-goblin:0,0", dice, false);
         Assert.Equal(action.State.Bag, summon.ResolutionSteps.Single(s => summon.Events[s.EventIndex].Kind == "UnitCreated").StateAfter.Bag);
         Assert.DoesNotContain(new ActivationToken(goblin.Id, "gold"), summon.State.Bag);
         Assert.Equal(existing ? ControllerKind.Automated : ControllerKind.Human,
@@ -358,7 +361,7 @@ public sealed class ContinuationTests
             result = GameEngine.Advance(result.State, new DefaultAutomatedProvider(), dice, false);
         result = Submit(result.State, "stay", dice, false);
         var bag = result.State.Bag.ToArray();
-        var summon = Submit(result.State, "spawn-goblin:0,0", dice, false);
+        var summon = Submit(result.State, "ability:summon-goblin:0,0", dice, false);
         var created = summon.Events.Single(e => e.Kind == "UnitCreated");
         Assert.Equal(bag, summon.ResolutionSteps.Single(s => summon.Events[s.EventIndex].Kind == "UnitCreated").StateAfter.Bag);
         var occurrences = new List<RulesEvent>(summon.Events);

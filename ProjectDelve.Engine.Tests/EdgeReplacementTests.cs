@@ -67,7 +67,7 @@ public sealed class EdgeReplacementTests
     [InlineData(Posture.Lying, true)]
     public void LargeFigureInternalEdgesRemainPassableRegardlessOfPostureOrPhase(Posture posture, bool phase)
     {
-        var state = World(); var type = UnitRoster.RedDragon() with { Phase = phase ? new() : null };
+        var state = World(); var type = phase ? UnitRoster.RedDragon().WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase())) : UnitRoster.RedDragon();
         state.Types.Add(type); state.Units.Add(type.CreateUnit("large", "red"));
         state.Physical.Figures.Add(new("large", new(2, 2), posture));
         var old = new Edge(new(2, 2), new(3, 2), EdgeKind.OpenDoor);

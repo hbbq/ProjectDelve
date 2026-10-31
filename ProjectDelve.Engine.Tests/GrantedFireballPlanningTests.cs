@@ -24,19 +24,19 @@ public sealed class GrantedFireballPlanningTests
         {
             CanHaveEquipment = true,
             CanHaveItems = true,
-            AbilityGrants = source is "Limited" or "Unlimited" ? [new("cast", "sunburst")] : []
+            LocalAbilities = source is "Limited" or "Unlimited" or "Renamed" ? [
+                new(source == "Renamed" ? "fireball" : "cast", "Unexpected Light", AbilityTiming.Action, new FireballMechanic())
+                { Usage = new(source == "Unlimited" ? null : 1) }] : []
         };
-        if (source == "Legacy") bearer = bearer with { Actions = UnitAction.Fireball, Fireball = new(1) };
         return GameEngine.CreateGame(new ScenarioDefinition
         {
             Board = new() { Width = 9, Height = 1 },
             UnitTypeIds = ["bearer", "target"],
             UnitTypes = [bearer, new("target", 0, 0, 0, 0, 1, Actions: UnitAction.None)],
-            AbilityDefinitions = [new("sunburst", "Unexpected Light", AbilityTiming.Action, new FireballMechanic())
-                { Usage = new(source == "Limited" ? 1 : null) },
-                new("portable-light", "Portable Light", AbilityTiming.Action, new FireballMechanic())],
-            EquipmentTypes = [new("lantern", "Lantern") { Grants = [new("shine", "portable-light")] }],
-            ItemTypes = [new("spark", "Spark") { Grants = [new("ignite", "portable-light")] }],
+            EquipmentTypes = [new("lantern", "Lantern") { LocalAbilities = [
+                new("shine", "Portable Light", AbilityTiming.Action, new FireballMechanic())] }],
+            ItemTypes = [new("spark", "Spark") { LocalAbilities = [
+                new("ignite", "Portable Light", AbilityTiming.Action, new FireballMechanic())] }],
             Units = [new("bearer", "blue", new(0, 0), UnitId: "actor")
             {
                 Inventory = source switch
@@ -63,15 +63,15 @@ public sealed class GrantedFireballPlanningTests
         return GameEngine.RefreshChoices(state, new Dice(), false).State;
     }
 
-    private static Candidate Attack(GameState state, string? grantId = null, string? instanceId = null) =>
+    private static Candidate Attack(GameState state, string? key = null, string? instanceId = null) =>
         state.Pending!.Candidates.Single(c => c.Action == UnitAction.Fireball && c.Destination == new Cell(6, 0) &&
-            (grantId is null || c.GrantedAbility?.GrantId == grantId) &&
-            (instanceId is null || c.GrantedAbility?.SourceInstanceId == instanceId));
+            (key is null || c.Ability?.Key == key) &&
+            (instanceId is null || c.Ability?.SourceInstanceId == instanceId));
 
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Theory]
-    [InlineData("Legacy")]
+    [InlineData("Renamed")]
     [InlineData("Limited")]
     [InlineData("Unlimited")]
     [InlineData("Equipment")]
@@ -97,7 +97,7 @@ public sealed class GrantedFireballPlanningTests
     }
 
     [Theory]
-    [InlineData("Legacy")]
+    [InlineData("Renamed")]
     [InlineData("Limited")]
     public void SpentNativeUsesRemoveFireballFromPlanningAfterSave(string source)
     {
@@ -108,15 +108,16 @@ public sealed class GrantedFireballPlanningTests
         Assert.Null(new GameplayQueries(restored).DistanceToAttackPositionFrom("actor", new(4, 0)));
         var committed = Assert.Single(result.ResolutionSteps.Where(step => result.Events[step.EventIndex].Kind == "ActionUsed"));
         Assert.Equal(1, committed.StateAfter.ActionsUsedThisActivation);
-        if (source == "Legacy") Assert.Equal(0, restored.Units[0].FireballUses!.RemainingUses);
+        if (source == "Renamed") Assert.Equal(0, restored.Units[0].Uses("fireball", 1).RemainingUses);
         else Assert.Equal(1, restored.Units[0].AbilityUseCounts["unit:cast"]);
     }
 
     [Fact]
-    public void NativeGrantCountersRemainIndependentWhilePlanningFindsAnyAvailableSource()
+    public void NativeAbilityCountersRemainIndependentWhilePlanningFindsAnyAvailableSource()
     {
         var state = State("Limited");
-        state.Types[0] = state.Types[0] with { AbilityGrants = [new("first", "sunburst"), new("second", "sunburst")] };
+        var fireball = Assert.Single(state.Types[0].LocalAbilities);
+        state.Types[0] = state.Types[0] with { LocalAbilities = [fireball with { Key = "first" }, fireball with { Key = "second" }] };
         state.ExtraActionsThisActivation = 1;
         state = Ready(state);
         state = Restore(TestGame.Advance(state, new Choice(Attack(state, "first").Key), new Dice(), false).State);
@@ -125,7 +126,7 @@ public sealed class GrantedFireballPlanningTests
         Assert.True(new GameplayQueries(state).CanAttackHostileFrom("actor", new(4, 0)));
 
         state = GameEngine.RefreshChoices(state, new Dice(), false).State;
-        Assert.DoesNotContain(state.Pending!.Candidates, c => c.GrantedAbility?.GrantId == "first");
+        Assert.DoesNotContain(state.Pending!.Candidates, c => c.Ability?.Key == "first");
         state = TestGame.Advance(state, new Choice(Attack(state, "second").Key), new Dice(), false).State;
         Assert.Equal(1, state.Units[0].AbilityUseCounts["unit:second"]);
         Assert.False(new GameplayQueries(state).CanAttackHostileFrom("actor", new(4, 0)));
@@ -154,7 +155,7 @@ public sealed class GrantedFireballPlanningTests
     }
 
     [Theory]
-    [InlineData("Legacy", false)]
+    [InlineData("Renamed", false)]
     [InlineData("Limited", false)]
     [InlineData("Unlimited", true)]
     [InlineData("Equipment", true)]
@@ -168,8 +169,8 @@ public sealed class GrantedFireballPlanningTests
     public void OtherwiseTiedAttacksPreferUnlimitedEquipmentOverLimitedNativeFireball()
     {
         var state = State("Limited");
-        state.AbilityDefinitions.Add(new("endless-light", "Endless Light", AbilityTiming.Action, new FireballMechanic()));
-        state.EquipmentTypes[0] = state.EquipmentTypes[0] with { Grants = [new("shine", "endless-light")] };
+        state.EquipmentTypes[0] = state.EquipmentTypes[0] with { LocalAbilities = [
+            new("shine", "Endless Light", AbilityTiming.Action, new FireballMechanic())] };
         state.Units[0] = state.Units[0] with { Inventory = [new("lantern-copy", "lantern")] };
         state = Ready(state);
         var native = Attack(state, "cast");

@@ -26,7 +26,7 @@ public sealed class WorldEffectsTests
     }
     private static GameState State(params WorldEffect[] effects)
     {
-        var hero = UnitType.Barbarian() with { Fury = null };
+        var hero = UnitType.Barbarian().Without<Fury>();
         var grunt = UnitType.Grunt();
         var state = new GameState
         {
@@ -239,21 +239,21 @@ public sealed class WorldEffectsTests
     public void RenewalRestoresAllConcreteLimitedAbilitiesUpToMaximum()
     {
         var state = State(WorldEffect.Renewal, WorldEffect.Renewal);
-        state.Units[0] = state.Units[0] with { CleaveUses = new(2, 0), BonusActionUses = ImmutableDictionary<string, AbilityUses>.Empty.Add("Rage", new(2, 1)) };
+        state.Units[0] = state.Units[0] with { AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add("unit:cleave", 2).Add("unit:rage", 1) };
         state.Types.Add(UnitType.Cleric()); state.Types.Add(UnitType.Wizard()); state.Types.Add(UnitType.DisplacerDemon());
         state.PlaceUnit(UnitTypeIds.Cleric, "cleric", "red", new(0, 2));
         state.PlaceUnit(UnitTypeIds.Wizard, "wizard", "red", new(0, 4));
         state.PlaceUnit(UnitTypeIds.DisplacerDemon, "demon", "blue", new(5, 5));
-        state.Units[2] = state.Units[2] with { HealUses = new(2, 0), HolyWaveUses = new(2, 0) };
-        state.Units[3] = state.Units[3] with { FireballUses = new(2, 0) };
+        state.Units[2] = state.Units[2] with { AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add("unit:heal", 2).Add("unit:holy-wave", 2) };
+        state.Units[3] = state.Units[3] with { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("unit:fireball", 2) };
         TestGame.Author(state);
         var result = Start(state);
-        Assert.Equal(2, result.State.Units[0].CleaveUses!.RemainingUses);
-        Assert.Equal(2, result.State.Units[0].BonusActionUses["Rage"].RemainingUses);
-        Assert.Equal(2, result.State.Units[2].HealUses!.RemainingUses);
-        Assert.Equal(2, result.State.Units[2].HolyWaveUses!.RemainingUses);
-        Assert.Equal(2, result.State.Units[3].FireballUses!.RemainingUses);
-        Assert.Empty(result.State.Units[4].BonusActionUses);
+        Assert.Equal(2, result.State.Units[0].Uses("cleave")!.RemainingUses);
+        Assert.Equal(2, result.State.Units[0].Uses("rage").RemainingUses);
+        Assert.Equal(2, result.State.Units[2].Uses("heal")!.RemainingUses);
+        Assert.Equal(2, result.State.Units[2].Uses("holy-wave")!.RemainingUses);
+        Assert.Equal(2, result.State.Units[3].Uses("fireball")!.RemainingUses);
+        Assert.Empty(result.State.Units[4].AbilityUseCounts);
     }
 
     [Fact]
@@ -310,18 +310,18 @@ public sealed class WorldEffectsTests
     public void SurgeAllowsEachBonusTwiceButDoesNotBypassRemainingUses()
     {
         var started = Start(State(WorldEffect.Surge));
-        var first = TestGame.Advance(started.State, new Choice("bonus-action:Rage"), new Random(), false);
-        Assert.Equal(1, first.State.BonusActionUsesThisActivation("Rage"));
-        var second = TestGame.Advance(first.State, new Choice("bonus-action:Rage"), new Random(), false);
-        Assert.Equal(2, second.State.BonusActionUsesThisActivation("Rage"));
-        Assert.Equal(0, second.State.Units[0].BonusActionUses["Rage"].RemainingUses);
-        Assert.DoesNotContain(second.NextInput!.Candidates, c => c.BonusAction?.Name == "Rage");
+        var first = TestGame.Advance(started.State, new Choice("ability:rage"), new Random(), false);
+        Assert.Equal(1, first.State.BonusActionUsesThisActivation("unit:rage"));
+        var second = TestGame.Advance(first.State, new Choice("ability:rage"), new Random(), false);
+        Assert.Equal(2, second.State.BonusActionUsesThisActivation("unit:rage"));
+        Assert.Equal(0, second.State.Units[0].Uses("rage").RemainingUses);
+        Assert.DoesNotContain(second.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Rage");
         var persisted = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(second.State))!;
-        Assert.Equal(2, persisted.BonusActionUsesThisActivation("Rage"));
+        Assert.Equal(2, persisted.BonusActionUsesThisActivation("unit:rage"));
         var low = State(WorldEffect.Surge);
-        low.Units[0] = low.Units[0] with { BonusActionUses = low.Units[0].BonusActionUses.SetItem("Rage", new(2, 1)) };
-        var lowFirst = TestGame.Advance(Start(low).State, new Choice("bonus-action:Rage"), new Random(), false);
-        Assert.DoesNotContain(lowFirst.NextInput!.Candidates, c => c.BonusAction?.Name == "Rage");
+        low.Units[0] = low.Units[0] with { AbilityUseCounts = low.Units[0].AbilityUseCounts.SetItem("unit:rage", 1) };
+        var lowFirst = TestGame.Advance(Start(low).State, new Choice("ability:rage"), new Random(), false);
+        Assert.DoesNotContain(lowFirst.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Rage");
     }
 
     [Theory]
@@ -385,20 +385,19 @@ public sealed class WorldEffectsTests
     public void SurgeChangesTheLimitOfEveryUniqueUnlimitedBonusIndependently()
     {
         var state = State(WorldEffect.Surge);
-        state.Types[0] = state.Types[0] with { AbilityGrants = [], BonusActions = [
-            new("Stride", null, [new(Stat.Mov, 1)]), new("Strength", null, [new(Stat.Atk, 1)])] };
+        state.Types[0] = state.Types[0] with { LocalAbilities = [.. state.Types[0].LocalAbilities.Where(a => a.Timing != AbilityTiming.BonusAction),
+            new("stride", "Stride", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Mov, 1)])) { Usage = new(null) }, new("strength", "Strength", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Atk, 1)])) { Usage = new(null) }] };
         state.Units[0] = state.Types[0].CreateUnit("hero", "red");
         var result = Start(state);
         foreach (var name in new[] { "Stride", "Strength", "Stride", "Strength" })
-            result = TestGame.Advance(result.State, new Choice($"bonus-action:{name}"), new Random(), false);
-        Assert.Equal(2, result.State.BonusActionUsesThisActivation("Stride"));
-        Assert.Equal(2, result.State.BonusActionUsesThisActivation("Strength"));
-        Assert.Empty(result.State.Units[0].BonusActionUses);
+            result = TestGame.Advance(result.State, new Choice($"ability:{name.ToLowerInvariant()}"), new Random(), false);
+        Assert.Equal(2, result.State.BonusActionUsesThisActivation("unit:stride"));
+        Assert.Equal(2, result.State.BonusActionUsesThisActivation("unit:strength"));
+        Assert.Empty(result.State.Units[0].AbilityUseCounts);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.BonusAction);
         var stayed = TestGame.Advance(result.State, new Choice("stay"), new Random(), false);
         Assert.Contains(stayed.Events, e => e.Kind == "ActivationCompleted" && e.UnitId == "hero");
         Assert.Empty(stayed.State.BonusActionUseCountsThisActivation);
-        Assert.Empty(stayed.State.BonusActionsUsedThisActivation);
     }
 
     [Fact]
@@ -429,7 +428,8 @@ public sealed class WorldEffectsTests
     {
         var state = State(WorldEffect.Vulnerability, WorldEffect.Weakness);
         state.WorldEffects = new(2, 2);
-        state.Types[0] = state.Types[0] with { Def = 0, Atk = 0, Fury = new() };
+        state.Types[0] = (state.Types[0] with { Def = 0, Atk = 0 }).WithLocal(
+            new("fury", "Fury", AbilityTiming.Passive, new Fury()));
         state.Types.Add(UnitType.Cleric());
         state.PlaceUnit(UnitTypeIds.Cleric, "cleric", "red", new(0, 1));
         state.Physical.Figures[1] = new("grunt", new(1, 0));
@@ -438,7 +438,7 @@ public sealed class WorldEffectsTests
         var result = Start(state);
         Assert.Equal(0, result.State.EffectiveDefOf("hero")); // DEF 0 -1 +1 Aura
         Assert.Equal(0, result.State.EffectiveAtkOf("hero")); // ATK 0 -1 +1 Fury
-        var boosted = TestGame.Advance(result.State, new Choice("bonus-action:Rage"), new Random(), false);
+        var boosted = TestGame.Advance(result.State, new Choice("ability:rage"), new Random(), false);
         Assert.Equal(2, boosted.State.EffectiveAtkOf("hero"));
         Assert.Equal(0, result.State.EffectiveAtkOf("hero"));
     }

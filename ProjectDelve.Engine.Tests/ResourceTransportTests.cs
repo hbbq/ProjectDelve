@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -81,7 +81,7 @@ public sealed class ResourceTransportTests
         var world = World();
         world.PlaceResource(ResourceTypes.Coal, new(1, 1));
         Assert.Equal(world.Resources, Pick(Start(world), "stay").State.Resources);
-        world.Types[0] = world.Types[0] with { TransportResource = null };
+        world.Types[0] = world.Types[0] .Without<TransportResource>();
         Assert.Equal(world.Resources, Pick(Start(world), "4,1").State.Resources);
     }
 
@@ -90,7 +90,7 @@ public sealed class ResourceTransportTests
     [InlineData(true)]
     public void MoveAfterAttackTransportsAndZeroStepStayDoesNot(bool stay)
     {
-        var world = World(UnitRoster.Goblin() with { TransportResource = new() }, new(2, 1));
+        var world = World(UnitRoster.Goblin() .WithLocal(new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource())), new(2, 1));
         world.PlaceResource(ResourceTypes.Coal, new(1, 1));
         var extra = Pick(Pick(Start(world), "stay"), "attack:enemy");
         Assert.True(extra.NextInput!.IsMoveAfterAttack);
@@ -101,7 +101,7 @@ public sealed class ResourceTransportTests
     [Fact]
     public void MoveAfterAttackIntoResourceCellLeavesBothResourcesInPlace()
     {
-        var world = World(UnitRoster.Goblin() with { TransportResource = new() }, new(2, 1));
+        var world = World(UnitRoster.Goblin() .WithLocal(new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource())), new(2, 1));
         world.PlaceResource(ResourceTypes.Coal, new(1, 1));
         world.PlaceResource(new("test", "Test"), new(1, 2));
         var extra = Pick(Pick(Start(world), "stay"), "attack:enemy");
@@ -125,12 +125,12 @@ public sealed class ResourceTransportTests
     [InlineData(true)]
     public void ExternalDisplaceAndSwapNeverTransportEvenWhenBothUnitsHaveCapability(bool swap)
     {
-        var world = World(UnitRoster.DisplacerDemon() with { TransportResource = new() }, new(2, 1));
+        var world = World(UnitRoster.DisplacerDemon() .WithLocal(new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource())), new(2, 1));
         world.PlaceResource(ResourceTypes.Coal, new(1, 1));
         world.PlaceResource(ResourceTypes.Coal, new(2, 1));
         var start = Start(world);
-        var candidate = start.NextInput!.Candidates.First(c => swap ? c.BonusAction?.Swap is not null :
-            c.BonusAction?.Displace is not null && c.Destination == new Cell(2, 2));
+        var candidate = start.NextInput!.Candidates.First(c => swap ? c.Ability?.Definition.Mechanic is Swap :
+            c.Ability?.Definition.Mechanic is Displace && c.Destination == new Cell(2, 2));
         var moved = Pick(start, candidate.Key);
         Assert.Equal(world.Resources, moved.State.Resources);
         Assert.Equal(swap ? new(1, 1) : new Cell(2, 2), moved.State.Physical.Figures.Single(f => f.Id == "enemy").Position);
@@ -151,9 +151,9 @@ public sealed class ResourceTransportTests
         Assert.Equal(before, new DefaultAutomatedProvider().Choose(marked.NextInput!, new GameplayQueries(marked.State)));
         Assert.Equal(new GameplayQueries(original.State).CanAttackHostileFrom("actor", new(5, 1)),
             new GameplayQueries(marked.State).CanAttackHostileFrom("actor", new(5, 1)));
-        Assert.NotNull(UnitRoster.Zombie().TransportResource);
+        Assert.NotNull(UnitRoster.Zombie().Mechanic<TransportResource>());
         Assert.Equal(UnitBehavior.ApproachThroughClosedDoors, UnitRoster.Zombie().Behaviors);
-        Assert.Contains(UnitRoster.Zombie().CardEntries(), e => e.Id == "transport-resource");
+        Assert.Contains(UnitRoster.Zombie().CardEntries(), e => e.Id == "ability:transport-resource");
     }
 
     [Fact]

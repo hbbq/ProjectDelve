@@ -24,13 +24,13 @@ public sealed class AbilityScenarioTests
       "unitTypeIds": ["local-bearer"],
       "unitTypes": [{ "id": "local-bearer", "displayName": "Local Bearer", "mov": 3, "rng": 1, "atk": 1, "def": 0, "hp": 1,
         "canHaveEquipment": true, "canHaveItems": true,
-        "abilityGrants": [{ "id": "first-wave", "abilityId": "local-limited-wave" }, { "id": "second-wave", "abilityId": "local-limited-wave" }] }],
-      "abilityDefinitions": [
-        { "id": "local-limited-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": { "maxUses": 2 }, "mechanic": { "kind": "holyWave" } },
-        { "id": "local-wave", "name": "Unexpected Silence", "timing": "Action", "mechanic": { "kind": "holyWave" } }
-      ],
-      "equipmentTypes": [{ "id": "local-reliquary", "name": "Local Reliquary", "grants": [{ "id": "chant", "abilityId": "local-wave" }] }],
-      "itemTypes": [{ "id": "local-scroll", "name": "Local Scroll", "grants": [{ "id": "read", "abilityId": "local-wave" }] }],
+        "localAbilities": [
+          { "key": "first-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": {"maxUses": 2}, "mechanic": {"kind": "holyWave"} },
+          { "key": "second-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": {"maxUses": 2}, "mechanic": {"kind": "holyWave"} }] }],
+      "equipmentTypes": [{ "id": "local-reliquary", "name": "Local Reliquary", "localAbilities": [
+        { "key": "chant", "name": "Unexpected Silence", "timing": "Action", "mechanic": {"kind": "holyWave"} }] }],
+      "itemTypes": [{ "id": "local-scroll", "name": "Local Scroll", "localAbilities": [
+        { "key": "read", "name": "Unexpected Silence", "timing": "Action", "mechanic": {"kind": "holyWave"} }] }],
       "lootCardDefinitions": [{ "id": "local-scroll-card", "name": "Sealed Scroll", "itemTypeId": "local-scroll" }],
       "units": [{ "unitTypeId": "local-bearer", "sideId": "blue", "anchor": { "x": 0, "y": 0 }, "unitId": "bearer",
         "inventory": [{ "id": "reliquary-1", "equipmentTypeId": "local-reliquary" }, { "id": "scroll-1", "itemTypeId": "local-scroll" }, { "id": "scroll-2", "itemTypeId": "local-scroll" }] }],
@@ -49,12 +49,13 @@ public sealed class AbilityScenarioTests
         var json = ScenarioDefinitionJson.ToJson(authored);
         var restored = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(authored));
         Assert.Equal(json, ScenarioDefinitionJson.ToJson(restored));
-        Assert.Equal(2, restored.AbilityDefinitions!.Count);
-        Assert.Equal("Unexpected Silence", restored.AbilityDefinitions.Single(a => a.Id == "local-wave").Name);
-        Assert.IsType<HolyWaveMechanic>(restored.AbilityDefinitions[0].Mechanic);
-        Assert.Equal(2, restored.AbilityDefinitions[0].Usage.MaxUses);
-        Assert.Equal(2, Assert.Single(restored.UnitTypes!).AbilityGrants.Length);
-        Assert.Equal("local-wave", Assert.Single(Assert.Single(restored.ItemTypes!).Grants).AbilityId);
+        var native = Assert.Single(restored.UnitTypes!).LocalAbilities;
+        Assert.Equal(2, native.Length);
+        Assert.IsType<HolyWaveMechanic>(native[0].Mechanic);
+        Assert.Equal(2, native[0].Usage.MaxUses);
+        var itemAbility = Assert.Single(Assert.Single(restored.ItemTypes!).LocalAbilities);
+        Assert.Equal("read", itemAbility.Key);
+        Assert.Equal("Unexpected Silence", itemAbility.Name);
 
         var state = GameEngine.CreateGame(restored);
         Assert.Equal(3, Assert.Single(state.Units).Inventory.Length);
@@ -70,20 +71,16 @@ public sealed class AbilityScenarioTests
     {
         var first = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(LocalContent));
         var second = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(LocalContent.Replace("Unexpected Silence", "Another Meaning")));
-        Assert.Equal("Unexpected Silence", first.AbilityDefinitions.Single(a => a.Id == "local-wave").Name);
-        Assert.Equal("Another Meaning", second.AbilityDefinitions.Single(a => a.Id == "local-wave").Name);
-        second.AbilityDefinitions.Clear();
+        Assert.Equal("Unexpected Silence", first.Item("local-scroll").LocalAbilities[0].Name);
+        Assert.Equal("Another Meaning", second.Item("local-scroll").LocalAbilities[0].Name);
         second.ItemTypes.Clear();
         second.LootCardDefinitions.Clear();
-        Assert.Contains(first.AbilityDefinitions, a => a.Id == "local-wave");
         Assert.Contains(first.ItemTypes, i => i.Id == "local-scroll");
         Assert.Contains(first.LootCardDefinitions, c => c.Id == "local-scroll-card");
-        Assert.DoesNotContain(AbilityCatalog.Resolve(null), a => a.Id == "local-wave");
         Assert.DoesNotContain(ItemCatalog.Resolve(null), i => i.Id == "local-scroll");
 
         var copy = first.Copy();
-        copy.AbilityDefinitions.Clear(); copy.ItemTypes.Clear(); copy.LootCardDefinitions.Clear();
-        Assert.Contains(first.AbilityDefinitions, a => a.Id == "local-wave");
+        copy.ItemTypes.Clear(); copy.LootCardDefinitions.Clear();
         Assert.Contains(first.ItemTypes, i => i.Id == "local-scroll");
         Assert.Contains(first.LootCardDefinitions, c => c.Id == "local-scroll-card");
     }
@@ -95,7 +92,7 @@ public sealed class AbilityScenarioTests
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
         GameEngine.ValidateScenario(restored);
         Assert.Equal(JsonSerializer.Serialize(state), JsonSerializer.Serialize(restored));
-        Assert.Equal("Unexpected Silence", restored.AbilityDefinitions.Single(a => a.Id == "local-wave").Name);
+        Assert.Equal("Unexpected Silence", restored.Item("local-scroll").LocalAbilities[0].Name);
         Assert.Equal(state.Units[0].Inventory.ToArray(), restored.Units[0].Inventory.ToArray());
         Assert.Equal(state.LootDeck!.DrawPile, restored.LootDeck!.DrawPile);
         Assert.Equal(state.GroundObjects, restored.GroundObjects);
@@ -111,8 +108,8 @@ public sealed class AbilityScenarioTests
         Assert.Equal(drawnId, drawn.ObjectCard!.Id);
         Assert.Equal("local-scroll", drawn.ObjectCard.ItemTypeId);
         Assert.Equal("local-scroll-card", drawn.ObjectCard.LootCardId);
-        var ability = Assert.Single(arrival.NextInput!.Candidates.Where(c => c.GrantedAbility?.SourceInstanceId == drawnId));
-        Assert.Equal("Unexpected Silence", ability.GrantedAbility!.Definition.Name);
+        var ability = Assert.Single(arrival.NextInput!.Candidates.Where(c => c.Ability?.SourceInstanceId == drawnId));
+        Assert.Equal("Unexpected Silence", ability.Ability!.Definition.Name);
         var used = GameEngine.Advance(arrival.State, new Choice(ability.Key), new FixedRandom(), false);
         Assert.DoesNotContain(used.State.Units[0].Inventory, o => o.Id == drawnId);
         Assert.Contains(used.State.Units[0].Inventory, o => o.Id == "scroll-1");
@@ -143,16 +140,15 @@ public sealed class AbilityScenarioTests
     }
 
     [Theory]
-    [InlineData("unit-ability")]
-    [InlineData("equipment-ability")]
-    [InlineData("item-ability")]
+    [InlineData("empty-unit-key")]
+    [InlineData("empty-equipment-key")]
+    [InlineData("empty-item-key")]
     [InlineData("loot-item")]
     [InlineData("deck-card")]
     [InlineData("owned-item")]
     [InlineData("ground-item")]
     [InlineData("unknown-source-card")]
     [InlineData("mismatched-source-card")]
-    [InlineData("duplicate-ability")]
     [InlineData("duplicate-grant")]
     [InlineData("wrong-timing")]
     [InlineData("equipment-charges")]
@@ -161,19 +157,18 @@ public sealed class AbilityScenarioTests
         var node = JsonNode.Parse(LocalContent)!;
         switch (invalid)
         {
-            case "unit-ability": node["unitTypes"]![0]!["abilityGrants"]![0]!["abilityId"] = "missing"; break;
-            case "equipment-ability": node["equipmentTypes"]![0]!["grants"]![0]!["abilityId"] = "missing"; break;
-            case "item-ability": node["itemTypes"]![0]!["grants"]![0]!["abilityId"] = "missing"; break;
+            case "empty-unit-key": node["unitTypes"]![0]!["localAbilities"]![0]!["key"] = ""; break;
+            case "empty-equipment-key": node["equipmentTypes"]![0]!["localAbilities"]![0]!["key"] = ""; break;
+            case "empty-item-key": node["itemTypes"]![0]!["localAbilities"]![0]!["key"] = ""; break;
             case "loot-item": node["lootCardDefinitions"]![0]!["itemTypeId"] = "missing"; break;
             case "deck-card": node["loot"]!["composition"]![0]!["lootCardId"] = "missing"; break;
             case "owned-item": node["units"]![0]!["inventory"]![1]!["itemTypeId"] = "missing"; break;
             case "ground-item": node["groundObjects"]![0]!["object"]!["itemTypeId"] = "missing"; break;
             case "unknown-source-card": node["units"]![0]!["inventory"]![1]!["lootCardId"] = "missing"; break;
             case "mismatched-source-card": node["units"]![0]!["inventory"]![0]!["lootCardId"] = "local-scroll-card"; break;
-            case "duplicate-ability": node["abilityDefinitions"]!.AsArray().Add(node["abilityDefinitions"]![0]!.DeepClone()); break;
-            case "duplicate-grant": node["unitTypes"]![0]!["abilityGrants"]![1]!["id"] = "first-wave"; break;
-            case "wrong-timing": node["abilityDefinitions"]![1]!["timing"] = "FreeAction"; break;
-            case "equipment-charges": node["equipmentTypes"]![0]!["grants"]![0]!["abilityId"] = "local-limited-wave"; break;
+            case "duplicate-grant": node["unitTypes"]![0]!["localAbilities"]![1]!["key"] = "first-wave"; break;
+            case "wrong-timing": node["itemTypes"]![0]!["localAbilities"]![0]!["timing"] = "FreeAction"; break;
+            case "equipment-charges": node["equipmentTypes"]![0]!["localAbilities"]![0]!["usage"] = JsonNode.Parse("{\"maxUses\": 2}"); break;
         }
         Assert.Throws<ArgumentException>(() => ScenarioDefinitionJson.FromJson(node.ToJsonString()));
     }

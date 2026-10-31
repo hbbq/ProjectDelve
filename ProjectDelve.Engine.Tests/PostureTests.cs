@@ -59,7 +59,7 @@ public sealed class PostureTests
     [InlineData(true)] [InlineData(false)]
     public void LyingActivationOnlyStandsAndCompletesWithoutBehavior(bool automatic)
     {
-        var state = State(UnitType.Goblin() with { FreeActions = UnitFreeAction.OpenDoor }, Posture.Lying);
+        var state = State(UnitType.Goblin().WithLocal(new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())), Posture.Lying);
         var result = TestGame.StartRound(state, new Random(), automatic);
         Assert.Equal("target", result.NextInput!.UnitId);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[0].Posture);
@@ -141,7 +141,7 @@ public sealed class PostureTests
     [Fact]
     public void FuryAndBackstabAreInactiveOnLyingSourceButLyingUnitsCountForOthersConditions()
     {
-        var type = UnitType.Barbarian() with { Backstab = new() };
+        var type = UnitType.Barbarian().WithLocal(new("backstab", "Backstab", AbilityTiming.Passive, new Backstab()));
         var state = State(type);
         state.Units.Add(state.Types[1].CreateUnit("enemy", "red"));
         state.Physical.Figures.Add(new("enemy", new(0, 1), Posture.Lying));
@@ -158,7 +158,8 @@ public sealed class PostureTests
     [InlineData(false)] [InlineData(true)]
     public void LyingCurrentUnitCannotResumeOrdinaryChoicesOrCapabilities(bool cleave)
     {
-        var state = State(UnitType.Barbarian() with { MoveAfterAttack = new(1), Behaviors = UnitBehavior.BackAwayAfterAttack });
+        var state = State((UnitType.Barbarian() with { Behaviors = UnitBehavior.BackAwayAfterAttack })
+            .WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(1))));
         var result = TestGame.StartRound(state, new Random(), false);
         Lie(result.State, "actor");
         result.State.CleavePending = cleave;

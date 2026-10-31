@@ -12,7 +12,7 @@ public sealed class DefeatTests
     public void DirectDefeatAtPositiveHpChecksReplacementAndRetainsSourceFootprint(
         bool undying, Posture posture, bool replaced)
     {
-        var type = UnitType.RedDragon() with { Undying = undying ? new() : null };
+        var type = undying ? UnitType.RedDragon().WithLocal(new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying())) : UnitType.RedDragon();
         var unit = type.CreateUnit("source", "red") with { CurrentHp = 4 };
         var figure = new Figure(unit.Id, new(1, 2), posture);
         var state = new GameState

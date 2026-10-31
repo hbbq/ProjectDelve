@@ -116,7 +116,7 @@ public sealed class ResourceProjectionTests
         var start = GameEngine.StartRound(GameEngine.CreateGame(decoded), new FirstDice(), false);
         var ready = GameEngine.Advance(start.State, new Select("stay"), new FirstDice(), false);
         var browser = BrowserProjection.Create(ready);
-        foreach (var id in new[] { "summon-worker", "summon-troll" })
+        foreach (var id in new[] { "ability:summon-worker", "ability:summon-troll" })
         {
             Assert.Contains(browser.Cards["geo"].Entries, e => e.Content.Id == id);
             var choice = browser.Decision!.Candidates.Single(c => c.Key == $"{id}:1,1");
@@ -125,7 +125,7 @@ public sealed class ResourceProjectionTests
             Assert.Equal(new Cell(1, 1), choice.Interaction.Position);
             Assert.Equal(new[] { new Cell(1, 1) }, choice.PlacementCells);
         }
-        var summoned = GameEngine.Advance(ready.State, new Select("summon-troll:1,1"), new FirstDice(), false);
+        var summoned = GameEngine.Advance(ready.State, new Select("ability:summon-troll:1,1"), new FirstDice(), false);
         var projected = BrowserProjection.Create(summoned);
         var snapshot = projected.ResolutionSteps.Single(s => summoned.Events[s.EventIndex].Kind == "ResourceSpent");
         Assert.Equal(0, snapshot.Cards["geo"].ResourceStorage.Single().Quantity);
@@ -160,14 +160,16 @@ public sealed class ResourceProjectionTests
         Assert.Equal(observed.Resources.Count, json.RootElement.GetProperty("Result").GetProperty("State").GetProperty("Resources").GetArrayLength());
         var carrierSetup = GameEngine.CreateGame(Scenario.Define(Scenario.Map(2, 2),
             [Scenario.Group(UnitTypeIds.Zombie, "red", ControllerKind.Human, Scenario.At(0, 0, unitId: "carrier"))]));
-        Assert.Contains(BrowserProjection.Cards(carrierSetup)["carrier"].Entries, entry => entry.Content.Id == "transport-resource");
+        Assert.Contains(BrowserProjection.Cards(carrierSetup)["carrier"].Entries, entry => entry.Content.Id == "ability:transport-resource");
     }
     [Fact]
     public void StorageChoicesCardsEventsAndSnapshotsProjectAuthoritativeState()
     {
-        var shaman = new UnitType("store", 2, 0, 0, 3, 1, UnitAction.PickupResource)
-        { ResourceStorage = new([new(ResourceTypes.Coal, 3)]) };
-        var courier = new UnitType("courier", 2, 1, 0, 0, 1, UnitAction.GiveResource);
+        var shaman = new UnitType("store", 2, 0, 0, 3, 1, UnitAction.None)
+        { ResourceStorage = new([new(ResourceTypes.Coal, 3)]),
+            LocalAbilities = [new("pickup-resource", "Pick Up Resource", AbilityTiming.Action, new PickupResource())] };
+        var courier = new UnitType("courier", 2, 1, 0, 0, 1, UnitAction.None)
+        { LocalAbilities = [new("give-resource", "Give Resource", AbilityTiming.Action, new GiveResource())] };
         var state = new GameState
         {
             Types = [courier, shaman],
@@ -184,8 +186,8 @@ public sealed class ResourceProjectionTests
             ? GameEngine.Advance(start.State, new Select("giver"), new FirstDice(), false) : start;
         var choices = GameEngine.Advance(active.State, new Select("stay"), new FirstDice(), false);
         var decision = BrowserProjection.Create(choices).Decision!;
-        var give = decision.Candidates.Single(c => c.Key == "give-resource:one");
-        Assert.Equal("give-resource", give.EntryId);
+        var give = decision.Candidates.Single(c => c.Key == "ability:give-resource:one");
+        Assert.Equal("ability:give-resource", give.EntryId);
         Assert.Equal(InteractionKind.Unit, give.Interaction.Kind);
         Assert.Equal("one", give.Interaction.UnitId);
         var given = GameEngine.Advance(choices.State, new Select(give.Key!), new FirstDice(), false);

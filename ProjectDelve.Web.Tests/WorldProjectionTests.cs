@@ -82,7 +82,8 @@ public sealed class WorldProjectionTests
     private static GameState LocalState(int amount = 2, bool fog = false)
     {
         var type = new UnitType("weather-watcher", 3, 1, 1, 0, 6)
-        { Unique = true, Actions = UnitAction.Heal, Heal = new(3) };
+        { Unique = true, Actions = UnitAction.None,
+            LocalAbilities = [new("mend", "Heal", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(3) }] };
         var state = new GameState
         {
             Physical = new(new Board(20, 3, []), [new("watcher", new(0, 0)), new("unseen-unit", new(19, 0))]),
@@ -180,12 +181,12 @@ public sealed class WorldProjectionTests
         var state = LocalState();
         state.WorldEffects = new(1, 1);
         state.WorldDeck!.DrawPile = [new("renewal-physical", "undrawn-omen")];
-        state.Units[0] = state.Units[0] with { HealUses = new(3, 0) };
+        state.Units[0] = state.Units[0] with { AbilityUseCounts = state.Units[0].AbilityUseCounts.SetItem("unit:mend", 3) };
         var result = GameEngine.StartRound(state, new Dice(), false);
         var occurrence = result.Events.Single(e => e.Kind == "AbilityUsesReplenished" && e.UnitId == "watcher");
         Assert.Equal(3, occurrence.ReplenishedUses);
         Assert.Equal(3, GambitProjection.Event(occurrence).ReplenishedUses);
-        Assert.Equal(3, result.State.Units[0].HealUses!.RemainingUses);
+        Assert.Equal(3, WebAbilityTestQueries.Uses(result.State, result.State.Units[0].Id, "mend")!.RemainingUses);
         Assert.Contains("replenish 3 uses", BrowserProjection.Outcome(occurrence, result.State).Text);
     }
 

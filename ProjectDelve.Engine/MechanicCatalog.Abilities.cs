@@ -108,6 +108,11 @@ public static partial class MechanicCatalog
         AbilityTiming.BonusAction => MechanicTiming.BonusAction,
         AbilityTiming.FreeAction => MechanicTiming.FreeAction,
         AbilityTiming.Passive => MechanicTiming.Passive,
+        AbilityTiming.AfterAttack => MechanicTiming.AfterAttack,
+        AbilityTiming.WhenDefeated => MechanicTiming.WhenDefeated,
+        AbilityTiming.InsteadOfDefeat => MechanicTiming.InsteadOfDefeat,
+        AbilityTiming.InsteadOfActivation => MechanicTiming.InsteadOfActivation,
+        AbilityTiming.EndActivation => MechanicTiming.EndActivation,
         _ => throw new ArgumentException("Unsupported Ability timing.")
     };
 
@@ -119,7 +124,7 @@ public static partial class MechanicCatalog
         _ => throw new ArgumentException("Unsupported Ability source.")
     };
 
-    internal static string AbilityDescriptionTemplate(AbilityDefinition ability)
+    internal static string AbilityDescriptionTemplate(LocalAbilityDefinition ability)
     {
         var descriptor = FindByPayload(ability.Mechanic)
             ?? throw new ArgumentException("Unsupported ability mechanic.");
@@ -128,7 +133,7 @@ public static partial class MechanicCatalog
             ?? descriptor.Description.Template;
     }
 
-    internal static void ValidateAbilityOverride(AbilityDefinition ability)
+    internal static void ValidateAbilityOverride(LocalAbilityDefinition ability)
     {
         if (ability.DescriptionOverride is not { } text) return;
         var contract = FindByPayload(ability.Mechanic)!.Description;

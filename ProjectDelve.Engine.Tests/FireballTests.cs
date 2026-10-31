@@ -43,7 +43,7 @@ public sealed class FireballTests
     private static EngineResult Action(GameState? state = null) =>
         Choose(TestGame.StartRound(state ?? Scenario(), new Dice(), false).State, "stay");
     private static Candidate CellChoice(EngineResult result, int x = 3, int y = 2) =>
-        result.NextInput!.Candidates.Single(c => c.Key == $"fireball:{x},{y}");
+        result.NextInput!.Candidates.Single(c => c.Key == $"ability:fireball:{x},{y}");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
@@ -52,19 +52,19 @@ public sealed class FireballTests
         var type = UnitType.Wizard();
         var fireball = Assert.Single(AbilityQueries.NativeAbilities(type, "w"), g => g.Definition.Mechanic is FireballMechanic).Definition;
         Assert.Equal(2, fireball.Usage.MaxUses);
-        Assert.Null(type.Fireball);
-        Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("w", "side").FireballUses);
-        Assert.Null(UnitType.Grunt().Fireball);
-        var entry = Assert.Single(type.CardEntries(), e => e.Id == "fireball");
+        Assert.NotNull(type.Ability<FireballMechanic>());
+        Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("w", "side").Uses("fireball"));
+        Assert.Null(UnitType.Grunt().Ability<FireballMechanic>());
+        var entry = Assert.Single(type.CardEntries(), e => e.Id == "ability:fireball");
         Assert.Equal("Fireball [2/game]\nAction\n\nChoose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.",
             $"{entry.Name} [{entry.UseLimitText}]\n{entry.Category}\n\n{entry.Description}");
         var scenario = Scenario();
         scenario.Units[0] = new("wizard", type.Id, "blue", 4);
         var action = Action(scenario);
         var restored = Restore(action.State);
-        Assert.Equal(new AbilityUses(2, 2), restored.Units[0].FireballUses);
+        Assert.Equal(new AbilityUses(2, 2), restored.Units[0].Uses("fireball"));
         Assert.Equal(new[] { "a", "b" }, CellChoice(action).TargetIds);
-        Assert.Null(scenario.Units[0].FireballUses);
+        Assert.Empty(scenario.Units[0].AbilityUseCounts);
     }
 
     [Theory]
@@ -74,11 +74,11 @@ public sealed class FireballTests
         var action = Action();
         switch (condition)
         {
-            case "uses": action.State.Units[0] = action.State.Units[0] with { FireballUses = new(2, 0) }; break;
+            case "uses": action.State.Units[0] = action.State.Units[0] with { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("unit:fireball", 2) }; break;
             case "action": action.State.ActionDone = true; break;
             case "move": action.State.MoveDone = false; break;
         }
-        Assert.Throws<ArgumentException>(() => Choose(Restore(action.State), "fireball:3,2"));
+        Assert.Throws<ArgumentException>(() => Choose(Restore(action.State), "ability:fireball:3,2"));
         Assert.DoesNotContain(GameEngine.RefreshChoices(action.State, new Dice(), false).NextInput!.Candidates,
             c => c.Action == UnitAction.Fireball);
     }
@@ -87,13 +87,13 @@ public sealed class FireballTests
     public void SpendsOneUseAndActionWithoutSpendingFocusAndCannotAttackAgain()
     {
         var action = Action();
-        var result = Choose(action.State, "fireball:3,2", new Dice(0));
+        var result = Choose(action.State, "ability:fireball:3,2", new Dice(0));
         Assert.True(result.State.ActionDone);
-        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].FireballUses);
-        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].BonusActionUses["Focus"]);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("fireball"));
+        Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("focus"));
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Action);
         Assert.Throws<ArgumentException>(() => Choose(result.State, "attack:a"));
-        Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].FireballUses);
+        Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].Uses("fireball"));
     }
 
     [Theory]
@@ -105,7 +105,7 @@ public sealed class FireballTests
         var state = Scenario(UnitType.Wizard() with { Rng = range });
         state.Units[1] = state.Units[1] with { SideId = "blue" };
         var action = Action(state);
-        Assert.Equal(legal, action.NextInput!.Candidates.Any(c => c.Key == $"fireball:{x},{y}"));
+        Assert.Equal(legal, action.NextInput!.Candidates.Any(c => c.Key == $"ability:fireball:{x},{y}"));
     }
 
     [Fact]
@@ -114,11 +114,11 @@ public sealed class FireballTests
         var state = Scenario();
         state.Units[1] = state.Units[1] with { SideId = "blue" };
         var action = Action(state);
-        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:6,2");
+        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "ability:fireball:6,2");
         action.State.ModifiersThisTurn.Add(new(Stat.Rng, 1));
         var refreshed = GameEngine.RefreshChoices(action.State, new Dice(), false);
         Assert.NotNull(CellChoice(refreshed, 6, 2)); // Friendly a lies on the ray.
-        Assert.Contains(refreshed.NextInput!.Candidates, c => c.Key == "fireball:5,2");
+        Assert.Contains(refreshed.NextInput!.Candidates, c => c.Key == "ability:fireball:5,2");
         Assert.DoesNotContain(refreshed.NextInput.Candidates, c => c.Key == "attack:b"); // Friendly target.
     }
 
@@ -134,9 +134,9 @@ public sealed class FireballTests
         var action = Action(state);
         Assert.NotNull(CellChoice(action)); // The hostile at the target Cell does not block itself.
         Assert.Contains(action.NextInput!.Candidates, c => c.Key == "attack:a");
-        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:4,2");
+        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "ability:fireball:4,2");
         Assert.DoesNotContain(action.NextInput.Candidates, c => c.Key == "attack:b");
-        Assert.Throws<ArgumentException>(() => Choose(action.State, "fireball:4,2"));
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "ability:fireball:4,2"));
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class FireballTests
         var action = Action(state);
         Assert.NotNull(CellChoice(action, 4, 2));
         action.State.Units[1] = action.State.Units[1] with { SideId = "red" };
-        Assert.Throws<ArgumentException>(() => Choose(Restore(action.State), "fireball:4,2"));
+        Assert.Throws<ArgumentException>(() => Choose(Restore(action.State), "ability:fireball:4,2"));
     }
 
     [Fact]
@@ -157,9 +157,9 @@ public sealed class FireballTests
         state.Physical.Figures[2] = new("b", new(4, 2));
         var action = Action(state);
         // Hostile a blocks Wizard -> b, but does not block the explosion from a's Cell.
-        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:4,2");
+        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "ability:fireball:4,2");
         Assert.Equal(new[] { "a", "b" }, CellChoice(action).TargetIds);
-        var result = Choose(action.State, "fireball:3,2");
+        var result = Choose(action.State, "ability:fireball:3,2");
         Assert.Equal(new[] { "a", "b" }, TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved")
             .Attack!.Targets.Select(t => t.TargetId));
     }
@@ -171,7 +171,7 @@ public sealed class FireballTests
         var state = Scenario();
         state.Physical.Board.Edges.Add(new(new(1, 2), new(2, 2), kind));
         var action = Action(state);
-        Assert.Equal(kind == EdgeKind.OpenDoor, action.NextInput!.Candidates.Any(c => c.Key == "fireball:3,2"));
+        Assert.Equal(kind == EdgeKind.OpenDoor, action.NextInput!.Candidates.Any(c => c.Key == "ability:fireball:3,2"));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class FireballTests
         var state = Scenario();
         state.Physical.Board.Terrain.Add(new(new(2, 2), TerrainKind.Tree));
         var action = Action(state);
-        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "fireball:3,2");
+        Assert.DoesNotContain(action.NextInput!.Candidates, c => c.Key == "ability:fireball:3,2");
         var empty = CellChoice(action, 1, 5);
         Assert.Empty(empty.TargetIds);
         Assert.False(empty.Relevant);
@@ -191,7 +191,7 @@ public sealed class FireballTests
         Assert.Equal(3, dice.AttackRolls);
         Assert.Equal(0, dice.DefenceRolls);
         Assert.True(result.State.ActionDone);
-        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].FireballUses);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("fireball"));
     }
 
     [Theory]
@@ -218,7 +218,7 @@ public sealed class FireballTests
         var action = Action(state);
         Assert.Equal(new[] { "wizard", "a", "b" }, CellChoice(action, 1, 2).TargetIds);
         Assert.True(CellChoice(action, 1, 2).Relevant);
-        var result = Choose(action.State, "fireball:1,2");
+        var result = Choose(action.State, "ability:fireball:1,2");
         var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(new[] { "wizard", "a", "b" }, attack.Targets.Select(t => t.TargetId));
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "wizard");
@@ -255,7 +255,7 @@ public sealed class FireballTests
         Assert.Equal(choice.TargetIds, attack.Targets.Select(t => t.TargetId));
         Assert.All(attack.Targets, t => Assert.Equal(1, t.Damage));
         Assert.True(result.State.ActionDone);
-        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].FireballUses);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("fireball"));
     }
 
     [Fact]
@@ -276,16 +276,16 @@ public sealed class FireballTests
         state.Units[1] = state.Units[1] with { SideId = "blue" };
         state.Physical.Board.Terrain.Add(new(new(2, 2), TerrainKind.Tree));
         Assert.All(state.Physical.Figures, f => Assert.True(state.Physical.Board.TerrainAt(f.Position).Passable()));
-        Assert.DoesNotContain(Action(state).NextInput!.Candidates, c => c.Key == "fireball:3,2");
+        Assert.DoesNotContain(Action(state).NextInput!.Candidates, c => c.Key == "ability:fireball:3,2");
     }
 
     [Fact]
     public void LastUseIsSpentEvenOnMissAndDoesNotRefillNextRound()
     {
         var state = Scenario();
-        state.Units[0] = state.Units[0] with { FireballUses = new(2, 1) };
-        var result = Choose(Action(state).State, "fireball:3,2", new Dice(0));
-        Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].FireballUses);
+        state.Units[0] = state.Units[0] with { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("unit:fireball", 1) };
+        var result = Choose(Action(state).State, "ability:fireball:3,2", new Dice(0));
+        Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].Uses("fireball"));
         Assert.All(TestGame.OperationEvents(result).Single(e => e.Kind == "AttackResolved").Attack!.Targets, t => Assert.Equal(0, t.Damage));
         while (!result.State.RoundComplete)
         {
@@ -295,7 +295,7 @@ public sealed class FireballTests
             result = Choose(result.State, key);
         }
         result = Choose(TestGame.StartRound(Restore(result.State), new Dice(), false).State, "stay");
-        Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].FireballUses);
+        Assert.Equal(new AbilityUses(2, 0), result.State.Units[0].Uses("fireball"));
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Action == UnitAction.Fireball);
     }
 
@@ -304,9 +304,9 @@ public sealed class FireballTests
     public void OneSharedGeneralEffectiveAttackRollWithSeparateDefenceDamageAndPlayback(bool focus, int atk)
     {
         var action = Action();
-        if (focus) action = Choose(action.State, "bonus-action:Focus");
+        if (focus) action = Choose(action.State, "ability:focus");
         var dice = new Dice(4, DefenceFace.Block, DefenceFace.Miss);
-        var result = Choose(Restore(action.State), "fireball:3,2", dice);
+        var result = Choose(Restore(action.State), "ability:fireball:3,2", dice);
         var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
         Assert.Null(attack.TargetId);
         Assert.Equal("Fireball", attack.AbilityName);
@@ -325,7 +325,8 @@ public sealed class FireballTests
     [Fact]
     public void GeneralModifiersApplyButTargetSpecificBackstabDoesNot()
     {
-        var type = UnitType.Wizard() with { Backstab = new(), Fury = new() };
+        var type = UnitType.Wizard() with { LocalAbilities = [.. UnitType.Wizard().LocalAbilities,
+            new("backstab", "Backstab", AbilityTiming.Passive, new Backstab()), new("fury", "Fury", AbilityTiming.Passive, new Fury())] };
         var state = Scenario(type);
         state.Units[2] = state.Units[2] with { SideId = "red" };
         state.Physical.Figures[1] = new("a", new(2, 1));
@@ -338,7 +339,7 @@ public sealed class FireballTests
         Assert.Equal(6, action.State.EffectiveAtkOf("wizard"));
         Assert.Equal(7, action.State.EffectiveAtkAgainst("wizard", "a"));
         var dice = new Dice(0);
-        var result = Choose(action.State, "fireball:3,2", dice);
+        var result = Choose(action.State, "ability:fireball:3,2", dice);
         Assert.Equal(6, dice.AttackRolls);
         Assert.Equal(6, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!.AttackDice);
     }
@@ -354,7 +355,7 @@ public sealed class FireballTests
         Assert.Equal(2, state.EffectiveDefOf("b"));
         var action = Action(state);
         action.State.Pending!.Candidates.Clear(); // Informational candidates cannot alter membership.
-        var result = Choose(Restore(action.State), "fireball:3,2");
+        var result = Choose(Restore(action.State), "ability:fireball:3,2");
         Assert.Equal(new[] { "AttackTargetResolved", "UnitDefeated", "AttackTargetResolved", "UnitDefeated", "AttackResolved" }, TestGame.OperationEvents(result).Select(e => e.Kind));
         var attack = TestGame.OperationEvents(result).Last().Attack!;
         Assert.Equal(new[] { "a", "b" }, attack.Targets.Select(t => t.TargetId));
@@ -376,10 +377,8 @@ public sealed class FireballTests
         var cleric = UnitRoster.Cleric("cleric") with
         {
             Def = 0,
-            AbilityGrants = [],
-            LocalAbilities = [],
-            AdjacentFriendlyUnitsDefenceBonus = new(modifier),
-            Undying = undying ? new() : null
+            LocalAbilities = [new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, modifier)])),
+                .. undying ? new LocalAbilityDefinition[] { new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()) } : []]
         };
         state.Types.Add(cleric);
         state.Units[1] = cleric.CreateUnit("a", "red") with { CurrentHp = 1 };
@@ -392,7 +391,7 @@ public sealed class FireballTests
         var defenceAtStart = 1 + modifier;
         Assert.Equal(defenceAtStart, state.EffectiveDefOf("b"));
         var dice = new Dice();
-        var result = Choose(Action(state).State, "fireball:3,2", dice);
+        var result = Choose(Action(state).State, "ability:fireball:3,2", dice);
 
         var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(new[] { new AttackTargetResult("a", 0, 0, 3),
@@ -432,23 +431,25 @@ public sealed class FireballTests
     [InlineData(0, true)] [InlineData(1, true)] [InlineData(2, false)]
     public void FollowUpsOccurOnceAndCleaveNeverSumsDamage(int blocks, bool qualifies)
     {
-        var type = UnitType.Wizard() with { Cleave = new(), MoveAfterAttack = new(1) };
+        var type = UnitType.Wizard() with { LocalAbilities = [.. UnitType.Wizard().LocalAbilities,
+            new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) },
+            new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(1))] };
         var state = Scenario(type);
         state.Physical.Figures[1] = new("a", new(2, 1));
         state.Physical.Figures[2] = new("b", new(2, 3));
         state.Units[2] = state.Units[2] with { SideId = "red" };
         var dice = new Dice(2, blocks > 0 ? DefenceFace.Block : DefenceFace.Miss,
             blocks > 1 ? DefenceFace.Block : DefenceFace.Miss);
-        var result = Choose(Action(state).State, "fireball:3,2", dice);
+        var result = Choose(Action(state).State, "ability:fireball:3,2", dice);
         Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved");
         Assert.Equal(qualifies, result.State.CleavePending);
         Assert.Equal(qualifies ? DecisionKind.Cleave : DecisionKind.Move, result.NextInput!.Kind);
         if (qualifies)
         {
-            result = Choose(Restore(result.State), "cleave:a");
+            result = Choose(Restore(result.State), "ability:cleave:a");
             Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "CleaveResolved");
             Assert.False(result.State.CleavePending);
-            Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].CleaveUses);
+            Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("cleave"));
             Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
         }
         result = Choose(Restore(result.State), null);

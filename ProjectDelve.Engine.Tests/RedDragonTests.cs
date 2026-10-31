@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -84,7 +84,7 @@ public sealed class RedDragonTests
         state.ModifiersThisTurn.Add(new(Stat.Rng, 1));
         state.ModifiersThisTurn.Add(new(Stat.Atk, 2));
         var dice = new Dice(DefenceFace.Block, DefenceFace.Miss, DefenceFace.Miss);
-        var result = Act(state, "fire-breath", dice);
+        var result = Act(state, "ability:fire-breath", dice);
         var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(6, dice.AttackRolls);
         Assert.Equal(3, dice.DefenceRolls);
@@ -122,12 +122,14 @@ public sealed class RedDragonTests
     public void SharedRollSnapshotSurvivesAuraDefeatOrUndying(bool undying)
     {
         var state = World();
-        Add(state, "aura", new(3, 1), type: new("aura", 0, 0, 0, 0, 1)
-            { AdjacentFriendlyUnitsDefenceBonus = new(2), Undying = undying ? new() : null });
+        var provider = new UnitType("aura", 0, 0, 0, 0, 1)
+            { LocalAbilities = [new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2)]))] };
+        if (undying) provider = provider.WithLocal(new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()));
+        Add(state, "aura", new(3, 1), type: provider);
         Add(state, "later", new(3, 2));
         Assert.Equal(3, state.EffectiveDefOf("later"));
         var dice = new Dice(DefenceFace.Block, DefenceFace.Miss, DefenceFace.Miss);
-        var result = Act(state, "fire-breath", dice);
+        var result = Act(state, "ability:fire-breath", dice);
         var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(4, attack.AttackDice);
         Assert.Equal(4, dice.AttackRolls);
@@ -168,11 +170,11 @@ public sealed class RedDragonTests
     [Fact]
     public void ClawModifierIsAttackLocalAndOrdinaryResolutionSupportsBackstab()
     {
-        var state = World(UnitType.RedDragon() with { Backstab = new() });
+        var state = World(UnitType.RedDragon() .WithLocal(new("backstab", "Backstab", AbilityTiming.Passive, new Backstab())));
         Add(state, "enemy", new(3, 1));
         Add(state, "support", new(4, 1), "red");
         var dice = new Dice();
-        var result = Act(state, "claw-attack:enemy", dice);
+        var result = Act(state, "ability:claw-attack:enemy", dice);
         Assert.Equal(6, dice.AttackRolls);
         Assert.Equal(1, dice.DefenceRolls);
         Assert.Equal(14, result.State.Units[1].CurrentHp);
@@ -183,15 +185,15 @@ public sealed class RedDragonTests
         var normal = Act(nextAction.State, "attack:enemy", new Dice());
         Assert.Equal(5, Assert.Single(TestGame.OperationEvents(normal), e => e.Kind == "AttackResolved").Attack!.AttackDice);
         var baseline = World(); Add(baseline, "enemy", new(3, 1));
-        Assert.Equal(5, Assert.Single(Act(baseline, "claw-attack:enemy").Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
+        Assert.Equal(5, Assert.Single(Act(baseline, "ability:claw-attack:enemy").Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
         Assert.Equal(4, Assert.Single(Act(baseline, "attack:enemy").Events, e => e.Kind == "AttackResolved").Attack!.AttackDice);
     }
 
     [Theory]
-    [InlineData(3, 1, false, "claw-attack:a")]
+    [InlineData(3, 1, false, "ability:claw-attack:a")]
     [InlineData(5, 1, false, "attack:a")]
-    [InlineData(3, 1, true, "claw-attack:a")]
-    [InlineData(5, 1, true, "fire-breath")]
+    [InlineData(3, 1, true, "ability:claw-attack:a")]
+    [InlineData(5, 1, true, "ability:fire-breath")]
     public void BehaviorPrioritizesAuthoritativeActions(int x, int y, bool second, string expected)
     {
         var state = World(); Add(state, "a", new(x, y));
@@ -208,7 +210,7 @@ public sealed class RedDragonTests
         Add(state, "right", new(3, 1));
         Add(state, "top", new(2, 0));
         Assert.Null(Breath(state));
-        Assert.Equal("claw-attack:bottom", Behavior(state));
+        Assert.Equal("ability:claw-attack:bottom", Behavior(state));
     }
 
     [Fact]
@@ -231,7 +233,7 @@ public sealed class RedDragonTests
     [Fact]
     public void MovementComposesWithClawOnlyAndHypotheticalStateDoesNotMutateWorld()
     {
-        var state = World(UnitType.RedDragon() with { Actions = UnitAction.ClawAttack, Rng = 0 });
+        var state = World(UnitType.RedDragon().Without<FireBreath>() with { Actions = UnitAction.None, Rng = 0 });
         Add(state, "enemy", new(5, 1)); state.MoveDone = false;
         var before = JsonSerializer.Serialize(state);
         var queries = new GameplayQueries(state);
@@ -245,14 +247,14 @@ public sealed class RedDragonTests
     [Fact]
     public void BreathMembershipAndAttackDiceStayFixedWhenFirstDefeatChangesFuryAndLos()
     {
-        var state = World(UnitType.RedDragon() with { Fury = new() });
+        var state = World(UnitType.RedDragon() .WithLocal(new("fury", "Fury", AbilityTiming.Passive, new Fury())));
         Add(state, "blocker", new(3, 1), type: new("blocker", 0, 0, 0, 0, 1));
         Add(state, "later", new(1, 3));
         Add(state, "behind", new(5, 1));
         // Both source rows have a blocked segment to behind.
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.Wall));
         Assert.Equal(new[] { "blocker", "later" }, Breath(state)!.TargetIds);
-        var result = Act(state, "fire-breath");
+        var result = Act(state, "ability:fire-breath");
         var attack = Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Attack!;
         Assert.Equal(5, attack.AttackDice);
         Assert.All(attack.Targets, t => Assert.Equal(5, t.Damage));
@@ -262,15 +264,15 @@ public sealed class RedDragonTests
     }
 
     [Theory]
-    [InlineData("fire-breath")] [InlineData("claw-attack:enemy")]
+    [InlineData("ability:fire-breath")] [InlineData("ability:claw-attack:enemy")]
     public void NewAttacksUseOrdinaryCleaveAndMoveAfterAttackFollowUps(string action)
     {
-        var state = World(UnitType.RedDragon() with { Cleave = new(), MoveAfterAttack = new(1) });
+        var state = World(UnitType.RedDragon().WithLocal(new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) }).WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(1))));
         Add(state, "enemy", new(3, 1));
         var result = Act(state, action);
         Assert.Equal(DecisionKind.Cleave, result.NextInput!.Kind);
         Assert.True(result.State.CleavePending);
-        var cleaved = Act(result.State, "cleave:enemy");
+        var cleaved = Act(result.State, "ability:cleave:enemy");
         Assert.Equal(DecisionKind.Move, cleaved.NextInput!.Kind);
         Assert.True(cleaved.NextInput.IsMoveAfterAttack);
     }

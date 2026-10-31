@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -58,11 +58,10 @@ public sealed class BackstabTests
     public void ContentIsPassiveAndHasNoUsesOrActivationState()
     {
         var type = UnitType.Rogue();
-        Assert.NotNull(type.Backstab);
-        Assert.Equal(new PassiveDescription("Backstab",
-            "+1 ATK when attacking an enemy adjacent to another friendly Unit"), Assert.Single(type.Passives));
-        Assert.Equal(new[] { "Dash", "Throwing Knife" }, type.CreateUnit("rogue", "blue").BonusActionUses.Keys.Order().ToArray());
-        Assert.Null(UnitType.Grunt().Backstab);
+        Assert.NotNull(type.Mechanic<Backstab>());
+        Assert.Equal("+1 ATK when attacking an enemy adjacent to another friendly Unit", type.Ability<Backstab>()!.CardEntry().Description);
+        Assert.Equal(new[] { "Dash", "Throwing Knife" }, type.LocalAbilities.Where(a => a.Timing == AbilityTiming.BonusAction).Select(a => a.Name).ToArray());
+        Assert.Null(UnitType.Grunt().Mechanic<Backstab>());
     }
 
     [Theory]
@@ -73,16 +72,16 @@ public sealed class BackstabTests
         var state = State(ally: ally);
         var type = new UnitType("unfamiliar-flanker", 1, 1, 3, 0, 4)
         { Unique = true,
-            Backstab = new() { AtkBonus = 3 }
+            LocalAbilities = [new("backstab", "Backstab", AbilityTiming.Passive, new Backstab { AtkBonus = 3 })]
         };
         state.Types[0] = type;
         state.Units[0] = type.CreateUnit("rogue", "blue");
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
-        Assert.Equal(type.Backstab, restored.Types[0].Backstab);
+        Assert.Equal(type.Mechanic<Backstab>(), restored.Types[0].Mechanic<Backstab>());
         Assert.Equal(3, restored.EffectiveAtkOf("rogue"));
         Assert.Equal(expected, restored.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal("+3 ATK when attacking an enemy adjacent to another friendly Unit",
-            Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "passive:Backstab").Description);
+            Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "ability:backstab").Description);
         var ready = Ready(restored);
         var random = new Random();
         var attacked = Choose(ready.State, "attack:target", random);
@@ -184,7 +183,7 @@ public sealed class BackstabTests
         bool knife, bool ally, int expectedAttack, int expectedRange)
     {
         var ready = Ready(State(knife ? 4 : 2, ally));
-        if (knife) ready = Choose(ready.State, "bonus-action:Throwing Knife");
+        if (knife) ready = Choose(ready.State, "ability:throwing-knife");
         Assert.Equal(expectedRange, ready.State.EffectiveRngOf("rogue"));
         Assert.Equal(expectedAttack, ready.State.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal(knife ? 2 : 3, ready.State.EffectiveAtkOf("rogue"));
@@ -206,7 +205,7 @@ public sealed class BackstabTests
         Assert.Equal(UnitTargetEvaluation.Possible, AttackRules.EvaluateFrom(state, "rogue", new(1, 1), "unsupported"));
         Assert.Equal(4, state.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal(3, state.EffectiveAtkAgainst("rogue", "unsupported"));
-        state.Types[0] = state.Types[0] with { Backstab = null };
+        state.Types[0] = state.Types[0].Without<Backstab>();
         Assert.Equal(3, state.EffectiveAtkAgainst("rogue", "target"));
     }
 
@@ -219,8 +218,8 @@ public sealed class BackstabTests
         state.Types[0] = state.Types[0] with { Atk = 1 };
         var ready = Ready(state);
         Assert.Equal(relevant, Assert.Single(ready.NextInput!.Candidates,
-            c => c.BonusAction?.Name == "Throwing Knife").Relevant);
-        var used = Choose(ready.State, "bonus-action:Throwing Knife");
+            c => c.Ability?.Key == "throwing-knife").Relevant);
+        var used = Choose(ready.State, "ability:throwing-knife");
         Assert.Equal(0, used.State.EffectiveAtkOf("rogue"));
         Assert.Equal(ally ? 1 : 0, used.State.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal(relevant, used.NextInput!.Candidates.Any(c => c.Key == "attack:target"));
@@ -238,12 +237,13 @@ public sealed class BackstabTests
         var state = State();
         state.Types[0] = state.Types[0] with
         {
-            AbilityGrants = [], BonusActions = [new("Attack Boost", 2, [new(Stat.Atk, 1)])]
+            LocalAbilities = [.. state.Types[0].LocalAbilities.Where(a => a.Timing != AbilityTiming.BonusAction),
+                new("attack-boost", "Attack Boost", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Atk, 1)])) { Usage = new(2) }]
         };
         state.Units[0] = state.Types[0].CreateUnit("rogue", "blue");
         var ready = Ready(state);
-        Assert.True(Assert.Single(ready.NextInput!.Candidates, c => c.BonusAction is not null).Relevant);
-        var boosted = Choose(ready.State, "bonus-action:Attack Boost");
+        Assert.True(Assert.Single(ready.NextInput!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction).Relevant);
+        var boosted = Choose(ready.State, "ability:attack-boost");
         Assert.Equal(4, ready.State.EffectiveAtkAgainst("rogue", "target"));
         Assert.Equal(5, boosted.State.EffectiveAtkAgainst("rogue", "target"));
         var random = new Random();

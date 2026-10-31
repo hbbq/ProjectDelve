@@ -16,8 +16,7 @@ internal sealed class ConsoleDecisionProvider : IDecisionProvider
             var label = candidate.Kind == ActivationChoiceKind.RollDice ? "Roll Dice" :
                 candidate.Kind == ActivationChoiceKind.Stay ? "Stay here" :
                 candidate.Kind == ActivationChoiceKind.EndTurn ? "End Turn" :
-                candidate.Kind == ActivationChoiceKind.Cleave ? $"Cleave {candidate.TargetId}" :
-                candidate.BonusAction is { } ability ? $"{ability.DisplayName ?? ability.Name} (Bonus Action)" +
+                candidate.Ability is { } ability ? $"{ability.Definition.Name} ({ability.CardEntry().Category})" +
                     (candidate.TargetId is null ? "" : $" → {candidate.TargetId}") +
                     (candidate.Destination is null ? "" : $" to ({candidate.Destination.X},{candidate.Destination.Y})") :
                 candidate.FreeAction == UnitFreeAction.OpenDoor ?

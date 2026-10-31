@@ -89,7 +89,7 @@ public sealed class SelectedObjectivesTests
     public void MidActivationReachWaitsUntilCompletedActivation()
     {
         var state = Active(Reach()); state.MoveDone = false; state.ActionDone = false;
-        state.Types[0] = state.Types[0] with { BonusActions = [new("Focus", null, [])] };
+        state.Types[0] = state.Types[0] with { LocalAbilities = [new("focus", "Focus", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Atk, 0)]))] };
         var moved = GameEngine.Advance(state, new Choice("3,1"), new Dice(), false);
         Assert.Equal(new Cell(3, 1), moved.State.Physical.Figures.Single(f => f.Id == "actor").Position);
         Assert.Null(moved.State.Completion);
@@ -144,7 +144,7 @@ public sealed class SelectedObjectivesTests
         var state = Active(Defeat(1)); state.Physical.Figures.RemoveAll(f => f.Id == "actor");
         state.Units[0] = state.Units[0] with { CurrentHp = 0 };
         Assert.False(End(state).State.IsCompleted);
-        state = Active(Defeat(1)); state.Types[0] = state.Types[0] with { Undying = new() };
+        state = Active(Defeat(1)); state.Types[0] = state.Types[0].WithLocal(new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()));
         Assert.Equal("PostureChanged", GameEngine.ResolveDefeat(state, "actor").Kind);
         Assert.Empty(state.DefeatedUnitIds); Assert.False(End(state).State.IsCompleted);
         Assert.Equal("UnitDefeated", GameEngine.ResolveDefeat(state, "actor").Kind);

@@ -81,7 +81,7 @@ public sealed class ScenarioMigrationTests
         var wizard = Assert.Single(state.Units, u => u.TypeId == UnitTypeIds.Wizard);
         Assert.Equal(2, wizard.CurrentHp);
         Assert.Equal(new Cell(2, 8), state.Physical.Figures.Single(f => f.Id == wizard.Id).Position);
-        Assert.Equal(new AbilityUses(2, 2), wizard.FireballUses);
+        Assert.Equal(new AbilityUses(2, 2), WebAbilityTestQueries.Uses(state, wizard.Id, "fireball"));
         Assert.Equal(13, state.Units.Count);
     }
 }

@@ -149,7 +149,7 @@ internal static class LootRules
     internal static void Validate(GameState state)
     {
         EquipmentCatalog.Validate(state.EquipmentTypes);
-        AbilityCatalog.ValidateState(state);
+        AbilityContent.ValidateState(state);
         if (state.LootMarkers.Count > (state.LootDeck?.DrawPile.Count ?? 0))
             throw new ArgumentException("Every unopened Loot marker requires an available draw card.");
         if (state.Types.Any(t => t.LootDropSuccesses is < 0 or > 6))

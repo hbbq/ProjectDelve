@@ -205,8 +205,8 @@ public sealed class GambitDelegationTests
 
     private static GameState NewOrderState(OrderKind kind)
     {
-        var actorType = new UnitType("ordered-actor", 2, 1, 2, 1, 1,
-            FreeActions: UnitFreeAction.OpenDoor);
+        var actorType = new UnitType("ordered-actor", 2, 1, 2, 1, 1)
+        { LocalAbilities = [new("door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] };
         var friendType = new UnitType("ordered-friend", 1, 1, 1, 1, 1);
         var enemyType = new UnitType("ordered-enemy", 1, 1, 1, 1, 1);
         var actorPosition = kind == OrderKind.Retreat ? new Cell(2, 0) : new(0, 0);

@@ -120,7 +120,7 @@ public sealed class UniqueUnitTypeTests
     {
         var target = UnitRoster.ChiefMechanic();
         var summoner = UnitType.Define("summoner", "Summoner", Stats(1, 0, 0, 0, 1), CantAttack(),
-            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying)));
+            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying), id: "call"));
         var state = Setup(summoner, "blue");
         state.Types.Add(target);
         state.Physical.Figures[0] = new("unit-0", new(2, 2));
@@ -140,7 +140,7 @@ public sealed class UniqueUnitTypeTests
     {
         var target = UnitType.Define("unique", "Unique", Stats(0, 0, 0, 0, 1), Unique());
         var summoner = UnitType.Define("summoner", "Summoner", Stats(1, 0, 0, 0, 1), CantAttack(), OpenDoor(),
-            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying)));
+            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying), id: "call"));
         var state = Setup(summoner, "blue");
         state.Types.Add(target);
         state.Physical.Figures[0] = new("unit-0", new(2, 2));
@@ -152,10 +152,10 @@ public sealed class UniqueUnitTypeTests
         ready.State.PlaceUnit(target.Id, "existing", "blue", new(0, 0), Posture.Lying);
         Assert.DoesNotContain(GameEngine.GameplayCandidates(ready.State, ready.State.Units[0]),
             c => c.Action == UnitAction.SummonAdjacent);
-        Assert.Throws<ArgumentException>(() => TestGame.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false));
+        Assert.Throws<ArgumentException>(() => TestGame.Advance(ready.State, new Choice("ability:call:1,1"), new Random(), false));
         ready.State.Units[1] = ready.State.Units[1] with { CurrentHp = 0 };
         ready.State.Physical.Figures.RemoveAll(f => f.Id == "existing");
-        var created = TestGame.Advance(ready.State, new Choice("spawn-goblin:1,1"), new Random(), false);
+        var created = TestGame.Advance(ready.State, new Choice("ability:call:1,1"), new Random(), false);
         Assert.Single(TestGame.OperationEvents(created), e => e.Kind == "UnitCreated" && e.TypeId == target.Id);
         Assert.Single(created.State.Units.Where(u => u.TypeId == target.Id && u.CurrentHp > 0));
     }

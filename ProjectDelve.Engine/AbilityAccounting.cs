@@ -2,68 +2,59 @@ namespace ProjectDelve.Engine;
 
 public static partial class GameEngine
 {
-    private static void ConsumeAbilityUse(GameState state, string unitId, ResolvedAbility grant, ResolutionEvents events)
+    // ApplyDecision commits the ordinary Action budget before calling this once.
+    // Limited uses and Item ownership change before the concrete mechanic runs.
+    private static void ConsumeAbilityUse(GameState state, string unitId, ResolvedAbility ability, ResolutionEvents events)
     {
-        var index = state.Units.FindIndex(u => u.Id == unitId);
+        var index = state.Units.FindIndex(unit => unit.Id == unitId);
         var unit = state.Units[index];
-        if (state.AbilityUsesOf(unitId, grant) is { } uses)
-        {
-            var remaining = new AbilityUses(uses.MaxUses, uses.RemainingUses - 1);
-            unit = grant.Legacy switch
+        if (ability.Definition.Usage.MaxUses is not null)
+            unit = unit with
             {
-                LegacyAbilityKind.Heal => unit with { HealUses = remaining },
-                LegacyAbilityKind.HolyWave => unit with { HolyWaveUses = remaining },
-                LegacyAbilityKind.Fireball => unit with { FireballUses = remaining },
-                LegacyAbilityKind.BonusAction => unit with { BonusActionUses = unit.BonusActionUses.SetItem(grant.LegacyKey!, remaining) },
-                _ => unit with { AbilityUseCounts = unit.AbilityUseCounts.SetItem(grant.AccountingId, uses.MaxUses - remaining.RemainingUses) }
+                AbilityUseCounts = unit.AbilityUseCounts.SetItem(ability.AccountingId,
+                    unit.AbilityUseCounts.GetValueOrDefault(ability.AccountingId) + 1)
             };
-        }
-        if (grant.Definition.Timing == AbilityTiming.BonusAction)
-        {
-            state.BonusActionUseCountsThisActivation[grant.AccountingId] = state.BonusActionUsesThisActivation(grant.AccountingId) + 1;
-            if (grant.Legacy == LegacyAbilityKind.BonusAction) state.BonusActionsUsedThisActivation.Add(grant.AccountingId);
-        }
+        if (ability.Definition.Timing == AbilityTiming.BonusAction)
+            state.BonusActionUseCountsThisActivation[ability.AccountingId] = state.BonusActionUsesThisActivation(ability.AccountingId) + 1;
         OwnedObject? consumed = null;
-        if (grant.SourceKind == AbilitySourceKind.Item)
+        if (ability.SourceKind == AbilitySourceKind.Item)
         {
-            consumed = unit.Inventory.Single(o => o.Id == grant.SourceInstanceId);
+            consumed = unit.Inventory.Single(obj => obj.Id == ability.SourceInstanceId);
             unit = unit with { Inventory = unit.Inventory.Remove(consumed) };
             state.LootDeck ??= new();
             state.LootDeck.DiscardPile.Add(consumed);
         }
         state.Units[index] = unit;
-        // Only the legacy Bonus Action path defers ItemUsed until after its effect.
-        // An Action granted by that same Item identity uses ordinary consumption events.
-        if (consumed is not null && !(grant.Legacy == LegacyAbilityKind.SecondWind &&
-                grant.Definition.Timing == AbilityTiming.BonusAction))
-            events.Add(new RulesEvent("ItemUsed", unitId, AbilityName: grant.Definition.Name)
-                { ObjectCard = consumed, ActionId = grant.EntryId, Category = grant.Definition.Timing == AbilityTiming.Action ? ActivationChoiceKind.Action : ActivationChoiceKind.BonusAction });
+        if (consumed is not null)
+            events.Add(new RulesEvent("ItemUsed", unitId, AbilityName: ability.Definition.Name)
+            {
+                ObjectCard = consumed, ActionId = ability.ActionId,
+                Category = ability.Definition.Timing == AbilityTiming.Action ? ActivationChoiceKind.Action : ActivationChoiceKind.BonusAction
+            });
     }
 
-    private static IEnumerable<Candidate> GrantedOtherCandidates(GameState state, Unit unit)
+    private static IEnumerable<Candidate> OtherAbilityCandidates(GameState state, Unit unit)
     {
-        foreach (var grant in state.AbilitiesOf(unit.Id).Where(g => g.Definition.Timing == AbilityTiming.BonusAction && state.CanUseAbility(unit.Id, g)))
+        foreach (var ability in state.AbilitiesOf(unit.Id).Where(ability =>
+                     ability.Definition.Timing == AbilityTiming.BonusAction &&
+                     ability.Definition.Mechanic is SelfModifiersMechanic or ExtraActionsMechanic &&
+                     state.CanUseAbility(unit.Id, ability)))
         {
-            var bonus = grant.Definition.Mechanic is SelfModifiersMechanic self
-                ? new BonusActionAbility(grant.AccountingId, grant.Definition.Usage.MaxUses, self.Modifiers) { DisplayName = grant.Definition.Name }
-                : null;
-            yield return new(grant.CandidatePrefix, Kind: ActivationChoiceKind.BonusAction,
-                Relevant: bonus is null || BonusActionRelevant(state, unit, bonus), BonusAction: bonus)
+            yield return new(ability.CandidatePrefix, Kind: ActivationChoiceKind.BonusAction,
+                Relevant: ability.Definition.Mechanic is not SelfModifiersMechanic self || BonusActionRelevant(state, unit, self))
             {
-                GrantedAbility = grant, AbilityName = grant.Definition.Name,
-                ObjectId = grant.SourceKind == AbilitySourceKind.Unit ? null : grant.SourceInstanceId,
-                ObjectKind = grant.Legacy == LegacyAbilityKind.SecondWind ? LootCardKind.SecondWind : null,
-                EquipmentTypeId = grant.SourceKind == AbilitySourceKind.Equipment ? grant.SourceTypeId : null,
-                ItemTypeId = grant.SourceKind == AbilitySourceKind.Item ? grant.SourceTypeId : null
+                Ability = ability, AbilityName = ability.Definition.Name,
+                ObjectId = ability.SourceKind == AbilitySourceKind.Unit ? null : ability.SourceInstanceId,
+                EquipmentTypeId = ability.SourceKind == AbilitySourceKind.Equipment ? ability.SourceTypeId : null,
+                ItemTypeId = ability.SourceKind == AbilitySourceKind.Item ? ability.SourceTypeId : null
             };
         }
     }
 
-    private static void ResolveOtherGrantedAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
+    private static void ResolveOtherAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
     {
-        var grant = choice.GrantedAbility!;
-        ConsumeAbilityUse(state, request.UnitId!, grant, events);
-        switch (grant.Definition.Mechanic)
+        var ability = choice.Ability!;
+        switch (ability.Definition.Mechanic)
         {
             case SelfModifiersMechanic self:
                 state.ModifiersThisTurn.AddRange(self.Modifiers);
@@ -73,15 +64,7 @@ public static partial class GameEngine
                 break;
             default: throw new InvalidOperationException("Unsupported Bonus Action mechanic.");
         }
-        if (grant.Legacy == LegacyAbilityKind.SecondWind)
-            events.Add(new RulesEvent("ItemUsed", request.UnitId, AbilityName: grant.Definition.Name)
-            { ObjectCard = state.LootDeck!.DiscardPile.Single(o => o.Id == grant.SourceInstanceId), ActionId = "second-wind", Category = choice.Kind });
-        else
-        {
-            events.Add(new RulesEvent("ActionUsed", request.UnitId, AbilityName: grant.Definition.Name)
-            { ActionId = grant.EntryId, Category = choice.Kind, SourceUnitId = request.UnitId });
-            if (grant.Legacy == LegacyAbilityKind.BonusAction)
-                events.Add(new RulesEvent("AbilityUsed", request.UnitId, AbilityName: grant.Definition.Name));
-        }
+        events.Add(new RulesEvent("ActionUsed", request.UnitId, AbilityName: ability.Definition.Name)
+            { ActionId = ability.ActionId, Category = choice.Kind, SourceUnitId = request.UnitId });
     }
 }

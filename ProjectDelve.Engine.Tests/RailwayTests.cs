@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -48,7 +48,7 @@ public sealed class RailwayTests
     {
         var type = CanonicalUnitTypes.Find(UnitTypeIds.Locomotive)!;
         Assert.Equal(0, type.Mov); Assert.Equal(Footprint.OneByOne, type.Footprint);
-        Assert.Equal(UnitAction.None, type.Actions); Assert.Equal(4, type.RunRails!.Steps);
+        Assert.Equal(UnitAction.None, type.Actions); Assert.Equal(4, type.Mechanic<RunRails>()!.Steps);
         var dice = new Dice(); var result = Run(Fixture(), dice);
         Assert.Equal(new(4, 1), Position(result.State));
         Assert.Equal(4, result.Events.Count(e => e.Kind == "UnitRepositioned"));
@@ -114,7 +114,7 @@ public sealed class RailwayTests
     {
         var d = Fixture(new UnitPlacement(UnitTypeIds.Grunt, side, new(1, 1), posture, UnitId: "struck"));
         d = d with { Resources = [new(ResourceTypes.Coal, new(0, 1)), new(ResourceTypes.Diamond, new(1, 1))],
-            UnitTypes = [UnitRoster.Locomotive() with { TransportResource = new() }, UnitRoster.Grunt() with { TransportResource = new() }] };
+            UnitTypes = [UnitRoster.Locomotive() .WithLocal(new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource())), UnitRoster.Grunt() .WithLocal(new("transport-resource", "Transport Resource", AbilityTiming.Passive, new TransportResource()))] };
         var result = Run(d);
         Assert.Equal(new(4, 1), Position(result.State));
         Assert.Equal(d.Resources, result.State.Resources);

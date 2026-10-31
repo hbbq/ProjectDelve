@@ -16,7 +16,7 @@ public static class LootRoster
     });
 
     public static IReadOnlyList<LootCardContent> All => LootCompatibility.ProjectLegacyCards(
-        Definitions, ItemCatalog.All, EquipmentCatalog.All, AbilityCatalog.All);
+        Definitions, ItemCatalog.All, EquipmentCatalog.All);
 
     public static IReadOnlyList<LootPreset> Presets { get; } = Array.AsReadOnly(new LootPreset[]
     {

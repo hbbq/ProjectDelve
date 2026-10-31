@@ -284,7 +284,8 @@ public sealed class FogOfWarProjectionTests
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         Move(state, "guard", new(4, 3));
         state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.Tree));
-        var aura = new UnitType("hidden-aura", 1, 0, 0, 0, 1) { AdjacentFriendlyUnitsDefenceBonus = new(2) };
+        var aura = new UnitType("hidden-aura", 1, 0, 0, 0, 1) { LocalAbilities = [
+            new("defence", "Hidden Defence", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2)]))] };
         state.Types.Add(aura); state.Units.Add(aura.CreateUnit("aura", "dungeon"));
         state.Physical.Figures.Add(new("aura", new(5, 4)));
         state.ExploredCells.Clear(); FogOfWar.Refresh(state);

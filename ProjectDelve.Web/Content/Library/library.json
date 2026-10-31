@@ -223,36 +223,18 @@
       "id": "local-abilities-three-sources",
       "name": "Local Abilities - Three Sources",
       "coverArt": null,
-      "revision": 1,
+      "revision": 2,
       "definition": {
-        "abilityDefinitions": [
-          {
-            "id": "curtain-call",
-            "name": "Curtain Call",
-            "timing": "Action",
-            "usage": {},
-            "mechanic": {
-              "kind": "holyWave"
-            }
-          },
-          {
-            "id": "quiet-please",
-            "name": "Quiet Please",
-            "timing": "Action",
-            "usage": {},
-            "mechanic": {
-              "kind": "holyWave"
-            }
-          }
-        ],
         "equipmentTypes": [
           {
             "id": "velvet-reliquary",
             "name": "Velvet Reliquary",
-            "grants": [
+            "localAbilities": [
               {
-                "id": "curtain",
-                "abilityId": "curtain-call"
+                "key": "curtain",
+                "name": "Curtain Call",
+                "timing": "Action",
+                "mechanic": { "kind": "holyWave" }
               }
             ]
           }
@@ -261,10 +243,12 @@
           {
             "id": "hush-scroll",
             "name": "Hush Scroll",
-            "grants": [
+            "localAbilities": [
               {
-                "id": "read",
-                "abilityId": "quiet-please"
+                "key": "read",
+                "name": "Quiet Please",
+                "timing": "Action",
+                "mechanic": { "kind": "holyWave" }
               }
             ]
           }
@@ -509,20 +493,24 @@
       "id": "local-equipment-fitting-room",
       "name": "Local Equipment - Fitting Room",
       "coverArt": null,
-      "revision": 1,
+      "revision": 2,
       "definition": {
         "equipmentTypes": [
           {
             "id": "fitting-room-paperwind-cape",
             "name": "Paperwind Cape",
-            "modifiers": [
+            "localAbilities": [
               {
-                "stat": "Mov",
-                "amount": 1
-              },
-              {
-                "stat": "Def",
-                "amount": -1
+                "key": "paperwind",
+                "name": "Paperwind",
+                "timing": "Passive",
+                "mechanic": {
+                  "kind": "selfModifiers",
+                  "modifiers": [
+                    { "stat": "Mov", "amount": 1 },
+                    { "stat": "Def", "amount": -1 }
+                  ]
+                }
               }
             ]
           }

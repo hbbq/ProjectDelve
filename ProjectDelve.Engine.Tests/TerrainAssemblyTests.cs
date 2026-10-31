@@ -117,7 +117,8 @@ public sealed class TerrainAssemblyTests
         {
             Physical = new(new Board(7, 3, []) { TerrainTypes = TerrainCatalog.Resolve(null, [definition]),
                 Terrain = [new(new(2, 0)) { TypeId = definition.Id }] }, [new("actor", new(0, 0))]),
-            Types = [new("large-unit", 5, 0, 0, 0, 1) { Footprint = Footprint.TwoByTwo, Phase = new() }],
+            Types = [new("large-unit", 5, 0, 0, 0, 1) { Footprint = Footprint.TwoByTwo,
+                LocalAbilities = [new("phase", "Phase", AbilityTiming.Passive, new Phase())] }],
             Units = [new("actor", "large-unit", "blue", 1)]
         };
         var board = state.Physical.Board;

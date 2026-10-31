@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -23,8 +23,9 @@ public sealed class TrollTests
     private static GameState Scenario(UnitType? target = null, Posture posture = Posture.Upright, bool cleave = false)
     {
         target ??= UnitType.Troll();
-        var attacker = new UnitType("attacker-type", 2, 1, 2, 0, 5, FreeActions: UnitFreeAction.OpenDoor)
-            { Unique = true, Cleave = cleave ? new() : null };
+        var attacker = new UnitType("attacker-type", 2, 1, 2, 0, 5)
+            { Unique = true, LocalAbilities = [new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] };
+        if (cleave) attacker = attacker.WithLocal(new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) });
         return new()
         {
             Physical = new(new Board(4, 2, [new(new(0, 0), new(0, 1), EdgeKind.ClosedDoor)]),
@@ -47,12 +48,12 @@ public sealed class TrollTests
         var type = UnitType.Troll();
         Assert.Equal((2, 1, 4, 4, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
-        Assert.Equal(new TryOpenDoor(4), type.TryOpenDoor);
+        Assert.Equal(new TryOpenDoor(4), type.Mechanic<TryOpenDoor>());
         Assert.Equal(UnitBehavior.ApproachThroughClosedDoors, type.Behaviors);
-        Assert.NotNull(type.Undying);
+        Assert.NotNull(type.Mechanic<Undying>());
         Assert.Equal("Troll", type.DisplayName);
-        Assert.Equal(new TryOpenDoor(2), UnitType.Zombie().TryOpenDoor);
-        var entry = Assert.Single(type.CardEntries(), e => e.Id == "undying");
+        Assert.Equal(new TryOpenDoor(2), UnitType.Zombie().Mechanic<TryOpenDoor>());
+        var entry = Assert.Single(type.CardEntries(), e => e.Id == "ability:undying");
         Assert.Equal("Capability", entry.Category);
         Assert.Contains("current HP to 1", entry.Description);
         Assert.Equal("If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down.", entry.Description);
@@ -104,7 +105,7 @@ public sealed class TrollTests
     [InlineData(false, Posture.Upright)]
     public void LyingCapabilityAndUprightUnitWithoutCapabilityDieNormally(bool undying, Posture posture)
     {
-        var type = UnitType.Troll() with { Undying = undying ? new() : null };
+        var type = undying ? UnitType.Troll() : UnitType.Troll().Without<Undying>();
         var result = Attack(Scenario(type, posture));
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
@@ -116,7 +117,8 @@ public sealed class TrollTests
     [InlineData(1, 0, 1)] [InlineData(3, 1, 2)]
     public void NonlethalDamageIsOrdinaryAndCapabilityWorksWithoutTrollIdentity(int hp, int hits, int expected)
     {
-        var type = new UnitType("unrelated", 2, 1, 4, 4, hp) { Unique = true, Undying = new() };
+        var type = new UnitType("unrelated", 2, 1, 4, 4, hp) { Unique = true,
+            LocalAbilities = [new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying())] };
         var result = Attack(Scenario(type), new Dice(hits));
         Assert.Equal(expected, result.State.Units[1].CurrentHp);
         Assert.Equal(Posture.Upright, result.State.Physical.Figures[1].Posture);
@@ -143,8 +145,8 @@ public sealed class TrollTests
         Assert.DoesNotContain(attack.Events, e => e.Kind == "UnitDefeated");
         Assert.Equal(new[] { "AttackResolved", "PostureChanged" }, TestGame.OperationEvents(attack).Select(e => e.Kind));
         Assert.Equal(DecisionKind.Cleave, attack.NextInput!.Kind);
-        Assert.Contains(attack.NextInput.Candidates, c => c.Key == "cleave:target");
-        var result = Choose(Restore(attack.State), "cleave:target");
+        Assert.Contains(attack.NextInput.Candidates, c => c.Key == "ability:cleave:target");
+        var result = Choose(Restore(attack.State), "ability:cleave:target");
         Assert.Equal(0, result.State.Units[1].CurrentHp);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "target");
         Assert.Equal(new[] { "CleaveResolved", "UnitDefeated" }, TestGame.OperationEvents(result).Select(e => e.Kind));
@@ -158,10 +160,11 @@ public sealed class TrollTests
     [Fact]
     public void DirectCleaveDamageAlsoUsesUndyingReplacement()
     {
-        var type = new UnitType("other", 2, 1, 4, 4, 3) { Unique = true, Undying = new() };
+        var type = new UnitType("other", 2, 1, 4, 4, 3) { Unique = true,
+            LocalAbilities = [new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying())] };
         var attack = Attack(Scenario(type, cleave: true));
         Assert.Equal(Posture.Upright, attack.State.Physical.Figures[1].Posture);
-        var result = Choose(attack.State, "cleave:target");
+        var result = Choose(attack.State, "ability:cleave:target");
         AssertSaved(result.State);
         Assert.All(TestGame.OperationSteps(result), s => AssertSaved(s.StateAfter));
         Assert.Equal(new[] { "CleaveResolved", "PostureChanged" }, TestGame.OperationEvents(result).Select(e => e.Kind));
@@ -175,7 +178,7 @@ public sealed class TrollTests
         state.Types[0] = wizard;
         state.Units[0] = wizard.CreateUnit("attacker", "blue");
         var action = Choose(TestGame.StartRound(state, new Dice(), false).State, "stay");
-        var result = Choose(action.State, "fireball:1,0");
+        var result = Choose(action.State, "ability:fireball:1,0");
         AssertSaved(result.State);
         var targetIndex = TestGame.OperationEvents(result).FindIndex(e => e.Kind == "AttackTargetResolved" && e.TargetId == "target");
         Assert.True(targetIndex >= 0);
@@ -195,7 +198,7 @@ public sealed class TrollTests
         state.Physical.Figures.Insert(0, new("caster", new(2, 0)));
         var start = TestGame.StartRound(state, new Dice(), false);
         var action = Choose(start.State, "stay");
-        var laidDown = Choose(action.State, holyWave ? "holy-wave" : "telekinesis:target");
+        var laidDown = Choose(action.State, holyWave ? "ability:holy-wave" : "ability:telekinesis:target");
         AssertSaved(laidDown.State);
         Assert.DoesNotContain(TestGame.OperationEvents(laidDown), e => e.Kind is "AttackResolved" or "UnitDefeated");
         if (!holyWave) laidDown = Choose(laidDown.State, "end-turn");

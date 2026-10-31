@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -53,14 +53,13 @@ public sealed class FuryTests
         var type = UnitType.Barbarian();
         Assert.Equal((3, 1, 4, 3, 5), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
-        Assert.Equal(UnitFreeAction.OpenDoor, type.FreeActions);
-        Assert.NotNull(type.Fury);
-        Assert.Equal("Fury", type.Fury.Name);
-        Assert.Equal(new PassiveDescription("Fury", "ATK +1 while adjacent to 2 or more enemies"),
-            Assert.Single(type.Passives));
-        Assert.Equal("Rage", Assert.Single(AbilityQueries.NativeAbilities(type, "hero")).Definition.Name);
-        Assert.Null(UnitType.Cleric().Fury);
-        Assert.Empty(UnitType.Grunt().Passives);
+        Assert.NotNull(type.Mechanic<OpenDoor>());
+        Assert.NotNull(type.Mechanic<Fury>());
+        Assert.Equal("Fury", type.Ability<Fury>()!.Name);
+        Assert.Equal("ATK +1 while adjacent to 2 or more enemies", type.Ability<Fury>()!.CardEntry().Description);
+        Assert.Equal("Rage", Assert.Single(type.LocalAbilities, a => a.Timing == AbilityTiming.BonusAction).Name);
+        Assert.Null(UnitType.Cleric().Mechanic<Fury>());
+        Assert.Empty(UnitType.Grunt().LocalAbilities);
     }
 
     [Theory]
@@ -71,15 +70,15 @@ public sealed class FuryTests
         var state = State(enemies);
         var type = new UnitType("unfamiliar-fighter", 1, 1, 4, 0, 5)
         { Unique = true,
-            Fury = new() { AdjacentEnemyThreshold = 3, AtkBonus = 3 }
+            LocalAbilities = [new("fury", "Fury", AbilityTiming.Passive, new Fury { AdjacentEnemyThreshold = 3, AtkBonus = 3 })]
         };
         state.Types[0] = type;
         state.Units[0] = type.CreateUnit("hero", "blue");
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
-        Assert.Equal(type.Fury, restored.Types[0].Fury);
+        Assert.Equal(type.Mechanic<Fury>(), restored.Types[0].Mechanic<Fury>());
         Assert.Equal(expected, restored.EffectiveAtkOf("hero"));
         Assert.Equal("ATK +3 while adjacent to 3 or more enemies",
-            Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "passive:Fury").Description);
+            Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "ability:fury").Description);
         var random = new Random("unfamiliar-fighter");
         var started = TestGame.StartRound(restored, random, false);
         var ready = Choose(started.State, "stay", random);
@@ -184,7 +183,7 @@ public sealed class FuryTests
         var random = new Random();
         var started = TestGame.StartRound(State(), random, false);
         var stayed = Choose(started.State, "stay", random);
-        var rageCandidate = Assert.Single(stayed.NextInput!.Candidates, c => c.BonusAction?.Name == "Rage");
+        var rageCandidate = Assert.Single(stayed.NextInput!.Candidates, c => c.Ability?.Key == "rage");
         Assert.True(rageCandidate.Relevant); // Existing hypothetical-effect relevance sees Fury + Rage.
         var ready = rage ? Choose(stayed.State, rageCandidate.Key, random) : stayed;
         Assert.Equal(expected, ready.State.EffectiveAtkOf("hero"));
@@ -218,7 +217,7 @@ public sealed class FuryTests
         Assert.Equal(4, original.EffectiveAtk["hero"]);
         Assert.Equal(5, hypothetical.EffectiveAtk["hero"]);
         hypothetical.ModifiersThisTurn.AddRange(Assert.IsType<SelfModifiersMechanic>(
-            Assert.Single(hypothetical.AbilitiesOf("hero"), g => g.GrantId == "rage").Definition.Mechanic).Modifiers);
+            Assert.Single(hypothetical.AbilitiesOf("hero"), g => g.Key == "rage").Definition.Mechanic).Modifiers);
         Assert.Equal(7, hypothetical.EffectiveAtkOf("hero"));
         Assert.Equal(4, original.EffectiveAtkOf("hero"));
         hypothetical.Physical.Board.Edges.Add(new(new(2, 2), new(2, 3), EdgeKind.ClosedDoor));
@@ -242,7 +241,7 @@ public sealed class FuryTests
         Assert.Equal(4, state.EffectiveDefOf("hero"));
         var aura = Assert.Single(cleric.CardEntries(), entry => entry.Category == "Passive");
         Assert.Equal("Aura", aura.Name);
-        Assert.Equal("Adjacent friendly Units get DEF +1", aura.Description);
+        Assert.Equal("Adjacent friendly Units get DEF +1.", aura.Description);
         Assert.Equal(3, state.EffectiveDefOf("enemy-0"));
     }
 }

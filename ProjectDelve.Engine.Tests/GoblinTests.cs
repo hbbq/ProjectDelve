@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -43,8 +43,8 @@ public sealed class GoblinTests
         Assert.Equal((4, 1, 2, 2, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.BackAwayAfterAttack, type.Behaviors);
-        Assert.Equal(new MoveAfterAttack(1), type.MoveAfterAttack);
-        Assert.Equal(type, JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type)));
+        Assert.Equal(new MoveAfterAttack(1), type.Mechanic<MoveAfterAttack>());
+        Assert.Equal(JsonSerializer.Serialize(type), JsonSerializer.Serialize(JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class GoblinTests
         var distant = Act(State(target: new(0, 0), start: new(4, 2)));
         Assert.True(distant.State.RoundComplete);
         var doorState = State();
-        doorState.Types[0] = doorState.Types[0] with { Actions = UnitAction.None, FreeActions = UnitFreeAction.OpenDoor };
+        doorState.Types[0] = doorState.Types[0].WithLocal(new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())) with { Actions = UnitAction.None };
         doorState.Physical.Board.Edges.Add(new(new(2, 1), new(3, 1), EdgeKind.ClosedDoor));
         var door = Act(doorState);
         var opened = TestGame.Advance(door.State, new Choice(door.NextInput!.Candidates[0].Key), new Random());
@@ -145,8 +145,8 @@ public sealed class GoblinTests
     public void CapabilityAppliesToHumanHeroAndUsesItsOwnAllowance()
     {
         var state = State();
-        state.Types[0] = UnitType.Hero("hero-with-capability", 0, 1, 2, 2, 1) with
-            { MoveAfterAttack = new(2) };
+        state.Types[0] = UnitType.Hero("hero-with-capability", 0, 1, 2, 2, 1)
+            .WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(2)));
         state.Units[0] = state.Units[0] with { TypeId = state.Types[0].Id, SideId = "blue" };
         state.Units[1] = state.Units[1] with { SideId = "red" };
         var act = TestGame.StartRound(state, new Random());
@@ -178,7 +178,8 @@ public sealed class GoblinTests
         var state = State(target: new(x, y));
         state.Types[1] = state.Types[1] with
         {
-            Rng = 0, Atk = 0, Actions = UnitAction.None, MoveAfterAttack = new(5),
+            Rng = 0, Atk = 0, Actions = UnitAction.None,
+            LocalAbilities = [new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(5))],
             Behaviors = UnitBehavior.MaximizeAttackDistance
         };
         var queries = new GameplayQueries(state);
@@ -291,7 +292,7 @@ public sealed class GoblinTests
         // Right (3,2) and down (2,3) escape. Right is first by row.
         Assert.Equal("3,2", new DefaultAutomatedProvider().Choose(extra.NextInput!, new GameplayQueries(extra.State)));
         var state = State(start: new(2, 2), target: new(2, 1), height: 5);
-        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(3) };
+        state.Types[0] = state.Types[0].Without<MoveAfterAttack>().WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(3)));
         extra = Extra(state);
         var request = extra.NextInput! with
         {
@@ -317,7 +318,7 @@ public sealed class GoblinTests
     public void ShorterCanonicalMovementPathWinsBeforeBoardOrder()
     {
         var state = State(start: new(2, 2), target: new(1, 1), width: 5, height: 5);
-        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(3) };
+        state.Types[0] = state.Types[0].Without<MoveAfterAttack>().WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(3)));
         var extra = Extra(state);
         // Both destinations escape; the one-step path wins over the earlier board position.
         var request = extra.NextInput! with
@@ -334,7 +335,7 @@ public sealed class GoblinTests
     public void ChoosesShortestEscapeWithoutMaximizingDistanceBeyondNearbyThreats()
     {
         var state = State(start: new(1, 0), target: new(0, 0), width: 5, height: 1);
-        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(2) };
+        state.Types[0] = state.Types[0].Without<MoveAfterAttack>().WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(2)));
         var extra = Extra(state);
         Assert.Contains(extra.NextInput!.Candidates, c => c.Key == "3,0" && c.Path!.Count == 3);
         var done = TestGame.Advance(extra.State, new DefaultAutomatedProvider(), new Random());
@@ -361,12 +362,12 @@ public sealed class GoblinTests
     public void ZeroAllowanceAutomaticallyCompletesExtraMoveAndNegativeAllowanceIsRejected()
     {
         var state = State();
-        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(0) };
+        state.Types[0] = state.Types[0].Without<MoveAfterAttack>().WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(0)));
         var result = Extra(state);
         Assert.True(result.State.RoundComplete);
         Assert.True(TestGame.OperationEvents(result)[1].IsMoveAfterAttack);
         Assert.Single(TestGame.OperationEvents(result)[1].Path!);
-        state.Types[0] = state.Types[0] with { MoveAfterAttack = new(-1) };
+        state.Types[0] = state.Types[0].Without<MoveAfterAttack>().WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(-1)));
         Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random()));
     }
 

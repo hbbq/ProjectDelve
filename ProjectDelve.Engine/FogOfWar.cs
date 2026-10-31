@@ -91,9 +91,6 @@ public static class FogOfWar
         var items = observed.Units.SelectMany(u => u.Inventory).Concat(observed.GroundObjects.Select(g => g.Object))
             .Select(observed.ItemTypeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
         observed.ItemTypes.RemoveAll(d => !items.Contains(d.Id));
-        var abilities = observed.Types.SelectMany(t => t.AbilityGrants).Concat(observed.EquipmentTypes.SelectMany(t => t.Grants))
-            .Concat(observed.ItemTypes.SelectMany(t => t.Grants)).Select(g => g.AbilityId).ToHashSet(StringComparer.Ordinal);
-        observed.AbilityDefinitions.RemoveAll(d => !abilities.Contains(d.Id));
         observed.LootCardDefinitions.Clear();
     }
 
@@ -269,15 +266,10 @@ public static class FogOfWar
     {
         if (state.FogOfWarSides.Count == 0) return;
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
-        // Old continuations predate typed Attack semantics. Identity is read only
-        // by this compatibility adapter; newly begun Attacks always carry semantics.
-        var semantic = attack.SemanticAction ?? attack.ActionId switch
-        {
-            "shoot-shell" => UnitAction.ShootShell, "claw-attack" => UnitAction.ClawAttack,
-            "fireball" => UnitAction.Fireball, _ => UnitAction.NormalAttack
-        };
+        // Attack semantics are explicit continuation data, independent of its Ability key.
+        var semantic = attack.SemanticAction;
         var range = semantic == UnitAction.ShootShell
-            ? state.Types.Single(t => t.Id == attacker.TypeId).ShootShell!.Rng
+            ? state.Types.Single(t => t.Id == attacker.TypeId).Mechanic<ShootShell>()!.Rng
             : semantic == UnitAction.ClawAttack ? 1 : state.EffectiveRngOf(attacker.Id);
         // Fireball has an established direct source-to-selected-Cell path. Its explosion
         // has no trajectory. Other direct Attacks use each established target line.

@@ -31,18 +31,19 @@ internal static class RacingRules
     internal static void AwardWaypoint(GameState state, string unitId, IRandomProvider random, Action<RulesEvent> emit)
     {
         if (!state.WaypointAdvancedThisActivation || state.ActiveToken is not { } token ||
-            state.Types.Single(t => t.Id == token.TypeId).WaypointSlotMachine is null) return;
+            state.Types.Single(t => t.Id == token.TypeId).Ability<WaypointSlotMachine>() is not { } declaration) return;
+        var ability = new ResolvedAbility(declaration, AbilitySourceKind.Unit, token.TypeId, unitId);
         var roll = random.RollD6();
-        var resource = RacingSlotTable.Table.Result(roll);
+        var resource = ((WaypointSlotMachine)declaration.Mechanic).OutputTable.Result(roll);
         var capacity = state.Types.Single(t => t.Id == token.TypeId).ResourceStorage?.Capacities.SingleOrDefault(c => c.Type.Id == resource.Id)?.Capacity ?? 0;
         var quantity = state.StoredQuantity(token.SideId, token.TypeId, resource.Id);
         emit(new RulesEvent("RacingSlotRolled", unitId, TypeId: token.TypeId, DieRoll: roll)
-            { SideId = token.SideId, ActionId = "waypoint-slot-machine", ResourceType = resource, Succeeded = quantity < capacity });
+            { SideId = token.SideId, ActionId = ability.ActionId, ResourceType = resource, Succeeded = quantity < capacity });
         if (quantity >= capacity) return;
         var index = state.StoredResources.FindIndex(r => r.SideId == token.SideId && r.UnitTypeId == token.TypeId && r.Type.Id == resource.Id);
         var stored = new StoredResource(token.SideId, token.TypeId, resource, quantity + 1);
         if (index < 0) state.StoredResources.Add(stored); else state.StoredResources[index] = stored;
         emit(new RulesEvent("ResourceStored", unitId, unitId, token.TypeId) { SideId = token.SideId,
-            ActionId = "waypoint-slot-machine", ResourceType = resource, StoredQuantity = quantity + 1 });
+            ActionId = ability.ActionId, ResourceType = resource, StoredQuantity = quantity + 1 });
     }
 }

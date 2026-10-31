@@ -36,17 +36,17 @@ public sealed class DisplacerDemonProjectionTests
         var presentation = BrowserProjection.Create(result);
         var card = presentation.Cards[actor];
         Assert.Equal("Displacer Demon", card.DisplayName);
-        foreach (var entryId in new[] { "bonus:Swap", "bonus:Displace" })
+        foreach (var entryId in new[] { "ability:swap", "ability:displace" })
         {
             var entry = Assert.Single(card.Entries, e => e.Content.Id == entryId);
             Assert.Null(entry.Uses);
             Assert.Null(entry.Content.MaxUses);
             Assert.Equal("Bonus Action", entry.Content.Category);
         }
-        var swap = Assert.Single(presentation.Decision!.Candidates, c => c.EntryId == "bonus:Swap");
+        var swap = Assert.Single(presentation.Decision!.Candidates, c => c.EntryId == "ability:swap");
         Assert.Equal(InteractionKind.Unit, swap.Interaction.Kind);
         Assert.Single(swap.AffectedUnitIds);
-        var displace = Assert.Single(presentation.Decision.Candidates, c => c.EntryId == "bonus:Displace" && c.Interaction.Position == new Cell(4, 2));
+        var displace = Assert.Single(presentation.Decision.Candidates, c => c.EntryId == "ability:displace" && c.Interaction.Position == new Cell(4, 2));
         Assert.Equal(InteractionKind.Position, displace.Interaction.Kind);
         Assert.Contains("to (4,2)", displace.Label);
         Assert.Equal(new[] { new Cell(4, 2) }, displace.PlacementCells);
@@ -60,8 +60,8 @@ public sealed class DisplacerDemonProjectionTests
     {
         var start = Start();
         var choice = start.NextInput!.Candidates.Single(c => swap
-            ? c.BonusAction?.Swap is not null
-            : c.BonusAction?.Displace is not null && c.Destination == new Cell(4, 2));
+            ? c.Ability?.Definition.Mechanic is Swap
+            : c.Ability?.Definition.Mechanic is Displace && c.Destination == new Cell(4, 2));
         var result = GameEngine.Advance(start.State, new Choice(choice.Key), new Dice(), false);
         var presentation = BrowserProjection.Create(result);
         var kind = swap ? "PlacesSwapped" : "UnitRepositioned";

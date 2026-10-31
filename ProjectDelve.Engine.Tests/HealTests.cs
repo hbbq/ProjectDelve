@@ -43,29 +43,29 @@ public sealed class HealTests
     public void ConfiguredAmountOnUnfamiliarTypeDrivesResolutionCardAndHpCap(int hp, int expectedHp, int healing)
     {
         var scenario = Scenario(hp);
-        var healer = new UnitType("unfamiliar-healer", 1, 0, 0, 0, 4, Actions: UnitAction.Heal,
-            FreeActions: UnitFreeAction.OpenDoor)
+        var healer = new UnitType("unfamiliar-healer", 1, 0, 0, 0, 4, Actions: UnitAction.None)
         { Unique = true,
-            Heal = new(MaxUses: 2) { Amount = 3 }
+            LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(3)) { Usage = new(2) },
+                new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())]
         };
         scenario.Types[0] = healer;
         scenario.Units[0] = healer.CreateUnit("cleric", "blue");
         var action = Action(scenario);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(action.State))!;
-        Assert.Equal(healer.Heal, restored.Types[0].Heal);
-        var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "heal");
-        Assert.Equal("heal", entry.Id);
+        Assert.Equal(healer.Ability<HealMechanic>(), restored.Types[0].Ability<HealMechanic>());
+        var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "ability:heal");
+        Assert.Equal("ability:heal", entry.Id);
         Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", entry.Description);
         Assert.Equal("2/game", entry.UseLimitText);
 
         var dice = new Dice();
-        var result = Choose(restored, "heal:friend", dice);
+        var result = Choose(restored, "ability:heal:friend", dice);
         Assert.Equal(expectedHp, result.State.Units[1].CurrentHp);
         Assert.Equal(healing, Assert.Single(TestGame.OperationEvents(result)).Healing);
         Assert.Equal("Heal", TestGame.OperationEvents(result)[0].AbilityName);
-        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].HealUses);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("heal"));
         Assert.Equal(0, dice.Rolls);
-        Assert.Equal(3, TestGame.OperationSteps(result)[0].StateAfter.Types[0].Heal!.Amount);
+        Assert.Equal(3, TestGame.OperationSteps(result)[0].StateAfter.Types[0].Mechanic<HealMechanic>()!.Amount);
         Assert.Equal(hp, action.State.Units[1].CurrentHp);
     }
 
@@ -76,16 +76,16 @@ public sealed class HealTests
         var heal = Assert.Single(AbilityQueries.NativeAbilities(type, "c"), g => g.Definition.Mechanic is HealMechanic).Definition;
         Assert.Equal(new HealMechanic(2), heal.Mechanic);
         Assert.Equal(2, heal.Usage.MaxUses);
-        Assert.Null(type.Heal);
-        Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("c", "blue").HealUses);
-        Assert.Null(UnitType.Grunt().Heal);
+        Assert.Equal(heal, type.Ability<HealMechanic>());
+        Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("c", "blue").Uses("heal"));
+        Assert.Null(UnitType.Grunt().Ability<HealMechanic>());
         var scenario = Scenario();
         scenario.Units[0] = new("cleric", type.Id, "blue", 4);
         var started = TestGame.StartRound(scenario, new Dice(), false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(started.State))!;
-        Assert.Equal(new AbilityUses(2, 2), restored.Units[0].HealUses);
+        Assert.Equal(new AbilityUses(2, 2), restored.Units[0].Uses("heal"));
         Assert.Equal(heal, Assert.Single(restored.AbilitiesOf("cleric"), g => g.Definition.Mechanic is HealMechanic).Definition);
-        Assert.Null(scenario.Units[0].HealUses);
+        Assert.Empty(scenario.Units[0].AbilityUseCounts);
     }
 
     [Theory]
@@ -114,10 +114,10 @@ public sealed class HealTests
         Assert.True(OffersHeal(action));
         var dice = new Dice();
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(action.State))!;
-        var healed = Choose(restored, "heal:friend", dice);
+        var healed = Choose(restored, "ability:heal:friend", dice);
         Assert.Equal(expectedHp, healed.State.Units[1].CurrentHp);
         Assert.InRange(healed.State.Units[1].CurrentHp, 1, healed.State.Types[1].Hp);
-        Assert.Equal(new AbilityUses(2, 1), healed.State.Units[0].HealUses);
+        Assert.Equal(new AbilityUses(2, 1), healed.State.Units[0].Uses("heal"));
         Assert.True(healed.State.ActionDone);
         Assert.True(healed.State.MoveDone);
         Assert.Equal(0, dice.Rolls);
@@ -129,7 +129,7 @@ public sealed class HealTests
         Assert.True(TestGame.OperationSteps(healed)[0].StateAfter.ActionDone);
         Assert.Equal(expectedHp, TestGame.OperationSteps(healed)[0].StateAfter.Units[1].CurrentHp);
         Assert.Equal(hp, action.State.Units[1].CurrentHp);
-        Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].HealUses);
+        Assert.Equal(new AbilityUses(2, 2), action.State.Units[0].Uses("heal"));
     }
 
     [Theory]
@@ -152,7 +152,7 @@ public sealed class HealTests
         }
         var action = Action(scenario);
         Assert.False(OffersHeal(action));
-        Assert.Throws<ArgumentException>(() => Choose(action.State, "heal:friend"));
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "ability:heal:friend"));
     }
 
     [Theory]
@@ -184,7 +184,7 @@ public sealed class HealTests
         scenario.Units[0] = scenario.Units[0] with { CurrentHp = 1 };
         var action = Action(scenario);
         Assert.False(OffersHeal(action, "cleric"));
-        Assert.Throws<ArgumentException>(() => Choose(action.State, "heal:cleric"));
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "ability:heal:cleric"));
     }
 
     [Fact]
@@ -201,18 +201,18 @@ public sealed class HealTests
     public void ZeroUsesOrCompletedActionPreventHealAndSubmissionRechecksState()
     {
         var action = Action();
-        action.State.Units[0] = action.State.Units[0] with { HealUses = new(2, 0) };
-        Assert.Throws<ArgumentException>(() => Choose(action.State, "heal:friend"));
+        action.State.Units[0] = action.State.Units[0] with { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("unit:heal", 2) };
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "ability:heal:friend"));
         Assert.False(OffersHeal(GameEngine.RefreshChoices(action.State, new Dice(), false)));
         action = Action();
         action.State.ActionDone = true;
-        Assert.Throws<ArgumentException>(() => Choose(action.State, "heal:friend"));
+        Assert.Throws<ArgumentException>(() => Choose(action.State, "ability:heal:friend"));
         Assert.False(OffersHeal(GameEngine.RefreshChoices(action.State, new Dice(), false)));
     }
 
     [Theory]
-    [InlineData("heal:friend", "attack:enemy")]
-    [InlineData("attack:enemy", "heal:friend")]
+    [InlineData("ability:heal:friend", "attack:enemy")]
+    [InlineData("attack:enemy", "ability:heal:friend")]
     public void AttackAndHealCompeteAndNormalChoicesRegenerate(string chosen, string rejected)
     {
         var action = Action();
@@ -221,13 +221,13 @@ public sealed class HealTests
         var result = Choose(action.State, chosen);
         Assert.True(result.State.ActionDone);
         Assert.Equal(DecisionKind.Activation, result.NextInput!.Kind);
-        Assert.Equal(new[] { "open-door:1,1:1,2", "end-turn" }, result.NextInput.Candidates.Select(c => c.Key));
+        Assert.Equal(new[] { "ability:open-door:1,1:1,2", "end-turn" }, result.NextInput.Candidates.Select(c => c.Key));
         Assert.Throws<ArgumentException>(() => Choose(result.State, rejected));
         Assert.Equal(3, result.State.EffectiveDefOf("friend")); // Aura remains derived.
         if (chosen == "attack:enemy")
         {
             Assert.Equal(3, Assert.Single(TestGame.OperationEvents(result), e => e.Kind == "AttackResolved").Hits);
-            Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].HealUses);
+            Assert.Equal(new AbilityUses(2, 2), result.State.Units[0].Uses("heal"));
         }
     }
 }

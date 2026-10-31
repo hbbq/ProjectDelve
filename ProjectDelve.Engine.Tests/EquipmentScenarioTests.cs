@@ -15,7 +15,7 @@ public sealed class EquipmentScenarioTests
             { Inventory = [new("owned-17", "amber-sandals")] }],
         Agency = [new("local-collector", "blue", ControllerKind.Human)],
         EquipmentTypes = [new("amber-sandals", "Sandals of a Very Different Name")
-            { Modifiers = [new(Stat.Mov, 2), new(Stat.Def, 1)], Capabilities = [EquipmentCapability.Phase] }],
+            { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, 1)])), new("phase", "Phase", AbilityTiming.Passive, new Phase())] }],
         GroundObjects = [new(new("ground-23", "amber-sandals"), new(2, 0))],
         Loot = new() { Composition = [new("amber-sandals", 2)] }
     };
@@ -28,8 +28,8 @@ public sealed class EquipmentScenarioTests
           "board": { "width": 3, "height": 2 },
           "unitTypeIds": ["collector"],
           "unitTypes": [{ "id": "collector", "mov": 2, "rng": 1, "atk": 1, "def": 1, "hp": 1, "canHaveEquipment": true }],
-          "equipmentTypes": [{ "id": "silvery-object", "name": "Unfamiliar Equipment", "modifiers": [{ "stat": "Mov", "amount": 1 }],
-            "abilities": [{ "id": "wake", "name": "Wake Up", "mechanic": "StandAdjacentFriendlyLyingUnit" }] }],
+          "equipmentTypes": [{ "id": "silvery-object", "name": "Unfamiliar Equipment",
+            "localAbilities": [{"key": "movement", "name": "Movement", "timing": "Passive", "mechanic": {"kind": "selfModifiers", "modifiers": [{"stat": "Mov", "amount": 1}]}}, { "key": "wake", "name": "Wake Up", "timing": "Action", "mechanic": {"kind": "standAdjacentFriendly"} }] }],
           "units": [{ "unitTypeId": "collector", "sideId": "blue", "anchor": { "x": 0, "y": 0 }, "unitId": "bearer",
             "inventory": [{ "id": "owned", "equipmentTypeId": "silvery-object" }] }],
           "agency": [{ "unitTypeId": "collector", "sideId": "blue", "controller": "Human" }],
@@ -42,7 +42,7 @@ public sealed class EquipmentScenarioTests
         Assert.Equal(3, state.EffectiveMovOf("bearer"));
         Assert.Equal("silvery-object", Assert.Single(state.LootDeck!.DrawPile).EquipmentTypeId);
         Assert.Equal("silvery-object", Assert.Single(state.GroundObjects).Object.EquipmentTypeId);
-        Assert.Equal("Wake Up", Assert.Single(Assert.Single(scenario.EquipmentTypes!).Abilities).Name);
+        Assert.Equal("Wake Up", Assert.Single(Assert.Single(scenario.EquipmentTypes!).LocalAbilities, a => a.Key == "wake").Name);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class EquipmentScenarioTests
         var equipment = Assert.Single(loaded.EquipmentTypes!);
         Assert.Equal("amber-sandals", equipment.Id);
         Assert.Equal("Sandals of a Very Different Name", equipment.Name);
-        Assert.Equal(new[] { new EquipmentStatModifier(Stat.Mov, 2), new EquipmentStatModifier(Stat.Def, 1) }, equipment.Modifiers);
+        Assert.Equal(new[] { new ModifierThisTurn(Stat.Mov, 2), new ModifierThisTurn(Stat.Def, 1) }, Assert.IsType<SelfModifiersMechanic>(equipment.LocalAbilities[0].Mechanic).Modifiers);
         var state = GameEngine.CreateGame(loaded);
         Assert.Equal(5, state.EffectiveMovOf("bearer"));
         Assert.Equal(1, state.EffectiveDefOf("bearer"));
@@ -73,7 +73,7 @@ public sealed class EquipmentScenarioTests
         var secondDefinition = Example() with
         {
             EquipmentTypes = [new("amber-sandals", "Another Scenario's Sandals")
-                { Modifiers = [new(Stat.Mov, 4)] }]
+                { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 4)]))] }]
         };
         var first = GameEngine.CreateGame(firstDefinition);
         var second = GameEngine.CreateGame(secondDefinition);
@@ -112,7 +112,7 @@ public sealed class EquipmentScenarioTests
     {
         var node = JsonNode.Parse(ScenarioDefinitionJson.ToJson(Example()))!;
         if (invalid == "missing-id") node["equipmentTypes"]![0]!["id"] = "";
-        if (invalid == "unknown-capability") node["equipmentTypes"]![0]!["capabilities"]![0] = "Teleport";
+        if (invalid == "unknown-capability") node["equipmentTypes"]![0]!["localAbilities"]![1]!["mechanic"]!["kind"] = "teleport";
         if (invalid == "duplicate-type") node["equipmentTypes"]!.AsArray().Add(node["equipmentTypes"]![0]!.DeepClone());
         if (invalid == "unknown-reference") node["units"]![0]!["inventory"]![0]!["equipmentTypeId"] = "not-declared";
         if (invalid == "unknown-capability")
@@ -120,4 +120,14 @@ public sealed class EquipmentScenarioTests
         else
             Assert.Throws<ArgumentException>(() => ScenarioDefinitionJson.FromJson(node.ToJsonString()));
     }
+    [Theory]
+    [InlineData("Modifiers")]
+    [InlineData("Capabilities")]
+    public void RemovedStructuralMechanicFieldsAreRejectedInsteadOfSilentlyIgnored(string field)
+    {
+        var node = JsonNode.Parse(JsonSerializer.Serialize(new EquipmentDefinition("local", "Local")))!;
+        node[field] = new JsonArray();
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<EquipmentDefinition>(node.ToJsonString()));
+    }
+
 }

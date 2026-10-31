@@ -118,9 +118,9 @@ static void ShowState(GameState state)
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var figure = state.Physical.Figures.FirstOrDefault(f => f.Id == unit.Id);
         var placement = figure is null ? "off board" : $"({figure.Position.X},{figure.Position.Y}), {figure.Posture}";
-        var uses = string.Concat(type.BonusActions.Select(ability =>
-            unit.BonusActionUses.TryGetValue(ability.Name, out var remaining)
-                ? $" | {ability.Name} {remaining.RemainingUses}/{remaining.MaxUses}" : ""));
+        var uses = string.Concat(state.AbilitiesOf(unit.Id).Select(ability =>
+            state.AbilityUsesOf(unit.Id, ability) is { } remaining
+                ? $" | {ability.Definition.Name} {remaining.RemainingUses}/{remaining.MaxUses}" : ""));
         Console.WriteLine($"{unit.Id}: side {unit.SideId}, HP {unit.CurrentHp}/{type.Hp}, {placement} | MOV {state.EffectiveMovOf(unit.Id)}, RNG {state.EffectiveRngOf(unit.Id)}, ATK {state.EffectiveAtkOf(unit.Id)} (base {type.Atk}), DEF {type.Def}{uses}");
     }
     Console.WriteLine();

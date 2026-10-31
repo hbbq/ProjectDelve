@@ -1,9 +1,9 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 
 namespace ProjectDelve.Engine;
 
-// Authoring-only entries translate into the existing concrete runtime model.
-// They never become part of GameState or execute game rules.
+// Authoring helpers produce the same owner-local records that JSON supplies.
+// They do not register content or retain a second mechanical representation.
 public static class UnitAuthoring
 {
     public sealed record BaseStats(int Mov, int Rng, int Atk, int Def, int Hp);
@@ -16,109 +16,79 @@ public static class UnitAuthoring
             Count = count;
         }
     }
-    public sealed class UnlimitedUsage
-    {
-        internal UnlimitedUsage() { }
-    }
-    public sealed record SelfModifiers(ImmutableArray<ModifierThisTurn> Modifiers);
-
+    public sealed class UnlimitedUsage { internal UnlimitedUsage() { } }
     public abstract class Entry
     {
         private protected Entry() { }
-        internal virtual Type Slot => GetType();
-        internal virtual UnitAction? AttackAction => null;
         internal abstract UnitType Apply(UnitType type);
+    }
+    private sealed class UpdateEntry(Func<UnitType, UnitType> update) : Entry
+    {
+        internal override UnitType Apply(UnitType type) => update(type);
     }
 
     public static BaseStats Stats(int mov, int rng, int atk, int def, int hp) => new(mov, rng, atk, def, hp);
     public static UseLimit Uses(int count) => new(count);
     public static UnlimitedUsage Unlimited() => new();
     public static ModifierThisTurn Modifier(Stat stat, int amount) => new(stat, amount);
-    public static SelfModifiers BonusActionSelfModifier(params ModifierThisTurn[] modifiers) => new([.. modifiers]);
-    public static Entry Grant(string id, string abilityId, AbilityGrantCompatibility? compatibility = null) =>
-        new GrantEntry(new(id, abilityId) { Compatibility = compatibility });
-    public static Entry LocalAbility(LocalAbilityDefinition ability) => new LocalAbilityEntry(ability);
+    public static SelfModifiersMechanic BonusActionSelfModifier(params ModifierThisTurn[] modifiers) => new([.. modifiers]);
+    public static Entry LocalAbility(LocalAbilityDefinition ability) => new UpdateEntry(type =>
+    {
+        ArgumentNullException.ThrowIfNull(ability);
+        return type with { LocalAbilities = type.LocalAbilities.Add(ability) };
+    });
+    public static Entry Ability(string name, UseLimit usage, AbilityMechanic mechanic, string id) =>
+        LocalAbility(new(id, name, TimingFor(mechanic), mechanic) { Usage = new(usage.Count) });
+    public static Entry Ability(string name, UnlimitedUsage usage, AbilityMechanic mechanic, string id) =>
+        LocalAbility(new(id, name, TimingFor(mechanic), mechanic) { Usage = new(null) });
 
-    private sealed class LocalAbilityEntry(LocalAbilityDefinition ability) : Entry
+    // Each helper denotes one already established concrete timing. For a shared
+    // mechanic with several supported timings, author a LocalAbility directly.
+    private static AbilityTiming TimingFor(AbilityMechanic mechanic) => mechanic switch
     {
-        internal override UnitType Apply(UnitType type)
-        {
-            ArgumentNullException.ThrowIfNull(ability);
-            return type with { LocalAbilities = type.LocalAbilities.Add(ability) };
-        }
-    }
+        ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentModifiersMechanic => AbilityTiming.Passive,
+        ProjectDelve.Engine.Cleave or ProjectDelve.Engine.MoveAfterAttack or ProjectDelve.Engine.AdvanceOnKill => AbilityTiming.AfterAttack,
+        ProjectDelve.Engine.Explosion => AbilityTiming.WhenDefeated,
+        ProjectDelve.Engine.Undying => AbilityTiming.InsteadOfDefeat,
+        ProjectDelve.Engine.RunRails => AbilityTiming.InsteadOfActivation,
+        ProjectDelve.Engine.WaypointSlotMachine => AbilityTiming.EndActivation,
+        ProjectDelve.Engine.ReshapeRoom or ProjectDelve.Engine.Swap or ProjectDelve.Engine.Displace or ProjectDelve.Engine.PlaceBananaPeel or ProjectDelve.Engine.Boost or SelfModifiersMechanic => AbilityTiming.BonusAction,
+        ProjectDelve.Engine.OpenDoor => AbilityTiming.FreeAction,
+        _ => AbilityTiming.Action
+    };
 
-    private sealed class GrantEntry(AbilityGrant grant) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { AbilityGrants = type.AbilityGrants.Add(grant) };
-    }
+    public static Entry CantAttack() => new UpdateEntry(t => t with { Actions = UnitAction.None });
+    public static Entry Unique() => new UpdateEntry(t => t with { Unique = true });
+    public static Entry Footprint2x2() => new UpdateEntry(t => t with { Footprint = Footprint.TwoByTwo });
+    public static Entry OpenDoor() => Ability("Open Door", Unlimited(), new OpenDoor(), "open-door");
+    public static Entry Phase() => Ability("Phase", Unlimited(), new Phase(), "phase");
+    public static Entry TransportResource() => Ability("Transport Resource", Unlimited(), new TransportResource(), "transport-resource");
+    public static Entry PickupResource() => Ability("Pickup Resource", Unlimited(), new PickupResource(), "pickup-resource");
+    public static Entry Operate() => Ability("Operate", Unlimited(), new Operate(), "operate");
+    public static Entry GiveResource() => Ability("Give Resource", Unlimited(), new GiveResource(), "give-resource");
+    public static Entry SummonWorker(int sideLimit) => Ability("Summon Worker", Unlimited(), new SummonWorker(sideLimit), "summon-worker");
+    public static Entry SummonTroll(int diamondCost) => Ability("Summon Troll", Unlimited(), new SummonTroll(diamondCost), "summon-troll");
+    public static Entry PlaceBananaPeel(int bananaCost) => Ability("Place Banana Peel", Unlimited(), new PlaceBananaPeel(bananaCost), "place-banana-peel");
+    public static Entry Boost(int mushroomCost) => Ability("Boost", Unlimited(), new Boost(mushroomCost), "boost");
+    public static Entry ShootShell(int shellCost, int rng, int atk) => Ability("Shoot Shell", Unlimited(), new ShootShell(shellCost, rng, atk), "shoot-shell");
+    public static Entry WaypointSlotMachine() => Ability("Waypoint Slot Machine", Unlimited(), new WaypointSlotMachine(RacingSlotTable.Table), "waypoint-slot-machine");
+    public static Entry RunRails(int steps) => Ability($"Run Rails ({steps})", Unlimited(), new RunRails(steps), "run-rails");
+    public static Entry AdvanceOnKill() => Ability("Advance On Kill", Unlimited(), new AdvanceOnKill(), "advance-on-kill");
+    public static Entry Loot(int dropSuccesses, bool items = false, bool equipment = false) => new UpdateEntry(t =>
+        dropSuccesses is >= 0 and <= 6
+            ? t with { LootDropSuccesses = dropSuccesses, CanHaveItems = items, CanHaveEquipment = equipment }
+            : throw new ArgumentOutOfRangeException(nameof(dropSuccesses)));
+    public static Entry ResourceStorage(ResourceType type, int capacity) => ResourceStorage(new ResourceStorageCapacity(type, capacity));
+    public static Entry ResourceStorage(params ResourceStorageCapacity[] capacities) => new UpdateEntry(t => t with { ResourceStorage = new([.. capacities]) });
+    public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new UpdateEntry(t => t with { TerrainRestrictedMovement = new(terrain) });
+    public static Entry TerrainRestriction(params string[] categories) => new UpdateEntry(t => t with { TerrainRestriction = new([.. categories]) });
+    public static Entry StraightOrthogonal() => Pattern(MovementPattern.StraightOrthogonal);
+    public static Entry DiagonalCorridor() => Pattern(MovementPattern.DiagonalCorridor);
+    public static Entry StraightOrthogonalOrDiagonalCorridor() => Pattern(MovementPattern.StraightOrthogonalOrDiagonalCorridor);
+    public static Entry Adjacent() => Pattern(MovementPattern.Adjacent);
+    public static Entry LShape() => Pattern(MovementPattern.LShape);
+    private static Entry Pattern(MovementPattern pattern) => new UpdateEntry(t => t with { MovementPattern = pattern });
 
-    public static Entry RunRails(int steps) => steps > 0 ? new RailEntry(new(steps)) : throw new ArgumentOutOfRangeException(nameof(steps));
-    private sealed class RailEntry(RunRails mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { RunRails = mechanic };
-    }
-    public static Entry CantAttack() => new CantAttackEntry();
-    public static Entry Unique() => new UniqueEntry();
-    public static Entry Footprint2x2() => new FootprintEntry();
-    public static Entry OpenDoor() => new OpenDoorEntry();
-    public static Entry Phase() => new PhaseEntry();
-    public static Entry Loot(int dropSuccesses, bool items = false, bool equipment = false) => new LootEntry(dropSuccesses, items, equipment);
-    private sealed class LootEntry(int successes, bool items, bool equipment) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => successes is >= 0 and <= 6
-            ? type with { LootDropSuccesses = successes, CanHaveItems = items, CanHaveEquipment = equipment }
-            : throw new ArgumentOutOfRangeException(nameof(successes));
-    }
-    public static Entry TransportResource() => new TransportResourceEntry();
-    public static Entry ResourceStorage(ResourceType type, int capacity) => new StorageEntry(new([new(type, capacity)]));
-    public static Entry ResourceStorage(params ResourceStorageCapacity[] capacities) => new StorageEntry(new([.. capacities]));
-    public static Entry PickupResource() => new PickupEntry();
-    public static Entry Operate() => new OperateEntry();
-    public static Entry GiveResource() => new GiveEntry();
-    public static Entry SummonWorker(int sideLimit) => new WorkerSummonEntry(new(sideLimit));
-    public static Entry SummonTroll(int diamondCost) => new TrollSummonEntry(new(diamondCost));
-    public static Entry PlaceBananaPeel(int bananaCost) => new BananaEntry(new(bananaCost));
-    public static Entry Boost(int mushroomCost) => new BonusEntry(new("boost", null, []) { Boost = new(mushroomCost), DisplayName = "Boost" });
-    public static Entry ShootShell(int shellCost, int rng, int atk) => new ShellEntry(new(shellCost, rng, atk));
-    public static Entry WaypointSlotMachine() => new SlotRewardEntry();
-    private sealed class ShellEntry(ShootShell ability) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { ShootShell = ability, Actions = type.Actions | UnitAction.ShootShell };
-    }
-    private sealed class SlotRewardEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { WaypointSlotMachine = new() };
-    }
-    public static Entry TerrainRestrictedMovement(TerrainKind terrain) => new TerrainMovementEntry(new(terrain));
-    public static Entry TerrainRestriction(params string[] categories) => new TerrainCategoryEntry(new([.. categories]));
-    public static Entry StraightOrthogonal() => new PatternEntry(MovementPattern.StraightOrthogonal);
-    public static Entry DiagonalCorridor() => new PatternEntry(MovementPattern.DiagonalCorridor);
-    public static Entry StraightOrthogonalOrDiagonalCorridor() => new PatternEntry(MovementPattern.StraightOrthogonalOrDiagonalCorridor);
-    public static Entry Adjacent() => new PatternEntry(MovementPattern.Adjacent);
-    public static Entry LShape() => new PatternEntry(MovementPattern.LShape);
-    public static Entry AdvanceOnKill() => new AdvanceEntry();
-    private sealed class PatternEntry(MovementPattern pattern) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { MovementPattern = pattern };
-    }
-    private sealed class AdvanceEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { AdvanceOnKill = new() };
-    }
-    private sealed class BananaEntry(PlaceBananaPeel ability) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with
-            { BonusActions = type.BonusActions.Add(new("place-banana-peel", null, []) { PlaceBananaPeel = ability, DisplayName = "Place Banana Peel" }) };
-    }
-    private sealed class TerrainMovementEntry(TerrainRestrictedMovement capability) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { TerrainRestrictedMovement = capability };
-    }
-    private sealed class TerrainCategoryEntry(TerrainRestriction restriction) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { TerrainRestriction = restriction };
-    }
     public static TryOpenDoor TryOpenDoor(int successes) => new(successes);
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
@@ -127,239 +97,37 @@ public static class UnitAuthoring
     public static Telekinesis Telekinesis() => new();
     public static ReshapeRoom ReshapeRoom() => new();
     public static Swap Swap() => new();
-    public static Displace Displace(int maxMove) => maxMove is >= 0 and <= 1
-        ? new(maxMove) : throw new ArgumentOutOfRangeException(nameof(maxMove));
-    public static Fury Fury(int atkBonus, int adjacentEnemies) =>
-        new() { AtkBonus = atkBonus, AdjacentEnemyThreshold = adjacentEnemies };
+    public static Displace Displace(int maxMove) => new(maxMove);
+    public static Fury Fury(int atkBonus, int adjacentEnemies) => new() { AtkBonus = atkBonus, AdjacentEnemyThreshold = adjacentEnemies };
     public static Backstab Backstab(int atkBonus) => new() { AtkBonus = atkBonus };
-    public static Heal Heal(int amount) => new() { Amount = amount };
+    public static HealMechanic Heal(int amount) => new(amount);
     public static Cleave Cleave(int triggerDamage, int damage) => new() { TriggerDamage = triggerDamage, Damage = damage };
-    public static HolyWave HolyWave() => new();
-    public static Fireball Fireball() => new();
+    public static HolyWaveMechanic HolyWave() => new();
+    public static FireballMechanic Fireball() => new();
     public static FireBreath FireBreath() => new();
     public static ClawAttack ClawAttack(int atkBonus = 1) => new(atkBonus);
-    public static AdjacentFriendlyUnitsDefenceBonus AdjacentFriendliesDefenceBonus(int amount) => new(amount);
-
-    // Usage overloads allow only the timing/use semantics already supported by each mechanic.
-    public static Entry Ability(string name, UseLimit usage, Heal mechanic) =>
-        new NamedEntry(new HealEntry(mechanic with { MaxUses = usage.Count }), name, NamedMechanic.Heal);
-    public static Entry Ability(string name, UseLimit usage, Cleave mechanic) =>
-        new NamedEntry(new CleaveEntry(mechanic with { MaxUses = usage.Count }), name, NamedMechanic.Cleave);
-    public static Entry Ability(string name, UseLimit usage, HolyWave mechanic) =>
-        new NamedEntry(new WaveEntry(mechanic with { MaxUses = usage.Count }), name, NamedMechanic.HolyWave);
-    public static Entry Ability(string name, UseLimit usage, Fireball mechanic) =>
-        new NamedEntry(new FireballEntry(mechanic with { MaxUses = usage.Count }), name, NamedMechanic.Fireball);
-    public static Entry Ability(string name, UnlimitedUsage usage, FireBreath mechanic) =>
-        new NamedEntry(new BreathEntry(), name, NamedMechanic.FireBreath);
-    public static Entry Ability(string name, UnlimitedUsage usage, ClawAttack mechanic) =>
-        new NamedEntry(new ClawEntry(mechanic), name, NamedMechanic.ClawAttack);
-    public static Entry Ability(string name, UnlimitedUsage usage, AdjacentFriendlyUnitsDefenceBonus mechanic) =>
-        new NamedEntry(new AuraEntry(mechanic), name, NamedMechanic.Aura);
-    public static Entry Ability(string name, UnlimitedUsage usage, Fury mechanic) =>
-        new NamedEntry(new FuryEntry(mechanic), name, NamedMechanic.Fury);
-    public static Entry Ability(string name, UnlimitedUsage usage, Backstab mechanic) =>
-        new NamedEntry(new BackstabEntry(mechanic), name, NamedMechanic.Backstab);
-    public static Entry Ability(string name, UnlimitedUsage usage, Explosion mechanic) =>
-        new NamedEntry(new ExplosionEntry(mechanic), name, NamedMechanic.Explosion);
-    public static Entry Ability(string name, UnlimitedUsage usage, Undying mechanic) =>
-        new NamedEntry(new UndyingEntry(), name, NamedMechanic.Undying);
-    public static Entry Ability(string name, UnlimitedUsage usage, Telekinesis mechanic) =>
-        new NamedEntry(new TelekinesisEntry(), name, NamedMechanic.Telekinesis);
-    public static Entry Ability(string name, UnlimitedUsage usage, TryOpenDoor mechanic) =>
-        new NamedEntry(new DoorEntry(mechanic), name, NamedMechanic.TryOpenDoor);
-    public static Entry Ability(string name, UnlimitedUsage usage, SummonAdjacent mechanic) =>
-        new NamedEntry(new SummonEntry(mechanic), name, NamedMechanic.Summon);
-    public static Entry Ability(string name, UnlimitedUsage usage, MoveAfterAttack mechanic) =>
-        new NamedEntry(new MoveEntry(mechanic), name, NamedMechanic.MoveAfterAttack);
-
-    // Bonus ids remain explicit persisted keys, independent of the printed name.
-    public static Entry Ability(string name, UnlimitedUsage usage, ReshapeRoom mechanic, string id) =>
-        new BonusEntry(new(id, null, []) { ReshapeRoom = mechanic, DisplayName = name == id ? null : name });
-    public static Entry Ability(string name, UnlimitedUsage usage, Swap mechanic, string id) =>
-        new BonusEntry(new(id, null, []) { Swap = mechanic, DisplayName = name == id ? null : name });
-    public static Entry Ability(string name, UnlimitedUsage usage, Displace mechanic, string id) =>
-        new BonusEntry(new(id, null, []) { Displace = mechanic, DisplayName = name == id ? null : name });
-    public static Entry Ability(string name, UseLimit usage, SelfModifiers mechanic, string id) =>
-        new BonusEntry(new(id, usage.Count, mechanic.Modifiers) { DisplayName = name == id ? null : name });
+    public static AdjacentModifiersMechanic AdjacentFriendliesDefenceBonus(int amount) => new([new(Stat.Def, amount)]);
 
     internal static UnitType Define(string id, string name, BaseStats stats, Entry[] entries)
     {
         var type = new UnitType(id, stats.Mov, stats.Rng, stats.Atk, stats.Def, stats.Hp) { DisplayName = name };
-        HashSet<Type> slots = [];
         foreach (var entry in entries)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            if (entry.Slot != typeof(BonusEntry) && entry.Slot != typeof(GrantEntry) && entry.Slot != typeof(LocalAbilityEntry) && !slots.Add(entry.Slot))
-                throw new ArgumentException("A concrete mechanic may only be attached once.", nameof(entries));
             type = entry.Apply(type);
         }
-        if (type.BonusActions.Select(a => a.Name).Distinct().Count() != type.BonusActions.Length)
-            throw new ArgumentException("Bonus ability ids must be unique.", nameof(entries));
-        if (type.AbilityGrants.Any(g => string.IsNullOrWhiteSpace(g.Id) || string.IsNullOrWhiteSpace(g.AbilityId)) ||
-            type.AbilityGrants.Select(g => g.Id).Distinct(StringComparer.Ordinal).Count() != type.AbilityGrants.Length)
-            throw new ArgumentException("Ability grants need distinct IDs and an Ability reference.", nameof(entries));
-        if (type.LocalAbilities.Any(a => string.IsNullOrWhiteSpace(a.Key)) ||
-            type.LocalAbilities.Select(a => a.Key).Concat(type.AbilityGrants.Select(g => g.Id)).Distinct(StringComparer.Ordinal).Count() !=
-                type.LocalAbilities.Length + type.AbilityGrants.Length)
-            throw new ArgumentException("Local Abilities and grants need distinct nonblank keys within their source.", nameof(entries));
+        AbilityContent.Validate(type.LocalAbilities, AbilitySourceKind.Unit);
         if (type.Hp > 1 && !type.Unique)
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(entries));
-        var attackOrder = (type.Actions.HasFlag(UnitAction.NormalAttack)
-                ? new[] { UnitAction.NormalAttack } : [])
-            .Concat(entries.Select(entry => entry.AttackAction).Where(action => action.HasValue)
-                .Select(action => action!.Value)).ToImmutableArray();
-        return type with { AttackDefinitionOrder = attackOrder.Length > 1 ? attackOrder : [] };
+        var attacks = (type.HasAction(UnitAction.NormalAttack) ? new[] { UnitAction.NormalAttack } : [])
+            .Concat(type.LocalAbilities.Select(a => a.Mechanic switch
+            {
+                FireballMechanic => UnitAction.Fireball, ProjectDelve.Engine.FireBreath => UnitAction.FireBreath,
+                ProjectDelve.Engine.ClawAttack => UnitAction.ClawAttack, ProjectDelve.Engine.ShootShell => UnitAction.ShootShell,
+                _ => UnitAction.None
+            }).Where(a => a != UnitAction.None)).ToImmutableArray();
+        return type with { AttackDefinitionOrder = attacks.Length > 1 ? attacks : [] };
     }
-
     public static UnitType WithBehaviors(this UnitType type, params UnitBehavior[] behaviors) =>
         type with { Behaviors = behaviors.Aggregate(type.Behaviors, (combined, behavior) => combined | behavior) };
-
-    private sealed class WorkerSummonEntry(SummonWorker mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.SummonWorker, SummonWorker = mechanic };
-    }
-    private sealed class TrollSummonEntry(SummonTroll mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.SummonTroll, SummonTroll = mechanic };
-    }
-
-    private enum NamedMechanic { Heal, Cleave, HolyWave, Fireball, FireBreath, ClawAttack, Aura, Fury, Backstab, Undying, Explosion, Telekinesis, TryOpenDoor, Summon, MoveAfterAttack }
-    private sealed class NamedEntry(Entry mechanic, string name, NamedMechanic kind) : Entry
-    {
-        internal override Type Slot => mechanic.Slot;
-        internal override UnitAction? AttackAction => mechanic.AttackAction;
-        internal override UnitType Apply(UnitType type)
-        {
-            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Ability printed name is required.", nameof(name));
-            var names = type.AbilityNames;
-            names = kind switch
-            {
-                NamedMechanic.Heal => names with { Heal = name == "Heal" ? null : name },
-                NamedMechanic.Cleave => names with { Cleave = name == "Cleave" ? null : name },
-                NamedMechanic.HolyWave => names with { HolyWave = name == "Holy Wave" ? null : name },
-                NamedMechanic.Fireball => names with { Fireball = name == "Fireball" ? null : name },
-                NamedMechanic.FireBreath => names with { FireBreath = name == "Fire Breath" ? null : name },
-                NamedMechanic.ClawAttack => names with { ClawAttack = name == "Claw Attack" ? null : name },
-                NamedMechanic.Aura => names with { Aura = name == "Aura" ? null : name },
-                NamedMechanic.Fury => names with { Fury = name == "Fury" ? null : name },
-                NamedMechanic.Backstab => names with { Backstab = name == "Backstab" ? null : name },
-                NamedMechanic.Explosion => names with { Explosion = name == "Explosion" ? null : name },
-                NamedMechanic.Undying => names with { Undying = name == "Undying" ? null : name },
-                NamedMechanic.Telekinesis => names with { Telekinesis = name == "Telekinesis" ? null : name },
-                NamedMechanic.TryOpenDoor => names with { TryOpenDoor = name == "Try Open Door" ? null : name },
-                NamedMechanic.Summon => names with { Summon = name },
-                NamedMechanic.MoveAfterAttack => names with { MoveAfterAttack = name == "Move After Attack" ? null : name },
-                _ => throw new ArgumentOutOfRangeException(nameof(kind))
-            };
-            return mechanic.Apply(type) with { AbilityNames = names };
-        }
-    }
-
-    private sealed class UniqueEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Unique = true };
-    }
-    private sealed class FootprintEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Footprint = Footprint.TwoByTwo };
-    }
-    private sealed class CantAttackEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions & ~UnitAction.NormalAttack };
-    }
-    private sealed class OpenDoorEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { FreeActions = type.FreeActions | UnitFreeAction.OpenDoor };
-    }
-    private sealed class StorageEntry(ResourceStorage storage) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { ResourceStorage = storage };
-    }
-    private sealed class PickupEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.PickupResource };
-    }
-    private sealed class OperateEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Operate };
-    }
-    private sealed class GiveEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.GiveResource };
-    }
-    private sealed class TransportResourceEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { TransportResource = new() };
-    }
-    private sealed class PhaseEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Phase = new() };
-    }
-    private sealed class DoorEntry(TryOpenDoor mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { TryOpenDoor = mechanic };
-    }
-    private sealed class MoveEntry(MoveAfterAttack mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { MoveAfterAttack = mechanic };
-    }
-    private sealed class ExplosionEntry(Explosion mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Explosion = mechanic };
-    }
-    private sealed class UndyingEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Undying = new() };
-    }
-    private sealed class SummonEntry(SummonAdjacent mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.SummonAdjacent, SummonAdjacent = mechanic };
-    }
-    private sealed class TelekinesisEntry : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Telekinesis };
-    }
-    private sealed class FuryEntry(Fury mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Fury = mechanic };
-    }
-    private sealed class BackstabEntry(Backstab mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Backstab = mechanic };
-    }
-    private sealed class HealEntry(Heal mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Heal, Heal = mechanic };
-    }
-    private sealed class CleaveEntry(Cleave mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Cleave = mechanic };
-    }
-    private sealed class WaveEntry(HolyWave mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.HolyWave, HolyWave = mechanic };
-    }
-    private sealed class FireballEntry(Fireball mechanic) : Entry
-    {
-        internal override UnitAction? AttackAction => UnitAction.Fireball;
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.Fireball, Fireball = mechanic };
-    }
-    private sealed class BreathEntry : Entry
-    {
-        internal override UnitAction? AttackAction => UnitAction.FireBreath;
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.FireBreath };
-    }
-    private sealed class ClawEntry(ClawAttack mechanic) : Entry
-    {
-        internal override UnitAction? AttackAction => UnitAction.ClawAttack;
-        internal override UnitType Apply(UnitType type) => type with { Actions = type.Actions | UnitAction.ClawAttack, ClawAttack = mechanic };
-    }
-    private sealed class AuraEntry(AdjacentFriendlyUnitsDefenceBonus mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { AdjacentFriendlyUnitsDefenceBonus = mechanic };
-    }
-    private sealed class BonusEntry(BonusActionAbility mechanic) : Entry
-    {
-        internal override UnitType Apply(UnitType type) => type with { BonusActions = type.BonusActions.Add(mechanic) };
-    }
 }

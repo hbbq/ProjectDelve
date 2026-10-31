@@ -33,16 +33,16 @@ public sealed class OpenDoorTests
     [Fact]
     public void ContentGrantsOpenDoorExplicitly_IndependentOfSideOrHeroHelper()
     {
-        Assert.Equal(UnitFreeAction.OpenDoor, UnitType.Barbarian().FreeActions);
-        Assert.Equal(UnitFreeAction.OpenDoor, UnitType.Rogue().FreeActions);
-        Assert.Equal(UnitFreeAction.None, UnitType.Hero("hero", 1, 1, 1, 1, 1).FreeActions);
+        Assert.NotNull(UnitType.Barbarian().Ability<OpenDoor>());
+        Assert.NotNull(UnitType.Rogue().Ability<OpenDoor>());
+        Assert.Null(UnitType.Hero("hero", 1, 1, 1, 1, 1).Ability<OpenDoor>());
         Assert.All(new[] { UnitType.Grunt(), UnitType.Zombie(), UnitType.SkeletonArcher(), UnitType.Goblin() },
-            type => Assert.Equal(UnitFreeAction.None, type.FreeActions));
+            type => Assert.Null(type.Ability<OpenDoor>()));
         var state = State();
         state.Types[0] = state.Types[0] with { Actions = UnitAction.None, Atk = 0, Rng = 0 };
         state.Units[0] = state.Units[0] with { SideId = "red" };
         Assert.NotNull(DoorChoice(TestGame.StartRound(state, new Random())));
-        state.Types[0] = state.Types[0] with { FreeActions = UnitFreeAction.None };
+        state.Types[0] = state.Types[0].Without<OpenDoor>();
         Assert.DoesNotContain(TestGame.StartRound(state, new Random()).NextInput!.Candidates, c => c.FreeAction is not null);
     }
 
@@ -62,17 +62,17 @@ public sealed class OpenDoorTests
         var pending = TestGame.StartRound(state, new Random(), relevanceAutoChoice);
         if (moveDone) pending = Choose(pending.State, "stay", relevanceAutoChoice);
         if (actionDone) pending = Choose(pending.State, "attack:enemy", relevanceAutoChoice);
-        if (relevanceAutoChoice) pending.State.BonusActionsUsedThisActivation.Add("Rage");
-        var candidate = pending.NextInput!.Candidates.Single(c => c.Key == "open-door:1,1:2,1");
+        if (relevanceAutoChoice) pending.State.BonusActionUseCountsThisActivation["unit:rage"] = 1;
+        var candidate = pending.NextInput!.Candidates.Single(c => c.Key == "ability:open-door:1,1:2,1");
         Assert.Equal(ActivationChoiceKind.FreeAction, candidate.Kind);
         Assert.Null(candidate.Action);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(pending.State))!;
-        Assert.Equal(UnitFreeAction.OpenDoor, restored.Types[0].FreeActions);
+        Assert.NotNull(restored.Types[0].Ability<OpenDoor>());
         Assert.Equal(candidate, restored.Pending!.Candidates.Single(c => c.Key == candidate.Key));
         var opened = Choose(restored, candidate.Key, relevanceAutoChoice);
         Assert.Equal(moveDone, opened.State.MoveDone);
         Assert.Equal(actionDone, opened.State.ActionDone);
-        Assert.Equal(pending.State.BonusActionsUsedThisActivation, opened.State.BonusActionsUsedThisActivation);
+        Assert.Equal(pending.State.BonusActionUseCountsThisActivation, opened.State.BonusActionUseCountsThisActivation);
         Assert.Equal("hero", opened.State.CurrentUnitId);
         Assert.False(opened.State.RoundComplete);
         var evt = Assert.Single(TestGame.OperationEvents(opened));
@@ -109,7 +109,7 @@ public sealed class OpenDoorTests
             Assert.DoesNotContain(second.NextInput!.Candidates, c => c.FreeAction is not null);
             Assert.False(second.State.MoveDone);
             Assert.False(second.State.ActionDone);
-            Assert.Empty(second.State.BonusActionsUsedThisActivation);
+            Assert.Empty(second.State.BonusActionUseCountsThisActivation);
         }
     }
 
@@ -179,7 +179,7 @@ public sealed class OpenDoorTests
     {
         var pending = TestGame.StartRound(State(enemy: true), new Random());
         var candidate = DoorChoice(pending);
-        var forged = candidate with { Key = "open-door:0,0:1,0", Door = new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor) };
+        var forged = candidate with { Key = "ability:open-door:0,0:1,0", Door = new(new(0, 0), new(1, 0), EdgeKind.ClosedDoor) };
         pending.State.Pending!.Candidates.Add(forged);
         Assert.Throws<ArgumentException>(() => TestGame.Advance(pending.State, new Choice(request =>
         {

@@ -287,10 +287,9 @@ public sealed class LootContentTests
     public void LegacyItemMetadataAcceptsMultipleAndDifferentSupportedGrants()
     {
         var items = ItemCatalog.All.Select(i => i with
-        { LocalAbilities = [], Grants = [new("heal", "heal-example"), new("actions", "actions-example")] }).ToArray();
-        AbilityDefinition[] abilities = [.. AbilityCatalog.All, new("heal-example", "Restore", AbilityTiming.Action, new HealMechanic(2)),
-            new("actions-example", "Again", AbilityTiming.BonusAction, new ExtraActionsMechanic(3))];
-        var cards = LootCompatibility.ProjectLegacyCards(LootCardCatalog.All, items, EquipmentCatalog.All, abilities);
+        { LocalAbilities = [new("heal", "Restore", AbilityTiming.Action, new HealMechanic(2)),
+            new("actions", "Fresh Start", AbilityTiming.BonusAction, new ExtraActionsMechanic(3))] }).ToArray();
+        var cards = LootCompatibility.ProjectLegacyCards(LootCardCatalog.All, items, EquipmentCatalog.All);
         var item = Assert.Single(cards.Where(c => c.Kind == LootCardKind.SecondWind));
         Assert.Contains("heal an adjacent damaged friendly Unit for 2 HP", item.Text);
         Assert.Contains("gain +3 Action this activation", item.Text);

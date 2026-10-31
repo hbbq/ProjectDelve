@@ -3,9 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace ProjectDelve.Engine;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ItemDefinition(string Id, string Name)
 {
-    public ImmutableArray<AbilityGrant> Grants { get; init; } = [];
     public ImmutableArray<LocalAbilityDefinition> LocalAbilities { get; init; } = [];
 }
 public static class ItemCatalog
@@ -25,13 +25,11 @@ public static class ItemCatalog
             if (definition is null) continue;
             if (definition.LocalAbilities.IsDefault)
                 throw ScenarioValidationContext.At(new ArgumentException("Local Abilities cannot be null."), $"itemTypes[{i}].localAbilities");
-            if (definition.Grants.IsDefault)
-                throw ScenarioValidationContext.At(new ArgumentException("Ability grants cannot be null."), $"itemTypes[{i}].grants");
         }
         if (definitions.Any(d => d is null || string.IsNullOrWhiteSpace(d.Id) || string.IsNullOrWhiteSpace(d.Name) ||
-                d.Grants.IsEmpty && d.LocalAbilities.IsEmpty) ||
+                d.LocalAbilities.IsEmpty) ||
             definitions.Select(d => d.Id).Distinct(StringComparer.Ordinal).Count() != definitions.Count)
-            throw new ArgumentException("Items require unique IDs, names and at least one Ability grant or local Ability.");
+            throw new ArgumentException("Items require unique IDs, names and at least one local Ability.");
     }
 }
 
@@ -83,8 +81,7 @@ public static class ItemQueries
     public static LootCardContent ItemContent(this GameState state, OwnedObject obj)
     {
         var item = state.Item(state.ItemTypeId(obj)!);
-        var entries = AbilityDeclarations.Resolve(item.LocalAbilities, item.Grants, state.AbilityDefinitions, legacyItemTypeId: item.Id)
-            .Select(declaration => declaration.Definition.CardEntry());
+        var entries = item.LocalAbilities.Select(ability => ability.CardEntry());
         return new(obj.Kind, item.Name, LootCategory.Item, string.Join(" ", entries.Select(e => $"{e.Category}: {e.Description}")) + " Consume this Item.")
             { ItemTypeId = item.Id };
     }

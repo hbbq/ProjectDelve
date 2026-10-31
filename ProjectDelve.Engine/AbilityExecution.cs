@@ -6,83 +6,81 @@ public static partial class GameEngine
 {
     // Content resolution supplies the concrete mechanic and source. These handlers
     // never look up an effect through a Unit field, display name, or object Type ID.
-    private static IEnumerable<Candidate> GrantedActionCandidates(GameState state, Unit unit)
+    private static bool IsSharedActiveMechanic(AbilityMechanic mechanic) => mechanic is
+        HolyWaveMechanic or HealMechanic or FireballMechanic or StandAdjacentFriendlyMechanic or SelfModifiersMechanic or ExtraActionsMechanic;
+
+    private static IEnumerable<Candidate> AbilityActionCandidates(GameState state, Unit unit)
     {
-        foreach (var grant in state.AbilitiesOf(unit.Id).Where(g => g.Definition.Timing == AbilityTiming.Action && state.CanUseAbility(unit.Id, g)))
+        foreach (var ability in state.AbilitiesOf(unit.Id).Where(g => g.Definition.Timing == AbilityTiming.Action &&
+                     IsSharedActiveMechanic(g.Definition.Mechanic) && state.CanUseAbility(unit.Id, g)))
         {
             Candidate Bind(Candidate candidate) => candidate with
             {
-                GrantedAbility = grant,
-                AbilityName = grant.Definition.Name,
-                ObjectId = grant.SourceKind == AbilitySourceKind.Unit ? null : grant.SourceInstanceId,
-                ItemTypeId = grant.SourceKind == AbilitySourceKind.Item ? grant.SourceTypeId : null,
-                EquipmentTypeId = grant.SourceKind == AbilitySourceKind.Equipment ? grant.SourceTypeId : null,
-                EquipmentAbilityId = grant.SourceKind == AbilitySourceKind.Equipment ? grant.GrantId : null,
-                EquipmentMechanic = grant.Definition.Mechanic is StandAdjacentFriendlyMechanic
-                    ? EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit : null
+                Ability = ability,
+                AbilityName = ability.Definition.Name,
+                ObjectId = ability.SourceKind == AbilitySourceKind.Unit ? null : ability.SourceInstanceId,
+                ItemTypeId = ability.SourceKind == AbilitySourceKind.Item ? ability.SourceTypeId : null,
+                EquipmentTypeId = ability.SourceKind == AbilitySourceKind.Equipment ? ability.SourceTypeId : null
             };
 
-            switch (grant.Definition.Mechanic)
+            switch (ability.Definition.Mechanic)
             {
                 case HealMechanic:
                     foreach (var target in state.Units.Where(target => target.Id != unit.Id &&
                                  target.SideId == unit.SideId && target.CurrentHp > 0 &&
                                  target.CurrentHp < state.Types.Single(t => t.Id == target.TypeId).Hp &&
                                  SpatialRules.AreAdjacent(state, unit.Id, target.Id)))
-                        yield return Bind(new($"{grant.CandidatePrefix}:{target.Id}", Action: UnitAction.Heal, TargetId: target.Id));
+                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.Heal, TargetId: target.Id));
                     break;
                 case HolyWaveMechanic:
                     var targets = AdjacentHostiles(state, unit).Where(u => state.IsUpright(u.Id)).Select(u => u.Id).ToImmutableArray();
-                    yield return Bind(new(grant.CandidatePrefix, Action: UnitAction.HolyWave, Relevant: !targets.IsEmpty) { TargetIds = targets });
+                    yield return Bind(new(ability.CandidatePrefix, Action: UnitAction.HolyWave, Relevant: !targets.IsEmpty) { TargetIds = targets });
                     break;
                 case FireballMechanic:
-                    foreach (var candidate in FireballCandidates(state, unit, grant.CandidatePrefix)) yield return Bind(candidate);
+                    foreach (var candidate in FireballCandidates(state, unit, ability.CandidatePrefix)) yield return Bind(candidate);
                     break;
                 case StandAdjacentFriendlyMechanic:
                     foreach (var target in state.Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId &&
                                  state.Physical.Figures.Any(f => f.Id == u.Id && f.Posture == Posture.Lying) &&
                                  SpatialRules.AreAdjacent(state, unit.Id, u.Id)))
-                        yield return Bind(new($"{grant.CandidatePrefix}:{target.Id}", TargetId: target.Id));
+                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", TargetId: target.Id));
                     break;
             }
         }
     }
 
-    private static void ResolveGrantedAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
+    private static void ResolveAbility(GameState state, DecisionRequest request, Candidate choice, ResolutionEvents events)
     {
-        var grant = choice.GrantedAbility!;
-        if (grant.Definition.Timing != AbilityTiming.Action)
+        var ability = choice.Ability!;
+        if (ability.Definition.Timing != AbilityTiming.Action)
         {
-            ResolveOtherGrantedAbility(state, request, choice, events);
+            ResolveOtherAbility(state, request, choice, events);
             return;
         }
-        state.ActionsUsedThisActivation++;
-        ConsumeAbilityUse(state, request.UnitId!, grant, events);
-        var nativeLegacy = grant.Legacy is LegacyAbilityKind.Heal or LegacyAbilityKind.HolyWave or LegacyAbilityKind.Fireball;
         events.Add(new RulesEvent("ActionUsed", request.UnitId, choice.TargetId,
-            AbilityName: nativeLegacy ? null : grant.Definition.Name)
+            AbilityName: ability.Definition.Name)
         {
-            ActionId = grant.ActionId, Category = choice.Kind, Cell = choice.Destination,
+            ActionId = ability.ActionId, Category = choice.Kind, Cell = choice.Destination,
             SourceUnitId = request.UnitId
         });
-        switch (grant.Definition.Mechanic)
+        switch (ability.Definition.Mechanic)
         {
             case HolyWaveMechanic:
                 foreach (var targetId in choice.TargetIds)
                     if (state.Physical.Figures.Any(f => f.Id == targetId))
-                        ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, grant.ActionId);
-                ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, grant.ActionId);
+                        ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ability.ActionId);
+                ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ability.ActionId);
                 break;
             case HealMechanic heal:
-                RestoreHp(state, choice.TargetId!, heal.Amount, request.UnitId!, grant.Definition.Name, grant.ActionId, events);
+                RestoreHp(state, choice.TargetId!, heal.Amount, request.UnitId!, ability.Definition.Name, ability.ActionId, events);
                 break;
             case FireballMechanic:
                 BeginAttack(state, request.UnitId!,
-                    new(choice.TargetIds, state.EffectiveAtkOf(request.UnitId!), grant.Definition.Name), events,
-                    grant.ActionId, choice.Destination, UnitAction.Fireball);
+                    new(choice.TargetIds, state.EffectiveAtkOf(request.UnitId!), ability.Definition.Name), events,
+                    ability.ActionId, choice.Destination, UnitAction.Fireball);
                 break;
             case StandAdjacentFriendlyMechanic:
-                ChangePosture(state, choice.TargetId!, Posture.Upright, events, request.UnitId, grant.ActionId);
+                ChangePosture(state, choice.TargetId!, Posture.Upright, events, request.UnitId, ability.ActionId);
                 break;
             default:
                 throw new InvalidOperationException("Unsupported Action mechanic.");

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -41,15 +41,15 @@ public sealed class DisplacerDemonTests
         TestGame.Advance(result.State, new Choice(key), dice ?? new Dice(), false);
     private static string AutoKey(EngineResult result) =>
         new DefaultAutomatedProvider().Choose(result.NextInput!, new GameplayQueries(result.State))!;
-    private static IEnumerable<Candidate> SwapChoices(EngineResult result) => result.NextInput!.Candidates.Where(c => c.BonusAction?.Swap is not null);
-    private static IEnumerable<Candidate> DisplaceChoices(EngineResult result) => result.NextInput!.Candidates.Where(c => c.BonusAction?.Displace is not null);
+    private static IEnumerable<Candidate> SwapChoices(EngineResult result) => result.NextInput!.Candidates.Where(c => c.Ability?.Definition.Mechanic is Swap);
+    private static IEnumerable<Candidate> DisplaceChoices(EngineResult result) => result.NextInput!.Candidates.Where(c => c.Ability?.Definition.Mechanic is Displace);
     private static Cell Position(GameState state, string id) => state.Physical.Figures.Single(f => f.Id == id).Position;
     private static EngineResult DisplaceDecision(GameState world)
     {
         var result = Start(world);
         result.State.MoveDone = true;
         result.State.ActionDone = true;
-        result.State.BonusActionsUsedThisActivation.Add("Swap");
+        result.State.BonusActionUseCountsThisActivation["unit:swap"] = 1;
         return GameEngine.RefreshChoices(result.State, new Dice(), false);
     }
 
@@ -63,15 +63,15 @@ public sealed class DisplacerDemonTests
         Assert.Equal(Footprint.OneByOne, type.Footprint);
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.SwapThenAttackThenDisplace, type.Behaviors);
-        Assert.Equal(new CardEntryDescription("bonus:Swap", "Swap", "Bonus Action", "Swap places with an adjacent enemy Unit."),
-            Assert.Single(type.CardEntries(), e => e.Id == "bonus:Swap"));
-        Assert.Equal(new CardEntryDescription("bonus:Displace", "Displace", "Bonus Action", "Move an adjacent enemy Unit up to 1 Cell."),
-            Assert.Single(type.CardEntries(), e => e.Id == "bonus:Displace"));
+        Assert.Equal(new CardEntryDescription("ability:swap", "Swap", "Bonus Action", "Swap places with an adjacent enemy Unit."),
+            Assert.Single(type.CardEntries(), e => e.Id == "ability:swap"));
+        Assert.Equal(new CardEntryDescription("ability:displace", "Displace", "Bonus Action", "Move an adjacent enemy Unit up to 1 Cell."),
+            Assert.Single(type.CardEntries(), e => e.Id == "ability:displace"));
         Assert.Equal(new ModifierThisTurn(Stat.Def, 1), Assert.Single(Assert.IsType<AdjacentModifiersMechanic>(
-            Assert.Single(AbilityQueries.NativeAbilities(type, "demon"), g => g.GrantId == "aura").Definition.Mechanic).Modifiers));
+            Assert.Single(AbilityQueries.NativeAbilities(type, "demon"), g => g.Key == "aura").Definition.Mechanic).Modifiers));
         var start = Start();
-        Assert.Empty(start.State.Units[0].BonusActionUses);
-        Assert.All(type.BonusActions, a => Assert.Null(type.UsesFor(start.State.Units[0], ContentDescriptions.BonusEntryId(a.Name))));
+        Assert.Empty(start.State.Units[0].AbilityUseCounts);
+        Assert.All(type.LocalAbilities.Where(a => a.Timing == AbilityTiming.BonusAction), a => Assert.Null(type.UsesFor(start.State.Units[0], "ability:" + a.Key)));
     }
 
     [Theory]
@@ -96,12 +96,12 @@ public sealed class DisplacerDemonTests
         Assert.NotEmpty(DisplaceChoices(swapped));
         Assert.DoesNotContain(swapped.Events, e => e.Kind is "MovementCompleted" or "AttackStarted" or "DiceRolled");
         var used = Assert.Single(swapped.Events, e => e.Kind == "ActionUsed");
-        Assert.Equal(("bonus:Swap", ActivationChoiceKind.BonusAction, "enemy"), (used.ActionId, used.Category, used.TargetId));
+        Assert.Equal(("ability:swap", ActivationChoiceKind.BonusAction, "enemy"), (used.ActionId, used.Category, used.TargetId));
         var occurrence = Assert.Single(swapped.Events, e => e.Kind == "PlacesSwapped");
         var snapshot = swapped.ResolutionSteps.Single(s => swapped.Events[s.EventIndex] == occurrence).StateAfter;
         Assert.Equal(new(x, y), Position(snapshot, "demon"));
         Assert.Equal(new(2, 2), Position(snapshot, "enemy"));
-        Assert.Throws<ArgumentException>(() => Pick(swapped, "bonus-action:Swap:enemy"));
+        Assert.Throws<ArgumentException>(() => Pick(swapped, "ability:swap:enemy"));
     }
 
     [Theory]
@@ -126,8 +126,8 @@ public sealed class DisplacerDemonTests
         var refreshed = GameEngine.RefreshChoices(start.State, new Dice(), false);
         Assert.Empty(SwapChoices(refreshed));
         Assert.Empty(DisplaceChoices(refreshed));
-        Assert.Throws<ArgumentException>(() => Pick(start, "bonus-action:Swap:enemy"));
-        Assert.Throws<ArgumentException>(() => Pick(start, "bonus-action:Displace:enemy:3,2"));
+        Assert.Throws<ArgumentException>(() => Pick(start, "ability:swap:enemy"));
+        Assert.Throws<ArgumentException>(() => Pick(start, "ability:displace:enemy:3,2"));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class DisplacerDemonTests
         var start = Start(World(enemy: new(4, 2), actor: UnitRoster.DisplacerDemon() with { Footprint = Footprint.TwoByTwo }));
         Assert.Empty(SwapChoices(start));
         Assert.NotEmpty(DisplaceChoices(start));
-        var result = Pick(start, "bonus-action:Displace:enemy:5,2");
+        var result = Pick(start, "ability:displace:enemy:5,2");
         Assert.Equal(new(5, 2), Position(result.State, "enemy"));
         Assert.Equal(new(2, 2), Position(result.State, "demon"));
     }
@@ -179,7 +179,7 @@ public sealed class DisplacerDemonTests
         world.Physical.Board.Terrain.Add(new(new(4, 2), terrain));
         var start = Start(world);
         Assert.DoesNotContain(DisplaceChoices(start), c => c.Destination == new Cell(4, 2));
-        Assert.Throws<ArgumentException>(() => Pick(start, "bonus-action:Displace:enemy:4,2"));
+        Assert.Throws<ArgumentException>(() => Pick(start, "ability:displace:enemy:4,2"));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class DisplacerDemonTests
         var start = Start(world);
         Assert.Equal(new[] { new Cell(3, 1), new(3, 2), new(3, 3) },
             DisplaceChoices(start).Select(c => c.Destination!).OrderBy(c => c.Y));
-        Assert.Throws<ArgumentException>(() => Pick(start, "bonus-action:Displace:enemy:4,3"));
+        Assert.Throws<ArgumentException>(() => Pick(start, "ability:displace:enemy:4,3"));
         var corner = World(new(0, 0));
         corner.Physical.Figures[0] = corner.Physical.Figures[0] with { Position = new(1, 1) };
         Assert.Equal(new[] { new Cell(0, 0), new(1, 0), new(0, 1) }, DisplaceChoices(Start(corner)).Select(c => c.Destination!));
@@ -204,18 +204,18 @@ public sealed class DisplacerDemonTests
         var world = World(target: UnitRoster.Ghost() with { Mov = 0 });
         world.Physical.Figures[1] = world.Physical.Figures[1] with { Posture = Posture.Lying };
         var start = Start(world);
-        var result = Pick(start, $"bonus-action:Displace:enemy:{x},{y}");
+        var result = Pick(start, $"ability:displace:enemy:{x},{y}");
         Assert.Equal(new(x, y), Position(result.State, "enemy"));
         Assert.Equal(Posture.Lying, result.State.Physical.Figures[1].Posture);
         Assert.False(result.State.MoveDone);
         Assert.False(result.State.ActionDone);
-        Assert.Equal(new[] { "Displace" }, result.State.BonusActionsUsedThisActivation);
+        Assert.Equal(new[] { "unit:displace" }, result.State.BonusActionUseCountsThisActivation.Keys);
         Assert.Empty(DisplaceChoices(result));
         Assert.Equal(x == 3, SwapChoices(result).Any());
         Assert.DoesNotContain(result.Events, e => e.Kind is "MovementCompleted" or "AttackStarted" or "DiceRolled");
         Assert.Equal(start.State.Units, result.State.Units);
         var repositioned = Assert.Single(result.Events, e => e.Kind == "UnitRepositioned");
-        Assert.Equal(("demon", "enemy", "bonus:Displace"), (repositioned.SourceUnitId, repositioned.UnitId, repositioned.ActionId));
+        Assert.Equal(("demon", "enemy", "ability:displace"), (repositioned.SourceUnitId, repositioned.UnitId, repositioned.ActionId));
         Assert.Equal(x == 3 ? 1 : 2, repositioned.Path!.Count);
     }
 
@@ -226,21 +226,21 @@ public sealed class DisplacerDemonTests
         world.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.WallWithWindow));
         var start = Start(world);
         Assert.Single(SwapChoices(start));
-        Assert.Equal(new(3, 2), Position(Pick(start, "bonus-action:Swap:enemy").State, "demon"));
+        Assert.Equal(new(3, 2), Position(Pick(start, "ability:swap:enemy").State, "demon"));
     }
 
     [Fact]
     public void BonusesCombineWithLimitedModifiersAndResetEachActivationWithoutCounters()
     {
         var demon = UnitRoster.DisplacerDemon();
-        var rage = Assert.Single(UnitRoster.Barbarian().AbilityGrants);
-        var start = Start(World(actor: demon with { AbilityGrants = demon.AbilityGrants.Add(rage) }));
-        var result = Pick(start, "bonus-action:Rage");
-        result = Pick(result, "bonus-action:Swap:enemy");
-        result = Pick(result, "bonus-action:Displace:enemy:2,2");
-        Assert.Equal(3, result.State.BonusActionsUsedThisActivation.Count);
-        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].BonusActionUses["Rage"]);
-        Assert.Single(result.State.Units[0].BonusActionUses);
+        var rage = Assert.Single(UnitRoster.Barbarian().LocalAbilities, a => a.Key == "rage");
+        var start = Start(World(actor: demon.WithLocal(rage)));
+        var result = Pick(start, "ability:rage");
+        result = Pick(result, "ability:swap:enemy");
+        result = Pick(result, "ability:displace:enemy:2,2");
+        Assert.Equal(3, result.State.BonusActionUseCountsThisActivation.Keys.Count);
+        Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("rage"));
+        Assert.Single(result.State.Units[0].AbilityUseCounts);
         Assert.False(result.State.MoveDone);
         result = Pick(result, "stay");
         result = Pick(result, "end-turn");
@@ -251,7 +251,7 @@ public sealed class DisplacerDemonTests
         var next = TestGame.StartRound(restored, new Dice(), false);
         Assert.Single(SwapChoices(next));
         Assert.NotEmpty(DisplaceChoices(next));
-        Assert.Equal(new AbilityUses(2, 1), next.State.Units[0].BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 1), next.State.Units[0].Uses("rage"));
     }
 
     [Fact]
@@ -264,7 +264,7 @@ public sealed class DisplacerDemonTests
         Assert.Equal(5, world.EffectiveDefOf("demon")); // Other source only.
         Assert.Equal(4, world.EffectiveDefOf("cleric"));
         Assert.Equal(3, world.EffectiveDefOf("enemy"));
-        var swapped = Pick(Start(world), "bonus-action:Swap:enemy");
+        var swapped = Pick(Start(world), "ability:swap:enemy");
         Assert.Equal(5, swapped.State.EffectiveDefOf("large")); // Demon no longer adjacent.
         Assert.Equal(3, swapped.State.EffectiveDefOf("cleric"));
         swapped.State.Physical.Figures[0] = swapped.State.Physical.Figures[0] with { Posture = Posture.Lying };
@@ -289,14 +289,14 @@ public sealed class DisplacerDemonTests
     public void BehaviorSwapsThenMovesThenAttacksThenDisplacesThenEnds()
     {
         var result = Start();
-        Assert.Equal("bonus-action:Swap:enemy", AutoKey(result));
+        Assert.Equal("ability:swap:enemy", AutoKey(result));
         result = Pick(result, AutoKey(result));
         Assert.Equal("stay", AutoKey(result));
         result = Pick(result, AutoKey(result));
         Assert.Equal("attack:enemy", AutoKey(result));
         result = Pick(result, AutoKey(result));
         Assert.True(result.State.ActionDone);
-        Assert.Equal("bonus-action:Displace:enemy:2,1", AutoKey(result));
+        Assert.Equal("ability:displace:enemy:2,1", AutoKey(result));
         result = Pick(result, AutoKey(result));
         Assert.Contains(result.Events, e => e.Kind == "ActivationCompleted" && e.UnitId == "demon");
         Assert.DoesNotContain(result.Events, e => e.Kind == "MovementCompleted");
@@ -311,7 +311,7 @@ public sealed class DisplacerDemonTests
         Assert.Equal("5,2", key);
         Assert.Equal(new ApproachMovementProvider(new Choice("stay")).Choose(result.NextInput!, new GameplayQueries(result.State)), key);
         result = Pick(result, key);
-        Assert.Equal("bonus-action:Swap:enemy", AutoKey(result));
+        Assert.Equal("ability:swap:enemy", AutoKey(result));
         result = Pick(result, AutoKey(result));
         Assert.Equal("attack:enemy", AutoKey(result));
     }
@@ -323,9 +323,9 @@ public sealed class DisplacerDemonTests
         Add(world, "orthogonal", UnitRoster.Grunt(), new(3, 2), "blue");
         Add(world, "upper", UnitRoster.Grunt(), new(2, 1), "blue");
         var result = Start(world);
-        Assert.Equal("bonus-action:Swap:upper", AutoKey(result));
+        Assert.Equal("ability:swap:upper", AutoKey(result));
         var request = result.NextInput! with { Candidates = SwapChoices(result).Where(c => c.TargetId == "enemy").ToList() };
-        Assert.Equal("bonus-action:Swap:enemy", new DefaultAutomatedProvider().Choose(request, new GameplayQueries(result.State)));
+        Assert.Equal("ability:swap:enemy", new DefaultAutomatedProvider().Choose(request, new GameplayQueries(result.State)));
         result = Pick(result, "stay");
         result = Pick(result, "attack:upper");
         var supplied = DisplaceChoices(result).Single(c => c.TargetId == "orthogonal" && c.Destination == new Cell(4, 2));
@@ -344,7 +344,7 @@ public sealed class DisplacerDemonTests
         result = Pick(result, "attack:enemy");
         Assert.True(result.State.MoveDone);
         Assert.True(result.State.ActionDone);
-        result = Pick(result, "bonus-action:Swap:enemy");
+        result = Pick(result, "ability:swap:enemy");
         Assert.True(result.State.MoveDone);
         Assert.True(result.State.ActionDone);
         Assert.NotEmpty(DisplaceChoices(result));
@@ -362,7 +362,7 @@ public sealed class DisplacerDemonTests
         var choice = Assert.Single(DisplaceChoices(start).Where(c => c.TargetId == "enemy"));
         Assert.Equal(new(3, 2), choice.Destination);
         var result = Pick(start, choice.Key);
-        Assert.Contains("Displace", result.State.BonusActionsUsedThisActivation);
+        Assert.Contains("unit:displace", result.State.BonusActionUseCountsThisActivation.Keys);
         Assert.Equal(new(3, 2), Position(result.State, "enemy"));
     }
 
@@ -385,7 +385,7 @@ public sealed class DisplacerDemonTests
         Add(world, "enemy-cleric", UnitRoster.Cleric(), new(4, 3), "blue");
         var result = Start(world);
         Assert.Equal(4, result.State.EffectiveDefOf("enemy"));
-        result = Pick(result, "bonus-action:Displace:enemy:3,1");
+        result = Pick(result, "ability:displace:enemy:3,1");
         Assert.Equal(3, result.State.EffectiveDefOf("enemy"));
         result = Pick(result, "stay");
         result = Pick(result, "attack:enemy");
@@ -403,7 +403,7 @@ public sealed class DisplacerDemonTests
         world.Types = [world.Types.Single(t => t.Id == UnitTypeIds.Wizard), .. world.Types.Where(t => t.Id != UnitTypeIds.Wizard)];
         var result = TestGame.StartRound(world, new Dice(), false);
         result = Pick(result, "stay");
-        result = Pick(result, "fireball:2,2", new Dice(hits: true));
+        result = Pick(result, "ability:fireball:2,2", new Dice(hits: true));
         var attack = Assert.Single(result.Events, e => e.Kind == "AttackStarted").AttackContext!;
         Assert.Equal(4, attack.Targets.Single(t => t.TargetId == "friend").DefenceDice);
         Assert.DoesNotContain(result.State.Physical.Figures, f => f.Id == "demon");
@@ -420,7 +420,7 @@ public sealed class DisplacerDemonTests
         world.Physical.Board.Edges.Add(new(new(3, 2), new(3, 1), EdgeKind.Wall));
         var result = DisplaceDecision(world);
         Assert.Contains(DisplaceChoices(result), c => c.Destination == new Cell(3, 2));
-        Assert.Equal("bonus-action:Displace:enemy:4,2", AutoKey(result));
+        Assert.Equal("ability:displace:enemy:4,2", AutoKey(result));
         var displaced = Pick(result, AutoKey(result));
         Assert.Equal(new(4, 2), Position(displaced.State, "enemy"));
     }
@@ -434,8 +434,8 @@ public sealed class DisplacerDemonTests
         Add(world, "diagonal", UnitRoster.Grunt(), new(3, 3), "blue");
         var result = DisplaceDecision(world);
         Assert.Single(DisplaceChoices(result).Where(c => c.TargetId == "enemy"));
-        Assert.Equal("bonus-action:Displace:diagonal:4,3", AutoKey(result));
-        Assert.Equal("bonus-action:Swap:enemy", AutoKey(Start(world))); // Swap retains nearest-target ranking.
+        Assert.Equal("ability:displace:diagonal:4,3", AutoKey(result));
+        Assert.Equal("ability:swap:enemy", AutoKey(Start(world))); // Swap retains nearest-target ranking.
     }
 
     [Fact]
@@ -446,7 +446,7 @@ public sealed class DisplacerDemonTests
         world.Physical.Board.Edges.Add(new(new(3, 3), new(3, 4), EdgeKind.ClosedDoor));
         var result = DisplaceDecision(world);
         Assert.Equal(3, DisplaceChoices(result).Count()); // Stay plus two steps toward the Demon.
-        Assert.Equal("bonus-action:Displace:enemy:3,3", AutoKey(result));
+        Assert.Equal("ability:displace:enemy:3,3", AutoKey(result));
     }
 
     [Fact]
@@ -460,7 +460,7 @@ public sealed class DisplacerDemonTests
         Assert.Equal(1, queries.ManhattanDistanceBetweenUnits("demon", "enemy"));
         Assert.Equal(2, DisplaceChoices(result).Count()); // Stay (4,3), and (4,2) along the large base.
         Assert.Contains(DisplaceChoices(result), c => c.Destination == new Cell(4, 2));
-        Assert.Equal("bonus-action:Displace:enemy:4,3", AutoKey(result)); // Both have increase 0; Stay moves fewer Cells.
+        Assert.Equal("ability:displace:enemy:4,3", AutoKey(result)); // Both have increase 0; Stay moves fewer Cells.
     }
 
     [Fact]
@@ -469,9 +469,9 @@ public sealed class DisplacerDemonTests
         var world = World();
         Add(world, "diagonal", UnitRoster.Grunt(), new(1, 1), "blue");
         var result = DisplaceDecision(world);
-        Assert.Equal("bonus-action:Displace:enemy:3,1", AutoKey(result)); // Both can increase distance by 1; orthogonal target wins.
+        Assert.Equal("ability:displace:enemy:3,1", AutoKey(result)); // Both can increase distance by 1; orthogonal target wins.
         result.NextInput!.Candidates.Reverse();
-        Assert.Equal("bonus-action:Displace:enemy:3,1", AutoKey(result));
+        Assert.Equal("ability:displace:enemy:3,1", AutoKey(result));
     }
 
     [Fact]
@@ -483,9 +483,9 @@ public sealed class DisplacerDemonTests
         Add(world, "right", UnitRoster.Grunt(), new(3, 2), "blue");
         var result = DisplaceDecision(world);
         Assert.Contains(DisplaceChoices(result), c => c.TargetId == "right" && c.Destination == new Cell(3, 1));
-        Assert.Equal("bonus-action:Displace:enemy:1,3", AutoKey(result)); // Target X=1 precedes X=3, despite its later destination row.
+        Assert.Equal("ability:displace:enemy:1,3", AutoKey(result)); // Target X=1 precedes X=3, despite its later destination row.
         result.NextInput!.Candidates.Reverse();
-        Assert.Equal("bonus-action:Displace:enemy:1,3", AutoKey(result));
+        Assert.Equal("ability:displace:enemy:1,3", AutoKey(result));
     }
 
     [Fact]
@@ -494,7 +494,7 @@ public sealed class DisplacerDemonTests
         var world = World(new(1, 2));
         Add(world, "upper", UnitRoster.Grunt(), new(2, 1), "blue");
         var result = DisplaceDecision(world);
-        Assert.Equal("bonus-action:Displace:upper:2,0", AutoKey(result));
+        Assert.Equal("ability:displace:upper:2,0", AutoKey(result));
     }
 
     [Fact]
@@ -503,6 +503,6 @@ public sealed class DisplacerDemonTests
         var world = World(new(2, 1));
         world.Physical.Board.Edges.Add(new(new(2, 1), new(2, 0), EdgeKind.Wall));
         var result = DisplaceDecision(world);
-        Assert.Equal("bonus-action:Displace:enemy:1,1", AutoKey(result)); // Equal increases to left/right: X=1 before X=3.
+        Assert.Equal("ability:displace:enemy:1,1", AutoKey(result)); // Equal increases to left/right: X=1 before X=3.
     }
 }

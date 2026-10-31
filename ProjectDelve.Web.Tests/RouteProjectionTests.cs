@@ -47,7 +47,7 @@ public sealed class RouteProjectionTests
         Assert.Contains(view.Events, e => e.Text.Contains("advanced the group's route"));
         var target = moved.NextInput!.Candidates.First(c => c.Action == UnitAction.PlaceBananaPeel);
         var choice = view.Decision!.Candidates.Single(c => c.Key == target.Key);
-        Assert.Equal("bonus:place-banana-peel", choice.EntryId);
+        Assert.Equal("ability:place-banana-peel", choice.EntryId);
         Assert.Equal(InteractionKind.Position, choice.Interaction.Kind);
         Assert.Equal(target.Destination, choice.Interaction.Position);
         var placed = GameEngine.Advance(moved.State, new Pick(target.Key), new Dice(), false);

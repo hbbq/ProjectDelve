@@ -145,10 +145,10 @@ public sealed class CellMarkerTests
         var d = Fixture() with { Units = [new(UnitTypeIds.DisplacerDemon, "blue", new(0, 1), UnitId: "actor"),
             new(UnitTypeIds.Grunt, "red", new(1, 1), UnitId: "enemy")] };
         var start = Start(d);
-        var zero = start.NextInput!.Candidates.Single(c => c.BonusAction?.Displace is not null && c.Destination == new Cell(1, 1));
+        var zero = start.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Displace && c.Destination == new Cell(1, 1));
         var stayed = Pick(start, zero.Key);
         Assert.Single(stayed.State.CellMarkers); Assert.True(stayed.State.IsUpright("enemy"));
-        var move = start.NextInput.Candidates.Single(c => c.BonusAction?.Displace is not null && c.Destination == new Cell(2, 1));
+        var move = start.NextInput.Candidates.Single(c => c.Ability?.Definition.Mechanic is Displace && c.Destination == new Cell(2, 1));
         var end = Pick(start, move.Key);
         Assert.False(end.State.IsUpright("enemy")); Assert.Empty(end.State.CellMarkers);
         Assert.Equal("actor", end.State.CurrentUnitId);
@@ -163,7 +163,7 @@ public sealed class CellMarkerTests
         var state = GameEngine.CreateGame(d);
         state.CellMarkers = [new(CellMarkerTypes.BananaPeel, new(0, 1)), new(CellMarkerTypes.BananaPeel, new(1, 1))];
         var start = GameEngine.StartRound(state, new Dice(), false);
-        var swap = start.NextInput!.Candidates.Single(c => c.BonusAction?.Swap is not null);
+        var swap = start.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Swap);
         var result = Pick(start, swap.Key);
         Assert.Equal(new[] { "ActionUsed", "PlacesSwapped", "CellMarkerConsumed", "PostureChanged",
             "CellMarkerConsumed", "PostureChanged", "ActivationCompleted" }, result.Events.Take(7).Select(e => e.Kind));
@@ -205,4 +205,3 @@ public sealed class CellMarkerTests
         Assert.Equal(new[] { "ActionUsed", "UnitCreated", "CellMarkerConsumed", "PostureChanged" }, result.Events.Take(4).Select(e => e.Kind));
     }
 }
-

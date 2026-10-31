@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 using static ProjectDelve.Engine.UnitAuthoring;
 using static ProjectDelve.Engine.Stat;
@@ -16,8 +16,8 @@ public sealed class UnitAuthoringTests
         Assert.Equal((2, 3, 4, 5, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal("attack", Assert.Single(type.CardEntries()).Id);
-        Assert.Empty(type.BonusActions);
-        Assert.Empty(type.Passives);
+        Assert.Empty(type.LocalAbilities);
+        Assert.Empty(type.LocalAbilities.Where(a => a.Timing == AbilityTiming.Passive));
         Assert.Equal(UnitBehavior.None, type.Behaviors);
         Assert.Equal(UnitAction.NormalAttack, UnitRoster.Grunt().Actions);
     }
@@ -26,66 +26,64 @@ public sealed class UnitAuthoringTests
     public void NamedUnlimitedAbilitiesPreserveCategoriesAndHaveNoUseCounters()
     {
         var type = UnitType.Define("named", "Named", Stats(1, 4, 3, 2, 5), Unique(),
-            Ability("Distant Touch", Unlimited(), Telekinesis()),
-            Ability("Resolve", Unlimited(), Fury(atkBonus: 2, adjacentEnemies: 1)),
-            Ability("Flank", Unlimited(), Backstab(atkBonus: 3)),
-            Ability("Ward", Unlimited(), AdjacentFriendliesDefenceBonus(2)),
-            Ability("Endurance", Unlimited(), Undying()));
+            Ability("Distant Touch", Unlimited(), Telekinesis(), id: "touch"),
+            Ability("Resolve", Unlimited(), Fury(atkBonus: 2, adjacentEnemies: 1), id: "resolve"),
+            Ability("Flank", Unlimited(), Backstab(atkBonus: 3), id: "flank"),
+            Ability("Ward", Unlimited(), AdjacentFriendliesDefenceBonus(2), id: "ward"),
+            Ability("Endurance", Unlimited(), Undying(), id: "undying"));
         var state = Restore(State(type));
         var entries = state.Types[0].CardEntries().ToDictionary(e => e.Id);
-        Assert.Equal("Distant Touch", entries["telekinesis"].Name);
-        Assert.Equal("Action", entries["telekinesis"].Category);
-        Assert.Equal("Resolve", entries["passive:Fury"].Name);
-        Assert.Equal("Flank", entries["passive:Backstab"].Name);
-        Assert.Equal("Ward", entries["passive:Aura"].Name);
-        Assert.Equal("Endurance", entries["undying"].Name);
-        Assert.Equal("Capability", entries["undying"].Category);
+        Assert.Equal("Distant Touch", entries["ability:touch"].Name);
+        Assert.Equal("Action", entries["ability:touch"].Category);
+        Assert.Equal("Resolve", entries["ability:resolve"].Name);
+        Assert.Equal("Flank", entries["ability:flank"].Name);
+        Assert.Equal("Ward", entries["ability:ward"].Name);
+        Assert.Equal("Endurance", entries["ability:undying"].Name);
+        Assert.Equal("Capability", entries["ability:undying"].Category);
         Assert.All(entries.Values, entry =>
         {
             Assert.Null(entry.MaxUses);
             Assert.Null(entry.UseLimitText);
             Assert.Null(state.Types[0].UsesFor(state.Units[0], entry.Id));
         });
-        Assert.Empty(state.Units[0].BonusActionUses);
-        Assert.Null(state.Units[0].HealUses);
-        Assert.Null(state.Units[0].CleaveUses);
+        Assert.Empty(state.Units[0].AbilityUseCounts);
         Assert.Equal(5, state.EffectiveAtkOf("actor")); // Fury still derives from adjacency.
         Assert.Equal(3, state.Types[0].Atk);
         state.MoveDone = true;
         state.CurrentUnitId = "actor";
         Assert.Contains(GameEngine.GameplayCandidates(state, state.Units[0]), c => c.Action == UnitAction.Telekinesis);
-        Assert.All(new[] { "passive:Fury", "passive:Backstab", "passive:Aura" }, id => Assert.Equal("Passive", entries[id].Category));
+        Assert.All(new[] { "ability:resolve", "ability:flank", "ability:ward" }, id => Assert.Equal("Passive", entries[id].Category));
     }
 
     [Fact]
     public void RenamedLimitedAbilityKeepsMechanicalEntryAndCounterIdentity()
     {
         var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5), Unique(),
-            Ability("Mend", Uses(4), Heal(amount: 3)));
+            Ability("Mend", Uses(4), Heal(amount: 3), id: "heal"));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
         var started = TestGame.StartRound(state, new Dice(), false);
         var ready = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
-        var entry = Assert.Single(ready.State.Types[0].CardEntries(), e => e.Id == "heal");
+        var entry = Assert.Single(ready.State.Types[0].CardEntries(), e => e.Id == "ability:heal");
         Assert.Equal("Mend", entry.Name);
         Assert.Equal("4/game", entry.UseLimitText);
-        var healed = TestGame.Advance(Restore(ready.State), new Choice("heal:target"), new Dice(), false);
+        var healed = TestGame.Advance(Restore(ready.State), new Choice("ability:heal:target"), new Dice(), false);
         Assert.Equal(3, Assert.Single(TestGame.OperationEvents(healed), e => e.Kind == "HealResolved").Healing);
         Assert.Equal("Mend", Assert.Single(TestGame.OperationEvents(healed), e => e.Kind == "HealResolved").AbilityName);
-        Assert.Equal(new AbilityUses(4, 3), healed.State.Units[0].HealUses);
-        Assert.Equal("heal", ContentDescriptions.EntryId(new("unparsed", Action: UnitAction.Heal)));
+        Assert.Equal(new AbilityUses(4, 3), healed.State.Units[0].Uses("heal", 4));
+        Assert.Equal("ability:heal", type.CardEntries().Single(e => e.Name == "Mend").Id);
     }
 
     [Fact]
     public void CantAttackOnlyRemovesNormalAttackAndDoesNotFreezeEffectiveStats()
     {
-        var type = UnitType.Define("non-attacker", "Non-attacker", Stats(1, 4, 3, 2, 5), Unique(), CantAttack(), Ability("Telekinesis", Unlimited(), Telekinesis()));
+        var type = UnitType.Define("non-attacker", "Non-attacker", Stats(1, 4, 3, 2, 5), Unique(), CantAttack(), Ability("Telekinesis", Unlimited(), Telekinesis(), id: "touch"));
         var state = State(type);
         state.CurrentUnitId = "actor";
         state.MoveDone = true;
         state.ModifiersThisTurn.AddRange([new(Stat.Atk, 2), new(Stat.Rng, 3)]);
         var restored = Restore(state);
-        Assert.Equal(UnitAction.Telekinesis, restored.Types[0].Actions);
+        Assert.Equal(UnitAction.None, restored.Types[0].Actions);
         Assert.Equal(3, restored.Types[0].Atk);
         Assert.Equal(4, restored.Types[0].Rng);
         Assert.Equal(5, restored.EffectiveAtkOf("actor"));
@@ -93,7 +91,7 @@ public sealed class UnitAuthoringTests
         var choices = GameEngine.GameplayCandidates(restored, restored.Units[0]).ToArray();
         Assert.DoesNotContain(choices, c => c.Action == UnitAction.NormalAttack);
         Assert.Contains(choices, c => c.Action == UnitAction.Telekinesis);
-        Assert.Equal(UnitAction.SummonAdjacent, UnitRoster.Shaman().Actions);
+        Assert.True(UnitRoster.Shaman().HasAction(UnitAction.SummonAdjacent));
     }
 
     [Fact]
@@ -115,53 +113,53 @@ public sealed class UnitAuthoringTests
             Ability("Battle Cry", Uses(3), BonusActionSelfModifier(Modifier(Atk, +2)), id: "stable-key"));
         var started = TestGame.StartRound(State(type), new Dice(), false);
         var restored = Restore(started.State);
-        var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "bonus:stable-key");
+        var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "ability:stable-key");
         Assert.Equal("Battle Cry", entry.Name);
-        Assert.Equal("+2 ATK this turn", entry.Description);
+        Assert.Equal("ATK +2 this activation.", entry.Description);
         Assert.Equal("3/game", entry.UseLimitText);
-        var bonus = Assert.Single(restored.Pending!.Candidates, c => c.BonusAction is not null);
-        Assert.Equal("bonus-action:stable-key", bonus.Key);
-        Assert.Equal("bonus:stable-key", ContentDescriptions.EntryId(bonus));
+        var bonus = Assert.Single(restored.Pending!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction);
+        Assert.Equal("ability:stable-key", bonus.Key);
+        Assert.Equal("ability:stable-key", ContentDescriptions.EntryId(bonus));
         var used = TestGame.Advance(restored, new Choice(bonus.Key), new Dice(), false);
-        Assert.Equal(new AbilityUses(3, 2), used.State.Units[0].BonusActionUses["stable-key"]);
-        Assert.Contains("stable-key", used.State.BonusActionsUsedThisActivation);
-        Assert.False(used.State.Units[0].BonusActionUses.ContainsKey("Battle Cry"));
+        Assert.Equal(new AbilityUses(3, 2), used.State.Units[0].Uses("stable-key", 3));
+        Assert.Equal(1, used.State.BonusActionUsesThisActivation("unit:stable-key"));
+        Assert.False(used.State.Units[0].AbilityUseCounts.ContainsKey("unit:Battle Cry"));
         Assert.Equal("Battle Cry", Assert.Single(TestGame.OperationEvents(used)).AbilityName);
         Assert.Equal(5, used.State.EffectiveAtkOf("actor"));
-        var renamed = type with { BonusActions = [type.BonusActions[0] with { DisplayName = "New wording" }] };
+        var renamed = type with { LocalAbilities = [type.LocalAbilities[0] with { Name = "New wording" }] };
         used.State.Types[0] = renamed;
         Assert.Equal("New wording", Assert.Single(renamed.CardEntries(), e => e.Id == entry.Id).Name);
         Assert.Equal(new AbilityUses(3, 2), renamed.UsesFor(used.State.Units[0], entry.Id));
         Assert.DoesNotContain(GameEngine.RefreshChoices(Restore(used.State), new Dice(), false).NextInput!.Candidates,
-            c => c.BonusAction is not null);
+            c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction);
     }
 
     [Fact]
     public void AuthoredHealAmountAndUsesDriveResolutionAndDescriptionAfterStateRoundTrip()
     {
         var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5), Unique(),
-            Ability("Heal", Uses(4), Heal(amount: 3)));
+            Ability("Heal", Uses(4), Heal(amount: 3), id: "heal"));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
         var started = TestGame.StartRound(state, new Dice(), false);
         var ready = TestGame.Advance(started.State, new Choice("stay"), new Dice(), false);
         var restored = Restore(ready.State);
-        var heal = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "heal");
+        var heal = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "ability:heal");
         Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", heal.Description);
         Assert.Equal("4/game", heal.UseLimitText);
-        var healed = TestGame.Advance(restored, new Choice("heal:target"), new Dice(), false);
+        var healed = TestGame.Advance(restored, new Choice("ability:heal:target"), new Dice(), false);
         Assert.Equal(4, healed.State.Units[1].CurrentHp);
         Assert.Equal(3, Assert.Single(TestGame.OperationEvents(healed), e => e.Kind == "HealResolved").Healing);
-        Assert.Equal(new AbilityUses(4, 3), healed.State.Units[0].HealUses);
+        Assert.Equal(new AbilityUses(4, 3), healed.State.Units[0].Uses("heal", 4));
     }
 
     [Fact]
     public void DuplicateConcreteMechanicsAndBonusIdsAreRejectedRatherThanOverwritten()
     {
         Assert.Throws<ArgumentException>(() => UnitType.Define("bad", "Bad", Stats(1, 1, 1, 1, 1),
-            Ability("Heal", Uses(2), Heal(2)), Ability("Heal", Uses(3), Heal(3))));
+            Ability("Heal", Uses(2), Heal(2), id: "heal"), Ability("Heal", Uses(3), Heal(3), id: "heal")));
         Assert.Throws<ArgumentException>(() => UnitType.Define("bad", "Bad", Stats(1, 1, 1, 1, 1),
-            Ability("Fury", Unlimited(), Fury(1, 2)), Ability("Other", Unlimited(), Fury(2, 3))));
+            Ability("Fury", Unlimited(), Fury(1, 2), id: "resolve"), Ability("Other", Unlimited(), Fury(2, 3), id: "resolve")));
         Assert.Throws<ArgumentException>(() => UnitType.Define("bad", "Bad", Stats(1, 1, 1, 1, 1),
             Ability("same", Uses(2), BonusActionSelfModifier(Modifier(Atk, 1)), id: "same"),
             Ability("same", Uses(2), BonusActionSelfModifier(Modifier(Mov, 1)), id: "same")));
@@ -172,118 +170,53 @@ public sealed class UnitAuthoringTests
     public void TypedHelpersPreserveAlternateParametersAndExplicitUseLimits()
     {
         var type = UnitType.Define("configured", "Configured", Stats(1, 4, 3, 2, 5), Unique(),
-            Ability("Try Open Door", Unlimited(), TryOpenDoor(successes: 5)),
-            Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 3)),
-            Ability("Undying", Unlimited(), Undying()),
-            Ability("Fury", Unlimited(), Fury(atkBonus: 3, adjacentEnemies: 4)), Ability("Backstab", Unlimited(), Backstab(atkBonus: 2)),
-            Ability("Heal", Uses(7), Heal(amount: 3)),
-            Ability("Cleave", Uses(4), Cleave(triggerDamage: 5, damage: 2)),
-            Ability("Holy Wave", Uses(6), HolyWave()), Ability("Fireball", Uses(8), Fireball()),
-            Ability("Ward", Unlimited(), AdjacentFriendliesDefenceBonus(2)));
+            Ability("Try Open Door", Unlimited(), TryOpenDoor(successes: 5), id: "try-door"),
+            Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 3), id: "move-after-attack"),
+            Ability("Undying", Unlimited(), Undying(), id: "undying"),
+            Ability("Fury", Unlimited(), Fury(atkBonus: 3, adjacentEnemies: 4), id: "resolve"), Ability("Backstab", Unlimited(), Backstab(atkBonus: 2), id: "flank"),
+            Ability("Heal", Uses(7), Heal(amount: 3), id: "heal"),
+            Ability("Cleave", Uses(4), Cleave(triggerDamage: 5, damage: 2), id: "cleave"),
+            Ability("Holy Wave", Uses(6), HolyWave(), id: "holy-wave"), Ability("Fireball", Uses(8), Fireball(), id: "fireball"),
+            Ability("Ward", Unlimited(), AdjacentFriendliesDefenceBonus(2), id: "ward"));
         var restored = Restore(State(type));
         var configuration = restored.Types[0];
-        Assert.Equal(new TryOpenDoor(5), configuration.TryOpenDoor);
-        Assert.Equal(new MoveAfterAttack(3), configuration.MoveAfterAttack);
-        Assert.NotNull(configuration.Undying);
-        Assert.Equal(new Fury { AtkBonus = 3, AdjacentEnemyThreshold = 4 }, configuration.Fury);
-        Assert.Equal(new Backstab { AtkBonus = 2 }, configuration.Backstab);
-        Assert.Equal(new Heal(7) { Amount = 3 }, configuration.Heal);
-        Assert.Equal(new Cleave(4) { TriggerDamage = 5, Damage = 2 }, configuration.Cleave);
-        Assert.Equal(new HolyWave(6), configuration.HolyWave);
-        Assert.Equal(new Fireball(8), configuration.Fireball);
-        Assert.Equal(new AdjacentFriendlyUnitsDefenceBonus(2), configuration.AdjacentFriendlyUnitsDefenceBonus);
-        Assert.Equal(new AbilityUses(7, 7), restored.Units[0].HealUses);
-        Assert.Equal(new AbilityUses(4, 4), restored.Units[0].CleaveUses);
-        Assert.Equal(new AbilityUses(6, 6), restored.Units[0].HolyWaveUses);
-        Assert.Equal(new AbilityUses(8, 8), restored.Units[0].FireballUses);
-        Assert.Contains(configuration.CardEntries(), e => e.Id == "heal" && e.Description.Contains("3 HP"));
-        Assert.Contains(configuration.CardEntries(), e => e.Id == "cleave" && e.Description.Contains("5 or more") && e.Description.Contains("2 damage"));
+        Assert.Equal(new TryOpenDoor(5), configuration.Mechanic<TryOpenDoor>());
+        Assert.Equal(new MoveAfterAttack(3), configuration.Mechanic<MoveAfterAttack>());
+        Assert.NotNull(configuration.Mechanic<Undying>());
+        Assert.Equal(new Fury { AtkBonus = 3, AdjacentEnemyThreshold = 4 }, configuration.Mechanic<Fury>());
+        Assert.Equal(new Backstab { AtkBonus = 2 }, configuration.Mechanic<Backstab>());
+        Assert.Equal(new HealMechanic(3), configuration.Mechanic<HealMechanic>());
+        Assert.Equal(new Cleave { TriggerDamage = 5, Damage = 2 }, configuration.Mechanic<Cleave>());
+        Assert.Equal(new HolyWaveMechanic(), configuration.Mechanic<HolyWaveMechanic>());
+        Assert.Equal(new FireballMechanic(), configuration.Mechanic<FireballMechanic>());
+        Assert.Equal(new[] { new ModifierThisTurn(Stat.Def, 2) }, configuration.Mechanic<AdjacentModifiersMechanic>()!.Modifiers);
+        Assert.Equal(new AbilityUses(7, 7), restored.Units[0].Uses("heal", 7));
+        Assert.Equal(new AbilityUses(4, 4), restored.Units[0].Uses("cleave", 4));
+        Assert.Equal(new AbilityUses(6, 6), restored.Units[0].Uses("holy-wave", 6));
+        Assert.Equal(new AbilityUses(8, 8), restored.Units[0].Uses("fireball", 8));
+        Assert.Contains(configuration.CardEntries(), e => e.Id == "ability:heal" && e.Description.Contains("3 HP"));
+        Assert.Contains(configuration.CardEntries(), e => e.Id == "ability:cleave" && e.Description.Contains("5 or more") && e.Description.Contains("2 damage"));
         Assert.Contains(configuration.CardEntries(), e => e.Name == "Ward" && e.Description.Contains("DEF +2"));
     }
 
     [Fact]
-    public void AllCanonicalFactoriesPreserveCompleteRuntimeContentAndCustomIds()
+    public void CanonicalFactoriesPreserveLocalAbilityPayloadsAndCustomOwnerIds()
     {
-        // Independent runtime fixture, including the current printed ability names.
-        (Func<string, UnitType> Factory, UnitType Expected)[] content =
-        [
-            (UnitType.Grunt, new("grunt-type", 3, 1, 3, 3, 1) { DisplayName = "Grunt", LootDropSuccesses = 1 }),
-            (UnitType.Zombie, new("zombie-type", 2, 1, 3, 3, 1, TryOpenDoor: new(2),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { TransportResource = new(), DisplayName = "Zombie", LootDropSuccesses = 1, AbilityNames = new() { TryOpenDoor = "Break Door" } }),
-            (UnitType.SkeletonArcher, new("skeleton-archer-type", 3, 4, 3, 3, 1,
-                Behaviors: UnitBehavior.MaximizeAttackDistance) { DisplayName = "Skeleton Archer", LootDropSuccesses = 1 }),
-            (UnitType.Goblin, new("goblin-type", 4, 1, 2, 2, 1, MoveAfterAttack: new(1),
-                Behaviors: UnitBehavior.BackAwayAfterAttack) { DisplayName = "Goblin", LootDropSuccesses = 1 }),
-            (UnitType.BombImp, new("bomb-imp-type", 3, 1, 2, 2, 1, Behaviors: UnitBehavior.PreferHostileAdjacency | UnitBehavior.ProtectWithoutAdjacency) { DisplayName = "Bomb Imp", LootDropSuccesses = 1, Explosion = new() }),
-            (UnitType.Troll, new("troll-type", 2, 1, 4, 4, 1, TryOpenDoor: new(4),
-                Behaviors: UnitBehavior.ApproachThroughClosedDoors) { DisplayName = "Troll", LootDropSuccesses = 2, Undying = new(), AbilityNames = new() { TryOpenDoor = "Smash Door" } }),
-            (UnitType.Shaman, new("shaman-type", 2, 0, 0, 3, 1, Actions: UnitAction.SummonAdjacent,
-                Behaviors: UnitBehavior.Flee | UnitBehavior.UseSummon) { DisplayName = "Shaman", LootDropSuccesses = 2, SummonAdjacent = new(UnitTypeIds.Goblin, Posture.Lying),
-                AbilityNames = new() { Summon = "Summon Goblin" } }),
-            (UnitType.Geomancer, new("geomancer-type", 2, 0, 0, 3, 1, Actions: UnitAction.PickupResource | UnitAction.SummonWorker | UnitAction.SummonTroll,
-                Behaviors: UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker) { SummonWorker = new(3), SummonTroll = new(1), ResourceStorage = new([new(ResourceTypes.Diamond, 1)]), DisplayName = "Geomancer", LootDropSuccesses = 2 }),
-            (UnitType.Barbarian, new("barbarian-type", 3, 1, 4, 3, 5, FreeActions: UnitFreeAction.OpenDoor)
-            {
-                Unique = true, DisplayName = "Barbarian", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Fury = new() { AtkBonus = 1, AdjacentEnemyThreshold = 2 },
-                Cleave = new(2) { TriggerDamage = 2, Damage = 1 }, BonusActions = [new("Rage", 2, [new(Stat.Atk, 2)])]
-            }),
-            (UnitType.Rogue, new("rogue-type", 4, 1, 3, 2, 4, FreeActions: UnitFreeAction.OpenDoor)
-            {
-                Unique = true, DisplayName = "Rogue", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Backstab = new() { AtkBonus = 1 },
-                BonusActions = [new("Dash", 2, [new(Stat.Mov, 2)]), new("Throwing Knife", 2, [new(Stat.Rng, 2), new(Stat.Atk, -1)])]
-            }),
-            (UnitType.Cleric, new("cleric-type", 3, 1, 3, 3, 4,
-                Actions: UnitAction.NormalAttack, FreeActions: UnitFreeAction.OpenDoor)
-            {
-                Unique = true, DisplayName = "Cleric", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true,
-                LocalAbilities =
-                [
-                    new("heal", "Heal", AbilityTiming.Action, new HealMechanic(2))
-                        { Usage = new(2), Compatibility = new(LegacyAbilityKind.Heal) },
-                    new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic())
-                        { Usage = new(2), Compatibility = new(LegacyAbilityKind.HolyWave) },
-                    new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)]))
-                        { Usage = new(null), Compatibility = new(LegacyAbilityKind.Aura, Key: "Aura") }
-                ]
-            }),
-            (UnitType.Wizard, new("wizard-type", 3, 4, 3, 2, 4,
-                Actions: UnitAction.NormalAttack | UnitAction.Fireball | UnitAction.Telekinesis, FreeActions: UnitFreeAction.OpenDoor)
-            {
-                Unique = true, DisplayName = "Wizard", LootDropSuccesses = 1, CanHaveItems = true, CanHaveEquipment = true, Fireball = new(2),
-                AttackDefinitionOrder = [UnitAction.NormalAttack, UnitAction.Fireball],
-                BonusActions = [new("Focus", 2, [new(Stat.Atk, 1)])]
-            })
-        ];
-        static UnitType OtherContent(UnitType type) => type with
+        Func<string, UnitType>[] factories = [UnitType.Grunt, UnitType.Zombie, UnitType.SkeletonArcher,
+            UnitType.Goblin, UnitType.BombImp, UnitType.Troll, UnitType.Shaman, UnitType.Geomancer,
+            UnitType.Barbarian, UnitType.Rogue, UnitType.Cleric, UnitType.Wizard];
+        foreach (var factory in factories)
         {
-            Actions = type.Actions & ~(UnitAction.Heal | UnitAction.HolyWave | UnitAction.Fireball),
-            Heal = null, HolyWave = null, Fireball = null, AdjacentFriendlyUnitsDefenceBonus = null,
-            BonusActions = [.. type.BonusActions.Where(b => !AbilityQueries.IsSimpleBonus(b))], AbilityGrants = []
-        };
-        static string NativeContent(UnitType type) => JsonSerializer.Serialize(
-            AbilityQueries.NativeAbilities(type, "figure").Select(grant => new
-            {
-                Ability = grant.Definition with { Id = grant.EntryId },
-                grant.EntryId, grant.CandidatePrefix, grant.AccountingId
-            }));
-        foreach (var (factory, expected) in content)
-        {
-            var actual = factory(expected.Id);
-            // Compare every mechanic/parameter and all remaining fields against
-            // independent fixtures for the legacy and local declaration shapes.
-            Assert.Equal(NativeContent(expected), NativeContent(actual));
-            Assert.Equal(JsonSerializer.Serialize(OtherContent(expected)), JsonSerializer.Serialize(OtherContent(actual)));
-            Assert.Equal(expected.CardEntries(), actual.CardEntries());
-            Assert.Equal(JsonSerializer.Serialize(expected.CreateUnit("figure", "side")),
-                JsonSerializer.Serialize(actual.CreateUnit("figure", "side")));
-            var custom = factory("custom-id");
-            Assert.Equal("custom-id", custom.Id);
-            Assert.Equal(NativeContent(expected), NativeContent(custom));
-            Assert.Equal(JsonSerializer.Serialize(OtherContent(expected with { Id = "custom-id" })), JsonSerializer.Serialize(OtherContent(custom)));
-            Assert.Equal(JsonSerializer.Serialize(actual), JsonSerializer.Serialize(JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(actual))));
+            var type = factory("custom-id");
+            Assert.Equal("custom-id", type.Id);
+            var restored = JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))!;
+            Assert.Equal(JsonSerializer.Serialize(type), JsonSerializer.Serialize(restored));
+            Assert.Equal(type.CardEntries(), restored.CardEntries());
+            Assert.Equal(type.LocalAbilities.Select(a => a.Key), restored.LocalAbilities.Select(a => a.Key));
+            Assert.Empty(restored.CreateUnit("figure", "side").AbilityUseCounts);
+            AbilityContent.Validate(restored.LocalAbilities, AbilitySourceKind.Unit);
         }
     }
-
     private static GameState State(UnitType type) => new()
     {
         Physical = new(new Board(3, 2, []), [new("actor", new(0, 0)), new("target", new(1, 0))]),

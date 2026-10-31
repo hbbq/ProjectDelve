@@ -4,6 +4,8 @@ internal static class BananaPlacementRules
 {
     internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, PlaceBananaPeel ability)
     {
+        var type = state.Types.Single(t => t.Id == unit.TypeId);
+        var source = new ResolvedAbility(type.Ability<PlaceBananaPeel>()!, AbilitySourceKind.Unit, type.Id, unit.Id);
         if (state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Banana.Id) < ability.BananaCost) yield break;
         var board = state.Physical.Board;
         for (var y = 0; y < board.Height; y++)
@@ -13,14 +15,15 @@ internal static class BananaPlacementRules
             if (board.TerrainDefinitionAt(cell).Passable && !board.Machines.Any(m => m.Position == cell) &&
                 FootprintGeometry.UnitAtCell(state, cell) is null && !state.CellMarkers.Any(m => m.Position == cell) &&
                 FootprintGeometry.OccupiedCells(state, unit.Id).Any(c => SpatialRules.AreAdjacent(board, c, cell)))
-                yield return new($"place-banana-peel:{x},{y}", Destination: cell, Action: UnitAction.PlaceBananaPeel);
+                yield return new($"{source.CandidatePrefix}:{x},{y}", Destination: cell, Action: UnitAction.PlaceBananaPeel,
+                    Kind: ActivationChoiceKind.BonusAction) { Ability = source };
         }
     }
 
     internal static void Resolve(GameState state, string unitId, Candidate action, Action<RulesEvent> emit)
     {
         var unit = state.Units.Single(u => u.Id == unitId);
-        var ability = action.BonusAction!.PlaceBananaPeel!;
+        var ability = (PlaceBananaPeel)action.Ability!.Definition.Mechanic;
         if (!Candidates(state, unit, ability).Any(c => c.Destination == action.Destination)) throw new InvalidOperationException("Banana Peel placement is unavailable.");
         var cost = ability.BananaCost;
         var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId &&
@@ -30,11 +33,11 @@ internal static class BananaPlacementRules
         state.PlaceCellMarker(CellMarkerTypes.BananaPeel, action.Destination!);
         emit(new RulesEvent("ResourceSpent", unitId, TypeId: unit.TypeId)
         {
-            SourceUnitId = unitId, SideId = unit.SideId, ActionId = "place-banana-peel",
+            SourceUnitId = unitId, SideId = unit.SideId, ActionId = action.Ability.ActionId,
             ResourceType = stored.Type, StoredQuantity = stored.Quantity - cost
         });
         emit(new RulesEvent("CellMarkerPlaced", unitId)
-            { Cell = action.Destination, CellMarkerType = CellMarkerTypes.BananaPeel, ActionId = "place-banana-peel" });
+            { Cell = action.Destination, CellMarkerType = CellMarkerTypes.BananaPeel, ActionId = action.Ability.ActionId });
     }
 
     internal static string? Preferred(DecisionRequest request, IGameplayQueries queries)

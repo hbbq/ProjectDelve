@@ -64,12 +64,12 @@ public sealed class ScenarioObjectivesTests
     public void LastHostileDefeatDoesNotEndPartiallyCompletedActivation()
     {
         var state = Active();
-        state.Types[0] = state.Types[0] with { BonusActions = [new("Focus", null, [])] };
+        state.Types[0] = state.Types[0] with { LocalAbilities = [new("focus", "Focus", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Atk, 0)]))] };
         var result = Attack(state);
         Assert.Single(result.State.Units.Where(u => u.CurrentHp > 0));
         Assert.Null(result.State.Completion);
         Assert.Equal("actor", result.State.CurrentUnitId);
-        Assert.Contains(result.NextInput!.Candidates, c => c.Key == "bonus-action:Focus");
+        Assert.Contains(result.NextInput!.Candidates, c => c.Key == "ability:focus");
         Assert.All(result.ResolutionSteps, step => Assert.False(step.StateAfter.IsCompleted));
         result = Choose(Restore(result.State), "end-turn");
         Assert.Equal(new[] { "amber" }, result.State.Completion!.AchievedSideIds);

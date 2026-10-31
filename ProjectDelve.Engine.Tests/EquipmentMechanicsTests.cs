@@ -59,9 +59,9 @@ public sealed class EquipmentMechanicsTests
     public void UnfamiliarEquipmentCombinesAllModifiersAndIdenticalEffectsStackAcrossTypes()
     {
         var multistat = new EquipmentDefinition("moth-ledger", "A Most Unexpected Ledger")
-        { Modifiers = [new(Stat.Mov, 2), new(Stat.Atk, 3), new(Stat.Def, 2), new(Stat.Rng, 1)] };
+        { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Atk, 3), new(Stat.Def, 2), new(Stat.Rng, 1)]))] };
         var identical = new EquipmentDefinition("spare-sock", "A Sock With Ambitions")
-        { Modifiers = [new(Stat.Mov, 2)] };
+        { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2)]))] };
         var state = Ready(Own(Scenario(multistat, identical), new("ledger-1", multistat.Id), new("sock-1", identical.Id)));
 
         Assert.Equal(7, state.EffectiveMovOf("a"));
@@ -81,7 +81,7 @@ public sealed class EquipmentMechanicsTests
     public void EquipmentEffectsFollowIndividualPostureWithoutChangingOwnership()
     {
         var definition = new EquipmentDefinition("quiet-sail", "Quiet Sail")
-        { Modifiers = [new(Stat.Mov, 2), new(Stat.Def, 3)], Capabilities = [EquipmentCapability.Phase, EquipmentCapability.OpenDoor] };
+        { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, 3)])), new("phase", "Phase", AbilityTiming.Passive, new Phase()), new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] };
         var state = Ready(Own(Scenario(definition), new OwnedObject("sail", definition.Id)));
         Assert.True(state.HasPhase("a")); Assert.True(state.HasOpenDoor("a"));
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Lying };
@@ -94,7 +94,7 @@ public sealed class EquipmentMechanicsTests
     public void PhaseAndOpenDoorUseSharedLegalityForAnUnfamiliarType()
     {
         var definition = new EquipmentDefinition("mist-pass", "Committee Permission Slip")
-        { Capabilities = [EquipmentCapability.Phase, EquipmentCapability.OpenDoor] };
+        { LocalAbilities = [new("phase", "Phase", AbilityTiming.Passive, new Phase()), new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] };
         var scenario = Own(Scenario(definition), new OwnedObject("permit", definition.Id));
         scenario.Board.Edges.Add(new(new(1, 1), EdgeDirection.Down, EdgeKind.ClosedDoor));
         var result = GameEngine.RefreshChoices(Ready(scenario), new Dice(), false);
@@ -108,9 +108,44 @@ public sealed class EquipmentMechanicsTests
     }
 
     [Fact]
+    public void OpenDoorChoicesBindEveryPhysicalSourceAndPreserveFreeActionAccountingAcrossResume()
+    {
+        var first = new EquipmentDefinition("brass-key", "Brass Key")
+        { LocalAbilities = [new("open", "First Door Call", AbilityTiming.FreeAction, new OpenDoor())] };
+        var second = new EquipmentDefinition("silver-key", "Silver Key")
+        { LocalAbilities = [new("open", "Second Door Call", AbilityTiming.FreeAction, new OpenDoor())] };
+        var scenario = Own(Scenario(first, second), new("brass-copy", first.Id), new("silver-copy", second.Id));
+        scenario.UnitTypes![0] = scenario.UnitTypes[0] with
+        { LocalAbilities = [new("open", "Native Door Call", AbilityTiming.FreeAction, new OpenDoor())] };
+        scenario.Board.Edges.Add(new(new(1, 1), EdgeDirection.Down, EdgeKind.ClosedDoor));
+        var ready = GameEngine.RefreshChoices(Ready(scenario), new Dice(), false);
+        var choices = ready.NextInput!.Candidates.Where(c => c.FreeAction == UnitFreeAction.OpenDoor).ToArray();
+        Assert.Equal(3, choices.Length);
+        Assert.Equal(3, choices.Select(c => c.Key).Distinct().Count());
+        Assert.Equal(new[] { "a", "brass-copy", "silver-copy" }, choices.Select(c => c.Ability!.SourceInstanceId));
+        Assert.Equal(new[] { "Native Door Call", "First Door Call", "Second Door Call" }, choices.Select(c => c.AbilityName));
+        foreach (var choice in choices)
+        {
+            var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(ready.State))!;
+            var result = Do(restored, choice.Key);
+            Assert.Equal(EdgeKind.OpenDoor, Assert.Single(result.State.Physical.Board.Edges).Kind);
+            var used = Assert.Single(result.Events.Where(e => e.Kind == "ActionUsed"));
+            Assert.Equal(choice.Ability!.EntryId, used.ActionId);
+            Assert.Equal(choice.Ability.Definition.Name, used.AbilityName);
+            Assert.Equal(ActivationChoiceKind.FreeAction, used.Category);
+            Assert.Equal(choice.Ability.EntryId, Assert.Single(result.Events.Where(e => e.Kind == "DoorOpened")).ActionId);
+            Assert.Equal(0, result.State.ActionsUsedThisActivation);
+            Assert.Empty(result.State.Units[0].AbilityUseCounts);
+            Assert.Empty(result.State.BonusActionUseCountsThisActivation);
+            Assert.Equal(new[] { "brass-copy", "silver-copy" }, result.State.Units[0].Inventory.Select(o => o.Id));
+            Assert.DoesNotContain(result.NextInput!.Candidates, c => c.FreeAction == UnitFreeAction.OpenDoor);
+        }
+    }
+
+    [Fact]
     public void SetupRejectsTwoPhysicalInstancesOfOneTypeButAllowsDifferentOwners()
     {
-        var equipment = new EquipmentDefinition("silver-string", "Silver String") { Modifiers = [new(Stat.Mov, 1)] };
+        var equipment = new EquipmentDefinition("silver-string", "Silver String") { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)]))] };
         var scenario = Own(Scenario(equipment), new("string-1", equipment.Id), new("string-2", equipment.Id));
         Assert.Throws<ArgumentException>(() => GameEngine.CreateGame(scenario));
         scenario.Units[0] = scenario.Units[0] with { Inventory = [new("string-1", equipment.Id)] };
@@ -123,7 +158,7 @@ public sealed class EquipmentMechanicsTests
     [Fact]
     public void AutomaticDuplicateBecomesKnownGroundObjectAndCannotBePickedUpByBearer()
     {
-        var equipment = new EquipmentDefinition("ruby-tag", "Unfamiliar Ruby Tag") { Modifiers = [new(Stat.Mov, 1)] };
+        var equipment = new EquipmentDefinition("ruby-tag", "Unfamiliar Ruby Tag") { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)]))] };
         var state = Ready(Own(Scenario(equipment), new OwnedObject("old-tag", equipment.Id)));
         state.LootDeck = new() { DrawPile = [new("new-tag", equipment.Id)] };
         state.LootMarkers = [new("reward", new(1, 1))];
@@ -140,8 +175,8 @@ public sealed class EquipmentMechanicsTests
     [Fact]
     public void DifferentTypeWithIdenticalModifierCanBePickedUpAndRetainsInstanceIdentity()
     {
-        var first = new EquipmentDefinition("red-thread", "Thread") { Modifiers = [new(Stat.Mov, 1)] };
-        var second = new EquipmentDefinition("blue-thread", "Thread") { Modifiers = [new(Stat.Mov, 1)] };
+        var first = new EquipmentDefinition("red-thread", "Thread") { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)]))] };
+        var second = new EquipmentDefinition("blue-thread", "Thread") { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)]))] };
         var scenario = Own(Scenario(first, second), new OwnedObject("red-1", first.Id));
         scenario = scenario with { GroundObjects = [new(new("blue-1", second.Id), new(1, 1))] };
         var state = Ready(scenario);
@@ -156,42 +191,42 @@ public sealed class EquipmentMechanicsTests
     public void MultipleSourcesOfSameActionHaveStableDistinctChoicesAndOrdinaryActionAccounting()
     {
         var first = new EquipmentDefinition("brass-whistle", "Brass Whistle")
-        { Abilities = [new("rally", "Wake Up", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)] };
+        { LocalAbilities = [new("rally", "Wake Up", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
         var second = new EquipmentDefinition("velvet-drum", "Velvet Drum")
-        { Abilities = [new("rally", "Wake Up", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)] };
+        { LocalAbilities = [new("rally", "Wake Up", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
         var state = Ready(Own(Scenario(first, second), new("whistle-1", first.Id), new("drum-1", second.Id), new("wind", LootCardKind.SecondWind)));
         state.MoveDone = true;
         var result = GameEngine.RefreshChoices(state, new Dice(), false);
-        var candidates = result.NextInput!.Candidates.Where(c => c.EquipmentAbilityId == "rally").ToArray();
+        var candidates = result.NextInput!.Candidates.Where(c => c.Ability is { SourceKind: AbilitySourceKind.Equipment, Key: "rally" }).ToArray();
         Assert.Equal(2, candidates.Length);
         Assert.Equal(2, candidates.Select(c => c.Key).Distinct().Count());
         Assert.All(candidates, c => Assert.Equal("friend", c.TargetId));
         var resumed = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(result.State))!;
         var refreshed = GameEngine.RefreshChoices(resumed, new Dice(), false);
-        Assert.Equal(candidates.Select(c => c.Key), refreshed.NextInput!.Candidates.Where(c => c.EquipmentAbilityId == "rally").Select(c => c.Key));
+        Assert.Equal(candidates.Select(c => c.Key), refreshed.NextInput!.Candidates.Where(c => c.Ability is { SourceKind: AbilitySourceKind.Equipment, Key: "rally" }).Select(c => c.Key));
         var used = Do(resumed, candidates.Single(c => c.EquipmentTypeId == second.Id).Key);
         Assert.True(used.State.IsUpright("friend"));
         Assert.Equal(1, used.State.ActionsUsedThisActivation);
         Assert.Equal(3, used.State.Units[0].Inventory.Length);
-        Assert.DoesNotContain(used.NextInput!.Candidates, c => c.EquipmentAbilityId is not null);
+        Assert.DoesNotContain(used.NextInput!.Candidates, c => c.Ability?.SourceKind == AbilitySourceKind.Equipment);
     }
 
     [Fact]
     public void EquipmentActionRequiresMovementOpportunityAndOnlyOffersAdjacentFriendlyLyingTargets()
     {
         var equipment = new EquipmentDefinition("knitted-horn", "Knitted Horn")
-        { Abilities = [new("wake", "Morning Call", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)] };
+        { LocalAbilities = [new("wake", "Morning Call", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
         var scenario = Own(Scenario(equipment), new OwnedObject("horn-1", equipment.Id));
         scenario.Units.Add(new("test-bearer", "blue", new(1, 2), UnitId: "upright-friend"));
         scenario.Units.Add(new("test-bearer", "blue", new(5, 1), Posture.Lying, UnitId: "distant-friend"));
         scenario.Units.Add(new("test-bearer", "red", new(0, 1), Posture.Lying, UnitId: "lying-enemy"));
         var state = Ready(scenario);
-        Assert.DoesNotContain(GameEngine.RefreshChoices(state, new Dice(), false).NextInput!.Candidates, c => c.EquipmentAbilityId is not null);
+        Assert.DoesNotContain(GameEngine.RefreshChoices(state, new Dice(), false).NextInput!.Candidates, c => c.Ability?.SourceKind == AbilitySourceKind.Equipment);
         state.MoveDone = true;
-        var choice = Assert.Single(GameEngine.RefreshChoices(state, new Dice(), false).NextInput!.Candidates.Where(c => c.EquipmentAbilityId == "wake"));
+        var choice = Assert.Single(GameEngine.RefreshChoices(state, new Dice(), false).NextInput!.Candidates.Where(c => c.Ability is { SourceKind: AbilitySourceKind.Equipment, Key: "wake" }));
         Assert.Equal("friend", choice.TargetId);
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Posture = Posture.Lying };
-        Assert.DoesNotContain(GameEngine.RefreshChoices(state, new Dice(), false).NextInput!.Candidates, c => c.EquipmentAbilityId is not null);
+        Assert.DoesNotContain(GameEngine.RefreshChoices(state, new Dice(), false).NextInput!.Candidates, c => c.Ability?.SourceKind == AbilitySourceKind.Equipment);
     }
 
     [Fact]
@@ -199,18 +234,18 @@ public sealed class EquipmentMechanicsTests
     {
         var state = Ready(Own(Scenario(), new("wind-1", LootCardKind.SecondWind), new("wind-2", LootCardKind.SecondWind), new("wind-3", LootCardKind.SecondWind)));
         state.MoveDone = true; state.ActionsUsedThisActivation = 1;
-        var result = Do(state, "use-object:wind-2");
+        var result = Do(state, "item:wind-2:use");
         Assert.Equal(1, result.State.ActionsRemaining);
         Assert.Equal(new[] { "wind-1", "wind-3" }, result.State.Units[0].Inventory.Select(o => o.Id));
         Assert.Equal("wind-2", Assert.Single(result.State.LootDeck!.DiscardPile).Id);
-        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.ObjectKind == LootCardKind.SecondWind);
+        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.ItemTypeId == "second-wind");
     }
 
     [Fact]
     public void SaveResumeAndReplayedChoicesPreserveEquipmentEffectsEventsAndSnapshots()
     {
         var equipment = new EquipmentDefinition("opal-pencil", "Opal Pencil")
-        { Modifiers = [new(Stat.Mov, 1)], Abilities = [new("raise", "Please Rise", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)] };
+        { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)])), new("raise", "Please Rise", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
         var state = Ready(Own(Scenario(equipment), new OwnedObject("pencil-1", equipment.Id)));
         state.LootDeck = new() { DrawPile = [new("pencil-2", equipment.Id), new("wind", LootCardKind.SecondWind)] };
         state.LootMarkers = [new("loot-1", new(1, 1)), new("loot-2", new(1, 1))];
@@ -218,7 +253,7 @@ public sealed class EquipmentMechanicsTests
         var first = Do(state, "stay");
         var replay = Do(JsonSerializer.Deserialize<GameState>(before)!, "stay");
         Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(replay));
-        var action = first.NextInput!.Candidates.Single(c => c.EquipmentAbilityId == "raise").Key;
+        var action = first.NextInput!.Candidates.Single(c => c.Ability is { SourceKind: AbilitySourceKind.Equipment, Key: "raise" }).Key;
         var continued = Do(first.State, action);
         var resumed = Do(JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(first.State))!, action);
         Assert.Equal(JsonSerializer.Serialize(continued), JsonSerializer.Serialize(resumed));
@@ -229,8 +264,8 @@ public sealed class EquipmentMechanicsTests
     [Fact]
     public void FogObservationHidesUnknownEquipmentInstancesAndPreservesVisibleEffects()
     {
-        var visible = new EquipmentDefinition("sun-thread", "Sun Thread") { Modifiers = [new(Stat.Mov, 2)] };
-        var hidden = new EquipmentDefinition("secret-moon", "Hidden Moon Token") { Capabilities = [EquipmentCapability.Phase] };
+        var visible = new EquipmentDefinition("sun-thread", "Sun Thread") { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2)]))] };
+        var hidden = new EquipmentDefinition("secret-moon", "Hidden Moon Token") { LocalAbilities = [new("phase", "Phase", AbilityTiming.Passive, new Phase())] };
         var scenario = Own(Scenario(visible, hidden), new OwnedObject("visible-thread", visible.Id)) with
         { FogOfWarSides = ["blue"], GroundObjects = [new(new("hidden-ground", hidden.Id), new(19, 1))] };
         scenario.Units[2] = scenario.Units[2] with { Inventory = [new("hidden-inventory", hidden.Id)] };
@@ -261,7 +296,7 @@ public sealed class EquipmentMechanicsTests
     }
 
     [Fact]
-    public void LegacySaveWithoutEquipmentCatalogMigratesDeterministicallyAndCanResumeOldChoices()
+    public void OmittedEquipmentCatalogMigratesDuplicateObjectsAndResumesOwnedChoices()
     {
         var state = Ready(Scenario());
         state.MoveDone = true;
@@ -272,8 +307,8 @@ public sealed class EquipmentMechanicsTests
         var restored = JsonSerializer.Deserialize<GameState>(json.ToJsonString())!;
         Assert.Equal(new[] { "bell-1", "wind" }, restored.Units[0].Inventory.Select(o => o.Id));
         Assert.Equal("bell-2", Assert.Single(restored.GroundObjects).Object.Id);
-        var first = Do(restored, "goat-bell:friend");
-        var second = Do(JsonSerializer.Deserialize<GameState>(json.ToJsonString())!, "goat-bell:friend");
+        var first = Do(restored, "equipment:bell-1:stand-up:friend");
+        var second = Do(JsonSerializer.Deserialize<GameState>(json.ToJsonString())!, "equipment:bell-1:stand-up:friend");
         Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(second));
         Assert.True(first.State.IsUpright("friend"));
         Assert.Equal(1, first.State.ActionsUsedThisActivation);

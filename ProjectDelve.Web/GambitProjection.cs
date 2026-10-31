@@ -193,7 +193,7 @@ internal static class GambitProjection
         ContentDescriptions.EntryId(candidate), candidate.Destination, candidate.Path,
         candidate.Action, candidate.TargetId, candidate.TargetIds.IsDefaultOrEmpty ? null : candidate.TargetIds,
         candidate.Door, candidate.TryOpenDoor?.SuccessCount, candidate.FreeAction, candidate.MachineId)
-        { ObjectId = candidate.ObjectId, AccountingId = candidate.GrantedAbility?.AccountingId, AbilityName = candidate.GrantedAbility?.Definition.Name, ObjectContent = state?.CandidateObjectContent(candidate) ?? (candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null) };
+        { ObjectId = candidate.ObjectId, AccountingId = candidate.Ability?.AccountingId, AbilityName = candidate.Ability?.Definition.Name, ObjectContent = state?.CandidateObjectContent(candidate) ?? (candidate.ObjectKind is { } kind ? LootCards.Content(kind) : null) };
 
     private static GambitRoll Roll(DicePool pool) => new(pool.Family, pool.Count, pool.OwnerUnitId, pool.SourceUnitId,
         pool.SourceActionId, pool.Purpose, pool.TargetId, pool.TargetIds.IsDefaultOrEmpty ? null : pool.TargetIds,
@@ -217,7 +217,7 @@ internal static class GambitProjection
             var entries = BrowserProjection.Entries(state, unit).ToArray();
             var uses = entries.Where(entry => entry.Uses is not null)
                 .Select(entry => new GambitAbilityUse(entry.Content.Id, entry.Uses!.RemainingUses, entry.Uses.MaxUses)).ToArray();
-            var typeEntryIds = type.CardEntries(state.Types, state.AbilityDefinitions).Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
+            var typeEntryIds = type.CardEntries(state.Types).Select(e => e.Id).ToHashSet(StringComparer.Ordinal);
             // Native entries, including authored grants, are described once by
             // Types. Acquired sources retain their individual source metadata.
             var individualAbilities = entries.Where(e => e.Source != "Native" || !typeEntryIds.Contains(e.Content.Id))
@@ -235,7 +235,7 @@ internal static class GambitProjection
         }).ToArray();
         var types = state.Types.Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
             new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
-            type.CardEntries(state.Types, state.AbilityDefinitions).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
+            type.CardEntries(state.Types).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
                 entry.Description, entry.MaxUses)).ToArray())).ToArray();
         var bag = state.Bag.GroupBy(token => token).OrderBy(group => group.Key.SideId).ThenBy(group => group.Key.TypeId)
             .Select(group => new GambitBagEntry(group.Key.TypeId, group.Key.SideId, group.Count())).ToArray();

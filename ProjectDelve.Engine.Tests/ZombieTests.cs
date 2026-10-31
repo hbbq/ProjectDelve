@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -33,7 +33,7 @@ public sealed class ZombieTests
         var state = Corridor();
         var type = state.Types[0];
         Assert.Equal((2, 1, 3, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(new TryOpenDoor(2), type.TryOpenDoor);
+        Assert.Equal(new TryOpenDoor(2), type.Mechanic<TryOpenDoor>());
         Assert.Equal(UnitBehavior.ApproachThroughClosedDoors, type.Behaviors);
         Assert.Null(new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0)));
         Assert.Equal(3, new GameplayQueries(state).DistanceToAttackPositionFrom("monster", new(0, 0),
@@ -105,8 +105,8 @@ public sealed class ZombieTests
     public void ReusableActionResolvesOneD6AndConsumesAct(int count, int roll, bool succeeds)
     {
         // No Zombie identity, factory, or agency is involved in this content.
-        var state = Corridor(new("other-type", 2, 1, 1, 0, 1,
-            TryOpenDoor: new(count), Behaviors: UnitBehavior.ApproachThroughClosedDoors));
+        var state = Corridor(new("other-type", 2, 1, 1, 0, 1, Behaviors: UnitBehavior.ApproachThroughClosedDoors)
+            { LocalAbilities = [new("try-door", "Try Open Door", AbilityTiming.Action, new TryOpenDoor(count))] });
         var random = new Random(roll);
         var pending = TestGame.StartRound(state, random);
         var moved = TestGame.Advance(pending.State, new DefaultAutomatedProvider(), random);
@@ -187,7 +187,8 @@ public sealed class ZombieTests
                 new(new(1, 1), new(0, 1), EdgeKind.ClosedDoor),
                 new(new(1, 1), new(1, 0), EdgeKind.ClosedDoor),
                 new(new(1, 2), new(1, 1), EdgeKind.ClosedDoor)]), [new("actor", new(1, 1))]),
-            Types = [new("other", 0, 0, 0, 0, 1, UnitAction.None, new(2))],
+            Types = [new("other", 0, 0, 0, 0, 1, UnitAction.None)
+                { LocalAbilities = [new("try-door", "Try Open Door", AbilityTiming.Action, new TryOpenDoor(2))] }],
             Units = [new("actor", "other", "blue", 1)]
         };
         if (reverse) state.Physical.Board.Edges.Reverse();
@@ -217,7 +218,7 @@ public sealed class ZombieTests
     public void InvalidSuccessCountsAreRejected(int count)
     {
         Assert.Throws<ArgumentException>(() => TestGame.StartRound(
-            Corridor(UnitType.Zombie() with { TryOpenDoor = new(count) }), new Random()));
+            Corridor(UnitType.Zombie().Without<TryOpenDoor>().WithLocal(new("break-door", "Break Door", AbilityTiming.Action, new TryOpenDoor(count)))), new Random()));
     }
 
     [Theory]

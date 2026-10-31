@@ -1,11 +1,11 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
 
 public sealed class LabyrinthShaperTests
 {
-    private const string Key = "bonus-action:Reshape Room";
+    private const string Key = "ability:reshape-room";
     private sealed class Dice : IRandomProvider
     {
         public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
@@ -38,12 +38,12 @@ public sealed class LabyrinthShaperTests
         Assert.True(type.Unique); Assert.Equal(Footprint.OneByOne, type.Footprint);
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.PreferReshapeRoom, type.Behaviors);
-        var ability = Assert.Single(type.BonusActions); Assert.NotNull(ability.ReshapeRoom); Assert.Null(ability.MaxUses);
-        Assert.Empty(type.CreateUnit("boss", "red").BonusActionUses);
-        var card = Assert.Single(type.CardEntries(), c => c.Id == "bonus:Reshape Room");
+        var ability = Assert.Single(type.LocalAbilities); Assert.IsType<ReshapeRoom>(ability.Mechanic); Assert.Null(ability.Usage.MaxUses);
+        Assert.Empty(type.CreateUnit("boss", "red").AbilityUseCounts);
+        var card = Assert.Single(type.CardEntries(), c => c.Id == "ability:reshape-room");
         Assert.Equal("Bonus Action", card.Category);
         Assert.Equal("Replace Edges in the 3 \u00D7 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides.", card.Description);
-        Assert.NotNull(JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))!.BonusActions[0].ReshapeRoom);
+        Assert.NotNull(JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))!.Mechanic<ReshapeRoom>());
     }
 
     [Theory]
@@ -137,8 +137,8 @@ public sealed class LabyrinthShaperTests
             result = Pick(result, Key);
         }
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Key == Key);
-        Assert.Equal(opportunities, result.State.BonusActionUsesThisActivation("Reshape Room"));
-        Assert.Empty(result.State.Units[0].BonusActionUses);
+        Assert.Equal(opportunities, result.State.BonusActionUsesThisActivation("unit:reshape-room"));
+        Assert.Empty(result.State.Units[0].AbilityUseCounts);
     }
 
     [Fact]
@@ -150,8 +150,8 @@ public sealed class LabyrinthShaperTests
         clipped.Units.RemoveAt(1); clipped.Physical.Figures.RemoveAt(1);
         var completed = Pick(Start(clipped), Key);
         Assert.Empty(completed.State.Physical.Board.Edges);
-        Assert.Equal(1, completed.ResolutionSteps.Single(step => completed.Events[step.EventIndex].Kind == "AbilityUsed")
-            .StateAfter.BonusActionUsesThisActivation("Reshape Room"));
+        Assert.Equal(1, completed.ResolutionSteps.Single(step => completed.Events[step.EventIndex].Kind == "ActionUsed")
+            .StateAfter.BonusActionUsesThisActivation("unit:reshape-room"));
         Assert.True(completed.State.IsCompleted);
 
         // Keep a living hostile beyond impassable Cells so a no-op can also be exercised next Round.
@@ -162,8 +162,8 @@ public sealed class LabyrinthShaperTests
         world.Physical.Figures[1] = new("enemy", new(0, 3));
         var result = Pick(Start(world), Key);
         Assert.Empty(result.State.Physical.Board.Edges);
-        var used = result.ResolutionSteps.Single(step => result.Events[step.EventIndex].Kind == "AbilityUsed").StateAfter;
-        Assert.Equal(1, used.BonusActionUsesThisActivation("Reshape Room"));
+        var used = result.ResolutionSteps.Single(step => result.Events[step.EventIndex].Kind == "ActionUsed").StateAfter;
+        Assert.Equal(1, used.BonusActionUsesThisActivation("unit:reshape-room"));
         Assert.True(result.State.RoundComplete);
         result = TestGame.StartRound(result.State, new Dice(), false);
         Assert.Contains(result.NextInput!.Candidates, c => c.Key == Key);
@@ -182,7 +182,7 @@ public sealed class LabyrinthShaperTests
             result = GameEngine.Advance(result.State, new DefaultAutomatedProvider(), new Dice(), false);
             events.AddRange(result.Events);
         }
-        var reshape = events.FindIndex(e => e.Kind == "AbilityUsed" && e.AbilityName == "Reshape Room");
+        var reshape = events.FindIndex(e => e.Kind == "ActionUsed" && e.AbilityName == "Reshape Room");
         var move = events.FindIndex(e => e.Kind == "MovementCompleted");
         var attack = events.FindIndex(e => e.Kind == "AttackStarted" && e.UnitId == "boss");
         Assert.True(reshape >= 0); Assert.True(move > reshape); Assert.True(attack > move);

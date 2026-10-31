@@ -5,14 +5,14 @@ using System.Text.Json.Serialization;
 namespace ProjectDelve.Engine;
 
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicFamily>))]
-public enum MechanicFamily { Ability, NativeUnit, ImmediateLoot, ImmediateWorld, ContinuousWorld, EnvironmentalProduction }
+public enum MechanicFamily { Ability, ImmediateLoot, ImmediateWorld, ContinuousWorld, EnvironmentalProduction }
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicParameterKind>))]
-public enum MechanicParameterKind { Integer, Boolean, Enum, Reference, List, Object }
+public enum MechanicParameterKind { Integer, Boolean, Enum, Reference, List, Object, String }
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicSource>))]
 public enum MechanicSource { Unit, Equipment, Item, WorldCard, LootCard, Terrain }
 // Inspection contexts, not additional gameplay Ability timings.
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicTiming>))]
-public enum MechanicTiming { Action, BonusAction, FreeAction, Passive, AfterAttack, WorldCardReveal, WhileWorldCardActive, LootReveal, RoundStart }
+public enum MechanicTiming { Action, BonusAction, FreeAction, Passive, AfterAttack, WorldCardReveal, WhileWorldCardActive, LootReveal, RoundStart, WhenDefeated, InsteadOfDefeat, InsteadOfActivation, EndActivation }
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicUsageSupport>))]
 public enum MechanicUsageSupport { NotApplicable, UnlimitedOnly, LimitedOrUnlimited, LimitedOnly }
 [JsonConverter(typeof(JsonStringEnumConverter<MechanicContext>))]

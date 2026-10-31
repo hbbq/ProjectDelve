@@ -23,14 +23,14 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
-        var objectChoice = request.Candidates.FirstOrDefault(c => (c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.EquipmentMechanic == EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit));
+        var objectChoice = request.Candidates.FirstOrDefault(c => (c.Ability is null && c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.Ability?.Definition.Mechanic is StandAdjacentFriendlyMechanic));
         if (objectChoice is not null) return objectChoice.Key;
         if (request.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn) &&
             !request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Action) &&
-            request.Candidates.FirstOrDefault(c => c.GrantedAbility?.Definition.Mechanic is ExtraActionsMechanic) is { } wind)
+            request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is ExtraActionsMechanic) is { } wind)
             return wind.Key;
-        if (request.Candidates.FirstOrDefault(c => c.EquipmentGranted && c.FreeAction == UnitFreeAction.OpenDoor) is { } open) return open.Key;
-        if (request.Candidates.FirstOrDefault(c => c.BonusAction?.Boost is not null) is { } boost) return boost.Key;
+        if (request.Candidates.FirstOrDefault(c => c.Ability?.SourceKind == AbilitySourceKind.Equipment && c.FreeAction == UnitFreeAction.OpenDoor) is { } open) return open.Key;
+        if (request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is Boost) is { } boost) return boost.Key;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
             BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
@@ -38,10 +38,10 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.Worker))
             return WorkerBehavior.Choose(request, queries)!;
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferReshapeRoom) &&
-            request.Candidates.FirstOrDefault(c => c.BonusAction?.ReshapeRoom is not null) is { } reshape)
+            request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is ReshapeRoom) is { } reshape)
             return reshape.Key;
         var positional = queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.SwapThenAttackThenDisplace);
-        if (positional && RankRepositioning(request.Candidates.Where(c => c.BonusAction?.Swap is not null), request, queries) is { } swap)
+        if (positional && RankRepositioning(request.Candidates.Where(c => c.Ability?.Definition.Mechanic is Swap), request, queries) is { } swap)
             return swap.Key;
         if (request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay))
         {
@@ -54,7 +54,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             Candidates = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Action).ToList(), AllowsNone = true };
         var action = SelectAction(actions, queries, orderedTargetIds);
         if (action is not null) return action;
-        if (positional && RankDisplace(request.Candidates.Where(c => c.BonusAction?.Displace is not null), request, queries) is { } displace)
+        if (positional && RankDisplace(request.Candidates.Where(c => c.Ability?.Definition.Mechanic is Displace), request, queries) is { } displace)
             return displace.Key;
         return request.Candidates.Single(c => c.Kind == ActivationChoiceKind.EndTurn).Key;
     }

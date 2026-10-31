@@ -122,7 +122,9 @@ public static class PlaytestScenarios
     {
         Board = new() { Width = 7, Height = 5 },
         UnitTypeIds = ["coal-collector", UnitTypeIds.Zombie, UnitTypeIds.Grunt],
-        UnitTypes = [UnitType.Define("coal-collector", "Coal Collector", UnitAuthoring.Stats(2, 0, 0, 3, 1), UnitAuthoring.CantAttack(), UnitAuthoring.ResourceStorage(ResourceTypes.Coal, 3), UnitAuthoring.PickupResource()), UnitRoster.Zombie() with { Actions = UnitAction.NormalAttack | UnitAction.GiveResource, DisplayName = "Coal Courier" }],
+        UnitTypes = [UnitType.Define("coal-collector", "Coal Collector", UnitAuthoring.Stats(2, 0, 0, 3, 1), UnitAuthoring.CantAttack(), UnitAuthoring.ResourceStorage(ResourceTypes.Coal, 3), UnitAuthoring.PickupResource()),
+            UnitRoster.Zombie() with { DisplayName = "Coal Courier", LocalAbilities = UnitRoster.Zombie().LocalAbilities.Add(
+                new("give-resource", "Give Resource", AbilityTiming.Action, new GiveResource())) }],
         Units = [new("coal-collector", "blue", new(2, 2)), new(UnitTypeIds.Zombie, "blue", new(3, 2)),
             new(UnitTypeIds.Grunt, "red", new(6, 4))],
         Agency = [new("coal-collector", "blue", ControllerKind.Human), new(UnitTypeIds.Zombie, "blue", ControllerKind.Human),

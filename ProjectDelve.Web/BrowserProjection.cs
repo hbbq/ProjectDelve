@@ -209,17 +209,17 @@ public static class BrowserProjection
     {
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         var native = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind == AbilitySourceKind.Unit).ToDictionary(g => g.EntryId);
-        foreach (var entry in type.CardEntries(state.Types, state.AbilityDefinitions))
+        foreach (var entry in type.CardEntries(state.Types))
         {
             if (native.Remove(entry.Id, out var grant)) yield return GrantedEntry(state, unit, grant);
-            else yield return new(entry, type.UsesFor(unit, entry.Id));
+            else yield return new(entry, null);
         }
         foreach (var grant in native.Values) yield return GrantedEntry(state, unit, grant);
         foreach (var entry in AcquiredEntries(state, unit)) yield return entry;
     }
 
     private static CardEntry GrantedEntry(GameState state, Unit unit, ResolvedAbility grant, int copies = 1) =>
-        new(grant.CardEntry(), state.AbilityUsesOf(unit.Id, grant))
+        new(ContentDescriptions.AbilityEntry(grant.Definition, grant.EntryId, state.Types), state.AbilityUsesOf(unit.Id, grant))
         {
             Source = grant.SourceKind == AbilitySourceKind.Unit ? "Native" : grant.SourceKind.ToString(),
             SourceName = grant.SourceName, SourceTypeId = grant.SourceTypeId,
@@ -230,16 +230,8 @@ public static class BrowserProjection
     private static IEnumerable<CardEntry> AcquiredEntries(GameState state, Unit unit)
     {
         var grants = state.AbilitiesOf(unit.Id).Where(g => g.SourceKind != AbilitySourceKind.Unit).ToArray();
-        foreach (var objects in unit.Inventory.Where(o => state.EquipmentTypeId(o) is not null).GroupBy(state.EquipmentTypeId))
-        {
-            var definition = state.Equipment(objects.Key!);
-            var equipmentGrants = grants.Where(g => g.SourceKind == AbilitySourceKind.Equipment && g.SourceTypeId == definition.Id).ToArray();
-            var grantedEntryIds = equipmentGrants.Select(g => g.EntryId).ToHashSet(StringComparer.Ordinal);
-            foreach (var entry in definition.CardEntries(state.AbilityDefinitions).Where(e => !grantedEntryIds.Contains(e.Id)))
-                yield return new(entry, null) { Source = "Equipment", SourceName = definition.Name,
-                    SourceTypeId = definition.Id, SourceInstanceId = objects.First().Id, CopyCount = objects.Count() };
-            foreach (var grant in equipmentGrants) yield return GrantedEntry(state, unit, grant);
-        }
+        foreach (var grant in grants.Where(g => g.SourceKind == AbilitySourceKind.Equipment))
+            yield return GrantedEntry(state, unit, grant);
         foreach (var group in grants.Where(g => g.SourceKind == AbilitySourceKind.Item).GroupBy(g => g.AccountingId))
             yield return GrantedEntry(state, unit, group.First(), group.Select(g => g.SourceInstanceId).Distinct().Count());
     }
@@ -267,13 +259,7 @@ public static class BrowserProjection
     {
         if (request is null) return null;
         var type = state.Types.Single(t => t.Id == request.TypeId);
-        var entries = type.CardEntries(state.Types, state.AbilityDefinitions).ToDictionary(e => e.Id);
-        if (request.UnitId is { } bearer && state.HasOpenDoor(bearer) && !entries.ContainsKey("open-door"))
-        {
-            var sources = state.ActiveEquipment(bearer).Where(e => e.Capabilities.Contains(EquipmentCapability.OpenDoor)).ToArray();
-            var content = sources[0].CardEntries(state.AbilityDefinitions).Single(e => e.Id == sources[0].EntryId("open-door"));
-            entries["open-door"] = content with { Id = "open-door", Name = $"{content.Name} · {string.Join(", ", sources.Select(e => e.Name))}" };
-        }
+        var entries = type.CardEntries(state.Types).ToDictionary(e => e.Id);
         if (request.UnitId is { } owner)
             foreach (var entry in Entries(state, state.Units.Single(u => u.Id == owner)))
                 entries[entry.Content.Id] = entry.Content;
@@ -292,8 +278,14 @@ public static class BrowserProjection
                 : new ChoiceInteraction(InteractionKind.Direct);
             string Label(Func<string, string> name) => c.Kind switch
             {
-                _ when c.GrantedAbility is { } grant => $"{grant.Definition.Name} ({grant.CardEntry().Category})" +
-                    (c.TargetId is not null ? $" → {name(c.TargetId)}" : c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" : ""),
+                _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource or UnitAction.Operate =>
+                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {name(c.TargetId)}") +
+                    (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
+                _ when c.Ability is { } grant => $"{grant.Definition.Name} ({grant.CardEntry().Category})" +
+                    (c.TargetId is not null && c.Destination is not null ? $" → {name(c.TargetId)} to ({c.Destination.X},{c.Destination.Y})" :
+                     c.TargetId is not null ? $" → {name(c.TargetId)}" :
+                     c.Destination is not null ? $" → ({c.Destination.X},{c.Destination.Y})" :
+                     c.Door is not null ? $" → ({c.Door.A.X},{c.Door.A.Y})–({c.Door.B.X},{c.Door.B.Y})" : ""),
                 _ when state.CandidateObjectContent(c) is { } objectContent => (c.Kind == ActivationChoiceKind.FreeAction ? "Collect " : "Use ") +
                     (c.AbilityName ?? objectContent.Name) + (c.TargetId is null ? "" : $" → {name(c.TargetId)}"),
                 ActivationChoiceKind.RollDice => "Roll Dice",
@@ -301,9 +293,6 @@ public static class BrowserProjection
                 ActivationChoiceKind.EndTurn => "End Turn",
                 ActivationChoiceKind.SelectUnit => $"Select {name(c.Key)}",
                 ActivationChoiceKind.Move => $"Move to ({c.Destination!.X},{c.Destination.Y})",
-                _ when c.Action is UnitAction.PickupResource or UnitAction.GiveResource or UnitAction.Operate =>
-                    $"{entry!.Name} ({entry.Category})" + (c.MachineId is not null ? $" to {state.Physical.Board.Machines.Single(m => m.Id == c.MachineId).Type.Name} ({c.MachineId})" : c.TargetId is null ? "" : $" to {name(c.TargetId)}") +
-                    (c.Destination is null ? "" : $" from ({c.Destination.X},{c.Destination.Y})"),
                 _ => entry is null ? "Choose option" : $"{entry.Name} ({entry.Category})" +
                     (c.TargetId is not null && c.Destination is not null ? $" → {name(c.TargetId)} to ({c.Destination.X},{c.Destination.Y})" :
                      c.TargetId is not null ? $" → {name(c.TargetId)}" :
@@ -315,14 +304,14 @@ public static class BrowserProjection
                 : c.TargetId is not null ? [c.TargetId] : [];
             return new BrowserChoice(c.Key, label, entryId, c.Relevant, interaction, affected)
             {
-                AccountingId = c.GrantedAbility?.AccountingId,
+                AccountingId = c.Ability?.AccountingId,
                 BoardVisual = c.Kind switch
                 {
                     ActivationChoiceKind.SelectUnit => new("activate", $"Activate {PlayerName(state, c.Key, individualNames)}"),
                     ActivationChoiceKind.Move => new("move", $"Move {PlayerName(state, request.UnitId, individualNames)} to ({c.Destination!.X},{c.Destination.Y})"),
                     ActivationChoiceKind.Stay => new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ"),
                     _ when c.Action == UnitAction.NormalAttack => new("attack", $"Attack {PlayerName(state, c.TargetId, individualNames)}", "⌖"),
-                    _ when c.Action == UnitAction.Fireball => new("special", $"{c.GrantedAbility?.Definition.Name ?? entry?.Name ?? "Fireball"} at ({c.Destination!.X},{c.Destination.Y})", "🔥"),
+                    _ when c.Action == UnitAction.Fireball => new("special", $"{c.Ability?.Definition.Name ?? entry?.Name ?? "Fireball"} at ({c.Destination!.X},{c.Destination.Y})", "🔥"),
                     _ => new("special", Label(id => PlayerName(state, id, individualNames)), "◆")
                 },
                 DisplayLabel = Label(id => PlayerName(state, id, individualNames)),
@@ -332,14 +321,17 @@ public static class BrowserProjection
                         ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
                         : c.Action is { } summonAction && SummoningRules.Placement(type, summonAction) is { } summon
                             ? FootprintGeometry.PlacementCells(state, summon.UnitTypeId, c.Destination)
-                            : c.BonusAction?.Displace is not null
+                            : c.Ability?.Definition.Mechanic is Displace
                                 ? FootprintGeometry.OccupiedCells(state, c.TargetId!, c.Destination)
                             : []
             };
         }).ToArray();
-        var continuation = request.Kind == DecisionKind.Cleave ? entries.GetValueOrDefault("cleave")
-            : request.IsMoveAfterAttack ? entries.GetValueOrDefault(state.AdvanceOnKillCells is not null
-                ? "advance-on-kill" : "move-after-attack") : null;
+        var continuation = request.Kind == DecisionKind.Cleave && request.UnitId is { } cleavingUnit
+            ? state.AbilitiesOf(cleavingUnit).SingleOrDefault(ability => ability.Definition.Mechanic is Cleave)?.CardEntry()
+            : request.IsMoveAfterAttack && request.UnitId is { } movingUnit
+                ? state.AbilitiesOf(movingUnit).SingleOrDefault(ability => state.AdvanceOnKillCells is not null
+                    ? ability.Definition.Mechanic is AdvanceOnKill : ability.Definition.Mechanic is MoveAfterAttack)?.CardEntry()
+                : null;
         string Prompt(Func<string, string> name) => request.Roll is { } pool ? $"{name(pool.OwnerUnitId)}: roll {pool.Count} {pool.Family} dice ({pool.Purpose}, {pool.SourceActionId})"
                 + (pool.TargetId is null ? "" : $" against {name(pool.TargetId)}")
                 + (pool.Door is null ? "" : $" at door {pool.Door.A.X},{pool.Door.A.Y} – {pool.Door.B.X},{pool.Door.B.Y} ({pool.SuccessCount}/6)")
@@ -375,7 +367,7 @@ public static class BrowserProjection
             subject = $"{name(e.UnitId)} · {e.AbilityName} (during {subject})";
         var sourceTypeId = state.Units.FirstOrDefault(u => u.Id == e.UnitId)?.TypeId;
         var actionName = e.AbilityName ?? state.Types.FirstOrDefault(t => t.Id == sourceTypeId)?
-            .CardEntries(state.Types, state.AbilityDefinitions).FirstOrDefault(entry => entry.Id == e.ActionId || entry.Id == $"bonus:{e.ActionId}")?.Name ?? e.ActionId;
+            .CardEntries(state.Types).FirstOrDefault(entry => entry.Id == e.ActionId)?.Name ?? e.ActionId;
         var role = OutcomeRole.Notice;
         string description;
         switch (e.Kind)
@@ -512,7 +504,10 @@ public static class BrowserProjection
                 break;
             case "UnitRepositioned":
                 role = OutcomeRole.Movement;
-                description = e.ActionId == "run-rails"
+                var repositionedType = state.Types.FirstOrDefault(t => t.Id == sourceTypeId);
+                var ranRails = repositionedType is not null && AbilityQueries.NativeAbilities(repositionedType, e.UnitId!)
+                    .Any(a => a.ActionId == e.ActionId && a.Definition.Mechanic is RunRails);
+                description = ranRails
                     ? $"{name(e.UnitId)} ran Rails: {string.Join(" -> ", e.Path!.Select(CellLabel))}"
                     : $"{name(e.SourceUnitId)} displaced {name(e.UnitId)}: {string.Join(" → ", e.Path!.Select(CellLabel))}";
                 break;
@@ -542,9 +537,6 @@ public static class BrowserProjection
             case "UnitDefeated":
                 role = OutcomeRole.Defeat;
                 description = $"{name(e.UnitId)} was defeated";
-                break;
-            case "AbilityUsed":
-                description = $"{name(e.UnitId)} used {e.AbilityName}";
                 break;
             case "DoorOpeningAttemptResolved":
                 role = OutcomeRole.DoorAttempt;

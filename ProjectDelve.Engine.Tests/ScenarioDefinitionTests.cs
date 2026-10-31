@@ -45,15 +45,15 @@ public sealed class ScenarioDefinitionTests
         Assert.False(first.MoveDone);
         Assert.False(first.ActionDone);
         Assert.Equal(5, first.Units[0].CurrentHp);
-        Assert.Equal(new AbilityUses(2, 2), first.Units[0].CleaveUses);
-        Assert.Equal(new AbilityUses(2, 2), first.Units[0].BonusActionUses["Rage"]);
+        Assert.Equal(new AbilityUses(2, 2), first.Units[0].Uses("cleave"));
+        Assert.Equal(new AbilityUses(2, 2), first.Units[0].Uses("rage"));
         Assert.Equal(2, first.Units[1].CurrentHp);
-        Assert.Equal(new AbilityUses(2, 2), first.Units[1].FireballUses);
-        Assert.Equal(new AbilityUses(2, 2), first.Units[1].BonusActionUses["Focus"]);
+        Assert.Equal(new AbilityUses(2, 2), first.Units[1].Uses("fireball"));
+        Assert.Equal(new AbilityUses(2, 2), first.Units[1].Uses("focus"));
         Assert.Equal(Posture.Lying, first.Physical.Figures[1].Posture);
         Assert.Equal(first.Units.Select(u => (u.Id, u.TypeId, u.SideId, u.CurrentHp)),
             second.Units.Select(u => (u.Id, u.TypeId, u.SideId, u.CurrentHp)));
-        Assert.Equal(first.Units[0].BonusActionUses.OrderBy(p => p.Key), second.Units[0].BonusActionUses.OrderBy(p => p.Key));
+        Assert.Equal(first.Units[0].AbilityUseCounts.OrderBy(p => p.Key), second.Units[0].AbilityUseCounts.OrderBy(p => p.Key));
         Assert.NotSame(first.Units, second.Units);
         Assert.NotSame(first.Units[0], second.Units[0]);
         Assert.NotSame(first.Types, second.Types);
@@ -166,7 +166,8 @@ public sealed class ScenarioDefinitionTests
         var created = Assert.Single(result.Events, e => e.Kind == "UnitCreated");
         Assert.DoesNotContain(initial.Units, u => u.Id == created.UnitId);
         Assert.Equal(result.State.Units.Count, result.State.Units.Select(u => u.Id).Distinct().Count());
-        Assert.Equal(UnitType.Goblin(), result.State.Types.Single(t => t.Id == UnitTypeIds.Goblin));
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(UnitType.Goblin()),
+            System.Text.Json.JsonSerializer.Serialize(result.State.Types.Single(t => t.Id == UnitTypeIds.Goblin)));
         Assert.Equal(Posture.Lying, result.State.Physical.Figures.Single(f => f.Id == created.UnitId).Posture);
         Assert.Equal(explicitAgency ? ControllerKind.Automated : ControllerKind.Human,
             result.State.ControllerFor(new ActivationToken(UnitTypeIds.Goblin, "amber")));

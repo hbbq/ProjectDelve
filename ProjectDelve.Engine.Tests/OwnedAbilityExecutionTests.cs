@@ -66,8 +66,6 @@ public sealed class OwnedAbilityExecutionTests
         scenario.Units[0] = scenario.Units[0] with { Inventory = [.. inventory] };
         scenario = ScenarioDefinitionJson.FromJson(ScenarioDefinitionJson.ToJson(scenario));
         var state = GameEngine.CreateGame(scenario);
-        // A complete owned-content game does not need any global Ability catalog.
-        state.AbilityDefinitions = [];
         state.EquipmentTypes = [.. scenario.EquipmentTypes!];
         state.ItemTypes = [.. scenario.ItemTypes!];
         state.LootCardDefinitions = [];
@@ -84,15 +82,13 @@ public sealed class OwnedAbilityExecutionTests
     private static EngineResult Use(GameState state, string key) => GameEngine.Advance(state, new Choice(key), new Dice(), false);
 
     [Fact]
-    public void UnitAndEquipmentPassivesWorkWithAnEmptyGlobalCatalogAndRespectPosture()
+    public void UnitAndEquipmentOwnedPassivesRespectPosture()
     {
         var state = Ready(new OwnedObject("band", "woven-band"));
-        Assert.Empty(state.AbilityDefinitions);
         Assert.Equal(2, state.EffectiveDefOf("actor"));
         Assert.Equal(1, state.EffectiveDefOf("friend"));
         Assert.Equal(0, state.EffectiveDefOf("enemy"));
         var restored = Restore(state);
-        Assert.Empty(restored.AbilityDefinitions);
         Assert.Equal(1, restored.EffectiveDefOf("friend"));
         var figure = restored.Physical.Figures.FindIndex(f => f.Id == "actor");
         restored.Physical.Figures[figure] = restored.Physical.Figures[figure] with { Posture = Posture.Lying };
@@ -104,9 +100,9 @@ public sealed class OwnedAbilityExecutionTests
     public void SameLocalKeyOnUnitAndEquipmentUsesTheSelectedPayloadAndIndependentAllowance()
     {
         var state = Ready(new OwnedObject("band", "woven-band"));
-        var native = state.AbilitiesOf("actor").Single(a => a.SourceKind == AbilitySourceKind.Unit && a.GrantId == "mend");
-        var equipment = state.Pending!.Candidates.Single(c => c.GrantedAbility is
-            { SourceKind: AbilitySourceKind.Equipment, GrantId: "mend" });
+        var native = state.AbilitiesOf("actor").Single(a => a.SourceKind == AbilitySourceKind.Unit && a.Key == "mend");
+        var equipment = state.Pending!.Candidates.Single(c => c.Ability is
+            { SourceKind: AbilitySourceKind.Equipment, Key: "mend" });
         var result = Use(state, equipment.Key);
         Assert.Equal(4, result.State.Units.Single(u => u.Id == "friend").CurrentHp);
         Assert.Equal(new AbilityUses(2, 2), result.State.AbilityUsesOf("actor", native));
@@ -126,7 +122,6 @@ public sealed class OwnedAbilityExecutionTests
         Assert.Equal("Bright Fold", original.State.AttackInProgress!.AbilityName);
         Assert.Equal("flame-one", Assert.Single(original.State.LootDeck!.DiscardPile).Id);
         Assert.Equal("flame-two", Assert.Single(original.State.Units.Single(u => u.Id == "actor").Inventory).Id);
-        Assert.Empty(original.State.AbilityDefinitions);
 
         var restored = Restore(original.State);
         // The authoritative pending Attack already contains the invoked mechanic's context.
@@ -145,7 +140,7 @@ public sealed class OwnedAbilityExecutionTests
             new("band", "woven-band"));
         var copies = state.Pending!.Candidates.Where(c => c.ItemTypeId == "paper-moment").ToArray();
         Assert.Equal(2, copies.Length);
-        Assert.Equal(copies[0].GrantedAbility!.AccountingId, copies[1].GrantedAbility!.AccountingId);
+        Assert.Equal(copies[0].Ability!.AccountingId, copies[1].Ability!.AccountingId);
         var used = Use(state, copies.Single(c => c.ObjectId == "moment-one").Key);
         Assert.Equal(1, used.State.ExtraActionsThisActivation);
         Assert.DoesNotContain(used.NextInput!.Candidates, c => c.ItemTypeId == "paper-moment");
@@ -154,8 +149,8 @@ public sealed class OwnedAbilityExecutionTests
         var other = restored.Pending!.Candidates.Single(c => c.ItemTypeId == "paper-pause");
         var second = Use(restored, other.Key);
         Assert.Equal(2, second.State.ExtraActionsThisActivation);
-        var equipment = second.NextInput!.Candidates.Single(c => c.GrantedAbility is
-            { SourceKind: AbilitySourceKind.Equipment, GrantId: "use" });
+        var equipment = second.NextInput!.Candidates.Single(c => c.Ability is
+            { SourceKind: AbilitySourceKind.Equipment, Key: "use" });
         var third = Use(second.State, equipment.Key);
         Assert.Equal(2, third.State.EffectiveAtkOf("actor"));
         Assert.Equal(0, third.State.ActionsUsedThisActivation);

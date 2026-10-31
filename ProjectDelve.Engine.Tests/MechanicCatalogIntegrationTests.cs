@@ -37,33 +37,23 @@ public sealed class MechanicCatalogIntegrationTests
             new("catalog-bearer", 2, 3, 1, 1, 4)
             {
                 Unique = true, CanHaveEquipment = true, CanHaveItems = true,
-                AbilityGrants =
+                LocalAbilities =
                 [
-                    new("mend", "silver-thread"), new("wave", "quiet-bell"),
-                    new("flame", "orange-paper"), new("focus", "careful-moment"),
-                    new("ward", "nearby-shelter"), new("pace", "another-moment"),
-                    new("rise", "helping-hand")
+                    new("mend", "Silver Thread", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
+                    new("wave", "Quiet Bell", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) },
+                    new("flame", "Orange Paper", AbilityTiming.Action, new FireballMechanic()),
+                    new("focus", "Careful Moment", AbilityTiming.BonusAction,
+                        new SelfModifiersMechanic([new(Stat.Atk, 1), new(Stat.Mov, -1)])) { Usage = new(3) },
+                    new("ward", "Nearby Shelter", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)])),
+                    new("pace", "Another Moment", AbilityTiming.BonusAction, new ExtraActionsMechanic(1)),
+                    new("rise", "Helping Hand", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())
                 ]
             },
             new("catalog-friend", 0, 0, 0, 0, 4) { Unique = true },
             new("catalog-opponent", 0, 0, 0, 0, 4) { Unique = true }
         ],
-        AbilityDefinitions =
-        [
-            new("silver-thread", "Silver Thread", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
-            new("quiet-bell", "Quiet Bell", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) },
-            new("orange-paper", "Orange Paper", AbilityTiming.Action, new FireballMechanic()),
-            new("careful-moment", "Careful Moment", AbilityTiming.BonusAction,
-                new SelfModifiersMechanic([new(Stat.Atk, 1), new(Stat.Mov, -1)])) { Usage = new(3) },
-            new("nearby-shelter", "Nearby Shelter", AbilityTiming.Passive,
-                new AdjacentModifiersMechanic([new(Stat.Def, 1)])),
-            new("another-moment", "Another Moment", AbilityTiming.BonusAction, new ExtraActionsMechanic(1)),
-            new("helping-hand", "Helping Hand", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()),
-            new("woven-light", "Woven Light", AbilityTiming.Action, new HealMechanic(3)),
-            new("folded-hush", "Folded Hush", AbilityTiming.Action, new HolyWaveMechanic())
-        ],
-        EquipmentTypes = [new("woven-band", "Woven Band") { Grants = [new("restore", "woven-light")] }],
-        ItemTypes = [new("paper-bell", "Paper Bell") { Grants = [new("unfold", "folded-hush")] }],
+        EquipmentTypes = [new("woven-band", "Woven Band") { LocalAbilities = [new("restore", "Woven Light", AbilityTiming.Action, new HealMechanic(3))] }],
+        ItemTypes = [new("paper-bell", "Paper Bell") { LocalAbilities = [new("unfold", "Folded Hush", AbilityTiming.Action, new HolyWaveMechanic())] }],
         Units =
         [
             new("catalog-bearer", "blue", new(2, 2), UnitId: "actor")
@@ -106,8 +96,8 @@ public sealed class MechanicCatalogIntegrationTests
         state.Pending = new(DecisionKind.Activation, "catalog-bearer", "actor", [], false);
         state = GameEngine.RefreshChoices(state, new Dice(), false).State;
         var resumed = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
-        var key = state.Pending!.Candidates.Single(c => c.GrantedAbility is
-            { SourceKind: AbilitySourceKind.Equipment, GrantId: "restore" }).Key;
+        var key = state.Pending!.Candidates.Single(c => c.Ability is
+            { SourceKind: AbilitySourceKind.Equipment, Key: "restore" }).Key;
         Assert.Contains(resumed.Pending!.Candidates, c => c.Key == key);
 
         var result = GameEngine.Advance(state, new Choice(key), new Dice(), false);
@@ -115,7 +105,7 @@ public sealed class MechanicCatalogIntegrationTests
         Assert.Equal(JsonSerializer.Serialize(result), JsonSerializer.Serialize(replay));
         Assert.Equal(4, replay.State.Units.Single(u => u.Id == "friend").CurrentHp);
         Assert.Equal("Woven Light", replay.Events.Single(e => e.Kind == "HealResolved").AbilityName);
-        Assert.Equal(new AbilityUses(2, 2), replay.State.AbilityUsesOf("actor", grants.Single(g => g.GrantId == "mend")));
+        Assert.Equal(new AbilityUses(2, 2), replay.State.AbilityUsesOf("actor", grants.Single(g => g.Key == "mend")));
         Assert.Equal(2, replay.State.Units.Single(u => u.Id == "actor").Inventory.Length);
     }
 
@@ -125,13 +115,13 @@ public sealed class MechanicCatalogIntegrationTests
     public void JsonValidationReportsTheSameInvalidParameterAsPublicDiscoveryValidation(int amount)
     {
         var invalid = new HealMechanic(amount);
-        var diagnostics = MechanicCatalog.Validate(invalid, path: "abilityDefinitions[0].mechanic");
+        var diagnostics = MechanicCatalog.Validate(invalid, path: "unitTypes[0].localAbilities[0].mechanic");
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("minimum", diagnostic.Code);
         Assert.EndsWith(".amount", diagnostic.Path);
 
         var scenario = Scenario();
-        scenario.AbilityDefinitions![0] = scenario.AbilityDefinitions[0] with { Mechanic = invalid };
+        scenario.UnitTypes![0] = scenario.UnitTypes[0] with { LocalAbilities = scenario.UnitTypes[0].LocalAbilities.SetItem(0, scenario.UnitTypes[0].LocalAbilities[0] with { Mechanic = invalid }) };
         var error = Assert.Throws<ArgumentException>(() =>
             ScenarioDefinitionJson.FromJson(ScenarioDefinitionJson.ToJson(scenario)));
         Assert.Contains(".amount", error.Message);

@@ -18,7 +18,7 @@ public sealed class WorkerBehaviorTests
         Board = new() { Width = 8, Height = 5 },
         UnitTypeIds = ["porter", UnitTypeIds.Geomancer, UnitTypeIds.Grunt],
         // Deliberately a different Unit Type, with an Attack that the Behavior must ignore.
-        UnitTypes = [UnitRoster.Worker("porter") with { Actions = UnitAction.NormalAttack | UnitAction.GiveResource | UnitAction.Operate }],
+        UnitTypes = [UnitRoster.Worker("porter") with { Actions = UnitAction.NormalAttack }],
         Units = [new("porter", "blue", new(0, 2), UnitId: "actor"),
             new(UnitTypeIds.Geomancer, "blue", new(7, 2), UnitId: "collector"),
             new(UnitTypeIds.Grunt, "red", new(7, 4), UnitId: "observer")],
@@ -102,8 +102,10 @@ public sealed class WorkerBehaviorTests
     {
         var worker = CanonicalUnitTypes.Find(UnitTypeIds.Worker)!;
         Assert.Equal((4, 0, 0, 2, 1), (worker.Mov, worker.Rng, worker.Atk, worker.Def, worker.Hp));
-        Assert.Equal(UnitAction.GiveResource | UnitAction.Operate, worker.Actions);
-        Assert.NotNull(worker.TransportResource);
+        Assert.Equal(UnitAction.None, worker.Actions);
+        Assert.True(worker.HasAction(UnitAction.GiveResource));
+        Assert.True(worker.HasAction(UnitAction.Operate));
+        Assert.NotNull(worker.Mechanic<TransportResource>());
         Assert.Null(worker.ResourceStorage);
         Assert.Equal(UnitBehavior.Worker, worker.Behaviors);
     }
@@ -265,7 +267,7 @@ public sealed class WorkerBehaviorTests
     {
         var definition = Fixture();
         var start = Start(definition with { UnitTypes = [definition.UnitTypes![0] with {
-            Actions = UnitAction.None, TransportResource = null }],
+            Actions = UnitAction.None, LocalAbilities = [] }],
             Machines = [Press(new(1, 2), 3)], Resources = [new(ResourceTypes.Coal, new(0, 1))] });
         Assert.Equal("stay", Choice(start));
     }
@@ -347,7 +349,7 @@ public sealed class WorkerBehaviorTests
     {
         var definition = Fixture() with { Machines = [Press(new(1, 3), 3, "a"), Press(new(1, 1), 3, "z")] };
         var start = Step(Start(definition));
-        Assert.Equal("operate:z", Choice(start));
+        Assert.Equal("ability:operate:z", Choice(start));
     }
 
     [Fact]
@@ -376,7 +378,7 @@ public sealed class WorkerBehaviorTests
     public void ReusedBehaviorCanSeekResourceForLegalGiveWithoutTransportCapability()
     {
         var definition = Fixture();
-        var (state, events) = Activate(definition with { UnitTypes = [definition.UnitTypes![0] with { TransportResource = null }],
+        var (state, events) = Activate(definition with { UnitTypes = [definition.UnitTypes![0].Without<TransportResource>()],
             Machines = [Press(new(2, 2))], Resources = [new(ResourceTypes.Coal, new(1, 2))] });
         Assert.Contains(events, e => e.Kind == "ResourceStored");
         Assert.Equal(1, state.Physical.Board.Machines[0].StoredQuantity("coal"));

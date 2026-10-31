@@ -40,9 +40,9 @@ public sealed class ScenarioTests
         Assert.True(state.Physical.Board.TerrainAt(start).Passable());
         var card = BrowserProjection.Cards(state)[ghost.Id];
         Assert.Equal("Ghost", card.DisplayName);
-        var phase = Assert.Single(card.Entries, e => e.Content.Id == "phase");
-        Assert.Equal(state.Types.Single(t => t.Id == ghost.TypeId).CardEntries().Single(e => e.Id == "phase"), phase.Content);
-        Assert.Equal("Capability", phase.Content.Category);
+        var phase = Assert.Single(card.Entries, e => e.Content.Id == "ability:phase");
+        Assert.Equal(state.Types.Single(t => t.Id == ghost.TypeId).CardEntries().Single(e => e.Id == "ability:phase"), phase.Content);
+        Assert.Equal("Passive", phase.Content.Category);
         Assert.Null(phase.Uses);
 
         // Draw Ghost before any other Unit can alter the setup.
@@ -81,12 +81,14 @@ public sealed class ScenarioTests
         var expected = Serialize(initial.Result.State);
         var changed = game.SetRelevanceAutoChoice(initial.Revision, false);
         var state = changed.Result.State;
-        state.Units[0] = state.Units[0] with { CurrentHp = 1, CleaveUses = new(2, 0),
-            BonusActionUses = state.Units[0].BonusActionUses.SetItem("Rage", new(2, 0)) };
+        state.Units[0] = state.Units[0] with { CurrentHp = 1,
+            AbilityUseCounts = state.Units[0].AbilityUseCounts.SetItem("unit:cleave", 2).SetItem("unit:rage", 2) };
         var clericIndex = state.Units.FindIndex(u => u.TypeId == UnitTypeIds.Cleric);
-        state.Units[clericIndex] = state.Units[clericIndex] with { HealUses = new(2, 0), HolyWaveUses = new(2, 0) };
+        state.Units[clericIndex] = state.Units[clericIndex] with
+        { AbilityUseCounts = state.Units[clericIndex].AbilityUseCounts.SetItem("unit:heal", 2).SetItem("unit:holy-wave", 2) };
         var wizardIndex = state.Units.FindIndex(u => u.TypeId == UnitTypeIds.Wizard);
-        state.Units[wizardIndex] = state.Units[wizardIndex] with { FireballUses = new(2, 0) };
+        state.Units[wizardIndex] = state.Units[wizardIndex] with
+        { AbilityUseCounts = state.Units[wizardIndex].AbilityUseCounts.SetItem("unit:fireball", 2) };
         state.Physical.Figures[0] = state.Physical.Figures[0] with { Position = new(0, 0), Posture = Posture.Lying };
         for (var i = 0; i < state.Physical.Board.Edges.Count; i++)
             if (state.Physical.Board.Edges[i].Kind == EdgeKind.ClosedDoor)
@@ -97,7 +99,7 @@ public sealed class ScenarioTests
         var barbarianId = state.Units.Single(u => u.TypeId == UnitTypeIds.Barbarian).Id;
         state.CurrentUnitId = barbarianId; state.MoveDone = true; state.ActionDone = true;
         state.CompletedUnitIds.Add(state.Units.Single(u => u.TypeId == UnitTypeIds.Rogue).Id); state.CleavePending = true; state.MoveAfterAttackAllowance = 1;
-        state.BonusActionsUsedThisActivation.Add("Rage"); state.ModifiersThisTurn.Add(new(Stat.Atk, 2));
+        state.BonusActionUseCountsThisActivation["unit:rage"] = 1; state.ModifiersThisTurn.Add(new(Stat.Atk, 2));
         state.Pending = new(DecisionKind.Cleave, UnitTypeIds.Barbarian, barbarianId, [], true);
         var restored = game.Restart(changed.Revision);
         Assert.Equal(expected, Serialize(restored.Result.State));
@@ -173,7 +175,8 @@ public sealed class ScenarioTests
         var beforeSpawn = round.Result.ResolutionSteps.Last(s => s.EventIndex < createdIndex).StateAfter;
         Assert.Equal(beforeSpawn.Bag, afterSpawn.Bag);
         Assert.DoesNotContain("goblin-type", afterSpawn.Bag.Select(t => t.TypeId));
-        Assert.Equal(UnitType.Goblin(), Assert.Single(afterSpawn.Types, t => t.Id == "goblin-type"));
+        Assert.Equal(JsonSerializer.Serialize(UnitType.Goblin()),
+            JsonSerializer.Serialize(Assert.Single(afterSpawn.Types, t => t.Id == "goblin-type")));
         var goblin = Assert.Single(afterSpawn.Units, u => u.TypeId == "goblin-type");
         Assert.Equal(Posture.Lying, afterSpawn.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
         while (round.Result.NextInput is { } pending)

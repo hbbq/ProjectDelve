@@ -132,7 +132,7 @@ public sealed partial class DelveChessTests
         var state = State(type, new(5, 5));
         state.StoredResources.Add(new("a", type.Id, ResourceTypes.Mushroom, 1));
         var moved = TestGame.Advance(Choices(state).State, new Choice("3,2"), new Dice(), false);
-        var boost = moved.NextInput!.Candidates.Single(c => c.BonusAction?.Boost is not null);
+        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Boost);
         var boosted = TestGame.Advance(moved.State, new Choice(boost.Key), new Dice(), false);
         Assert.False(boosted.State.MoveDone);
         Assert.Equal(0, boosted.State.StoredQuantity("a", type.Id, ResourceTypes.Mushroom.Id));
@@ -153,7 +153,7 @@ public sealed partial class DelveChessTests
         };
         var state = GameEngine.CreateGame(ScenarioDefinitionJson.FromJson(ScenarioDefinitionJson.ToJson(definition)));
         Assert.Equal(MovementPattern.StraightOrthogonal, state.Types.Single().MovementPattern);
-        Assert.NotNull(state.Types.Single().AdvanceOnKill);
+        Assert.NotNull(state.Types.Single().Mechanic<AdvanceOnKill>());
         var paths = MovementRules.FindPaths(state, state.Units.Single().Id, new(3, 3), 16);
         Assert.Contains(new Cell(3, 0), paths.Keys);
         Assert.DoesNotContain(new Cell(4, 4), paths.Keys);
@@ -187,7 +187,7 @@ public sealed partial class DelveChessTests
     public void MissOrPreventedDefeatDoesNotAdvance(bool hit, bool undying)
     {
         var state = State();
-        if (undying) state.Types[1] = state.Types[1] with { Undying = new() };
+        if (undying) state.Types[1] = state.Types[1].WithLocal(new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()));
         var result = Attack(state, hit);
         Assert.NotEqual(DecisionKind.Move, result.NextInput?.Kind);
         Assert.Null(result.State.AdvanceOnKillCells);
@@ -285,7 +285,9 @@ public sealed partial class DelveChessTests
     public void DefeatingLyingUndyingTargetQualifiesAndExplosionsResolveBeforeAdvance()
     {
         var state = State();
-        state.Types[1] = state.Types[1] with { Undying = new(), Explosion = new() { Damage = 0 } };
+        state.Types[1] = state.Types[1]
+            .WithLocal(new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()))
+            .WithLocal(new("explosion", "Explosion", AbilityTiming.WhenDefeated, new Explosion { Damage = 0 }));
         state.Physical.Figures[1] = state.Physical.Figures[1] with { Posture = Posture.Lying };
         var result = Attack(state);
         Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
@@ -297,7 +299,7 @@ public sealed partial class DelveChessTests
     public void AttackerDefeatedByExplosionDoesNotReceiveAdvance()
     {
         var state = State();
-        state.Types[1] = state.Types[1] with { Explosion = new() { Damage = 1 } };
+        state.Types[1] = state.Types[1].WithLocal(new("explosion", "Explosion", AbilityTiming.WhenDefeated, new Explosion { Damage = 1 }));
         var result = Attack(state);
         Assert.Contains(result.Events, e => e.Kind == "UnitDefeated" && e.UnitId == "m");
         Assert.Null(result.State.AdvanceOnKillCells);
@@ -335,8 +337,9 @@ public sealed partial class DelveChessTests
     [InlineData(UnitAction.ClawAttack)] [InlineData(UnitAction.Fireball)]
     public void SpecialAttackKillsDoNotTriggerAdvance(UnitAction action)
     {
-        var type = UnitRoster.CastleGuard() with { Rng = 3, Actions = UnitAction.NormalAttack | UnitAction.ClawAttack | UnitAction.Fireball,
-            ClawAttack = new(), Fireball = new() };
+        var type = (UnitRoster.CastleGuard() with { Rng = 3 })
+            .WithLocal(new("claw-attack", "Claw Attack", AbilityTiming.Action, new ClawAttack()))
+            .WithLocal(new("fireball", "Fireball", AbilityTiming.Action, new FireballMechanic()) { Usage = new(2) });
         var result = Attack(State(type, action == UnitAction.Fireball ? new(5, 3) : new(4, 3)), action: action);
         Assert.Contains(result.Events, e => e.Kind == "UnitDefeated" && e.UnitId == "t");
         Assert.Null(result.State.AdvanceOnKillCells);
@@ -367,7 +370,8 @@ public sealed partial class DelveChessTests
     [Fact]
     public void GoblinMoveAfterAttackStillExistsWithoutDefeatAndAllowsOrdinaryTurns()
     {
-        var state = State(UnitRoster.Goblin() with { MoveAfterAttack = new(2) });
+        var state = State(UnitRoster.Goblin().Without<MoveAfterAttack>()
+            .WithLocal(new("move-after-attack", "Move After Attack", AbilityTiming.AfterAttack, new MoveAfterAttack(2))));
         var result = Attack(state, hit: false);
         Assert.Equal(DecisionKind.Move, result.NextInput!.Kind);
         Assert.Null(result.State.AdvanceOnKillCells);
@@ -389,7 +393,8 @@ public sealed partial class DelveChessTests
         var selected = provider.Choose(result.NextInput, new GameplayQueries(result.State));
         Assert.Equal("weak", result.NextInput.Candidates.Single(c => c.Key == selected).TargetId);
         // A continuous DEF bonus changes the preferred target immediately.
-        state.Types.Add(new("aura", 0, 0, 0, 0, 1) { AdjacentFriendlyUnitsDefenceBonus = new(4) });
+        state.Types.Add(new("aura", 0, 0, 0, 0, 1) { LocalAbilities = [
+            new("defence", "Defence Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 4)]))] });
         state.Units.Add(new("aura", "aura", "b", 1));
         state.Physical.Figures.Add(new("aura", new(1, 3)));
         result = Choices(state);
@@ -423,8 +428,8 @@ public sealed partial class DelveChessTests
     [Fact]
     public void DefensePreferencePreservesOtherAttackAbilityPriorities()
     {
-        var state = State(UnitRoster.RoyalPeasant() with
-            { Actions = UnitAction.NormalAttack | UnitAction.ClawAttack, ClawAttack = new(2) });
+        var state = State(UnitRoster.RoyalPeasant().WithLocal(
+            new("claw-attack", "Claw Attack", AbilityTiming.Action, new ClawAttack(2))));
         state.MoveDone = true;
         var result = Choices(state);
         var chosen = new DefaultAutomatedProvider().Choose(result.NextInput!, new GameplayQueries(result.State));

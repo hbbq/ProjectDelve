@@ -56,14 +56,14 @@ public sealed class ClericTests
         var type = UnitType.Cleric();
         Assert.Equal((3, 1, 3, 3, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
-        Assert.Equal(UnitFreeAction.OpenDoor, type.FreeActions);
+        Assert.IsType<OpenDoor>(type.LocalAbilities.Single(a => a.Key == "open-door").Mechanic);
         var abilities = AbilityQueries.NativeAbilities(type, "cleric").Select(g => g.Definition).ToArray();
         Assert.Contains(abilities, a => a.Mechanic is HealMechanic { Amount: 2 });
         Assert.Contains(abilities, a => a.Mechanic is HolyWaveMechanic);
         Assert.Equal(new ModifierThisTurn(Stat.Def, 1), Assert.Single(Assert.IsType<AdjacentModifiersMechanic>(
-            Assert.Single(abilities, a => a.Id == "aura").Mechanic).Modifiers));
-        Assert.Empty(type.BonusActions);
-        Assert.Empty(type.CreateUnit("cleric", "blue").BonusActionUses);
+            Assert.Single(abilities, a => a.Key == "aura").Mechanic).Modifiers));
+        Assert.DoesNotContain(type.LocalAbilities, a => a.Timing == AbilityTiming.BonusAction);
+        Assert.Empty(type.CreateUnit("cleric", "blue").AbilityUseCounts);
     }
 
     [Theory]
@@ -85,7 +85,7 @@ public sealed class ClericTests
         Assert.Empty(state.ModifiersThisTurn);
         Assert.False(state.MoveDone);
         Assert.False(state.ActionDone);
-        Assert.Empty(state.BonusActionsUsedThisActivation);
+        Assert.Empty(state.BonusActionUseCountsThisActivation);
     }
 
     [Fact]

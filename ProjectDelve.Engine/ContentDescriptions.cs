@@ -1,29 +1,70 @@
+using System.Globalization;
+
 namespace ProjectDelve.Engine;
 
-// Player-facing content, suitable for a physical card as well as any digital client.
-// These descriptions do not replace the concrete components that implement rules.
 public sealed record CardEntryDescription(string Id, string Name, string Category,
     string Description, int? MaxUses = null, string? ShortDescription = null)
 {
-    // All currently supported limited-use content has a per-game limit.
-    // Keep its printed wording in the domain rather than inferring a period in a renderer.
     public string? UseLimitText => MaxUses is { } max ? $"{max}/game" : null;
 }
 
+// Concrete formatting reads the same typed payloads as execution. Names, timing
+// and usage belong exclusively to the owner-local declaration.
 public static class ContentDescriptions
 {
-    public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null,
-        IReadOnlyList<AbilityDefinition>? abilityDefinitions = null)
+    public static CardEntryDescription AbilityEntry(LocalAbilityDefinition ability, string entryId,
+        IReadOnlyList<UnitType>? existingTypes = null)
+    {
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        void Number(string key, int value) => values[key] = value.ToString(CultureInfo.InvariantCulture);
+        void Signed(string key, int value) => values[key] = value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
+        switch (ability.Mechanic)
+        {
+            case HealMechanic heal: Number("amount", heal.Amount); break;
+            case ExtraActionsMechanic extra: Number("amount", extra.Amount); break;
+            case SelfModifiersMechanic self: values["modifiers"] = Modifiers(self.Modifiers); break;
+            case AdjacentModifiersMechanic adjacent: values["modifiers"] = Modifiers(adjacent.Modifiers); break;
+            case Cleave cleave: Number("triggerDamage", cleave.TriggerDamage); Number("damage", cleave.Damage); break;
+            case Fury fury: Signed("atkBonus", fury.AtkBonus); Number("adjacentEnemyThreshold", fury.AdjacentEnemyThreshold); break;
+            case Backstab backstab: Signed("atkBonus", backstab.AtkBonus); break;
+            case ClawAttack claw: Signed("atkBonus", claw.AtkBonus); break;
+            case Explosion explosion: Number("damage", explosion.Damage); break;
+            case MoveAfterAttack move: Number("maxSteps", move.MaxSteps); break;
+            case RunRails rails: Number("steps", rails.Steps); break;
+            case TryOpenDoor door: Number("successCount", door.SuccessCount); break;
+            case Displace displace: Number("maxMove", displace.MaxMove); break;
+            case SummonAdjacent summon:
+                values["unitTypeId"] = UnitContent.Find(summon.UnitTypeId, existingTypes)?.DisplayName ?? summon.UnitTypeId;
+                values["initialPosture"] = summon.InitialPosture.ToString();
+                break;
+            case SummonWorker worker: Number("sideLimit", worker.SideLimit); break;
+            case SummonTroll troll: Number("diamondCost", troll.DiamondCost); break;
+            case PlaceBananaPeel banana: Number("bananaCost", banana.BananaCost); break;
+            case Boost boost: Number("mushroomCost", boost.MushroomCost); break;
+            case ShootShell shell: Number("shellCost", shell.ShellCost); Number("rng", shell.Rng); Number("atk", shell.Atk); break;
+            case WaypointSlotMachine slot:
+                values["outputTable"] = string.Join(", ", slot.OutputTable.Faces.Select((face, index) => $"{index + 1} {face.Name}"));
+                break;
+        }
+        var description = ability.DescriptionOverride ?? MechanicCatalog.AbilityDescriptionTemplate(ability);
+        foreach (var (key, value) in values) description = description.Replace("{" + key + "}", value, StringComparison.Ordinal);
+        var category = ability.Timing switch
+        {
+            AbilityTiming.BonusAction => "Bonus Action", AbilityTiming.FreeAction => "Free Action",
+            AbilityTiming.AfterAttack => "Follow-up",
+            AbilityTiming.WhenDefeated or AbilityTiming.InsteadOfDefeat => "Capability",
+            AbilityTiming.InsteadOfActivation or AbilityTiming.EndActivation => "Automatic",
+            _ => ability.Timing.ToString()
+        };
+        return new(entryId, ability.Name, category, description, ability.Usage.MaxUses);
+    }
+
+    private static string Modifiers(IEnumerable<ModifierThisTurn> modifiers) =>
+        string.Join("; ", modifiers.Select(m => $"{m.Stat.ToString().ToUpperInvariant()} {m.Amount:+0;-0;0}"));
+
+    public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null)
     {
         List<CardEntryDescription> entries = [];
-        var native = AbilityQueries.NativeAbilities(type, "content", abilityDefinitions).ToArray();
-        HashSet<string> emittedGrants = new(StringComparer.Ordinal);
-        void AddNative(LegacyAbilityKind kind)
-        {
-            foreach (var grant in native.Where(grant => grant.Legacy == kind))
-                if (emittedGrants.Add(grant.EntryId)) entries.Add(grant.CardEntry());
-        }
-        var names = type.AbilityNames;
         if (type.MovementPattern == MovementPattern.StraightOrthogonalOrDiagonalCorridor)
             entries.Add(new("straight-orthogonal-or-diagonal-corridor", "Straight Orthogonal or Diagonal Corridor Movement", "Capability",
                 "Each ordinary Move may Stay, travel straight in one cardinal direction for 1 MOV per Cell, or travel along one straight diagonal for 2 MOV per Cell. Each diagonal segment uses two legal orthogonal steps through either corner. Do not turn or mix modes. No passing through Banana Peels; only the final Cell resolves arrival effects.", ShortDescription: "Move straight or diagonally; 1 MOV per cardinal Cell, 2 per diagonal Cell."));
@@ -39,154 +80,34 @@ public static class ContentDescriptions
         if (type.MovementPattern == MovementPattern.StraightOrthogonal)
             entries.Add(new("straight-orthogonal", "Straight Orthogonal Movement", "Capability",
                 "Each ordinary Move may Stay or follow one uninterrupted cardinal direction up to MOV. All ordinary passage restrictions apply.", ShortDescription: "Move straight in one cardinal direction up to MOV, or Stay."));
-        if (type.AdvanceOnKill is not null)
-            entries.Add(new("advance-on-kill", "Advance On Kill", "Follow-up",
-                "After this Unit's normal melee Attack fully resolves, if it defeated a hostile target, immediately Move to that target's former adjacent Cell or Stay. Use one cardinal step for an orthogonal Cell or two through either intermediate Cell for a diagonal Cell. Respect physical passage; ignore ordinary MOV and Movement Pattern. Normal arrival effects apply.", ShortDescription: "After a normal melee Attack defeats an enemy, Move into its former Cell or Stay."));
         if (type.TerrainRestrictedMovement is { } restriction)
-            entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
-                $"Ordinary Moves may only enter {restriction.Terrain} Cells."));
+            entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability", $"Ordinary Moves may only enter {restriction.Terrain} Cells."));
         if (type.TerrainRestriction is { } categories)
             entries.Add(new("terrain-restricted-movement", "Terrain-restricted Movement", "Capability",
                 $"Ordinary Moves may only enter Terrain in one of these categories: {string.Join(", ", categories.Categories)}."));
-        if (type.ShootShell is { } shell)
-            entries.Add(new("shoot-shell", "Shoot Shell", "Action", $"Spend {shell.ShellCost} Shell to attack an enemy with RNG {shell.Rng} and ATK {shell.Atk}."));
-        if (type.WaypointSlotMachine is not null)
-            entries.Add(new("waypoint-slot-machine", "Waypoint Slot Machine", "Automatic", "At the end of this Unit's activation, if its own Move advanced its group's waypoint, roll once: d6 1–3 Banana, 4–5 Mushroom, 6 Shell. Add one to shared Resource Storage; discard if full.", ShortDescription: "Roll for a stored Resource after advancing a waypoint with your Move."));
-        if (type.RunRails is { } rails)
-            entries.Add(new("run-rails", $"Run Rails ({rails.Steps})", "Automatic",
-                $"When this Unit activates Upright, follow the outgoing Rail directions for up to {rails.Steps} separately resolved steps. Stop at a blocked step. Swap with and lay down an Upright 1 x 1 Unit; defeat a Lying 1 x 1 Unit before entering its Cell. Larger Units block the step. Resources stay in place.", ShortDescription: "Follow outgoing Rails; collide with smaller Units."));
-        if (type.Actions.HasFlag(UnitAction.NormalAttack))
-            entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight.", ShortDescription: ""));
-        if (type.Actions.HasFlag(UnitAction.FireBreath))
-            entries.Add(new("fire-breath", names.FireBreath ?? "Fire Breath", "Action", "Attack all enemies within RNG."));
-        if (type.Actions.HasFlag(UnitAction.ClawAttack) && type.ClawAttack is { } claw)
-            entries.Add(new("claw-attack", names.ClawAttack ?? "Claw Attack", "Action", $"Attack an adjacent enemy with ATK {claw.AtkBonus:+0;-0;0}."));
-        AddNative(LegacyAbilityKind.Heal);
-        AddNative(LegacyAbilityKind.HolyWave);
-        AddNative(LegacyAbilityKind.Fireball);
-        if (type.Actions.HasFlag(UnitAction.Telekinesis))
-            entries.Add(new("telekinesis", names.Telekinesis ?? "Telekinesis", "Action", "Lay down an upright enemy within RNG and LOS."));
-        if (type.Actions.HasFlag(UnitAction.SummonAdjacent) && type.SummonAdjacent is { } summon)
-        {
-            var summonedName = UnitContent.Find(summon.UnitTypeId, existingTypes)?.DisplayName ?? summon.UnitTypeId;
-            // Retain the existing opaque card/candidate id; rules dispatch uses the typed Action.
-            entries.Add(new("spawn-goblin", names.Summon ?? "Summon Adjacent", "Action",
-                $"Place one {summon.InitialPosture} {summonedName} in an adjacent empty Cell."));
-        }
-        if (type.Actions.HasFlag(UnitAction.SummonWorker) && type.SummonWorker is { } worker)
-            entries.Add(new("summon-worker", "Summon Worker", "Action",
-                $"If fewer than {worker.SideLimit} living Workers are on this Unit's Side, place one Upright Worker in an adjacent empty Cell on this Unit's Side.", ShortDescription: "Place an adjacent Worker, within the Side limit."));
-        if (type.Actions.HasFlag(UnitAction.SummonTroll) && type.SummonTroll is { } troll)
-            entries.Add(new("summon-troll", "Summon Troll", "Action",
-                $"Spend {troll.DiamondCost} Diamond from this Unit's shared Resource Storage and place one Upright Troll in an adjacent empty Cell on this Unit's Side.", ShortDescription: "Spend Diamonds to place an adjacent Troll."));
-        if (type.Actions.HasFlag(UnitAction.PickupResource))
-            entries.Add(new("pickup-resource", "Pickup Resource", "Action", "Take one Resource from this Unit's Cell into its shared Side + Unit Type storage, if that storage accepts its Type and has room.", ShortDescription: "Store one Resource from this Cell in shared storage."));
-        if (type.Actions.HasFlag(UnitAction.GiveResource))
-            entries.Add(new("give-resource", "Give Resource", "Action", "Give one Resource from this Unit's Cell to an adjacent friendly Unit's shared storage or an adjacent Machine's own storage, if it accepts its Type and has room.", ShortDescription: "Give a Resource from this Cell to adjacent friendly storage or a Machine."));
-        if (type.Actions.HasFlag(UnitAction.Operate))
-            entries.Add(new("operate", "Operate", "Action", "Operate an adjacent Machine with sufficient stored Resources and no impassable Edge separating it from this Unit. Spend its inputs and place its output on this Unit's Cell together, provided that Cell contains no Resource.", ShortDescription: "Spend an adjacent Machine's inputs to produce its output on this Cell."));
         if (type.ResourceStorage is { } storage)
             entries.Add(new("resource-storage", "Resource Storage", "Capability", "Shared by all Units of this Type on this Side: " +
                 string.Join(", ", storage.Capacities.Select(c => $"{c.Type.Name} capacity {c.Capacity}")) + ".", ShortDescription: "Resource capacity shared by this Unit Type and Side."));
-        if (type.TryOpenDoor is { } attempt)
-            entries.Add(new("try-open-door", names.TryOpenDoor ?? "Try Open Door", "Action",
-                $"Try to open a bordering Closed Door. Roll a D6: success on {attempt.SuccessCount} of 6 faces."));
-        if (type.FreeActions.HasFlag(UnitFreeAction.OpenDoor))
-            entries.Add(new("open-door", "Open Door", "Free Action", "Open a bordering Closed Door."));
-        foreach (var ability in type.BonusActions)
-        {
-            if (AbilityQueries.IsSimpleBonus(ability))
-            {
-                var grant = native.Single(g => g.Legacy == LegacyAbilityKind.BonusAction && g.LegacyKey == ability.Name);
-                emittedGrants.Add(grant.EntryId);
-                entries.Add(grant.CardEntry());
-                continue;
-            }
-            entries.Add(new(BonusEntryId(ability.Name), ability.DisplayName ?? ability.Name, "Bonus Action",
-                ability.PlaceBananaPeel is { } banana ? $"Spend {banana.BananaCost} Banana from shared Resource Storage to place a Banana Peel in an adjacent passable Cell with no Unit, Machine or Cell Marker. Loose Resources may remain there." :
-                ability.Boost is { } boost ? $"Spend {boost.MushroomCost} Mushroom to gain one additional Move this activation. Use before any normal Action, even after an earlier Move." :
-                ability.ReshapeRoom is not null ? "Replace Edges in the 3 \u00D7 3 area centered on this Unit to form a room with an opening at the middle of each of its four sides." :
-                ability.Swap is not null ? "Swap places with an adjacent enemy Unit." :
-                ability.Displace is { } displace ? $"Move an adjacent enemy Unit up to {displace.MaxMove} Cell." :
-                string.Join(" & ", ability.Modifiers.Select(m =>
-                    $"{(m.Amount >= 0 ? "+" : "")}{m.Amount} {m.Stat.ToString().ToUpperInvariant()}")) + " this turn",
-                ability.MaxUses));
-        }
-        AddNative(LegacyAbilityKind.BonusAction);
-        AddNative(LegacyAbilityKind.Aura);
-        if (type.Fury is { } fury)
-            entries.Add(new("passive:Fury", names.Fury ?? fury.Name, "Passive", fury.DisplayText));
-        if (type.Backstab is { } backstab)
-            entries.Add(new("passive:Backstab", names.Backstab ?? backstab.Name, "Passive", backstab.DisplayText));
-        if (type.Explosion is { } explosion)
-            entries.Add(new("explosion", names.Explosion ?? "Explosion", "Capability",
-                $"When this Unit is defeated, deal {explosion.Damage} damage to every adjacent Unit."));
-        if (type.Undying is not null)
-            entries.Add(new("undying", names.Undying ?? "Undying", "Capability",
-                "If this Upright Unit would be defeated,\ninstead set its current HP to 1 and lay it down.", ShortDescription: "When Upright, replace defeat with 1 HP and Lying."));
-        if (type.TransportResource is not null)
-            entries.Add(new("transport-resource", "Transport Resource", "Capability",
-                "During this Unit?s own Move, the Resource on its starting Cell accompanies it to its final destination if that Cell has no Resource. Stay and external repositioning do not transport Resources.", ShortDescription: "Carry this Cell's Resource during your own Move."));
-        if (type.Phase is not null)
-            entries.Add(new("phase", "Phase", "Capability",
-                "Move through all terrain and Edges, including Walls and Closed Doors, without opening them.\nEnd on an unoccupied, normally passable Cell.", ShortDescription: "Pass through terrain and Edges; end on a legal Cell."));
-        if (type.Cleave is { } cleave)
-            entries.Add(new("cleave", names.Cleave ?? "Cleave", "Follow-up",
-                $"After this Unit's Attack, if it dealt {cleave.TriggerDamage} or more damage to a Unit, you may immediately deal {cleave.Damage} damage to an adjacent enemy.", cleave.MaxUses));
-        if (type.MoveAfterAttack is { } move)
-            entries.Add(new("move-after-attack", names.MoveAfterAttack ?? "Move After Attack", "Follow-up",
-                $"After an Attack, immediately Move up to {move.MaxSteps} steps."));
-        foreach (var grant in native)
-            if (emittedGrants.Add(grant.EntryId)) entries.Add(grant.CardEntry());
+        if (type.HasAction(UnitAction.NormalAttack))
+            entries.Add(new("attack", "Attack", "Action", "Attack an enemy within Range and Line of Sight.", ShortDescription: ""));
+        foreach (var ability in type.LocalAbilities)
+            entries.Add(AbilityEntry(ability, new ResolvedAbility(ability, AbilitySourceKind.Unit, type.Id, "content").EntryId, existingTypes));
         return entries;
     }
 
-    public static string BonusEntryId(string name) => $"bonus:{name}";
-
     public static string? EntryId(Candidate candidate) => candidate switch
     {
-        { GrantedAbility: { } grant } => grant.EntryId,
-        { EquipmentTypeId: { } typeId, EquipmentAbilityId: { } abilityId } => $"equipment:{Uri.EscapeDataString(typeId)}:{Uri.EscapeDataString(abilityId)}",
-        { EquipmentTypeId: { } typeId } => $"equipment:{Uri.EscapeDataString(typeId)}:modifiers",
+        { Ability: { } ability } => ability.EntryId,
         { ObjectKind: { } kind } => $"object:{kind}",
-        { BonusAction: { } ability } => BonusEntryId(ability.Name),
-        { Kind: ActivationChoiceKind.Cleave } => "cleave",
-        { TryOpenDoor: not null } => "try-open-door",
         { FreeAction: UnitFreeAction.OpenDoor } => "open-door",
-        { Action: UnitAction.PickupResource } => "pickup-resource",
-        { Action: UnitAction.GiveResource } => "give-resource",
-        { Action: UnitAction.Operate } => "operate",
         { Action: UnitAction.NormalAttack } => "attack",
-        { Action: UnitAction.FireBreath } => "fire-breath",
-        { Action: UnitAction.ClawAttack } => "claw-attack",
-        { Action: UnitAction.Heal } => "heal",
-        { Action: UnitAction.HolyWave } => "holy-wave",
-        { Action: UnitAction.Fireball } => "fireball",
-        { Action: UnitAction.Telekinesis } => "telekinesis",
-        { Action: UnitAction.SummonAdjacent } => "spawn-goblin",
-        { Action: UnitAction.SummonWorker } => "summon-worker",
-        { Action: UnitAction.SummonTroll } => "summon-troll",
-        { Action: UnitAction.PlaceBananaPeel } => "place-banana-peel",
-        { Action: UnitAction.ShootShell } => "shoot-shell",
         _ => null
     };
 
-    // Read existing concrete counters without introducing another source of game state.
-    public static AbilityUses? UsesFor(this UnitType type, Unit unit, string entryId) => entryId switch
+    public static AbilityUses? UsesFor(this UnitType type, Unit unit, string entryId)
     {
-        "cleave" => unit.CleaveUses,
-        "heal" => unit.HealUses,
-        "holy-wave" => unit.HolyWaveUses,
-        "fireball" => unit.FireballUses,
-        _ => BonusUsesFor(type, unit, entryId)
-    };
-
-    private static AbilityUses? BonusUsesFor(UnitType type, Unit unit, string entryId)
-    {
-        var key = type.BonusActions.FirstOrDefault(ability => BonusEntryId(ability.Name) == entryId)?.Name
-            ?? type.LocalAbilities.Select(ability => ability.Compatibility).Concat(type.AbilityGrants.Select(grant => grant.Compatibility))
-                .FirstOrDefault(binding => binding is { Kind: LegacyAbilityKind.BonusAction, Key: not null } &&
-                    BonusEntryId(binding.Key) == entryId)?.Key;
-        return key is null ? null : unit.BonusActionUses.GetValueOrDefault(key);
+        var ability = AbilityQueries.NativeAbilities(type, unit.Id).SingleOrDefault(a => a.EntryId == entryId);
+        if (ability?.Definition.Usage.MaxUses is not { } max) return null;
+        return new(max, max - unit.AbilityUseCounts.GetValueOrDefault(ability.AccountingId));
     }
 }

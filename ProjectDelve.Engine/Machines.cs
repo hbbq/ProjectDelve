@@ -76,15 +76,21 @@ internal static class MachineRules
             var source = type.Footprint == Footprint.OneByOne ? null : cell;
             var suffix = source is null ? "" : $":{cell.X},{cell.Y}";
             var resource = state.Resources.SingleOrDefault(r => r.Position == cell);
-            if (type.Actions.HasFlag(UnitAction.GiveResource) && resource is not null &&
+            if (type.Ability<GiveResource>() is { } give && resource is not null &&
                 machine.StoredQuantity(resource.Type.Id) < Capacity(machine, resource.Type.Id))
-                yield return new($"give-resource-machine:{machine.Id}{suffix}", Destination: source,
-                    Action: UnitAction.GiveResource) { MachineId = machine.Id };
-            if (type.Actions.HasFlag(UnitAction.Operate) && resource is null &&
+            {
+                var ability = new ResolvedAbility(give, AbilitySourceKind.Unit, type.Id, actor.Id);
+                yield return new($"{ability.CandidatePrefix}:machine:{machine.Id}{suffix}", Destination: source,
+                    Action: UnitAction.GiveResource) { MachineId = machine.Id, Ability = ability };
+            }
+            if (type.Ability<Operate>() is { } operate && resource is null &&
                 board.EdgeBetween(cell, machine.Position).Passable() &&
                 machine.Type.Operation.Costs.All(c => machine.StoredQuantity(c.Type.Id) >= c.Quantity))
-                yield return new($"operate:{machine.Id}{suffix}", Destination: source,
-                    Action: UnitAction.Operate) { MachineId = machine.Id };
+            {
+                var ability = new ResolvedAbility(operate, AbilitySourceKind.Unit, type.Id, actor.Id);
+                yield return new($"{ability.CandidatePrefix}:{machine.Id}{suffix}", Destination: source,
+                    Action: UnitAction.Operate) { MachineId = machine.Id, Ability = ability };
+            }
         }
     }
 
@@ -103,7 +109,7 @@ internal static class MachineRules
             machines[index] = machine with { StoredResources = [.. machine.StoredResources.Where(r => r.Type.Id != resource.Type.Id), new(resource.Type, quantity)] };
             state.Resources.Remove(resource);
             return new("ResourceStored", actorId) { MachineId = machine.Id, SourceUnitId = actorId, Cell = cell,
-                ActionId = "give-resource", ResourceType = resource.Type, StoredQuantity = quantity };
+                ActionId = action.Ability!.ActionId, ResourceType = resource.Type, StoredQuantity = quantity };
         }
         var operation = machine.Type.Operation;
         int? roll = operation.OutputTable is null ? null : random.RollD6();
@@ -111,7 +117,7 @@ internal static class MachineRules
         machines[index] = machine with { StoredResources = [.. machine.StoredResources.Select(r => r with
             { Quantity = r.Quantity - (operation.Costs.SingleOrDefault(c => c.Type.Id == r.Type.Id)?.Quantity ?? 0) })] };
         state.Resources.Add(new(output, cell));
-        return new("MachineOperated", actorId) { MachineId = machine.Id, SourceUnitId = actorId, Cell = cell, ActionId = "operate",
+        return new("MachineOperated", actorId) { MachineId = machine.Id, SourceUnitId = actorId, Cell = cell, ActionId = action.Ability!.ActionId,
             ResourceType = output, DieRoll = roll, ConsumedResources = operation.Costs };
     }
 }

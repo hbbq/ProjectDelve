@@ -33,8 +33,8 @@ public sealed class DashTests
     private static EngineResult Choose(GameState state, string key, bool auto = false) =>
         TestGame.Advance(state, new Choice(key), new Random(), auto);
     private static Candidate Dash(EngineResult result) =>
-        Assert.Single(result.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
-    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "rogue").BonusActionUses["Dash"];
+        Assert.Single(result.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Dash");
+    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "rogue").Uses("dash");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
     private static Candidate[] Moves(EngineResult result) =>
         result.NextInput!.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToArray();
@@ -43,14 +43,14 @@ public sealed class DashTests
     public void RogueHasDashWithTwoOfTwoUsesIncludingBareScenarioInitialization()
     {
         var state = State();
-        var ability = Assert.Single(state.AbilitiesOf("rogue"), a => a.GrantId == "dash").Definition;
+        var ability = Assert.Single(state.AbilitiesOf("rogue"), a => a.Key == "dash").Definition;
         Assert.Equal(2, ability.Usage.MaxUses);
         Assert.Equal(new ModifierThisTurn(Stat.Mov, 2), Assert.Single(Assert.IsType<SelfModifiersMechanic>(ability.Mechanic).Modifiers));
         Assert.Equal(new AbilityUses(2, 2), Uses(state));
         state.Units[0] = new("rogue", state.Types[0].Id, "blue", 4);
         var started = Start(state);
         Assert.Equal(new AbilityUses(2, 2), Uses(started.State));
-        Assert.Empty(state.Units[0].BonusActionUses);
+        Assert.Empty(state.Units[0].AbilityUseCounts);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class DashTests
 
         var dashed = Choose(started.State, Dash(started).Key);
         Assert.Equal(new AbilityUses(2, 1), Uses(dashed.State));
-        Assert.Equal("Dash", Assert.Single(dashed.State.BonusActionsUsedThisActivation));
+        Assert.Equal(new KeyValuePair<string, int>("unit:dash", 1), Assert.Single(dashed.State.BonusActionUseCountsThisActivation));
         Assert.False(dashed.State.MoveDone);
         Assert.False(dashed.State.ActionDone);
         Assert.Equal(4, dashed.State.Types[0].Mov);
@@ -72,9 +72,9 @@ public sealed class DashTests
         Assert.Equal(new ModifierThisTurn(Stat.Mov, 2), Assert.Single(dashed.State.ModifiersThisTurn));
         Assert.Equal("Dash", Assert.Single(TestGame.OperationEvents(dashed)).AbilityName);
         Assert.Equal(6, Assert.Single(TestGame.OperationSteps(dashed)).StateAfter.EffectiveMovOf("rogue"));
-        Assert.DoesNotContain(dashed.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
-        Assert.Contains(dashed.NextInput.Candidates, c => c.BonusAction?.Name == "Throwing Knife");
-        Assert.Throws<ArgumentException>(() => Choose(dashed.State, "bonus-action:Dash"));
+        Assert.DoesNotContain(dashed.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Dash");
+        Assert.Contains(dashed.NextInput.Candidates, c => c.Ability?.Definition.Name == "Throwing Knife");
+        Assert.Throws<ArgumentException>(() => Choose(dashed.State, "ability:dash"));
         Assert.Contains(Moves(dashed), c => c.Destination == new Cell(6, 0) && c.Path!.Count == 7);
         Assert.DoesNotContain(Moves(dashed), c => c.Destination == new Cell(7, 0));
 
@@ -97,18 +97,18 @@ public sealed class DashTests
         var next = Start(Restore(moved.State));
         Assert.Equal(new AbilityUses(2, 1), Uses(next.State));
         Assert.Equal(4, next.State.EffectiveMovOf("rogue"));
-        Assert.Empty(next.State.BonusActionsUsedThisActivation);
+        Assert.Empty(next.State.BonusActionUseCountsThisActivation);
     }
 
     [Fact]
     public void ZeroUsesMakesDashIllegalEvenWithAnUnusedBonusAction()
     {
         var state = State();
-        state.Units[0] = state.Units[0] with { BonusActionUses = state.Units[0].BonusActionUses.SetItem("Dash", new(2, 0)) };
+        state.Units[0] = state.Units[0] with { AbilityUseCounts = state.Units[0].AbilityUseCounts.SetItem("unit:dash", 2) };
         var started = Start(state);
-        Assert.Empty(started.State.BonusActionsUsedThisActivation);
-        Assert.DoesNotContain(started.NextInput!.Candidates, c => c.BonusAction?.Name == "Dash");
-        Assert.Throws<ArgumentException>(() => Choose(started.State, "bonus-action:Dash"));
+        Assert.Empty(started.State.BonusActionUseCountsThisActivation);
+        Assert.DoesNotContain(started.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Dash");
+        Assert.Throws<ArgumentException>(() => Choose(started.State, "ability:dash"));
     }
 
     [Theory]
@@ -123,7 +123,7 @@ public sealed class DashTests
         Assert.Equal("Dash", TestGame.OperationEvents(dashed)[0].AbilityName);
         var snapshot = TestGame.OperationSteps(dashed)[0].StateAfter;
         Assert.True(snapshot.MoveDone);
-        Assert.Equal("Dash", Assert.Single(snapshot.BonusActionsUsedThisActivation));
+        Assert.Equal(new KeyValuePair<string, int>("unit:dash", 1), Assert.Single(snapshot.BonusActionUseCountsThisActivation));
         Assert.Equal(6, snapshot.EffectiveMovOf("rogue"));
         Assert.Equal(new AbilityUses(2, 1), Uses(dashed.State));
         dashed = Choose(dashed.State, "end-turn");
@@ -209,12 +209,12 @@ public sealed class DashTests
         Assert.Equal(4, dashed.State.EffectiveMovOf("ally"));
         var ended = Choose(Choose(dashed.State, "stay").State, "end-turn");
         Assert.Equal("ally", ended.State.CurrentUnitId);
-        Assert.Empty(ended.State.BonusActionsUsedThisActivation);
+        Assert.Empty(ended.State.BonusActionUseCountsThisActivation);
         Assert.NotNull(Dash(ended));
         Assert.Empty(ended.State.ModifiersThisTurn);
         Assert.Equal(4, ended.State.EffectiveMovOf("rogue"));
         Assert.Equal(4, ended.State.EffectiveMovOf("ally"));
-        Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").BonusActionUses["Dash"]);
+        Assert.Equal(new AbilityUses(2, 2), ended.State.Units.Single(u => u.Id == "ally").Uses("dash"));
         Assert.Equal(new AbilityUses(2, 1), Uses(ended.State));
     }
 }

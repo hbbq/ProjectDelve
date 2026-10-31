@@ -52,7 +52,6 @@ public static class DesignerApi
             lootCards = LootCards.All,
             equipmentTypes = EquipmentCatalog.All,
             itemTypes = ItemCatalog.All,
-            abilityDefinitions = AbilityCatalog.All,
             lootCardDefinitions = LootCardCatalog.All,
             worldCardDefinitions = WorldCardCatalog.All.Select(card => new
                 { card.Id, card.Name, card.Lifecycle, card.Modifiers, card.Immediate, description = card.Description }),

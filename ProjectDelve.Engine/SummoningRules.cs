@@ -5,9 +5,9 @@ public static class SummoningRules
 {
     public static SummonAdjacent? Placement(UnitType type, UnitAction action) => action switch
     {
-        UnitAction.SummonAdjacent => type.SummonAdjacent,
-        UnitAction.SummonWorker when type.SummonWorker is not null => new(UnitTypeIds.Worker, Posture.Upright),
-        UnitAction.SummonTroll when type.SummonTroll is not null => new(UnitTypeIds.Troll, Posture.Upright),
+        UnitAction.SummonAdjacent => type.Mechanic<SummonAdjacent>(),
+        UnitAction.SummonWorker when type.Mechanic<SummonWorker>() is not null => new(UnitTypeIds.Worker, Posture.Upright),
+        UnitAction.SummonTroll when type.Mechanic<SummonTroll>() is not null => new(UnitTypeIds.Troll, Posture.Upright),
         _ => null
     };
 
@@ -16,11 +16,12 @@ public static class SummoningRules
         var type = state.Types.Single(t => t.Id == unit.TypeId);
         foreach (var action in new[] { UnitAction.SummonAdjacent, UnitAction.SummonWorker, UnitAction.SummonTroll })
         {
-            if (!type.Actions.HasFlag(action) || Placement(type, action) is not { } summon) continue;
+            if (type.AbilityFor(action) is not { } declaration || Placement(type, action) is not { } summon) continue;
+            var ability = new ResolvedAbility(declaration, AbilitySourceKind.Unit, type.Id, unit.Id);
             if (action == UnitAction.SummonWorker && state.Units.Count(u => u.CurrentHp > 0 &&
-                    u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= type.SummonWorker!.SideLimit) continue;
+                    u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= type.Mechanic<SummonWorker>()!.SideLimit) continue;
             if (action == UnitAction.SummonTroll && state.StoredQuantity(unit.SideId, unit.TypeId,
-                    ResourceTypes.Diamond.Id) < type.SummonTroll!.DiamondCost) continue;
+                    ResourceTypes.Diamond.Id) < type.Mechanic<SummonTroll>()!.DiamondCost) continue;
             if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
                 !state.CanPlaceUnitType(summonedType, unit.SideId)) continue;
             for (var y = 0; y < state.Physical.Board.Height; y++)
@@ -30,8 +31,8 @@ public static class SummoningRules
                     if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell) &&
                         SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id),
                             FootprintGeometry.OccupiedCells(summonedType.Footprint, cell)))
-                        yield return new($"{ContentDescriptions.EntryId(new Candidate("", Action: action))}:{x},{y}",
-                            Destination: cell, Action: action);
+                        yield return new($"{ability.CandidatePrefix}:{x},{y}",
+                            Destination: cell, Action: action) { Ability = ability };
                 }
         }
     }
@@ -44,7 +45,8 @@ public static class SummoningRules
         state.StoredResources[index] = stored with { Quantity = stored.Quantity - summon.DiamondCost };
         return new("ResourceSpent", source.Id, TypeId: source.TypeId)
         {
-            SourceUnitId = source.Id, SideId = source.SideId, ActionId = "summon-troll",
+            SourceUnitId = source.Id, SideId = source.SideId,
+            ActionId = new ResolvedAbility(state.Types.Single(t => t.Id == source.TypeId).Ability<SummonTroll>()!, AbilitySourceKind.Unit, source.TypeId, source.Id).ActionId,
             ResourceType = stored.Type, StoredQuantity = stored.Quantity - summon.DiamondCost
         };
     }

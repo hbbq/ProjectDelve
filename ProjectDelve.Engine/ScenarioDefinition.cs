@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace ProjectDelve.Engine;
 
 // Initial setup only. Content and runtime identity are resolved during game creation.
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ScenarioDefinition
 {
     public LootSettings? Loot { get; init; }
@@ -9,7 +12,6 @@ public sealed record ScenarioDefinition
     public List<GroundObject>? GroundObjects { get; init; }
     // Local definitions resolve with canonical content within this scenario/game only.
     public List<EquipmentDefinition>? EquipmentTypes { get; init; }
-    public List<AbilityDefinition>? AbilityDefinitions { get; init; }
     public List<ItemDefinition>? ItemTypes { get; init; }
     public List<LootCardDefinition>? LootCardDefinitions { get; init; }
     public List<WorldCardDefinition>? WorldCardDefinitions { get; init; }

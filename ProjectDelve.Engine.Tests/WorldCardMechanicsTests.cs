@@ -18,7 +18,7 @@ public sealed class WorldCardMechanicsTests
 
     private static GameState State(params WorldCardDefinition[] cards)
     {
-        var type = UnitType.Barbarian() with { Fury = null };
+        var type = UnitType.Barbarian().Without<Fury>();
         var state = new GameState
         {
             Physical = new(new Board(6, 4, []), []), Types = [type], Units = [],
@@ -92,15 +92,14 @@ public sealed class WorldCardMechanicsTests
     }
 
     [Fact]
-    public void ParameterizedRenewalReplenishesLegacyAndGrantCountersUpToMaximum()
+    public void ParameterizedRenewalReplenishesEveryLocalAbilityCounterUpToMaximum()
     {
         var state = State(Immediate(new ReplenishLimitedAbilitiesMechanic(2)));
-        state.AbilityDefinitions.Add(new("test-wave", "Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(3) });
-        state.Types[0] = state.Types[0] with { AbilityGrants = state.Types[0].AbilityGrants.Add(new("grant-test", "test-wave")) };
-        var accounting = state.AbilitiesOf("first").Single(a => a.GrantId == "grant-test").AccountingId;
-        state.Units[0] = state.Units[0] with { CleaveUses = new(2, 0), AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add(accounting, 3) };
+        state.Types[0] = state.Types[0].WithLocal(new("grant-test", "Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(3) });
+        var accounting = state.AbilitiesOf("first").Single(a => a.Key == "grant-test").AccountingId;
+        state.Units[0] = state.Units[0] with { AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add("unit:cleave", 2).Add(accounting, 3) };
         var result = Start(state);
-        Assert.Equal(2, result.State.Units[0].CleaveUses!.RemainingUses);
+        Assert.Equal(2, result.State.Units[0].Uses("cleave")!.RemainingUses);
         Assert.Equal(1, result.State.Units[0].AbilityUseCounts[accounting]);
         Assert.All(result.Events.Where(e => e.Kind == "AbilityUsesReplenished"), e => Assert.Equal(2, e.ReplenishedUses));
     }

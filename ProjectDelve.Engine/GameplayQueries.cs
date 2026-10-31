@@ -108,7 +108,7 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public bool CanTransportResource(string unitId) =>
         world.IsUpright(unitId) && FootprintGeometry.FootprintOf(world, unitId) == Footprint.OneByOne &&
-        world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).TransportResource is not null;
+        world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Mechanic<TransportResource>() is not null;
 
     public IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) =>
         MovementRules.FindPaths(world, unitId, position);
@@ -229,7 +229,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public bool CanInteractWithDoors(string unitId)
     {
         var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
-        return world.HasOpenDoor(unitId) || type.TryOpenDoor is not null;
+        return world.HasOpenDoor(unitId) || type.Mechanic<TryOpenDoor>() is not null;
     }
 
     public int? DistanceToDoorInteractionPositionFrom(string unitId, Cell position, DoorTarget door,
@@ -318,7 +318,7 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public int EffectiveAttackDice(string unitId, Candidate candidate)
     {
-        if (candidate.Action == UnitAction.ShootShell) return world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).ShootShell!.Atk;
+        if (candidate.Action == UnitAction.ShootShell) return world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId).Mechanic<ShootShell>()!.Atk;
         if (candidate.Action is not (UnitAction.NormalAttack or UnitAction.ClawAttack or
             UnitAction.FireBreath or UnitAction.Fireball)) return -1;
         var targets = CandidateTargets(candidate).Where(id => IsHostileTo(unitId, id)).ToList();
@@ -328,9 +328,9 @@ internal sealed class GameplayQueries : IGameplayQueries
             candidate.Action is UnitAction.FireBreath or UnitAction.Fireball ? null : target, candidate.Action.Value));
     }
 
-    public bool IsUnlimitedAttack(string unitId, Candidate candidate) => candidate.GrantedAbility is { } grant
+    public bool IsUnlimitedAttack(string unitId, Candidate candidate) => candidate.Ability is { } grant
         ? grant.Definition.Usage.MaxUses is null
-        : candidate.Action != UnitAction.Fireball; // Historical candidates without resolved source metadata.
+        : true; // The baseline Attack has no use limit.
 
     public int AttackDefinitionOrder(string unitId, Candidate candidate)
     {
@@ -348,7 +348,7 @@ internal sealed class GameplayQueries : IGameplayQueries
         IReadOnlyCollection<string> targetIds)
     {
         var type = world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId);
-        if (type.SummonAdjacent is null) return null;
+        if (type.Mechanic<SummonAdjacent>() is null) return null;
         return targetIds.Where(targetId => Knows(unitId, targetId)).SelectMany(targetId => OccupiedCellsOf(targetId).Select(targetCell =>
                 ApproachRules.Distance(world.Physical.Board, placement, targetCell,
                     traversal: new(KnownCells: MovementTraversal.For(world, unitId).KnownCells))))

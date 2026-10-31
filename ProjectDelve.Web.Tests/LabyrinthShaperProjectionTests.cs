@@ -28,7 +28,7 @@ public sealed class LabyrinthShaperProjectionTests
         var presentation = BrowserProjection.Create(started);
         var card = presentation.Cards[started.State.CurrentUnitId!];
         Assert.Equal("Labyrinth Shaper", card.DisplayName);
-        var entry = Assert.Single(card.Entries, e => e.Content.Id == "bonus:Reshape Room");
+        var entry = Assert.Single(card.Entries, e => e.Content.Id == "ability:reshape-room");
         Assert.Equal("Bonus Action", entry.Content.Category);
         Assert.Null(entry.Uses);
         Assert.Null(entry.Content.MaxUses);
@@ -47,7 +47,8 @@ public sealed class LabyrinthShaperProjectionTests
         var initial = game.StartTransportScenario(0, ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Shaper()));
         var boss = Assert.Single(initial.Result.State.Units, u => u.TypeId == UnitTypeIds.LabyrinthShaper);
         var round = game.StartRound(initial.Revision);
-        var occurrence = Assert.Single(round.Result.Events, e => e.Kind == "AbilityUsed" && e.UnitId == boss.Id);
+        var occurrence = Assert.Single(round.Result.Events, e => e.Kind == "ActionUsed" && e.UnitId == boss.Id &&
+            e.Category == ActivationChoiceKind.BonusAction && e.ActionId == "ability:reshape-room");
         Assert.Equal("Reshape Room", occurrence.AbilityName);
         var reshapeIndex = round.Result.Events.IndexOf(occurrence);
         var moveIndex = round.Result.Events.FindIndex(e => e.Kind == "MovementCompleted" && e.UnitId == boss.Id);

@@ -78,8 +78,11 @@ test('local Equipment references survive editing, undo, draft recovery and isola
     equipmentDraft.replace({board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:['local-unit'],
       unitTypes:[{id:'local-unit',mov:2,rng:1,atk:1,def:0,hp:2}],
       units:[{unitTypeId:'local-unit',sideId:'blue',anchor:{x:0,y:0}}],agency:[{unitTypeId:'local-unit',sideId:'blue',controller:'Human'}],
-      equipmentTypes:[{id:'unfamiliar',name:'Cloud Compass',modifiers:[{stat:'Mov',amount:2},{stat:'Def',amount:1}],
-        capabilities:['Phase','OpenDoor'],abilities:[{id:'wake',name:'Awaken',mechanic:'StandAdjacentFriendlyLyingUnit',usage:'Unlimited'}]}],
+      equipmentTypes:[{id:'unfamiliar',name:'Cloud Compass',localAbilities:[
+        {key:'wind',name:'Tailwind',timing:'Passive',mechanic:{kind:'selfModifiers',modifiers:[{stat:'Mov',amount:2},{stat:'Def',amount:1}]}},
+        {key:'phase',name:'Phase',timing:'Passive',mechanic:{kind:'phase'}},
+        {key:'door',name:'Open Door',timing:'FreeAction',mechanic:{kind:'openDoor'}},
+        {key:'wake',name:'Awaken',timing:'Action',mechanic:{kind:'standAdjacentFriendly'}}]}],
       loot:{composition:[]}});
     globalThis.equipmentHistory = new DesignerHistory(equipmentDraft);
     equipmentHistory.begin();
@@ -97,7 +100,7 @@ test('local Equipment references survive editing, undo, draft recovery and isola
   run('equipmentHistory.undo(); equipmentHistory.redo()');
   assert.deepEqual(plain(run('equipmentDraft.snapshot()')),saved);
   assert.deepEqual(plain(run('readDraftDocument(JSON.stringify(draftDocument(equipmentDraft.snapshot()))).definition')),saved);
-  run('globalThis.equipmentPlaytest = equipmentDraft.snapshot(); equipmentPlaytest.equipmentTypes[0].modifiers[0].amount = 99; equipmentPlaytest.units[0].inventory.length = 0');
+  run('globalThis.equipmentPlaytest = equipmentDraft.snapshot(); equipmentPlaytest.equipmentTypes[0].localAbilities[0].mechanic.modifiers[0].amount = 99; equipmentPlaytest.units[0].inventory.length = 0');
   assert.deepEqual(plain(run('equipmentDraft.snapshot()')),saved);
 });
 
@@ -106,8 +109,7 @@ test('local Abilities, Items and Loot references survive Designer editing and pl
   run(`globalThis.itemDraft = new DesignerDraft({maxBoardSize:50,unitTypes:[],itemTypes:[{id:'second-wind',name:'Second Wind'}],lootCards:[]});
     itemDraft.replace({board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:['reader'],
       units:[{unitTypeId:'reader',sideId:'blue',anchor:{x:0,y:0}}],agency:[{unitTypeId:'reader',sideId:'blue',controller:'Human'}],
-      abilityDefinitions:[{id:'local-silence',name:'A Quiet Ending',timing:'Action',mechanic:{kind:'holyWave'}}],
-      itemTypes:[{id:'folded-sky',name:'Folded Sky',grants:[{id:'read',abilityId:'local-silence'}]}],
+      itemTypes:[{id:'folded-sky',name:'Folded Sky',localAbilities:[{key:'read',name:'A Quiet Ending',timing:'Action',mechanic:{kind:'holyWave'}}]}],
       lootCardDefinitions:[{id:'sky-reward',name:'An Unexpected Letter',itemTypeId:'folded-sky'}],loot:{composition:[]}});
     globalThis.itemHistory = new DesignerHistory(itemDraft); itemHistory.begin();
     itemDraft.addObject({itemTypeId:'folded-sky'},{unitKey:itemDraft.unitKeys[0]});
@@ -125,6 +127,6 @@ test('local Abilities, Items and Loot references survive Designer editing and pl
   run('itemHistory.undo(); itemHistory.redo()');
   assert.deepEqual(plain(run('itemDraft.snapshot()')),saved);
   assert.deepEqual(plain(run('readDraftDocument(JSON.stringify(draftDocument(itemDraft.snapshot()))).definition')),saved);
-  run('globalThis.itemPlaytest=itemDraft.snapshot(); itemPlaytest.itemTypes[0].name="Modified copy"; itemPlaytest.abilityDefinitions[0].name="Other name"; itemPlaytest.units[0].inventory.pop()');
+  run('globalThis.itemPlaytest=itemDraft.snapshot(); itemPlaytest.itemTypes[0].name="Modified copy"; itemPlaytest.itemTypes[0].localAbilities[0].name="Other name"; itemPlaytest.units[0].inventory.pop()');
   assert.deepEqual(plain(run('itemDraft.snapshot()')),saved);
 });

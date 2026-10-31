@@ -421,9 +421,11 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var equipment = new EquipmentDefinition("copper-cloud", "Cloud Compass")
         {
-            Modifiers = [new(Stat.Mov, 2), new(Stat.Def, 1)],
-            Capabilities = [EquipmentCapability.Phase, EquipmentCapability.OpenDoor],
-            Abilities = [new("wake", "Awaken", EquipmentActionMechanic.StandAdjacentFriendlyLyingUnit)]
+            LocalAbilities = [
+                new("wind", "Tailwind", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, 1)])),
+                new("phase", "Phase", AbilityTiming.Passive, new Phase()),
+                new("door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()),
+                new("wake", "Awaken", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())]
         };
         var definition = WebScenarioFixtures.Combat();
         definition = definition with
@@ -453,16 +455,16 @@ public sealed class DesignerApiTests
     [Theory]
     [InlineData("fold-sky")]
     [InlineData("holy-wave")]
-    public async Task LocalAbilitiesItemsAndLootSurviveDesignerRoundTripAndRestart(string abilityId)
+    public async Task LocalAbilitiesItemsAndLootSurviveDesignerRoundTripAndRestart(string abilityKey)
     {
         await using var host = await Host.Start();
-        var ability = new AbilityDefinition(abilityId, "Fold the Sky", AbilityTiming.Action, new HolyWaveMechanic());
-        var item = new ItemDefinition("paper-moon", "Paper Moon") { Grants = [new("unfold", ability.Id)] };
+        var ability = new LocalAbilityDefinition(abilityKey, "Fold the Sky", AbilityTiming.Action, new HolyWaveMechanic());
+        var item = new ItemDefinition("paper-moon", "Paper Moon") { LocalAbilities = [ability] };
         var loot = new LootCardDefinition("moon-reward", "A Folded Reward") { ItemTypeId = item.Id };
         var definition = WebScenarioFixtures.Combat();
         definition = definition with
         {
-            AbilityDefinitions = [ability], ItemTypes = [item], LootCardDefinitions = [loot],
+            ItemTypes = [item], LootCardDefinitions = [loot],
             Units = definition.Units.Select(u => u.UnitId == "hero" ? u with
             {
                 Inventory = [new("moon-one") { ItemTypeId = item.Id }, new("moon-two") { ItemTypeId = item.Id }]
@@ -491,10 +493,9 @@ public sealed class DesignerApiTests
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = response.Revision });
         restarted.EnsureSuccessStatusCode();
         var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;
-        var restoredAbility = Assert.Single(fresh.Result.State.AbilityDefinitions, a => a.Name == ability.Name);
-        Assert.Contains(fresh.Result.State.ItemTypes, i => i.Id == item.Id && i.Grants.Single().AbilityId == restoredAbility.Id);
-        if (abilityId == "fold-sky") Assert.Equal(abilityId, restoredAbility.Id);
-        Assert.Equal("Holy Wave", AbilityCatalog.All.Single(a => a.Id == "holy-wave").Name);
+        var restoredAbility = Assert.Single(fresh.Result.State.ItemTypes.Single(i => i.Id == item.Id).LocalAbilities);
+        Assert.Equal(ability, restoredAbility);
+        Assert.Equal("Holy Wave", UnitType.Cleric().LocalAbilities.Single(a => a.Mechanic is HolyWaveMechanic).Name);
         Assert.Equal(new[] { "moon-one", "moon-two" }, fresh.Result.State.Units.Single(u => u.Id == "hero").Inventory.Select(o => o.Id));
         Assert.Equal(item.Name, Assert.Single(fresh.Presentation.GroundObjects).Object.Content.Name);
     }
@@ -505,7 +506,7 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var definition = OwnedAbilityWebFixture.Definition();
         var authoredJson = ScenarioDefinitionJson.ToJson(definition);
-        Assert.Null(definition.AbilityDefinitions);
+        Assert.DoesNotContain("abilityDefinitions", authoredJson);
         using var metadata = await host.Client.PostAsJsonAsync("/api/designer/metadata", new
         {
             unitTypes = definition.UnitTypes,
@@ -527,7 +528,7 @@ public sealed class DesignerApiTests
         imported.EnsureSuccessStatusCode();
         Assert.Equal(authoredJson, await imported.Content.ReadAsStringAsync());
         var restored = ScenarioDefinitionTransport.Decode(transport);
-        Assert.Null(restored.AbilityDefinitions);
+        Assert.DoesNotContain("abilityDefinitions", ScenarioDefinitionJson.ToJson(restored));
         Assert.Equal("Silver Stitch", restored.UnitTypes!.Single(type => type.Id == "woven-keeper").LocalAbilities[0].Name);
         Assert.Equal("Lantern Hush", restored.EquipmentTypes!.Single(type => type.Id == "hollow-lantern").LocalAbilities[0].Name);
         Assert.Equal("Paper Stitch", restored.ItemTypes!.Single(type => type.Id == "folded-remedy").LocalAbilities[0].Name);
@@ -539,7 +540,7 @@ public sealed class DesignerApiTests
         Assert.Equal(new AbilityUses(2, 2), Assert.Single(entries, entry => entry.Content.Name == "Silver Stitch").Uses);
         Assert.Equal(2, Assert.Single(entries, entry => entry.Content.Name == "Paper Stitch").CopyCount);
         Assert.Equal(2, Assert.Single(entries, entry => entry.Content.Name == "Borrow a Moment").CopyCount);
-        Assert.DoesNotContain(response.Result.State.AbilityDefinitions, ability => ability.Name == "Silver Stitch" || ability.Name == "Paper Stitch");
+        Assert.DoesNotContain("abilityDefinitions", JsonSerializer.Serialize(response.Result.State, Json));
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = response.Revision });
         restarted.EnsureSuccessStatusCode();
         var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;

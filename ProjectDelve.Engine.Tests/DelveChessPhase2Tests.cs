@@ -22,7 +22,7 @@ public sealed partial class DelveChessTests
         };
         var loaded = GameEngine.CreateGame(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(definition)));
         Assert.Equal(type.MovementPattern, loaded.Types.Single().MovementPattern);
-        Assert.Equal(type.AdvanceOnKill, loaded.Types.Single().AdvanceOnKill);
+        Assert.Equal(type.Mechanic<AdvanceOnKill>(), loaded.Types.Single().Mechanic<AdvanceOnKill>());
         var paths = MovementRules.FindPaths(loaded, loaded.Units.Single().Id, new(3, 3), type.Mov);
         Assert.Contains(knight ? new Cell(5, 4) : new Cell(5, 5), paths.Keys);
         Assert.DoesNotContain(new Cell(3, 2), paths.Keys);
@@ -239,7 +239,7 @@ public sealed partial class DelveChessTests
         var first = knight ? "5,4" : "4,4";
         var second = knight ? new Cell(4, 2) : new Cell(5, 3);
         var moved = TestGame.Advance(Choices(state).State, new Choice(first), new Dice(), false);
-        var boost = moved.NextInput!.Candidates.Single(c => c.BonusAction?.Boost is not null);
+        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Boost);
         var boosted = TestGame.Advance(moved.State, new Choice(boost.Key), new Dice(), false);
         Assert.False(boosted.State.MoveDone);
         Assert.Contains(boosted.NextInput!.Candidates, c => c.Destination == second);
@@ -298,6 +298,6 @@ public sealed partial class DelveChessTests
         Assert.Equal((id.Contains("bishop") ? 16 : 3, 1, 3, 4, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
-        Assert.Equal(id.Contains("bishop"), type.AdvanceOnKill is not null);
+        Assert.Equal(id.Contains("bishop"), type.Mechanic<AdvanceOnKill>() is not null);
     }
 }

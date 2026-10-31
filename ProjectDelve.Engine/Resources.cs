@@ -82,13 +82,19 @@ internal static class ResourceRules
             // One-Cell content retains its simple keys; larger figures choose an occupied source Cell.
             var sourceCell = type.Footprint == Footprint.OneByOne ? null : cell;
             var suffix = sourceCell is null ? "" : $":{cell.X},{cell.Y}";
-            if (type.Actions.HasFlag(UnitAction.PickupResource) && CanReceive(state, actor, resource))
-                yield return new($"pickup-resource{suffix}", Destination: sourceCell, Action: UnitAction.PickupResource);
-            if (type.Actions.HasFlag(UnitAction.GiveResource))
+            if (type.Ability<PickupResource>() is { } pickup && CanReceive(state, actor, resource))
+            {
+                var ability = new ResolvedAbility(pickup, AbilitySourceKind.Unit, type.Id, actor.Id);
+                yield return new($"{ability.CandidatePrefix}{suffix}", Destination: sourceCell, Action: UnitAction.PickupResource) { Ability = ability };
+            }
+            if (type.Ability<GiveResource>() is { } give)
+            {
+                var ability = new ResolvedAbility(give, AbilitySourceKind.Unit, type.Id, actor.Id);
                 foreach (var recipient in state.Units.Where(u => u.Id != actor.Id && u.SideId == actor.SideId &&
                     u.CurrentHp > 0 && SpatialRules.AreAdjacent(state, actor.Id, u.Id) && CanReceive(state, u, resource)))
-                    yield return new($"give-resource:{recipient.Id}{suffix}", Destination: sourceCell,
-                        Action: UnitAction.GiveResource, TargetId: recipient.Id);
+                    yield return new($"{ability.CandidatePrefix}:{recipient.Id}{suffix}", Destination: sourceCell,
+                        Action: UnitAction.GiveResource, TargetId: recipient.Id) { Ability = ability };
+            }
         }
     }
 
@@ -124,7 +130,7 @@ internal static class ResourceRules
     {
         var type = state.Types.Single(type => type.Id == state.Units.Single(unit => unit.Id == unitId).TypeId);
         // Larger-footprint transport has no established rules.
-        if (from == to || type.TransportResource is null || type.Footprint != Footprint.OneByOne ||
+        if (from == to || type.Mechanic<TransportResource>() is null || type.Footprint != Footprint.OneByOne ||
             state.Resources.Any(resource => resource.Position == to)) return;
         var index = state.Resources.FindIndex(resource => resource.Position == from);
         if (index >= 0) state.Resources[index] = state.Resources[index] with { Position = to };

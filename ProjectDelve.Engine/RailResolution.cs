@@ -4,6 +4,8 @@ public static partial class GameEngine
 {
     private static void ResolveRunRails(GameState state, string unitId, RunRails rails, ResolutionEvents events)
     {
+        var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == unitId).TypeId);
+        var actionId = new ResolvedAbility(type.Ability<RunRails>()!, AbilitySourceKind.Unit, type.Id, unitId).ActionId;
         for (var step = 0; step < rails.Steps; step++)
         {
             var figure = state.Physical.Figures.SingleOrDefault(f => f.Id == unitId);
@@ -29,14 +31,14 @@ public static partial class GameEngine
                 if (state.IsUpright(occupant))
                 {
                     ExternalMovementRules.SwapPlaces(state, unitId, occupant);
-                    events.Add(new RulesEvent("PlacesSwapped", unitId, occupant) { ActionId = "run-rails" });
+                    events.Add(new RulesEvent("PlacesSwapped", unitId, occupant) { ActionId = actionId });
                     ResolveArrival(state, unitId, events);
                     ResolveArrival(state, occupant, events);
-                    ChangePosture(state, occupant, Posture.Lying, events, unitId, "run-rails");
+                    ChangePosture(state, occupant, Posture.Lying, events, unitId, actionId);
                 }
                 else
                 {
-                    events.Add(ResolveDefeat(state, occupant, unitId, "run-rails"));
+                    events.Add(ResolveDefeat(state, occupant, unitId, actionId));
                     MoveRailStep();
                 }
             }
@@ -49,7 +51,7 @@ public static partial class GameEngine
                 var index = state.Physical.Figures.FindIndex(f => f.Id == unitId);
                 state.Physical.Figures[index] = figure with { Position = destination };
                 events.Add(new RulesEvent("UnitRepositioned", unitId)
-                    { ActionId = "run-rails", Path = [figure.Position, destination] });
+                    { ActionId = actionId, Path = [figure.Position, destination] });
                 ResolveArrival(state, unitId, events);
             }
         }

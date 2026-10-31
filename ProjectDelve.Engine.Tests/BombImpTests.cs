@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -49,9 +49,9 @@ public sealed class BombImpTests
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.PreferHostileAdjacency | UnitBehavior.ProtectWithoutAdjacency, type.Behaviors);
         Assert.False(type.Unique);
-        Assert.Equal(1, type.Explosion!.Damage);
-        Assert.NotNull(UnitType.BombImp("custom").Explosion);
-        var entry = Assert.Single(type.CardEntries(), e => e.Id == "explosion");
+        Assert.Equal(1, type.Mechanic<Explosion>()!.Damage);
+        Assert.NotNull(UnitType.BombImp("custom").Mechanic<Explosion>());
+        var entry = Assert.Single(type.CardEntries(), e => e.Id == "ability:explosion");
         Assert.Equal("Explosion", entry.Name);
         Assert.Equal("When this Unit is defeated, deal 1 damage to every adjacent Unit.", entry.Description);
         Assert.Null(entry.MaxUses);
@@ -67,10 +67,10 @@ public sealed class BombImpTests
     public void AuthoredExplosionDamageSurvivesSerializationAndControlsCardAndResolution()
     {
         var type = UnitType.Define("custom-imp", "Custom Imp", UnitAuthoring.Stats(3, 1, 2, 2, 1),
-            UnitAuthoring.Ability("Blast", UnitAuthoring.Unlimited(), UnitAuthoring.Explosion(damage: 3)));
+            UnitAuthoring.Ability("Blast", UnitAuthoring.Unlimited(), UnitAuthoring.Explosion(damage: 3), id: "explosion"));
         type = JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(type))!;
-        Assert.Equal(3, type.Explosion!.Damage);
-        var entry = Assert.Single(type.CardEntries(), e => e.Id == "explosion");
+        Assert.Equal(3, type.Mechanic<Explosion>()!.Damage);
+        var entry = Assert.Single(type.CardEntries(), e => e.Id == "ability:explosion");
         Assert.Equal("Blast", entry.Name);
         Assert.Equal("When this Unit is defeated, deal 3 damage to every adjacent Unit.", entry.Description);
         var state = World();
@@ -118,7 +118,7 @@ public sealed class BombImpTests
         var state = World();
         Add(state, "imp", new(2, 2));
         // Attach the same concrete trigger to Troll to prove replacement prevents trigger creation.
-        Add(state, "troll", new(3, 2), UnitType.Troll() with { Explosion = new() }, posture: posture);
+        Add(state, "troll", new(3, 2), UnitType.Troll() .WithLocal(new("explosion", "Explosion", AbilityTiming.WhenDefeated, new Explosion())), posture: posture);
         Add(state, "beyond", new(4, 2), UnitType.Grunt());
         var result = Act(state);
         Assert.Equal(defeated, result.Events.Any(e => e.Kind == "UnitDefeated" && e.UnitId == "troll"));
@@ -151,7 +151,8 @@ public sealed class BombImpTests
     [Fact]
     public void PendingAttackFinishesAcrossSaveBeforeExplosionsDrainInFifoOrder()
     {
-        var actor = new UnitType("breather", 0, 6, 2, 0, 5, Actions: UnitAction.FireBreath) { Unique = true };
+        var actor = new UnitType("breather", 0, 6, 2, 0, 5, Actions: UnitAction.None)
+        { Unique = true, LocalAbilities = [new("fire-breath", "Fire Breath", AbilityTiming.Action, new FireBreath())] };
         var state = World(actor);
         Add(state, "imp", new(2, 1));
         Add(state, "sibling", new(2, 3));
@@ -196,7 +197,7 @@ public sealed class BombImpTests
     [Fact]
     public void ExplosionsResolveBeforeAfterAttackCleaveEligibility()
     {
-        var state = World(UnitType.Barbarian() with { Atk = 2, Fury = null });
+        var state = World(UnitType.Barbarian() .Without<Fury>() with { Atk = 2 });
         state.Physical.Figures[0] = new("actor", new(1, 2));
         Add(state, "imp", new(2, 2));
         Add(state, "cleave-target", new(2, 3), UnitType.Grunt());

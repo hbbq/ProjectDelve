@@ -47,9 +47,9 @@ public sealed class ActivationTests
         result = TestGame.Advance(result.State, new Choice("stay"), random, relevanceAutoChoice);
         Assert.True(result.State.MoveDone);
         Assert.False(result.State.ActionDone);
-        Assert.Empty(result.State.BonusActionsUsedThisActivation);
+        Assert.Empty(result.State.BonusActionUseCountsThisActivation);
         Assert.Contains(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
-        result = TestGame.Advance(result.State, new Choice("try-open-door:1,0:2,0"), random, relevanceAutoChoice);
+        result = TestGame.Advance(result.State, new Choice("ability:break-door:1,0:2,0"), random, relevanceAutoChoice);
         Assert.Contains(TestGame.OperationEvents(result), e => e.Kind == "DoorOpened");
         Assert.Equal("second", result.State.CurrentUnitId);
         Assert.Contains("first", result.State.CompletedUnitIds);

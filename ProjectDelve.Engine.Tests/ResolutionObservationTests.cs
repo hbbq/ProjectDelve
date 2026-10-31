@@ -112,7 +112,7 @@ public sealed class ResolutionObservationTests
             state.Physical.Board.Terrain.Clear();
             state.Units.Clear(); state.Types.Clear(); state.Bag.Clear(); state.Controllers.Clear();
             state.CompletedUnitIds.Clear(); state.ModifiersThisTurn.Clear(); state.PendingExplosions.Clear();
-            state.BonusActionsUsedThisActivation.Clear(); state.BonusActionUseCountsThisActivation.Clear();
+            state.BonusActionUseCountsThisActivation.Clear(); state.BonusActionUseCountsThisActivation.Clear();
             state.WorldDeck!.DrawPile.Clear();
             state.Pending?.Candidates.Clear();
         });

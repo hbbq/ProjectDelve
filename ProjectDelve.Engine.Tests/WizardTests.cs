@@ -32,7 +32,7 @@ public sealed class WizardTests
 
     private static EngineResult Choose(GameState state, string key, Random? random = null) =>
         TestGame.Advance(state, new Choice(key), random ?? new(), false);
-    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "wizard").BonusActionUses["Focus"];
+    private static AbilityUses Uses(GameState state) => state.Units.Single(u => u.Id == "wizard").Uses("focus");
     private static GameState Restore(GameState state) => JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
 
     [Fact]
@@ -43,11 +43,12 @@ public sealed class WizardTests
         Assert.Equal("custom", UnitType.Wizard("custom").Id);
         Assert.Equal("Wizard", type.DisplayName);
         Assert.Equal((3, 4, 3, 2, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
-        Assert.Equal(UnitAction.NormalAttack | UnitAction.Telekinesis, type.Actions);
+        Assert.Equal(UnitAction.NormalAttack, type.Actions);
+        Assert.IsType<Telekinesis>(type.LocalAbilities.Single(a => a.Key == "telekinesis").Mechanic);
         Assert.Contains(AbilityQueries.NativeAbilities(type, "wizard"), grant => grant.Definition.Mechanic is FireballMechanic);
-        Assert.Equal(UnitFreeAction.OpenDoor, type.FreeActions);
+        Assert.IsType<OpenDoor>(type.LocalAbilities.Single(a => a.Key == "open-door").Mechanic);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
-        Assert.Empty(type.Passives);
+        Assert.DoesNotContain(type.LocalAbilities, a => a.Timing == AbilityTiming.Passive);
         var ability = Assert.Single(AbilityQueries.NativeAbilities(type, "wizard"), grant => grant.Definition.Timing == AbilityTiming.BonusAction).Definition;
         Assert.Equal("Focus", ability.Name);
         Assert.Equal(2, ability.Usage.MaxUses);
@@ -65,14 +66,14 @@ public sealed class WizardTests
         var random = new Random();
         var started = TestGame.StartRound(State(), random, false);
         Assert.Equal(3, started.State.EffectiveAtkOf("wizard"));
-        var focus = Assert.Single(started.NextInput!.Candidates, c => c.BonusAction?.Name == "Focus");
+        var focus = Assert.Single(started.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Focus");
         Assert.Equal(ActivationChoiceKind.BonusAction, focus.Kind);
         var focused = Choose(started.State, focus.Key);
         Assert.False(focused.State.ActionDone);
         Assert.False(focused.State.MoveDone);
         Assert.Equal(new AbilityUses(2, 1), Uses(focused.State));
         Assert.Equal(new AbilityUses(2, 2), Uses(started.State));
-        Assert.Equal("Focus", Assert.Single(focused.State.BonusActionsUsedThisActivation));
+        Assert.Equal(new KeyValuePair<string, int>("unit:focus", 1), Assert.Single(focused.State.BonusActionUseCountsThisActivation));
         Assert.Equal(new ModifierThisTurn(Stat.Atk, 1), Assert.Single(focused.State.ModifiersThisTurn));
         Assert.Equal(4, focused.State.EffectiveAtkOf("wizard"));
         Assert.Equal(4, focused.State.EffectiveAtk["wizard"]);
@@ -93,7 +94,7 @@ public sealed class WizardTests
 
         var second = TestGame.StartRound(Restore(attacked.State), random, false);
         Assert.Equal(new AbilityUses(2, 1), Uses(second.State));
-        Assert.Empty(second.State.BonusActionsUsedThisActivation);
+        Assert.Empty(second.State.BonusActionUseCountsThisActivation);
         Assert.Equal(3, second.State.EffectiveAtkOf("wizard"));
         var focusedAgain = Choose(second.State, focus.Key);
         Assert.Equal(4, focusedAgain.State.EffectiveAtkOf("wizard"));
@@ -112,9 +113,9 @@ public sealed class WizardTests
     public void FocusRelevanceUsesOrdinaryAttackOpportunities(int enemyX, bool relevant)
     {
         var started = TestGame.StartRound(State(enemyX: enemyX), new Random(), false);
-        Assert.False(Assert.Single(started.NextInput!.Candidates, c => c.BonusAction is not null).Relevant);
+        Assert.False(Assert.Single(started.NextInput!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction).Relevant);
         var stayed = Choose(started.State, "stay");
-        Assert.Equal(relevant, Assert.Single(stayed.NextInput!.Candidates, c => c.BonusAction is not null).Relevant);
+        Assert.Equal(relevant, Assert.Single(stayed.NextInput!.Candidates, c => c.Ability?.Definition.Timing == AbilityTiming.BonusAction).Relevant);
     }
 
     [Fact]
@@ -122,12 +123,12 @@ public sealed class WizardTests
     {
         var type = UnitType.Wizard() with
         {
-            BonusActions = [.. UnitType.Wizard().BonusActions, new("Other bonus", 2, [new(Stat.Atk, 2)])]
+            LocalAbilities = [.. UnitType.Wizard().LocalAbilities, new("other-bonus", "Other bonus", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Atk, 2)])) { Usage = new(2) }]
         };
         var started = TestGame.StartRound(State(type), new Random(), false);
-        var focused = Choose(started.State, "bonus-action:Focus");
-        Assert.Contains(focused.NextInput!.Candidates, c => c.Key == "bonus-action:Other bonus");
-        var boosted = Choose(focused.State, "bonus-action:Other bonus");
+        var focused = Choose(started.State, "ability:focus");
+        Assert.Contains(focused.NextInput!.Candidates, c => c.Key == "ability:other-bonus");
+        var boosted = Choose(focused.State, "ability:other-bonus");
         Assert.Equal(6, boosted.State.EffectiveAtkOf("wizard"));
         Assert.False(boosted.State.ActionDone);
         Assert.Equal(new AbilityUses(2, 1), Uses(boosted.State));
@@ -153,18 +154,18 @@ public sealed class WizardTests
         Assert.Equal("DoorOpened", Assert.Single(TestGame.OperationEvents(opened)).Kind);
         Assert.False(opened.State.ActionDone);
         Assert.False(opened.State.MoveDone);
-        Assert.Empty(opened.State.BonusActionsUsedThisActivation);
+        Assert.Empty(opened.State.BonusActionUseCountsThisActivation);
         Assert.Equal(new AbilityUses(2, 2), Uses(opened.State));
-        Assert.Contains(opened.NextInput!.Candidates, c => c.BonusAction?.Name == "Focus");
+        Assert.Contains(opened.NextInput!.Candidates, c => c.Ability?.Definition.Name == "Focus");
     }
 
     [Fact]
     public void CardWordingAndUseLimitAreDomainOwned()
     {
         var type = UnitType.Wizard();
-        Assert.Equal(new[] { "Attack", "Fireball", "Telekinesis", "Open Door", "Focus" }, type.CardEntries().Select(e => e.Name));
+        Assert.Equal(new[] { "Attack", "Open Door", "Fireball", "Telekinesis", "Focus" }, type.CardEntries().Select(e => e.Name));
         var focus = Assert.Single(type.CardEntries(), e => e.Name == "Focus");
-        Assert.Equal(new CardEntryDescription("bonus:Focus", "Focus", "Bonus Action", "+1 ATK this turn", 2), focus);
+        Assert.Equal(new CardEntryDescription("ability:focus", "Focus", "Bonus Action", "ATK +1 this activation.", 2), focus);
         Assert.Equal("2/game", focus.UseLimitText);
         Assert.Equal(new AbilityUses(2, 2), type.UsesFor(type.CreateUnit("wizard", "blue"), focus.Id));
     }

@@ -92,7 +92,9 @@ sealed class CampaignProvider(string policy, Func<GameState> current) : IDecisio
                 return state.Types.Single(t => t.Id == u.TypeId).Hp - u.CurrentHp >= 2;
             });
         if (heal is not null) return heal.Key;
-        if (attacks.Length > 0 && request.Candidates.FirstOrDefault(c => c.BonusAction?.Name is "Rage" or "Focus") is { } power)
+        if (attacks.Length > 0 && request.Candidates.FirstOrDefault(c => c.Ability?.Definition is
+            { Timing: AbilityTiming.BonusAction, Mechanic: SelfModifiersMechanic modifier } &&
+            modifier.Modifiers.Any(m => m.Stat == Stat.Atk && m.Amount > 0)) is { } power)
             return power.Key;
         var position = queries.PositionOf(unitId);
         int? Remaining(Cell cell) => objective.Objective switch
@@ -109,7 +111,9 @@ sealed class CampaignProvider(string policy, Func<GameState> current) : IDecisio
         bool MeetsTarget(Candidate c) => targetIds.Contains(c.TargetId!) || c.TargetIds.Any(targetIds.Contains);
         if (policy != "aggressive" && objective.Objective == ScenarioObjective.ReachArea &&
             currentRemaining > queries.EffectiveMovOf(unitId) &&
-            request.Candidates.FirstOrDefault(c => c.BonusAction?.Name == "Dash") is { } dash)
+            request.Candidates.FirstOrDefault(c => c.Ability?.Definition is
+                { Timing: AbilityTiming.BonusAction, Mechanic: SelfModifiersMechanic modifier } &&
+                modifier.Modifiers.Any(m => m.Stat == Stat.Mov && m.Amount > 0)) is { } dash)
             return dash.Key;
         // Objective policy fights immediately when able; rush spends movement on the exit
         // first, even if an enemy could have been killed from the previous position.

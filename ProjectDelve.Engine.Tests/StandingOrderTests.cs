@@ -106,13 +106,13 @@ public sealed class StandingOrderTests
         state.AssignOrder(state.Controllers[0].Token, OrderKind.DoNothing);
         var queries = new GameplayQueries(state);
         var provider = new OrderAwareAutomatedProvider();
-        var reshape = UnitType.LabyrinthShaper().BonusActions.Single(a => a.ReshapeRoom is not null);
-        var swap = UnitType.DisplacerDemon().BonusActions.Single(a => a.Swap is not null);
+        var reshape = AbilityQueries.NativeAbilities(UnitType.LabyrinthShaper(), "actor").Single(a => a.Definition.Mechanic is ReshapeRoom);
+        var swap = AbilityQueries.NativeAbilities(UnitType.DisplacerDemon(), "actor").Single(a => a.Definition.Mechanic is Swap);
         var activation = new DecisionRequest(DecisionKind.Activation, state.Units[0].TypeId, "actor",
         [
             new("attack:enemy", Action: UnitAction.NormalAttack, TargetId: "enemy", Kind: ActivationChoiceKind.Action),
-            new("reshape", Kind: ActivationChoiceKind.BonusAction, BonusAction: reshape),
-            new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction, BonusAction: swap),
+            new("reshape", Kind: ActivationChoiceKind.BonusAction) { Ability = reshape },
+            new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction) { Ability = swap },
             new("open", Door: new(new(0, 1), new(1, 1), EdgeKind.ClosedDoor),
                 Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor),
             new("move", new(1, 0), [new(0, 1), new(1, 1)], Kind: ActivationChoiceKind.Move),
@@ -207,9 +207,9 @@ public sealed class StandingOrderTests
     {
         var demon = State(UnitType.DisplacerDemon(), enemy: new(1, 1));
         demon.AssignOrder(demon.Controllers[0].Token, OrderKind.MoveTo, new(5, 3));
-        var swap = UnitType.DisplacerDemon().BonusActions.Single(a => a.Swap is not null);
+        var swap = AbilityQueries.NativeAbilities(UnitType.DisplacerDemon(), "actor").Single(a => a.Definition.Mechanic is Swap);
         var activation = new DecisionRequest(DecisionKind.Activation, demon.Units[0].TypeId, "actor",
-            [new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction, BonusAction: swap),
+            [new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction) { Ability = swap },
              new("stay", Kind: ActivationChoiceKind.Stay)], false);
 
         Assert.Equal("swap", new OrderAwareAutomatedProvider().Choose(activation, new GameplayQueries(demon)));
@@ -221,11 +221,11 @@ public sealed class StandingOrderTests
         var provider = new OrderAwareAutomatedProvider();
         var demon = State(UnitType.DisplacerDemon(), enemy: new(1, 1));
         demon.AssignOrder(demon.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
-        var swap = UnitType.DisplacerDemon().BonusActions.Single(a => a.Swap is not null);
-        var displace = UnitType.DisplacerDemon().BonusActions.Single(a => a.Displace is not null);
+        var swap = AbilityQueries.NativeAbilities(UnitType.DisplacerDemon(), "actor").Single(a => a.Definition.Mechanic is Swap);
+        var displace = AbilityQueries.NativeAbilities(UnitType.DisplacerDemon(), "actor").Single(a => a.Definition.Mechanic is Displace);
         var beforeAction = new DecisionRequest(DecisionKind.Activation, demon.Units[0].TypeId, "actor",
         [
-            new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction, BonusAction: swap),
+            new("swap", TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction) { Ability = swap },
             new("attack", Action: UnitAction.NormalAttack, TargetId: "enemy", Kind: ActivationChoiceKind.Action),
             new("end", Kind: ActivationChoiceKind.EndTurn)
         ], false);
@@ -233,18 +233,18 @@ public sealed class StandingOrderTests
 
         var afterAction = beforeAction with { Candidates =
         [
-            new("displace", new(2, 1), TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction,
-                BonusAction: displace),
+            new("displace", new(2, 1), TargetId: "enemy", Kind: ActivationChoiceKind.BonusAction)
+                { Ability = displace },
             new("end", Kind: ActivationChoiceKind.EndTurn)
         ] };
         Assert.Equal("displace", provider.Choose(afterAction, new GameplayQueries(demon)));
 
         var shaper = State(UnitType.LabyrinthShaper(), enemy: new(1, 1));
         shaper.AssignOrder(shaper.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
-        var reshape = UnitType.LabyrinthShaper().BonusActions.Single(a => a.ReshapeRoom is not null);
+        var reshape = AbilityQueries.NativeAbilities(UnitType.LabyrinthShaper(), "actor").Single(a => a.Definition.Mechanic is ReshapeRoom);
         var reshapeActivation = new DecisionRequest(DecisionKind.Activation, shaper.Units[0].TypeId, "actor",
         [
-            new("reshape", Kind: ActivationChoiceKind.BonusAction, BonusAction: reshape),
+            new("reshape", Kind: ActivationChoiceKind.BonusAction) { Ability = reshape },
             new("attack", Action: UnitAction.NormalAttack, TargetId: "enemy", Kind: ActivationChoiceKind.Action),
             new("end", Kind: ActivationChoiceKind.EndTurn)
         ], false);
@@ -303,11 +303,11 @@ public sealed class StandingOrderTests
         wizard.AssignOrder(wizard.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
         var request = new DecisionRequest(DecisionKind.Act, wizard.Units[0].TypeId, "actor",
         [
-            new("telekinesis:enemy", Action: UnitAction.Telekinesis, TargetId: "enemy"),
-            new("fireball:2,1", new(2, 1), Action: UnitAction.Fireball) { TargetIds = ["enemy"] }
+            new("ability:telekinesis:enemy", Action: UnitAction.Telekinesis, TargetId: "enemy"),
+            new("ability:fireball:2,1", new(2, 1), Action: UnitAction.Fireball) { TargetIds = ["enemy"] }
         ], true);
         var provider = new OrderAwareAutomatedProvider();
-        Assert.Equal("fireball:2,1", provider.Choose(request, new GameplayQueries(wizard)));
+        Assert.Equal("ability:fireball:2,1", provider.Choose(request, new GameplayQueries(wizard)));
 
         wizard.Units[1] = wizard.Units[1] with { CurrentHp = 0 };
         Assert.Equal(new DefaultAutomatedProvider().Choose(request, new GameplayQueries(wizard)),
@@ -348,7 +348,7 @@ public sealed class StandingOrderTests
     [Fact]
     public void AttackApproachRecognizesLegalZeroDieFireball()
     {
-        var wizard = UnitType.Wizard() with { Atk = 0, Actions = UnitAction.Fireball };
+        var wizard = UnitType.Wizard().Without<Telekinesis>() with { Atk = 0, Actions = UnitAction.None };
         var state = State(wizard, enemy: new(3, 1));
         var queries = new GameplayQueries(state);
 
@@ -549,7 +549,8 @@ public sealed class StandingOrderTests
         ], true);
         Assert.Equal("normal", new DefaultAutomatedProvider().Choose(usageTie, new GameplayQueries(wizard)));
 
-        var authored = UnitType.RedDragon() with { ClawAttack = new(0) };
+        var authored = UnitType.RedDragon().Without<ClawAttack>()
+            .WithLocal(new("claw-attack", "Claw Attack", AbilityTiming.Action, new ClawAttack(0)));
         var definitionTie = State(authored, enemy: new(2, 0), board: new Board(7, 4, []));
         var tied = new DecisionRequest(DecisionKind.Act, authored.Id, "actor",
         [new("normal", Action: UnitAction.NormalAttack, TargetId: "enemy"),
@@ -557,8 +558,8 @@ public sealed class StandingOrderTests
         Assert.Equal("normal", new DefaultAutomatedProvider().Choose(tied, new GameplayQueries(definitionTie)));
 
         var custom = UnitType.Define("custom-attacker", "Custom Attacker", UnitAuthoring.Stats(2, 4, 3, 3, 1),
-            UnitAuthoring.Ability("Claw", UnitAuthoring.Unlimited(), UnitAuthoring.ClawAttack(0)),
-            UnitAuthoring.Ability("Breath", UnitAuthoring.Unlimited(), UnitAuthoring.FireBreath()));
+            UnitAuthoring.Ability("Claw", UnitAuthoring.Unlimited(), UnitAuthoring.ClawAttack(0), "claw"),
+            UnitAuthoring.Ability("Breath", UnitAuthoring.Unlimited(), UnitAuthoring.FireBreath(), "breath"));
         var restored = JsonSerializer.Deserialize<UnitType>(JsonSerializer.Serialize(custom))!;
         Assert.Equal(new[] { UnitAction.NormalAttack, UnitAction.ClawAttack, UnitAction.FireBreath },
             restored.AttackDefinitionOrder.ToArray());
@@ -674,9 +675,9 @@ public sealed class StandingOrderTests
             new("keep-range", new(2, 1), [new(2, 2), new(2, 1)], Kind: ActivationChoiceKind.Move));
         Assert.Equal("keep-range", new OrderAwareAutomatedProvider().Choose(positions, new GameplayQueries(protect)));
 
-        var fireballOnly = UnitType.Wizard() with
+        var fireballOnly = UnitType.Wizard().Without<Telekinesis>() with
         {
-            Actions = UnitAction.Fireball,
+            Actions = UnitAction.None,
             Behaviors = UnitBehavior.MaximizeAttackDistance
         };
         var fireballProtect = State(fireballOnly, actor: new(2, 2), enemy: new(4, 2),
@@ -778,7 +779,7 @@ public sealed class StandingOrderTests
         Assert.Equal("flee", new OrderAwareAutomatedProvider().Choose(doorMovement,
             new GameplayQueries(interact)));
 
-        var largeFlee = State(UnitType.RedDragon() with { Behaviors = UnitBehavior.Flee, Actions = UnitAction.None },
+        var largeFlee = State(UnitType.RedDragon() with { Behaviors = UnitBehavior.Flee, Actions = UnitAction.None, LocalAbilities = [] },
             actor: new(0, 0), enemy: new(3, 0), board: new Board(6, 3,
                 [new(new(1, 1), new(2, 1), EdgeKind.Wall)]));
         Assert.Null(new GameplayQueries(largeFlee).DistanceToUnitFrom("actor", new(0, 0), "enemy"));
