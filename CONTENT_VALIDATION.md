@@ -2,7 +2,8 @@
 
 Engine exposes definition inspection without creating a scenario, board, Unit or
 GameState. Milestone 2 adds [explicit composition and captured runtime catalogs](CONTENT_COMPOSITION.md)
-using these shared checks; library storage and revision pinning remain unimplemented.
+using these shared checks. [Content Library](CONTENT_LIBRARY.md) persistence also
+uses these APIs; scenario library references remain deferred.
 JSON provider validation and export use these APIs too; see [CONTENT_PACKAGES.md](CONTENT_PACKAGES.md).
 
 ```csharp

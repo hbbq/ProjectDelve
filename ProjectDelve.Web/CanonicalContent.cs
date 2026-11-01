@@ -3,8 +3,17 @@ using ProjectDelve.Engine;
 namespace ProjectDelve.Web;
 
 // One explicit, immutable provider selection per host. Never consulted by a running game's rules.
-public sealed class CanonicalContent(string directory)
+public sealed class CanonicalContent
 {
-    public EffectiveContent Catalog { get; } = ContentPackageCatalog.LoadCanonical(directory);
+    public IReadOnlyList<ContentPackage> Packages { get; }
+    public EffectiveContent Catalog { get; }
     public ContentBundle Bundle => Catalog.Definitions;
+
+    public CanonicalContent(string directory)
+    {
+        var documents = ContentPackageCatalog.ReadDirectory(directory);
+        var csharp = ContentBundle.Canonical();
+        Catalog = ContentPackageCatalog.Compose(documents, csharp);
+        Packages = [new() { Id = ContentPackageCatalog.CSharpPackageId, Definitions = csharp }, .. documents.Select(d => d.Package)];
+    }
 }

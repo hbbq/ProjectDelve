@@ -3,7 +3,7 @@
 Open **Content** from the Web header or **Explore game content** from Home.
 The browser exposes the typed definitions used by Engine. Canonical content is
 read-only; [Content Designer](CONTENT_DESIGNER.md) can create or edit Equipment and
-Loot Cards in an explicitly attached scenario draft. Search by
+Loot Cards in a standalone Library package or explicitly attached scenario draft. Search by
 display name or Type ID, filter by category or origin, and select a definition.
 Reference links open the related definition; **Previous definition** returns
 to the previous selection and filters. At narrow widths, **All results** returns
@@ -35,7 +35,15 @@ behavior** presents targeting, Unit context and system dependencies separately.
 For example, `adjacentModifiers` exposes its modifier list, while its friendly
 recipient rule is fixed. The browser does not make that rule configurable.
 
-## Scenario context
+## Library and scenario contexts
+
+Select **Library** for independent package authoring, package metadata, explicit
+dependency selection and revision history. An empty library offers Create package.
+Current owned Equipment/Loot entries are editable; canonical, external dependency
+and historical entries are read-only. Copy as new targets the current working
+package with a new Type ID. Save definition applies to the working copy; Save
+package commits a revision. No scenario is opened or created. See CONTENT_DESIGNER.md
+for the complete workflow, save conflicts and unsaved-change protection.
 
 In Designer, choose **Inspect content** to attach the current draft. The focused
 draft-content view validates Equipment, Items and Loot dependencies without requiring
@@ -83,16 +91,17 @@ the viewer consumes their descriptor, including nested parameter metadata.
 ## Milestone limits
 
 - Canonical and full-scenario inspection are read-only. Equipment and Loot editing
-  uses an explicit draft destination; other families remain read-only. There is no
-  inheritance, runtime mutation or canonical JSON catalog migration.
+  uses an explicit scenario or library destination; other families remain read-only.
+  There is no inheritance or runtime mutation.
 - Full scenario inspection requires a valid complete scenario, including board
   and setup validation. Focused content editing only requires valid dependencies.
 - Resources, Machines and Cell Markers expose their existing typed definitions;
   this milestone does not introduce new catalogs or effect models for them.
 - Fixed behavior is described by Engine metadata and generated rules text, not
   executable expressions or an exhaustive description of handler internals.
-- Catalog selection and the last inspected draft are kept in page memory; reloading
-  the page returns to canonical inspection until Designer supplies another snapshot.
+- Catalog selection and working copies are kept in page memory; reload starts in
+  canonical inspection. Saved library packages remain available through Library;
+  scenario inspection uses the explicitly attached Designer snapshot.
 
 Focused API tests cover catalog completeness, actual Ability parameters, scoped
 resolution, links, duplicate inline identities, diagnostics and isolation from the

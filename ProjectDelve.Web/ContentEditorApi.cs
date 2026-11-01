@@ -16,6 +16,7 @@ public sealed record ContentEditorRequest(string Family, JsonElement Definition,
 public sealed record ContentEditorDiagnostic(string Path, string Code, string Message);
 public sealed record ContentEditorResponse(bool Valid, IReadOnlyList<ContentEditorDiagnostic> Diagnostics)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ContentBrowserResponse? Catalog { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public JsonElement? Definition { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ContentBrowserEntry? Entry { get; init; }
 }
@@ -77,9 +78,7 @@ public static class ContentEditorApi
         {
             if (request.Definition.ValueKind != JsonValueKind.Object)
                 return Invalid(new("definition", "required", "A typed content definition object is required."));
-            candidate = request.Family == "equipment"
-                ? request.Definition.Deserialize<EquipmentDefinition>(Json)!
-                : request.Definition.Deserialize<LootCardDefinition>(Json)!;
+            candidate = ParseDefinition(request);
         }
         catch (JsonException error) { return Invalid(JsonDiagnostic(error, "definition")); }
         try
@@ -95,6 +94,13 @@ public static class ContentEditorApi
         }
         catch (ContentEditorException error) { return Invalid(error.Diagnostic); }
     }
+
+    internal static object ParseDefinition(ContentEditorRequest request) => request.Family switch
+    {
+        "equipment" => request.Definition.Deserialize<EquipmentDefinition>(Json) ?? throw new JsonException("An Equipment definition is required."),
+        "lootCards" => request.Definition.Deserialize<LootCardDefinition>(Json) ?? throw new JsonException("A Loot Card definition is required."),
+        _ => throw new ArgumentException("This editor supports Equipment and Loot Cards.")
+    };
 
     private sealed record ResolvedContext(List<EquipmentDefinition> Equipment, List<ItemDefinition> Items, List<LootCardDefinition> Loot,
         List<UnitType> Units, IReadOnlySet<string> LocalUnitIds);

@@ -24,6 +24,9 @@ public static class PlaytestHost
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Canonical");
         var canonical = new CanonicalContent(canonicalDirectory);
         builder.Services.AddSingleton(canonical);
+        var contentLibraryPath = builder.Configuration["ContentLibrary:Path"]
+            ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "ContentLibrary");
+        builder.Services.AddSingleton(_ => new ContentLibrary(contentLibraryPath, canonical.Packages));
         var libraryPath = builder.Configuration["Library:Path"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "library");
         var bundledLibraryPath = builder.Configuration["Library:BundlePath"]
@@ -50,6 +53,7 @@ public static class PlaytestHost
         DesignerApi.Map(app);
         ContentBrowserApi.Map(app);
         ContentEditorApi.Map(app);
+        ContentLibraryApi.Map(app);
         LibraryApi.Map(app);
         LibraryCoverApi.Map(app);
         GenerationApi.Map(app);

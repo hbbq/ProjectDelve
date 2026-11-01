@@ -204,7 +204,7 @@ export function mountContentEditor(root, options) {
   function render() {
     if (!opened) return;
     controls = new Map(); errors = new Map(); serial = 0; form.replaceChildren();
-    heading.replaceChildren(node('p', 'ce-eyebrow', options.destinationLabel ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'equipment' ? 'Equipment' : 'Loot Card'}`));
+    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'equipment' ? 'Equipment' : 'Loot Card'}`));
     const id = input('text', state.definition.id, value => set(['id'], value)); id.id = 'content-editor-id'; id.readOnly = !!state.existingId; id.autocomplete = 'off';
     const name = input('text', state.definition.name, value => set(['name'], value)); name.id = 'content-editor-name';
     const identity = node('div', 'ce-two-columns'); identity.append(field(state.family === 'equipment' ? 'Type ID' : 'Card ID', id, ['id'], state.existingId ? 'Existing identity stays fixed.' : 'Choose a new, stable ID distinct from canonical content.'), field('Name', name, ['name']));

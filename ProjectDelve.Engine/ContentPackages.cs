@@ -28,6 +28,9 @@ public static class ContentPackageJson
         Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
     };
 
+    // Provider/storage envelopes use the same typed definitions and serialization contracts.
+    public static JsonSerializerOptions CreateOptions() => new(Options);
+
     public static ContentPackage FromJson(string json, string? document = null)
     {
         try

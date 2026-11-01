@@ -26,6 +26,8 @@ class Element {
   addEventListener(name, action) { this.listeners[name] = action; }
   all(predicate) { return this.children.flatMap(child => [...(predicate(child) ? [child] : []), ...child.all(predicate)]); }
   querySelector(selector) {
+    if (selector.startsWith('#')) return this.all(child => child.id === selector.slice(1))[0];
+    if (selector.startsWith('.')) return this.all(child => child.classList.contains(selector.slice(1)))[0];
     if (selector === 'h3') return this.all(child => child.tagName === 'h3')[0];
     if (selector === '[aria-current="true"]') return this.all(child => child.attributes['aria-current'] === 'true')[0];
     throw new Error(`Unexpected selector: ${selector}`);
@@ -43,6 +45,7 @@ function harness(fetcher) {
   } });
   vm.runInContext(source('content-browser-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-editor-state.js').replace(/^export /gm, ''), context);
+  vm.runInContext(source('content-library-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-editor.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-browser.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   context.root = root;
@@ -213,7 +216,7 @@ test('invalid draft clears previous content and presents field diagnostics witho
   assert.equal(h.byClass('cb-diagnostics')[0].open, true);
   assert.equal(h.calls.length, 2);
   invalid = false; await h.viewer.showCanonical();
-  assert.equal(h.byId('content-context').children.length, 1);
+  assert.deepEqual(h.byId('content-context').children.map(option => option.value), ['canonical', 'library']);
 });
 
 test('filtering preserves search focus and does not scroll the detail on every keystroke', async () => {
@@ -302,6 +305,131 @@ test('cached draft refreshes after external edits and save carries the opening r
   h.click(h.byId('content-editor-save')); await settle();
   assert.equal(h.saves.length, 0); assert.match(h.byId('content-editor').textContent, /draft changed/);
   assert.equal(h.byId('content-editor').hidden, false);
+});
+
+function libraryHarness() {
+  const records = new Map(), writes = [];
+  const standard = structuredClone(catalog);
+  standard.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [
+    { key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }
+  ] };
+  let nextConflict = false, nextInvalid = false;
+  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.name, family, origin: 'library-local',
+    definition: structuredClone(row), sections: [], abilities: [], references: [], packageId: 'workshop', packageRevision: 1 });
+  const content = (pkg, bindings = []) => ({ ...structuredClone(standard), context: { kind: 'library' }, entries: structuredClone(standard.entries)
+    .concat((pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
+      bindings.flatMap(binding => (records.get(binding.packageId)?.[binding.revision - 1]?.package.definitions.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-dependency', packageId: binding.packageId, packageRevision: binding.revision })))) });
+  const ok = data => ({ ok: true, status: 200, json: async () => structuredClone(data) });
+  const h = harness(async (url, options) => {
+    const body = options?.body ? JSON.parse(options.body) : null;
+    if (url === '/api/content/catalog') return ok(standard);
+    if (url === '/api/content-library') return ok({ libraryId: 'library-origin', packages: [...records].map(([id, rows]) => ({ packageId: id, currentRevision: rows.length, title: rows.at(-1).package.title })) });
+    if (url.endsWith('/providers')) return ok([{ id: 'canonical-provider', title: 'Standard content' }]);
+    if (url.endsWith('/authoring/context')) return ok(content(body.package, body.bindings));
+    if (url.endsWith('/authoring/validate')) {
+      if (nextInvalid) { nextInvalid = false; return ok({ valid: false, diagnostics: [{ path: 'definition.equipmentTypeId', code: 'missingReference', message: 'Required Equipment is missing.' }] }); }
+      return ok({ valid: true, diagnostics: [], definition: body.edit.definition, entry: asEntry(body.edit.definition, body.edit.family) });
+    }
+    if (options && ['POST', 'PUT'].includes(options.method) && url.includes('/packages')) {
+      if (nextConflict) { nextConflict = false; return { ok: false, status: 409, json: async () => ({ detail: 'Current revision is 2. Reload before saving.' }) }; }
+      const rows = records.get(body.package.id) ?? [];
+      writes.push(structuredClone(body)); rows.push({ libraryId: 'library-origin', revision: rows.length + 1, package: body.package, bindings: body.bindings }); records.set(body.package.id, rows);
+      return ok(rows.at(-1));
+    }
+    const match = url.match(/packages\/([^/?]+)(.*)/);
+    if (match) {
+      const rows = records.get(match[1]);
+      if (match[2] === '/revisions') return ok(rows);
+      if (match[2].startsWith('/context')) return ok(content(rows[Number(new URLSearchParams(match[2].split('?')[1]).get('revision')) - 1].package));
+      const revision = Number(new URLSearchParams(match[2].slice(1)).get('revision'));
+      return ok(revision ? rows[revision - 1] : rows.at(-1));
+    }
+    throw new Error(`Unexpected library call ${url}`);
+  });
+  const create = async () => {
+    await h.viewer.show(); h.change('content-context', 'library'); await settle();
+    h.click(h.byId('content-library-new')); await settle();
+    h.change('content-library-new-id', 'workshop', 'input'); h.change('content-library-new-title', 'Workshop', 'input');
+    h.click(h.byId('content-library-start')); await settle();
+  };
+  return { ...h, records, writes, create, conflict: () => { nextConflict = true; }, invalidate: () => { nextInvalid = true; } };
+}
+
+test('library scope creates linked Equipment and Loot without a scenario and saves/reopens immutable history', async () => {
+  const h = libraryHarness(); await h.create();
+  assert.equal(h.byId('content-create-equipment').disabled, false);
+  h.click(h.byId('content-create-equipment')); await settle();
+  h.change('content-editor-id', 'workshop-bell', 'input'); h.change('content-editor-name', 'Workshop Bell', 'input');
+  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
+  assert.equal(h.writes.length, 0, 'definition apply is a package workspace change');
+  h.click(h.byId('content-create-linked-loot')); await settle();
+  h.change('content-editor-id', 'workshop-gift', 'input'); h.click(h.byId('content-editor-save')); await settle();
+  h.click(h.byId('content-library-save')); await settle();
+  assert.equal(h.writes[0].package.definitions.lootCardDefinitions[0].equipmentTypeId, 'workshop-bell');
+  assert.equal(h.writes[0].expectedRevision, 0);
+  h.viewer.open('equipment:workshop-bell'); h.click(h.byId('content-edit-definition')); await settle();
+  h.change('content-editor-name', 'Revised Bell', 'input'); h.click(h.byId('content-editor-save')); await settle();
+  h.click(h.byId('content-library-save')); await settle();
+  assert.equal(h.writes[1].expectedRevision, 1);
+  assert.equal(h.records.get('workshop')[0].package.definitions.equipmentTypes[0].name, 'Workshop Bell');
+  h.change('content-library-revision', '1'); await settle();
+  assert.match(h.root.textContent, /historical revision · read only/);
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  h.viewer.open('equipment:workshop-bell'); assert.equal(h.byId('content-edit-definition'), undefined);
+  assert.equal(h.calls.some(call => /designer|scenario|api\/game/.test(call.url)), false);
+});
+
+test('library destination protects unfinished forms and package edits, and stale saves retain the workspace', async () => {
+  const h = libraryHarness(); await h.create();
+  h.change('content-library-title', 'Unsaved title', 'input');
+  const leaving = h.viewer.requestCloseEditor(); await settle();
+  assert.equal(h.byClass('cb-package-discard')[0].hidden, false);
+  h.click(h.byId('content-library-keep')); assert.equal(await leaving, false);
+  h.conflict(); h.click(h.byId('content-library-save')); await settle();
+  assert.match(h.root.textContent, /Current revision is 2/);
+  assert.equal(h.byId('content-library-title').value, 'Unsaved title'); assert.equal(h.writes.length, 0);
+  h.click(h.byId('content-create-equipment')); await settle();
+  h.change('content-editor-name', 'Unfinished', 'input');
+  const formLeaving = h.viewer.requestCloseEditor(); await settle();
+  assert.equal(h.byId('content-editor-keep').parentElement.hidden, false);
+  h.click(h.byId('content-editor-keep')); assert.equal(await formLeaving, false);
+  let prevented = false; h.events.beforeunload({ preventDefault() { prevented = true; } }); assert.equal(prevented, true);
+});
+
+test('canonical copy into Library proposes an independent identity and retains source mechanic parameters', async () => {
+  const h = libraryHarness(); await h.create();
+  h.change('content-context', 'canonical'); await settle();
+  h.viewer.open('equipment:chime'); assert.equal(h.byId('content-edit-definition'), undefined);
+  h.click(h.byId('content-copy-definition')); await settle();
+  assert.match(h.byId('content-editor-id').value, /^copy-/);
+  assert.equal(h.byId('content-editor-id').readOnly, false);
+  const parameter = h.root.all(element => element.dataset.fieldPath === 'definition.localAbilities[0].mechanic.amount').at(-1);
+  assert.equal(parameter.value, 4);
+  h.click(h.byId('content-editor-save')); await settle();
+  const validated = JSON.parse(h.calls.findLast(call => call.url.endsWith('/authoring/validate')).options.body);
+  assert.equal(validated.edit.definition.localAbilities[0].key, 'stitch');
+  assert.deepEqual(validated.edit.definition.localAbilities[0].mechanic, { kind: 'mend', amount: 4 });
+});
+
+test('explicit external revisions feed Library reference pickers and missing-reference diagnostics block apply', async () => {
+  const h = libraryHarness();
+  h.records.set('external', [{ revision: 1, package: { id: 'external', title: 'Other gear', definitions: { equipmentTypes: [{ id: 'other-bell', name: 'Other Bell' }] } }, bindings: [] }]);
+  await h.create();
+  assert.equal(h.viewer.open('equipment:other-bell'), false, 'installed packages are not ambient references');
+  h.change('content-library-dependency-search', 'other', 'input');
+  h.change('content-library-dependency-package', 'external'); await settle();
+  h.click(h.byId('content-library-add-dependency')); await settle();
+  const payload = JSON.parse(h.calls.findLast(call => call.url.endsWith('/authoring/context')).options.body);
+  assert.deepEqual(payload.bindings, [{ packageId: 'external', revision: 1 }]);
+  assert.equal(h.viewer.open('equipment:other-bell'), true);
+  assert.equal(h.byId('content-edit-definition'), undefined, 'external definitions stay read only');
+  h.click(h.byId('content-create-linked-loot')); await settle();
+  h.change('content-editor-id', 'external-reward', 'input');
+  const picker = h.root.all(element => element.dataset.fieldPath === 'definition.equipmentTypeId').at(-1);
+  assert.ok(picker.children.some(option => option.value === 'other-bell'));
+  h.invalidate(); h.click(h.byId('content-editor-save')); await settle();
+  assert.match(h.byId('content-editor').textContent, /definition.equipmentTypeId.*Required Equipment is missing/s);
+  assert.equal(h.byId('content-editor').hidden, false); assert.equal(h.writes.length, 0);
 });
 
 test('creation waits for current catalog metadata and ignores an older context response', async () => {

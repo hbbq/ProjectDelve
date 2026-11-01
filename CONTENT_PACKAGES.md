@@ -116,8 +116,9 @@ means the existing C# source alone.
 
 ## Remaining boundaries
 
-No persistent library, revision pinning, remote registry, hooks, inheritance,
-asset management or promotion workflow is introduced. Existing C# rosters are
+Persistent package revisions and dependency bindings are provided by the separate
+[Content Library](CONTENT_LIBRARY.md). Scenario references, remote registry, hooks,
+inheritance, asset management and promotion remain deferred. Existing C# rosters are
 not migrated. Resources support named production lookup and existing embedded
 payloads; same-ID inline Resource/Machine variants retain their payloads and need
 an independent reference/variant model before becoming general library

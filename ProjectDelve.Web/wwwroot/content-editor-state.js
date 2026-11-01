@@ -36,11 +36,11 @@ export class ContentEditorState {
     for (const definition of this.context?.[field] ?? []) combined.set(definition.id, { id: definition.id, name: definition.displayName ?? definition.name ?? definition.id });
     return [...combined.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
-  open({ family, definition, existingId, copy = false, context = {} }) {
+  open({ family, definition, existingId, copy = false, newId, context = {} }) {
     this.family = family; this.existingId = copy ? undefined : existingId;
     this.context = cloneContent(context);
     this.definition = cloneContent(definition ?? (family === 'equipment' ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
-    if (copy) this.definition.id = '';
+    if (copy) this.definition.id = newId ?? '';
     if (family === 'equipment') this.definition.localAbilities ??= [];
     this.usedKeys = new Set(this.definition.localAbilities?.map(ability => ability.key) ?? []);
     this.existingAbilities = new WeakSet(this.existingId ? this.definition.localAbilities ?? [] : []);

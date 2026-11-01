@@ -29,6 +29,8 @@ public sealed record ContentBrowserEntry(string Key, string Family, string Id, s
     public JsonElement? AuthoredDefinition { get; init; }
     public MechanicDescriptor? Mechanic { get; init; }
     public string? Availability { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? PackageId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? PackageRevision { get; init; }
 }
 
 // A definition-only projection of the same catalogs used by scenario creation.

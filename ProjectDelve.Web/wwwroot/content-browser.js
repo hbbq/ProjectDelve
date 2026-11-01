@@ -1,5 +1,6 @@
 import { ContentBrowserState, contentLabel, contentUsage } from './content-browser-state.js';
 import { mountContentEditor } from './content-editor.js';
+import { LibraryContentDraft } from './content-library-state.js';
 
 // Read-only viewer: only explicit catalog / Designer snapshot requests are made.
 export function mountContentBrowser(root, options = {}) {
@@ -10,6 +11,9 @@ export function mountContentBrowser(root, options = {}) {
   let context = 'canonical', draftName = 'Designer draft', pending = null, requestVersion = 0;
   let error = '', retry = null;
   let destination = null, scenarioSnapshot = null, catalogRevision = null, editDestination = null, editRevision = null;
+  let scenarioDestination = null, libraryDraft = null, libraryPackages = [], providers = [], revisions = [];
+  let libraryBusy = false, libraryValid = false, creatingPackage = false, packageIdentity = '', packageTitle = '', libraryNotice = '', leaveResolve = null;
+  let dependencySearch = '', dependencyPackage = '', dependencyRevisions = [];
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -78,15 +82,24 @@ export function mountContentBrowser(root, options = {}) {
   detail.id = 'content-detail';
   workspace.append(master, detail);
   const editorRoot = node('section');
-  root.replaceChildren(header, authoring, status, diagnostics, toolbar, workspace, editorRoot);
+  const libraryPanel = node('section', 'cb-library'); libraryPanel.id = 'content-library-workspace';
+  const leavePanel = node('div', 'ce-discard cb-package-discard'); leavePanel.hidden = true;
+  leavePanel.setAttribute('role', 'alertdialog'); leavePanel.setAttribute('aria-label', 'Unsaved package changes');
+  const keepPackage = button('Keep editing package', () => resolveLeave(false)); keepPackage.id = 'content-library-keep';
+  const discardPackage = button('Discard package changes', () => resolveLeave(true)); discardPackage.id = 'content-library-discard';
+  leavePanel.append(node('strong', '', 'Discard unsaved package changes?'), node('p', '', 'Saved revisions remain unchanged.'), keepPackage, discardPackage);
+  root.replaceChildren(header, leavePanel, libraryPanel, authoring, status, diagnostics, toolbar, workspace, editorRoot);
   const editor = mountContentEditor(editorRoot, {
+    destinationLabel: () => editDestination?.label,
     catalog: () => {
+      if (destination?.kind === 'library') return cache.get('library') ?? { entries: [] };
       const entries = new Map();
       for (const catalog of [cache.get('canonical'), cache.get('draft'), state.catalog])
         for (const entry of catalog?.entries ?? []) entries.set(entry.key, entry);
       return { entries: [...entries.values()] };
     },
     validate: async payload => {
+      if (editDestination?.kind === 'library') return libraryCall('/authoring/validate', { draft: libraryDraft.request(), edit: payload });
       const response = await request('/api/content/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await response.json();
       if (!Array.isArray(result.diagnostics)) throw new Error('Validation could not be completed.');
@@ -94,20 +107,198 @@ export function mountContentBrowser(root, options = {}) {
     },
     save: payload => editDestination.save({ ...payload, expectedRevision: editRevision }),
     onSaved: async (saved, content) => {
-      await showScenario(saved.definition, saved.name, editDestination);
+      if (editDestination?.kind === 'library') await inspectLibrary();
+      else await showScenario(saved.definition, saved.name, editDestination);
       state.open(`${content.family}:${content.definition.id}`); render(); focusDetail();
     },
     onClose: () => { root.classList.remove('cb-editing'); detail.querySelector('h3')?.focus({ preventScroll: true }); },
     onDirtyChange: () => {}
   });
-  globalThis.addEventListener?.('beforeunload', event => { if (editor.isDirty()) { event.preventDefault(); event.returnValue = ''; } });
+  globalThis.addEventListener?.('beforeunload', event => { if (editor.isDirty() || libraryDraft?.dirty) { event.preventDefault(); event.returnValue = ''; } });
+
+  function libraryDestination() {
+    return {
+      kind: 'library', get label() { return `Library package · ${libraryDraft.package.title || libraryDraft.package.id} · ${libraryDraft.isNew ? 'unsaved' : `revision ${libraryDraft.revision}`}`; },
+      getRevision: () => libraryDraft.stamp, getContext: () => libraryDraft.context(),
+      save: async payload => { libraryDraft.apply(payload); return libraryDraft.request(); }
+    };
+  }
+  async function libraryCall(path, body, method = 'POST') {
+    const response = await request(`/api/content-library${path}`, body === undefined ? undefined : {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = response.status === 204 ? null : await response.json();
+    if (!response.ok) {
+      const failure = new Error(data.detail ?? data.error ?? 'The library operation could not be completed.');
+      failure.diagnostics = data.diagnostics; throw failure;
+    }
+    return data;
+  }
+  function packageIssue(failure) {
+    libraryNotice = failure.message;
+    const issues = failure.diagnostics ?? [];
+    if (issues.length) state.catalog = { ...(state.catalog ?? { entries: [], categories: [] }), diagnostics: issues.map(issue => ({
+      path: [issue.source?.path, issue.path].filter(Boolean).join('.'), message: issue.message, code: issue.code
+    })) };
+  }
+  async function inspectLibrary() {
+    if (!libraryDraft) return;
+    context = 'library'; destination = libraryDraft.editable ? libraryDestination() : null;
+    const version = ++requestVersion; libraryBusy = true; libraryValid = false; render();
+    try {
+      const data = libraryDraft.editable ? await libraryCall('/authoring/context', libraryDraft.request())
+        : await libraryCall(`/packages/${encodeURIComponent(libraryDraft.package.id)}/context?revision=${libraryDraft.revision}`);
+      if (version !== requestVersion) return;
+      const selected = state.selectedKey;
+      cache.set('library', data); state.load(data); if (data.entries.some(entry => entry.key === selected)) state.open(selected);
+      libraryValid = true; libraryNotice = '';
+      if (libraryDraft.editable) catalogRevision = libraryDraft.stamp;
+    } catch (failure) { if (version === requestVersion) packageIssue(failure); }
+    finally { if (version === requestVersion) { libraryBusy = false; render(); } }
+  }
+  async function showLibrary() {
+    const version = ++requestVersion; context = 'library'; pending = null; libraryBusy = true; error = ''; render();
+    try {
+      const [catalog, installed] = await Promise.all([libraryCall(''), libraryCall('/providers')]);
+      if (version !== requestVersion) return;
+      libraryPackages = catalog.packages; providers = installed;
+      if (libraryDraft) { libraryBusy = false; return await inspectLibrary(); }
+      destination = null; state.load({ entries: [], categories: [], diagnostics: [] });
+    } catch (failure) { packageIssue(failure); }
+    finally { if (version === requestVersion) { libraryBusy = false; render(); } }
+  }
+  async function openPackage(id, revision) {
+    if (libraryBusy || !await editor.requestClose() || !await guardPackage()) { render(); return false; }
+    libraryBusy = true; render();
+    try {
+      const [record, history, catalog] = await Promise.all([libraryCall(`/packages/${encodeURIComponent(id)}${revision ? `?revision=${revision}` : ''}`), libraryCall(`/packages/${encodeURIComponent(id)}/revisions`), libraryCall('')]);
+      libraryPackages = catalog.packages;
+      const head = libraryPackages.find(row => row.packageId === id);
+      libraryDraft = new LibraryContentDraft(record, { currentRevision: head?.currentRevision ?? record.revision, archived: head?.archived });
+      revisions = history; creatingPackage = false;
+    } catch (failure) { packageIssue(failure); }
+    finally { libraryBusy = false; }
+    await inspectLibrary(); render(); return true;
+  }
+  function resolveLeave(discard) {
+    leavePanel.hidden = true; const resolve = leaveResolve; leaveResolve = null;
+    if (discard && libraryDraft) {
+      if (libraryDraft.isNew) { libraryDraft = null; destination = null; cache.delete('library'); }
+      else libraryDraft.reset();
+      cache.delete('library'); libraryValid = false;
+    }
+    render(); resolve?.(discard);
+  }
+  async function guardPackage() {
+    if (!libraryDraft?.dirty) return true;
+    if (leaveResolve || libraryBusy) return false;
+    leavePanel.hidden = false; keepPackage.focus();
+    return new Promise(resolve => { leaveResolve = resolve; });
+  }
+  async function savePackage() {
+    if (!libraryDraft?.editable || libraryBusy || !await editor.requestClose()) return;
+    libraryBusy = true; libraryNotice = ''; render();
+    try {
+      const payload = libraryDraft.request();
+      // This is the same revision/validation transaction used by the library service.
+      const saved = await libraryCall(libraryDraft.isNew ? '/packages' : `/packages/${encodeURIComponent(payload.package.id)}`, payload, libraryDraft.isNew ? 'POST' : 'PUT');
+      libraryDraft.load(saved); revisions = await libraryCall(`/packages/${encodeURIComponent(saved.package.id)}/revisions`);
+      libraryPackages = (await libraryCall('')).packages;
+      libraryBusy = false; await inspectLibrary(); libraryNotice = `Saved revision ${saved.revision}.`;
+    } catch (failure) { packageIssue(failure); }
+    finally { libraryBusy = false; render(); }
+  }
+  function libraryInput(id, value, change, type = 'text') {
+    const control = node('input'); control.id = id; control.type = type; control.value = value ?? '';
+    control.addEventListener('input', () => change(control.value)); return control;
+  }
+  function renderLibrary() {
+    libraryPanel.hidden = context !== 'library'; libraryPanel.replaceChildren();
+    if (context !== 'library') return;
+    const tools = node('div', 'cb-library-tools');
+    const packages = select('Library package', id => { if (id) void openPackage(id); }); packages.id = 'content-library-package';
+    packages.append(option('', 'Select a package'), ...libraryPackages.map(row => option(row.packageId, `${row.title || row.packageId} · ${row.packageId} · revision ${row.currentRevision}`)));
+    if (libraryDraft?.isNew) packages.append(option(libraryDraft.package.id, `${libraryDraft.package.title || libraryDraft.package.id} · unsaved`));
+    packages.value = libraryDraft?.package.id ?? ''; packages.disabled = libraryBusy;
+    const create = button('Create package', async () => { if (!await editor.requestClose() || !await guardPackage()) return; creatingPackage = true; packageIdentity = ''; packageTitle = ''; render(); }); create.id = 'content-library-new'; create.disabled = libraryBusy;
+    tools.append(label('Library package', packages), create); libraryPanel.append(tools);
+    if (libraryDraft && !libraryDraft.isNew) { const reload = button('Reload current revision', () => void openPackage(libraryDraft.package.id)); reload.id = 'content-library-reload'; reload.disabled = libraryBusy; tools.append(reload); }
+    if (creatingPackage) {
+      const creation = node('div', 'cb-library-create');
+      creation.append(label('Package ID', libraryInput('content-library-new-id', packageIdentity, value => { packageIdentity = value; })), label('Title', libraryInput('content-library-new-title', packageTitle, value => { packageTitle = value; })));
+      const start = button('Start package', async () => {
+        libraryDraft = LibraryContentDraft.create(packageIdentity.trim(), packageTitle.trim(), providers.map(provider => provider.id));
+        creatingPackage = false; revisions = []; state.load({ entries: [], categories: [], diagnostics: [] }); await inspectLibrary();
+      }); start.id = 'content-library-start';
+      creation.append(start, button('Cancel', () => { creatingPackage = false; render(); })); libraryPanel.append(creation);
+    }
+    if (!libraryDraft) { libraryPanel.append(empty('Your Content Library is ready. Create a package to author Equipment and Loot Cards without a scenario.')); return; }
+    const draft = libraryDraft;
+    libraryPanel.append(node('p', 'cb-library-origin', `Library · ${draft.package.id} · ${draft.isNew ? 'new package' : `revision ${draft.revision}`} · ${draft.editable ? 'editable' : 'historical revision · read only'}${draft.dirty ? ' · unsaved changes' : ''}`));
+    if (draft.origin) libraryPanel.append(node('small', 'cb-muted', `Origin library ${draft.origin}`));
+    const metadata = node('div', 'cb-library-metadata');
+    const id = libraryInput('content-library-id', draft.package.id, value => { draft.package.id = value; draft.touch(); markPackageDirty(); }); id.readOnly = !draft.isNew; id.disabled = libraryBusy || !draft.editable;
+    const title = libraryInput('content-library-title', draft.package.title, value => { draft.package.title = value; draft.touch(); markPackageDirty(); });
+    const description = libraryInput('content-library-description', draft.package.description, value => { draft.package.description = value; draft.touch(); markPackageDirty(); });
+    title.disabled = description.disabled = !draft.editable || libraryBusy;
+    metadata.append(label('Package ID', id), label('Title', title), label('Description', description));
+    if (revisions.length) {
+      const history = select('Package revision', value => void openPackage(draft.package.id, Number(value))); history.id = 'content-library-revision';
+      history.append(...revisions.map(record => option(record.revision, `Revision ${record.revision}${record.revision === libraryPackages.find(p => p.packageId === draft.package.id)?.currentRevision ? ' · current' : ' · read only'}`)));
+      history.value = String(draft.revision); history.disabled = libraryBusy; metadata.append(label('Revision history', history));
+    }
+    libraryPanel.append(metadata);
+    const dependencies = node('details', 'cb-library-dependencies'); dependencies.append(node('summary', '', 'Dependencies · canonical providers and pinned library revisions'));
+    for (const provider of providers) {
+      const check = node('input'); check.type = 'checkbox'; check.checked = draft.package.dependencies?.includes(provider.id); check.disabled = !draft.editable || libraryBusy;
+      check.dataset.provider = provider.id;
+      check.addEventListener('change', () => { draft.selectDependency(provider.id, check.checked); void inspectLibrary(); });
+      const row = node('label'); row.append(check, node('span', '', `Canonical · ${provider.title}`)); dependencies.append(row);
+    }
+    for (const binding of draft.bindings) {
+      const row = node('div', 'cb-library-binding'); row.append(node('span', '', `${binding.packageId} · pinned revision ${binding.revision}`));
+      if (draft.editable) row.append(button('Remove dependency', () => { draft.bind(binding.packageId, null); void inspectLibrary(); })); dependencies.append(row);
+    }
+    if (draft.editable) {
+      const searchPackages = libraryInput('content-library-dependency-search', dependencySearch, value => { dependencySearch = value; renderDependencyChoices(); }, 'search');
+      const packageChoice = select('External library package', async value => {
+        try { dependencyPackage = value; dependencyRevisions = value ? await libraryCall(`/packages/${encodeURIComponent(value)}/revisions`) : []; }
+        catch (failure) { packageIssue(failure); }
+        render(); const panel = libraryPanel.querySelector('.cb-library-dependencies'); if (panel) panel.open = true;
+      }); packageChoice.id = 'content-library-dependency-package';
+      function renderDependencyChoices() {
+        const words = dependencySearch.trim().toLowerCase();
+        packageChoice.replaceChildren(option('', 'Choose an external package'), ...libraryPackages.filter(p => p.packageId !== draft.package.id && `${p.title} ${p.packageId}`.toLowerCase().includes(words)).map(p => option(p.packageId, `${p.title || p.packageId} · ${p.packageId}`)));
+        packageChoice.value = dependencyPackage;
+      }
+      renderDependencyChoices();
+      const revision = select('External package revision', () => {}); revision.id = 'content-library-dependency-revision';
+      revision.append(...dependencyRevisions.map(record => option(record.revision, `Revision ${record.revision}`))); revision.value = String(dependencyRevisions.at(-1)?.revision ?? '');
+      const add = button('Use selected revision', () => { if (!dependencyPackage || !revision.value) return; draft.bind(dependencyPackage, Number(revision.value)); void inspectLibrary(); }); add.id = 'content-library-add-dependency';
+      dependencies.append(label('Find library packages', searchPackages), label('External package', packageChoice), label('Pinned revision', revision), add);
+    }
+    libraryPanel.append(dependencies);
+    if (draft.editable) {
+      const actions = node('div', 'cb-library-actions');
+      const save = button('Save package', () => void savePackage()); save.id = 'content-library-save'; save.disabled = libraryBusy || !draft.dirty;
+      const validate = button('Validate package', () => void inspectLibrary()); validate.id = 'content-library-validate'; validate.disabled = libraryBusy;
+      const cancel = button('Cancel package changes', async () => { if (await editor.requestClose() && await guardPackage()) { if (libraryDraft) await inspectLibrary(); else await showLibrary(); } }); cancel.id = 'content-library-cancel'; cancel.disabled = libraryBusy;
+      actions.append(save, validate, cancel); libraryPanel.append(actions);
+    }
+    if (libraryBusy || libraryNotice) { const notice = node('p', 'cb-library-notice', libraryBusy ? 'Checking library content…' : libraryNotice); notice.setAttribute('role', 'status'); libraryPanel.append(notice); }
+  }
+  function markPackageDirty() {
+    const save = libraryPanel.querySelector('#content-library-save'); if (save) save.disabled = libraryBusy || !libraryDraft?.dirty;
+    const origin = libraryPanel.querySelector('.cb-library-origin'); if (origin && libraryDraft?.dirty && !origin.textContent.includes('unsaved changes')) origin.textContent += ' · unsaved changes';
+  }
 
   async function refreshDestination() {
+    if (destination?.kind === 'library') return;
     if (!destination || catalogRevision === destination.getRevision()) return;
     const snapshot = destination.getSnapshot();
     await showScenario(snapshot.definition, snapshot.name, destination);
   }
-  function canAuthor() { return !!destination && !pending && state.entries.some(entry => entry.mechanic); }
+  function canAuthor() { return !!destination && !pending && !libraryBusy && (destination.kind !== 'library' || libraryValid) && state.entries.some(entry => entry.mechanic); }
   async function openEditor(specification, entryKey = null, makeLoot = false) {
     if (!canAuthor() || !await editor.requestClose()) return false;
     await refreshDestination();
@@ -119,6 +310,7 @@ export function mountContentBrowser(root, options = {}) {
         : { ...specification, family: entry.family, definition: entry.authoredDefinition ?? entry.definition };
     }
     editDestination = destination; editRevision = destination.getRevision();
+    if (specification.copy && destination.kind === 'library') specification.newId = `copy-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
     const opened = await editor.open({ ...specification, context: destination.getContext() });
     if (opened) { root.classList.add('cb-editing'); editorRoot.scrollIntoView?.({ block: 'start' }); }
     return opened;
@@ -126,7 +318,9 @@ export function mountContentBrowser(root, options = {}) {
   async function switchContext(next) {
     if (!await editor.requestClose()) { contextControl.value = context; return; }
     await refreshDestination();
-    if (next === 'canonical') await showCanonical(); else if (next === 'scenario') await showFullScenario(); else await showCachedDraft();
+    if (next === 'library') await showLibrary();
+    else if (next === 'canonical') await showCanonical();
+    else { destination = scenarioDestination; if (next === 'scenario') await showFullScenario(); else await showCachedDraft(); }
   }
 
   function value(value, depth = 0) {
@@ -256,14 +450,17 @@ export function mountContentBrowser(root, options = {}) {
     const title = node('h3', '', entry.name); title.tabIndex = -1;
     const familyName = state.categories.find(category => category.id === entry.family)?.name ?? contentLabel(entry.family);
     detail.append(navigation, node('p', 'cb-eyebrow', familyName), title, node('code', 'cb-content-id', entry.id));
+    if (entry.packageId) detail.append(empty(entry.origin === 'library-local' && destination?.kind === 'library'
+      ? `Package ${entry.packageId} · working copy${libraryDraft.revision ? ` of revision ${libraryDraft.revision}` : ' · not saved'}`
+      : `Package ${entry.packageId} · revision ${entry.packageRevision}`));
     if (entry.family === 'equipment' || entry.family === 'lootCards') {
       const actions = node('div', 'cb-definition-actions');
-      const copy = button('Copy as new', () => void openEditor({ copy: true }, entry.key)); copy.id = 'content-copy-definition'; copy.disabled = !destination; actions.append(copy);
+      const copy = button('Copy as new', () => void openEditor({ copy: true }, entry.key)); copy.id = 'content-copy-definition'; copy.disabled = !canAuthor(); actions.append(copy);
       const contextField = entry.family === 'equipment' ? 'equipmentTypes' : 'lootCardDefinitions';
       if (destination && entry.origin !== 'canonical' && entry.availability !== 'legacy-collision' && destination.getContext()[contextField]?.some(definition => definition.id === entry.id)) {
-        const edit = button('Edit definition', () => void openEditor({ existingId: entry.id }, entry.key)); edit.id = 'content-edit-definition'; actions.append(edit);
+        const edit = button('Edit definition', () => void openEditor({ existingId: entry.id }, entry.key)); edit.id = 'content-edit-definition'; edit.disabled = !canAuthor(); actions.append(edit);
       }
-      if (entry.family === 'equipment') { const loot = button('Create Loot Card for this Equipment', () => void openEditor({}, entry.key, true)); loot.id = 'content-create-linked-loot'; loot.disabled = !destination; actions.append(loot); }
+      if (entry.family === 'equipment') { const loot = button('Create Loot Card for this Equipment', () => void openEditor({}, entry.key, true)); loot.id = 'content-create-linked-loot'; loot.disabled = !canAuthor(); actions.append(loot); }
       if (entry.availability === 'legacy-collision') actions.append(empty('This historical local ID overlaps canonical content. Copy it with a new ID to edit it.'));
       detail.append(actions);
     }
@@ -291,20 +488,24 @@ export function mountContentBrowser(root, options = {}) {
     detail.append(advanced);
   }
   function render() {
+    renderLibrary();
     root.classList.toggle('cb-show-detail', state.detailOpen);
-    root.setAttribute('aria-busy', String(!!pending));
+    root.setAttribute('aria-busy', String(!!pending || libraryBusy));
+    contextControl.disabled = !!pending || libraryBusy;
     contextControl.replaceChildren(option('canonical', 'Canonical catalog'));
-    if (cache.has('draft') || context === 'draft') contextControl.append(option('draft', `${destination ? 'Draft content' : 'Designer draft'} · ${draftName}`));
-    if (destination && scenarioSnapshot) contextControl.append(option('scenario', `Full scenario inspection · ${draftName}`));
+    contextControl.append(option('library', 'Library'));
+    if (cache.has('draft') || context === 'draft') contextControl.append(option('draft', `Scenario draft · ${draftName}`));
+    if (scenarioDestination && scenarioSnapshot) contextControl.append(option('scenario', `Full scenario inspection · ${draftName}`));
     contextControl.value = context;
-    contextNote.textContent = context === 'canonical' ? 'Canonical definitions · read only'
+    contextNote.textContent = context === 'library' ? 'Persistent content packages · no scenario required' : context === 'canonical' ? 'Canonical definitions · read only'
       : destination && context === 'draft' ? 'Equipment, Items, Loot Cards and mechanics for this destination. Definitions are saved only to the attached draft.'
       : 'Effective definitions for this Designer snapshot · read only. Local content stays scoped to this draft.';
-    returnLink.hidden = context === 'canonical';
+    returnLink.hidden = context === 'canonical' || context === 'library';
     newEquipment.disabled = !canAuthor(); newLoot.disabled = !canAuthor();
     destinationNote.replaceChildren();
     if (destination) destinationNote.textContent = `Save destination: ${destination.label ?? draftName}`;
-    else { destinationNote.append(node('span', '', 'To create or copy content, ')); const link = node('a', '', 'open a draft in Designer'); link.href = '#designer'; destinationNote.append(link, node('span', '', ' and choose Content.')); }
+    else if (context === 'library' && libraryDraft && !libraryDraft.editable) destinationNote.textContent = 'Historical revision · read only. Select the current revision to edit.';
+    else { destinationNote.append(node('span', '', 'Select Library to create standalone content, or ')); const link = node('a', '', 'open a draft in Designer'); link.href = '#designer'; destinationNote.append(link, node('span', '', ' and choose Content.')); }
     search.value = state.query;
     const categories = state.categories;
     const categoryNames = new Map(categories.map(category => [category.id, category.name]));
@@ -336,6 +537,7 @@ export function mountContentBrowser(root, options = {}) {
     list.replaceChildren();
     for (const entry of visible) {
       const row = button('', () => { state.open(entry.key); render(); focusDetail(); }, 'cb-list-entry');
+      row.disabled = libraryBusy;
       row.dataset.contentKey = entry.key; row.setAttribute('aria-current', String(entry.key === state.selectedKey));
       row.dataset.contentId = entry.id; row.dataset.contentFamily = entry.family;
       row.append(node('strong', '', entry.name), node('code', '', entry.id));
@@ -349,6 +551,7 @@ export function mountContentBrowser(root, options = {}) {
     renderDetail();
   }
   async function load(key, url, init, force = false) {
+    libraryBusy = false;
     const version = ++requestVersion; context = key; error = '';
     if (cache.has(key) && !force) { pending = null; state.load(cache.get(key)); render(); return cache.get(key); }
     state.load({ entries: [], categories: [], diagnostics: [] });
@@ -382,15 +585,15 @@ export function mountContentBrowser(root, options = {}) {
     if (editor.isOpen() && !await editor.requestClose()) return null;
     draftName = name || 'Designer draft';
     const snapshot = structuredClone(definition);
-    destination = target; scenarioSnapshot = snapshot; catalogRevision = target?.getRevision() ?? null;
+    destination = target; scenarioDestination = target; scenarioSnapshot = snapshot; catalogRevision = target?.getRevision() ?? null;
     cache.delete('draft'); cache.delete('scenario');
     return load('draft', target ? '/api/content/context' : '/api/content/inspect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(target ? target.getContext() : snapshot) }, true);
   }
   render();
   return {
-    show: async () => { if (destination && !editor.isOpen()) await refreshDestination(); return pending ?? (state.catalog ? Promise.resolve(state.catalog) : showCanonical()); },
+    show: async () => { if (context === 'library' && !editor.isOpen()) return showLibrary(); if (destination && !editor.isOpen()) await refreshDestination(); return pending ?? (state.catalog ? Promise.resolve(state.catalog) : showCanonical()); },
     showCanonical, showScenario,
-    requestCloseEditor: () => editor.requestClose(),
+    requestCloseEditor: async () => { if (!await editor.requestClose() || !await guardPackage()) return false; return true; },
     open: key => { const opened = state.open(key, true); if (opened) { render(); focusDetail(); } return opened; }
   };
 }

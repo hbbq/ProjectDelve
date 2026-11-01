@@ -1,10 +1,58 @@
 # Content Designer: Equipment and Loot Cards
 
-The Content Browser remains available from Home without opening a scenario.
-Canonical content is read-only. Open a scenario in Designer and choose
-**Inspect content** to attach that draft as the destination for new or edited
-Equipment and Loot Cards. Definitions are ordinary typed content; the destination
-is not part of their Type ID or mechanic declaration.
+Open **Explore game content** from Home and select **Library** to author Equipment
+and Loot Cards without a scenario. Canonical content remains read-only. In Scenario
+Designer, **Inspect content** attaches the scenario draft instead. Both destinations
+use the same forms, typed definitions, Mechanic Catalog and Engine-generated previews.
+The destination is not part of a definition's Type ID or mechanic declaration.
+
+## Standalone library workflow
+
+1. Select **Library**, then **Create package**. Enter a stable package ID and title,
+   and choose **Start package**. This starts a working copy, not a stored revision.
+2. Choose **Create Equipment**. Enter its Type ID/name and configure its owned
+   Abilities, modifiers, capabilities and usage through the shared form.
+3. **Validate & preview** shows Engine diagnostics and generated wording.
+   **Save definition** applies the definition to the package working copy.
+4. Select that Equipment and choose **Create Loot Card for this Equipment**.
+   Give the card its own stable ID/name, preview it, and save the definition.
+5. **Save package** validates and commits one immutable revision containing both
+   definitions. Reopening the package after a restart retrieves that revision.
+6. Edit an owned definition and save the package again to create another revision.
+   **Revision history** selects older, read-only versions; **Reload current revision**
+   returns to the editable head. Package and origin library IDs remain visible.
+
+Package metadata and applied definitions remain in a page-local working copy until
+Save package. Cancel package changes offers discard or keep editing. Switching
+packages, selecting history or leaving Content protects unsaved work; unfinished
+forms have their own save/discard guard. Browser reload/close uses the native
+unsaved-changes warning. This milestone does not add library-draft crash recovery.
+Scenario draft recovery and undo/redo continue unchanged.
+
+Save uses the captured expected revision. A stale edit leaves the working copy
+intact and shows the conflict; reload the current revision explicitly after saving
+your work elsewhere or agreeing to discard. There is no automatic overwrite/merge.
+
+The Dependencies panel selects canonical providers and exact external library
+revisions. New packages explicitly select the installed canonical providers by
+default. Search external packages by name/ID and use a selected revision. Only
+that selection and its typed transitive closure enter the reference catalog;
+other installed library packages are never ambient dependencies. Engine reports
+missing references, family conflicts and invalid parameters before saving.
+Package validation failures keep dependency controls available for repair.
+
+Reference pickers search the selected effective definitions by name or Type ID.
+Linked Loot can reward Equipment in its own package, selected canonical content,
+or a pinned external library revision, as well as existing Items. References and
+generated previews navigate to the authoritative definitions and mechanic contracts.
+
+**Copy as new** creates an independent Equipment or Loot definition in the current
+library package, proposing a fresh stable Type ID. Its existing dependency references
+and mechanic parameters are retained. Inspect canonical entries or entries from
+selected external revisions and copy them into the package; select the required
+dependencies before preview/save. A copied definition has no live inheritance link.
+Owned Type IDs become read-only after applying the definition. Historical revisions
+and external definitions cannot be edited in place.
 
 ## Editing workflow
 
@@ -19,7 +67,7 @@ of uses per game. Counters belong to the physical Equipment instance and survive
 defeat and pickup; continuous Passives remain unlimited.
 
 Preview validates the definition and displays Engine-generated descriptions.
-Save validates again and applies one undoable change to the destination. Cancel
+Save validates again and applies one undoable scenario change or a library working-copy change. Cancel
 leaves the destination unchanged; leaving an unfinished edit offers discard or
 continue editing. Type IDs stay fixed after creation. Ability keys are independent
 of display names and remain stable through renaming and reordering.
@@ -45,17 +93,18 @@ Saving a content definition changes the draft; **Save to library** saves the sce
 
 ## Scope and persistence
 
-| Scope | Milestone 1 behavior | Future extension |
+| Scope | Current behavior | Future extension |
 | --- | --- | --- |
-| Canonical | Globally available, read-only; Create Copy uses a new ID | Validated promotion and JSON catalog providers |
-| User Content Library | Not implemented | Reusable definitions and dependencies independent of scenarios |
+| Canonical | C# and JSON providers, read-only; Create Copy uses a new ID | Validated promotion |
+| User Content Library | Standalone Equipment/Loot working copies and immutable package revisions | Explicit scenario references and promotion |
 | Scenario-local | Editable Equipment and Loot stored in the explicit draft | Copy to another scope or promote with dependency/conflict resolution |
 
 The form consumes a definition and a dependency catalog. Validation consumes the
 same data, without requiring a board, Unit placement or live game. The destination
-adapter supplies a label, current dependency context, revision, snapshot and save
-operation. The initial adapter writes `equipmentTypes` or `lootCardDefinitions` in
-`DesignerDraft`; a future library adapter can persist the same payload elsewhere.
+adapter supplies a label, current dependency context, revision and save operation.
+The scenario adapter writes `equipmentTypes` or `lootCardDefinitions` in
+`DesignerDraft`. The library adapter writes the same fields in a package working
+copy; its package save uses the revisioned Content Library service.
 
 Content changes participate in Designer history, browser recovery, draft files,
 library Save/Open, JSON/DELVE1 transport and Playtest. Unrelated fields remain intact.
@@ -89,16 +138,34 @@ collide with canonical or destination IDs. Engine catalog validation,
 authoritative checks. Form constraints prevent unsupported choices where practical;
 they do not replace Engine validation or determine gameplay legality.
 
+Library destination endpoints use the same typed parser and Engine composition:
+
+- `GET /api/content-library/providers` lists installed canonical provider IDs.
+- `POST /api/content-library/authoring/context` accepts a library save request
+  (`package`, `expectedRevision`, `bindings`) and returns its effective authoring
+  catalog, with package/revision provenance and library-local/dependency origins.
+- `POST /api/content-library/authoring/validate` accepts `{draft, edit}`, where draft
+  is that save request and edit uses the existing content editor request shape.
+  It returns the same validation/preview response used by the form. Only Equipment
+  and Loot candidates owned by the destination can be edited; IDs stay fixed.
+- `GET /api/content-library/packages/{id}/context?revision=N` inspects a saved
+  revision with its captured dependency context, including historical revisions.
+
+Preview candidates use an isolated library document and never advance a head or
+commit a candidate revision. Final save uses the existing package transaction,
+expected-revision check, typed dependency graph and atomic persistence. See
+[CONTENT_LIBRARY.md](CONTENT_LIBRARY.md) for storage, revision and transfer APIs.
+
 The editor renders mechanic parameters recursively from their schemas. It contains
 no per-mechanic forms, gameplay expressions or copied numeric constraints. Modifier
 lists and capabilities remain in `localAbilities`; there is no parallel editor-only
 Equipment model. Preview descriptions come from the existing Engine projections.
 
-Future library references and promotion need dependency collection, explicit Type
+Future scenario library references and promotion need dependency collection, explicit Type
 ID conflict handling and validation against the target catalog. These are scope
 operations, not changes to the definition's identity. A canonical JSON provider can
 load the same validated typed definitions alongside C# rosters; promotion need not
-generate C#. This milestone adds neither the provider nor promotion commands.
+generate C#. Providers already exist; promotion remains deferred.
 
 ## Presentation and future assets
 
@@ -118,6 +185,19 @@ along with content dependencies. No asset manager, upload route or new presentat
 field is introduced here.
 
 ## Verification
+
+`ContentLibraryAuthoringTests` covers non-persisting previews, standalone linked
+Equipment/Loot, immutable history, explicit external references, canonical copies,
+diagnostic paths and stale revisions. Library persistence/restart and game/scenario
+isolation use the existing Content Library suites. Client destination tests cover
+working-copy stamps, independent copy IDs/parameters, selected dependency pickers,
+failed validation, conflicts, history and unsaved-navigation guards.
+
+Milestone 5 verification passed all 2,756 .NET tests and 854 JavaScript tests.
+Edge exercised package creation from Home, Equipment with limited uses, linked
+Loot, save/reload, revision editing and historical inspection at desktop and
+390px widths. A restarted host reopened old/current definitions; separate checks
+covered external revision selection, Create Copy and Keep/Discard navigation.
 
 `ContentEditorApiTests` covers definition validation, schema diagnostics, supported
 contexts, references, copy conflicts and independence from board validity.
@@ -142,7 +222,9 @@ Editing is limited to Equipment and Loot Card definitions. Other families remain
 inspectable, and existing Item Types can be selected as rewards. There is no content
 deletion, inheritance, live variant linkage, global mutable catalog, runtime editing,
 asset upload or new gameplay mechanic. Applied definitions are recovered with the
-Designer draft; unfinished content forms must be saved or discarded before leaving.
+Designer draft; library working copies remain in page memory until Save package.
+Unfinished content forms must be saved or discarded before leaving. Scenario library
+references, promotion and additional family editors remain deferred.
 
 See [Equipment content](EQUIPMENT_CONTENT.md), [Loot content](LOOT_CONTENT.md),
 [Ability content](ABILITY_CONTENT.md) and [Mechanic Catalog](MECHANIC_CATALOG.md)

@@ -23,6 +23,24 @@
 .cb-authoring button:disabled, .cb-definition-actions button:disabled { opacity: .45; cursor: default; }
 .cb-authoring-note { margin: 0 0 0 auto; color: #b7c0a9; font-size: .73rem; }
 .cb-authoring-note a { color: #dec794; }
+.cb-library { border: 1px solid #8d987158; background: #172620; padding: 20px; margin-bottom: 22px; border-radius: 7px; }
+.cb-library-tools, .cb-library-actions, .cb-library-create { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.cb-library-tools > .cb-control { flex: 1 1 260px; }
+.cb-library button, .cb-package-discard button { font: inherit; min-height: 44px; padding: 9px 14px; border: 1px solid #8d987178; border-radius: 4px; background: #294034; color: #ece6d6; cursor: pointer; }
+.cb-library button:disabled { opacity: .5; cursor: default; }
+.cb-library-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 14px 0; }
+.cb-library-create { margin: 18px 0; }
+.cb-library-create .cb-control { flex: 1 1 210px; }
+.cb-library-origin { margin-bottom: 4px; overflow-wrap: anywhere; }
+.cb-library-dependencies { margin: 16px 0; padding: 12px; border: 1px solid #8d987138; }
+.cb-library-dependencies > label, .cb-library-binding { display: flex; align-items: center; gap: 10px; margin: 10px 0; overflow-wrap: anywhere; }
+.cb-library-dependencies .cb-control { align-items: stretch; }
+.cb-library-dependencies input[type=checkbox] { width: 20px; height: 20px; }
+.cb-library-notice { white-space: pre-wrap; color: #ebd6a1; }
+.content-browser .cb-package-discard { position: sticky; top: 10px; z-index: 40; border: 2px solid #dec794; background: #22362c; color: #ece6d6; padding: 20px; }
+.cb-package-discard button { margin: 5px; }
+.cb-editing > .cb-library { display: none; }
+@media (max-width: 600px) { .cb-library-metadata { grid-template-columns: minmax(0, 1fr); } .cb-library { padding: 14px; } .cb-library-tools > button, .cb-library-actions > button { flex: 1 1 160px; } }
 .cb-definition-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
 .cb-definition-actions button { background: #f6efdd; color: #36553b; border-color: #6b855764; }
 .cb-editing > .cb-toolbar, .cb-editing > .cb-workspace, .cb-editing > .cb-authoring, .cb-editing > .cb-diagnostics { display: none; }

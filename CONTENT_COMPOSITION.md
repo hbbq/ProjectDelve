@@ -1,7 +1,8 @@
 # Explicit content composition and game snapshots
 
 Engine composes selected provider data before gameplay. C# rosters and
-[JSON packages](CONTENT_PACKAGES.md) are providers; there is no persistent Content Library.
+[JSON packages](CONTENT_PACKAGES.md) are providers. The separate
+[persistent Content Library](CONTENT_LIBRARY.md) does not enter game composition implicitly.
 Definitions retain their existing typed models and storage-independent identities.
 
 ```csharp
@@ -108,6 +109,6 @@ library Resources/Machines still need a reusable-reference and variant model.
 Cell Markers retain their established concrete representation.
 
 Canonical JSON providers are documented in [CONTENT_PACKAGES.md](CONTENT_PACKAGES.md).
-Library persistence, revision pinning, promotion,
-inheritance and asset ownership remain outside this milestone. Generator pools,
+Library package revisions are documented in [CONTENT_LIBRARY.md](CONTENT_LIBRARY.md).
+Scenario reference pinning, promotion, inheritance and asset ownership remain deferred. Generator pools,
 algorithms, authored scenarios, client-side rules and game rules are unchanged.
