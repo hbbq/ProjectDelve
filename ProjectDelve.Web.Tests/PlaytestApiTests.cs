@@ -77,7 +77,7 @@ public sealed class PlaytestApiTests
         });
         Assert.Equal("imported", imported.ScenarioId);
         Assert.Equal(1, imported.Revision);
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition), imported.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(GameEngine.CreateGame(definition), imported.Result.State);
         Assert.Empty(imported.Result.Events);
         Assert.Empty(imported.Result.ResolutionSteps);
         Assert.Null(imported.Result.NextInput);
@@ -117,7 +117,7 @@ public sealed class PlaytestApiTests
         var fresh = await Start(importHost, "restart", new { expectedRevision = imported.Revision });
         Assert.Equal("imported", fresh.ScenarioId);
         Assert.False(fresh.AutoChooseSingleRelevantChoice);
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(definition), fresh.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(GameEngine.CreateGame(definition), fresh.Result.State);
 
         // A replacement setup must replace the retained restart definition as well.
         var replacement = id == "combat" ? WebScenarioFixtures.Serialization() : WebScenarioFixtures.Combat();
@@ -125,7 +125,7 @@ public sealed class PlaytestApiTests
             transport = ScenarioDefinitionTransport.Encode(replacement) });
         var restarted = await Start(importHost, "restart", new { expectedRevision = selected.Revision });
         Assert.Equal("imported", restarted.ScenarioId);
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(replacement), restarted.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(GameEngine.CreateGame(replacement), restarted.Result.State);
     }
 
     [Theory]
@@ -158,7 +158,7 @@ public sealed class PlaytestApiTests
         var continued = await host.Decide(active.Revision, "stay");
         Assert.True(continued.Revision > active.Revision);
         var restarted = await Start(host, "restart", new { expectedRevision = continued.Revision });
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(initial.Result.State, restarted.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(initial.Result.State, restarted.Result.State);
     }
 
     [Fact]
@@ -439,7 +439,8 @@ public sealed class PlaytestApiTests
         await using var host = await Host.Start();
         var state = (await host.Read()).Result.State;
         Assert.Equal(JsonSerializer.Serialize(new[] { UnitType.Barbarian(), UnitType.Rogue(), UnitType.Cleric(), UnitType.Wizard(), UnitType.Grunt(), UnitType.Zombie(),
-            UnitType.SkeletonArcher(), UnitType.Goblin(), UnitType.Shaman(), UnitType.Troll() }, Json), JsonSerializer.Serialize(state.Types, Json));
+            UnitType.SkeletonArcher(), UnitType.Shaman(), UnitType.Troll() }, Json), JsonSerializer.Serialize(state.Types, Json));
+        Assert.DoesNotContain(state.Types, type => type.Id == UnitTypeIds.Goblin);
         Assert.Contains(state.Units, u => u.TypeId == "shaman-type");
         Assert.DoesNotContain(state.Units, u => u.TypeId == "goblin-type");
         var rogue = state.Units.Single(u => u.Id == Rogue);

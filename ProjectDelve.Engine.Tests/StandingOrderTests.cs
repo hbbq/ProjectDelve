@@ -25,6 +25,7 @@ public sealed class StandingOrderTests
         var token = new ActivationToken(actorType.Id, "red");
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(board ?? new Board(6, 4, []), [new("actor", actor ?? new(0, 1)), new("enemy", enemy ?? new(5, 1))]),
             Types = [actorType, enemyType],
             Units = [actorType.CreateUnit("actor", "red"), enemyType.CreateUnit("enemy", "blue")],

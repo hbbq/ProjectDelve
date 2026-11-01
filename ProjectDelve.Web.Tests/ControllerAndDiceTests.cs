@@ -21,6 +21,7 @@ public sealed class ControllerAndDiceTests
         var type = new UnitType("ordinary", 0, 1, 2, 1, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(3, 1, []), [new("one", new(0, 0)), new("two", new(1, 0))]),
             Types = [type], Units = [type.CreateUnit("one", "amber"), type.CreateUnit("two", "violet")],
             Controllers = [new(new(type.Id, "amber"), attacker), new(new(type.Id, "violet"), defender)]

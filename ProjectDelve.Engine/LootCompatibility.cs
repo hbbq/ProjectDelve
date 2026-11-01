@@ -16,7 +16,6 @@ internal static class LootCompatibility
 
     internal static string TypeId(LootCardKind kind) => TypeIds.TryGetValue(kind, out var id)
         ? id : throw new ArgumentException("Unknown legacy Loot Card kind.");
-    internal static LootCardDefinition Definition(LootCardKind kind) => LootCardCatalog.All.Single(d => d.Id == TypeId(kind));
     internal static LootCardKind? LegacyKind(string id) => TypeIds.Where(p => p.Value == id).Select(p => (LootCardKind?)p.Key).SingleOrDefault();
     internal static string ActionId(string id) => LegacyKind(id) is not null ? id : $"loot:{Uri.EscapeDataString(id)}";
 
@@ -24,10 +23,10 @@ internal static class LootCompatibility
     // Keep authored documents intact and distinguish their explicit references
     // from legacy enum rows when resolving a fresh game's content. The alias is
     // local to that resolved catalog; it never renames Item or Equipment Types.
-    internal static ScenarioDefinition ResolveLocalIdCollisions(ScenarioDefinition source)
+    internal static ScenarioDefinition ResolveLocalIdCollisions(ScenarioDefinition source, IReadOnlyList<LootCardDefinition>? baseDefinitions = null)
     {
         if (source.LootCardDefinitions is not { } local) return source;
-        var canonicalIds = LootCardCatalog.All.Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
+        var canonicalIds = (baseDefinitions ?? LootCardCatalog.All).Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
         var explicitIds = (source.Loot?.Composition ?? []).OfType<LootCardQuantity>().Select(row => row.LootCardId)
             .Concat(source.Units.OfType<UnitPlacement>().SelectMany(unit => unit.Inventory ?? []).OfType<OwnedObject>().Select(obj => obj.LootCardId))
             .Concat((source.GroundObjects ?? []).OfType<GroundObject>().Select(ground => ground.Object?.LootCardId)).OfType<string>();
@@ -89,18 +88,4 @@ internal static class LootCompatibility
                 { LegacyKind = pair.Key };
         }).ToArray();
 
-    // Pre-migration snapshots explicitly stored an empty (or local-only) Loot
-    // catalog. Restore only definitions needed by their legacy physical deck.
-    // Observations have no LootDeck and must never acquire hidden catalog data.
-    internal static void MigrateLegacyCatalog(GameState state)
-    {
-        if (state.LootDeck is not { } deck) return;
-        foreach (var kind in deck.DrawPile.Concat(deck.DiscardPile)
-            .Where(c => c.LootCardId is null && c.ItemTypeId is null && c.EquipmentTypeId is null).Select(c => c.Kind).Distinct())
-        {
-            var id = TypeId(kind);
-            if (!state.LootCardDefinitions.Any(d => d.Id == id))
-                state.LootCardDefinitions.Add(LootCardCatalog.All.Single(d => d.Id == id));
-        }
-    }
 }

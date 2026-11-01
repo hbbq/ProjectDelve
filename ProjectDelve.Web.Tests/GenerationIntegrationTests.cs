@@ -34,7 +34,7 @@ public sealed class GenerationIntegrationTests
         Assert.Equal("no-store", previewResponse.Headers.CacheControl!.ToString());
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
         var definition = ScenarioDefinitionJson.FromJson(preview.GetProperty("definition").GetRawText());
-        var expected = GameEngine.CreateGame(definition);
+        var expected = GameEngine.CreateGame(definition, host.Content);
         Assert.Equal(JsonSerializer.Serialize(expected.Physical.Board.TerrainTypes, new JsonSerializerOptions(JsonSerializerDefaults.Web)
             { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } }),
             preview.GetProperty("terrainDefinitions").GetRawText());
@@ -49,6 +49,10 @@ public sealed class GenerationIntegrationTests
         if (fog) Assert.True(shown.GetProperty("units").GetArrayLength() < expected.Units.Count);
         else Assert.Equal(expected.Units.Count, shown.GetProperty("units").GetArrayLength());
         var known = FogOfWar.Observe(expected, HeroesVsMonsters.Heroes);
+        var visibleTerrainIds = known.Physical.Board.Terrain.Select(tile => known.Physical.Board.TerrainDefinition(tile).Id)
+            .Append("stone-floor").ToHashSet(StringComparer.Ordinal);
+        known.Physical = known.Physical with { Board = known.Physical.Board with
+            { TerrainTypes = [.. known.Physical.Board.TerrainTypes.Where(type => visibleTerrainIds.Contains(type.Id))] } };
         Assert.Equal(JsonSerializer.Serialize(known.Physical.Board), JsonSerializer.Serialize(host.Game.BrowserResponse(actual).Result.State.Physical.Board));
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = actual.Revision });
         restarted.EnsureSuccessStatusCode();
@@ -72,7 +76,7 @@ public sealed class GenerationIntegrationTests
         response.EnsureSuccessStatusCode();
         var completed = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("generationCode").GetString()!;
         Assert.NotNull(GenerationCode.Parse(completed).Seed);
-        var expected = GameEngine.CreateGame(DungeonGenerator.Generate(completed).Definition);
+        var expected = GameEngine.CreateGame(DungeonGenerator.Generate(completed).Definition, host.Content);
         Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(host.Game.Snapshot().Result.State));
         using var stale = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, generationCode = Code });
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
@@ -144,6 +148,7 @@ public sealed class GenerationIntegrationTests
     {
         public HttpClient Client => client;
         public PlaytestGame Game => app.Services.GetRequiredService<PlaytestGame>();
+        public ContentBundle Content => app.Services.GetRequiredService<CanonicalContent>().Bundle;
         public static async Task<Host> Start()
         {
             var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));

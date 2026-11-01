@@ -21,6 +21,7 @@ public sealed class FootprintProjectionTests
         var type = UnitType.Define("unfamiliar", "Unfamiliar", UnitAuthoring.Stats(2, 4, 2, 1, 1), UnitAuthoring.Footprint2x2());
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(8, 5, []), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "red")]
         };

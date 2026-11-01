@@ -32,9 +32,9 @@ public static class DesignerApi
             offsets.Max(cell => cell.X) + 1, type.ResourceStorage) { Definition = type };
     }
 
-    private static Dictionary<string, string> ProductionDescriptions(IEnumerable<TerrainDefinition> definitions) =>
-        definitions.Where(type => type.ProductionDescription is not null)
-            .ToDictionary(type => type.Id, type => type.ProductionDescription!, StringComparer.Ordinal);
+    private static Dictionary<string, string> ProductionDescriptions(IEnumerable<TerrainDefinition> definitions, IReadOnlyList<ResourceType>? resources = null) =>
+        definitions.Where(type => type.Production is not null)
+            .ToDictionary(type => type.Id, type => EnvironmentalProductionContent.Describe(type.Production, resources)!, StringComparer.Ordinal);
 
     public static void CheckHostLimits(ScenarioDefinition definition)
     {
@@ -44,26 +44,27 @@ public static class DesignerApi
 
     public static void Map(WebApplication app)
     {
+        var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
             maxBoardSize = MaxBoardSize,
             scenarios = PlaytestScenarios.Catalog.Select(s => new { s.Id, s.Name }),
             cellMarkerTypes = CellMarkerTypes.All,
             lootCards = LootCards.All,
-            equipmentTypes = EquipmentCatalog.All,
-            itemTypes = ItemCatalog.All,
-            lootCardDefinitions = LootCardCatalog.All,
-            worldCardDefinitions = WorldCardCatalog.All.Select(card => new
+            equipmentTypes = canonical.Equipment,
+            itemTypes = canonical.Items,
+            lootCardDefinitions = canonical.LootCards,
+            worldCardDefinitions = canonical.WorldCards.Select(card => new
                 { card.Id, card.Name, card.Lifecycle, card.Modifiers, card.Immediate, description = card.Description }),
-            lootPresets = ResolvedLootPresets(),
+            lootPresets = ResolvedLootPresets(canonical),
             defaultLootPreset = LootPresets.Default,
             machineTypes = MachineTypes.All,
-            resourceTypes = ResourceTypes.All,
-            unitTypes = CanonicalUnitTypes.All.Select(Metadata).ToArray(),
+            resourceTypes = canonical.Resources,
+            unitTypes = canonical.Units.Select(Metadata).ToArray(),
             terrains = Enum.GetNames<TerrainKind>(),
-            terrainDefinitions = TerrainCatalog.All,
-            fixedComponentDefinitions = FixedComponentCatalog.All,
-            productionDescriptions = ProductionDescriptions(TerrainCatalog.All),
+            terrainDefinitions = canonical.Terrain,
+            fixedComponentDefinitions = canonical.FixedComponents,
+            productionDescriptions = ProductionDescriptions(canonical.Terrain, canonical.Resources),
             legacyTerrainMappings = Enum.GetValues<TerrainKind>()
                 .Select(kind => new DesignerLegacyTerrainMapping(kind, TerrainCatalog.Legacy(kind).Id))
                 .Append(new(TerrainKind.Lava, TerrainCatalog.Legacy(TerrainKind.Lava, false).Id, false)),
@@ -86,13 +87,13 @@ public static class DesignerApi
                 ?? throw new ArgumentException("Unit Types are required.");
             if (custom.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id)) || custom.Select(t => t.Id).Distinct().Count() != custom.Count)
                 throw new ArgumentException("Custom Unit Types must have unique, nonblank IDs.");
-            var ids = CanonicalUnitTypes.All.Select(t => t.Id).Concat(custom.Select(t => t.Id)).Distinct();
-            var terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes, input.TerrainAssemblies, input.FixedComponentTypes);
-            return Results.Ok(new { unitTypes = ids.Select(id => Metadata(UnitContent.Find(id, custom)!)).ToArray(),
+            var effectiveUnits = UnitContent.Resolve(custom, canonical.Units);
+            var terrainDefinitions = TerrainCatalog.Resolve(input!.TerrainTypes, input.TerrainAssemblies, input.FixedComponentTypes, canonical);
+            return Results.Ok(new { unitTypes = effectiveUnits.Select(Metadata).ToArray(),
                 terrainDefinitions,
-                fixedComponentDefinitions = FixedComponentCatalog.All.Concat(input.FixedComponentTypes ?? []).ToArray(),
-                productionDescriptions = ProductionDescriptions(terrainDefinitions),
-                lootPresets = ResolvedLootPresets(input.LootCardDefinitions),
+                fixedComponentDefinitions = canonical.FixedComponents.Concat(input.FixedComponentTypes ?? []).ToArray(),
+                productionDescriptions = ProductionDescriptions(terrainDefinitions, canonical.Resources),
+                lootPresets = ResolvedLootPresets(canonical, input.LootCardDefinitions),
                 unitIds = ScenarioIdentity.UnitIds(input!.Units ?? [], input.MachineIds ?? []) });
         }));
         app.MapGet("/api/designer/scenarios/{id}", (string id) =>
@@ -101,26 +102,26 @@ public static class DesignerApi
                 : Results.NotFound());
         app.MapPost("/api/designer/import", (DesignerImportRequest request) => Execute(() =>
         {
-            var definition = ScenarioDefinitionTransport.Decode(request.Transport, CheckHostLimits);
+            var definition = ScenarioDefinitionTransport.Decode(request.Transport, CheckHostLimits, canonical);
             return Results.Text(ScenarioDefinitionJson.ToJson(definition), "application/json");
         }));
         // JsonElement preserves the scenario JSON contract: no independent HTTP enum/model parser.
         app.MapPost("/api/designer/validate", (JsonElement draft) => Execute(() =>
         {
-            _ = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits);
+            _ = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits, canonical);
             return Results.Ok(new DesignerValidation(true, []));
         }, validation: true));
         app.MapPost("/api/designer/export", (JsonElement draft) => Execute(() =>
         {
-            var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits);
+            var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits, canonical);
             return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(definition) });
         }));
     }
 
-    private static IEnumerable<LootPreset> ResolvedLootPresets(IEnumerable<LootCardDefinition>? local = null)
+    private static IEnumerable<LootPreset> ResolvedLootPresets(ContentBundle canonical, IEnumerable<LootCardDefinition>? local = null)
     {
-        var effective = LootCardCatalog.Effective(local);
-        return LootPresets.All.Select(preset => preset with { Composition = LootPresets.Resolve(preset.Id, effective) });
+        var effective = LootCardCatalog.Effective(local, canonical.LootCards);
+        return canonical.LootPresets.Select(preset => preset with { Composition = LootPresets.Resolve(preset.Id, effective, canonical.LootPresets) });
     }
 
     private static IResult Execute(Func<IResult> operation, bool validation = false)

@@ -3,6 +3,8 @@ using ProjectDelve.ConsoleHost;
 using static ProjectDelve.Engine.Scenario;
 using static ProjectDelve.Engine.EdgeDirection;
 
+if (args.FirstOrDefault() == "content") { Environment.ExitCode = ContentCommands.Run(args[1..]); return; }
+
 Console.WriteLine("Project Delve: exploratory rounds. Hero decisions are manual; Monster decisions are automatic.");
 Console.WriteLine("Tokens are drawn automatically; controllers continue each dice pool. Coordinates start at top-left (0,0).");
 Console.WriteLine("Detour scenario: walls and a closed door divide the board; rows 0 and 4 provide open routes.");

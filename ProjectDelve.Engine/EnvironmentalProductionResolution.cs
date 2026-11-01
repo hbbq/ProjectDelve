@@ -12,7 +12,7 @@ public static partial class GameEngine
             var terrain = board.TerrainDefinition(source);
             var production = terrain.Production as DirectionalResourceProduction
                 ?? throw new ArgumentException("Unsupported environmental production mechanic.");
-            var resource = ResourceTypes.Find(production.ResourceTypeId);
+            var resource = state.ResourceDefinitions.SingleOrDefault(r => r.Id == production.ResourceTypeId) ?? throw new ArgumentException($"Unknown Resource Type ID '{production.ResourceTypeId}' in content snapshot.");
             var (rollEvent, actionId) = EnvironmentalProductionContent.EventIdentity(terrain);
             for (var attempt = 0; attempt < production.Attempts; attempt++)
             {

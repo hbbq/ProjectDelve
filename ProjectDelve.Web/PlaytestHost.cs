@@ -20,14 +20,18 @@ public static class PlaytestHost
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         var randomProvider = random ?? new SystemRandomProvider();
+        var canonicalDirectory = builder.Configuration["CanonicalContent:Directory"]
+            ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Canonical");
+        var canonical = new CanonicalContent(canonicalDirectory);
+        builder.Services.AddSingleton(canonical);
         var libraryPath = builder.Configuration["Library:Path"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "library");
         var bundledLibraryPath = builder.Configuration["Library:BundlePath"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Library");
-        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath));
+        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, content: canonical.Bundle));
         builder.Services.AddSingleton(_ => new LibraryCoverStore(libraryPath, bundledLibraryPath));
         builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
-            initialState ?? PlaytestScenarios.Create(PlaytestScenarios.DefaultId), external, replayCapacity, externalSelection));
+            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), canonical.Bundle), external, replayCapacity, externalSelection, canonicalContent: canonical.Bundle));
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
@@ -183,13 +187,31 @@ public sealed record PreferenceRequest
 
 public sealed record GameResponse(long Revision, EngineResult Result, bool AutoChooseSingleRelevantChoice = true, string ScenarioId = PlaytestScenarios.DefaultId)
 {
+    private EngineResult result = Result;
+    public EngineResult Result
+    {
+        get => result;
+        init
+        {
+            result = value;
+            receivedPresentation = null;
+            PresentationOverride = null;
+        }
+    }
     public string? GenerationCode { get; init; }
     // Presentation metadata, persisted with detached responses, independent of session/RNG.
     public string? VisualSeed { get; init; }
     public IReadOnlyList<DecisionCommentary> Commentaries { get; init; } = [];
     public IReadOnlyList<ScenarioDescription> Scenarios => PlaytestScenarios.Catalog;
     [JsonIgnore] public BrowserPresentation? PresentationOverride { get; init; }
-    public BrowserPresentation Presentation => PresentationOverride ?? BrowserProjection.Create(Result);
+    // Typed consumers must retain the received authoritative preview: public state
+    // deliberately omits unused definitions and cannot recreate every preview.
+    private BrowserPresentation? receivedPresentation;
+    public BrowserPresentation Presentation
+    {
+        get => PresentationOverride ?? receivedPresentation ?? BrowserProjection.Create(Result);
+        init => receivedPresentation = value;
+    }
     public IReadOnlyDictionary<string,string> Controllers { get; init; } = new Dictionary<string,string>();
     public IReadOnlyList<ControllerSelection> ControllerAssignments { get; init; } = [];
     public ControllerStatus? ControllerStatus { get; init; }

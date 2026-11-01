@@ -118,7 +118,8 @@ public sealed class SummoningSourceIntegrationTests
             scenario.UnitTypes!.Add(expected);
         }
         var initial = Ready(scenario);
-        Assert.Equal(localVariant, initial.Types.Any(type => type.Id == UnitTypeIds.Goblin));
+        Assert.Contains(initial.Types, type => type.Id == UnitTypeIds.Goblin);
+        Assert.DoesNotContain(initial.Units, unit => unit.TypeId == UnitTypeIds.Goblin);
         var result = Use(initial, Candidate(initial, AbilitySourceKind.Equipment).Key);
         var created = Assert.Single(result.State.Units.Where(unit => unit.TypeId == UnitTypeIds.Goblin));
         Assert.Equal("blue", created.SideId);

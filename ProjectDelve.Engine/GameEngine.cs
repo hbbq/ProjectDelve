@@ -5,7 +5,10 @@ namespace ProjectDelve.Engine;
 public static partial class GameEngine
 {
     // Creates validated initial setup only; StartRound owns activation initialization and randomness.
-    public static GameState CreateGame(ScenarioDefinition definition) => ScenarioCreation.Create(definition);
+    public static GameState CreateGame(ScenarioDefinition definition) => ScenarioCreation.Create(definition, ContentBundle.Canonical());
+    public static GameState CreateGame(ScenarioDefinition definition, ContentBundle content) => ScenarioCreation.Create(definition, content);
+    // The caller has already composed scenario-local declarations into this final catalog.
+    public static GameState CreateGame(ScenarioDefinition definition, EffectiveContent content) => ScenarioCreation.Create(definition, content.Definitions, composeLocal: false);
 
     // Observation runs synchronously at event production. It must not wait for a client.
     // Observer exceptions propagate; no result is committed, but consumed randomness is not undone.
@@ -55,7 +58,7 @@ public static partial class GameEngine
             EvaluateObjectives(state, events);
             if (state.IsCompleted) return new(state, events.Events, null) { ResolutionSteps = events.Steps };
         }
-        state.Bag = state.Types.SelectMany(t => state.Units
+        state.Bag = (state.ActivationTypeOrder is {} order ? order.Select(id => state.Types.Single(t => t.Id == id)).Concat(state.Types.Where(t => !order.Contains(t.Id))) : state.Types).SelectMany(t => state.Units
             .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
             .Distinct().OrderBy(side => side, StringComparer.Ordinal)
             .Select(side => new ActivationToken(t.Id, side))).ToList();
@@ -775,7 +778,8 @@ public static partial class GameEngine
 
     internal static void ValidateScenario(GameState state)
     {
-        TerrainCatalog.Validate(state.Physical.Board.TerrainTypes);
+        ContentComposition.ValidateSnapshot(state);
+        TerrainCatalog.Validate(state.Physical.Board.TerrainTypes, againstCanonical: false);
         LootRules.Validate(state);
         ValidateWorldDeck(state);
         RouteRules.ValidateDefinitions(state);
@@ -800,13 +804,7 @@ public static partial class GameEngine
             throw new ArgumentException("Every participating Unit Type + Side needs one explicit controller assignment.");
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
-            state.Types.Any(t => !Enum.IsDefined(t.Footprint) || t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
-                (t.Actions & ~UnitAction.NormalAttack) != 0 ||
-                (t.Mechanic<RunRails>() is not null && t.Footprint != Footprint.OneByOne) ||
-                (t.MovementPattern is { } pattern && !Enum.IsDefined(pattern)) ||
-                (t.TerrainRestrictedMovement is { } restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
-                t.TerrainRestriction is { IsValid: false } ||
-                t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null))
+            state.Types.Any(ContentDefinitions.InvalidUnitStructure))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||

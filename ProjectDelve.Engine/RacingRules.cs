@@ -17,15 +17,15 @@ public static class RacingSlotTable
 
 internal static class RacingRules
 {
-    internal static void Spend(GameState state, string unitId, ResourceType resource, int cost, string actionId, Action<RulesEvent> emit)
+    internal static void Spend(GameState state, string unitId, string resourceTypeId, int cost, string actionId, Action<RulesEvent> emit)
     {
         var unit = state.Units.Single(u => u.Id == unitId);
-        var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId && r.Type.Id == resource.Id);
+        var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId && r.Type.Id == resourceTypeId);
         if (index < 0 || state.StoredResources[index].Quantity < cost) throw new InvalidOperationException("Insufficient stored Resources.");
         var stored = state.StoredResources[index] with { Quantity = state.StoredResources[index].Quantity - cost };
         state.StoredResources[index] = stored;
         emit(new RulesEvent("ResourceSpent", unitId, TypeId: unit.TypeId) { SideId = unit.SideId, SourceUnitId = unitId,
-            ActionId = actionId, ResourceType = resource, StoredQuantity = stored.Quantity });
+            ActionId = actionId, ResourceType = stored.Type, StoredQuantity = stored.Quantity });
     }
 
     internal static void AwardWaypoint(GameState state, string unitId, IRandomProvider random, Action<RulesEvent> emit)

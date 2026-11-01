@@ -29,7 +29,7 @@ public static class SummoningRules
         if (mechanic is SummonWorker worker && state.Units.Count(u => u.CurrentHp > 0 &&
                 u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= worker.SideLimit) yield break;
         if (mechanic is SummonTroll troll && state.StoredQuantity(unit.SideId, unit.TypeId,
-                ResourceTypes.Diamond.Id) < troll.DiamondCost) yield break;
+                ResourceTypeIds.Diamond) < troll.DiamondCost) yield break;
         if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
             !state.CanPlaceUnitType(summonedType, unit.SideId)) yield break;
         for (var y = 0; y < state.Physical.Board.Height; y++)
@@ -48,7 +48,7 @@ public static class SummoningRules
     internal static RulesEvent SpendDiamond(GameState state, Unit source, SummonTroll summon, ResolvedAbility ability)
     {
         var index = state.StoredResources.FindIndex(r => r.SideId == source.SideId &&
-            r.UnitTypeId == source.TypeId && r.Type.Id == ResourceTypes.Diamond.Id);
+            r.UnitTypeId == source.TypeId && r.Type.Id == ResourceTypeIds.Diamond);
         var stored = state.StoredResources[index];
         state.StoredResources[index] = stored with { Quantity = stored.Quantity - summon.DiamondCost };
         return new("ResourceSpent", source.Id, TypeId: source.TypeId)

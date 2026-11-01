@@ -88,9 +88,9 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         var behaviors = queries.BehaviorsOf(unitId);
         if (behaviors.HasFlag(UnitBehavior.Worker)) return WorkerBehavior.Choose(request, queries);
         if (behaviors.HasFlag(UnitBehavior.SeekDiamond) && !request.IsMoveAfterAttack &&
-            queries.StoredQuantityFor(unitId, ResourceTypes.Diamond) == 0)
+            queries.StoredQuantityFor(unitId, ResourceTypeIds.Diamond) == 0)
         {
-            var diamonds = queries.Resources.Where(r => r.Type.Id == ResourceTypes.Diamond.Id)
+            var diamonds = queries.Resources.Where(r => r.Type.Id == ResourceTypeIds.Diamond)
                 .Select(r => r.Position).ToHashSet();
             if (request.AllowsNone && diamonds.Contains(queries.PositionOf(unitId))) return null;
             var resourceMove = request.Candidates.Where(c => diamonds.Contains(c.Destination!))
@@ -197,7 +197,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             foreach (var action in new[] { UnitAction.SummonTroll, UnitAction.PickupResource, UnitAction.SummonWorker })
             {
                 if (action == UnitAction.PickupResource && !queries.Resources.Any(r =>
-                        r.Position == queries.PositionOf(request.UnitId!) && r.Type.Id == ResourceTypes.Diamond.Id)) continue;
+                        r.Position == queries.PositionOf(request.UnitId!) && r.Type.Id == ResourceTypeIds.Diamond)) continue;
                 var preferred = request.Candidates.Where(c => c.Action == action)
                     .OrderBy(c => c.Destination?.Y).ThenBy(c => c.Destination?.X)
                     .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();

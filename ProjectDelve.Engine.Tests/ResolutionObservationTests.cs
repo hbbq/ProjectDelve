@@ -30,6 +30,7 @@ public sealed class ResolutionObservationTests
         var type = new UnitType("ordinary", 1, 0, 0, 0, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(3, 2, []), [new("unit", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("unit", "blue")],
             Controllers = [new(new(type.Id, "blue"), ControllerKind.Human)],

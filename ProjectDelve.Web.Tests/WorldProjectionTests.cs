@@ -86,6 +86,7 @@ public sealed class WorldProjectionTests
             LocalAbilities = [new("mend", "Heal", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(3) }] };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(20, 3, []), [new("watcher", new(0, 0)), new("unseen-unit", new(19, 0))]),
             Types = [type], Units = [type.CreateUnit("watcher", "blue") with { CurrentHp = 1 },
                 type.CreateUnit("unseen-unit", "red") with { CurrentHp = 1 }],

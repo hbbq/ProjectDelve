@@ -199,14 +199,14 @@ public sealed class SpecializedMechanicCatalogTests
     }
 
     [Fact]
-    public void WaypointTableRequiresExactlySixResolvableFaces()
+    public void WaypointTableRequiresExactlySixValidEmbeddedFaces()
     {
         Assert.Empty(MechanicCatalog.Validate(new WaypointSlotMachine(RacingSlotTable.Table)));
         foreach (var table in new ResourceOutputTable[]
         {
             new([]), new([ResourceTypes.Shell]), new(default),
             new([ResourceTypes.Shell, ResourceTypes.Shell, ResourceTypes.Shell,
-                ResourceTypes.Shell, ResourceTypes.Shell, new("missing", "Missing")])
+                ResourceTypes.Shell, ResourceTypes.Shell, new("", "Missing")])
         })
             Assert.NotEmpty(MechanicCatalog.Validate(new WaypointSlotMachine(table)));
     }
@@ -269,6 +269,7 @@ public sealed class SpecializedMechanicCatalogTests
 
     private static GameState State(UnitType type) => new()
     {
+        ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
         Physical = new(new Board(1, 1, []), []), Types = [type], Units = []
     };
 }

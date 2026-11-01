@@ -11,6 +11,8 @@ public sealed class LootProjectionTests
         var type = new UnitType("collector", 2, 1, 1, 0, 1) { CanHaveItems = true, CanHaveEquipment = true };
         var state = new GameState
         {
+            EquipmentTypes = [.. EquipmentCatalog.All], ItemTypes = [.. ItemCatalog.All], LootCardDefinitions = [.. LootCardCatalog.All],
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(20, 3, []), [new("a", new(0, 0)), new("b", new(19, 0))]),
             Types = [type], Units = [type.CreateUnit("a", "blue") with { Inventory = [new("boots", LootCardKind.LuckyBoots), new("wind-1", LootCardKind.SecondWind), new("wind-2", LootCardKind.SecondWind)] },
                 type.CreateUnit("b", "red") with { Inventory = [new("sheet", LootCardKind.Bedsheet)] }],

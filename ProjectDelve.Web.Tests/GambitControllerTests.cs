@@ -21,6 +21,7 @@ public sealed class GambitControllerTests
         var type = new UnitType("ordinary", 1, 1, 2, 1, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(3, 1, []), [new("one", new(0,0)), new("two", new(1,0))]),
             Types = [type], Units = [type.CreateUnit("one","amber"), type.CreateUnit("two","violet")],
             Controllers = [new(new(type.Id,"amber"),ControllerKind.Human),new(new(type.Id,"violet"),ControllerKind.Human)],
@@ -123,6 +124,7 @@ public sealed class GambitControllerTests
         var mobile=new UnitType("mobile",1,1,1,1,1);
         var state=new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical=new(new(50,50,[]),Enumerable.Range(0,130).Select(n=>new Figure($"human-{n}",new(n%50,n/50))).Append(new("gambit",new(49,49))).ToList()),
             Types=[immobile,mobile],Units=Enumerable.Range(0,130).Select(n=>immobile.CreateUnit($"human-{n}","amber")).Append(mobile.CreateUnit("gambit","violet")).ToList(),
             Controllers=[new(new("immobile","amber"),ControllerKind.Human),new(new("mobile","violet"),ControllerKind.Human)],
@@ -305,6 +307,7 @@ public sealed class GambitControllerTests
         };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(board, [new("unit-exact", new(0, 0)), new("large-exact", new(2, 1))]),
             Types = [ordinary, large],
             Units = [ordinary.CreateUnit("unit-exact", "amber"), large.CreateUnit("large-exact", "violet")],
@@ -389,6 +392,7 @@ public sealed class GambitControllerTests
     {
         var state = Setup();
         state.WorldEffects = new(1, 2);
+        state.WorldCardDefinitions = [.. WorldCardCatalog.All];
         state.WorldDeck = new()
         {
             DrawPile = [new("future-secret-a", WorldEffect.Haste), new("future-secret-b", WorldEffect.Weakness)],
@@ -600,6 +604,7 @@ public sealed class GambitControllerTests
         var shaman = UnitType.Shaman(); var goblin = UnitType.Goblin(); var hero = UnitType.Barbarian();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(4, 2, []), [new("shaman", new(0, 0)), new("goblin", new(1, 0)), new("hero", new(3, 1))]),
             Types = [shaman, goblin, hero],
             Units = [shaman.CreateUnit("shaman", "red"), goblin.CreateUnit("goblin", "red"), hero.CreateUnit("hero", "blue")],

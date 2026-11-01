@@ -112,7 +112,7 @@ Passive modifiers retain ordinary posture and adjacency semantics. Holy Wave rem
 
 ## Validation, presentation and persistence
 
-`AbilityContent.Validate` checks local keys, names, usage, multiplicity, descriptions and the Mechanic Catalog contract for the owner's source family. Scenario creation validates referenced Unit, Item, Equipment and Resource Types as appropriate. Diagnostics identify owner, list index and field. Invalid declarations are not reinterpreted by fallback adapters.
+`AbilityContent.Validate` checks local keys, names, usage, multiplicity, descriptions and the Mechanic Catalog contract for the owner's source family. Explicit content composition validates referenced Unit, Item, Equipment and Resource Types. Games capture those definitions, including transitive summons, before play; supplied runtime catalogs never fall back to current canonical rosters. See [content composition](CONTENT_COMPOSITION.md). Diagnostics identify owner, list index and field. Invalid declarations are not reinterpreted by fallback adapters.
 
 Descriptions, timing, use limits and source labels come from local declarations and registered mechanic metadata. `DescriptionOverride` may refine wording but never changes execution; parameterized descriptions must retain the required placeholders. Unit cards and inventory projections use the current game's definitions, including renamed scenario-local content. Fog of War filters those projections and resolution observations through the existing observation boundary.
 

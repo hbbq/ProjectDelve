@@ -29,6 +29,7 @@ public sealed class GambitDelegationTests
         var type = new UnitType("ordinary", 1, 1, 2, 1, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(3, 2, []), [new("one", new(0, 1)), new("two", new(1, 0)), new("enemy", new(2, 0))]),
             Types = [type],
             Units = [type.CreateUnit("one", "amber"), type.CreateUnit("two", "amber"), type.CreateUnit("enemy", "violet")],
@@ -42,6 +43,7 @@ public sealed class GambitDelegationTests
         var type = new UnitType("ordinary", 1, 1, 2, 1, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(3, 1, []), [new("one", new(0, 0)), new("enemy", new(1, 0))]),
             Types = [type], Units = [type.CreateUnit("one", "amber"), type.CreateUnit("enemy", "violet")],
             Controllers = [new(new(type.Id, "amber"), ControllerKind.Human), new(new(type.Id, "violet"), ControllerKind.Human)],
@@ -218,6 +220,7 @@ public sealed class GambitDelegationTests
             : [];
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(6, 2, edges),
                 [new("ordered-unit", actorPosition), new("protected-unit", friendPosition), new("ordered-enemy", enemyPosition)]),
             Types = [actorType, friendType, enemyType],

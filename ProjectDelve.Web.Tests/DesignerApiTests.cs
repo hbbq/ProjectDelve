@@ -42,7 +42,7 @@ public sealed class DesignerApiTests
         await using var host = await Host.Start();
         var canonical = await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog");
         var canonicalAll = Preset(canonical, "All");
-        var canonicalIds = LootCardCatalog.All.Select(card => card.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        var canonicalIds = host.Content.LootCards.Select(card => card.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray();
         Assert.True(canonicalAll.GetProperty("isDynamic").GetBoolean());
         Assert.Equal(canonicalIds, CardIds(canonicalAll));
         Assert.All(canonicalAll.GetProperty("composition").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("count").GetInt32()));
@@ -364,7 +364,7 @@ public sealed class DesignerApiTests
         using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport });
         played.EnsureSuccessStatusCode();
         var state = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!.Result.State;
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(loaded), state);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(GameEngine.CreateGame(loaded), state);
     }
 
     [Theory]
@@ -434,7 +434,7 @@ public sealed class DesignerApiTests
         Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
         using var restarted = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(WebScenarioFixtures.Combat()) });
         var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(GameEngine.CreateGame(WebScenarioFixtures.Combat()), fresh.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(GameEngine.CreateGame(WebScenarioFixtures.Combat()), fresh.Result.State);
         using var played = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = fresh.Revision, transport });
         played.EnsureSuccessStatusCode();
         var game = (await played.Content.ReadFromJsonAsync<GameResponse>(Json))!;
@@ -452,9 +452,9 @@ public sealed class DesignerApiTests
             // The imported/exported definition above retains composition; player state hides deck contents.
             publicSetup.WorldEffects = publicSetup.WorldEffects! with { Composition = null };
         }
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(publicSetup, game.Result.State);
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(publicSetup, game.Result.State);
         using var restartImported = await host.Client.PostAsJsonAsync("/api/game/restart", new { expectedRevision = game.Revision });
-        ScenarioDefinitionJsonTests.AssertEquivalentRoundZeroStates(publicSetup,
+        ScenarioDefinitionJsonTests.AssertEquivalentPublicRoundZeroStates(publicSetup,
             (await restartImported.Content.ReadFromJsonAsync<GameResponse>(Json))!.Result.State);
     }
 
@@ -816,6 +816,7 @@ public sealed class DesignerApiTests
     private sealed class Host(WebApplication app, HttpClient client, string contentRoot) : IAsyncDisposable
     {
         public HttpClient Client => client;
+        public ContentBundle Content => app.Services.GetRequiredService<CanonicalContent>().Bundle;
         public string ContentRoot => contentRoot;
         public static async Task<Host> Start()
         {

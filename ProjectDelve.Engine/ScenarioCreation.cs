@@ -2,23 +2,32 @@ namespace ProjectDelve.Engine;
 
 internal static class ScenarioCreation
 {
-    internal static GameState Create(ScenarioDefinition definition)
+    internal static GameState Create(ScenarioDefinition definition, ContentBundle baseContent, bool composeLocal = true)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (definition.Board is not { } board || definition.UnitTypeIds is null ||
             definition.Units is null || definition.Agency is null || board.Cells is null || board.Edges is null)
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
-        if (definition.Loot is { Preset: { } preset } lootSettings && LootPresets.Find(preset).IsDynamic)
+        // Resolve live presets against the explicitly selected provider before applying legacy aliases.
+        var localCards = composeLocal ? definition.LootCardDefinitions ?? [] : [];
+        var localIds = localCards.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        var effectiveCards = baseContent.LootCards.Where(c => !localIds.Contains(c.Id)).Concat(localCards).ToArray();
+        var lootComposition = (definition.Loot ?? new LootSettings()).ResolveComposition(effectiveCards, baseContent.LootPresets);
+        definition = definition with { Loot = new() { Composition = lootComposition.ToList() } };
+        if (composeLocal) definition = LootCompatibility.ResolveLocalIdCollisions(definition, baseContent.LootCards);
+        EffectiveContent content;
+        try { content = ContentComposition.Compose([baseContent], composeLocal ? ContentBundle.Local(definition) : null); }
+        catch (ContentCompositionException error)
         {
-            // Select effective authored identities before historical collisions
-            // acquire aliases. Only this detached setup copy is materialized.
-            var composition = lootSettings.ResolveComposition(LootCardCatalog.Effective(definition.LootCardDefinitions));
-            definition = definition with { Loot = new() { Composition = composition.ToList() } };
+            var diagnostic = error.Diagnostics[0];
+            var path = diagnostic.Source?.Path ?? "";
+            if (diagnostic.Path.Length > 0) path += (path.Length > 0 ? "." : "") + diagnostic.Path;
+            throw ScenarioValidationContext.At(new ArgumentException($"{path}: {diagnostic.Message}", error), path);
         }
-        definition = LootCompatibility.ResolveLocalIdCollisions(definition);
+        var catalog = content.Definitions;
         if (definition.WorldEffects is { } world && (world.CardsPerRound < 0 || world.Cycling < 1))
             throw ScenarioValidationContext.At(new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.", nameof(definition)), "worldEffects");
-        var terrainTypes = TerrainCatalog.Resolve(definition.TerrainTypes, definition.TerrainAssemblies, definition.FixedComponentTypes);
+        var terrainTypes = catalog.Terrain;
         TerrainDefinition ResolveTerrain(TerrainKind legacy, string? typeId, bool? coalGeneration = null)
         {
             var resolvedId = TerrainCompatibility.ResolveTypeId(legacy, typeId, coalGeneration);
@@ -123,7 +132,7 @@ internal static class ScenarioCreation
         if (customTypes.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id) || !declared.Contains(t.Id)) ||
             customTypes.Select(t => t.Id).Distinct().Count() != customTypes.Count)
             throw new ArgumentException("Scenario Unit Types must be unique and declared.", nameof(definition));
-        var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id, customTypes)
+        var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id, catalog.Units)
             ?? throw new ArgumentException($"Unknown Unit Type ID '{id}'.", nameof(definition))).ToList();
         foreach (var (id, settings) in definition.LootUnitOverrides ?? [])
         {
@@ -155,23 +164,26 @@ internal static class ScenarioCreation
                 var authored = overrides.GetValueOrDefault(cell);
                 terrain.Add(Tile(cell, authored));
             }
-        T ResolveCatalog<T>(Func<T> resolve, int canonicalCount)
-        {
-            try { return resolve(); }
-            catch (ArgumentException error) { throw ScenarioValidationContext.ForLocalCatalog(error, canonicalCount); }
-        }
+        // Capture closure of every selected object definition as well as initial Unit Types.
+        // Summoning granted by Equipment can introduce Units absent from the setup roster.
+        var roots = catalog.Equipment.Select(x => new ContentIdentity(ContentFamily.Equipment, x.Id))
+            .Concat(catalog.Items.Select(x => new ContentIdentity(ContentFamily.Item, x.Id)))
+            .Concat(definition.UnitTypeIds.Select(id => new ContentIdentity(ContentFamily.Unit, id)));
+        var requiredUnits = content.Dependencies.Closure(roots).Where(x => x.Family == ContentFamily.Unit).Select(x => x.TypeId).ToHashSet(StringComparer.Ordinal);
+        types.AddRange(catalog.Units.Where(t => requiredUnits.Contains(t.Id) && !types.Any(existing => existing.Id == t.Id)));
         var state = new GameState
         {
             LootDeck = new LootDeck(),
-            EquipmentTypes = ResolveCatalog(() => EquipmentCatalog.Resolve(definition.EquipmentTypes), EquipmentCatalog.All.Count),
-            ItemTypes = ResolveCatalog(() => ItemCatalog.Resolve(definition.ItemTypes), ItemCatalog.All.Count),
-            LootCardDefinitions = ResolveCatalog(() => LootCardCatalog.Resolve(definition.LootCardDefinitions), LootCardCatalog.All.Count),
-            WorldCardDefinitions = WorldCardCatalog.Resolve(definition.WorldCardDefinitions),
+            EquipmentTypes = [.. catalog.Equipment],
+            ItemTypes = [.. catalog.Items],
+            LootCardDefinitions = [.. catalog.LootCards],
+            WorldCardDefinitions = [.. catalog.WorldCards],
+            ResourceDefinitions = [.. catalog.Resources], ActivationTypeOrder = [.. definition.UnitTypeIds],
             LootMarkers = [.. definition.LootMarkers ?? []], GroundObjects = [.. definition.GroundObjects ?? []],
             Physical = new(new Board(board.Width, board.Height, board.Edges.Select(e => new Edge(e.Position,
                 e.Direction == EdgeDirection.Right ? new(e.Position.X + 1, e.Position.Y) : new(e.Position.X, e.Position.Y + 1),
-                e.Kind)).ToList()) { Terrain = terrain, TerrainTypes = terrainTypes, Machines = [.. definition.Machines ?? []] }, []),
-            NeutralSides = [.. definition.NeutralSides ?? []], Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects,
+                e.Kind)).ToList(), terrainTypes) { Terrain = terrain, Machines = [.. definition.Machines ?? []] }, []),
+            NeutralSides = [.. definition.NeutralSides ?? []], Types = types, Units = [], StoredResources = [.. definition.StoredResources ?? []], WorldEffects = definition.WorldEffects is {} worldSettings ? worldSettings with { Composition = [.. worldSettings.Composition ?? catalog.DefaultWorldDeck] } : null,
             Waypoints = [.. definition.Waypoints ?? []], Routes = [.. definition.Routes ?? []],
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
@@ -180,7 +192,7 @@ internal static class ScenarioCreation
         try
         {
             state.WorldDeck = definition.WorldEffects is null ? null
-                : WorldCards.CreateDeck(definition.WorldEffects, state.WorldCardDefinitions);
+                : WorldCards.CreateDeck(state.WorldEffects, state.WorldCardDefinitions);
         }
         catch (ArgumentException error) { throw ScenarioValidationContext.At(error, "worldEffects.composition"); }
         state.LootDeck.DrawPile = (definition.Loot ?? new LootSettings()).ResolveObjects(state.LootCardDefinitions);

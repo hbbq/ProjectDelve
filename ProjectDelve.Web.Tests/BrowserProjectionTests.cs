@@ -18,6 +18,7 @@ public sealed class BrowserProjectionTests
         };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 1, []), [new("runner-copy", new(1, 0))]),
             Types = [type], Units = [type.CreateUnit("runner-copy", "blue")]
         };
@@ -64,6 +65,7 @@ public sealed class BrowserProjectionTests
         var enemy = UnitType.Goblin() with { DisplayName = "Goblin Peasant" };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(8, 8, []), [new("generated-actor", new(0, 0)), new("generated-a", new(1, 0)), new("generated-b", new(2, 0))]),
             Types = [guard, enemy], Units = [guard.CreateUnit("generated-actor", "blue"), enemy.CreateUnit("generated-a", "red"), enemy.CreateUnit("generated-b", "red")]
         };
@@ -100,6 +102,7 @@ public sealed class BrowserProjectionTests
         var type = UnitType.Grunt() with { DisplayName = "Hobby Knight" };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 3, []), [new("attacker-id", new(0, 0)), new("defender-id", new(1, 1))]),
             Types = [type], Units = [type.CreateUnit("attacker-id", "blue"), type.CreateUnit("defender-id", "red")]
         };
@@ -153,6 +156,7 @@ public sealed class BrowserProjectionTests
         var target = UnitType.Grunt();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(4, 4, []), [new("target", new(2, 2))]),
             Types = [imp, target],
             Units = [imp.CreateUnit("imp", "red") with { CurrentHp = 0 }, target.CreateUnit("target", "blue")]
@@ -177,6 +181,7 @@ public sealed class BrowserProjectionTests
         var enemy = new UnitType("enemy", 0, 0, 0, 0, 1);
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(8, 6, []), [new("dragon", new(1, 1)), new("a", new(3, 1)), new("b", new(1, 4))]),
             Types = [dragon, enemy], Units = [dragon.CreateUnit("dragon", "red"), enemy.CreateUnit("a", "blue"), enemy.CreateUnit("b", "blue")],
             Round = 1, ActiveToken = new(dragon.Id, "red"), CurrentUnitId = "dragon", MoveDone = true
@@ -210,6 +215,7 @@ public sealed class BrowserProjectionTests
         var sage = UnitType.Wizard() with { DisplayName = "Sage" };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 3, []), [new("actor", new(1, 1))]),
             Types = [summoner, sage], Units = [summoner.CreateUnit("actor", "red")]
         };
@@ -277,6 +283,7 @@ public sealed class BrowserProjectionTests
         var shaman = UnitType.Shaman();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 3, []), [new("actor", new(1, 1))]),
             Types = [shaman], Units = [shaman.CreateUnit("actor", "red")]
         };
@@ -306,6 +313,7 @@ public sealed class BrowserProjectionTests
         var troll = UnitType.Troll();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 2, []), [new("actor", new(0, 0)), new("target", new(1, 0))]),
             Types = [wizard, troll], Units = [wizard.CreateUnit("actor", "blue"), troll.CreateUnit("target", "red")]
         };
@@ -451,6 +459,7 @@ public sealed class BrowserProjectionTests
         type ??= UnitType.Cleric();
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(5, 1, []), [new("actor", new(0, 0)), new("target", new(4, 0))]),
             Types = [type, UnitType.Grunt()],
             Units = [type.CreateUnit("actor", "same"), UnitType.Grunt().CreateUnit("target", "same")]

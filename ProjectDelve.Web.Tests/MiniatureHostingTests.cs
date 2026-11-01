@@ -35,6 +35,7 @@ public sealed class MiniatureHostingTests
     {
         var directory = Path.Combine(Root, ".playwright-cli", "glb-http-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(directory, "wwwroot"));
+        Directory.CreateDirectory(Path.Combine(directory, "Content", "Canonical"));
         var source = Path.Combine(Root, "ProjectDelve.Web.Tests/fixtures/miniatures/static-figure.glb");
         File.Copy(source, Path.Combine(directory, "wwwroot/fixture.glb"));
         File.WriteAllText(Path.Combine(directory, "wwwroot/fixture.unknown-extension"), "not public");

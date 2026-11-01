@@ -26,14 +26,14 @@ public static class FixedComponentCatalog
 {
     public static ImmutableArray<FixedComponentDefinition> All => FixedComponentRoster.All;
 
-    public static ImmutableArray<FixedComponentDefinition> Resolve(IEnumerable<FixedComponentDefinition>? local)
+    public static ImmutableArray<FixedComponentDefinition> Resolve(IEnumerable<FixedComponentDefinition>? local, IEnumerable<FixedComponentDefinition>? canonical = null)
     {
-        var definitions = All.AddRange(local ?? []);
+        var definitions = (canonical ?? All).Concat(local ?? []).ToImmutableArray();
         Validate(definitions);
         return definitions;
     }
 
-    public static void Validate(ImmutableArray<FixedComponentDefinition> definitions)
+    public static void Validate(ImmutableArray<FixedComponentDefinition> definitions, bool againstCanonical = true)
     {
         if (definitions.IsDefault) throw new ArgumentException("Fixed Component definitions must be an array.");
         HashSet<string> ids = new(StringComparer.Ordinal);
@@ -43,7 +43,7 @@ public static class FixedComponentCatalog
                 string.IsNullOrWhiteSpace(definition.Name) || definition.Presentation is null ||
                 !TerrainContentKey.Valid(definition.Presentation.Recipe) || !Enum.IsDefined(definition.Presentation.Layer))
                 throw new ArgumentException("Fixed Components require unique IDs, names and valid presentation recipes and layers.");
-            if (All.SingleOrDefault(c => c.Id == definition.Id) is { } canonical &&
+            if (againstCanonical && All.SingleOrDefault(c => c.Id == definition.Id) is { } canonical &&
                 (definition.BlocksMovement != canonical.BlocksMovement || definition.BlocksLos != canonical.BlocksLos))
                 throw new ArgumentException("Canonical Fixed Component gameplay properties cannot be replaced.");
         }
@@ -113,7 +113,7 @@ internal static class TerrainAssemblyContent
     {
         if (terrain.Assembly is not { } assembly) return;
         ValidateSurface(assembly.Surface);
-        TerrainCatalog.Validate([assembly.Surface]);
+        TerrainCatalog.Validate([assembly.Surface], againstCanonical: false);
         ValidatePlacements(assembly.Components);
         if (terrain.Passable != (assembly.Surface.Passable && !assembly.Components.Any(c => c.Definition.BlocksMovement)) ||
             terrain.BlocksLos != (assembly.Surface.BlocksLos || assembly.Components.Any(c => c.Definition.BlocksLos)) ||
@@ -137,7 +137,7 @@ internal static class TerrainAssemblyContent
             components.Any(c => c is null || !TerrainContentKey.Valid(c.Slot) || c.Definition is null || c.QuarterTurns is < 0 or > 3) ||
             components.Select(c => c.Slot).Distinct(StringComparer.Ordinal).Count() != components.Length)
             throw new ArgumentException("Resolved Fixed Components require at most four distinct slots and valid orientations.");
-        foreach (var component in components) FixedComponentCatalog.Validate([component.Definition]);
+        foreach (var component in components) FixedComponentCatalog.Validate([component.Definition], againstCanonical: false);
         if (components.Count(c => c.Definition.Presentation.Layer == FixedComponentLayer.Object) > 1)
             throw new ArgumentException("A Terrain tile supports one raised Object component; additional components must use the flat Decal presentation layer.");
     }

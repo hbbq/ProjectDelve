@@ -24,6 +24,7 @@ public sealed class ScenarioObjectivesTests
         var type = new UnitType("fighter", 1, 1, 1, 0, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(5, 3, []), [new("actor", new(0, 0)), new("enemy", new(1, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "amber"), type.CreateUnit("enemy", "violet")],
             Controllers = [new(new(type.Id, "amber"), ControllerKind.Human), new(new(type.Id, "violet"), ControllerKind.Automated)],

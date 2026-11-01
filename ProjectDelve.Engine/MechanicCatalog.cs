@@ -115,8 +115,6 @@ internal static class MechanicChecks
             if (parameter.Required) Error(errors, path, "required", "A reference is required.");
             return;
         }
-        if (parameter.ReferenceCatalog == "resources" && !ResourceTypes.All.Any(r => r.Id == value))
-            Error(errors, path, "unknownReference", "The resource reference does not resolve.");
     }
     internal static void Description(List<MechanicDiagnostic> errors, MechanicDescription policy, string text,
         string path, IReadOnlySet<string>? nonemptyLists = null)

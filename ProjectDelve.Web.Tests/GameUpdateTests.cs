@@ -19,6 +19,7 @@ public sealed class GameUpdateTests
         var type = new UnitType("ordinary", 1, 1, 2, 1, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(4, 1, []), [new("one", new(0, 0)), new("two", new(2, 0))]),
             Types = [type], Units = [type.CreateUnit("one", "amber"), type.CreateUnit("two", "violet")],
             Controllers = [new(new(type.Id, "amber"), first), new(new(type.Id, "violet"), ControllerKind.Human)]

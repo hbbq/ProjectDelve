@@ -26,6 +26,7 @@ public sealed class DefaultBehaviorPreviewTests
         var hero = new UnitType("hero", 0, 0, 0, 0, 5) { Unique = true };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(5, 2,
             [
                 new(new(1, 0), new(2, 0), EdgeKind.ClosedDoor),

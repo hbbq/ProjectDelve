@@ -181,7 +181,9 @@ public sealed class WorldAndEnvironmentMechanicCatalogTests
 
         var invalid = payload with { ResourceTypeId = "missing", Placement = (ProductionPlacement)99, SourceLos = (ProductionSourceLos)99 };
         var errors = MechanicCatalog.Validate(invalid, path: "producer");
-        Assert.Contains(errors, error => error.Path == "producer.resourceTypeId" && error.Code == "unknownReference");
+        Assert.DoesNotContain(errors, error => error.Path == "producer.resourceTypeId");
+        var producer = new TerrainDefinition("producer", "Producer", true, false) { Production = payload with { ResourceTypeId = "missing" } };
+        Assert.Contains(new ContentDependencyGraph([new(producer)]).Diagnostics, d => d.Code == "missingReference" && d.Path == "production.resourceTypeId");
         Assert.Contains(errors, error => error.Path == "producer.placement" && error.Code == "enum");
         Assert.Contains(errors, error => error.Path == "producer.sourceLos" && error.Code == "enum");
         Assert.Throws<ArgumentException>(() => EnvironmentalProductionContent.Validate(invalid));

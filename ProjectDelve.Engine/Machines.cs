@@ -43,21 +43,28 @@ internal static class MachineRules
             if (machine.OwnerSide is not null && !state.Objectives.Any(side => side.SideId == machine.OwnerSide))
                 throw ScenarioValidationContext.At(new ArgumentException("Machine OwnerSide must reference a valid Side."),
                     $"machines[{board.Machines.IndexOf(machine)}].ownerSide");
-            ResourceRules.ValidateCapacity(machine.Type.Storage);
-            var operation = machine.Type.Operation;
-            if (operation is null || operation.Costs.IsDefaultOrEmpty || operation.OutputQuantity != 1 ||
-                (operation.OutputTable is null ? !ResourceRules.ValidType(operation.OutputType) :
-                    operation.OutputType is not null || operation.OutputTable.Faces.IsDefault || operation.OutputTable.Faces.Length != 6 ||
-                    operation.OutputTable.Faces.Any(t => !ResourceRules.ValidType(t))) ||
-                operation.Costs.Any(c => c is null || !ResourceRules.ValidType(c.Type) || c.Quantity < 1 ||
-                    c.Quantity > Capacity(machine, c.Type.Id)) ||
-                operation.Costs.Select(c => c.Type.Id).Distinct().Count() != operation.Costs.Length ||
-                machine.StoredResources.IsDefault || machine.StoredResources.Any(r => r is null ||
+            ValidateDefinition(machine.Type);
+            if (machine.StoredResources.IsDefault || machine.StoredResources.Any(r => r is null ||
                     !ResourceRules.ValidType(r.Type) || r.Quantity < 0 || r.Quantity > Capacity(machine, r.Type.Id) ||
                     !machine.Type.Storage.Capacities.Any(c => c.Type.Id == r.Type.Id)) ||
                 machine.StoredResources.Select(r => r.Type.Id).Distinct().Count() != machine.StoredResources.Length)
                 throw new ArgumentException("Invalid Machine Operation or stored Resources.");
         }
+    }
+
+    internal static void ValidateDefinition(MachineType type)
+    {
+        if (string.IsNullOrWhiteSpace(type.Id) || string.IsNullOrWhiteSpace(type.Name)) throw new ArgumentException("Machines require ID and name.");
+        ResourceRules.ValidateCapacity(type.Storage);
+        var operation = type.Operation;
+        if (operation is null || operation.Costs.IsDefaultOrEmpty || operation.OutputQuantity != 1 ||
+            (operation.OutputTable is null ? !ResourceRules.ValidType(operation.OutputType) :
+                operation.OutputType is not null || operation.OutputTable.Faces.IsDefault || operation.OutputTable.Faces.Length != 6 ||
+                operation.OutputTable.Faces.Any(t => !ResourceRules.ValidType(t))) ||
+            operation.Costs.Any(c => c is null || !ResourceRules.ValidType(c.Type) || c.Quantity < 1 ||
+                c.Quantity > (type.Storage.Capacities.SingleOrDefault(r => r.Type.Id == c.Type.Id)?.Capacity ?? 0)) ||
+            operation.Costs.Select(c => c.Type.Id).Distinct().Count() != operation.Costs.Length)
+            throw new ArgumentException("Invalid Machine Operation or stored Resources.");
     }
 
     private static int Capacity(Machine machine, string resourceTypeId) =>

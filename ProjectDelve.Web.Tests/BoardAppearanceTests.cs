@@ -61,6 +61,7 @@ public sealed class BoardAppearanceTests
         var type = new UnitType("custom-type", 1, 1, 1, 1, 3) { DisplayName = "Custom Type" };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(2, 2, []), [new("generated-17", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("generated-17", "amber")]
         };

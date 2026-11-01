@@ -11,6 +11,7 @@ public sealed class FootprintTests
         actor ??= Large();
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(width, height, []), [new("actor", anchor ?? new(1, 1))]),
             Types = [actor], Units = [actor.CreateUnit("actor", "blue")]
         };

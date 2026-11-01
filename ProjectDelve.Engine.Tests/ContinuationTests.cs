@@ -34,6 +34,7 @@ public sealed class ContinuationTests
         var target = new UnitType("ordinary", 1, 1, 1, defence, 1);
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(4, 3, []), [new("source", new(0, 1)), new("target", new(1, 1))]),
             Types = [type, target], Units = [type.CreateUnit("source", "red"), target.CreateUnit("target", "blue")],
             Round = 1, ActiveToken = new(type.Id, "red"), CurrentUnitId = "source", MoveDone = true
@@ -135,6 +136,7 @@ public sealed class ContinuationTests
         var ordinary = UnitType.Grunt() with { Def = 1 };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(5, 4, []), [new("caster", new(0, 0)), new("troll", new(1, 1)),
                 new("last", new(2, 1)), new("follow", new(0, 1))]),
             Types = [caster, troll, ordinary],
@@ -190,6 +192,7 @@ public sealed class ContinuationTests
         var b = a with { Id = "b-type" };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(5, 4, []), [new("caster", new(0, 1)), new("a", new(1, 1)), new("b", new(1, 2))]),
             Types = [caster, a, b], Units = [caster.CreateUnit("caster", "violet"), a.CreateUnit("a", "violet"), b.CreateUnit("b", "violet")],
             Round = 1, ActiveToken = new(caster.Id, "violet"), CurrentUnitId = "caster", MoveDone = true
@@ -242,6 +245,7 @@ public sealed class ContinuationTests
         var door = new Edge(new(0, 0), new(1, 0), EdgeKind.ClosedDoor);
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(3, 1, [door]), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "orange")],
             Round = 1, ActiveToken = new(type.Id, "orange"), CurrentUnitId = "actor", MoveDone = true
@@ -275,6 +279,7 @@ public sealed class ContinuationTests
         var other = type with { Id = "other" };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(6, 2, []), [new("z", new(0, 0)), new("a", new(3, 0)), new("b", new(5, 0))]),
             Types = [other, type], Units = [type.CreateUnit("z", "zebra"), type.CreateUnit("a", "amber"), other.CreateUnit("b", "amber")]
         };
@@ -309,6 +314,7 @@ public sealed class ContinuationTests
         var shaman = UnitType.Shaman(); var goblin = UnitType.Goblin();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(4, 3, []), [new("source", new(1, 1))]), Types = [shaman, goblin],
             Units = [shaman.CreateUnit("source", "gold")],
             Controllers = [new(new(shaman.Id, "gold"), ControllerKind.Human)]
@@ -350,6 +356,7 @@ public sealed class ContinuationTests
         var shaman = UnitType.Shaman(); var goblin = UnitType.Goblin();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(7, 4, []), [new("source", new(1, 1)), new("old", new(5, 0)), new("other", new(6, 3))]),
             Types = [shaman, goblin], Units = [shaman.CreateUnit("source", "gold"), goblin.CreateUnit("old", "gold"), goblin.CreateUnit("other", "silver")],
             Controllers = [new(new(shaman.Id, "gold"), ControllerKind.Human), new(new(goblin.Id, "gold"), ControllerKind.Human), new(new(goblin.Id, "silver"), ControllerKind.Automated)]
@@ -382,6 +389,7 @@ public sealed class ContinuationTests
         var type = UnitType.Goblin();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new(5, 3, []), [new("top", new(0, 0)), new("bottom", new(4, 2))]),
             Types = [type], Units = [type.CreateUnit("top", "red"), type.CreateUnit("bottom", "red")],
             Controllers = [new(new(type.Id, "red"), ControllerKind.Human)]

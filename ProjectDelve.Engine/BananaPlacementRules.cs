@@ -5,7 +5,7 @@ internal static class BananaPlacementRules
     internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility source)
     {
         var ability = (PlaceBananaPeel)source.Definition.Mechanic;
-        if (state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Banana.Id) < ability.BananaCost) yield break;
+        if (state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Banana) < ability.BananaCost) yield break;
         var board = state.Physical.Board;
         for (var y = 0; y < board.Height; y++)
         for (var x = 0; x < board.Width; x++)
@@ -26,7 +26,7 @@ internal static class BananaPlacementRules
         if (!Candidates(state, unit, action.Ability!).Any(c => c.Destination == action.Destination)) throw new InvalidOperationException("Banana Peel placement is unavailable.");
         var cost = ability.BananaCost;
         var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId &&
-            r.Type.Id == ResourceTypes.Banana.Id);
+            r.Type.Id == ResourceTypeIds.Banana);
         var stored = state.StoredResources[index];
         state.StoredResources[index] = stored with { Quantity = stored.Quantity - cost };
         state.PlaceCellMarker(CellMarkerTypes.BananaPeel, action.Destination!);

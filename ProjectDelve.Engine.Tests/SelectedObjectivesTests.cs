@@ -27,6 +27,7 @@ public sealed class SelectedObjectivesTests
         var type = new UnitType("fighter", 4, 1, 1, 0, 1);
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(6, 4, []), [new("actor", new(0, 0)), new("enemy", new(5, 3))]),
             Types = [type], Units = [type.CreateUnit("actor", "Blue"), type.CreateUnit("enemy", "Red")],
             Controllers = [new(new(type.Id, "Blue"), ControllerKind.Human), new(new(type.Id, "Red"), ControllerKind.Human)],

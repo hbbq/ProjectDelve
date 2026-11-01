@@ -37,7 +37,7 @@ public static class ScenarioDefinitionTransport
     public static ScenarioDefinition Decode(string value)
         => Decode(value, null);
 
-    public static ScenarioDefinition Decode(string value, Action<ScenarioDefinition>? beforeCreation)
+    public static ScenarioDefinition Decode(string value, Action<ScenarioDefinition>? beforeCreation, ContentBundle? content = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         if (value.Length > MaxTransportCharacters)
@@ -77,6 +77,6 @@ public static class ScenarioDefinitionTransport
         if (BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(bytes.Length - 4)) != json.Length)
             throw new InvalidDataException("Invalid or truncated gzip footer.");
 
-        return ScenarioDefinitionJson.FromJson(Utf8.GetString(json.ToArray()), beforeCreation);
+        return ScenarioDefinitionJson.FromJson(Utf8.GetString(json.ToArray()), beforeCreation, content);
     }
 }

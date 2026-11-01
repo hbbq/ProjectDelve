@@ -8,15 +8,16 @@ public static class ContentBrowserApi
 {
     public static void Map(WebApplication app)
     {
-        app.MapGet("/api/content/catalog", () => ContentBrowserCatalog.Canonical());
+        var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
+        app.MapGet("/api/content/catalog", () => ContentBrowserCatalog.Canonical(canonical));
         app.MapPost("/api/content/inspect", async (HttpRequest request) =>
         {
             try
             {
                 using var reader = new StreamReader(request.Body);
                 var document = await reader.ReadToEndAsync(request.HttpContext.RequestAborted);
-                var definition = ScenarioDefinitionJson.FromJson(document, DesignerApi.CheckHostLimits);
-                return Results.Ok(ContentBrowserCatalog.Scenario(definition));
+                var definition = ScenarioDefinitionJson.FromJson(document, DesignerApi.CheckHostLimits, canonical);
+                return Results.Ok(ContentBrowserCatalog.Scenario(definition, canonical));
             }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)
             {

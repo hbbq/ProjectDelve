@@ -90,7 +90,7 @@ public static partial class GameEngine
                                  AttackRules.EvaluateAbilityFrom(state, unit.Id, clawFrom, target.Id, ability) == UnitTargetEvaluation.Possible))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.ClawAttack, TargetId: target.Id));
                     break;
-                case ShootShell shell when state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Shell.Id) >= shell.ShellCost:
+                case ShootShell shell when state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Shell) >= shell.ShellCost:
                     var shellFrom = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
                     foreach (var target in state.Units.Where(target =>
                                  AttackRules.EvaluateHostileTargetFrom(state, unit.Id, shellFrom, target.Id, shell.Rng) == UnitTargetEvaluation.Possible))
@@ -107,7 +107,7 @@ public static partial class GameEngine
                     foreach (var candidate in ResourceRules.Candidates(state, unit, ability)
                                  .Concat(MachineRules.Candidates(state, unit, ability))) yield return Bind(candidate);
                     break;
-                case Boost boost when !state.ActionDone && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypes.Mushroom.Id) >= boost.MushroomCost:
+                case Boost boost when !state.ActionDone && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Mushroom) >= boost.MushroomCost:
                     yield return Bind(new(ability.CandidatePrefix));
                     break;
                 case PlaceBananaPeel:
@@ -183,7 +183,7 @@ public static partial class GameEngine
                     events, ability.ActionId, choice.Destination, UnitAction.ClawAttack, ability.Definition.Timing);
                 break;
             case ShootShell shell:
-                RacingRules.Spend(state, request.UnitId!, ResourceTypes.Shell, shell.ShellCost, ability.ActionId, events.Add);
+                RacingRules.Spend(state, request.UnitId!, ResourceTypeIds.Shell, shell.ShellCost, ability.ActionId, events.Add);
                 BeginAttack(state, request.UnitId!, new([choice.TargetId!], shell.Atk, ability.Definition.Name),
                     events, ability.ActionId, null, UnitAction.ShootShell, ability.Definition.Timing, shell.Rng);
                 break;
@@ -204,7 +204,7 @@ public static partial class GameEngine
                 break;
             case Boost boost:
                 state.MoveOpportunityModifierThisActivation++;
-                RacingRules.Spend(state, request.UnitId!, ResourceTypes.Mushroom, boost.MushroomCost, ability.ActionId, events.Add);
+                RacingRules.Spend(state, request.UnitId!, ResourceTypeIds.Mushroom, boost.MushroomCost, ability.ActionId, events.Add);
                 break;
             case Swap:
                 ExternalMovementRules.SwapPlaces(state, request.UnitId!, choice.TargetId!);

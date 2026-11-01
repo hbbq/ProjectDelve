@@ -52,7 +52,7 @@ internal static class AttackRules
         string targetId, ResolvedAbility ability) =>
         !state.CanUseAbility(attackerId, ability) || ability.Definition.Mechanic is ShootShell shell &&
             state.StoredQuantity(state.Units.Single(unit => unit.Id == attackerId).SideId,
-                state.Units.Single(unit => unit.Id == attackerId).TypeId, ResourceTypes.Shell.Id) < shell.ShellCost
+                state.Units.Single(unit => unit.Id == attackerId).TypeId, ResourceTypeIds.Shell) < shell.ShellCost
             ? UnitTargetEvaluation.NotPossible
             : EvaluateApproachFrom(state, attackerId, from, targetId, SemanticAction(ability.Definition.Mechanic), ability.Definition.Mechanic);
 

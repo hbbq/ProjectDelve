@@ -21,7 +21,9 @@ public sealed class WorldScenarioTests
         Assert.Equal(json, ScenarioDefinitionJson.ToJson(decoded));
         var first = GameEngine.CreateGame(decoded);
         var second = GameEngine.CreateGame(decoded);
-        Assert.Equal(definition.WorldEffects, first.WorldEffects);
+        Assert.Equal(definition.WorldEffects!.CardsPerRound, first.WorldEffects!.CardsPerRound);
+        Assert.Equal(definition.WorldEffects.Cycling, first.WorldEffects.Cycling);
+        Assert.Equal(WorldCards.ResolveComposition(definition.WorldEffects), first.WorldEffects.Composition);
         Assert.Equal(40, first.WorldDeck!.DrawPile.Count);
         Assert.Empty(first.WorldDeck.ActiveContinuous); Assert.Empty(first.WorldDeck.DiscardPile);
         first.WorldDeck.DrawPile.Clear();

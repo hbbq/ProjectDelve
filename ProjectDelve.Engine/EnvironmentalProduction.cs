@@ -29,10 +29,10 @@ public static class EnvironmentalProductionContent
         MechanicCatalog.ThrowIfInvalid(production, path: "production");
     }
 
-    public static string? Describe(EnvironmentalProduction? production) => production switch
+    public static string? Describe(EnvironmentalProduction? production, IReadOnlyList<ResourceType>? resources = null) => production switch
     {
         null => null,
-        DirectionalResourceProduction p => $"At Round Start, make {p.Attempts} d8 {(p.Attempts == 1 ? "attempt" : "attempts")} to place one {ResourceTypes.Find(p.ResourceTypeId).Name} on the selected surrounding Cell (1 north, then clockwise). " +
+        DirectionalResourceProduction p => $"At Round Start, make {p.Attempts} d8 {(p.Attempts == 1 ? "attempt" : "attempts")} to place one {(resources ?? ResourceTypes.All).SingleOrDefault(r => r.Id == p.ResourceTypeId)?.Name ?? p.ResourceTypeId} on the selected surrounding Cell (1 north, then clockwise). " +
             "Resolve attempts in order; failed placement does not reroll. " +
             (p.SourceLos == ProductionSourceLos.IgnoreProducingCell ? "Ignore only the producing Cell's LOS blocking." : "Respect the producing Cell's LOS blocking."),
         _ => throw new ArgumentException("Unsupported environmental production mechanic.")

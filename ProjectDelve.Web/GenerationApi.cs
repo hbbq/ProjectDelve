@@ -9,16 +9,18 @@ public static class GenerationApi
 {
     public static void Map(WebApplication app)
     {
+        var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.MapPost("/api/generation", (GenerationRequest request, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
             try
             {
                 var result = DungeonGenerator.Generate(request.Code);
+                var effectiveUnits = UnitContent.Resolve(result.Definition.UnitTypes, canonical.Units);
                 return Results.Ok(new { code = result.Code.ToString(), prefix = result.Code.Prefix,
                     terrainDefinitions = TerrainCatalog.Resolve(result.Definition.TerrainTypes,
-                        result.Definition.TerrainAssemblies, result.Definition.FixedComponentTypes),
-                    unitMetadata = result.Definition.UnitTypeIds.Select(id => UnitContent.Find(id, result.Definition.UnitTypes)!).Select(type => new
+                        result.Definition.TerrainAssemblies, result.Definition.FixedComponentTypes, canonical),
+                    unitMetadata = result.Definition.UnitTypeIds.Select(id => UnitContent.Find(id, effectiveUnits)!).Select(type => new
                     { unitTypeId = type.Id, footprintOffsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)) }),
                     definition = JsonSerializer.Deserialize<JsonElement>(ScenarioDefinitionJson.ToJson(result.Definition)),
                     transport = ScenarioDefinitionTransport.Encode(result.Definition), result.Fingerprint, result.Diagnostics });

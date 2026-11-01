@@ -29,6 +29,15 @@ public sealed class ScenarioDefinitionJsonTests
         AssertEquivalentRoundZeroStates(authoredState, loadedState);
     }
 
+    internal static void AssertEquivalentPublicRoundZeroStates(GameState authoredState, GameState publicState)
+    {
+        var expected = System.Text.Json.JsonSerializer.Deserialize<GameState>(System.Text.Json.JsonSerializer.Serialize(authoredState))!;
+        // Public metadata describes placed Units; the full snapshot equivalence
+        // checks below still cover every captured definition for authoritative saves.
+        expected.Types.RemoveAll(type => !expected.Units.Any(unit => unit.TypeId == type.Id));
+        AssertEquivalentRoundZeroStates(expected, publicState);
+    }
+
     internal static void AssertEquivalentRoundZeroStates(GameState authoredState, GameState loadedState)
     {
         var expectedBoard = authoredState.Physical.Board;

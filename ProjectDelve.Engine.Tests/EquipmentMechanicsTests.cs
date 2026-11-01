@@ -296,24 +296,12 @@ public sealed class EquipmentMechanicsTests
     }
 
     [Fact]
-    public void OmittedEquipmentCatalogMigratesDuplicateObjectsAndResumesOwnedChoices()
+    public void OmittedEquipmentSnapshotIsRejectedWithoutCanonicalRepair()
     {
         var state = Ready(Scenario());
-        state.MoveDone = true;
-        state.Units[0] = state.Units[0] with { Inventory = [new("bell-1", LootCardKind.GoatBell),
-            new("bell-2", LootCardKind.GoatBell), new("wind", LootCardKind.SecondWind)] };
         var json = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(state))!.AsObject();
         json.Remove("EquipmentTypes");
-        var restored = JsonSerializer.Deserialize<GameState>(json.ToJsonString())!;
-        Assert.Equal(new[] { "bell-1", "wind" }, restored.Units[0].Inventory.Select(o => o.Id));
-        Assert.Equal("bell-2", Assert.Single(restored.GroundObjects).Object.Id);
-        var first = Do(restored, "equipment:bell-1:stand-up:friend");
-        var second = Do(JsonSerializer.Deserialize<GameState>(json.ToJsonString())!, "equipment:bell-1:stand-up:friend");
-        Assert.Equal(JsonSerializer.Serialize(first), JsonSerializer.Serialize(second));
-        Assert.True(first.State.IsUpright("friend"));
-        Assert.Equal(1, first.State.ActionsUsedThisActivation);
-        var savedAgain = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(restored))!;
-        Assert.Single(savedAgain.GroundObjects); // Migration is idempotent.
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<GameState>(json.ToJsonString()));
     }
 }
 

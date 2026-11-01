@@ -258,27 +258,30 @@ public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp
     public ImmutableDictionary<string, int> AbilityUseCounts { get; init; } = ImmutableDictionary<string, int>.Empty;
 }
 
-public sealed record Board(int Width, int Height, List<Edge> Edges) : IJsonOnDeserializing, IJsonOnDeserialized
+public sealed record Board : IJsonOnDeserialized
 {
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public List<Edge> Edges { get; init; }
+    // Convenience for manually authored boards. Runtime copies and deserialization use captured definitions.
+    public Board(int width, int height, List<Edge> edges) : this(width, height, edges, TerrainCatalog.All) { }
+    [JsonConstructor]
+    public Board(int width, int height, List<Edge> edges, ImmutableArray<TerrainDefinition> terrainTypes)
+    {
+        Width = width; Height = height; Edges = edges; TerrainTypes = terrainTypes;
+    }
     // Unlisted cells contain stone floor; absent edges have kind None.
     public List<Machine> Machines { get; init; } = [];
     public List<TerrainTile> Terrain { get; init; } = [];
-    private ImmutableArray<TerrainDefinition> terrainTypes = TerrainCatalog.All;
-    private ImmutableDictionary<string, TerrainDefinition> terrainIndex = TerrainCatalog.All.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
-    private int terrainContentVersion = 2;
-    // Runtime snapshot format only; scenario serialization retains its legacy shape.
-    public int TerrainContentVersion { get => terrainContentVersion; init => terrainContentVersion = value; }
-    void IJsonOnDeserializing.OnDeserializing() => terrainContentVersion = 1;
+    private ImmutableArray<TerrainDefinition> terrainTypes = [];
+    private ImmutableDictionary<string, TerrainDefinition> terrainIndex = ImmutableDictionary<string, TerrainDefinition>.Empty;
+    // Current snapshots carry their complete Terrain definitions. Historical upgrades are unsupported.
+    [JsonRequired] public int TerrainContentVersion { get; init; } = 2;
     void IJsonOnDeserialized.OnDeserialized()
     {
-        if (terrainContentVersion is not (1 or 2)) throw new ArgumentException("Unsupported Terrain content snapshot version.");
-        if (terrainContentVersion == 1)
-        {
-            terrainTypes = TerrainCompatibility.UpgradeRuntimeCatalog(terrainTypes);
-            terrainIndex = terrainTypes.ToImmutableDictionary(d => d.Id, StringComparer.Ordinal);
-            terrainContentVersion = 2;
-        }
+        if (TerrainContentVersion != 2) throw new ArgumentException("Unsupported Terrain content snapshot version.");
     }
+    [JsonRequired]
     public ImmutableArray<TerrainDefinition> TerrainTypes
     {
         get => terrainTypes;
@@ -312,8 +315,8 @@ public sealed record Board(int Width, int Height, List<Edge> Edges) : IJsonOnDes
 
 public static class BoardProperties
 {
-    public static bool Passable(this TerrainKind kind) => TerrainCatalog.Legacy(kind).Passable;
-    public static bool BlocksLos(this TerrainKind kind) => TerrainCatalog.Legacy(kind).BlocksLos;
+    public static bool Passable(this TerrainKind kind) => kind is TerrainKind.Grass or TerrainKind.StoneFloor or TerrainKind.Rail or TerrainKind.Gravel or TerrainKind.Asphalt;
+    public static bool BlocksLos(this TerrainKind kind) => kind is TerrainKind.Tree or TerrainKind.FruitTree or TerrainKind.SolidRock;
     public static bool Passable(this EdgeKind kind) => kind is EdgeKind.None or EdgeKind.OpenDoor;
     public static bool BlocksLos(this EdgeKind kind) => kind is EdgeKind.Wall or EdgeKind.ClosedDoor;
 }
@@ -389,17 +392,15 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
 // Old group-phase saves cannot be resumed as per-unit activations.
 [System.Text.Json.Serialization.JsonUnmappedMemberHandling(
     System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
-public sealed class GameState : IJsonOnDeserialized
+public sealed class GameState
 {
-    void IJsonOnDeserialized.OnDeserialized()
-    {
-        LootCompatibility.MigrateLegacyCatalog(this);
-        EquipmentCompatibility.MigrateLegacyDuplicateOwnership(this);
-    }
-    public List<WorldCardDefinition> WorldCardDefinitions { get; set; } = WorldCardCatalog.Resolve(null);
-    public List<ItemDefinition> ItemTypes { get; set; } = ItemCatalog.Resolve(null);
-    public List<LootCardDefinition> LootCardDefinitions { get; set; } = LootCardCatalog.Resolve(null);
-    public List<EquipmentDefinition> EquipmentTypes { get; set; } = EquipmentCatalog.Resolve(null);
+    [JsonRequired] public List<WorldCardDefinition> WorldCardDefinitions { get; set; } = [];
+    [JsonRequired] public List<ItemDefinition> ItemTypes { get; set; } = [];
+    [JsonRequired] public List<LootCardDefinition> LootCardDefinitions { get; set; } = [];
+    [JsonRequired] public List<EquipmentDefinition> EquipmentTypes { get; set; } = [];
+    [JsonRequired] public List<ResourceType> ResourceDefinitions { get; set; } = [];
+    // Retains the original declared/first-summoned ordering independently of definition capture.
+    public List<string>? ActivationTypeOrder { get; set; }
     public LootDeck? LootDeck { get; set; }
     public List<LootMarker> LootMarkers { get; set; } = [];
     public List<GroundObject> GroundObjects { get; set; } = [];
@@ -427,7 +428,7 @@ public sealed class GameState : IJsonOnDeserialized
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
-        if (!Types.Any(t => t.Id == type.Id)) Types.Add(type);
+        if (ActivationTypeOrder is {} order && !order.Contains(type.Id)) order.Add(type.Id);
         Units.Add(type.CreateUnit(id, sideId));
         Physical.Figures.Add(new(id, cell, posture));
         FogOfWar.Refresh(this);
@@ -610,11 +611,11 @@ public sealed class GameState : IJsonOnDeserialized
     internal GameState Copy() => new()
     {
         WorldCardDefinitions = [.. WorldCardDefinitions],
+        ResourceDefinitions = [.. ResourceDefinitions], ActivationTypeOrder = ActivationTypeOrder is null ? null : [.. ActivationTypeOrder],
         ItemTypes = [.. ItemTypes], LootCardDefinitions = [.. LootCardDefinitions],
         EquipmentTypes = [.. EquipmentTypes],
         LootDeck = LootDeck?.Copy(), LootMarkers = [.. LootMarkers], GroundObjects = [.. GroundObjects],
-        Physical = new PhysicalState(new Board(Physical.Board.Width, Physical.Board.Height,
-            [.. Physical.Board.Edges]) { Terrain = [.. Physical.Board.Terrain], TerrainTypes = Physical.Board.TerrainTypes, Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
+        Physical = new PhysicalState(Physical.Board with { Edges = [.. Physical.Board.Edges], Terrain = [.. Physical.Board.Terrain], Machines = [.. Physical.Board.Machines] }, [.. Physical.Figures]),
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
         FogOfWarSides = [.. FogOfWarSides],

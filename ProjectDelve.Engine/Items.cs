@@ -64,12 +64,12 @@ public static class LootCardCatalog
     public static IReadOnlyList<LootCardDefinition> All => LootRoster.Definitions;
     // Authored selection and inspection use local precedence. Runtime catalogs
     // separately retain historical aliases needed by physical card references.
-    public static List<LootCardDefinition> Effective(IEnumerable<LootCardDefinition>? local)
+    public static List<LootCardDefinition> Effective(IEnumerable<LootCardDefinition>? local, IReadOnlyList<LootCardDefinition>? canonical = null)
     {
         var authored = (local ?? []).ToList();
         Validate(authored);
         var localIds = authored.Select(card => card.Id).ToHashSet(StringComparer.Ordinal);
-        var effective = All.Where(card => !localIds.Contains(card.Id)).Concat(authored).ToList();
+        var effective = (canonical ?? All).Where(card => !localIds.Contains(card.Id)).Concat(authored).ToList();
         Validate(effective);
         return effective;
     }

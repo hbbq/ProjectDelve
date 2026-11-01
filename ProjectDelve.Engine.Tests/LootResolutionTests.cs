@@ -24,6 +24,8 @@ public sealed class LootResolutionTests
         other ??= new UnitType("other", 2, 1, 1, 0, 1) { LootDropSuccesses = 6 };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
+            EquipmentTypes = [.. EquipmentCatalog.All], ItemTypes = [.. ItemCatalog.All], LootCardDefinitions = [.. LootCardCatalog.All],
             Physical = new(new Board(8, 6, []), [new("a", new(1, 1)), new("b", new(5, 1))]),
             Types = [actor, other], Units = [actor.CreateUnit("a", "blue"), other.CreateUnit("b", "red")],
             Controllers = [new(new(actor.Id, "blue"), ControllerKind.Human), new(new(other.Id, "red"), ControllerKind.Automated)],

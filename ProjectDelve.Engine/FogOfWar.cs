@@ -30,6 +30,7 @@ public static class FogOfWar
         var copy = state.Copy();
         // Unopened card identities are never presentation data, including without FoW.
         copy.LootDeck = null;
+        copy.ActivationTypeOrder = null;
         // Only revealed World Card definitions belong to an observation. Keep the
         // physical pile here for count projection; transport removes its identities.
         var revealedWorldTypes = copy.WorldDeck is { } world
@@ -46,7 +47,7 @@ public static class FogOfWar
         var board = copy.Physical.Board;
         var observedTerrain = board.Terrain.Where(t => IsExplored(state, side, t.Position)).ToList();
         var observedTerrainTypes = observedTerrain.Select(t => board.TerrainDefinition(t).Id)
-            .Append(TerrainCatalog.Legacy(TerrainKind.StoneFloor).Id).ToHashSet(StringComparer.Ordinal);
+            .Append("stone-floor").ToHashSet(StringComparer.Ordinal);
         copy.Physical = new(board with {
             Terrain = observedTerrain,
             TerrainTypes = [.. board.TerrainTypes.Where(t => observedTerrainTypes.Contains(t.Id))],
@@ -85,6 +86,9 @@ public static class FogOfWar
 
     private static void FilterEquipment(GameState observed)
     {
+        var productionResources = observed.Physical.Board.TerrainTypes.Select(t => t.Production)
+            .OfType<DirectionalResourceProduction>().Select(p => p.ResourceTypeId).ToHashSet(StringComparer.Ordinal);
+        observed.ResourceDefinitions.RemoveAll(r => !productionResources.Contains(r.Id));
         var known = observed.Units.SelectMany(u => u.Inventory).Concat(observed.GroundObjects.Select(g => g.Object))
             .Select(observed.EquipmentTypeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
         observed.EquipmentTypes.RemoveAll(d => !known.Contains(d.Id));

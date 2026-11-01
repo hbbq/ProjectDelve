@@ -9,7 +9,8 @@ public interface IGameplayQueries
     TerrainKind TerrainAt(Cell cell) => throw new NotSupportedException();
     TerrainDefinition TerrainDefinitionAt(Cell cell) => throw new NotSupportedException();
     int? RouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false) => throw new NotSupportedException();
-    int StoredQuantityFor(string unitId, ResourceType resource) => throw new NotSupportedException();
+    int StoredQuantityFor(string unitId, ResourceType resource) => StoredQuantityFor(unitId, resource.Id);
+    int StoredQuantityFor(string unitId, string resourceTypeId) => throw new NotSupportedException();
     IReadOnlyList<Resource> Resources => throw new NotSupportedException();
     bool CanTransportResource(string unitId) => throw new NotSupportedException();
     IReadOnlyDictionary<Cell, IReadOnlyList<Cell>> MovementPathsFrom(string unitId, Cell position) => throw new NotSupportedException();
@@ -100,10 +101,11 @@ internal sealed class GameplayQueries : IGameplayQueries
         FogOfWar.IsExplored(world, world.Pending?.Token?.SideId ?? world.ActiveToken?.SideId, r.Position)).ToArray();
     private bool Knows(string unitId, string targetId) => FogOfWar.IsUnitObservable(world,
         world.Units.Single(u => u.Id == unitId).SideId, targetId);
-    public int StoredQuantityFor(string unitId, ResourceType resource)
+    public int StoredQuantityFor(string unitId, ResourceType resource) => StoredQuantityFor(unitId, resource.Id);
+    public int StoredQuantityFor(string unitId, string resourceTypeId)
     {
         var unit = world.Units.Single(u => u.Id == unitId);
-        return world.StoredQuantity(unit.SideId, unit.TypeId, resource.Id);
+        return world.StoredQuantity(unit.SideId, unit.TypeId, resourceTypeId);
     }
 
     public bool CanTransportResource(string unitId) =>

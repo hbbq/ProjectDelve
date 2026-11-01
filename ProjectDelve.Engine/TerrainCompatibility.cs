@@ -18,38 +18,14 @@ public static class TerrainCompatibility
         if (IsLegacyLavaReference(legacy, typeId)) return coalGeneration == false ? OrdinaryLavaId : CoalLavaId;
         if (coalGeneration is not null)
             throw new ArgumentException("coalGeneration is supported only on legacy Lava references; new Terrain Types declare production.");
-        return typeId ?? TerrainCatalog.Legacy(legacy).Id;
+        return typeId ?? legacy switch
+        {
+            TerrainKind.Grass => "grass", TerrainKind.Tree => "tree", TerrainKind.Water => "water",
+            TerrainKind.StoneFloor => "stone-floor", TerrainKind.StoneFloorWithTable => "stone-floor-with-table",
+            TerrainKind.Rail => "rail", TerrainKind.Gravel => "gravel", TerrainKind.Asphalt => "asphalt",
+            TerrainKind.FruitTree => "fruit-tree", TerrainKind.SolidRock => "solid-rock",
+            _ => throw new ArgumentException("Unknown legacy Terrain kind.")
+        };
     }
 
-    // Version 1 runtime snapshots predate typed production. This upgrades only
-    // entries already present, including catalogs reduced by Fog of War.
-    internal static ImmutableArray<TerrainDefinition> UpgradeRuntimeCatalog(ImmutableArray<TerrainDefinition> definitions)
-    {
-        var upgraded = ImmutableArray.CreateBuilder<TerrainDefinition>();
-        foreach (var definition in definitions)
-        {
-            if (definition.Id == LegacyLavaId)
-            {
-                if (string.IsNullOrWhiteSpace(definition.Name) || definition.LegacyKind != TerrainKind.Lava || definition.Passable || definition.BlocksLos ||
-                    definition.AllowsResourceMarkers || definition.Categories.IsDefault || !definition.Categories.IsEmpty ||
-                    definition.Production is not null || definition.LegacyProductionIdentity is not null)
-                    throw new ArgumentException("Invalid legacy Lava definition in runtime snapshot.");
-                foreach (var id in new[] { OrdinaryLavaId, CoalLavaId })
-                {
-                    var canonical = TerrainCatalog.Find(TerrainCatalog.All, id);
-                    upgraded.Add(canonical with { Name = definition.Name == "Lava" ? canonical.Name : definition.Name,
-                        Presentation = definition.Presentation });
-                }
-            }
-            else if (definition.Id == "fruit-tree" && definition.Production is null && definition.LegacyProductionIdentity is null)
-            {
-                var canonical = TerrainCatalog.Legacy(TerrainKind.FruitTree);
-                upgraded.Add(definition with { Production = canonical.Production, LegacyProductionIdentity = canonical.LegacyProductionIdentity });
-            }
-            else upgraded.Add(definition);
-        }
-        var result = upgraded.ToImmutable();
-        TerrainCatalog.Validate(result);
-        return result;
-    }
 }

@@ -266,9 +266,17 @@ public sealed partial class PlaytestGame
     }
     private static GameState SanitizeState(GameState source)
     {
-        var copy = FogOfWar.ViewingSide(source) is { } side ? FogOfWar.Observe(source, side) : Detach(source);
-        copy.Physical = copy.Physical with { Board = copy.Physical.Board with
-            { Terrain = BrowserProjection.TerrainForPresentation(copy.Physical.Board) } };
+        var copy = FogOfWar.Observe(source, FogOfWar.ViewingSide(source));
+        var board = copy.Physical.Board;
+        var terrain = BrowserProjection.TerrainForPresentation(board);
+        var terrainIds = terrain.Select(tile => board.TerrainDefinition(tile).Id).Append("stone-floor").ToHashSet(StringComparer.Ordinal);
+        copy.Physical = copy.Physical with { Board = board with
+            { Terrain = terrain, TerrainTypes = [.. board.TerrainTypes.Where(t => terrainIds.Contains(t.Id))] } };
+        copy.Types.RemoveAll(type => !copy.Units.Any(unit => unit.TypeId == type.Id));
+        copy.ActivationTypeOrder = null;
+        var resourceIds = copy.Physical.Board.TerrainTypes.Select(t => t.Production).OfType<DirectionalResourceProduction>()
+            .Select(p => p.ResourceTypeId).ToHashSet(StringComparer.Ordinal);
+        copy.ResourceDefinitions.RemoveAll(r => !resourceIds.Contains(r.Id));
         if (copy.WorldDeck is not null) copy.WorldDeck.DrawPile = [];
         if (copy.WorldEffects is not null) copy.WorldEffects = copy.WorldEffects with { Composition = null };
         var knownWorldTypes = (copy.WorldDeck?.ActiveContinuous ?? [])

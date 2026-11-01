@@ -21,6 +21,7 @@ public sealed class ClosedCornerGameplayTests
         return new() { Types = [actor, target],
             Units = [actor.CreateUnit("source", "blue"), target.CreateUnit("target", targetSide)],
             Controllers = [new(new(actor.Id, "blue"), ControllerKind.Human), new(new(target.Id, targetSide), ControllerKind.Human)],
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(9, 9, [new(new(3, 3), new(3, 4), open ? EdgeKind.OpenDoor : EdgeKind.ClosedDoor)]) {
                 Terrain = [new(new(4, 3), TerrainKind.SolidRock)] }, [new("source", new(3, 3)), new("target", new(4, 4))]) };
     }

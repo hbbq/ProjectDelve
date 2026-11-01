@@ -7,6 +7,7 @@ public static class LibraryApi
 {
     public static void Map(WebApplication app)
     {
+        var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments("/api/library") && !context.Request.Path.StartsWithSegments("/api/library/covers"))
@@ -35,7 +36,7 @@ public static class LibraryApi
         api.MapGet("/campaigns/{id}", (string id, ScenarioLibrary library) => library.Campaign(id));
         api.MapGet("/scenarios/{id}/transport", (string id, ScenarioLibrary library) => new
         {
-            transport = ScenarioDefinitionTransport.Encode(ScenarioDefinitionJson.FromJson(library.Scenario(id).Definition.GetRawText(), DesignerApi.CheckHostLimits))
+            transport = ScenarioDefinitionTransport.Encode(ScenarioDefinitionJson.FromJson(library.Scenario(id).Definition.GetRawText(), DesignerApi.CheckHostLimits, canonical))
         });
         api.MapPost("/scenarios", (SaveLibraryScenario request, ScenarioLibrary library) => Results.Ok(library.SaveScenario(null, request)));
         api.MapPut("/scenarios/{id}", (string id, SaveLibraryScenario request, ScenarioLibrary library) => Results.Ok(library.SaveScenario(id, request)));

@@ -49,74 +49,68 @@ public static class ContentBrowserCatalog
         ("resources", "Resources"), ("machines", "Machines"), ("cellMarkers", "Cell Markers")
     ];
 
-    public static ContentBrowserResponse Canonical() => Build(null, null);
+    public static ContentBrowserResponse Canonical(ContentBundle? canonical = null) => Build(null, null, canonical ?? ContentBundle.Canonical());
 
     // Resolved, validated dependencies only: no scenario or runtime state.
     public static ContentBrowserResponse Definitions(IReadOnlyList<EquipmentDefinition> equipment,
         IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot,
-        IReadOnlyList<UnitType>? units = null, IReadOnlySet<string>? localUnitIds = null)
+        IReadOnlyList<UnitType>? units = null, IReadOnlySet<string>? localUnitIds = null, ContentBundle? canonical = null)
     {
-        units ??= CanonicalUnitTypes.All.ToArray();
+        canonical ??= ContentBundle.Canonical();
+        units ??= canonical.Units;
         List<ContentBrowserEntry> entries = [];
         foreach (var type in units)
             entries.Add(Entry("units", type.Id, type.DisplayName ?? type.Id, type,
-                localUnitIds?.Contains(type.Id) == true ? CanonicalUnitTypes.Find(type.Id) is null ? "scenario-local" : "scenario-override" : "canonical",
+                localUnitIds?.Contains(type.Id) == true ? !canonical.Units.Any(unit => unit.Id == type.Id) ? "scenario-local" : "scenario-override" : "canonical",
                 $"MOV {type.Mov} · RNG {type.Rng} · ATK {type.Atk} · DEF {type.Def} · HP {type.Hp}. {AbilitySummary(type.LocalAbilities.Length)}",
                 type.LocalAbilities, AbilityReferences(type.LocalAbilities), units) with { Sections = UnitSections(type) });
-        entries.AddRange(equipment.Select(type => EquipmentEntry(type, EquipmentCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local", units)));
-        entries.AddRange(items.Select(type => ItemEntry(type, ItemCatalog.All.Any(canonical => canonical.Id == type.Id) ? "canonical" : "local", units)));
-        entries.AddRange(loot.Select((type, index) => LootEntry(type, index < LootCardCatalog.All.Count ? "canonical" : "local") with
+        entries.AddRange(equipment.Select(type => EquipmentEntry(type, canonical.Equipment.Any(row => row.Id == type.Id) ? "canonical" : "local", units)));
+        entries.AddRange(items.Select(type => ItemEntry(type, canonical.Items.Any(row => row.Id == type.Id) ? "canonical" : "local", units)));
+        entries.AddRange(loot.Select((type, index) => LootEntry(type, index < canonical.LootCards.Length ? "canonical" : "local") with
         {
-            Availability = index >= LootCardCatalog.All.Count && LootCardCatalog.All.Any(canonical => canonical.Id == type.Id)
+            Availability = index >= canonical.LootCards.Length && canonical.LootCards.Any(row => row.Id == type.Id)
                 ? "legacy-collision" : null
         }));
         entries.AddRange(MechanicCatalog.All.Select(MechanicEntry));
-        var resources = ResourceTypes.All.Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
+        var resources = canonical.Resources.Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
             .OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces))).DistinctBy(type => Element(type).GetRawText());
         entries.AddRange(resources.Select(type => Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name,
-            type, ResourceTypes.All.Contains(type) ? "canonical" : "scenario-override")));
+            type, canonical.Resources.Contains(type) ? "canonical" : "scenario-override")));
         entries = ResolveReferences(entries);
         return new(new("definitions", "Draft content"),
             Families.Where(family => family.Id is "units" or "equipment" or "items" or "lootCards" or "mechanics" or "resources")
                 .Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(entry => entry.Family == family.Id))).ToArray(), entries, []);
     }
 
-    public static ContentBrowserResponse Scenario(ScenarioDefinition definition)
+    public static ContentBrowserResponse Scenario(ScenarioDefinition definition, ContentBundle? canonical = null)
     {
         // This state is detached, remains before Round Start, and is never returned.
-        var state = GameEngine.CreateGame(definition);
-        return Build(definition, state);
+        canonical ??= ContentBundle.Canonical();
+        var state = GameEngine.CreateGame(definition, canonical);
+        return Build(definition, state, canonical);
     }
 
-    private static ContentBrowserResponse Build(ScenarioDefinition? source, GameState? state)
+    private static ContentBrowserResponse Build(ScenarioDefinition? source, GameState? state, ContentBundle canonical)
     {
         List<ContentBrowserEntry> entries = [];
-        var units = state?.Types.ToList() ?? CanonicalUnitTypes.All.ToList();
-        var declaredUnitIds = units.Select(type => type.Id).ToHashSet(StringComparer.Ordinal);
-        IReadOnlyList<EquipmentDefinition> equipment = state is null ? EquipmentCatalog.All : state.EquipmentTypes;
-        IReadOnlyList<ItemDefinition> items = state is null ? ItemCatalog.All : state.ItemTypes;
-        foreach (var summon in Summons(equipment.SelectMany(type => type.LocalAbilities).Concat(items.SelectMany(type => type.LocalAbilities))))
-            if (units.All(type => type.Id != summon.UnitTypeId) && UnitContent.Find(summon.UnitTypeId, state?.Types) is { } target)
-                units.Add(target);
-        // Summoning may resolve a canonical type lazily. Expose only these reachable
-        // fallbacks, rather than claiming every canonical Unit is in the scenario.
-        for (var index = 0; index < units.Count; index++)
-            foreach (var summon in Summons(units[index].LocalAbilities))
-                if (units.All(type => type.Id != summon.UnitTypeId) && UnitContent.Find(summon.UnitTypeId, state?.Types) is { } target)
-                    units.Add(target);
+        var units = state?.Types.ToList() ?? canonical.Units.ToList();
+        var declaredUnitIds = (source?.UnitTypeIds ?? units.Select(type => type.Id).ToList()).ToHashSet(StringComparer.Ordinal);
+        IReadOnlyList<EquipmentDefinition> equipment = state is null ? canonical.Equipment : state.EquipmentTypes;
+        IReadOnlyList<ItemDefinition> items = state is null ? canonical.Items : state.ItemTypes;
+        // New-game composition has already captured transitive Summoning dependencies.
 
-        IReadOnlyList<LootCardDefinition> loot = state is null ? LootCardCatalog.All : state.LootCardDefinitions;
-        IReadOnlyList<WorldCardDefinition> world = state is null ? WorldCardCatalog.All : state.WorldCardDefinitions;
-        var terrain = state?.Physical.Board.TerrainTypes ?? TerrainCatalog.All;
-        var components = FixedComponentCatalog.Resolve(source?.FixedComponentTypes);
-        var assemblies = TerrainRoster.Assemblies.Concat(source?.TerrainAssemblies ?? []).ToArray();
+        IReadOnlyList<LootCardDefinition> loot = state is null ? canonical.LootCards : state.LootCardDefinitions;
+        IReadOnlyList<WorldCardDefinition> world = state is null ? canonical.WorldCards : state.WorldCardDefinitions;
+        var terrain = state?.Physical.Board.TerrainTypes ?? canonical.Terrain;
+        var components = FixedComponentCatalog.Resolve(source?.FixedComponentTypes, canonical.FixedComponents);
+        var assemblies = canonical.Terrain.Where(t => t.Assembly is not null).Select(t => new TerrainAssemblyDefinition(t.Id, t.Name, t.Assembly!.Surface.Id) { Components = [.. t.Assembly.Components.Select(c => new FixedComponentPlacement(c.Slot, c.Definition.Id, c.QuarterTurns))] }).Concat(source?.TerrainAssemblies ?? []).ToArray();
 
         foreach (var type in units)
         {
             var authored = source?.UnitTypes?.SingleOrDefault(t => t.Id == type.Id);
             var lootOverride = source?.LootUnitOverrides?.GetValueOrDefault(type.Id);
             var origin = authored is null && lootOverride is null ? "canonical" :
-                CanonicalUnitTypes.Find(type.Id) is null ? "scenario-local" : "scenario-override";
+                !canonical.Units.Any(unit => unit.Id == type.Id) ? "scenario-local" : "scenario-override";
             var refs = AbilityReferences(type.LocalAbilities).ToList();
             if (type.ResourceStorage is { } storage) refs.AddRange(StorageReferences(storage));
             if (type.TerrainRestrictedMovement is { } restriction)
@@ -141,21 +135,21 @@ public static class ContentBrowserCatalog
             var type = loot[index];
             // Catalog creation preserves local ordering when it aliases a historical
             // ID collision; retain the exact authored identity alongside the result.
-            var localIndex = index - LootCardCatalog.All.Count;
+            var localIndex = index - canonical.LootCards.Length;
             var authored = localIndex >= 0 ? source?.LootCardDefinitions?[localIndex] : null;
             entries.Add(LootEntry(type, Local(authored is not null)) with
             { AuthoredDefinition = authored is not null && authored.Id != type.Id ? Element(authored) : null });
         }
-        foreach (var preset in LootPresets.All)
+        foreach (var preset in canonical.LootPresets)
         {
-            var composition = LootPresets.Resolve(preset.Id, LootCardCatalog.Effective(source?.LootCardDefinitions));
+            var composition = LootPresets.Resolve(preset.Id, LootCardCatalog.Effective(source?.LootCardDefinitions, canonical.LootCards), canonical.LootPresets);
             // Dynamic selection uses authored IDs and local precedence. References
             // in this resolved view follow the historical runtime aliases, if any.
             if (preset.IsDynamic && source?.LootCardDefinitions is { } local)
                 composition = composition.Select(row =>
                 {
                     var localIndex = local.FindIndex(card => card.Id == row.LootCardId);
-                    return localIndex < 0 ? row : row with { LootCardId = loot[LootCardCatalog.All.Count + localIndex].Id };
+                    return localIndex < 0 ? row : row with { LootCardId = loot[canonical.LootCards.Length + localIndex].Id };
                 }).ToArray();
             entries.Add(Entry("lootPresets", preset.Id, preset.Name, preset with { Composition = composition },
                 preset.IsDynamic && source is not null ? "resolved" : "canonical", preset.Description,
@@ -165,11 +159,11 @@ public static class ContentBrowserCatalog
             entries.Add(Entry("lootPresets", "scenario", "Scenario Loot composition",
                 new { composition = ResolvedLootComposition(state.LootDeck!.DrawPile) }, "resolved", "Resolved initial Loot composition.",
                 references: LootReferences(state.LootDeck.DrawPile)) with { AuthoredDefinition = Element(source.Loot ?? LootSettings.Empty) });
-        var scenarioWorldComposition = source?.WorldEffects is { } worldSettings ? WorldCards.ResolveComposition(worldSettings, world) : null;
+        var scenarioWorldComposition = source?.WorldEffects is { } worldSettings ? WorldCards.ResolveComposition(worldSettings with { Composition = worldSettings.Composition ?? canonical.DefaultWorldDeck }, world) : null;
         foreach (var type in world)
         {
             var references = MechanicReferences(type.Immediate ?? (object)type.Modifiers).ToList();
-            var defaultCount = WorldCardRoster.Composition.SingleOrDefault(row => row.TypeId == type.Id)?.Count ?? 0;
+            var defaultCount = canonical.DefaultWorldDeck.SingleOrDefault(row => row.TypeId == type.Id)?.Count ?? 0;
             List<ContentBrowserField> quantities = [new("Default World Deck", Element(defaultCount))];
             if (defaultCount > 0) references.Add(Reference("Default World Deck", "worldDecks", "default"));
             if (scenarioWorldComposition is not null)
@@ -182,8 +176,8 @@ public static class ContentBrowserCatalog
                 type.Description, references: references);
             entries.Add(entry with { Sections = [.. entry.Sections, new("Deck quantities", quantities)] });
         }
-        entries.Add(Entry("worldDecks", "default", "Default World Deck", new { composition = WorldCardRoster.Composition },
-            "canonical", "Canonical World Card quantities.", references: WorldReferences(WorldCardRoster.Composition)));
+        entries.Add(Entry("worldDecks", "default", "Default World Deck", new { composition = canonical.DefaultWorldDeck },
+            "canonical", "Canonical World Card quantities.", references: WorldReferences(canonical.DefaultWorldDeck)));
         if (source?.WorldEffects is { } settings)
             entries.Add(Entry("worldDecks", "scenario", "Scenario World Deck", settings with
                 { Composition = scenarioWorldComposition }, "resolved", "Resolved initial World Deck settings.",
@@ -195,11 +189,11 @@ public static class ContentBrowserCatalog
             if (type.Production is { } production) refs.AddRange(MechanicReferences(production));
             if (authoredAssembly is not null) refs.Add(Reference("Assembly declaration", "terrainAssemblies", type.Id));
             var local = source?.TerrainTypes?.Any(t => t.Id == type.Id) == true || source?.TerrainAssemblies?.Any(t => t.Id == type.Id) == true;
-            entries.Add(Entry("terrain", type.Id, type.Name, type, Local(local), type.ProductionDescription ?? "", references: refs)
+            entries.Add(Entry("terrain", type.Id, type.Name, type, Local(local), EnvironmentalProductionContent.Describe(type.Production, canonical.Resources) ?? "", references: refs)
                 with
                 {
                     AuthoredDefinition = authoredAssembly is not null ? Element(authoredAssembly) : null,
-                    Sections = TerrainSections(type)
+                    Sections = TerrainSections(type, canonical.Resources)
                 });
         }
         foreach (var type in components)
@@ -217,7 +211,7 @@ public static class ContentBrowserCatalog
                 Sections = [.. entry.Sections, new("Resolved Terrain", Fields(Element(new
                 {
                     resolved.Passable, resolved.BlocksLos, resolved.AllowsResourceMarkers, resolved.Categories,
-                    resolved.Production, resolved.ProductionDescription, resolved.Presentation
+                    resolved.Production, productionDescription = EnvironmentalProductionContent.Describe(resolved.Production, canonical.Resources), resolved.Presentation
                 })))]
             });
         }
@@ -225,7 +219,7 @@ public static class ContentBrowserCatalog
             entries.Add(MechanicEntry(mechanic));
 
         var machineTypes = MachineTypes.All.Concat(source?.Machines?.Select(m => m.Type) ?? []).DistinctBy(type => Element(type).GetRawText()).ToList();
-        var resourceTypes = ResourceTypes.All.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
+        var resourceTypes = canonical.Resources.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
             .Concat(units.SelectMany(type => type.LocalAbilities.Select(a => a.Mechanic).OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces)))
             .Concat(machineTypes.SelectMany(type => type.Storage.Capacities.Select(c => c.Type)
                 .Concat(type.Operation.Costs.Select(c => c.Type)).Concat(type.Operation.OutputTable?.Faces ?? [])
@@ -234,15 +228,15 @@ public static class ContentBrowserCatalog
             .Concat(source?.StoredResources?.Select(resource => resource.Type) ?? [])
             .DistinctBy(type => Element(type).GetRawText());
         foreach (var type in resourceTypes)
-            entries.Add(Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name, type, ResourceTypes.All.Contains(type) ? "canonical" :
-                ResourceTypes.All.Any(canonical => canonical.Id == type.Id) ? "scenario-override" : "scenario-local"));
+            entries.Add(Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name, type, canonical.Resources.Contains(type) ? "canonical" :
+                canonical.Resources.Any(row => row.Id == type.Id) ? "scenario-override" : "scenario-local"));
         foreach (var type in machineTypes)
         {
             var refs = StorageReferences(type.Storage).Concat(type.Operation.Costs.Select(c => ResourceReference("Input", c.Type)))
                 .Concat((type.Operation.OutputTable?.Faces ?? []).Select(r => ResourceReference("Output", r)));
             if (type.Operation.OutputType is { } output) refs = refs.Append(ResourceReference("Output", output));
             entries.Add(Entry("machines", type.Id, type.Name, type, MachineTypes.All.Contains(type) ? "canonical" :
-                MachineTypes.All.Any(canonical => canonical.Id == type.Id) ? "scenario-override" : "scenario-local",
+                MachineTypes.All.Any(row => row.Id == type.Id) ? "scenario-override" : "scenario-local",
                 type.Operation.OutputDescription, references: refs));
         }
         foreach (var type in CellMarkerTypes.All)
@@ -333,7 +327,7 @@ public static class ContentBrowserCatalog
         new("Loot", Fields(Element(new { type.CanHaveItems, type.CanHaveEquipment, type.LootDropSuccesses }))),
         new("Automated policies", Fields(Element(new { type.Behaviors, type.AttackDefinitionOrder })))
     ];
-    private static ContentBrowserSection[] TerrainSections(TerrainDefinition type) =>
+    private static ContentBrowserSection[] TerrainSections(TerrainDefinition type, IReadOnlyList<ResourceType>? resources = null) =>
     [
         new("Terrain properties", Fields(Element(new
         {
@@ -341,7 +335,7 @@ public static class ContentBrowserCatalog
             type.Passable, type.BlocksLos, type.AllowsResourceMarkers, type.Categories
         }))),
         new("Presentation", Fields(Element(type.Presentation))),
-        new("Production", Fields(Element(new { type.Production, description = type.ProductionDescription })))
+        new("Production", Fields(Element(new { type.Production, description = EnvironmentalProductionContent.Describe(type.Production, resources) })))
     ];
     private static string Local(bool local) => local ? "scenario-local" : "canonical";
     private static string AbilitySummary(int count) => $"{count} owned {(count == 1 ? "Ability" : "Abilities")}.";

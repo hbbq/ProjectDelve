@@ -35,13 +35,14 @@ public static class ContentEditorApi
 
     public static void Map(WebApplication app)
     {
+        var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.MapPost("/api/content/validate", async (HttpRequest request) =>
         {
             try
             {
                 var input = JsonSerializer.Deserialize<ContentEditorRequest>(await Read(request), Json)
                     ?? throw new JsonException("A content validation request is required.");
-                return Results.Ok(Validate(input));
+                return Results.Ok(Validate(input, canonical));
             }
             catch (JsonException error)
             {
@@ -54,8 +55,8 @@ public static class ContentEditorApi
             {
                 var context = JsonSerializer.Deserialize<ContentEditorContext>(await Read(request), Json)
                     ?? throw new JsonException("A dependency context is required.");
-                var resolved = Resolve(context, contextPath: "");
-                return Results.Ok(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds));
+                var resolved = Resolve(context, contextPath: "", canonical: canonical);
+                return Results.Ok(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical));
             }
             catch (Exception error) when (error is JsonException or ContentEditorException)
             {
@@ -66,8 +67,9 @@ public static class ContentEditorApi
         });
     }
 
-    public static ContentEditorResponse Validate(ContentEditorRequest request)
+    public static ContentEditorResponse Validate(ContentEditorRequest request, ContentBundle? canonical = null)
     {
+        canonical ??= ContentBundle.Canonical();
         if (request.Family is not ("equipment" or "lootCards"))
             return Invalid(new("family", "unsupportedFamily", "This editor supports Equipment and Loot Cards."));
         object candidate;
@@ -82,8 +84,8 @@ public static class ContentEditorApi
         catch (JsonException error) { return Invalid(JsonDiagnostic(error, "definition")); }
         try
         {
-            var resolved = Resolve(request.Context ?? new(), candidate, request.ExistingId);
-            var catalog = ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds);
+            var resolved = Resolve(request.Context ?? new(), candidate, request.ExistingId, canonical: canonical);
+            var catalog = ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical);
             var id = candidate is EquipmentDefinition equipment ? equipment.Id : ((LootCardDefinition)candidate).Id;
             return new(true, [])
             {
@@ -100,19 +102,20 @@ public static class ContentEditorApi
     { public ContentEditorDiagnostic Diagnostic => diagnostic; }
 
     private static ResolvedContext Resolve(ContentEditorContext context, object? candidate = null, string? existingId = null,
-        string contextPath = "context")
+        string contextPath = "context", ContentBundle? canonical = null)
     {
+        canonical ??= ContentBundle.Canonical();
         string Path(string field) => contextPath.Length == 0 ? field : contextPath + "." + field;
         if (context.UnitTypes is null) throw Error(Path("unitTypes"), "required", "Unit dependencies must be an array.");
         if (context.EquipmentTypes is null) throw Error(Path("equipmentTypes"), "required", "Equipment dependencies must be an array.");
         if (context.ItemTypes is null) throw Error(Path("itemTypes"), "required", "Item dependencies must be an array.");
         if (context.LootCardDefinitions is null) throw Error(Path("lootCardDefinitions"), "required", "Loot Card dependencies must be an array.");
-        if (candidate is LootCardDefinition proposedLoot && LootCardCatalog.All.Any(type => type.Id == proposedLoot.Id))
+        if (candidate is LootCardDefinition proposedLoot && canonical.LootCards.Any(type => type.Id == proposedLoot.Id))
             throw Error("definition.id", "canonicalId", "Canonical Loot Card IDs are reserved. Create a copy with a new ID to edit historical colliding content.");
 
         List<UnitType> units;
         var unitPaths = Enumerable.Range(0, context.UnitTypes.Count).ToDictionary(index => $"unitTypes[{index}]", index => $"{Path("unitTypes")}[{index}]");
-        try { units = UnitContent.Resolve(context.UnitTypes); }
+        try { units = UnitContent.Resolve(context.UnitTypes, canonical.Units); }
         catch (ArgumentException error) { throw Rebase(error, unitPaths, contextPath); }
 
         var equipment = context.EquipmentTypes.ToList();
@@ -133,17 +136,17 @@ public static class ContentEditorApi
         try { LootCardCatalog.Validate(loot); }
         catch (ArgumentException error) { throw Rebase(error, localLootPaths, contextPath); }
         var authoredLootIds = loot.Select(type => type.Id).ToHashSet(StringComparer.Ordinal);
-        var canonicalLootDependencies = LootCardCatalog.All.Where(type => !authoredLootIds.Contains(type.Id)).ToList();
+        var canonicalLootDependencies = canonical.LootCards.Where(type => !authoredLootIds.Contains(type.Id)).ToList();
 
         Dictionary<string, string> paths = new(StringComparer.Ordinal);
         void MapPaths(string field, int canonicalCount, IReadOnlyList<string> localPaths)
         {
             for (var index = 0; index < localPaths.Count; index++) paths[$"{field}[{canonicalCount + index}]"] = localPaths[index];
         }
-        MapPaths("equipmentTypes", EquipmentCatalog.All.Count, equipmentPaths);
-        MapPaths("itemTypes", ItemCatalog.All.Count, itemPaths);
+        MapPaths("equipmentTypes", canonical.Equipment.Length, equipmentPaths);
+        MapPaths("itemTypes", canonical.Items.Length, itemPaths);
         MapPaths("lootCardDefinitions", canonicalLootDependencies.Count, lootPaths);
-        var resolved = new ResolvedContext([.. EquipmentCatalog.All, .. equipment], [.. ItemCatalog.All, .. items], [.. LootCardCatalog.All, .. loot],
+        var resolved = new ResolvedContext([.. canonical.Equipment, .. equipment], [.. canonical.Items, .. items], [.. canonical.LootCards, .. loot],
             units, context.UnitTypes.Select(type => type.Id).ToHashSet(StringComparer.Ordinal));
         try { AbilityContent.ValidateObjectCatalogs(resolved.Equipment, resolved.Items, [.. canonicalLootDependencies, .. loot], units); }
         catch (ArgumentException error) { throw Rebase(error, paths, contextPath); }

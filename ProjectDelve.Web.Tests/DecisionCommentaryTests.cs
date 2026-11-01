@@ -19,6 +19,7 @@ public sealed class DecisionCommentaryTests
         var target = new UnitType("target", 1, 1, 1, 1, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new(6, 2, []), [new("one", new(0, 0)), new("two", new(4, 0))]),
             Types = [actor, target], Units = [actor.CreateUnit("one", "amber"), target.CreateUnit("two", "violet")],
             Controllers = [new(new(actor.Id, "amber"), controller), new(new(target.Id, "violet"), ControllerKind.Human)]

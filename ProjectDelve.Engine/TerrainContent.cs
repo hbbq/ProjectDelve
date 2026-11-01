@@ -45,19 +45,21 @@ public sealed record TerrainRestriction(ImmutableArray<string> Categories)
 public static class TerrainCatalog
 {
     public static ImmutableArray<TerrainDefinition> All => TerrainRoster.All;
-    private static readonly ImmutableDictionary<TerrainKind, TerrainDefinition> LegacyDefinitions =
+    private static ImmutableDictionary<TerrainKind, TerrainDefinition> LegacyDefinitions =>
         TerrainRoster.All.Where(d => d.LegacyKind is not null && d.Id != TerrainCompatibility.OrdinaryLavaId)
             .ToImmutableDictionary(d => d.LegacyKind!.Value);
     public static ImmutableArray<TerrainDefinition> Resolve(IEnumerable<TerrainDefinition>? local,
         IEnumerable<TerrainAssemblyDefinition>? assemblies = null,
-        IEnumerable<FixedComponentDefinition>? fixedComponents = null)
+        IEnumerable<FixedComponentDefinition>? fixedComponents = null, ContentBundle? canonical = null)
     {
         var localDefinitions = (local ?? []).ToImmutableArray();
         if (localDefinitions.Any(d => d?.Assembly is not null))
             throw new ArgumentException("Author composed Terrain through terrainAssemblies, using surface and component references.");
-        var definitions = All.AddRange(localDefinitions);
-        Validate(definitions);
-        var componentDefinitions = FixedComponentCatalog.Resolve(fixedComponents);
+        if (canonical is not null && localDefinitions.Any(d => d.LegacyKind is not null || d.LegacyProductionIdentity is not null))
+            throw new ArgumentException("Scenario-local Terrain cannot claim a legacy identity.");
+        var definitions = (canonical?.Terrain ?? All).AddRange(localDefinitions);
+        Validate(definitions, againstCanonical: canonical is null);
+        var componentDefinitions = FixedComponentCatalog.Resolve(fixedComponents, canonical?.FixedComponents);
         var sources = (assemblies ?? []).ToArray();
         HashSet<string> ids = definitions.Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var assembly in sources)
@@ -80,11 +82,13 @@ public static class TerrainCatalog
             definitions = definitions.Add(TerrainAssemblyContent.Compose(assembly,
                 Find(definitions, assembly.SurfaceId), componentDefinitions));
         }
-        Validate(definitions);
+        Validate(definitions, againstCanonical: canonical is null);
+        if (canonical is not null && definitions.Any(d => d.Production is DirectionalResourceProduction production && !canonical.Resources.Any(r => r.Id == production.ResourceTypeId)))
+            throw new ArgumentException("The Resource reference does not resolve in the selected content.");
         return definitions;
     }
 
-    public static void Validate(ImmutableArray<TerrainDefinition> definitions)
+    public static void Validate(ImmutableArray<TerrainDefinition> definitions, bool againstCanonical = true)
     {
         if (definitions.IsDefaultOrEmpty) throw new ArgumentException("Terrain catalog cannot be empty.");
         HashSet<string> ids = new(StringComparer.Ordinal);
@@ -102,6 +106,8 @@ public static class TerrainCatalog
             if (d.Id == TerrainCompatibility.LegacyLavaId)
                 throw new ArgumentException("'lava' is a reserved legacy reference; use ordinary-lava or coal-lava.");
             EnvironmentalProductionContent.Validate(d.Production);
+            if (againstCanonical && d.Production is DirectionalResourceProduction production && !ResourceTypes.All.Any(r => r.Id == production.ResourceTypeId))
+                throw new ArgumentException("The resource reference does not resolve.");
             TerrainAssemblyContent.ValidateResolved(d);
             if (d.Assembly is { } assembly)
             {
@@ -115,11 +121,11 @@ public static class TerrainCatalog
                     resolvedComponents[component.Definition.Id] = component.Definition;
                 }
             }
-            if (d.LegacyKind is { } legacy && (!Enum.IsDefined(legacy) || !All.Any(c => c.Id == d.Id && c.LegacyKind == legacy)))
+            if (d.LegacyKind is { } legacy && (!Enum.IsDefined(legacy) || againstCanonical && !All.Any(c => c.Id == d.Id && c.LegacyKind == legacy)))
                 throw new ArgumentException("Only canonical Terrain Types may carry a legacy identity.");
-            if (d.LegacyProductionIdentity is not null && !All.Any(c => c.Id == d.Id && c.LegacyProductionIdentity == d.LegacyProductionIdentity))
+            if (d.LegacyProductionIdentity is {} identity && (!Enum.IsDefined(identity) || againstCanonical && !All.Any(c => c.Id == d.Id && c.LegacyProductionIdentity == identity)))
                 throw new ArgumentException("Only the corresponding canonical Terrain may use a legacy production event identity.");
-            if (All.SingleOrDefault(c => c.Id == d.Id) is { } canonical &&
+            if (againstCanonical && All.SingleOrDefault(c => c.Id == d.Id) is { } canonical &&
                 (d.LegacyKind != canonical.LegacyKind || d.Passable != canonical.Passable ||
                  d.BlocksLos != canonical.BlocksLos || d.AllowsResourceMarkers != canonical.AllowsResourceMarkers ||
                  d.Production != canonical.Production || d.LegacyProductionIdentity != canonical.LegacyProductionIdentity ||

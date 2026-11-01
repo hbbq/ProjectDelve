@@ -2,6 +2,10 @@ namespace ProjectDelve.Engine;
 
 // Resource Types are content, independent of Side and Unit occupancy.
 public sealed record ResourceType(string Id, string Name);
+public static class ResourceTypeIds
+{
+    public const string Diamond = "diamond", Coal = "coal", Fruit = "fruit", Banana = "banana", Mushroom = "mushroom", Shell = "shell";
+}
 public static class ResourceTypes
 {
     public static ResourceType Diamond { get; } = new("diamond", "Diamond");

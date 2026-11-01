@@ -8,6 +8,14 @@ namespace ProjectDelve.Engine;
 public sealed record WorldEffectsSettings(int CardsPerRound, int Cycling)
 {
     public IReadOnlyList<WorldCardQuantity>? Composition { get; init; }
+    public bool Equals(WorldEffectsSettings? other) => other is not null && CardsPerRound == other.CardsPerRound && Cycling == other.Cycling &&
+        (Composition is null || other.Composition is null ? Composition is null && other.Composition is null : Composition.SequenceEqual(other.Composition));
+    public override int GetHashCode()
+    {
+        var hash = new HashCode(); hash.Add(CardsPerRound); hash.Add(Cycling);
+        if (Composition is not null) foreach (var row in Composition) hash.Add(row);
+        return hash.ToHashCode();
+    }
 }
 public sealed record WorldCardQuantity(string TypeId, int Count = 1);
 public enum WorldCardLifecycle { Immediate, Continuous }
@@ -170,8 +178,8 @@ public static class WorldCards
         var catalog = definitions ?? WorldCardCatalog.All;
         if (settings is not null && (settings.CardsPerRound < 0 || settings.Cycling < 1))
             throw new ArgumentException("World Effects require CardsPerRound >= 0 and Cycling >= 1.");
-        if (rows.Any(r => r is null || string.IsNullOrWhiteSpace(r.TypeId) || r.Count is < 1 or > 1000 || !catalog.Any(d => d.Id == r.TypeId)) ||
-            rows.Select(r => r.TypeId).Distinct(StringComparer.Ordinal).Count() != rows.Count || rows.Sum(r => (long)r.Count) > 6000)
+        ContentDefinitions.ValidateWorldComposition(rows);
+        if (rows.Any(r => !catalog.Any(d => d.Id == r.TypeId)))
             throw new ArgumentException("World Deck composition requires known unique Type IDs and quantities from 1 to 1000 (at most 6000 cards).");
         return rows;
     }

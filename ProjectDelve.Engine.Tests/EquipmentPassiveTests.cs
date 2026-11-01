@@ -21,6 +21,7 @@ public sealed class EquipmentPassiveTests
         var other = new UnitType("other", 0, 1, 1, 0, 1);
         return new()
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(8, 6, []), [new("a", new(2, 2)), new("enemy", new(3, 2)),
                 new("enemy-2", new(2, 3)), new("ally", new(4, 2))]),
             Types = [carrier, other],

@@ -11,6 +11,7 @@ public sealed partial class PlaytestGame : IDisposable
 {
     private readonly object gate = new();
     private readonly IRandomProvider random;
+    private readonly ContentBundle canonicalContent;
     private readonly OrderAwareAutomatedProvider automated = new();
     private readonly Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external;
     private readonly Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection;
@@ -44,8 +45,9 @@ public sealed partial class PlaytestGame : IDisposable
     public PlaytestGame(IRandomProvider random) : this(random, PlaytestScenarios.Create(PlaytestScenarios.DefaultId)) { }
     internal PlaytestGame(IRandomProvider random, GameState initialState,
         Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256,
-        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null, IReadOnlyDictionary<string,string>? controllers = null, IReadOnlyList<ControllerSelection>? controllerAssignments = null, int historyLimit = 16384, int payloadLimit = 8 * 1024 * 1024)
+        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null, IReadOnlyDictionary<string,string>? controllers = null, IReadOnlyList<ControllerSelection>? controllerAssignments = null, int historyLimit = 16384, int payloadLimit = 8 * 1024 * 1024, ContentBundle? canonicalContent = null)
     {
+        this.canonicalContent = canonicalContent ?? ContentBundle.Canonical();
         this.historyLimit = historyLimit; this.payloadLimit = payloadLimit;
         this.random = random; this.external = external; this.externalSelection = externalSelection; capacity = Math.Max(1, replayCapacity);
         state = Detach(initialState); ApplyControllers(state, controllers, controllerAssignments); status = StatusFor(state);
@@ -176,7 +178,7 @@ public sealed partial class PlaytestGame : IDisposable
                 }
                 request = request with { ControllerAssignments = merged.Values.ToList() };
             }
-            var preview = GameEngine.CreateGame(replacement ?? definition);
+            var preview = GameEngine.CreateGame(replacement ?? definition, canonicalContent);
             if (request.Controllers is not null || request.ControllerAssignments is not null)
             {
                 var oldBindings = controllerBindings; var oldAuto = autoChoose;
@@ -192,9 +194,9 @@ public sealed partial class PlaytestGame : IDisposable
         busy = true;
         return new(request, replacement);
     }
-    private static ScenarioDefinition Decode(string? transport)
+    private ScenarioDefinition Decode(string? transport)
     {
-        try { return ScenarioDefinitionTransport.Decode(transport ?? "", DesignerApi.CheckHostLimits); }
+        try { return ScenarioDefinitionTransport.Decode(transport ?? "", DesignerApi.CheckHostLimits, canonicalContent); }
         catch (DesignerBoardLimitException e) { throw Error(400, e.Message); }
         catch (Exception e) when (e is ArgumentException or FormatException or InvalidDataException or JsonException)
         { throw Error(400, "Could not load scenario. Paste a valid DELVE1 scenario string."); }
@@ -246,7 +248,7 @@ public sealed partial class PlaytestGame : IDisposable
         if (request.Operation is "restart" or "scenario" or "scenario/import")
         {
             var replacement = item.Definition ?? definition;
-            var created = GameEngine.CreateGame(replacement);
+            var created = GameEngine.CreateGame(replacement, canonicalContent);
             lock (gate)
             {
                 if (request.Controllers is null && request.ControllerAssignments is null && request.Operation is "scenario" or "scenario/import") controllerBindings = [];

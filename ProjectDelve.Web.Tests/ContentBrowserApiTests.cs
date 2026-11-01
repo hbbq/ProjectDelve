@@ -28,9 +28,9 @@ public sealed class ContentBrowserApiTests
         Assert.Equal(14, catalog.Categories.Count);
         Assert.All(catalog.Categories, category => Assert.Equal(category.Count, catalog.Entries.Count(entry => entry.Family == category.Id)));
         Assert.Equal(CanonicalUnitTypes.All.Count(), Count("units"));
-        Assert.Equal(EquipmentCatalog.All.Count, Count("equipment"));
+        Assert.Equal(host.Content.Equipment.Length, Count("equipment"));
         Assert.Equal(ItemCatalog.All.Count, Count("items"));
-        Assert.Equal(LootCardCatalog.All.Count, Count("lootCards"));
+        Assert.Equal(host.Content.LootCards.Length, Count("lootCards"));
         Assert.Equal(LootPresets.All.Count, Count("lootPresets"));
         Assert.Equal(WorldCardCatalog.All.Count, Count("worldCards"));
         Assert.Equal(1, Count("worldDecks"));
@@ -75,7 +75,7 @@ public sealed class ContentBrowserApiTests
         await using var host = await Host.Start();
         var canonical = await host.Canonical();
         var all = Entry(canonical, "lootPresets", "All");
-        var canonicalIds = LootCardCatalog.All.Select(card => card.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray();
+        var canonicalIds = host.Content.LootCards.Select(card => card.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray();
         Assert.True(all.Definition.GetProperty("isDynamic").GetBoolean());
         Assert.Equal(canonicalIds, CardIds(all));
         Assert.Equal(canonicalIds.Select(id => "lootCards:" + id), all.References.Select(reference => reference.TargetKey));
@@ -331,6 +331,7 @@ public sealed class ContentBrowserApiTests
     }
     private sealed class Host(WebApplication app, HttpClient client) : IAsyncDisposable
     {
+        public ContentBundle Content => app.Services.GetRequiredService<CanonicalContent>().Bundle;
         public HttpClient Client => client;
         public static async Task<Host> Start()
         {

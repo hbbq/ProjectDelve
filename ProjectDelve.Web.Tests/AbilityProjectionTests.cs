@@ -17,6 +17,7 @@ public sealed class AbilityProjectionTests
         var type = UnitContent.Find(typeId)!;
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "blue")]
         };
@@ -39,6 +40,7 @@ public sealed class AbilityProjectionTests
         { LocalAbilities = [new("restore", "Mending Verse", AbilityTiming.Action, new HealMechanic(4))] };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(3, 3, []), [new("actor", new(0, 0))]),
             Types = [type], Units = [type.CreateUnit("actor", "blue")]
         };
@@ -71,6 +73,7 @@ public sealed class AbilityProjectionTests
         { LocalAbilities = [new("restore", "Secret Mending Verse", AbilityTiming.Action, new HealMechanic(4))] };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(20, 3, []), [new("observer", new(0, 0)), new("hidden", new(19, 0))]),
             Types = [visible, hidden], Units = [visible.CreateUnit("observer", "blue"), hidden.CreateUnit("hidden", "red")],
             FogOfWarSides = ["blue"]
@@ -94,6 +97,7 @@ public sealed class AbilityProjectionTests
         };
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(20, 3, []), [new("a", new(0, 0)), new("b", new(19, 0))]),
             Types = [type], Units = [type.CreateUnit("a", "blue"), type.CreateUnit("b", "red")],
             Controllers = [new(new(type.Id, "blue"), ControllerKind.Human), new(new(type.Id, "red"), ControllerKind.Automated)],

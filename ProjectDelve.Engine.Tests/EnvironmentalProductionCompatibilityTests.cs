@@ -107,68 +107,38 @@ public sealed class EnvironmentalProductionCompatibilityTests
     }
 
     [Fact]
-    public void OldRuntimeCatalogMigratesBothLavaMeaningsAndFruitWithoutChangingResolution()
+    public void HistoricalRuntimeCatalogRequiresExplicitCurrentSnapshot()
     {
-        var original = GameEngine.CreateGame(Fixture(
-            new(new(2, 1), TerrainKind.Lava),
-            new(new(4, 1), TerrainKind.StoneFloor) { TerrainTypeId = "lava", CoalGeneration = false },
-            new(new(6, 1), TerrainKind.FruitTree)));
-        var restored = JsonSerializer.Deserialize<GameState>(VersionOneSave(original).ToJsonString())!;
-        GameEngine.ValidateScenario(restored);
-        Assert.Equal(2, restored.Physical.Board.TerrainContentVersion);
-        Assert.Equal("coal-lava", restored.Physical.Board.TerrainDefinitionAt(new(2, 1)).Id);
-        Assert.Null(restored.Physical.Board.TerrainDefinitionAt(new(4, 1)).Production);
-        Assert.Equal(ResourceTypes.Fruit.Id, Assert.IsType<DirectionalResourceProduction>(
-            restored.Physical.Board.TerrainDefinitionAt(new(6, 1)).Production).ResourceTypeId);
-        var expectedDice = new Dice();
-        var actualDice = new Dice();
-        var expected = GameEngine.StartRound(original, expectedDice, false);
-        var actual = GameEngine.StartRound(restored, actualDice, false);
-        Assert.Equal(4, actualDice.Calls);
-        Assert.Equal(expectedDice.Calls, actualDice.Calls);
-        Assert.Equal(JsonSerializer.Serialize(expected.Events), JsonSerializer.Serialize(actual.Events));
-        Assert.Equal(JsonSerializer.Serialize(expected.State), JsonSerializer.Serialize(actual.State));
-        var saved = JsonSerializer.Serialize(restored);
-        Assert.Equal(saved, JsonSerializer.Serialize(JsonSerializer.Deserialize<GameState>(saved)));
+        var root = VersionOneSave(GameEngine.CreateGame(Fixture(new CellDefinition(new(2, 1), TerrainKind.Lava))));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<GameState>(root.ToJsonString()));
     }
 
     [Theory]
     [InlineData("fruit-tree")]
     [InlineData("lava")]
-    public void OldObservedCatalogMigratesOnlyDefinitionsItContained(string legacyId)
+    public void HistoricalObservedCatalogDoesNotFetchCanonicalDefinitions(string legacyId)
     {
-        var original = GameEngine.CreateGame(Fixture(new CellDefinition(new(2, 1),
-            legacyId == "lava" ? TerrainKind.Lava : TerrainKind.FruitTree)));
-        var root = VersionOneSave(original);
-        var definitions = root["Physical"]!["Board"]!["TerrainTypes"]!.AsArray();
-        for (var i = definitions.Count - 1; i >= 0; i--)
-            if (definitions[i]!["Id"]!.GetValue<string>() is var id && id != "stone-floor" && id != legacyId)
-                definitions.RemoveAt(i);
-        var restored = JsonSerializer.Deserialize<GameState>(root.ToJsonString())!;
-        GameEngine.ValidateScenario(restored);
-        Assert.NotNull(restored.Physical.Board.TerrainDefinitionAt(new(2, 1)).Production);
-        Assert.Equal(legacyId == "lava" ? 3 : 2, restored.Physical.Board.TerrainTypes.Length);
-        Assert.DoesNotContain(restored.Physical.Board.TerrainTypes, t => t.Id == "asphalt");
-        Assert.DoesNotContain(restored.Physical.Board.TerrainTypes, t => t.Id == "solid-rock");
+        var root = VersionOneSave(GameEngine.CreateGame(Fixture(new CellDefinition(new(2, 1), legacyId == "lava" ? TerrainKind.Lava : TerrainKind.FruitTree))));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<GameState>(root.ToJsonString()));
     }
 
     [Fact]
-    public void PreCatalogRuntimeSaveStillUsesCanonicalCompatibilityRules()
+    public void MissingTerrainSnapshotIsRejected()
     {
-        var root = VersionOneSave(GameEngine.CreateGame(Fixture(new CellDefinition(new(3, 2), TerrainKind.Lava))));
+        var root = JsonSerializer.SerializeToNode(GameEngine.CreateGame(Fixture()))!;
         root["Physical"]!["Board"]!.AsObject().Remove("TerrainTypes");
-        var restored = JsonSerializer.Deserialize<GameState>(root.ToJsonString())!;
-        GameEngine.ValidateScenario(restored);
-        Assert.Equal("coal-lava", restored.Physical.Board.TerrainDefinitionAt(new(3, 2)).Id);
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<GameState>(root.ToJsonString()));
     }
 
     [Fact]
-    public void ExplicitNewVersionDoesNotSilentlyRepairInvalidCanonicalProduction()
+    public void CapturedProductionIsNotRepairedFromCurrentCanonicalContent()
     {
         var root = JsonSerializer.SerializeToNode(GameEngine.CreateGame(Fixture()))!;
         var definitions = root["Physical"]!["Board"]!["TerrainTypes"]!.AsArray();
         definitions.Single(d => d!["Id"]!.GetValue<string>() == "fruit-tree")!.AsObject().Remove("Production");
-        Assert.Throws<ArgumentException>(() => GameEngine.ValidateScenario(JsonSerializer.Deserialize<GameState>(root.ToJsonString())!));
+        var restored = JsonSerializer.Deserialize<GameState>(root.ToJsonString())!;
+        GameEngine.ValidateScenario(restored);
+        Assert.Null(restored.Physical.Board.TerrainTypes.Single(d => d.Id == "fruit-tree").Production);
         root["Physical"]!["Board"]!["TerrainContentVersion"] = 999;
         Assert.Throws<ArgumentException>(() => JsonSerializer.Deserialize<GameState>(root.ToJsonString()));
     }
@@ -183,6 +153,6 @@ public sealed class EnvironmentalProductionCompatibilityTests
             .Single(d => d!["Id"]!.GetValue<string>() == "lava")!;
         if (failure == "passable") lava["Passable"] = true;
         else lava["Name"] = " ";
-        Assert.Throws<ArgumentException>(() => JsonSerializer.Deserialize<GameState>(root.ToJsonString()));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<GameState>(root.ToJsonString()));
     }
 }

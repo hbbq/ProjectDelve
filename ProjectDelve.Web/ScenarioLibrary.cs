@@ -32,7 +32,7 @@ public sealed class LibraryException(int statusCode, string message) : Exception
 
 /// <summary>Read-only bundled records and atomic local overrides resolve by ID. Tombstones hide
 /// bundled entries locally. No identity supplied by a client is ever used as a filesystem path.</summary>
-public sealed class ScenarioLibrary(string directory, string? bundledDirectory = null, bool readOnly = false)
+public sealed class ScenarioLibrary(string directory, string? bundledDirectory = null, bool readOnly = false, ContentBundle? content = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true, RespectRequiredConstructorParameters = true };
     private static readonly Regex Identity = new("^[a-z0-9][a-z0-9-]{0,79}$", RegexOptions.CultureInvariant);
@@ -94,7 +94,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
         if (request.Definition.ValueKind != JsonValueKind.Object) throw new ArgumentException("A scenario definition is required.");
         var raw = request.Definition.GetRawText();
         if (raw.Length > 2_000_000) throw new ArgumentException("Scenario definition is too large.");
-        var definition = ScenarioDefinitionJson.FromJson(raw, DesignerApi.CheckHostLimits);
+        var definition = ScenarioDefinitionJson.FromJson(raw, DesignerApi.CheckHostLimits, content);
         using var canonical = JsonDocument.Parse(ScenarioDefinitionJson.ToJson(definition));
         return Access(view =>
         {
@@ -321,7 +321,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
         Campaigns = [new("test-scenarios", "Test Scenarios", "Explore the original Project Delve scenarios. Choose any adventure to begin.",
             null, PlaytestScenarios.Catalog.Select(s => s.Id).ToArray(), 1)]
     };
-    private static Document Migrate(LegacyDocument legacy)
+    private Document Migrate(LegacyDocument legacy)
     {
         if (legacy.Version != 1 || legacy.RegisteredScenarios is null) throw new InvalidDataException("Invalid legacy library.");
         ValidateRecords(legacy.Scenarios, legacy.Campaigns);
@@ -367,7 +367,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
             catch (IOException) when (attempt < 100) { Thread.Sleep(20); }
         }
     }
-    private static void ValidateDocument(Document document)
+    private void ValidateDocument(Document document)
     {
         if (document.Version != 2 || document.DeletedScenarios is null || document.DeletedCampaigns is null || document.Generations is null) throw new InvalidDataException("Unsupported local library format.");
         ValidateRecords(document.Scenarios, document.Campaigns);
@@ -388,7 +388,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
             CheckId(parts[1]);
         }
     }
-    private static void ValidateRecords(List<LibraryScenario> scenarios, List<LibraryCampaign> campaigns)
+    private void ValidateRecords(List<LibraryScenario> scenarios, List<LibraryCampaign> campaigns)
     {
         if (scenarios is null || campaigns is null || scenarios.Any(s => s is null) || campaigns.Any(c => c is null)) throw new InvalidDataException("Invalid library entries.");
         if (scenarios.Select(s => s.Id).Distinct().Count() != scenarios.Count || campaigns.Select(c => c.Id).Distinct().Count() != campaigns.Count) throw new InvalidDataException("Duplicate library identity.");
@@ -396,7 +396,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
         {
             CheckId(scenario.Id); RequiredText(scenario.Name, "Name", 120); Cover(scenario.CoverArt);
             if (scenario.Revision < 1 || scenario.Revision == long.MaxValue || scenario.Definition.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Invalid scenario.");
-            _ = ScenarioDefinitionJson.FromJson(scenario.Definition.GetRawText(), DesignerApi.CheckHostLimits);
+            _ = ScenarioDefinitionJson.FromJson(scenario.Definition.GetRawText(), DesignerApi.CheckHostLimits, content);
         }
         foreach (var campaign in campaigns)
         {

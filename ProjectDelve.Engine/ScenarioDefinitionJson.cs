@@ -29,7 +29,7 @@ public static class ScenarioDefinitionJson
         => FromJson(json, null);
 
     // A host may reject expensive input before materialization, without changing engine rules.
-    public static ScenarioDefinition FromJson(string json, Action<ScenarioDefinition>? beforeCreation)
+    public static ScenarioDefinition FromJson(string json, Action<ScenarioDefinition>? beforeCreation, ContentBundle? content = null)
     {
         ArgumentNullException.ThrowIfNull(json);
         var scenario = JsonSerializer.Deserialize<ScenarioDefinition>(json, Options)
@@ -37,7 +37,7 @@ public static class ScenarioDefinitionJson
         // Pre-preset files omitted Loot to opt out. New exports always name their deck.
         scenario = scenario with { Loot = (scenario.Loot ?? LootSettings.Empty).Normalize() };
         beforeCreation?.Invoke(scenario);
-        _ = GameEngine.CreateGame(scenario);
+        _ = content is null ? GameEngine.CreateGame(scenario) : GameEngine.CreateGame(scenario, content);
         return scenario;
     }
 }

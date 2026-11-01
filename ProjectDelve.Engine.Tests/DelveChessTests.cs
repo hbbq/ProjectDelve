@@ -21,6 +21,7 @@ public sealed partial class DelveChessTests
         type ??= UnitRoster.CastleGuard();
         var state = new GameState
         {
+            ResourceDefinitions = [.. ResourceTypes.All], WorldCardDefinitions = [.. WorldCardCatalog.All],
             Physical = new(new Board(7, 7, []), [new("m", new(3, 3)), new("t", target ?? new(4, 3)), new("reserve", new(6, 6))]),
             Types = [type, new("target", 1, 1, 1, 0, 1)],
             Units = [type.CreateUnit("m", "a"), new("t", "target", "b", 1), new("reserve", "target", "b", 1)],

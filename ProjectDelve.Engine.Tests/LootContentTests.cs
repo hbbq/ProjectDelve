@@ -165,23 +165,14 @@ public sealed class LootContentTests
     }
 
     [Fact]
-    public void OldExplicitEmptyCatalogLoadsWithoutRefillingDeckOrChangingPhysicalObjects()
+    public void ExplicitEmptyCatalogIsNotRepairedAfterResume()
     {
         var state = Ready(Scenario());
-        state.LootDeck = new() { DrawPile = [new("legacy-breakfast", LootCardKind.PocketBreakfast)],
-            DiscardPile = [new("legacy-wind", LootCardKind.SecondWind)] };
-        state.LootMarkers = [new("one", new(0, 0))];
-        var json = JsonNode.Parse(JsonSerializer.Serialize(state))!;
-        json["LootCardDefinitions"] = new JsonArray();
-        var restored = JsonSerializer.Deserialize<GameState>(json.ToJsonString())!;
-        GameEngine.ValidateScenario(restored);
-        Assert.Equal(state.LootDeck.DrawPile, restored.LootDeck!.DrawPile);
-        Assert.Equal(state.LootDeck.DiscardPile, restored.LootDeck.DiscardPile);
-        Assert.Equal(new[] { "pocket-breakfast", "second-wind" }, restored.LootCardDefinitions.Select(d => d.Id));
-        var result = Collect(restored);
-        Assert.Equal(3, result.State.Units[0].CurrentHp);
-        Assert.Equal("legacy-breakfast", result.State.LootDeck!.DiscardPile.Last().Id);
-        Assert.Equal("pocket-breakfast", Assert.Single(result.Events.Where(e => e.Kind == "HealResolved")).ActionId);
+        state.LootCardDefinitions = [];
+        state.LootDeck = new() { DrawPile = [new("legacy", LootCardKind.PocketBreakfast)] };
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        Assert.Empty(restored.LootCardDefinitions);
+        Assert.Throws<ArgumentException>(() => GameEngine.ValidateScenario(restored));
     }
 
     [Fact]
@@ -237,30 +228,14 @@ public sealed class LootContentTests
     }
 
     [Fact]
-    public void OldSavedLocalCanonicalIdDoesNotInterceptSourceLessLegacyCardsOrRewriteSavedReferences()
+    public void SourceLessLegacyIdentityUsesCapturedRewardAfterResume()
     {
         var state = Ready(Scenario());
-        state.LootCardDefinitions = [new("pocket-breakfast", "Old local reward") { ItemTypeId = "second-wind" }];
-        state.LootDeck = new()
-        {
-            DrawPile = [new("old-breakfast", LootCardKind.PocketBreakfast),
-                new("old-local", LootCardKind.SecondWind) { LootCardId = "pocket-breakfast", ItemTypeId = "second-wind" }]
-        };
-        state.LootMarkers = [new("legacy", new(0, 0)), new("local", new(0, 0))];
-        var saved = JsonSerializer.Serialize(state);
-        var restored = JsonSerializer.Deserialize<GameState>(saved)!;
+        state.LootCardDefinitions = [new("pocket-breakfast", "Captured reward") { Immediate = new HealCollectorMechanic(4) }];
+        state.LootDeck = new() { DrawPile = [new("legacy", LootCardKind.PocketBreakfast)] };
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
         GameEngine.ValidateScenario(restored);
-        Assert.Equal(saved, JsonSerializer.Serialize(restored));
-        Assert.Equal("second-wind", Assert.Single(restored.LootCardDefinitions).ItemTypeId);
-        var result = Collect(restored);
-        Assert.Equal(3, result.State.Units[0].CurrentHp);
-        var owned = Assert.Single(result.State.Units[0].Inventory);
-        Assert.Equal("old-local", owned.Id); Assert.Equal("pocket-breakfast", owned.LootCardId);
-        Assert.Equal("old-breakfast", Assert.Single(result.State.LootDeck!.DiscardPile).Id);
-        Assert.Null(Assert.Single(result.State.LootDeck.DiscardPile).LootCardId);
-        Assert.Equal(JsonSerializer.Serialize(result), JsonSerializer.Serialize(Collect(JsonSerializer.Deserialize<GameState>(saved)!)));
-        Assert.Equal("Pocket Breakfast", restored.ObjectContent(state.LootDeck.DrawPile[0]).Name);
-        Assert.Equal("Second Wind", restored.ObjectContent(state.LootDeck.DrawPile[1]).Name);
+        Assert.Equal(4, Assert.IsType<HealCollectorMechanic>(restored.LootCard(restored.LootDeck!.DrawPile[0]).Immediate).Amount);
     }
 
     [Fact]

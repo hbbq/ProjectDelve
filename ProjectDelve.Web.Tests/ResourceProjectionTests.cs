@@ -175,6 +175,7 @@ public sealed class ResourceProjectionTests
             Types = [courier, shaman],
             Units = [courier.CreateUnit("giver", "blue"), shaman.CreateUnit("one", "blue"),
                 shaman.CreateUnit("two", "blue"), shaman.CreateUnit("enemy", "red")],
+            ResourceDefinitions = [.. ResourceTypes.All],
             Physical = new(new Board(6, 5, []), [new("giver", new(1, 1)), new("one", new(2, 1)),
                 new("two", new(2, 2)), new("enemy", new(5, 4))]),
             Controllers = [new(new(courier.Id, "blue"), ControllerKind.Human),

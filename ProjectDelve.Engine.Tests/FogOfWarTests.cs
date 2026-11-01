@@ -295,6 +295,7 @@ public sealed class FogOfWarTests
     {
         var state = Dungeon();
         state.Types = [.. state.Types.OrderBy(t => t.Id == UnitTypeIds.Grunt ? 0 : 1)];
+        state.ActivationTypeOrder = state.Types.Select(t => t.Id).ToList();
         var result = GameEngine.StartRound(state, new Random(), false);
         Assert.Equal(new(UnitTypeIds.Grunt, "dungeon"), result.State.ActiveToken);
         var standing = GameEngine.Advance(result.State, new Pick("sleeper"), new Random(), false);
