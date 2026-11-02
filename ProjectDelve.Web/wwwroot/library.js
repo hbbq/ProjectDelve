@@ -40,8 +40,8 @@ function navigate(mode, id) {
 }
 globalThis.delveNavigate = navigate;
 // Explicit authoring snapshot only. The Viewer never requests the running game.
-globalThis.delveInspectContent = (definition, name, destination = null) => {
-  const inspection = contentBrowser.showScenario(definition, name, destination);
+globalThis.delveInspectContent = (definition, name, destination = null, scope = 'draft') => {
+  const inspection = Promise.resolve(contentBrowser.showScenario(definition, name, destination)).then(result => scope === 'library' ? contentBrowser.showLibrary() : result);
   navigate('content');
   return inspection;
 };

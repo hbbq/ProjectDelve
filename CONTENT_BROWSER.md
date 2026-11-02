@@ -53,6 +53,15 @@ Returning to Designer preserves the workspace. Applied content edits participate
 Designer history and recovery; reopening content after draft changes refreshes its
 context. Saves from stale editor sessions are rejected.
 
+Designer also offers **Use library content**. In Library scope, select a saved
+Equipment/Loot definition and **Use in Scenario**, review the typed dependency
+closure, then Apply as one undoable change. The draft view labels these definitions
+**Library pinned**, with source package/revision and a provenance link where available.
+They remain read-only until explicitly copied to a new local identity. **Update
+Reference…** previews a deliberate revision change; Library edits alone never
+change the scenario. Embedded pins remain playable without their original library.
+See [Pinned scenario references](SCENARIO_CONTENT_REFERENCES.md).
+
 Scenario results identify canonical, scenario-local, scenario override and resolved
 entries. Units are limited to the scenario's declared types plus canonical types
 reachable through summoning. A referenced type is not evidence of a placed Unit.
@@ -116,3 +125,11 @@ canonical Heroes, Equipment, Loot, World effects, Coal Lava, Campfire compositio
 mechanic schemas, scoped Designer Abilities, reference history, collapsed groups
 and empty searches. No browser errors or failed requests occurred in the completed
 inspection plans.
+
+## Promotion
+
+Saved Library Equipment/Loot and local or pinned Scenario definitions offer
+**Promote to Canonical**. Select roots, preview the Engine dependency closure and
+canonical reuse/conflicts, then explicitly confirm publication. The canonical
+catalog refreshes after successful publication; original pins remain unchanged.
+See [CONTENT_PROMOTION.md](CONTENT_PROMOTION.md) for APIs and ownership safeguards.

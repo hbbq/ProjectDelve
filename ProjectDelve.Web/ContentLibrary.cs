@@ -36,6 +36,8 @@ public sealed class ContentLibrary
     private static readonly JsonSerializerOptions Json = ContentPackageJson.CreateOptions();
     private readonly string root;
     private readonly ImmutableArray<ContentPackage> canonical;
+    private readonly Func<IEnumerable<ContentPackage>>? canonicalProvider;
+    private IEnumerable<ContentPackage> Canonical => canonicalProvider?.Invoke() ?? canonical;
     private readonly long maximumBytes;
     private sealed record Head(string PackageId, long Revision, bool Archived = false);
     private sealed class Document
@@ -46,7 +48,8 @@ public sealed class ContentLibrary
         [JsonRequired] public List<ContentLibraryRevision> Revisions { get; set; } = [];
     }
 
-    public ContentLibrary(string directory, IEnumerable<ContentPackage>? canonicalPackages = null, long maximumBytes = 64_000_000)
+    public ContentLibrary(string directory, IEnumerable<ContentPackage>? canonicalPackages = null, long maximumBytes = 64_000_000,
+        Func<IEnumerable<ContentPackage>>? canonicalProvider = null)
     {
         root = Path.GetFullPath(directory);
         canonical = [.. (canonicalPackages ?? [new ContentPackage { Id = ContentPackageCatalog.CSharpPackageId, Definitions = ContentBundle.Canonical() }])
@@ -54,6 +57,7 @@ public sealed class ContentLibrary
         _ = ContentPackageCatalog.Compose(canonical.Select(p => new ContentPackageDocument(p, $"canonical:{p.Id}")));
         if (maximumBytes < 1) throw new ArgumentOutOfRangeException(nameof(maximumBytes));
         this.maximumBytes = maximumBytes;
+        this.canonicalProvider = canonicalProvider;
     }
 
     public ContentLibraryCatalog Catalog(bool includeArchived = false) => Access<ContentLibraryCatalog>(document => new(document.LibraryId,
@@ -95,6 +99,15 @@ public sealed class ContentLibrary
         return new ContentLibraryInspection(CloneRevision(selected), Resolve(document, selected), [.. Closure(document, selected).Select(CloneRevision)]);
     });
 
+    // Hold the source store lock throughout publication, preventing stale-head races.
+    internal T WithRevision<T>(string id, long revision, long expectedHead, Func<ContentLibraryInspection, T> action) => Access(document =>
+    {
+        var head = Current(document, id);
+        if (head.Revision != expectedHead) throw Conflict(id, expectedHead, head.Revision, head.Archived);
+        var selected = Find(document, new(id, revision));
+        return action(new(CloneRevision(selected), Resolve(document, selected), [.. Closure(document, selected).Select(CloneRevision)]));
+    });
+
     public ImmutableArray<ContentLibraryRevision> SaveBatch(ImmutableArray<SaveContentLibraryPackage> requests)
         => Access(document => Prepare(document, requests), write: true);
 
@@ -107,8 +120,15 @@ public sealed class ContentLibrary
         foreach (var request in requests.OrderBy(r => r.Package.Id, StringComparer.Ordinal))
         {
             var package = ClonePackage(request.Package);
-            if (canonical.Any(p => p.Id == package.Id)) throw new LibraryException(409, $"Package ID '{package.Id}' belongs to canonical content.");
+            if (Canonical.Any(p => p.Id == package.Id)) throw new LibraryException(409, $"Package ID '{package.Id}' belongs to canonical content.");
             var head = document.Packages.SingleOrDefault(h => h.PackageId == package.Id);
+            var published = Canonical.SelectMany(p => p.Publications ?? []).ToArray();
+            foreach (var identity in ScenarioContentReferences.Identities(package.Definitions).Where(id => published.Any(p => p.Identity == id)))
+            {
+                if (head is null || !ScenarioContentReferences.Identities(Find(document, new(package.Id, head.Revision)).Package.Definitions).Contains(identity) ||
+                    !published.Any(p => p.Identity == identity && p.PayloadDigest == CanonicalPublications.PayloadDigest(package.Definitions, identity)))
+                    throw new ArgumentException($"{identity.Family} '{identity.TypeId}' has been published to Canonical and is read-only. Create a copy with a new Type ID.");
+            }
             if (request.ExpectedRevision != (head?.Revision ?? 0) || head?.Archived == true)
                 throw Conflict(package.Id, request.ExpectedRevision, head?.Revision ?? 0, head?.Archived ?? false);
             var bindings = NormalizeBindings(request.Bindings);
@@ -163,7 +183,7 @@ public sealed class ContentLibrary
         foreach (var revision in records)
         {
             ValidateRevision(revision);
-            if (canonical.Any(p => p.Id == revision.Package.Id)) throw new LibraryException(409, $"Package '{revision.Package.Id}' belongs to canonical content.");
+            if (Canonical.Any(p => p.Id == revision.Package.Id)) throw new LibraryException(409, $"Package '{revision.Package.Id}' belongs to canonical content.");
             var existing = document.Revisions.SingleOrDefault(r => r.Package.Id == revision.Package.Id && r.Revision == revision.Revision);
             if (existing is not null && existing.Digest != revision.Digest)
                 throw new LibraryException(409, $"Package '{revision.Package.Id}' revision {revision.Revision} conflicts with the installed revision.");
@@ -183,13 +203,13 @@ public sealed class ContentLibrary
     private ImmutableArray<ContentPackage> CanonicalContext(ContentPackage package, ImmutableArray<ContentLibraryBinding> bindings)
     {
         var declared = package.Dependencies.ToHashSet(StringComparer.Ordinal);
-        if (bindings.Any(b => !declared.Contains(b.PackageId) || canonical.Any(p => p.Id == b.PackageId)))
+        if (bindings.Any(b => !declared.Contains(b.PackageId) || Canonical.Any(p => p.Id == b.PackageId)))
             throw new ArgumentException("Bindings must identify declared library dependencies, not canonical packages.");
         Dictionary<string, ContentPackage> selected = new(StringComparer.Ordinal);
         void Include(string id)
         {
             if (selected.ContainsKey(id)) return;
-            var provider = canonical.SingleOrDefault(p => p.Id == id);
+            var provider = Canonical.SingleOrDefault(p => p.Id == id);
             if (provider is null) throw new ArgumentException($"dependencies: package '{id}' needs an exact library revision binding.");
             selected.Add(id, provider);
             foreach (var child in provider.Dependencies) Include(child);

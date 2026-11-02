@@ -32,7 +32,7 @@ public sealed class LibraryException(int statusCode, string message) : Exception
 
 /// <summary>Read-only bundled records and atomic local overrides resolve by ID. Tombstones hide
 /// bundled entries locally. No identity supplied by a client is ever used as a filesystem path.</summary>
-public sealed class ScenarioLibrary(string directory, string? bundledDirectory = null, bool readOnly = false, ContentBundle? content = null)
+public sealed class ScenarioLibrary(string directory, string? bundledDirectory = null, bool readOnly = false, ContentBundle? content = null, Func<ContentBundle>? contentProvider = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true, RespectRequiredConstructorParameters = true };
     private static readonly Regex Identity = new("^[a-z0-9][a-z0-9-]{0,79}$", RegexOptions.CultureInvariant);
@@ -94,7 +94,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
         if (request.Definition.ValueKind != JsonValueKind.Object) throw new ArgumentException("A scenario definition is required.");
         var raw = request.Definition.GetRawText();
         if (raw.Length > 2_000_000) throw new ArgumentException("Scenario definition is too large.");
-        var definition = ScenarioDefinitionJson.FromJson(raw, DesignerApi.CheckHostLimits, content);
+        var definition = ScenarioDefinitionJson.FromJson(raw, DesignerApi.CheckHostLimits, contentProvider?.Invoke() ?? content);
         using var canonical = JsonDocument.Parse(ScenarioDefinitionJson.ToJson(definition));
         return Access(view =>
         {
@@ -396,7 +396,7 @@ public sealed class ScenarioLibrary(string directory, string? bundledDirectory =
         {
             CheckId(scenario.Id); RequiredText(scenario.Name, "Name", 120); Cover(scenario.CoverArt);
             if (scenario.Revision < 1 || scenario.Revision == long.MaxValue || scenario.Definition.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Invalid scenario.");
-            _ = ScenarioDefinitionJson.FromJson(scenario.Definition.GetRawText(), DesignerApi.CheckHostLimits, content);
+            _ = ScenarioDefinitionJson.FromJson(scenario.Definition.GetRawText(), DesignerApi.CheckHostLimits, contentProvider?.Invoke() ?? content);
         }
         foreach (var campaign in campaigns)
         {

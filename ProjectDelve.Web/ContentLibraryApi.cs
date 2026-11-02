@@ -47,11 +47,15 @@ public static class ContentLibraryApi
         });
         api.MapGet("/", (ContentLibrary library, bool? includeArchived) => library.Catalog(includeArchived ?? false));
         api.MapGet("/providers", (CanonicalContent canonical) => canonical.Packages.Select(p => new { p.Id, title = p.Title ?? p.Id }));
-        api.MapPost("/authoring/context", async (HttpRequest request, ContentLibrary library) =>
-            ContentLibraryAuthoring.Catalog(library.Inspect(await Read<SaveContentLibraryPackage>(request))));
+        api.MapPost("/promotion/preview", async (HttpRequest request, ContentPromotionService promotion) => promotion.Preview(await Read<PromotionRequest>(request)));
+        api.MapPost("/promotion/publish", async (HttpRequest request, ContentPromotionService promotion) => promotion.Publish(await Read<PublishPromotion>(request)));
+        api.MapPost("/scenario-reference/preview", async (HttpRequest request, ScenarioReferenceService references) =>
+            references.Preview(await Read<PreviewScenarioReference>(request)));
+        api.MapPost("/authoring/context", async (HttpRequest request, ContentLibrary library, CanonicalContent canonical) =>
+            ContentBrowserCatalog.Published(ContentLibraryAuthoring.Catalog(library.Inspect(await Read<SaveContentLibraryPackage>(request))), canonical.Bundle));
         api.MapPost("/authoring/validate", async (HttpRequest request, ContentLibrary library) =>
             ContentLibraryAuthoring.Validate(library, await Read<ValidateLibraryContent>(request)));
-        api.MapGet("/packages/{id}/context", (ContentLibrary library, string id, long? revision) => ContentLibraryAuthoring.Catalog(library.Inspect(id, revision)));
+        api.MapGet("/packages/{id}/context", (ContentLibrary library, CanonicalContent canonical, string id, long? revision) => ContentBrowserCatalog.Published(ContentLibraryAuthoring.Catalog(library.Inspect(id, revision)), canonical.Bundle));
         api.MapGet("/packages/{id}", (ContentLibrary library, string id, long? revision) => library.Read(id, revision));
         api.MapGet("/packages/{id}/revisions", (ContentLibrary library, string id) => library.History(id));
         api.MapPost("/packages", async (HttpRequest request, ContentLibrary library) =>

@@ -27,6 +27,8 @@ public sealed record ContentBundle
     public ImmutableArray<ResourceType> Resources { get; init; } = [];
     [System.Text.Json.Serialization.JsonIgnore]
     public ContentSource? Source { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ImmutableArray<CanonicalPublicationEntry> Publications { get; init; } = [];
 
     public static ContentBundle Canonical() => new()
     {
@@ -122,7 +124,10 @@ public static class ContentComposition
                     "Scenario-local Terrain cannot claim legacy identities or embed resolved assemblies; author surface/component references.", local.Source)]);
             // Only the established scenario-local Unit override is permitted.
             var overridden = local.Units.Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
-            supplied.RemoveAll(d => d.Identity.Family == ContentFamily.Unit && overridden.Contains(d.Identity.TypeId));
+            var published = bundles.SelectMany(b => b.Publications).ToArray();
+            var retained = local.Definitions().Where(d => published.Any(p => p.Identity == d.Identity && p.PayloadDigest == CanonicalPublications.PayloadDigest(local, d.Identity)))
+                .Select(d => d.Identity).ToHashSet();
+            supplied.RemoveAll(d => d.Identity.Family == ContentFamily.Unit && overridden.Contains(d.Identity.TypeId) || retained.Contains(d.Identity));
             supplied.AddRange(local.Definitions());
         }
         var resources = allBundles.SelectMany(b => b.Resources).ToImmutableArray();
@@ -174,7 +179,8 @@ public static class ContentComposition
             DefaultWorldDeck = defaultWorldDeck, Terrain = terrain,
             // Effective Terrain already embeds its resolved constituents. Do not register both
             // an authored assembly and its materialized Terrain under the same identity.
-            Assemblies = [], FixedComponents = components, Resources = resources
+            Assemblies = [], FixedComponents = components, Resources = resources,
+            Publications = [.. allBundles.SelectMany(b => b.Publications)]
         };
         return new(result, graph);
     }

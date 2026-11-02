@@ -10,6 +10,7 @@ public sealed record ContentEditorContext
     public List<EquipmentDefinition> EquipmentTypes { get; init; } = [];
     public List<ItemDefinition> ItemTypes { get; init; } = [];
     public List<LootCardDefinition> LootCardDefinitions { get; init; } = [];
+    public List<ScenarioContentReference>? ContentReferences { get; init; }
 }
 public sealed record ContentEditorRequest(string Family, JsonElement Definition,
     string? ExistingId = null, ContentEditorContext? Context = null);
@@ -36,14 +37,14 @@ public static class ContentEditorApi
 
     public static void Map(WebApplication app)
     {
-        var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
+        ContentBundle Canonical() => app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.MapPost("/api/content/validate", async (HttpRequest request) =>
         {
             try
             {
                 var input = JsonSerializer.Deserialize<ContentEditorRequest>(await Read(request), Json)
                     ?? throw new JsonException("A content validation request is required.");
-                return Results.Ok(Validate(input, canonical));
+                return Results.Ok(Validate(input, Canonical()));
             }
             catch (JsonException error)
             {
@@ -56,12 +57,13 @@ public static class ContentEditorApi
             {
                 var context = JsonSerializer.Deserialize<ContentEditorContext>(await Read(request), Json)
                     ?? throw new JsonException("A dependency context is required.");
-                var resolved = Resolve(context, contextPath: "", canonical: canonical);
-                return Results.Ok(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical));
+                var resolved = Resolve(context, contextPath: "", canonical: Canonical());
+                return Results.Ok(ContentBrowserCatalog.Pinned(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, Canonical()), context.ContentReferences, resolved.LocalUnitIds));
             }
-            catch (Exception error) when (error is JsonException or ContentEditorException)
+            catch (Exception error) when (error is JsonException or ContentEditorException or ContentCompositionException)
             {
-                var diagnostic = error is ContentEditorException content ? content.Diagnostic : JsonDiagnostic((JsonException)error);
+                var diagnostic = error is ContentEditorException content ? content.Diagnostic : error is JsonException json ? JsonDiagnostic(json)
+                    : new ContentEditorDiagnostic("contentReferences", "validation", error.Message);
                 return Results.Json(new ContentBrowserFailure(new("definitions", "Draft content"),
                     [new(diagnostic.Message, diagnostic.Path, diagnostic.Code)]), statusCode: 400);
             }
@@ -84,7 +86,7 @@ public static class ContentEditorApi
         try
         {
             var resolved = Resolve(request.Context ?? new(), candidate, request.ExistingId, canonical: canonical);
-            var catalog = ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical);
+            var catalog = ContentBrowserCatalog.Pinned(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical), request.Context?.ContentReferences, resolved.LocalUnitIds);
             var id = candidate is EquipmentDefinition equipment ? equipment.Id : ((LootCardDefinition)candidate).Id;
             return new(true, [])
             {
@@ -93,6 +95,7 @@ public static class ContentEditorApi
             };
         }
         catch (ContentEditorException error) { return Invalid(error.Diagnostic); }
+        catch (ContentCompositionException error) { return Invalid(new("contentReferences", "validation", error.Message)); }
     }
 
     internal static object ParseDefinition(ContentEditorRequest request) => request.Family switch
@@ -111,6 +114,11 @@ public static class ContentEditorApi
         string contextPath = "context", ContentBundle? canonical = null)
     {
         canonical ??= ContentBundle.Canonical();
+        if (candidate is not null && canonical.Publications.Any(p => p.Identity == ContentDefinitions.Identity(candidate)))
+            throw Error("definition.id", "published", "This definition has been published to Canonical. Create a copy with a new Type ID.");
+        canonical = ScenarioContentReferences.Compose(canonical, context.ContentReferences).Definitions;
+        canonical = CanonicalPublications.ForLocal(canonical, new ContentBundle { Units = [.. context.UnitTypes ?? []],
+            Equipment = [.. context.EquipmentTypes ?? []], Items = [.. context.ItemTypes ?? []], LootCards = [.. context.LootCardDefinitions ?? []] });
         string Path(string field) => contextPath.Length == 0 ? field : contextPath + "." + field;
         if (context.UnitTypes is null) throw Error(Path("unitTypes"), "required", "Unit dependencies must be an array.");
         if (context.EquipmentTypes is null) throw Error(Path("equipmentTypes"), "required", "Equipment dependencies must be an array.");

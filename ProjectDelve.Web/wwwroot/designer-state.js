@@ -14,6 +14,7 @@ export class DesignerDraft {
     this.effectiveTerrainMetadata = null;
     this.effectiveFixedComponentMetadata = null;
     this.effectiveProductionDescriptions = null;
+    this.effectiveObjectContent = null;
     this.unitKeys = this.definition.units.map(() => ++this.nextKey);
     this.machineKeys = (this.definition.machines ?? []).map(() => ++this.nextKey);
     this.changed();
@@ -34,7 +35,7 @@ export class DesignerDraft {
     if (this.definition.loot.composition) return this.definition.loot.composition;
     const preset = this.lootPreset();
     if (!this.lootCompositionReady()) return [];
-    const rows = preset?.isDynamic && (this.definition.lootCardDefinitions?.length ?? 0) > 0
+    const rows = preset?.isDynamic && ((this.definition.lootCardDefinitions?.length ?? 0) > 0 || this.definition.contentReferences?.length)
       ? this.effectiveLootPresets?.find(p => p.id === preset.id)?.composition ?? [] : preset?.composition ?? [];
     return rows.map(r => ({ ...r, count: r.count * (this.definition.loot.presetMultiplier ?? 1) }));
   }
@@ -42,9 +43,13 @@ export class DesignerDraft {
     return this.catalog.lootPresets?.find(p => p.id === (this.definition.loot?.preset ?? this.catalog.defaultLootPreset ?? "Classic"));
   }
   lootCompositionReady() {
-    return !this.lootPreset()?.isDynamic || !(this.definition.lootCardDefinitions?.length) ||
-      this.effectiveLootSignature === JSON.stringify(this.definition.lootCardDefinitions ?? []) && Array.isArray(this.effectiveLootPresets);
+    return !this.lootPreset()?.isDynamic || !(this.definition.lootCardDefinitions?.length || this.definition.contentReferences?.length) ||
+      this.effectiveLootSignature === this.lootMetadataSignature() && Array.isArray(this.effectiveLootPresets);
   }
+  lootMetadataSignature() { return JSON.stringify(this.definition.contentReferences?.length
+    ? [this.definition.lootCardDefinitions ?? [], this.definition.contentReferences] : this.definition.lootCardDefinitions ?? []); }
+  providerObjects(field) { return this.definition.contentReferences?.length
+    ? this.effectiveObjectContent?.[field] ?? [] : this.catalog[field] ?? []; }
   setLootPreset(preset) {
     if (!this.catalog.lootPresets?.some(p => p.id === preset)) throw new Error("Unknown Loot preset.");
     this.definition.loot = { preset }; this.changed();
@@ -77,13 +82,19 @@ export class DesignerDraft {
     // Older scenarios could use IDs that were later added to canonical Loot.
     // Explicit authored references keep their local meaning; legacy kind choices
     // still use the canonical compatibility catalog. Runtime resolution is Engine-owned.
-    return [...(this.catalog.lootCardDefinitions ?? []).filter(card => !localIds.has(card.id)), ...local];
+    return [...this.providerObjects('lootCardDefinitions').filter(card => !localIds.has(card.id)), ...local];
   }
   itemCatalog() {
-    return [...(this.catalog.itemTypes ?? []), ...(this.definition.itemTypes ?? [])];
+    return [...this.providerObjects('itemTypes'), ...(this.definition.itemTypes ?? [])];
   }
   equipmentCatalog() {
-    return [...(this.catalog.equipmentTypes ?? []), ...(this.definition.equipmentTypes ?? [])];
+    return [...this.providerObjects('equipmentTypes'), ...(this.definition.equipmentTypes ?? [])];
+  }
+  applyContentReferences(references) {
+    if (!Array.isArray(references)) throw new Error('A validated reference collection is required.');
+    this.definition.contentReferences = structuredClone(references);
+    this.effectiveObjectContent = null;
+    this.changed();
   }
   applyContentDefinition(family, definition, existingId = null) {
     const field = family === 'equipment' ? 'equipmentTypes' : family === 'lootCards' ? 'lootCardDefinitions' : null;
@@ -165,7 +176,7 @@ export class DesignerDraft {
   changed() { this.revision++; }
   snapshot() { return structuredClone(this.definition); }
   metadata(id) {
-    if ((this.definition.unitTypes ?? []).some(type => type.id === id))
+    if (this.definition.contentReferences?.length || (this.definition.unitTypes ?? []).some(type => type.id === id))
       return this.effectiveMetadata?.find(type => type.unitTypeId === id);
     return this.catalog.unitTypes.find(type => type.unitTypeId === id);
   }

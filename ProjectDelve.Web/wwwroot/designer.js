@@ -193,8 +193,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const body = { unitTypes: custom, terrainTypes: draft.definition.terrainTypes ?? [],
       terrainAssemblies: draft.definition.terrainAssemblies ?? [], fixedComponentTypes: draft.definition.fixedComponentTypes ?? [],
       lootCardDefinitions: draft.definition.lootCardDefinitions ?? [],
+      ...(draft.definition.contentReferences?.length ? { contentReferences: draft.definition.contentReferences } : {}),
       units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
-    const lootSignature = JSON.stringify(body.lootCardDefinitions);
+    const lootSignature = draft.lootMetadataSignature();
     const signature = JSON.stringify([custom, body.terrainTypes, body.terrainAssemblies, body.fixedComponentTypes,
       body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds, lootSignature]);
     if (signature === metadataSignature) return;
@@ -202,6 +203,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     draft.effectiveTerrainMetadata = null;
     draft.effectiveFixedComponentMetadata = null;
     draft.effectiveProductionDescriptions = null;
+    draft.effectiveObjectContent = null;
     if (draft.metadataContentSignature !== JSON.stringify(custom)) draft.effectiveMetadata = null;
     draft.metadataContentSignature = JSON.stringify(custom);
     const sequence = ++metadataSequence;
@@ -211,10 +213,19 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       draft.effectiveMetadata = result.unitTypes; draft.effectiveTerrainMetadata = result.terrainDefinitions;
       draft.effectiveFixedComponentMetadata = result.fixedComponentDefinitions;
       draft.effectiveProductionDescriptions = result.productionDescriptions;
+      draft.effectiveObjectContent = { equipmentTypes: result.equipmentTypes ?? [], itemTypes: result.itemTypes ?? [], lootCardDefinitions: result.lootCardDefinitions ?? [] };
       if (Array.isArray(result.lootPresets)) { draft.effectiveLootPresets = result.lootPresets; draft.effectiveLootSignature = lootSignature; }
       draft.effectiveUnitIds = result.unitIds; render();
     }).catch(() => { if (sequence === metadataSequence && (custom.length || body.terrainTypes.length || body.terrainAssemblies.length || body.fixedComponentTypes.length || body.lootCardDefinitions.length)) ui.status.textContent = "Custom content metadata unavailable. Definitions are retained; custom Units show anchors only and dynamic Loot cannot be copied. Validate for engine diagnostics."; });
   }
+  globalThis.addEventListener?.('delve:canonical-content-changed', async () => {
+    try {
+      const response = await fetch('/api/designer/catalog', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not refresh canonical content.');
+      Object.assign(catalog, await response.json());
+      metadataSignature = null; refreshMetadata(); render();
+    } catch (error) { ui.status.textContent = error.message; }
+  });
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
   function syncImportedTypes() {
     typeOptions.splice(0, typeOptions.length, ...catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: draft.metadata(type.unitTypeId)?.displayName ?? type.unitTypeId })));
@@ -1104,6 +1115,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     }
     void globalThis.delveInspectContent(draft.snapshot(), ui.title.value, contentDestination());
   });
+  document.getElementById('designer-library-content')?.addEventListener('click', () => {
+    if (!pendingPlay && ready()) void globalThis.delveInspectContent?.(draft.snapshot(), ui.title.value, contentDestination(), 'library');
+  });
 
   // A persistence destination for content definitions, not part of their identity.
   // The form/validator can be reused by another destination without scenario data.
@@ -1118,8 +1132,15 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         unitTypes: draft.definition.unitTypes ?? [],
         equipmentTypes: draft.definition.equipmentTypes ?? [],
         itemTypes: draft.definition.itemTypes ?? [],
-        lootCardDefinitions: draft.definition.lootCardDefinitions ?? []
+        lootCardDefinitions: draft.definition.lootCardDefinitions ?? [],
+        ...(draft.definition.contentReferences?.length ? { contentReferences: draft.definition.contentReferences } : {})
       }),
+      applyReferences: async ({ references, expectedRevision }) => {
+        if (expectedRevision !== revision()) throw new Error('The scenario draft changed. Preview the reference again before applying it.');
+        if (pendingPlay || libraryOpening || libraryBusy || !ready()) throw new Error('Finish the pending Designer operation before importing content.');
+        if (!commit(() => draft.applyContentReferences(references))) throw new Error('The reference could not be applied; the draft was retained.');
+        return snapshot();
+      },
       save: async ({ family, definition, existingId = null, expectedRevision }) => {
         if (expectedRevision !== revision()) throw new Error("The scenario draft changed while this definition was open. Cancel and reopen it from the current draft.");
         if (pendingPlay || libraryOpening || libraryBusy || !ready())

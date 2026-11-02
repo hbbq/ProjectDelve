@@ -12,6 +12,7 @@ public sealed record ContentPackage
     [JsonRequired] public required string Id { get; init; }
     public string? Title { get; init; }
     public string? Description { get; init; }
+    public ImmutableArray<CanonicalPublicationEntry>? Publications { get; init; }
     public ImmutableArray<string> Dependencies { get; init; } = [];
     [JsonRequired] public ContentBundle Definitions { get; init; } = new();
 }
@@ -121,9 +122,18 @@ public static class ContentPackageCatalog
                 if (!ids.Contains(dependency))
                     throw HeaderError(document, "dependencies", $"Package '{document.Package.Id}' requires absent package '{dependency}'.");
 
-        var bundles = packages.Select(p => p.Package.Definitions with { Source = new(p.Document, p.Package.Id, "definitions") }).ToList();
+        var bundles = packages.Select(p => p.Package.Definitions with { Source = new(p.Document, p.Package.Id, "definitions"), Publications = p.Package.Publications ?? [] }).ToList();
         if (csharp is not null) bundles.Insert(0, csharp with { Source = new(Package: CSharpPackageId) });
         var effective = ContentComposition.Compose(bundles);
+        foreach (var document in packages)
+        if (document.Package.Publications is {} publications)
+        {
+            if (publications.IsDefault || publications.Any(p => p?.Identity is null || string.IsNullOrWhiteSpace(p.SourceKind) || p.SourceDigest?.Length != 64) ||
+                publications.Select(p => p.Identity).Distinct().Count() != publications.Length ||
+                publications.Any(p => !ScenarioContentReferences.Identities(document.Package.Definitions).Contains(p.Identity) ||
+                    p.PayloadDigest != CanonicalPublications.PayloadDigest(document.Package.Definitions, p.Identity)))
+                throw HeaderError(document, "publications", "Invalid canonical publication identity or payload digest.");
+        }
         var owners = bundles.SelectMany(b => b.Definitions()).ToDictionary(d => d.Identity, d => d.Source!);
         foreach (var bundle in bundles)
             for (var index = 0; index < bundle.Resources.Length; index++)

@@ -46,6 +46,7 @@ function harness(fetcher) {
   vm.runInContext(source('content-browser-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-editor-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-library-state.js').replace(/^export /gm, ''), context);
+  vm.runInContext(source('content-promotion.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-editor.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-browser.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   context.root = root;
@@ -315,7 +316,7 @@ function libraryHarness() {
   ] };
   let nextConflict = false, nextInvalid = false;
   const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.name, family, origin: 'library-local',
-    definition: structuredClone(row), sections: [], abilities: [], references: [], packageId: 'workshop', packageRevision: 1 });
+    definition: structuredClone(row), sections: [], abilities: [], references: [], packageId: 'workshop', packageRevision: 2 });
   const content = (pkg, bindings = []) => ({ ...structuredClone(standard), context: { kind: 'library' }, entries: structuredClone(standard.entries)
     .concat((pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
       bindings.flatMap(binding => (records.get(binding.packageId)?.[binding.revision - 1]?.package.definitions.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-dependency', packageId: binding.packageId, packageRevision: binding.revision })))) });
@@ -323,8 +324,22 @@ function libraryHarness() {
   const h = harness(async (url, options) => {
     const body = options?.body ? JSON.parse(options.body) : null;
     if (url === '/api/content/catalog') return ok(standard);
-    if (url === '/api/content-library') return ok({ libraryId: 'library-origin', packages: [...records].map(([id, rows]) => ({ packageId: id, currentRevision: rows.length, title: rows.at(-1).package.title })) });
+    if (url === '/api/content-library' || url === '/api/content-library?includeArchived=true') return ok({ libraryId: 'library-origin', packages: [...records].map(([id, rows]) => ({ packageId: id, currentRevision: rows.length, title: rows.at(-1).package.title })) });
+    if (url === '/api/content/context') {
+      const result = content({ definitions: body });
+      for (const pin of body.contentReferences ?? [])
+        result.entries.push(...(pin.snapshot.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-pinned', referenceDigest: pin.snapshotDigest, referencePackageId: pin.packageId, referenceLibraryId: pin.libraryId })));
+      return ok(result);
+    }
+    if (url.endsWith('/scenario-reference/preview')) {
+      const root = records.get(body.packageId)[body.revision - 1];
+      const pin = { formatVersion: 1, libraryId: 'library-origin', packageId: body.packageId, revision: body.revision, snapshotDigest: `pin-${body.revision}`,
+        selected: body.selected, snapshot: { equipmentTypes: root.package.definitions.equipmentTypes } };
+      return ok({ reference: pin, references: [pin], changes: [{ identity: body.selected[0], change: body.expectedReferenceDigest ? 'Changed' : 'Added', after: pin.snapshot }], catalog: content(root.package) });
+    }
     if (url.endsWith('/providers')) return ok([{ id: 'canonical-provider', title: 'Standard content' }]);
+    if (url.endsWith('/promotion/preview')) return ok({ request: body, sourceDigest: 'source', sourceHead: 1, destinationRevision: 'canonical',
+      closure: body.selected, reusedCanonical: [], additional: [], package: { id: body.destinationPackageId }, previewDigest: 'preview' });
     if (url.endsWith('/authoring/context')) return ok(content(body.package, body.bindings));
     if (url.endsWith('/authoring/validate')) {
       if (nextInvalid) { nextInvalid = false; return ok({ valid: false, diagnostics: [{ path: 'definition.equipmentTypeId', code: 'missingReference', message: 'Required Equipment is missing.' }] }); }
@@ -432,6 +447,33 @@ test('explicit external revisions feed Library reference pickers and missing-ref
   assert.equal(h.byId('content-editor').hidden, false); assert.equal(h.writes.length, 0);
 });
 
+test('Use in Scenario and explicit Update Reference preview before a single destination apply', async () => {
+  const h = libraryHarness(); await h.create();
+  h.click(h.byId('content-create-equipment')); await settle();
+  h.change('content-editor-id', 'boots', 'input'); h.change('content-editor-name', 'Knightly Boots', 'input');
+  h.click(h.byId('content-editor-save')); await settle(); h.click(h.byId('content-library-save')); await settle();
+  let scenario = { equipmentTypes: [], lootCardDefinitions: [] }, stamp = 1; const applied = [];
+  const destination = { label: 'Scenario draft', getRevision: () => String(stamp), getContext: () => structuredClone(scenario),
+    getSnapshot: () => ({ definition: structuredClone(scenario), name: 'Scenario' }),
+    applyReferences: async payload => { assert.equal(payload.expectedRevision, String(stamp)); applied.push(plain(payload)); scenario.contentReferences = structuredClone(payload.references); stamp++; return destination.getSnapshot(); } };
+  await h.viewer.showScenario(scenario, 'Scenario', destination); await h.viewer.showLibrary();
+  h.viewer.open('equipment:boots'); h.click(h.byId('content-use-in-scenario')); await settle();
+  assert.equal(applied.length, 0); assert.ok(h.byId('content-reference-apply'));
+  h.click(h.byId('content-reference-apply')); await settle();
+  assert.equal(applied.length, 1); assert.equal(scenario.contentReferences[0].revision, 1);
+  assert.equal(h.byId('content-edit-definition'), undefined, 'pinned definitions are read only');
+  assert.equal(scenario.equipmentTypes.length, 0, 'import does not flatten the pin into editable locals');
+  const first = h.records.get('workshop')[0];
+  h.records.get('workshop').push({ ...structuredClone(first), revision: 2, package: { ...first.package, title: 'New revision' } });
+  assert.equal(scenario.contentReferences[0].revision, 1, 'library edits never follow automatically');
+  h.click(h.byClass('cb-reference-update')[0]); await settle();
+  h.click(h.byId('content-reference-preview-update')); await settle();
+  const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/scenario-reference/preview')).options.body);
+  assert.equal(request.expectedReferenceDigest, 'pin-1'); assert.equal(request.revision, 2);
+  assert.equal(applied.length, 1); h.click(h.byId('content-reference-apply')); await settle();
+  assert.equal(applied.length, 2); assert.equal(scenario.contentReferences[0].revision, 2);
+});
+
 test('creation waits for current catalog metadata and ignores an older context response', async () => {
   let finishFirst, contextRequests = 0;
   const latest = structuredClone(catalog); latest.entries[1].name = 'Current Chime';
@@ -453,4 +495,16 @@ test('creation waits for current catalog metadata and ignores an older context r
   h.click(h.byId('content-create-equipment')); await settle();
   assert.equal(h.byId('content-editor-add-mechanic').children[0].value, 'mend');
   assert.equal(h.byId('content-editor-add-ability').disabled, false);
+});
+
+test('Library promotion pins the saved revision rather than the hypothetical authoring-context revision', async () => {
+  const h = libraryHarness(); await h.create();
+  h.click(h.byId('content-create-equipment')); await settle();
+  h.change('content-editor-id', 'promote-boots', 'input'); h.change('content-editor-name', 'Promote Boots', 'input');
+  h.click(h.byId('content-editor-save')); await settle(); h.click(h.byId('content-library-save')); await settle();
+  h.viewer.open('equipment:promote-boots'); h.click(h.byId('content-promote'));
+  h.click(h.byId('content-promotion-preview')); await settle();
+  const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/promotion/preview')).options.body);
+  assert.equal(request.source.revision, 1); assert.equal(request.source.kind, 'library');
+  assert.ok(h.byId('content-promotion-publish')); assert.equal(h.writes.length, 1, 'preview does not publish');
 });

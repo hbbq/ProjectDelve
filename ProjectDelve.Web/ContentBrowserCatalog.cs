@@ -29,8 +29,12 @@ public sealed record ContentBrowserEntry(string Key, string Family, string Id, s
     public JsonElement? AuthoredDefinition { get; init; }
     public MechanicDescriptor? Mechanic { get; init; }
     public string? Availability { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Published { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? PackageId { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? PackageRevision { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ReferenceDigest { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ReferencePackageId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ReferenceLibraryId { get; init; }
 }
 
 // A definition-only projection of the same catalogs used by scenario creation.
@@ -78,7 +82,7 @@ public static class ContentBrowserCatalog
             .OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces))).DistinctBy(type => Element(type).GetRawText());
         entries.AddRange(resources.Select(type => Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name,
             type, canonical.Resources.Contains(type) ? "canonical" : "scenario-override")));
-        entries = ResolveReferences(entries);
+        entries = MarkPublications(ResolveReferences(entries), canonical);
         return new(new("definitions", "Draft content"),
             Families.Where(family => family.Id is "units" or "equipment" or "items" or "lootCards" or "mechanics" or "resources")
                 .Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(entry => entry.Family == family.Id))).ToArray(), entries, []);
@@ -89,7 +93,27 @@ public static class ContentBrowserCatalog
         // This state is detached, remains before Round Start, and is never returned.
         canonical ??= ContentBundle.Canonical();
         var state = GameEngine.CreateGame(definition, canonical);
-        return Build(definition, state, canonical);
+        var provider = ScenarioContentReferences.Compose(canonical, definition.ContentReferences).Definitions;
+        return Pinned(Build(definition, state, provider), definition.ContentReferences, definition.UnitTypes?.Select(u => u.Id).ToHashSet());
+    }
+
+    public static ContentBrowserResponse Pinned(ContentBrowserResponse catalog, IReadOnlyList<ScenarioContentReference>? references,
+        IReadOnlySet<string>? localUnits = null)
+    {
+        if (references is null || references.Count == 0) return catalog;
+        var families = new Dictionary<string, ContentFamily> { ["equipment"] = ContentFamily.Equipment, ["lootCards"] = ContentFamily.LootCard,
+            ["items"] = ContentFamily.Item, ["units"] = ContentFamily.Unit, ["resources"] = ContentFamily.Resource, ["terrain"] = ContentFamily.Terrain };
+        return catalog with { Entries = catalog.Entries.Select(entry =>
+        {
+            if (!families.TryGetValue(entry.Family, out var family)) return entry;
+            var identity = new ContentIdentity(family, entry.Id);
+            var pin = references.FirstOrDefault(r => r.Origins.Any(o => o.Identity == identity));
+            var origin = pin?.Origins.FirstOrDefault(o => o.Identity == identity);
+            if (pin is null || origin is null) return entry;
+            return entry with { Origin = family == ContentFamily.Unit && localUnits?.Contains(entry.Id) == true ? "scenario-override" : "library-pinned",
+                PackageId = origin.PackageId, PackageRevision = origin.Revision, ReferenceDigest = pin.SnapshotDigest,
+                ReferencePackageId = pin.PackageId, ReferenceLibraryId = pin.LibraryId };
+        }).ToArray() };
     }
 
     private static ContentBrowserResponse Build(ScenarioDefinition? source, GameState? state, ContentBundle canonical)
@@ -244,7 +268,7 @@ public static class ContentBrowserCatalog
         foreach (var type in CellMarkerTypes.All)
             entries.Add(Entry("cellMarkers", type.Id, type.Name, type, "canonical", CellMarkerTypes.Describe(type)));
 
-        entries = ResolveReferences(entries);
+        entries = MarkPublications(ResolveReferences(entries), canonical);
         return new(new(source is null ? "canonical" : "scenario", source is null ? "Canonical content" : "Scenario context"),
             Families.Select(family => new ContentBrowserCategory(family.Id, family.Name, entries.Count(e => e.Family == family.Id))).ToArray(), entries, []);
     }
@@ -273,6 +297,11 @@ public static class ContentBrowserCatalog
                 }).ToArray()
         }).ToList();
     }
+
+    public static ContentBrowserResponse Published(ContentBrowserResponse catalog, ContentBundle canonical)
+        => catalog with { Entries = MarkPublications(catalog.Entries.ToList(), canonical) };
+    private static List<ContentBrowserEntry> MarkPublications(List<ContentBrowserEntry> entries, ContentBundle canonical) => entries.Select(e => e with
+    { Published = canonical.Publications.Any(p => p.Identity.TypeId == e.Id && (e.Family == "equipment" && p.Identity.Family == ContentFamily.Equipment || e.Family == "lootCards" && p.Identity.Family == ContentFamily.LootCard)) }).ToList();
 
     private static ContentBrowserEntry EquipmentEntry(EquipmentDefinition type, string origin, IReadOnlyList<UnitType>? units = null) =>
         Entry("equipment", type.Id, type.Name, type, origin, AbilitySummary(type.LocalAbilities.Length),

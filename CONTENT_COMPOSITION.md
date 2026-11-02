@@ -110,5 +110,11 @@ Cell Markers retain their established concrete representation.
 
 Canonical JSON providers are documented in [CONTENT_PACKAGES.md](CONTENT_PACKAGES.md).
 Library package revisions are documented in [CONTENT_LIBRARY.md](CONTENT_LIBRARY.md).
-Scenario reference pinning, promotion, inheritance and asset ownership remain deferred. Generator pools,
+[Pinned scenario references](SCENARIO_CONTENT_REFERENCES.md) embed an explicitly
+selected dependency closure. Promotion, inheritance and asset ownership remain deferred. Generator pools,
 algorithms, authored scenarios, client-side rules and game rules are unchanged.
+
+[Canonical promotion](CONTENT_PROMOTION.md) records publication provenance outside
+definitions. Exact published payloads in retained scenarios share one effective
+identity with their canonical publication. Other provider duplicates still fail;
+canonical replacement and changed-payload shadowing are not permitted.

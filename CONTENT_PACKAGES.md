@@ -102,7 +102,7 @@ be loaded beside the original identities. Thin export also accepts
 The host loads `Content/Canonical` beneath its content root at startup. Override
 with `--CanonicalContent:Directory <directory>` or equivalent .NET configuration.
 Packages are copied into build/publish output. Invalid content fails startup;
-there is no hot reload. One host-owned canonical bundle serves Content Browser,
+explicit promotion refreshes the host provider selection; other file edits require restart. One host-owned canonical bundle serves Content Browser,
 Designer, scenario import, Playtest and new-game creation. Editable drafts retain
 references; game creation captures definitions and dynamic deck composition.
 
@@ -117,8 +117,9 @@ means the existing C# source alone.
 ## Remaining boundaries
 
 Persistent package revisions and dependency bindings are provided by the separate
-[Content Library](CONTENT_LIBRARY.md). Scenario references, remote registry, hooks,
-inheritance, asset management and promotion remain deferred. Existing C# rosters are
+[Content Library](CONTENT_LIBRARY.md). [Scenario references](SCENARIO_CONTENT_REFERENCES.md)
+pin exact revisions and embed their typed closure. Remote registry, hooks,
+inheritance and asset management remain deferred. [Promotion](CONTENT_PROMOTION.md) publishes new validated JSON packages atomically. Existing C# rosters are
 not migrated. Resources support named production lookup and existing embedded
 payloads; same-ID inline Resource/Machine variants retain their payloads and need
 an independent reference/variant model before becoming general library

@@ -1,5 +1,8 @@
 # Persistent Content Library
 
+[Promote to Canonical](CONTENT_PROMOTION.md) publishes selected revision content and
+its dependencies without rewriting historical revisions or existing scenario pins.
+
 The application-local Content Library stores independently authored
 [JSON content packages](CONTENT_PACKAGES.md). It is separate from ScenarioLibrary,
 canonical providers, scenario drafts and running games. No scenario or GameState
@@ -175,10 +178,12 @@ garbage collection is deferred so future references cannot lose their revisions.
 Backups and cleanup of orphan temporary files remain application administration.
 
 The standalone Equipment/Loot destination is documented in
-[CONTENT_DESIGNER.md](CONTENT_DESIGNER.md). There is no scenario library reference/import,
-canonical promotion, inheritance, asset management or multi-user permission model.
+[CONTENT_DESIGNER.md](CONTENT_DESIGNER.md). Explicit
+[scenario references](SCENARIO_CONTENT_REFERENCES.md) pin revisions and embed their
+selected dependencies. [Canonical promotion](CONTENT_PROMOTION.md) is an explicit
+publication operation; inheritance, asset management and multi-user permissions
+remain deferred.
 Saving library content cannot change canonical providers, scenario-local content,
 scenario references or running game snapshots. Resources/Machines and Cell Markers
-retain the limitations documented in CONTENT_PACKAGES.md. Future explicit
-Use in Scenario and Promote operations can consume these revision APIs; standalone
-Create Copy already uses the shared content destination.
+retain the limitations documented in CONTENT_PACKAGES.md. Explicit Promote uses immutable revisions and source-head checks; Create Copy
+and Use in Scenario use the shared content destination.

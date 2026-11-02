@@ -1,6 +1,7 @@
 import { ContentBrowserState, contentLabel, contentUsage } from './content-browser-state.js';
 import { mountContentEditor } from './content-editor.js';
 import { LibraryContentDraft } from './content-library-state.js';
+import { mountContentPromotion } from './content-promotion.js';
 
 // Read-only viewer: only explicit catalog / Designer snapshot requests are made.
 export function mountContentBrowser(root, options = {}) {
@@ -14,6 +15,7 @@ export function mountContentBrowser(root, options = {}) {
   let scenarioDestination = null, libraryDraft = null, libraryPackages = [], providers = [], revisions = [];
   let libraryBusy = false, libraryValid = false, creatingPackage = false, packageIdentity = '', packageTitle = '', libraryNotice = '', leaveResolve = null;
   let dependencySearch = '', dependencyPackage = '', dependencyRevisions = [];
+  let referencePreview = null, referenceTarget = null, referenceStamp = null, referenceBusy = false, updateReference = null, updateRevisions = [];
   const node = (tag, className, text) => {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -82,19 +84,21 @@ export function mountContentBrowser(root, options = {}) {
   detail.id = 'content-detail';
   workspace.append(master, detail);
   const editorRoot = node('section');
+  const promotionPanel = node('section', 'cb-reference-panel'); promotionPanel.id = 'content-promotion-panel';
+  const referencePanel = node('section', 'cb-reference-panel'); referencePanel.id = 'content-reference-panel';
   const libraryPanel = node('section', 'cb-library'); libraryPanel.id = 'content-library-workspace';
   const leavePanel = node('div', 'ce-discard cb-package-discard'); leavePanel.hidden = true;
   leavePanel.setAttribute('role', 'alertdialog'); leavePanel.setAttribute('aria-label', 'Unsaved package changes');
   const keepPackage = button('Keep editing package', () => resolveLeave(false)); keepPackage.id = 'content-library-keep';
   const discardPackage = button('Discard package changes', () => resolveLeave(true)); discardPackage.id = 'content-library-discard';
   leavePanel.append(node('strong', '', 'Discard unsaved package changes?'), node('p', '', 'Saved revisions remain unchanged.'), keepPackage, discardPackage);
-  root.replaceChildren(header, leavePanel, libraryPanel, authoring, status, diagnostics, toolbar, workspace, editorRoot);
+  root.replaceChildren(header, leavePanel, libraryPanel, authoring, referencePanel, promotionPanel, status, diagnostics, toolbar, workspace, editorRoot);
   const editor = mountContentEditor(editorRoot, {
     destinationLabel: () => editDestination?.label,
     catalog: () => {
       if (destination?.kind === 'library') return cache.get('library') ?? { entries: [] };
       const entries = new Map();
-      for (const catalog of [cache.get('canonical'), cache.get('draft'), state.catalog])
+      for (const catalog of [cache.get('canonical'), state.catalog, cache.get('draft')])
         for (const entry of catalog?.entries ?? []) entries.set(entry.key, entry);
       return { entries: [...entries.values()] };
     },
@@ -115,6 +119,20 @@ export function mountContentBrowser(root, options = {}) {
     onDirtyChange: () => {}
   });
   globalThis.addEventListener?.('beforeunload', event => { if (editor.isDirty() || libraryDraft?.dirty) { event.preventDefault(); event.returnValue = ''; } });
+  function promotionSource(entry) {
+    if (context === 'library' && libraryDraft && !libraryDraft.isNew && !libraryDraft.dirty)
+      return { kind: 'library', packageId: entry.packageId, revision: entry.origin === 'library-local' ? libraryDraft.revision : entry.packageRevision };
+    if (scenarioDestination && context !== 'canonical')
+      return { kind: entry.referenceDigest ? 'scenario-pinned' : 'scenario-local', scenario: scenarioDestination.getSnapshot().definition };
+    return null;
+  }
+  const promotion = mountContentPromotion(promotionPanel, { source: promotionSource, entries: () => state.entries,
+    stamp: () => context === 'library' ? libraryDraft?.stamp : scenarioDestination?.getRevision(), call: libraryCall,
+    failed: referenceFailure, published: async () => {
+      cache.clear(); catalogRevision = null;
+      globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed'));
+      await showCanonical();
+    } });
 
   function libraryDestination() {
     return {
@@ -133,6 +151,73 @@ export function mountContentBrowser(root, options = {}) {
       failure.diagnostics = data.diagnostics; throw failure;
     }
     return data;
+  }
+  function referenceFailure(failure) { error = failure.message; packageIssue(failure); render(); }
+  async function previewReference(packageId, revision, selected, expectedReferenceDigest = null) {
+    if (!scenarioDestination?.applyReferences || !await editor.requestClose()) return;
+    referenceTarget = scenarioDestination; referenceStamp = referenceTarget.getRevision(); referenceBusy = true; error = ''; referencePreview = null; render();
+    try {
+      referencePreview = await libraryCall('/scenario-reference/preview', { scenario: referenceTarget.getSnapshot().definition,
+        packageId, revision: Number(revision), selected, expectedReferenceDigest });
+    } catch (failure) { referenceFailure(failure); }
+    finally { referenceBusy = false; render(); referencePanel.scrollIntoView?.({ block: 'start' }); }
+  }
+  async function chooseUpdate(reference) {
+    referencePreview = null; updateReference = reference; updateRevisions = []; referenceBusy = true; error = ''; render();
+    try {
+      const catalog = await libraryCall('');
+      if (catalog.libraryId !== reference.libraryId) throw new Error('Library provenance is unavailable. The embedded scenario remains playable.');
+      updateRevisions = await libraryCall(`/packages/${encodeURIComponent(reference.packageId)}/revisions`);
+    } catch (failure) { referenceFailure(failure); }
+    finally { referenceBusy = false; render(); referencePanel.scrollIntoView?.({ block: 'start' }); }
+  }
+  function renderReferences() {
+    referencePanel.replaceChildren();
+    const references = scenarioDestination?.getContext().contentReferences ?? [];
+    referencePanel.hidden = !referenceBusy && !referencePreview && !updateReference && !(context === 'draft' && references.length);
+    if (context === 'draft') for (const reference of references) {
+      const row = node('div', 'cb-reference-row');
+      row.append(node('span', '', `${reference.packageId} · pinned revision ${reference.revision}`),
+        button('Update Reference…', () => void chooseUpdate(reference))); referencePanel.append(row);
+    }
+    if (referenceBusy) referencePanel.append(node('p', '', 'Preparing the reference preview…'));
+    if (updateReference && !referencePreview) {
+      referencePanel.append(node('h3', '', 'Update Reference'), node('p', '', `Current pin: ${updateReference.packageId} · revision ${updateReference.revision}`));
+      const versions = select('Available library revision', () => {}); versions.id = 'content-reference-revision';
+      versions.append(...updateRevisions.map(record => option(record.revision, `Revision ${record.revision}${record.revision === updateReference.revision ? ' · pinned' : ''}`)));
+      versions.value = String(updateRevisions.at(-1)?.revision ?? '');
+      const preview = button('Preview update', () => void previewReference(updateReference.packageId, versions.value, updateReference.selected, updateReference.snapshotDigest)); preview.id = 'content-reference-preview-update'; preview.disabled = referenceBusy || !updateRevisions.length;
+      referencePanel.append(label('Available revisions', versions), preview);
+    }
+    if (referencePreview) {
+      const pin = referencePreview.reference;
+      referencePanel.append(node('h3', '', 'Use content in scenario'), node('p', '', `${pin.packageId} · revision ${pin.revision} · ${referencePreview.changes.length} selected/dependency definitions`));
+      for (const change of referencePreview.changes) {
+        const family = { Equipment: 'equipment', LootCard: 'lootCards', Unit: 'units', Item: 'items', Resource: 'resources', Terrain: 'terrain', FixedComponent: 'fixedComponents' }[change.identity.family];
+        const effective = referencePreview.catalog?.entries?.find(entry => entry.family === family && entry.id === change.identity.typeId);
+        if (effective && change.change !== 'Unchanged' && change.after) {
+          referencePanel.append(node('h4', '', `Effective after apply · ${effective.name}`), node('p', '', effective.summary));
+          for (const ability of effective.abilities ?? []) referencePanel.append(node('p', '', `${ability.name} · ${contentUsage(ability.usage)} · ${ability.description}`));
+        }
+        const row = node('details'); row.append(node('summary', '', `${change.change} · ${change.identity.family} · ${change.identity.typeId}`));
+        row.dataset.referenceChange = change.change;
+        if (change.before) row.append(node('h4', '', 'Before'), node('pre', '', JSON.stringify(change.before, null, 2)));
+        if (change.after) row.append(node('h4', '', 'After'), node('pre', '', JSON.stringify(change.after, null, 2)));
+        referencePanel.append(row);
+      }
+      const apply = button('Apply reference to scenario', async () => {
+        if (referenceBusy) return;
+        try {
+          referenceBusy = true; render();
+          const saved = await referenceTarget.applyReferences({ references: referencePreview.references, expectedRevision: referenceStamp });
+          const selected = referencePreview.reference.selected[0]; referencePreview = null; updateReference = null;
+          await showScenario(saved.definition, saved.name, referenceTarget);
+          state.open(`${selected.family === 'Equipment' ? 'equipment' : 'lootCards'}:${selected.typeId}`); render(); focusDetail();
+        } catch (failure) { referenceFailure(failure); }
+        finally { referenceBusy = false; render(); }
+      }); apply.id = 'content-reference-apply'; apply.disabled = referenceBusy; referencePanel.append(apply);
+    }
+    if (referencePreview || updateReference) referencePanel.append(button('Cancel reference preview', () => { referencePreview = null; updateReference = null; render(); }));
   }
   function packageIssue(failure) {
     libraryNotice = failure.message;
@@ -171,13 +256,13 @@ export function mountContentBrowser(root, options = {}) {
     if (libraryBusy || !await editor.requestClose() || !await guardPackage()) { render(); return false; }
     libraryBusy = true; render();
     try {
-      const [record, history, catalog] = await Promise.all([libraryCall(`/packages/${encodeURIComponent(id)}${revision ? `?revision=${revision}` : ''}`), libraryCall(`/packages/${encodeURIComponent(id)}/revisions`), libraryCall('')]);
+      const [record, history, catalog] = await Promise.all([libraryCall(`/packages/${encodeURIComponent(id)}${revision ? `?revision=${revision}` : ''}`), libraryCall(`/packages/${encodeURIComponent(id)}/revisions`), libraryCall('?includeArchived=true')]);
       libraryPackages = catalog.packages;
       const head = libraryPackages.find(row => row.packageId === id);
       libraryDraft = new LibraryContentDraft(record, { currentRevision: head?.currentRevision ?? record.revision, archived: head?.archived });
       revisions = history; creatingPackage = false;
-    } catch (failure) { packageIssue(failure); }
-    finally { libraryBusy = false; }
+    } catch (failure) { packageIssue(failure); error = failure.message; return false; }
+    finally { libraryBusy = false; render(); }
     await inspectLibrary(); render(); return true;
   }
   function resolveLeave(discard) {
@@ -453,16 +538,41 @@ export function mountContentBrowser(root, options = {}) {
     if (entry.packageId) detail.append(empty(entry.origin === 'library-local' && destination?.kind === 'library'
       ? `Package ${entry.packageId} · working copy${libraryDraft.revision ? ` of revision ${libraryDraft.revision}` : ' · not saved'}`
       : `Package ${entry.packageId} · revision ${entry.packageRevision}`));
+    if (entry.referenceDigest) {
+      const reference = scenarioDestination?.getContext().contentReferences?.find(r => r.snapshotDigest === entry.referenceDigest);
+      if (reference) {
+        detail.append(button('Update Reference…', () => void chooseUpdate(reference), 'cb-reference-update'));
+        detail.append(button('View Library provenance', async () => {
+          try {
+            if ((await libraryCall('')).libraryId !== reference.libraryId) throw new Error('Original Library unavailable; the embedded scenario remains playable.');
+            await openPackage(reference.packageId, reference.revision);
+          } catch (failure) { referenceFailure(failure); }
+        }, 'cb-reference-source'));
+      }
+    }
     if (entry.family === 'equipment' || entry.family === 'lootCards') {
+      if (!entry.published && entry.origin !== 'canonical' && promotionSource(entry)) {
+        const promote = button('Promote to Canonical', () => promotion.begin(entry)); promote.id = 'content-promote';
+        promote.disabled = libraryBusy || !!libraryDraft?.dirty || editor.isOpen(); detail.append(promote);
+      }
       const actions = node('div', 'cb-definition-actions');
       const copy = button('Copy as new', () => void openEditor({ copy: true }, entry.key)); copy.id = 'content-copy-definition'; copy.disabled = !canAuthor(); actions.append(copy);
       const contextField = entry.family === 'equipment' ? 'equipmentTypes' : 'lootCardDefinitions';
-      if (destination && entry.origin !== 'canonical' && entry.availability !== 'legacy-collision' && destination.getContext()[contextField]?.some(definition => definition.id === entry.id)) {
+      if (!entry.published && destination && entry.origin !== 'canonical' && entry.origin !== 'library-pinned' && entry.availability !== 'legacy-collision' && destination.getContext()[contextField]?.some(definition => definition.id === entry.id)) {
         const edit = button('Edit definition', () => void openEditor({ existingId: entry.id }, entry.key)); edit.id = 'content-edit-definition'; edit.disabled = !canAuthor(); actions.append(edit);
       }
       if (entry.family === 'equipment') { const loot = button('Create Loot Card for this Equipment', () => void openEditor({}, entry.key, true)); loot.id = 'content-create-linked-loot'; loot.disabled = !canAuthor(); actions.append(loot); }
       if (entry.availability === 'legacy-collision') actions.append(empty('This historical local ID overlaps canonical content. Copy it with a new ID to edit it.'));
       detail.append(actions);
+      if (entry.published) detail.append(empty('Published to Canonical. This retained source is read-only; Copy as new creates an independent identity.'));
+      if (entry.packageId && ['library-local', 'library-dependency'].includes(entry.origin)) {
+        const use = button('Use in Scenario', () => void previewReference(entry.packageId,
+          entry.origin === 'library-local' ? libraryDraft.revision : entry.packageRevision,
+          [{ family: entry.family === 'equipment' ? 'Equipment' : 'LootCard', typeId: entry.id }]));
+        use.id = 'content-use-in-scenario'; use.disabled = referenceBusy || libraryBusy || !scenarioDestination?.applyReferences || !!libraryDraft?.dirty;
+        detail.append(use, empty(!scenarioDestination?.applyReferences ? 'In Scenario Designer, choose Use library content to attach a draft.'
+          : libraryDraft?.dirty ? 'Save or cancel package changes before using a saved revision.' : `Scenario destination: ${scenarioDestination.label ?? draftName}`));
+      }
     }
     if (entry.summary) detail.append(node('p', 'cb-summary', entry.summary));
     if (!entry.mechanic)
@@ -489,9 +599,10 @@ export function mountContentBrowser(root, options = {}) {
   }
   function render() {
     renderLibrary();
+    renderReferences();
     root.classList.toggle('cb-show-detail', state.detailOpen);
     root.setAttribute('aria-busy', String(!!pending || libraryBusy));
-    contextControl.disabled = !!pending || libraryBusy;
+    contextControl.disabled = !!pending || libraryBusy || referenceBusy;
     contextControl.replaceChildren(option('canonical', 'Canonical catalog'));
     contextControl.append(option('library', 'Library'));
     if (cache.has('draft') || context === 'draft') contextControl.append(option('draft', `Scenario draft · ${draftName}`));
@@ -592,7 +703,7 @@ export function mountContentBrowser(root, options = {}) {
   render();
   return {
     show: async () => { if (context === 'library' && !editor.isOpen()) return showLibrary(); if (destination && !editor.isOpen()) await refreshDestination(); return pending ?? (state.catalog ? Promise.resolve(state.catalog) : showCanonical()); },
-    showCanonical, showScenario,
+    showCanonical, showScenario, showLibrary,
     requestCloseEditor: async () => { if (!await editor.requestClose() || !await guardPackage()) return false; return true; },
     open: key => { const opened = state.open(key, true); if (opened) { render(); focusDetail(); } return opened; }
   };

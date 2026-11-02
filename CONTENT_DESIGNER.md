@@ -6,6 +6,19 @@ Designer, **Inspect content** attaches the scenario draft instead. Both destinat
 use the same forms, typed definitions, Mechanic Catalog and Engine-generated previews.
 The destination is not part of a definition's Type ID or mechanic declaration.
 
+Scenario Designer's **Use library content** attaches the current draft to Library
+browsing. **Use in Scenario** previews a saved revision's selected definitions and
+typed dependencies; Apply embeds a portable, read-only pin as one undoable change.
+Later Library edits do not change the scenario. **Update Reference…** previews an
+explicit revision change before applying it. See
+[Pinned scenario references](SCENARIO_CONTENT_REFERENCES.md) for the workflow,
+composition policy, API and portability guarantees.
+
+Select **Promote to Canonical** on saved Library content or scenario-local/pinned
+Equipment and Loot to preview dependencies and explicitly publish a new canonical
+JSON package. See [Promotion](CONTENT_PROMOTION.md) for revision checks, ownership
+and portability. Canonical definitions remain read-only.
+
 ## Standalone library workflow
 
 1. Select **Library**, then **Create package**. Enter a stable package ID and title,
@@ -95,9 +108,9 @@ Saving a content definition changes the draft; **Save to library** saves the sce
 
 | Scope | Current behavior | Future extension |
 | --- | --- | --- |
-| Canonical | C# and JSON providers, read-only; Create Copy uses a new ID | Validated promotion |
-| User Content Library | Standalone Equipment/Loot working copies and immutable package revisions | Explicit scenario references and promotion |
-| Scenario-local | Editable Equipment and Loot stored in the explicit draft | Copy to another scope or promote with dependency/conflict resolution |
+| Canonical | C# and JSON providers, read-only; Create Copy uses a new ID | Canonical replacement remains separate |
+| User Content Library | Standalone working copies, immutable revisions and explicit portable scenario pins | No canonical replacement editor |
+| Scenario-local | Editable Equipment/Loot and explicit canonical promotion | Additional family editors |
 
 The form consumes a definition and a dependency catalog. Validation consumes the
 same data, without requiring a board, Unit placement or live game. The destination
@@ -161,11 +174,12 @@ no per-mechanic forms, gameplay expressions or copied numeric constraints. Modif
 lists and capabilities remain in `localAbilities`; there is no parallel editor-only
 Equipment model. Preview descriptions come from the existing Engine projections.
 
-Future scenario library references and promotion need dependency collection, explicit Type
-ID conflict handling and validation against the target catalog. These are scope
+Scenario library references use dependency collection and explicit Type ID checks.
+Promotion performs explicit Type ID conflict handling and validates the complete
+proposed canonical catalog. These are scope
 operations, not changes to the definition's identity. A canonical JSON provider can
 load the same validated typed definitions alongside C# rosters; promotion need not
-generate C#. Providers already exist; promotion remains deferred.
+generate C#. Providers already exist; promotion uses the validated atomic JSON publication service.
 
 ## Presentation and future assets
 
@@ -223,8 +237,8 @@ inspectable, and existing Item Types can be selected as rewards. There is no con
 deletion, inheritance, live variant linkage, global mutable catalog, runtime editing,
 asset upload or new gameplay mechanic. Applied definitions are recovered with the
 Designer draft; library working copies remain in page memory until Save package.
-Unfinished content forms must be saved or discarded before leaving. Scenario library
-references, promotion and additional family editors remain deferred.
+Unfinished content forms must be saved or discarded before leaving. Additional family editors remain deferred. Library pins are read-only; Create Copy
+is the explicit route to independent scenario-local content.
 
 See [Equipment content](EQUIPMENT_CONTENT.md), [Loot content](LOOT_CONTENT.md),
 [Ability content](ABILITY_CONTENT.md) and [Mechanic Catalog](MECHANIC_CATALOG.md)

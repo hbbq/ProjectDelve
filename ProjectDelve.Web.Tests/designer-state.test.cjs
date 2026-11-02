@@ -147,3 +147,24 @@ test('application performs structural persistence without duplicating Engine mec
   draft.applyContentDefinition('equipment', pendingValidation);
   assert.deepEqual(plain(draft.definition.equipmentTypes.at(-1)), pendingValidation);
 });
+
+test('pinned references apply and update as single undoable operations and survive draft recovery', () => {
+  const { draft, history, draftDocument, readDraftDocument } = setup();
+  const reference = { formatVersion: 1, packageId: 'boots', libraryId: 'library', revision: 1, snapshotDigest: 'one',
+    selected: [{ family: 'LootCard', typeId: 'boots-loot' }], snapshot: { equipmentTypes: [equipment('boots')], lootCardDefinitions: [{ id: 'boots-loot', equipmentTypeId: 'boots' }] } };
+  const before = plain(draft.snapshot());
+  history.transact(() => draft.applyContentReferences([reference]));
+  reference.snapshot.equipmentTypes[0].name = 'Mutated source';
+  assert.notEqual(draft.definition.contentReferences[0].snapshot.equipmentTypes[0].name, 'Mutated source');
+  const pinned = plain(draft.snapshot());
+  assert.equal(history.undo(), true); assert.deepEqual(plain(draft.snapshot()), before);
+  assert.equal(history.redo(), true); assert.deepEqual(plain(draft.snapshot()), pinned);
+  const updated = structuredClone(pinned.contentReferences[0]); updated.revision = 2; updated.snapshotDigest = 'two';
+  updated.snapshot.equipmentTypes[0].name = 'Explicitly updated';
+  history.transact(() => draft.applyContentReferences([updated]));
+  assert.equal(history.undo(), true); assert.deepEqual(plain(draft.snapshot()), pinned);
+  assert.equal(history.redo(), true); assert.equal(draft.definition.contentReferences[0].revision, 2);
+  const recovered = readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(), 'Pinned scenario')));
+  assert.deepEqual(plain(recovered.definition.contentReferences), plain(draft.definition.contentReferences));
+  assert.equal(draft.definition.equipmentTypes.some(row => row.id === 'boots'), false, 'pins are never copied into freely editable local arrays');
+});

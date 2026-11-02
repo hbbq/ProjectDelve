@@ -6,6 +6,8 @@ namespace ProjectDelve.Engine;
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ScenarioDefinition
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ScenarioContentReference>? ContentReferences { get; init; }
     public LootSettings? Loot { get; init; }
     public Dictionary<string, LootUnitOverride>? LootUnitOverrides { get; init; }
     public List<LootMarker>? LootMarkers { get; init; }

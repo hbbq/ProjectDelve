@@ -9,12 +9,14 @@ internal static class ScenarioCreation
             definition.Units is null || definition.Agency is null || board.Cells is null || board.Edges is null)
             throw new ArgumentException("Scenario definition requires Board, UnitTypeIds, Units and Agency data.", nameof(definition));
         // Resolve live presets against the explicitly selected provider before applying legacy aliases.
+        if (composeLocal && definition.ContentReferences is { Count: > 0 })
+            baseContent = ScenarioContentReferences.Compose(baseContent, definition.ContentReferences).Definitions;
         var localCards = composeLocal ? definition.LootCardDefinitions ?? [] : [];
         var localIds = localCards.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         var effectiveCards = baseContent.LootCards.Where(c => !localIds.Contains(c.Id)).Concat(localCards).ToArray();
         var lootComposition = (definition.Loot ?? new LootSettings()).ResolveComposition(effectiveCards, baseContent.LootPresets);
         definition = definition with { Loot = new() { Composition = lootComposition.ToList() } };
-        if (composeLocal) definition = LootCompatibility.ResolveLocalIdCollisions(definition, baseContent.LootCards);
+        if (composeLocal) definition = LootCompatibility.ResolveLocalIdCollisions(definition, CanonicalPublications.ForLocal(baseContent, definition).LootCards);
         EffectiveContent content;
         try { content = ContentComposition.Compose([baseContent], composeLocal ? ContentBundle.Local(definition) : null); }
         catch (ContentCompositionException error)

@@ -26,15 +26,17 @@ public static class PlaytestHost
         builder.Services.AddSingleton(canonical);
         var contentLibraryPath = builder.Configuration["ContentLibrary:Path"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "ContentLibrary");
-        builder.Services.AddSingleton(_ => new ContentLibrary(contentLibraryPath, canonical.Packages));
+        builder.Services.AddSingleton(_ => new ContentLibrary(contentLibraryPath, canonical.Packages, canonicalProvider: () => canonical.Packages));
+        builder.Services.AddSingleton<ScenarioReferenceService>();
+        builder.Services.AddSingleton<ContentPromotionService>();
         var libraryPath = builder.Configuration["Library:Path"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "library");
         var bundledLibraryPath = builder.Configuration["Library:BundlePath"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Library");
-        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, content: canonical.Bundle));
+        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, contentProvider: () => canonical.Bundle));
         builder.Services.AddSingleton(_ => new LibraryCoverStore(libraryPath, bundledLibraryPath));
         builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
-            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), canonical.Bundle), external, replayCapacity, externalSelection, canonicalContent: canonical.Bundle));
+            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), canonical.Bundle), external, replayCapacity, externalSelection, canonicalProvider: () => canonical.Bundle));
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
