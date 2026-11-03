@@ -68,7 +68,8 @@ const heal = {
   context: 'ActingUnit', targeting: { selection: 'Unit', recipients: 'Choose an adjacent friendly Unit.' },
   dependencies: ['posture', 'health'], description: { template: 'Restore {amount} HP.', parameters: ['amount'], allowsOverride: true }, grantable: true
 };
-const catalog = {
+const unitAuthoring = { defaults: {id:'',displayName:'',mov:3,rng:1,atk:1,def:1,hp:1,actions:'NormalAttack',behaviors:'None',localAbilities:[],footprint:'OneByOne'}, stats:[{name:'hp',kind:'Integer',minimum:1}], fields:[], footprints:['OneByOne'],movementPatterns:['Adjacent'],behaviors:[] };
+const catalog = { unitAuthoring,
   context: { kind: 'canonical', name: 'Canonical content' },
   categories: [{ id: 'units', name: 'Units' }, { id: 'equipment', name: 'Equipment' }, { id: 'mechanics', name: 'Mechanics' }], diagnostics: [],
   entries: [
@@ -232,26 +233,27 @@ test('filtering preserves search focus and does not scroll the detail on every k
 });
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
-function authoringHarness() {
-  let definition = { equipmentTypes: [], itemTypes: [], lootCardDefinitions: [] }, revision = 1;
+function authoringHarness(unitMetadata = unitAuthoring) {
+  let definition = { unitTypes: [], equipmentTypes: [], itemTypes: [], lootCardDefinitions: [] }, revision = 1;
   const saves = [];
   const destination = { label: 'Test destination', getRevision: () => String(revision), getContext: () => structuredClone(definition),
     getSnapshot: () => ({ definition: structuredClone(definition), name: 'Test draft' }),
     save: async payload => {
       if (payload.expectedRevision !== String(revision)) throw new Error('The draft changed. Reopen the definition.');
-      saves.push(plain(payload)); const field = payload.family === 'equipment' ? 'equipmentTypes' : 'lootCardDefinitions';
+      saves.push(plain(payload)); const field = { units:'unitTypes', equipment:'equipmentTypes', lootCards:'lootCardDefinitions' }[payload.family];
       definition[field] = definition[field].filter(row => row.id !== payload.existingId).concat([structuredClone(payload.definition)]); revision++;
       return destination.getSnapshot();
     } };
-  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.name, family, origin: 'local', definition: row, sections: [], abilities: [], references: [] });
+  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.displayName ?? row.name, family, origin: 'local', definition: row, sections: [], abilities: [], references: [] });
   const h = harness(async (url, options) => {
     if (url.endsWith('/validate')) {
       const request = JSON.parse(options.body); return { ok: true, json: async () => ({ valid: true, diagnostics: [], definition: request.definition, entry: asEntry(request.definition, request.family) }) };
     }
     const data = structuredClone(catalog);
+    if (url.endsWith('/context')) data.unitAuthoring = structuredClone(unitMetadata);
     data.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [{ key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }] };
     if (url.endsWith('/context')) data.entries = data.entries.filter(entry => ['equipment', 'mechanics'].includes(entry.family))
-      .concat(definition.equipmentTypes.map(row => asEntry(row, 'equipment')), definition.lootCardDefinitions.map(row => asEntry(row, 'lootCards')));
+      .concat(definition.unitTypes.map(row => asEntry(row, 'units')), definition.equipmentTypes.map(row => asEntry(row, 'equipment')), definition.lootCardDefinitions.map(row => asEntry(row, 'lootCards')));
     return { ok: true, json: async () => data };
   });
   return { ...h, destination, saves, snapshot: () => destination.getSnapshot(), changeDraft: rows => { definition = { ...definition, ...rows }; revision++; } };
@@ -315,10 +317,10 @@ function libraryHarness() {
     { key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }
   ] };
   let nextConflict = false, nextInvalid = false;
-  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.name, family, origin: 'library-local',
+  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.displayName ?? row.name, family, origin: 'library-local',
     definition: structuredClone(row), sections: [], abilities: [], references: [], packageId: 'workshop', packageRevision: 2 });
   const content = (pkg, bindings = []) => ({ ...structuredClone(standard), context: { kind: 'library' }, entries: structuredClone(standard.entries)
-    .concat((pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
+    .concat((pkg.definitions.unitTypes ?? []).map(row => asEntry(row, 'units')), (pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
       bindings.flatMap(binding => (records.get(binding.packageId)?.[binding.revision - 1]?.package.definitions.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-dependency', packageId: binding.packageId, packageRevision: binding.revision })))) });
   const ok = data => ({ ok: true, status: 200, json: async () => structuredClone(data) });
   const h = harness(async (url, options) => {
@@ -328,13 +330,13 @@ function libraryHarness() {
     if (url === '/api/content/context') {
       const result = content({ definitions: body });
       for (const pin of body.contentReferences ?? [])
-        result.entries.push(...(pin.snapshot.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-pinned', referenceDigest: pin.snapshotDigest, referencePackageId: pin.packageId, referenceLibraryId: pin.libraryId })));
+        result.entries.push(...(pin.snapshot.unitTypes ?? []).map(row => ({ ...asEntry(row, 'units'), origin:'library-pinned',referenceDigest:pin.snapshotDigest })), ...(pin.snapshot.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-pinned', referenceDigest: pin.snapshotDigest, referencePackageId: pin.packageId, referenceLibraryId: pin.libraryId })));
       return ok(result);
     }
     if (url.endsWith('/scenario-reference/preview')) {
       const root = records.get(body.packageId)[body.revision - 1];
       const pin = { formatVersion: 1, libraryId: 'library-origin', packageId: body.packageId, revision: body.revision, snapshotDigest: `pin-${body.revision}`,
-        selected: body.selected, snapshot: { equipmentTypes: root.package.definitions.equipmentTypes } };
+        selected: body.selected, snapshot: structuredClone(root.package.definitions) };
       return ok({ reference: pin, references: [pin], changes: [{ identity: body.selected[0], change: body.expectedReferenceDigest ? 'Changed' : 'Added', after: pin.snapshot }], catalog: content(root.package) });
     }
     if (url.endsWith('/providers')) return ok([{ id: 'canonical-provider', title: 'Standard content' }]);
@@ -507,4 +509,65 @@ test('Library promotion pins the saved revision rather than the hypothetical aut
   const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/promotion/preview')).options.body);
   assert.equal(request.source.revision, 1); assert.equal(request.source.kind, 'library');
   assert.ok(h.byId('content-promotion-publish')); assert.equal(h.writes.length, 1, 'preview does not publish');
+});
+
+
+test('Library Unit creation, pinning, reference update and independent canonical copies use Unit identities', async () => {
+  const h=libraryHarness(); await h.create();
+  h.click(h.byId('content-create-unit')); await settle();
+  h.change('content-editor-id','keeper','input'); h.change('content-editor-name','Keeper','input');
+  h.click(h.byId('content-editor-add-ability'));
+  h.click(h.byId('content-editor-save')); await settle();
+  h.click(h.byId('content-library-save')); await settle();
+  assert.equal(h.writes[0].package.definitions.unitTypes[0].displayName,'Keeper');
+  assert.equal(h.writes[0].package.definitions.unitTypes[0].localAbilities[0].mechanic.kind,'mend');
+  let scenario={unitTypes:[]}, stamp=1; const applied=[];
+  const destination={getRevision:()=>String(stamp),getContext:()=>structuredClone(scenario),getSnapshot:()=>({definition:structuredClone(scenario),name:'Unit scenario'}),
+    applyReferences:async payload=>{applied.push(plain(payload));scenario.contentReferences=structuredClone(payload.references);stamp++;return destination.getSnapshot();}};
+  await h.viewer.showScenario(scenario,'Unit scenario',destination); await h.viewer.showLibrary();
+  h.viewer.open('units:keeper'); h.click(h.byId('content-use-in-scenario')); await settle();
+  const request=JSON.parse(h.calls.findLast(call=>call.url.endsWith('/scenario-reference/preview')).options.body);
+  assert.deepEqual(request.selected,[{family:'Unit',typeId:'keeper'}]);
+  h.click(h.byId('content-reference-apply')); await settle();
+  assert.equal(applied.length,1); assert.deepEqual(scenario.unitTypes,[]);
+  h.viewer.open('units:keeper'); assert.equal(h.byId('content-edit-definition'),undefined);
+  h.click(h.byClass('cb-reference-update')[0]); await settle();
+  h.click(h.byId('content-reference-preview-update')); await settle();
+  h.click(h.byId('content-reference-apply')); await settle();
+  assert.equal(applied.length,2); assert.match(h.byId('content-detail').textContent,/Keeper/);
+});
+
+test('copying a Unit with a scenario Loot override edits the raw authored Unit while pins stay read only', async () => {
+  const original={id:'keeper',displayName:'Keeper',mov:2,rng:1,atk:1,def:1,hp:2,actions:'None',localAbilities:[]};
+  const data=structuredClone(catalog); data.entries[0]={...data.entries[0],id:'keeper',key:'units:keeper',origin:'scenario-override',definition:{...original,lootDropSuccesses:6},authoredDefinition:{unitType:original,lootOverride:{dropSuccesses:6}}};
+  const saves=[];
+  const h=harness(async (url,options)=>({ok:true,json:async()=>url.endsWith('/validate')?{valid:true,diagnostics:[],definition:JSON.parse(options.body).definition,entry:data.entries[0]}:data}));
+  const destination={getRevision:()=> '1',getContext:()=>({unitTypes:[original]}),getSnapshot:()=>({definition:{unitTypes:[original]},name:'Override'}),save:async payload=>{saves.push(plain(payload));return destination.getSnapshot();}};
+  await h.viewer.showScenario({unitTypes:[original]},'Override',destination);
+  h.viewer.open('units:keeper'); assert.ok(h.byId('content-edit-definition'));
+  h.click(h.byId('content-copy-definition')); await settle();
+  h.change('content-editor-id','independent','input'); h.click(h.byId('content-editor-save')); await settle();
+  assert.deepEqual(saves[0].definition,{...original,id:'independent'});
+  assert.equal(Object.hasOwn(saves[0].definition,'unitType'),false);
+  assert.equal(original.id,'keeper');
+});
+
+
+test('attached scenario Unit creation retains effective authoring metadata, defaults and editable controls', async () => {
+  const metadata={...unitAuthoring,defaults:{...unitAuthoring.defaults,hp:7,unique:false},stats:[{name:'hp',kind:'Integer',minimum:2,maximum:19}],fields:[{name:'unique',kind:'Boolean',required:true}]};
+  const h=authoringHarness(metadata);await h.viewer.showCanonical();
+  const snapshot=h.snapshot();await h.viewer.showScenario(snapshot.definition,snapshot.name,h.destination);
+  h.click(h.byId('content-create-unit'));await settle();
+  const field=path=>h.root.all(e=>e.dataset.fieldPath===path).at(-1);
+  assert.equal(field('definition.hp').value,7);
+  assert.equal(field('definition.hp').min,2);assert.equal(field('definition.hp').max,19);
+  assert.ok(field('definition.unique'));assert.ok(field('definition.actions'));
+  assert.doesNotMatch(h.byId('content-editor').textContent,/metadata is unavailable/);
+  h.change('content-editor-id','scenario-keeper','input');h.change('content-editor-name','Scenario Keeper','input');
+  const hp=field('definition.hp');hp.value='9';hp.listeners.input();
+  h.click(h.byId('content-editor-save'));await settle();
+  assert.equal(h.saves[0].family,'units');assert.equal(h.saves[0].definition.hp,9);
+  assert.equal(h.saves[0].definition.displayName,'Scenario Keeper');
+  assert.equal(h.snapshot().definition.unitTypes[0].id,'scenario-keeper');
+  assert.equal(h.snapshot().definition.units,undefined);assert.equal(h.snapshot().definition.agency,undefined);
 });

@@ -44,6 +44,7 @@ public static class ContentLibraryAuthoring
             }
             body = candidate switch
             {
+                UnitType unit => body with { Units = Apply(body.Units, unit, d => d.Id) },
                 EquipmentDefinition equipment => body with { Equipment = Apply(body.Equipment, equipment, d => d.Id) },
                 LootCardDefinition card => body with { LootCards = Apply(body.LootCards, card, d => d.Id) },
                 _ => throw new ArgumentException("Unsupported content family.")
@@ -57,7 +58,7 @@ public static class ContentLibraryAuthoring
         catch (ContentCompositionException error)
         {
             return new(false, [.. error.Diagnostics.Select(d => new ContentEditorDiagnostic(
-                d.Owner.TypeId == request.Edit.Definition.GetProperty("id").GetString() && d.Owner.Family.ToString() == (request.Edit.Family == "equipment" ? "Equipment" : "LootCard")
+                d.Owner.TypeId == request.Edit.Definition.GetProperty("id").GetString() && d.Owner.Family.ToString() == (request.Edit.Family == "units" ? "Unit" : request.Edit.Family == "equipment" ? "Equipment" : "LootCard")
                     ? "definition" + (d.Path.Length == 0 ? "" : "." + d.Path) : (d.Source?.Path ?? "package") + "." + d.Path,
                 d.Code, d.Message))]);
         }

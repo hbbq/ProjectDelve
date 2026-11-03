@@ -245,3 +245,83 @@ test('typed Unit reference picker merges scenario-local Units and scoped canonic
   assert.deepEqual(h.validated[0].definition.localAbilities[0].mechanic,
     { kind: 'summonAdjacent', unitTypeId: 'paper-unit', initialPosture: 'Lying' });
 });
+
+
+test('Unit form uses authoritative fields and Unit profiles, preserving inline storage and stable reordered keys', async () => {
+  const unitMetadata = {
+    defaults: { id: '', displayName: '', mov: 3, footprint: 'OneByOne', actions: 'NormalAttack', behaviors: 'None', localAbilities: [] },
+    stats: [{ name: 'mov', kind: 'Integer', minimum: 0, maximum: 17 }], footprints: ['OneByOne', 'TwoByTwo'], movementPatterns: ['Adjacent'],
+    behaviors: [{value:'None',name:'None'}, {value:'Flee',name:'Flee'}],
+    fields: [{name:'resourceStorage', kind:'Object', allowNull:true, members:[{name:'capacities',kind:'List',required:true,minimumItems:1,item:{kind:'Object',required:true,members:[
+      {name:'type',kind:'Object',required:true,members:[{name:'id',kind:'String',required:true},{name:'name',kind:'String',required:true}]},
+      {name:'capacity',kind:'Integer',required:true,minimum:0}
+    ]}}]}]
+  };
+  const h = harness({callbacks:{catalog:{...catalog,unitAuthoring:unitMetadata}}});
+  await h.editor.open({family:'units'});
+  assert.equal(h.field('definition.mov').max,17);
+  assert.equal(h.byId('content-editor-add-mechanic').children.some(o=>o.value==='testAction'),false);
+  h.change('definition.id','river-keeper'); h.change('definition.displayName','River Keeper');
+  h.change('definition.resourceStorage','value','change');
+  h.change('definition.resourceStorage.capacities[0].type.id','private-dew');
+  h.change('definition.resourceStorage.capacities[0].type.name','Private Dew');
+  h.change('definition.resourceStorage.capacities[0].capacity','9');
+  h.clickText('Add Ability'); h.clickText('Add Ability');
+  h.change('definition.localAbilities[0].name','First');
+  const down=h.root.all(e=>e.attributes['aria-label']==='Move down Ability 1')[0]; down.listeners.click();
+  h.change('definition.actions','false','change'); h.change('definition.behaviors.Flee','true','change');
+  await h.editor.save();
+  const unit=h.saved[0].definition;
+  assert.equal(unit.displayName,'River Keeper'); assert.equal(Object.hasOwn(unit,'name'),false);
+  assert.equal(unit.actions,'None'); assert.equal(unit.behaviors,'Flee');
+  assert.deepEqual(unit.resourceStorage,{capacities:[{type:{id:'private-dew',name:'Private Dew'},capacity:9}]});
+  assert.deepEqual(unit.localAbilities.map(a=>a.key),['ability-2','ability-1']);
+  assert.equal(unit.localAbilities[1].name,'First');
+});
+
+test('Unit copies retain authored fields and independent stable Ability identity', () => {
+  const h=harness(); h.environment.catalog=catalog;
+  h.run('globalThis.state=new ContentEditorState(catalog); state.open({family:"units",definition:{id:"source",displayName:"Source",actions:"None",localAbilities:[{key:"own",name:"Own",timing:"Action",mechanic:{kind:"unitOnly"}}]},copy:true,newId:"copy"}); state.set(["displayName"],"Copy"); state.addAbility("unitOnly")');
+  assert.equal(h.run('state.definition.id'),'copy');
+  assert.deepEqual(plain(h.run('state.definition.localAbilities.map(a=>a.key)')),['own','ability-1']);
+  assert.equal(h.run('state.profiles(state.mechanic("unitOnly"))[0].source'),'Unit');
+});
+
+
+test('Unit sections group metadata fields and offer the unsaved candidate for self summoning', async () => {
+  const summon={id:'summonAdjacent',name:'Summon',family:'Ability',profiles:[{source:'Unit',timing:'Action',usage:'UnlimitedOnly'}],parameters:[{name:'unitTypeId',kind:'Reference',required:true,referenceCatalog:'units'}],description:{}};
+  const field=(name,kind='Boolean')=>({name,kind,required:true});
+  const effective={entries:[{family:'mechanics',id:summon.id,mechanic:summon}],unitAuthoring:{
+    defaults:{id:'',displayName:'',actions:'NormalAttack',behaviors:'None',localAbilities:[]},stats:[{name:'hp',kind:'Integer',minimum:1}],
+    fields:[field('unique'),field('footprint','Enum'),field('canHaveItems'),field('canHaveEquipment'),field('lootDropSuccesses','Integer'),
+      {name:'resourceStorage',kind:'Object',allowNull:true,members:[]},{name:'attackDefinitionOrder',kind:'List',required:true,item:{kind:'String',required:true}}],behaviors:[]
+  }};
+  const h=harness({callbacks:{catalog:effective}});await h.editor.open({family:'units'});
+  const headings=h.root.all(e=>e.tagName==='h4').map(e=>e.textContent);
+  assert.deepEqual(headings.slice(0,8),['Identity','Stats','Movement & footprint','Capabilities','Abilities','Loot','Resources','Automation']);
+  const sectionOf=path=>{let node=h.field(path);while(node&&!node.className.split(' ').includes('ce-section'))node=node.parentElement;return node.children[0].textContent;};
+  for(const [path,section] of [['unique','Stats'],['footprint','Movement & footprint'],['canHaveItems','Capabilities'],['lootDropSuccesses','Loot'],['resourceStorage','Resources']])
+    assert.equal(sectionOf('definition.'+path),section);
+  h.change('definition.id','new-self');h.change('definition.displayName','New Self');h.clickText('Add Ability');
+  let picker=h.field('definition.localAbilities[0].mechanic.unitTypeId');
+  assert.match(picker.children.find(o=>o.value==='new-self').textContent,/New Self .* new-self/);
+  h.change('definition.id','renamed-self');
+  h.change('definition.localAbilities[0].mechanic.kind','summonAdjacent','change');
+  picker=h.field('definition.localAbilities[0].mechanic.unitTypeId');
+  assert.ok(picker.children.some(o=>o.value==='renamed-self'));
+  assert.equal(picker.children.some(o=>o.value==='new-self'),false);
+  h.change('definition.localAbilities[0].mechanic.unitTypeId','renamed-self','change');await h.editor.validate();
+  assert.equal(h.validated[0].definition.localAbilities[0].mechanic.unitTypeId,'renamed-self');
+});
+
+
+test('successful preview uses the validated candidate catalog for reference inspection', async () => {
+  const candidate={key:'units:new-self',family:'units',id:'new-self',name:'New Self',summary:'Validated candidate reference.'};
+  const h=harness({validation:async request=>({valid:true,diagnostics:[],definition:request.definition,
+    entry:{...candidate,references:[{label:'Summons',family:'units',id:'new-self',targetKey:candidate.key,exists:true}]},catalog:{entries:[candidate]}})});
+  await h.editor.open({family:'units',definition:{id:'new-self',displayName:'New Self',actions:'None',localAbilities:[]}});
+  await h.editor.validate();
+  const inspect=h.root.all(e=>e.dataset.referenceId==='new-self')[0];
+  assert.ok(inspect);assert.match(inspect.textContent,/Inspect New Self/);
+  assert.match(h.root.textContent,/Validated candidate reference/);
+});

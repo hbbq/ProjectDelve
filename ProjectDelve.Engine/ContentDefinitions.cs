@@ -59,9 +59,11 @@ public static class ContentDefinitions
                 if (!ResourceRules.ValidType(x)) throw new ArgumentException("Resource Types require an ID and name."); break;
             case MachineType x: MachineRules.ValidateDefinition(x); break;
             case UnitType x:
-                ValidateUnitStructure(x);
                 AbilityContent.Validate(x.LocalAbilities, AbilitySourceKind.Unit);
-                if (x.ResourceStorage is {} storage) ResourceRules.ValidateCapacity(storage);
+                ValidateUnitStructure(x);
+                if (x.ResourceStorage is {} storage)
+                    try { ResourceRules.ValidateCapacity(storage); }
+                    catch (ArgumentException error) { throw ScenarioValidationContext.At(error, "resourceStorage"); }
                 break;
             case LootPreset x:
                 if (string.IsNullOrWhiteSpace(x.Id) || string.IsNullOrWhiteSpace(x.Name) || x.Composition is null)
@@ -88,14 +90,36 @@ public static class ContentDefinitions
             throw new ArgumentException("World Deck composition requires known unique Type IDs and quantities from 1 to 1000 (at most 6000 cards).");
     }
 
-    internal static bool InvalidUnitStructure(UnitType t) => !Enum.IsDefined(t.Footprint) || t.Mov < 0 || t.Rng < 0 || t.Atk < 0 || t.Def < 0 || t.Hp < 1 || (t.Hp > 1 && !t.Unique) ||
+    internal static bool InvalidUnitStructure(UnitType t) => t.LocalAbilities.IsDefault || t.LocalAbilities.Any(a => a is null) || !Enum.IsDefined(t.Footprint) || t.Mov < UnitAuthoringSchema.MinimumStat || t.Rng < UnitAuthoringSchema.MinimumStat || t.Atk < UnitAuthoringSchema.MinimumStat || t.Def < UnitAuthoringSchema.MinimumStat || t.Hp < UnitAuthoringSchema.MinimumHp || (t.Hp > 1 && !t.Unique) ||
         (t.Actions & ~UnitAction.NormalAttack) != 0 || (t.Mechanic<RunRails>() is not null && t.Footprint != Footprint.OneByOne) ||
+        (t.Behaviors & ~UnitAuthoringSchema.SupportedBehaviors) != 0 || t.AttackDefinitionOrder.IsDefault ||
+        t.AttackDefinitionOrder.Any(a => !UnitAuthoringSchema.AttackActions.Contains(a)) ||
         (t.MovementPattern is {} pattern && !Enum.IsDefined(pattern)) ||
         (t.TerrainRestrictedMovement is {} restriction && (!Enum.IsDefined(restriction.Terrain) || !restriction.Terrain.Passable())) ||
         t.TerrainRestriction is { IsValid: false } || t.TerrainRestriction is not null && t.TerrainRestrictedMovement is not null;
     private static void ValidateUnitStructure(UnitType type)
     {
-        if (string.IsNullOrWhiteSpace(type.Id) || type.LootDropSuccesses is < 0 or > 6 || InvalidUnitStructure(type)) throw new ArgumentException("Invalid Unit Type or stat domain.");
+        void Require(bool valid, string path, string message)
+        { if (!valid) throw ScenarioValidationContext.At(new ArgumentException(message), path); }
+        Require(!string.IsNullOrWhiteSpace(type.Id), "id", "A Unit Type requires a stable nonblank ID.");
+        Require(type.DisplayName is null || !string.IsNullOrWhiteSpace(type.DisplayName), "displayName", "A supplied display name cannot be blank.");
+        foreach (var (path, value) in new[] { ("mov", type.Mov), ("rng", type.Rng), ("atk", type.Atk), ("def", type.Def) })
+            Require(value >= UnitAuthoringSchema.MinimumStat, path, "Base stats must be nonnegative integers.");
+        Require(type.Hp >= UnitAuthoringSchema.MinimumHp, "hp", "HP must be at least 1.");
+        Require(type.Hp <= 1 || type.Unique, "unique", "Maximum HP greater than 1 requires a Unique Unit Type.");
+        Require(Enum.IsDefined(type.Footprint), "footprint", "Choose a supported Footprint.");
+        Require((type.Actions & ~UnitAction.NormalAttack) == 0, "actions", "Only Normal Attack belongs in Actions; declare other Actions as local Abilities.");
+        Require((type.Behaviors & ~UnitAuthoringSchema.SupportedBehaviors) == 0, "behaviors", "Choose supported automated Behavior preferences.");
+        Require(!type.AttackDefinitionOrder.IsDefault && type.AttackDefinitionOrder.All(UnitAuthoringSchema.AttackActions.Contains),
+            "attackDefinitionOrder", "Attack definition order must contain supported Attack choices.");
+        Require(type.LootDropSuccesses is >= UnitAuthoringSchema.MinimumDropSuccesses and <= UnitAuthoringSchema.MaximumDropSuccesses,
+            "lootDropSuccesses", "Loot drops require 0 through 6 success faces.");
+        Require(type.MovementPattern is not {} pattern || Enum.IsDefined(pattern), "movementPattern", "Choose a supported movement pattern.");
+        Require(type.TerrainRestrictedMovement is not {} restriction || Enum.IsDefined(restriction.Terrain) && restriction.Terrain.Passable(),
+            "terrainRestrictedMovement.terrain", "A legacy Terrain restriction requires supported passable Terrain.");
+        Require(type.TerrainRestriction is not { IsValid: false }, "terrainRestriction.categories", "Terrain categories must be nonempty, valid and distinct.");
+        Require(type.TerrainRestriction is null || type.TerrainRestrictedMovement is null, "terrainRestriction", "Choose either category or legacy Terrain restrictions.");
+        Require(type.Mechanic<RunRails>() is null || type.Footprint == Footprint.OneByOne, "footprint", "Run Rails requires a one-Cell Footprint.");
     }
 
     public static ImmutableArray<ContentDependency> Dependencies(object value)

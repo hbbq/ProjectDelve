@@ -52,3 +52,12 @@ test('dependency group selection excludes unrelated packages and supports cancel
   checks[1].checked=true; checks[1].listeners.change(); await h.click('content-promotion-preview');
   assert.equal(h.calls[0].body.selected.length,2); h.click('content-promotion-cancel'); assert.equal(h.published(),0);
 });
+
+
+test('promotion selects Units explicitly alongside Equipment and Loot', async () => {
+  const h=harness(); const unit={key:'units:keeper',family:'units',id:'keeper',name:'Keeper',origin:'library-local',packageId:'kit'};
+  h.entries.push(unit); h.panel.begin(unit);
+  assert.equal(h.root.all().filter(n=>n.type==='checkbox').length,3);
+  await h.click('content-promotion-preview');
+  assert.deepEqual(h.calls[0].body.selected,[{family:'Unit',typeId:'keeper'}]);
+});

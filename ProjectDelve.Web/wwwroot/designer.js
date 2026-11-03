@@ -198,7 +198,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     const lootSignature = draft.lootMetadataSignature();
     const signature = JSON.stringify([custom, body.terrainTypes, body.terrainAssemblies, body.fixedComponentTypes,
       body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds, lootSignature]);
-    if (signature === metadataSignature) return;
+    if (signature === metadataSignature && draft.effectiveMetadata) return;
     metadataSignature = signature; draft.effectiveUnitIds = null;
     draft.effectiveTerrainMetadata = null;
     draft.effectiveFixedComponentMetadata = null;
@@ -228,8 +228,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   });
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
   function syncImportedTypes() {
-    typeOptions.splice(0, typeOptions.length, ...catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: draft.metadata(type.unitTypeId)?.displayName ?? type.unitTypeId })));
-    for (const id of new Set([...draft.definition.unitTypeIds, ...draft.definition.units.map(u => u.unitTypeId)]))
+    typeOptions.splice(0, typeOptions.length, ...draft.unitTypeCatalog().map(type => ({ value: type.unitTypeId, label: type.displayName ?? type.unitTypeId })));
+    for (const id of new Set([...(draft.definition.unitTypes ?? []).map(type => type.id), ...(draft.effectiveMetadata ?? []).map(type => type.unitTypeId), ...draft.definition.unitTypeIds, ...draft.definition.units.map(u => u.unitTypeId)]))
       if (!typeOptions.some(t => t.value === id)) typeOptions.push({ value: id, label: draft.metadata(id)?.displayName ?? `${id} (imported · anchor preview)` });
     for (const select of [ui.type, ui["declare-type"], ui["agency-type"]]) { const value = select.value; options(select, typeOptions); if (typeOptions.some(t => t.value === value)) select.value = value; }
   }

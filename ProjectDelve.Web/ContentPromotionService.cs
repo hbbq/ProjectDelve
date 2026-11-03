@@ -83,7 +83,10 @@ public sealed class ContentPromotionService(ContentLibrary library, CanonicalCon
                 throw new ContentCompositionException([new(id, "selected", "conflictingDefinition", "This identity already belongs to canonical content. Promotion never replaces canonical definitions.", new(Package: request.Source.PackageId), id)]);
             reused.Add(id);
         }
-        var publish = closure.Except(reused).ToImmutableArray();
+        // Embedded Resource payloads appear in the diagnostic closure, but are
+        // owned by their Unit/operation rather than independent publication roots.
+        var sourceIds = ScenarioContentReferences.Identities(content.Definitions).ToHashSet();
+        var publish = closure.Except(reused).Where(sourceIds.Contains).ToImmutableArray();
         if (publish.IsEmpty) throw new ArgumentException("There are no new definitions to publish.");
         var dependencies = destination.Packages.Where(p => ScenarioContentReferences.Identities(p.Definitions).Any(reused.Contains))
             .Select(p => p.Id).Order(StringComparer.Ordinal).ToArray();

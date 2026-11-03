@@ -3,11 +3,6 @@ const byId = id => document.getElementById(id);
 const menu = byId('game-menu');
 const tools = byId('playtest-tools');
 const openMenu = byId('open-game-menu');
-// Reserve exactly the space the mobile dock needs, including long instructions.
-if (globalThis.ResizeObserver) new ResizeObserver(entries => {
-  const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? byId('playtest-main').querySelector('.decision-strip').getBoundingClientRect().height;
-  document.documentElement.style.setProperty('--command-dock-height', `${Math.ceil(height)}px`);
-}).observe(document.querySelector('.decision-strip'));
 const closeMenu = () => menu.close();
 openMenu.addEventListener('click', () => { tools.open = false; menu.showModal(); });
 byId('close-game-menu').addEventListener('click', closeMenu);

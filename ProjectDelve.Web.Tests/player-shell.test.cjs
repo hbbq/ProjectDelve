@@ -1,4 +1,4 @@
-﻿const { test } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -126,17 +126,4 @@ test('queued native dialog close keeps focus in the settings opened from the men
   assert.equal(h.focused(), 'close-game-tools');
   h.flushClose();
   assert.equal(h.focused(), 'close-game-tools', 'native close fires after the click handler has opened Settings');
-});
-
-test('mobile command dock reserves measured height, including wrapped instructions', () => {
-  let observe, update;
-  const h = harness({ ResizeObserver: class {
-    constructor(callback) { update = callback; }
-    observe(target) { observe = target; }
-  }, dockHeight: 133.2 });
-  assert.equal(observe, h.node('command-dock'));
-  update([{ borderBoxSize: [{ blockSize: 101.5 }] }]);
-  assert.equal(h.rootStyle['--command-dock-height'], '102px');
-  update([{}]);
-  assert.equal(h.rootStyle['--command-dock-height'], '134px', 'bounding box fallback still reserves the whole dock');
 });

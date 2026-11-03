@@ -41,7 +41,7 @@ ui["board-alternatives"] = document.getElementById("board-alternatives");
 ui["board-alternatives"]?.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
   const disclosure = ui["board-alternatives"].querySelectorAll("details")[0];
-  if (disclosure?.open) { event.preventDefault(); disclosure.open = false; threeChoicesOpen = false; disclosure.querySelector("summary")?.focus(); }
+  if (disclosure?.open) { event.preventDefault(); disclosure.open = false; closeChoiceList(); disclosure.querySelector("summary")?.focus(); }
 });
 const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 const portraitViewer = document.getElementById("portrait-viewer");
@@ -311,10 +311,17 @@ function syncThreeInteraction() {
   threeViewport.showInteraction({ busy, candidates: [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(visibleChoice),
     focusedUnitId, focusedDoor, relationship: combatDice?.context ?? attackContext,
     combatPositions: combatDice?.positions, preview: threePreview,
-    coordinates: ui.coordinates.checked, waypoints: document.getElementById("waypoints").checked });
+    coordinates: ui.coordinates.checked || threeChoicesOpen, waypoints: document.getElementById("waypoints").checked });
 }
 let threePreview;
 let threeChoicesOpen = false;
+let threeListPreview = null;
+function closeChoiceList() {
+  threeChoicesOpen = false;
+  threeListPreview = null;
+  clearAffectedPreview();
+  updateCoordinates();
+}
 function selectThreeHit(hit) {
   if (busy || !displayedState) return;
   const candidates = boardCandidates(hit, snapshot.presentation.decision, displayedState, displayedFigures, visibleChoice);
@@ -364,7 +371,7 @@ if (cameraViewport) viewportRouter = createViewportRouter({ dom: domViewport, ov
     try {
       threeViewport = createThreeViewport({ host, controls, startedAt, facing:unitFacing, visualCatalog, modelDescriptors, animate: () => ui.animate.checked && !skipEffects && !reducedMotion(),
         onPick: selectThreeHit, onHover: (id, cell) => { if (cell) inspectCell(cellKey(cell)); else { hoveredUnitId = id; renderUnitCard(); } },
-        onPreview: candidate => { if (threePreview === candidate) return; threePreview = candidate; syncThreeInteraction(); },
+        onPreview: candidate => previewBoardChoice(candidate),
         onProject: () => positionDecisionPanel(),
         onFailure: error => { ui.error.textContent = error.message; domViewport.mode = "enhanced"; boardView.value = "enhanced"; ui.board.dataset.view = "enhanced"; void viewportRouter.request("enhanced"); } });
       if (displayedFrame) threeViewport.renderFrame(displayedFrame);
@@ -749,7 +756,7 @@ function renderUnitCard() {
     const row = text("div", ""); row.className = "card-ability";
     row.dataset.source = entry.source ?? "Native";
     const source = text("small", entry.source === "Item" ? "Single Use Item" : entry.source ?? "Native");
-    source.className = "ability-source";
+    source.className = `ability-source${!entry.source || entry.source === "Native" ? " sr-only" : ""}`;
     if (entry.sourceName && ["Equipment", "Item"].includes(entry.source)) source.textContent += ` · ${entry.sourceName}`;
     row.append(source);
     const ability = entry.content;
@@ -765,6 +772,15 @@ function renderUnitCard() {
     row.append(heading);
     row.append(abilityDescription(ability));
     const decision = snapshot?.presentation.decision;
+    const status = displayedState === snapshot?.result.state && decision?.unitId === unit.id
+      ? decision.entryStatuses?.[entry.accountingId ?? ability.id] : null;
+    if (status) {
+      const hidden = status.status === "Irrelevant" && ui.filter.checked;
+      const availability = text("p", hidden ? "Hidden by relevance filter · legal choice" : status.reason);
+      availability.className = "ability-availability";
+      availability.dataset.status = hidden ? "Filtered" : status.status;
+      row.append(availability);
+    }
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.candidates.filter(candidate => (candidate.accountingId ?? candidate.entryId) === (entry.accountingId ?? ability.id) && candidate.interaction.kind === "Direct") : [];
     for (const candidate of (entry.source === "Item" ? candidates.slice(0, 1) : candidates)) {
@@ -772,12 +788,13 @@ function renderUnitCard() {
       button.dataset.legal = "true";
       button.disabled = busy;
       button.hidden = !visibleChoice(candidate);
+      if (status) button.querySelectorAll(".choice-relevance")[0]?.remove();
       row.append(button);
       if (!button.hidden && !document.getElementById("inspector-unit")?.hidden) {
         cardChoiceKeys.add(candidate.key);
         if (entry.source === "Item") for (const copy of candidates) cardChoiceKeys.add(copy.key);
       }
-      if (!candidate.relevant && !button.hidden) row.append(text("small", "Currently irrelevant"));
+      if (!status && !candidate.relevant && !button.hidden) row.append(text("small", "Legal · currently irrelevant"));
     }
     card.append(row);
   }
@@ -794,8 +811,9 @@ function abilityDescription(ability) {
   const full = text("details", "");
   const summary = text("summary", "");
   bindTooltip(summary, () => ability.description || ability.name);
-  summary.append(text("span", `Full description: ${ability.name}`));
-  summary.children[0].className = "sr-only";
+  summary.append(text("span", "Details"));
+  const context = text("span", ` for ${ability.name}`); context.className = "sr-only"; summary.append(context);
+  summary.setAttribute("aria-label", `Full description: ${ability.name}`);
   full.append(summary);
   full.append(text("p", ability.description || ability.name));
   description.append(full);
@@ -846,7 +864,7 @@ function unitPortrait(typeId, name, previous) {
 function useMarkers(uses) {
   const label = `${uses.remainingUses} / ${uses.maxUses} uses`;
   const markers = text("span", ""); markers.className = "use-markers"; bindTooltip(markers, () => label);
-  const accessible = text("span", label); accessible.className = "sr-only"; markers.append(accessible);
+  const count = text("span", label); count.className = "use-count"; markers.append(count);
   for (let index = 0; index < uses.maxUses; index++) {
     const circle = text("span", "");
     circle.className = `use-circle${index < uses.remainingUses ? " filled" : ""}`;
@@ -856,10 +874,17 @@ function useMarkers(uses) {
 }
 
 function clearAffectedPreview() {
-  threePreview = null; syncThreeInteraction();
+  threePreview = busy ? null : threeListPreview; syncThreeInteraction();
   for (const node of choiceFeedback.values()) node.classList.remove("feedback-hover");
   for (const node of figures.values()) node.classList.remove("affected-preview");
   for (const node of cells.values()) node.classList.remove("placement-preview");
+}
+
+function previewBoardChoice(candidate) {
+  const next = busy ? null : candidate ?? threeListPreview;
+  if (threePreview === next) return;
+  threePreview = next;
+  syncThreeInteraction();
 }
 
 function previewChoice(candidate) {
@@ -881,6 +906,10 @@ function choiceButton(candidate) {
   button.addEventListener("focus", preview);
   button.addEventListener("mouseleave", clearAffectedPreview);
   button.addEventListener("blur", clearAffectedPreview);
+  if (candidate.relevant === false) {
+    const relevance = text("small", "Legal · currently irrelevant");
+    relevance.className = "choice-relevance"; button.append(relevance);
+  }
   return button;
 }
 
@@ -891,9 +920,11 @@ function renderChoicePanel() {
   ui.choices.replaceChildren();
   if (alternativeHost !== ui.choices) alternativeHost.replaceChildren();
   const decision = snapshot?.presentation.decision;
+  renderChoiceVisibility(decision);
   ui["decision-panel"].hidden = false;
   ui["decision-panel"].classList.toggle("roll-decision", Boolean(decision?.roll));
   if (decision?.roll) {
+    closeChoiceList();
     // Mandatory continuation: only the server-supplied opaque candidate is submitted.
     for (const candidate of decision.candidates) {
       const button = choiceButton(candidate);
@@ -921,22 +952,91 @@ function renderChoicePanel() {
     // A canvas has no native Cell buttons. Keep the same authoritative choices
     // available to keyboard, assistive technology and touch without inventing
     // another command path. Collapsed by default to preserve board-first play.
-    const alternatives = text("details", ""); alternatives.className = "three-board-choices";
-    alternatives.open = threeChoicesOpen;
-    alternatives.addEventListener("toggle", () => { if (alternatives.isConnected) threeChoicesOpen = alternatives.open; });
-    alternatives.append(text("summary", "Choose from list"));
-    const list = text("div", "");
-    for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
-      if (!visibleChoice(candidate) || !boardChoiceKeys.has(candidate.key)) continue;
-      const button = choiceButton(candidate); button.dataset.boardChoiceKind = candidate.boardVisual?.kind ?? "special";
-      button.disabled = busy;
-      button.addEventListener("click", () => { alternatives.open = false; threeChoicesOpen = false; });
-      button.dataset.boardChoiceKey = candidate.key ?? "none"; list.append(button);
-      if (candidate.interaction.kind === "Position") button.dataset.boardChoiceCell = `${candidate.interaction.position.x}-${candidate.interaction.position.y}`;
-    }
-    alternatives.append(list); alternativeHost.append(alternatives);
+    renderBoardChoiceList(alternativeHost, decision);
+  } else if (threeChoicesOpen || threeListPreview) {
+    closeChoiceList();
   }
   ui["decision-panel"].hidden = !ui.choices.children.length;
+}
+
+function renderChoiceVisibility(decision) {
+  const host = document.getElementById("choice-visibility");
+  if (!host) return;
+  host.replaceChildren();
+  const count = decision?.candidates.filter(candidate => candidate.relevant === false).length ?? 0;
+  host.hidden = !count;
+  if (!count) return;
+  const button = text("button", ui.filter.checked ? `Show all legal choices (${count} hidden)` : "Hide irrelevant choices");
+  button.disabled = busy;
+  button.addEventListener("click", () => {
+    if (busy) return;
+    ui.filter.checked = !ui.filter.checked;
+    renderSnapshot();
+    document.getElementById("choice-visibility")?.querySelectorAll("button")[0]?.focus();
+  });
+  host.append(button);
+}
+
+function renderBoardChoiceList(host, decision) {
+  const candidates = [...decision.candidates, ...(decision.noneChoice ? [decision.noneChoice] : [])]
+    .filter(candidate => visibleChoice(candidate) && boardChoiceKeys.has(candidate.key));
+  const alternatives = text("details", ""); alternatives.className = "three-board-choices";
+  alternatives.open = threeChoicesOpen;
+  alternatives.addEventListener("toggle", () => {
+    if (!alternatives.isConnected) return;
+    if (alternatives.open) { threeChoicesOpen = true; updateCoordinates(); }
+    else closeChoiceList();
+  });
+  alternatives.append(text("summary", "Choose from list"));
+  const sheet = text("div", ""); sheet.className = "choice-sheet";
+  const list = text("div", ""); list.className = "choice-destinations";
+  const moves = candidates.filter(candidate => candidate.boardVisual?.kind === "move");
+  let selected = moves.find(candidate => candidate.key === threeListPreview?.key);
+  const preview = text("p", selected?.boardVisual?.preview ?? "Select a destination to preview it, then confirm. Coordinates are shown while this list is open.");
+  preview.className = "choice-preview"; preview.setAttribute("role", "status");
+  const confirm = text("button", "Move here"); confirm.className = "choice-confirm";
+  if (selected) confirm.setAttribute("aria-label", `Confirm: ${selected.displayLabel ?? selected.label}`);
+  confirm.dataset.requiresSelection = String(!selected);
+  confirm.disabled = busy || !selected;
+  confirm.addEventListener("click", () => {
+    if (busy || !selected) return;
+    const key = selected.key;
+    alternatives.open = false; closeChoiceList();
+    chooseCandidate(key);
+  });
+  for (const candidate of candidates) {
+    const move = candidate.boardVisual?.kind === "move";
+    const button = move ? text("button", candidate.displayLabel ?? candidate.label) : choiceButton(candidate);
+    button.dataset.boardChoiceKind = candidate.boardVisual?.kind ?? "special";
+    button.dataset.boardChoiceKey = candidate.key ?? "none";
+    button.disabled = busy;
+    if (move) {
+      button.setAttribute("aria-pressed", String(candidate === selected));
+      button.addEventListener("focus", () => previewChoice(candidate));
+      button.addEventListener("mouseenter", () => previewChoice(candidate));
+      button.addEventListener("mouseleave", clearAffectedPreview);
+      button.addEventListener("blur", clearAffectedPreview);
+      button.addEventListener("click", () => {
+        if (busy) return;
+        selected = candidate; threeListPreview = candidate;
+        previewChoice(candidate);
+        preview.textContent = candidate.boardVisual.preview ?? candidate.displayLabel ?? candidate.label;
+        confirm.setAttribute("aria-label", `Confirm: ${candidate.displayLabel ?? candidate.label}`);
+        confirm.dataset.requiresSelection = "false"; confirm.disabled = false;
+        for (const peer of list.querySelectorAll("button")) peer.setAttribute("aria-pressed", String(peer === button));
+      });
+      list.append(button);
+    } else {
+      button.addEventListener("click", () => { alternatives.open = false; closeChoiceList(); });
+      sheet.append(button);
+    }
+    if (candidate.interaction.kind === "Position") button.dataset.boardChoiceCell = `${candidate.interaction.position.x}-${candidate.interaction.position.y}`;
+  }
+  if (moves.length) {
+    const heading = text("p", "Move destinations"); heading.className = "choice-list-heading";
+    sheet.append(heading, list, preview, confirm);
+  }
+  alternatives.append(sheet); host.append(alternatives);
 }
 
 function renderSnapshot() {
@@ -961,6 +1061,7 @@ function renderSnapshot() {
   if (state.round === 0 || diceSession !== snapshot.sessionId) clearDice();
   diceSession = snapshot.sessionId;
   hoveredUnitId = null;
+  threeListPreview = null;
   boardChooser = null;
   boardChoiceKeys.clear();
   attackContext = state.attackInProgress ?? null;
@@ -1128,7 +1229,9 @@ function updateControls() {
   ui["end-turn"].textContent = endTurn?.label ?? "End Turn";
   ui["end-turn"].hidden = !endTurn;
   for (const button of ui.choices.querySelectorAll("button")) button.disabled = busy;
-  for (const button of ui["board-alternatives"]?.querySelectorAll("button") ?? []) button.disabled = busy;
+  for (const button of ui["board-alternatives"]?.querySelectorAll("button") ?? [])
+    button.disabled = busy || button.dataset.requiresSelection === "true";
+  for (const button of document.getElementById("choice-visibility")?.querySelectorAll("button") ?? []) button.disabled = busy;
   for (const button of ui["unit-card"].querySelectorAll("button"))
     if (button.dataset.legal != null) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
   for (const node of ui.board.querySelectorAll(".board-choice")) {
@@ -1955,7 +2058,7 @@ function prepareOccurrence(occurrence, outcome) {
 
 function updateCoordinates() {
   syncThreeInteraction();
-  ui.board.classList.toggle("hide-coordinates", !ui.coordinates.checked);
+  ui.board.classList.toggle("hide-coordinates", !(ui.coordinates.checked || threeChoicesOpen));
 }
 
 ui.scenario.addEventListener("change", () => { describeScenario(); renderControllerSetup(true); });

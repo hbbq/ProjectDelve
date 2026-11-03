@@ -9,9 +9,9 @@ composition and dependency validation.
 
 1. Open Content Browser from Home, choose Library and open a saved revision, or
    inspect a Scenario Designer draft containing local or pinned content.
-2. Select Equipment or a Loot Card and choose **Promote to Canonical**. Unsaved
+2. Select a Unit, Equipment or a Loot Card and choose **Promote to Canonical**. Unsaved
    Library work must be saved first. Historical immutable revisions are supported.
-3. Enter a new canonical package ID. Select additional Equipment/Loot definitions
+3. Enter a new canonical package ID. Select additional Unit/Equipment/Loot definitions
    from the same source if desired. Unrelated definitions are not selected.
 4. Choose **Preview promotion**. Engine supplies the typed dependency closure,
    dependencies already satisfied by Canonical, additional definitions to publish,
@@ -125,7 +125,7 @@ Multiple independent hosts are not a live shared registry.
 
 ## Limits and verification
 
-Browser root selection covers Equipment and Loot Cards; established typed
+Browser root selection covers Units, Equipment and Loot Cards; established typed
 dependencies are discovered by Engine. The service can select other supported typed
 package definitions, but introduces no additional family editors, global reusable
 Machine/inline Resource catalog, or Cell Marker authoring. Scenario setup/deck

@@ -40,6 +40,7 @@ public sealed record StoredResource(string SideId, string UnitTypeId, ResourceTy
 
 internal static class ResourceRules
 {
+    internal const int MinimumCapacity = 0;
     internal static bool CanCreateAt(GameState state, Cell cell) =>
         MovementRules.Inside(state.Physical.Board, cell) && state.Physical.Board.TerrainDefinitionAt(cell).Passable &&
         state.Physical.Board.TerrainDefinitionAt(cell).AllowsResourceMarkers &&
@@ -52,7 +53,7 @@ internal static class ResourceRules
     internal static void ValidateCapacity(ResourceStorage storage)
     {
         if (storage is null || storage.Capacities.IsDefaultOrEmpty ||
-            storage.Capacities.Any(c => c is null || !ValidType(c.Type) || c.Capacity < 0) ||
+            storage.Capacities.Any(c => c is null || !ValidType(c.Type) || c.Capacity < MinimumCapacity) ||
             storage.Capacities.Select(c => c.Type.Id).Distinct().Count() != storage.Capacities.Length)
             throw new ArgumentException("Resource Storage requires unique Resource Types and nonnegative capacities.");
     }

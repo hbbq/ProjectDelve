@@ -103,6 +103,15 @@ export function mountContentEditor(root, options) {
         const remove = button('Remove', () => { const next = cloneContent(list); next.splice(index, 1); set(path, next, true); }, 'ce-text-button');
         remove.setAttribute('aria-label', `Remove ${title} entry ${index + 1}`);
         rowHeading.append(node('strong', '', `Entry ${index + 1}`), remove);
+        for (const [label, direction] of [['Move up', -1], ['Move down', 1]]) {
+          const move = button(label, () => {
+            const next = cloneContent(list), target = index + direction;
+            if (target < 0 || target >= next.length) return;
+            [next[index], next[target]] = [next[target], next[index]]; set(path, next, true);
+          }, 'ce-text-button');
+          move.disabled = index + direction < 0 || index + direction >= list.length;
+          move.setAttribute('aria-label', `${label} ${title} entry ${index + 1}`); rowHeading.append(move);
+        }
         row.append(rowHeading, parameter(schema.item ?? { kind: 'String', required: true }, [...path, index], 'Value')); container.append(row);
       });
       const add = button('Add entry', () => set(path, [...list, parameterValue(schema.item ?? { kind: 'String' })], true));
@@ -145,6 +154,11 @@ export function mountContentEditor(root, options) {
     const card = node('section', 'ce-ability'); card.dataset.abilityKey = ability.key;
     const path = ['localAbilities', index], mechanic = state.mechanic(ability.mechanic?.kind);
     const header = node('div', 'ce-list-heading'); header.append(node('h5', '', `Ability ${index + 1}`), button('Remove Ability', () => { state.removeAbility(index); changed(); render(); }, 'ce-text-button'));
+    for (const [label, direction] of [['Move up', -1], ['Move down', 1]]) {
+      const move = button(label, () => { if (state.moveAbility(index, direction)) { changed(); render(); } }, 'ce-text-button');
+      move.disabled = index + direction < 0 || index + direction >= state.definition.localAbilities.length;
+      move.setAttribute('aria-label', `${label} Ability ${index + 1}`); header.append(move);
+    }
     const lockedKey = state.existingAbilities.has(ability);
     const key = input('text', ability.key, value => { if (!lockedKey) set([...path, 'key'], value); }); key.readOnly = lockedKey;
     const name = input('text', ability.name, value => set([...path, 'name'], value));
@@ -179,7 +193,7 @@ export function mountContentEditor(root, options) {
     registerContainer(path, card); return card;
   }
   function renderEquipment() {
-    const section = group('Abilities, modifiers & capabilities', text('Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
+    const section = group(state.family === 'units' ? 'Abilities' : 'Abilities, modifiers & capabilities', text('Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
     state.definition.localAbilities.forEach((ability, index) => section.append(renderAbility(ability, index)));
     const available = state.supportedMechanics().filter(mechanic => state.canAdd(mechanic));
     const choice = select(available.map(mechanic => ({ value: mechanic.id, label: mechanic.name })), available[0]?.id, () => {});
@@ -201,15 +215,49 @@ export function mountContentEditor(root, options) {
     } else section.append(referenceField(state.rewardKind === 'items' ? 'Item Type' : 'Equipment Type', state.rewardKind, [state.rewardKind === 'items' ? 'itemTypeId' : 'equipmentTypeId']));
     form.append(section);
   }
+  function renderUnit() {
+    const metadata = state.catalog.unitAuthoring;
+    if (!metadata) { form.append(text('Unit authoring metadata is unavailable. Reload the content catalog.')); return; }
+    const stats = group('Stats');
+    for (const schema of metadata.stats ?? []) stats.append(parameter({ ...schema, required: true }, [schema.name], schema.name.toUpperCase()));
+    const movement = group('Movement & footprint');
+    const capabilities = group('Capabilities', text('Open Door, Phase and other granted capabilities are declared in Abilities.'));
+    const loot = group('Loot');
+    const resources = group('Resources');
+    const automation = group('Automation', text('Preferences for automated decisions; these do not change legality.'));
+    const fields = metadata.fields ?? [];
+    const sections = { unique: stats, footprint: movement, movementPattern: movement, terrainRestrictedMovement: movement,
+      terrainRestriction: movement, canHaveItems: capabilities, canHaveEquipment: capabilities, lootDropSuccesses: loot,
+      resourceStorage: resources, attackDefinitionOrder: automation };
+    for (const schema of fields) (sections[schema.name] ?? stats).append(parameter(schema, [schema.name]));
+    // Metadata owns enum choices and bounds; these controls only select declarations.
+    if (!fields.some(schema => schema.name === 'footprint')) movement.append(parameter({ name: 'footprint', kind: 'Enum', required: true, allowedValues: metadata.footprints }, ['footprint']));
+    if (!fields.some(schema => schema.name === 'movementPattern')) movement.append(parameter({ name: 'movementPattern', kind: 'Enum', allowNull: true, allowedValues: metadata.movementPatterns }, ['movementPattern']));
+    const flags = String(state.definition.actions ?? 'None').split(',').map(value => value.trim());
+    capabilities.append(field('Normal Attack', select([{ value: 'true', label: 'Available' }, { value: 'false', label: 'Unavailable' }], String(flags.includes('NormalAttack')), value => {
+      const next = flags.filter(flag => flag !== 'NormalAttack' && flag !== 'None');
+      if (value === 'true') next.unshift('NormalAttack'); set(['actions'], next.join(', ') || 'None', true);
+    }), ['actions'], 'Other Actions are granted by their Ability declarations.'));
+    const selected = String(state.definition.behaviors ?? 'None').split(',').map(value => value.trim());
+    for (const behavior of metadata.behaviors ?? []) {
+      if (behavior.value === 'None') continue;
+      automation.append(field(behavior.name, select([{ value: 'true', label: 'Enabled' }, { value: 'false', label: 'Disabled' }], String(selected.includes(behavior.value)), value => {
+        const next = selected.filter(flag => flag !== behavior.value && flag !== 'None');
+        if (value === 'true') next.push(behavior.value); set(['behaviors'], next.join(', ') || 'None', true);
+      }), ['behaviors', behavior.value]));
+    }
+    form.append(stats, movement, capabilities); renderEquipment(); form.append(loot, resources, automation);
+  }
   function render() {
     if (!opened) return;
     controls = new Map(); errors = new Map(); serial = 0; form.replaceChildren();
-    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'equipment' ? 'Equipment' : 'Loot Card'}`));
+    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'units' ? 'Unit' : state.family === 'equipment' ? 'Equipment' : 'Loot Card'}`));
     const id = input('text', state.definition.id, value => set(['id'], value)); id.id = 'content-editor-id'; id.readOnly = !!state.existingId; id.autocomplete = 'off';
-    const name = input('text', state.definition.name, value => set(['name'], value)); name.id = 'content-editor-name';
-    const identity = node('div', 'ce-two-columns'); identity.append(field(state.family === 'equipment' ? 'Type ID' : 'Card ID', id, ['id'], state.existingId ? 'Existing identity stays fixed.' : 'Choose a new, stable ID distinct from canonical content.'), field('Name', name, ['name']));
+    const nameField = state.family === 'units' ? 'displayName' : 'name';
+    const name = input('text', state.definition[nameField], value => set([nameField], value)); name.id = 'content-editor-name';
+    const identity = node('div', 'ce-two-columns'); identity.append(field(state.family === 'lootCards' ? 'Card ID' : 'Type ID', id, ['id'], state.existingId ? 'Existing identity stays fixed.' : 'Choose a new, stable ID distinct from canonical content.'), field('Name', name, [nameField]));
     form.append(group('Identity', identity));
-    if (state.family === 'equipment') renderEquipment(); else renderLoot();
+    if (state.family === 'units') renderUnit(); else if (state.family === 'equipment') renderEquipment(); else renderLoot();
     renderDiagnostics(); renderPreview(); updateStatus();
   }
   function renderDiagnostics() {
@@ -269,6 +317,7 @@ export function mountContentEditor(root, options) {
       if (version !== state.version || !opened) { notice = 'The form changed while validation was running. Validate the current values again.'; return false; }
       issues = result.diagnostics ?? []; preview = result.valid ? result.entry : null;
       if (!result.valid) { notice = 'The definition needs attention.'; renderDiagnostics(); renderPreview(); return false; }
+      if (result.catalog) state.catalog = result.catalog;
       notice = 'Valid definition. Preview supplied by the Engine.'; renderPreview();
       if (save) {
         const definition = result.definition ?? cloneContent(state.definition);

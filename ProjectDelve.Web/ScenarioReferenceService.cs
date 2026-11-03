@@ -29,9 +29,9 @@ public sealed class ScenarioReferenceService(ContentLibrary library, CanonicalCo
         var inspected = library.Inspect(request.PackageId, request.Revision);
         var selections = request.Selected.IsDefaultOrEmpty ? existing?.Selected ?? [] : request.Selected;
         if (existing is not null && request.ExpectedReferenceDigest is null) selections = [.. existing.Selected.Concat(selections).Distinct()];
-        if (selections.IsDefaultOrEmpty || selections.Any(id => id is null || id.Family is not (ContentFamily.Equipment or ContentFamily.LootCard)) ||
+        if (selections.IsDefaultOrEmpty || selections.Any(id => id is null || id.Family is not (ContentFamily.Unit or ContentFamily.Equipment or ContentFamily.LootCard)) ||
             selections.Any(id => !ScenarioContentReferences.Identities(inspected.Root.Package.Definitions).Contains(id)))
-            throw new ArgumentException("Select Equipment or Loot Cards owned by the specified library package revision.");
+            throw new ArgumentException("Select Units, Equipment or Loot Cards owned by the specified library package revision.");
         selections = [.. selections.Distinct().OrderBy(id => id.Family).ThenBy(id => id.TypeId, StringComparer.Ordinal)];
         var snapshot = ContentPackageExport.Selected("pinned-snapshot", inspected.Content, selections).Definitions;
         var origins = ScenarioContentReferences.Identities(snapshot).Select(identity =>

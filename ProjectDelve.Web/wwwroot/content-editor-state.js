@@ -25,23 +25,25 @@ export class ContentEditorState {
   get mechanics() { return this.entries.map(entry => entry.mechanic).filter(Boolean); }
   mechanic(id) { return this.mechanics.find(mechanic => mechanic.id === id); }
   supportedMechanics(family = this.family) {
-    return this.mechanics.filter(mechanic => family === 'equipment'
-      ? mechanic.family === 'Ability' && mechanic.profiles?.some(profile => profile.source === 'Equipment')
+    return this.mechanics.filter(mechanic => ['equipment', 'units'].includes(family)
+      ? mechanic.family === 'Ability' && mechanic.profiles?.some(profile => profile.source === (family === 'units' ? 'Unit' : 'Equipment'))
       : mechanic.family === 'ImmediateLoot' && mechanic.profiles?.some(profile => profile.source === 'LootCard'));
   }
-  profiles(mechanic) { return (mechanic?.profiles ?? []).filter(profile => profile.source === 'Equipment'); }
+  profiles(mechanic) { return (mechanic?.profiles ?? []).filter(profile => profile.source === (this.family === 'units' ? 'Unit' : 'Equipment')); }
   references(family) {
     const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
     const combined = new Map(this.entries.filter(entry => entry.family === family).map(entry => [entry.id, { id: entry.id, name: entry.name }]));
     for (const definition of this.context?.[field] ?? []) combined.set(definition.id, { id: definition.id, name: definition.displayName ?? definition.name ?? definition.id });
+    if (family === 'units' && this.family === 'units' && this.definition?.id?.trim())
+      combined.set(this.definition.id, { id: this.definition.id, name: this.definition.displayName || this.definition.id });
     return [...combined.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
   open({ family, definition, existingId, copy = false, newId, context = {} }) {
     this.family = family; this.existingId = copy ? undefined : existingId;
     this.context = cloneContent(context);
-    this.definition = cloneContent(definition ?? (family === 'equipment' ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
+    this.definition = cloneContent(definition ?? (family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', localAbilities: [] } : family === 'equipment' ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
     if (copy) this.definition.id = newId ?? '';
-    if (family === 'equipment') this.definition.localAbilities ??= [];
+    if (['equipment', 'units'].includes(family)) this.definition.localAbilities ??= [];
     this.usedKeys = new Set(this.definition.localAbilities?.map(ability => ability.key) ?? []);
     this.existingAbilities = new WeakSet(this.existingId ? this.definition.localAbilities ?? [] : []);
     this.baseline = JSON.stringify(this.definition); this.version++;
@@ -71,6 +73,12 @@ export class ContentEditorState {
     this.version++; return true;
   }
   removeAbility(index) { this.definition.localAbilities.splice(index, 1); this.version++; }
+  moveAbility(index, direction) {
+    const next = index + direction, abilities = this.definition.localAbilities;
+    if (next < 0 || next >= abilities.length) return false;
+    [abilities[index], abilities[next]] = [abilities[next], abilities[index]];
+    this.version++; return true;
+  }
   changeMechanic(index, id) {
     const mechanic = this.supportedMechanics().find(candidate => candidate.id === id);
     if (!mechanic || !this.canAdd(mechanic, index)) return false;

@@ -484,11 +484,11 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 #unit-card .card-stats p { font-size: .8rem; margin: 2px 0; }
 .card-ability { position: relative; padding: 9px 0; border-bottom-color: var(--ui-border); overflow-wrap: anywhere; }
 .card-ability:last-child { border-bottom: 0; padding-bottom: 0; }
-.ability-heading { padding-right: 34px; gap: 4px 6px; }
+.ability-heading { gap: 4px 6px; }
 #unit-card .ability-heading small { font-size: .65rem; color: var(--ui-text-muted); font-weight: 400; }
 .ability-heading strong { color: var(--ui-text); }
 .ability-description details { margin: 0; color: var(--ui-text); }
-.ability-description summary { position: absolute; right: -3px; top: 2px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 4px; list-style: none; color: var(--ui-accent); }
+.ability-description summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px; border-radius: 4px; list-style: none; color: var(--ui-accent); }
 .ability-description summary::-webkit-details-marker { display: none; }
 .ability-description summary::after { content: '⌄'; font-size: 1.2rem; }
 .ability-description details[open] summary::after { content: '⌃'; }
@@ -504,10 +504,6 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 @media (max-width: 760px) {
   .card-identity { grid-template-columns: 96px minmax(0, 1fr); gap: 10px; }
   .card-stats { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 4px; }
-}
-@media (pointer: coarse) {
-  .ability-description summary { width: 44px; height: 44px; top: 0; }
-  .ability-heading { padding-right: 44px; min-height: 28px; }
 }
 @media (max-width: 760px) { #dice.combat-dice { max-height: 25dvh; } }
 

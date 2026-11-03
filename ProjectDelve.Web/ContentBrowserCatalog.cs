@@ -11,7 +11,10 @@ public sealed record ContentBrowserCategory(string Id, string Name, int Count);
 public sealed record ContentBrowserDiagnostic(string Message, string? Path = null, string? Code = null);
 public sealed record ContentBrowserFailure(ContentBrowserContext Context, IReadOnlyList<ContentBrowserDiagnostic> Diagnostics);
 public sealed record ContentBrowserResponse(ContentBrowserContext Context, IReadOnlyList<ContentBrowserCategory> Categories,
-    IReadOnlyList<ContentBrowserEntry> Entries, IReadOnlyList<ContentBrowserDiagnostic> Diagnostics);
+    IReadOnlyList<ContentBrowserEntry> Entries, IReadOnlyList<ContentBrowserDiagnostic> Diagnostics)
+{
+    public UnitAuthoringContract UnitAuthoring => UnitAuthoringSchema.Contract;
+}
 public sealed record ContentBrowserField(string Label, JsonElement Value);
 public sealed record ContentBrowserSection(string Title, IReadOnlyList<ContentBrowserField> Fields);
 public sealed record ContentBrowserReference(string Label, string TargetKey, string Family, string Id, bool Exists = false)
@@ -69,7 +72,7 @@ public static class ContentBrowserCatalog
             entries.Add(Entry("units", type.Id, type.DisplayName ?? type.Id, type,
                 localUnitIds?.Contains(type.Id) == true ? !canonical.Units.Any(unit => unit.Id == type.Id) ? "scenario-local" : "scenario-override" : "canonical",
                 $"MOV {type.Mov} · RNG {type.Rng} · ATK {type.Atk} · DEF {type.Def} · HP {type.Hp}. {AbilitySummary(type.LocalAbilities.Length)}",
-                type.LocalAbilities, AbilityReferences(type.LocalAbilities), units) with { Sections = UnitSections(type) });
+                type.LocalAbilities, AbilityReferences(type.LocalAbilities).Concat(StorageReferences(type.ResourceStorage)), units) with { Sections = UnitSections(type) });
         entries.AddRange(equipment.Select(type => EquipmentEntry(type, canonical.Equipment.Any(row => row.Id == type.Id) ? "canonical" : "local", units)));
         entries.AddRange(items.Select(type => ItemEntry(type, canonical.Items.Any(row => row.Id == type.Id) ? "canonical" : "local", units)));
         entries.AddRange(loot.Select((type, index) => LootEntry(type, index < canonical.LootCards.Length ? "canonical" : "local") with
@@ -78,7 +81,8 @@ public static class ContentBrowserCatalog
                 ? "legacy-collision" : null
         }));
         entries.AddRange(MechanicCatalog.All.Select(MechanicEntry));
-        var resources = canonical.Resources.Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
+        var resources = canonical.Resources.Concat(units.SelectMany(type => type.ResourceStorage?.Capacities.Select(c => c.Type) ?? []))
+            .Concat(units.SelectMany(type => type.LocalAbilities.Select(ability => ability.Mechanic)
             .OfType<WaypointSlotMachine>().SelectMany(slot => slot.OutputTable.Faces))).DistinctBy(type => Element(type).GetRawText());
         entries.AddRange(resources.Select(type => Entry("resources", type.Id, string.IsNullOrWhiteSpace(type.Name) ? type.Id : type.Name,
             type, canonical.Resources.Contains(type) ? "canonical" : "scenario-override")));
@@ -409,8 +413,8 @@ public static class ContentBrowserCatalog
             foreach (var child in value.EnumerateArray())
                 foreach (var reference in ParameterValueReferences(child, item)) yield return reference;
     }
-    private static IEnumerable<ContentBrowserReference> StorageReferences(ResourceStorage storage) =>
-        storage.Capacities.Select(capacity => ResourceReference("Resource Storage", capacity.Type));
+    private static IEnumerable<ContentBrowserReference> StorageReferences(ResourceStorage? storage) =>
+        storage?.Capacities.Select(capacity => ResourceReference("Resource Storage", capacity.Type)) ?? [];
     private static ContentBrowserReference ResourceReference(string label, ResourceType type) =>
         Reference(label, "resources", type.Id) with { DefinitionIdentity = Element(type).GetRawText() };
     private static IEnumerable<ContentBrowserReference> LootReferences(IEnumerable<OwnedObject> objects) => objects.Select(card =>

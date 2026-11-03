@@ -1,6 +1,6 @@
 # Pinned scenario content references
 
-Scenario Designer can explicitly use Equipment and Loot Cards from the Content
+Scenario Designer can explicitly use Units, Equipment and Loot Cards from the Content
 Library. Import selects an immutable revision and embeds only the selected typed
 definitions and their required dependency closure. It does not subscribe the
 scenario to the current library head, import every package definition, or flatten
@@ -11,7 +11,7 @@ the content into editable scenario-local arrays.
 1. Create/save Equipment and its Loot Card in Library using the shared editor.
 2. Open a scenario in Designer and choose **Use library content**. This attaches
    that scenario as the destination and opens Library scope in Content Browser.
-3. Select a saved package/revision and Equipment or Loot Card, then choose
+3. Select a saved package/revision and Unit, Equipment or Loot Card, then choose
    **Use in Scenario**. Save/cancel unsaved package work before importing.
 4. Review the selected definitions and dependency changes. Loot imports its
    Equipment/Item reward dependency automatically. **Apply reference to scenario**
@@ -114,7 +114,7 @@ Existing Fog of War projection still filters hidden definitions and rewards.
 
 It returns `reference`, the complete proposed `references` collection, typed
 `changes` with before/after snapshots, and an effective authoring `catalog`.
-Only Equipment/Loot selections owned by that package revision are accepted.
+Only Unit/Equipment/Loot selections owned by that package revision are accepted.
 The Engine determines the closure; clients do not resolve or copy dependency rules.
 Preview performs no scenario/game or package mutation and needs no playable board.
 
@@ -134,7 +134,7 @@ and Playtest use the standard ScenarioDefinition pipeline.
 
 ## Limits and verification
 
-Import selection UI is limited to Equipment and Loot Cards; their established
+Import selection UI is limited to Units, Equipment and Loot Cards; their established
 typed dependencies can include other families. No inheritance, asset management, pin removal editor or batch scenario-reference
 update is introduced. [Promotion](CONTENT_PROMOTION.md) preserves these snapshots
 and recognizes exact published payloads when composing the retained pin.

@@ -28,11 +28,13 @@ public sealed class ContentLibraryApiTests : IDisposable
         public WebApplication App => app;
         public async ValueTask DisposeAsync() { client.Dispose(); await app.DisposeAsync(); }
     }
-    private async Task<Host> Start(string? storage = null)
+    private async Task<Host> Start(string? storage = null, string? canonicalDirectory = null)
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-        var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root,
-            "--ContentLibrary:Path", storage ?? directory, "--Library:Path", Path.Combine(directory, "scenarios")],
+        List<string> args = ["--urls", "http://127.0.0.1:0", "--contentRoot", root,
+            "--ContentLibrary:Path", storage ?? directory, "--Library:Path", Path.Combine(directory, "scenarios")];
+        if (canonicalDirectory is not null) args.AddRange(["--CanonicalContent:Directory", canonicalDirectory]);
+        var app = PlaytestHost.Build([.. args],
             null, GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         await app.StartAsync();
         return new(app, new HttpClient { BaseAddress = new(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) });
@@ -160,19 +162,20 @@ public sealed class ContentLibraryApiTests : IDisposable
     [Fact]
     public async Task BatchApiAcceptsLegalMutualCyclesAndCanonicalReferencesUseDeclaredProviders()
     {
-        await using var host = await Start();
+        using var fixture = new CanonicalJsonFixture();
+        await using var host = await Start(canonicalDirectory: fixture.DirectoryPath);
         ContentPackage Summon(string id, string other) => new() { Id = id, Dependencies = [other], Definitions = new()
             { Units = [new(id + "-unit", 1, 0, 0, 0, 1) { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(other + "-unit", Posture.Lying))] }] } };
         SaveContentLibraryPackage[] transaction = [new(Summon("one", "two"), 0, [new("two", 1)]), new(Summon("two", "one"), 0, [new("one", 1)])];
         using var response = await host.Client.PostAsJsonAsync("/api/content-library/transactions", transaction, Json);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
-        var package = Package() with { Id = "canonical-reference", Dependencies = ["json-provider-example"], Definitions = new()
-            { LootCards = [new("canonical-reference-gift", "Gift") { EquipmentTypeId = "json-example-encouragement-bell" }] } };
+        var package = Package() with { Id = "canonical-reference", Dependencies = [CanonicalJsonFixture.PackageId], Definitions = new()
+            { LootCards = [new("canonical-reference-gift", "Gift") { EquipmentTypeId = CanonicalJsonFixture.EquipmentTypeId }] } };
         var saved = await ReadRevision(await host.Client.PostAsJsonAsync("/api/content-library/packages", new SaveContentLibraryPackage(package, 0), Json));
-        Assert.Equal("json-provider-example", Assert.Single(saved.CanonicalPackages).Id);
+        Assert.Equal(CanonicalJsonFixture.PackageId, Assert.Single(saved.CanonicalPackages).Id);
         using var export = await host.Client.GetAsync("/api/content-library/packages/canonical-reference/export/package");
         export.EnsureSuccessStatusCode();
-        Assert.Equal("json-example-encouragement-bell", Assert.Single(ContentPackageJson.FromJson(await export.Content.ReadAsStringAsync()).Definitions.Equipment).Id);
+        Assert.Equal(CanonicalJsonFixture.EquipmentTypeId, Assert.Single(ContentPackageJson.FromJson(await export.Content.ReadAsStringAsync()).Definitions.Equipment).Id);
         Assert.Equal("no-store", export.Headers.CacheControl!.ToString());
     }
 

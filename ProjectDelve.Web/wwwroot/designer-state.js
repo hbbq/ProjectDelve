@@ -11,6 +11,7 @@ export class DesignerDraft {
     if (!this.dimensionsAllowed(definition.board.width, definition.board.height))
       throw new Error(`Designer boards must be 1..${this.catalog.maxBoardSize} cells in each dimension.`);
     this.definition = structuredClone(definition);
+    this.effectiveMetadata = null;
     this.effectiveTerrainMetadata = null;
     this.effectiveFixedComponentMetadata = null;
     this.effectiveProductionDescriptions = null;
@@ -90,15 +91,24 @@ export class DesignerDraft {
   equipmentCatalog() {
     return [...this.providerObjects('equipmentTypes'), ...(this.definition.equipmentTypes ?? [])];
   }
+  unitTypeCatalog() {
+    const types = new Map((this.catalog.unitTypes ?? []).map(type => [type.unitTypeId, type]));
+    for (const type of this.effectiveMetadata ?? []) types.set(type.unitTypeId, type);
+    for (const type of this.definition.unitTypes ?? []) types.set(type.id, {
+      ...types.get(type.id), unitTypeId: type.id, displayName: type.displayName ?? types.get(type.id)?.displayName ?? type.id
+    });
+    return [...types.values()];
+  }
   applyContentReferences(references) {
     if (!Array.isArray(references)) throw new Error('A validated reference collection is required.');
     this.definition.contentReferences = structuredClone(references);
+    this.effectiveMetadata = null;
     this.effectiveObjectContent = null;
     this.changed();
   }
   applyContentDefinition(family, definition, existingId = null) {
-    const field = family === 'equipment' ? 'equipmentTypes' : family === 'lootCards' ? 'lootCardDefinitions' : null;
-    if (!field) throw new Error('Only Equipment and Loot Card definitions can be saved here.');
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', lootCards: 'lootCardDefinitions' }[family];
+    if (!field) throw new Error('Only Unit, Equipment and Loot Card definitions can be saved here.');
     if (!definition || typeof definition !== 'object' || Array.isArray(definition) ||
         !Object.hasOwn(definition, 'id') || typeof definition.id !== 'string' || !definition.id.trim())
       throw new Error('A content definition requires a nonempty ID.');

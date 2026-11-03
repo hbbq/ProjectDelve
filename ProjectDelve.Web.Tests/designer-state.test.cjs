@@ -76,7 +76,7 @@ test('content identity errors refuse mutation and do not advance the revision', 
   draft.applyContentDefinition('equipment', equipment());
   const before = plain(draft.snapshot()), revision = draft.revision;
   for (const action of [
-    () => draft.applyContentDefinition('units', equipment()),
+    () => draft.applyContentDefinition('items', equipment()),
     () => draft.applyContentDefinition('equipment', null),
     () => draft.applyContentDefinition('equipment', []),
     () => draft.applyContentDefinition('equipment', { name: 'Missing ID' }),
@@ -167,4 +167,20 @@ test('pinned references apply and update as single undoable operations and survi
   const recovered = readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(), 'Pinned scenario')));
   assert.deepEqual(plain(recovered.definition.contentReferences), plain(draft.definition.contentReferences));
   assert.equal(draft.definition.equipmentTypes.some(row => row.id === 'boots'), false, 'pins are never copied into freely editable local arrays');
+});
+
+
+test('authored and pinned Unit definitions are selectable before declaration and do not create placement or agency', () => {
+  const {draft,history}=setup(), before=plain(draft.snapshot());
+  const unit={id:'keeper',displayName:'Keeper',mov:3,rng:1,atk:2,def:1,hp:3,localAbilities:[]};
+  history.transact(()=>draft.applyContentDefinition('units',unit));
+  assert.equal(draft.unitTypeCatalog().find(type=>type.unitTypeId==='keeper').displayName,'Keeper');
+  assert.deepEqual(plain(draft.definition.units),before.units);
+  assert.deepEqual(plain(draft.definition.agency),before.agency);
+  assert.deepEqual(plain(draft.definition.unitTypeIds),before.unitTypeIds);
+  draft.effectiveMetadata=[{unitTypeId:'pinned',displayName:'Pinned Keeper'},{unitTypeId:'keeper',displayName:'Keeper'}];
+  assert.equal(draft.unitTypeCatalog().some(type=>type.unitTypeId==='pinned'),true);
+  unit.displayName='Outside'; assert.equal(draft.definition.unitTypes[1].displayName,'Keeper');
+  history.undo(); assert.deepEqual(plain(draft.snapshot()),before);
+  history.redo(); assert.equal(draft.definition.unitTypes[1].id,'keeper');
 });

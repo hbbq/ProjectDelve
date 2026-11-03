@@ -25,8 +25,8 @@ export class LibraryContentDraft {
   }
   apply({ family, definition, existingId, expectedRevision }) {
     if (!this.editable || expectedRevision !== this.stamp) throw new Error('The package workspace changed. Cancel and reopen this definition.');
-    const field = { equipment: 'equipmentTypes', lootCards: 'lootCardDefinitions' }[family];
-    if (!field) throw new Error('This editor supports Equipment and Loot Cards.');
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', lootCards: 'lootCardDefinitions' }[family];
+    if (!field) throw new Error('This editor supports Units, Equipment and Loot Cards.');
     const rows = this.package.definitions[field] ??= [];
     if (existingId) {
       const index = rows.findIndex(row => row.id === existingId);

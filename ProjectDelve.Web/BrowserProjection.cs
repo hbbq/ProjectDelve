@@ -16,11 +16,14 @@ public sealed record BrowserChoice(string? Key, string Label, string? EntryId,
     public string? DisplayLabel { get; init; }
 }
 public sealed record FigureGeometry(Cell Anchor, IReadOnlyList<Cell> OccupiedCells, int CellSpan);
+public enum BrowserEntryAvailability { Available, Irrelevant, Exhausted, Unavailable }
+public sealed record BrowserEntryStatus(BrowserEntryAvailability Status, string Reason);
 public sealed record BrowserDecision(string? UnitId, string Prompt,
     IReadOnlyList<BrowserChoice> Candidates, BrowserChoice? NoneChoice)
 {
     public DicePool? Roll { get; init; }
     public string? DisplayPrompt { get; init; }
+    public IReadOnlyDictionary<string, BrowserEntryStatus> EntryStatuses { get; init; } = new Dictionary<string, BrowserEntryStatus>();
 }
 public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
 {
@@ -358,7 +361,53 @@ public static class BrowserProjection
                 ? new(InteractionKind.Unit, UnitId: request.UnitId) : new(InteractionKind.Direct), [])
             { BoardVisual = request.Kind == DecisionKind.Move
                 ? new("stay", $"Stay — {PlayerName(state, request.UnitId, individualNames)}", "Ⅱ") : null };
-        return new(request.UnitId, prompt, candidates, none) { Roll = request.Roll, DisplayPrompt = Prompt(id => PlayerName(state, id, individualNames)) };
+        var statuses = new Dictionary<string, BrowserEntryStatus>(StringComparer.Ordinal);
+        if (request.UnitId is { } unitId)
+        {
+            var abilities = state.AbilitiesOf(unitId).GroupBy(a => a.AccountingId).ToDictionary(g => g.Key, g => g.First());
+            foreach (var entry in Entries(state, state.Units.Single(u => u.Id == unitId)))
+            {
+                if (entry.Content.Category is not ("Action" or "Bonus Action" or "Free Action" or "Follow-up")) continue;
+                var key = entry.AccountingId ?? entry.Content.Id;
+                var choices = candidates.Where(c => entry.AccountingId is { } accountingId
+                    ? c.AccountingId == accountingId : c.EntryId == entry.Content.Id).ToArray();
+                statuses[key] = choices.Length > 0
+                    ? choices.Any(c => c.Relevant)
+                        ? new(BrowserEntryAvailability.Available, "Available")
+                        : new(BrowserEntryAvailability.Irrelevant, "Legal, but not relevant now")
+                    : entry.Uses is { RemainingUses: <= 0 }
+                        ? new(BrowserEntryAvailability.Exhausted, "No uses remaining")
+                    : state.CurrentUnitId == unitId && entry.AccountingId is { } abilityId &&
+                        abilities.TryGetValue(abilityId, out var ability) && ability.Definition.Timing == AbilityTiming.BonusAction &&
+                        state.BonusActionUsesThisActivation(abilityId) > 0 &&
+                        state.BonusActionUsesThisActivation(abilityId) >= state.EffectiveBonusActionUsesPerActivation
+                        ? new(BrowserEntryAvailability.Exhausted, "Used this activation")
+                        : new(BrowserEntryAvailability.Unavailable, "Not available at this step");
+            }
+        }
+        string DisplayPrompt()
+        {
+            if (request.Roll is not null || request.Kind == DecisionKind.SelectUnit || continuation is not null)
+                return Prompt(id => PlayerName(state, id, individualNames));
+            var options = new List<string>();
+            bool Has(ActivationChoiceKind kind) => request.Candidates.Any(c => c.Kind == kind);
+            if (Has(ActivationChoiceKind.Move)) options.Add("choose a destination");
+            if (Has(ActivationChoiceKind.Stay) || request.Kind == DecisionKind.Move && request.AllowsNone) options.Add("stay here");
+            if (Has(ActivationChoiceKind.Action)) options.Add("choose an available Action");
+            if (Has(ActivationChoiceKind.BonusAction) || Has(ActivationChoiceKind.FreeAction)) options.Add("use an available ability");
+            if (Has(ActivationChoiceKind.EndTurn)) options.Add("end the turn");
+            if (request.AllowsNone && request.Kind != DecisionKind.Move) options.Add("take no action");
+            var instruction = options.Count switch
+            {
+                0 => "choose an option",
+                1 => options[0],
+                2 => $"{options[0]} or {options[1]}",
+                _ => string.Join(", ", options.Take(options.Count - 1)) + ", or " + options[^1]
+            };
+            return char.ToUpperInvariant(instruction[0]) + instruction[1..] + ".";
+        }
+        return new(request.UnitId, prompt, candidates, none)
+        { Roll = request.Roll, DisplayPrompt = DisplayPrompt(), EntryStatuses = statuses };
     }
 
     public static BrowserOutcome Outcome(RulesEvent e, GameState state, IReadOnlyDictionary<string, string>? individualNames = null)

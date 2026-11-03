@@ -3438,7 +3438,9 @@ test("all abilities and usage marks remain visible while only supplied Direct ch
     const description = rows[index].querySelectorAll(".ability-description")[0];
     const details = description.children[1], summary = details.children[0];
     assert.equal(details.tagName, "details"); assert.equal(summary.tagName, "summary");
-    assert.equal(summary.children[0].className, "sr-only");
+    assert.equal(summary.children[0].textContent, "Details");
+    assert.equal(summary.children[0].classList.contains("sr-only"), false);
+    assert.equal(summary.attributes['aria-label'], `Full description: ${supplied.content.name}`);
     assert.equal(summary.dataset.tooltip, supplied.content.description);
     assert.equal(details.children[1].textContent, supplied.content.description);
     assert.equal(buttons(details).length, 0); // Native keyboard/touch disclosure has no decision listener.
@@ -3470,7 +3472,7 @@ test("card identity preserves effective stats, changing posture, nonstandard foo
   assert.match(css, /\.card-identity \{[^}]*108px minmax\(0, 1fr\)/);
   assert.match(css, /\.portrait-button img \{[^}]*object-fit: contain/);
   assert.match(css, /@media \(max-width: 760px\) \{\s*\.card-identity \{[^}]*96px/);
-  assert.match(css, /@media \(pointer: coarse\)[\s\S]*summary \{ width: 44px; height: 44px/);
+  assert.match(css, /\.ability-description summary \{[^}]*min-height: 44px/);
   assert.match(css, /summary:focus-visible/);
 });
 
@@ -3788,8 +3790,8 @@ test('unavailable preference storage does not prevent loading or changing views'
   assert.equal(h.elements.get('board').dataset.view, 'classic');
 });
 
-test('canvas board alternatives stay in the command dock, submit exact candidates and honor busy state', async () => {
-  const candidate = choice('opaque-board-cell', 'Position', { position: { x: 1, y: 0 } }, { boardVisual: { kind: 'move' } });
+test('canvas movement list previews before submitting exact candidates and honors busy state', async () => {
+  const candidate = choice('opaque-board-cell', 'Position', { position: { x: 1, y: 0 } }, { boardVisual: { kind: 'move', preview: 'Supplied move preview' } });
   const h = harness(response([candidate]));
   attachThree(h); await h.run('viewportRouter.request("three")');
   h.run('renderSnapshot(); chooseCandidate = key => submitted.push(key)');
@@ -3802,9 +3804,27 @@ test('canvas board alternatives stay in the command dock, submit exact candidate
   assert.equal(alternative.dataset.boardChoiceKey, 'opaque-board-cell');
   assert.equal(alternative.dataset.boardChoiceCell, '1-0');
   assert.equal(alternative.disabled, false);
-  disclosure.open = true; click(alternative);
+  const confirm = host.querySelectorAll('.choice-confirm')[0];
+  assert.equal(confirm.disabled, true);
+  h.run('updateControls()');
+  assert.equal(confirm.disabled, true, 'busy updates must not enable an unselected confirmation');
+  disclosure.open = true; disclosure.isConnected = true; disclosure.listeners.toggle();
+  assert.equal(h.run('threeChoicesOpen'), true);
+  assert.equal(h.run('ui.coordinates.checked'), false, 'temporary coordinates do not change the preference');
+  click(alternative);
+  assert.deepEqual(h.submitted, [], 'destination selection previews without changing game state');
+  assert.equal(h.run('threePreview.key'), 'opaque-board-cell');
+  assert.equal(host.querySelectorAll('.choice-preview')[0].textContent, 'Supplied move preview');
+  assert.equal(confirm.disabled, false);
+  alternative.listeners.blur();
+  assert.equal(h.run('threePreview.key'), 'opaque-board-cell', 'selected preview survives moving focus to confirmation');
+  h.run('previewBoardChoice(null)');
+  assert.equal(h.run('threePreview.key'), 'opaque-board-cell', 'clearing canvas hover restores the selected list preview');
+  click(confirm);
   assert.deepEqual(h.submitted, ['opaque-board-cell']);
   assert.equal(disclosure.open, false);
+  assert.equal(h.run('threePreview'), null);
+  assert.equal(h.run('threeChoicesOpen'), false);
   h.run('busy = true; updateControls()'); assert.equal(alternative.disabled, true);
   h.run('renderChoicePanel()'); alternative = buttons(host)[0];
   assert.equal(alternative.disabled, true, 'rerendering alternatives must not bypass busy gating');
@@ -3813,8 +3833,64 @@ test('canvas board alternatives stay in the command dock, submit exact candidate
   host.listeners.keydown({ key: 'Escape', preventDefault() { prevented = true; } });
   assert.equal(prevented, true); assert.equal(disclosure.open, false);
   assert.equal(disclosure.querySelector('summary').focused, true);
+  assert.equal(h.run('threeChoicesOpen'), false);
+  h.run('threeChoicesOpen = true; snapshot.presentation.decision.roll = {count:1, family:"Attack", ownerUnitId:"actor", purpose:"Attack", sourceActionId:"attack"}; renderChoicePanel()');
+  assert.equal(h.run('threeChoicesOpen'), false, 'a mandatory roll closes any old destination list and temporary coordinates');
   h.run('snapshot.presentation.decision = null; renderSnapshot()');
   assert.equal(host.children.length, 0, 'obsolete choices are cleared');
+});
+
+test('movement list keeps Stay separate and clears selection on a new authoritative decision', async () => {
+  const initial = response([
+    choice('move-opaque', 'Position', { position: { x: 1, y: 0 } }, { boardVisual: { kind: 'move', preview: 'Move preview' } }),
+    choice('stay-opaque', 'Unit', { unitId: 'actor' }, { boardVisual: { kind: 'stay' }, displayLabel: 'Stay here' })
+  ]);
+  const h = harness(initial);
+  attachThree(h); await h.run('viewportRouter.request("three")');
+  h.run('renderSnapshot(); chooseCandidate = key => submitted.push(key)');
+  const host = h.elements.get('board-alternatives');
+  assert.equal(host.querySelectorAll('.choice-destinations')[0].querySelectorAll('button').length, 1);
+  assert.equal(buttons(host)[0].textContent, 'Stay here');
+  click(host.querySelectorAll('.choice-destinations')[0].querySelectorAll('button')[0]);
+  h.run('busy = true; updateControls()');
+  click(host.querySelectorAll('.choice-confirm')[0]);
+  assert.deepEqual(h.submitted, [], 'pending gameplay blocks confirmation');
+  h.run('busy = false; snapshot.presentation.decision.candidates[0].key = "next-move"; renderSnapshot()');
+  const confirm = host.querySelectorAll('.choice-confirm')[0];
+  assert.equal(confirm.disabled, true, 'a new decision needs a new selection');
+  click(confirm); assert.deepEqual(h.submitted, []);
+  click(buttons(host)[0]); assert.deepEqual(h.submitted, ['stay-opaque']);
+});
+
+test('card availability follows supplied statuses and the nearby filter reveals legal choices', () => {
+  const ability = { ...entry('display-entry', 'Printed ability', 'Bonus Action'), accountingId: 'source-accounting' };
+  const initial = response([choice('legal-opaque', 'Direct', {}, {
+    entryId: 'different-entry', accountingId: 'source-accounting', relevant: false
+  })], [ability]);
+  initial.presentation.decision.entryStatuses = {
+    'source-accounting': { status: 'Irrelevant', reason: 'Legal, but not relevant now' }
+  };
+  const h = harness(initial), card = h.elements.get('unit-card'), visibility = h.elements.get('choice-visibility');
+  assert.match(card.querySelectorAll('.ability-availability')[0].textContent, /Hidden by relevance filter.*legal choice/);
+  assert.equal(buttons(card).filter(button => button.dataset.legal === 'true' && !button.hidden).length, 0);
+  assert.match(visibility.textContent, /Show all legal choices \(1 hidden\)/);
+  h.run('chooseCandidate = key => submitted.push(key)');
+  click(buttons(visibility)[0]);
+  assert.equal(h.elements.get('filter').checked, false);
+  assert.equal(buttons(visibility)[0].focused, true, 'replacing filter copy preserves the keyboard navigation position');
+  assert.equal(card.querySelectorAll('.ability-availability')[0].textContent, 'Legal, but not relevant now');
+  const action = buttons(card).find(button => button.dataset.legal === 'true');
+  assert.equal(action.hidden, false);
+  assert.equal(action.disabled, false, 'irrelevant stays legal even with misleading local counters');
+  click(action); assert.deepEqual(h.submitted, ['legal-opaque']);
+  h.run('busy = true; updateControls()');
+  assert.equal(buttons(visibility)[0].disabled, true);
+  click(buttons(visibility)[0]); assert.equal(h.elements.get('filter').checked, false);
+  h.run('renderUnitCard(); busy = false; updateControls()');
+  assert.equal(card.querySelectorAll('.ability-availability')[0].textContent, 'Legal, but not relevant now',
+    'rendering the final state before busy clears must retain its authoritative reasons');
+  h.run('busy = false; displayedState = JSON.parse(JSON.stringify(snapshot.result.state)); renderUnitCard()');
+  assert.equal(card.querySelectorAll('.ability-availability').length, 0, 'live reasons must not leak into historical playback');
 });
 
 test('journal uses only supplied event-time player copy and retains filtered technical details', async () => {

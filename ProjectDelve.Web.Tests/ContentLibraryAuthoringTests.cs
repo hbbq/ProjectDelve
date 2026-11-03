@@ -97,14 +97,16 @@ public sealed class ContentLibraryAuthoringTests : IDisposable
     [Fact]
     public async Task AuthoringEndpointsExposeProvidersAndValidationWithoutMutatingPackageOrRunningGame()
     {
+        using var fixture = new CanonicalJsonFixture();
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root, "--ContentLibrary:Path", directory],
+        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root, "--ContentLibrary:Path", directory,
+            "--CanonicalContent:Directory", fixture.DirectoryPath],
             null, GameEngine.CreateGame(WebScenarioFixtures.Combat()));
         await app.StartAsync();
         using var client = new HttpClient { BaseAddress = new(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
         var before = await client.GetStringAsync("/api/game");
         var providers = await client.GetFromJsonAsync<JsonElement>("/api/content-library/providers");
-        Assert.Contains(providers.EnumerateArray(), p => p.GetProperty("id").GetString() == "json-provider-example");
+        Assert.Contains(providers.EnumerateArray(), p => p.GetProperty("id").GetString() == CanonicalJsonFixture.PackageId);
         var draft = new SaveContentLibraryPackage(Empty(), 0);
         using var context = await client.PostAsJsonAsync("/api/content-library/authoring/context", draft, Json); context.EnsureSuccessStatusCode();
         using var preview = await client.PostAsJsonAsync("/api/content-library/authoring/validate", new ValidateLibraryContent(draft, Edit(Gear())), Json);

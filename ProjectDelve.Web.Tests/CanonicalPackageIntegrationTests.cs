@@ -24,14 +24,15 @@ public sealed class CanonicalPackageIntegrationTests
     }
 
     [Fact]
-    public async Task CheckedInJsonContentIsCanonicalEditableAsReferencesAndPlayableWithoutRosterChanges()
+    public async Task ConfiguredJsonContentIsCanonicalEditableAsReferencesAndPlayableWithoutRosterChanges()
     {
+        using var fixture = new CanonicalJsonFixture();
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
-        var directory = Path.Combine(root, "Content", "Canonical");
-        var example = ContentPackageCatalog.ReadDirectory(directory).Single(p => p.Package.Id == "json-provider-example").Package;
-        var equipment = Assert.Single(example.Definitions.Equipment);
-        var card = Assert.Single(example.Definitions.LootCards);
-        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root], new Dice());
+        var package = ContentPackageCatalog.ReadDirectory(fixture.DirectoryPath).Single(p => p.Package.Id == CanonicalJsonFixture.PackageId).Package;
+        var equipment = Assert.Single(package.Definitions.Equipment);
+        var card = Assert.Single(package.Definitions.LootCards);
+        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", root,
+            "--CanonicalContent:Directory", fixture.DirectoryPath], new Dice());
         await app.StartAsync();
         using var client = new HttpClient { BaseAddress = new(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
         var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
@@ -83,7 +84,7 @@ public sealed class CanonicalPackageIntegrationTests
         Directory.CreateDirectory(changedDirectory);
         try
         {
-            var changed = example with { Definitions = example.Definitions with { Equipment = [equipment with
+            var changed = package with { Definitions = package.Definitions with { Equipment = [equipment with
                 { Name = "Changed after save", LocalAbilities = [equipment.LocalAbilities[0] with { Usage = new(9) }] }] } };
             File.WriteAllText(Path.Combine(changedDirectory, "example.json"), ContentPackageJson.ToJson(changed));
             var replacement = ContentPackageCatalog.LoadCanonical(changedDirectory).Definitions;

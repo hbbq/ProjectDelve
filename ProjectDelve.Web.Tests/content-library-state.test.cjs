@@ -33,3 +33,15 @@ test('historical packages and immutable Type IDs cannot be overwritten by a dest
   assert.throws(() => current.apply({ family: 'equipment', existingId: 'bell', definition: { id: 'replacement' }, expectedRevision: current.stamp }), /existing Type ID/);
   assert.equal(record.package.definitions.equipmentTypes[0].id, 'bell');
 });
+
+
+test('Library owns Unit definitions through the same revision and copy boundaries', () => {
+  const draft=Draft.create('units','Units');
+  const unit={id:'keeper',displayName:'Keeper',localAbilities:[{key:'summon',mechanic:{kind:'summonAdjacent',unitTypeId:'friend'}}]};
+  draft.apply({family:'units',definition:unit,expectedRevision:draft.stamp});
+  unit.localAbilities[0].mechanic.unitTypeId='outside';
+  assert.equal(draft.context().unitTypes[0].localAbilities[0].mechanic.unitTypeId,'friend');
+  draft.apply({family:'units',definition:{...unit,displayName:'Renamed'},existingId:'keeper',expectedRevision:draft.stamp});
+  assert.equal(draft.context().unitTypes[0].displayName,'Renamed');
+  assert.throws(()=>draft.apply({family:'units',definition:{id:'replacement'},existingId:'keeper',expectedRevision:draft.stamp}),/existing Type ID/);
+});
