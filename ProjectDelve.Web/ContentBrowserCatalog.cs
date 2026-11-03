@@ -14,6 +14,10 @@ public sealed record ContentBrowserResponse(ContentBrowserContext Context, IRead
     IReadOnlyList<ContentBrowserEntry> Entries, IReadOnlyList<ContentBrowserDiagnostic> Diagnostics)
 {
     public UnitAuthoringContract UnitAuthoring => UnitAuthoringSchema.Contract;
+    // Payment support is independent of the deferred interactive cost editor.
+    public ImmutableArray<AbilityCostDescriptor> Costs => CostCatalog.All;
+    public bool CostExecutionAvailable => true;
+    public bool CostEditingAvailable => false;
 }
 public sealed record ContentBrowserField(string Label, JsonElement Value);
 public sealed record ContentBrowserSection(string Title, IReadOnlyList<ContentBrowserField> Fields);

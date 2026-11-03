@@ -6,6 +6,22 @@ Every Ability is an owner-local `LocalAbilityDefinition` in a Unit, Equipment, o
 
 ## Discovery and validation
 
+`CostCatalog` separately exposes Engine-owned cost descriptors for `layDownSelf`
+and `spendResource`, reusing `MechanicParameter` schemas and diagnostic paths.
+Descriptors identify acting-Unit context and Unit/Equipment/Item active timing
+support, parameters and generated description templates. These profiles describe
+the supported invocation contract. Cost execution is available through shared
+commitment for supported active mechanic/source/timing profiles. Mechanic and
+Cost profiles must both support the complete declaration.
+Each Ability mechanic's `CostProfiles` exposes the applicable active subset of
+its source/timing/usage profiles; it is empty for non-Ability and intrinsic
+lifecycles. Cost support never extends the mechanic's existing timing support.
+Passives and intrinsic lifecycles cannot carry these invocation costs.
+
+Resource payments require a nonblank Resource Type reference and positive amount.
+Repeated Resource entries remain ordered declarations; they are not deduplicated.
+Repeated Lay Down Self is invalid. Cost metadata contains no executable expressions.
+
 ```csharp
 var heal = MechanicCatalog.Find("heal");
 var descriptors = MechanicCatalog.All;

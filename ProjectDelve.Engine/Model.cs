@@ -54,6 +54,8 @@ public enum DiceFamily { Attack, Defence, D6 }
 public sealed record DicePool(DiceFamily Family, int Count, string OwnerUnitId, string SourceUnitId,
     string SourceActionId, string Purpose, string? TargetId = null, Edge? Door = null, int? SuccessCount = null)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AbilitySourceReference? AbilitySource { get; init; }
     public Cell? SelectedCell { get; init; }
     public ImmutableArray<string> TargetIds { get; init; } = [];
 }
@@ -66,6 +68,8 @@ public sealed record AttackContinuation(string AttackerId, string ActionId, stri
     AttackStage Stage = AttackStage.AttackRoll, int Hits = 0, int TargetIndex = 0,
     ImmutableArray<AttackTargetResult> Results = default)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AbilitySourceReference? AbilitySource { get; init; }
     public DiceResult? AttackRoll { get; init; }
     public ImmutableArray<Cell> DefeatedHostileCells { get; init; } = [];
     public bool IsNormalMelee { get; init; }
@@ -74,7 +78,11 @@ public sealed record AttackContinuation(string AttackerId, string ActionId, stri
     // Existing saves predate non-Action Attacks, so omission preserves their origin.
     public AbilityTiming OriginTiming { get; init; } = AbilityTiming.Action;
 }
-public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount, string ActionId);
+public sealed record DoorContinuation(string UnitId, Edge Door, int SuccessCount, string ActionId)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AbilitySourceReference? AbilitySource { get; init; }
+}
 
 public sealed record Cell(int X, int Y);
 public enum Footprint { OneByOne, TwoByTwo }
@@ -359,6 +367,8 @@ public sealed record RulesEvent(string Kind, string? UnitId = null, string? Targ
     bool IsMoveAfterAttack = false, string? AbilityName = null, int Healing = 0,
     AttackResult? Attack = null, Posture? Posture = null)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AbilitySourceReference? AbilitySource { get; init; }
     public OwnedObject? ObjectCard { get; init; }
     public LootMarker? LootMarker { get; init; }
     // Observation-only contiguous paths, with at most one boundary step at each end.

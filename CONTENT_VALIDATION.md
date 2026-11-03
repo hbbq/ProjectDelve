@@ -1,5 +1,20 @@
 # Standalone content validation and dependencies
 
+Typed Ability Costs are inspected independently through `CostCatalog`; normal
+content validation accepts them for supported active mechanic/source/timing
+profiles and rejects them on Passives and intrinsic lifecycles. Dependency
+discovery reads each `SpendResource` declaration directly
+and reports its Resource Type and indexed cost field path, alongside existing
+mechanic dependencies. Reference existence uses the supplied Resource catalog,
+never generated wording or an ambient canonical lookup.
+
+`AbilityContent.Validate` checks the same executable contract used by normal
+composition. `CostCatalog.Validate` accepts an optional explicit
+`availableResourceIds` set to validate reference existence; omitting that set
+checks reference shape only. Generated descriptions prepend the ordered cost
+requirements to the existing mechanic description, including overrides. This
+does not remove payments still embedded in existing mechanics.
+
 Engine exposes definition inspection without creating a scenario, board, Unit or
 GameState. Milestone 2 adds [explicit composition and captured runtime catalogs](CONTENT_COMPOSITION.md)
 using these shared checks. [Content Library](CONTENT_LIBRARY.md) persistence also

@@ -149,8 +149,11 @@ public static partial class GameEngine
     {
         if (choice is not null && request.Candidates.Single(c => c.Key == choice).Ability is { } ability)
         {
+            if (!state.CanUseAbility(request.UnitId!, ability))
+                throw new InvalidOperationException("Ability invocation is unavailable.");
             if (ability.Definition.Timing == AbilityTiming.Action) state.ActionsUsedThisActivation++;
             ConsumeAbilityUse(state, request.UnitId!, ability, events);
+            PayAbilityCosts(state, request.UnitId!, ability, events);
             if (IsSharedActiveMechanic(ability.Definition.Mechanic))
             {
                 ResolveAbility(state, request, request.Candidates.Single(c => c.Key == choice), events);
@@ -332,13 +335,15 @@ public static partial class GameEngine
         events.Add(new RulesEvent("PostureChanged", unitId, Posture: posture) { SourceUnitId = sourceUnitId, ActionId = actionId });
     }
 
-    private static void OpenDoor(GameState state, string? unitId, Edge door, ResolutionEvents events, string actionId = "open-door")
+    private static void OpenDoor(GameState state, string? unitId, Edge door, ResolutionEvents events, string actionId = "open-door",
+        AbilitySourceReference? abilitySource = null)
     {
         var index = state.Physical.Board.Edges.FindIndex(e =>
             e.A == door.A && e.B == door.B || e.A == door.B && e.B == door.A);
         var opened = state.Physical.Board.Edges[index] with { Kind = EdgeKind.OpenDoor };
         state.Physical.Board.Edges[index] = opened;
-        events.Add(new RulesEvent("DoorOpened", unitId, Door: opened) { SourceUnitId = unitId, ActionId = actionId });
+        events.Add(new RulesEvent("DoorOpened", unitId, Door: opened)
+            { SourceUnitId = unitId, ActionId = actionId, AbilitySource = abilitySource });
     }
 
     private static List<Candidate> MovementCandidates(GameState state, Unit unit, int? maxSteps = null)
@@ -462,14 +467,16 @@ public static partial class GameEngine
     {
         DicePool? pool = null;
         if (state.DoorInProgress is { } door)
-            pool = new(DiceFamily.D6, 1, door.UnitId, door.UnitId, door.ActionId, "Door check", Door: door.Door, SuccessCount: door.SuccessCount);
+            pool = new(DiceFamily.D6, 1, door.UnitId, door.UnitId, door.ActionId, "Door check", Door: door.Door, SuccessCount: door.SuccessCount)
+                { AbilitySource = door.AbilitySource };
         if (state.AttackInProgress is { } attack)
         {
             var target = attack.Stage == AttackStage.DefenceRoll ? attack.Targets[attack.TargetIndex] : null;
             pool = target is null
                 ? new(DiceFamily.Attack, attack.AttackDice, attack.AttackerId, attack.AttackerId, attack.ActionId, "Attack")
                 : new(DiceFamily.Defence, target.DefenceDice, target.TargetId, attack.AttackerId, attack.ActionId, "Defence", target.TargetId);
-            pool = pool with { SelectedCell = attack.SelectedCell, TargetIds = attack.Targets.Select(t => t.TargetId).ToImmutableArray() };
+            pool = pool with { SelectedCell = attack.SelectedCell, TargetIds = attack.Targets.Select(t => t.TargetId).ToImmutableArray(),
+                AbilitySource = attack.AbilitySource };
         }
         if (pool is not null)
             return new DecisionRequest(DecisionKind.RollDice, state.Units.Single(u => u.Id == pool.OwnerUnitId).TypeId,
@@ -539,15 +546,17 @@ public static partial class GameEngine
 
     private static void BeginAttack(GameState state, string attackerId, SharedRollAttack attack,
         ResolutionEvents events, string actionId, Cell? selectedCell, UnitAction? semanticAction = null,
-        AbilityTiming originTiming = AbilityTiming.Action, int? rangeOverride = null)
+        AbilityTiming originTiming = AbilityTiming.Action, int? rangeOverride = null, AbilitySourceReference? abilitySource = null)
     {
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
             attack.AttackDice, Results: []) { SemanticAction = semanticAction, OriginTiming = originTiming, RangeOverride = rangeOverride,
-                IsNormalMelee = semanticAction == UnitAction.NormalAttack && state.EffectiveRngOf(attackerId) == 1 };
+                IsNormalMelee = semanticAction == UnitAction.NormalAttack && state.EffectiveRngOf(attackerId) == 1,
+                AbilitySource = abilitySource };
         FogOfWar.DiscoverAttack(state, state.AttackInProgress);
         events.Add(new RulesEvent("AttackStarted", attackerId, AbilityName: attack.AbilityName)
-            { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId });
+            { ActionId = actionId, Cell = selectedCell, AttackContext = state.AttackInProgress, SourceUnitId = attackerId,
+                AbilitySource = abilitySource });
     }
 
     // Progress only deterministic portions; nonempty pools always return to the decision boundary.
@@ -574,7 +583,7 @@ public static partial class GameEngine
         if (attack.AbilityName is not null)
             events.Add(new RulesEvent("AttackResolved", attack.AttackerId, Hits: attack.Hits,
                 AbilityName: attack.AbilityName, Attack: new(attack.AttackDice, attack.Hits, attack.Results))
-                { ActionId = attack.ActionId });
+                { ActionId = attack.ActionId, SourceUnitId = attack.AttackerId, AbilitySource = attack.AbilitySource });
         state.AttackInProgress = null;
         ResolveExplosions(state, events);
         var attacker = state.Units.Single(u => u.Id == attack.AttackerId);
@@ -608,7 +617,7 @@ public static partial class GameEngine
                 attack.AttackerId, target.TargetId, Hits: attack.Hits, Blocks: blocks, Damage: damage,
                 AbilityName: attack.AbilityName,
                 Attack: attack.AbilityName is null ? new(attack.AttackDice, attack.Hits, results) : null)
-                { ActionId = attack.ActionId, SourceUnitId = attack.AttackerId }, events);
+                { ActionId = attack.ActionId, SourceUnitId = attack.AttackerId, AbilitySource = attack.AbilitySource }, events);
         if (hostile && state.DefeatedUnitIds.Contains(target.TargetId))
             state.AttackInProgress = state.AttackInProgress! with
             { DefeatedHostileCells = state.AttackInProgress.DefeatedHostileCells.AddRange(formerCells) };
@@ -646,7 +655,7 @@ public static partial class GameEngine
         if (pool.Family == DiceFamily.Attack)
             state.AttackInProgress = state.AttackInProgress! with { Hits = successes, Stage = AttackStage.DefenceRoll, AttackRoll = result };
         events.Add(new RulesEvent("DiceRolled", pool.OwnerUnitId, pool.TargetId, Door: pool.Door)
-            { SourceUnitId = pool.SourceUnitId, ActionId = pool.SourceActionId, Dice = result });
+            { SourceUnitId = pool.SourceUnitId, ActionId = pool.SourceActionId, Dice = result, AbilitySource = pool.AbilitySource });
         if (pool.Family == DiceFamily.Defence) ResolveAttackTarget(state, successes, events);
         if (pool.Family == DiceFamily.D6)
         {
@@ -654,8 +663,9 @@ public static partial class GameEngine
             state.DoorInProgress = null;
             var roll = int.Parse(faces[0], System.Globalization.CultureInfo.InvariantCulture);
             events.Add(new RulesEvent("DoorOpeningAttemptResolved", door.UnitId, Door: door.Door,
-                DieRoll: roll, SuccessCount: door.SuccessCount, Succeeded: successes > 0) { ActionId = door.ActionId });
-            if (successes > 0) OpenDoor(state, door.UnitId, door.Door, events, door.ActionId);
+                DieRoll: roll, SuccessCount: door.SuccessCount, Succeeded: successes > 0)
+                { ActionId = door.ActionId, SourceUnitId = door.UnitId, AbilitySource = door.AbilitySource });
+            if (successes > 0) OpenDoor(state, door.UnitId, door.Door, events, door.ActionId, door.AbilitySource);
         }
     }
 

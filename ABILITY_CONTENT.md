@@ -10,6 +10,53 @@ there is no separate editor gameplay model.
 
 ## Authoring
 
+### Typed Costs and commitment
+
+`LocalAbilityDefinition.Costs` is an ordered typed collection, separate from its
+mechanic. `LayDownSelf` and `SpendResource(resourceTypeId, amount)` describe
+payments for an accepted attempt. Empty Costs are omitted from JSON to preserve
+existing definitions and digest-protected revisions. Authored nonempty arrays
+retain their order, including repeated Resource payments.
+
+Active Abilities execute Costs through shared authoritative commitment. Eligibility
+includes cumulative affordability before timing, usage, Item consumption or Costs
+change. The authoritative candidate binds its source and targets; commitment
+spends timing and usage, consumes the selected Item, then pays Costs in authored
+order. No decisions or automatic consequences interleave those payments. The
+mechanic resolves afterward against the resulting state. Failed rolls and
+zero-effect attempts retain payment; rejected, stale, unaffordable or cancelled
+selections pay nothing. Pending Attack and Door rolls resume their existing
+concrete contexts without paying again, even if the source is Lying or its Item
+was consumed. Initial invocation eligibility is never rerun after payment.
+Interactive cost editing remains deferred.
+
+Attack and Door continuation context also captures a narrow `AbilitySource`
+reference (source kind, Type ID, physical Instance ID and local key), independently
+of the stable Action ID. Dice and operation events retain that attribution across
+save/resume, including when duplicate Items share the same Type and local key.
+Observations redact the reference when its bearing Unit is hidden. This reference
+contains no copied Ability definition and is scoped to the resolving operation.
+
+Resource payment uses only the bearer's Side + Unit Type shared store and retains
+its actual Resource payload in events. Repeated Resource costs are cumulative.
+Existing embedded mechanic payments also reserve their required Resources during
+preflight, so a declared cost cannot spend Resources needed by the unchanged
+mechanic. Costs do not grant storage, borrow from Machines or other groups, or
+replace Machine recipe inputs. Post-payment effective stats apply when constructing
+an Attack; its selected targets remain bound. Existing mechanics retain embedded
+payments unchanged, and empty Costs retain existing gameplay behavior.
+
+The upcoming migration will extract Holy Wave's source posture change and the
+Resource payments from Summon Troll (Diamond), Place Banana Peel (Banana), Boost
+(Mushroom) and Shoot Shell (Shell). It must preserve owner-local keys, timing,
+usage, physical sources and intended effects. Shared commitment now pays costs
+before resolving the mechanic without rechecking initial invocation eligibility.
+No declarations are migrated here, including Holy Wave
+examples on Equipment and Items in the authored scenario library. Library
+revisions and pins remain immutable: migration creates new revisions and pins
+change only through explicit updates. No canonical packages or scenarios are
+rewritten by this preparation.
+
 Canonical content lives in [UnitRoster.cs](ProjectDelve.Engine/UnitRoster.cs), [EquipmentRoster.cs](ProjectDelve.Engine/EquipmentRoster.cs) and [ItemRoster.cs](ProjectDelve.Engine/ItemRoster.cs). A declaration in any of these owners produces the same typed data as scenario-local JSON. Small C# helpers may construct or copy declarations, but no second definition is registered or consulted at runtime.
 
 ```csharp

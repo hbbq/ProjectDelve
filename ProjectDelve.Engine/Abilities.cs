@@ -5,6 +5,9 @@ namespace ProjectDelve.Engine;
 
 public enum AbilityTiming { Action, BonusAction, FreeAction, Passive, AfterAttack, WhenDefeated, InsteadOfDefeat, InsteadOfActivation, EndActivation }
 public enum AbilitySourceKind { Unit, Equipment, Item }
+// Attribution for the currently resolving invocation; does not retain an
+// executable definition or require a consumed Item to remain in inventory.
+public sealed record AbilitySourceReference(AbilitySourceKind Kind, string TypeId, string InstanceId, string Key);
 public sealed record AbilityUsage(int? MaxUses = null);
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
@@ -57,6 +60,8 @@ public sealed record StandAdjacentFriendlyMechanic : AbilityMechanic;
 public sealed record ResolvedAbility(LocalAbilityDefinition Definition, AbilitySourceKind SourceKind,
     string SourceTypeId, string SourceInstanceId, string? SourceName = null)
 {
+    [JsonIgnore]
+    public AbilitySourceReference SourceReference => new(SourceKind, SourceTypeId, SourceInstanceId, Key);
     public string Key => Definition.Key;
     public string AccountingId => SourceKind switch
     {
@@ -96,6 +101,12 @@ public static class AbilityContent
                 throw ScenarioValidationContext.At(new ArgumentException("A supported Ability timing is required."), abilityPath + ".timing");
             if (ability.Usage is null || ability.Usage.MaxUses is < 1)
                 throw ScenarioValidationContext.At(new ArgumentException("Ability use limits must be positive."), abilityPath + ".usage");
+            var costDiagnostics = CostCatalog.Validate(ability.Costs,
+                new(MechanicCatalog.AbilitySourceContext(source), MechanicCatalog.AbilityTimingContext(ability.Timing), ability.Usage.MaxUses), abilityPath + ".costs");
+            if (!costDiagnostics.IsEmpty)
+                throw ScenarioValidationContext.At(new ArgumentException(string.Join(" ", costDiagnostics.Select(d => $"{d.Path}: {d.Message}"))), costDiagnostics[0].Path);
+            if (!ability.Costs.IsEmpty && !AbilityCostRules.Supports(ability.Mechanic))
+                throw ScenarioValidationContext.At(new ArgumentException("executionUnavailable: This mechanic does not support Ability cost execution."), abilityPath + ".costs");
             var diagnostics = MechanicCatalog.Validate(ability.Mechanic,
                 new(MechanicCatalog.AbilitySourceContext(source), MechanicCatalog.AbilityTimingContext(ability.Timing), ability.Usage.MaxUses), abilityPath + ".mechanic");
             if (!diagnostics.IsEmpty)
@@ -228,7 +239,7 @@ public static class AbilityQueries
 
     public static AbilityUses? EquipmentAbilityUsesOf(this GameState state, OwnedObject obj, LocalAbilityDefinition ability) =>
         ability.Usage.MaxUses is { } max ? new(max, max - obj.AbilityUseCounts.GetValueOrDefault(ability.Key)) : null;
-    public static bool CanUseAbility(this GameState state, string unitId, ResolvedAbility ability) => state.IsUpright(unitId) &&
+    public static bool CanUseAbility(this GameState state, string unitId, ResolvedAbility ability) => AbilityCostRules.CanAfford(state, unitId, ability) && state.IsUpright(unitId) &&
         state.Units.Single(unit => unit.Id == unitId).CurrentHp > 0 && state.AbilityUsesOf(unitId, ability) is not { RemainingUses: <= 0 } &&
         (ability.Definition.Timing != AbilityTiming.BonusAction || state.BonusActionUsesThisActivation(ability.AccountingId) < state.EffectiveBonusActionUsesPerActivation);
 

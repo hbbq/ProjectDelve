@@ -57,6 +57,12 @@ public sealed record MechanicDescriptor(string Id, string Name, MechanicFamily F
 {
     public ImmutableArray<MechanicParameter> Parameters { get; init; } = [];
     public ImmutableArray<MechanicSupportProfile> Profiles { get; init; } = [];
+    // Costs compose with the mechanic's existing active execution profiles;
+    // they do not grant additional timings or source lifecycles.
+    public ImmutableArray<MechanicSupportProfile> CostProfiles => Family == MechanicFamily.Ability
+        ? Profiles.Where(p => (p.Source is MechanicSource.Unit or MechanicSource.Equipment or MechanicSource.Item) &&
+            (p.Timing is MechanicTiming.Action or MechanicTiming.BonusAction or MechanicTiming.FreeAction)).ToImmutableArray()
+        : [];
     public MechanicContext Context { get; init; }
     public MechanicTargeting Targeting { get; init; } = new(MechanicTargetSelection.None, "");
     public ImmutableArray<string> Dependencies { get; init; } = [];

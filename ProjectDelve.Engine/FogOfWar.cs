@@ -113,6 +113,7 @@ public static class FogOfWar
         var targets = attack.Targets.Where(t => IsUnitObservable(state, side, t.TargetId)).ToImmutableArray();
         if (!source && targets.IsEmpty) return null;
         return attack with { AttackerId = source ? attack.AttackerId : "", Targets = targets,
+            AbilitySource = source ? attack.AbilitySource : null,
             Results = attack.Results.IsDefault ? [] : attack.Results.Where(t => IsUnitObservable(state, side, t.TargetId)).ToImmutableArray(),
             SelectedCell = attack.SelectedCell is { } cell && IsExplored(state, side, cell) ? cell : null,
             AttackRoll = attack.AttackRoll is { } roll ? roll with { Pool = ObserveDicePool(state, side, roll.Pool)! } : null,
@@ -122,6 +123,7 @@ public static class FogOfWar
 
     private static DicePool? ObserveDicePool(GameState state, string? side, DicePool? pool) => pool is null ? null : pool with
     {
+        AbilitySource = IsUnitObservable(state, side, pool.SourceUnitId) ? pool.AbilitySource : null,
         SourceUnitId = IsUnitObservable(state, side, pool.SourceUnitId) ? pool.SourceUnitId : "",
         OwnerUnitId = IsUnitObservable(state, side, pool.OwnerUnitId) ? pool.OwnerUnitId : "",
         TargetId = pool.TargetId is { } id && IsUnitObservable(state, side, id) ? id : null,
@@ -185,6 +187,7 @@ public static class FogOfWar
             ObservedMovement = segments,
             UnitId = unit || path?.Count > 0 || segments?.Count > 0 ? e.UnitId : null, TargetId = target ? e.TargetId : null,
             SourceUnitId = Known(e.SourceUnitId) ? e.SourceUnitId : null,
+            AbilitySource = Known(e.SourceUnitId) ? e.AbilitySource : null,
             TypeId = unit || e.Kind == "TokenDrawn" ? e.TypeId : null,
             TerrainTypeId = cell ? e.TerrainTypeId : null,
             TerrainName = cell ? e.TerrainName : null,

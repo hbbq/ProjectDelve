@@ -102,6 +102,12 @@ Public responses are observations, not resumable save files.
 
 ## Remaining boundaries
 
+Nonempty Ability Costs are supported on active declarations through shared
+commitment/payment. Normal composition and snapshot validation check their
+supported source/timing contracts and Resource dependencies.
+Empty Costs are omitted from serialized definitions, preserving existing Library
+revision and pinned snapshot digest inputs. No revisions or pins are migrated.
+
 Named production and implicit Resource requirements have an explicit lookup list.
 This does not turn embedded Resource or Machine variants into globally reusable
 definitions. Same-ID inline variants preserve their actual payloads. Independent

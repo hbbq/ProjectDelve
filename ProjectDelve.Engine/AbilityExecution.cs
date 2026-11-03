@@ -6,11 +6,7 @@ public static partial class GameEngine
 {
     // Content resolution supplies the concrete mechanic and source. These handlers
     // never look up an effect through a Unit field, display name, or object Type ID.
-    private static bool IsSharedActiveMechanic(AbilityMechanic mechanic) => mechanic is
-        HolyWaveMechanic or HealMechanic or FireballMechanic or StandAdjacentFriendlyMechanic or SelfModifiersMechanic or ExtraActionsMechanic or
-        ProjectDelve.Engine.OpenDoor or TryOpenDoor or Telekinesis or FireBreath or ClawAttack or ShootShell or
-        SummonAdjacent or SummonWorker or SummonTroll or PickupResource or GiveResource or Operate or
-        PlaceBananaPeel or Boost or Swap or Displace or ReshapeRoom;
+    private static bool IsSharedActiveMechanic(AbilityMechanic mechanic) => AbilityCostRules.Supports(mechanic);
 
     private static Candidate BindAbilityCandidate(ResolvedAbility ability, Candidate candidate) => candidate with
     {
@@ -142,7 +138,8 @@ public static partial class GameEngine
                 foreach (var targetId in choice.TargetIds)
                     if (state.Physical.Figures.Any(f => f.Id == targetId))
                         ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ability.ActionId);
-                ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ability.ActionId);
+                if (state.IsUpright(request.UnitId!))
+                    ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ability.ActionId);
                 break;
             case HealMechanic heal:
                 RestoreHp(state, choice.TargetId!, heal.Amount, request.UnitId!, ability.Definition.Name, ability.ActionId, events);
@@ -150,7 +147,8 @@ public static partial class GameEngine
             case FireballMechanic:
                 BeginAttack(state, request.UnitId!,
                     new(choice.TargetIds, state.EffectiveAtkOf(request.UnitId!), ability.Definition.Name), events,
-                    ability.ActionId, choice.Destination, UnitAction.Fireball, ability.Definition.Timing);
+                    ability.ActionId, choice.Destination, UnitAction.Fireball, ability.Definition.Timing,
+                    abilitySource: ability.SourceReference);
                 break;
             case StandAdjacentFriendlyMechanic:
                 ChangePosture(state, choice.TargetId!, Posture.Upright, events, request.UnitId, ability.ActionId);
@@ -164,10 +162,11 @@ public static partial class GameEngine
                 EmitActionUsed(request, choice.Key, events);
                 break;
             case ProjectDelve.Engine.OpenDoor:
-                OpenDoor(state, request.UnitId!, choice.Door!, events, ability.ActionId);
+                OpenDoor(state, request.UnitId!, choice.Door!, events, ability.ActionId, ability.SourceReference);
                 break;
             case TryOpenDoor door:
-                state.DoorInProgress = new(request.UnitId!, choice.Door!, door.SuccessCount, ability.ActionId);
+                state.DoorInProgress = new(request.UnitId!, choice.Door!, door.SuccessCount, ability.ActionId)
+                    { AbilitySource = ability.SourceReference };
                 break;
             case Telekinesis:
                 ChangePosture(state, choice.TargetId!, Posture.Lying, events, request.UnitId, ability.ActionId);
@@ -175,17 +174,19 @@ public static partial class GameEngine
             case FireBreath:
                 BeginAttack(state, request.UnitId!,
                     new(choice.TargetIds, AttackRules.AttackDice(state, request.UnitId!, null, ability), ability.Definition.Name),
-                    events, ability.ActionId, choice.Destination, UnitAction.FireBreath, ability.Definition.Timing);
+                    events, ability.ActionId, choice.Destination, UnitAction.FireBreath, ability.Definition.Timing,
+                    abilitySource: ability.SourceReference);
                 break;
             case ClawAttack:
                 BeginAttack(state, request.UnitId!,
                     new([choice.TargetId!], AttackRules.AttackDice(state, request.UnitId!, choice.TargetId, ability), ability.Definition.Name),
-                    events, ability.ActionId, choice.Destination, UnitAction.ClawAttack, ability.Definition.Timing);
+                    events, ability.ActionId, choice.Destination, UnitAction.ClawAttack, ability.Definition.Timing,
+                    abilitySource: ability.SourceReference);
                 break;
             case ShootShell shell:
                 RacingRules.Spend(state, request.UnitId!, ResourceTypeIds.Shell, shell.ShellCost, ability.ActionId, events.Add);
                 BeginAttack(state, request.UnitId!, new([choice.TargetId!], shell.Atk, ability.Definition.Name),
-                    events, ability.ActionId, null, UnitAction.ShootShell, ability.Definition.Timing, shell.Rng);
+                    events, ability.ActionId, null, UnitAction.ShootShell, ability.Definition.Timing, shell.Rng, ability.SourceReference);
                 break;
             case SummonAdjacent:
             case SummonWorker:
@@ -195,9 +196,10 @@ public static partial class GameEngine
             case PickupResource:
             case GiveResource:
             case Operate:
-                events.Add(choice.MachineId is not null
+                var operation = choice.MachineId is not null
                     ? MachineRules.Resolve(state, request.UnitId!, choice, events.Random)
-                    : ResourceRules.Transfer(state, request.UnitId!, choice));
+                    : ResourceRules.Transfer(state, request.UnitId!, choice);
+                if (operation is not null) events.Add(operation);
                 break;
             case PlaceBananaPeel:
                 BananaPlacementRules.Resolve(state, request.UnitId!, choice, events.Add);
@@ -238,8 +240,8 @@ public static partial class GameEngine
         var ability = choice.Ability!;
         var summon = SummoningRules.Placement(ability.Definition.Mechanic)!;
         var source = state.Units.Single(u => u.Id == unitId);
-        if (!SummoningRules.Candidates(state, source, ability).Any(candidate => candidate.Key == choice.Key))
-            throw new InvalidOperationException("Summoning is unavailable.");
+        if (!SummoningRules.Candidates(state, source, ability, committed: true).Any(candidate => candidate.Key == choice.Key))
+            return;
         var summonedType = UnitContent.Find(summon.UnitTypeId, state.Types)
             ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
         var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal) ? summonedType.Id[..^5] : summonedType.Id;

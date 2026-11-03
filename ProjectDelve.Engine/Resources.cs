@@ -105,10 +105,10 @@ internal static class ResourceRules
         }
     }
 
-    internal static RulesEvent Transfer(GameState state, string actorId, Candidate action)
+    internal static RulesEvent? Transfer(GameState state, string actorId, Candidate action)
     {
         if (!Candidates(state, state.Units.Single(u => u.Id == actorId), action.Ability!).Any(c => c.Key == action.Key))
-            throw new InvalidOperationException("Resource transfer is unavailable.");
+            return null;
         var cell = action.Destination ?? state.Physical.Figures.Single(f => f.Id == actorId).Position;
         var resource = state.Resources.Single(r => r.Position == cell);
         var recipient = state.Units.Single(u => u.Id == (action.TargetId ?? actorId));

@@ -138,6 +138,10 @@ public static class ContentDefinitions
         if (!abilities.IsDefault)
         for (int i = 0; i < abilities.Length; i++)
         {
+            if (abilities[i] is {} ability && !ability.Costs.IsDefault)
+                for (int j = 0; j < ability.Costs.Length; j++)
+                    if (ability.Costs[j] is SpendResource cost)
+                        Add(ContentFamily.Resource, cost.ResourceTypeId, $"localAbilities[{i}].costs[{j}].resourceTypeId");
             var path = $"localAbilities[{i}].mechanic";
             switch (abilities[i]?.Mechanic)
             {

@@ -48,6 +48,8 @@ public static class ContentDescriptions
         }
         var description = ability.DescriptionOverride ?? MechanicCatalog.AbilityDescriptionTemplate(ability);
         foreach (var (key, value) in values) description = description.Replace("{" + key + "}", value, StringComparison.Ordinal);
+        if (!ability.Costs.IsDefaultOrEmpty)
+            description = string.Join(" ", ability.Costs.Select(CostCatalog.Describe)) + " " + description;
         var category = ability.Timing switch
         {
             AbilityTiming.BonusAction => "Bonus Action", AbilityTiming.FreeAction => "Free Action",

@@ -187,6 +187,15 @@ remains intact. New definitions cannot introduce such collisions.
 
 ## Validation and preview APIs
 
+Authoring catalog responses expose `costs` (the Engine Cost Catalog) and
+`costExecutionAvailable: true` and `costEditingAvailable: false`. Interactive cost
+editing remains deferred. Shared
+forms must eventually render ordered cost entries recursively from those schemas,
+without cost-specific numeric constraints or descriptions in JavaScript. Current
+validation, Library publication and Playtest accept supported cost-bearing active
+declarations supplied through typed/JSON authoring. Passive and intrinsic lifecycle
+Costs remain invalid; metadata does not grant unsupported mechanic combinations.
+
 - `POST /api/content/context`: dependency arrays `unitTypes`, `equipmentTypes`,
   `itemTypes` and `lootCardDefinitions`; returns effective Unit and object-content
   catalogs, Mechanic contracts and Resource references. Local Unit definitions

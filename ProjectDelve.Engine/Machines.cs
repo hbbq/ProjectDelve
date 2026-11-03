@@ -104,10 +104,10 @@ internal static class MachineRules
         }
     }
 
-    internal static RulesEvent Resolve(GameState state, string actorId, Candidate action, IRandomProvider random)
+    internal static RulesEvent? Resolve(GameState state, string actorId, Candidate action, IRandomProvider random)
     {
         if (!Candidates(state, state.Units.Single(u => u.Id == actorId), action.Ability!).Any(c => c.Key == action.Key))
-            throw new InvalidOperationException("Machine interaction is unavailable.");
+            return null;
         var machines = state.Physical.Board.Machines;
         var index = machines.FindIndex(m => m.Id == action.MachineId);
         var machine = machines[index];

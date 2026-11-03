@@ -17,7 +17,7 @@ public static class SummoningRules
 
     // A committed invocation keeps its selected source even after its final charge
     // or Item is spent. Recheck physical prerequisites using that bound payload.
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility ability)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility ability, bool committed = false)
     {
         var mechanic = ability.Definition.Mechanic;
         if (Placement(mechanic) is not { } summon) yield break;
@@ -28,7 +28,7 @@ public static class SummoningRules
         };
         if (mechanic is SummonWorker worker && state.Units.Count(u => u.CurrentHp > 0 &&
                 u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= worker.SideLimit) yield break;
-        if (mechanic is SummonTroll troll && state.StoredQuantity(unit.SideId, unit.TypeId,
+        if (!committed && mechanic is SummonTroll troll && state.StoredQuantity(unit.SideId, unit.TypeId,
                 ResourceTypeIds.Diamond) < troll.DiamondCost) yield break;
         if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
             !state.CanPlaceUnitType(summonedType, unit.SideId)) yield break;

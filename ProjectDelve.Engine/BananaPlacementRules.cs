@@ -2,10 +2,10 @@ namespace ProjectDelve.Engine;
 
 internal static class BananaPlacementRules
 {
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility source)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility source, bool committed = false)
     {
         var ability = (PlaceBananaPeel)source.Definition.Mechanic;
-        if (state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Banana) < ability.BananaCost) yield break;
+        if (!committed && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Banana) < ability.BananaCost) yield break;
         var board = state.Physical.Board;
         for (var y = 0; y < board.Height; y++)
         for (var x = 0; x < board.Width; x++)
@@ -23,7 +23,7 @@ internal static class BananaPlacementRules
     {
         var unit = state.Units.Single(u => u.Id == unitId);
         var ability = (PlaceBananaPeel)action.Ability!.Definition.Mechanic;
-        if (!Candidates(state, unit, action.Ability!).Any(c => c.Destination == action.Destination)) throw new InvalidOperationException("Banana Peel placement is unavailable.");
+        if (!Candidates(state, unit, action.Ability!, committed: true).Any(c => c.Destination == action.Destination)) return;
         var cost = ability.BananaCost;
         var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId &&
             r.Type.Id == ResourceTypeIds.Banana);
