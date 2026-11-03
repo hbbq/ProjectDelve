@@ -25,11 +25,11 @@ export class ContentEditorState {
   get mechanics() { return this.entries.map(entry => entry.mechanic).filter(Boolean); }
   mechanic(id) { return this.mechanics.find(mechanic => mechanic.id === id); }
   supportedMechanics(family = this.family) {
-    return this.mechanics.filter(mechanic => ['equipment', 'units'].includes(family)
-      ? mechanic.family === 'Ability' && mechanic.profiles?.some(profile => profile.source === (family === 'units' ? 'Unit' : 'Equipment'))
+    return this.mechanics.filter(mechanic => ['equipment', 'items', 'units'].includes(family)
+      ? mechanic.family === 'Ability' && mechanic.profiles?.some(profile => profile.source === ({ units: 'Unit', equipment: 'Equipment', items: 'Item' }[family]))
       : mechanic.family === 'ImmediateLoot' && mechanic.profiles?.some(profile => profile.source === 'LootCard'));
   }
-  profiles(mechanic) { return (mechanic?.profiles ?? []).filter(profile => profile.source === (this.family === 'units' ? 'Unit' : 'Equipment')); }
+  profiles(mechanic) { return (mechanic?.profiles ?? []).filter(profile => profile.source === ({ units: 'Unit', equipment: 'Equipment', items: 'Item' }[this.family])); }
   references(family) {
     const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
     const combined = new Map(this.entries.filter(entry => entry.family === family).map(entry => [entry.id, { id: entry.id, name: entry.name }]));
@@ -41,9 +41,9 @@ export class ContentEditorState {
   open({ family, definition, existingId, copy = false, newId, context = {} }) {
     this.family = family; this.existingId = copy ? undefined : existingId;
     this.context = cloneContent(context);
-    this.definition = cloneContent(definition ?? (family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', localAbilities: [] } : family === 'equipment' ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
+    this.definition = cloneContent(definition ?? (family === 'units' ? this.catalog.unitAuthoring?.defaults ?? { id: '', displayName: '', localAbilities: [] } : ['equipment', 'items'].includes(family) ? { id: '', name: '', localAbilities: [] } : { id: '', name: '', equipmentTypeId: '' }));
     if (copy) this.definition.id = newId ?? '';
-    if (['equipment', 'units'].includes(family)) this.definition.localAbilities ??= [];
+    if (['equipment', 'items', 'units'].includes(family)) this.definition.localAbilities ??= [];
     this.usedKeys = new Set(this.definition.localAbilities?.map(ability => ability.key) ?? []);
     this.existingAbilities = new WeakSet(this.existingId ? this.definition.localAbilities ?? [] : []);
     this.baseline = JSON.stringify(this.definition); this.version++;

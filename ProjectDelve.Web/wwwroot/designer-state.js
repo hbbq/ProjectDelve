@@ -107,8 +107,8 @@ export class DesignerDraft {
     this.changed();
   }
   applyContentDefinition(family, definition, existingId = null) {
-    const field = { units: 'unitTypes', equipment: 'equipmentTypes', lootCards: 'lootCardDefinitions' }[family];
-    if (!field) throw new Error('Only Unit, Equipment and Loot Card definitions can be saved here.');
+    const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
+    if (!field) throw new Error('Only Unit, Equipment, Item and Loot Card definitions can be saved here.');
     if (!definition || typeof definition !== 'object' || Array.isArray(definition) ||
         !Object.hasOwn(definition, 'id') || typeof definition.id !== 'string' || !definition.id.trim())
       throw new Error('A content definition requires a nonempty ID.');

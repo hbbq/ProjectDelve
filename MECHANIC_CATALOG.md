@@ -94,7 +94,7 @@ Outer validators still check content references, finite-deck composition, exactl
 
 The catalog is not an inventory of every Engine rule. Normal Attack availability and base stats, Footprint, uniqueness, movement patterns, terrain restrictions, Resource Storage, inventory/loot policies, automated Behaviors, and Fixed Component assembly remain typed structural content. Machine inputs/outputs and terrain placement retain their established content models. These structures do not become Ability payloads merely because they influence gameplay. The specialized Unit-only profiles above do not promise Equipment or Item support.
 
-Canonical JSON export and a dedicated runtime-editing interface remain separate work. Content Designer now uses the catalog to edit Equipment Abilities and Immediate Loot mechanics. Current canonical C# and scenario JSON use the same local Ability model and validation; no format migration or duplicate global catalog is required.
+Canonical JSON export and a dedicated runtime-editing interface remain separate work. Content Designer uses the catalog to edit Unit, Equipment and Item Abilities and Immediate Loot mechanics. Current canonical C# and scenario JSON use the same local Ability model and validation; no format migration or duplicate global catalog is required.
 
 ## Registering another mechanic
 

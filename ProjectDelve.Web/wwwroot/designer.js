@@ -355,6 +355,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     lootForm.append(element('p', draft.lootCompositionReady() ? `${rows.reduce((sum,r) => sum + r.count,0)} cards. Each unopened marker reserves one card. No reshuffle.` : 'Resolving the effective Loot catalog…'));
     if (custom) {
       const counts = draft.lootCardCatalog().map(c => ({ reference:c.reference, input:field(lootForm, c.reference.equipmentTypeId != null ? `${c.name} (Equipment Type)` : c.reference.itemTypeId != null ? `${c.name} (Item Type)` : c.name, rows.find(r => draft.referenceKey(r) === draft.referenceKey(c.reference))?.count ?? 0, {type:'number'}) }));
+      for (const row of counts) row.input.dataset.lootReference = draft.referenceKey(row.reference).replace(':', '-');
       lootForm.append(element('button', 'Apply Custom Deck'));
       lootForm.addEventListener('submit', event => { event.preventDefault(); commit(() => draft.setLootDeck(counts.map(c => ({...c.reference,count:Number(c.input.value)})))); });
     } else {

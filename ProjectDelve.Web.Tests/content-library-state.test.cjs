@@ -45,3 +45,20 @@ test('Library owns Unit definitions through the same revision and copy boundarie
   assert.equal(draft.context().unitTypes[0].displayName,'Renamed');
   assert.throws(()=>draft.apply({family:'units',definition:{id:'replacement'},existingId:'keeper',expectedRevision:draft.stamp}),/existing Type ID/);
 });
+
+
+test('Items and linked Loot remain detached package definitions with immutable identity and revision guards', () => {
+  const draft = Draft.create('items', 'Items');
+  const definition = { id: 'tea', name: 'Tea', localAbilities: [{ key: 'sip', timing: 'BonusAction', usage: { maxUses: null }, mechanic: { kind: 'extraActions', amount: 1 } }] };
+  const stamp = draft.stamp;
+  draft.apply({ family: 'items', definition, expectedRevision: stamp });
+  definition.localAbilities[0].mechanic.amount = 9;
+  assert.equal(draft.context().itemTypes[0].localAbilities[0].mechanic.amount, 1);
+  assert.throws(() => draft.apply({ family: 'items', definition, expectedRevision: stamp }), /workspace changed/);
+  draft.apply({ family: 'lootCards', definition: { id: 'tea-loot', name: 'Tea Loot', itemTypeId: 'tea' }, expectedRevision: draft.stamp });
+  assert.equal(draft.request().package.definitions.lootCardDefinitions[0].itemTypeId, 'tea');
+  assert.throws(() => draft.apply({ family: 'items', definition: { id: 'other' }, existingId: 'tea', expectedRevision: draft.stamp }), /existing Type ID/);
+  const record = { revision: 1, package: draft.package };
+  const historical = new Draft(record, { currentRevision: 2 });
+  assert.throws(() => historical.apply({ family: 'items', definition, expectedRevision: historical.stamp }), /workspace changed/);
+});

@@ -240,7 +240,7 @@ function authoringHarness(unitMetadata = unitAuthoring) {
     getSnapshot: () => ({ definition: structuredClone(definition), name: 'Test draft' }),
     save: async payload => {
       if (payload.expectedRevision !== String(revision)) throw new Error('The draft changed. Reopen the definition.');
-      saves.push(plain(payload)); const field = { units:'unitTypes', equipment:'equipmentTypes', lootCards:'lootCardDefinitions' }[payload.family];
+      saves.push(plain(payload)); const field = { units:'unitTypes', equipment:'equipmentTypes', items:'itemTypes', lootCards:'lootCardDefinitions' }[payload.family];
       definition[field] = definition[field].filter(row => row.id !== payload.existingId).concat([structuredClone(payload.definition)]); revision++;
       return destination.getSnapshot();
     } };
@@ -250,10 +250,11 @@ function authoringHarness(unitMetadata = unitAuthoring) {
       const request = JSON.parse(options.body); return { ok: true, json: async () => ({ valid: true, diagnostics: [], definition: request.definition, entry: asEntry(request.definition, request.family) }) };
     }
     const data = structuredClone(catalog);
+    data.entries.find(entry => entry.mechanic).mechanic.profiles.push({ source: 'Item', timing: 'Action', usage: 'UnlimitedOnly' });
     if (url.endsWith('/context')) data.unitAuthoring = structuredClone(unitMetadata);
     data.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [{ key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }] };
     if (url.endsWith('/context')) data.entries = data.entries.filter(entry => ['equipment', 'mechanics'].includes(entry.family))
-      .concat(definition.unitTypes.map(row => asEntry(row, 'units')), definition.equipmentTypes.map(row => asEntry(row, 'equipment')), definition.lootCardDefinitions.map(row => asEntry(row, 'lootCards')));
+      .concat(definition.unitTypes.map(row => asEntry(row, 'units')), definition.itemTypes.map(row => asEntry(row, 'items')), definition.equipmentTypes.map(row => asEntry(row, 'equipment')), definition.lootCardDefinitions.map(row => asEntry(row, 'lootCards')));
     return { ok: true, json: async () => data };
   });
   return { ...h, destination, saves, snapshot: () => destination.getSnapshot(), changeDraft: rows => { definition = { ...definition, ...rows }; revision++; } };
@@ -316,11 +317,12 @@ function libraryHarness() {
   standard.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [
     { key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }
   ] };
+  standard.entries.find(entry => entry.mechanic).mechanic.profiles.push({ source: 'Item', timing: 'Action', usage: 'UnlimitedOnly' });
   let nextConflict = false, nextInvalid = false;
   const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.displayName ?? row.name, family, origin: 'library-local',
     definition: structuredClone(row), sections: [], abilities: [], references: [], packageId: 'workshop', packageRevision: 2 });
   const content = (pkg, bindings = []) => ({ ...structuredClone(standard), context: { kind: 'library' }, entries: structuredClone(standard.entries)
-    .concat((pkg.definitions.unitTypes ?? []).map(row => asEntry(row, 'units')), (pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
+    .concat((pkg.definitions.unitTypes ?? []).map(row => asEntry(row, 'units')), (pkg.definitions.itemTypes ?? []).map(row => asEntry(row, 'items')), (pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
       bindings.flatMap(binding => (records.get(binding.packageId)?.[binding.revision - 1]?.package.definitions.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-dependency', packageId: binding.packageId, packageRevision: binding.revision })))) });
   const ok = data => ({ ok: true, status: 200, json: async () => structuredClone(data) });
   const h = harness(async (url, options) => {
@@ -330,7 +332,7 @@ function libraryHarness() {
     if (url === '/api/content/context') {
       const result = content({ definitions: body });
       for (const pin of body.contentReferences ?? [])
-        result.entries.push(...(pin.snapshot.unitTypes ?? []).map(row => ({ ...asEntry(row, 'units'), origin:'library-pinned',referenceDigest:pin.snapshotDigest })), ...(pin.snapshot.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-pinned', referenceDigest: pin.snapshotDigest, referencePackageId: pin.packageId, referenceLibraryId: pin.libraryId })));
+        result.entries.push(...(pin.snapshot.itemTypes ?? []).map(row => ({ ...asEntry(row, 'items'), origin:'library-pinned',referenceDigest:pin.snapshotDigest })), ...(pin.snapshot.unitTypes ?? []).map(row => ({ ...asEntry(row, 'units'), origin:'library-pinned',referenceDigest:pin.snapshotDigest })), ...(pin.snapshot.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-pinned', referenceDigest: pin.snapshotDigest, referencePackageId: pin.packageId, referenceLibraryId: pin.libraryId })));
       return ok(result);
     }
     if (url.endsWith('/scenario-reference/preview')) {
@@ -570,4 +572,55 @@ test('attached scenario Unit creation retains effective authoring metadata, defa
   assert.equal(h.saves[0].definition.displayName,'Scenario Keeper');
   assert.equal(h.snapshot().definition.unitTypes[0].id,'scenario-keeper');
   assert.equal(h.snapshot().definition.units,undefined);assert.equal(h.snapshot().definition.agency,undefined);
+});
+
+
+test('Library Item creation links Loot, saves immutable history, and offers typed Item pinning and promotion', async () => {
+  const h = libraryHarness(); await h.create();
+  h.click(h.byId('content-create-item')); await settle();
+  h.change('content-editor-id', 'tea', 'input'); h.change('content-editor-name', 'Tea', 'input');
+  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
+  assert.equal(h.byId('content-create-linked-loot').textContent, 'Create Loot Card for this Item');
+  h.click(h.byId('content-create-linked-loot')); await settle();
+  h.change('content-editor-id', 'tea-loot', 'input'); h.click(h.byId('content-editor-save')); await settle();
+  h.click(h.byId('content-library-save')); await settle();
+  assert.equal(h.writes[0].package.definitions.lootCardDefinitions[0].itemTypeId, 'tea');
+  h.viewer.open('items:tea'); h.click(h.byId('content-promote')); await settle();
+  h.change('content-promotion-package', 'canonical-tea', 'input');
+  h.click(h.byId('content-promotion-preview')); await settle();
+  const promotion = JSON.parse(h.calls.findLast(call => call.url.endsWith('/promotion/preview')).options.body);
+  assert.deepEqual(promotion.selected, [{ family: 'Item', typeId: 'tea' }]);
+  let scenario = { itemTypes: [] }, revision = 1;
+  const destination = { getRevision: () => String(revision), getContext: () => structuredClone(scenario),
+    getSnapshot: () => ({ definition: structuredClone(scenario), name: 'Item fixture' }),
+    applyReferences: async payload => { scenario.contentReferences = structuredClone(payload.references); revision++; return destination.getSnapshot(); } };
+  await h.viewer.showScenario(scenario, 'Item fixture', destination); await h.viewer.showLibrary();
+  h.viewer.open('items:tea'); h.click(h.byId('content-use-in-scenario')); await settle();
+  const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/scenario-reference/preview')).options.body);
+  assert.deepEqual(request.selected, [{ family: 'Item', typeId: 'tea' }]);
+  h.click(h.byId('content-reference-apply')); await settle();
+  assert.match(h.byId('content-detail').textContent, /Tea/);
+  assert.equal(h.byId('content-edit-definition'), undefined);
+  assert.deepEqual(scenario.itemTypes, []);
+  h.click(h.byId('content-copy-definition')); await settle();
+  assert.equal(h.byId('content-editor-id').readOnly, false);
+});
+
+
+
+test('attached scenario creates and edits Single Use Items and linked Loot through its guarded destination', async () => {
+  const h = authoringHarness(); const snapshot = h.snapshot();
+  await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
+  h.click(h.byId('content-create-item')); await settle();
+  h.change('content-editor-id', 'local-tea', 'input'); h.change('content-editor-name', 'Local Tea', 'input');
+  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
+  assert.equal(h.saves[0].family, 'items');
+  h.click(h.byId('content-edit-definition')); await settle();
+  assert.equal(h.byId('content-editor-id').readOnly, true);
+  h.change('content-editor-name', 'Renamed Tea', 'input'); h.click(h.byId('content-editor-save')); await settle();
+  assert.equal(h.snapshot().definition.itemTypes[0].name, 'Renamed Tea');
+  assert.equal(h.saves[1].existingId, 'local-tea');
+  h.click(h.byId('content-create-linked-loot')); await settle();
+  h.change('content-editor-id', 'tea-card', 'input'); h.click(h.byId('content-editor-save')); await settle();
+  assert.deepEqual(h.snapshot().definition.lootCardDefinitions[0], { id: 'tea-card', name: 'Renamed Tea Loot', itemTypeId: 'local-tea' });
 });

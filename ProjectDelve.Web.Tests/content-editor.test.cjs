@@ -325,3 +325,58 @@ test('successful preview uses the validated candidate catalog for reference insp
   assert.ok(inspect);assert.match(inspect.textContent,/Inspect New Self/);
   assert.match(h.root.textContent,/Validated candidate reference/);
 });
+
+
+test('Single Use Item forms use Item profiles and retain two independent Ability keys through rename, reorder, edit and copy', async () => {
+  const h = harness();
+  const itemMechanic = { ...shared, id: 'itemVector', profiles: [
+    { source: 'Equipment', timing: 'Passive', usage: 'UnlimitedOnly' },
+    { source: 'Item', timing: 'BonusAction', usage: 'UnlimitedOnly' }
+  ] };
+  const itemAction = { ...action, id: 'itemAction', profiles: [{ source: 'Item', timing: 'Action', usage: 'UnlimitedOnly' }] };
+  h.environment.options.catalog = { entries: [...catalog.entries, ...[itemMechanic, itemAction].map(mechanic => ({ family: 'mechanics', id: mechanic.id, mechanic }))] };
+  await h.editor.open({ family: 'items' });
+  h.change('definition.id', 'tea'); h.change('definition.name', 'Tea');
+  assert.deepEqual(h.byId('content-editor-add-mechanic').children.map(option => option.value), ['itemVector', 'itemAction']);
+  h.clickText('Add Ability');
+  assert.deepEqual(h.field('definition.localAbilities[0].timing').children.map(option => option.value), ['BonusAction']);
+  assert.equal(h.field('definition.localAbilities[0].usage'), undefined);
+  assert.match(h.root.textContent, /consumes the selected physical Item/);
+  h.change('definition.localAbilities[0].key', 'sip');
+  h.change('definition.localAbilities[0].name', 'A Sip');
+  h.byId('content-editor-add-mechanic').value = 'itemAction'; h.clickText('Add Ability');
+  h.change('definition.localAbilities[1].key', 'share');
+  h.change('definition.localAbilities[1].name', 'Share a Cup');
+  h.change('definition.localAbilities[1].mechanic.amount', '3');
+  h.clickText('Move down');
+  assert.equal(h.field('definition.localAbilities[0].key').value, 'share');
+  assert.equal(h.field('definition.localAbilities[1].key').value, 'sip');
+  await h.editor.save();
+  assert.equal(h.saved[0].family, 'items');
+  const definition = h.saved[0].definition;
+  assert.deepEqual(definition.localAbilities.map(ability => [ability.key, ability.name, ability.timing, ability.usage.maxUses]), [
+    ['share', 'Share a Cup', 'Action', null], ['sip', 'A Sip', 'BonusAction', null]
+  ]);
+  await h.editor.open({ family: 'items', definition, existingId: 'tea' });
+  assert.equal(h.field('definition.localAbilities[0].key').readOnly, true);
+  assert.equal(h.field('definition.localAbilities[1].key').readOnly, true);
+  h.change('definition.localAbilities[0].key', 'replaced');
+  h.change('definition.localAbilities[0].name', 'Offer a Cup');
+  h.clickText('Move down');
+  await h.editor.save();
+  assert.equal(h.saved[1].existingId, 'tea');
+  const edited = h.saved[1].definition;
+  assert.deepEqual(edited.localAbilities.map(ability => [ability.key, ability.name]), [['sip', 'A Sip'], ['share', 'Offer a Cup']]);
+  await h.editor.open({ family: 'items', definition: edited, existingId: 'tea', copy: true, newId: 'fresh-tea' });
+  assert.equal(h.field('definition.localAbilities[0].key').readOnly, false);
+  h.change('definition.localAbilities[0].mechanic.adjustments[0].amount', '5');
+  h.change('definition.localAbilities[1].name', 'Copied Cup');
+  await h.editor.save();
+  assert.equal(h.saved[2].existingId, undefined);
+  assert.equal(h.saved[2].definition.id, 'fresh-tea');
+  assert.deepEqual(h.saved[2].definition.localAbilities.map(ability => ability.key), ['sip', 'share']);
+  assert.equal(h.saved[2].definition.localAbilities[0].mechanic.adjustments[0].amount, 5);
+  assert.equal(edited.localAbilities[0].mechanic.adjustments[0].amount, 0);
+  assert.equal(edited.localAbilities[1].name, 'Offer a Cup');
+  assert.equal(definition.localAbilities[0].name, 'Share a Cup');
+});

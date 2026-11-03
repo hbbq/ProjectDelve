@@ -15,7 +15,7 @@ export function mountContentPromotion(root, { source, entries, stamp, call, publ
       const input = node('input'); input.id = 'content-promotion-package'; input.value = packageId;
       input.addEventListener('input', () => { packageId = input.value; });
       const label = node('label', 'New canonical package ID'); label.append(input); root.append(label);
-      for (const entry of entries().filter(e => ['units', 'equipment', 'lootCards'].includes(e.family) && e.origin === openingSource.origin && (!openingSource.packageId || e.packageId === openingSource.packageId))) {
+      for (const entry of entries().filter(e => ['units', 'equipment', 'items', 'lootCards'].includes(e.family) && e.origin === openingSource.origin && (!openingSource.packageId || e.packageId === openingSource.packageId))) {
         const check = node('input'); check.type = 'checkbox'; check.checked = chosen.includes(entry.key); check.disabled = busy;
         check.addEventListener('change', () => { chosen = check.checked ? [...chosen, entry.key] : chosen.filter(k => k !== entry.key); });
         const label = node('label', `${entry.name} (${entry.id})`); label.append(check); root.append(label);
@@ -23,7 +23,7 @@ export function mountContentPromotion(root, { source, entries, stamp, call, publ
       root.append(button('content-promotion-preview', 'Preview promotion', () => run(async () => {
         guard();
         preview = await call('/promotion/preview', { source: openingSource.source, destinationPackageId: packageId,
-          selected: chosen.map(key => { const [family, ...id] = key.split(':'); return { family: { units: 'Unit', equipment: 'Equipment', lootCards: 'LootCard' }[family], typeId: id.join(':') }; }) });
+          selected: chosen.map(key => { const [family, ...id] = key.split(':'); return { family: { units: 'Unit', equipment: 'Equipment', items: 'Item', lootCards: 'LootCard' }[family], typeId: id.join(':') }; }) });
       })));
     } else {
       root.append(node('p', `Source: ${preview.request.source.kind} · revision ${preview.request.source.revision ?? 'scenario snapshot'} · ${preview.sourceDigest}`),

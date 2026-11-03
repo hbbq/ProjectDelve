@@ -76,7 +76,7 @@ test('content identity errors refuse mutation and do not advance the revision', 
   draft.applyContentDefinition('equipment', equipment());
   const before = plain(draft.snapshot()), revision = draft.revision;
   for (const action of [
-    () => draft.applyContentDefinition('items', equipment()),
+    () => draft.applyContentDefinition('unsupported-family', equipment()),
     () => draft.applyContentDefinition('equipment', null),
     () => draft.applyContentDefinition('equipment', []),
     () => draft.applyContentDefinition('equipment', { name: 'Missing ID' }),
@@ -183,4 +183,31 @@ test('authored and pinned Unit definitions are selectable before declaration and
   unit.displayName='Outside'; assert.equal(draft.definition.unitTypes[1].displayName,'Keeper');
   history.undo(); assert.deepEqual(plain(draft.snapshot()),before);
   history.redo(); assert.equal(draft.definition.unitTypes[1].id,'keeper');
+});
+
+
+test('Single Use Item edits and linked Loot preserve inventory, undo history, recovery and transport isolation', () => {
+  const { draft, history, draftDocument, readDraftDocument, DesignerDraft } = setup();
+  const before = plain(draft.snapshot());
+  const item = { id: 'tea', name: 'Tea', localAbilities: [{ key: 'sip', name: 'Sip', timing: 'BonusAction', usage: { maxUses: null }, mechanic: { kind: 'extraActions', amount: 1 } }] };
+  history.transact(() => draft.applyContentDefinition('items', item));
+  const itemOnly = plain(draft.snapshot());
+  history.transact(() => draft.applyContentDefinition('lootCards', { id: 'tea-loot', name: 'Tea Loot', itemTypeId: 'tea' }));
+  const both = plain(draft.snapshot());
+  history.undo(); assert.deepEqual(plain(draft.snapshot()), itemOnly);
+  history.undo(); assert.deepEqual(plain(draft.snapshot()), before);
+  history.redo(); history.redo(); assert.deepEqual(plain(draft.snapshot()), both);
+  history.transact(() => {
+    draft.addObject({ itemTypeId: 'tea' }, { unitKey: draft.unitKeys[0] });
+    draft.addObject({ itemTypeId: 'tea' }, { position: { x: 1, y: 0 } });
+    draft.setLootDeck([{ lootCardId: 'tea-loot', count: 2 }]);
+  });
+  const expected = plain(draft.snapshot());
+  const recovered = readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(), 'Item fixture')));
+  assert.deepEqual(plain(recovered.definition), expected);
+  const imported = new DesignerDraft(draft.catalog); imported.replace(recovered.definition);
+  const snapshot = imported.snapshot(); snapshot.itemTypes[0].localAbilities[0].mechanic.amount = 9;
+  assert.deepEqual(plain(imported.snapshot()), expected);
+  assert.deepEqual(plain(draft.snapshot()), expected);
+  assert.equal(item.localAbilities[0].mechanic.amount, 1);
 });

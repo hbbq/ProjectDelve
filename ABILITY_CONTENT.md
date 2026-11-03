@@ -4,7 +4,7 @@ Units, Equipment and Single Use Items own their complete Ability declarations. E
 
 The [Mechanic Catalog](MECHANIC_CATALOG.md) registers reusable Engine operations and their supported contexts. It owns parameter constraints, validation and description metadata. It does not own authored Abilities or runtime state. Names and local keys never select an implementation.
 
-[Content Designer](CONTENT_DESIGNER.md) uses those contracts to edit Equipment-owned
+[Content Designer](CONTENT_DESIGNER.md) uses those contracts to edit Unit-, Equipment- and Item-owned
 Abilities through forms. Modifiers and capabilities remain ordinary local Abilities;
 there is no separate editor gameplay model.
 
@@ -128,4 +128,4 @@ These scenarios are mutable playtest content in `ProjectDelve.Web/Content/Librar
 
 Normal Attack availability, base stats, movement patterns, terrain restrictions, footprint, Resource Storage and automated Behaviors remain structural Unit properties. They are not alternate named Ability declarations. `UnitAction` identifies concrete candidate/Attack operations; only Normal Attack/None remains authored in `UnitType.Actions`. Attack ordering preserves existing automated tie-breaking and does not supply mechanic parameters.
 
-Inheritance, runtime content mutation, arbitrary triggers, scripting and full canonical JSON catalog export/load remain outside this model. Content Designer edits Equipment-owned Abilities through these contracts, including supported limited uses and timing choices. Adding content using an already supported mechanic/context needs only its owner-local declaration; adding a new mechanic still requires a concrete Engine implementation and catalog contract.
+Inheritance, runtime content mutation, arbitrary triggers, scripting and full canonical JSON catalog export/load remain outside this model. Content Designer edits Unit-, Equipment- and Item-owned Abilities through these contracts, including supported usage and timing choices. Item consumption uses no persistent charge counter. Adding content using an already supported mechanic/context needs only its owner-local declaration; adding a new mechanic still requires a concrete Engine implementation and catalog contract.

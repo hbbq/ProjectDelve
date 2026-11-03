@@ -57,9 +57,10 @@ export function mountContentBrowser(root, options = {}) {
   const authoring = node('div', 'cb-authoring');
   const newUnit = button('Create Unit', () => void openEditor({ family: 'units' })); newUnit.id = 'content-create-unit';
   const newEquipment = button('Create Equipment', () => void openEditor({ family: 'equipment' })); newEquipment.id = 'content-create-equipment';
+  const newItem = button('Create Single Use Item', () => void openEditor({ family: 'items' })); newItem.id = 'content-create-item';
   const newLoot = button('Create Loot Card', () => void openEditor({ family: 'lootCards' })); newLoot.id = 'content-create-loot';
   const destinationNote = node('p', 'cb-authoring-note');
-  authoring.append(newUnit, newEquipment, newLoot, destinationNote);
+  authoring.append(newUnit, newEquipment, newItem, newLoot, destinationNote);
 
   const status = node('div', 'cb-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   const diagnostics = node('details', 'cb-diagnostics');
@@ -213,7 +214,7 @@ export function mountContentBrowser(root, options = {}) {
           const saved = await referenceTarget.applyReferences({ references: referencePreview.references, expectedRevision: referenceStamp });
           const selected = referencePreview.reference.selected[0]; referencePreview = null; updateReference = null;
           await showScenario(saved.definition, saved.name, referenceTarget);
-          state.open(`${{ Unit: 'units', Equipment: 'equipment', LootCard: 'lootCards' }[selected.family]}:${selected.typeId}`); render(); focusDetail();
+          state.open(`${{ Unit: 'units', Equipment: 'equipment', Item: 'items', LootCard: 'lootCards' }[selected.family]}:${selected.typeId}`); render(); focusDetail();
         } catch (failure) { referenceFailure(failure); }
         finally { referenceBusy = false; render(); }
       }); apply.id = 'content-reference-apply'; apply.disabled = referenceBusy; referencePanel.append(apply);
@@ -318,7 +319,7 @@ export function mountContentBrowser(root, options = {}) {
       }); start.id = 'content-library-start';
       creation.append(start, button('Cancel', () => { creatingPackage = false; render(); })); libraryPanel.append(creation);
     }
-    if (!libraryDraft) { libraryPanel.append(empty('Your Content Library is ready. Create a package to author Units, Equipment and Loot Cards without a scenario.')); return; }
+    if (!libraryDraft) { libraryPanel.append(empty('Your Content Library is ready. Create a package to author Units, Equipment, Single Use Items and Loot Cards without a scenario.')); return; }
     const draft = libraryDraft;
     libraryPanel.append(node('p', 'cb-library-origin', `Library · ${draft.package.id} · ${draft.isNew ? 'new package' : `revision ${draft.revision}`} · ${draft.editable ? 'editable' : 'historical revision · read only'}${draft.dirty ? ' · unsaved changes' : ''}`));
     if (draft.origin) libraryPanel.append(node('small', 'cb-muted', `Origin library ${draft.origin}`));
@@ -392,7 +393,7 @@ export function mountContentBrowser(root, options = {}) {
     if (entryKey) {
       const entry = state.entries.find(candidate => candidate.key === entryKey) ?? cache.get('canonical')?.entries.find(candidate => candidate.key === entryKey);
       if (!entry) return false;
-      specification = makeLoot ? { family: 'lootCards', definition: { id: '', name: `${entry.name} Loot`, equipmentTypeId: entry.id } }
+      specification = makeLoot ? { family: 'lootCards', definition: { id: '', name: `${entry.name} Loot`, [entry.family === 'items' ? 'itemTypeId' : 'equipmentTypeId']: entry.id } }
         : { ...specification, family: entry.family, definition: entry.family === 'units' ? (entry.authoredDefinition?.unitType ?? entry.authoredDefinition ?? entry.definition?.unitType ?? entry.definition) : entry.authoredDefinition ?? entry.definition };
     }
     editDestination = destination; editRevision = destination.getRevision();
@@ -551,25 +552,25 @@ export function mountContentBrowser(root, options = {}) {
         }, 'cb-reference-source'));
       }
     }
-    if (['units', 'equipment', 'lootCards'].includes(entry.family)) {
+    if (['units', 'equipment', 'items', 'lootCards'].includes(entry.family)) {
       if (!entry.published && entry.origin !== 'canonical' && promotionSource(entry)) {
         const promote = button('Promote to Canonical', () => promotion.begin(entry)); promote.id = 'content-promote';
         promote.disabled = libraryBusy || !!libraryDraft?.dirty || editor.isOpen(); detail.append(promote);
       }
       const actions = node('div', 'cb-definition-actions');
       const copy = button('Copy as new', () => void openEditor({ copy: true }, entry.key)); copy.id = 'content-copy-definition'; copy.disabled = !canAuthor(); actions.append(copy);
-      const contextField = { units: 'unitTypes', equipment: 'equipmentTypes', lootCards: 'lootCardDefinitions' }[entry.family];
+      const contextField = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[entry.family];
       if (!entry.published && destination && entry.origin !== 'canonical' && entry.origin !== 'library-pinned' && entry.availability !== 'legacy-collision' && destination.getContext()[contextField]?.some(definition => definition.id === entry.id)) {
         const edit = button('Edit definition', () => void openEditor({ existingId: entry.id }, entry.key)); edit.id = 'content-edit-definition'; edit.disabled = !canAuthor(); actions.append(edit);
       }
-      if (entry.family === 'equipment') { const loot = button('Create Loot Card for this Equipment', () => void openEditor({}, entry.key, true)); loot.id = 'content-create-linked-loot'; loot.disabled = !canAuthor(); actions.append(loot); }
+      if (['equipment', 'items'].includes(entry.family)) { const loot = button(`Create Loot Card for this ${entry.family === 'items' ? 'Item' : 'Equipment'}`, () => void openEditor({}, entry.key, true)); loot.id = 'content-create-linked-loot'; loot.disabled = !canAuthor(); actions.append(loot); }
       if (entry.availability === 'legacy-collision') actions.append(empty('This historical local ID overlaps canonical content. Copy it with a new ID to edit it.'));
       detail.append(actions);
       if (entry.published) detail.append(empty('Published to Canonical. This retained source is read-only; Copy as new creates an independent identity.'));
       if (entry.packageId && ['library-local', 'library-dependency'].includes(entry.origin)) {
         const use = button('Use in Scenario', () => void previewReference(entry.packageId,
           entry.origin === 'library-local' ? libraryDraft.revision : entry.packageRevision,
-          [{ family: { units: 'Unit', equipment: 'Equipment', lootCards: 'LootCard' }[entry.family], typeId: entry.id }]));
+          [{ family: { units: 'Unit', equipment: 'Equipment', items: 'Item', lootCards: 'LootCard' }[entry.family], typeId: entry.id }]));
         use.id = 'content-use-in-scenario'; use.disabled = referenceBusy || libraryBusy || !scenarioDestination?.applyReferences || !!libraryDraft?.dirty;
         detail.append(use, empty(!scenarioDestination?.applyReferences ? 'In Scenario Designer, choose Use library content to attach a draft.'
           : libraryDraft?.dirty ? 'Save or cancel package changes before using a saved revision.' : `Scenario destination: ${scenarioDestination.label ?? draftName}`));
@@ -613,7 +614,7 @@ export function mountContentBrowser(root, options = {}) {
       : destination && context === 'draft' ? 'Equipment, Items, Loot Cards and mechanics for this destination. Definitions are saved only to the attached draft.'
       : 'Effective definitions for this Designer snapshot · read only. Local content stays scoped to this draft.';
     returnLink.hidden = context === 'canonical' || context === 'library';
-    newUnit.disabled = !canAuthor(); newEquipment.disabled = !canAuthor(); newLoot.disabled = !canAuthor();
+    newUnit.disabled = !canAuthor(); newEquipment.disabled = !canAuthor(); newItem.disabled = !canAuthor(); newLoot.disabled = !canAuthor();
     destinationNote.replaceChildren();
     if (destination) destinationNote.textContent = `Save destination: ${destination.label ?? draftName}`;
     else if (context === 'library' && libraryDraft && !libraryDraft.editable) destinationNote.textContent = 'Historical revision · read only. Select the current revision to edit.';

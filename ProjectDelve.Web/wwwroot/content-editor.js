@@ -181,7 +181,7 @@ export function mountContentEditor(root, options) {
       if (profile.usage === 'LimitedOrUnlimited') kinds.unshift({ value: 'unlimited', label: 'Unlimited' });
       card.append(field('Usage', select(kinds, ability.usage?.maxUses == null ? 'unlimited' : 'limited', value => set([...path, 'usage'], { maxUses: value === 'unlimited' ? null : 1 }, true)), [...path, 'usage']));
       if (ability.usage?.maxUses != null) { const amount = input('number', ability.usage.maxUses, value => set([...path, 'usage', 'maxUses'], value === '' ? null : Number(value))); amount.min = 1; amount.step = 1; card.append(field('Uses per game', amount, [...path, 'usage', 'maxUses'])); }
-    } else card.append(text('Unlimited usage. Timing and ordinary Action restrictions still apply.'));
+    } else card.append(text(state.family === 'items' ? 'Using an Ability consumes the selected physical Item. Unlimited usage does not add a per-game counter. Timing and ordinary Action restrictions still apply.' : 'Unlimited usage. Timing and ordinary Action restrictions still apply.'));
     card.append(mechanicFields(mechanic, [...path, 'mechanic']));
     if (mechanic?.description?.allowsOverride) {
       const advanced = node('details', 'ce-wording'), wording = node('textarea'); wording.rows = 3; wording.value = ability.descriptionOverride ?? '';
@@ -193,7 +193,7 @@ export function mountContentEditor(root, options) {
     registerContainer(path, card); return card;
   }
   function renderEquipment() {
-    const section = group(state.family === 'units' ? 'Abilities' : 'Abilities, modifiers & capabilities', text('Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
+    const section = group(['units', 'items'].includes(state.family) ? 'Abilities' : 'Abilities, modifiers & capabilities', text(state.family === 'items' ? 'Each declaration owns its name, timing and mechanic. Use consumes one physical Item; choose an Ability when using an Item with multiple Abilities.' : 'Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));
     state.definition.localAbilities.forEach((ability, index) => section.append(renderAbility(ability, index)));
     const available = state.supportedMechanics().filter(mechanic => state.canAdd(mechanic));
     const choice = select(available.map(mechanic => ({ value: mechanic.id, label: mechanic.name })), available[0]?.id, () => {});
@@ -251,13 +251,13 @@ export function mountContentEditor(root, options) {
   function render() {
     if (!opened) return;
     controls = new Map(); errors = new Map(); serial = 0; form.replaceChildren();
-    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'units' ? 'Unit' : state.family === 'equipment' ? 'Equipment' : 'Loot Card'}`));
+    heading.replaceChildren(node('p', 'ce-eyebrow', (typeof options.destinationLabel === 'function' ? options.destinationLabel() : options.destinationLabel) ?? 'CONTENT DEFINITION'), node('h3', '', `${state.existingId ? 'Edit' : 'New'} ${state.family === 'units' ? 'Unit' : state.family === 'equipment' ? 'Equipment' : state.family === 'items' ? 'Single Use Item' : 'Loot Card'}`));
     const id = input('text', state.definition.id, value => set(['id'], value)); id.id = 'content-editor-id'; id.readOnly = !!state.existingId; id.autocomplete = 'off';
     const nameField = state.family === 'units' ? 'displayName' : 'name';
     const name = input('text', state.definition[nameField], value => set([nameField], value)); name.id = 'content-editor-name';
     const identity = node('div', 'ce-two-columns'); identity.append(field(state.family === 'lootCards' ? 'Card ID' : 'Type ID', id, ['id'], state.existingId ? 'Existing identity stays fixed.' : 'Choose a new, stable ID distinct from canonical content.'), field('Name', name, [nameField]));
     form.append(group('Identity', identity));
-    if (state.family === 'units') renderUnit(); else if (state.family === 'equipment') renderEquipment(); else renderLoot();
+    if (state.family === 'units') renderUnit(); else if (['equipment', 'items'].includes(state.family)) renderEquipment(); else renderLoot();
     renderDiagnostics(); renderPreview(); updateStatus();
   }
   function renderDiagnostics() {

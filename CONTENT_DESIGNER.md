@@ -1,7 +1,7 @@
-# Content Designer: Units, Equipment and Loot Cards
+# Content Designer: Units, Equipment, Items and Loot Cards
 
 Open **Explore game content** from Home and select **Library** to author Equipment
-and Loot Cards, or complete Unit Types, without a scenario. Canonical content remains read-only. In Scenario
+and Loot Cards, or complete Unit Types and Single Use Items, without a scenario. Canonical content remains read-only. In Scenario
 Designer, **Inspect content** attaches the scenario draft instead. Both destinations
 use the same forms, typed definitions, Mechanic Catalog and Engine-generated previews.
 The destination is not part of a definition's Type ID or mechanic declaration.
@@ -15,7 +15,7 @@ explicit revision change before applying it. See
 composition policy, API and portability guarantees.
 
 Select **Promote to Canonical** on saved Library content or scenario-local/pinned
-Units, Equipment and Loot to preview dependencies and explicitly publish a new canonical
+Units, Equipment, Items and Loot to preview dependencies and explicitly publish a new canonical
 JSON package. See [Promotion](CONTENT_PROMOTION.md) for revision checks, ownership
 and portability. Canonical definitions remain read-only.
 
@@ -56,10 +56,10 @@ Package validation failures keep dependency controls available for repair.
 
 Reference pickers search the selected effective definitions by name or Type ID.
 Linked Loot can reward Equipment in its own package, selected canonical content,
-or a pinned external library revision, as well as existing Items. References and
+or a pinned external library revision, and authored Items. References and
 generated previews navigate to the authoritative definitions and mechanic contracts.
 
-**Copy as new** creates an independent Unit, Equipment or Loot definition in the current
+**Copy as new** creates an independent Unit, Equipment, Item or Loot definition in the current
 library package, proposing a fresh stable Type ID. Its existing dependency references
 and mechanic parameters are retained. Inspect canonical entries or entries from
 selected external revisions and copy them into the package; select the required
@@ -68,6 +68,28 @@ Owned Type IDs become read-only after applying the definition. Historical revisi
 and external definitions cannot be edited in place.
 
 ## Editing workflow
+
+### Single Use Items
+
+Choose **Create Single Use Item** in a Library package or attached scenario draft.
+Enter a new stable Type ID and name, then add at least one Ability. The shared
+Ability editor uses Item-specific Engine profiles for mechanics, timings and
+parameter controls. Rename, remove and reorder declarations while retaining their
+owner-local keys. Summon references include the effective scenario-local Unit Types.
+**Validate & preview** shows field diagnostics and Engine-generated descriptions.
+
+Item Ability usage is unlimited in the typed envelope: using any one Ability
+consumes the selected physical Item. There are no persistent charges or Item
+Passives. Multiple copies retain ordinary Action and per-Type Bonus Action allowances.
+Saving a Type creates no physical object.
+
+After saving, **Create Loot Card for this Item** opens a linked reward containing
+the Item Type ID. Save both definitions and then the Library package. Reward
+pickers also include canonical Items and explicitly selected Library dependencies.
+Items support Copy as new, immutable revision history, Use in Scenario, pinned
+references, Update Reference and explicit canonical JSON promotion. Scenario Items
+appear in inventory, known ground objects, Loot and Playtest through existing setup
+controls. Undo/redo, recovery, Save/Open and DELVE1 retain the same typed definitions.
 
 ### Unit Types
 
@@ -115,7 +137,7 @@ continue editing. Type IDs stay fixed after creation. Ability keys are independe
 of display names and remain stable through renaming and reordering.
 
 After saving Equipment, create a Loot Card that references its Type ID. Loot can
-instead reference an existing Item or use a supported Immediate mechanic. A reward
+instead reference an Item or use a supported Immediate mechanic. A reward
 references its independent definition; it never copies that object's mechanics.
 Search the effective catalog by name or ID to choose references.
 
@@ -139,12 +161,12 @@ Saving a content definition changes the draft; **Save to library** saves the sce
 | --- | --- | --- |
 | Canonical | C# and JSON providers, read-only; Create Copy uses a new ID | Canonical replacement remains separate |
 | User Content Library | Standalone working copies, immutable revisions and explicit portable scenario pins | No canonical replacement editor |
-| Scenario-local | Editable Units/Equipment/Loot and explicit canonical promotion | Additional family editors |
+| Scenario-local | Editable Units/Equipment/Items/Loot and explicit canonical promotion | Additional family editors |
 
 The form consumes a definition and a dependency catalog. Validation consumes the
 same data, without requiring a board, Unit placement or live game. The destination
 adapter supplies a label, current dependency context, revision and save operation.
-The scenario adapter writes `unitTypes`, `equipmentTypes` or `lootCardDefinitions` in
+The scenario adapter writes `unitTypes`, `equipmentTypes`, `itemTypes` or `lootCardDefinitions` in
 `DesignerDraft`. The library adapter writes the same fields in a package working
 copy; its package save uses the revisioned Content Library service.
 
@@ -169,7 +191,7 @@ remains intact. New definitions cannot introduce such collisions.
   `itemTypes` and `lootCardDefinitions`; returns effective Unit and object-content
   catalogs, Mechanic contracts and Resource references. Local Unit definitions
   override canonical definitions only in that supplied context.
-- `POST /api/content/validate`: `family` (`units`, `equipment` or `lootCards`), `definition`,
+- `POST /api/content/validate`: `family` (`units`, `equipment`, `items` or `lootCards`), `definition`,
   optional `existingId`, and the dependency `context`. Returns `valid`, field
   diagnostics and, on success, the typed definition and authoritative preview entry.
 
@@ -189,7 +211,7 @@ Library destination endpoints use the same typed parser and Engine composition:
 - `POST /api/content-library/authoring/validate` accepts `{draft, edit}`, where draft
   is that save request and edit uses the existing content editor request shape.
   It returns the same validation/preview response used by the form. Only Unit,
-  Equipment and Loot candidates owned by the destination can be edited; IDs stay fixed.
+  Equipment, Item and Loot candidates owned by the destination can be edited; IDs stay fixed.
 - `GET /api/content-library/packages/{id}/context?revision=N` inspects a saved
   revision with its captured dependency context, including historical revisions.
 
@@ -230,6 +252,35 @@ along with content dependencies. No asset manager, upload route or new presentat
 field is introduced here.
 
 ## Verification
+
+Single Use Item milestone verification: the solution builds with zero warnings or
+errors. All 2,189 Engine tests, 629 Web tests and 883 JavaScript/dispatcher tests
+pass. The normal parallel Web run reproduced the documented Gambit HTTP SSE
+timeout; the full Web rerun passed with test collections serialized using a
+temporary runner configuration. No assertions or checked-in runner settings changed.
+
+`ItemContentAuthoringTests` covers standalone Library previews, linked Loot,
+scenario-local definitions, empty/invalid Abilities, Item usage contracts,
+references, copies, immutable history, stale saves, pin/update closure, DELVE1,
+scenario storage, promotion, multiple physical copies, choosing either Ability of
+a two-Ability Item, Action budgets and deterministic save/resume/replay. Existing
+Engine accounting/projection tests retain Bonus Action and FoW coverage. Client
+tests cover Item source filtering, keys through rename/reorder/edit/copy,
+linked Loot, scenario history/recovery, read-only pins and promotion selection.
+
+Desktop and 390px Edge inspection created Last Resort Fireball and Goblin in a
+Bottle, plus linked Loot Cards, entirely through Content Designer. Both were saved
+in an isolated Library, pinned into a saved scenario, acquired from its two-card
+Loot deck and used in Playtest. Fireball consumed its selected copy before its dice
+continuation; the bottle consumed its copy and placed a Lying Goblin. Scenario-local
+Item/Loot creation, Library revision history, canonical promotion and reopening
+matching retained pins were also inspected. Checked-in canonical content and the
+existing host were preserved.
+
+The established promotion conflict policy still applies: pins with a different
+payload for a newly canonical identity cannot compose with that publication.
+Promote the revision matching retained pins or explicitly update those references
+before publication. No automatic reference migration is introduced.
 
 `UnitContentAuthoringTests` covers complete Unit declarations, stat and HP/Unique
 diagnostics, malformed Abilities, movement and storage, Behavior flags, independent
@@ -273,8 +324,8 @@ descriptions and effective stats, and repeat editing/validation at a narrow widt
 
 ## Limits
 
-Editing is limited to Unit, Equipment and Loot Card definitions. Other families remain
-inspectable, and existing Item Types can be selected as rewards. There is no content
+Editing is limited to Unit, Equipment, Item and Loot Card definitions. Other families remain
+inspectable. There is no content
 deletion, inheritance, live variant linkage, global mutable catalog, runtime editing,
 asset upload or new gameplay mechanic. Applied definitions are recovered with the
 Designer draft; library working copies remain in page memory until Save package.

@@ -177,7 +177,7 @@ Large histories may eventually require compaction/storage changes; automatic
 garbage collection is deferred so future references cannot lose their revisions.
 Backups and cleanup of orphan temporary files remain application administration.
 
-The standalone Unit/Equipment/Loot destination is documented in
+The standalone Unit/Equipment/Item/Loot destination is documented in
 [CONTENT_DESIGNER.md](CONTENT_DESIGNER.md). Explicit
 [scenario references](SCENARIO_CONTENT_REFERENCES.md) pin revisions and embed their
 selected dependencies. [Canonical promotion](CONTENT_PROMOTION.md) is an explicit

@@ -73,8 +73,8 @@ public static class ContentEditorApi
     public static ContentEditorResponse Validate(ContentEditorRequest request, ContentBundle? canonical = null)
     {
         canonical ??= ContentBundle.Canonical();
-        if (request.Family is not ("units" or "equipment" or "lootCards"))
-            return Invalid(new("family", "unsupportedFamily", "This editor supports Units, Equipment and Loot Cards."));
+        if (request.Family is not ("units" or "equipment" or "items" or "lootCards"))
+            return Invalid(new("family", "unsupportedFamily", "This editor supports Units, Equipment, Items and Loot Cards."));
         object candidate;
         try
         {
@@ -103,8 +103,9 @@ public static class ContentEditorApi
     {
         "units" => request.Definition.Deserialize<UnitType>(Json) ?? throw new JsonException("A Unit Type definition is required."),
         "equipment" => request.Definition.Deserialize<EquipmentDefinition>(Json) ?? throw new JsonException("An Equipment definition is required."),
+        "items" => request.Definition.Deserialize<ItemDefinition>(Json) ?? throw new JsonException("An Item definition is required."),
         "lootCards" => request.Definition.Deserialize<LootCardDefinition>(Json) ?? throw new JsonException("A Loot Card definition is required."),
-        _ => throw new ArgumentException("This editor supports Units, Equipment and Loot Cards.")
+        _ => throw new ArgumentException("This editor supports Units, Equipment, Items and Loot Cards.")
     };
 
     private sealed record ResolvedContext(List<EquipmentDefinition> Equipment, List<ItemDefinition> Items, List<LootCardDefinition> Loot,
@@ -157,6 +158,8 @@ public static class ContentEditorApi
         var lootPaths = Enumerable.Range(0, loot.Count).Select(index => $"{Path("lootCardDefinitions")}[{index}]").ToList();
         if (candidate is EquipmentDefinition equipmentDefinition)
             Replace(equipment, equipmentPaths, equipmentDefinition, existingId, type => type.Id);
+        else if (candidate is ItemDefinition itemDefinition)
+            Replace(items, itemPaths, itemDefinition, existingId, type => type.Id);
         else if (candidate is LootCardDefinition lootDefinition)
             Replace(loot, lootPaths, lootDefinition, existingId, type => type.Id);
 
