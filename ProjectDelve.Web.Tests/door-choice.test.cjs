@@ -250,6 +250,7 @@ function harness(initial, fetchImpl, extras = {}) {
 }
 const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
+const pendingButtons = h => [...buttons(h.elements.get("play-actions")), ...buttons(h.elements.get("choices"))];
 
 function attachThree(h) {
   const rendered = [], frames = [], camera = { setFrame() {}, stable() {}, occurrence() {}, movementStep() {}, finishMovement() {}, settle() {}, cancel() {}, screen:p=>p };
@@ -584,9 +585,10 @@ for (const name of ["Holy Wave", "Fire Breath", "An unfamiliar ability"]) for (c
     const h = harness(initial);
     h.run("chooseCandidate = key => submitted.push(key)");
     const button = buttons(h.elements.get("unit-card"))[0];
-    assert.equal(button.textContent, direct.label);
+    assert.equal(button.textContent, "Use");
+    assert.equal(button.attributes["aria-label"], direct.label);
     assert.equal(button.disabled, false);
-    assert.match(h.elements.get("unit-card").textContent, /0 \/ 2 uses/);
+    assert.match(h.elements.get("unit-card").textContent, /0\/2/);
     assert.equal(h.elements.get("choices").children.length, 0);
     for (const event of ["mouseenter", "focus"]) {
       button.listeners[event]();
@@ -599,8 +601,8 @@ for (const name of ["Holy Wave", "Fire Breath", "An unfamiliar ability"]) for (c
     // Affected Units never become selection controls merely by belonging to the set.
     assert.equal(h.figure("b").classList.contains("board-choice"), false);
     h.figure("b").listeners.mouseenter();
-    assert.equal(h.elements.get("choices").children[0].textContent, direct.label);
-    click(h.elements.get("choices").children[0]);
+    assert.equal(h.elements.get("play-actions").querySelectorAll(".action-chip")[0].textContent, name);
+    click(h.elements.get("play-actions").querySelectorAll(".action-chip")[0]);
     assert.equal(h.submitted[2], direct.key);
     h.figure("b").listeners.mouseleave();
     assert.equal(h.elements.get("choices").children.length, 0);
@@ -652,11 +654,11 @@ test("ambiguous board choices use the chooser and missing references retain a fa
   const h = harness(initial);
   h.run("chooseCandidate = key => submitted.push(key)");
   assert.equal(h.figure("b").classList.contains("board-choice"), true);
-  for (const button of h.elements.get("choices").children) click(button);
-  assert.deepEqual(h.submitted, ["missing", "unknown direct"]);
+  for (const button of pendingButtons(h)) click(button);
+  assert.deepEqual(h.submitted, ["unknown direct", "missing"]);
   click(h.figure("b"));
   for (const button of buttons(h.elements.get("choices").children[0]).slice(0, 2)) click(button);
-  assert.deepEqual(h.submitted, ["missing", "unknown direct", "first", "second"]);
+  assert.deepEqual(h.submitted, ["unknown direct", "missing", "first", "second"]);
 });
 
 test("all card wording, categories, counters and effective stats are supplied", () => {
@@ -675,7 +677,7 @@ test("all card wording, categories, counters and effective stats are supplied", 
   assert.match(content, /ATK 3 → 17/); assert.match(content, /DEF 2 → 9/);
   for (let i = 0; i < entries.length; i++) assert.ok(content.includes(`Authoritative wording ${i}`));
   assert.ok(!content.includes("Wrong")); assert.ok(!content.includes("999"));
-  assert.equal((content.match(/0 \/ 2 uses/g) ?? []).length, 4);
+  assert.equal((content.match(/0\/2/g) ?? []).length, 4);
   assert.equal((content.match(/\[2\/game\]/g) ?? []).length, 4);
 });
 
@@ -703,7 +705,7 @@ test("decision requests submit only revision and opaque key", async () => {
     return { ok: true, json: async () => initial };
   });
   h.run("ui.animate.checked = false");
-  await click(h.elements.get("choices").children[0]);
+  await click(pendingButtons(h)[0]);
   assert.deepEqual(requests, [{ url: "/api/game/decision", body: { expectedRevision: 8, candidateKey: "arbitrary:do not parse" } }]);
 });
 
@@ -740,10 +742,10 @@ test("uncertain mutations synchronize once without resubmitting a decision", asy
       ? { ok: false, json: async () => ({ detail: "Stale revision" }) }
       : { ok: true, json: async () => synchronized };
   });
-  await click(h.elements.get("choices").children[0]);
+  await click(pendingButtons(h)[0]);
   assert.deepEqual(requests, [{ url: "/api/game/decision", method: "POST" }, { url: "/api/game", method: "GET" }]);
-  assert.equal(h.elements.get("choices").children[0].textContent, "Supplied label new supplied key");
-  assert.equal(h.elements.get("choices").children[0].disabled, false);
+  assert.equal(pendingButtons(h)[0].textContent, "Supplied label new supplied key");
+  assert.equal(pendingButtons(h)[0].disabled, false);
   assert.match(h.elements.get("error").textContent, /Synchronized to the server/);
 });
 
@@ -781,11 +783,11 @@ for (const mode of ["animate", "disabled", "skip"]) {
     `);
     await h.run('mutate("decision", { candidateKey: "opaque" })');
     assert.deepEqual(shown.map(value => value.hp), ["HP 3/4", "HP 1/4", "HP 1/4"]);
-    assert.match(shown[0].card, /1 \/ 2 uses/); assert.match(shown[1].card, /0 \/ 2 uses/);
+    assert.match(shown[0].card, /1\/2/); assert.match(shown[1].card, /0\/2/);
     assert.deepEqual(shown.slice(0, 2).map(value => value.choices), [0, 0]);
     assert.deepEqual(before, mode === "animate" ? ["HP 4/4", "HP 3/4"] : mode === "skip" ? ["HP 4/4"] : []);
-    assert.equal(h.elements.get("choices").children.length, 1);
-    assert.equal(h.elements.get("choices").children[0].disabled, false);
+    assert.equal(pendingButtons(h).length, 1);
+    assert.equal(pendingButtons(h)[0].disabled, false);
     assert.equal(h.elements.get("events").children.length, 2);
     assert.equal(h.elements.get("error").textContent, "");
   });
@@ -1086,21 +1088,21 @@ for (const mode of ["animate", "disabled", "skip"]) {
         if (mode === "skip") ui.skip.listeners.click();
       };
     `);
-    await click(buttons(h.elements.get("choices"))[0]);
+    await click(pendingButtons(h)[0]);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].body.candidateKey, "commit-attack");
     assert.match(h.elements.get("prompt").textContent, /Roll 3 Attack dice/);
     assert.equal(h.elements.get("choices").children.length, 1, "the roll action has no duplicate descriptive paragraph");
     assert.equal(buttons(h.elements.get("choices")).length, 1);
-    assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll 3 Attack dice");
-    assert.match(buttons(h.elements.get("choices"))[0].attributes["aria-label"], /Roll 3 Attack dice/);
+    assert.equal(pendingButtons(h)[0].textContent, "Roll 3 Attack dice");
+    assert.match(pendingButtons(h)[0].attributes["aria-label"], /Roll 3 Attack dice/);
     assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
     assert.equal(h.run("busy"), false);
     // Refresh only reprojects the supplied pending boundary.
     await h.elements.get("refresh").listeners.click();
     assert.equal(requests.length, 2);
     assert.equal(requests[1].body, null);
-    await click(buttons(h.elements.get("choices"))[0]);
+    await click(pendingButtons(h)[0]);
     assert.equal(requests.length, 3);
     assert.deepEqual(requests[2].body, { expectedRevision: 9, candidateKey: "opaque-roll" });
   });
@@ -1125,7 +1127,7 @@ test("dice faces, token Side and arbitrary agency are generic supplied presentat
   });
   h.run("ui.animate.checked = false");
   assert.match(h.elements.get("active-token").textContent, /violet/);
-  await click(buttons(h.elements.get("choices"))[0]);
+  await click(pendingButtons(h)[0]);
   assert.equal(requests[0].candidateKey, "opaque");
   assert.match(h.elements.get("events").textContent, /Hit, Miss, Hit/);
   assert.match(h.elements.get("events").textContent, /Block, Miss/);
@@ -1147,7 +1149,7 @@ test("playback failure recovers pending RollDice without submitting it", async (
   assert.equal(requests.length, 2);
   assert.deepEqual(requests.map(r => r.url), ["/api/game/decision", "/api/game"]);
   assert.equal(requests[1].body, null);
-  assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Roll Dice");
+  assert.equal(pendingButtons(h)[0].textContent, "Roll Dice");
   assert.equal(h.run("snapshot.result.nextInput.kind"), "RollDice");
 });
 
@@ -1348,21 +1350,18 @@ for (const animate of [true, false]) {
 }
 
 
-test("compact use circles present supplied remaining and maximum counts accessibly", () => {
+test("compact numeric uses present supplied counts accessibly without circles", () => {
   const limited = entry("unknown-limited", "Unfamiliar action");
   limited.uses = { remainingUses: 2, maxUses: 4 };
   const unlimited = entry("unknown-passive", "Unfamiliar passive", "Passive");
   unlimited.uses = null; unlimited.content.useLimitText = null;
-  const h = harness(response([], [limited, unlimited]));
-  const card = h.elements.get("unit-card");
-  const markers = card.querySelectorAll(".use-markers");
-  assert.equal(markers.length, 1);
-  assert.equal(markers[0].dataset.tooltip, "2 / 4 uses");
-  assert.match(markers[0].textContent, /2 \/ 4 uses/);
-  const circles = markers[0].querySelectorAll(".use-circle");
-  assert.equal(circles.length, 4);
-  assert.deepEqual(circles.map(circle => circle.classList.contains("filled")), [true, true, false, false]);
-  assert.ok(circles.every(circle => circle.attributes["aria-hidden"] === "true"));
+  const card = harness(response([], [limited, unlimited])).elements.get("unit-card");
+  const counters = card.querySelectorAll(".ability-uses");
+  assert.equal(counters.length, 1);
+  assert.equal(counters[0].textContent, "2/4");
+  assert.equal(counters[0].attributes["aria-label"], "2 of 4 uses remaining");
+  assert.equal(counters[0].dataset.tooltip, "2 / 4 uses");
+  assert.equal(card.querySelectorAll(".use-circle").length, 0);
 });
 
 test("game shell retains one authoritative target for decisions, field guide and advanced controls", () => {
@@ -1517,11 +1516,11 @@ test("stream receives ahead of playback, drains during external wait, and resume
   h.emit(update(4, "event", "resolving", movementView(3)));
   const ready = response([choice("resumed", "Direct")]); ready.result.state.physical.figures[0].position.x = 3;
   h.emit(update(5, "boundary", "waiting-human", ready));
-  assert.equal(h.elements.get("choices").children[0]?.disabled ?? true, true);
+  assert.equal(pendingButtons(h)[0]?.disabled ?? true, true);
   await h.tick();
   assert.equal(h.run("displayedSequence"), 5);
-  assert.equal(h.elements.get("choices").children[0].disabled, false);
-  assert.match(h.elements.get("choices").textContent, /resumed/);
+  assert.equal(pendingButtons(h)[0].disabled, false);
+  assert.match(h.elements.get("play-actions").textContent, /resumed/);
 });
 
 test("stream duplicates are ignored and reconnect preserves buffered playback", async () => {
@@ -1623,7 +1622,7 @@ test("command acknowledgements do not render; decision IDs and uncertain outcome
   assert.equal(failed.sources.length, 2);
   failed.emit(update(1, "baseline", "waiting-human", response([choice("recovered", "Direct")])));
   assert.equal(failed.run("busy"), false);
-  assert.match(failed.elements.get("choices").textContent, /recovered/);
+  assert.match(failed.elements.get("play-actions").textContent, /recovered/);
 });
 
 test("bounded queue resynchronizes instead of stalling game progression", async () => {
@@ -2916,7 +2915,7 @@ test("End Turn stays reserved and trusts explicit projection metadata, including
   // Printed words are never used to infer an end-activation rule.
   const other = harness(response([choice("other", "Direct", {}, { label: "End Turn" })]));
   assert.equal(other.elements.get("end-turn").disabled, true);
-  assert.equal(buttons(other.elements.get("choices")).length, 1);
+  assert.equal(other.elements.get("play-actions").querySelectorAll(".action-chip").length, 1);
 });
 
 test("short descriptions retain full content through tooltip and native disclosure with fallback", () => {
@@ -2924,12 +2923,12 @@ test("short descriptions retain full content through tooltip and native disclosu
   printed.content.shortDescription = "Concise supplied wording.";
   const h = harness(response([], [printed, entry("fallback", "Fallback", "Action", "Fallback full text")]));
   const descriptions = h.elements.get("unit-card").querySelectorAll(".ability-description");
-  assert.equal(descriptions[0].children[0].textContent, "Concise supplied wording.");
-  assert.equal(descriptions[0].children[0].dataset.tooltip, printed.content.description);
-  assert.equal(descriptions[0].children[1].tagName, "details");
-  assert.equal(descriptions[0].children[1].children[0].tagName, "summary");
-  assert.equal(descriptions[0].children[1].children[1].textContent, printed.content.description);
-  assert.equal(descriptions[1].children[0].textContent, "Fallback full text");
+  assert.equal(descriptions[0].querySelectorAll(".ability-short")[0].textContent, "Concise supplied wording.");
+  assert.equal(descriptions[0].querySelectorAll("summary")[0].dataset.tooltip, printed.content.description);
+  assert.equal(descriptions[0].children[0].tagName, "details");
+  assert.equal(descriptions[0].children[0].children[0].tagName, "summary");
+  assert.equal(descriptions[0].children[0].children[1].textContent, printed.content.description);
+  assert.equal(descriptions[1].children[1].textContent, "Fallback full text");
   h.figure("b").listeners.mouseenter();
   assert.doesNotMatch(h.elements.get("unit-card").textContent, /Inspecting|Most recently active/);
   h.figure("b").listeners.mouseleave();
@@ -3164,9 +3163,9 @@ test("readable display metadata changes no candidate payloads or debug/event IDs
   initial.presentation.decision.displayPrompt = "Castle Guard chooses an Action";
   initial.presentation.decision.candidates = [choice("raw-choice-id", "Direct", {}, { label: "raw actor a", displayLabel: "Castle Guard attacks Goblin Peasant" })];
   const h = harness(initial); h.run('chooseCandidate = key => submitted.push(key)');
-  assert.equal(buttons(h.elements.get("choices"))[0].textContent, "Castle Guard attacks Goblin Peasant");
+  assert.equal(pendingButtons(h)[0].textContent, "Castle Guard attacks Goblin Peasant");
   assert.equal(h.elements.get("board-hint").textContent, "Castle Guard chooses an Action");
-  click(buttons(h.elements.get("choices"))[0]); assert.deepEqual(h.submitted, ["raw-choice-id"]);
+  click(pendingButtons(h)[0]); assert.deepEqual(h.submitted, ["raw-choice-id"]);
   assert.match(h.elements.get("unit-debug").textContent, /actor/);
   assert.doesNotMatch(h.elements.get("unit-card").textContent, /actor/);
   h.context.displayEvent = { kind: "ActionUsed", unitId: "actor", targetId: "a" };
@@ -3434,19 +3433,21 @@ test("all abilities and usage marks remain visible while only supplied Direct ch
   for (const [index, supplied] of [attack, focus, passive, free].entries()) {
     assert.match(rows[index].textContent, new RegExp(supplied.content.name));
     assert.match(rows[index].textContent, new RegExp(supplied.content.category));
-    assert.match(rows[index].textContent, /0 \/ 2 uses/);
+    assert.match(rows[index].textContent, /0\/2/);
     const description = rows[index].querySelectorAll(".ability-description")[0];
-    const details = description.children[1], summary = details.children[0];
-    assert.equal(details.tagName, "details"); assert.equal(summary.tagName, "summary");
-    assert.equal(summary.children[0].textContent, "Details");
-    assert.equal(summary.children[0].classList.contains("sr-only"), false);
-    assert.equal(summary.attributes['aria-label'], `Full description: ${supplied.content.name}`);
-    assert.equal(summary.dataset.tooltip, supplied.content.description);
-    assert.equal(details.children[1].textContent, supplied.content.description);
-    assert.equal(buttons(details).length, 0); // Native keyboard/touch disclosure has no decision listener.
-    assert.equal(summary.listeners.click, undefined);
+    const disclosure = description.querySelectorAll("details");
+    const expandable = supplied.content.shortDescription !== undefined && supplied.content.shortDescription !== supplied.content.description;
+    assert.equal(disclosure.length, expandable ? 1 : 0);
+    if (expandable) {
+      const summary = disclosure[0].children[0];
+      assert.equal(summary.tagName, "summary");
+      assert.match(summary.textContent, new RegExp(supplied.content.name));
+      assert.equal(summary.attributes['aria-label'], "Full description: " + supplied.content.name);
+      assert.equal(summary.dataset.tooltip, supplied.content.description);
+      assert.equal(disclosure[0].children[1].textContent, supplied.content.description);
+      assert.equal(summary.listeners.click, undefined);
+    } else assert.equal(description.children[1].textContent, supplied.content.description);
   }
-  assert.equal(rows[0].querySelectorAll(".ability-description")[0].children[0].hidden, true);
   assert.equal(buttons(rows[0]).length, 0);
   assert.equal(buttons(rows[1]).length, 1);
   click(buttons(rows[1])[0]); assert.deepEqual(h.submitted, ["opaque-focus"]);
@@ -3681,7 +3682,7 @@ test("Cell feedback layers sit above whole tokens, with non-overlapping click-th
   assert.match(css, /\.cell-choice-feedback:focus-visible \{ outline: none/);
 });
 
-test("hidden Unit panel returns Direct actions to pending choices and tab changes retain opaque submissions", () => {
+test("action dock retains Direct actions across inspector tab changes and opaque submissions", () => {
   const listeners = new Map();
   const ability = entry('test-ability', 'Supplied ability');
   const candidate = choice('opaque-card-action', 'Direct', {}, { entryId: ability.content.id });
@@ -3692,16 +3693,16 @@ test("hidden Unit panel returns Direct actions to pending choices and tab change
   assert.equal(buttons(h.elements.get('choices')).length, 0, 'visible card owns its Direct action');
   h.elements.get('inspector-unit').hidden = true;
   listeners.get('delve-inspector-change')({ detail: { tab: 'mission' } });
-  const pending = buttons(h.elements.get('choices'));
+  const pending = h.elements.get('play-actions').querySelectorAll('.action-chip');
   assert.equal(pending.length, 1);
-  assert.equal(h.elements.get('decision-panel').hidden, false);
+  assert.equal(h.elements.get('play-actions').hidden, false);
   assert.equal(pending[0].disabled, false);
   click(pending[0]);
   assert.deepEqual(h.submitted, ['opaque-card-action']);
   // A new authoritative decision while Mission remains selected must also be reachable.
   h.run('snapshot.presentation.decision.candidates[0].key = "next-opaque-action"; renderSnapshot()');
-  assert.equal(buttons(h.elements.get('choices')).length, 1);
-  click(buttons(h.elements.get('choices'))[0]);
+  assert.equal(h.elements.get('play-actions').querySelectorAll('.action-chip').length, 1);
+  click(h.elements.get('play-actions').querySelectorAll('.action-chip')[0]);
   assert.deepEqual(h.submitted, ['opaque-card-action', 'next-opaque-action']);
   h.elements.get('inspector-unit').hidden = false;
   listeners.get('delve-inspector-change')({ detail: { tab: 'unit' } });
@@ -3871,14 +3872,15 @@ test('card availability follows supplied statuses and the nearby filter reveals 
     'source-accounting': { status: 'Irrelevant', reason: 'Legal, but not relevant now' }
   };
   const h = harness(initial), card = h.elements.get('unit-card'), visibility = h.elements.get('choice-visibility');
-  assert.match(card.querySelectorAll('.ability-availability')[0].textContent, /Hidden by relevance filter.*legal choice/);
+  assert.equal(card.querySelectorAll('.card-ability')[0].dataset.availability, 'Irrelevant');
+  assert.equal(card.querySelectorAll('.ability-availability').length, 0);
   assert.equal(buttons(card).filter(button => button.dataset.legal === 'true' && !button.hidden).length, 0);
-  assert.match(visibility.textContent, /Show all legal choices \(1 hidden\)/);
+  assert.match(visibility.textContent, /More choices \(1\)/);
   h.run('chooseCandidate = key => submitted.push(key)');
   click(buttons(visibility)[0]);
   assert.equal(h.elements.get('filter').checked, false);
   assert.equal(buttons(visibility)[0].focused, true, 'replacing filter copy preserves the keyboard navigation position');
-  assert.equal(card.querySelectorAll('.ability-availability')[0].textContent, 'Legal, but not relevant now');
+  assert.equal(card.querySelectorAll('.ability-heading')[0].dataset.tooltip, 'Legal, but not relevant now');
   const action = buttons(card).find(button => button.dataset.legal === 'true');
   assert.equal(action.hidden, false);
   assert.equal(action.disabled, false, 'irrelevant stays legal even with misleading local counters');
@@ -3887,7 +3889,7 @@ test('card availability follows supplied statuses and the nearby filter reveals 
   assert.equal(buttons(visibility)[0].disabled, true);
   click(buttons(visibility)[0]); assert.equal(h.elements.get('filter').checked, false);
   h.run('renderUnitCard(); busy = false; updateControls()');
-  assert.equal(card.querySelectorAll('.ability-availability')[0].textContent, 'Legal, but not relevant now',
+  assert.equal(card.querySelectorAll('.card-ability')[0].dataset.availability, 'Irrelevant',
     'rendering the final state before busy clears must retain its authoritative reasons');
   h.run('busy = false; displayedState = JSON.parse(JSON.stringify(snapshot.result.state)); renderUnitCard()');
   assert.equal(card.querySelectorAll('.ability-availability').length, 0, 'live reasons must not leak into historical playback');
@@ -3989,7 +3991,8 @@ test("inventory rows distinguish sources and consolidate identical use choices",
   const h = harness(initial), card = h.elements.get("unit-card");
   const rows = card.querySelectorAll(".card-ability");
   assert.deepEqual(rows.map(row => row.dataset.source), ["Native", "Equipment", "Item"]);
-  assert.match(rows[1].textContent, /Equipment · Walking Charm/);
+  assert.equal(rows[1].querySelectorAll(".ability-source")[0].textContent, "Equipment");
+  assert.match(rows[1].textContent, /Walking Charm/);
   assert.doesNotMatch(rows[1].textContent, /Identical effects apply once/);
   assert.match(rows[2].textContent, /Single Use Item/);
   assert.equal(buttons(rows[2]).length, 1);
@@ -4026,4 +4029,160 @@ test('a consumed Item keeps its authoritative ability name during the pending At
   const h = harness(initial);
   assert.equal(h.run('actionLabel({ sourceUnitId: "actor", sourceActionId: "item:blue-seed:plant" })'), 'Blue Ember');
   assert.equal(h.run('actionLabel({ sourceUnitId: "actor", sourceActionId: "other-source" })'), 'other-source');
+});
+
+test("targeted action chip previews exact supplied Cells, cancels and restores moves", () => {
+  const targets = [
+    choice("target-upper", "Position", { position: { x: 0, y: 0 } }, { accountingId: "source:target", entryId: "target", affectedUnitIds: ["a"] }),
+    choice("target-lower", "Position", { position: { x: 1, y: 1 } }, { accountingId: "source:target", entryId: "target", affectedUnitIds: ["b"] })
+  ];
+  const move = choice("ordinary-move", "Position", { position: { x: 2, y: 2 } }, { boardVisual: { kind: "move" } });
+  const initial = largeResponse([...targets, move]);
+  initial.presentation.cards.actor.entries = [{ ...entry("target", "Targeted action"), accountingId: "source:target" }];
+  const h = harness(initial), dock = h.elements.get("play-actions");
+  h.run("chooseCandidate = key => submitted.push(key)");
+  click(dock.querySelectorAll(".action-chip")[0]);
+  assert.deepEqual(h.submitted, [], "selecting an action never chooses its target");
+  assert.equal(h.elements.get("choices").children.length, 0, "unselected Move must not leak into fallback choices");
+  assert.equal(h.elements.get("decision-panel").hidden, true);
+  const options = dock.querySelectorAll(".action-target-options")[0];
+  const supplied = options.querySelectorAll(".action-target-list")[0].querySelectorAll("button");
+  assert.deepEqual(supplied.map(button => button.dataset.actionCandidateKey), targets.map(candidate => candidate.key));
+  supplied[0].listeners.focus();
+  assert.equal(h.figure("a").classList.contains("affected-preview"), true);
+  assert.equal(h.figure("b").classList.contains("affected-preview"), false);
+  supplied[0].listeners.blur();
+  assert.equal(h.run('cells.get("0,0").classList.contains("board-choice")'), true);
+  assert.equal(h.run('cells.get("1,1").classList.contains("board-choice")'), true);
+  assert.equal(h.run('cells.get("2,2").classList.contains("board-choice")'), false);
+  assert.equal(h.run('cells.get("1,0").classList.contains("board-choice")'), false, "multi-Cell base must not expand a supplied target");
+  click(h.run('cells.get("1,1")'));
+  assert.deepEqual(h.submitted, ["target-lower"]);
+  assert.deepEqual(initial.presentation.decision.candidates[1].interaction.position, { x: 1, y: 1 });
+  click(dock.querySelectorAll(".action-cancel")[0]);
+  assert.equal(dock.querySelectorAll(".action-target-options").length, 0);
+  assert.equal(h.run('cells.get("2,2").classList.contains("board-choice")'), true);
+  assert.equal(dock.querySelectorAll(".action-chip")[0].focused, true);
+  click(dock.querySelectorAll(".action-chip")[0]);
+  let prevented = false;
+  dock.listeners.keydown({ key: "Escape", preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(dock.querySelectorAll(".action-target-options").length, 0);
+  assert.equal(h.run('cells.get("2,2").classList.contains("board-choice")'), true);
+  assert.equal(dock.querySelectorAll(".action-chip")[0].focused, true);
+  assert.deepEqual(h.submitted, ["target-lower"], "Escape closes targeting without choosing");
+});
+
+test("new authoritative decision invalidates the selected action group", () => {
+  const initial = response([
+    choice("old-target", "Unit", { unitId: "a" }, { entryId: "entry" }),
+    choice("move", "Position", { position: { x: 2, y: 0 } }, { boardVisual: { kind: "move" } })
+  ], [entry("entry", "Target action")]);
+  const h = harness(initial), dock = h.elements.get("play-actions");
+  click(dock.querySelectorAll(".action-chip")[0]);
+  assert.equal(dock.querySelectorAll(".action-target-options").length, 1);
+  h.run('snapshot.presentation.decision = {...snapshot.presentation.decision, candidates: snapshot.presentation.decision.candidates.map(candidate => ({...candidate, key: "new-" + candidate.key}))}; renderSnapshot()');
+  assert.equal(dock.querySelectorAll(".action-target-options").length, 0);
+  assert.equal(h.run('cells.get("2,0").classList.contains("board-choice")'), true);
+  assert.deepEqual(h.submitted, []);
+});
+
+test("same-name action sources and namespaced accounting and entry IDs remain distinct", () => {
+  const entries = [
+    { ...entry("shared-entry", "Same name"), accountingId: "shared", source: "Equipment", sourceName: "First source" },
+    { ...entry("other-entry", "Same name"), accountingId: "other", source: "Item", sourceName: "Second source" },
+    entry("shared", "Same name")
+  ];
+  const candidates = [
+    choice("first-source", "Direct", {}, { accountingId: "shared", entryId: "shared-entry" }),
+    choice("second-source", "Direct", {}, { accountingId: "other", entryId: "other-entry" }),
+    choice("entry-source", "Direct", {}, { entryId: "shared" })
+  ];
+  const h = harness(response(candidates, entries));
+  h.run("chooseCandidate = key => submitted.push(key)");
+  const chips = h.elements.get("play-actions").querySelectorAll(".action-chip");
+  assert.equal(chips.length, 3);
+  assert.equal(new Set(chips.map(chip => chip.dataset.actionKey)).size, 3);
+  assert.match(chips[0].dataset.tooltip, /First source/);
+  assert.match(chips[1].dataset.tooltip, /Second source/);
+  for (const chip of chips) click(chip);
+  assert.deepEqual(h.submitted, candidates.map(candidate => candidate.key));
+});
+
+test("identical Item copies retain every opaque key in action target options", () => {
+  const item = { ...entry("physical-entry", "Use item"), source: "Item", accountingId: "item:shared", copyCount: 2 };
+  const candidates = ["copy-one", "copy-two"].map(key =>
+    choice(key, "Direct", {}, { entryId: "physical-entry", accountingId: "item:shared" }));
+  const h = harness(response(candidates, [item])), dock = h.elements.get("play-actions");
+  h.run("chooseCandidate = key => submitted.push(key)");
+  assert.equal(h.elements.get("unit-card").querySelectorAll(".card-use").length, 1);
+  assert.equal(dock.querySelectorAll(".action-chip").length, 1);
+  click(dock.querySelectorAll(".action-chip")[0]);
+  assert.deepEqual(h.submitted, []);
+  const options = dock.querySelectorAll(".action-target-list")[0].querySelectorAll("button");
+  assert.deepEqual(options.map(button => button.dataset.actionCandidateKey), ["copy-one", "copy-two"]);
+  for (const option of options) click(option);
+  assert.deepEqual(h.submitted, ["copy-one", "copy-two"]);
+});
+
+test("short complete card rules are inline while long full rules disclose from their heading", () => {
+  const short = entry("short", "Brief ability", "Capability", "ATK +1.");
+  const long = entry("long", "Long ability", "Action",
+    "Choose an adjacent friendly Unit. Stand up that Unit, then restore 1 HP without exceeding its maximum HP. This completes the Action.");
+  const rows = harness(response([], [short, long])).elements.get("unit-card").querySelectorAll(".card-ability");
+  assert.equal(rows[0].querySelectorAll("details").length, 0);
+  assert.equal(rows[0].querySelectorAll(".ability-description")[0].children[1].textContent, short.content.description);
+  const details = rows[1].querySelectorAll("details")[0];
+  assert.match(details.children[0].textContent, /Long ability/);
+  assert.equal(details.children[0].attributes["aria-label"], "Full description: Long ability");
+  assert.equal(details.children[1].textContent, long.content.description);
+});
+
+test("availability help uses native heading disclosure while brief complete rules stay inline", () => {
+  const unavailable = { ...entry("blocked", "Blocked ability", "Action", "Brief complete rules."), accountingId: "blocked-source" };
+  const available = entry("available", "Available ability", "Action", "Other brief rules.");
+  const initial = response([], [unavailable, available]);
+  initial.presentation.decision.entryStatuses = {
+    "blocked-source": { status: "Unavailable", reason: "Supplied blocker explanation." },
+    available: { status: "Available", reason: "Ready to use." }
+  };
+  const h = harness(initial), rows = h.elements.get("unit-card").querySelectorAll(".card-ability");
+  const description = rows[0].querySelectorAll(".ability-description")[0];
+  const details = description.children[0], summary = details.children[0];
+  assert.equal(details.tagName, "details");
+  assert.equal(summary.tagName, "summary", "native disclosure provides keyboard and touch activation");
+  assert.match(summary.textContent, /Blocked ability/);
+  assert.equal(summary.attributes["aria-label"], "Ability details: Blocked ability");
+  assert.equal(summary.listeners.click, undefined, "availability help has no decision handler");
+  assert.equal(details.querySelectorAll(".ability-help")[0].textContent, "Supplied blocker explanation.");
+  assert.equal(description.children[1].textContent, "Brief complete rules.");
+  assert.doesNotMatch(details.textContent, /Brief complete rules/);
+  assert.equal(rows[0].querySelectorAll(".ability-heading")[0].dataset.tooltip, "Supplied blocker explanation.");
+  assert.equal(rows[0].querySelectorAll(".ability-heading")[0].attributes["aria-description"], "Supplied blocker explanation.");
+  assert.equal(rows[0].dataset.availability, "Unavailable");
+  assert.equal(rows[1].querySelectorAll("details").length, 0);
+  assert.equal(rows[1].querySelectorAll(".ability-help").length, 0);
+  assert.equal(rows[1].querySelectorAll(".ability-description")[0].children[1].textContent, "Other brief rules.");
+  assert.deepEqual(h.submitted, []);
+});
+
+test("historical choice panel exposes no future action dock, fallback controls or relevance toggle", () => {
+  const initial = response([
+    choice("future-action", "Direct", {}, { entryId: "future" }),
+    choice("future-hidden", "Direct", {}, { entryId: "future", relevant: false }),
+    choice("future-missing", "Unit", { unitId: "absent" })
+  ], [entry("future", "Future ability")]);
+  const h = harness(initial);
+  assert.equal(h.elements.get("play-actions").querySelectorAll(".action-chip").length, 1);
+  assert.equal(buttons(h.elements.get("choices")).length, 1);
+  assert.equal(buttons(h.elements.get("choice-visibility")).length, 1);
+  h.run('displayedState = JSON.parse(JSON.stringify(snapshot.result.state)); renderUnitCard(); renderChoicePanel()');
+  assert.equal(h.elements.get("play-actions").querySelectorAll(".action-chip").length, 0);
+  assert.equal(h.elements.get("play-actions").hidden, true);
+  assert.equal(buttons(h.elements.get("unit-card")).filter(button => button.dataset.legal === "true").length, 0);
+  assert.equal(buttons(h.elements.get("choices")).length, 0);
+  assert.equal(h.elements.get("decision-panel").hidden, true);
+  assert.equal(buttons(h.elements.get("choice-visibility")).length, 0);
+  assert.equal(h.elements.get("choice-visibility").hidden, true);
+  assert.deepEqual(h.submitted, []);
 });

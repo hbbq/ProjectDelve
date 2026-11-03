@@ -488,11 +488,13 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 #unit-card .ability-heading small { font-size: .65rem; color: var(--ui-text-muted); font-weight: 400; }
 .ability-heading strong { color: var(--ui-text); }
 .ability-description details { margin: 0; color: var(--ui-text); }
-.ability-description summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px; border-radius: 4px; list-style: none; color: var(--ui-accent); }
+.ability-description summary { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border-radius: 4px; list-style: none; color: var(--ui-accent); }
+.ability-description summary .ability-heading { flex: 1; min-width: 0; }
 .ability-description summary::-webkit-details-marker { display: none; }
 .ability-description summary::after { content: '⌄'; font-size: 1.2rem; }
 .ability-description details[open] summary::after { content: '⌃'; }
 .ability-description details[open] > p { padding: 8px; background: var(--ui-page); border-left: 2px solid var(--ui-border); white-space: pre-line; }
+.ability-description details[open] ~ .ability-short { display: none; }
 .ability-description summary:hover { background: var(--ui-hover); }
 .ability-description summary:focus-visible, .portrait-button:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: -3px; }
 #portrait-viewer { width: min(800px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 12px; border: 1px solid var(--ui-accent); border-radius: 8px; background: var(--ui-surface); color: var(--ui-text); }

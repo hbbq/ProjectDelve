@@ -43,6 +43,11 @@ ui["board-alternatives"]?.addEventListener("keydown", event => {
   const disclosure = ui["board-alternatives"].querySelectorAll("details")[0];
   if (disclosure?.open) { event.preventDefault(); disclosure.open = false; closeChoiceList(); disclosure.querySelector("summary")?.focus(); }
 });
+document.getElementById("play-actions")?.addEventListener("keydown", event => {
+  if (event.key !== "Escape" || selectedActionKey === null || busy) return;
+  event.preventDefault();
+  closeActionSelection();
+});
 const reducedMotion = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 const portraitViewer = document.getElementById("portrait-viewer");
 const portraitImage = document.getElementById("portrait-image");
@@ -275,6 +280,12 @@ let displayedFigures;
 let displayedOrders;
 let setupPhase;
 const cardChoiceKeys = new Set();
+let selectedActionKey = null;
+let selectedActionDecision = null;
+const actionKey = candidate => JSON.stringify(candidate.accountingId ? ["grant", candidate.accountingId]
+  : candidate.entryId ? ["entry", candidate.entryId] : ["choice", candidate.key]);
+const visibleBoardChoice = candidate => visibleChoice(candidate) &&
+  (selectedActionKey === null || actionKey(candidate) === selectedActionKey);
 const boardChoiceKeys = new Set();
 let boardChooser;
 let boardChooserOrigin;
@@ -308,7 +319,7 @@ const playCamera = () => threeActive() ? threeViewport.camera : boardCamera;
 function syncThreeInteraction() {
   if (!threeActive()) return;
   const decision = !busy && displayedState === snapshot?.result.state ? snapshot.presentation.decision : null;
-  threeViewport.showInteraction({ busy, candidates: [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(visibleChoice),
+  threeViewport.showInteraction({ busy, candidates: [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])].filter(visibleBoardChoice),
     focusedUnitId, focusedDoor, relationship: combatDice?.context ?? attackContext,
     combatPositions: combatDice?.positions, preview: threePreview,
     coordinates: ui.coordinates.checked || threeChoicesOpen, waypoints: document.getElementById("waypoints").checked });
@@ -324,7 +335,7 @@ function closeChoiceList() {
 }
 function selectThreeHit(hit) {
   if (busy || !displayedState) return;
-  const candidates = boardCandidates(hit, snapshot.presentation.decision, displayedState, displayedFigures, visibleChoice);
+  const candidates = boardCandidates(hit, snapshot.presentation.decision, displayedState, displayedFigures, visibleBoardChoice);
   if (!candidates.length) return;
   if (candidates.length === 1) return chooseCandidate(candidates[0].key);
   boardChooser = candidates; boardChooserOrigin = viewportRouter.active.host;
@@ -740,7 +751,7 @@ function renderUnitCard() {
   }
   card.append(stats);
   if (content.inventory?.length) {
-    const summary = text("p", `${content.inventory.length} carried objects · listed below`);
+    const summary = text("p", `${content.inventory.length} carried ${content.inventory.length === 1 ? "object" : "objects"}`);
     summary.className = "inventory-summary"; card.append(summary);
   }
   for (const stored of content.resourceStorage ?? [])
@@ -757,9 +768,10 @@ function renderUnitCard() {
     row.dataset.source = entry.source ?? "Native";
     const source = text("small", entry.source === "Item" ? "Single Use Item" : entry.source ?? "Native");
     source.className = `ability-source${!entry.source || entry.source === "Native" ? " sr-only" : ""}`;
-    if (entry.sourceName && ["Equipment", "Item"].includes(entry.source)) source.textContent += ` · ${entry.sourceName}`;
+    if (entry.sourceName && entry.sourceName !== entry.content.name && ["Equipment", "Item"].includes(entry.source)) source.textContent += ` · ${entry.sourceName}`;
     row.append(source);
     const ability = entry.content;
+    row.dataset.entryId = ability.id;
     const heading = text("div", ""); heading.className = "ability-heading";
     const name = text("strong", ability.name + (entry.copyCount > 1 ? ` ×${entry.copyCount}` : ""));
     bindTooltip(name, () => ability.description || ability.name);
@@ -768,55 +780,81 @@ function renderUnitCard() {
       name.append(limit);
     }
     heading.append(name); heading.append(text("small", ability.category));
-    if (entry.uses) heading.append(useMarkers(entry.uses));
-    row.append(heading);
-    row.append(abilityDescription(ability));
+    if (entry.uses) {
+      const uses = text("span", `${entry.uses.remainingUses}/${entry.uses.maxUses}`);
+      uses.className = "ability-uses";
+      uses.setAttribute("aria-label", `${entry.uses.remainingUses} of ${entry.uses.maxUses} uses remaining`);
+      bindTooltip(uses, () => `${entry.uses.remainingUses} / ${entry.uses.maxUses} uses`);
+      heading.append(uses);
+    }
     const decision = snapshot?.presentation.decision;
     const status = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.entryStatuses?.[entry.accountingId ?? ability.id] : null;
+    row.append(abilityDescription(ability, heading, status?.status !== "Available" ? status?.reason : null));
     if (status) {
-      const hidden = status.status === "Irrelevant" && ui.filter.checked;
-      const availability = text("p", hidden ? "Hidden by relevance filter · legal choice" : status.reason);
-      availability.className = "ability-availability";
-      availability.dataset.status = hidden ? "Filtered" : status.status;
-      row.append(availability);
+      row.dataset.availability = status.status;
+      bindTooltip(heading, () => status.reason);
+      heading.setAttribute("aria-description", status.reason);
     }
     const candidates = displayedState === snapshot?.result.state && decision?.unitId === unit.id
       ? decision.candidates.filter(candidate => (candidate.accountingId ?? candidate.entryId) === (entry.accountingId ?? ability.id) && candidate.interaction.kind === "Direct") : [];
+    const controls = text("div", ""); controls.className = "card-use-controls";
     for (const candidate of (entry.source === "Item" ? candidates.slice(0, 1) : candidates)) {
       const button = choiceButton(candidate);
+      button.textContent = "Use";
+      button.setAttribute("aria-label", candidate.displayLabel ?? candidate.label);
+      button.className = "card-use";
       button.dataset.legal = "true";
       button.disabled = busy;
       button.hidden = !visibleChoice(candidate);
       if (status) button.querySelectorAll(".choice-relevance")[0]?.remove();
-      row.append(button);
+      controls.append(button);
       if (!button.hidden && !document.getElementById("inspector-unit")?.hidden) {
         cardChoiceKeys.add(candidate.key);
         if (entry.source === "Item") for (const copy of candidates) cardChoiceKeys.add(copy.key);
       }
-      if (!status && !candidate.relevant && !button.hidden) row.append(text("small", "Legal · currently irrelevant"));
+      if (!button.hidden) row.classList.add("has-use");
     }
+    if (controls.children.length) row.append(controls);
+    row.style.setProperty("--card-controls-width", `${48 * Array.from(controls.children).filter(button => !button.hidden).length}px`);
     card.append(row);
   }
   // Hover inspection must not strand a Direct choice whose card is no longer shown.
   if (!busy) renderChoicePanel();
 }
 
-function abilityDescription(ability) {
+function abilityDescription(ability, heading, availabilityReason = null) {
   const description = text("div", ""); description.className = "ability-description";
-  const short = text("p", ability.shortDescription ?? ability.description ?? ability.name);
-  short.hidden = short.textContent === "";
-  bindTooltip(short, () => ability.description || ability.name);
-  description.append(short);
+  const fullText = ability.description || ability.name;
+  const shortText = ability.shortDescription ?? fullText;
+  // Brief rules can stand on their own; longer wording stays intact behind the heading.
+  const expandableRules = shortText !== fullText || fullText.length > 100;
+  const expandable = expandableRules || Boolean(availabilityReason);
+  if (!heading) {
+    heading = text("div", ""); heading.className = "ability-heading";
+    heading.append(text("strong", ability.name), text("small", ability.category));
+  }
+  if (!expandable) {
+    description.append(heading, text("p", fullText));
+    return description;
+  }
   const full = text("details", "");
   const summary = text("summary", "");
   bindTooltip(summary, () => ability.description || ability.name);
-  summary.append(text("span", "Details"));
-  const context = text("span", ` for ${ability.name}`); context.className = "sr-only"; summary.append(context);
-  summary.setAttribute("aria-label", `Full description: ${ability.name}`);
+  summary.append(heading);
+  summary.setAttribute("aria-label", `${expandableRules ? "Full description" : "Ability details"}: ${ability.name}`);
   full.append(summary);
-  full.append(text("p", ability.description || ability.name));
+  if (expandableRules) full.append(text("p", fullText));
+  if (availabilityReason) {
+    const help = text("p", availabilityReason); help.className = "ability-help";
+    full.append(help);
+  }
   description.append(full);
+  if (!expandableRules) description.append(text("p", fullText));
+  else if (ability.shortDescription && shortText !== fullText) {
+    const short = text("p", shortText); short.className = "ability-short";
+    bindTooltip(short, () => fullText); description.append(short);
+  }
   return description;
 }
 
@@ -906,10 +944,6 @@ function choiceButton(candidate) {
   button.addEventListener("focus", preview);
   button.addEventListener("mouseleave", clearAffectedPreview);
   button.addEventListener("blur", clearAffectedPreview);
-  if (candidate.relevant === false) {
-    const relevance = text("small", "Legal · currently irrelevant");
-    relevance.className = "choice-relevance"; button.append(relevance);
-  }
   return button;
 }
 
@@ -919,8 +953,9 @@ function renderChoicePanel() {
   if (previousAlternatives) threeChoicesOpen = previousAlternatives.open;
   ui.choices.replaceChildren();
   if (alternativeHost !== ui.choices) alternativeHost.replaceChildren();
-  const decision = snapshot?.presentation.decision;
+  const decision = displayedState === snapshot?.result.state ? snapshot?.presentation.decision : null;
   renderChoiceVisibility(decision);
+  const actionChoices = renderActionDock(decision);
   ui["decision-panel"].hidden = false;
   ui["decision-panel"].classList.toggle("roll-decision", Boolean(decision?.roll));
   if (decision?.roll) {
@@ -934,7 +969,7 @@ function renderChoicePanel() {
     }
     return;
   }
-  if (boardChooser) {
+  if (decision && boardChooser) {
     const chooser = text("div", ""); chooser.className = "board-chooser";
     chooser.append(text("small", "Choose an option"));
     for (const candidate of boardChooser) chooser.append(choiceButton(candidate));
@@ -943,12 +978,12 @@ function renderChoicePanel() {
     chooser.append(cancel);
     ui.choices.append(chooser);
   }
-  if (decision?.noneChoice && !boardChoiceKeys.has(null)) ui.choices.append(choiceButton(decision.noneChoice));
+  if (decision?.noneChoice && selectedActionKey === null && !boardChoiceKeys.has(null)) ui.choices.append(choiceButton(decision.noneChoice));
   for (const candidate of decision?.candidates ?? []) {
-    if (candidate.isEndTurn || !visibleChoice(candidate) || boardChoiceKeys.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
+    if (candidate.isEndTurn || !visibleBoardChoice(candidate) || boardChoiceKeys.has(candidate.key) || actionChoices.has(candidate.key) || cardChoiceKeys.has(candidate.key)) continue;
     ui.choices.append(choiceButton(candidate));
   }
-  if (threeActive() && boardChoiceKeys.size && !boardChooser) {
+  if (decision && threeActive() && boardChoiceKeys.size && !boardChooser && selectedActionKey === null) {
     // A canvas has no native Cell buttons. Keep the same authoritative choices
     // available to keyboard, assistive technology and touch without inventing
     // another command path. Collapsed by default to preserve board-first play.
@@ -966,7 +1001,9 @@ function renderChoiceVisibility(decision) {
   const count = decision?.candidates.filter(candidate => candidate.relevant === false).length ?? 0;
   host.hidden = !count;
   if (!count) return;
-  const button = text("button", ui.filter.checked ? `Show all legal choices (${count} hidden)` : "Hide irrelevant choices");
+  const button = text("button", ui.filter.checked ? `More choices (${count})` : "Fewer choices");
+  button.setAttribute("aria-pressed", String(!ui.filter.checked));
+  bindTooltip(button, () => ui.filter.checked ? "Show every legal choice, including choices currently considered irrelevant." : "Show relevant choices.");
   button.disabled = busy;
   button.addEventListener("click", () => {
     if (busy) return;
@@ -975,6 +1012,88 @@ function renderChoiceVisibility(decision) {
     document.getElementById("choice-visibility")?.querySelectorAll("button")[0]?.focus();
   });
   host.append(button);
+}
+
+function actionGroups(decision) {
+  const groups = new Map();
+  if (!decision || decision.roll) return [];
+  const entries = snapshot.presentation.cards[decision.unitId]?.entries ?? [];
+  for (const candidate of decision.candidates) {
+    if (candidate.isEndTurn || !visibleChoice(candidate) || ["move", "stay", "activate"].includes(candidate.boardVisual?.kind)) continue;
+    if (!candidate.entryId && !candidate.accountingId && candidate.interaction.kind !== "Direct" &&
+        !["attack", "special"].includes(candidate.boardVisual?.kind)) continue;
+    const key = actionKey(candidate);
+    if (!groups.has(key)) {
+      const entry = entries.find(entry => candidate.accountingId
+        ? entry.accountingId === candidate.accountingId : entry.content.id === candidate.entryId);
+      groups.set(key, { key, entry, name: entry?.content.name ?? candidate.displayLabel ?? candidate.label, candidates: [] });
+    }
+    groups.get(key).candidates.push(candidate);
+  }
+  return [...groups.values()];
+}
+
+function closeActionSelection() {
+  if (busy) return;
+  const previous = selectedActionKey;
+  selectedActionKey = null; selectedActionDecision = null;
+  renderSnapshot();
+  Array.from(document.getElementById("play-actions").querySelectorAll("button"))
+    .find(button => button.dataset.actionKey === previous)?.focus();
+}
+
+function renderActionDock(decision) {
+  const host = document.getElementById("play-actions");
+  const owned = new Set();
+  if (!host) return owned;
+  host.replaceChildren();
+  const groups = actionGroups(decision);
+  host.hidden = !groups.length;
+  if (!groups.length) return owned;
+  const chips = text("div", ""); chips.className = "action-chips";
+  for (const group of groups) {
+    for (const candidate of group.candidates) owned.add(candidate.key);
+    const button = text("button", group.name); button.className = "action-chip";
+    button.dataset.actionKey = group.key; button.dataset.actionIndex = String(chips.children.length);
+    button.disabled = busy;
+    if (group.candidates.length > 1 || group.candidates[0].interaction.kind !== "Direct")
+      button.setAttribute("aria-pressed", String(selectedActionKey === group.key));
+    if (group.entry?.source && group.entry.source !== "Native") {
+      const source = text("small", group.entry.source === "Item" ? "Item" : group.entry.source);
+      button.append(source);
+    }
+    bindTooltip(button, () => [group.entry?.sourceName, group.entry?.content.description,
+      group.candidates.every(candidate => candidate.relevant === false) ? "Legal, but not relevant now" : null].filter(Boolean).join(" · ") || group.name);
+    const preview = () => { if (group.candidates.length === 1) previewChoice(group.candidates[0]); };
+    button.addEventListener("mouseenter", preview); button.addEventListener("focus", preview);
+    button.addEventListener("mouseleave", clearAffectedPreview); button.addEventListener("blur", clearAffectedPreview);
+    button.addEventListener("click", () => {
+      if (busy) return;
+      if (group.candidates.length === 1 && group.candidates[0].interaction.kind === "Direct")
+        return chooseCandidate(group.candidates[0].key);
+      selectedActionKey = group.key; selectedActionDecision = decision;
+      renderSnapshot();
+      document.getElementById("play-actions")?.querySelectorAll(".action-target-options")[0]?.querySelectorAll("button")[0]?.focus();
+    });
+    chips.append(button);
+  }
+  host.append(chips);
+  const selected = groups.find(group => group.key === selectedActionKey);
+  if (selected) {
+    const options = text("section", ""); options.className = "action-target-options";
+    options.setAttribute("aria-label", `${selected.name} choices`);
+    const targeted = selected.candidates.some(candidate => candidate.interaction.kind !== "Direct");
+    options.append(text("p", targeted ? `Choose an option for ${selected.name} on the board or below.` : `Choose an option for ${selected.name}.`));
+    const targets = text("div", ""); targets.className = "action-target-list";
+    for (const candidate of selected.candidates) {
+      const button = choiceButton(candidate); button.disabled = busy;
+      button.dataset.actionCandidateKey = candidate.key; targets.append(button);
+    }
+    const cancel = text("button", "Cancel"); cancel.className = "action-cancel";
+    cancel.addEventListener("click", closeActionSelection);
+    options.append(targets, cancel); host.append(options);
+  }
+  return owned;
 }
 
 function renderBoardChoiceList(host, decision) {
@@ -1041,6 +1160,10 @@ function renderBoardChoiceList(host, decision) {
 
 function renderSnapshot() {
   renderSessionHeading();
+  if (selectedActionDecision !== snapshot?.presentation.decision ||
+      !snapshot?.presentation.decision?.candidates.some(candidate => visibleChoice(candidate) && actionKey(candidate) === selectedActionKey)) {
+    selectedActionKey = null; selectedActionDecision = null;
+  }
   const state = snapshot.result.state;
   globalThis.dispatchEvent?.(new CustomEvent("delve-generation-state", { detail: { code: snapshot.generationCode ?? null } }));
   if (snapshot.scenarios) {
@@ -1078,9 +1201,11 @@ function renderSnapshot() {
     boardChoices.get(node).set(candidate.key, candidate);
   };
   ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? decision.roll ? rollLabel(decision.roll) : decision.displayPrompt ?? decision.prompt : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  const selected = selectedActionKey === null ? null : actionGroups(decision).find(group => group.key === selectedActionKey);
+  if (selected) ui.prompt.textContent = `Choose an option for ${selected.name}.`;
   ui["board-hint"].textContent = ui.prompt.textContent;
   for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
-    if (!visibleChoice(candidate)) continue;
+    if (!visibleBoardChoice(candidate)) continue;
     const selection = candidate.interaction;
     if (selection.kind === "Unit") {
       offer(figures.get(selection.unitId), candidate);
@@ -1232,6 +1357,7 @@ function updateControls() {
   for (const button of ui["board-alternatives"]?.querySelectorAll("button") ?? [])
     button.disabled = busy || button.dataset.requiresSelection === "true";
   for (const button of document.getElementById("choice-visibility")?.querySelectorAll("button") ?? []) button.disabled = busy;
+  for (const button of document.getElementById("play-actions")?.querySelectorAll("button") ?? []) button.disabled = busy;
   for (const button of ui["unit-card"].querySelectorAll("button"))
     if (button.dataset.legal != null) button.disabled = busy || !snapshot || button.dataset.legal !== "true";
   for (const node of ui.board.querySelectorAll(".board-choice")) {
