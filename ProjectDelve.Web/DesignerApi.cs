@@ -45,7 +45,7 @@ public static class DesignerApi
 
     public static void Map(WebApplication app)
     {
-        ContentBundle Canonical() => app.Services.GetRequiredService<CanonicalContent>().Bundle;
+        ContentBundle Canonical() => app.Services.GetRequiredService<ContentWorkspace>().Resolve().Definitions;
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
             maxBoardSize = MaxBoardSize,
@@ -117,6 +117,7 @@ public static class DesignerApi
         app.MapPost("/api/designer/export", (JsonElement draft) => Execute(() =>
         {
             var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits, Canonical());
+            definition = WorkspaceScenarioExport.Capture(definition, app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions, app.Services.GetRequiredService<CanonicalContent>().Bundle);
             return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(definition) });
         }));
     }

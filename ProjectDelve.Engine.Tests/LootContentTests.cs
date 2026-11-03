@@ -190,7 +190,7 @@ public sealed class LootContentTests
     }
 
     [Fact]
-    public void HistoricalLocalCanonicalIdsKeepExplicitRewardsDistinctFromEnumRowsWithoutMutatingAuthoring()
+    public void LocalCanonicalIdsReplaceBothExplicitAndLegacyRewardsWithoutMutatingAuthoring()
     {
         var localObject = new OwnedObject("owned-local", LootCardKind.SecondWind)
             { LootCardId = "pocket-breakfast", ItemTypeId = "second-wind" };
@@ -208,7 +208,7 @@ public sealed class LootContentTests
         var loaded = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scenario));
         Assert.Equal(before, ScenarioDefinitionJson.ToJson(loaded));
         var state = Ready(loaded);
-        const string alias = "local-loot:local-loot:pocket-breakfast";
+        const string alias = "pocket-breakfast";
         Assert.Equal(before, ScenarioDefinitionJson.ToJson(scenario));
         Assert.Equal(before, ScenarioDefinitionJson.ToJson(loaded));
         Assert.Equal("second-wind", state.LootCardDefinitions.Single(d => d.Id == alias).ItemTypeId);
@@ -221,10 +221,10 @@ public sealed class LootContentTests
         var second = Ready(scenario);
         Assert.Equal(state.LootDeck.DrawPile, second.LootDeck!.DrawPile);
         var result = Collect(state);
-        Assert.Equal(3, result.State.Units[0].CurrentHp);
-        Assert.Equal(2, result.State.Units[0].Inventory.Length);
+        Assert.Equal(state.Units[0].CurrentHp, result.State.Units[0].CurrentHp);
+        Assert.Equal(3, result.State.Units[0].Inventory.Length);
         Assert.Equal(alias, result.State.Units[0].Inventory.Last().LootCardId);
-        Assert.Equal("pocket-breakfast", Assert.Single(result.Events.Where(e => e.Kind == "HealResolved")).ActionId);
+        Assert.DoesNotContain(result.Events, e => e.Kind == "HealResolved");
     }
 
     [Fact]

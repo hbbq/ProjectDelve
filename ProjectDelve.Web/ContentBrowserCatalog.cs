@@ -64,6 +64,26 @@ public static class ContentBrowserCatalog
 
     public static ContentBrowserResponse Canonical(ContentBundle? canonical = null) => Build(null, null, canonical ?? ContentBundle.Canonical());
 
+    public static ContentBrowserResponse WorkspaceOrigins(ContentBrowserResponse catalog, ContentBundle workspace, ContentBundle canonical)
+    {
+        var owned = ContentWorkspace.Identities(workspace).ToHashSet();
+        var canonicalIds = ContentWorkspace.Identities(canonical).ToHashSet();
+        return catalog with { Entries = catalog.Entries.Select(entry =>
+        {
+            if (entry.Origin != "canonical") return entry;
+            var family = entry.Family switch
+            {
+                "units" => ContentFamily.Unit, "equipment" => ContentFamily.Equipment, "items" => ContentFamily.Item,
+                "lootCards" => ContentFamily.LootCard, "lootPresets" => ContentFamily.LootPreset, "worldCards" => ContentFamily.WorldCard,
+                "worldDecks" => ContentFamily.WorldDeck, "terrain" or "terrainAssemblies" => ContentFamily.Terrain,
+                "fixedComponents" => ContentFamily.FixedComponent, "resources" => ContentFamily.Resource, _ => (ContentFamily?)null
+            };
+            if (family is null) return entry;
+            var identity = new ContentIdentity(family.Value, family == ContentFamily.WorldDeck && entry.Id == "default" ? "default-world-deck" : entry.Id);
+            return owned.Contains(identity) ? entry with { Origin = canonicalIds.Contains(identity) ? "workspace-override" : "workspace" } : entry;
+        }).ToArray() };
+    }
+
     // Resolved, validated dependencies only: no scenario or runtime state.
     public static ContentBrowserResponse Definitions(IReadOnlyList<EquipmentDefinition> equipment,
         IReadOnlyList<ItemDefinition> items, IReadOnlyList<LootCardDefinition> loot,
@@ -164,27 +184,11 @@ public static class ContentBrowserCatalog
             entries.Add(EquipmentEntry(type, Local(source?.EquipmentTypes?.Any(t => t.Id == type.Id) == true), units));
         foreach (var type in items)
             entries.Add(ItemEntry(type, Local(source?.ItemTypes?.Any(t => t.Id == type.Id) == true), units));
-        for (var index = 0; index < loot.Count; index++)
-        {
-            var type = loot[index];
-            // Catalog creation preserves local ordering when it aliases a historical
-            // ID collision; retain the exact authored identity alongside the result.
-            var localIndex = index - canonical.LootCards.Length;
-            var authored = localIndex >= 0 ? source?.LootCardDefinitions?[localIndex] : null;
-            entries.Add(LootEntry(type, Local(authored is not null)) with
-            { AuthoredDefinition = authored is not null && authored.Id != type.Id ? Element(authored) : null });
-        }
+        foreach (var type in loot)
+            entries.Add(LootEntry(type, Local(source?.LootCardDefinitions?.Any(card => card.Id == type.Id) == true)));
         foreach (var preset in canonical.LootPresets)
         {
             var composition = LootPresets.Resolve(preset.Id, LootCardCatalog.Effective(source?.LootCardDefinitions, canonical.LootCards), canonical.LootPresets);
-            // Dynamic selection uses authored IDs and local precedence. References
-            // in this resolved view follow the historical runtime aliases, if any.
-            if (preset.IsDynamic && source?.LootCardDefinitions is { } local)
-                composition = composition.Select(row =>
-                {
-                    var localIndex = local.FindIndex(card => card.Id == row.LootCardId);
-                    return localIndex < 0 ? row : row with { LootCardId = loot[canonical.LootCards.Length + localIndex].Id };
-                }).ToArray();
             entries.Add(Entry("lootPresets", preset.Id, preset.Name, preset with { Composition = composition },
                 preset.IsDynamic && source is not null ? "resolved" : "canonical", preset.Description,
                 references: LootReferences(new LootSettings { Composition = composition.ToList() }.ResolveObjects(loot))));

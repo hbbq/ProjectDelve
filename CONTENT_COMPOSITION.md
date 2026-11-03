@@ -1,51 +1,17 @@
-# Explicit content composition and game snapshots
+# Scope composition and game snapshots
 
-Engine composes selected provider data before gameplay. C# rosters and
-[JSON packages](CONTENT_PACKAGES.md) are providers. The separate
-[persistent Content Library](CONTENT_LIBRARY.md) does not enter game composition implicitly.
-Definitions retain their existing typed models and storage-independent identities.
+Engine resolves complete typed definitions by **Scenario > Workspace > Canonical**. Identity is Content Family plus Type ID (Terrain assemblies share the Terrain namespace). Closer definitions replace entire definitions; no fields merge. Duplicate identities within any single scope fail even when a closer scope would hide them. References resolve against the final catalog, so Equipment grants and Summoning use the winning Unit definition.
 
 ```csharp
-// The ordinary scenario adapter selects current canonical content at new-game creation.
-var game = GameEngine.CreateGame(scenario);
-
-// An explicit provider bundle replaces that default, including when intentionally empty.
-var selected = ContentBundle.Canonical();
-var explicitGame = GameEngine.CreateGame(scenario, selected);
-
-// Compose multiple providers and an optional scenario-local bundle independently.
-var effective = ContentComposition.Compose([providerA, providerB], scenarioLocal);
-var capturedGame = GameEngine.CreateGame(scenario, effective);
+var effective = ContentComposition.ComposeScopes(canonical, workspace, scenarioLocal);
+var game = GameEngine.CreateGame(scenario, effective.Definitions);
 ```
 
-`ContentBundle` contains immutable arrays of Units, Equipment, Items, Loot Cards,
-Loot presets, World Cards and default quantities, Terrain, Fixed Components,
-authored Terrain assemblies, and named Resource definitions. `Source` annotates
-provider diagnostics outside gameplay data. Omitted bundle collections are empty.
-Passing an empty bundle never installs canonical definitions. A scenario that
-requires absent terrain, a preset or another definition fails validation.
+`ContentComposition.Compose` remains the strict composition boundary for peer canonical providers; `ComposeScopes` implements authoring precedence. Both produce the same typed `EffectiveContent` and validated dependency graph. C# roster and JSON definitions use one Engine path. Omitted collections are empty; empty Workspace is valid. A nonempty higher default World Deck replaces the lower deck; an empty deck in a bundle means no authored deck at that scope.
 
-`Compose` returns `EffectiveContent`, with materialized `Definitions` and the
-Milestone 1 dependency graph. It validates structure, references and collisions
-using [shared validation](CONTENT_VALIDATION.md). Identity is family + Type ID;
-Terrain assemblies share the Terrain namespace. Provider order preserves authored
-enumeration but never resolves collisions. Duplicate provider identities are
-rejected even if a later scenario override would hide them. Only the separate
-scenario-local Unit collection can override a provider Unit. Other local family
-collisions fail. Historical scenario Loot aliases are normalized by the ordinary
-new-game adapter before composition, without changing the authored scenario.
+The Web host supplies current Workspace plus Canonical to Designer, generation metadata and new-game adapters. Scenario-local collections then replace matching identities. Dependency-only Unit definitions may exist without joining initial activation order; placement and agency still require explicit scenario selection.
 
-The `ContentBundle` new-game overload composes the scenario's local collections.
-The `EffectiveContent` overload accepts an already final catalog: the caller must
-have included those local declarations in `Compose`; they are not applied twice.
-Terrain assembly declarations materialize into Terrain definitions containing
-their surface and component payloads. Effective bundles carry those resolved
-Terrain definitions rather than registering authored and resolved versions twice.
-
-Composition failures throw `ContentCompositionException` with typed `Diagnostics`.
-Each diagnostic retains owner identity, reference path and available provider
-document/package/row location. Scenario creation translates these to the existing
-ArgumentException/ScenarioValidationContext boundary and authored scenario paths.
+Canonical publication uses explicit ownership transfer, described in [promotion](CONTENT_PROMOTION.md), to maintain a single effective provider per identity. Running games never consult mutable authoring scopes.
 
 ## Snapshot boundary
 
@@ -100,27 +66,11 @@ Typed GameResponse consumers retain the supplied authoritative Presentation, inc
 rather than rebuilding it from public state that deliberately omits definitions.
 Public responses are observations, not resumable save files.
 
-## Remaining boundaries
+## Lower-level provider boundaries
 
 Nonempty Ability Costs are supported on active declarations through shared
 commitment/payment. Normal composition and snapshot validation check their
 supported source/timing contracts and Resource dependencies.
-Empty Costs are omitted from serialized definitions, preserving existing Library
-revision and pinned snapshot digest inputs. No revisions or pins are migrated.
+Empty Costs remain omitted from serialized definitions. Named production and implicit Resource requirements use an explicit lookup list; embedded Resource/Machine variants retain their owned payloads. Machines and Cell Markers gain no new authoring family.
 
-Named production and implicit Resource requirements have an explicit lookup list.
-This does not turn embedded Resource or Machine variants into globally reusable
-definitions. Same-ID inline variants preserve their actual payloads. Independent
-library Resources/Machines still need a reusable-reference and variant model.
-Cell Markers retain their established concrete representation.
-
-Canonical JSON providers are documented in [CONTENT_PACKAGES.md](CONTENT_PACKAGES.md).
-Library package revisions are documented in [CONTENT_LIBRARY.md](CONTENT_LIBRARY.md).
-[Pinned scenario references](SCENARIO_CONTENT_REFERENCES.md) embed an explicitly
-selected dependency closure. Promotion, inheritance and asset ownership remain deferred. Generator pools,
-algorithms, authored scenarios, client-side rules and game rules are unchanged.
-
-[Canonical promotion](CONTENT_PROMOTION.md) records publication provenance outside
-definitions. Exact published payloads in retained scenarios share one effective
-identity with their canonical publication. Other provider duplicates still fail;
-canonical replacement and changed-payload shadowing are not permitted.
+Canonical JSON providers are documented in [CONTENT_PACKAGES.md](CONTENT_PACKAGES.md). [Workspace storage](CONTENT_LIBRARY.md) is mutable and revision-free. [Scenario exports](SCENARIO_CONTENT_REFERENCES.md) embed effective definitions for portability. [Canonical promotion](CONTENT_PROMOTION.md) supports new identities and explicit replacement ownership. Historical revision/pin services remain only as legacy infrastructure. Generator selection policies, authored scenarios and gameplay rules are unchanged.

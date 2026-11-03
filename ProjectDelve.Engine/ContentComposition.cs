@@ -77,6 +77,36 @@ public sealed class EffectiveContent
 
 public static class ContentComposition
 {
+    // Scope precedence is explicit, independent of provider enumeration or storage format.
+    // Validate collisions before filtering so even a shadowed same-scope duplicate is rejected.
+    public static EffectiveContent ComposeScopes(ContentBundle canonical, ContentBundle? workspace = null, ContentBundle? scenarioLocal = null)
+    {
+        var scopes = new[] { canonical, workspace, scenarioLocal }.OfType<ContentBundle>().ToArray();
+        var identities = scopes.Select(scope =>
+        {
+            if (scope.Resources.IsDefault || scope.DefaultWorldDeck.IsDefault)
+                throw new ArgumentException("Resource definitions and default World composition must be arrays.");
+            var rows = scope.Definitions().Select(d => (d.Identity, d.Source))
+                .Concat(scope.Resources.Select((r, i) => (new ContentIdentity(ContentFamily.Resource, r.Id),
+                    (ContentSource?)new ContentSource(scope.Source?.Document, scope.Source?.Package, $"resources[{i}]")))).ToArray();
+            var duplicate = rows.GroupBy(row => row.Item1).FirstOrDefault(group => group.Count() > 1);
+            if (duplicate is not null)
+                throw new ContentCompositionException([new(duplicate.Key, "", "conflictingDefinition", "A scope contains conflicting identities.",
+                    duplicate.First().Item2, duplicate.Key, duplicate.Skip(1).First().Item2)]);
+            return rows.Select(row => row.Item1).ToHashSet();
+        }).ToArray();
+        if (scenarioLocal is not null) ValidateScenarioTerrain(scenarioLocal);
+        var selected = scopes.Select((scope, index) =>
+        {
+            var shadowed = identities.Skip(index + 1).SelectMany(ids => ids).ToHashSet();
+            var filtered = ScenarioContentReferences.Filter(scope, identity => !shadowed.Contains(identity));
+            if (scopes.Skip(index + 1).Any(next => !next.DefaultWorldDeck.IsEmpty))
+                filtered = filtered with { DefaultWorldDeck = [] };
+            return filtered;
+        });
+        return Compose(selected);
+    }
+
     public static void ValidateSnapshot(GameState state)
     {
         if (state.ResourceDefinitions.Any(r => !ResourceRules.ValidType(r)) ||
@@ -116,23 +146,25 @@ public static class ContentComposition
         if (duplicate is not null)
             throw new ContentCompositionException([new(duplicate.Key, "", "conflictingDefinition", "Providers contain conflicting identities.",
                 duplicate.First().Source, duplicate.Key, duplicate.Skip(1).First().Source)]);
+        var duplicateResource = bundles.SelectMany(bundle => bundle.Resources.Select(resource => (resource.Id, bundle.Source)))
+            .GroupBy(row => row.Id, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
+        if (duplicateResource is not null)
+            throw new ContentCompositionException([new(new(ContentFamily.Resource, duplicateResource.Key), "", "conflictingDefinition",
+                "Providers contain conflicting named Resource identities.", duplicateResource.Skip(1).First().Source,
+                new(ContentFamily.Resource, duplicateResource.Key), duplicateResource.First().Source)]);
         if (scenarioLocal is {} local)
         {
-            var reservedTerrain = local.Terrain.FirstOrDefault(t => t.LegacyKind is not null || t.LegacyProductionIdentity is not null || t.Assembly is not null);
-            if (reservedTerrain is not null)
-                throw new ContentCompositionException([new(new(ContentFamily.Terrain, reservedTerrain.Id), "legacyKind", "invalidDefinition",
-                    "Scenario-local Terrain cannot claim legacy identities or embed resolved assemblies; author surface/component references.", local.Source)]);
-            // Only the established scenario-local Unit override is permitted.
-            var overridden = local.Units.Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
-            var published = bundles.SelectMany(b => b.Publications).ToArray();
-            var retained = local.Definitions().Where(d => published.Any(p => p.Identity == d.Identity && p.PayloadDigest == CanonicalPublications.PayloadDigest(local, d.Identity)))
-                .Select(d => d.Identity).ToHashSet();
-            supplied.RemoveAll(d => d.Identity.Family == ContentFamily.Unit && overridden.Contains(d.Identity.TypeId) || retained.Contains(d.Identity));
+            ValidateScenarioTerrain(local);
+            var overridden = local.Definitions().Select(d => d.Identity).ToHashSet();
+            supplied.RemoveAll(d => overridden.Contains(d.Identity));
             supplied.AddRange(local.Definitions());
         }
-        var resources = allBundles.SelectMany(b => b.Resources).ToImmutableArray();
+        var localResources = scenarioLocal?.Resources.Select(r => r.Id).ToHashSet(StringComparer.Ordinal) ?? [];
+        var resourceBundles = bundles.Select(b => b with { Resources = [.. b.Resources.Where(r => !localResources.Contains(r.Id))] })
+            .Concat(scenarioLocal is null ? [] : new[] { scenarioLocal }).ToArray();
+        var resources = resourceBundles.SelectMany(b => b.Resources).ToImmutableArray();
         Dictionary<string, ContentSource> resourceSources = new(StringComparer.Ordinal);
-        foreach (var bundle in allBundles)
+        foreach (var bundle in resourceBundles)
         for (var index = 0; index < bundle.Resources.Length; index++)
         {
             var resource = bundle.Resources[index];
@@ -183,5 +215,13 @@ public static class ContentComposition
             Publications = [.. allBundles.SelectMany(b => b.Publications)]
         };
         return new(result, graph);
+    }
+
+    private static void ValidateScenarioTerrain(ContentBundle local)
+    {
+        var reservedTerrain = local.Terrain.FirstOrDefault(t => t.LegacyKind is not null || t.LegacyProductionIdentity is not null || t.Assembly is not null);
+        if (reservedTerrain is not null)
+            throw new ContentCompositionException([new(new(ContentFamily.Terrain, reservedTerrain.Id), "legacyKind", "invalidDefinition",
+                "Scenario-local Terrain cannot claim legacy identities or embed resolved assemblies; author surface/component references.", local.Source)]);
     }
 }

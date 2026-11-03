@@ -73,16 +73,16 @@ public sealed class ContentEditorApiTests
     }
 
     [Fact]
-    public async Task CopiesRequireNewIdsWhileEditsReplaceOnlyAnExistingLocalRowAndPreserveItsId()
+    public async Task OverridesKeepProviderIdsWhileEditsReplaceOnlyAnExistingLocalRowAndPreserveItsId()
     {
         await using var host = await Host.Start();
         var canonical = EquipmentCatalog.All.Single(type => type.Id == "goat-bell");
-        AssertError(await host.Validate("equipment", canonical), "definition.id");
+        Assert.True((await host.Validate("equipment", canonical)).Valid);
         var copied = await host.Validate("equipment", canonical with { Id = "my-bell", Name = "My Bell" });
         Assert.True(copied.Valid);
         Assert.Equal(canonical.LocalAbilities[0].Key, Assert.Single(copied.Entry!.Abilities).Key);
         var breakfast = LootCardCatalog.All.Single(card => card.Id == "pocket-breakfast");
-        AssertError(await host.Validate("lootCards", breakfast), "definition.id");
+        Assert.True((await host.Validate("lootCards", breakfast)).Valid);
         Assert.True((await host.Validate("lootCards", breakfast with { Id = "my-breakfast" })).Valid);
 
         var original = Equipment();
@@ -195,15 +195,14 @@ public sealed class ContentEditorApiTests
         response.EnsureSuccessStatusCode();
         var catalog = (await response.Content.ReadFromJsonAsync<ContentBrowserResponse>(Json))!;
         var pair = catalog.Entries.Where(entry => entry.Family == "lootCards" && entry.Id == historical.Id).ToArray();
-        Assert.Equal(2, pair.Length);
-        Assert.Equal(2, pair.Select(entry => entry.Key).Distinct().Count());
+        Assert.Single(pair);
         var local = pair.Single(entry => entry.Name == historical.Name);
         Assert.Equal("local", local.Origin);
-        Assert.Equal("legacy-collision", local.Availability);
+        Assert.NotEqual("legacy-collision", local.Availability);
         Assert.Equal(historical.Id, local.Definition.GetProperty("id").GetString());
         Assert.True((await host.Validate("equipment", Equipment(), context: context)).Valid);
         Assert.True((await host.Validate("lootCards", historical with { Id = "copied-historical-reward" }, context: context)).Valid);
-        AssertError(await host.Validate("lootCards", historical, historical.Id, context), "definition.id");
+        Assert.True((await host.Validate("lootCards", historical, historical.Id, context)).Valid);
         Assert.Equal(before, JsonSerializer.Serialize(context, Json));
 
         var scenario = Scenario.Define(Scenario.Map(2, 2),
@@ -212,8 +211,8 @@ public sealed class ContentEditorApiTests
         using var inspection = await host.Client.PostAsync("/api/content/inspect", new StringContent(ScenarioDefinitionJson.ToJson(scenario), Encoding.UTF8, "application/json"));
         inspection.EnsureSuccessStatusCode();
         var resolved = (await inspection.Content.ReadFromJsonAsync<ContentBrowserResponse>(Json))!.Entries.Single(entry => entry.Name == historical.Name);
-        Assert.NotEqual(historical.Id, resolved.Id);
-        Assert.Equal(historical.Id, resolved.AuthoredDefinition!.Value.GetProperty("id").GetString());
+        Assert.Equal(historical.Id, resolved.Id);
+        Assert.Equal(historical.Id, resolved.Definition.GetProperty("id").GetString());
     }
 
     [Fact]

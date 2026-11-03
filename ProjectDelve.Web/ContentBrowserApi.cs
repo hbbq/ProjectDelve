@@ -16,8 +16,11 @@ public static class ContentBrowserApi
             {
                 using var reader = new StreamReader(request.Body);
                 var document = await reader.ReadToEndAsync(request.HttpContext.RequestAborted);
-                var definition = ScenarioDefinitionJson.FromJson(document, DesignerApi.CheckHostLimits, Canonical());
-                return Results.Ok(ContentBrowserCatalog.Scenario(definition, Canonical()));
+                var canonical = Canonical();
+                var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
+                var effective = ContentComposition.ComposeScopes(canonical, workspace).Definitions;
+                var definition = ScenarioDefinitionJson.FromJson(document, DesignerApi.CheckHostLimits, effective);
+                return Results.Ok(ContentBrowserCatalog.WorkspaceOrigins(ContentBrowserCatalog.Scenario(definition, effective), workspace, canonical));
             }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)
             {

@@ -16,7 +16,6 @@ internal static class ScenarioCreation
         var effectiveCards = baseContent.LootCards.Where(c => !localIds.Contains(c.Id)).Concat(localCards).ToArray();
         var lootComposition = (definition.Loot ?? new LootSettings()).ResolveComposition(effectiveCards, baseContent.LootPresets);
         definition = definition with { Loot = new() { Composition = lootComposition.ToList() } };
-        if (composeLocal) definition = LootCompatibility.ResolveLocalIdCollisions(definition, CanonicalPublications.ForLocal(baseContent, definition).LootCards);
         EffectiveContent content;
         try { content = ContentComposition.Compose([baseContent], composeLocal ? ContentBundle.Local(definition) : null); }
         catch (ContentCompositionException error)
@@ -131,9 +130,9 @@ internal static class ScenarioCreation
         }
 
         var customTypes = definition.UnitTypes ?? [];
-        if (customTypes.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id) || !declared.Contains(t.Id)) ||
+        if (customTypes.Any(t => t is null || string.IsNullOrWhiteSpace(t.Id)) ||
             customTypes.Select(t => t.Id).Distinct().Count() != customTypes.Count)
-            throw new ArgumentException("Scenario Unit Types must be unique and declared.", nameof(definition));
+            throw new ArgumentException("Scenario Unit Types require unique nonblank IDs.", nameof(definition));
         var types = definition.UnitTypeIds.Select(id => UnitContent.Find(id, catalog.Units)
             ?? throw new ArgumentException($"Unknown Unit Type ID '{id}'.", nameof(definition))).ToList();
         foreach (var (id, settings) in definition.LootUnitOverrides ?? [])

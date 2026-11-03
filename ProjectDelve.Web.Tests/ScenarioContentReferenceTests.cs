@@ -105,7 +105,7 @@ public sealed class ScenarioContentReferenceTests : IDisposable
         var preview = Pin(family: ContentFamily.Equipment, id: "call-helper");
         var scenario = Apply(preview) with { UnitTypeIds = [.. Scenario().UnitTypeIds, helper.Id], UnitTypes = [.. Scenario().UnitTypes!, helper with { Hp = 7 }] };
         Assert.Equal(7, GameEngine.CreateGame(scenario, Canonical.Bundle).Types.Single(t => t.Id == "helper").Hp);
-        Assert.Throws<ContentCompositionException>(() => Pin(Scenario() with { EquipmentTypes = [package.Definitions.Equipment[0]] }, ContentFamily.Equipment, "call-helper"));
+        Assert.NotNull(Pin(Scenario() with { EquipmentTypes = [package.Definitions.Equipment[0]] }, ContentFamily.Equipment, "call-helper"));
         Store.Save("knightly-kit", new(package with { Title = "Changed" }, 1));
         var second = Pin(family: ContentFamily.Equipment, id: "call-helper", revision: 2);
         Assert.Contains(Assert.Throws<ContentCompositionException>(() => ScenarioContentReferences.Compose(Canonical.Bundle, [preview.Reference, second.Reference])).Diagnostics,

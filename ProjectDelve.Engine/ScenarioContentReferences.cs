@@ -111,8 +111,7 @@ public static class ScenarioContentReferences
     public static EffectiveContent ScenarioCatalog(ContentBundle canonical, ScenarioDefinition scenario)
     {
         var provider = Compose(canonical, scenario.ContentReferences).Definitions;
-        var authored = LootCompatibility.ResolveLocalIdCollisions(scenario, CanonicalPublications.ForLocal(provider, scenario).LootCards);
-        return ContentComposition.Compose([provider], ContentBundle.Local(authored));
+        return ContentComposition.Compose([provider], ContentBundle.Local(scenario));
     }
 
     public static ContentBundle Filter(ContentBundle body, Func<ContentIdentity, bool> include)

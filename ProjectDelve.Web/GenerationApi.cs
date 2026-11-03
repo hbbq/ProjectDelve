@@ -9,7 +9,7 @@ public static class GenerationApi
 {
     public static void Map(WebApplication app)
     {
-        ContentBundle Canonical() => app.Services.GetRequiredService<CanonicalContent>().Bundle;
+        ContentBundle Canonical() => app.Services.GetRequiredService<ContentWorkspace>().Resolve().Definitions;
         app.MapPost("/api/generation", (GenerationRequest request, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
@@ -23,7 +23,7 @@ public static class GenerationApi
                     unitMetadata = result.Definition.UnitTypeIds.Select(id => UnitContent.Find(id, effectiveUnits)!).Select(type => new
                     { unitTypeId = type.Id, footprintOffsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)) }),
                     definition = JsonSerializer.Deserialize<JsonElement>(ScenarioDefinitionJson.ToJson(result.Definition)),
-                    transport = ScenarioDefinitionTransport.Encode(result.Definition), result.Fingerprint, result.Diagnostics });
+                    transport = ScenarioDefinitionTransport.Encode(WorkspaceScenarioExport.Capture(result.Definition, app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions, app.Services.GetRequiredService<CanonicalContent>().Bundle)), result.Fingerprint, result.Diagnostics });
             }
             catch (Exception error) when (error is ArgumentException or FormatException)
             { return Results.Problem(error.Message, statusCode: 400); }

@@ -56,6 +56,31 @@ public sealed class ContentPackageTests
     }
 
     [Fact]
+    public void ExplicitCSharpReplacementTransfersOwnershipAndRequiresFinalOwnerDependencies()
+    {
+        var canonical = ContentBundle.Canonical();
+        var identity = new ContentIdentity(ContentFamily.Equipment, "lucky-boots");
+        var replacement = new ContentPackage
+        {
+            Id = "replacement", ReplacesCSharp = [identity],
+            Definitions = new() { Equipment = [new("lucky-boots", "Replacement Boots")] }
+        };
+        replacement = ContentPackageJson.FromJson(ContentPackageJson.ToJson(replacement));
+        var effective = ContentPackageCatalog.Compose([new(replacement, "replacement.json")], canonical);
+        Assert.Equal("Replacement Boots", effective.Definitions.Equipment.Single(e => e.Id == "lucky-boots").Name);
+        Assert.Equal("Lucky Boots", canonical.Equipment.Single(e => e.Id == "lucky-boots").Name);
+        Assert.Throws<ContentCompositionException>(() => ContentPackageCatalog.Compose([new(replacement with { ReplacesCSharp = [] })], canonical));
+        Assert.Throws<ArgumentException>(() => ContentPackageCatalog.Compose([new(replacement)], new ContentBundle()));
+        Assert.Throws<ArgumentException>(() => ContentPackageCatalog.Compose([new(replacement), new(replacement with { Id = "other" })], canonical));
+        var consumer = new ContentPackage { Id = "consumer", Dependencies = ["replacement"], Definitions =
+            new() { LootCards = [new("reward", "Reward") { EquipmentTypeId = "lucky-boots" }] } };
+        _ = ContentPackageCatalog.Compose([new(consumer), new(replacement)], canonical);
+        var error = Assert.Throws<ContentCompositionException>(() => ContentPackageCatalog.Compose(
+            [new(consumer with { Dependencies = [ContentPackageCatalog.CSharpPackageId] }), new(replacement)], canonical));
+        Assert.Equal("replacement", Assert.Single(error.Diagnostics).RelatedSource!.Package);
+    }
+
+    [Fact]
     public void EveryCurrentCanonicalFamilyCanRoundTripAsOneTypedPackage()
     {
         var original = new ContentPackage { Id = "canonical-export", Definitions = ContentBundle.Canonical() };

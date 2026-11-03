@@ -37,14 +37,21 @@ public static class ContentEditorApi
 
     public static void Map(WebApplication app)
     {
-        ContentBundle Canonical() => app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.MapPost("/api/content/validate", async (HttpRequest request) =>
         {
             try
             {
                 var input = JsonSerializer.Deserialize<ContentEditorRequest>(await Read(request), Json)
                     ?? throw new JsonException("A content validation request is required.");
-                return Results.Ok(Validate(input, Canonical()));
+                var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
+                var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
+                var result = Validate(input, ContentComposition.ComposeScopes(canonical, workspace).Definitions);
+                if (result.Catalog is { } catalog)
+                {
+                    var annotated = ContentBrowserCatalog.WorkspaceOrigins(catalog, workspace, canonical);
+                    result = result with { Catalog = annotated, Entry = result.Entry is { } entry ? annotated.Entries.Single(row => row.Key == entry.Key) : null };
+                }
+                return Results.Ok(result);
             }
             catch (JsonException error)
             {
@@ -57,8 +64,12 @@ public static class ContentEditorApi
             {
                 var context = JsonSerializer.Deserialize<ContentEditorContext>(await Read(request), Json)
                     ?? throw new JsonException("A dependency context is required.");
-                var resolved = Resolve(context, contextPath: "", canonical: Canonical());
-                return Results.Ok(ContentBrowserCatalog.Pinned(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, Canonical()), context.ContentReferences, resolved.LocalUnitIds));
+                var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
+                var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
+                var effective = ContentComposition.ComposeScopes(canonical, workspace).Definitions;
+                var resolved = Resolve(context, contextPath: "", canonical: effective);
+                var catalog = Origins(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, effective), context);
+                return Results.Ok(ContentBrowserCatalog.WorkspaceOrigins(catalog, workspace, canonical));
             }
             catch (Exception error) when (error is JsonException or ContentEditorException or ContentCompositionException)
             {
@@ -86,7 +97,7 @@ public static class ContentEditorApi
         try
         {
             var resolved = Resolve(request.Context ?? new(), candidate, request.ExistingId, canonical: canonical);
-            var catalog = ContentBrowserCatalog.Pinned(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical), request.Context?.ContentReferences, resolved.LocalUnitIds);
+            var catalog = Origins(ContentBrowserCatalog.Definitions(resolved.Equipment, resolved.Items, resolved.Loot, resolved.Units, resolved.LocalUnitIds, canonical), request.Context ?? new(), candidate);
             var id = ContentDefinitions.Identity(candidate).TypeId;
             return new(true, [])
             {
@@ -117,25 +128,16 @@ public static class ContentEditorApi
         string contextPath = "context", ContentBundle? canonical = null)
     {
         canonical ??= ContentBundle.Canonical();
-        if (candidate is not null && canonical.Publications.Any(p => p.Identity == ContentDefinitions.Identity(candidate)))
-            throw Error("definition.id", "published", "This definition has been published to Canonical. Create a copy with a new Type ID.");
         canonical = ScenarioContentReferences.Compose(canonical, context.ContentReferences).Definitions;
-        canonical = CanonicalPublications.ForLocal(canonical, new ContentBundle { Units = [.. context.UnitTypes ?? []],
-            Equipment = [.. context.EquipmentTypes ?? []], Items = [.. context.ItemTypes ?? []], LootCards = [.. context.LootCardDefinitions ?? []] });
         string Path(string field) => contextPath.Length == 0 ? field : contextPath + "." + field;
         if (context.UnitTypes is null) throw Error(Path("unitTypes"), "required", "Unit dependencies must be an array.");
         if (context.EquipmentTypes is null) throw Error(Path("equipmentTypes"), "required", "Equipment dependencies must be an array.");
         if (context.ItemTypes is null) throw Error(Path("itemTypes"), "required", "Item dependencies must be an array.");
         if (context.LootCardDefinitions is null) throw Error(Path("lootCardDefinitions"), "required", "Loot Card dependencies must be an array.");
-        if (candidate is LootCardDefinition proposedLoot && canonical.LootCards.Any(type => type.Id == proposedLoot.Id))
-            throw Error("definition.id", "canonicalId", "Canonical Loot Card IDs are reserved. Create a copy with a new ID to edit historical colliding content.");
-
         var authoredUnits = context.UnitTypes.ToList();
         var localUnitPaths = Enumerable.Range(0, authoredUnits.Count).Select(index => $"{Path("unitTypes")}[{index}]").ToList();
         if (candidate is UnitType unit)
         {
-            if (existingId is null && canonical.Units.Any(type => type.Id == unit.Id))
-                throw Error("definition.id", "canonicalId", "This Unit Type ID belongs to provider content. Create a copy with a new ID.");
             Replace(authoredUnits, localUnitPaths, unit, existingId, type => type.Id);
         }
         for (var index = 0; index < authoredUnits.Count; index++)
@@ -180,34 +182,49 @@ public static class ContentEditorApi
         MapPaths("equipmentTypes", canonical.Equipment.Length, equipmentPaths);
         MapPaths("itemTypes", canonical.Items.Length, itemPaths);
         MapPaths("lootCardDefinitions", canonicalLootDependencies.Count, lootPaths);
-        var resolved = new ResolvedContext([.. canonical.Equipment, .. equipment], [.. canonical.Items, .. items], [.. canonical.LootCards, .. loot],
-            units, context.UnitTypes.Select(type => type.Id).ToHashSet(StringComparer.Ordinal));
-        try { AbilityContent.ValidateObjectCatalogs(resolved.Equipment, resolved.Items, [.. canonicalLootDependencies, .. loot], units); }
-        catch (ArgumentException error) { throw Rebase(error, paths, contextPath); }
-        // The standalone graph checks implicit Resource requirements and Terrain
-        // dependencies as well as summon cycles, without creating a game/board.
+        ContentBundle effective;
         try
         {
-            _ = ContentComposition.Compose([canonical with { LootCards = [.. canonicalLootDependencies] }], new ContentBundle
-            {
-                Units = [.. authoredUnits], Equipment = [.. equipment], Items = [.. items], LootCards = [.. loot],
-                Source = new(Package: "content-editor")
-            });
+            effective = ContentComposition.ComposeScopes(canonical, scenarioLocal: new ContentBundle
+        {
+            Units = [.. authoredUnits], Equipment = [.. equipment], Items = [.. items], LootCards = [.. loot],
+            Source = new(Package: "content-editor")
+        }).Definitions;
         }
         catch (ContentCompositionException error)
         {
             var diagnostic = error.Diagnostics[0];
+            if (diagnostic.Code == "conflictingDefinition" && candidate is not null && ContentDefinitions.Identity(candidate) == diagnostic.Owner)
+                throw Error("definition.id", diagnostic.Code, diagnostic.Message);
             var localPath = diagnostic.Owner.Family switch
             {
-                ContentFamily.Unit => authoredUnits.FindIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? localUnitPaths[i] : null,
-                ContentFamily.Equipment => equipment.FindIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? equipmentPaths[i] : null,
-                ContentFamily.Item => items.FindIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? itemPaths[i] : null,
-                ContentFamily.LootCard => loot.FindIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? lootPaths[i] : null,
+                ContentFamily.Unit => authoredUnits.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? localUnitPaths[i] : null,
+                ContentFamily.Equipment => equipment.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? equipmentPaths[i] : null,
+                ContentFamily.Item => items.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? itemPaths[i] : null,
+                ContentFamily.LootCard => loot.FindLastIndex(t => t.Id == diagnostic.Owner.TypeId) is var i && i >= 0 ? lootPaths[i] : null,
                 _ => null
             };
-            throw Error((localPath ?? contextPath) + (diagnostic.Path.Length == 0 ? "" : "." + diagnostic.Path), diagnostic.Code, diagnostic.Message);
+            throw Error((localPath ?? contextPath) + (diagnostic.Code == "conflictingDefinition" ? ".id" : "") + (diagnostic.Path.Length == 0 ? "" : "." + diagnostic.Path), diagnostic.Code, diagnostic.Message);
         }
+        var resolved = new ResolvedContext([.. effective.Equipment], [.. effective.Items], [.. effective.LootCards],
+            [.. effective.Units], authoredUnits.Select(t => t.Id).ToHashSet(StringComparer.Ordinal));
         return resolved with { LocalUnitIds = authoredUnits.Select(t => t.Id).ToHashSet(StringComparer.Ordinal) };
+    }
+
+    private static ContentBrowserResponse Origins(ContentBrowserResponse catalog, ContentEditorContext context, object? candidate = null)
+    {
+        var ids = context.UnitTypes.Select(t => new ContentIdentity(ContentFamily.Unit, t.Id))
+            .Concat(context.EquipmentTypes.Select(t => new ContentIdentity(ContentFamily.Equipment, t.Id)))
+            .Concat(context.ItemTypes.Select(t => new ContentIdentity(ContentFamily.Item, t.Id)))
+            .Concat(context.LootCardDefinitions.Select(t => new ContentIdentity(ContentFamily.LootCard, t.Id))).ToHashSet();
+        if (candidate is not null) ids.Add(ContentDefinitions.Identity(candidate));
+        var result = catalog with { Entries = catalog.Entries.Select(entry =>
+        {
+            var family = entry.Family switch { "units" => ContentFamily.Unit, "equipment" => ContentFamily.Equipment,
+                "items" => ContentFamily.Item, "lootCards" => ContentFamily.LootCard, _ => (ContentFamily?)null };
+            return family is not null && ids.Contains(new(family.Value, entry.Id)) ? entry with { Origin = entry.Family == "units" ? entry.Origin : "local", Availability = null } : entry;
+        }).ToArray() };
+        return ContentBrowserCatalog.Pinned(result, context.ContentReferences, context.UnitTypes.Select(t => t.Id).ToHashSet(StringComparer.Ordinal));
     }
 
     private static ContentEditorException Rebase(ArgumentException error, IReadOnlyDictionary<string, string> paths, string contextPath)

@@ -41,7 +41,7 @@ public sealed class AllLootPresetTests
     }
 
     [Fact]
-    public void SetupExcludesShadowedCanonicalCardsAndAliasesSelectedLocalReferencesWithoutChangingSource()
+    public void SetupUsesScopedReplacementForDynamicAndFixedPresetsWithoutChangingSource()
     {
         var replacement = new LootCardDefinition("pocket-breakfast", "Historical local replacement") { EquipmentTypeId = "official-key" };
         var extra = new LootCardDefinition("local-loot:pocket-breakfast", "Independent local card") { Immediate = new HealCollectorMechanic(3) };
@@ -51,10 +51,10 @@ public sealed class AllLootPresetTests
         Assert.Same(replacement, Assert.Single(effective.Where(card => card.Id == replacement.Id)));
         var state = GameEngine.CreateGame(scenario);
         var resolvedReplacement = state.LootCardDefinitions.Single(card => card.Name == replacement.Name);
-        Assert.NotEqual(replacement.Id, resolvedReplacement.Id);
+        Assert.Equal(replacement.Id, resolvedReplacement.Id);
         Assert.NotEqual(extra.Id, resolvedReplacement.Id);
         Assert.Equal(effective.Count, state.LootDeck!.DrawPile.Count);
-        Assert.DoesNotContain(state.LootDeck.DrawPile, card => card.LootCardId == replacement.Id);
+        Assert.Single(state.LootDeck.DrawPile, card => card.LootCardId == replacement.Id);
         var reward = Assert.Single(state.LootDeck.DrawPile.Where(card => card.LootCardId == resolvedReplacement.Id));
         Assert.Equal(replacement.EquipmentTypeId, reward.EquipmentTypeId);
         Assert.Contains(state.LootDeck.DrawPile, card => card.LootCardId == extra.Id);
@@ -63,10 +63,11 @@ public sealed class AllLootPresetTests
         Assert.Equal(LootPresets.AllPresetId, scenario.Loot!.Preset);
         Assert.Null(scenario.Loot.Composition);
 
-        // A fixed preset still selects its established canonical cards.
+        // A fixed preset keeps its composition and resolves each reference to effective content.
         var fixedState = GameEngine.CreateGame(scenario with { Loot = new() { Preset = "Classic" } });
         Assert.Contains(fixedState.LootDeck!.DrawPile, card => card.LootCardId == replacement.Id);
-        Assert.DoesNotContain(fixedState.LootDeck.DrawPile, card => card.LootCardId == resolvedReplacement.Id);
+        Assert.All(fixedState.LootDeck.DrawPile.Where(card => card.LootCardId == replacement.Id),
+            card => Assert.Equal(replacement.EquipmentTypeId, card.EquipmentTypeId));
     }
 
     [Theory]

@@ -117,7 +117,7 @@ public sealed class UnitContentAuthoringTests : IDisposable
         var missing = ContentEditorApi.Validate(Edit(a));
         Assert.Contains(missing.Diagnostics, d => d.Path == "definition.localAbilities[0].mechanic.unitTypeId");
         var source = UnitRoster.Grunt();
-        Assert.False(ContentEditorApi.Validate(Edit(source)).Valid);
+        Assert.True(ContentEditorApi.Validate(Edit(source)).Valid);
         var overridden = source with { Mov = source.Mov + 1 };
         var edited = ContentEditorApi.Validate(Edit(overridden, source.Id, new() { UnitTypes = [source] }));
         Assert.True(edited.Valid); Assert.Equal("scenario-override", edited.Entry!.Origin);

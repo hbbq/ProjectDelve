@@ -24,6 +24,11 @@ public static class PlaytestHost
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Canonical");
         var canonical = new CanonicalContent(canonicalDirectory);
         builder.Services.AddSingleton(canonical);
+        var workspacePath = builder.Configuration["ContentWorkspace:Path"]
+            ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "ContentWorkspace");
+        var workspace = new ContentWorkspace(workspacePath, () => canonical.Bundle);
+        builder.Services.AddSingleton(workspace);
+        builder.Services.AddSingleton<WorkspacePromotionService>();
         var contentLibraryPath = builder.Configuration["ContentLibrary:Path"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "ContentLibrary");
         builder.Services.AddSingleton(_ => new ContentLibrary(contentLibraryPath, canonical.Packages, canonicalProvider: () => canonical.Packages));
@@ -33,10 +38,10 @@ public static class PlaytestHost
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "library");
         var bundledLibraryPath = builder.Configuration["Library:BundlePath"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Library");
-        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, contentProvider: () => canonical.Bundle));
+        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, contentProvider: () => workspace.Resolve().Definitions));
         builder.Services.AddSingleton(_ => new LibraryCoverStore(libraryPath, bundledLibraryPath));
         builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
-            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), canonical.Bundle), external, replayCapacity, externalSelection, canonicalProvider: () => canonical.Bundle));
+            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), workspace.Resolve().Definitions), external, replayCapacity, externalSelection, canonicalProvider: () => workspace.Resolve().Definitions));
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();
@@ -55,7 +60,8 @@ public static class PlaytestHost
         DesignerApi.Map(app);
         ContentBrowserApi.Map(app);
         ContentEditorApi.Map(app);
-        ContentLibraryApi.Map(app);
+        ContentWorkspaceApi.Map(app);
+        ContentLibraryApi.Map(app); // Legacy service retained while its tests and internal tooling are retired.
         LibraryApi.Map(app);
         LibraryCoverApi.Map(app);
         GenerationApi.Map(app);

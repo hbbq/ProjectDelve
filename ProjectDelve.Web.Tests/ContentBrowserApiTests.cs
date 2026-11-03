@@ -94,8 +94,8 @@ public sealed class ContentBrowserApiTests
         var original = ScenarioDefinitionJson.ToJson(scenario);
         var scoped = await host.Inspect(scenario);
         var local = scoped.Entries.Single(entry => entry.Family == "lootCards" && entry.Name == "Scoped replacement card");
-        Assert.NotEqual(canonicalIds[0], local.Id);
-        Assert.Equal(canonicalIds[0], local.AuthoredDefinition!.Value.GetProperty("id").GetString());
+        Assert.Equal(canonicalIds[0], local.Id);
+        Assert.Equal(canonicalIds[0], local.Definition.GetProperty("id").GetString());
         var scopedAll = Entry(scoped, "lootPresets", "All");
         var actualDeck = Entry(scoped, "lootPresets", "scenario");
         var expectedIds = canonicalIds.Where(id => id != canonicalIds[0]).Append(local.Id).Append("browser-orchard")
@@ -107,7 +107,7 @@ public sealed class ContentBrowserApiTests
             Assert.All(entry.Definition.GetProperty("composition").EnumerateArray(), row => Assert.Equal(1, row.GetProperty("count").GetInt32()));
             Assert.Equal(expectedIds.Select(id => "lootCards:" + id), entry.References.Select(reference => reference.TargetKey).OrderBy(key => key, StringComparer.Ordinal));
             Assert.All(entry.References, reference => Assert.True(reference.Exists));
-            Assert.DoesNotContain(entry.References, reference => reference.TargetKey == "lootCards:" + canonicalIds[0]);
+            Assert.Single(entry.References, reference => reference.TargetKey == "lootCards:" + canonicalIds[0]);
         }
         Assert.Equal("All", actualDeck.AuthoredDefinition!.Value.GetProperty("preset").GetString());
         Assert.Equal(original, ScenarioDefinitionJson.ToJson(scenario));
@@ -170,8 +170,8 @@ public sealed class ContentBrowserApiTests
         };
         var catalog = await host.Inspect(scenario);
         var aliased = catalog.Entries.Single(entry => entry.Family == "lootCards" && entry.Name == "Borrowed identity");
-        Assert.NotEqual("pocket-breakfast", aliased.Id);
-        Assert.Equal("pocket-breakfast", aliased.AuthoredDefinition!.Value.GetProperty("id").GetString());
+        Assert.Equal("pocket-breakfast", aliased.Id);
+        Assert.Equal("pocket-breakfast", aliased.Definition.GetProperty("id").GetString());
         Assert.Equal("scenario-local", aliased.Origin);
         var loot = Entry(catalog, "lootPresets", "scenario");
         Assert.Contains(loot.References, reference => reference.TargetKey == aliased.Key && reference.Exists);

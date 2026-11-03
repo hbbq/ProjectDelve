@@ -93,7 +93,7 @@ public sealed class ItemContentAuthoringTests : IDisposable
         Assert.Equal(2, store.History(first.Package.Id).Length);
         Assert.Throws<LibraryException>(() => store.Save(first.Package.Id, new(first.Package, 1)));
         var canonical = ItemCatalog.All[0];
-        Assert.False(ContentEditorApi.Validate(Edit(canonical)).Valid);
+        Assert.True(ContentEditorApi.Validate(Edit(canonical)).Valid);
         var copy = canonical with { Id = "independent-item", Name = "Independent Copy" };
         Assert.True(ContentEditorApi.Validate(Edit(copy)).Valid);
         Assert.True(ContentLibraryAuthoring.Validate(store, new(new(second.Package, 2), Edit(copy))).Valid);

@@ -102,10 +102,10 @@ test('search, category and origin counts use actual data and reference navigatio
   assert.equal(h.run('navigation.selected.id'), 'chime');
 });
 
-test('mount is lazy and canonical display keeps owned identities, text and nested values readable', async () => {
+test('mount waits for display and canonical display keeps owned identities, text and nested values readable', async () => {
   const h = harness(); assert.equal(h.calls.length, 0);
   await h.viewer.show(); await h.viewer.show();
-  assert.deepEqual(h.calls.map(call => call.url), ['/api/content/catalog']);
+  assert.deepEqual(h.calls.map(call => call.url), ['/api/content-workspace', '/api/content/catalog', '/api/content-workspace', '/api/content/catalog']);
   const detail = h.byId('content-detail');
   assert.match(detail.textContent, /Sky Weaver/);
   assert.match(detail.textContent, /Stitch the AirAction2 \/ gameLocal key · stitchRestore 2 HP/);
@@ -134,7 +134,7 @@ test('complex fields use the full row and populated groups can collapse and reop
   h.click(summary); assert.equal(group.open, false);
   h.click(summary); assert.equal(group.open, true);
   assert.match(group.textContent, /CapacitiesTypeIddewNameDewCapacity2Materialswoodstone/);
-  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls.length, 2);
   assert.equal(h.byClass('cb-ability').length, 1); // Primary Ability text remains expanded independently.
 });
 
@@ -150,7 +150,7 @@ test('reference links navigate to real mechanics, retain support rows and focus 
   assert.match(h.byId('content-detail').textContent, /Fixed Engine behavior.*Only the listed authored parameters are configurable.*Choose an adjacent friendly Unit/s);
   assert.equal(h.byClass('cb-parameter').length, 1); // Target recipients are not invented configurable parameters.
   assert.equal(h.byClass('cb-wording-policies')[0].open, undefined);
-  h.click(h.byClass('cb-text-button').find(element => element.textContent === '← Previous definition'));
+  h.click(h.byClass('cb-text-button').find(element => element.textContent.includes('Previous definition')));
   assert.equal(h.byId('content-search').value, 'chime');
   assert.match(h.byId('content-detail').textContent, /Copper Chime.*Restore 4 HP/s);
   h.click(h.byClass('cb-back-list')[0]);
@@ -173,454 +173,169 @@ test('recursive mechanic schema preserves defaults, enum choices, list bounds an
   assert.equal(h.byClass('cb-parameter').length, 5);
 });
 
-test('Designer inspection snapshots are explicit, isolated, and retained only in memory across context switches', async () => {
-  const draft = structuredClone(catalog); draft.entries[0].origin = 'scenario-local'; draft.entries[0].availability = 'declared'; draft.entries[0].name = '<img src=x onerror=alert(1)>';
-  const h = harness(async url => ({ ok: true, json: async () => structuredClone(url.endsWith('inspect') ? draft : catalog) }));
-  const input = { unitTypes: [{ id: 'new', localAbilities: [{ key: 'owned', name: 'Quiet' }] }] };
-  const loading = h.viewer.showScenario(input, 'Lantern draft'); input.unitTypes[0].localAbilities[0].name = 'Changed later';
-  await loading;
-  assert.equal(h.calls[0].url, '/api/content/inspect'); assert.equal(h.calls[0].options.method, 'POST');
-  assert.equal(JSON.parse(h.calls[0].options.body).unitTypes[0].localAbilities[0].name, 'Quiet');
-  assert.ok(h.byId('content-detail').textContent.includes('<img src=x onerror=alert(1)>'));
-  assert.equal(h.root.all(element => element.tagName === 'img').length, 0);
-  assert.equal(h.byId('content-context').value, 'draft');
-  assert.match(h.byId('content-detail').textContent, /Declared/);
-  assert.match(h.root.textContent, /Effective definitions for this Designer snapshot.*Local content stays scoped to this draft/);
-  await h.viewer.showCanonical(); await h.change('content-context', 'draft');
-  assert.equal(h.calls.length, 2);
-  assert.equal(h.byId('content-context').value, 'draft');
-  assert.match(h.root.textContent, /Lantern draft/);
-});
-
-test('late responses cannot replace a newer context and show does not race a pending inspection', async () => {
-  let resolveCanonical;
-  const h = harness(url => url.endsWith('catalog') ? new Promise(resolve => { resolveCanonical = resolve; })
-    : Promise.resolve({ ok: true, json: async () => ({ ...catalog, entries: [{ key:'items:local',id:'local',name:'Draft Letter',family:'items',origin:'scenario-local',definition:{id:'local'} }] }) }));
-  const canonicalRequest = h.viewer.showCanonical();
-  const draftRequest = h.viewer.showScenario({ unitTypes: [] }, 'Explicit snapshot'); const showing = h.viewer.show();
-  await draftRequest; await showing;
-  resolveCanonical({ ok: true, json: async () => catalog }); await canonicalRequest;
-  assert.equal(h.calls.length, 2);
-  assert.match(h.byId('content-detail').textContent, /Draft Letter/);
-  assert.equal(h.byId('content-context').value, 'draft');
-});
-
-test('invalid draft clears previous content and presents field diagnostics without fallback or stale draft reuse', async () => {
-  let invalid = false;
-  const h = harness(async () => invalid
-    ? { ok: false, json: async () => ({ context:{kind:'scenario'},diagnostics:[{ path:'unitTypes[0].localAbilities[0].key', code:'required', message:'An explicit local key is required.' }] }) }
-    : { ok: true, json: async () => structuredClone(catalog) });
-  await h.viewer.showScenario({ unitTypes: [] }, 'Good draft'); invalid = true;
-  await h.viewer.showScenario({ unitTypes: [{}] }, 'Broken draft');
-  assert.equal(h.byId('content-list').children.length, 1); // Empty-state message, no definitions.
-  assert.ok(!h.byId('content-detail').textContent.includes('Sky Weaver'));
-  assert.match(h.root.textContent, /unitTypes\[0\]\.localAbilities\[0\]\.key.*An explicit local key is required/s);
-  assert.equal(h.byClass('cb-diagnostics')[0].open, true);
-  assert.equal(h.calls.length, 2);
-  invalid = false; await h.viewer.showCanonical();
-  assert.deepEqual(h.byId('content-context').children.map(option => option.value), ['canonical', 'library']);
-});
-
-test('filtering preserves search focus and does not scroll the detail on every keystroke', async () => {
-  const h = harness(); await h.viewer.show();
-  h.byId('content-search').focus();
-  h.change('content-search', 'missing', 'input');
-  assert.equal(h.document.activeElement, h.byId('content-search'));
-  assert.equal(h.byId('content-detail').scrolled, undefined);
-  assert.match(h.root.textContent, /0 of 3 definitions.*No definitions match/s);
-  h.click(h.byClass('cb-text-button').find(element => element.textContent === 'Clear filters'));
-  assert.equal(h.byId('content-list').children.length, 3);
-});
-
 const settle = () => new Promise(resolve => setImmediate(resolve));
-function authoringHarness(unitMetadata = unitAuthoring) {
-  let definition = { unitTypes: [], equipmentTypes: [], itemTypes: [], lootCardDefinitions: [] }, revision = 1;
-  const saves = [];
-  const destination = { label: 'Test destination', getRevision: () => String(revision), getContext: () => structuredClone(definition),
-    getSnapshot: () => ({ definition: structuredClone(definition), name: 'Test draft' }),
-    save: async payload => {
-      if (payload.expectedRevision !== String(revision)) throw new Error('The draft changed. Reopen the definition.');
-      saves.push(plain(payload)); const field = { units:'unitTypes', equipment:'equipmentTypes', items:'itemTypes', lootCards:'lootCardDefinitions' }[payload.family];
-      definition[field] = definition[field].filter(row => row.id !== payload.existingId).concat([structuredClone(payload.definition)]); revision++;
-      return destination.getSnapshot();
-    } };
-  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.displayName ?? row.name, family, origin: 'local', definition: row, sections: [], abilities: [], references: [] });
-  const h = harness(async (url, options) => {
-    if (url.endsWith('/validate')) {
-      const request = JSON.parse(options.body); return { ok: true, json: async () => ({ valid: true, diagnostics: [], definition: request.definition, entry: asEntry(request.definition, request.family) }) };
-    }
-    const data = structuredClone(catalog);
-    data.entries.find(entry => entry.mechanic).mechanic.profiles.push({ source: 'Item', timing: 'Action', usage: 'UnlimitedOnly' });
-    if (url.endsWith('/context')) data.unitAuthoring = structuredClone(unitMetadata);
-    data.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [{ key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }] };
-    if (url.endsWith('/context')) data.entries = data.entries.filter(entry => ['equipment', 'mechanics'].includes(entry.family))
-      .concat(definition.unitTypes.map(row => asEntry(row, 'units')), definition.itemTypes.map(row => asEntry(row, 'items')), definition.equipmentTypes.map(row => asEntry(row, 'equipment')), definition.lootCardDefinitions.map(row => asEntry(row, 'lootCards')));
-    return { ok: true, json: async () => data };
-  });
-  return { ...h, destination, saves, snapshot: () => destination.getSnapshot(), changeDraft: rows => { definition = { ...definition, ...rows }; revision++; } };
-}
-
-test('standalone browsing has no implicit save destination; explicit draft context enables create and linked Loot', async () => {
-  const h = authoringHarness(); await h.viewer.showCanonical();
-  assert.equal(h.byId('content-create-equipment').disabled, true);
-  h.viewer.open('equipment:chime'); assert.equal(h.byId('content-copy-definition').disabled, true);
-  const snapshot = h.snapshot(); await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
-  assert.equal(h.calls.at(-1).url, '/api/content/context');
-  assert.equal(h.byId('content-create-equipment').disabled, false);
-  assert.ok(h.byId('content-context').children.some(option => option.value === 'scenario'));
-  h.click(h.byId('content-create-equipment')); await settle();
-  h.change('content-editor-id', 'linen-sash', 'input'); h.change('content-editor-name', 'Linen Sash', 'input');
-  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
-  assert.equal(h.saves.length, 1); assert.equal(h.saves[0].expectedRevision, '1');
-  assert.equal(h.saves[0].definition.localAbilities[0].mechanic.kind, 'mend');
-  assert.match(h.byId('content-detail').textContent, /Linen Sash/); assert.equal(h.byId('content-editor').hidden, true);
-  h.click(h.byId('content-create-linked-loot')); await settle();
-  const reference = h.root.all(element => element.dataset.fieldPath === 'definition.equipmentTypeId')[0];
-  assert.equal(reference.value, 'linen-sash');
-  h.change('content-editor-id', 'linen-package', 'input'); h.click(h.byId('content-editor-save')); await settle();
-  assert.deepEqual(h.saves[1].definition, { id: 'linen-package', name: 'Linen Sash Loot', equipmentTypeId: 'linen-sash' });
-  assert.equal(h.calls.some(call => /game|gambit|observation/.test(call.url)), false);
-});
-
-test('copying canonical content stays new; context navigation and beforeunload guard dirty forms', async () => {
-  const h = authoringHarness(), snapshot = h.snapshot(); await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
-  h.viewer.open('equipment:chime'); h.click(h.byId('content-copy-definition')); await settle();
-  assert.equal(h.byId('content-editor-id').value, ''); assert.equal(h.byId('content-editor-id').readOnly, false);
-  const key = h.root.all(element => element.dataset.fieldPath === 'definition.localAbilities[0].key')[0];
-  assert.equal(key.value, 'stitch'); assert.equal(key.readOnly, false);
-  h.change('content-editor-id', 'copy-chime', 'input');
-  const event = { prevented: false, preventDefault() { this.prevented = true; } }; h.events.beforeunload(event); assert.equal(event.prevented, true);
-  h.change('content-context', 'canonical'); await settle(); h.click(h.byId('content-editor-keep')); await settle();
-  assert.equal(h.byId('content-context').value, 'draft'); assert.equal(h.byId('content-editor').hidden, false);
-  h.change('content-context', 'scenario'); await settle(); h.click(h.byId('content-editor-discard')); await settle();
-  assert.equal(h.byId('content-context').value, 'scenario'); assert.equal(h.calls.at(-1).url, '/api/content/inspect');
-  assert.equal(h.saves.length, 0);
-});
-
-test('cached draft refreshes after external edits and save carries the opening revision to reject later changes', async () => {
-  const h = authoringHarness(), snapshot = h.snapshot(); await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
-  h.changeDraft({ equipmentTypes: [{ id: 'local-sash', name: 'Current Sash', localAbilities: [] }] });
-  await h.viewer.show(); h.viewer.open('equipment:local-sash');
-  assert.match(h.byId('content-detail').textContent, /Current Sash/);
-  h.click(h.byId('content-edit-definition')); await settle();
-  assert.equal(h.byId('content-editor-id').readOnly, true);
-  h.change('content-editor-name', 'Pending rename', 'input');
-  h.changeDraft({ equipmentTypes: [{ id: 'local-sash', name: 'Newer Sash', localAbilities: [] }] });
-  h.click(h.byId('content-editor-save')); await settle();
-  assert.equal(h.saves.length, 0); assert.match(h.byId('content-editor').textContent, /draft changed/);
-  assert.equal(h.byId('content-editor').hidden, false);
-});
-
-function libraryHarness() {
-  const records = new Map(), writes = [];
+function workspaceHarness() {
+  let workspace = { token: 'token-1', definitions: { unitTypes: [], equipmentTypes: [], itemTypes: [], lootCardDefinitions: [] } };
+  const writes = [], publications = [], previews = [];
+  let missingSelections = [], failSave = false;
   const standard = structuredClone(catalog);
   standard.entries[1].definition = { id: 'chime', name: 'Copper Chime', localAbilities: [
-    { key: 'stitch', name: 'Evening Song', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'mend', amount: 4 } }
+    {key:'stitch',name:'Evening Song',timing:'Action',usage:{maxUses:null},mechanic:{kind:'mend',amount:4}}
   ] };
-  standard.entries.find(entry => entry.mechanic).mechanic.profiles.push({ source: 'Item', timing: 'Action', usage: 'UnlimitedOnly' });
-  let nextConflict = false, nextInvalid = false;
-  const asEntry = (row, family) => ({ key: `${family}:${row.id}`, id: row.id, name: row.displayName ?? row.name, family, origin: 'library-local',
-    definition: structuredClone(row), sections: [], abilities: [], references: [], packageId: 'workshop', packageRevision: 2 });
-  const content = (pkg, bindings = []) => ({ ...structuredClone(standard), context: { kind: 'library' }, entries: structuredClone(standard.entries)
-    .concat((pkg.definitions.unitTypes ?? []).map(row => asEntry(row, 'units')), (pkg.definitions.itemTypes ?? []).map(row => asEntry(row, 'items')), (pkg.definitions.equipmentTypes ?? []).map(row => asEntry(row, 'equipment')), (pkg.definitions.lootCardDefinitions ?? []).map(row => asEntry(row, 'lootCards')),
-      bindings.flatMap(binding => (records.get(binding.packageId)?.[binding.revision - 1]?.package.definitions.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-dependency', packageId: binding.packageId, packageRevision: binding.revision })))) });
-  const ok = data => ({ ok: true, status: 200, json: async () => structuredClone(data) });
+  const fields = {units:'unitTypes',equipment:'equipmentTypes',items:'itemTypes',lootCards:'lootCardDefinitions'};
+  const asEntry = (row, family, origin) => ({key:`${family}:${row.id}`,id:row.id,name:row.displayName ?? row.name ?? row.id,family,origin,definition:structuredClone(row),sections:[],abilities:[],references:[]});
+  function effective(context, origin) {
+    const result = structuredClone(standard);
+    for (const [family,field] of Object.entries(fields)) for (const row of context[field] ?? []) {
+      const existing = result.entries.findIndex(e => e.family === family && e.id === row.id);
+      const entry = asEntry(row,family,existing >= 0 ? `${origin}-override` : origin);
+      if (existing >= 0) result.entries[existing] = entry; else result.entries.push(entry);
+    }
+    return result;
+  }
+  const ok = data => ({ok:true,status:200,json:async()=>structuredClone(data)});
   const h = harness(async (url, options) => {
-    const body = options?.body ? JSON.parse(options.body) : null;
+    const input = options?.body ? JSON.parse(options.body) : null;
+    if (url === '/api/content-workspace' && !options) return ok(workspace);
+    if (url === '/api/content-workspace' && options.method === 'PUT') {
+      if (failSave) { failSave=false; return {ok:false,status:409,json:async()=>({detail:'Workspace changed. Reload before saving.'})}; }
+      assert.equal(input.expectedToken,workspace.token);
+      writes.push(structuredClone(input)); workspace={token:`token-${writes.length+1}`,definitions:structuredClone(input.definitions)}; return ok(workspace);
+    }
+    if (url === '/api/content-workspace' && options.method === 'DELETE') {
+      assert.equal(input.expectedToken,workspace.token); writes.push(structuredClone(input));
+      workspace={token:'cleared',definitions:{unitTypes:[],equipmentTypes:[],itemTypes:[],lootCardDefinitions:[]}}; return ok(workspace);
+    }
+    if (url === '/api/content-workspace/catalog') return ok(effective(workspace.definitions,'workspace'));
     if (url === '/api/content/catalog') return ok(standard);
-    if (url === '/api/content-library' || url === '/api/content-library?includeArchived=true') return ok({ libraryId: 'library-origin', packages: [...records].map(([id, rows]) => ({ packageId: id, currentRevision: rows.length, title: rows.at(-1).package.title })) });
-    if (url === '/api/content/context') {
-      const result = content({ definitions: body });
-      for (const pin of body.contentReferences ?? [])
-        result.entries.push(...(pin.snapshot.itemTypes ?? []).map(row => ({ ...asEntry(row, 'items'), origin:'library-pinned',referenceDigest:pin.snapshotDigest })), ...(pin.snapshot.unitTypes ?? []).map(row => ({ ...asEntry(row, 'units'), origin:'library-pinned',referenceDigest:pin.snapshotDigest })), ...(pin.snapshot.equipmentTypes ?? []).map(row => ({ ...asEntry(row, 'equipment'), origin: 'library-pinned', referenceDigest: pin.snapshotDigest, referencePackageId: pin.packageId, referenceLibraryId: pin.libraryId })));
-      return ok(result);
+    if (url === '/api/content/context' || url === '/api/content/inspect') return ok(effective(input,'scenario'));
+    if (url === '/api/content/validate') return ok({valid:true,diagnostics:[],definition:input.definition,entry:asEntry(input.definition,input.family,'workspace')});
+    if (url === '/api/content-workspace/promotion/preview') {
+      previews.push(structuredClone(input));
+      return ok({request:input,canonicalRevision:'canonical-1',missingSelections,requiredWorkspaceDependencies:missingSelections,canPublish:missingSelections.length===0,previewToken:`preview-${previews.length}`});
     }
-    if (url.endsWith('/scenario-reference/preview')) {
-      const root = records.get(body.packageId)[body.revision - 1];
-      const pin = { formatVersion: 1, libraryId: 'library-origin', packageId: body.packageId, revision: body.revision, snapshotDigest: `pin-${body.revision}`,
-        selected: body.selected, snapshot: structuredClone(root.package.definitions) };
-      return ok({ reference: pin, references: [pin], changes: [{ identity: body.selected[0], change: body.expectedReferenceDigest ? 'Changed' : 'Added', after: pin.snapshot }], catalog: content(root.package) });
+    if (url === '/api/content-workspace/promotion/publish') {
+      publications.push(structuredClone(input));
+      for (const selected of input.preview.request.selected) {
+        const family=Object.keys(fields).find(family=>({units:'Unit',equipment:'Equipment',items:'Item',lootCards:'LootCard'})[family]===selected.family);
+        const field=fields[family], row=workspace.definitions[field].find(row=>row.id===selected.typeId);
+        standard.entries=standard.entries.filter(e=>!(e.family===family && e.id===selected.typeId));standard.entries.push(asEntry(row,family,'canonical'));
+        workspace.definitions[field]=workspace.definitions[field].filter(row=>row.id!==selected.typeId);
+      }
+      return ok({});
     }
-    if (url.endsWith('/providers')) return ok([{ id: 'canonical-provider', title: 'Standard content' }]);
-    if (url.endsWith('/promotion/preview')) return ok({ request: body, sourceDigest: 'source', sourceHead: 1, destinationRevision: 'canonical',
-      closure: body.selected, reusedCanonical: [], additional: [], package: { id: body.destinationPackageId }, previewDigest: 'preview' });
-    if (url.endsWith('/authoring/context')) return ok(content(body.package, body.bindings));
-    if (url.endsWith('/authoring/validate')) {
-      if (nextInvalid) { nextInvalid = false; return ok({ valid: false, diagnostics: [{ path: 'definition.equipmentTypeId', code: 'missingReference', message: 'Required Equipment is missing.' }] }); }
-      return ok({ valid: true, diagnostics: [], definition: body.edit.definition, entry: asEntry(body.edit.definition, body.edit.family) });
-    }
-    if (options && ['POST', 'PUT'].includes(options.method) && url.includes('/packages')) {
-      if (nextConflict) { nextConflict = false; return { ok: false, status: 409, json: async () => ({ detail: 'Current revision is 2. Reload before saving.' }) }; }
-      const rows = records.get(body.package.id) ?? [];
-      writes.push(structuredClone(body)); rows.push({ libraryId: 'library-origin', revision: rows.length + 1, package: body.package, bindings: body.bindings }); records.set(body.package.id, rows);
-      return ok(rows.at(-1));
-    }
-    const match = url.match(/packages\/([^/?]+)(.*)/);
-    if (match) {
-      const rows = records.get(match[1]);
-      if (match[2] === '/revisions') return ok(rows);
-      if (match[2].startsWith('/context')) return ok(content(rows[Number(new URLSearchParams(match[2].split('?')[1]).get('revision')) - 1].package));
-      const revision = Number(new URLSearchParams(match[2].slice(1)).get('revision'));
-      return ok(revision ? rows[revision - 1] : rows.at(-1));
-    }
-    throw new Error(`Unexpected library call ${url}`);
+    throw new Error(`Unexpected request ${url}`);
   });
-  const create = async () => {
-    await h.viewer.show(); h.change('content-context', 'library'); await settle();
-    h.click(h.byId('content-library-new')); await settle();
-    h.change('content-library-new-id', 'workshop', 'input'); h.change('content-library-new-title', 'Workshop', 'input');
-    h.click(h.byId('content-library-start')); await settle();
-  };
-  return { ...h, records, writes, create, conflict: () => { nextConflict = true; }, invalidate: () => { nextInvalid = true; } };
+  return {...h,writes,publications,previews,workspace:()=>structuredClone(workspace),require:ids=>{missingSelections=ids;},conflict:()=>{failSave=true;},
+    seed:definitions=>{workspace.definitions={...workspace.definitions,...structuredClone(definitions)};}};
 }
+const buttonText = (h,text) => h.root.all(element=>element.tagName==='button' && element.textContent===text)[0];
 
-test('library scope creates linked Equipment and Loot without a scenario and saves/reopens immutable history', async () => {
-  const h = libraryHarness(); await h.create();
-  assert.equal(h.byId('content-create-equipment').disabled, false);
-  h.click(h.byId('content-create-equipment')); await settle();
-  h.change('content-editor-id', 'workshop-bell', 'input'); h.change('content-editor-name', 'Workshop Bell', 'input');
-  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
-  assert.equal(h.writes.length, 0, 'definition apply is a package workspace change');
-  h.click(h.byId('content-create-linked-loot')); await settle();
-  h.change('content-editor-id', 'workshop-gift', 'input'); h.click(h.byId('content-editor-save')); await settle();
-  h.click(h.byId('content-library-save')); await settle();
-  assert.equal(h.writes[0].package.definitions.lootCardDefinitions[0].equipmentTypeId, 'workshop-bell');
-  assert.equal(h.writes[0].expectedRevision, 0);
-  h.viewer.open('equipment:workshop-bell'); h.click(h.byId('content-edit-definition')); await settle();
-  h.change('content-editor-name', 'Revised Bell', 'input'); h.click(h.byId('content-editor-save')); await settle();
-  h.click(h.byId('content-library-save')); await settle();
-  assert.equal(h.writes[1].expectedRevision, 1);
-  assert.equal(h.records.get('workshop')[0].package.definitions.equipmentTypes[0].name, 'Workshop Bell');
-  h.change('content-library-revision', '1'); await settle();
-  assert.match(h.root.textContent, /historical revision · read only/);
-  assert.equal(h.byId('content-create-equipment').disabled, true);
-  h.viewer.open('equipment:workshop-bell'); assert.equal(h.byId('content-edit-definition'), undefined);
-  assert.equal(h.calls.some(call => /designer|scenario|api\/game/.test(call.url)), false);
+test('canonical editing writes an override into Workspace with the opening conflict token', async () => {
+  const h=workspaceHarness();await h.viewer.showCanonical();h.viewer.open('equipment:chime');
+  h.click(h.byId('content-edit-in-workspace'));await settle();
+  assert.equal(h.byId('content-editor-id').value,'chime');
+  assert.equal(h.byId('content-editor-id').readOnly,true);
+  h.change('content-editor-name','Clear Chime','input');h.click(h.byId('content-editor-save'));await settle();await settle();
+  assert.equal(h.writes.length,1);assert.equal(h.writes[0].expectedToken,'token-1');
+  assert.equal(h.workspace().definitions.equipmentTypes[0].id,'chime');
+  assert.equal(h.workspace().definitions.equipmentTypes[0].name,'Clear Chime');
+  await h.viewer.showLibrary();h.viewer.open('equipment:chime');
+  assert.match(h.byId('content-detail').textContent,/workspace-override/);
+  assert.ok(h.byId('content-edit-definition'));
 });
 
-test('library destination protects unfinished forms and package edits, and stale saves retain the workspace', async () => {
-  const h = libraryHarness(); await h.create();
-  h.change('content-library-title', 'Unsaved title', 'input');
-  const leaving = h.viewer.requestCloseEditor(); await settle();
-  assert.equal(h.byClass('cb-package-discard')[0].hidden, false);
-  h.click(h.byId('content-library-keep')); assert.equal(await leaving, false);
-  h.conflict(); h.click(h.byId('content-library-save')); await settle();
-  assert.match(h.root.textContent, /Current revision is 2/);
-  assert.equal(h.byId('content-library-title').value, 'Unsaved title'); assert.equal(h.writes.length, 0);
-  h.click(h.byId('content-create-equipment')); await settle();
-  h.change('content-editor-name', 'Unfinished', 'input');
-  const formLeaving = h.viewer.requestCloseEditor(); await settle();
-  assert.equal(h.byId('content-editor-keep').parentElement.hidden, false);
-  h.click(h.byId('content-editor-keep')); assert.equal(await formLeaving, false);
-  let prevented = false; h.events.beforeunload({ preventDefault() { prevented = true; } }); assert.equal(prevented, true);
+test('Create Copy proposes an independent identity and retains typed mechanic parameters', async () => {
+  const h=workspaceHarness();await h.viewer.showCanonical();h.viewer.open('equipment:chime');
+  h.click(h.byId('content-copy-definition'));await settle();
+  assert.notEqual(h.byId('content-editor-id').value,'chime');assert.equal(h.byId('content-editor-id').readOnly,false);
+  h.change('content-editor-id','independent-chime','input');h.click(h.byId('content-editor-save'));await settle();await settle();
+  const copy=h.workspace().definitions.equipmentTypes[0];assert.equal(copy.id,'independent-chime');
+  assert.deepEqual(copy.localAbilities[0].mechanic,{kind:'mend',amount:4});
+  assert.equal(h.calls.some(call=>/content-library|packages|revisions/.test(call.url)),false);
 });
 
-test('canonical copy into Library proposes an independent identity and retains source mechanic parameters', async () => {
-  const h = libraryHarness(); await h.create();
-  h.change('content-context', 'canonical'); await settle();
-  h.viewer.open('equipment:chime'); assert.equal(h.byId('content-edit-definition'), undefined);
-  h.click(h.byId('content-copy-definition')); await settle();
-  assert.match(h.byId('content-editor-id').value, /^copy-/);
-  assert.equal(h.byId('content-editor-id').readOnly, false);
-  const parameter = h.root.all(element => element.dataset.fieldPath === 'definition.localAbilities[0].mechanic.amount').at(-1);
-  assert.equal(parameter.value, 4);
-  h.click(h.byId('content-editor-save')); await settle();
-  const validated = JSON.parse(h.calls.findLast(call => call.url.endsWith('/authoring/validate')).options.body);
-  assert.equal(validated.edit.definition.localAbilities[0].key, 'stitch');
-  assert.deepEqual(validated.edit.definition.localAbilities[0].mechanic, { kind: 'mend', amount: 4 });
+test('Workspace creates Unit and Item forms through shared authoring controls', async () => {
+  const h=workspaceHarness();await h.viewer.showLibrary();h.click(h.byId('content-create-units'));await settle();
+  assert.ok(h.root.all(element=>element.dataset.fieldPath==='definition.hp').length);
+  h.change('content-editor-id','test-guard','input');h.change('content-editor-name','Test Guard','input');
+  h.click(h.byId('content-editor-save'));await settle();await settle();
+  assert.equal(h.workspace().definitions.unitTypes[0].id,'test-guard');
+  h.click(h.byId('content-create-items'));await settle();
+  h.change('content-editor-id','test-item','input');h.change('content-editor-name','Test Item','input');
+  h.click(h.byId('content-editor-save'));await settle();await settle();
+  assert.equal(h.workspace().definitions.itemTypes[0].id,'test-item');
 });
 
-test('explicit external revisions feed Library reference pickers and missing-reference diagnostics block apply', async () => {
-  const h = libraryHarness();
-  h.records.set('external', [{ revision: 1, package: { id: 'external', title: 'Other gear', definitions: { equipmentTypes: [{ id: 'other-bell', name: 'Other Bell' }] } }, bindings: [] }]);
-  await h.create();
-  assert.equal(h.viewer.open('equipment:other-bell'), false, 'installed packages are not ambient references');
-  h.change('content-library-dependency-search', 'other', 'input');
-  h.change('content-library-dependency-package', 'external'); await settle();
-  h.click(h.byId('content-library-add-dependency')); await settle();
-  const payload = JSON.parse(h.calls.findLast(call => call.url.endsWith('/authoring/context')).options.body);
-  assert.deepEqual(payload.bindings, [{ packageId: 'external', revision: 1 }]);
-  assert.equal(h.viewer.open('equipment:other-bell'), true);
-  assert.equal(h.byId('content-edit-definition'), undefined, 'external definitions stay read only');
-  h.click(h.byId('content-create-linked-loot')); await settle();
-  h.change('content-editor-id', 'external-reward', 'input');
-  const picker = h.root.all(element => element.dataset.fieldPath === 'definition.equipmentTypeId').at(-1);
-  assert.ok(picker.children.some(option => option.value === 'other-bell'));
-  h.invalidate(); h.click(h.byId('content-editor-save')); await settle();
-  assert.match(h.byId('content-editor').textContent, /definition.equipmentTypeId.*Required Equipment is missing/s);
-  assert.equal(h.byId('content-editor').hidden, false); assert.equal(h.writes.length, 0);
+test('Workspace stale saves keep the form and dirty navigation still requires an explicit choice', async () => {
+  const h=workspaceHarness();h.seed({equipmentTypes:[{id:'local',name:'Local',localAbilities:[]}]});await h.viewer.showLibrary();h.viewer.open('equipment:local');
+  h.click(h.byId('content-edit-definition'));await settle();h.change('content-editor-name','Pending','input');
+  const event={prevented:false,preventDefault(){this.prevented=true;}};h.events.beforeunload(event);assert.equal(event.prevented,true);
+  h.conflict();h.click(h.byId('content-editor-save'));await settle();
+  assert.equal(h.writes.length,0);assert.equal(h.byId('content-editor').hidden,false);assert.match(h.byId('content-editor').textContent,/Workspace changed/);
+  h.change('content-context','canonical');await settle();h.click(h.byId('content-editor-keep'));await settle();
+  assert.equal(h.byId('content-context').value,'workspace');
 });
 
-test('Use in Scenario and explicit Update Reference preview before a single destination apply', async () => {
-  const h = libraryHarness(); await h.create();
-  h.click(h.byId('content-create-equipment')); await settle();
-  h.change('content-editor-id', 'boots', 'input'); h.change('content-editor-name', 'Knightly Boots', 'input');
-  h.click(h.byId('content-editor-save')); await settle(); h.click(h.byId('content-library-save')); await settle();
-  let scenario = { equipmentTypes: [], lootCardDefinitions: [] }, stamp = 1; const applied = [];
-  const destination = { label: 'Scenario draft', getRevision: () => String(stamp), getContext: () => structuredClone(scenario),
-    getSnapshot: () => ({ definition: structuredClone(scenario), name: 'Scenario' }),
-    applyReferences: async payload => { assert.equal(payload.expectedRevision, String(stamp)); applied.push(plain(payload)); scenario.contentReferences = structuredClone(payload.references); stamp++; return destination.getSnapshot(); } };
-  await h.viewer.showScenario(scenario, 'Scenario', destination); await h.viewer.showLibrary();
-  h.viewer.open('equipment:boots'); h.click(h.byId('content-use-in-scenario')); await settle();
-  assert.equal(applied.length, 0); assert.ok(h.byId('content-reference-apply'));
-  h.click(h.byId('content-reference-apply')); await settle();
-  assert.equal(applied.length, 1); assert.equal(scenario.contentReferences[0].revision, 1);
-  assert.equal(h.byId('content-edit-definition'), undefined, 'pinned definitions are read only');
-  assert.equal(scenario.equipmentTypes.length, 0, 'import does not flatten the pin into editable locals');
-  const first = h.records.get('workshop')[0];
-  h.records.get('workshop').push({ ...structuredClone(first), revision: 2, package: { ...first.package, title: 'New revision' } });
-  assert.equal(scenario.contentReferences[0].revision, 1, 'library edits never follow automatically');
-  h.click(h.byClass('cb-reference-update')[0]); await settle();
-  h.click(h.byId('content-reference-preview-update')); await settle();
-  const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/scenario-reference/preview')).options.body);
-  assert.equal(request.expectedReferenceDigest, 'pin-1'); assert.equal(request.revision, 2);
-  assert.equal(applied.length, 1); h.click(h.byId('content-reference-apply')); await settle();
-  assert.equal(applied.length, 2); assert.equal(scenario.contentReferences[0].revision, 2);
+test('promotion previews a selection and requires explicit batch dependency inclusion and confirmation', async () => {
+  const h=workspaceHarness();h.seed({equipmentTypes:[{id:'local',name:'Local'}],lootCardDefinitions:[{id:'gift',name:'Gift',equipmentTypeId:'local'}]});
+  await h.viewer.showLibrary();h.viewer.open('lootCards:gift');h.require([{family:'Equipment',typeId:'local'}]);
+  h.click(h.byId('content-promote-definition'));await settle();
+  assert.equal(h.publications.length,0);assert.deepEqual(h.previews[0].selected,[{family:'LootCard',typeId:'gift'}]);
+  h.require([]);h.click(buttonText(h,'Include required Workspace dependencies and preview again'));await settle();
+  assert.equal(h.publications.length,0);assert.equal(h.previews[1].selected.length,2);
+  h.click(buttonText(h,'Confirm publication batch to Canonical'));await settle();await settle();
+  assert.equal(h.publications.length,1);assert.equal(h.publications[0].confirm,true);assert.equal(h.publications[0].preview.previewToken,'preview-2');
+  assert.equal(h.workspace().definitions.equipmentTypes.length,0);assert.equal(h.workspace().definitions.lootCardDefinitions.length,0);
 });
 
-test('creation waits for current catalog metadata and ignores an older context response', async () => {
-  let finishFirst, contextRequests = 0;
-  const latest = structuredClone(catalog); latest.entries[1].name = 'Current Chime';
-  const h = harness(url => {
-    assert.equal(url, '/api/content/context'); contextRequests++;
-    return contextRequests === 1 ? new Promise(resolve => { finishFirst = resolve; }) : Promise.resolve({ ok: true, json: async () => latest });
-  });
-  const destination = { label: 'Current draft', getContext: () => ({}), getRevision: () => '1', getSnapshot: () => ({ definition: {}, name: 'Current draft' }) };
-  const first = h.viewer.showScenario({}, 'First', destination);
-  assert.equal(h.byId('content-create-equipment').disabled, true);
-  assert.equal(h.byId('content-create-loot').disabled, true);
-  h.click(h.byId('content-create-equipment')); await settle();
-  assert.equal(h.byId('content-editor').hidden, true);
-  await h.viewer.showScenario({}, 'Current draft', destination);
-  assert.equal(h.byId('content-create-equipment').disabled, false);
-  h.viewer.open('equipment:chime');
-  finishFirst({ ok: true, json: async () => catalog }); await first;
-  assert.match(h.byId('content-detail').textContent, /Current Chime/);
-  h.click(h.byId('content-create-equipment')); await settle();
-  assert.equal(h.byId('content-editor-add-mechanic').children[0].value, 'mend');
-  assert.equal(h.byId('content-editor-add-ability').disabled, false);
+test('Empty Workspace only deletes after confirmation and ordinary definition deletion keeps other families', async () => {
+  const h=workspaceHarness();h.seed({equipmentTypes:[{id:'local',name:'Local'}],itemTypes:[{id:'item',name:'Item'}]});
+  await h.viewer.showLibrary();h.viewer.open('equipment:local');h.click(buttonText(h,'Delete Workspace definition'));await settle();await settle();
+  assert.equal(h.workspace().definitions.equipmentTypes.length,0);assert.equal(h.workspace().definitions.itemTypes.length,1);
+  h.click(buttonText(h,'Empty Workspace'));await settle();assert.equal(h.calls.filter(c=>c.options?.method==='DELETE').length,0);
+  h.click(buttonText(h,'Confirm empty Workspace'));await settle();await settle();
+  assert.equal(h.calls.filter(c=>c.options?.method==='DELETE').length,1);assert.equal(h.workspace().definitions.itemTypes.length,0);
 });
 
-test('Library promotion pins the saved revision rather than the hypothetical authoring-context revision', async () => {
-  const h = libraryHarness(); await h.create();
-  h.click(h.byId('content-create-equipment')); await settle();
-  h.change('content-editor-id', 'promote-boots', 'input'); h.change('content-editor-name', 'Promote Boots', 'input');
-  h.click(h.byId('content-editor-save')); await settle(); h.click(h.byId('content-library-save')); await settle();
-  h.viewer.open('equipment:promote-boots'); h.click(h.byId('content-promote'));
-  h.click(h.byId('content-promotion-preview')); await settle();
-  const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/promotion/preview')).options.body);
-  assert.equal(request.source.revision, 1); assert.equal(request.source.kind, 'library');
-  assert.ok(h.byId('content-promotion-publish')); assert.equal(h.writes.length, 1, 'preview does not publish');
+test('scenario-local editing retains its explicit destination and opening revision', async () => {
+  const h=workspaceHarness(),saves=[];
+  const scenario={equipmentTypes:[{id:'local',name:'Scenario Bell',localAbilities:[]}]};
+  const destination={getRevision:()=> 'scenario-7',getContext:()=>structuredClone(scenario),save:async payload=>{saves.push(plain(payload));}};
+  await h.viewer.showScenario(scenario,'Test scenario',destination);h.viewer.open('equipment:local');
+  h.click(h.byId('content-edit-definition'));await settle();h.change('content-editor-name','Edited scenario bell','input');
+  h.click(h.byId('content-editor-save'));await settle();await settle();
+  assert.equal(saves.length,1);assert.equal(saves[0].expectedRevision,'scenario-7');assert.equal(h.writes.length,0);
 });
 
-
-test('Library Unit creation, pinning, reference update and independent canonical copies use Unit identities', async () => {
-  const h=libraryHarness(); await h.create();
-  h.click(h.byId('content-create-unit')); await settle();
-  h.change('content-editor-id','keeper','input'); h.change('content-editor-name','Keeper','input');
-  h.click(h.byId('content-editor-add-ability'));
-  h.click(h.byId('content-editor-save')); await settle();
-  h.click(h.byId('content-library-save')); await settle();
-  assert.equal(h.writes[0].package.definitions.unitTypes[0].displayName,'Keeper');
-  assert.equal(h.writes[0].package.definitions.unitTypes[0].localAbilities[0].mechanic.kind,'mend');
-  let scenario={unitTypes:[]}, stamp=1; const applied=[];
-  const destination={getRevision:()=>String(stamp),getContext:()=>structuredClone(scenario),getSnapshot:()=>({definition:structuredClone(scenario),name:'Unit scenario'}),
-    applyReferences:async payload=>{applied.push(plain(payload));scenario.contentReferences=structuredClone(payload.references);stamp++;return destination.getSnapshot();}};
-  await h.viewer.showScenario(scenario,'Unit scenario',destination); await h.viewer.showLibrary();
-  h.viewer.open('units:keeper'); h.click(h.byId('content-use-in-scenario')); await settle();
-  const request=JSON.parse(h.calls.findLast(call=>call.url.endsWith('/scenario-reference/preview')).options.body);
-  assert.deepEqual(request.selected,[{family:'Unit',typeId:'keeper'}]);
-  h.click(h.byId('content-reference-apply')); await settle();
-  assert.equal(applied.length,1); assert.deepEqual(scenario.unitTypes,[]);
-  h.viewer.open('units:keeper'); assert.equal(h.byId('content-edit-definition'),undefined);
-  h.click(h.byClass('cb-reference-update')[0]); await settle();
-  h.click(h.byId('content-reference-preview-update')); await settle();
-  h.click(h.byId('content-reference-apply')); await settle();
-  assert.equal(applied.length,2); assert.match(h.byId('content-detail').textContent,/Keeper/);
+test('Designer inspection captures an isolated snapshot and renders authored names as text', async () => {
+  const draft=structuredClone(catalog);draft.entries[0].name='<img src=x onerror=alert(1)>';
+  const h=harness(async url=>({ok:true,json:async()=>structuredClone(url.endsWith('/inspect')?draft:catalog)}));
+  const input={unitTypes:[{id:'local',displayName:'Opening snapshot'}]};
+  const showing=h.viewer.showScenario(input,'Test draft');input.unitTypes[0].displayName='Later edit';await showing;
+  const inspection=h.calls.find(call=>call.url==='/api/content/inspect');
+  assert.equal(JSON.parse(inspection.options.body).unitTypes[0].displayName,'Opening snapshot');
+  assert.ok(h.byId('content-detail').textContent.includes('<img src=x onerror=alert(1)>'));
+  assert.equal(h.root.all(element=>element.tagName==='img').length,0);
 });
 
-test('copying a Unit with a scenario Loot override edits the raw authored Unit while pins stay read only', async () => {
-  const original={id:'keeper',displayName:'Keeper',mov:2,rng:1,atk:1,def:1,hp:2,actions:'None',localAbilities:[]};
-  const data=structuredClone(catalog); data.entries[0]={...data.entries[0],id:'keeper',key:'units:keeper',origin:'scenario-override',definition:{...original,lootDropSuccesses:6},authoredDefinition:{unitType:original,lootOverride:{dropSuccesses:6}}};
-  const saves=[];
-  const h=harness(async (url,options)=>({ok:true,json:async()=>url.endsWith('/validate')?{valid:true,diagnostics:[],definition:JSON.parse(options.body).definition,entry:data.entries[0]}:data}));
-  const destination={getRevision:()=> '1',getContext:()=>({unitTypes:[original]}),getSnapshot:()=>({definition:{unitTypes:[original]},name:'Override'}),save:async payload=>{saves.push(plain(payload));return destination.getSnapshot();}};
-  await h.viewer.showScenario({unitTypes:[original]},'Override',destination);
-  h.viewer.open('units:keeper'); assert.ok(h.byId('content-edit-definition'));
-  h.click(h.byId('content-copy-definition')); await settle();
-  h.change('content-editor-id','independent','input'); h.click(h.byId('content-editor-save')); await settle();
-  assert.deepEqual(saves[0].definition,{...original,id:'independent'});
-  assert.equal(Object.hasOwn(saves[0].definition,'unitType'),false);
-  assert.equal(original.id,'keeper');
+test('late canonical response cannot replace the newer scenario context', async () => {
+  let release;
+  const h=harness(url=>url==='/api/content/catalog'?new Promise(resolve=>{release=resolve;})
+    :Promise.resolve({ok:true,json:async()=>url==='/api/content-workspace'?{token:'t',definitions:{}}:
+      {...catalog,entries:[{key:'items:local',id:'local',name:'Draft Letter',family:'items',origin:'scenario-local',definition:{id:'local'}}]}}));
+  const pending=h.viewer.showCanonical();await settle();await h.viewer.showScenario({itemTypes:[]},'Test draft');
+  release({ok:true,json:async()=>catalog});await pending;
+  assert.equal(h.byId('content-context').value,'draft');assert.match(h.byId('content-detail').textContent,/Draft Letter/);
 });
 
-
-test('attached scenario Unit creation retains effective authoring metadata, defaults and editable controls', async () => {
-  const metadata={...unitAuthoring,defaults:{...unitAuthoring.defaults,hp:7,unique:false},stats:[{name:'hp',kind:'Integer',minimum:2,maximum:19}],fields:[{name:'unique',kind:'Boolean',required:true}]};
-  const h=authoringHarness(metadata);await h.viewer.showCanonical();
-  const snapshot=h.snapshot();await h.viewer.showScenario(snapshot.definition,snapshot.name,h.destination);
-  h.click(h.byId('content-create-unit'));await settle();
-  const field=path=>h.root.all(e=>e.dataset.fieldPath===path).at(-1);
-  assert.equal(field('definition.hp').value,7);
-  assert.equal(field('definition.hp').min,2);assert.equal(field('definition.hp').max,19);
-  assert.ok(field('definition.unique'));assert.ok(field('definition.actions'));
-  assert.doesNotMatch(h.byId('content-editor').textContent,/metadata is unavailable/);
-  h.change('content-editor-id','scenario-keeper','input');h.change('content-editor-name','Scenario Keeper','input');
-  const hp=field('definition.hp');hp.value='9';hp.listeners.input();
-  h.click(h.byId('content-editor-save'));await settle();
-  assert.equal(h.saves[0].family,'units');assert.equal(h.saves[0].definition.hp,9);
-  assert.equal(h.saves[0].definition.displayName,'Scenario Keeper');
-  assert.equal(h.snapshot().definition.unitTypes[0].id,'scenario-keeper');
-  assert.equal(h.snapshot().definition.units,undefined);assert.equal(h.snapshot().definition.agency,undefined);
-});
-
-
-test('Library Item creation links Loot, saves immutable history, and offers typed Item pinning and promotion', async () => {
-  const h = libraryHarness(); await h.create();
-  h.click(h.byId('content-create-item')); await settle();
-  h.change('content-editor-id', 'tea', 'input'); h.change('content-editor-name', 'Tea', 'input');
-  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
-  assert.equal(h.byId('content-create-linked-loot').textContent, 'Create Loot Card for this Item');
-  h.click(h.byId('content-create-linked-loot')); await settle();
-  h.change('content-editor-id', 'tea-loot', 'input'); h.click(h.byId('content-editor-save')); await settle();
-  h.click(h.byId('content-library-save')); await settle();
-  assert.equal(h.writes[0].package.definitions.lootCardDefinitions[0].itemTypeId, 'tea');
-  h.viewer.open('items:tea'); h.click(h.byId('content-promote')); await settle();
-  h.change('content-promotion-package', 'canonical-tea', 'input');
-  h.click(h.byId('content-promotion-preview')); await settle();
-  const promotion = JSON.parse(h.calls.findLast(call => call.url.endsWith('/promotion/preview')).options.body);
-  assert.deepEqual(promotion.selected, [{ family: 'Item', typeId: 'tea' }]);
-  let scenario = { itemTypes: [] }, revision = 1;
-  const destination = { getRevision: () => String(revision), getContext: () => structuredClone(scenario),
-    getSnapshot: () => ({ definition: structuredClone(scenario), name: 'Item fixture' }),
-    applyReferences: async payload => { scenario.contentReferences = structuredClone(payload.references); revision++; return destination.getSnapshot(); } };
-  await h.viewer.showScenario(scenario, 'Item fixture', destination); await h.viewer.showLibrary();
-  h.viewer.open('items:tea'); h.click(h.byId('content-use-in-scenario')); await settle();
-  const request = JSON.parse(h.calls.findLast(call => call.url.endsWith('/scenario-reference/preview')).options.body);
-  assert.deepEqual(request.selected, [{ family: 'Item', typeId: 'tea' }]);
-  h.click(h.byId('content-reference-apply')); await settle();
-  assert.match(h.byId('content-detail').textContent, /Tea/);
-  assert.equal(h.byId('content-edit-definition'), undefined);
-  assert.deepEqual(scenario.itemTypes, []);
-  h.click(h.byId('content-copy-definition')); await settle();
-  assert.equal(h.byId('content-editor-id').readOnly, false);
-});
-
-
-
-test('attached scenario creates and edits Single Use Items and linked Loot through its guarded destination', async () => {
-  const h = authoringHarness(); const snapshot = h.snapshot();
-  await h.viewer.showScenario(snapshot.definition, snapshot.name, h.destination);
-  h.click(h.byId('content-create-item')); await settle();
-  h.change('content-editor-id', 'local-tea', 'input'); h.change('content-editor-name', 'Local Tea', 'input');
-  h.click(h.byId('content-editor-add-ability')); h.click(h.byId('content-editor-save')); await settle();
-  assert.equal(h.saves[0].family, 'items');
-  h.click(h.byId('content-edit-definition')); await settle();
-  assert.equal(h.byId('content-editor-id').readOnly, true);
-  h.change('content-editor-name', 'Renamed Tea', 'input'); h.click(h.byId('content-editor-save')); await settle();
-  assert.equal(h.snapshot().definition.itemTypes[0].name, 'Renamed Tea');
-  assert.equal(h.saves[1].existingId, 'local-tea');
-  h.click(h.byId('content-create-linked-loot')); await settle();
-  h.change('content-editor-id', 'tea-card', 'input'); h.click(h.byId('content-editor-save')); await settle();
-  assert.deepEqual(h.snapshot().definition.lootCardDefinitions[0], { id: 'tea-card', name: 'Renamed Tea Loot', itemTypeId: 'local-tea' });
+test('invalid scenario context clears old entries and exposes the authoritative diagnostic', async () => {
+  let invalid=false;
+  const h=harness(async url=>url==='/api/content/inspect' && invalid
+    ?{ok:false,json:async()=>({diagnostics:[{path:'unitTypes[0].localAbilities[0].key',message:'An explicit local key is required.'}]})}
+    :{ok:true,json:async()=>structuredClone(catalog)});
+  await h.viewer.showScenario({unitTypes:[]},'Good draft');invalid=true;
+  await h.viewer.showScenario({unitTypes:[{}]},'Broken draft');
+  assert.ok(!h.byId('content-detail').textContent.includes('Sky Weaver'));
+  assert.match(h.root.textContent,/unitTypes\[0\]\.localAbilities\[0\]\.key.*An explicit local key is required/s);
 });

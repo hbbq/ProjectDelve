@@ -114,14 +114,10 @@ pools remain unchanged; dynamic `All` includes the card. Direct Engine callers
 must explicitly load/pass a provider catalog: `ContentBundle.Canonical()` still
 means the existing C# source alone.
 
-## Remaining boundaries
+## Workspace and publication
 
-Persistent package revisions and dependency bindings are provided by the separate
-[Content Library](CONTENT_LIBRARY.md). [Scenario references](SCENARIO_CONTENT_REFERENCES.md)
-pin exact revisions and embed their typed closure. Remote registry, hooks,
-inheritance and asset management remain deferred. [Promotion](CONTENT_PROMOTION.md) publishes new validated JSON packages atomically. Existing C# rosters are
-not migrated. Resources support named production lookup and existing embedded
-payloads; same-ID inline Resource/Machine variants retain their payloads and need
-an independent reference/variant model before becoming general library
-definitions. Machines and Cell Markers gain no new authoring family. Package
-provenance stays outside gameplay definitions and runtime saves.
+Packages remain the canonical provider interchange format. Application authoring uses the single mutable [Workspace](CONTENT_LIBRARY.md), with family/Type-ID references resolved against the effective scoped catalog. New scenarios have no revision pins. [Scenario export](SCENARIO_CONTENT_REFERENCES.md) embeds required effective definitions.
+
+[Promotion](CONTENT_PROMOTION.md) publishes typed JSON in an atomic `workspace-publication.bundle` envelope with an explicit ownership manifest for replacements. Existing C# and JSON sources are filtered by those ownership transfers; C# source is neither rewritten nor generated. `ContentPackage.ReplacesCSharp` also supports explicit C# ownership claims in standalone canonical provider packages. Duplicate claims and definitions without matching ownership fail validation.
+
+Remote registries, hooks, field inheritance and asset management remain deferred. Resources retain named production lookup and existing embedded payloads. Machines and Cell Markers gain no new authoring family. Provenance stays outside gameplay definitions and runtime saves.

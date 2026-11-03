@@ -14,6 +14,8 @@ public sealed record ContentPackage
     public string? Description { get; init; }
     public ImmutableArray<CanonicalPublicationEntry>? Publications { get; init; }
     public ImmutableArray<string> Dependencies { get; init; } = [];
+    // Explicit transfer of canonical ownership from the selected C# provider.
+    public ImmutableArray<ContentIdentity> ReplacesCSharp { get; init; } = [];
     [JsonRequired] public ContentBundle Definitions { get; init; } = new();
 }
 
@@ -97,6 +99,9 @@ public static class ContentPackageJson
             package.Dependencies.Distinct(StringComparer.Ordinal).Count() != package.Dependencies.Length)
             throw ScenarioValidationContext.At(new ArgumentException("Package dependencies require distinct, valid external package IDs."), "dependencies");
         if (package.Definitions is null) throw ScenarioValidationContext.At(new ArgumentException("Package definitions are required."), "definitions");
+        if (package.ReplacesCSharp.IsDefault || package.ReplacesCSharp.Any(id => id is null || !Enum.IsDefined(id.Family) || string.IsNullOrWhiteSpace(id.TypeId)) ||
+            package.ReplacesCSharp.Distinct().Count() != package.ReplacesCSharp.Length)
+            throw ScenarioValidationContext.At(new ArgumentException("C# replacement claims require distinct valid content identities."), "replacesCSharp");
     }
 }
 
@@ -122,8 +127,18 @@ public static class ContentPackageCatalog
                 if (!ids.Contains(dependency))
                     throw HeaderError(document, "dependencies", $"Package '{document.Package.Id}' requires absent package '{dependency}'.");
 
+        var replacements = new HashSet<ContentIdentity>();
+        foreach (var document in packages)
+        foreach (var identity in document.Package.ReplacesCSharp)
+        {
+            if (csharp is null || !ScenarioContentReferences.Identities(csharp).Contains(identity) ||
+                !ScenarioContentReferences.Identities(document.Package.Definitions).Contains(identity))
+                throw HeaderError(document, "replacesCSharp", "A replacement must exist in both the selected C# provider and the replacing package.");
+            if (!replacements.Add(identity))
+                throw HeaderError(document, "replacesCSharp", $"Multiple packages claim C# identity '{identity.Family}:{identity.TypeId}'.");
+        }
         var bundles = packages.Select(p => p.Package.Definitions with { Source = new(p.Document, p.Package.Id, "definitions"), Publications = p.Package.Publications ?? [] }).ToList();
-        if (csharp is not null) bundles.Insert(0, csharp with { Source = new(Package: CSharpPackageId) });
+        if (csharp is not null) bundles.Insert(0, ScenarioContentReferences.Filter(csharp, id => !replacements.Contains(id)) with { Source = new(Package: CSharpPackageId) });
         var effective = ContentComposition.Compose(bundles);
         foreach (var document in packages)
         if (document.Package.Publications is {} publications)
