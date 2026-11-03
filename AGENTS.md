@@ -77,6 +77,23 @@ If a required verification cannot be run in the current environment, state exact
 
 Real/playtest scenarios are mutable content, not test fixtures. Tests using them may only check engine validity and successful loading/instantiation; do not assert or depend on their layout, Units, Objectives, Orders, controllers, or other authored configuration. Test mechanics, serialization, projections, and web behavior with small, dedicated test-owned scenarios instead, retaining strict assertions where they protect a behavioral contract. Consolidate real-scenario loading checks and migrate valuable regression coverage to fixtures rather than deleting it. Do not change scenario content or weaken validation to satisfy tests.
 
+## Subagent usage
+
+Prefer direct main-agent work for trivial changes and small, clearly bounded edits.
+Delegate substantial implementation, independent investigations, and reviews when beneficial.
+Use implementer for scoped changes, explorer for bounded investigations, reviewer for
+independent correctness review, and tester for established verification. Do not launch
+every role for every task or repeat work already completed by another agent.
+
+Use fresh-context subagents when selecting a different role, model, or reasoning effort.
+Supply the task, owned files, relevant instructions, acceptance criteria, and required
+verification. Avoid full-history forks when changing model or reasoning settings.
+
+Keep at most two subagents open concurrently. Prefer one implementation writer at a time.
+Never assign overlapping write scopes, and establish shared contracts before parallel work.
+Review and test stable changes; avoid concurrent builds sharing an artifact directory.
+Close completed agent threads before opening replacements.
+
 ## Repository working knowledge
 
 Agents may update **this section** of `AGENTS.md` when they discover stable, verified repository knowledge that would otherwise need to be rediscovered in future sessions.
