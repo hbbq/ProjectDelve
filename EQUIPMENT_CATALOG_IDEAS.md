@@ -4,70 +4,70 @@ Ideation backlog, not approved rules or implemented content. Proposed names, eff
 
 ## Classic
 
-| Name | Kind | Effect |
-|---|---|---|
-| Boots of Haste | Equipment | Passive MOV +1 |
-| Bracers of Strength | Equipment | Passive ATK +1 |
-| Iron Shield | Equipment | Passive DEF +1 |
-| Eagle Eye | Equipment | Passive RNG +2 |
-| Banner of Fury | Equipment | Passive: adjacent friendly Units ATK +1 |
-| Guardian Standard | Equipment | Passive: adjacent friendly Units DEF +1 |
-| Berserker Ring | Equipment | Bonus Action: ATK +2 for current activation; 2 uses |
-| Seven-League Boots | Equipment | Bonus Action: MOV +2 for current activation; 2 uses |
-| Scope of Precision | Equipment | Bonus Action: RNG +2 for current activation; 2 uses |
-| Healer's Staff | Equipment | Action: heal adjacent damaged friendly Unit by 2 HP; 2 uses |
-| Holy Boots | Equipment | Action: Holy Wave; 2 uses |
-| Ring of Command | Equipment | Bonus Action: +1 Action this activation; 2 uses |
+| Name | Kind | Effect | Created |
+|---|---|---|---|
+| Boots of Haste | Equipment | Passive MOV +1 | Yes, as Lucky Boots
+| Bracers of Strength | Equipment | Passive ATK +1 | Yes
+| Iron Shield | Equipment | Passive DEF +1 | Yes
+| Eagle Eye | Equipment | Passive RNG +2 | Yes
+| Banner of Fury | Equipment | Passive: adjacent friendly Units ATK +1 | Yes
+| Guardian Standard | Equipment | Passive: adjacent friendly Units DEF +1 | Yes
+| Berserker Ring | Equipment | Bonus Action: ATK +2 for current activation; 2 uses | Yes
+| Seven-League Boots | Equipment | Bonus Action: MOV +2 for current activation; 2 uses | Yes
+| Scope of Precision | Equipment | Bonus Action: RNG +2 for current activation; 2 uses | Yes
+| Healer's Staff | Equipment | Action: heal adjacent damaged friendly Unit by 2 HP; 2 uses | Yes
+| Holy Boots | Equipment | Action: Holy Wave; 2 uses | Yes
+| Ring of Command | Equipment | Bonus Action: +1 Action this activation; 2 uses | Yes
 
 ## O-Classic
 
-| Name | Kind | Effect |
-|---|---|---|
-| Phase Cloak | Equipment | Passive: Phase |
-| Amulet of Undying | Equipment | Passive: Undying (equipment trigger support to verify) |
-| Displacer Gloves | Equipment | Bonus Action: Swap; unlimited |
-| Displacer Boots | Equipment | Bonus Action: Displace maxMove 1; unlimited |
-| Goblin Whistle | Equipment | Action: summon one Lying Goblin on legal adjacent Cell; 2 uses |
-| Knightly Boots | Equipment | Action: summon one Lying Hobby Knight on legal adjacent Cell; 2 uses |
-| Telekinetic Gloves | Equipment | Action: Telekinesis; unlimited |
-| Rogue's Cape | Equipment | Passive: Backstab |
-| Fireball Slippers | Equipment | Free Action: Fireball; 2 uses |
-| Doorbreakers | Equipment | Action: Try Open Door with 4 successes; unlimited |
+| Name | Kind | Effect | Created |
+|---|---|---|---|
+| Phase Cloak | Equipment | Passive: Phase | Yes, as One-Size-Fits-Most Bedsheet
+| Amulet of Undying | Equipment | Passive: Undying (equipment trigger support to verify) | No, undying not selectable in equipments
+| Displacer Gloves | Equipment | Bonus Action: Swap; unlimited | No, swap not selectable in equipments
+| Displacer Boots | Equipment | Bonus Action: Displace maxMove 1; unlimited | Yes
+| Goblin Whistle | Equipment | Action: summon one Lying Goblin on legal adjacent Cell; 2 uses | Yes
+| Knightly Boots | Equipment | Action: summon one Lying Hobby Knight on legal adjacent Cell; 2 uses | Yes
+| Telekinetic Gloves | Equipment | Action: Telekinesis; unlimited | Yes
+| Rogue's Cape | Equipment | Passive: Backstab | Yes
+| Fireball Slippers | Equipment | Free Action: Fireball; 2 uses | Yes
+| Doorbreakers | Equipment | Action: Try Open Door with 4 successes; unlimited | Yes
 
 ## Funny
 
-| Name | Kind | Effect |
-|---|---|---|
-| Banana Boots | Equipment | After each successful one-Cell Move step, attempt to place Banana Peel on departed Cell; unlimited |
-| Banana Boots Deluxe | Equipment | Passive MOV +1 and Banana Trail |
-| Emergency Goat Bell | Equipment | Existing Goat Bell Action |
-| Coward's Medal | Equipment | Passive DEF +2, ATK -1 |
-| Heroic Paper Crown | Equipment | Passive ATK +2, DEF -2 |
-| Wrong-Way Boots | Equipment | Passive MOV +2; reverse selected Move displacement if legal, otherwise Stay |
-| Pocket Holy Wave | Immediate Loot | On reveal, Holy Wave from collector without spending Action |
-| Emergency Lunch | Immediate Loot | Heal collector by 3 HP, capped at maximum |
-| Last Resort Fireball | Single Use Item | Action Fireball, consumed when used |
-| Self-Destruct Button | Single Use Item | Explosion damage 1 centered on user, then consume Item |
+| Name | Kind | Effect | Created |
+|---|---|---|---|
+| Banana Boots | Equipment | After each successful one-Cell Move step, attempt to place Banana Peel on departed Cell; unlimited | No, mechanic missing
+| Banana Boots Deluxe | Equipment | Passive MOV +1 and Banana Trail | No, banana trail mechanic mossing
+| Emergency Goat Bell | Equipment | Existing Goat Bell Action | Yes
+| Coward's Medal | Equipment | Passive DEF +2, ATK -1 | Yes
+| Heroic Paper Crown | Equipment | Passive ATK +2, DEF -2 | Yes
+| Wrong-Way Boots | Equipment | Passive MOV +2; reverse selected Move displacement if legal, otherwise Stay | No, unclear how it should work
+| Pocket Holy Wave | Immediate Loot | On reveal, Holy Wave from collector without spending Action | No, mechanic not selectable for loot card and possibly "lay down self" missing
+| Emergency Lunch | Immediate Loot | Heal collector by 3 HP, capped at maximum | Yes
+| Last Resort Fireball | Single Use Item | Action Fireball, consumed when used | Yes
+| Self-Destruct Button | Single Use Item | Explosion damage 1 centered on user, then consume Item | No, mechanic missing for Items
 
 ## World Bending
 
-| Name | Kind | Effect |
-|---|---|---|
-| Portable Campfire | Equipment | Action: replace legal adjacent Floor Cell with Grass Campfire assembly; 2 uses |
-| Architect's Pencil | Equipment | Action: change one visible Cell's Terrain to validated type; 2 uses |
-| Lava Lantern | Equipment | Action: replace legal adjacent Floor Cell with ordinary Lava; 2 uses |
-| Aura of Doubt | Equipment | Passive: adjacent enemy Units DEF -1 |
-| Hostile Encouragement | Equipment | Passive: adjacent enemy Units ATK +2 |
-| Remote Blessing | Equipment | Action: friendly Unit within RNG and LOS gains persistent ATK +1 until scenario end; 2 uses |
-| Bag Cruncher | Equipment | Action: add one token per friendly Unit Type + Side group to current activation bag; 1 use |
-| Token Thief | Equipment | Action: remove one random enemy-group token from current bag, if any; 2 uses |
-| Phase Inverter | Equipment | Action: reverse Move and Action order for target Unit's next activation; 1 use |
-| Rollback Ring | Equipment | Free Action: undo current activation except spending this Ability use; 1 use |
-| Scramble Gloves | Equipment | Action: permute eligible numeric fields of target Unit definition; commit only if valid; 1 use |
-| Quality Stamp | Equipment | Action: validate target Unit definition and display diagnostics; unlimited |
-| Virus Vial | Single Use Item | Mutate one eligible character in target Unit definition value fields; apply only if valid |
-| Forget-Me-Not | Equipment | Action: suppress target Unit Type from active scenario catalog until scenario end; dependent references need rules; 1 use |
-| Budget Barbarian Kit | Single Use Item | Summon Lying Budget Barbarian adjacent: MOV 3, RNG 1, ATK 4, DEF 3, HP 2, Fury and Rage but no Cleave |
+| Name | Kind | Effect | Created |
+|---|---|---|---|
+| Portable Campfire | Equipment | Action: replace legal adjacent Floor Cell with Grass Campfire assembly; 2 uses | No, mechanic missing
+| Architect's Pencil | Equipment | Action: change one visible Cell's Terrain to validated type; 2 uses | No, mechanic missing
+| Lava Lantern | Equipment | Action: replace legal adjacent Floor Cell with ordinary Lava; 2 uses | No, mechanic missing
+| Aura of Doubt | Equipment | Passive: adjacent enemy Units DEF -1 | Yes
+| Hostile Encouragement | Equipment | Passive: adjacent enemy Units ATK +2 | Yes
+| Remote Blessing | Equipment | Action: friendly Unit within RNG and LOS gains persistent ATK +1 until scenario end; 2 uses | No, mechanic missing
+| Bag Cruncher | Equipment | Action: add one token per friendly Unit Type + Side group to current activation bag; 1 use | No, mechanic missing
+| Token Thief | Equipment | Action: remove one random enemy-group token from current bag, if any; 2 uses | No, mechanic missing
+| Phase Inverter | Equipment | Action: reverse Move and Action order for target Unit's next activation; 1 use | No, mechanic missing
+| Rollback Ring | Equipment | Free Action: undo current activation except spending this Ability use; 1 use | No, mechanic missing
+| Scramble Gloves | Equipment | Action: permute eligible numeric fields of target Unit definition; commit only if valid; 1 use | No, mechanic missing
+| Quality Stamp | Equipment | Action: validate target Unit definition and display diagnostics; unlimited | No, mechanic missing
+| Virus Vial | Single Use Item | Mutate one eligible character in target Unit definition value fields; apply only if valid | No, mechanic missing
+| Forget-Me-Not | Equipment | Action: suppress target Unit Type from active scenario catalog until scenario end; dependent references need rules; 1 use | No, mechanic missing
+| Budget Barbarian Kit | Single Use Item | Summon Lying Budget Barbarian adjacent: MOV 3, RNG 1, ATK 4, DEF 3, HP 2, Fury and Rage but no Cleave | Yes, and Budget Barbarian created
 
 ## Other candidates and open questions
 
