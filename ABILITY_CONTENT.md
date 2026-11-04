@@ -28,7 +28,7 @@ zero-effect attempts retain payment; rejected, stale, unaffordable or cancelled
 selections pay nothing. Pending Attack and Door rolls resume their existing
 concrete contexts without paying again, even if the source is Lying or its Item
 was consumed. Initial invocation eligibility is never rerun after payment.
-Interactive cost editing remains deferred.
+Content Designer edits ordered Costs through the shared Ability form using the Engine-owned Cost Catalog and recursive typed parameter fields. Unit, Equipment and Item sources use the same editor; unsupported contexts remain unavailable for Cost additions.
 
 Attack and Door continuation context also captures a narrow `AbilitySource`
 reference (source kind, Type ID, physical Instance ID and local key), independently

@@ -211,3 +211,32 @@ test('Single Use Item edits and linked Loot preserve inventory, undo history, re
   assert.deepEqual(plain(draft.snapshot()), expected);
   assert.equal(item.localAbilities[0].mechanic.amount, 1);
 });
+
+test('ordered Ability Costs survive Scenario edits, undo/redo, recovery and Save/Open for all Ability owners', () => {
+  for (const [family, field] of [['units', 'unitTypes'], ['equipment', 'equipmentTypes'], ['items', 'itemTypes']]) {
+    const { draft, history, draftDocument, readDraftDocument, DesignerDraft } = setup();
+    const ability = { key: 'stable-door', name: 'Try Open Door', timing: 'Action', usage: { maxUses: null },
+      mechanic: { kind: 'tryOpenDoor', successCount: 2 },
+      costs: [{ kind: 'spendResource', resourceTypeId: 'diamond', amount: 1 }, { kind: 'layDownSelf' }] };
+    const owner = { id: 'authored-cost-owner', name: 'Authored cost owner', localAbilities: [ability],
+      ...(family === 'units' ? { displayName: 'Authored cost owner', mov: 1, rng: 0, atk: 0, def: 0, hp: 1 } : {}) };
+    const before = plain(draft.snapshot());
+    history.transact(() => draft.applyContentDefinition(family, owner));
+    const added = plain(draft.snapshot());
+    const edited = structuredClone(owner); edited.localAbilities[0].costs.reverse();
+    edited.localAbilities[0].name = 'Renamed attempt';
+    history.transact(() => draft.applyContentDefinition(family, edited, owner.id));
+    const after = plain(draft.snapshot());
+    history.undo(); assert.deepEqual(plain(draft.snapshot()), added);
+    history.undo(); assert.deepEqual(plain(draft.snapshot()), before);
+    history.redo(); history.redo(); assert.deepEqual(plain(draft.snapshot()), after);
+    const recovered = readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(), 'Cost fixture')));
+    const opened = new DesignerDraft(draft.catalog); opened.replace(recovered.definition);
+    const restored = opened.snapshot()[field].find(row => row.id === owner.id).localAbilities[0];
+    assert.equal(restored.key, 'stable-door');
+    assert.deepEqual(plain(restored.costs), edited.localAbilities[0].costs);
+    restored.costs[1].amount = 99;
+    assert.deepEqual(plain(draft.snapshot()), after);
+    assert.equal(ability.costs[0].amount, 1);
+  }
+});

@@ -7,10 +7,14 @@ export function mountContentBrowser(root, options = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const request = options.fetch ?? globalThis.fetch.bind(globalThis);
   const state = new ContentBrowserState();
-  let refreshGeneration = 0;
+  let refreshGeneration = 0, loading = false, contentReady = false;
   let context = 'canonical', target = null, snapshot = null, workspace = null, catalog = null, editScope = null, editToken = null, editCopy = false;
   const node = (tag, text, className) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e; };
-  const button = (text, action, id) => { const e = node('button', text); e.type = 'button'; if (id) e.id = id; e.addEventListener('click', () => void run(action)); return e; };
+  const button = (text, action, id) => { const e = node('button', text); e.type = 'button'; if (id) e.id = id; e.addEventListener('click', () => { if (!e.disabled) void run(action); }); return e; };
+  const authoringButton = (text, action, id) => {
+    const e = button(text, () => { if (contentReady && !loading) return action(); }, id);
+    e.disabled = !contentReady || loading; return e;
+  };
   const select = (id, values, change) => { const e = node('select'); e.id = id; e.setAttribute('aria-label', id); for (const [value, text] of values) { const o = node('option', text); o.value = value; e.append(o); } e.addEventListener('change', () => void run(() => change(e.value))); return e; };
   root.classList.add('content-browser');
   const header = node('header', null, 'cb-header'); header.append(node('h2', 'Content Workspace'));
@@ -54,24 +58,35 @@ export function mountContentBrowser(root, options = {}) {
   globalThis.addEventListener?.('beforeunload', event => { if(editor.isDirty()) {event.preventDefault();event.returnValue='';} });
   async function refresh() {
     const generation = ++refreshGeneration;
+    loading = true; contentReady = false;
+    status.textContent = 'Loading content…';
+    promotion.replaceChildren(); promotion.hidden=true;
     state.load({entries:[]}); render();
-    let loadedCatalog;
-    workspace = await call('/api/content-workspace');
-    contexts.value = context; promotion.replaceChildren(); promotion.hidden=true;
-    if (context === 'draft') {
-      if (!target && !snapshot) { status.textContent = 'Open a scenario in Designer to edit scenario-local content.'; return; }
-      loadedCatalog = await call(target ? '/api/content/context' : '/api/content/inspect', target ? target.getContext() : snapshot);
-    } else loadedCatalog = await call(context === 'workspace' ? '/api/content-workspace/catalog' : '/api/content/catalog');
-    if(generation !== refreshGeneration) return;
-    catalog = loadedCatalog;
-    state.load(catalog); search.value = '';
-    category.replaceChildren(); for (const c of [{id:'all',name:'All categories'},...state.categories]) { const o=node('option',c.name); o.value=c.id; category.append(o); }
-    origin.replaceChildren();for(const value of ['all',...state.origins]) {const o=node('option',value === 'all' ? 'All origins' : contentLabel(value));o.value=value;origin.append(o);}
-    render();
+    try {
+      let loadedCatalog;
+      const loadedWorkspace = await call('/api/content-workspace');
+      if(generation !== refreshGeneration) return;
+      contexts.value = context;
+      if (context === 'draft') {
+        if (!target && !snapshot) { status.textContent = 'Open a scenario in Designer to edit scenario-local content.'; return; }
+        loadedCatalog = await call(target ? '/api/content/context' : '/api/content/inspect', target ? target.getContext() : snapshot);
+      } else loadedCatalog = await call(context === 'workspace' ? '/api/content-workspace/catalog' : '/api/content/catalog');
+      if(generation !== refreshGeneration) return;
+      workspace = loadedWorkspace; catalog = loadedCatalog; contentReady = true;
+      state.load(catalog); search.value = '';
+      category.replaceChildren(); for (const c of [{id:'all',name:'All categories'},...state.categories]) { const o=node('option',c.name); o.value=c.id; category.append(o); }
+      origin.replaceChildren();for(const value of ['all',...state.origins]) {const o=node('option',value === 'all' ? 'All origins' : contentLabel(value));o.value=value;origin.append(o);}
+      status.textContent = '';
+    } catch (error) {
+      if (generation === refreshGeneration) throw error;
+    } finally {
+      if (generation === refreshGeneration) { loading = false; render(); }
+    }
   }
   function definition(entry) { const value = entry.authoredDefinition ?? entry.definition; return entry.family === 'units' ? value.unitType ?? value : value; }
   async function open(entry, copy = false, scope = context === 'draft' ? 'draft' : 'workspace', override = false, family = entry?.family) {
-    if (!await editor.requestClose()) return;
+    if (!contentReady || loading) return;
+    if (!await editor.requestClose() || !contentReady || loading) return;
     if (scope === 'draft' && !target) throw new Error('Open an editable Designer scenario first.');
     editCopy = copy; editScope = scope; editToken = scope === 'workspace' ? workspace.token : target.getRevision();
     const ctx = scope === 'workspace' ? workspaceContext() : target.getContext();
@@ -228,11 +243,12 @@ export function mountContentBrowser(root, options = {}) {
     return card;
   }
   function render() {
+    root.setAttribute('aria-busy', String(loading));
     actions.replaceChildren();
-    for (const [family,label] of Object.entries({units:'Unit',equipment:'Equipment',items:'Item',lootCards:'Loot Card'})) actions.append(button(`Create ${label}`, () => open(null,false,context === 'draft' ? 'draft':'workspace',false,family), `content-create-${family}`));
-    if(context === 'workspace') actions.append(button('Empty Workspace', async () => {
+    for (const [family,label] of Object.entries({units:'Unit',equipment:'Equipment',items:'Item',lootCards:'Loot Card'})) actions.append(authoringButton(`Create ${label}`, () => open(null,false,context === 'draft' ? 'draft':'workspace',false,family), `content-create-${family}`));
+    if(context === 'workspace') actions.append(authoringButton('Empty Workspace', async () => {
       promotion.hidden=false;promotion.replaceChildren(node('p','Delete all Workspace definitions?'));
-      promotion.append(button('Confirm empty Workspace',async () => { await call('/api/content-workspace',{expectedToken:workspace.token},'DELETE');globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed')); await refresh(); }));
+      promotion.append(authoringButton('Confirm empty Workspace',async () => { await call('/api/content-workspace',{expectedToken:workspace.token},'DELETE');globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed')); await refresh(); }));
     }));
     root.classList.toggle('cb-show-detail',state.detailOpen);
     list.replaceChildren();
@@ -247,16 +263,16 @@ export function mountContentBrowser(root, options = {}) {
     if(entry.mechanic) renderMechanic(entry.mechanic);
     for(const reference of entry.references ?? []) {const target=state.entries.find(e=>e.key===reference.targetKey);detail.append(target && reference.exists ? linkTo(target.key,target.name) : node('span',`${reference.id} \u00b7 unavailable`,'cb-missing'));}
     if(definitionFields[entry.family]) {
-      detail.append(button('Create Copy', () => open(entry,true), 'content-copy-definition'));
-      if(context === 'canonical') detail.append(button('Edit in Workspace', () => open(entry,false,'workspace',true),'content-edit-in-workspace'));
+      detail.append(authoringButton('Create Copy', () => open(entry,true), 'content-copy-definition'));
+      if(context === 'canonical') detail.append(authoringButton('Edit in Workspace', () => open(entry,false,'workspace',true),'content-edit-in-workspace'));
       const local = (context === 'workspace' ? workspaceContext() : target?.getContext())?.[definitionFields[entry.family]]?.some(d => d.id === entry.id);
-      if(context !== 'canonical' && local) detail.append(button('Edit definition', () => open(entry), 'content-edit-definition'));
+      if(context !== 'canonical' && local) detail.append(authoringButton('Edit definition', () => open(entry), 'content-edit-definition'));
       if(context === 'workspace' && local) {
-        detail.append(button('Delete Workspace definition',async () => {
+        detail.append(authoringButton('Delete Workspace definition',async () => {
           const definitions=structuredClone(workspace.definitions); definitions[definitionFields[entry.family]]=definitions[definitionFields[entry.family]].filter(d=>d.id!==entry.id);
           await call('/api/content-workspace',{definitions,expectedToken:workspace.token},'PUT');globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed')); await refresh();
         }));
-        detail.append(button('Promote to Canonical',()=>publish(entry),'content-promote-definition'));
+        detail.append(authoringButton('Promote to Canonical',()=>publish(entry),'content-promote-definition'));
       }
     }
     const advanced=node('details',null,'cb-advanced'); advanced.append(node('summary','Typed definition'),node('pre',JSON.stringify(entry.definition ?? entry.mechanic,null,2))); detail.append(advanced);

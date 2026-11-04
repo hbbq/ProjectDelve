@@ -22,6 +22,12 @@ Resource payments require a nonblank Resource Type reference and positive amount
 Repeated Resource entries remain ordered declarations; they are not deduplicated.
 Repeated Lay Down Self is invalid. Cost metadata contains no executable expressions.
 
+The shared Content Designer Ability form consumes these descriptors directly.
+It intersects Cost profiles with the mechanic's Cost profiles for the current
+source, timing and usage, reuses recursive parameter/reference fields, and retains
+ordered declarations. Validation and generated descriptions remain Engine-owned;
+the form does not duplicate Cost rules or add gameplay eligibility checks.
+
 ```csharp
 var heal = MechanicCatalog.Find("adjacentUnitHeal");
 var descriptors = MechanicCatalog.All;

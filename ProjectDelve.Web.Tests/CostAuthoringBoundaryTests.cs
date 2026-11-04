@@ -8,20 +8,20 @@ namespace ProjectDelve.Web.Tests;
 public sealed class CostAuthoringBoundaryTests
 {
     [Fact]
-    public void AuthoringMetadataExposesContractsWithoutEnablingCostEditing()
+    public void AuthoringMetadataExposesTheSameContractsForInteractiveCostEditingAndExecution()
     {
         var response = ContentBrowserCatalog.Canonical();
         Assert.Equal(CostCatalog.All, response.Costs);
         Assert.True(response.CostExecutionAvailable);
-        Assert.False(response.CostEditingAvailable);
+        Assert.True(response.CostEditingAvailable);
         var json = JsonSerializer.SerializeToElement(response, ContentPackageJson.CreateOptions());
         Assert.True(json.GetProperty("costExecutionAvailable").GetBoolean());
-        Assert.False(json.GetProperty("costEditingAvailable").GetBoolean());
+        Assert.True(json.GetProperty("costEditingAvailable").GetBoolean());
         Assert.Equal(2, json.GetProperty("costs").GetArrayLength());
     }
 
     [Fact]
-    public void NormalAuthoringAcceptsExecutableCostsWithoutInteractiveEditing()
+    public void NormalAuthoringAcceptsExecutableCostsForTheSharedEditor()
     {
         var equipment = new EquipmentDefinition("cost-test", "Cost Test")
         {

@@ -1261,15 +1261,15 @@ The Cleric's third ability is **Holy Wave**:
 Holy Wave [2/game]
 Action
 
-Lay down all adjacent upright enemies.
-Then lay down this Unit.
+Lay down this Unit to lay down
+all adjacent upright enemies.
 ```
 
-Holy Wave starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity, so using Holy Wave spends one use and consumes the Cleric's Action. Holy Wave is not an Attack: it rolls no Attack or Defence Dice, deals no Damage, and does not create rules opportunities that require an Attack to have occurred.
+Holy Wave starts each game with 2 remaining uses and a maximum of 2. It uses the Unit's normal Action opportunity. Accepting a legal invocation commits the Cleric's Action and one use, then pays its **Lay Down Self** Cost before resolving the operation. Holy Wave is not an Attack: it rolls no Attack or Defence Dice, deals no Damage, and does not create rules opportunities that require an Attack to have occurred.
 
-Holy Wave lays down every adjacent hostile Unit that is currently Upright. Adjacent uses the established eight surrounding cells plus normal Line of Sight rule. Lying enemies are unaffected. After all affected enemies have been laid down, the Cleric is laid down as well.
+The Cleric becomes Lying during commitment, before Holy Wave lays down every adjacent hostile Unit that is currently Upright. Its already committed Ability continues resolving despite the Cleric's Lying Posture; invocation eligibility is not checked again after paying the Cost. The Cleric's continuous effects, including Aura, are inactive once it is Lying. Adjacent uses the established eight surrounding cells plus normal Line of Sight rule. Lying enemies are unaffected.
 
-Holy Wave remains legal when there are no adjacent Upright enemies, provided its normal use and Action requirements are satisfied. In that case it still spends one use, consumes the Action, and lays down the Cleric. Relevance may safely classify such a use as irrelevant when it has no ordinary beneficial effect; this does not change its legality.
+Holy Wave remains legal when there are no adjacent Upright enemies, provided its normal use and Action requirements are satisfied. An empty recipient set still commits one use and the Action and pays Lay Down Self, leaving the Cleric Lying. Invalid or cancelled selections commit and pay nothing. Relevance may safely classify an empty use as irrelevant when it has no ordinary beneficial effect; this does not change its legality.
 
 Holy Wave is the first concrete ability that changes another Unit's Posture. It does not establish a general knockdown, stun, condition, saving-throw, resistance, or posture-effect framework beyond the base Posture rules.
 

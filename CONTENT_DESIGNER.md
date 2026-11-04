@@ -12,6 +12,27 @@ Open Content to browse Canonical, Workspace or the current Scenario-local catalo
 
 Unit, Equipment, Item and Loot Card editors reuse the existing destination-neutral forms, Unit authoring contract, Mechanic Catalog, Costs and Engine-generated text. No new family editors are introduced. Type IDs identify definitions; Ability local keys, mechanic identity, physical Instance IDs and display names remain distinct.
 
+### Ability Costs
+
+Each Unit, Equipment and Single Use Item Ability has an ordered **Costs** section.
+Choose a Cost and **Add Cost**, select its type, edit the typed fields, or use
+**Remove Cost**, **Move up** and **Move down**. Lay Down Self has no parameters;
+Spend Resource selects a Resource Type and a positive amount. Repeated Resource
+payments retain their order and are checked cumulatively when invoked. Engine
+validation rejects repeated Lay Down Self and reports indexed Cost field paths.
+
+Available types and context combinations come from `CostCatalog` and the selected
+mechanic's `CostProfiles`. Unsupported timing, source and usage combinations are
+unavailable in the form. Imported incompatible Costs remain visible and removable;
+the editor never silently discards them. **Validate & preview** shows Engine-generated
+wording combining Costs and the mechanic, including supported wording overrides.
+The browser does not generate gameplay descriptions or determine affordability.
+
+Costs travel with the complete Ability through rename, reorder, Create Copy,
+Workspace overrides and promotion, scenario undo/redo, recovery, Save/Open and
+DELVE1. Physical Equipment counters and Item consumption continue using the same
+Engine commitment and payment boundary.
+
 ## Validation and previews
 
 `POST /api/content/validate` accepts family, typed definition, optional existingId and dependency context. `POST /api/content/context` resolves a draft's typed definitions without requiring a valid board. Both resolve against current Workspace and Canonical. Structure, mechanic parameter bounds, source/timing/usage combinations and typed dependencies are checked by shared Engine validation. Diagnostics retain definition/field paths.

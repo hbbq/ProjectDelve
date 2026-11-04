@@ -6,6 +6,15 @@ const vm = require('node:vm');
 const source = name => fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot', name), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('omitted null usage limits render Unlimited in normalized Engine responses', () => {
+  const context = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/content-browser-state.js'), 'utf8').replace(/^export /gm, ''), context);
+  assert.equal(vm.runInContext('contentUsage({})', context), 'Unlimited');
+  assert.equal(vm.runInContext('contentUsage({maxUses:null})', context), 'Unlimited');
+  assert.equal(vm.runInContext('contentUsage({maxUses:2})', context), '2 / game');
+  assert.equal(vm.runInContext('contentUsage(null)', context), 'Not specified');
+});
+
 class Element {
   constructor(tag, document) {
     this.tagName = tag; this.ownerDocument = document; this.children = []; this.dataset = {}; this.attributes = {};
@@ -338,4 +347,59 @@ test('invalid scenario context clears old entries and exposes the authoritative 
   await h.viewer.showScenario({unitTypes:[{}]},'Broken draft');
   assert.ok(!h.byId('content-detail').textContent.includes('Sky Weaver'));
   assert.match(h.root.textContent,/unitTypes\[0\]\.localAbilities\[0\]\.key.*An explicit local key is required/s);
+});
+
+test('authoring waits for Workspace and catalog on initial load and reload while keeping dirty editor buffers', async () => {
+  const pending = [];
+  const h = harness(url => new Promise(resolve => pending.push({url, resolve})));
+  const complete = data => pending.shift().resolve({ok:true,json:async()=>structuredClone(data)});
+  const workspace = { token:'opening-token', definitions:{unitTypes:[],equipmentTypes:[],itemTypes:[],lootCardDefinitions:[]} };
+  const showing = h.viewer.show();
+  assert.equal(h.root.attributes['aria-busy'], 'true');
+  for (const family of ['units','equipment','items','lootCards']) assert.equal(h.byId(`content-create-${family}`).disabled, true);
+  h.click(h.byId('content-create-equipment')); await settle();
+  assert.equal(h.byId('content-editor').hidden, true);
+  assert.match(h.root.textContent, /Loading content/);
+  assert.equal(pending[0].url, '/api/content-workspace'); complete(workspace); await settle();
+  assert.equal(pending[0].url, '/api/content/catalog');
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  complete(catalog); await showing;
+  assert.equal(h.root.attributes['aria-busy'], 'false');
+  assert.equal(h.byId('content-create-equipment').disabled, false);
+  h.click(h.byId('content-create-equipment')); await settle();
+  assert.equal(h.byId('content-editor').hidden, false);
+  h.change('content-editor-name', 'Pending Equipment', 'input');
+
+  const reloading = h.viewer.show();
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  assert.equal(h.byId('content-editor-name').value, 'Pending Equipment');
+  complete({...workspace,token:'later-token'}); await settle();
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  complete(catalog); await reloading;
+  assert.equal(h.byId('content-editor-name').value, 'Pending Equipment');
+  assert.equal(h.byId('content-editor').hidden, false);
+  const leaving = h.viewer.requestCloseEditor();
+  h.click(h.byId('content-editor-keep')); assert.equal(await leaving, false);
+  assert.equal(h.byId('content-editor-name').value, 'Pending Equipment');
+  const event={prevented:false,preventDefault(){this.prevented=true;}};h.events.beforeunload(event);assert.equal(event.prevented,true);
+});
+
+test('failed catalog reload keeps authoring unavailable, displays the error and permits recovery', async () => {
+  let fail = false;
+  const h = harness(async url => url === '/api/content-workspace'
+    ? {ok:true,json:async()=>({token:'current',definitions:{}})}
+    : fail ? {ok:false,json:async()=>({detail:'Catalog could not be loaded.'})}
+      : {ok:true,json:async()=>structuredClone(catalog)});
+  await h.viewer.show(); assert.equal(h.byId('content-create-equipment').disabled, false);
+  fail=true; await h.viewer.show();
+  assert.equal(h.root.attributes['aria-busy'], 'false');
+  assert.equal(h.byId('content-create-equipment').disabled, true);
+  assert.match(h.root.textContent, /Catalog could not be loaded/);
+  h.click(h.byId('content-create-equipment')); await settle();
+  assert.equal(h.byId('content-editor').hidden, true);
+  assert.match(h.root.textContent, /Catalog could not be loaded/);
+  fail=false; await h.viewer.show();
+  assert.equal(h.byId('content-create-equipment').disabled, false);
+  h.click(h.byId('content-create-equipment')); await settle();
+  assert.equal(h.byId('content-editor').hidden, false);
 });

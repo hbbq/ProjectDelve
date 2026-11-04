@@ -22,7 +22,7 @@ export function mountContentEditor(root, options) {
     element.addEventListener('input', () => changed(element.value)); return element;
   };
   const select = (values, value, changed) => {
-    const element = node('select'); element.append(...values.map(item => option(item.value, item.label)));
+    const element = node('select'); element.append(...values.map(item => { const choice = option(item.value, item.label); choice.disabled = !!item.disabled; return choice; }));
     element.value = value ?? ''; element.addEventListener('change', () => changed(element.value)); return element;
   };
   const text = value => node('p', 'ce-help', value);
@@ -137,8 +137,12 @@ export function mountContentEditor(root, options) {
     if (schema.defaultValue != null && typeof schema.defaultValue !== 'object') constraints.push(`Default ${schema.defaultValue}`);
     container.append(field(title, control, path, constraints.join(' · '))); return container;
   }
-  function registerContainer(path, container) {
+  function registerContainer(path, container, focusable = false) {
     const error = node('p', 'ce-field-error'); error.hidden = true; container.append(error); errors.set(contentFieldPath(path), error);
+    if (focusable) {
+      container.dataset.fieldPath = contentFieldPath(path); container.tabIndex = -1;
+      controls.set(contentFieldPath(path), container);
+    }
   }
   function mechanicFields(mechanic, path) {
     const result = node('div', 'ce-mechanic-parameters');
@@ -166,23 +170,30 @@ export function mountContentEditor(root, options) {
       ? 'Existing key stays fixed; renaming preserves its identity.' : 'Choose a unique, stable key within this definition. It will stay fixed after saving.'));
     card.append(header, identity);
     const choices = state.supportedMechanics().filter(candidate => state.canAdd(candidate, index));
-    const mechanicSelect = select(choices.map(candidate => ({ value: candidate.id, label: candidate.name })), ability.mechanic?.kind, id => { state.changeMechanic(index, id); changed(); render(); });
+    const mechanicSelect = select(choices.map(candidate => ({ value: candidate.id, label: candidate.name, disabled: !state.costCompatibleProfiles(candidate, ability).length })), ability.mechanic?.kind, id => { if (state.changeMechanic(index, id)) { changed(); render(); } });
     if (!choices.some(candidate => candidate.id === ability.mechanic?.kind)) mechanicSelect.append(option(ability.mechanic?.kind ?? '', `${ability.mechanic?.kind ?? 'Unknown'} · unavailable`));
     mechanicSelect.value = ability.mechanic?.kind ?? '';
     card.append(field('Mechanic', mechanicSelect, [...path, 'mechanic', 'kind']));
     const profiles = state.profiles(mechanic), profile = profiles.find(candidate => candidate.timing === ability.timing);
     if (mechanic?.contextRequirements) card.append(text(mechanic.contextRequirements));
     if (mechanic && !profile) card.append(text(mechanic.unsupportedContextReason));
-    const timing = select(profiles.map(candidate => ({ value: candidate.timing, label: contentLabel(candidate.timing) })), ability.timing,
+    const compatible = state.costCompatibleProfiles(mechanic, ability);
+    const timing = select(profiles.map(candidate => ({ value: candidate.timing, label: contentLabel(candidate.timing), disabled: !compatible.includes(candidate) })), ability.timing,
       value => { state.changeTiming(index, value); changed(); render(); });
+    if (!profiles.some(candidate => candidate.timing === ability.timing)) timing.append(option(ability.timing, `${contentLabel(ability.timing)} · unavailable`));
+    timing.value = ability.timing;
     card.append(field('Timing', timing, [...path, 'timing']));
     if (profile?.usage === 'LimitedOnly' || profile?.usage === 'LimitedOrUnlimited') {
       const kinds = [{ value: 'limited', label: 'Limited per game' }];
       if (profile.usage === 'LimitedOrUnlimited') kinds.unshift({ value: 'unlimited', label: 'Unlimited' });
-      card.append(field('Usage', select(kinds, ability.usage?.maxUses == null ? 'unlimited' : 'limited', value => set([...path, 'usage'], { maxUses: value === 'unlimited' ? null : 1 }, true)), [...path, 'usage']));
+      for (const kind of kinds) kind.disabled = (ability.costs ?? []).some(cost => !state.supportsCost(state.cost(cost.kind), { ...ability, usage: { maxUses: kind.value === 'unlimited' ? null : 1 } }));
+      card.append(field('Usage', select(kinds, ability.usage?.maxUses == null ? 'unlimited' : 'limited', value => {
+        if (!kinds.find(kind => kind.value === value)?.disabled) set([...path, 'usage'], { maxUses: value === 'unlimited' ? null : 1 }, true);
+      }), [...path, 'usage']));
       if (ability.usage?.maxUses != null) { const amount = input('number', ability.usage.maxUses, value => set([...path, 'usage', 'maxUses'], value === '' ? null : Number(value))); amount.min = 1; amount.step = 1; card.append(field('Uses per game', amount, [...path, 'usage', 'maxUses'])); }
     } else card.append(text(state.family === 'items' ? 'Using an Ability consumes the selected physical Item. Unlimited usage does not add a per-game counter. Timing and ordinary Action restrictions still apply.' : 'Unlimited usage. Timing and ordinary Action restrictions still apply.'));
     card.append(mechanicFields(mechanic, [...path, 'mechanic']));
+    card.append(renderCosts(ability, index));
     if (mechanic?.description?.allowsOverride) {
       const advanced = node('details', 'ce-wording'), wording = node('textarea'); wording.rows = 3; wording.value = ability.descriptionOverride ?? '';
       wording.addEventListener('input', () => set([...path, 'descriptionOverride'], wording.value === '' ? undefined : wording.value));
@@ -191,6 +202,43 @@ export function mountContentEditor(root, options) {
       card.append(advanced);
     }
     registerContainer(path, card); return card;
+  }
+  function renderCosts(ability, abilityIndex) {
+    const path = ['localAbilities', abilityIndex, 'costs'], costs = ability.costs ?? [];
+    const section = node('section', 'ce-costs'); section.append(node('h5', '', 'Costs'), text('Costs are retained in the order shown. Validate to see Engine-generated Ability text.'));
+    const available = state.availableCosts(ability);
+    costs.forEach((cost, index) => {
+      const costPath = [...path, index], descriptor = state.cost(cost.kind), row = node('div', 'ce-list-item ce-cost');
+      const header = node('div', 'ce-list-heading'); header.append(node('strong', '', `Cost ${index + 1}`));
+      const remove = button('Remove Cost', () => { state.removeCost(abilityIndex, index); changed(); render(); }, 'ce-text-button');
+      remove.setAttribute('aria-label', `Remove Cost ${index + 1} from Ability ${abilityIndex + 1}`); header.append(remove);
+      for (const [label, direction] of [['Move up', -1], ['Move down', 1]]) {
+        const move = button(label, () => { if (state.moveCost(abilityIndex, index, direction)) { changed(); render(); } }, 'ce-text-button');
+        move.disabled = index + direction < 0 || index + direction >= costs.length;
+        move.setAttribute('aria-label', `${label} Cost ${index + 1} of Ability ${abilityIndex + 1}`); header.append(move);
+      }
+      row.append(header);
+      const kind = select(available.map(candidate => ({ value: candidate.id, label: candidate.name })), cost.kind,
+        id => { if (state.changeCost(abilityIndex, index, id)) { changed(); render(); } });
+      if (!available.some(candidate => candidate.id === cost.kind)) {
+        const retained = option(cost.kind, `${descriptor?.name ?? cost.kind} · unavailable in this context`); retained.disabled = true; kind.append(retained);
+        row.append(text('This Cost is preserved but is unavailable for the current mechanic, source, timing or usage. Remove it or choose a supported Cost to repair the definition.'));
+      }
+      kind.value = cost.kind; row.append(field('Cost type', kind, [...costPath, 'kind']));
+      for (const schema of descriptor?.parameters ?? []) row.append(parameter(schema, [...costPath, schema.name]));
+      registerContainer(costPath, row, true); section.append(row);
+    });
+    const choice = select(available.map(cost => ({ value: cost.id, label: cost.name })), available[0]?.id, () => {});
+    choice.dataset.costChoice = String(abilityIndex); choice.setAttribute('aria-label', `Cost for Ability ${abilityIndex + 1}`); choice.disabled = !available.length;
+    const add = button('Add Cost', () => {
+      if (state.addCost(abilityIndex, choice.value)) {
+        changed(); render(); controls.get(contentFieldPath([...path, state.definition.localAbilities[abilityIndex].costs.length - 1, 'kind']))?.focus();
+      }
+    });
+    add.dataset.addCost = String(abilityIndex); add.disabled = !available.length;
+    const additions = node('div', 'ce-add-ability'); additions.append(choice, add); section.append(additions);
+    if (!available.length) section.append(text('No editable Costs are supported for this mechanic, source, timing and usage.'));
+    registerContainer(path, section, true); return section;
   }
   function renderEquipment() {
     const section = group(['units', 'items'].includes(state.family) ? 'Abilities' : 'Abilities, modifiers & capabilities', text(state.family === 'items' ? 'Each declaration owns its name, timing and mechanic. Use consumes one physical Item; choose an Ability when using an Item with multiple Abilities.' : 'Each declaration owns its name, timing and mechanic. Passive modifiers and capabilities use this same list.'));

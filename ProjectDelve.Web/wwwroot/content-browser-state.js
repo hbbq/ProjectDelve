@@ -8,7 +8,7 @@ export function contentLabel(value) {
 
 export function contentUsage(usage) {
   if (typeof usage === "string") return usage;
-  if (usage && Object.hasOwn(usage, "maxUses"))
+  if (usage && typeof usage === "object")
     return usage.maxUses == null ? "Unlimited" : `${usage.maxUses} / game`;
   return "Not specified";
 }

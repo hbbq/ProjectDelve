@@ -30,6 +30,41 @@ export class ContentEditorState {
       : mechanic.family === 'ImmediateLoot' && mechanic.profiles?.some(profile => profile.source === 'LootCard'));
   }
   profiles(mechanic) { return (mechanic?.profiles ?? []).filter(profile => profile.source === ({ units: 'Unit', equipment: 'Equipment', items: 'Item' }[this.family])); }
+  get costs() { return this.catalog.costs ?? []; }
+  cost(id) { return this.costs.find(cost => cost.id === id); }
+  usageSupported(profile, maxUses) {
+    return profile.usage === 'LimitedOrUnlimited' || (maxUses == null
+      ? ['UnlimitedOnly', 'NotApplicable'].includes(profile.usage) : profile.usage === 'LimitedOnly');
+  }
+  supportsCost(cost, ability, mechanic = this.mechanic(ability.mechanic?.kind)) {
+    const source = { units: 'Unit', equipment: 'Equipment', items: 'Item' }[this.family];
+    const matches = profile => profile.source === source && profile.timing === ability.timing && this.usageSupported(profile, ability.usage?.maxUses);
+    return !!cost?.executionAvailable && !!mechanic?.costProfiles?.some(matches) && !!cost.profiles?.some(matches);
+  }
+  availableCosts(ability) { return this.catalog.costEditingAvailable ? this.costs.filter(cost => this.supportsCost(cost, ability)) : []; }
+  costCompatibleProfiles(mechanic, ability) {
+    return this.profiles(mechanic).filter(profile => {
+      const candidate = { ...ability, timing: profile.timing, usage: cloneContent(ability.usage) };
+      this.applyUsage(candidate, profile);
+      return (ability.costs ?? []).every(cost => this.supportsCost(this.cost(cost.kind), candidate, mechanic));
+    });
+  }
+  addCost(index, id) {
+    const ability = this.definition.localAbilities[index], cost = this.availableCosts(ability).find(candidate => candidate.id === id);
+    if (!cost) return false;
+    (ability.costs ??= []).push({ kind: cost.id, ...parameterObject(cost.parameters) }); this.version++; return true;
+  }
+  changeCost(index, costIndex, id) {
+    const ability = this.definition.localAbilities[index], cost = this.availableCosts(ability).find(candidate => candidate.id === id);
+    if (!cost) return false;
+    ability.costs[costIndex] = { kind: cost.id, ...parameterObject(cost.parameters) }; this.version++; return true;
+  }
+  removeCost(index, costIndex) { this.definition.localAbilities[index].costs.splice(costIndex, 1); this.version++; }
+  moveCost(index, costIndex, direction) {
+    const costs = this.definition.localAbilities[index].costs, next = costIndex + direction;
+    if (next < 0 || next >= costs.length) return false;
+    [costs[costIndex], costs[next]] = [costs[next], costs[costIndex]]; this.version++; return true;
+  }
   references(family) {
     const field = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' }[family];
     const combined = new Map(this.entries.filter(entry => entry.family === family).map(entry => [entry.id, { id: entry.id, name: entry.name }]));
@@ -83,14 +118,16 @@ export class ContentEditorState {
     const mechanic = this.supportedMechanics().find(candidate => candidate.id === id);
     if (!mechanic || !this.canAdd(mechanic, index)) return false;
     const ability = this.definition.localAbilities[index];
-    const profile = this.profiles(mechanic).find(candidate => candidate.timing === ability.timing) ?? this.profiles(mechanic)[0];
+    const profiles = this.costCompatibleProfiles(mechanic, ability);
+    const profile = profiles.find(candidate => candidate.timing === ability.timing) ?? profiles[0];
+    if (!profile) return false;
     ability.mechanic = { kind: mechanic.id, ...parameterObject(mechanic.parameters) };
     ability.timing = profile.timing; this.applyUsage(ability, profile); delete ability.descriptionOverride;
     this.version++; return true;
   }
   changeTiming(index, timing) {
     const ability = this.definition.localAbilities[index];
-    const profile = this.profiles(this.mechanic(ability.mechanic.kind)).find(candidate => candidate.timing === timing);
+    const profile = this.costCompatibleProfiles(this.mechanic(ability.mechanic.kind), ability).find(candidate => candidate.timing === timing);
     if (!profile) return false;
     ability.timing = timing; this.applyUsage(ability, profile); this.version++; return true;
   }

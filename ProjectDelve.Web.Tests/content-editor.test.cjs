@@ -41,6 +41,33 @@ const catalog = { entries: [shared, action, immediate, { ...action, id: 'unitOnl
   { family: 'resources', id: 'dew', name: 'Dew' }, { family: 'equipment', id: 'cloak', name: 'Woven Cloak' }, { family: 'items', id: 'tea', name: 'Quiet Tea' }
 ]) };
 
+// Test-owned catalog: unfamiliar IDs ensure the form is driven by metadata.
+const costProfiles = ['Unit', 'Equipment', 'Item'].flatMap(source => ['Action', 'BonusAction', 'FreeAction'].map(timing =>
+  ({ source, timing, usage: source === 'Item' ? 'UnlimitedOnly' : 'LimitedOrUnlimited' })));
+const costMechanic = { ...action, id: 'costOperation', name: 'Cost Operation', profiles: [
+  ...costProfiles, { source: 'Equipment', timing: 'Passive', usage: 'UnlimitedOnly' }
+], costProfiles };
+const costCatalog = { ...catalog, costEditingAvailable: true, unitAuthoring: { stats: [], fields: [], behaviors: [] },
+  entries: [...catalog.entries, { family: 'mechanics', id: costMechanic.id, mechanic: costMechanic },
+    { family: 'mechanics', id: 'intrinsic', mechanic: { ...costMechanic, id: 'intrinsic', costProfiles: [], profiles: [{ source: 'Equipment', timing: 'AfterAttack', usage: 'UnlimitedOnly' }] } }],
+  costs: [
+    { id: 'paperPayment', name: 'Paper Payment', executionAvailable: true, profiles: costProfiles, parameters: [] },
+    { id: 'coinPayment', name: 'Coin Payment', executionAvailable: true, profiles: costProfiles, descriptionTemplate: 'NEVER EVALUATE {amount}', parameters: [
+      { name: 'resourceTypeId', kind: 'Reference', required: true, referenceCatalog: 'resources' },
+      { name: 'amount', kind: 'Integer', required: true, minimum: 2, maximum: 9 },
+      { name: 'note', kind: 'String', required: false, allowNull: true }
+    ] },
+    { id: 'unitPayment', name: 'Unit Payment', executionAvailable: true, profiles: costProfiles.filter(profile => profile.source === 'Unit'), parameters: [] },
+    { id: 'futurePayment', name: 'Future Payment', executionAvailable: false, profiles: costProfiles, parameters: [] }
+  ]
+};
+const costHarness = options => harness({ ...options, callbacks: { catalog: costCatalog, ...options?.callbacks } });
+const addCost = (h, id, ability = 0) => {
+  h.root.all(element => element.dataset.costChoice === String(ability))[0].value = id;
+  h.root.all(element => element.dataset.addCost === String(ability))[0].listeners.click();
+};
+const clickLabel = (h, label) => h.root.all(element => element.attributes['aria-label'] === label)[0].listeners.click();
+
 function harness(options = {}) {
   const document = { createElement: tag => new Element(tag, document) }, root = document.createElement('section');
   const validated = [], saved = [], environment = vm.createContext({ structuredClone });
@@ -379,4 +406,127 @@ test('Single Use Item forms use Item profiles and retain two independent Ability
   assert.equal(edited.localAbilities[0].mechanic.adjustments[0].amount, 0);
   assert.equal(edited.localAbilities[1].name, 'Offer a Cup');
   assert.equal(definition.localAbilities[0].name, 'Share a Cup');
+});
+
+test('ordered Costs add, type changes, typed references, nullable fields and reordering reach Engine preview and save', async () => {
+  const h = costHarness(); await h.editor.open({ family: 'equipment' });
+  h.byId('content-editor-add-mechanic').value = 'costOperation'; h.clickText('Add Ability');
+  addCost(h, 'paperPayment'); addCost(h, 'paperPayment');
+  // Duplicate validity belongs to the Engine, rather than an ID-specific client rule.
+  h.change('definition.localAbilities[0].costs[1].kind', 'coinPayment', 'change');
+  assert.equal(h.field('definition.localAbilities[0].costs[1].amount').value, 2);
+  assert.equal(h.field('definition.localAbilities[0].costs[1].amount').max, 9);
+  assert.match(h.field('definition.localAbilities[0].costs[1].resourceTypeId').textContent, /Dew/);
+  h.change('definition.localAbilities[0].costs[1].resourceTypeId', 'dew', 'change');
+  h.change('definition.localAbilities[0].costs[1].amount', '4');
+  h.change('definition.localAbilities[0].costs[1].note', 'null', 'change');
+  clickLabel(h, 'Move up Cost 2 of Ability 1');
+  assert.equal(h.field('definition.localAbilities[0].costs[0].kind').value, 'coinPayment');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[0].definition.localAbilities[0].costs, [
+    { kind: 'coinPayment', resourceTypeId: 'dew', amount: 4, note: null }, { kind: 'paperPayment' }
+  ]);
+  assert.match(h.root.textContent, /Authoritative generated rule/);
+  assert.ok(!h.root.textContent.includes('NEVER EVALUATE'));
+  clickLabel(h, 'Remove Cost 2 from Ability 1');
+  assert.ok(!h.root.textContent.includes('Authoritative generated rule'));
+  assert.equal(h.editor.isDirty(), true);
+  await h.editor.save();
+  assert.deepEqual(h.saved[0].definition.localAbilities[0].costs, [{ kind: 'coinPayment', resourceTypeId: 'dew', amount: 4, note: null }]);
+});
+
+test('Costs stay attached to independent Ability keys through rename, Ability reorder and copy for every source', async () => {
+  for (const family of ['units', 'equipment', 'items']) {
+    const original = { id: 'original', name: 'Original', displayName: 'Original', localAbilities: [
+      { key: 'first', name: 'First', timing: 'Action', usage: { maxUses: null }, mechanic: { kind: 'costOperation', amount: 1 }, costs: [{ kind: 'coinPayment', resourceTypeId: 'dew', amount: 2 }] },
+      { key: 'second', name: 'Second', timing: 'BonusAction', usage: { maxUses: null }, mechanic: { kind: 'costOperation', amount: 1 }, costs: [{ kind: 'paperPayment' }] }
+    ] };
+    const h = costHarness(); await h.editor.open({ family, definition: original, existingId: 'original', copy: true, newId: 'copy' });
+    h.change('definition.localAbilities[0].name', 'Renamed'); clickLabel(h, 'Move down Ability 1');
+    h.change('definition.localAbilities[1].costs[0].amount', '7');
+    await h.editor.save();
+    assert.deepEqual(h.saved[0].definition.localAbilities.map(ability => [ability.key, ability.name, ability.costs]), [
+      ['second', 'Second', [{ kind: 'paperPayment' }]], ['first', 'Renamed', [{ kind: 'coinPayment', resourceTypeId: 'dew', amount: 7 }]]
+    ]);
+    assert.equal(h.saved[0].family, family); assert.equal(h.saved[0].existingId, undefined);
+    assert.equal(original.localAbilities[0].costs[0].amount, 2);
+  }
+});
+
+test('Cost choices intersect mechanic and Cost profiles by source, timing, usage and execution availability', async () => {
+  const h = costHarness(); await h.editor.open({ family: 'equipment' });
+  h.byId('content-editor-add-mechanic').value = 'costOperation'; h.clickText('Add Ability');
+  let choices = h.root.all(element => element.dataset.costChoice === '0')[0];
+  assert.deepEqual(choices.children.map(choice => choice.value), ['paperPayment', 'coinPayment']);
+  h.change('definition.localAbilities[0].timing', 'Passive', 'change');
+  assert.equal(h.root.all(element => element.dataset.addCost === '0')[0].disabled, true);
+  h.change('definition.localAbilities[0].timing', 'Action', 'change'); addCost(h, 'paperPayment');
+  assert.equal(h.field('definition.localAbilities[0].timing').children.find(choice => choice.value === 'Passive').disabled, true);
+  assert.equal(h.field('definition.localAbilities[0].mechanic.kind').children.find(choice => choice.value === 'intrinsic').disabled, true);
+  h.change('definition.localAbilities[0].timing', 'Passive', 'change');
+  await h.editor.validate(); assert.equal(h.validated[0].definition.localAbilities[0].timing, 'Action');
+  assert.deepEqual(h.validated[0].definition.localAbilities[0].costs, [{ kind: 'paperPayment' }]);
+  clickLabel(h, 'Remove Cost 1 from Ability 1');
+  h.change('definition.localAbilities[0].mechanic.kind', 'intrinsic', 'change');
+  assert.equal(h.root.all(element => element.dataset.addCost === '0')[0].disabled, true);
+
+  h.environment.catalog = costCatalog;
+  h.run('globalThis.state = new ContentEditorState(catalog); state.open({family:"items",definition:{id:"x",localAbilities:[{timing:"Action",usage:{maxUses:2},mechanic:{kind:"costOperation"}}]}})');
+  assert.deepEqual(plain(h.run('state.availableCosts(state.definition.localAbilities[0])')), []);
+  h.run('state.set(["localAbilities",0,"usage"],{maxUses:null})');
+  assert.deepEqual(plain(h.run('state.availableCosts(state.definition.localAbilities[0]).map(cost=>cost.id)')), ['paperPayment', 'coinPayment']);
+  h.run('state.open({family:"units"}); state.addAbility("costOperation")');
+  assert.deepEqual(plain(h.run('state.availableCosts(state.definition.localAbilities[0]).map(cost=>cost.id)')), ['paperPayment', 'coinPayment', 'unitPayment']);
+});
+
+test('imported unsupported Costs are preserved with repair controls and unchanged payloads', async () => {
+  const h = costHarness();
+  const definition = { id: 'import', name: 'Import', localAbilities: [{ key: 'old', name: 'Old', timing: 'Passive',
+    mechanic: { kind: 'costOperation', amount: 1 }, costs: [{ kind: 'coinPayment', resourceTypeId: 'dew', amount: 3 }, { kind: 'unfamiliarCost', opaque: 71 }] }] };
+  await h.editor.open({ family: 'equipment', definition, existingId: 'import' });
+  assert.match(h.root.textContent, /Cost is preserved but is unavailable/);
+  assert.equal(h.editor.isDirty(), false);
+  assert.equal(h.root.all(element => element.dataset.addCost === '0')[0].disabled, true);
+  await h.editor.validate(); assert.deepEqual(h.validated[0].definition, definition);
+  clickLabel(h, 'Remove Cost 2 from Ability 1');
+  h.change('definition.localAbilities[0].timing', 'Action', 'change');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[1].definition.localAbilities[0].costs, [definition.localAbilities[0].costs[0]]);
+  assert.equal(h.validated[1].definition.localAbilities[0].timing, 'Action');
+});
+
+test('Cost collection, individual, kind and parameter diagnostics map to their exact field paths and block save', async () => {
+  const base = 'definition.localAbilities[0].costs';
+  const h = costHarness({ validation: async () => ({ valid: false, diagnostics: [
+    { path: base, message: 'Review Costs.' }, { path: base + '[0]', message: 'Duplicate payment.' },
+    { path: base + '[0].kind', message: 'Unsupported kind.' }, { path: base + '[1].amount', message: 'Amount must be positive.' }
+  ] }) });
+  await h.editor.open({ family: 'equipment' }); h.byId('content-editor-add-mechanic').value = 'costOperation'; h.clickText('Add Ability');
+  addCost(h, 'paperPayment'); addCost(h, 'coinPayment');
+  assert.equal(await h.editor.save(), false);
+  for (const path of [base, base + '[0]', base + '[0].kind', base + '[1].amount']) {
+    const field = h.field(path); assert.equal(field.attributes['aria-invalid'], 'true'); field.focus(); assert.equal(h.document.activeElement, field);
+  }
+  assert.match(h.field(base + '[0]').textContent, /Duplicate payment/);
+  assert.equal(h.saved.length, 0); assert.equal(h.editor.isDirty(), true);
+});
+
+test('usage compatibility follows Cost metadata and supported mechanic changes preserve ordered Costs', async () => {
+  const limitedProfiles = costProfiles.filter(profile => profile.source === 'Equipment').map(profile => ({ ...profile, usage: 'LimitedOnly' }));
+  const effective = { ...costCatalog, costs: [...costCatalog.costs, { id: 'limitedPayment', name: 'Limited Payment', executionAvailable: true, profiles: limitedProfiles, parameters: [] }],
+    entries: [...costCatalog.entries, { family: 'mechanics', id: 'otherOperation', mechanic: { ...costMechanic, id: 'otherOperation' } }] };
+  const h = costHarness({ callbacks: { catalog: effective } }); await h.editor.open({ family: 'equipment' });
+  h.byId('content-editor-add-mechanic').value = 'costOperation'; h.clickText('Add Ability');
+  assert.equal(h.root.all(element => element.dataset.costChoice === '0')[0].children.some(option => option.value === 'limitedPayment'), false);
+  h.change('definition.localAbilities[0].usage', 'limited', 'change'); addCost(h, 'limitedPayment'); addCost(h, 'paperPayment');
+  assert.equal(h.field('definition.localAbilities[0].usage').children.find(option => option.value === 'unlimited').disabled, true);
+  h.change('definition.localAbilities[0].usage', 'unlimited', 'change');
+  h.change('definition.localAbilities[0].mechanic.kind', 'otherOperation', 'change');
+  h.change('definition.localAbilities[0].timing', 'FreeAction', 'change');
+  await h.editor.validate();
+  assert.deepEqual(h.validated[0].definition.localAbilities[0].costs, [{ kind: 'limitedPayment' }, { kind: 'paperPayment' }]);
+  assert.equal(h.validated[0].definition.localAbilities[0].usage.maxUses, 1);
+  assert.equal(h.validated[0].definition.localAbilities[0].mechanic.kind, 'otherOperation');
+  const closing = h.editor.requestClose(); h.byId('content-editor-keep').listeners.click(); assert.equal(await closing, false);
+  assert.equal(h.editor.isDirty(), true); assert.equal(h.editor.isOpen(), true);
 });

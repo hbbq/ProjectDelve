@@ -14,10 +14,10 @@ public sealed record ContentBrowserResponse(ContentBrowserContext Context, IRead
     IReadOnlyList<ContentBrowserEntry> Entries, IReadOnlyList<ContentBrowserDiagnostic> Diagnostics)
 {
     public UnitAuthoringContract UnitAuthoring => UnitAuthoringSchema.Contract;
-    // Payment support is independent of the deferred interactive cost editor.
+    // Cost authoring and execution share the Engine-owned contracts.
     public ImmutableArray<AbilityCostDescriptor> Costs => CostCatalog.All;
     public bool CostExecutionAvailable => true;
-    public bool CostEditingAvailable => false;
+    public bool CostEditingAvailable => true;
 }
 public sealed record ContentBrowserField(string Label, JsonElement Value);
 public sealed record ContentBrowserSection(string Title, IReadOnlyList<ContentBrowserField> Fields);
@@ -392,7 +392,9 @@ public static class ContentBrowserCatalog
         .Where(property => property.Name != "kind").ToDictionary(property => property.Name, property => property.Value.Clone()));
     private static IEnumerable<ContentBrowserReference> AbilityReferences(IEnumerable<LocalAbilityDefinition> abilities) =>
         abilities.SelectMany(ability => MechanicReferences(ability.Mechanic))
-            .Concat(Summons(abilities).Select(summon => Reference("Summoned Unit", "units", summon.UnitTypeId)));
+            .Concat(Summons(abilities).Select(summon => Reference("Summoned Unit", "units", summon.UnitTypeId)))
+            .Concat(abilities.SelectMany(ability => ability.Costs)
+                .SelectMany(cost => ParameterReferences(Element(cost), CostCatalog.FindByPayload(cost)!.Parameters)));
     private static IEnumerable<ContentBrowserReference> MechanicReferences(object payload)
     {
         var descriptor = MechanicCatalog.FindByPayload(payload)!;

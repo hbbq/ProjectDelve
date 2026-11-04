@@ -15,6 +15,12 @@ checks reference shape only. Generated descriptions prepend the ordered cost
 requirements to the existing mechanic description, including overrides. This
 covers all extracted invocation payments; Machine recipe exchanges remain Machine-owned.
 
+Interactive Costs use these same paths, such as
+`definition.localAbilities[0].costs[1].amount`, to attach diagnostics to the
+corresponding typed control. The collection and each Cost also accept diagnostics
+for cross-entry rules and unsupported contexts. Resource dependency links in
+definition previews read the Cost Catalog's reference parameter metadata.
+
 Engine exposes definition inspection without creating a scenario, board, Unit or
 GameState. Milestone 2 adds [explicit composition and captured runtime catalogs](CONTENT_COMPOSITION.md)
 using these shared checks. [Content Workspace](CONTENT_LIBRARY.md) persistence also
