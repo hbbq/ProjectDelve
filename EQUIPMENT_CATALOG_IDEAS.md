@@ -25,7 +25,7 @@ Ideation backlog, not approved rules or implemented content. Proposed names, eff
 |---|---|---|---|
 | Phase Cloak | Equipment | Passive: Phase | Yes, as One-Size-Fits-Most Bedsheet
 | Amulet of Undying | Equipment | Passive: Undying (equipment trigger support to verify) | No, undying not selectable in equipments
-| Displacer Gloves | Equipment | Bonus Action: Swap; unlimited | No, swap not selectable in equipments
+| Displacer Gloves | Equipment | Bonus Action: Swap; unlimited | Yes
 | Displacer Boots | Equipment | Bonus Action: Displace maxMove 1; unlimited | Yes
 | Goblin Whistle | Equipment | Action: summon one Lying Goblin on legal adjacent Cell; 2 uses | Yes
 | Knightly Boots | Equipment | Action: summon one Lying Hobby Knight on legal adjacent Cell; 2 uses | Yes
