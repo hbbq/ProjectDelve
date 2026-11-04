@@ -95,7 +95,7 @@ public sealed class WorldCardMechanicsTests
     public void ParameterizedRenewalReplenishesEveryLocalAbilityCounterUpToMaximum()
     {
         var state = State(Immediate(new ReplenishLimitedAbilitiesMechanic(2)));
-        state.Types[0] = state.Types[0].WithLocal(new("grant-test", "Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(3) });
+        state.Types[0] = state.Types[0].WithLocal(new("grant-test", "Wave", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(3) });
         var accounting = state.AbilitiesOf("first").Single(a => a.Key == "grant-test").AccountingId;
         state.Units[0] = state.Units[0] with { AbilityUseCounts = ImmutableDictionary<string, int>.Empty.Add("unit:cleave", 2).Add(accounting, 3) };
         var result = Start(state);

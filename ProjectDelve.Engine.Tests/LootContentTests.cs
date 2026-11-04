@@ -262,7 +262,7 @@ public sealed class LootContentTests
     public void LegacyItemMetadataAcceptsMultipleAndDifferentSupportedGrants()
     {
         var items = ItemCatalog.All.Select(i => i with
-        { LocalAbilities = [new("heal", "Restore", AbilityTiming.Action, new HealMechanic(2)),
+        { LocalAbilities = [new("heal", "Restore", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)),
             new("actions", "Fresh Start", AbilityTiming.BonusAction, new ExtraActionsMechanic(3))] }).ToArray();
         var cards = LootCompatibility.ProjectLegacyCards(LootCardCatalog.All, items, EquipmentCatalog.All);
         var item = Assert.Single(cards.Where(c => c.Kind == LootCardKind.SecondWind));

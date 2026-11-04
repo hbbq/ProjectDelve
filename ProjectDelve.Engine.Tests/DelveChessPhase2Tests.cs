@@ -239,7 +239,7 @@ public sealed partial class DelveChessTests
         var first = knight ? "5,4" : "4,4";
         var second = knight ? new Cell(4, 2) : new Cell(5, 3);
         var moved = TestGame.Advance(Choices(state).State, new Choice(first), new Dice(), false);
-        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Boost);
+        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic);
         var boosted = TestGame.Advance(moved.State, new Choice(boost.Key), new Dice(), false);
         Assert.False(boosted.State.MoveDone);
         Assert.Contains(boosted.NextInput!.Candidates, c => c.Destination == second);

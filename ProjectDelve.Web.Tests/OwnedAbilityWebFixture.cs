@@ -17,8 +17,8 @@ internal static class OwnedAbilityWebFixture
                 CanHaveEquipment = true, CanHaveItems = true,
                 LocalAbilities =
                 [
-                    new("pulse", "Silver Stitch", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
-                    new("shade", "Woven Shade", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2)]))
+                    new("pulse", "Silver Stitch", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(2) },
+                    new("shade", "Woven Shade", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 2)]))
                 ]
             },
             new("injured-friend", 0, 0, 0, 1, 5) { DisplayName = "Injured Friend", Unique = true, Actions = UnitAction.None },
@@ -26,24 +26,24 @@ internal static class OwnedAbilityWebFixture
             new("concealed-keeper", 0, 0, 0, 0, 1)
             {
                 DisplayName = "Concealed Keeper", Actions = UnitAction.None, CanHaveEquipment = true, CanHaveItems = true,
-                LocalAbilities = [new("pulse", "Hidden Native Whisper", AbilityTiming.Action, new HolyWaveMechanic())]
+                LocalAbilities = [new("pulse", "Hidden Native Whisper", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }]
             }
         ],
         EquipmentTypes =
         [
             new("hollow-lantern", "Hollow Lantern")
-            { LocalAbilities = [new("pulse", "Lantern Hush", AbilityTiming.Action, new HolyWaveMechanic())] },
+            { LocalAbilities = [new("pulse", "Lantern Hush", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] },
             new("concealed-lantern", "Concealed Lantern")
-            { LocalAbilities = [new("pulse", "Hidden Lantern Whisper", AbilityTiming.Action, new HolyWaveMechanic())] }
+            { LocalAbilities = [new("pulse", "Hidden Lantern Whisper", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] }
         ],
         ItemTypes =
         [
             new("folded-remedy", "Folded Remedy")
-            { LocalAbilities = [new("pulse", "Paper Stitch", AbilityTiming.Action, new HealMechanic(3))] },
+            { LocalAbilities = [new("pulse", "Paper Stitch", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3))] },
             new("spare-moment", "Spare Moment")
             { LocalAbilities = [new("pulse", "Borrow a Moment", AbilityTiming.BonusAction, new ExtraActionsMechanic(1))] },
             new("concealed-paper", "Concealed Paper")
-            { LocalAbilities = [new("pulse", "Hidden Paper Whisper", AbilityTiming.Action, new HolyWaveMechanic())] }
+            { LocalAbilities = [new("pulse", "Hidden Paper Whisper", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] }
         ],
         Units =
         [

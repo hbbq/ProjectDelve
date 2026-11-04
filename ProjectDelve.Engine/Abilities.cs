@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 namespace ProjectDelve.Engine;
 
 public enum AbilityTiming { Action, BonusAction, FreeAction, Passive, AfterAttack, WhenDefeated, InsteadOfDefeat, InsteadOfActivation, EndActivation }
+public enum RelationshipSelector { Friendlies, Enemies, All }
 public enum AbilitySourceKind { Unit, Equipment, Item }
 // Attribution for the currently resolving invocation; does not retain an
 // executable definition or require a consumed Item to remain in inventory.
@@ -11,13 +12,13 @@ public sealed record AbilitySourceReference(AbilitySourceKind Kind, string TypeI
 public sealed record AbilityUsage(int? MaxUses = null);
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
-[JsonDerivedType(typeof(HolyWaveMechanic), "holyWave")]
-[JsonDerivedType(typeof(HealMechanic), "heal")]
+[JsonDerivedType(typeof(AdjacentUnitsPostureChangeMechanic), "adjacentUnitsPostureChange")]
+[JsonDerivedType(typeof(AdjacentUnitHealMechanic), "adjacentUnitHeal")]
 [JsonDerivedType(typeof(FireballMechanic), "fireball")]
 [JsonDerivedType(typeof(SelfModifiersMechanic), "selfModifiers")]
-[JsonDerivedType(typeof(AdjacentModifiersMechanic), "adjacentModifiers")]
+[JsonDerivedType(typeof(AdjacentUnitsStatModifiersMechanic), "adjacentUnitsStatModifiers")]
 [JsonDerivedType(typeof(ExtraActionsMechanic), "extraActions")]
-[JsonDerivedType(typeof(StandAdjacentFriendlyMechanic), "standAdjacentFriendly")]
+[JsonDerivedType(typeof(AdjacentUnitPostureChangeMechanic), "adjacentUnitPostureChange")]
 [JsonDerivedType(typeof(Cleave), "cleave")]
 [JsonDerivedType(typeof(Fury), "fury")]
 [JsonDerivedType(typeof(Backstab), "backstab")]
@@ -30,12 +31,10 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(ReshapeRoom), "reshapeRoom")]
 [JsonDerivedType(typeof(Swap), "swap")]
 [JsonDerivedType(typeof(Displace), "displace")]
-[JsonDerivedType(typeof(SummonAdjacent), "summonAdjacent")]
-[JsonDerivedType(typeof(SummonWorker), "summonWorker")]
-[JsonDerivedType(typeof(SummonTroll), "summonTroll")]
+[JsonDerivedType(typeof(AdjacentUnitSummonMechanic), "adjacentUnitSummon")]
 [JsonDerivedType(typeof(PlaceBananaPeel), "placeBananaPeel")]
-[JsonDerivedType(typeof(Boost), "boost")]
-[JsonDerivedType(typeof(ShootShell), "shootShell")]
+[JsonDerivedType(typeof(SelfExtraMovesMechanic), "selfExtraMoves")]
+[JsonDerivedType(typeof(TargetUnitAttackMechanic), "targetUnitAttack")]
 [JsonDerivedType(typeof(WaypointSlotMachine), "waypointSlotMachine")]
 [JsonDerivedType(typeof(TryOpenDoor), "tryOpenDoor")]
 [JsonDerivedType(typeof(FireBreath), "fireBreath")]
@@ -47,13 +46,13 @@ public sealed record AbilityUsage(int? MaxUses = null);
 [JsonDerivedType(typeof(Operate), "operate")]
 [JsonDerivedType(typeof(OpenDoor), "openDoor")]
 public abstract record AbilityMechanic;
-public sealed record HolyWaveMechanic : AbilityMechanic;
-public sealed record HealMechanic(int Amount) : AbilityMechanic;
+public sealed record AdjacentUnitsPostureChangeMechanic([property: JsonRequired] RelationshipSelector Selector, [property: JsonRequired] Posture NewPosture) : AbilityMechanic;
+public sealed record AdjacentUnitHealMechanic([property: JsonRequired] RelationshipSelector Selector, [property: JsonRequired] int Amount) : AbilityMechanic;
 public sealed record FireballMechanic : AbilityMechanic;
 public sealed record SelfModifiersMechanic(ImmutableArray<ModifierThisTurn> Modifiers) : AbilityMechanic;
-public sealed record AdjacentModifiersMechanic(ImmutableArray<ModifierThisTurn> Modifiers) : AbilityMechanic;
+public sealed record AdjacentUnitsStatModifiersMechanic([property: JsonRequired] RelationshipSelector Selector, [property: JsonRequired] ImmutableArray<ModifierThisTurn> Modifiers) : AbilityMechanic;
 public sealed record ExtraActionsMechanic(int Amount) : AbilityMechanic;
-public sealed record StandAdjacentFriendlyMechanic : AbilityMechanic;
+public sealed record AdjacentUnitPostureChangeMechanic([property: JsonRequired] RelationshipSelector Selector, [property: JsonRequired] Posture NewPosture) : AbilityMechanic;
 
 // Resolution binds an owner's declaration to its physical source. Presentation
 // and accounting identities follow that source and local key, never a name.
@@ -190,7 +189,7 @@ public static class AbilityContent
         IReadOnlyList<UnitType>? unitTypes, string path = "localAbilities")
     {
         for (var index = 0; index < abilities.Length; index++)
-            if (abilities[index].Mechanic is SummonAdjacent summon && UnitContent.Find(summon.UnitTypeId, unitTypes) is null)
+            if (abilities[index].Mechanic is AdjacentUnitSummonMechanic summon && !(unitTypes?.Any(type => type.Id == summon.UnitTypeId) ?? false))
                 throw ScenarioValidationContext.At(new ArgumentException($"Unknown summoned Unit Type ID '{summon.UnitTypeId}'."),
                     $"{path}[{index}].mechanic.unitTypeId");
     }
@@ -198,6 +197,22 @@ public static class AbilityContent
 
 public static class AbilityQueries
 {
+    internal static bool MatchesRelationship(GameState state, Unit source, Unit recipient, RelationshipSelector selector) => selector switch
+    {
+        RelationshipSelector.Friendlies => source.SideId == recipient.SideId,
+        RelationshipSelector.Enemies => state.AreHostile(source.SideId, recipient.SideId),
+        RelationshipSelector.All => true,
+        _ => false
+    };
+
+    internal static IEnumerable<Unit> AdjacentRecipients(GameState state, Unit source, RelationshipSelector selector) =>
+        state.Units.Where(recipient => recipient.CurrentHp > 0 &&
+                state.Physical.Figures.Any(figure => figure.Id == recipient.Id) &&
+                MatchesRelationship(state, source, recipient, selector) && SpatialRules.AreAdjacent(state, source.Id, recipient.Id))
+            .OrderBy(recipient => state.Physical.Figures.Single(figure => figure.Id == recipient.Id).Position.Y)
+            .ThenBy(recipient => state.Physical.Figures.Single(figure => figure.Id == recipient.Id).Position.X)
+            .ThenBy(recipient => recipient.Id, StringComparer.Ordinal);
+
     internal static string Key(string value) => Uri.EscapeDataString(value);
     public static IEnumerable<ResolvedAbility> NativeAbilities(UnitType type, string unitId) =>
         type.LocalAbilities.Select(ability => new ResolvedAbility(ability, AbilitySourceKind.Unit, type.Id, unitId, type.DisplayName ?? type.Id));
@@ -248,7 +263,7 @@ public static class AbilityQueries
         bool Relevant(LocalAbilityDefinition ability) => ability.Timing == AbilityTiming.Passive && (ability.Mechanic switch
         {
             SelfModifiersMechanic self => self.Modifiers.Any(modifier => modifier.Stat == stat),
-            AdjacentModifiersMechanic adjacent => adjacent.Modifiers.Any(modifier => modifier.Stat == stat),
+            AdjacentUnitsStatModifiersMechanic adjacent => adjacent.Modifiers.Any(modifier => modifier.Stat == stat),
             _ => false
         });
         if (!state.Types.Any(type => type.LocalAbilities.Any(Relevant)) &&
@@ -266,18 +281,18 @@ public static class AbilityQueries
                         if (ability.Timing == AbilityTiming.Passive) yield return ability.Mechanic;
         }
         var total = 0;
-        foreach (var source in state.Units.Where(unit => unit.CurrentHp > 0))
+        foreach (var source in state.Units.Where(unit => unit.CurrentHp > 0 && state.Physical.Figures.Any(figure => figure.Id == unit.Id)))
         foreach (var mechanic in Passives(source))
         {
             var modifiers = mechanic switch
             {
                 SelfModifiersMechanic self when source.Id == unitId => self.Modifiers,
-                AdjacentModifiersMechanic adjacent when source.SideId == target.SideId => adjacent.Modifiers,
+                AdjacentUnitsStatModifiersMechanic adjacent when MatchesRelationship(state, source, target, adjacent.Selector) => adjacent.Modifiers,
                 _ => []
             };
             var amount = modifiers.Where(modifier => modifier.Stat == stat).Sum(modifier => modifier.Amount);
             if (amount == 0 || !state.IsUpright(source.Id)) continue;
-            if (mechanic is AdjacentModifiersMechanic && !SpatialRules.AreAdjacent(state, source.Id, unitId)) continue;
+            if (mechanic is AdjacentUnitsStatModifiersMechanic && !SpatialRules.AreAdjacent(state, source.Id, unitId)) continue;
             total += amount;
         }
         return total;

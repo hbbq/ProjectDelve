@@ -145,14 +145,7 @@ public static class ContentDefinitions
             var path = $"localAbilities[{i}].mechanic";
             switch (abilities[i]?.Mechanic)
             {
-                case SummonAdjacent x: Add(ContentFamily.Unit, x.UnitTypeId, path + ".unitTypeId"); break;
-                case SummonWorker: Add(ContentFamily.Unit, UnitTypeIds.Worker, path, ContentDependencyKind.ImplicitMechanic); break;
-                case SummonTroll:
-                    Add(ContentFamily.Unit, UnitTypeIds.Troll, path, ContentDependencyKind.ImplicitMechanic);
-                    Add(ContentFamily.Resource, ResourceTypeIds.Diamond, path, ContentDependencyKind.ImplicitMechanic); break;
-                case PlaceBananaPeel: Add(ContentFamily.Resource, ResourceTypeIds.Banana, path, ContentDependencyKind.ImplicitMechanic); break;
-                case Boost: Add(ContentFamily.Resource, ResourceTypeIds.Mushroom, path, ContentDependencyKind.ImplicitMechanic); break;
-                case ShootShell: Add(ContentFamily.Resource, ResourceTypeIds.Shell, path, ContentDependencyKind.ImplicitMechanic); break;
+                case AdjacentUnitSummonMechanic x: Add(ContentFamily.Unit, x.UnitTypeId, path + ".unitTypeId"); break;
                 case WaypointSlotMachine x when !x.OutputTable.Faces.IsDefault:
                     for (int j = 0; j < x.OutputTable.Faces.Length; j++) Resource(x.OutputTable.Faces[j], path + $".outputTable.faces[{j}]"); break;
             }

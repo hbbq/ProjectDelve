@@ -22,10 +22,12 @@ public sealed class ActiveAbilityComposabilityTests
     };
 
     private static GameState Ready(AbilitySourceKind source, AbilityTiming timing, AbilityMechanic mechanic,
-        int? maxUses = 2, params LocalAbilityDefinition[] native)
+        int? maxUses = 2, params LocalAbilityDefinition[] native) => Ready(source,
+            new LocalAbilityDefinition("first", "Unfamiliar Name", timing, mechanic)
+            { Usage = new(source == AbilitySourceKind.Item ? null : maxUses) }, native);
+
+    private static GameState Ready(AbilitySourceKind source, LocalAbilityDefinition ability, params LocalAbilityDefinition[] native)
     {
-        var ability = new LocalAbilityDefinition("first", "Unfamiliar Name", timing, mechanic)
-        { Usage = new(source == AbilitySourceKind.Item ? null : maxUses) };
         var actor = new UnitType("actor-type", 2, 4, 2, 0, 5, Actions: UnitAction.None)
         {
             Unique = true, CanHaveEquipment = true, CanHaveItems = true,
@@ -276,13 +278,22 @@ public sealed class ActiveAbilityComposabilityTests
     {
         AbilityMechanic mechanic = kind switch
         {
-            "summon" => new SummonAdjacent("near-type", Posture.Lying),
-            "pickup" => new PickupResource(), "banana" => new PlaceBananaPeel(1),
-            "boost" => new Boost(1), "shell" => new ShootShell(1, 4, 3),
+            "summon" => new AdjacentUnitSummonMechanic("near-type", Posture.Lying),
+            "pickup" => new PickupResource(), "banana" => new PlaceBananaPeel(),
+            "boost" => new SelfExtraMovesMechanic(1), "shell" => new TargetUnitAttackMechanic(4, 3),
             _ => throw new InvalidOperationException()
         };
-        var timing = mechanic is PlaceBananaPeel or Boost ? AbilityTiming.BonusAction : AbilityTiming.Action;
-        var state = Ready(AbilitySourceKind.Unit, timing, mechanic, 1);
+        var timing = mechanic is PlaceBananaPeel or SelfExtraMovesMechanic ? AbilityTiming.BonusAction : AbilityTiming.Action;
+        var costs = kind switch
+        {
+            "banana" => new AbilityCost[] { new SpendResource(ResourceTypeIds.Banana, 1) },
+            "boost" => [new SpendResource(ResourceTypeIds.Mushroom, 1)],
+            "shell" => [new SpendResource(ResourceTypeIds.Shell, 1)],
+            _ => []
+        };
+        var state = Ready(AbilitySourceKind.Unit,
+            new LocalAbilityDefinition("first", "Unfamiliar Name", timing, mechanic)
+            { Usage = new(1), Costs = [.. costs] });
         var resource = kind switch
         {
             "banana" => ResourceTypes.Banana, "boost" => ResourceTypes.Mushroom,

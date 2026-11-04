@@ -173,7 +173,7 @@ public static class UnitRoster
         "Shaman",
         Stats(2, 0, 0, 3, 1), Loot(2),
         CantAttack(),
-        Ability("Summon Goblin", Unlimited(), SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying), id: "summon-goblin")
+        Ability("Summon Goblin", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Goblin, Posture.Lying), id: "summon-goblin")
     ).WithBehaviors(UnitBehavior.Flee, UnitBehavior.UseSummon);
 
     public static UnitType Barbarian(string id = UnitTypeIds.Barbarian) => UnitType.Define(id,
@@ -201,15 +201,15 @@ public static class UnitRoster
         Stats(3, 1, 3, 3, 4), Loot(1, items: true, equipment: true),
         Unique(),
         OpenDoor(),
-        LocalAbility(new("heal", "Heal", AbilityTiming.Action, new HealMechanic(Amount: 2))
+        LocalAbility(new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, Amount: 2))
         {
             Usage = new(MaxUses: 2)
         }),
-        LocalAbility(new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic())
+        LocalAbility(new("holy-wave", "Holy Wave", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying))
         {
-            Usage = new(MaxUses: 2)
+            Usage = new(MaxUses: 2), Costs = [new LayDownSelf()]
         }),
-        LocalAbility(new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, +1)]))
+        LocalAbility(new("aura", "Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, +1)]))
         {
             Usage = new(MaxUses: null)
         })

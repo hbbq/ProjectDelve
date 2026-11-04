@@ -60,7 +60,7 @@ public sealed class ContentCompositionTests
         {
             Units = [UnitRoster.Goblin() with { Atk = 17, DisplayName = "Workspace Goblin" }],
             Equipment = [new("lucky-boots", "Workspace Boots") { LocalAbilities =
-                [new("summon", "Summon", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))] }]
+                [new("summon", "Summon", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Goblin, Posture.Lying))] }]
         };
         var scenario = new ContentBundle { Units = [UnitRoster.Goblin() with { Atk = 23 }] };
         var effective = ContentComposition.ComposeScopes(canonical, workspace, scenario);
@@ -69,7 +69,7 @@ public sealed class ContentCompositionTests
         Assert.Contains(new ContentIdentity(ContentFamily.Unit, UnitTypeIds.Goblin),
             effective.Dependencies.Closure([new(ContentFamily.Equipment, "lucky-boots")]));
         var invalidShadowed = workspace with { Equipment = [new("lucky-boots", "Shadowed") { LocalAbilities =
-            [new("summon", "Summon", AbilityTiming.Action, new SummonAdjacent("missing", Posture.Lying))] }] };
+            [new("summon", "Summon", AbilityTiming.Action, new AdjacentUnitSummonMechanic("missing", Posture.Lying))] }] };
         _ = ContentComposition.ComposeScopes(canonical, invalidShadowed, new() { Equipment = [canonical.Equipment.Single(e => e.Id == "lucky-boots")] });
         Assert.Throws<ContentCompositionException>(() => ContentComposition.ComposeScopes(canonical,
             workspace with { Units = [workspace.Units[0], workspace.Units[0]] }, scenario));
@@ -104,7 +104,7 @@ public sealed class ContentCompositionTests
     {
         var summoned = new UnitType("portable-helper", 1, 0, 0, 0, 1);
         var summoner = new UnitType(UnitTypeIds.Shaman, 1, 0, 0, 0, 1) { LocalAbilities =
-            [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(summoned.Id, Posture.Lying))] };
+            [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(summoned.Id, Posture.Lying))] };
         var scenario = Scenario() with { UnitTypes = [summoner, summoned] };
         // An exported closure may define an unplaced dependency without selecting it for setup.
         var initial = Restore(GameEngine.CreateGame(ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scenario))));
@@ -116,7 +116,7 @@ public sealed class ContentCompositionTests
         var started = GameEngine.StartRound(initial, new Dice(), false);
         Assert.DoesNotContain(started.State.Bag, token => token.TypeId == summoned.Id);
         var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
-        var summon = action.NextInput!.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
+        var summon = action.NextInput!.Candidates.First(candidate => candidate.Action == UnitAction.AdjacentUnitSummon);
         var result = GameEngine.Advance(Restore(action.State), new Choice(summon.Key), new Dice(), false);
         Assert.Contains(result.State.Units, unit => unit.TypeId == summoned.Id);
         Assert.Equal(new[] { summoner.Id, summoned.Id }, result.State.ActivationTypeOrder);
@@ -151,7 +151,7 @@ public sealed class ContentCompositionTests
         var restored = JsonSerializer.Deserialize<GameState>(saved)!;
         var started = GameEngine.StartRound(restored, new Dice(), false);
         var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
-        var summon = action.NextInput!.Candidates.First(c => c.Action == UnitAction.SummonAdjacent);
+        var summon = action.NextInput!.Candidates.First(c => c.Action == UnitAction.AdjacentUnitSummon);
         var result = GameEngine.Advance(Restore(action.State), new Choice(summon.Key), new Dice(), false);
         Assert.Contains(result.Events, e => e.Kind == "UnitCreated");
         Assert.Equal(17, result.State.Types.Single(t => t.Id == UnitTypeIds.Goblin).Atk);
@@ -217,9 +217,9 @@ public sealed class ContentCompositionTests
         { LocalAbilities = [new("stride", "Stride", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 4)]))] } : e)] };
         var scenario = Scenario() with
         {
-            UnitTypes = [UnitRoster.Shaman().Without<SummonAdjacent>() with { CanHaveEquipment = true }],
+            UnitTypes = [UnitRoster.Shaman().Without<AdjacentUnitSummonMechanic>() with { CanHaveEquipment = true }],
             EquipmentTypes = [new("charged-bell", "Captured Bell") { LocalAbilities =
-                [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying)) { Usage = new(2) }] }],
+                [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Goblin, Posture.Lying)) { Usage = new(2) }] }],
             Units = [Scenario().Units[0] with { Inventory = [new("physical-bell", "charged-bell")] }],
             Loot = new() { Composition = [new(LootCardKind.LuckyBoots)] }, LootMarkers = [new("marker", new(2, 2))]
         };

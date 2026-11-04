@@ -23,7 +23,7 @@ public sealed class ScenarioContentReferenceTests : IDisposable
     {
         Id = "knightly-kit", Definitions = new() {
             Equipment = [new("knightly-boots", name) { LocalAbilities =
-                [new("encourage", "Encourage", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()) { Usage = new(uses) }] },
+                [new("encourage", "Encourage", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(uses) }] },
                 new("unselected-gear", "Not imported")],
             LootCards = [new("knightly-gift", "Knightly Gift") { EquipmentTypeId = "knightly-boots" }]
         }
@@ -100,7 +100,7 @@ public sealed class ScenarioContentReferenceTests : IDisposable
     {
         var helper = new UnitType("helper", 1, 0, 0, 0, 2) { Unique = true };
         var package = Package() with { Definitions = new() { Units = [helper], Equipment = [new("call-helper", "Call Helper")
-            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent("helper", Posture.Lying))] }] } };
+            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic("helper", Posture.Lying))] }] } };
         Store.Create(package);
         var preview = Pin(family: ContentFamily.Equipment, id: "call-helper");
         var scenario = Apply(preview) with { UnitTypeIds = [.. Scenario().UnitTypeIds, helper.Id], UnitTypes = [.. Scenario().UnitTypes!, helper with { Hp = 7 }] };
@@ -138,7 +138,7 @@ public sealed class ScenarioContentReferenceTests : IDisposable
     [Fact]
     public void CapturedCanonicalDependenciesRemainAuthoritativeButLibraryIdentityCollisionsFail()
     {
-        var gear = new EquipmentDefinition("call-goblin", "Call Goblin") { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))] };
+        var gear = new EquipmentDefinition("call-goblin", "Call Goblin") { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Goblin, Posture.Lying))] };
         Store.Create(Package() with { Dependencies = [ContentPackageCatalog.CSharpPackageId], Definitions = new() { Equipment = [gear] } });
         var scene = Apply(Pin(family: ContentFamily.Equipment, id: gear.Id));
         var captured = scene.ContentReferences![0].Snapshot.Units.Single(t => t.Id == UnitTypeIds.Goblin);
@@ -152,9 +152,9 @@ public sealed class ScenarioContentReferenceTests : IDisposable
     public void MultiplePinsReuseTheSameImmutableClosureAndPermitMutualSummons()
     {
         UnitType Summon(string id, string target) => new(id, 1, 0, 0, 0, 1)
-            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(target, Posture.Lying))] };
+            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(target, Posture.Lying))] };
         Store.Create(new() { Id = "common", Definitions = new() { Units = [Summon("a", "b"), Summon("b", "a")],
-            Equipment = [new("shared-call", "Shared Call") { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent("a", Posture.Lying))] }] } });
+            Equipment = [new("shared-call", "Shared Call") { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic("a", Posture.Lying))] }] } });
         foreach (var id in new[] { "one", "two" }) Store.Create(new ContentPackage { Id = id, Dependencies = ["common"], Definitions = new()
             { LootCards = [new(id + "-gift", id) { EquipmentTypeId = "shared-call" }] } }, [new("common", 1)]);
         var first = Service.Preview(new(Scenario(), "one", 1, [new(ContentFamily.LootCard, "one-gift")]));

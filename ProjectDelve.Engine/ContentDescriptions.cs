@@ -20,10 +20,17 @@ public static class ContentDescriptions
         void Signed(string key, int value) => values[key] = value.ToString("+0;-0;0", CultureInfo.InvariantCulture);
         switch (ability.Mechanic)
         {
-            case HealMechanic heal: Number("amount", heal.Amount); break;
+            case AdjacentUnitHealMechanic heal:
+                values["selector"] = Relationship(heal.Selector); Number("amount", heal.Amount); break;
+            case AdjacentUnitPostureChangeMechanic posture:
+                values["selector"] = Relationship(posture.Selector); values["newPosture"] = PostureOperation(posture.NewPosture); break;
+            case AdjacentUnitsPostureChangeMechanic posture:
+                values["selector"] = Relationship(posture.Selector); values["newPosture"] = PostureOperation(posture.NewPosture); break;
             case ExtraActionsMechanic extra: Number("amount", extra.Amount); break;
+            case SelfExtraMovesMechanic extra: Number("amount", extra.Amount); break;
             case SelfModifiersMechanic self: values["modifiers"] = Modifiers(self.Modifiers); break;
-            case AdjacentModifiersMechanic adjacent: values["modifiers"] = Modifiers(adjacent.Modifiers); break;
+            case AdjacentUnitsStatModifiersMechanic adjacent:
+                values["selector"] = Relationship(adjacent.Selector); values["modifiers"] = Modifiers(adjacent.Modifiers); break;
             case Cleave cleave: Number("triggerDamage", cleave.TriggerDamage); Number("damage", cleave.Damage); break;
             case Fury fury: Signed("atkBonus", fury.AtkBonus); Number("adjacentEnemyThreshold", fury.AdjacentEnemyThreshold); break;
             case Backstab backstab: Signed("atkBonus", backstab.AtkBonus); break;
@@ -33,15 +40,13 @@ public static class ContentDescriptions
             case RunRails rails: Number("steps", rails.Steps); break;
             case TryOpenDoor door: Number("successCount", door.SuccessCount); break;
             case Displace displace: Number("maxMove", displace.MaxMove); break;
-            case SummonAdjacent summon:
+            case AdjacentUnitSummonMechanic summon:
                 values["unitTypeId"] = UnitContent.Find(summon.UnitTypeId, existingTypes)?.DisplayName ?? summon.UnitTypeId;
                 values["initialPosture"] = summon.InitialPosture.ToString();
+                values["sameTypeSideLimit"] = summon.SameTypeSideLimit is { } limit
+                    ? $" Only while fewer than {limit.ToString(CultureInfo.InvariantCulture)} living Units of that Type are on this Unit's Side." : "";
                 break;
-            case SummonWorker worker: Number("sideLimit", worker.SideLimit); break;
-            case SummonTroll troll: Number("diamondCost", troll.DiamondCost); break;
-            case PlaceBananaPeel banana: Number("bananaCost", banana.BananaCost); break;
-            case Boost boost: Number("mushroomCost", boost.MushroomCost); break;
-            case ShootShell shell: Number("shellCost", shell.ShellCost); Number("rng", shell.Rng); Number("atk", shell.Atk); break;
+            case TargetUnitAttackMechanic attack: Number("rng", attack.Rng); Number("atk", attack.Atk); break;
             case WaypointSlotMachine slot:
                 values["outputTable"] = string.Join(", ", slot.OutputTable.Faces.Select((face, index) => $"{index + 1} {face.Name}"));
                 break;
@@ -60,6 +65,10 @@ public static class ContentDescriptions
         };
         return new(entryId, ability.Name, category, description, ability.Usage.MaxUses);
     }
+
+    private static string Relationship(RelationshipSelector selector) => selector switch
+        { RelationshipSelector.Friendlies => "friendly", RelationshipSelector.Enemies => "enemy", RelationshipSelector.All => "other", _ => throw new ArgumentException("Unknown relationship selector.") };
+    private static string PostureOperation(Posture posture) => posture == Posture.Upright ? "Stand up" : "Lay down";
 
     private static string Modifiers(IEnumerable<ModifierThisTurn> modifiers) =>
         string.Join("; ", modifiers.Select(m => $"{m.Stat.ToString().ToUpperInvariant()} {m.Amount:+0;-0;0}"));

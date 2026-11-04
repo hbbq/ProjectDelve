@@ -191,9 +191,9 @@ public sealed class EquipmentMechanicsTests
     public void MultipleSourcesOfSameActionHaveStableDistinctChoicesAndOrdinaryActionAccounting()
     {
         var first = new EquipmentDefinition("brass-whistle", "Brass Whistle")
-        { LocalAbilities = [new("rally", "Wake Up", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
+        { LocalAbilities = [new("rally", "Wake Up", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))] };
         var second = new EquipmentDefinition("velvet-drum", "Velvet Drum")
-        { LocalAbilities = [new("rally", "Wake Up", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
+        { LocalAbilities = [new("rally", "Wake Up", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))] };
         var state = Ready(Own(Scenario(first, second), new("whistle-1", first.Id), new("drum-1", second.Id), new("wind", LootCardKind.SecondWind)));
         state.MoveDone = true;
         var result = GameEngine.RefreshChoices(state, new Dice(), false);
@@ -215,7 +215,7 @@ public sealed class EquipmentMechanicsTests
     public void EquipmentActionRequiresMovementOpportunityAndOnlyOffersAdjacentFriendlyLyingTargets()
     {
         var equipment = new EquipmentDefinition("knitted-horn", "Knitted Horn")
-        { LocalAbilities = [new("wake", "Morning Call", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
+        { LocalAbilities = [new("wake", "Morning Call", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))] };
         var scenario = Own(Scenario(equipment), new OwnedObject("horn-1", equipment.Id));
         scenario.Units.Add(new("test-bearer", "blue", new(1, 2), UnitId: "upright-friend"));
         scenario.Units.Add(new("test-bearer", "blue", new(5, 1), Posture.Lying, UnitId: "distant-friend"));
@@ -245,7 +245,7 @@ public sealed class EquipmentMechanicsTests
     public void SaveResumeAndReplayedChoicesPreserveEquipmentEffectsEventsAndSnapshots()
     {
         var equipment = new EquipmentDefinition("opal-pencil", "Opal Pencil")
-        { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)])), new("raise", "Please Rise", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] };
+        { LocalAbilities = [new("stats", "Adjustments", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 1)])), new("raise", "Please Rise", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))] };
         var state = Ready(Own(Scenario(equipment), new OwnedObject("pencil-1", equipment.Id)));
         state.LootDeck = new() { DrawPile = [new("pencil-2", equipment.Id), new("wind", LootCardKind.SecondWind)] };
         state.LootMarkers = [new("loot-1", new(1, 1)), new("loot-2", new(1, 1))];

@@ -164,7 +164,7 @@ test('Content destination includes detached local Unit definitions for Equipment
 
 test('Custom Loot editor keeps local Loot Card and Item quantities independent', () => {
   const h = harness(), draft = h.editor.draft;
-  draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];
+  draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'adjacentUnitsPostureChange', selector:'Enemies', newPosture:'Lying'}}]}];
   draft.definition.lootCardDefinitions = [{id:'letter',name:'Unexpected Letter',itemTypeId:'paper-moon'}];
   draft.setLootDeck([{lootCardId:'letter',count:2},{itemTypeId:'paper-moon',count:3}]);
   h.editor.render();
@@ -273,7 +273,7 @@ test('older local Loot IDs retain their name and one deck row beside canonical l
     const h = harness(), draft = h.editor.draft;
     const local = {id:'pocket-breakfast',name:'A Folded Letter',itemTypeId:'paper-moon'};
     draft.definition.lootCardDefinitions = [local];
-    draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'holyWave'}}]}];
+    draft.definition.itemTypes = [{id:'paper-moon',name:'Paper Moon',localAbilities:[{key:'read',name:'Fold the Sky',timing:'Action',mechanic:{kind:'adjacentUnitsPostureChange', selector:'Enemies', newPosture:'Lying'}}]}];
     const composition = [{kind:'PocketBreakfast',count:1},{lootCardId:local.id,count:3}];
     draft.setLootDeck(composition);
     h.editor.render();
@@ -1248,13 +1248,13 @@ test("owned Abilities remain nested through import, editing, recovery, export an
   const definition = structuredClone(designerSetup);
   definition.unitTypes = [{ id: "woven-keeper", displayName: "Woven Keeper", mov: 2, rng: 1, atk: 0, def: 1, hp: 3,
     localAbilities: [
-      { key: "pulse", name: "Silver Stitch", timing: "Action", usage: { maxUses: 2 }, mechanic: { kind: "heal", amount: 2 } },
-      { key: "shade", name: "Woven Shade", timing: "Passive", mechanic: { kind: "adjacentModifiers", modifiers: [{ stat: "Def", amount: 2 }] } }
+      { key: "pulse", name: "Silver Stitch", timing: "Action", usage: { maxUses: 2 }, mechanic: { kind: "heal", selector:"Friendlies", amount: 2 } },
+      { key: "shade", name: "Woven Shade", timing: "Passive", mechanic: { kind: "adjacentUnitsStatModifiers", selector:"Friendlies", modifiers: [{ stat: "Def", amount: 2 }] } }
     ] }];
   definition.equipmentTypes = [{ id: "hollow-lantern", name: "Hollow Lantern",
-    localAbilities: [{ key: "pulse", name: "Lantern Hush", timing: "Action", mechanic: { kind: "holyWave" } }] }];
+    localAbilities: [{ key: "pulse", name: "Lantern Hush", timing: "Action", mechanic: { kind: "adjacentUnitsPostureChange", selector:"Enemies", newPosture:"Lying" } }] }];
   definition.itemTypes = [{ id: "folded-remedy", name: "Folded Remedy",
-    localAbilities: [{ key: "pulse", name: "Paper Stitch", timing: "Action", mechanic: { kind: "heal", amount: 3 } }] },
+    localAbilities: [{ key: "pulse", name: "Paper Stitch", timing: "Action", mechanic: { kind: "heal", selector:"Friendlies", amount: 3 } }] },
     { id: "spare-moment", name: "Spare Moment",
       localAbilities: [{ key: "pulse", name: "Borrow a Moment", timing: "BonusAction", mechanic: { kind: "extraActions", amount: 1 } }] }];
   definition.unitTypeIds.push("woven-keeper");

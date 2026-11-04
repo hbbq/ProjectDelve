@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -37,7 +37,7 @@ public sealed class ShamanTests
         var type = UnitType.Shaman();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.None, type.Actions);
-        Assert.True(type.HasAction(UnitAction.SummonAdjacent));
+        Assert.True(type.HasAction(UnitAction.AdjacentUnitSummon));
         Assert.Null(type.ResourceStorage);
         Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, type.Behaviors);
         Assert.Null(type.Mechanic<TryOpenDoor>());
@@ -58,7 +58,7 @@ public sealed class ShamanTests
         var summoner = UnitType.Define("summoner", "Summoner", UnitAuthoring.Stats(2, 0, 0, 3, 1),
             UnitAuthoring.CantAttack(),
             UnitAuthoring.Ability("Call Ally", UnitAuthoring.Unlimited(),
-                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, posture), id: "summon-ally"))
+                UnitAuthoring.AdjacentUnitSummon(UnitTypeIds.Wizard, posture), id: "summon-ally"))
             .WithBehaviors(UnitBehavior.UseSummon);
         var initial = State(enemy: new(4, 4));
         initial.Types[0] = summoner;
@@ -70,9 +70,9 @@ public sealed class ShamanTests
         Assert.Equal("ability:summon-ally", entry.Id);
         Assert.Equal("Call Ally", entry.Name);
         Assert.Null(entry.MaxUses);
-        Assert.Equal($"Place one {posture} {expectedType.DisplayName} in an adjacent empty Cell.", entry.Description);
+        Assert.Equal($"Place one {posture} {expectedType.DisplayName} in an adjacent empty Cell on this Unit's Side.", entry.Description);
         var restored = Restore(action.State);
-        Assert.Equal(new SummonAdjacent(UnitTypeIds.Wizard, posture), restored.Types[0].Mechanic<SummonAdjacent>());
+        Assert.Equal(new AdjacentUnitSummonMechanic(UnitTypeIds.Wizard, posture), restored.Types[0].Mechanic<AdjacentUnitSummonMechanic>());
         var result = TestGame.Advance(restored, new DefaultAutomatedProvider(), new Random(), false);
         var step = Assert.Single(TestGame.OperationSteps(result), s => TestGame.OperationEvents(result)[s.EventIndex].Kind == "UnitCreated");
         var created = Assert.Single(step.StateAfter.Units, u => u.TypeId == UnitTypeIds.Wizard);
@@ -97,7 +97,7 @@ public sealed class ShamanTests
     public void InvalidSummonConfigurationIsRejectedBeforeResolution(string typeId, Posture posture)
     {
         var state = State();
-        state.Types[0] = state.Types[0].Without<SummonAdjacent>().WithLocal(new("summon-goblin", "Summon Goblin", AbilityTiming.Action, new SummonAdjacent(typeId, posture)));
+        state.Types[0] = state.Types[0].Without<AdjacentUnitSummonMechanic>().WithLocal(new("summon-goblin", "Summon Goblin", AbilityTiming.Action, new AdjacentUnitSummonMechanic(typeId, posture)));
         Assert.Throws<ArgumentException>(() => TestGame.StartRound(state, new Random(), false));
         Assert.Single(state.Units);
     }
@@ -106,7 +106,7 @@ public sealed class ShamanTests
     public void SpawnIncludesAllEightAdjacentCellsAndNoOthers()
     {
         var result = Action(State());
-        var spawns = result.NextInput!.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent).ToArray();
+        var spawns = result.NextInput!.Candidates.Where(c => c.Action == UnitAction.AdjacentUnitSummon).ToArray();
         Assert.Equal(8, spawns.Length);
         Assert.All(spawns, c => Assert.True(SpatialRules.AreAdjacent(result.State.Physical.Board, new(2, 2), c.Destination!)));
         Assert.Throws<ArgumentException>(() => Choose(result.State, "ability:summon-goblin:0,0"));

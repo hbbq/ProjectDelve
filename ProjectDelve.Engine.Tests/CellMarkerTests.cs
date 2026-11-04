@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -195,7 +195,7 @@ public sealed class CellMarkerTests
         var d = Fixture(UnitTypeIds.Geomancer) with { CellMarkers = [new(CellMarkerTypes.BananaPeel, new(1, 1))] };
         var start = Start(d);
         start = Pick(start, "stay");
-        var action = start.NextInput!.Candidates.Single(c => c.Action == UnitAction.SummonWorker && c.Destination == new Cell(1, 1));
+        var action = start.NextInput!.Candidates.Single(c => c.Action == UnitAction.AdjacentUnitSummon && c.Destination == new Cell(1, 1));
         var result = Pick(start, action.Key);
         var created = Assert.Single(result.Events, e => e.Kind == "UnitCreated");
         Assert.Equal(Posture.Upright, created.Posture);

@@ -5,16 +5,16 @@ namespace ProjectDelve.Engine;
 public static class AbilityCostRules
 {
     public static bool Supports(AbilityMechanic mechanic) => mechanic is
-        HolyWaveMechanic or HealMechanic or FireballMechanic or StandAdjacentFriendlyMechanic or SelfModifiersMechanic or ExtraActionsMechanic or
-        OpenDoor or TryOpenDoor or Telekinesis or FireBreath or ClawAttack or ShootShell or
-        SummonAdjacent or SummonWorker or SummonTroll or PickupResource or GiveResource or Operate or
-        PlaceBananaPeel or Boost or Swap or Displace or ReshapeRoom;
+        AdjacentUnitsPostureChangeMechanic or AdjacentUnitHealMechanic or FireballMechanic or AdjacentUnitPostureChangeMechanic or SelfModifiersMechanic or ExtraActionsMechanic or
+        OpenDoor or TryOpenDoor or Telekinesis or FireBreath or ClawAttack or TargetUnitAttackMechanic or
+        AdjacentUnitSummonMechanic or PickupResource or GiveResource or Operate or
+        PlaceBananaPeel or SelfExtraMovesMechanic or Swap or Displace or ReshapeRoom;
 
     public static bool CanAfford(GameState state, string unitId, ResolvedAbility ability)
     {
         var costs = ability.Definition.Costs;
         if (costs.IsDefault) return false;
-        // Preserve existing no-cost mechanics' own legality checks.
+        // Empty Costs require no payment.
         if (costs.IsEmpty) return true;
         if (!Supports(ability.Definition.Mechanic) || !CostCatalog.Validate(costs,
                 new(MechanicCatalog.AbilitySourceContext(ability.SourceKind),
@@ -30,15 +30,6 @@ public static class AbilityCostRules
                 case LayDownSelf when !state.IsUpright(unitId): return false;
                 case SpendResource spend: Require(spend.ResourceTypeId, spend.Amount); break;
             }
-        // These canonical mechanics still pay their embedded costs themselves.
-        // Reserve them here as well so declarations cannot spend the same marker.
-        switch (ability.Definition.Mechanic)
-        {
-            case SummonTroll troll: Require(ResourceTypeIds.Diamond, troll.DiamondCost); break;
-            case PlaceBananaPeel banana: Require(ResourceTypeIds.Banana, banana.BananaCost); break;
-            case Boost boost: Require(ResourceTypeIds.Mushroom, boost.MushroomCost); break;
-            case ShootShell shell: Require(ResourceTypeIds.Shell, shell.ShellCost); break;
-        }
         return required.All(pair => state.StoredQuantity(unit.SideId, unit.TypeId, pair.Key) >= pair.Value);
     }
 }

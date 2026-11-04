@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -280,7 +280,7 @@ public sealed class ResourceStorageTests
         var shaman = UnitRoster.Shaman();
         Assert.Null(shaman.ResourceStorage);
         Assert.Equal(UnitAction.None, shaman.Actions);
-        Assert.True(shaman.HasAction(UnitAction.SummonAdjacent));
+        Assert.True(shaman.HasAction(UnitAction.AdjacentUnitSummon));
         Assert.Equal(UnitBehavior.Flee | UnitBehavior.UseSummon, shaman.Behaviors);
         Assert.DoesNotContain(shaman.CardEntries(), e => e.Id == "ability:pickup-resource");
         var world = World();

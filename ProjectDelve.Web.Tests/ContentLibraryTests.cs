@@ -15,14 +15,14 @@ public sealed class ContentLibraryTests : IDisposable
     {
         Id = id, Title = "Gear package", Description = "Independent content",
         Definitions = new() { Equipment = [new("bell", name) { LocalAbilities =
-            [new("stand", "Stand", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()) { Usage = new(2) }] }] }
+            [new("stand", "Stand", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(2) }] }] }
     };
     private static ContentPackage Gift(string targetPackage = "gear") => new()
     { Id = "gift", Dependencies = [targetPackage], Definitions = new() { LootCards = [new("gift-card", "Gift") { EquipmentTypeId = "bell" }] } };
     private static ContentPackage Summoner(string packageId, string typeId, string targetPackage, string targetType) => new()
     {
         Id = packageId, Dependencies = [targetPackage], Definitions = new() { Units = [new(typeId, 1, 0, 0, 0, 1)
-            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(targetType, Posture.Lying))] }] }
+            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(targetType, Posture.Lying))] }] }
     };
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class ContentLibraryTests : IDisposable
         Assert.Equal("definitions.lootCardDefinitions[0]", diagnostic.Source.Path);
         Assert.DoesNotContain(Store.Catalog().Packages, p => p.PackageId == "gift");
         var invalid = Gear("invalid") with { Definitions = new() { Equipment = [new("broken", "Broken")
-            { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(0))] }] } };
+            { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0))] }] } };
         Assert.Equal("localAbilities[0].mechanic.amount", Assert.Single(Assert.Throws<ContentCompositionException>(() => Store.Create(invalid)).Diagnostics).Path);
         Assert.Throws<ArgumentException>(() => Store.Create(Gear("unsupported") with { FormatVersion = 2 }));
     }
@@ -190,7 +190,7 @@ public sealed class ContentLibraryTests : IDisposable
         var collision = Gift() with { Id = "collision", Definitions = Gear().Definitions };
         Assert.Equal("conflictingDefinition", Assert.Single(Assert.Throws<ContentCompositionException>(() => Store.Create(collision, [new("gear", 1)])).Diagnostics).Code);
         var mismatched = new ContentPackage { Id = "mismatch", Definitions = new() { Items = [new("bell", "Wrong family")
-            { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(1))] }], LootCards = Gift().Definitions.LootCards } };
+            { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1))] }], LootCards = Gift().Definitions.LootCards } };
         Assert.Equal("familyMismatch", Assert.Single(Assert.Throws<ContentCompositionException>(() => Store.Create(mismatched)).Diagnostics).Code);
     }
 
@@ -255,7 +255,7 @@ public sealed class ContentLibraryTests : IDisposable
         var store = new ContentLibrary(directory);
         var package = new ContentPackage { Id = "canonical-call", Dependencies = [ContentPackageCatalog.CSharpPackageId], Definitions = new()
         { Equipment = [new("call-goblin", "Call Goblin") { LocalAbilities =
-            [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying)) { Usage = new(3) }] }] } };
+            [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Goblin, Posture.Lying)) { Usage = new(3) }] }] } };
         var saved = store.Create(package);
         Assert.Equal(ContentPackageCatalog.CSharpPackageId, Assert.Single(saved.CanonicalPackages).Id);
         var exported = store.ExportPackage("canonical-call");

@@ -82,7 +82,7 @@ test('local Equipment references survive editing, undo, draft recovery and isola
         {key:'wind',name:'Tailwind',timing:'Passive',mechanic:{kind:'selfModifiers',modifiers:[{stat:'Mov',amount:2},{stat:'Def',amount:1}]}},
         {key:'phase',name:'Phase',timing:'Passive',mechanic:{kind:'phase'}},
         {key:'door',name:'Open Door',timing:'FreeAction',mechanic:{kind:'openDoor'}},
-        {key:'wake',name:'Awaken',timing:'Action',mechanic:{kind:'standAdjacentFriendly'}}]}],
+        {key:'wake',name:'Awaken',timing:'Action',mechanic:{kind:'adjacentUnitPostureChange', selector:'Friendlies', newPosture:'Upright'}}]}],
       loot:{composition:[]}});
     globalThis.equipmentHistory = new DesignerHistory(equipmentDraft);
     equipmentHistory.begin();
@@ -109,7 +109,7 @@ test('local Abilities, Items and Loot references survive Designer editing and pl
   run(`globalThis.itemDraft = new DesignerDraft({maxBoardSize:50,unitTypes:[],itemTypes:[{id:'second-wind',name:'Second Wind'}],lootCards:[]});
     itemDraft.replace({board:{width:3,height:3,defaultTerrain:'StoneFloor',cells:[],edges:[]},unitTypeIds:['reader'],
       units:[{unitTypeId:'reader',sideId:'blue',anchor:{x:0,y:0}}],agency:[{unitTypeId:'reader',sideId:'blue',controller:'Human'}],
-      itemTypes:[{id:'folded-sky',name:'Folded Sky',localAbilities:[{key:'read',name:'A Quiet Ending',timing:'Action',mechanic:{kind:'holyWave'}}]}],
+      itemTypes:[{id:'folded-sky',name:'Folded Sky',localAbilities:[{key:'read',name:'A Quiet Ending',timing:'Action',mechanic:{kind:'adjacentUnitsPostureChange', selector:'Enemies', newPosture:'Lying'}}]}],
       lootCardDefinitions:[{id:'sky-reward',name:'An Unexpected Letter',itemTypeId:'folded-sky'}],loot:{composition:[]}});
     globalThis.itemHistory = new DesignerHistory(itemDraft); itemHistory.begin();
     itemDraft.addObject({itemTypeId:'folded-sky'},{unitKey:itemDraft.unitKeys[0]});

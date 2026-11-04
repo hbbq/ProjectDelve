@@ -14,7 +14,7 @@ public static class UnitAuthoringSchema
 {
     public const int MinimumStat = 0, MinimumHp = 1, MinimumDropSuccesses = 0, MaximumDropSuccesses = 6;
     public static ImmutableArray<UnitAction> AttackActions { get; } =
-        [UnitAction.NormalAttack, UnitAction.Fireball, UnitAction.FireBreath, UnitAction.ClawAttack, UnitAction.ShootShell];
+        [UnitAction.NormalAttack, UnitAction.Fireball, UnitAction.FireBreath, UnitAction.ClawAttack, UnitAction.TargetUnitAttack];
     internal static UnitBehavior SupportedBehaviors { get; } = Enum.GetValues<UnitBehavior>().Aggregate(UnitBehavior.None, (a, b) => a | b);
 
     public static UnitAuthoringContract Contract { get; } = Create();

@@ -133,7 +133,7 @@ public sealed partial class DelveChessTests
         var state = State(type, new(5, 5));
         state.StoredResources.Add(new("a", type.Id, ResourceTypes.Mushroom, 1));
         var moved = TestGame.Advance(Choices(state).State, new Choice("3,2"), new Dice(), false);
-        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Boost);
+        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic);
         var boosted = TestGame.Advance(moved.State, new Choice(boost.Key), new Dice(), false);
         Assert.False(boosted.State.MoveDone);
         Assert.Equal(0, boosted.State.StoredQuantity("a", type.Id, ResourceTypes.Mushroom.Id));
@@ -362,7 +362,7 @@ public sealed partial class DelveChessTests
             UnitAuthoring.ResourceStorage(ResourceTypes.Shell, 1), UnitAuthoring.ShootShell(1, 4, 3));
         var state = State(type);
         state.StoredResources.Add(new("a", type.Id, ResourceTypes.Shell, 1));
-        var result = Attack(state, action: UnitAction.ShootShell);
+        var result = Attack(state, action: UnitAction.TargetUnitAttack);
         Assert.Contains(result.Events, e => e.Kind == "UnitDefeated" && e.UnitId == "t");
         Assert.Null(result.State.AdvanceOnKillCells);
         Assert.DoesNotContain(result.Events, e => e.Kind == "MovementCompleted");
@@ -395,7 +395,7 @@ public sealed partial class DelveChessTests
         Assert.Equal("weak", result.NextInput.Candidates.Single(c => c.Key == selected).TargetId);
         // A continuous DEF bonus changes the preferred target immediately.
         state.Types.Add(new("aura", 0, 0, 0, 0, 1) { LocalAbilities = [
-            new("defence", "Defence Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 4)]))] });
+            new("defence", "Defence Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 4)]))] });
         state.Units.Add(new("aura", "aura", "b", 1));
         state.Physical.Figures.Add(new("aura", new(1, 3)));
         result = Choices(state);

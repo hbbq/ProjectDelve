@@ -1,36 +1,21 @@
 namespace ProjectDelve.Engine;
 
-// The concrete summon Actions share placement and creation, but keep their own prerequisites.
+// Summon declarations own the type, starting Posture and optional Side limit.
 public static class SummoningRules
 {
-    public static SummonAdjacent? Placement(AbilityMechanic mechanic) => mechanic switch
-    {
-        SummonAdjacent summon => summon,
-        SummonWorker => new(UnitTypeIds.Worker, Posture.Upright),
-        SummonTroll => new(UnitTypeIds.Troll, Posture.Upright),
-        _ => null
-    };
+    public static AdjacentUnitSummonMechanic? Placement(AbilityMechanic mechanic) => mechanic as AdjacentUnitSummonMechanic;
 
     internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit) => state.AbilitiesOf(unit.Id)
         .Where(ability => Placement(ability.Definition.Mechanic) is not null && state.CanUseAbility(unit.Id, ability))
         .SelectMany(ability => Candidates(state, unit, ability));
 
-    // A committed invocation keeps its selected source even after its final charge
-    // or Item is spent. Recheck physical prerequisites using that bound payload.
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility ability, bool committed = false)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility ability)
     {
-        var mechanic = ability.Definition.Mechanic;
-        if (Placement(mechanic) is not { } summon) yield break;
-        var action = mechanic switch
-        {
-            SummonWorker => UnitAction.SummonWorker, SummonTroll => UnitAction.SummonTroll,
-            _ => UnitAction.SummonAdjacent
-        };
-        if (mechanic is SummonWorker worker && state.Units.Count(u => u.CurrentHp > 0 &&
-                u.SideId == unit.SideId && u.TypeId == UnitTypeIds.Worker) >= worker.SideLimit) yield break;
-        if (!committed && mechanic is SummonTroll troll && state.StoredQuantity(unit.SideId, unit.TypeId,
-                ResourceTypeIds.Diamond) < troll.DiamondCost) yield break;
-        if (UnitContent.Find(summon.UnitTypeId, state.Types) is not { } summonedType ||
+        if (Placement(ability.Definition.Mechanic) is not { } summon) yield break;
+        if (summon.SameTypeSideLimit is { } limit && state.Units.Count(recipient => recipient.CurrentHp > 0 &&
+                recipient.SideId == unit.SideId && recipient.TypeId == summon.UnitTypeId &&
+                state.Physical.Figures.Any(figure => figure.Id == recipient.Id)) >= limit) yield break;
+        if (state.Types.SingleOrDefault(type => type.Id == summon.UnitTypeId) is not { } summonedType ||
             !state.CanPlaceUnitType(summonedType, unit.SideId)) yield break;
         for (var y = 0; y < state.Physical.Board.Height; y++)
         for (var x = 0; x < state.Physical.Board.Width; x++)
@@ -41,21 +26,8 @@ public static class SummoningRules
                 footprint.All(c => TerrainCatalog.Accepts(summonedType, state.Physical.Board.TerrainDefinitionAt(c))) &&
                 SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id), footprint))
                 yield return new($"{ability.CandidatePrefix}:{x},{y}",
-                    Destination: cell, Action: action) { Ability = ability };
+                    Destination: cell, Action: UnitAction.AdjacentUnitSummon) { Ability = ability };
         }
     }
 
-    internal static RulesEvent SpendDiamond(GameState state, Unit source, SummonTroll summon, ResolvedAbility ability)
-    {
-        var index = state.StoredResources.FindIndex(r => r.SideId == source.SideId &&
-            r.UnitTypeId == source.TypeId && r.Type.Id == ResourceTypeIds.Diamond);
-        var stored = state.StoredResources[index];
-        state.StoredResources[index] = stored with { Quantity = stored.Quantity - summon.DiamondCost };
-        return new("ResourceSpent", source.Id, TypeId: source.TypeId)
-        {
-            SourceUnitId = source.Id, SideId = source.SideId,
-            ActionId = ability.ActionId,
-            ResourceType = stored.Type, StoredQuantity = stored.Quantity - summon.DiamondCost
-        };
-    }
 }

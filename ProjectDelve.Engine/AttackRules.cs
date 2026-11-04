@@ -45,14 +45,12 @@ internal static class AttackRules
                 SpatialRules.AreAdjacent(state, attackerId, targetId)
                 ? UnitTargetEvaluation.Possible : UnitTargetEvaluation.NotPossible;
         }
-        return EvaluateHostileTargetFrom(state, attackerId, from, targetId, (mechanic as ShootShell)?.Rng);
+        return EvaluateHostileTargetFrom(state, attackerId, from, targetId, (mechanic as TargetUnitAttackMechanic)?.Rng);
     }
 
     internal static UnitTargetEvaluation EvaluateAbilityFrom(GameState state, string attackerId, Cell from,
         string targetId, ResolvedAbility ability) =>
-        !state.CanUseAbility(attackerId, ability) || ability.Definition.Mechanic is ShootShell shell &&
-            state.StoredQuantity(state.Units.Single(unit => unit.Id == attackerId).SideId,
-                state.Units.Single(unit => unit.Id == attackerId).TypeId, ResourceTypeIds.Shell) < shell.ShellCost
+        !state.CanUseAbility(attackerId, ability)
             ? UnitTargetEvaluation.NotPossible
             : EvaluateApproachFrom(state, attackerId, from, targetId, SemanticAction(ability.Definition.Mechanic), ability.Definition.Mechanic);
 
@@ -60,14 +58,14 @@ internal static class AttackRules
     {
         FireBreath => UnitAction.FireBreath,
         ClawAttack => UnitAction.ClawAttack,
-        ShootShell => UnitAction.ShootShell,
+        TargetUnitAttackMechanic => UnitAction.TargetUnitAttack,
         FireballMechanic => UnitAction.Fireball,
         _ => throw new ArgumentException("This Ability does not use direct Attack targeting.")
     };
     private static bool Matches(AbilityMechanic? mechanic, UnitAction action) => (mechanic, action) switch
     {
         (FireBreath, UnitAction.FireBreath) or (ClawAttack, UnitAction.ClawAttack) or
-            (ShootShell, UnitAction.ShootShell) or (FireballMechanic, UnitAction.Fireball) => true,
+            (TargetUnitAttackMechanic, UnitAction.TargetUnitAttack) or (FireballMechanic, UnitAction.Fireball) => true,
         _ => false
     };
 
@@ -80,7 +78,7 @@ internal static class AttackRules
         // Fireball and the Dragon's Fire Breath use general effective ATK.
         // Single-target Attacks retain target-specific modifiers such as Backstab.
         if (action is UnitAction.FireBreath or UnitAction.Fireball) return state.EffectiveAtkOf(attackerId);
-        if (mechanic is ShootShell shell) return shell.Atk;
+        if (mechanic is TargetUnitAttackMechanic shell) return shell.Atk;
         return (targetId is null ? state.EffectiveAtkOf(attackerId) : state.EffectiveAtkAgainst(attackerId, targetId)) +
             (mechanic is ClawAttack claw ? claw.AtkBonus : 0);
     }

@@ -468,7 +468,7 @@ public sealed class DesignerApiTests
                 new("wind", "Tailwind", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, 1)])),
                 new("phase", "Phase", AbilityTiming.Passive, new Phase()),
                 new("door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()),
-                new("wake", "Awaken", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())]
+                new("wake", "Awaken", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))]
         };
         var definition = WebScenarioFixtures.Combat();
         definition = definition with
@@ -501,7 +501,7 @@ public sealed class DesignerApiTests
     public async Task LocalAbilitiesItemsAndLootSurviveDesignerRoundTripAndRestart(string abilityKey)
     {
         await using var host = await Host.Start();
-        var ability = new LocalAbilityDefinition(abilityKey, "Fold the Sky", AbilityTiming.Action, new HolyWaveMechanic());
+        var ability = new LocalAbilityDefinition(abilityKey, "Fold the Sky", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] };
         var item = new ItemDefinition("paper-moon", "Paper Moon") { LocalAbilities = [ability] };
         var loot = new LootCardDefinition("moon-reward", "A Folded Reward") { ItemTypeId = item.Id };
         var definition = WebScenarioFixtures.Combat();
@@ -537,8 +537,8 @@ public sealed class DesignerApiTests
         restarted.EnsureSuccessStatusCode();
         var fresh = (await restarted.Content.ReadFromJsonAsync<GameResponse>(Json))!;
         var restoredAbility = Assert.Single(fresh.Result.State.ItemTypes.Single(i => i.Id == item.Id).LocalAbilities);
-        Assert.Equal(ability, restoredAbility);
-        Assert.Equal("Holy Wave", UnitType.Cleric().LocalAbilities.Single(a => a.Mechanic is HolyWaveMechanic).Name);
+        Assert.Equal(JsonSerializer.Serialize(ability, Json), JsonSerializer.Serialize(restoredAbility, Json));
+        Assert.Equal("Holy Wave", UnitType.Cleric().LocalAbilities.Single(a => a.Mechanic is AdjacentUnitsPostureChangeMechanic).Name);
         Assert.Equal(new[] { "moon-one", "moon-two" }, fresh.Result.State.Units.Single(u => u.Id == "hero").Inventory.Select(o => o.Id));
         Assert.Equal(item.Name, Assert.Single(fresh.Presentation.GroundObjects).Object.Content.Name);
     }
@@ -634,13 +634,13 @@ public sealed class DesignerApiTests
             definition = definition with { UnitTypeIds = [.. definition.UnitTypeIds.Skip(1), definition.UnitTypeIds[0]] };
             var type = definition.UnitTypes![0];
             definition.UnitTypes[0] = type with
-            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new HealMechanic(0) }) };
+            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0) }) };
         }
         else if (owner == "equipmentTypes")
         {
             var type = definition.EquipmentTypes![1];
             definition.EquipmentTypes[1] = type with
-            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new HealMechanic(0) }) };
+            { LocalAbilities = type.LocalAbilities.SetItem(0, type.LocalAbilities[0] with { Mechanic = new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0) }) };
         }
         else
         {

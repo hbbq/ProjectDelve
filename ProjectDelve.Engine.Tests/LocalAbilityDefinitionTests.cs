@@ -16,7 +16,7 @@ public sealed class LocalAbilityDefinitionTests
     { public string Choose(DecisionRequest request, IGameplayQueries queries) => key; }
 
     private static LocalAbilityDefinition Heal(string key = "use", int amount = 2) =>
-        new(key, "Printed Name", AbilityTiming.Action, new HealMechanic(amount));
+        new(key, "Printed Name", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, amount));
     private static GameState ContentState(UnitType type) => new()
     {
         Physical = new(new Board(1, 1, []), []), Units = [],
@@ -44,7 +44,7 @@ public sealed class LocalAbilityDefinitionTests
         var state = ContentState(first);
         state.Types.Add(second);
         state.EquipmentTypes.Add(new("equipment", "Equipment")
-        { LocalAbilities = [new("use", "Equipment Wave", AbilityTiming.Action, new HolyWaveMechanic())] });
+        { LocalAbilities = [new("use", "Equipment Wave", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] });
         state.ItemTypes.Add(new("item", "Item")
         { LocalAbilities = [new("use", "Item Flame", AbilityTiming.Action, new FireballMechanic())] });
         state.Units = [new("actor", first.Id, "blue", 1)
@@ -54,8 +54,8 @@ public sealed class LocalAbilityDefinitionTests
         var abilities = state.AbilitiesOf("actor").ToArray();
         Assert.Equal(3, abilities.Length);
         Assert.All(abilities, a => Assert.Equal("use", a.Key));
-        Assert.Equal(3, Assert.IsType<HealMechanic>(abilities[0].Definition.Mechanic).Amount);
-        Assert.IsType<HolyWaveMechanic>(abilities[1].Definition.Mechanic);
+        Assert.Equal(3, Assert.IsType<AdjacentUnitHealMechanic>(abilities[0].Definition.Mechanic).Amount);
+        Assert.IsType<AdjacentUnitsPostureChangeMechanic>(abilities[1].Definition.Mechanic);
         Assert.IsType<FireballMechanic>(abilities[2].Definition.Mechanic);
         Assert.IsType<ExtraActionsMechanic>(Assert.Single(state.AbilitiesOf("other")).Definition.Mechanic);
     }

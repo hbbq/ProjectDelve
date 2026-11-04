@@ -17,7 +17,7 @@ public sealed class GrantedActionTests
         public string Choose(DecisionRequest request, IGameplayQueries queries) => key;
     }
     private static LocalAbilityDefinition Wave(string id, string name, int? uses = null) =>
-        new(id, name, AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(uses) };
+        new(id, name, AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(uses) };
 
     private static ScenarioDefinition Scenario() => new()
     {
@@ -82,7 +82,7 @@ public sealed class GrantedActionTests
         Assert.False(result.State.IsUpright("actor"));
         Assert.False(result.State.CanUseAbility("actor", result.State.AbilitiesOf("actor").Single(g => g.SourceKind == AbilitySourceKind.Item)));
         Assert.Equal(new AbilityUses(2, 2), result.State.AbilityUsesOf("actor", result.State.AbilitiesOf("actor").Single(a => a.Key == "holy-wave")));
-        Assert.Equal(new[] { "ItemUsed", "ActionUsed", "PostureChanged", "PostureChanged" }, result.Events.Take(4).Select(e => e.Kind));
+        Assert.Equal(new[] { "ItemUsed", "PostureChanged", "ActionUsed", "PostureChanged" }, result.Events.Take(4).Select(e => e.Kind));
         Assert.Equal(1, result.ResolutionSteps[0].StateAfter.ActionsUsedThisActivation);
     }
 
@@ -104,7 +104,7 @@ public sealed class GrantedActionTests
         Assert.Equal("Folded Wind", consumed.AbilityName);
         Assert.Equal("item:second-wind:use", consumed.ActionId);
         Assert.Equal(ActivationChoiceKind.Action, consumed.Category);
-        Assert.Equal(new[] { "ItemUsed", "ActionUsed", "PostureChanged", "PostureChanged" },
+        Assert.Equal(new[] { "ItemUsed", "PostureChanged", "ActionUsed", "PostureChanged" },
             result.Events.Take(4).Select(e => e.Kind));
         var committed = result.ResolutionSteps[0].StateAfter;
         Assert.Equal(1, committed.ActionsUsedThisActivation);
@@ -156,7 +156,7 @@ public sealed class GrantedActionTests
     public void HealUsesTheSelectedPayloadInsteadOfTheNativeUnitFieldAndSpendsOneAction()
     {
         var scenario = Scenario() with
-        { EquipmentTypes = [new("blue-thread", "Blue Thread") { LocalAbilities = [new("mend", "Small Mend", AbilityTiming.Action, new HealMechanic(1))] }] };
+        { EquipmentTypes = [new("blue-thread", "Blue Thread") { LocalAbilities = [new("mend", "Small Mend", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1))] }] };
         scenario.Units[0] = scenario.Units[0] with { Inventory = [new("thread", "blue-thread")] };
         var state = Ready(scenario);
         var result = Use(state, Grant(state, AbilitySourceKind.Equipment, "mend"));

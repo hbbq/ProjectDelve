@@ -15,7 +15,7 @@ public sealed class SummoningSourceIntegrationTests
     private sealed class Choice(string key) : IDecisionProvider
     { public string Choose(DecisionRequest request, IGameplayQueries queries) => key; }
     private static LocalAbilityDefinition Summon(Posture posture, int? uses, string target = "local-spirit", string key = "call") =>
-        new(key, "Different Printed Name", AbilityTiming.Action, new SummonAdjacent(target, posture)) { Usage = new(uses) };
+        new(key, "Different Printed Name", AbilityTiming.Action, new AdjacentUnitSummonMechanic(target, posture)) { Usage = new(uses) };
     private static ScenarioDefinition Scenario(Posture posture = Posture.Lying) => new()
     {
         Board = new() { Width = 20, Height = 5 }, UnitTypeIds = ["carrier", "local-spirit"],
@@ -99,7 +99,7 @@ public sealed class SummoningSourceIntegrationTests
         Assert.Single(result.State.Units.Where(unit => unit.Id == "red-spirit"));
         result.State.ExtraActionsThisActivation = 1;
         var refreshed = GameEngine.RefreshChoices(result.State, new Dice(), false).State;
-        Assert.DoesNotContain(refreshed.Pending!.Candidates, candidate => candidate.Action == UnitAction.SummonAdjacent);
+        Assert.DoesNotContain(refreshed.Pending!.Candidates, candidate => candidate.Action == UnitAction.AdjacentUnitSummon);
     }
 
     [Theory]

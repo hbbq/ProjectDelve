@@ -25,7 +25,7 @@ public sealed class AbilityAccountingTests
         Units = [new("bearers", "blue", new(1, 1), UnitId: "a"), new("bearers", "blue", new(1, 2), UnitId: "b"), new("bearers", "red", new(2, 1), UnitId: "enemy")],
         Agency = [new("bearers", "blue", ControllerKind.Human), new("bearers", "red", ControllerKind.Human)],
         ItemTypes = [new("tickets", "Small Tickets") { LocalAbilities = [new("redeem", "A Second Chance", AbilityTiming.BonusAction, new ExtraActionsMechanic(1))] }],
-        EquipmentTypes = [new("shade", "Shade Box") { LocalAbilities = [new("share", "Shared Shade", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2), new(Stat.Mov, 1)]))] }],
+        EquipmentTypes = [new("shade", "Shade Box") { LocalAbilities = [new("share", "Shared Shade", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 2), new(Stat.Mov, 1)]))] }],
         Loot = LootSettings.Empty,
         Objectives = [new("blue", ScenarioObjective.NoObjective), new("red", ScenarioObjective.NoObjective)]
     };

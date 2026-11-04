@@ -2,10 +2,8 @@ namespace ProjectDelve.Engine;
 
 internal static class BananaPlacementRules
 {
-    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility source, bool committed = false)
+    internal static IEnumerable<Candidate> Candidates(GameState state, Unit unit, ResolvedAbility source)
     {
-        var ability = (PlaceBananaPeel)source.Definition.Mechanic;
-        if (!committed && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Banana) < ability.BananaCost) yield break;
         var board = state.Physical.Board;
         for (var y = 0; y < board.Height; y++)
         for (var x = 0; x < board.Width; x++)
@@ -21,22 +19,9 @@ internal static class BananaPlacementRules
 
     internal static void Resolve(GameState state, string unitId, Candidate action, Action<RulesEvent> emit)
     {
-        var unit = state.Units.Single(u => u.Id == unitId);
-        var ability = (PlaceBananaPeel)action.Ability!.Definition.Mechanic;
-        if (!Candidates(state, unit, action.Ability!, committed: true).Any(c => c.Destination == action.Destination)) return;
-        var cost = ability.BananaCost;
-        var index = state.StoredResources.FindIndex(r => r.SideId == unit.SideId && r.UnitTypeId == unit.TypeId &&
-            r.Type.Id == ResourceTypeIds.Banana);
-        var stored = state.StoredResources[index];
-        state.StoredResources[index] = stored with { Quantity = stored.Quantity - cost };
         state.PlaceCellMarker(CellMarkerTypes.BananaPeel, action.Destination!);
-        emit(new RulesEvent("ResourceSpent", unitId, TypeId: unit.TypeId)
-        {
-            SourceUnitId = unitId, SideId = unit.SideId, ActionId = action.Ability.ActionId,
-            ResourceType = stored.Type, StoredQuantity = stored.Quantity - cost
-        });
         emit(new RulesEvent("CellMarkerPlaced", unitId)
-            { Cell = action.Destination, CellMarkerType = CellMarkerTypes.BananaPeel, ActionId = action.Ability.ActionId });
+            { Cell = action.Destination, CellMarkerType = CellMarkerTypes.BananaPeel, ActionId = action.Ability!.ActionId });
     }
 
     internal static string? Preferred(DecisionRequest request, IGameplayQueries queries)

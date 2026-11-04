@@ -29,7 +29,7 @@ public sealed class EquipmentScenarioTests
           "unitTypeIds": ["collector"],
           "unitTypes": [{ "id": "collector", "mov": 2, "rng": 1, "atk": 1, "def": 1, "hp": 1, "canHaveEquipment": true }],
           "equipmentTypes": [{ "id": "silvery-object", "name": "Unfamiliar Equipment",
-            "localAbilities": [{"key": "movement", "name": "Movement", "timing": "Passive", "mechanic": {"kind": "selfModifiers", "modifiers": [{"stat": "Mov", "amount": 1}]}}, { "key": "wake", "name": "Wake Up", "timing": "Action", "mechanic": {"kind": "standAdjacentFriendly"} }] }],
+            "localAbilities": [{"key": "movement", "name": "Movement", "timing": "Passive", "mechanic": {"kind": "selfModifiers", "modifiers": [{"stat": "Mov", "amount": 1}]}}, { "key": "wake", "name": "Wake Up", "timing": "Action", "mechanic": {"kind": "adjacentUnitPostureChange", "selector":"Friendlies", "newPosture":"Upright"} }] }],
           "units": [{ "unitTypeId": "collector", "sideId": "blue", "anchor": { "x": 0, "y": 0 }, "unitId": "bearer",
             "inventory": [{ "id": "owned", "equipmentTypeId": "silvery-object" }] }],
           "agency": [{ "unitTypeId": "collector", "sideId": "blue", "controller": "Human" }],

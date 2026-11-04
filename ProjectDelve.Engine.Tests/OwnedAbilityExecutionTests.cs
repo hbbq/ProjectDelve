@@ -16,8 +16,8 @@ public sealed class OwnedAbilityExecutionTests
                 Unique = true, CanHaveEquipment = true, CanHaveItems = true,
                 LocalAbilities =
                 [
-                    new("mend", "Silver Thread", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
-                    new("ward", "Nearby Shelter", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)]))
+                    new("mend", "Silver Thread", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(2) },
+                    new("ward", "Nearby Shelter", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)]))
                 ]
             },
             new("owned-friend", 0, 0, 0, 0, 4) { Unique = true },
@@ -29,7 +29,7 @@ public sealed class OwnedAbilityExecutionTests
             {
                 LocalAbilities =
                 [
-                    new("mend", "Woven Light", AbilityTiming.Action, new HealMechanic(3)),
+                    new("mend", "Woven Light", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3)),
                     new("ward", "Close Shelter", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Def, 2)])),
                     new("use", "Resolve", AbilityTiming.BonusAction, new SelfModifiersMechanic([new(Stat.Atk, 1)]))
                 ]

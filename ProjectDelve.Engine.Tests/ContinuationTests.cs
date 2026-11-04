@@ -186,7 +186,7 @@ public sealed class ContinuationTests
     {
         var caster = UnitType.Wizard() with { Atk = 2, Def = 0, Hp = 1,
             LocalAbilities = [.. UnitType.Wizard().LocalAbilities,
-                new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)])),
+                new("aura", "Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)])),
                 .. undying ? new LocalAbilityDefinition[] { new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()) } : []] };
         var a = new UnitType("a-type", 1, 1, 1, 1, 1);
         var b = a with { Id = "b-type" };

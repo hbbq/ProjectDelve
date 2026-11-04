@@ -15,7 +15,7 @@ public sealed class WorkspaceScenarioExportTests : IDisposable
     private static ContentBundle Draft(string name = "Workspace Caller") => new()
     {
         Units = [new(Caller, 1, 0, 0, 0, 2) { DisplayName = name, Unique = true, CanHaveEquipment = true,
-            LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))] }],
+            LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Goblin, Posture.Lying))] }],
         Equipment = [new(Gear, "Export Boots") { LocalAbilities =
             [new("stride", "Stride", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2)]))] }],
         LootCards = [new(Gift, "Export Gift") { EquipmentTypeId = Gear }]
@@ -55,7 +55,7 @@ public sealed class WorkspaceScenarioExportTests : IDisposable
         Assert.Equal(Gear, inventory.EquipmentTypeId); Assert.Equal(Gift, inventory.LootCardId);
         Assert.Equal(3, started.State.EffectiveMovOf("caller"));
         var action = GameEngine.Advance(started.State, new Choice("stay"), new Dice(), false);
-        var summon = action.NextInput!.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
+        var summon = action.NextInput!.Candidates.First(candidate => candidate.Action == UnitAction.AdjacentUnitSummon);
         var summoned = GameEngine.Advance(action.State, new Choice(summon.Key), new Dice(), false);
         var helper = Assert.Single(summoned.State.Units.Where(unit => unit.TypeId == UnitTypeIds.Goblin));
         Assert.Equal(Posture.Lying, summoned.State.Physical.Figures.Single(figure => figure.Id == helper.Id).Posture);

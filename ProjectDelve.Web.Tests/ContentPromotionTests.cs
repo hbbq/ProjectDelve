@@ -26,7 +26,7 @@ public sealed class ContentPromotionTests : IDisposable
     private static readonly ContentIdentity Boots = new(ContentFamily.Equipment, "knightly-boots");
     private static readonly ContentIdentity Gift = new(ContentFamily.LootCard, "knightly-gift");
     private static ContentPackage Kit(string name = "Knightly Boots") => new() { Id = "knightly-kit", Dependencies = [ContentPackageCatalog.CSharpPackageId], Definitions = new() {
-        Equipment = [new(Boots.TypeId, name) { LocalAbilities = [new("encourage", "Encourage", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()) { Usage = new(2) }] }, new("unrelated", "Unrelated")],
+        Equipment = [new(Boots.TypeId, name) { LocalAbilities = [new("encourage", "Encourage", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(2) }] }, new("unrelated", "Unrelated")],
         LootCards = [new(Gift.TypeId, "Knightly Gift") { EquipmentTypeId = Boots.TypeId }] } };
     private static ScenarioDefinition Scenario() => new() { Board = new() { Width = 4, Height = 3 }, UnitTypeIds = ["bearer"],
         UnitTypes = [new("bearer", 1, 0, 0, 0, 1) { CanHaveEquipment = true }], Units = [new("bearer", "blue", new(1, 1))],
@@ -55,7 +55,7 @@ public sealed class ContentPromotionTests : IDisposable
     [Fact]
     public void StandaloneEquipmentAndCanonicalDependenciesAreHandledWithoutDuplicatingProviders()
     {
-        var gear = Kit().Definitions.Equipment[0] with { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Goblin, Posture.Lying))] };
+        var gear = Kit().Definitions.Equipment[0] with { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Goblin, Posture.Lying))] };
         library.Create(Kit() with { Definitions = new() { Equipment = [gear] } });
         var preview = service.Preview(Request("equipment-only", Boots));
         Assert.Contains(new(ContentFamily.Unit, UnitTypeIds.Goblin), preview.ReusedCanonical);

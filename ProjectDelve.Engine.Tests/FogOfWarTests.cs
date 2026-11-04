@@ -281,7 +281,7 @@ public sealed class FogOfWarTests
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         state.Types[0] = state.Types[0] with { Rng = 0, Actions = UnitAction.None,
             LocalAbilities = [.. state.Types[0].LocalAbilities.Where(a => a.Timing != AbilityTiming.Action),
-                new("shoot-shell", "Shoot Shell", AbilityTiming.Action, new ShootShell(1, 20, 1))],
+                new("shoot-shell", "Shoot Shell", AbilityTiming.Action, new TargetUnitAttackMechanic(20, 1))],
             ResourceStorage = new([new(ResourceTypes.Shell, 1)]) };
         state.StoredResources.Add(new(UnitTypeIds.Barbarian, "explorers", ResourceTypes.Shell, 1));
         Ready(state, "hero", true);

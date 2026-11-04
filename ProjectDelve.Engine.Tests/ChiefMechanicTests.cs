@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
 
@@ -47,10 +47,10 @@ public sealed class ChiefMechanicTests
         Assert.Equal((3, 0, 0, 4, 3), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.True(type.Unique);
         Assert.Equal(UnitAction.None, type.Actions);
-        Assert.All(new[] { UnitAction.GiveResource, UnitAction.Operate, UnitAction.SummonWorker }, action => Assert.True(type.HasAction(action)));
+        Assert.All(new[] { UnitAction.GiveResource, UnitAction.Operate, UnitAction.AdjacentUnitSummon }, action => Assert.True(type.HasAction(action)));
         Assert.NotNull(type.Mechanic<TransportResource>());
         Assert.Null(type.ResourceStorage);
-        Assert.Equal(3, type.Mechanic<SummonWorker>()!.SideLimit);
+        Assert.Equal(3, type.Mechanic<AdjacentUnitSummonMechanic>()!.SameTypeSideLimit);
         Assert.Equal(UnitBehavior.Worker | UnitBehavior.PreferSummonWorker, type.Behaviors);
     }
 
@@ -61,7 +61,7 @@ public sealed class ChiefMechanicTests
     {
         var result = Step(Start(Fixture(cargo)), "stay");
         var alternative = result.NextInput!.Candidates.First(c => c.Action == (cargo ? UnitAction.GiveResource : UnitAction.Operate));
-        var summon = result.NextInput.Candidates.Where(c => c.Action == UnitAction.SummonWorker)
+        var summon = result.NextInput.Candidates.Where(c => c.Action == UnitAction.AdjacentUnitSummon)
             .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X).First();
         Assert.Equal(summon.Key, Choose(result));
         Assert.Equal(Choose(result), Choose(result));
@@ -82,7 +82,7 @@ public sealed class ChiefMechanicTests
         var result = Step(Start(definition), "stay");
         var request = result.NextInput! with { Kind = DecisionKind.Act };
         var queries = new GameplayQueries(result.State);
-        var expected = request.Candidates.Where(c => c.Action == UnitAction.SummonWorker)
+        var expected = request.Candidates.Where(c => c.Action == UnitAction.AdjacentUnitSummon)
             .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X).First();
         Assert.Equal(expected.Key, new DefaultAutomatedProvider().Choose(request, queries));
         Assert.Equal(expected.Key, Choose(result));
@@ -114,13 +114,13 @@ public sealed class ChiefMechanicTests
             result.State.PlaceUnit(UnitTypeIds.Worker, $"red-{i}", "red", new(i, 4));
         }
         result = Step(result, "stay");
-        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Action == UnitAction.SummonWorker);
+        Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitSummon);
         Assert.Equal(cargo ? UnitAction.GiveResource : UnitAction.Operate,
             result.NextInput.Candidates.Single(c => c.Key == Choose(result)).Action);
         result.State.Units[result.State.Units.FindIndex(u => u.Id == "blue-0")] =
             result.State.Units.Single(u => u.Id == "blue-0") with { CurrentHp = 0 };
         result.State.Physical.Figures.RemoveAll(f => f.Id == "blue-0");
         Assert.Contains(SummoningRules.Candidates(result.State, result.State.Units.Single(u => u.Id == "actor")),
-            c => c.Action == UnitAction.SummonWorker);
+            c => c.Action == UnitAction.AdjacentUnitSummon);
     }
 }

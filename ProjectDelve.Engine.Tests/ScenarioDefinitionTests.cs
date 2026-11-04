@@ -161,7 +161,7 @@ public sealed class ScenarioDefinitionTests
         var random = new FirstToken();
         var result = GameEngine.StartRound(initial, random, false);
         result = GameEngine.Advance(result.State, new Pick("stay"), random, false);
-        var summon = result.NextInput!.Candidates.First(c => c.Action == UnitAction.SummonAdjacent);
+        var summon = result.NextInput!.Candidates.First(c => c.Action == UnitAction.AdjacentUnitSummon);
         result = GameEngine.Advance(result.State, new Pick(summon.Key), random, false);
         var created = Assert.Single(result.Events, e => e.Kind == "UnitCreated");
         Assert.DoesNotContain(initial.Units, u => u.Id == created.UnitId);

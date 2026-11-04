@@ -7,7 +7,7 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class AbilityCostTests
 {
     private static LocalAbilityDefinition Ability(params AbilityCost[] costs) =>
-        new("test-heal", "Test Heal", AbilityTiming.Action, new HealMechanic(2)) { Costs = [.. costs] };
+        new("test-heal", "Test Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Costs = [.. costs] };
     private static MechanicValidationContext Context(MechanicSource source = MechanicSource.Unit,
         MechanicTiming timing = MechanicTiming.Action) => new(source, timing);
 
@@ -24,7 +24,7 @@ public sealed class AbilityCostTests
         Assert.Equal(9, spend.Profiles.Length);
         Assert.Equal(MechanicContext.ActingUnit, spend.Context);
         Assert.Equal(9, MechanicCatalog.Find("fireball")!.CostProfiles.Length);
-        Assert.Single(MechanicCatalog.Find("heal")!.CostProfiles.Where(p => p.Source == MechanicSource.Unit));
+        Assert.Single(MechanicCatalog.Find("adjacentUnitHeal")!.CostProfiles.Where(p => p.Source == MechanicSource.Unit));
         Assert.Empty(MechanicCatalog.Find("undying")!.CostProfiles);
         Assert.Empty(MechanicCatalog.Find("worldModifiers")!.CostProfiles);
     }
@@ -47,7 +47,7 @@ public sealed class AbilityCostTests
         Assert.Equal("layDownSelf", document.RootElement.GetProperty("costs")[1].GetProperty("kind").GetString());
         Assert.DoesNotContain("costs", JsonSerializer.Serialize(Ability(), options));
         Assert.DoesNotContain("Costs", JsonSerializer.Serialize(Ability()));
-        var oldJson = "{\"key\":\"test-heal\",\"name\":\"Test Heal\",\"timing\":\"Action\",\"mechanic\":{\"kind\":\"heal\",\"amount\":2},\"usage\":{}}";
+        var oldJson = "{\"key\":\"test-heal\",\"name\":\"Test Heal\",\"timing\":\"Action\",\"mechanic\":{\"kind\":\"adjacentUnitHeal\",\"selector\":\"Friendlies\",\"amount\":2},\"usage\":{}}";
         Assert.Equal(oldJson, JsonSerializer.Serialize(Ability(), new JsonSerializerOptions(options) { WriteIndented = false }));
         var legacy = JsonSerializer.Deserialize<LocalAbilityDefinition>(oldJson, options)!;
         Assert.Empty(legacy.Costs);
@@ -76,7 +76,7 @@ public sealed class AbilityCostTests
             d => d.Path == "costs[0].resourceTypeId" && d.Code == "unknownReference");
         Assert.Empty(CostCatalog.Validate([new SpendResource("present", 1)], availableResourceIds: ImmutableHashSet.Create("present")));
         var explicitNull = JsonSerializer.Deserialize<LocalAbilityDefinition>(
-            "{\"key\":\"test\",\"name\":\"Test\",\"timing\":\"Action\",\"mechanic\":{\"kind\":\"heal\",\"amount\":2},\"costs\":null}", ContentPackageJson.CreateOptions())!;
+            "{\"key\":\"test\",\"name\":\"Test\",\"timing\":\"Action\",\"mechanic\":{\"kind\":\"adjacentUnitHeal\",\"selector\":\"Friendlies\",\"amount\":2},\"costs\":null}", ContentPackageJson.CreateOptions())!;
         Assert.True(explicitNull.Costs.IsDefault);
         Assert.Contains(CostCatalog.Validate(explicitNull.Costs), d => d.Code == "required");
     }
@@ -123,7 +123,7 @@ public sealed class AbilityCostTests
         Assert.Equal("localAbilities[0].costs[2].resourceTypeId", dependencies[1].Path);
         var requirements = string.Join(" ", ability.Costs.Select(CostCatalog.Describe)) + " ";
         Assert.Equal(requirements + Ability().CardEntry().Description, ability.CardEntry().Description);
-        var overridden = ability with { DescriptionOverride = "Restore {amount} HP." };
-        Assert.Equal(requirements + "Restore 2 HP.", overridden.CardEntry().Description);
+        var overridden = ability with { DescriptionOverride = "Restore {amount} HP to an adjacent {selector} Unit." };
+        Assert.Equal(requirements + "Restore 2 HP to an adjacent friendly Unit.", overridden.CardEntry().Description);
     }
 }

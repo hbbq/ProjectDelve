@@ -13,7 +13,7 @@ public static class EquipmentRoster
         { LocalAbilities = [new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())] },
         new("goat-bell", "Emergency Goat Bell")
         {
-            LocalAbilities = [new("stand-up", "Emergency Goat Bell", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())
+            LocalAbilities = [new("stand-up", "Emergency Goat Bell", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))
             {
                 Usage = new(MaxUses: null)
             }]

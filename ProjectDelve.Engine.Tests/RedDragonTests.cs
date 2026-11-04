@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -123,7 +123,7 @@ public sealed class RedDragonTests
     {
         var state = World();
         var provider = new UnitType("aura", 0, 0, 0, 0, 1)
-            { LocalAbilities = [new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2)]))] };
+            { LocalAbilities = [new("aura", "Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 2)]))] };
         if (undying) provider = provider.WithLocal(new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()));
         Add(state, "aura", new(3, 1), type: provider);
         Add(state, "later", new(3, 2));

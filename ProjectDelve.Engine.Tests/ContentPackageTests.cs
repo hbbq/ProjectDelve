@@ -10,7 +10,7 @@ public sealed class ContentPackageTests
         Id = id, Definitions = new()
         {
             Equipment = [new("bell", "Bell") { LocalAbilities =
-                [new("stand", "Stand", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()) { Usage = new(2) },
+                [new("stand", "Stand", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(2) },
                  new("open", "Open", AbilityTiming.FreeAction, new OpenDoor())] }],
             LootCards = [new("gift", "Gift") { EquipmentTypeId = "bell" }]
         }
@@ -129,7 +129,7 @@ public sealed class ContentPackageTests
         Assert.Equal("example", diagnostic.Source.Package);
         Assert.Equal(new(ContentFamily.Equipment, "absent"), diagnostic.Dependency);
         var invalid = Package() with { Definitions = new() { Equipment = [new("invalid", "Invalid")
-            { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(0))] }] } };
+            { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0))] }] } };
         Assert.Equal("localAbilities[0].mechanic.amount", Assert.Single(Assert.Throws<ContentCompositionException>(() =>
             ContentPackageCatalog.Compose([new(invalid)])).Diagnostics).Path);
     }
@@ -138,7 +138,7 @@ public sealed class ContentPackageTests
     public void CrossPackageReferencesRequireDeclaredProvidersAndPermitMutualSummons()
     {
         UnitType Summon(string id, string target) => new(id, 1, 0, 0, 0, 1)
-            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(target, Posture.Lying))] };
+            { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(target, Posture.Lying))] };
         var a = new ContentPackage { Id = "a", Dependencies = ["b"], Definitions = new() { Units = [Summon("a-type", "b-type")] } };
         var b = new ContentPackage { Id = "b", Dependencies = ["a"], Definitions = new() { Units = [Summon("b-type", "a-type")] } };
         var graph = ContentPackageCatalog.Compose([new(b), new(a)]).Dependencies;

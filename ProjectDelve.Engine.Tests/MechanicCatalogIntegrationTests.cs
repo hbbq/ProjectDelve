@@ -39,21 +39,21 @@ public sealed class MechanicCatalogIntegrationTests
                 Unique = true, CanHaveEquipment = true, CanHaveItems = true,
                 LocalAbilities =
                 [
-                    new("mend", "Silver Thread", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
-                    new("wave", "Quiet Bell", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) },
+                    new("mend", "Silver Thread", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(2) },
+                    new("wave", "Quiet Bell", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(2) },
                     new("flame", "Orange Paper", AbilityTiming.Action, new FireballMechanic()),
                     new("focus", "Careful Moment", AbilityTiming.BonusAction,
                         new SelfModifiersMechanic([new(Stat.Atk, 1), new(Stat.Mov, -1)])) { Usage = new(3) },
-                    new("ward", "Nearby Shelter", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)])),
+                    new("ward", "Nearby Shelter", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)])),
                     new("pace", "Another Moment", AbilityTiming.BonusAction, new ExtraActionsMechanic(1)),
-                    new("rise", "Helping Hand", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())
+                    new("rise", "Helping Hand", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))
                 ]
             },
             new("catalog-friend", 0, 0, 0, 0, 4) { Unique = true },
             new("catalog-opponent", 0, 0, 0, 0, 4) { Unique = true }
         ],
-        EquipmentTypes = [new("woven-band", "Woven Band") { LocalAbilities = [new("restore", "Woven Light", AbilityTiming.Action, new HealMechanic(3))] }],
-        ItemTypes = [new("paper-bell", "Paper Bell") { LocalAbilities = [new("unfold", "Folded Hush", AbilityTiming.Action, new HolyWaveMechanic())] }],
+        EquipmentTypes = [new("woven-band", "Woven Band") { LocalAbilities = [new("restore", "Woven Light", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3))] }],
+        ItemTypes = [new("paper-bell", "Paper Bell") { LocalAbilities = [new("unfold", "Folded Hush", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] }],
         Units =
         [
             new("catalog-bearer", "blue", new(2, 2), UnitId: "actor")
@@ -114,7 +114,7 @@ public sealed class MechanicCatalogIntegrationTests
     [InlineData(-1)]
     public void JsonValidationReportsTheSameInvalidParameterAsPublicDiscoveryValidation(int amount)
     {
-        var invalid = new HealMechanic(amount);
+        var invalid = new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, amount);
         var diagnostics = MechanicCatalog.Validate(invalid, path: "unitTypes[0].localAbilities[0].mechanic");
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("minimum", diagnostic.Code);

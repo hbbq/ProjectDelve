@@ -144,7 +144,7 @@ public sealed partial class DelveChessTests
         var state = State(type, new(6, 5));
         state.StoredResources.Add(new("a", type.Id, ResourceTypes.Mushroom, 1));
         var moved = TestGame.Advance(Choices(state).State, new Choice("4,4"), new Dice(), false);
-        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is Boost);
+        var boost = moved.NextInput!.Candidates.Single(c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic);
         var boosted = TestGame.Advance(moved.State, new Choice(boost.Key), new Dice(), false);
         Assert.Contains(boosted.NextInput!.Candidates, c => c.Destination == new Cell(5, 3));
         Assert.DoesNotContain(boosted.NextInput.Candidates, c => c.Destination == new Cell(6, 3));
@@ -178,7 +178,7 @@ public sealed partial class DelveChessTests
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         Assert.Equal(UnitBehavior.None, type.Behaviors);
         Assert.Equal(!king, type.Mechanic<AdvanceOnKill>() is not null);
-        Assert.Equal(king, AbilityQueries.NativeAbilities(type, "piece").Any(g => g.Definition.Mechanic is AdjacentModifiersMechanic));
+        Assert.Equal(king, AbilityQueries.NativeAbilities(type, "piece").Any(g => g.Definition.Mechanic is AdjacentUnitsStatModifiersMechanic));
         if (king) Assert.Equal(
             JsonSerializer.Serialize(Assert.Single(AbilityQueries.NativeAbilities(UnitRoster.Cleric(), "cleric"), ability => ability.Key == "aura").Definition),
             JsonSerializer.Serialize(Assert.Single(AbilityQueries.NativeAbilities(type, "king")).Definition));

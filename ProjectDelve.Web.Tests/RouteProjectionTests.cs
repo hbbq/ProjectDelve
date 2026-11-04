@@ -55,7 +55,9 @@ public sealed class RouteProjectionTests
         Assert.Contains(view.Events, e => e.Text.Contains("placed Banana Peel"));
         Assert.Contains(view.Events, e => e.Text.Contains("for Place Banana Peel"));
         var spent = placed.Events.ToList().FindIndex(e => e.Kind == "ResourceSpent");
-        Assert.Single(placed.ResolutionSteps[spent].StateAfter.CellMarkers);
+        Assert.Empty(placed.ResolutionSteps[spent].StateAfter.CellMarkers);
+        var markerPlaced = placed.Events.ToList().FindIndex(e => e.Kind == "CellMarkerPlaced");
+        Assert.Single(placed.ResolutionSteps[markerPlaced].StateAfter.CellMarkers);
         Assert.Equal(0, placed.ResolutionSteps[spent].StateAfter.StoredResources.Single().Quantity);
         var restored = JsonSerializer.Deserialize<EngineResult>(JsonSerializer.Serialize(placed))!;
         Assert.Equal(1, restored.State.Orders.Single().Route!.CurrentIndex);

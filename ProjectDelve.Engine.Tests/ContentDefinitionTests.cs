@@ -5,18 +5,18 @@ namespace ProjectDelve.Engine.Tests;
 public sealed class ContentDefinitionTests
 {
     private static UnitType Summoner(string id, string target) => new(id, 1, 1, 1, 1, 1)
-    { LocalAbilities = [new("summon", "Summon", AbilityTiming.Action, new SummonAdjacent(target, Posture.Lying))] };
+    { LocalAbilities = [new("summon", "Summon", AbilityTiming.Action, new AdjacentUnitSummonMechanic(target, Posture.Lying))] };
 
     [Fact]
     public void StandaloneMechanicsUseExistingEnvelopeAndParameterContracts()
     {
         var equipment = new EquipmentDefinition("bell", "Bell")
-        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(2))] };
+        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2))] };
         Assert.Empty(ContentDefinitions.Validate(new(equipment)));
         Assert.NotEmpty(ContentDefinitions.Validate(new(equipment with
-        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Passive, new HealMechanic(2))] })));
+        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Passive, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2))] })));
         Assert.NotEmpty(ContentDefinitions.Validate(new(equipment with
-        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(0))] })));
+        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0))] })));
         Assert.NotEmpty(ContentDefinitions.Validate(new(new ItemDefinition("item", "Item"))));
         Assert.NotEmpty(ContentDefinitions.Validate(new(new UnitType("bad", -1, 0, 0, 0, 1))));
         Assert.NotEmpty(ContentDefinitions.Validate(new(new LootCardDefinition("bad", "Bad"))));
@@ -35,7 +35,7 @@ public sealed class ContentDefinitionTests
         Assert.Equal("equipmentTypeId", error.Path);
         Assert.Equal(source, error.Source);
         var invalidAbility = new EquipmentDefinition("invalid", "Invalid")
-        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(0))] };
+        { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0))] };
         Assert.Equal("localAbilities[0].mechanic.amount", Assert.Single(ContentDefinitions.Validate(new(invalidAbility))).Path);
         Assert.Equal(new(ContentFamily.Equipment, "missing"), error.Dependency);
         Assert.Equal("missingReference", Assert.Single(new ContentDependencyGraph([new(card)]).Diagnostics).Code);
@@ -73,7 +73,7 @@ public sealed class ContentDefinitionTests
     {
         var machine = MachineTypes.DiamondPress;
         Assert.Contains(ContentDefinitions.Dependencies(machine), d => d.Target.TypeId == "coal" && d.Kind == ContentDependencyKind.Embedded);
-        var unit = Summoner("unit", "unit") with { LocalAbilities = [new("troll", "Troll", AbilityTiming.Action, new SummonTroll(1))] };
+        var unit = Summoner("unit", "unit") with { LocalAbilities = [new("troll", "Troll", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Troll, Posture.Upright)) { Costs = [new SpendResource(ResourceTypeIds.Diamond, 1)] }] };
         var graph = new ContentDependencyGraph([new(unit), new(UnitRoster.Troll())]);
         Assert.Contains(graph.Diagnostics, d => d.Dependency == new ContentIdentity(ContentFamily.Resource, "diamond"));
         Assert.Empty(new ContentDependencyGraph([new(unit), new(UnitRoster.Troll())], [ResourceTypes.Diamond]).Diagnostics);

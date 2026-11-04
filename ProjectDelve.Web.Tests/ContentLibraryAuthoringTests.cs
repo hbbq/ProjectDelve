@@ -17,7 +17,7 @@ public sealed class ContentLibraryAuthoringTests : IDisposable
     private ContentLibrary Store => new(directory);
     private static ContentPackage Empty(string id = "workshop") => new() { Id = id, Title = "Workshop", Dependencies = [ContentPackageCatalog.CSharpPackageId] };
     private static EquipmentDefinition Gear(string id = "workshop-bell") => new(id, "Workshop Bell")
-    { LocalAbilities = [new("encourage", "Encourage", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()) { Usage = new(2) }] };
+    { LocalAbilities = [new("encourage", "Encourage", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(2) }] };
     private static ContentEditorRequest Edit(object value, string family = "equipment", string? existing = null)
         => new(family, JsonSerializer.SerializeToElement(value, value.GetType(), Json), existing);
 
@@ -28,7 +28,7 @@ public sealed class ContentLibraryAuthoringTests : IDisposable
         var before = Store.Catalog();
         var preview = ContentLibraryAuthoring.Validate(Store, new(draft, Edit(Gear())));
         Assert.True(preview.Valid); Assert.Empty(preview.Diagnostics);
-        Assert.Equal("Stand up one adjacent friendly Lying Unit.", Assert.Single(preview.Entry!.Abilities).Description);
+        Assert.Equal("Stand up one adjacent friendly Unit.", Assert.Single(preview.Entry!.Abilities).Description);
         Assert.Equal(2, preview.Entry.Abilities[0].Usage.MaxUses);
         Assert.Equal("library-local", preview.Entry.Origin); Assert.Equal("workshop", preview.Entry.PackageId);
         Assert.Empty(Store.Catalog().Packages);

@@ -264,7 +264,7 @@ public static class FogOfWar
             Relevant = candidate.Action switch
             {
                 UnitAction.Fireball => targets.Any(id => state.Units.Single(u => u.Id == id).SideId != side),
-                UnitAction.HolyWave => !targets.IsEmpty,
+                UnitAction.AdjacentUnitsPostureChange => !targets.IsEmpty,
                 _ => candidate.Relevant
             } };
     }

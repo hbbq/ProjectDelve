@@ -273,14 +273,14 @@ public sealed class FootprintTests
         var state = World(Large() with { LocalAbilities = [
             new("fury", "Fury", AbilityTiming.Passive, new Fury()),
             new("backstab", "Backstab", AbilityTiming.Passive, new Backstab()),
-            new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 1)]))] });
+            new("aura", "Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)]))] });
         Add(state, "target", Large("target"), new(3, 1));
         Assert.False(SpatialRules.AreAdjacent(state, "actor", "actor"));
         Assert.True(SpatialRules.AreAdjacent(state, "actor", "target"));
         Assert.Equal(2, state.EffectiveAtkOf("actor")); // One large enemy does not meet threshold 2.
         Assert.Equal(1, state.EffectiveDefOf("actor")); // No self-Aura.
         Add(state, "support", Large("support").WithLocal(new("aura", "Aura", AbilityTiming.Passive,
-            new AdjacentModifiersMechanic([new(Stat.Def, 1)]))), new(3, 3), "blue");
+            new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)]))), new(3, 3), "blue");
         Assert.Equal(2, state.EffectiveDefOf("actor"));
         Assert.Equal(3, state.EffectiveAtkAgainst("actor", "target"));
         Add(state, "second", new("small", 0, 0, 0, 0, 1), new(0, 2));
@@ -291,8 +291,8 @@ public sealed class FootprintTests
     public void HealHolyWaveAndCleaveProduceOneTargetPerLargeUnit()
     {
         var type = Large() with { Actions = UnitAction.None, LocalAbilities = [
-            new("heal", "Heal", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) },
-            new("holy-wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) },
+            new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(2) },
+            new("holy-wave", "Holy Wave", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(2) },
             new("cleave", "Cleave", AbilityTiming.AfterAttack, new Cleave()) { Usage = new(2) }] };
         var state = World(type);
         Add(state, "friend", Large("friend") with { Hp = 4, Unique = true }, new(3, 1), "blue");
@@ -388,12 +388,12 @@ public sealed class FootprintTests
         var state = World(Large() with { Actions = UnitAction.None, LocalAbilities = [
             new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()),
             new("try-open-door", "Try Open Door", AbilityTiming.Action, new TryOpenDoor(6)),
-            new("summon-adjacent", "Summon Adjacent", AbilityTiming.Action, new SummonAdjacent("spawn", Posture.Lying))] });
+            new("summon-adjacent", "Summon Adjacent", AbilityTiming.Action, new AdjacentUnitSummonMechanic("spawn", Posture.Lying))] });
         state.Types.Add(Large("spawn"));
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.ClosedDoor));
         var actions = Actions(state);
         Assert.Single(actions.Where(c => c.Door is not null));
-        var spawns = actions.Where(c => c.Action == UnitAction.SummonAdjacent).ToList();
+        var spawns = actions.Where(c => c.Action == UnitAction.AdjacentUnitSummon).ToList();
         Assert.Contains(spawns, c => c.Destination == new Cell(3, 0));
         Assert.Equal(spawns.Count, spawns.Select(c => c.Destination).Distinct().Count());
         Assert.All(spawns, c => Assert.True(SpatialRules.CanPlaceUnit(state, Footprint.TwoByTwo, c.Destination!)));
@@ -438,7 +438,7 @@ public sealed class FootprintTests
         var state = World(Large() with { Rng = 8, Actions = UnitAction.None, LocalAbilities = [
             new("fireball", "Fireball", AbilityTiming.Action, new FireballMechanic()) { Usage = new(2) }] }, new(0, 0));
         Add(state, "aura", Large("aura") with { Def = 0, LocalAbilities = [
-            new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, 2)]))] }, new(3, 0));
+            new("aura", "Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 2)]))] }, new(3, 0));
         Add(state, "recipient", Large("recipient") with { Hp = 8, Unique = true, Def = 1 }, new(5, 0));
         Assert.Equal(3, state.EffectiveDefOf("recipient"));
         var result = Act(state, "ability:fireball:4,1");

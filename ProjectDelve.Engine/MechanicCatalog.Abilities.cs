@@ -6,28 +6,35 @@ public static partial class MechanicCatalog
 {
     private static partial IEnumerable<MechanicRegistration> AbilityRegistrations()
     {
-        yield return MechanicRegistration.Create<HolyWaveMechanic>(AbilityContract("holyWave", "Holy Wave",
+        var selector = RelationshipSelectorParameter();
+        var posture = new MechanicParameter("newPosture", MechanicParameterKind.Enum) { AllowedValues = ["Upright", "Lying"] };
+        yield return MechanicRegistration.Create<AdjacentUnitsPostureChangeMechanic>(AbilityContract("adjacentUnitsPostureChange", "Adjacent Units Posture Change",
             [MechanicTiming.Action], MechanicContext.ActingUnit,
-            new(MechanicTargetSelection.None, "Adjacent Upright hostile Units, followed by the acting Unit; legal with no hostile recipients."),
-            "Lay down all adjacent upright enemies.\nThen lay down this Unit.", [],
-            ["posture", "adjacency", "lineOfSight", "actionOpportunity"]), (_, _, _) => { });
+            new(MechanicTargetSelection.None, "All other living adjacent Units matching the relationship selector whose Posture differs from the result; legal with no recipients."),
+            "{newPosture} all adjacent {selector} Units.", ["selector", "newPosture"],
+            ["posture", "adjacency", "lineOfSight", "actionOpportunity"]) with { Parameters = [selector, posture] },
+            (payload, path, errors) => ValidateAdjacentPosture(payload.Selector, payload.NewPosture, selector, posture, path, errors));
 
         var healAmount = new MechanicParameter("amount", MechanicParameterKind.Integer) { Minimum = 1 };
-        yield return MechanicRegistration.Create<HealMechanic>(AbilityContract("heal", "Heal",
+        yield return MechanicRegistration.Create<AdjacentUnitHealMechanic>(AbilityContract("adjacentUnitHeal", "Adjacent Unit Heal",
             [MechanicTiming.Action], MechanicContext.ActingUnit,
-            new(MechanicTargetSelection.Unit, "One other living, damaged, adjacent friendly Unit using ordinary adjacency and LOS."),
-            "Heal an adjacent damaged friendly Unit for {amount} HP.", ["amount"],
-            ["hitPoints", "adjacency", "lineOfSight", "actionOpportunity"]) with { Parameters = [healAmount] },
-            (payload, path, errors) => MechanicChecks.Integer(errors, healAmount, payload.Amount, path + ".amount"));
+            new(MechanicTargetSelection.Unit, "One other living, damaged, adjacent Unit matching the relationship selector using ordinary adjacency and LOS."),
+            "Heal an adjacent damaged {selector} Unit for {amount} HP.", ["selector", "amount"],
+            ["hitPoints", "adjacency", "lineOfSight", "actionOpportunity"]) with { Parameters = [selector, healAmount] },
+            (payload, path, errors) =>
+            {
+                MechanicChecks.Enum(errors, selector, payload.Selector, path + ".selector");
+                MechanicChecks.Integer(errors, healAmount, payload.Amount, path + ".amount");
+            });
 
-        yield return MechanicRegistration.Create<FireballMechanic>(AbilityContract("fireball", "Fireball",
+        yield return MechanicRegistration.Create<FireballMechanic>(AbilityContract("fireball", "Target Cell Area Attack",
             [MechanicTiming.Action, MechanicTiming.BonusAction, MechanicTiming.FreeAction], MechanicContext.ActingUnit,
             new(MechanicTargetSelection.Cell, "Choose a Cell within effective RNG and Unit-origin LOS; automatically Attack every living Unit in its established explosion area and geometric LOS."),
             "Choose a Cell within RNG and LOS.\nAttack all Units on or adjacent to that Cell.", [],
             ["effectiveRange", "effectiveAttack", "lineOfSight", "attack", "dice"]), (_, _, _) => { });
 
         var selfModifiers = AbilityModifiersParameter();
-        var self = AbilityContract("selfModifiers", "Self Modifiers", [MechanicTiming.BonusAction, MechanicTiming.Passive],
+        var self = AbilityContract("selfModifiers", "Self Stat Modifiers", [MechanicTiming.BonusAction, MechanicTiming.Passive],
             MechanicContext.BearingUnit, new(MechanicTargetSelection.None, "The bearing Unit; Bonus Action modifiers last through the current activation, Passive modifiers require an Upright source."),
             "{modifiers} this activation.", ["modifiers"], ["effectiveStats", "posture", "activationModifiers"]);
         yield return MechanicRegistration.Create<SelfModifiersMechanic>(self with
@@ -37,12 +44,16 @@ public static partial class MechanicCatalog
         }, (payload, path, errors) => ValidateAbilityModifiers(selfModifiers, payload.Modifiers, path + ".modifiers", errors));
 
         var adjacentModifiers = AbilityModifiersParameter();
-        yield return MechanicRegistration.Create<AdjacentModifiersMechanic>(AbilityContract("adjacentModifiers", "Adjacent Friendly Modifiers",
+        yield return MechanicRegistration.Create<AdjacentUnitsStatModifiersMechanic>(AbilityContract("adjacentUnitsStatModifiers", "Adjacent Units Stat Modifiers",
             [MechanicTiming.Passive], MechanicContext.BearingUnit,
-            new(MechanicTargetSelection.None, "Other adjacent friendly Units; requires an Upright source and ordinary adjacency and LOS."),
-            "Adjacent friendly Units get {modifiers}.", ["modifiers"], ["effectiveStats", "posture", "adjacency", "lineOfSight"])
-            with { Parameters = [adjacentModifiers] },
-            (payload, path, errors) => ValidateAbilityModifiers(adjacentModifiers, payload.Modifiers, path + ".modifiers", errors));
+            new(MechanicTargetSelection.None, "Other adjacent Units matching the relationship selector; requires an Upright source and ordinary adjacency and LOS."),
+            "Adjacent {selector} Units get {modifiers}.", ["selector", "modifiers"], ["effectiveStats", "posture", "adjacency", "lineOfSight"])
+            with { Parameters = [selector, adjacentModifiers] },
+            (payload, path, errors) =>
+            {
+                MechanicChecks.Enum(errors, selector, payload.Selector, path + ".selector");
+                ValidateAbilityModifiers(adjacentModifiers, payload.Modifiers, path + ".modifiers", errors);
+            });
 
         var extraAmount = new MechanicParameter("amount", MechanicParameterKind.Integer) { Minimum = 1 };
         yield return MechanicRegistration.Create<ExtraActionsMechanic>(AbilityContract("extraActions", "Extra Actions",
@@ -52,10 +63,22 @@ public static partial class MechanicCatalog
             with { Parameters = [extraAmount] },
             (payload, path, errors) => MechanicChecks.Integer(errors, extraAmount, payload.Amount, path + ".amount"));
 
-        yield return MechanicRegistration.Create<StandAdjacentFriendlyMechanic>(AbilityContract("standAdjacentFriendly", "Stand Adjacent Friendly Unit",
+        yield return MechanicRegistration.Create<AdjacentUnitPostureChangeMechanic>(AbilityContract("adjacentUnitPostureChange", "Adjacent Unit Posture Change",
             [MechanicTiming.Action], MechanicContext.ActingUnit,
-            new(MechanicTargetSelection.Unit, "One living adjacent friendly Lying Unit using ordinary adjacency and LOS."),
-            "Stand up one adjacent friendly Lying Unit.", [], ["posture", "adjacency", "lineOfSight", "actionOpportunity"]), (_, _, _) => { });
+            new(MechanicTargetSelection.Unit, "One other living adjacent Unit matching the relationship selector whose Posture differs from the result, using ordinary adjacency and LOS."),
+            "{newPosture} one adjacent {selector} Unit.", ["selector", "newPosture"], ["posture", "adjacency", "lineOfSight", "actionOpportunity"])
+            with { Parameters = [selector, posture] },
+            (payload, path, errors) => ValidateAdjacentPosture(payload.Selector, payload.NewPosture, selector, posture, path, errors));
+    }
+
+    private static MechanicParameter RelationshipSelectorParameter() => new("selector", MechanicParameterKind.Enum)
+        { AllowedValues = ["Friendlies", "Enemies", "All"] };
+
+    private static void ValidateAdjacentPosture(RelationshipSelector relationship, Posture result,
+        MechanicParameter selector, MechanicParameter posture, string path, List<MechanicDiagnostic> errors)
+    {
+        MechanicChecks.Enum(errors, selector, relationship, path + ".selector");
+        MechanicChecks.Enum(errors, posture, result, path + ".newPosture");
     }
 
     private static MechanicDescriptor AbilityContract(string id, string name, ImmutableArray<MechanicTiming> timings,

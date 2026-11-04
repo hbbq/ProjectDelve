@@ -27,7 +27,7 @@ public sealed class ContentSnapshotProjectionTests
             Units = [new("actor", "blue", new(0, 0))], Agency = [new("actor", "blue", ControllerKind.Human)],
             Objectives = [new("blue", ScenarioObjective.NoObjective)], FogOfWarSides = fog ? ["blue"] : [],
             EquipmentTypes = [new("secret-future-gear", "Concealed reward") { LocalAbilities =
-                [new("call", "Call", AbilityTiming.Action, new SummonAdjacent("secret-future-type", Posture.Lying))] }],
+                [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic("secret-future-type", Posture.Lying))] }],
             LootCardDefinitions = [new("secret-future-card", "Concealed card") { EquipmentTypeId = "secret-future-gear" }],
             Loot = new() { Composition = [new() { LootCardId = "secret-future-card" }] },
             LootMarkers = [new("unopened", new(7, 7))]

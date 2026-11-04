@@ -67,7 +67,7 @@ public sealed class SupplementalContentDiscoveryTests
     {
         var item = new ItemDefinition("restorative-note", "Restorative Note")
         {
-            LocalAbilities = [new("restore", "Restore", AbilityTiming.Action, new HealMechanic(4))]
+            LocalAbilities = [new("restore", "Restore", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 4))]
         };
         var state = new GameState { Physical = new(new Board(1, 1, []), []), Types = [], Units = [], ItemTypes = [item] };
         var physical = new OwnedObject("note-instance") { ItemTypeId = item.Id };

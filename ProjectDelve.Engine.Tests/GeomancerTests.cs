@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -56,9 +56,9 @@ public sealed class GeomancerTests
         // Another Geomancer does not grant another allowance.
         state.PlaceUnit(UnitTypeIds.Geomancer, "geo2", "blue", new(5, 2));
         Assert.Equal(available, SummoningRules.Candidates(state, state.Units.Single(u => u.Id == "geo"))
-            .Any(c => c.Action == UnitAction.SummonWorker));
+            .Any(c => c.Action == UnitAction.AdjacentUnitSummon));
         Assert.Equal(available, SummoningRules.Candidates(state, state.Units.Single(u => u.Id == "geo2"))
-            .Any(c => c.Action == UnitAction.SummonWorker));
+            .Any(c => c.Action == UnitAction.AdjacentUnitSummon));
         if (count >= 3)
         {
             // A defeated record is no longer a living Worker.
@@ -66,7 +66,7 @@ public sealed class GeomancerTests
             state.Units[index] = state.Units[index] with { CurrentHp = 0 };
             state.Physical.Figures.RemoveAll(f => f.Id == "w0");
             Assert.Equal(count == 3, SummoningRules.Candidates(state, state.Units[0])
-                .Any(c => c.Action == UnitAction.SummonWorker));
+                .Any(c => c.Action == UnitAction.AdjacentUnitSummon));
         }
     }
 
@@ -81,9 +81,9 @@ public sealed class GeomancerTests
             state.PlaceUnit("other-worker", $"other{i}", "blue", new(i, 4));
         }
         state.PlaceUnit(UnitTypeIds.Geomancer, "red-geo", "red", new(5, 2));
-        Assert.Contains(SummoningRules.Candidates(state, state.Units[0]), c => c.Action == UnitAction.SummonWorker);
+        Assert.Contains(SummoningRules.Candidates(state, state.Units[0]), c => c.Action == UnitAction.AdjacentUnitSummon);
         Assert.DoesNotContain(SummoningRules.Candidates(state, state.Units.Single(u => u.Id == "red-geo")),
-            c => c.Action == UnitAction.SummonWorker);
+            c => c.Action == UnitAction.AdjacentUnitSummon);
     }
 
     [Theory]
@@ -108,9 +108,9 @@ public sealed class GeomancerTests
         Assert.Equal(JsonSerializer.Serialize(result.State.Types[0]), JsonSerializer.Serialize(Restore(result.State).Types[0]));
         if (troll)
         {
-            // Playback must never expose spent storage without the corresponding Troll.
+            // Payment is committed before creation; both are in the same accepted invocation.
             var spent = Assert.Single(result.ResolutionSteps, s => result.Events[s.EventIndex].Kind == "ResourceSpent");
-            Assert.Contains(spent.StateAfter.Units, u => u.Id == created.Id);
+            Assert.DoesNotContain(spent.StateAfter.Units, u => u.Id == created.Id);
             Assert.Equal(0, spent.StateAfter.StoredQuantity("blue", UnitTypeIds.Geomancer, "diamond"));
         }
     }
@@ -121,11 +121,11 @@ public sealed class GeomancerTests
         var definition = Stored() with { Units = [Fixture().Units[0],
             new(UnitTypeIds.Geomancer, "blue", new(4, 2), UnitId: "geo2"), Fixture().Units[1]] };
         var ready = Actions(definition);
-        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.SummonTroll);
+        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitSummon);
         var result = Step(ready, "ability:summon-troll:1,1");
         Assert.Equal(0, new GameplayQueries(result.State).StoredQuantityFor("geo2", ResourceTypes.Diamond));
         Assert.DoesNotContain(SummoningRules.Candidates(result.State, result.State.Units.Single(u => u.Id == "geo2")),
-            c => c.Action == UnitAction.SummonTroll);
+            c => c.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic { UnitTypeId: UnitTypeIds.Troll });
     }
 
     [Theory]
@@ -139,7 +139,7 @@ public sealed class GeomancerTests
             for (var x = 1; x <= 3; x++)
                 if (x != 2 || y != 2) state.Physical.Board.Terrain.Add(new(new(x, y), TerrainKind.Water));
         var refreshed = GameEngine.RefreshChoices(state, new Dice(), false);
-        Assert.DoesNotContain(refreshed.NextInput!.Candidates, c => c.Action is UnitAction.SummonTroll or UnitAction.SummonWorker);
+        Assert.DoesNotContain(refreshed.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitSummon);
         Assert.Throws<ArgumentException>(() => Step(refreshed, "ability:summon-troll:1,1"));
         Assert.Equal(quantity, refreshed.State.StoredQuantity("blue", UnitTypeIds.Geomancer, "diamond"));
     }
@@ -147,7 +147,8 @@ public sealed class GeomancerTests
     [Fact]
     public void TrollRequiresDiamondAndPlacementUsesExistingLosAndOccupancyRules()
     {
-        Assert.DoesNotContain(Actions().NextInput!.Candidates, c => c.Action == UnitAction.SummonTroll);
+        Assert.DoesNotContain(Actions().NextInput!.Candidates,
+            c => c.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic { UnitTypeId: UnitTypeIds.Troll });
         var ready = Actions(Stored());
         ready.State.Physical.Board.Edges.Add(new(new(2, 2), new(2, 1), EdgeKind.Wall));
         ready.State.PlaceUnit(UnitTypeIds.Worker, "blocker", "blue", new(1, 1));
@@ -164,7 +165,7 @@ public sealed class GeomancerTests
         Assert.Equal("stay", Automated(start));
         var ready = Step(start, "stay");
         Assert.Equal("ability:pickup-resource", Automated(ready));
-        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.SummonWorker);
+        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitSummon);
         var result = Step(ready, "ability:pickup-resource");
         Assert.Equal(1, result.State.StoredQuantity("blue", UnitTypeIds.Geomancer, "diamond"));
     }
@@ -209,7 +210,7 @@ public sealed class GeomancerTests
     {
         var ready = Actions(Stored() with { Resources = [new(ResourceTypes.Diamond, new(2, 2))] });
         Assert.Equal("ability:summon-troll:1,1", Automated(ready));
-        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.SummonWorker);
+        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitSummon);
         // Human can choose Worker while Troll is preferred, leaving the Diamond unspent.
         Assert.Equal(1, Step(ready, "ability:summon-worker:1,1").State.StoredQuantity("blue", UnitTypeIds.Geomancer, "diamond"));
         ready = Actions();

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 using static ProjectDelve.Engine.UnitAuthoring;
 using static ProjectDelve.Engine.Stat;
@@ -59,7 +59,7 @@ public sealed class UnitAuthoringTests
     public void RenamedLimitedAbilityKeepsMechanicalEntryAndCounterIdentity()
     {
         var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5), Unique(),
-            Ability("Mend", Uses(4), Heal(amount: 3), id: "heal"));
+            Ability("Mend", Uses(4), AdjacentUnitHeal(RelationshipSelector.Friendlies, amount: 3), id: "heal"));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
         var started = TestGame.StartRound(state, new Dice(), false);
@@ -91,7 +91,7 @@ public sealed class UnitAuthoringTests
         var choices = GameEngine.GameplayCandidates(restored, restored.Units[0]).ToArray();
         Assert.DoesNotContain(choices, c => c.Action == UnitAction.NormalAttack);
         Assert.Contains(choices, c => c.Action == UnitAction.Telekinesis);
-        Assert.True(UnitRoster.Shaman().HasAction(UnitAction.SummonAdjacent));
+        Assert.True(UnitRoster.Shaman().HasAction(UnitAction.AdjacentUnitSummon));
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class UnitAuthoringTests
     public void AuthoredHealAmountAndUsesDriveResolutionAndDescriptionAfterStateRoundTrip()
     {
         var type = UnitType.Define("medic", "Medic", Stats(1, 1, 3, 2, 5), Unique(),
-            Ability("Heal", Uses(4), Heal(amount: 3), id: "heal"));
+            Ability("Heal", Uses(4), AdjacentUnitHeal(RelationshipSelector.Friendlies, amount: 3), id: "heal"));
         var state = State(type);
         state.Units[1] = state.Units[1] with { SideId = "blue", CurrentHp = 1 };
         var started = TestGame.StartRound(state, new Dice(), false);
@@ -157,7 +157,7 @@ public sealed class UnitAuthoringTests
     public void DuplicateConcreteMechanicsAndBonusIdsAreRejectedRatherThanOverwritten()
     {
         Assert.Throws<ArgumentException>(() => UnitType.Define("bad", "Bad", Stats(1, 1, 1, 1, 1),
-            Ability("Heal", Uses(2), Heal(2), id: "heal"), Ability("Heal", Uses(3), Heal(3), id: "heal")));
+            Ability("Heal", Uses(2), AdjacentUnitHeal(RelationshipSelector.Friendlies, 2), id: "heal"), Ability("Heal", Uses(3), AdjacentUnitHeal(RelationshipSelector.Friendlies, 3), id: "heal")));
         Assert.Throws<ArgumentException>(() => UnitType.Define("bad", "Bad", Stats(1, 1, 1, 1, 1),
             Ability("Fury", Unlimited(), Fury(1, 2), id: "resolve"), Ability("Other", Unlimited(), Fury(2, 3), id: "resolve")));
         Assert.Throws<ArgumentException>(() => UnitType.Define("bad", "Bad", Stats(1, 1, 1, 1, 1),
@@ -174,9 +174,9 @@ public sealed class UnitAuthoringTests
             Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 3), id: "move-after-attack"),
             Ability("Undying", Unlimited(), Undying(), id: "undying"),
             Ability("Fury", Unlimited(), Fury(atkBonus: 3, adjacentEnemies: 4), id: "resolve"), Ability("Backstab", Unlimited(), Backstab(atkBonus: 2), id: "flank"),
-            Ability("Heal", Uses(7), Heal(amount: 3), id: "heal"),
+            Ability("Heal", Uses(7), AdjacentUnitHeal(RelationshipSelector.Friendlies, amount: 3), id: "heal"),
             Ability("Cleave", Uses(4), Cleave(triggerDamage: 5, damage: 2), id: "cleave"),
-            Ability("Holy Wave", Uses(6), HolyWave(), id: "holy-wave"), Ability("Fireball", Uses(8), Fireball(), id: "fireball"),
+            Ability("Holy Wave", Uses(6), new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying), id: "holy-wave"), Ability("Fireball", Uses(8), Fireball(), id: "fireball"),
             Ability("Ward", Unlimited(), AdjacentFriendliesDefenceBonus(2), id: "ward"));
         var restored = Restore(State(type));
         var configuration = restored.Types[0];
@@ -185,11 +185,11 @@ public sealed class UnitAuthoringTests
         Assert.NotNull(configuration.Mechanic<Undying>());
         Assert.Equal(new Fury { AtkBonus = 3, AdjacentEnemyThreshold = 4 }, configuration.Mechanic<Fury>());
         Assert.Equal(new Backstab { AtkBonus = 2 }, configuration.Mechanic<Backstab>());
-        Assert.Equal(new HealMechanic(3), configuration.Mechanic<HealMechanic>());
+        Assert.Equal(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3), configuration.Mechanic<AdjacentUnitHealMechanic>());
         Assert.Equal(new Cleave { TriggerDamage = 5, Damage = 2 }, configuration.Mechanic<Cleave>());
-        Assert.Equal(new HolyWaveMechanic(), configuration.Mechanic<HolyWaveMechanic>());
+        Assert.Equal(new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying), configuration.Mechanic<AdjacentUnitsPostureChangeMechanic>());
         Assert.Equal(new FireballMechanic(), configuration.Mechanic<FireballMechanic>());
-        Assert.Equal(new[] { new ModifierThisTurn(Stat.Def, 2) }, configuration.Mechanic<AdjacentModifiersMechanic>()!.Modifiers);
+        Assert.Equal(new[] { new ModifierThisTurn(Stat.Def, 2) }, configuration.Mechanic<AdjacentUnitsStatModifiersMechanic>()!.Modifiers);
         Assert.Equal(new AbilityUses(7, 7), restored.Units[0].Uses("heal", 7));
         Assert.Equal(new AbilityUses(4, 4), restored.Units[0].Uses("cleave", 4));
         Assert.Equal(new AbilityUses(6, 6), restored.Units[0].Uses("holy-wave", 6));

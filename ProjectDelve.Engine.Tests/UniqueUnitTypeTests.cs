@@ -120,7 +120,7 @@ public sealed class UniqueUnitTypeTests
     {
         var target = UnitRoster.ChiefMechanic();
         var summoner = UnitType.Define("summoner", "Summoner", Stats(1, 0, 0, 0, 1), CantAttack(),
-            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying), id: "call"));
+            Ability("Call", Unlimited(), AdjacentUnitSummon(target.Id, Posture.Lying), id: "call"));
         var state = Setup(summoner, "blue");
         state.Types.Add(target);
         state.Physical.Figures[0] = new("unit-0", new(2, 2));
@@ -129,7 +129,7 @@ public sealed class UniqueUnitTypeTests
         if (ready.NextInput?.Kind == DecisionKind.SelectUnit)
             ready = TestGame.Advance(ready.State, new Choice("unit-0"), new Random(), false);
         ready = TestGame.Advance(ready.State, new Choice("stay"), new Random(), false);
-        var summon = ready.NextInput!.Candidates.First(c => c.Action == UnitAction.SummonAdjacent);
+        var summon = ready.NextInput!.Candidates.First(c => c.Action == UnitAction.AdjacentUnitSummon);
         var result = TestGame.Advance(ready.State, new Choice(summon.Key), new Random(), false);
         Assert.Equal(2, result.State.Units.Count(u => u.TypeId == target.Id));
         Assert.Equal(new[] { "blue", "red" }, result.State.Units.Where(u => u.TypeId == target.Id).Select(u => u.SideId).Order());
@@ -140,18 +140,18 @@ public sealed class UniqueUnitTypeTests
     {
         var target = UnitType.Define("unique", "Unique", Stats(0, 0, 0, 0, 1), Unique());
         var summoner = UnitType.Define("summoner", "Summoner", Stats(1, 0, 0, 0, 1), CantAttack(), OpenDoor(),
-            Ability("Call", Unlimited(), SummonAdjacent(target.Id, Posture.Lying), id: "call"));
+            Ability("Call", Unlimited(), AdjacentUnitSummon(target.Id, Posture.Lying), id: "call"));
         var state = Setup(summoner, "blue");
         state.Types.Add(target);
         state.Physical.Figures[0] = new("unit-0", new(2, 2));
         state.Physical.Board.Edges.Add(new(new(2, 2), new(3, 2), EdgeKind.ClosedDoor));
         var ready = TestGame.StartRound(state, new Random(), false);
         ready = TestGame.Advance(ready.State, new Choice("stay"), new Random(), false);
-        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.SummonAdjacent);
+        Assert.Contains(ready.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitSummon);
         // A saved candidate cannot bypass legality if another Unit has since entered play.
         ready.State.PlaceUnit(target.Id, "existing", "blue", new(0, 0), Posture.Lying);
         Assert.DoesNotContain(GameEngine.GameplayCandidates(ready.State, ready.State.Units[0]),
-            c => c.Action == UnitAction.SummonAdjacent);
+            c => c.Action == UnitAction.AdjacentUnitSummon);
         Assert.Throws<ArgumentException>(() => TestGame.Advance(ready.State, new Choice("ability:call:1,1"), new Random(), false));
         ready.State.Units[1] = ready.State.Units[1] with { CurrentHp = 0 };
         ready.State.Physical.Figures.RemoveAll(f => f.Id == "existing");

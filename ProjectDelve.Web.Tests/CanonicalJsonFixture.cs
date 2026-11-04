@@ -17,7 +17,7 @@ internal sealed class CanonicalJsonFixture : IDisposable
         {
             Equipment = [new(EquipmentTypeId, "Test Canonical Bell")
             {
-                LocalAbilities = [new("encourage", "Encourage", AbilityTiming.Action, new StandAdjacentFriendlyMechanic()) { Usage = new(2) }]
+                LocalAbilities = [new("encourage", "Encourage", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright)) { Usage = new(2) }]
             }],
             LootCards = [new(LootCardId, "Test Canonical Gift") { EquipmentTypeId = EquipmentTypeId }]
         }

@@ -35,7 +35,7 @@ public sealed class HealTests
         Choose(TestGame.StartRound(scenario ?? Scenario(), new Dice(), false).State, "stay");
 
     private static bool OffersHeal(EngineResult result, string id = "friend") =>
-        result.NextInput!.Candidates.Any(c => c.Action == UnitAction.Heal && c.TargetId == id);
+        result.NextInput!.Candidates.Any(c => c.Action == UnitAction.AdjacentUnitHeal && c.TargetId == id);
 
     [Theory]
     [InlineData(1, 4, 3)]
@@ -45,14 +45,14 @@ public sealed class HealTests
         var scenario = Scenario(hp);
         var healer = new UnitType("unfamiliar-healer", 1, 0, 0, 0, 4, Actions: UnitAction.None)
         { Unique = true,
-            LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(3)) { Usage = new(2) },
+            LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3)) { Usage = new(2) },
                 new("open-door", "Open Door", AbilityTiming.FreeAction, new OpenDoor())]
         };
         scenario.Types[0] = healer;
         scenario.Units[0] = healer.CreateUnit("cleric", "blue");
         var action = Action(scenario);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(action.State))!;
-        Assert.Equal(healer.Ability<HealMechanic>(), restored.Types[0].Ability<HealMechanic>());
+        Assert.Equal(healer.Ability<AdjacentUnitHealMechanic>(), restored.Types[0].Ability<AdjacentUnitHealMechanic>());
         var entry = Assert.Single(restored.Types[0].CardEntries(), e => e.Id == "ability:heal");
         Assert.Equal("ability:heal", entry.Id);
         Assert.Equal("Heal an adjacent damaged friendly Unit for 3 HP.", entry.Description);
@@ -65,7 +65,7 @@ public sealed class HealTests
         Assert.Equal("Heal", TestGame.OperationEvents(result)[0].AbilityName);
         Assert.Equal(new AbilityUses(2, 1), result.State.Units[0].Uses("heal"));
         Assert.Equal(0, dice.Rolls);
-        Assert.Equal(3, TestGame.OperationSteps(result)[0].StateAfter.Types[0].Mechanic<HealMechanic>()!.Amount);
+        Assert.Equal(3, TestGame.OperationSteps(result)[0].StateAfter.Types[0].Mechanic<AdjacentUnitHealMechanic>()!.Amount);
         Assert.Equal(hp, action.State.Units[1].CurrentHp);
     }
 
@@ -73,18 +73,18 @@ public sealed class HealTests
     public void ContentAndBareUnitsInitializeTwoUsesAndSerialize()
     {
         var type = UnitType.Cleric();
-        var heal = Assert.Single(AbilityQueries.NativeAbilities(type, "c"), g => g.Definition.Mechanic is HealMechanic).Definition;
-        Assert.Equal(new HealMechanic(2), heal.Mechanic);
+        var heal = Assert.Single(AbilityQueries.NativeAbilities(type, "c"), g => g.Definition.Mechanic is AdjacentUnitHealMechanic).Definition;
+        Assert.Equal(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2), heal.Mechanic);
         Assert.Equal(2, heal.Usage.MaxUses);
-        Assert.Equal(heal, type.Ability<HealMechanic>());
+        Assert.Equal(heal, type.Ability<AdjacentUnitHealMechanic>());
         Assert.Equal(new AbilityUses(2, 2), type.CreateUnit("c", "blue").Uses("heal"));
-        Assert.Null(UnitType.Grunt().Ability<HealMechanic>());
+        Assert.Null(UnitType.Grunt().Ability<AdjacentUnitHealMechanic>());
         var scenario = Scenario();
         scenario.Units[0] = new("cleric", type.Id, "blue", 4);
         var started = TestGame.StartRound(scenario, new Dice(), false);
         var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(started.State))!;
         Assert.Equal(new AbilityUses(2, 2), restored.Units[0].Uses("heal"));
-        Assert.Equal(heal, Assert.Single(restored.AbilitiesOf("cleric"), g => g.Definition.Mechanic is HealMechanic).Definition);
+        Assert.Equal(heal, Assert.Single(restored.AbilitiesOf("cleric"), g => g.Definition.Mechanic is AdjacentUnitHealMechanic).Definition);
         Assert.Empty(scenario.Units[0].AbilityUseCounts);
     }
 
@@ -99,7 +99,7 @@ public sealed class HealTests
         scenario.Units.RemoveAll(u => u.Id == "enemy");
         scenario.Physical.Figures[1] = new("friend", new(x, y));
         var action = Action(scenario);
-        var candidate = Assert.Single(action.NextInput!.Candidates, c => c.Action == UnitAction.Heal);
+        var candidate = Assert.Single(action.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitHeal);
         Assert.Equal("friend", candidate.TargetId);
         Assert.Equal(ActivationChoiceKind.Action, candidate.Kind);
     }

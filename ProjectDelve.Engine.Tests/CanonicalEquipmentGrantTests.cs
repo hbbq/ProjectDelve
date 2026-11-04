@@ -42,13 +42,13 @@ public sealed class CanonicalEquipmentGrantTests
         var ability = Assert.Single(equipment.LocalAbilities);
         Assert.Equal("stand-up", ability.Key);
         Assert.Equal(AbilityTiming.Action, ability.Timing); Assert.Null(ability.Usage.MaxUses);
-        Assert.IsType<StandAdjacentFriendlyMechanic>(ability.Mechanic);
+        Assert.IsType<AdjacentUnitPostureChangeMechanic>(ability.Mechanic);
         var grant = Assert.Single(state.AbilitiesOf("actor"));
         Assert.Equal("equipment:bell-physical:stand-up", grant.CandidatePrefix); Assert.Equal("equipment:goat-bell:stand-up", grant.ActionId);
         Assert.Equal("equipment:goat-bell:stand-up", grant.EntryId);
         Assert.Equal("equipment:bell-physical:stand-up", grant.AccountingId);
         Assert.Equal("bell-physical", grant.SourceInstanceId);
-        Assert.Equal("Action: Stand up one adjacent friendly Lying Unit.", state.ObjectContent(state.Units[0].Inventory[0]).Text);
+        Assert.Equal("Action: Stand up one adjacent friendly Unit.", state.ObjectContent(state.Units[0].Inventory[0]).Text);
     }
 
     [Fact]

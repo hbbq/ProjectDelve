@@ -1,4 +1,4 @@
-﻿using Xunit;
+using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
 
@@ -38,11 +38,11 @@ public sealed class DiamondKartTests
         Assert.Equal((5, 0, 0, 3, 4), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.True(type.Unique);
         Assert.Equal(UnitAction.None, type.Actions);
-        Assert.True(type.HasAction(UnitAction.ShootShell));
-        Assert.Equal(1, type.Mechanic<PlaceBananaPeel>()!.BananaCost);
+        Assert.True(type.HasAction(UnitAction.TargetUnitAttack));
+        Assert.Equal(new SpendResource(ResourceTypeIds.Banana, 1), Assert.Single(type.Ability<PlaceBananaPeel>()!.Costs));
         Assert.Equal(TerrainCategories.RacingGround, Assert.Single(type.TerrainRestriction!.Categories));
         Assert.Null(type.Mechanic<Undying>());
-        Assert.Contains(type.CardEntries(), e => e.Id == "ability:place-banana-peel" && e.Description.Contains("1 Banana"));
+        Assert.Contains(type.CardEntries(), e => e.Id == "ability:place-banana-peel" && e.Description.Contains(CostCatalog.Describe(new SpendResource(ResourceTypeIds.Banana, 1))));
         var result = Start(Fixture());
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind == ActivationChoiceKind.Move && c.Destination == new Cell(2, 1));
         Assert.Contains(result.NextInput.Candidates, c => c.Destination == new Cell(3, 2));
@@ -78,7 +78,9 @@ public sealed class DiamondKartTests
         Assert.Equal(0, human.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, ResourceTypes.Banana.Id));
         Assert.Contains(human.State.CellMarkers, m => m.Position == new Cell(2, 1));
         Assert.Contains(human.Events, e => e.Kind == "ResourceSpent" && e.ActionId == "ability:place-banana-peel");
-        foreach (var step in human.ResolutionSteps.SkipWhile(s => human.Events[s.EventIndex].Kind == "ActionUsed"))
+        var paid = Assert.Single(human.ResolutionSteps, s => human.Events[s.EventIndex].Kind == "ResourceSpent");
+        Assert.DoesNotContain(paid.StateAfter.CellMarkers, m => m.Position == new Cell(2, 1));
+        foreach (var step in human.ResolutionSteps.SkipWhile(s => human.Events[s.EventIndex].Kind != "CellMarkerPlaced"))
         {
             Assert.Equal(0, step.StateAfter.StoredQuantity("blue", UnitTypeIds.DiamondKart, ResourceTypes.Banana.Id));
             Assert.Contains(step.StateAfter.CellMarkers, m => m.Position == new Cell(2, 1));

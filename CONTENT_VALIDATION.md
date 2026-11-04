@@ -13,19 +13,19 @@ composition. `CostCatalog.Validate` accepts an optional explicit
 `availableResourceIds` set to validate reference existence; omitting that set
 checks reference shape only. Generated descriptions prepend the ordered cost
 requirements to the existing mechanic description, including overrides. This
-does not remove payments still embedded in existing mechanics.
+covers all extracted invocation payments; Machine recipe exchanges remain Machine-owned.
 
 Engine exposes definition inspection without creating a scenario, board, Unit or
 GameState. Milestone 2 adds [explicit composition and captured runtime catalogs](CONTENT_COMPOSITION.md)
-using these shared checks. [Content Library](CONTENT_LIBRARY.md) persistence also
-uses these APIs. [Pinned scenario references](SCENARIO_CONTENT_REFERENCES.md) validate
-their embedded closure and integrity without accessing Library storage.
+using these shared checks. [Content Workspace](CONTENT_LIBRARY.md) persistence also
+uses these APIs. [Scenario exports](SCENARIO_CONTENT_REFERENCES.md) embed
+the effective dependency closure without revision pins.
 JSON provider validation and export use these APIs too; see [CONTENT_PACKAGES.md](CONTENT_PACKAGES.md).
 
 ```csharp
 var equipment = new EquipmentDefinition("bell", "Bell") {
     LocalAbilities = [new("summon", "Summon", AbilityTiming.Action,
-        new SummonAdjacent("my-unit", Posture.Lying))]
+        new AdjacentUnitSummonMechanic("my-unit", Posture.Lying))]
 };
 var authored = new ContentDefinition(equipment,
     new ContentSource("equipment.json", "my-package", "equipmentTypes[0]"));
@@ -55,7 +55,7 @@ existing WorldCardQuantity rows; it does not add a runtime deck format.
 `Dependencies` reads concrete typed fields, including local Ability payloads,
 Loot rewards, preset quantities, World quantities, Terrain constituents,
 production, Resource Storage and Machine operations. Explicit references,
-implicit mechanic requirements and embedded owned payloads have distinct kinds.
+explicit mechanic and Cost requirements and embedded owned payloads have distinct kinds.
 Embedded edges retain the actual payload, including same-ID Resource variants.
 Legacy enum Loot quantities use the existing typed compatibility adapter.
 The dynamic All Loot preset discovers cards from the supplied graph definitions;
@@ -82,7 +82,7 @@ Conflict diagnostics also carry the other declaration's source in RelatedSource.
 Resources and Machines remain inline owned definitions. Validate them and inspect
 their dependencies directly; do not put them into the reusable graph index.
 The optional `availableResources` graph argument supplies supported Resource IDs
-for explicit production and implicit mechanic requirements. It accepts repeated
+for explicit production and explicit mechanic and Cost requirements. It accepts repeated
 IDs and does not assert that payloads with the same ID are interchangeable.
 Embedded Resource payloads require no external resolution. Independent library
 Resources/Machines still need an approved reusable-reference and variant identity

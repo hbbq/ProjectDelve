@@ -10,13 +10,13 @@ public sealed class SharedMechanicContractTests
 {
     private static (AbilityMechanic Payload, AbilityTiming[] Timings)[] Supported() =>
     [
-        (new HolyWaveMechanic(), [AbilityTiming.Action]),
-        (new HealMechanic(2), [AbilityTiming.Action]),
+        (new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying), [AbilityTiming.Action]),
+        (new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2), [AbilityTiming.Action]),
         (new FireballMechanic(), [AbilityTiming.Action, AbilityTiming.BonusAction, AbilityTiming.FreeAction]),
         (new SelfModifiersMechanic([new(Stat.Atk, 1)]), [AbilityTiming.BonusAction, AbilityTiming.Passive]),
-        (new AdjacentModifiersMechanic([new(Stat.Def, 1)]), [AbilityTiming.Passive]),
+        (new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)]), [AbilityTiming.Passive]),
         (new ExtraActionsMechanic(1), [AbilityTiming.BonusAction]),
-        (new StandAdjacentFriendlyMechanic(), [AbilityTiming.Action])
+        (new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright), [AbilityTiming.Action])
     ];
 
     [Fact]
@@ -86,15 +86,15 @@ public sealed class SharedMechanicContractTests
     [InlineData(int.MaxValue)]
     public void PositiveAbilityAmountsRetainTheirUnboundedUpperDomain(int amount)
     {
-        foreach (var mechanic in new AbilityMechanic[] { new HealMechanic(amount), new ExtraActionsMechanic(amount) })
+        foreach (var mechanic in new AbilityMechanic[] { new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, amount), new ExtraActionsMechanic(amount) })
         {
-            var parameter = Assert.Single(MechanicCatalog.FindByPayload(mechanic)!.Parameters);
+            var parameter = Assert.Single(MechanicCatalog.FindByPayload(mechanic)!.Parameters, p => p.Name == "amount");
             Assert.Equal(1, parameter.Minimum);
             Assert.Null(parameter.Maximum);
             Assert.Null(parameter.DefaultValue);
             Assert.Empty(MechanicCatalog.Validate(mechanic));
         }
-        Assert.Equal("ability.mechanic.amount", Assert.Single(MechanicCatalog.Validate(new HealMechanic(0), path: "ability.mechanic")).Path);
+        Assert.Equal("ability.mechanic.amount", Assert.Single(MechanicCatalog.Validate(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0), path: "ability.mechanic")).Path);
         Assert.Equal("minimum", Assert.Single(MechanicCatalog.Validate(new ExtraActionsMechanic(0))).Code);
     }
 
@@ -103,10 +103,10 @@ public sealed class SharedMechanicContractTests
     {
         var values = ImmutableArray.Create(new ModifierThisTurn(Stat.Atk, 0), new(Stat.Atk, -100), new(Stat.Atk, 100));
         Assert.Empty(MechanicCatalog.Validate(new SelfModifiersMechanic(values)));
-        Assert.Empty(MechanicCatalog.Validate(new AdjacentModifiersMechanic(values)));
+        Assert.Empty(MechanicCatalog.Validate(new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, values)));
         Assert.NotEmpty(MechanicCatalog.Validate(new SelfModifiersMechanic([])));
         Assert.NotEmpty(MechanicCatalog.Validate(new SelfModifiersMechanic(default)));
-        Assert.NotEmpty(MechanicCatalog.Validate(new AdjacentModifiersMechanic([null!])));
+        Assert.NotEmpty(MechanicCatalog.Validate(new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [null!])));
         var invalid = MechanicCatalog.Validate(new SelfModifiersMechanic([new((Stat)99, 101)]), path: "ability.mechanic");
         Assert.Contains(invalid, e => e.Path == "ability.mechanic.modifiers[0].stat" && e.Code == "enum");
         Assert.Contains(invalid, e => e.Path == "ability.mechanic.modifiers[0].amount" && e.Code == "maximum");
@@ -115,30 +115,30 @@ public sealed class SharedMechanicContractTests
     [Fact]
     public void DescriptionContractsPreserveBothRenderingAndTheExistingOverrideAcceptance()
     {
-        var heal = new LocalAbilityDefinition("heal-example", "Restoration", AbilityTiming.Action, new HealMechanic(7));
+        var heal = new LocalAbilityDefinition("heal-example", "Restoration", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 7));
         Assert.Equal("Heal an adjacent damaged friendly Unit for 7 HP.", heal.CardEntry().Description);
         var modifiers = new LocalAbilityDefinition("modifiers", "Unchanged", AbilityTiming.Passive,
             new SelfModifiersMechanic([new(Stat.Atk, 2)]));
         Assert.Equal("ATK +2.", modifiers.CardEntry().Description);
         Assert.Equal("ATK +2 this activation.", (modifiers with { Timing = AbilityTiming.BonusAction }).CardEntry().Description);
-        AbilityContent.Validate([heal with { DescriptionOverride = "Restore {amount} HP; {unrecognized} remains accepted." }], AbilitySourceKind.Unit);
-        AbilityContent.Validate([new("wave", "Quiet", AbilityTiming.Action, new HolyWaveMechanic()) { DescriptionOverride = "" }], AbilitySourceKind.Unit);
+        AbilityContent.Validate([heal with { DescriptionOverride = "Restore {amount} HP to an adjacent {selector} Unit; {unrecognized} remains accepted." }], AbilitySourceKind.Unit);
+        AbilityContent.Validate([new("wave", "Quiet", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], DescriptionOverride = "{newPosture} adjacent {selector} Units." }], AbilitySourceKind.Unit);
         Assert.Throws<ArgumentException>(() => AbilityContent.Validate([heal with { DescriptionOverride = "Restore 7 HP." }], AbilitySourceKind.Unit));
         Assert.Throws<ArgumentException>(() => AbilityContent.Validate([heal with { DescriptionOverride = "Restore HP." }], AbilitySourceKind.Unit));
-        var policy = MechanicCatalog.Find("heal")!.Description;
+        var policy = MechanicCatalog.Find("adjacentUnitHeal")!.Description;
         Assert.True(policy.AllowsOverride);
         Assert.True(policy.RejectsNumericOverrideLiterals);
         Assert.False(policy.RejectsUnknownOverridePlaceholders);
-        Assert.Equal(new[] { "amount" }, policy.RequiredOverridePlaceholders.ToArray());
+        Assert.Equal(new[] { "selector", "amount" }, policy.RequiredOverridePlaceholders.ToArray());
     }
 
     [Fact]
     public void StructuralValidationReportsMissingExecutionContextWithoutCheckingBoardLegality()
     {
-        Assert.Empty(MechanicCatalog.Validate(new HealMechanic(2), new(MechanicSource.Unit, MechanicTiming.Action)));
-        Assert.Contains(MechanicCatalog.Validate(new HealMechanic(2),
+        Assert.Empty(MechanicCatalog.Validate(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2), new(MechanicSource.Unit, MechanicTiming.Action)));
+        Assert.Contains(MechanicCatalog.Validate(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2),
             new(MechanicSource.Unit, MechanicTiming.Action, HasUnitContext: false)), d => d.Code == "unitContextRequired");
         Assert.Equal("unknownMechanic", Assert.Single(MechanicCatalog.Validate(new object())).Code);
-        Assert.Throws<ArgumentException>(() => MechanicCatalog.ThrowIfInvalid(new HealMechanic(0)));
+        Assert.Throws<ArgumentException>(() => MechanicCatalog.ThrowIfInvalid(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0)));
     }
 }

@@ -174,18 +174,18 @@ public sealed class AbilityPaymentTests
     [InlineData("banana", AbilitySourceKind.Unit)]
     [InlineData("shell", AbilitySourceKind.Unit)]
     [InlineData("shell", AbilitySourceKind.Item)]
-    public void FinalUseCompletesAfterPostureAndCombinedEmbeddedResourcePayment(string kind, AbilitySourceKind source)
+    public void FinalUseCompletesAfterPostureAndLastDeclaredResourcePayment(string kind, AbilitySourceKind source)
     {
         AbilityMechanic mechanic = kind switch
         {
-            "summon" => new SummonAdjacent("spawn", Posture.Lying),
-            "troll" => new SummonTroll(1), "banana" => new PlaceBananaPeel(1),
-            _ => new ShootShell(1, 4, 3)
+            "summon" => new AdjacentUnitSummonMechanic("spawn", Posture.Lying),
+            "troll" => new AdjacentUnitSummonMechanic(UnitTypeIds.Troll, Posture.Upright), "banana" => new PlaceBananaPeel(),
+            _ => new TargetUnitAttackMechanic(4, 3)
         };
         var resourceId = kind switch { "banana" => "banana", "shell" => "shell", _ => "diamond" };
         var timing = kind == "banana" ? AbilityTiming.BonusAction : AbilityTiming.Action;
         var state = Ready(mechanic, [new SpendResource(resourceId, 1), new LayDownSelf()], source, timing,
-            diamond: kind == "summon" ? 1 : 2, shell: 2, banana: 2);
+            diamond: 1, shell: 1, banana: 1);
         var candidate = Paid(state);
         var started = Use(state, candidate.Key);
         var result = kind == "shell" ? Use(Restore(started.State), "roll-dice") : started;
@@ -202,9 +202,9 @@ public sealed class AbilityPaymentTests
         else Assert.Contains(result.State.Units, u => u.SideId == "blue" && u.Id != "actor");
         if (kind != "summon")
         {
-            var insufficient = Ready(mechanic, [new SpendResource(resourceId, 1)], timing: timing, diamond: 1, shell: 1, banana: 1);
+            var insufficient = Ready(mechanic, [new SpendResource(resourceId, 1)], timing: timing, diamond: 0, shell: 0, banana: 0);
             Assert.DoesNotContain(insufficient.Pending!.Candidates, c => c.Ability?.Key == "paid");
-            Assert.Equal(1, insufficient.StoredQuantity("blue", "payer", resourceId));
+            Assert.Equal(0, insufficient.StoredQuantity("blue", "payer", resourceId));
         }
     }
 
@@ -285,16 +285,18 @@ public sealed class AbilityPaymentTests
     }
 
     [Fact]
-    public void PaidBoostReservesBothMushroomCostsAndAppliesMoveBeforeActivationCompletes()
+    public void PaidExtraMovesPaysBothDeclaredMushroomCostsBeforeApplyingMove()
     {
-        var state = Ready(new Boost(1), [new SpendResource("mushroom", 1), new LayDownSelf()],
+        var state = Ready(new SelfExtraMovesMechanic(1), [new SpendResource("mushroom", 1), new SpendResource("mushroom", 1), new LayDownSelf()],
             AbilitySourceKind.Item, AbilityTiming.BonusAction);
         var result = Use(state, Paid(state).Key);
         Assert.Equal(0, result.State.StoredQuantity("blue", "payer", "mushroom"));
         Assert.Equal("physical-source", Assert.Single(result.State.LootDeck!.DiscardPile).Id);
         var payments = result.Events.Where(e => e.Kind == "ResourceSpent").ToArray();
         Assert.Equal(new int?[] { 1, 0 }, payments.Select(e => e.StoredQuantity));
-        var applied = result.ResolutionSteps.Single(s => s.EventIndex == result.Events.IndexOf(payments[1])).StateAfter;
+        var paid = result.ResolutionSteps.Single(s => s.EventIndex == result.Events.IndexOf(payments[1])).StateAfter;
+        Assert.Equal(0, paid.MoveOpportunityModifierThisActivation);
+        var applied = result.ResolutionSteps.Single(s => result.Events[s.EventIndex] is { Kind: "ActionUsed", Category: ActivationChoiceKind.BonusAction }).StateAfter;
         Assert.Equal(1, applied.MoveOpportunityModifierThisActivation);
         Assert.False(applied.IsUpright("actor"));
         var index = state.StoredResources.FindIndex(r => r.Type.Id == "mushroom");

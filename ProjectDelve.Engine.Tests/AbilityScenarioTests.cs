@@ -25,12 +25,12 @@ public sealed class AbilityScenarioTests
       "unitTypes": [{ "id": "local-bearer", "displayName": "Local Bearer", "mov": 3, "rng": 1, "atk": 1, "def": 0, "hp": 1,
         "canHaveEquipment": true, "canHaveItems": true,
         "localAbilities": [
-          { "key": "first-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": {"maxUses": 2}, "mechanic": {"kind": "holyWave"} },
-          { "key": "second-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": {"maxUses": 2}, "mechanic": {"kind": "holyWave"} }] }],
+          { "key": "first-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": {"maxUses": 2}, "costs": [{"kind":"layDownSelf"}], "mechanic": {"kind": "adjacentUnitsPostureChange", "selector":"Enemies", "newPosture":"Lying"} },
+          { "key": "second-wave", "name": "Handwritten Prayer", "timing": "Action", "usage": {"maxUses": 2}, "costs": [{"kind":"layDownSelf"}], "mechanic": {"kind": "adjacentUnitsPostureChange", "selector":"Enemies", "newPosture":"Lying"} }] }],
       "equipmentTypes": [{ "id": "local-reliquary", "name": "Local Reliquary", "localAbilities": [
-        { "key": "chant", "name": "Unexpected Silence", "timing": "Action", "mechanic": {"kind": "holyWave"} }] }],
+        { "key": "chant", "name": "Unexpected Silence", "timing": "Action", "costs": [{"kind":"layDownSelf"}], "mechanic": {"kind": "adjacentUnitsPostureChange", "selector":"Enemies", "newPosture":"Lying"} }] }],
       "itemTypes": [{ "id": "local-scroll", "name": "Local Scroll", "localAbilities": [
-        { "key": "read", "name": "Unexpected Silence", "timing": "Action", "mechanic": {"kind": "holyWave"} }] }],
+        { "key": "read", "name": "Unexpected Silence", "timing": "Action", "costs": [{"kind":"layDownSelf"}], "mechanic": {"kind": "adjacentUnitsPostureChange", "selector":"Enemies", "newPosture":"Lying"} }] }],
       "lootCardDefinitions": [{ "id": "local-scroll-card", "name": "Sealed Scroll", "itemTypeId": "local-scroll" }],
       "units": [{ "unitTypeId": "local-bearer", "sideId": "blue", "anchor": { "x": 0, "y": 0 }, "unitId": "bearer",
         "inventory": [{ "id": "reliquary-1", "equipmentTypeId": "local-reliquary" }, { "id": "scroll-1", "itemTypeId": "local-scroll" }, { "id": "scroll-2", "itemTypeId": "local-scroll" }] }],
@@ -51,7 +51,7 @@ public sealed class AbilityScenarioTests
         Assert.Equal(json, ScenarioDefinitionJson.ToJson(restored));
         var native = Assert.Single(restored.UnitTypes!).LocalAbilities;
         Assert.Equal(2, native.Length);
-        Assert.IsType<HolyWaveMechanic>(native[0].Mechanic);
+        Assert.IsType<AdjacentUnitsPostureChangeMechanic>(native[0].Mechanic);
         Assert.Equal(2, native[0].Usage.MaxUses);
         var itemAbility = Assert.Single(Assert.Single(restored.ItemTypes!).LocalAbilities);
         Assert.Equal("read", itemAbility.Key);
@@ -176,6 +176,6 @@ public sealed class AbilityScenarioTests
     [Fact]
     public void UnknownMechanicDiscriminatorIsRejectedAsData()
     {
-        Assert.Throws<JsonException>(() => ScenarioDefinitionJson.FromJson(LocalContent.Replace("holyWave", "executeScript")));
+        Assert.Throws<JsonException>(() => ScenarioDefinitionJson.FromJson(LocalContent.Replace("adjacentUnitsPostureChange", "executeScript")));
     }
 }

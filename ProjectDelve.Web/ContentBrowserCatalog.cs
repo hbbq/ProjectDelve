@@ -357,8 +357,8 @@ public static class ContentBrowserCatalog
     }
 
     private static JsonElement Element<T>(T value) => JsonSerializer.SerializeToElement(value, Json);
-    private static IEnumerable<SummonAdjacent> Summons(IEnumerable<LocalAbilityDefinition> abilities) =>
-        abilities.Select(ability => SummoningRules.Placement(ability.Mechanic)).OfType<SummonAdjacent>();
+    private static IEnumerable<AdjacentUnitSummonMechanic> Summons(IEnumerable<LocalAbilityDefinition> abilities) =>
+        abilities.Select(ability => SummoningRules.Placement(ability.Mechanic)).OfType<AdjacentUnitSummonMechanic>();
     private static ContentBrowserSection[] UnitSections(UnitType type) =>
     [
         new("Stats", Fields(Element(new { type.Mov, type.Rng, type.Atk, type.Def, type.Hp }))),

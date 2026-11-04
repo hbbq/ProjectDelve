@@ -211,7 +211,7 @@ public sealed class BrowserProjectionTests
         var summoner = UnitType.Define("caller", "Caller", UnitAuthoring.Stats(2, 0, 0, 3, 1),
             UnitAuthoring.CantAttack(),
             UnitAuthoring.Ability("Call Sage", UnitAuthoring.Unlimited(),
-                UnitAuthoring.SummonAdjacent(UnitTypeIds.Wizard, Posture.Upright), id: "call-sage"));
+                UnitAuthoring.AdjacentUnitSummon(UnitTypeIds.Wizard, Posture.Upright), id: "call-sage"));
         var sage = UnitType.Wizard() with { DisplayName = "Sage" };
         var state = new GameState
         {
@@ -223,11 +223,11 @@ public sealed class BrowserProjectionTests
         var entry = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries);
         Assert.Equal("Call Sage", entry.Content.Name);
         Assert.Equal("Action", entry.Content.Category);
-        Assert.Equal("Place one Upright Sage in an adjacent empty Cell.", entry.Content.Description);
+        Assert.Equal("Place one Upright Sage in an adjacent empty Cell on this Unit's Side.", entry.Content.Description);
         Assert.Null(entry.Content.MaxUses);
         Assert.Null(entry.Uses);
         var request = new DecisionRequest(DecisionKind.Activation, summoner.Id, "actor",
-            [new("opaque-summon-choice", Destination: new(0, 0), Action: UnitAction.SummonAdjacent)
+            [new("opaque-summon-choice", Destination: new(0, 0), Action: UnitAction.AdjacentUnitSummon)
             { Ability = WebAbilityTestQueries.Ability(state, "actor", "call-sage") }], false);
         var choice = Assert.Single(BrowserProjection.Decision(request, state)!.Candidates);
         Assert.Equal("ability:call-sage", choice.EntryId);
@@ -242,7 +242,7 @@ public sealed class BrowserProjectionTests
         var type = UnitType.Define("unfamiliar", "Unfamiliar", UnitAuthoring.Stats(1, 1, 3, 2, 4),
             UnitAuthoring.Unique(),
             UnitAuthoring.CantAttack(),
-            UnitAuthoring.Ability("Heal", UnitAuthoring.Uses(2), UnitAuthoring.Heal(amount: 3), id: "heal"),
+            UnitAuthoring.Ability("Heal", UnitAuthoring.Uses(2), UnitAuthoring.AdjacentUnitHeal(RelationshipSelector.Friendlies, amount: 3), id: "heal"),
             UnitAuthoring.Ability("Fury", UnitAuthoring.Unlimited(), UnitAuthoring.Fury(atkBonus: 2, adjacentEnemies: 3), id: "fury"),
             UnitAuthoring.Ability("Backstab", UnitAuthoring.Unlimited(), UnitAuthoring.Backstab(atkBonus: 4), id: "backstab"),
             UnitAuthoring.Ability("Cleave", UnitAuthoring.Uses(2), UnitAuthoring.Cleave(triggerDamage: 4, damage: 2), id: "cleave"));
@@ -477,7 +477,7 @@ public sealed class BrowserProjectionTests
             {
                 AbilityUseCounts = native.Where(ability => ability.Definition.Usage.MaxUses.HasValue)
                     .ToImmutableDictionary(ability => ability.AccountingId,
-                        ability => ability.Definition.Usage.MaxUses!.Value - (ability.Definition.Mechanic is HolyWaveMechanic or SelfModifiersMechanic ? 1 : 0))
+                        ability => ability.Definition.Usage.MaxUses!.Value - (ability.Definition.Mechanic is AdjacentUnitsPostureChangeMechanic or SelfModifiersMechanic ? 1 : 0))
             };
             var before = JsonSerializer.Serialize(state);
             var card = BrowserProjection.Cards(state)["actor"];
@@ -486,8 +486,8 @@ public sealed class BrowserProjectionTests
             foreach (var entry in card.Entries)
                 Assert.Equal(native.SingleOrDefault(g => g.EntryId == entry.Content.Id) is { } grant
                     ? state.AbilityUsesOf("actor", grant) : null, entry.Uses);
-            if (type.Mechanic<HolyWaveMechanic>() is not null) Assert.Equal(new AbilityUses(2, 1), card.Entries.Single(e => e.Content.Id == "ability:holy-wave").Uses);
-            if (type.Mechanic<HealMechanic>() is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "ability:heal").Uses);
+            if (type.Mechanic<AdjacentUnitsPostureChangeMechanic>() is not null) Assert.Equal(new AbilityUses(2, 1), card.Entries.Single(e => e.Content.Id == "ability:holy-wave").Uses);
+            if (type.Mechanic<AdjacentUnitHealMechanic>() is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "ability:heal").Uses);
             if (type.Mechanic<Cleave>() is not null) Assert.Equal(new AbilityUses(2, 0), card.Entries.Single(e => e.Content.Id == "ability:cleave").Uses);
             Assert.Null(card.Entries.Single(e => e.Content.Id == "attack").Uses);
             Assert.Equal(before, JsonSerializer.Serialize(state));
@@ -503,8 +503,8 @@ public sealed class BrowserProjectionTests
         var door = new Edge(new(0, 0), new(1, 0), EdgeKind.ClosedDoor);
         var targets = new[] { "target", "not-on-board" }.Take(targetCount).ToImmutableArray();
         var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "actor", [
-            new("opaque direct", Action: UnitAction.HolyWave) { TargetIds = targets, Ability = WebAbilityTestQueries.Ability(state, "actor", "holy-wave") },
-            new("opaque unit", Action: UnitAction.Heal, TargetId: "target") { Ability = WebAbilityTestQueries.Ability(state, "actor", "heal") },
+            new("opaque direct", Action: UnitAction.AdjacentUnitsPostureChange) { TargetIds = targets, Ability = WebAbilityTestQueries.Ability(state, "actor", "holy-wave") },
+            new("opaque unit", Action: UnitAction.AdjacentUnitHeal, TargetId: "target") { Ability = WebAbilityTestQueries.Ability(state, "actor", "heal") },
             new("opaque position", Destination: new(3, 0), Kind: ActivationChoiceKind.Move),
             new("opaque door", Door: door, Kind: ActivationChoiceKind.FreeAction, FreeAction: UnitFreeAction.OpenDoor)
         ], false);

@@ -125,7 +125,7 @@ public sealed class LootProjectionTests
                 new("wind", "Tailwind", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, 3)])),
                 new("phase", "Phase", AbilityTiming.Passive, new Phase()),
                 new("door", "Moonlit Entrance", AbilityTiming.FreeAction, new OpenDoor()),
-                new("wake", "Morning Chorus", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())]
+                new("wake", "Morning Chorus", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))]
         };
         state.EquipmentTypes.Add(equipment);
         state.Units[0] = state.Units[0] with { Inventory = [new("unique-physical-object", equipment.Id)] };
@@ -166,8 +166,8 @@ public sealed class LootProjectionTests
         var equipment = new EquipmentDefinition("summon-charm", "Summon Charm")
         { LocalAbilities =
         [
-            new("paper", "Fold", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying)),
-            new("sage", "Read", AbilityTiming.Action, new SummonAdjacent(replacement.Id, Posture.Upright))
+            new("paper", "Fold", AbilityTiming.Action, new AdjacentUnitSummonMechanic(local.Id, Posture.Lying)),
+            new("sage", "Read", AbilityTiming.Action, new AdjacentUnitSummonMechanic(replacement.Id, Posture.Upright))
         ] };
         var item = new ItemDefinition("summon-note", "Summon Note") { LocalAbilities = equipment.LocalAbilities };
         state.Types[0] = state.Types[0] with { LocalAbilities = equipment.LocalAbilities };
@@ -194,7 +194,7 @@ public sealed class LootProjectionTests
         foreach (var source in new[] { AbilitySourceKind.Equipment, AbilitySourceKind.Item })
         {
             var ability = state.AbilitiesOf("a").Single(ability => ability.SourceKind == source && ability.Key == "paper");
-            var candidate = new Candidate(ability.CandidatePrefix + ":1,1", Destination: new(1, 1), Action: UnitAction.SummonAdjacent)
+            var candidate = new Candidate(ability.CandidatePrefix + ":1,1", Destination: new(1, 1), Action: UnitAction.AdjacentUnitSummon)
             { Ability = ability, ObjectId = ability.SourceInstanceId, EquipmentTypeId = source == AbilitySourceKind.Equipment ? equipment.Id : null,
                 ItemTypeId = source == AbilitySourceKind.Item ? item.Id : null };
             var request = new DecisionRequest(DecisionKind.Activation, state.Types[0].Id, "a", [candidate], false);
@@ -208,7 +208,7 @@ public sealed class LootProjectionTests
     {
         var state = State(true);
         var equipment = new EquipmentDefinition("charged-bell", "Charged Bell")
-        { LocalAbilities = [new("ring", "Ring", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(3) }] };
+        { LocalAbilities = [new("ring", "Ring", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(3) }] };
         state.EquipmentTypes.Add(equipment);
         var spent = new OwnedObject("visible-bell", equipment.Id)
         { AbilityUseCounts = System.Collections.Immutable.ImmutableDictionary<string, int>.Empty.Add("ring", 2) };

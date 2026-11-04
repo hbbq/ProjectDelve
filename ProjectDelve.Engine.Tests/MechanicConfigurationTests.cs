@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -11,8 +11,8 @@ public sealed class MechanicConfigurationTests
         Assert.Equal(new Fury(), JsonSerializer.Deserialize<Fury>("{}"));
         Assert.Equal(new Backstab(), JsonSerializer.Deserialize<Backstab>("{}"));
         Assert.Equal(new Cleave(), JsonSerializer.Deserialize<Cleave>("{}"));
-        var heal = UnitType.Cleric().Ability<HealMechanic>()!;
-        Assert.Equal(new HealMechanic(2), heal.Mechanic);
+        var heal = UnitType.Cleric().Ability<AdjacentUnitHealMechanic>()!;
+        Assert.Equal(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2), heal.Mechanic);
         Assert.Equal(2, heal.Usage.MaxUses);
         Assert.Equal(new Fury(), UnitType.Barbarian().Mechanic<Fury>());
         Assert.Equal(new Cleave(), UnitType.Barbarian().Mechanic<Cleave>());
@@ -35,7 +35,7 @@ public sealed class MechanicConfigurationTests
     {
         AbilityMechanic mechanic = parameter switch
         {
-            "heal" => new HealMechanic(value),
+            "heal" => new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, value),
             "cleave-trigger" => new Cleave { TriggerDamage = value },
             "cleave-damage" => new Cleave { Damage = value },
             "fury-threshold" => new Fury { AdjacentEnemyThreshold = value },

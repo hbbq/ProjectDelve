@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -67,7 +67,7 @@ public sealed class DisplacerDemonTests
             Assert.Single(type.CardEntries(), e => e.Id == "ability:swap"));
         Assert.Equal(new CardEntryDescription("ability:displace", "Displace", "Bonus Action", "Move an adjacent enemy Unit up to 1 Cell."),
             Assert.Single(type.CardEntries(), e => e.Id == "ability:displace"));
-        Assert.Equal(new ModifierThisTurn(Stat.Def, 1), Assert.Single(Assert.IsType<AdjacentModifiersMechanic>(
+        Assert.Equal(new ModifierThisTurn(Stat.Def, 1), Assert.Single(Assert.IsType<AdjacentUnitsStatModifiersMechanic>(
             Assert.Single(AbilityQueries.NativeAbilities(type, "demon"), g => g.Key == "aura").Definition.Mechanic).Modifiers));
         var start = Start();
         Assert.Empty(start.State.Units[0].AbilityUseCounts);

@@ -20,7 +20,7 @@ public sealed class ContentLibraryApiTests : IDisposable
     private static ContentPackage Package(string name = "Independent bell") => new()
     {
         Id = "api-example", Title = "API example", Definitions = new()
-        { Equipment = [new("api-bell", name) { LocalAbilities = [new("stand", "Stand", AbilityTiming.Action, new StandAdjacentFriendlyMechanic())] }] }
+        { Equipment = [new("api-bell", name) { LocalAbilities = [new("stand", "Stand", AbilityTiming.Action, new AdjacentUnitPostureChangeMechanic(RelationshipSelector.Friendlies, Posture.Upright))] }] }
     };
     private sealed class Host(WebApplication app, HttpClient client) : IAsyncDisposable
     {
@@ -165,7 +165,7 @@ public sealed class ContentLibraryApiTests : IDisposable
         using var fixture = new CanonicalJsonFixture();
         await using var host = await Start(canonicalDirectory: fixture.DirectoryPath);
         ContentPackage Summon(string id, string other) => new() { Id = id, Dependencies = [other], Definitions = new()
-            { Units = [new(id + "-unit", 1, 0, 0, 0, 1) { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(other + "-unit", Posture.Lying))] }] } };
+            { Units = [new(id + "-unit", 1, 0, 0, 0, 1) { LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(other + "-unit", Posture.Lying))] }] } };
         SaveContentLibraryPackage[] transaction = [new(Summon("one", "two"), 0, [new("two", 1)]), new(Summon("two", "one"), 0, [new("one", 1)])];
         using var response = await host.Client.PostAsJsonAsync("/api/content-library/transactions", transaction, Json);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());

@@ -255,7 +255,7 @@ internal sealed class GameplayQueries : IGameplayQueries
         if (!Knows(unitId, targetId) || world.Units.SingleOrDefault(u => u.Id == targetId) is not { CurrentHp: > 0 } target ||
             !world.AreHostile(attacker.SideId, target.SideId) || !world.Physical.Figures.Any(f => f.Id == targetId)) return false;
         if (AttackRules.EvaluateApproachFrom(world, unitId, position, targetId) == UnitTargetEvaluation.Possible ||
-            world.AbilitiesOf(unitId).Where(ability => ability.Definition.Mechanic is ClawAttack or FireBreath or ShootShell)
+            world.AbilitiesOf(unitId).Where(ability => ability.Definition.Mechanic is ClawAttack or FireBreath or TargetUnitAttackMechanic)
                 .Any(ability => AttackRules.EvaluateAbilityFrom(world, unitId, position, targetId, ability)
                     == UnitTargetEvaluation.Possible)) return true;
 
@@ -321,7 +321,7 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     public int EffectiveAttackDice(string unitId, Candidate candidate)
     {
-        if (candidate.Ability?.Definition.Mechanic is ShootShell shell) return shell.Atk;
+        if (candidate.Ability?.Definition.Mechanic is TargetUnitAttackMechanic shell) return shell.Atk;
         if (candidate.Action is not (UnitAction.NormalAttack or UnitAction.ClawAttack or
             UnitAction.FireBreath or UnitAction.Fireball)) return -1;
         var targets = CandidateTargets(candidate).Where(id => IsHostileTo(unitId, id)).ToList();

@@ -15,7 +15,7 @@ there is no separate editor gameplay model.
 `LocalAbilityDefinition.Costs` is an ordered typed collection, separate from its
 mechanic. `LayDownSelf` and `SpendResource(resourceTypeId, amount)` describe
 payments for an accepted attempt. Empty Costs are omitted from JSON to preserve
-existing definitions and digest-protected revisions. Authored nonempty arrays
+compact definitions. Authored nonempty arrays
 retain their order, including repeated Resource payments.
 
 Active Abilities execute Costs through shared authoritative commitment. Eligibility
@@ -39,23 +39,11 @@ contains no copied Ability definition and is scoped to the resolving operation.
 
 Resource payment uses only the bearer's Side + Unit Type shared store and retains
 its actual Resource payload in events. Repeated Resource costs are cumulative.
-Existing embedded mechanic payments also reserve their required Resources during
-preflight, so a declared cost cannot spend Resources needed by the unchanged
-mechanic. Costs do not grant storage, borrow from Machines or other groups, or
-replace Machine recipe inputs. Post-payment effective stats apply when constructing
-an Attack; its selected targets remain bound. Existing mechanics retain embedded
-payments unchanged, and empty Costs retain existing gameplay behavior.
+Costs do not grant storage, borrow from Machines or other groups, or replace Machine recipe inputs. Post-payment effective stats apply when constructing an Attack; its selected targets remain bound.
 
-The upcoming migration will extract Holy Wave's source posture change and the
-Resource payments from Summon Troll (Diamond), Place Banana Peel (Banana), Boost
-(Mushroom) and Shoot Shell (Shell). It must preserve owner-local keys, timing,
-usage, physical sources and intended effects. Shared commitment now pays costs
-before resolving the mechanic without rechecking initial invocation eligibility.
-No declarations are migrated here, including Holy Wave
-examples on Equipment and Items in the authored scenario library. Library
-revisions and pins remain immutable: migration creates new revisions and pins
-change only through explicit updates. No canonical packages or scenarios are
-rewritten by this preparation.
+Holy Wave declares `LayDownSelf` before `adjacentUnitsPostureChange(Enemies, Lying)`. The source lies down before recipients resolve; the committed operation still completes and empty recipient sets remain legal. Summon Troll, Place Banana Peel, Boost and Shoot Shell declare Diamond, Banana, Mushroom and Shell Costs respectively. Their mechanics contain no implicit payments. The same operation may be authored without a Cost or with another supported Cost.
+
+All active declarations use the current typed mechanics, including scenario-owned Equipment and Items. The application-local Workspace remains mutable, with **Scenario > Workspace > Canonical** resolution. Replaced mechanic discriminators are unsupported; this migration does not add historical Library revisions, pins or save adapters.
 
 Canonical content lives in [UnitRoster.cs](ProjectDelve.Engine/UnitRoster.cs), [EquipmentRoster.cs](ProjectDelve.Engine/EquipmentRoster.cs) and [ItemRoster.cs](ProjectDelve.Engine/ItemRoster.cs). A declaration in any of these owners produces the same typed data as scenario-local JSON. Small C# helpers may construct or copy declarations, but no second definition is registered or consulted at runtime.
 
@@ -64,10 +52,10 @@ var medic = new UnitType("field-medic", 3, 1, 1, 1, 1)
 {
     LocalAbilities =
     [
-        new("mend", "Heal", AbilityTiming.Action, new HealMechanic(Amount: 2))
+        new("mend", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, Amount: 2))
             { Usage = new(MaxUses: 2) },
         new("ward", "Aura", AbilityTiming.Passive,
-            new AdjacentModifiersMechanic([new(Stat.Def, 1)]))
+            new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 1)]))
     ]
 };
 ```
@@ -75,8 +63,10 @@ var medic = new UnitType("field-medic", 3, 1, 1, 1, 1)
 The equivalent concise roster entries are:
 
 ```csharp
-Ability("Heal", Uses(2), Heal(amount: 2), id: "heal"),
-Ability("Holy Wave", Uses(2), HolyWave(), id: "holy-wave"),
+Ability("Heal", Uses(2), AdjacentUnitHeal(RelationshipSelector.Friendlies, amount: 2), id: "heal"),
+LocalAbility(new("holy-wave", "Holy Wave", AbilityTiming.Action,
+    new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying))
+    { Usage = new(2), Costs = [new LayDownSelf()] }),
 Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(amount: +1), id: "aura")
 ```
 
@@ -90,20 +80,22 @@ Equivalent scenario JSON:
     "id": "field-medic", "mov": 3, "rng": 1, "atk": 1, "def": 1, "hp": 1,
     "localAbilities": [
       { "key": "mend", "name": "Heal", "timing": "Action",
-        "usage": { "maxUses": 2 }, "mechanic": { "kind": "heal", "amount": 2 } },
+        "usage": { "maxUses": 2 }, "mechanic": { "kind": "adjacentUnitHeal", "selector": "Friendlies", "amount": 2 } },
       { "key": "ward", "name": "Aura", "timing": "Passive",
-        "mechanic": { "kind": "adjacentModifiers", "modifiers": [{ "stat": "Def", "amount": 1 }] } }
+        "mechanic": { "kind": "adjacentUnitsStatModifiers", "selector": "Friendlies", "modifiers": [{ "stat": "Def", "amount": 1 }] } }
     ]
   }],
   "equipmentTypes": [{
     "id": "quiet-lantern", "name": "Quiet Lantern",
     "localAbilities": [{ "key": "use", "name": "Curtain Call", "timing": "Action",
-      "mechanic": { "kind": "holyWave" } }]
+      "costs": [{ "kind": "layDownSelf" }],
+      "mechanic": { "kind": "adjacentUnitsPostureChange", "selector": "Enemies", "newPosture": "Lying" } }]
   }],
   "itemTypes": [{
     "id": "paper-lantern", "name": "Paper Lantern",
     "localAbilities": [{ "key": "use", "name": "Quiet Please", "timing": "Action",
-      "mechanic": { "kind": "holyWave" } }]
+      "costs": [{ "kind": "layDownSelf" }],
+      "mechanic": { "kind": "adjacentUnitsPostureChange", "selector": "Enemies", "newPosture": "Lying" } }]
   }]
 }
 ```
@@ -135,10 +127,10 @@ Use `MechanicCatalog.All` for authoritative discovery; the following is an overv
 
 | Mechanic | Established contexts |
 | --- | --- |
-| Heal, Holy Wave, Stand Adjacent Friendly | Unit, Equipment or Item Action |
+| Adjacent Unit Heal, Adjacent Units Posture Change, Adjacent Unit Posture Change | Unit, Equipment or Item Action |
 | Fireball | Unit, Equipment or Item Action, Bonus Action or Free Action |
-| Self Modifiers | Unit, Equipment or Item Bonus Action; Unit or Equipment Passive |
-| Adjacent Modifiers | Unit or Equipment Passive |
+| Self Stat Modifiers | Unit, Equipment or Item Bonus Action; Unit or Equipment Passive |
+| Adjacent Units Stat Modifiers | Unit or Equipment Passive |
 | Extra Actions | Unit, Equipment or Item Bonus Action |
 | Phase | Unit or Equipment Passive |
 | Open Door | Unit, Equipment or Item Action or Free Action |
@@ -147,15 +139,15 @@ Use `MechanicCatalog.All` for authoritative discovery; the following is an overv
 | Fury, Backstab, Transport Resource | Unit or Equipment Passive |
 | Telekinesis, Try Open Door | Unit, Equipment or Item Action |
 | Swap, Displace, Reshape Room | Unit, Equipment or Item Bonus Action |
-| Fire Breath, Claw Attack, Summoning, Resource Actions, Shoot Shell | Unit, Equipment or Item Action |
-| Place Banana Peel, Boost | Unit, Equipment or Item Bonus Action |
+| In-Range Enemy Units Attack, Claw Attack, Adjacent Unit Summon, Resource Actions, Target Unit Attack | Unit, Equipment or Item Action |
+| Adjacent Banana Peel Placement, Self Extra Moves | Unit, Equipment or Item Bonus Action |
 | Run Rails, Waypoint Slot Machine | Instead of Activation / End Activation respectively |
 
 The catalog exposes allowed usage and per-source multiplicity too. Active mechanics accept independent local declarations and source counters. Fury and Backstab bonuses add when each declaration's conditions hold; Transport Resource is an idempotent capability and retains its one-Cell, own-Move restrictions. Specialized mechanics remain single instances per owner where existing execution depends on one concrete follow-up, capability or ordering. Item Passives, finite-use Passives and freely interchangeable trigger timings remain unsupported. Specialized handlers remain concrete Engine code, using typed local payloads. Waypoint Slot Machine's six-face Resource output table is authored in its payload.
 
-Summon Adjacent uses the selected declaration's Unit Type and initial Posture across all three sources. References resolve through the effective scenario Unit catalog, including scoped canonical overrides, rather than a content name or the bearer's native summon. Resource operations likewise use the selected declaration while retaining the bearer's shared Side + Unit Type storage and ordinary Machine ownership/capacity rules. Source reuse grants neither storage nor additional activation opportunities.
+Adjacent Unit Summon uses the selected declaration's Unit Type and initial Posture across all three sources. References resolve through the effective scenario Unit catalog, including scoped canonical overrides, rather than a content name or the bearer's native summon. Resource operations likewise use the selected declaration while retaining the bearer's shared Side + Unit Type storage and ordinary Machine ownership/capacity rules. Source reuse grants neither storage nor additional activation opportunities.
 
-Passive modifiers retain ordinary posture and adjacency semantics. Holy Wave remains legal without an Upright hostile recipient and still lays down the acting Unit. Fireball planning reads available sources and actual usage restrictions; exhausting one source does not exhaust another. Mechanic validation is structural; dynamic legality still uses authoritative state, physical geometry, budgets, posture, targets and Fog of War.
+Passive modifiers retain ordinary posture and adjacency semantics. Holy Wave remains legal without an Upright hostile recipient and pays its source posture Cost first. Fireball planning reads available sources and actual usage restrictions; exhausting one source does not exhaust another. Mechanic validation is structural; dynamic legality still uses authoritative state, physical geometry, budgets, posture, targets and Fog of War.
 
 ## Validation, presentation and persistence
 

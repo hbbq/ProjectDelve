@@ -19,18 +19,29 @@ public sealed class SpecializedSourceExecutionTests
 
     private static AbilityMechanic Mechanic(string kind) => kind switch
     {
-        "breath" => new FireBreath(), "claw" => new ClawAttack(3), "shell" => new ShootShell(2, 4, 4),
+        "breath" => new FireBreath(), "claw" => new ClawAttack(3), "shell" => new TargetUnitAttackMechanic(4, 4),
         "pickup" => new PickupResource(), "give-unit" or "give-machine" => new GiveResource(), "operate" => new Operate(),
-        "banana" => new PlaceBananaPeel(2), "boost" => new Boost(2),
-        "worker" => new SummonWorker(2), "troll" => new SummonTroll(2),
+        "banana" => new PlaceBananaPeel(), "boost" => new SelfExtraMovesMechanic(1),
+        "worker" => new AdjacentUnitSummonMechanic(UnitTypeIds.Worker, Posture.Upright, 2), "troll" => new AdjacentUnitSummonMechanic(UnitTypeIds.Troll, Posture.Upright),
         _ => throw new InvalidOperationException()
     };
 
     private static GameState Ready(AbilitySourceKind source, string kind, params LocalAbilityDefinition[] additionalNative)
     {
         var mechanic = Mechanic(kind);
-        var ability = new LocalAbilityDefinition("use", "Authored Effect", mechanic is Boost or PlaceBananaPeel
-            ? AbilityTiming.BonusAction : AbilityTiming.Action, mechanic) { Usage = new(source == AbilitySourceKind.Item ? null : 1) };
+        var ability = new LocalAbilityDefinition("use", "Authored Effect", mechanic is SelfExtraMovesMechanic or PlaceBananaPeel
+            ? AbilityTiming.BonusAction : AbilityTiming.Action, mechanic)
+        {
+            Usage = new(source == AbilitySourceKind.Item ? null : 1),
+            Costs = kind switch
+            {
+                "shell" => [new SpendResource(ResourceTypeIds.Shell, 2)],
+                "banana" => [new SpendResource(ResourceTypeIds.Banana, 2)],
+                "boost" => [new SpendResource(ResourceTypeIds.Mushroom, 2)],
+                "troll" => [new SpendResource(ResourceTypeIds.Diamond, 2)],
+                _ => []
+            }
+        };
         var reserve = new LocalAbilityDefinition("reserve", "Reserve Guard", AbilityTiming.BonusAction,
             new SelfModifiersMechanic([new(Stat.Def, 1)]));
         var storage = new ResourceStorage([new(ResourceTypes.Coal, 9), new(ResourceTypes.Diamond, 9),
@@ -159,7 +170,7 @@ public sealed class SpecializedSourceExecutionTests
         Assert.Equal(5, Use(claw, clawCandidate.Key).State.AttackInProgress!.AttackDice);
 
         var shell = Ready(source, "shell",
-            new LocalAbilityDefinition("native-shell", "Unrelated Shell", AbilityTiming.Action, new ShootShell(3, 1, 1)));
+            new LocalAbilityDefinition("native-shell", "Unrelated Shell", AbilityTiming.Action, new TargetUnitAttackMechanic(1, 1)) { Costs = [new SpendResource(ResourceTypeIds.Shell, 3)] });
         Assert.DoesNotContain(shell.Pending!.Candidates, c => c.Ability?.Key == "native-shell" && c.TargetId == "far");
         var shellCandidate = shell.Pending!.Candidates.Single(c => c.Ability?.Key == "use" && c.TargetId == "far");
         Assert.Equal(4, new GameplayQueries(shell).EffectiveAttackDice("actor", shellCandidate));
@@ -175,7 +186,7 @@ public sealed class SpecializedSourceExecutionTests
     public void MultipleBananaDeclarationsUseSelectedCostsAndIndependentAllowances()
     {
         var state = Ready(AbilitySourceKind.Unit, "banana",
-            new LocalAbilityDefinition("cheap", "Cheap Banana", AbilityTiming.BonusAction, new PlaceBananaPeel(1)) { Usage = new(1) });
+            new LocalAbilityDefinition("cheap", "Cheap Banana", AbilityTiming.BonusAction, new PlaceBananaPeel()) { Usage = new(1), Costs = [new SpendResource(ResourceTypeIds.Banana, 1)] });
         var expensive = state.Pending!.Candidates.First(c => c.Ability?.Key == "use");
         state = Use(state, expensive.Key).State;
         Assert.Equal(1, state.StoredQuantity("blue", "actor", ResourceTypes.Banana.Id));

@@ -14,7 +14,7 @@ public sealed class ItemContentAuthoringTests : IDisposable
     private static ItemDefinition Fireball() => new("last-resort-fireball", "Last Resort Fireball")
         { LocalAbilities = [new("use", "Fireball", AbilityTiming.Action, new FireballMechanic())] };
     private static ItemDefinition Bottle(string target = UnitTypeIds.Goblin) => new("goblin-in-a-bottle", "Goblin in a Bottle")
-        { LocalAbilities = [new("release", "Release Goblin", AbilityTiming.Action, new SummonAdjacent(target, Posture.Lying))] };
+        { LocalAbilities = [new("release", "Release Goblin", AbilityTiming.Action, new AdjacentUnitSummonMechanic(target, Posture.Lying))] };
     private static LootCardDefinition Loot(ItemDefinition item) => new(item.Id + "-gift", item.Name + " Gift") { ItemTypeId = item.Id };
     private static ContentEditorRequest Edit(ItemDefinition item, string? existing = null, ContentEditorContext? context = null) =>
         new("items", JsonSerializer.SerializeToElement(item, Json), existing, context);
@@ -53,7 +53,7 @@ public sealed class ItemContentAuthoringTests : IDisposable
         Invalid(item with { LocalAbilities = [item.LocalAbilities[0], item.LocalAbilities[0]] }, "definition.localAbilities[1].key");
         Invalid(item with { LocalAbilities = [item.LocalAbilities[0] with { Timing = AbilityTiming.Passive }] }, "definition.localAbilities[0].timing");
         Invalid(item with { LocalAbilities = [item.LocalAbilities[0] with { Usage = new(1) }] }, "definition.localAbilities[0].usage");
-        Invalid(item with { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(0))] }, "definition.localAbilities[0].mechanic.amount");
+        Invalid(item with { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 0))] }, "definition.localAbilities[0].mechanic.amount");
         Invalid(Bottle("missing-unit"), "definition.localAbilities[0].mechanic.unitTypeId");
         Invalid(item, "definition.id", new() { ItemTypes = [item] });
         var local = new UnitType("local-goblin", 1, 1, 1, 1, 1) { DisplayName = "Local Goblin" };

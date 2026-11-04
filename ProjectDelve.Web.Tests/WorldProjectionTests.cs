@@ -83,7 +83,7 @@ public sealed class WorldProjectionTests
     {
         var type = new UnitType("weather-watcher", 3, 1, 1, 0, 6)
         { Unique = true, Actions = UnitAction.None,
-            LocalAbilities = [new("mend", "Heal", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(3) }] };
+            LocalAbilities = [new("mend", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(3) }] };
         var state = new GameState
         {
             ResourceDefinitions = [.. ResourceTypes.All],

@@ -22,7 +22,7 @@ public sealed class UnitContentAuthoringTests : IDisposable
         MovementPattern = MovementPattern.StraightOrthogonal, TerrainRestriction = new(["racing-ground"]),
         ResourceStorage = new([new(new("scout-fuel", "Scout Fuel"), 2)]),
         LocalAbilities = [new("door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()),
-            new("mend", "Field Medicine", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(2) }],
+            new("mend", "Field Medicine", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(2) }],
         AttackDefinitionOrder = [UnitAction.NormalAttack]
     };
     private static ContentEditorRequest Edit(UnitType type, string? existing = null, ContentEditorContext? context = null) =>
@@ -100,9 +100,9 @@ public sealed class UnitContentAuthoringTests : IDisposable
         Assert.DoesNotContain(CanonicalUnitTypes.All, t => t.Id == restored.Id);
         var invalid = Unit() with { LocalAbilities = [Unit().LocalAbilities[0], Unit().LocalAbilities[0]] };
         Assert.Contains(ContentEditorApi.Validate(Edit(invalid)).Diagnostics, d => d.Path == "definition.localAbilities[1].key");
-        invalid = Unit() with { LocalAbilities = [new("heal", "Heal", AbilityTiming.Passive, new HealMechanic(2))] };
+        invalid = Unit() with { LocalAbilities = [new("heal", "Heal", AbilityTiming.Passive, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2))] };
         Assert.Contains(ContentEditorApi.Validate(Edit(invalid)).Diagnostics, d => d.Path == "definition.localAbilities[0].timing");
-        invalid = Unit() with { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(0) }] };
+        invalid = Unit() with { LocalAbilities = [new("heal", "Heal", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(0) }] };
         Assert.False(ContentEditorApi.Validate(Edit(invalid)).Valid);
     }
 
@@ -110,7 +110,7 @@ public sealed class UnitContentAuthoringTests : IDisposable
     public void SelfMutualSummonsAndExistingScenarioOverridesUseEffectiveDefinitions()
     {
         UnitType Summon(string id, string target) => new(id, 1, 1, 1, 1, 1)
-            { DisplayName = id, LocalAbilities = [new("call", "Call", AbilityTiming.Action, new SummonAdjacent(target, Posture.Lying))] };
+            { DisplayName = id, LocalAbilities = [new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(target, Posture.Lying))] };
         Assert.True(ContentEditorApi.Validate(Edit(Summon("self", "self"))).Valid);
         var a = Summon("a", "b"); var b = Summon("b", "a");
         Assert.True(ContentEditorApi.Validate(Edit(a, context: new() { UnitTypes = [b] })).Valid);
@@ -211,7 +211,7 @@ public sealed class UnitContentAuthoringTests : IDisposable
     public async Task AuthoredCustomSummonsReachPlaytestAndReplayWhileHiddenTypesStayOutOfObservations()
     {
         var caller = new UnitType("authored-caller", 2, 1, 1, 1, 1) { DisplayName = "Caller",
-            LocalAbilities = [new("call", "Call Scout", AbilityTiming.Action, new SummonAdjacent("authored-child", Posture.Lying)) { Usage = new(2) }] };
+            LocalAbilities = [new("call", "Call Scout", AbilityTiming.Action, new AdjacentUnitSummonMechanic("authored-child", Posture.Lying)) { Usage = new(2) }] };
         var child = new UnitType("authored-child", 1, 1, 1, 1, 1) { DisplayName = "Child" };
         var context = new ContentEditorContext { UnitTypes = [child] };
         Assert.True(ContentEditorApi.Validate(Edit(caller, context: context)).Valid);

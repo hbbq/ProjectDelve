@@ -130,7 +130,9 @@ public sealed class ResourceProjectionTests
         var snapshot = projected.ResolutionSteps.Single(s => summoned.Events[s.EventIndex].Kind == "ResourceSpent");
         Assert.Equal(0, snapshot.Cards["geo"].ResourceStorage.Single().Quantity);
         var createdId = Assert.Single(summoned.Events, e => e.Kind == "UnitCreated").UnitId!;
-        Assert.Contains(createdId, snapshot.Cards.Keys);
+        Assert.DoesNotContain(createdId, snapshot.Cards.Keys);
+        var creation = projected.ResolutionSteps.Single(s => summoned.Events[s.EventIndex].Kind == "UnitCreated");
+        Assert.Contains(createdId, creation.Cards.Keys);
         Assert.Contains(projected.Events, e => e.Text.Contains("spent Diamond"));
     }
 

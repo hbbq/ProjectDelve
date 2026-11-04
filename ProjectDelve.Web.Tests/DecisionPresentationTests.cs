@@ -33,7 +33,7 @@ public sealed class DecisionPresentationTests
     {
         var state = State();
         var equipment = new EquipmentDefinition("fixture-lantern", "Lantern")
-        { LocalAbilities = [new("bonus", "Shared Name", AbilityTiming.BonusAction, new HealMechanic(1))] };
+        { LocalAbilities = [new("bonus", "Shared Name", AbilityTiming.BonusAction, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1))] };
         state.EquipmentTypes.Add(equipment);
         state.Units[0] = state.Units[0] with { Inventory = [new("lantern-copy", equipment.Id)] };
         var abilities = state.AbilitiesOf("actor").ToArray();
@@ -134,8 +134,8 @@ public sealed class DecisionPresentationTests
         var type = new UnitType("fixture", 1, 1, 1, 1, 3)
         {
             LocalAbilities = [
-                new("bonus", "Shared Name", AbilityTiming.BonusAction, new HealMechanic(1)),
-                new("limited", "Limited Remedy", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(MaxUses: 2) },
+                new("bonus", "Shared Name", AbilityTiming.BonusAction, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1)),
+                new("limited", "Limited Remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(MaxUses: 2) },
                 new("passive", "Steady", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Def, 1)]))]
         };
         return new GameState

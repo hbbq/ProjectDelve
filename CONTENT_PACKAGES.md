@@ -23,7 +23,7 @@ snapshot, never package files.
         "name": "Encourage",
         "timing": "Action",
         "usage": { "maxUses": 2 },
-        "mechanic": { "kind": "standAdjacentFriendly" }
+        "mechanic": { "kind": "adjacentUnitPostureChange", "selector": "Friendlies", "newPosture": "Upright" }
       }]
     }],
     "lootCardDefinitions": [{
@@ -107,7 +107,7 @@ Designer, scenario import, Playtest and new-game creation. Editable drafts retai
 references; game creation captures definitions and dynamic deck composition.
 
 `json-provider-example.json` adds clearly labelled JSON Example Encouragement
-Bell Equipment and its Loot Card. It uses the existing Stand Adjacent Friendly
+Bell Equipment and its Loot Card. It uses the existing Adjacent Unit Posture Change
 mechanic and physical two-use counter without C# roster changes. Browser and
 Designer show both as canonical. Fixed Loot presets and generator selection
 pools remain unchanged; dynamic `All` includes the card. Direct Engine callers

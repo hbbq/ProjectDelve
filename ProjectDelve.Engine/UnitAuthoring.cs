@@ -46,13 +46,13 @@ public static class UnitAuthoring
     // mechanic with several supported timings, author a LocalAbility directly.
     private static AbilityTiming TimingFor(AbilityMechanic mechanic) => mechanic switch
     {
-        ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentModifiersMechanic => AbilityTiming.Passive,
+        ProjectDelve.Engine.Fury or ProjectDelve.Engine.Backstab or ProjectDelve.Engine.Phase or ProjectDelve.Engine.TransportResource or AdjacentUnitsStatModifiersMechanic => AbilityTiming.Passive,
         ProjectDelve.Engine.Cleave or ProjectDelve.Engine.MoveAfterAttack or ProjectDelve.Engine.AdvanceOnKill => AbilityTiming.AfterAttack,
         ProjectDelve.Engine.Explosion => AbilityTiming.WhenDefeated,
         ProjectDelve.Engine.Undying => AbilityTiming.InsteadOfDefeat,
         ProjectDelve.Engine.RunRails => AbilityTiming.InsteadOfActivation,
         ProjectDelve.Engine.WaypointSlotMachine => AbilityTiming.EndActivation,
-        ProjectDelve.Engine.ReshapeRoom or ProjectDelve.Engine.Swap or ProjectDelve.Engine.Displace or ProjectDelve.Engine.PlaceBananaPeel or ProjectDelve.Engine.Boost or SelfModifiersMechanic => AbilityTiming.BonusAction,
+        ProjectDelve.Engine.ReshapeRoom or ProjectDelve.Engine.Swap or ProjectDelve.Engine.Displace or ProjectDelve.Engine.PlaceBananaPeel or SelfExtraMovesMechanic or SelfModifiersMechanic => AbilityTiming.BonusAction,
         ProjectDelve.Engine.OpenDoor => AbilityTiming.FreeAction,
         _ => AbilityTiming.Action
     };
@@ -66,11 +66,15 @@ public static class UnitAuthoring
     public static Entry PickupResource() => Ability("Pickup Resource", Unlimited(), new PickupResource(), "pickup-resource");
     public static Entry Operate() => Ability("Operate", Unlimited(), new Operate(), "operate");
     public static Entry GiveResource() => Ability("Give Resource", Unlimited(), new GiveResource(), "give-resource");
-    public static Entry SummonWorker(int sideLimit) => Ability("Summon Worker", Unlimited(), new SummonWorker(sideLimit), "summon-worker");
-    public static Entry SummonTroll(int diamondCost) => Ability("Summon Troll", Unlimited(), new SummonTroll(diamondCost), "summon-troll");
-    public static Entry PlaceBananaPeel(int bananaCost) => Ability("Place Banana Peel", Unlimited(), new PlaceBananaPeel(bananaCost), "place-banana-peel");
-    public static Entry Boost(int mushroomCost) => Ability("Boost", Unlimited(), new Boost(mushroomCost), "boost");
-    public static Entry ShootShell(int shellCost, int rng, int atk) => Ability("Shoot Shell", Unlimited(), new ShootShell(shellCost, rng, atk), "shoot-shell");
+    public static Entry SummonWorker(int sideLimit) => Ability("Summon Worker", Unlimited(), new AdjacentUnitSummonMechanic(UnitTypeIds.Worker, Posture.Upright, sideLimit), "summon-worker");
+    public static Entry SummonTroll(int diamondCost) => LocalAbility(new("summon-troll", "Summon Troll", AbilityTiming.Action,
+        new AdjacentUnitSummonMechanic(UnitTypeIds.Troll, Posture.Upright)) { Costs = [new SpendResource(ResourceTypeIds.Diamond, diamondCost)] });
+    public static Entry PlaceBananaPeel(int bananaCost) => LocalAbility(new("place-banana-peel", "Place Banana Peel", AbilityTiming.BonusAction,
+        new PlaceBananaPeel()) { Costs = [new SpendResource(ResourceTypeIds.Banana, bananaCost)] });
+    public static Entry Boost(int mushroomCost) => LocalAbility(new("boost", "Boost", AbilityTiming.BonusAction,
+        new SelfExtraMovesMechanic(1)) { Costs = [new SpendResource(ResourceTypeIds.Mushroom, mushroomCost)] });
+    public static Entry ShootShell(int shellCost, int rng, int atk) => LocalAbility(new("shoot-shell", "Shoot Shell", AbilityTiming.Action,
+        new TargetUnitAttackMechanic(rng, atk)) { Costs = [new SpendResource(ResourceTypeIds.Shell, shellCost)] });
     public static Entry WaypointSlotMachine() => Ability("Waypoint Slot Machine", Unlimited(), new WaypointSlotMachine(RacingSlotTable.Table), "waypoint-slot-machine");
     public static Entry RunRails(int steps) => Ability($"Run Rails ({steps})", Unlimited(), new RunRails(steps), "run-rails");
     public static Entry AdvanceOnKill() => Ability("Advance On Kill", Unlimited(), new AdvanceOnKill(), "advance-on-kill");
@@ -93,20 +97,19 @@ public static class UnitAuthoring
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
     public static Explosion Explosion(int damage) => new() { Damage = damage };
-    public static SummonAdjacent SummonAdjacent(string unitTypeId, Posture initialPosture) => new(unitTypeId, initialPosture);
+    public static AdjacentUnitSummonMechanic AdjacentUnitSummon(string unitTypeId, Posture initialPosture, int? sameTypeSideLimit = null) => new(unitTypeId, initialPosture, sameTypeSideLimit);
     public static Telekinesis Telekinesis() => new();
     public static ReshapeRoom ReshapeRoom() => new();
     public static Swap Swap() => new();
     public static Displace Displace(int maxMove) => new(maxMove);
     public static Fury Fury(int atkBonus, int adjacentEnemies) => new() { AtkBonus = atkBonus, AdjacentEnemyThreshold = adjacentEnemies };
     public static Backstab Backstab(int atkBonus) => new() { AtkBonus = atkBonus };
-    public static HealMechanic Heal(int amount) => new(amount);
+    public static AdjacentUnitHealMechanic AdjacentUnitHeal(RelationshipSelector selector, int amount) => new(selector, amount);
     public static Cleave Cleave(int triggerDamage, int damage) => new() { TriggerDamage = triggerDamage, Damage = damage };
-    public static HolyWaveMechanic HolyWave() => new();
     public static FireballMechanic Fireball() => new();
     public static FireBreath FireBreath() => new();
     public static ClawAttack ClawAttack(int atkBonus = 1) => new(atkBonus);
-    public static AdjacentModifiersMechanic AdjacentFriendliesDefenceBonus(int amount) => new([new(Stat.Def, amount)]);
+    public static AdjacentUnitsStatModifiersMechanic AdjacentFriendliesDefenceBonus(int amount) => new(RelationshipSelector.Friendlies, [new(Stat.Def, amount)]);
 
     internal static UnitType Define(string id, string name, BaseStats stats, Entry[] entries)
     {
@@ -123,7 +126,7 @@ public static class UnitAuthoring
             .Concat(type.LocalAbilities.Select(a => a.Mechanic switch
             {
                 FireballMechanic => UnitAction.Fireball, ProjectDelve.Engine.FireBreath => UnitAction.FireBreath,
-                ProjectDelve.Engine.ClawAttack => UnitAction.ClawAttack, ProjectDelve.Engine.ShootShell => UnitAction.ShootShell,
+                ProjectDelve.Engine.ClawAttack => UnitAction.ClawAttack, TargetUnitAttackMechanic => UnitAction.TargetUnitAttack,
                 _ => UnitAction.None
             }).Where(a => a != UnitAction.None)).ToImmutableArray();
         return type with { AttackDefinitionOrder = attacks.Length > 1 ? attacks : [] };

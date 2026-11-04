@@ -122,6 +122,75 @@ public sealed class ContentWorkspaceTests : IDisposable
         Assert.DoesNotContain(canonical.Bundle.Equipment, e => e.Id == Bell.TypeId);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConsolidatedMechanicsExecuteFromScopedCatalogAndSurviveCanonicalReplacement(bool scenarioOverride)
+    {
+        var canonical = Canonical(); var workspace = Workspace(canonical);
+        var worker = UnitRoster.Worker() with { Mov = 7 };
+        var cleric = UnitRoster.Cleric() with { ResourceStorage = new([new(ResourceTypes.Diamond, 1)]) };
+        var healing = cleric.LocalAbilities.Single(a => a.Key == "heal");
+        cleric = cleric with { LocalAbilities = cleric.LocalAbilities.Replace(healing,
+            healing with { Mechanic = new AdjacentUnitHealMechanic(RelationshipSelector.All, 3) }) };
+        var wand = new EquipmentDefinition("test-workspace-wand", "Test Workspace Wand")
+        {
+            LocalAbilities = [new("call", "Call Worker", AbilityTiming.Action,
+                new AdjacentUnitSummonMechanic(worker.Id, Posture.Upright, 3))
+                { Usage = new(2), Costs = [new SpendResource(ResourceTypeIds.Diamond, 1), new LayDownSelf()] }]
+        };
+        var saved = workspace.Save(new()
+        {
+            Units = [cleric, worker], Equipment = [wand, new("keep-workspace", "Keep Workspace")]
+        }, workspace.Snapshot().Token);
+        var reloaded = Workspace(canonical);
+        Assert.Equal(saved.Token, reloaded.Snapshot().Token);
+        var definition = new ScenarioDefinition
+        {
+            Board = new() { Width = 4, Height = 4 }, UnitTypeIds = [cleric.Id],
+            UnitTypes = scenarioOverride ? [worker with { Mov = 9 }] : [],
+            Units = [new(cleric.Id, "blue", new(1, 1), UnitId: "actor")
+                { Inventory = [new("wand-instance", wand.Id)] }],
+            Agency = [new(cleric.Id, "blue", ControllerKind.Human)],
+            StoredResources = [new("blue", cleric.Id, ResourceTypes.Diamond, 1)],
+            Objectives = [new("blue", ScenarioObjective.NoObjective)], Loot = LootSettings.Empty
+        };
+        var state = GameEngine.CreateGame(definition, reloaded.Resolve().Definitions);
+        Assert.Equal(scenarioOverride ? 9 : 7, state.Types.Single(t => t.Id == worker.Id).Mov);
+        Assert.Equal(new AdjacentUnitHealMechanic(RelationshipSelector.All, 3), state.Types.Single(t => t.Id == cleric.Id).LocalAbilities.Single(a => a.Key == "heal").Mechanic);
+        var snapshot = System.Text.Json.JsonSerializer.Serialize(state);
+        var promotion = new WorkspacePromotionService(workspace, canonical);
+        var preview = promotion.Preview(new(saved.Token,
+            [new(ContentFamily.Unit, cleric.Id), new(ContentFamily.Unit, worker.Id), new(ContentFamily.Equipment, wand.Id)]));
+        Assert.True(preview.CanPublish);
+        promotion.Publish(new(preview, true));
+        Assert.Equal("keep-workspace", Assert.Single(workspace.Snapshot().Definitions.Equipment).Id);
+        var restarted = Canonical();
+        Assert.Equal(7, restarted.Bundle.Units.Single(t => t.Id == worker.Id).Mov);
+        Assert.Equal(2, Assert.Single(restarted.Bundle.Equipment.Single(e => e.Id == wand.Id).LocalAbilities).Costs.Length);
+        Assert.Equal(snapshot, System.Text.Json.JsonSerializer.Serialize(state));
+        state = GameEngine.StartRound(state, new FirstDice(), false).State;
+        state = GameEngine.Advance(state, new Pick("stay"), new FirstDice(), false).State;
+        var choice = state.Pending!.Candidates.First(c => c.Ability?.SourceKind == AbilitySourceKind.Equipment);
+        var result = GameEngine.Advance(state, new Pick(choice.Key), new FirstDice(), false);
+        Assert.Equal(0, result.State.StoredQuantity("blue", cleric.Id, ResourceTypeIds.Diamond));
+        Assert.Single(result.Events.Where(e => e.Kind == "ResourceSpent"));
+        var created = Assert.Single(result.Events.Where(e => e.Kind == "UnitCreated"));
+        Assert.Equal(worker.Id, created.TypeId);
+        Assert.Equal(scenarioOverride ? 9 : 7, result.State.Types.Single(t => t.Id == worker.Id).Mov);
+        Assert.False(result.State.IsUpright("actor"));
+    }
+
+    private sealed class FirstDice : IRandomProvider
+    {
+        public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag) => bag[0];
+        public AttackFace RollAttackDie() => AttackFace.Miss;
+        public DefenceFace RollDefenceDie() => DefenceFace.Miss;
+        public int RollD6() => 1;
+    }
+    private sealed class Pick(string key) : IDecisionProvider
+    { public string Choose(DecisionRequest request, IGameplayQueries queries) => key; }
+
     [Fact]
     public void ExistingExplicitCSharpTransferSupportsSubsequentPublicationAndWorkspaceReplacement()
     {

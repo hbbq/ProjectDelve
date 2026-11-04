@@ -25,7 +25,7 @@ public sealed class CostAuthoringBoundaryTests
     {
         var equipment = new EquipmentDefinition("cost-test", "Cost Test")
         {
-            LocalAbilities = [new("use", "Use", AbilityTiming.Action, new HealMechanic(2))
+            LocalAbilities = [new("use", "Use", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2))
             { Costs = [new LayDownSelf()] }]
         };
         var result = ContentEditorApi.Validate(new("equipment",
@@ -42,7 +42,7 @@ public sealed class CostAuthoringBoundaryTests
         try
         {
             var store = new ContentLibrary(directory);
-            var ability = new LocalAbilityDefinition("use", "Use", AbilityTiming.Action, new HealMechanic(2));
+            var ability = new LocalAbilityDefinition("use", "Use", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2));
             ContentPackage Package(LocalAbilityDefinition entry) => new()
             {
                 Id = "paid-kit", Definitions = new()

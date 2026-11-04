@@ -197,7 +197,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(JsonValueKind.Null, telekinesis.GetProperty("content").GetProperty("maxUses").ValueKind);
         var cardWave = cards.GetProperty(Cleric).GetProperty("entries").EnumerateArray()
             .Single(e => e.GetProperty("content").GetProperty("id").GetString() == "ability:holy-wave");
-        Assert.Equal("Lay down all adjacent upright enemies.\nThen lay down this Unit.", cardWave.GetProperty("content").GetProperty("description").GetString());
+        Assert.Equal("Lay down this Unit. Lay down all adjacent enemy Units.", cardWave.GetProperty("content").GetProperty("description").GetString());
         Assert.Equal(2, cardWave.GetProperty("uses").GetProperty("remainingUses").GetInt32());
         using var preference = await host.Post("preferences", new { expectedRevision = 0, autoChooseSingleRelevantChoice = false });
         preference.EnsureSuccessStatusCode();
@@ -211,7 +211,7 @@ public sealed class PlaytestApiTests
         }
         Assert.Equal(Cleric, result.Result.NextInput!.UnitId);
         result = await host.Decide(result.Revision, "6,9");
-        var wave = Assert.Single(result.Result.NextInput!.Candidates, c => c.Action == UnitAction.HolyWave);
+        var wave = Assert.Single(result.Result.NextInput!.Candidates, c => c.Action == UnitAction.AdjacentUnitsPostureChange);
         Assert.Equal(new[] { Grunt2, Shaman }.OrderBy(id => id), wave.TargetIds.OrderBy(id => id));
         using var choicesJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
         var projectedWave = choicesJson.RootElement.GetProperty("presentation").GetProperty("decision").GetProperty("candidates")
@@ -220,7 +220,7 @@ public sealed class PlaytestApiTests
         Assert.Equal(wave.TargetIds, projectedWave.GetProperty("affectedUnitIds").EnumerateArray().Select(t => t.GetString()));
         var resolved = await host.Decide(result.Revision, wave.Key);
         var changes = resolved.Result.Events.Where(e => e.Kind == "PostureChanged" && e.Posture == Posture.Lying).ToArray();
-        Assert.Equal(wave.TargetIds.Append(Cleric), changes.Select(e => e.UnitId));
+        Assert.Equal(wave.TargetIds.Prepend(Cleric), changes.Select(e => e.UnitId));
         Assert.DoesNotContain(resolved.Result.Events, e => e.AbilityName == "Holy Wave" && e.Attack is not null);
         Assert.Equal(Posture.Lying, resolved.Result.State.Physical.Figures.Single(f => f.Id == Cleric).Posture);
         using var resolvedJson = JsonDocument.Parse(await host.Client.GetStringAsync("/api/game"));
@@ -271,7 +271,7 @@ public sealed class PlaytestApiTests
             .Single(ability => ability.GetProperty("key").GetString() == "aura");
         Assert.Equal("Aura", aura.GetProperty("name").GetString());
         Assert.Equal("Passive", aura.GetProperty("timing").GetString());
-        Assert.Equal("adjacentModifiers", aura.GetProperty("mechanic").GetProperty("kind").GetString());
+        Assert.Equal("adjacentUnitsStatModifiers", aura.GetProperty("mechanic").GetProperty("kind").GetString());
         var modifier = Assert.Single(aura.GetProperty("mechanic").GetProperty("modifiers").EnumerateArray());
         Assert.Equal("Def", modifier.GetProperty("stat").GetString());
         Assert.Equal(1, modifier.GetProperty("amount").GetInt32());
@@ -302,8 +302,8 @@ public sealed class PlaytestApiTests
         Assert.All(second.Result.State.Types.Where(t => heroes.Any(u => u.TypeId == t.Id)),
             type => Assert.Equal(UnitAction.NormalAttack, type.Actions));
         Assert.NotNull(second.Result.State.Types.Single(type => type.Id == UnitTypeIds.Wizard).AbilityFor(UnitAction.Telekinesis));
-        Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is HealMechanic { Amount: 2 });
-        Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is HolyWaveMechanic);
+        Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is AdjacentUnitHealMechanic { Amount: 2 });
+        Assert.Contains(second.Result.State.AbilitiesOf(Cleric), grant => grant.Definition.Mechanic is AdjacentUnitsPostureChangeMechanic);
         Assert.Contains(second.Result.State.AbilitiesOf(Wizard), grant => grant.Definition.Mechanic is FireballMechanic);
         Assert.Equal(new[] { 2, 2, 2, 1, 2 }, second.Result.State.Units.Where(u => u.SideId == "red")
             .GroupBy(u => u.TypeId).Select(group => group.Count()));
@@ -333,11 +333,11 @@ public sealed class PlaytestApiTests
         Assert.Equal(UnitAction.NormalAttack, type.Actions);
         if (id == "cleric-type")
         {
-            Assert.NotNull(type.AbilityFor(UnitAction.Heal));
+            Assert.NotNull(type.AbilityFor(UnitAction.AdjacentUnitHeal));
             var state = (await host.Read()).Result.State;
             var cleric = state.Units.Single(u => u.TypeId == id);
-            var heal = Assert.Single(state.AbilitiesOf(cleric.Id), grant => grant.Definition.Mechanic is HealMechanic);
-            Assert.Equal(new HealMechanic(2), heal.Definition.Mechanic);
+            var heal = Assert.Single(state.AbilitiesOf(cleric.Id), grant => grant.Definition.Mechanic is AdjacentUnitHealMechanic);
+            Assert.Equal(new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2), heal.Definition.Mechanic);
             Assert.Equal(2, heal.Definition.Usage.MaxUses);
             Assert.Equal(new AbilityUses(2, 2),
                 state.AbilityUsesOf(cleric.Id, heal));

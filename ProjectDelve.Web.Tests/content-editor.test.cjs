@@ -223,7 +223,7 @@ test('Engine profiles expose free timing and physical Equipment uses without mec
 });
 
 test('typed Unit reference picker merges scenario-local Units and scoped canonical names into the validation context', async () => {
-  const mechanic = { id: 'summonAdjacent', name: 'Summon', family: 'Ability',
+  const mechanic = { id: 'adjacentUnitSummon', name: 'Summon', family: 'Ability',
     profiles: [{ source: 'Equipment', timing: 'Action', usage: 'LimitedOrUnlimited' }],
     parameters: [{ name: 'unitTypeId', kind: 'Reference', required: true, referenceCatalog: 'units' },
       { name: 'initialPosture', kind: 'Enum', required: true, allowedValues: ['Upright', 'Lying'] }], description: {} };
@@ -243,7 +243,7 @@ test('typed Unit reference picker merges scenario-local Units and scoped canonic
   await h.editor.validate();
   assert.deepEqual(h.validated[0].context.unitTypes, unitTypes);
   assert.deepEqual(h.validated[0].definition.localAbilities[0].mechanic,
-    { kind: 'summonAdjacent', unitTypeId: 'paper-unit', initialPosture: 'Lying' });
+    { kind: 'adjacentUnitSummon', unitTypeId: 'paper-unit', initialPosture: 'Lying' });
 });
 
 
@@ -289,7 +289,7 @@ test('Unit copies retain authored fields and independent stable Ability identity
 
 
 test('Unit sections group metadata fields and offer the unsaved candidate for self summoning', async () => {
-  const summon={id:'summonAdjacent',name:'Summon',family:'Ability',profiles:[{source:'Unit',timing:'Action',usage:'UnlimitedOnly'}],parameters:[{name:'unitTypeId',kind:'Reference',required:true,referenceCatalog:'units'}],description:{}};
+  const summon={id:'adjacentUnitSummon',name:'Summon',family:'Ability',profiles:[{source:'Unit',timing:'Action',usage:'UnlimitedOnly'}],parameters:[{name:'unitTypeId',kind:'Reference',required:true,referenceCatalog:'units'}],description:{}};
   const field=(name,kind='Boolean')=>({name,kind,required:true});
   const effective={entries:[{family:'mechanics',id:summon.id,mechanic:summon}],unitAuthoring:{
     defaults:{id:'',displayName:'',actions:'NormalAttack',behaviors:'None',localAbilities:[]},stats:[{name:'hp',kind:'Integer',minimum:1}],
@@ -306,7 +306,7 @@ test('Unit sections group metadata fields and offer the unsaved candidate for se
   let picker=h.field('definition.localAbilities[0].mechanic.unitTypeId');
   assert.match(picker.children.find(o=>o.value==='new-self').textContent,/New Self .* new-self/);
   h.change('definition.id','renamed-self');
-  h.change('definition.localAbilities[0].mechanic.kind','summonAdjacent','change');
+  h.change('definition.localAbilities[0].mechanic.kind','adjacentUnitSummon','change');
   picker=h.field('definition.localAbilities[0].mechanic.unitTypeId');
   assert.ok(picker.children.some(o=>o.value==='renamed-self'));
   assert.equal(picker.children.some(o=>o.value==='new-self'),false);

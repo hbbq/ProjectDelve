@@ -3,7 +3,7 @@
 Open **Content** from the Web header or **Explore game content** from Home.
 The browser exposes the typed definitions used by Engine. Canonical content is
 read-only; [Content Designer](CONTENT_DESIGNER.md) can create or edit Equipment, Items and
-Loot Cards and complete Unit Types in a standalone Library package or explicitly attached scenario draft. Search by
+Loot Cards and complete Unit Types in the application-local Workspace or explicitly attached scenario draft. Search by
 display name or Type ID, filter by category or origin, and select a definition.
 Reference links open the related definition; **Previous definition** returns
 to the previous selection and filters. At narrow widths, **All results** returns
@@ -32,18 +32,16 @@ Mechanic pages use `MechanicCatalog` metadata. **Authored parameters** shows
 requiredness, defaults, numeric/enum/list constraints and nested fields.
 Supported source/timing/usage profiles are shown as combinations. **Fixed Engine
 behavior** presents targeting, Unit context and system dependencies separately.
-For example, `adjacentModifiers` exposes its modifier list, while its friendly
-recipient rule is fixed. The browser does not make that rule configurable.
+For example, `adjacentUnitsStatModifiers` exposes its relationship selector and
+modifier list. Upright source, adjacency and self-exclusion rules remain fixed in Engine.
 
-## Library and scenario contexts
+## Workspace and scenario contexts
 
-Select **Library** for independent package authoring, package metadata, explicit
-dependency selection and revision history. An empty library offers Create package.
-Current owned Unit/Equipment/Item/Loot entries are editable; canonical, external dependency
-and historical entries are read-only. Copy as new targets the current working
-package with a new Type ID. Save definition applies to the working copy; Save
-package commits a revision. No scenario is opened or created. See CONTENT_DESIGNER.md
-for the complete workflow, save conflicts and unsaved-change protection.
+Select **Workspace** for independent authoring. Edit in Workspace preserves a canonical
+Type ID; Create Copy creates an independent identity. Saves validate the full typed
+definition and use atomic writes with a conflict token. There are no revisions or
+pins. Canonical promotion previews explicit additions, replacements and dependencies.
+See CONTENT_DESIGNER.md for the workflow and unsaved-change protection.
 
 In Designer, choose **Inspect content** to attach the current draft. The focused
 draft-content view validates Equipment, Items and Loot dependencies without requiring
@@ -53,14 +51,10 @@ Returning to Designer preserves the workspace. Applied content edits participate
 Designer history and recovery; reopening content after draft changes refreshes its
 context. Saves from stale editor sessions are rejected.
 
-Designer also offers **Use library content**. In Library scope, select a saved
-Unit/Equipment/Item/Loot definition and **Use in Scenario**, review the typed dependency
-closure, then Apply as one undoable change. The draft view labels these definitions
-**Library pinned**, with source package/revision and a provenance link where available.
-They remain read-only until explicitly copied to a new local identity. **Update
-Reference…** previews a deliberate revision change; Library edits alone never
-change the scenario. Embedded pins remain playable without their original library.
-See [Pinned scenario references](SCENARIO_CONTENT_REFERENCES.md).
+References resolve by Content Family and Type ID against **Scenario > Workspace > Canonical**.
+New games capture their effective definitions. DELVE1 exports embed Workspace content
+and its effective dependency closure as scenario-local definitions.
+See [Scenario scopes](SCENARIO_CONTENT_REFERENCES.md).
 
 Scenario results identify canonical, scenario-local, scenario override and resolved
 entries. Units are limited to the scenario's declared types plus canonical types
@@ -100,7 +94,7 @@ the viewer consumes their descriptor, including nested parameter metadata.
 ## Milestone limits
 
 - Canonical and full-scenario inspection are read-only. Unit, Equipment, Item and Loot editing
-  uses an explicit scenario or library destination; other families remain read-only.
+  uses an explicit scenario or Workspace destination; other families remain read-only.
   There is no inheritance or runtime mutation.
 - Full scenario inspection requires a valid complete scenario, including board
   and setup validation. Focused content editing only requires valid dependencies.

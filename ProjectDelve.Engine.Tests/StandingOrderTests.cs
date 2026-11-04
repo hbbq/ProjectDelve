@@ -390,7 +390,7 @@ public sealed class StandingOrderTests
         var cleric = State(UnitType.Cleric(), enemy: new(1, 1));
         cleric.AssignOrder(cleric.Controllers[0].Token, OrderKind.Attack, target: OrderTarget.ForUnit("enemy"));
         var wave = new DecisionRequest(DecisionKind.Act, cleric.Units[0].TypeId, "actor",
-            [new Candidate("wave", Action: UnitAction.HolyWave) { TargetIds = ["enemy"] }], true);
+            [new Candidate("wave", Action: UnitAction.AdjacentUnitsPostureChange) { TargetIds = ["enemy"] }], true);
         Assert.Null(new OrderAwareAutomatedProvider().Choose(wave, new GameplayQueries(cleric)));
     }
 
@@ -764,8 +764,8 @@ public sealed class StandingOrderTests
 
         var summon = new DecisionRequest(DecisionKind.Act, shaman.Units[0].TypeId, "actor",
         [
-            new("top-left", new(1, 1), Action: UnitAction.SummonAdjacent),
-            new("toward", new(3, 2), Action: UnitAction.SummonAdjacent)
+            new("top-left", new(1, 1), Action: UnitAction.AdjacentUnitSummon),
+            new("toward", new(3, 2), Action: UnitAction.AdjacentUnitSummon)
         ], true);
         Assert.Equal("toward", new OrderAwareAutomatedProvider().Choose(summon, new GameplayQueries(shaman)));
 

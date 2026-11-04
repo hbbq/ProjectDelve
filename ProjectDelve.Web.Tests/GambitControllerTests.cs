@@ -503,7 +503,7 @@ public sealed class GambitControllerTests
     private static async Task<GambitRequest> ReachShamanAction(PlaytestGame game, string submissionId)
     {
         var request = Assert.IsType<GambitRequest>(game.ControllerRequest());
-        if (request.Request.Candidates.Any(candidate => candidate.Action == UnitAction.SummonAdjacent)) return request;
+        if (request.Request.Candidates.Any(candidate => candidate.Action == UnitAction.AdjacentUnitSummon)) return request;
         var stay = request.Request.Candidates.FirstOrDefault(candidate => candidate.Kind == ActivationChoiceKind.Stay);
         Assert.True(stay is not null || request.Request.AllowsNone);
         game.AdmitController(request.Binding);
@@ -561,7 +561,7 @@ public sealed class GambitControllerTests
         game.StartRound(configured.Revision);
         var request = await ReachShamanAction(game, "stay-before-default-summon");
         Assert.Equal(3, request.SchemaVersion); Assert.Equal(UnitTypeIds.Shaman, request.Request.TypeId);
-        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
+        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.AdjacentUnitSummon);
         game.AdmitController(request.Binding);
         game.SubmitController(new("summon-default-goblin", request.Binding, summon.Key));
         await Wait(game, g => g.Receipt("summon-default-goblin").Status == "applied");
@@ -588,7 +588,7 @@ public sealed class GambitControllerTests
         ]);
         game.StartRound(configured.Revision);
         var request = await ReachShamanAction(game, "stay-before-inherited-summon");
-        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.SummonAdjacent);
+        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.AdjacentUnitSummon);
         game.AdmitController(request.Binding);
         game.SubmitController(new("summon-inherited-goblin", request.Binding, summon.Key));
         await Wait(game, g => g.Receipt("summon-inherited-goblin").Status == "applied");

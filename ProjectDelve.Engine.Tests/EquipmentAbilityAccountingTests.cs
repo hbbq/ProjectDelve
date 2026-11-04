@@ -81,7 +81,7 @@ public sealed class EquipmentAbilityAccountingTests
     public void ChargedHolyWavePreservesUsesThroughDefeatGroundSaveAndAnotherOwnerPickup()
     {
         var equipment = new EquipmentDefinition("wave", "Bell")
-        { LocalAbilities = [new("ring", "Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) }] };
+        { LocalAbilities = [new("ring", "Wave", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(2) }] };
         var scenario = Scenario(equipment);
         scenario.Units[0] = scenario.Units[0] with { Inventory = [new("physical-bell", "wave")] };
         var state = Ready(GameEngine.CreateGame(scenario));

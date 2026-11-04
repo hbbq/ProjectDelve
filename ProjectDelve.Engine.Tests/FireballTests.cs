@@ -377,7 +377,7 @@ public sealed class FireballTests
         var cleric = UnitRoster.Cleric("cleric") with
         {
             Def = 0,
-            LocalAbilities = [new("aura", "Aura", AbilityTiming.Passive, new AdjacentModifiersMechanic([new(Stat.Def, modifier)])),
+            LocalAbilities = [new("aura", "Aura", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, modifier)])),
                 .. undying ? new LocalAbilityDefinition[] { new("undying", "Undying", AbilityTiming.InsteadOfDefeat, new Undying()) } : []]
         };
         state.Types.Add(cleric);

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -259,9 +259,9 @@ public sealed class MachineTests
         var type = UnitRoster.Geomancer();
         Assert.Equal((2, 0, 0, 3, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal(UnitAction.None, type.Actions);
-        Assert.All(new[] { UnitAction.PickupResource, UnitAction.SummonWorker, UnitAction.SummonTroll }, action => Assert.True(type.HasAction(action)));
+        Assert.All(new[] { UnitAction.PickupResource, UnitAction.AdjacentUnitSummon }, action => Assert.True(type.HasAction(action)));
         Assert.Equal(UnitBehavior.SeekDiamond | UnitBehavior.Flee | UnitBehavior.PreferTrollThenDiamondThenWorker, type.Behaviors);
-        Assert.Null(type.Mechanic<SummonAdjacent>());
+        Assert.Equal(new[] { UnitTypeIds.Worker, UnitTypeIds.Troll }, type.LocalAbilities.Select(a => a.Mechanic).OfType<AdjacentUnitSummonMechanic>().Select(s => s.UnitTypeId));
         var fixture = Fixture();
         fixture = fixture with { UnitTypes = [fixture.UnitTypes![0] .Without<TransportResource>()],
             Machines = [fixture.Machines![0] with { OwnerSide = owner }, fixture.Machines[1]],

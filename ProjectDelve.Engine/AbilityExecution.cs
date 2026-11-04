@@ -32,24 +32,23 @@ public static partial class GameEngine
 
             switch (ability.Definition.Mechanic)
             {
-                case HealMechanic:
-                    foreach (var target in state.Units.Where(target => target.Id != unit.Id &&
-                                 target.SideId == unit.SideId && target.CurrentHp > 0 &&
-                                 target.CurrentHp < state.Types.Single(t => t.Id == target.TypeId).Hp &&
-                                 SpatialRules.AreAdjacent(state, unit.Id, target.Id)))
-                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.Heal, TargetId: target.Id));
+                case AdjacentUnitHealMechanic heal:
+                    foreach (var target in AbilityQueries.AdjacentRecipients(state, unit, heal.Selector)
+                                 .Where(target => target.CurrentHp < state.Types.Single(type => type.Id == target.TypeId).Hp))
+                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.AdjacentUnitHeal, TargetId: target.Id));
                     break;
-                case HolyWaveMechanic:
-                    var targets = AdjacentHostiles(state, unit).Where(u => state.IsUpright(u.Id)).Select(u => u.Id).ToImmutableArray();
-                    yield return Bind(new(ability.CandidatePrefix, Action: UnitAction.HolyWave, Relevant: !targets.IsEmpty) { TargetIds = targets });
+                case AdjacentUnitsPostureChangeMechanic posture:
+                    var targets = AbilityQueries.AdjacentRecipients(state, unit, posture.Selector)
+                        .Where(target => state.Physical.Figures.Single(figure => figure.Id == target.Id).Posture != posture.NewPosture)
+                        .Select(target => target.Id).ToImmutableArray();
+                    yield return Bind(new(ability.CandidatePrefix, Action: UnitAction.AdjacentUnitsPostureChange, Relevant: !targets.IsEmpty) { TargetIds = targets });
                     break;
                 case FireballMechanic:
                     foreach (var candidate in FireballCandidates(state, unit, ability.CandidatePrefix)) yield return Bind(candidate);
                     break;
-                case StandAdjacentFriendlyMechanic:
-                    foreach (var target in state.Units.Where(u => u.CurrentHp > 0 && u.SideId == unit.SideId &&
-                                 state.Physical.Figures.Any(f => f.Id == u.Id && f.Posture == Posture.Lying) &&
-                                 SpatialRules.AreAdjacent(state, unit.Id, u.Id)))
+                case AdjacentUnitPostureChangeMechanic posture:
+                    foreach (var target in AbilityQueries.AdjacentRecipients(state, unit, posture.Selector)
+                                 .Where(target => state.Physical.Figures.Single(figure => figure.Id == target.Id).Posture != posture.NewPosture))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", TargetId: target.Id));
                     break;
                 case SelfModifiersMechanic self:
@@ -86,15 +85,13 @@ public static partial class GameEngine
                                  AttackRules.EvaluateAbilityFrom(state, unit.Id, clawFrom, target.Id, ability) == UnitTargetEvaluation.Possible))
                         yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.ClawAttack, TargetId: target.Id));
                     break;
-                case ShootShell shell when state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Shell) >= shell.ShellCost:
-                    var shellFrom = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
+                case TargetUnitAttackMechanic attack:
+                    var attackFrom = state.Physical.Figures.Single(f => f.Id == unit.Id).Position;
                     foreach (var target in state.Units.Where(target =>
-                                 AttackRules.EvaluateHostileTargetFrom(state, unit.Id, shellFrom, target.Id, shell.Rng) == UnitTargetEvaluation.Possible))
-                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.ShootShell, TargetId: target.Id));
+                                 AttackRules.EvaluateHostileTargetFrom(state, unit.Id, attackFrom, target.Id, attack.Rng) == UnitTargetEvaluation.Possible))
+                        yield return Bind(new($"{ability.CandidatePrefix}:{target.Id}", Action: UnitAction.TargetUnitAttack, TargetId: target.Id));
                     break;
-                case SummonAdjacent:
-                case SummonWorker:
-                case SummonTroll:
+                case AdjacentUnitSummonMechanic:
                     foreach (var candidate in SummoningRules.Candidates(state, unit, ability)) yield return Bind(candidate);
                     break;
                 case PickupResource:
@@ -103,7 +100,7 @@ public static partial class GameEngine
                     foreach (var candidate in ResourceRules.Candidates(state, unit, ability)
                                  .Concat(MachineRules.Candidates(state, unit, ability))) yield return Bind(candidate);
                     break;
-                case Boost boost when !state.ActionDone && state.StoredQuantity(unit.SideId, unit.TypeId, ResourceTypeIds.Mushroom) >= boost.MushroomCost:
+                case SelfExtraMovesMechanic when !state.ActionDone:
                     yield return Bind(new(ability.CandidatePrefix));
                     break;
                 case PlaceBananaPeel:
@@ -130,18 +127,16 @@ public static partial class GameEngine
         var ability = choice.Ability!;
         // Modifier/extra-Action events expose the resulting activation state,
         // preserving their existing event-time snapshots.
-        if (ability.Definition.Mechanic is not (SelfModifiersMechanic or ExtraActionsMechanic or ReshapeRoom))
+        if (ability.Definition.Mechanic is not (SelfModifiersMechanic or ExtraActionsMechanic or SelfExtraMovesMechanic or ReshapeRoom))
             EmitActionUsed(request, choice.Key, events);
         switch (ability.Definition.Mechanic)
         {
-            case HolyWaveMechanic:
+            case AdjacentUnitsPostureChangeMechanic posture:
                 foreach (var targetId in choice.TargetIds)
-                    if (state.Physical.Figures.Any(f => f.Id == targetId))
-                        ChangePosture(state, targetId, Posture.Lying, events, request.UnitId, ability.ActionId);
-                if (state.IsUpright(request.UnitId!))
-                    ChangePosture(state, request.UnitId!, Posture.Lying, events, request.UnitId, ability.ActionId);
+                    if (state.Physical.Figures.Any(figure => figure.Id == targetId))
+                        ChangePosture(state, targetId, posture.NewPosture, events, request.UnitId, ability.ActionId);
                 break;
-            case HealMechanic heal:
+            case AdjacentUnitHealMechanic heal:
                 RestoreHp(state, choice.TargetId!, heal.Amount, request.UnitId!, ability.Definition.Name, ability.ActionId, events);
                 break;
             case FireballMechanic:
@@ -150,8 +145,8 @@ public static partial class GameEngine
                     ability.ActionId, choice.Destination, UnitAction.Fireball, ability.Definition.Timing,
                     abilitySource: ability.SourceReference);
                 break;
-            case StandAdjacentFriendlyMechanic:
-                ChangePosture(state, choice.TargetId!, Posture.Upright, events, request.UnitId, ability.ActionId);
+            case AdjacentUnitPostureChangeMechanic posture:
+                ChangePosture(state, choice.TargetId!, posture.NewPosture, events, request.UnitId, ability.ActionId);
                 break;
             case SelfModifiersMechanic self:
                 state.ModifiersThisTurn.AddRange(self.Modifiers);
@@ -183,14 +178,11 @@ public static partial class GameEngine
                     events, ability.ActionId, choice.Destination, UnitAction.ClawAttack, ability.Definition.Timing,
                     abilitySource: ability.SourceReference);
                 break;
-            case ShootShell shell:
-                RacingRules.Spend(state, request.UnitId!, ResourceTypeIds.Shell, shell.ShellCost, ability.ActionId, events.Add);
-                BeginAttack(state, request.UnitId!, new([choice.TargetId!], shell.Atk, ability.Definition.Name),
-                    events, ability.ActionId, null, UnitAction.ShootShell, ability.Definition.Timing, shell.Rng, ability.SourceReference);
+            case TargetUnitAttackMechanic attack:
+                BeginAttack(state, request.UnitId!, new([choice.TargetId!], attack.Atk, ability.Definition.Name),
+                    events, ability.ActionId, null, UnitAction.TargetUnitAttack, ability.Definition.Timing, attack.Rng, ability.SourceReference);
                 break;
-            case SummonAdjacent:
-            case SummonWorker:
-            case SummonTroll:
+            case AdjacentUnitSummonMechanic:
                 ResolveSummon(state, request.UnitId!, choice, events);
                 break;
             case PickupResource:
@@ -204,9 +196,10 @@ public static partial class GameEngine
             case PlaceBananaPeel:
                 BananaPlacementRules.Resolve(state, request.UnitId!, choice, events.Add);
                 break;
-            case Boost boost:
-                state.MoveOpportunityModifierThisActivation++;
-                RacingRules.Spend(state, request.UnitId!, ResourceTypeIds.Mushroom, boost.MushroomCost, ability.ActionId, events.Add);
+            case SelfExtraMovesMechanic extra:
+                state.MoveOpportunityModifierThisActivation = (int)Math.Min(int.MaxValue,
+                    (long)state.MoveOpportunityModifierThisActivation + extra.Amount);
+                EmitActionUsed(request, choice.Key, events);
                 break;
             case Swap:
                 ExternalMovementRules.SwapPlaces(state, request.UnitId!, choice.TargetId!);
@@ -240,9 +233,7 @@ public static partial class GameEngine
         var ability = choice.Ability!;
         var summon = SummoningRules.Placement(ability.Definition.Mechanic)!;
         var source = state.Units.Single(u => u.Id == unitId);
-        if (!SummoningRules.Candidates(state, source, ability, committed: true).Any(candidate => candidate.Key == choice.Key))
-            return;
-        var summonedType = UnitContent.Find(summon.UnitTypeId, state.Types)
+        var summonedType = state.Types.SingleOrDefault(type => type.Id == summon.UnitTypeId)
             ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
         var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal) ? summonedType.Id[..^5] : summonedType.Id;
         var number = 1;
@@ -252,10 +243,7 @@ public static partial class GameEngine
         var group = new ActivationToken(summonedType.Id, source.SideId);
         if (!state.Controllers.Any(c => c.Token == group))
             state.Controllers.Add(new(group, state.ControllerFor(new ActivationToken(source.TypeId, source.SideId))));
-        var spending = ability.Definition.Mechanic is SummonTroll troll
-            ? SummoningRules.SpendDiamond(state, source, troll, ability) : null;
         state.PlaceUnit(summonedType.Id, summonedId, source.SideId, choice.Destination!, summon.InitialPosture);
-        if (spending is not null) events.Add(spending);
         events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
             AbilityName: ability.Definition.Name, Posture: summon.InitialPosture)
             { SourceUnitId = source.Id, SideId = source.SideId, Cell = choice.Destination, ActionId = ability.ActionId });

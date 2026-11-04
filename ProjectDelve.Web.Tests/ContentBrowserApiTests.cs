@@ -45,17 +45,17 @@ public sealed class ContentBrowserApiTests
         Assert.All(catalog.Entries.SelectMany(entry => entry.References), reference => Assert.True(reference.Exists, reference.TargetKey));
 
         var cleric = Entry(catalog, "units", UnitTypeIds.Cleric);
-        var declared = CanonicalUnitTypes.Find(UnitTypeIds.Cleric)!.LocalAbilities.Single(a => a.Mechanic is HealMechanic);
+        var declared = CanonicalUnitTypes.Find(UnitTypeIds.Cleric)!.LocalAbilities.Single(a => a.Mechanic is AdjacentUnitHealMechanic);
         var heal = cleric.Abilities.Single(a => a.Key == declared.Key);
         Assert.Equal(declared.Name, heal.Name);
         Assert.Equal(declared.Usage.MaxUses, heal.Usage.MaxUses);
-        Assert.Equal(((HealMechanic)declared.Mechanic).Amount, heal.Parameters.GetProperty("amount").GetInt32());
+        Assert.Equal(((AdjacentUnitHealMechanic)declared.Mechanic).Amount, heal.Parameters.GetProperty("amount").GetInt32());
         Assert.Equal(cleric.Key, heal.OwnerKey);
         Assert.Equal("Action", heal.Timing);
         Assert.DoesNotContain(cleric.Sections.SelectMany(section => section.Fields), field => field.Label == "Local Abilities");
         Assert.Equal(new[] { "MOV", "RNG", "ATK", "DEF", "HP" }, cleric.Sections.Single(section => section.Title == "Stats").Fields.Select(field => field.Label));
-        var mechanic = Entry(catalog, "mechanics", "holyWave");
-        Assert.Equal(JsonSerializer.Serialize(MechanicCatalog.Find("holyWave"), Json), JsonSerializer.Serialize(mechanic.Mechanic, Json));
+        var mechanic = Entry(catalog, "mechanics", "adjacentUnitsPostureChange");
+        Assert.Equal(JsonSerializer.Serialize(MechanicCatalog.Find("adjacentUnitsPostureChange"), Json), JsonSerializer.Serialize(mechanic.Mechanic, Json));
         Assert.Contains(mechanic.Sections, section => section.Title == "Fixed Engine behavior" && section.Fields.Any(field => field.Label == "Targeting"));
         Assert.Contains("Consume this Item.", Entry(catalog, "items", "second-wind").Summary);
         var equipment = Entry(catalog, "equipment", "goat-bell");
@@ -125,13 +125,13 @@ public sealed class ContentBrowserApiTests
         var unit = CanonicalUnitTypes.Find(UnitTypeIds.Grunt)! with
         {
             DisplayName = "Context healer", Mov = 5,
-            LocalAbilities = [new("restore", "Unit remedy", AbilityTiming.Action, new HealMechanic(4)) { Usage = new(2) }]
+            LocalAbilities = [new("restore", "Unit remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 4)) { Usage = new(2) }]
         };
         var scenario = Fixture(unit) with
         {
             LootUnitOverrides = new() { [unit.Id] = new(DropSuccesses: 5, CanHaveItems: true, CanHaveEquipment: true) },
-            EquipmentTypes = [new("context-kit", "Context kit") { LocalAbilities = [new("restore", "Equipment remedy", AbilityTiming.Action, new HealMechanic(3))] }],
-            ItemTypes = [new("context-dose", "Context dose") { LocalAbilities = [new("restore", "Item remedy", AbilityTiming.Action, new HealMechanic(1))] }]
+            EquipmentTypes = [new("context-kit", "Context kit") { LocalAbilities = [new("restore", "Equipment remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3))] }],
+            ItemTypes = [new("context-dose", "Context dose") { LocalAbilities = [new("restore", "Item remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1))] }]
         };
         var original = ScenarioDefinitionJson.ToJson(scenario);
         var catalog = await host.Inspect(scenario);
@@ -202,7 +202,7 @@ public sealed class ContentBrowserApiTests
     {
         await using var host = await Host.Start();
         var summoner = new UnitType("context-summoner", 2, 1, 1, 1, 1)
-        { LocalAbilities = [new("call", "Call ally", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Grunt, Posture.Lying))] };
+        { LocalAbilities = [new("call", "Call ally", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Grunt, Posture.Lying))] };
         var fallback = await host.Inspect(Fixture(summoner));
         Assert.Equal("referenced", Entry(fallback, "units", UnitTypeIds.Grunt).Availability);
         Assert.Contains(Entry(fallback, "units", summoner.Id).References, reference => reference.TargetKey == "units:" + UnitTypeIds.Grunt && reference.Exists);
@@ -216,7 +216,7 @@ public sealed class ContentBrowserApiTests
         Assert.Equal("Scoped summoned ally", Entry(overridden, "units", replacement.Id).Name);
         Assert.Contains("Scoped summoned ally", Assert.Single(Entry(overridden, "units", summoner.Id).Abilities).Description);
         var workerCaller = new UnitType("worker-caller", 2, 1, 1, 1, 1)
-        { LocalAbilities = [new("call-worker", "Call Worker", AbilityTiming.Action, new SummonWorker(2))] };
+        { LocalAbilities = [new("call-worker", "Call Worker", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Worker, Posture.Upright, 2))] };
         var workers = await host.Inspect(Fixture(workerCaller));
         Assert.Contains(Entry(workers, "units", workerCaller.Id).References, reference => reference.TargetKey == "units:" + UnitTypeIds.Worker && reference.Exists);
     }
@@ -230,15 +230,15 @@ public sealed class ContentBrowserApiTests
         var replacement = CanonicalUnitTypes.Find(UnitTypeIds.Wizard)! with { DisplayName = "Scoped Sage" };
         var equipment = new EquipmentDefinition("summon-kit", "Summon Kit") { LocalAbilities =
         [
-            new("canonical", "First", AbilityTiming.Action, new SummonAdjacent(UnitTypeIds.Grunt, Posture.Upright)),
-            new("local", "Second", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying))
+            new("canonical", "First", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Grunt, Posture.Upright)),
+            new("local", "Second", AbilityTiming.Action, new AdjacentUnitSummonMechanic(local.Id, Posture.Lying))
         ] };
         var item = new ItemDefinition("worker-note", "Worker Note")
         { LocalAbilities =
         [
-            new("call", "Call", AbilityTiming.Action, new SummonWorker(3)),
-            new("paper", "Fold", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying)),
-            new("sage", "Read", AbilityTiming.Action, new SummonAdjacent(replacement.Id, Posture.Upright))
+            new("call", "Call", AbilityTiming.Action, new AdjacentUnitSummonMechanic(UnitTypeIds.Worker, Posture.Upright, 3)),
+            new("paper", "Fold", AbilityTiming.Action, new AdjacentUnitSummonMechanic(local.Id, Posture.Lying)),
+            new("sage", "Read", AbilityTiming.Action, new AdjacentUnitSummonMechanic(replacement.Id, Posture.Upright))
         ] };
         var source = Fixture(bearer) with
         {

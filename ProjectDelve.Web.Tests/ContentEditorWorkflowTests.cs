@@ -29,7 +29,7 @@ public sealed class ContentEditorWorkflowTests
             [
                 new("stride", "Wind at Your Back", AbilityTiming.Passive,
                     new SelfModifiersMechanic([new(Stat.Mov, 1), new(Stat.Def, -1)])),
-                new("mend", "A Quiet Remedy", AbilityTiming.Action, new HealMechanic(2)) { Usage = new(MaxUses: null) },
+                new("mend", "A Quiet Remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2)) { Usage = new(MaxUses: null) },
                 new("passage", "Paper Passage", AbilityTiming.Passive, new Phase()),
                 new("door", "A Polite Knock", AbilityTiming.FreeAction, new OpenDoor())
             ]
@@ -135,7 +135,7 @@ public sealed class ContentEditorWorkflowTests
         await using var host = await Host.Start();
         var boots = await host.Validate<EquipmentDefinition>("equipment", new EquipmentDefinition("knightly-boots", "Knightly Boots")
         { LocalAbilities = [new("call", "Call a Knight", AbilityTiming.Action,
-            new SummonAdjacent(UnitTypeIds.HobbyKnight, Posture.Lying)) { Usage = new(2) }] });
+            new AdjacentUnitSummonMechanic(UnitTypeIds.HobbyKnight, Posture.Lying)) { Usage = new(2) }] });
         var reward = await host.Validate<LootCardDefinition>("lootCards", new LootCardDefinition("knightly-gift", "Knightly Gift")
         { EquipmentTypeId = boots.Id }, new() { EquipmentTypes = [boots] });
         var bearer = new UnitType("knightly-bearer", 1, 0, 0, 0, 4)
@@ -144,7 +144,7 @@ public sealed class ContentEditorWorkflowTests
             LocalAbilities =
             [
                 new("practice", "Practice Time", AbilityTiming.BonusAction, new ExtraActionsMechanic(2)),
-                new("rest", "Rest", AbilityTiming.Action, new HealMechanic(1))
+                new("rest", "Rest", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1))
             ]
         };
         var patient = new UnitType("knightly-patient", 0, 0, 0, 0, 2) { Unique = true };

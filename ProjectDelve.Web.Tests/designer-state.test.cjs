@@ -12,7 +12,7 @@ function setup() {
   vm.runInContext(source.replace(/^export /gm, ''), context);
   const api = vm.runInContext('({ DesignerDraft, DesignerHistory, draftDocument, readDraftDocument })', context);
   const canonical = { id: 'canonical-bell', name: 'Canonical Bell', localAbilities: [
-    { key: 'ring', name: 'Ring', timing: 'Action', mechanic: { kind: 'standAdjacentFriendly' } }
+    { key: 'ring', name: 'Ring', timing: 'Action', mechanic: { kind: 'adjacentUnitPostureChange', selector:'Friendlies', newPosture:'Upright' } }
   ] };
   const draft = new api.DesignerDraft({ maxBoardSize: 50, unitTypes: [], equipmentTypes: [canonical], lootCards: [] });
   draft.replace({
@@ -31,7 +31,7 @@ function equipment(id = 'paperwind', name = 'Paperwind Cape') {
   return { id, name, localAbilities: [
     { key: 'stride', name: 'Tailwind', timing: 'Passive', usage: { maxUses: null },
       mechanic: { kind: 'selfModifiers', modifiers: [{ stat: 'Mov', amount: 1 }, { stat: 'Def', amount: -1 }] } },
-    { key: 'wake', name: 'Morning Call', timing: 'Action', mechanic: { kind: 'standAdjacentFriendly' } }
+    { key: 'wake', name: 'Morning Call', timing: 'Action', mechanic: { kind: 'adjacentUnitPostureChange', selector:'Friendlies', newPosture:'Upright' } }
   ] };
 }
 
@@ -58,7 +58,7 @@ test('copies and payloads stay independent from canonical definitions and other 
   draft.applyContentDefinition('equipment', copy);
   draft.applyContentDefinition('equipment', { ...copy, id: 'another-bell', name: 'Another Bell' });
   copy.name = 'Changed outside';
-  copy.localAbilities[0].mechanic.kind = 'holyWave';
+  copy.localAbilities[0].mechanic.kind = 'adjacentUnitsPostureChange';
   const edited = plain(draft.definition.equipmentTypes[1]);
   edited.name = 'Renamed Bell'; edited.localAbilities[0].name = 'Awaken';
   draft.applyContentDefinition('equipment', edited, edited.id);
@@ -67,8 +67,8 @@ test('copies and payloads stay independent from canonical definitions and other 
   assert.equal(draft.definition.equipmentTypes[1].localAbilities[0].name, 'Awaken');
   assert.deepEqual(plain(draft.definition.equipmentTypes[2].localAbilities), original.localAbilities);
   assert.deepEqual(plain(canonical), original);
-  assert.equal(draft.definition.equipmentTypes[1].localAbilities[0].mechanic.kind, 'standAdjacentFriendly');
-  assert.equal(draft.definition.equipmentTypes[2].localAbilities[0].mechanic.kind, 'standAdjacentFriendly');
+  assert.equal(draft.definition.equipmentTypes[1].localAbilities[0].mechanic.kind, 'adjacentUnitPostureChange');
+  assert.equal(draft.definition.equipmentTypes[2].localAbilities[0].mechanic.kind, 'adjacentUnitPostureChange');
 });
 
 test('content identity errors refuse mutation and do not advance the revision', () => {
@@ -142,7 +142,7 @@ test('created content survives recovery and import transport with isolated Playt
 test('application performs structural persistence without duplicating Engine mechanic validation', () => {
   const { draft } = setup();
   const pendingValidation = { id: 'draft-equipment', name: 'Draft', localAbilities: [
-    { key: 'draft', name: 'Incomplete mechanic', timing: 'Action', mechanic: { kind: 'heal', amount: -2 } }
+    { key: 'draft', name: 'Incomplete mechanic', timing: 'Action', mechanic: { kind: 'heal', selector:'Friendlies', amount: -2 } }
   ] };
   draft.applyContentDefinition('equipment', pendingValidation);
   assert.deepEqual(plain(draft.definition.equipmentTypes.at(-1)), pendingValidation);

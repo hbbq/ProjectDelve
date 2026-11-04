@@ -101,7 +101,7 @@ public sealed record Edge(Cell A, Cell B, EdgeKind Kind);
 public enum Posture { Upright, Lying }
 public sealed record Figure(string Id, Cell Position, Posture Posture = Posture.Upright);
 [Flags]
-public enum UnitAction { None = 0, NormalAttack = 1, Heal = 2, HolyWave = 4, Fireball = 8, Telekinesis = 16, SummonAdjacent = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, SummonWorker = 2048, SummonTroll = 4096, PlaceBananaPeel = 8192, ShootShell = 16384 }
+public enum UnitAction { None = 0, NormalAttack = 1, AdjacentUnitHeal = 2, AdjacentUnitsPostureChange = 4, Fireball = 8, Telekinesis = 16, AdjacentUnitSummon = 32, FireBreath = 64, ClawAttack = 128, PickupResource = 256, GiveResource = 512, Operate = 1024, PlaceBananaPeel = 8192, TargetUnitAttack = 16384 }
 [Flags]
 public enum UnitFreeAction { None = 0, OpenDoor = 1 }
 [Flags]
@@ -131,12 +131,11 @@ public sealed record ReshapeRoom : AbilityMechanic;
 public sealed record Swap : AbilityMechanic;
 // Current external movement supports zero or one ordinary step only.
 public sealed record Displace(int MaxMove) : AbilityMechanic;
-public sealed record SummonAdjacent(string UnitTypeId, Posture InitialPosture) : AbilityMechanic;
-public sealed record SummonWorker(int SideLimit) : AbilityMechanic;
-public sealed record SummonTroll(int DiamondCost) : AbilityMechanic;
-public sealed record PlaceBananaPeel(int BananaCost) : AbilityMechanic;
-public sealed record Boost(int MushroomCost) : AbilityMechanic;
-public sealed record ShootShell(int ShellCost, int Rng, int Atk) : AbilityMechanic;
+public sealed record AdjacentUnitSummonMechanic([property: JsonRequired] string UnitTypeId, [property: JsonRequired] Posture InitialPosture, int? SameTypeSideLimit = null) : AbilityMechanic;
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record PlaceBananaPeel : AbilityMechanic;
+public sealed record SelfExtraMovesMechanic([property: JsonRequired] int Amount) : AbilityMechanic;
+public sealed record TargetUnitAttackMechanic([property: JsonRequired] int Rng, [property: JsonRequired] int Atk) : AbilityMechanic;
 public sealed record WaypointSlotMachine(ResourceOutputTable OutputTable) : AbilityMechanic;
 public sealed record TerrainRestrictedMovement(TerrainKind Terrain);
 public sealed record Telekinesis : AbilityMechanic;
@@ -213,13 +212,13 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public T? Mechanic<T>() where T : AbilityMechanic => Ability<T>()?.Mechanic as T;
     public LocalAbilityDefinition? AbilityFor(UnitAction action) => action switch
     {
-        UnitAction.Heal => Ability<HealMechanic>(), UnitAction.HolyWave => Ability<HolyWaveMechanic>(),
+        UnitAction.AdjacentUnitHeal => Ability<AdjacentUnitHealMechanic>(), UnitAction.AdjacentUnitsPostureChange => Ability<AdjacentUnitsPostureChangeMechanic>(),
         UnitAction.Fireball => Ability<FireballMechanic>(), UnitAction.Telekinesis => Ability<Telekinesis>(),
-        UnitAction.SummonAdjacent => Ability<SummonAdjacent>(), UnitAction.SummonWorker => Ability<SummonWorker>(),
-        UnitAction.SummonTroll => Ability<SummonTroll>(), UnitAction.FireBreath => Ability<FireBreath>(),
+        UnitAction.AdjacentUnitSummon => Ability<AdjacentUnitSummonMechanic>(),
+        UnitAction.FireBreath => Ability<FireBreath>(),
         UnitAction.ClawAttack => Ability<ClawAttack>(), UnitAction.PickupResource => Ability<PickupResource>(),
         UnitAction.GiveResource => Ability<GiveResource>(), UnitAction.Operate => Ability<Operate>(),
-        UnitAction.PlaceBananaPeel => Ability<PlaceBananaPeel>(), UnitAction.ShootShell => Ability<ShootShell>(),
+        UnitAction.PlaceBananaPeel => Ability<PlaceBananaPeel>(), UnitAction.TargetUnitAttack => Ability<TargetUnitAttackMechanic>(),
         _ => null
     };
     public bool HasAction(UnitAction action) => action == UnitAction.NormalAttack
@@ -485,7 +484,7 @@ public sealed class GameState
     public List<DefeatContext> PendingExplosions { get; set; } = [];
     public int MovesCompletedThisActivation { get; set; }
     public int MoveOpportunityModifierThisActivation { get; set; }
-    public int EffectiveMovesPerActivation => Math.Max(0, 1 + MoveOpportunityModifierThisActivation);
+    public int EffectiveMovesPerActivation => (int)Math.Clamp(1L + MoveOpportunityModifierThisActivation, 0, int.MaxValue);
     public bool MoveDone
     {
         get => MovesCompletedThisActivation >= EffectiveMovesPerActivation;

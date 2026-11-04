@@ -37,7 +37,7 @@ public sealed class AbilityProjectionTests
     public void NativeAndEquipmentDescriptionsUseTheirOwnedParametersWithoutDuplicateText()
     {
         var type = new UnitType("mender", 1, 1, 0, 1, 1)
-        { LocalAbilities = [new("restore", "Mending Verse", AbilityTiming.Action, new HealMechanic(4))] };
+        { LocalAbilities = [new("restore", "Mending Verse", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 4))] };
         var state = new GameState
         {
             ResourceDefinitions = [.. ResourceTypes.All],
@@ -45,7 +45,7 @@ public sealed class AbilityProjectionTests
             Types = [type], Units = [type.CreateUnit("actor", "blue")]
         };
         var equipment = new EquipmentDefinition("restoring-lantern", "Restoring Lantern")
-        { LocalAbilities = [new("restore", "Lantern Remedy", AbilityTiming.Action, new HealMechanic(7))] };
+        { LocalAbilities = [new("restore", "Lantern Remedy", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 7))] };
         state.EquipmentTypes.Add(equipment);
         state.Units[0] = state.Units[0] with { Inventory = [new("lantern-one", equipment.Id)] };
 
@@ -62,7 +62,7 @@ public sealed class AbilityProjectionTests
         Assert.Contains(Assert.Single(observation.Types).Abilities,
             ability => ability.Id == "ability:restore" && ability.Name == "Mending Verse" && ability.Description.Contains("4 HP"));
         Assert.Contains(Assert.Single(observation.Units).Abilities!, ability => ability.Content.Name == "Lantern Remedy");
-        Assert.Equal("Heal", UnitType.Cleric().LocalAbilities.Single(ability => ability.Mechanic is HealMechanic).Name);
+        Assert.Equal("Heal", UnitType.Cleric().LocalAbilities.Single(ability => ability.Mechanic is AdjacentUnitHealMechanic).Name);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class AbilityProjectionTests
     {
         var visible = UnitType.Grunt();
         var hidden = new UnitType("hidden-mender", 1, 1, 0, 1, 1)
-        { LocalAbilities = [new("restore", "Secret Mending Verse", AbilityTiming.Action, new HealMechanic(4))] };
+        { LocalAbilities = [new("restore", "Secret Mending Verse", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 4))] };
         var state = new GameState
         {
             ResourceDefinitions = [.. ResourceTypes.All],
@@ -92,7 +92,7 @@ public sealed class AbilityProjectionTests
         var type = new UnitType("wave-bearer", 3, 1, 1, 0, 2)
         {
             Actions = UnitAction.None, Unique = true,
-            LocalAbilities = [new("wave", "Holy Wave", AbilityTiming.Action, new HolyWaveMechanic()) { Usage = new(2) }],
+            LocalAbilities = [new("wave", "Holy Wave", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()], Usage = new(2) }],
             CanHaveItems = true, CanHaveEquipment = true
         };
         var state = new GameState
@@ -104,9 +104,9 @@ public sealed class AbilityProjectionTests
             FogOfWarSides = fog ? ["blue"] : []
         };
         state.EquipmentTypes.Add(new("sunken-chime", "Sunken Chime")
-        { LocalAbilities = [new("ring", "Gathering Dusk", AbilityTiming.Action, new HolyWaveMechanic())] });
+        { LocalAbilities = [new("ring", "Gathering Dusk", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] });
         state.ItemTypes.Add(new("paper-horizon", "Paper Horizon")
-        { LocalAbilities = [new("read", "Fold the Horizon", AbilityTiming.Action, new HolyWaveMechanic())] });
+        { LocalAbilities = [new("read", "Fold the Horizon", AbilityTiming.Action, new AdjacentUnitsPostureChangeMechanic(RelationshipSelector.Enemies, Posture.Lying)) { Costs = [new LayDownSelf()] }] });
         state.ItemTypes.Add(new("blue-seed", "Blue Seed")
         { LocalAbilities = [new("plant", "Blue Ember", AbilityTiming.Action, new FireballMechanic())] });
         state.Units[0] = state.Units[0] with
@@ -145,7 +145,7 @@ public sealed class AbilityProjectionTests
         Assert.DoesNotContain(BrowserProjection.Cards(state)["b"].Entries, e => e.Source != "Native");
 
         var grants = state.AbilitiesOf("a").ToArray();
-        var candidates = grants.Select(g => new Candidate(g.CandidatePrefix, Action: UnitAction.HolyWave, Kind: ActivationChoiceKind.Action)
+        var candidates = grants.Select(g => new Candidate(g.CandidatePrefix, Action: UnitAction.AdjacentUnitsPostureChange, Kind: ActivationChoiceKind.Action)
             { Ability = g, ObjectId = g.SourceKind == AbilitySourceKind.Unit ? null : g.SourceInstanceId }).ToList();
         var request = new DecisionRequest(DecisionKind.Activation, "wave-bearer", "a", candidates, false);
         var choices = BrowserProjection.Decision(request, state)!.Candidates;

@@ -35,7 +35,7 @@ public sealed class ContentEditorApiTests
             Assert.IsType<SelfModifiersMechanic>(restored.LocalAbilities[0].Mechanic).Modifiers);
         Assert.IsType<Phase>(restored.LocalAbilities[1].Mechanic);
         Assert.IsType<OpenDoor>(restored.LocalAbilities[2].Mechanic);
-        Assert.Equal(3, Assert.IsType<HealMechanic>(restored.LocalAbilities[3].Mechanic).Amount);
+        Assert.Equal(3, Assert.IsType<AdjacentUnitHealMechanic>(restored.LocalAbilities[3].Mechanic).Amount);
         Assert.All(result.Entry!.References, reference => Assert.True(reference.Exists));
         Assert.Contains(result.Entry.Abilities, ability => ability.Key == "mend" && ability.Name == "Mend" && ability.Timing == "Action" && ability.Description.Contains('3'));
         Assert.Equal("local", result.Entry.Origin);
@@ -104,9 +104,9 @@ public sealed class ContentEditorApiTests
     public async Task SharedEngineValidationReportsOwnerKeysParametersSourceProfilesAndDependencyPaths()
     {
         await using var host = await Host.Start();
-        var duplicate = Equipment() with { LocalAbilities = [new("same", "First", AbilityTiming.Action, new HealMechanic(1)), new("same", "Second", AbilityTiming.Action, new HealMechanic(2))] };
+        var duplicate = Equipment() with { LocalAbilities = [new("same", "First", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1)), new("same", "Second", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 2))] };
         AssertError(await host.Validate("equipment", duplicate), "definition.localAbilities[1].key");
-        var charges = Equipment() with { LocalAbilities = [new("mend", "Mend", AbilityTiming.Action, new HealMechanic(1)) { Usage = new(2) }] };
+        var charges = Equipment() with { LocalAbilities = [new("mend", "Mend", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 1)) { Usage = new(2) }] };
         Assert.True((await host.Validate("equipment", charges)).Valid);
         var invalidCharges = charges with { LocalAbilities = [charges.LocalAbilities[0] with { Usage = new(0) }] };
         AssertError(await host.Validate("equipment", invalidCharges), "definition.localAbilities[0].usage");
@@ -158,8 +158,8 @@ public sealed class ContentEditorApiTests
         var overridden = CanonicalUnitTypes.Find(UnitTypeIds.Grunt)! with { DisplayName = "Scarlet Helper" };
         var equipment = new EquipmentDefinition("helper-bell", "Helper Bell") { LocalAbilities =
         [
-            new("paper", "Fold", AbilityTiming.Action, new SummonAdjacent(local.Id, Posture.Lying)) { Usage = new(2) },
-            new("scarlet", "Ring", AbilityTiming.Action, new SummonAdjacent(overridden.Id, Posture.Upright))
+            new("paper", "Fold", AbilityTiming.Action, new AdjacentUnitSummonMechanic(local.Id, Posture.Lying)) { Usage = new(2) },
+            new("scarlet", "Ring", AbilityTiming.Action, new AdjacentUnitSummonMechanic(overridden.Id, Posture.Upright))
         ] };
         var context = new ContentEditorContext { UnitTypes = [local, overridden] };
         var result = await host.Validate("equipment", equipment, context: context);
@@ -179,7 +179,7 @@ public sealed class ContentEditorApiTests
         Assert.NotEqual("Scarlet Helper", CanonicalUnitTypes.Find(overridden.Id)!.DisplayName);
 
         AssertError(await host.Validate("equipment", equipment), "definition.localAbilities[0].mechanic.unitTypeId");
-        var missing = equipment with { LocalAbilities = [equipment.LocalAbilities[0] with { Mechanic = new SummonAdjacent("missing", Posture.Upright) }] };
+        var missing = equipment with { LocalAbilities = [equipment.LocalAbilities[0] with { Mechanic = new AdjacentUnitSummonMechanic("missing", Posture.Upright) }] };
         AssertError(await host.Validate("equipment", missing, context: context), "definition.localAbilities[0].mechanic.unitTypeId");
         AssertError(await host.Validate("equipment", equipment, context: new() { UnitTypes = [local, local] }), "context.unitTypes[1].id");
     }
@@ -267,7 +267,7 @@ public sealed class ContentEditorApiTests
             new("stride", "Stride", AbilityTiming.Passive, new SelfModifiersMechanic([new(Stat.Mov, 2), new(Stat.Def, -1)])),
             new("phase", "Phase", AbilityTiming.Passive, new Phase()),
             new("door", "Open Door", AbilityTiming.FreeAction, new OpenDoor()),
-            new("mend", "Mend", AbilityTiming.Action, new HealMechanic(3))
+            new("mend", "Mend", AbilityTiming.Action, new AdjacentUnitHealMechanic(RelationshipSelector.Friendlies, 3))
         ]
     };
     private static void AssertError(ContentEditorResponse response, string path)

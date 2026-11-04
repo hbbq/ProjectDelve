@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
 using static ProjectDelve.Engine.UnitAuthoring;
@@ -132,17 +132,17 @@ public sealed class SpecializedMechanicCatalogTests
             (new Swap(), [MechanicTiming.BonusAction]),
             (new Displace(1), [MechanicTiming.BonusAction]),
             (new ReshapeRoom(), [MechanicTiming.BonusAction]),
-            (new SummonAdjacent(UnitTypeIds.Grunt, Posture.Upright), [MechanicTiming.Action]),
-            (new SummonWorker(3), [MechanicTiming.Action]),
-            (new SummonTroll(1), [MechanicTiming.Action]),
+            (new AdjacentUnitSummonMechanic(UnitTypeIds.Grunt, Posture.Upright), [MechanicTiming.Action]),
+            (new AdjacentUnitSummonMechanic(UnitTypeIds.Worker, Posture.Upright, 3), [MechanicTiming.Action]),
+            (new AdjacentUnitSummonMechanic(UnitTypeIds.Troll, Posture.Upright), [MechanicTiming.Action]),
             (new FireBreath(), [MechanicTiming.Action]),
             (new ClawAttack(), [MechanicTiming.Action]),
             (new PickupResource(), [MechanicTiming.Action]),
             (new GiveResource(), [MechanicTiming.Action]),
             (new Operate(), [MechanicTiming.Action]),
-            (new ShootShell(1, 4, 3), [MechanicTiming.Action]),
-            (new PlaceBananaPeel(1), [MechanicTiming.BonusAction]),
-            (new Boost(1), [MechanicTiming.BonusAction])
+            (new TargetUnitAttackMechanic(4, 3), [MechanicTiming.Action]),
+            (new PlaceBananaPeel(), [MechanicTiming.BonusAction]),
+            (new SelfExtraMovesMechanic(1), [MechanicTiming.BonusAction])
         ];
         foreach (var (payload, timings) in active)
         {
@@ -165,7 +165,7 @@ public sealed class SpecializedMechanicCatalogTests
         Assert.Contains("completed Attack", missingAttack.Message);
         Assert.Contains(MechanicCatalog.Validate(new Phase(), new(MechanicSource.Equipment, MechanicTiming.Passive, 1)),
             issue => issue.Message.Contains("no discrete use"));
-        Assert.NotEmpty(MechanicCatalog.Validate(new SummonAdjacent(UnitTypeIds.Grunt, Posture.Upright), new(MechanicSource.Equipment, MechanicTiming.FreeAction)));
+        Assert.NotEmpty(MechanicCatalog.Validate(new AdjacentUnitSummonMechanic(UnitTypeIds.Grunt, Posture.Upright), new(MechanicSource.Equipment, MechanicTiming.FreeAction)));
     }
 
     [Fact]
@@ -190,9 +190,9 @@ public sealed class SpecializedMechanicCatalogTests
     [InlineData(101)]
     public void SharedModifierBoundsApplyToEveryLocalDeclaration(int amount)
     {
-        foreach (var mechanic in new AbilityMechanic[] { new AdjacentModifiersMechanic([new(Stat.Def, amount)]), new SelfModifiersMechanic([new(Stat.Atk, amount)]) })
+        foreach (var mechanic in new AbilityMechanic[] { new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, amount)]), new SelfModifiersMechanic([new(Stat.Atk, amount)]) })
         {
-            var ability = new LocalAbilityDefinition("configured", "Configured", mechanic is AdjacentModifiersMechanic ? AbilityTiming.Passive : AbilityTiming.BonusAction, mechanic);
+            var ability = new LocalAbilityDefinition("configured", "Configured", mechanic is AdjacentUnitsStatModifiersMechanic ? AbilityTiming.Passive : AbilityTiming.BonusAction, mechanic);
             Assert.Contains(MechanicCatalog.Validate(mechanic), issue => issue.Path == "mechanic.modifiers[0].amount");
             Assert.Throws<ArgumentException>(() => AbilityContent.Validate([ability], AbilitySourceKind.Unit));
         }

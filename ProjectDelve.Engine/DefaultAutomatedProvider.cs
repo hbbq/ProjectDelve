@@ -4,7 +4,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
 {
     private static string? PreferredWorkerSummon(DecisionRequest request, IGameplayQueries queries) =>
         queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferSummonWorker)
-            ? request.Candidates.Where(c => c.Action == UnitAction.SummonWorker)
+            ? request.Candidates.Where(c => c.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic { UnitTypeId: UnitTypeIds.Worker })
                 .OrderBy(c => c.Destination!.Y).ThenBy(c => c.Destination!.X)
                 .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault()?.Key
             : null;
@@ -23,14 +23,14 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
-        var objectChoice = request.Candidates.FirstOrDefault(c => (c.Ability is null && c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.Ability?.Definition.Mechanic is StandAdjacentFriendlyMechanic));
+        var objectChoice = request.Candidates.FirstOrDefault(c => (c.Ability is null && c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.Ability?.Definition.Mechanic is AdjacentUnitPostureChangeMechanic { Selector: RelationshipSelector.Friendlies, NewPosture: Posture.Upright }));
         if (objectChoice is not null) return objectChoice.Key;
         if (request.Candidates.Any(c => c.Kind == ActivationChoiceKind.EndTurn) &&
             !request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Action) &&
             request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is ExtraActionsMechanic) is { } wind)
             return wind.Key;
         if (request.Candidates.FirstOrDefault(c => c.Ability?.SourceKind == AbilitySourceKind.Equipment && c.FreeAction == UnitFreeAction.OpenDoor) is { } open) return open.Key;
-        if (request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is Boost) is { } boost) return boost.Key;
+        if (request.Candidates.FirstOrDefault(c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic) is { } boost) return boost.Key;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
             BananaPlacementRules.Preferred(request, queries) is { } banana) return banana;
         if (!request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay) &&
@@ -183,7 +183,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     internal static string? SelectAction(DecisionRequest request, IGameplayQueries queries,
         IReadOnlyCollection<string>? orderedTargetIds = null)
     {
-        var shell = request.Candidates.Where(c => c.Action == UnitAction.ShootShell)
+        var shell = request.Candidates.Where(c => c.Action == UnitAction.TargetUnitAttack)
             .OrderBy(c => queries.ManhattanDistanceBetweenUnits(request.UnitId!, c.TargetId!))
             .ThenBy(c => queries.PositionOf(c.TargetId!).Y).ThenBy(c => queries.PositionOf(c.TargetId!).X)
             .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();
@@ -194,20 +194,22 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             return WorkerBehavior.Choose(request, queries);
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.PreferTrollThenDiamondThenWorker))
         {
-            foreach (var action in new[] { UnitAction.SummonTroll, UnitAction.PickupResource, UnitAction.SummonWorker })
+            foreach (var preference in new[] { UnitTypeIds.Troll, ResourceTypeIds.Diamond, UnitTypeIds.Worker })
             {
-                if (action == UnitAction.PickupResource && !queries.Resources.Any(r =>
-                        r.Position == queries.PositionOf(request.UnitId!) && r.Type.Id == ResourceTypeIds.Diamond)) continue;
-                var preferred = request.Candidates.Where(c => c.Action == action)
-                    .OrderBy(c => c.Destination?.Y).ThenBy(c => c.Destination?.X)
-                    .ThenBy(c => c.Key, StringComparer.Ordinal).FirstOrDefault();
+                if (preference == ResourceTypeIds.Diamond && !queries.Resources.Any(resource =>
+                        resource.Position == queries.PositionOf(request.UnitId!) && resource.Type.Id == ResourceTypeIds.Diamond)) continue;
+                var preferred = request.Candidates.Where(candidate => preference == ResourceTypeIds.Diamond
+                        ? candidate.Action == UnitAction.PickupResource
+                        : candidate.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic summon && summon.UnitTypeId == preference)
+                    .OrderBy(candidate => candidate.Destination?.Y).ThenBy(candidate => candidate.Destination?.X)
+                    .ThenBy(candidate => candidate.Key, StringComparer.Ordinal).FirstOrDefault();
                 if (preferred is not null) return preferred.Key;
             }
             return NoCandidate(request);
         }
         if (queries.BehaviorsOf(request.UnitId!).HasFlag(UnitBehavior.UseSummon))
         {
-            var summons = request.Candidates.Where(c => c.Action == UnitAction.SummonAdjacent).ToList();
+            var summons = request.Candidates.Where(c => c.Action == UnitAction.AdjacentUnitSummon).ToList();
             if (summons.Count > 0)
             {
                 if (orderedTargetIds is { Count: > 0 })
@@ -262,7 +264,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     }
 
     internal static bool IsAttack(Candidate candidate) => candidate.Action is
-        UnitAction.NormalAttack or UnitAction.ClawAttack or UnitAction.FireBreath or UnitAction.Fireball or UnitAction.ShootShell;
+        UnitAction.NormalAttack or UnitAction.ClawAttack or UnitAction.FireBreath or UnitAction.Fireball or UnitAction.TargetUnitAttack;
 
     internal static IEnumerable<string> CandidateTargets(Candidate candidate) =>
         (candidate.TargetId is null ? candidate.TargetIds : candidate.TargetIds.Prepend(candidate.TargetId))

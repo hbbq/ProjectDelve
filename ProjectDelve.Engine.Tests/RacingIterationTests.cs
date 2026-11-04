@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Xunit;
 
 namespace ProjectDelve.Engine.Tests;
@@ -46,7 +46,8 @@ public sealed class RacingIterationTests
         Assert.Equal(0, boosted.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "mushroom"));
         Assert.Equal(2, boosted.State.EffectiveMovesPerActivation);
         var spent = boosted.Events.FindIndex(e => e.Kind == "ResourceSpent");
-        Assert.Equal(2, boosted.ResolutionSteps.Single(s => s.EventIndex == spent).StateAfter.EffectiveMovesPerActivation);
+        Assert.Equal(1, boosted.ResolutionSteps.Single(s => s.EventIndex == spent).StateAfter.EffectiveMovesPerActivation);
+        Assert.Equal(2, boosted.ResolutionSteps.Single(s => boosted.Events[s.EventIndex].Kind == "ActionUsed").StateAfter.EffectiveMovesPerActivation);
         Assert.DoesNotContain(boosted.NextInput!.Candidates, c => c.Kind is ActivationChoiceKind.EndTurn or ActivationChoiceKind.Action);
         var moved = Step(boosted, "stay");
         Assert.Equal(1, moved.State.MovesCompletedThisActivation);
@@ -58,9 +59,9 @@ public sealed class RacingIterationTests
         moved = Step(moved, "stay");
         Assert.True(moved.State.MoveDone);
         Assert.Equal(0, moved.State.Orders.Single().Route!.CurrentIndex);
-        Assert.Contains(moved.NextInput!.Candidates, c => c.Action == UnitAction.ShootShell);
+        Assert.Contains(moved.NextInput!.Candidates, c => c.Action == UnitAction.TargetUnitAttack);
         Assert.Contains(moved.NextInput.Candidates, c => c.Kind == ActivationChoiceKind.EndTurn);
-        Assert.DoesNotContain(moved.NextInput.Candidates, c => c.Ability?.Definition.Mechanic is Boost);
+        Assert.DoesNotContain(moved.NextInput.Candidates, c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic);
     }
 
     [Fact]
@@ -75,7 +76,7 @@ public sealed class RacingIterationTests
         Assert.Equal(0, shot.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "shell"));
         Assert.Equal(1, shot.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "mushroom"));
         while (shot.NextInput?.Kind == DecisionKind.RollDice) shot = Step(shot, "roll-dice");
-        Assert.DoesNotContain(shot.NextInput!.Candidates, c => c.Ability?.Definition.Mechanic is Boost);
+        Assert.DoesNotContain(shot.NextInput!.Candidates, c => c.Ability?.Definition.Mechanic is SelfExtraMovesMechanic);
         Assert.Contains(shot.NextInput.Candidates, c => c.Ability?.Definition.Mechanic is PlaceBananaPeel);
         Assert.Contains(shot.Events, e => e.Kind == "UnitDefeated");
     }
@@ -112,10 +113,10 @@ public sealed class RacingIterationTests
         Assert.Equal(0, shot.State.Units.Single(u => u.Id == "target").CurrentHp);
         var far = Fixture() with { Units = [Fixture().Units[0], new("target", "red", new(8, 4), UnitId: "target")] };
         var noTarget = Step(Start(far), "stay");
-        Assert.DoesNotContain(noTarget.NextInput!.Candidates, c => c.Action == UnitAction.ShootShell);
+        Assert.DoesNotContain(noTarget.NextInput!.Candidates, c => c.Action == UnitAction.TargetUnitAttack);
         Assert.Equal(1, noTarget.State.StoredQuantity("blue", UnitTypeIds.DiamondKart, "shell"));
         var blocked = Fixture() with { Board = Fixture().Board with { Cells = [new(new(2, 2), TerrainKind.FruitTree)] } };
-        Assert.DoesNotContain(Step(Start(blocked), "stay").NextInput!.Candidates, c => c.Action == UnitAction.ShootShell);
+        Assert.DoesNotContain(Step(Start(blocked), "stay").NextInput!.Candidates, c => c.Action == UnitAction.TargetUnitAttack);
     }
 
     [Theory]
@@ -210,7 +211,7 @@ public sealed class RacingIterationTests
         result = GameEngine.RefreshChoices(result.State, new Dice(), false);
         Assert.Equal(0, result.State.EffectiveMovesPerActivation);
         Assert.DoesNotContain(result.NextInput!.Candidates, c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay);
-        Assert.Contains(result.NextInput.Candidates, c => c.Action == UnitAction.ShootShell);
+        Assert.Contains(result.NextInput.Candidates, c => c.Action == UnitAction.TargetUnitAttack);
     }
 
     [Fact]
@@ -222,7 +223,7 @@ public sealed class RacingIterationTests
             StoredResources = [new("blue", UnitTypeIds.DiamondKart, ResourceTypes.Shell, 1)]
         };
         var result = Step(Start(fixture), "stay");
-        Assert.Equal(3, result.NextInput!.Candidates.Count(c => c.Action == UnitAction.ShootShell));
+        Assert.Equal(3, result.NextInput!.Candidates.Count(c => c.Action == UnitAction.TargetUnitAttack));
         Assert.Equal("ability:shoot-shell:east", new OrderAwareAutomatedProvider().Choose(result.NextInput, new GameplayQueries(result.State)));
     }
 
