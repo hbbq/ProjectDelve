@@ -206,12 +206,65 @@ public static class FogOfWar
 
     public static void Refresh(GameState state)
     {
-        foreach (var side in state.FogOfWarSides)
+        if (state.FogOfWarSides.Count == 0) { state.VisionCache = null; return; }
+        var sources = state.Units.Where(u => state.FogOfWarSides.Contains(u.SideId) && u.CurrentHp > 0)
+            .Select(u => (Unit: u, Figure: state.Physical.Figures.FirstOrDefault(f => f.Id == u.Id)))
+            .Where(p => p.Figure is not null)
+            .Select(p => new VisionSource(p.Unit.Id, p.Unit.SideId, p.Figure!.Position,
+                FootprintGeometry.FootprintOf(state, p.Unit.Id), state.HasPhase(p.Unit.Id))).ToArray();
+        var cached = state.VisionCache;
+        if (cached is null || !cached.Matches(state, sources))
+            state.VisionCache = cached = new CachedVision(state, sources);
+        cached.Accumulate(state);
+    }
+
+    internal sealed record VisionSource(string UnitId, string SideId, Cell Anchor, Footprint Footprint, bool Phase);
+
+    // One completed, privately owned snapshot. It contains no mutable GameState references
+    // and can safely be shared by copies. Direct edits to public model collections are
+    // detected by value comparisons, without requiring every mutation site to invalidate.
+    internal sealed class CachedVision
+    {
+        private readonly int width, height;
+        private readonly ImmutableArray<TerrainDefinition> terrainTypes;
+        private readonly TerrainTile[] terrain;
+        private readonly Edge[] edges;
+        private readonly Machine[] machines;
+        private readonly string[] sides;
+        private readonly VisionSource[] sources;
+        private readonly Dictionary<string, HashSet<Cell>> visible = new(StringComparer.Ordinal);
+
+        internal CachedVision(GameState state, VisionSource[] sources)
         {
-            if (!state.ExploredCells.TryGetValue(side, out var explored)) state.ExploredCells[side] = explored = [];
-            foreach (var unit in state.Units.Where(u => u.SideId == side && u.CurrentHp > 0 &&
-                state.Physical.Figures.Any(f => f.Id == u.Id)))
-                ExploreFrom(state, unit, explored);
+            var board = state.Physical.Board;
+            width = board.Width; height = board.Height; terrainTypes = board.TerrainTypes;
+            terrain = [.. board.Terrain]; edges = [.. board.Edges]; machines = [.. board.Machines];
+            sides = [.. state.FogOfWarSides]; this.sources = sources;
+            foreach (var side in sides)
+            {
+                if (!visible.TryGetValue(side, out var cells)) visible[side] = cells = [];
+                foreach (var source in sources.Where(s => s.SideId == side))
+                    ExploreFrom(state, state.Units.Single(u => u.Id == source.UnitId), cells);
+            }
+        }
+
+        internal bool Matches(GameState state, VisionSource[] current)
+        {
+            var board = state.Physical.Board;
+            return width == board.Width && height == board.Height && terrainTypes == board.TerrainTypes &&
+                sides.SequenceEqual(state.FogOfWarSides) && sources.SequenceEqual(current) &&
+                terrain.SequenceEqual(board.Terrain) && edges.SequenceEqual(board.Edges) && machines.SequenceEqual(board.Machines);
+        }
+
+        internal void Accumulate(GameState state)
+        {
+            // Exploration (including attack trajectories) is authoritative and permanent.
+            // Cache hits must still restore current sight if exploration was replaced/cleared.
+            foreach (var side in sides)
+            {
+                if (!state.ExploredCells.TryGetValue(side, out var cells)) state.ExploredCells[side] = cells = [];
+                cells.UnionWith(visible[side]);
+            }
         }
     }
 
@@ -233,7 +286,14 @@ public static class FogOfWar
 
     internal static void Sweep(GameState state, string unitId, IReadOnlyList<Cell> path)
     {
-        if (state.FogOfWarSides.Count == 0) return;
+        if (state.FogOfWarSides.Count == 0 || path.Count == 0) return;
+        // Figures do not block vision. Moving a non-source cannot change any Side's
+        // sight, but retain a refresh for other authoritative edits preceding this call.
+        if (!IsEnabled(state, state.Units.Single(u => u.Id == unitId).SideId))
+        {
+            Refresh(state);
+            return;
+        }
         // A leap's canonical path contains only its endpoints. No interpolation.
         foreach (var position in path)
         {

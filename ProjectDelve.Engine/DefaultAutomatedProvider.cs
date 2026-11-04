@@ -21,7 +21,7 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
     };
 
     internal static string SelectActivation(DecisionRequest request, IGameplayQueries queries,
-        IReadOnlyCollection<string>? orderedTargetIds = null)
+        IReadOnlyCollection<string>? orderedTargetIds = null, Func<string?>? ordinaryMovement = null)
     {
         var objectChoice = request.Candidates.FirstOrDefault(c => (c.Ability is null && c.ObjectId is not null && c.Kind == ActivationChoiceKind.FreeAction || c.Ability?.Definition.Mechanic is AdjacentUnitPostureChangeMechanic { Selector: RelationshipSelector.Friendlies, NewPosture: Posture.Upright }));
         if (objectChoice is not null) return objectChoice.Key;
@@ -45,6 +45,9 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
             return swap.Key;
         if (request.Candidates.Any(c => c.Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay))
         {
+            // Orders replace only ordinary movement, after every established higher priority.
+            // Avoid scoring Normal movement that the Order would immediately discard.
+            if (ordinaryMovement is not null) return ordinaryMovement()!;
             var moves = request with { Kind = DecisionKind.Move,
                 Candidates = request.Candidates.Where(c => c.Kind == ActivationChoiceKind.Move).ToList(),
                 AllowsNone = request.Candidates.Any(c => c.Kind == ActivationChoiceKind.Stay) };

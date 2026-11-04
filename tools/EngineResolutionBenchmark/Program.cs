@@ -1,42 +1,57 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ProjectDelve.Engine;
+using ProjectDelve.Generation;
 
 // dotnet run --project tools/EngineResolutionBenchmark -c Release --artifacts-path .playwright-cli
 // Fixed investigation fixture: 30x30 implicit floor, MOV 3/RNG 1/ATK 1/DEF 0/HP 1,
 // ten Default Behavior monsters, one human Unit, blue-only FoW, seed 7241.
 // Add -- --obstacles for a deterministic 35%-density interior rock fixture.
-var initial = Fixture(args.Contains("--obstacles", StringComparer.Ordinal));
+// --stronghold reproduces the 50x50 investigation with compiled canonical content.
+// --state <snapshot.json> uses a detached GameState with its captured content instead.
+string? Option(string key) => Array.IndexOf(args, key) is var i && i >= 0 ? args[i + 1] : null;
+var warmups = int.Parse(Option("--warmups") ?? "5");
+var sampleCount = int.Parse(Option("--samples") ?? "15");
+if (warmups < 0 || sampleCount < 1) throw new ArgumentException("Invalid sample counts.");
+var statePath = Option("--state");
+var generated = args.Contains("--stronghold", StringComparer.Ordinal);
+var legacySchedule = statePath is null && !generated;
+var snapshotJson = new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } };
+var initial = statePath is not null ? JsonSerializer.Deserialize<GameState>(File.ReadAllText(statePath), snapshotJson)! :
+    generated ? GameEngine.CreateGame(DungeonGenerator.Generate("DNG2-OS-50x50-O2-T2-N3-L3-B2-OR2-F1-QAll-S6DCCA420DCFB55FB").Definition) :
+    Fixture(args.Contains("--obstacles", StringComparer.Ordinal));
 var cold = Stopwatch.StartNew();
-Resolve(initial);
+Resolve(initial, legacySchedule);
 cold.Stop();
-for (var i = 0; i < 5; i++) Resolve(initial);
+for (var i = 0; i < warmups; i++) Resolve(initial, legacySchedule);
 // Allow background tiered compilation triggered by warmups to finish before the
 // faster runs' short sample window. This is harness setup, never gameplay timing.
 Thread.Sleep(1000);
 var samples = new List<(double Total, double Decision, long Bytes)>();
 var collections = Enumerable.Range(0, 3).Select(GC.CollectionCount).ToArray();
-for (var i = 0; i < 15; i++)
+for (var i = 0; i < sampleCount; i++)
 {
     var allocated = GC.GetAllocatedBytesForCurrentThread();
     var watch = Stopwatch.StartNew();
-    var result = Resolve(initial);
+    var result = Resolve(initial, legacySchedule);
     watch.Stop();
     samples.Add((watch.Elapsed.TotalMilliseconds, result.DecisionMs, GC.GetAllocatedBytesForCurrentThread() - allocated));
 }
 var gcCollections = Enumerable.Range(0, 3).Select(g => GC.CollectionCount(g) - collections[g]).ToArray();
-var check = Resolve(initial, trace: true);
+var check = Resolve(initial, legacySchedule, trace: true);
 Console.WriteLine(JsonSerializer.Serialize(new
 {
     runtime = Environment.Version.ToString(), serverGC = System.Runtime.GCSettings.IsServerGC,
-    obstacleCells = initial.Physical.Board.Terrain.Count,
+    width = initial.Physical.Board.Width, height = initial.Physical.Board.Height,
+    units = initial.Units.Count, terrainEntries = initial.Physical.Board.Terrain.Count,
     tieredCompilation = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "default",
-    coldMs = cold.Elapsed.TotalMilliseconds, warmups = 5, samples = samples.Count,
-    medianMs = samples.Select(s => s.Total).Order().ElementAt(7),
+    coldMs = cold.Elapsed.TotalMilliseconds, warmups, samples = samples.Count,
+    medianMs = samples.Select(s => s.Total).Order().ElementAt(samples.Count / 2),
     minMs = samples.Min(s => s.Total), maxMs = samples.Max(s => s.Total),
-    decisionMedianMs = samples.Select(s => s.Decision).Order().ElementAt(7),
-    allocatedMedian = samples.Select(s => s.Bytes).Order().ElementAt(7),
+    decisionMedianMs = samples.Select(s => s.Decision).Order().ElementAt(samples.Count / 2),
+    allocatedMedian = samples.Select(s => s.Bytes).Order().ElementAt(samples.Count / 2),
     gcCollections,
     check.Decisions, check.MonstersCompleted, check.Events, check.TraceDigest, check.RandomCalls
 }));
@@ -65,9 +80,9 @@ static GameState Fixture(bool obstacles)
     return state;
 }
 
-static Measurement Resolve(GameState state, bool trace = false)
+static Measurement Resolve(GameState state, bool legacySchedule, bool trace = false)
 {
-    var random = new SeededRandom();
+    var random = new SeededRandom(state, legacySchedule);
     var provider = new TimedProvider();
     var result = GameEngine.StartRound(state, random);
     var entries = trace ? new List<string>() : null;
@@ -75,9 +90,10 @@ static Measurement Resolve(GameState state, bool trace = false)
     while (true)
     {
         events += result.Events.Count;
-        completed += result.Events.Count(e => e.Kind == "ActivationCompleted" && e.UnitId?.StartsWith("monster-") == true);
+        completed += result.Events.Count(e => e.Kind == "ActivationCompleted" && state.Units.Any(u => u.Id == e.UnitId &&
+            state.ControllerFor(new ActivationToken(u.TypeId, u.SideId)) == ControllerKind.Automated));
         entries?.Add(JsonSerializer.Serialize(result));
-        if (result.NextInput is not { Token.SideId: "red" }) break;
+        if (result.NextInput is not { } input || result.State.ControllerFor(input) != ControllerKind.Automated) break;
         result = GameEngine.Advance(result.State, provider, random);
         advances++;
     }
@@ -96,16 +112,24 @@ sealed class TimedProvider : IDecisionProvider
         finally { Ticks += Stopwatch.GetTimestamp() - start; }
     }
 }
-sealed class SeededRandom : IRandomProvider
+sealed class SeededRandom(GameState initial, bool legacySchedule) : IRandomProvider
 {
     private readonly Random random = new(7241);
     public int Calls;
     public ActivationToken DrawToken(IReadOnlyList<ActivationToken> bag)
     {
         Calls++;
-        return bag.FirstOrDefault(t => t.SideId == "red") ?? bag[0];
+        // Preserve the original 30x30 schedule; generated fixtures use investigation's
+        // fixed-seed automated-first draws, stopping before a human decision.
+        if (legacySchedule)
+            return bag.FirstOrDefault(t => t.SideId == "red") ?? bag[0];
+        var automated = bag.Where(t => initial.ControllerFor(t) == ControllerKind.Automated).ToArray();
+        var choices = automated.Length > 0 ? automated : bag.ToArray();
+        return choices[random.Next(choices.Length)];
     }
     public AttackFace RollAttackDie() { Calls++; return random.Next(2) == 0 ? AttackFace.Hit : AttackFace.Miss; }
     public DefenceFace RollDefenceDie() { Calls++; return random.Next(2) == 0 ? DefenceFace.Block : DefenceFace.Miss; }
     public int RollD6() { Calls++; return random.Next(1, 7); }
+    public int RollD8() { Calls++; return random.Next(1, 9); }
+    public int WorldShuffleIndex(int exclusiveMax) { Calls++; return random.Next(exclusiveMax); }
 }

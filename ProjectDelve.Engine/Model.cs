@@ -444,6 +444,7 @@ public sealed class GameState
     }
     public List<string> NeutralSides { get; set; } = [];
     public List<string> FogOfWarSides { get; set; } = [];
+    [JsonIgnore] internal FogOfWar.CachedVision? VisionCache { get; set; }
     public Dictionary<string, HashSet<Cell>> ExploredCells { get; set; } = new(StringComparer.Ordinal);
     public bool AreHostile(string firstSide, string secondSide) =>
         firstSide != secondSide && !NeutralSides.Contains(firstSide) && !NeutralSides.Contains(secondSide);
@@ -628,6 +629,7 @@ public sealed class GameState
         Types = [.. Types], Units = [.. Units], CellMarkers = [.. CellMarkers], Resources = [.. Resources], StoredResources = [.. StoredResources], Round = Round, Bag = [.. Bag],
         NeutralSides = [.. NeutralSides], Objectives = [.. Objectives], Completion = Completion,
         FogOfWarSides = [.. FogOfWarSides],
+        VisionCache = VisionCache,
         ExploredCells = ExploredCells.ToDictionary(p => p.Key, p => new HashSet<Cell>(p.Value), StringComparer.Ordinal),
         ObjectiveStartUnitIds = new(ObjectiveStartUnitIds, StringComparer.Ordinal),
         DefeatedUnitIds = new(DefeatedUnitIds, StringComparer.Ordinal),

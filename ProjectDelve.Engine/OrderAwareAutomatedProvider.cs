@@ -46,20 +46,8 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
         return normal.Choose(request, queries);
     }
 
-    private string? ChoosePositionOrder(DecisionRequest request, IGameplayQueries queries, Cell? destination)
-    {
-        if (request.IsMoveAfterAttack) return normal.Choose(request, queries);
-
-        var normalChoice = normal.Choose(request, queries);
-        if (request.Kind == DecisionKind.Activation)
-        {
-            var selected = request.Candidates.Single(candidate => candidate.Key == normalChoice);
-            if (selected.Kind is not (ActivationChoiceKind.Move or ActivationChoiceKind.Stay)) return normalChoice;
-            return SelectOrdinaryMove(request, queries, destination);
-        }
-        if (request.Kind == DecisionKind.Move) return SelectOrdinaryMove(request, queries, destination);
-        return normalChoice;
-    }
+    private string? ChoosePositionOrder(DecisionRequest request, IGameplayQueries queries, Cell? destination) =>
+        ChooseOrdinaryMovement(request, queries, (_, _) => SelectOrdinaryMove(request, queries, destination));
 
     private string? ChooseAttack(DecisionRequest request, IGameplayQueries queries, OrderTarget target)
     {
@@ -201,15 +189,13 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
             var movePosition = queries.PositionOf(request.UnitId!);
             return select(movePosition, movePosition);
         }
-        var normalChoice = normal.Choose(request, queries);
         if (request.Kind == DecisionKind.Activation)
-        {
-            var selected = request.Candidates.Single(candidate => candidate.Key == normalChoice);
-            if (selected.Kind is not (ActivationChoiceKind.Move or ActivationChoiceKind.Stay)) return normalChoice;
-        }
-        else return normalChoice;
-        var current = queries.PositionOf(request.UnitId!);
-        return select(current, current);
+            return DefaultAutomatedProvider.SelectActivation(request, queries, ordinaryMovement: () =>
+            {
+                var current = queries.PositionOf(request.UnitId!);
+                return select(current, current);
+            });
+        return normal.Choose(request, queries);
     }
 
     private static string? SelectAttackMove(DecisionRequest request, IGameplayQueries queries,
