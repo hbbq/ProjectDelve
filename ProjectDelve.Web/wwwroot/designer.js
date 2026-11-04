@@ -1136,6 +1136,12 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         lootCardDefinitions: draft.definition.lootCardDefinitions ?? [],
         ...(draft.definition.contentReferences?.length ? { contentReferences: draft.definition.contentReferences } : {})
       }),
+      saveLootBatch: async ({ cards, expectedRevision }) => {
+        if (expectedRevision !== revision()) throw new Error('The scenario changed. Preview the batch again.');
+        if (pendingPlay || libraryOpening || libraryBusy || !ready()) throw new Error('Finish the pending Designer operation first.');
+        if (!commit(() => draft.applyLootCardBatch(cards))) throw new Error('The batch could not be applied; the draft was retained.');
+        return snapshot();
+      },
       applyReferences: async ({ references, expectedRevision }) => {
         if (expectedRevision !== revision()) throw new Error('The scenario draft changed. Preview the reference again before applying it.');
         if (pendingPlay || libraryOpening || libraryBusy || !ready()) throw new Error('Finish the pending Designer operation before importing content.');

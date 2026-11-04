@@ -35,6 +35,15 @@ Engine commitment and payment boundary.
 
 ## Validation and previews
 
+Loot Management uses `POST /api/content/loot-management` with an optional typed
+Designer `context` to inspect reverse reward and preset references. Batch generation
+uses `/api/content-workspace/loot/preview` with `{expectedToken, selected,
+destination, context}`; selected identities use Engine Content Family names.
+`/api/content-workspace/loot/create` accepts `{preview, confirm:true}` and rebuilds
+the proposal under Workspace and Canonical locks. Invalid or stale batches create
+no definitions. Scenario destination returns validated typed cards to the Designer's
+single history operation without persisting them to Workspace.
+
 `POST /api/content/validate` accepts family, typed definition, optional existingId and dependency context. `POST /api/content/context` resolves a draft's typed definitions without requiring a valid board. Both resolve against current Workspace and Canonical. Structure, mechanic parameter bounds, source/timing/usage combinations and typed dependencies are checked by shared Engine validation. Diagnostics retain definition/field paths.
 
 `GET /api/content/catalog` browses Canonical. `GET /api/content-workspace/catalog` shows effective Workspace content and origins, including active overrides. `POST /api/content/inspect` inspects a full scenario using the same effective content as new game creation. These authoring endpoints do not read running-game observations.

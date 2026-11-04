@@ -29,6 +29,7 @@ public static class PlaytestHost
         var workspace = new ContentWorkspace(workspacePath, () => canonical.Bundle);
         builder.Services.AddSingleton(workspace);
         builder.Services.AddSingleton<WorkspacePromotionService>();
+        builder.Services.AddSingleton<LootManagementService>();
         var contentLibraryPath = builder.Configuration["ContentLibrary:Path"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "ContentLibrary");
         builder.Services.AddSingleton(_ => new ContentLibrary(contentLibraryPath, canonical.Packages, canonicalProvider: () => canonical.Packages));

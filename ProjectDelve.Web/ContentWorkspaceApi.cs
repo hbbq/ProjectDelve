@@ -10,7 +10,7 @@ public static class ContentWorkspaceApi
     {
         app.Use(async (context, next) =>
         {
-            if (context.Request.Path.StartsWithSegments("/api/content-workspace"))
+            if (context.Request.Path.StartsWithSegments("/api/content-workspace") || context.Request.Path == "/api/content/loot-management")
             {
                 if (context.Request.ContentLength > 8_000_000) { context.Response.StatusCode = 413; return; }
                 var limit = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
@@ -53,6 +53,17 @@ public static class ContentWorkspaceApi
             Results.Json(promotion.Preview(await Read<WorkspacePromotionRequest>(request)), Json));
         api.MapPost("/promotion/publish", async (HttpRequest request, WorkspacePromotionService promotion) =>
             Results.Json(promotion.Publish(await Read<ConfirmWorkspacePromotion>(request)), Json));
+        api.MapPost("/loot/preview", async (HttpRequest request, LootManagementService loot) =>
+            Results.Json(loot.Preview(await Read<LootBatchRequest>(request)), Json));
+        api.MapPost("/loot/create", async (HttpRequest request, LootManagementService loot) =>
+            Results.Json(loot.Create(await Read<ConfirmLootBatch>(request)), Json));
+        app.MapPost("/api/content/loot-management", async (HttpRequest request, LootManagementService loot) =>
+        {
+            try { return Results.Json(loot.Inspect((await Read<LootManagementRequest>(request)).Context), Json); }
+            catch (ContentCompositionException error) { return Results.Json(new { error = "Content validation failed.", diagnostics = error.Diagnostics }, Json, statusCode: 400); }
+            catch (LibraryException error) { return Results.Problem(error.Message, statusCode: error.StatusCode); }
+            catch (Exception error) when (error is JsonException or ArgumentException) { return Results.Problem(error.Message, statusCode: 400); }
+        });
     }
     private static async Task<T> Read<T>(HttpRequest request)
     {

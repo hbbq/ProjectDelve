@@ -54,4 +54,36 @@ public sealed class ContentWorkspaceApiTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
     }
     public void Dispose() { if (Directory.Exists(root)) Directory.Delete(root, true); }
+
+    [Fact]
+    public async Task LootBatchEndpointsValidateAndSaveWithoutChangingTheRunningGame()
+    {
+        var webRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../ProjectDelve.Web"));
+        await using var app = PlaytestHost.Build(["--urls", "http://127.0.0.1:0", "--contentRoot", webRoot,
+            "--ContentWorkspace:Path", Path.Combine(root, "workspace"), "--CanonicalContent:Directory", Path.Combine(root, "canonical"),
+            "--Library:Path", Path.Combine(root, "scenarios"), "--ContentLibrary:Path", Path.Combine(root, "legacy")],
+            null, GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        await app.StartAsync();
+        using var client = new HttpClient { BaseAddress = new(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+        var json = ContentPackageJson.CreateOptions();
+        var before = await client.GetStringAsync("/api/game");
+        var workspace = app.Services.GetRequiredService<ContentWorkspace>();
+        var saved = workspace.Save(new() { Equipment = [new("test-api-reward", "API Reward")] }, workspace.Snapshot().Token);
+        using var relationships = await client.PostAsJsonAsync("/api/content/loot-management", new LootManagementRequest(), json);
+        Assert.True(relationships.IsSuccessStatusCode, await relationships.Content.ReadAsStringAsync());
+        var inspected = (await relationships.Content.ReadFromJsonAsync<LootManagementResponse>(json))!;
+        Assert.Empty(inspected.Rewards.Single(r => r.TypeId == "test-api-reward").Cards);
+        using var previewResponse = await client.PostAsJsonAsync("/api/content-workspace/loot/preview",
+            new LootBatchRequest(saved.Token, [new(ContentFamily.Equipment, "test-api-reward")]), json);
+        Assert.True(previewResponse.IsSuccessStatusCode, await previewResponse.Content.ReadAsStringAsync());
+        var preview = (await previewResponse.Content.ReadFromJsonAsync<LootBatchPreview>(json))!;
+        using var created = await client.PostAsJsonAsync("/api/content-workspace/loot/create", new ConfirmLootBatch(preview, true), json);
+        Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync());
+        var result = (await created.Content.ReadFromJsonAsync<LootBatchResult>(json))!;
+        Assert.Equal(workspace.Snapshot().Token, result.Workspace.Token);
+        Assert.Equal("test-api-reward", Assert.Single(result.Definitions.LootCards).EquipmentTypeId);
+        Assert.Equal(before, await client.GetStringAsync("/api/game"));
+        using var stale = await client.PostAsJsonAsync("/api/content-workspace/loot/create", new ConfirmLootBatch(preview, true), json);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+    }
 }

@@ -176,3 +176,13 @@
 .cb-reference-panel label { display: flex; align-items: center; gap: .6rem; margin: .5rem 0; flex-wrap: wrap; }
 .cb-reference-panel pre { max-height: 22rem; overflow: auto; max-width: 100%; }
 .cb-reference-panel p { overflow-wrap: anywhere; }
+.cb-management { min-width: 0; }
+.cb-batch-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.cb-batch-row { border: 1px solid #65717e; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
+.cb-batch-row label { display: flex; align-items: center; gap: 8px; }
+.cb-batch-row input[type=checkbox] { width: 22px; height: 22px; }
+.cb-management pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; }
+.cb-management .cb-toolbar { flex-wrap: wrap; }
+.cb-management .cb-toolbar > * { min-width: 0; width: 100%; }
+.cb-management:empty { display: none; }
+[hidden] { display: none !important; }

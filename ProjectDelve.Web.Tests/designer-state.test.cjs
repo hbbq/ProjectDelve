@@ -7,6 +7,26 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/designer-state.js'), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('Loot Card batch is one history step, persists, and rejects collisions without partial changes', () => {
+  const context = vm.createContext({ structuredClone });
+  vm.runInContext(source.replace(/^export /gm, ''), context);
+  const { DesignerDraft, DesignerHistory } = vm.runInContext('({DesignerDraft, DesignerHistory})', context);
+  const draft = new DesignerDraft({maxBoardSize:50});
+  const history = new DesignerHistory(draft);
+  const cards = [{id:'first',name:'First',reward:{kind:'equipment',equipmentTypeId:'first'}},{id:'second',name:'Second',reward:{kind:'item',itemTypeId:'second'}}];
+  history.transact(()=>draft.applyLootCardBatch(cards));
+  assert.deepEqual(plain(draft.snapshot().lootCardDefinitions),cards);
+  history.undo();
+  assert.equal(draft.snapshot().lootCardDefinitions,undefined);
+  history.redo();
+  assert.deepEqual(plain(draft.snapshot().lootCardDefinitions),cards);
+  const before = JSON.stringify(draft.snapshot());
+  assert.throws(()=>draft.applyLootCardBatch([{id:'third'},{id:'first'}]),/collision/);
+  assert.equal(JSON.stringify(draft.snapshot()),before);
+  const reopened = new DesignerDraft({maxBoardSize:50}); reopened.replace(JSON.parse(before));
+  assert.deepEqual(plain(reopened.snapshot().lootCardDefinitions),cards);
+});
+
 function setup() {
   const context = vm.createContext({ structuredClone });
   vm.runInContext(source.replace(/^export /gm, ''), context);

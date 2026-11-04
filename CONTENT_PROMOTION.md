@@ -1,5 +1,12 @@
 # Promote Workspace to Canonical
 
+Content Browser's **Workspace Management** provides family/search filtering and
+multi-selection for this operation. Preview lists additions, replacements, required
+Workspace dependencies and existing Canonical dependency reuse. Workspace overrides
+of dependencies remain optional when the resulting Canonical catalog validates.
+Confirmation publishes exactly the selected identities, then removes those identities
+from Workspace. Unselected definitions remain in Workspace.
+
 POST `/api/content-workspace/promotion/preview` accepts `{expectedToken, selected: [{family, typeId}]}`. The response identifies new definitions, replacements, and missing Workspace dependencies. Only explicitly selected definitions publish. Include missing dependencies explicitly and preview the expanded batch before confirming.
 
 POST `/api/content-workspace/promotion/publish` accepts `{preview, confirm: true}`. The preview includes the Workspace token and canonical fingerprint; both are rechecked. The server rebuilds the proposal and validates the complete resulting canonical catalog and reference closure. A stale or altered preview fails.

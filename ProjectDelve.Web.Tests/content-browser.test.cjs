@@ -183,6 +183,40 @@ test('recursive mechanic schema preserves defaults, enum choices, list bounds an
 });
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
+
+test('Loot Management selects visible missing rewards and previews before confirming one batch', async () => {
+  const h = harness(async (url, options) => {
+    const payload = options?.body ? JSON.parse(options.body) : null;
+    const data = url === '/api/content-workspace' ? {token:'batch-token',definitions:{}} :
+      url === '/api/content/loot-management' ? {rewards:[{family:'equipment',typeId:'a',name:'Alpha',origin:'workspace',cards:[]},{family:'items',typeId:'b',name:'Beta',origin:'canonical',cards:[{typeId:'old',name:'Old'}]}],cards:[]} :
+      url.endsWith('/loot/preview') ? {request:payload,canCreate:true,definitions:{lootCardDefinitions:[{id:'a',name:'Alpha',equipmentTypeId:'a'}]}} :
+      url.endsWith('/loot/create') ? {workspace:{token:'after',definitions:{}}} : catalog;
+    return {ok:true,json:async()=>structuredClone(data)};
+  });
+  await h.viewer.show(); h.click(h.byId('content-loot-management')); await settle(); await settle();
+  h.click(buttonText(h,'Select All Without Loot Cards'));
+  h.click(buttonText(h,'Preview selected batch')); await settle();
+  const preview = h.calls.find(c=>c.url.endsWith('/loot/preview'));
+  assert.deepEqual(JSON.parse(preview.options.body).selected,[{family:'Equipment',typeId:'a'}]);
+  assert.equal(h.calls.some(c=>c.url.endsWith('/loot/create')),false);
+  h.click(buttonText(h,'Confirm batch writes')); await settle(); await settle();
+  assert.equal(h.calls.filter(c=>c.url.endsWith('/loot/create')).length,1);
+});
+
+test('changing the Loot destination while preview is pending discards its confirmation', async () => {
+  let release;
+  const h=harness(async(url,options)=> {
+    if(url.endsWith('/loot/preview')) return new Promise(resolve=>{release=()=>resolve({ok:true,json:async()=>({canCreate:true,definitions:{lootCardDefinitions:[]}})});});
+    const data=url==='/api/content-workspace' ? {token:'t',definitions:{}} : url==='/api/content/loot-management' ? {rewards:[{family:'equipment',typeId:'a',name:'A',origin:'canonical',cards:[]}],cards:[]} : catalog;
+    return {ok:true,json:async()=>structuredClone(data)};
+  });
+  await h.viewer.showScenario({},'Fixture',{getContext:()=>({}),getRevision:()=>1,saveLootBatch:async()=>{}});
+  h.click(h.byId('content-loot-management'));await settle();await settle();
+  h.click(buttonText(h,'Select All Without Loot Cards'));h.click(h.byId('management-preview'));await settle();
+  h.change('loot-batch-destination','scenario');release();await settle();
+  assert.equal(h.byId('management-confirm'),undefined);
+  assert.equal(h.calls.some(c=>c.url.endsWith('/loot/create')),false);
+});
 function workspaceHarness() {
   let workspace = { token: 'token-1', definitions: { unitTypes: [], equipmentTypes: [], itemTypes: [], lootCardDefinitions: [] } };
   const writes = [], publications = [], previews = [];
@@ -239,6 +273,21 @@ function workspaceHarness() {
     seed:definitions=>{workspace.definitions={...workspace.definitions,...structuredClone(definitions)};}};
 }
 const buttonText = (h,text) => h.root.all(element=>element.tagName==='button' && element.textContent===text)[0];
+
+test('Workspace Management previews a selected subset with the promotion contract', async () => {
+  const h=workspaceHarness(); h.seed({equipmentTypes:[{id:'batch-test',name:'Batch test',localAbilities:[]}]}); await h.viewer.showLibrary();
+  h.click(h.byId('content-workspace-management')); await settle(); await settle();
+  const checkbox=h.root.all(e=>e.tagName==='input' && e.type==='checkbox')[0];
+  checkbox.checked=true; checkbox.listeners.change();
+  h.click(h.byId('management-preview')); await settle();
+  const call=h.calls.find(c=>c.url==='/api/content-workspace/promotion/preview');
+  const payload=JSON.parse(call.options.body);
+  assert.deepEqual(Object.keys(payload).sort(),['expectedToken','selected']);
+  assert.equal(payload.selected.length,1);
+  assert.equal(h.publications.length,0);
+  h.click(h.byId('management-confirm'));await settle();await settle();
+  assert.equal(h.publications.length,1);
+});
 
 test('canonical editing writes an override into Workspace with the opening conflict token', async () => {
   const h=workspaceHarness();await h.viewer.showCanonical();h.viewer.open('equipment:chime');

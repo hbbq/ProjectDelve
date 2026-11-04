@@ -130,6 +130,16 @@ export class DesignerDraft {
     this.definition[field] = updated;
     this.changed();
   }
+  applyLootCardBatch(cards) {
+    if (!Array.isArray(cards) || !cards.length) throw new Error('Select Loot Cards to create.');
+    const ids = new Set((this.definition.lootCardDefinitions ?? []).map(row => row.id));
+    for (const card of cards) {
+      if (!card?.id || ids.has(card.id)) throw new Error(`Loot Card ID collision: ${card?.id}`);
+      ids.add(card.id);
+    }
+    this.definition.lootCardDefinitions = [...(this.definition.lootCardDefinitions ?? []), ...structuredClone(cards)];
+    this.changed();
+  }
   lootCardCatalog() {
     return [...(this.catalog.lootCards ?? []).map(c => ({ ...c, reference: {kind:c.kind}, key:`card:${c.kind}` })),
       ...this.equipmentCatalog().map(c => ({ name:c.name, category:'Equipment',

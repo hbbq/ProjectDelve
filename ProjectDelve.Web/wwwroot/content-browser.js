@@ -28,11 +28,13 @@ export function mountContentBrowser(root, options = {}) {
   const list = node('aside', null, 'cb-master cb-list'); list.id = 'content-list';
   const detail = node('article', null, 'cb-detail'); detail.id = 'content-detail'; body.append(list,detail);
   const promotion = node('section', null, 'cb-reference-panel'); promotion.id = 'content-promotion-panel'; promotion.hidden=true;
-  const editorRoot = node('section'); root.replaceChildren(header, actions, status, promotion, toolbar, body, editorRoot);
+  const management = node('section', null, 'cb-management'); management.hidden = true;
+  let managementMode = null, managementData = null, selectedBatch = new Map();
+  const editorRoot = node('section'); root.replaceChildren(header, actions, status, management, promotion, toolbar, body, editorRoot);
   async function call(url, body, method = 'POST') {
     const response = await request(url, body === undefined ? undefined : {method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data = response.status === 204 ? null : await response.json();
-    if (!response.ok) throw new Error(data.detail ?? data.message ?? data.error ?? data.diagnostics?.map(d => `${d.path ?? ''}: ${d.message}`).join('\n') ?? 'Content operation failed.');
+    if (!response.ok) throw new Error(data.detail ?? data.message ?? data.diagnostics?.map(d => `${d.path ?? ''}: ${d.message}`).join('\n') ?? data.error ?? 'Content operation failed.');
     return data;
   }
   async function run(action) { try { status.textContent = ''; await action(); } catch(error) { status.textContent = error.message; } }
@@ -57,6 +59,7 @@ export function mountContentBrowser(root, options = {}) {
   });
   globalThis.addEventListener?.('beforeunload', event => { if(editor.isDirty()) {event.preventDefault();event.returnValue='';} });
   async function refresh() {
+    managementMode = null; management.hidden = true; toolbar.hidden = false; body.hidden = false; selectedBatch.clear();
     const generation = ++refreshGeneration;
     loading = true; contentReady = false;
     status.textContent = 'Loading content…';
@@ -120,6 +123,107 @@ export function mountContentBrowser(root, options = {}) {
       await call('/api/content-workspace/promotion/publish', {preview, confirm:true});
       globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed')); await refresh();
     }, 'content-publish-confirm'));
+  }
+  const identityFamily = { ...families, lootPresets:'LootPreset', worldCards:'WorldCard', worldDecks:'WorldDeck', terrain:'Terrain', terrainAssemblies:'Terrain', fixedComponents:'FixedComponent', resources:'Resource', machines:'Machine' };
+  async function manage(mode) {
+    if (!await editor.requestClose()) return;
+    management.replaceChildren(); management.hidden = true;
+    managementMode = mode; selectedBatch.clear(); promotion.hidden = true;
+    managementData = mode === 'workspace' ? await call('/api/content-workspace/catalog')
+      : await call('/api/content/loot-management', context === 'draft' && target ? {context:target.getContext()} : {});
+    const navigationCatalog = await call(context === 'draft' && target ? '/api/content/context' : '/api/content-workspace/catalog', context === 'draft' && target ? target.getContext() : undefined);
+    catalog = navigationCatalog; state.load(catalog);
+    toolbar.hidden = true; body.hidden = true; management.hidden = false;
+    renderManagement();
+  }
+  function renderManagement() {
+    let previewSequence = 0;
+    const heading = node('h3', managementMode === 'workspace' ? 'Workspace Management' : 'Loot Management'); heading.id = `${managementMode}-management-heading`;
+    management.replaceChildren(heading);
+    for(const diagnostic of managementData.diagnostics ?? [])management.append(node('p',`${diagnostic.path ?? ''}: ${diagnostic.message}`,'cb-missing'));
+    const filters = node('div', null, 'cb-toolbar'), results = node('div', null, 'cb-batch-results'), review = node('section', null, 'cb-reference-panel');
+    const query = node('input'); query.type = 'search'; query.placeholder = 'Search name or Type ID'; query.setAttribute('aria-label','Management search');
+    const family = select('management-family', [['all','All families'], ...(managementMode === 'workspace' ? [...new Set(Object.values(identityFamily))].map(label=>[label,label]) : [['equipment','Equipment'],['items','Items']])], draw);
+    const view = select('loot-management-view', [['rewards','Equipment and Items'],['cards','Loot Cards']], () => {selectedBatch.clear(); draw();});
+    const has = select('management-loot-filter', [['all','All Loot relationships'],['missing','Missing Loot Card'],['has','Has Loot Card']], draw);
+    const origins = select('management-origin', [['all','All origins'],['canonical','Canonical'],['workspace','Workspace'],['scenario','Scenario']],draw);
+    const destination = select('loot-batch-destination', [['workspace','Workspace'], ...(context === 'draft' && target?.saveLootBatch ? [['scenario','Scenario-local']] : [])], () => {previewSequence++;review.replaceChildren();});
+    family.value = 'all'; view.value = 'rewards'; has.value = 'all'; origins.value = 'all'; destination.value = 'workspace';
+    filters.append(query, family);
+    if (managementMode !== 'workspace') filters.append(view, has, origins, destination);
+    const selection = node('p'); selection.setAttribute('role','status');
+    let visible = [];
+    const eligible = row => managementMode === 'workspace' || view.value !== 'cards' && !(row.cards?.length);
+    const key = row => `${row.family}:${row.typeId}`;
+    const choose = () => {for(const row of visible.filter(eligible)) selectedBatch.set(key(row),row); review.replaceChildren(); draw();};
+    const batchActions = node('div',null,'cb-authoring');
+    batchActions.append(button('Select all visible eligible entries',choose), button('Clear selection',()=>{selectedBatch.clear();review.replaceChildren();draw();}));
+    if (managementMode !== 'workspace') batchActions.append(button('Select All Without Loot Cards',()=>{view.value='rewards';has.value='missing';draw();choose();}));
+    batchActions.append(button('Preview selected batch',async()=>{
+      if (!selectedBatch.size) throw new Error('Select at least one definition.');
+      const sequence = ++previewSequence, batchMode = managementMode, batchDestination = destination.value, dataAtPreview = managementData;
+      const selectionSnapshot = [...selectedBatch.values()];
+      const selected = [...selectedBatch.values()].map(row=>({family:identityFamily[row.family] ?? row.family,typeId:row.typeId}));
+      const revision = target?.getRevision();
+      const payload = {expectedToken:workspace.token,selected,destination:destination.value,
+        ...(context === 'draft' && target ? {context:target.getContext()} : {})};
+      const preview = await call(managementMode === 'workspace' ? '/api/content-workspace/promotion/preview' : '/api/content-workspace/loot/preview',managementMode === 'workspace' ? {expectedToken:workspace.token,selected} : payload);
+      if(sequence !== previewSequence || dataAtPreview !== managementData || batchMode !== managementMode) return;
+      review.replaceChildren(node('h4',batchMode === 'workspace' ? 'Review Canonical publication' : `Review Loot Card creation in ${batchDestination}`));
+      for(const row of selectionSnapshot) review.append(node('p',`${row.family} · ${row.typeId} · ${row.name}`));
+      if(managementMode === 'workspace') {
+        for(const id of preview.newDefinitions ?? [])review.append(node('p',`New Canonical: ${id.family} ${id.typeId}`));
+        for(const id of preview.replacements ?? [])review.append(node('p',`Replace Canonical: ${id.family} ${id.typeId}`));
+        for(const dependency of preview.dependencies ?? [])review.append(node('p',`${dependency.identity.family} ${dependency.identity.typeId}: ${dependency.status}${dependency.hasWorkspaceOverride && dependency.status === 'canonical' ? ' · Workspace override remains unselected; existing Canonical dependency is used' : ''}`));
+        for(const id of preview.missingSelections ?? [])review.append(node('p',`Include required Workspace dependency in selection: ${id.family} ${id.typeId}`,'cb-missing'));
+      } else for(const card of preview.definitions?.lootCardDefinitions ?? []) review.append(node('p',`Create Loot Card ${card.id} · ${card.name} → ${card.equipmentTypeId ? 'Equipment '+card.equipmentTypeId : 'Item '+card.itemTypeId}`));
+      for(const diagnostic of preview.diagnostics ?? [])review.append(node('p',`${diagnostic.path ?? ''}: ${diagnostic.message}`,'cb-missing'));
+      const typed = node('details');typed.append(node('summary','Typed batch preview'),node('pre',JSON.stringify(preview,null,2)));review.append(typed);
+      if (preview.canPublish || preview.canCreate) review.append(button('Confirm batch writes',async()=>{
+        if(sequence !== previewSequence || dataAtPreview !== managementData || batchMode !== managementMode) throw new Error('Selection or destination changed. Preview again.');
+        if (batchMode === 'workspace') await call('/api/content-workspace/promotion/publish',{preview,confirm:true});
+        else if (batchDestination === 'scenario') {
+          if (revision !== target.getRevision()) throw new Error('Scenario changed. Preview again.');
+          const checked = await call('/api/content-workspace/loot/create',{preview,confirm:true});
+          await target.saveLootBatch({cards:checked.definitions.lootCardDefinitions,expectedRevision:revision});
+        } else await call('/api/content-workspace/loot/create',{preview,confirm:true});
+        globalThis.dispatchEvent?.(new Event('delve:canonical-content-changed'));
+        await refresh(); await manage(batchMode);
+      }, 'management-confirm'));
+      review.scrollIntoView?.({block:'nearest'});
+    }, 'management-preview'));
+    management.append(filters,batchActions,selection,results,review);
+    query.addEventListener('input',draw);
+    function navigate(family,id) {
+      const entry = catalog.entries.find(e=> (e.family === family || identityFamily[e.family] === family) && e.id === id);
+      if (!entry) throw new Error('Switch to the effective Workspace or Scenario catalog to inspect this definition.');
+      management.hidden=true; toolbar.hidden=false; body.hidden=false; state.open(entry.key,true); render();focusDetail();
+    }
+    function draw() {
+      previewSequence++;
+      review.replaceChildren(); results.replaceChildren();
+      let rows = managementMode === 'workspace' ? [...new Map(managementData.entries.filter(e=>e.origin.startsWith('workspace') && identityFamily[e.family]).map(e=>({...e,family:identityFamily[e.family],typeId:e.family === 'worldDecks' && e.id === 'default' ? 'default-world-deck' : e.id})).map(e=>[key(e),e])).values()]
+        : view.value === 'cards' ? managementData.cards : managementData.rewards;
+      visible = (rows ?? []).filter(row=>(family.value === 'all' || (row.family ?? row.rewardFamily) === family.value) && `${row.name} ${row.typeId}`.toLowerCase().includes(query.value.toLowerCase())
+        && (managementMode === 'workspace' || origins.value === 'all' || (row.origin ?? row.rewardOrigin)?.startsWith(origins.value))
+        && (managementMode === 'workspace' || view.value === 'cards' || has.value === 'all' || (has.value === 'missing' ? !row.cards?.length : row.cards?.length)));
+      selection.textContent = `${selectedBatch.size} selected · ${visible.length} visible`;
+      for (const row of visible) {
+        const card = node('article',null,'cb-batch-row');
+        if(eligible(row)) {const label=node('label');const check=node('input');check.type='checkbox';check.checked=selectedBatch.has(key(row));check.setAttribute('aria-label',`Select ${row.family} ${row.typeId}`);check.addEventListener('change',()=>{if(check.checked)selectedBatch.set(key(row),row);else selectedBatch.delete(key(row));draw();});label.append(check,node('span','Select'));card.append(label);}
+        card.append(node('strong',row.name),node('code',`${row.family ?? 'LootCard'} · ${row.typeId}`),node('p',row.origin ?? ''));
+        if (managementMode === 'workspace') { card.append(node('p',row.origin === 'workspace-override' ? 'Override of Canonical' : 'New definition'),node('p','Valid in current effective Workspace catalog'));
+          for(const ref of row.references ?? []) card.append(button(`${ref.label}: ${ref.family} ${ref.id}`,()=>navigate(ref.family,ref.id)));
+        } else if(view.value === 'cards') {
+          card.append(node('p',`Reward: ${row.rewardFamily ?? 'Immediate effect'} ${row.rewardTypeId ?? ''} · ${row.rewardOrigin ?? ''}`));
+          if(row.rewardTypeId)card.append(button('Inspect reward',()=>navigate(row.rewardFamily,row.rewardTypeId)));
+          for(const preset of row.presets ?? []) card.append(preset.dynamic ? node('p',`${preset.name} · Dynamic membership`) : button(`${preset.name} · Quantity ${preset.quantity}`,()=>navigate('lootPresets',preset.typeId)));
+          for(const diagnostic of row.diagnostics ?? [])card.append(node('p',diagnostic.message ?? diagnostic,'cb-missing'));
+        } else {card.append(node('p',row.cards?.length ? `${row.cards.length} Loot Card(s)` : 'Missing Loot Card'));for(const loot of row.cards ?? [])card.append(button(`${loot.name} · ${loot.typeId}`,()=>navigate('lootCards',loot.typeId)));}
+        results.append(card);
+      }
+    }
+    draw();
   }
   const legacyNode = (tag, cls, text) => node(tag, text, cls);
   const legacyButton = (text, action, cls) => { const e=button(text,action); e.className=cls ?? ''; return e; };
@@ -245,6 +349,7 @@ export function mountContentBrowser(root, options = {}) {
   function render() {
     root.setAttribute('aria-busy', String(loading));
     actions.replaceChildren();
+    actions.append(authoringButton('Loot Management',()=>manage('loot'),'content-loot-management'),authoringButton('Workspace Management',()=>manage('workspace'),'content-workspace-management'));
     for (const [family,label] of Object.entries({units:'Unit',equipment:'Equipment',items:'Item',lootCards:'Loot Card'})) actions.append(authoringButton(`Create ${label}`, () => open(null,false,context === 'draft' ? 'draft':'workspace',false,family), `content-create-${family}`));
     if(context === 'workspace') actions.append(authoringButton('Empty Workspace', async () => {
       promotion.hidden=false;promotion.replaceChildren(node('p','Delete all Workspace definitions?'));

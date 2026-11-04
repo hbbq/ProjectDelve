@@ -1,5 +1,23 @@
 # Content Browser
 
+**Loot Management** lists effective Equipment and Items and the Loot Cards referencing
+them by typed identity. Switch to **Loot Cards** to inspect rewards, static preset
+quantities and dynamic All membership. Search and filter by family, origin and missing
+cards. Select individual rewards or all visible missing rewards, preview, then confirm
+one batch. IDs and names default to the reward's ID and name; collisions block the
+whole batch. Static presets are never changed.
+
+The default destination is Workspace. From an editable Scenario Designer, choose
+Scenario-local to create the complete batch in one undoable operation. Save/Open,
+recovery and DELVE1 use ordinary scenario content persistence.
+
+**Workspace Management** lists Workspace-owned identities across supported families,
+including Canonical overrides and dependency links. Select a subset, preview additions,
+replacements and dependency decisions, then confirm publication. Required dependencies
+available only in Workspace must be selected explicitly. An unselected Workspace
+override does not prevent reuse of an existing Canonical dependency. Publication
+validates the complete resulting Canonical catalog and checks preview state again.
+
 Open **Content** from the Web header or **Explore game content** from Home.
 The browser exposes the typed definitions used by Engine. Canonical content is
 read-only; [Content Designer](CONTENT_DESIGNER.md) can create or edit Equipment, Items and
