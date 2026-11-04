@@ -1,0 +1,714 @@
+{
+  "package": {
+    "formatVersion": 1,
+    "id": "canonical-workspace",
+    "dependencies": [
+      "canonical-csharp"
+    ],
+    "replacesCSharp": [],
+    "definitions": {
+      "unitTypes": [
+        {
+          "id": "budget-barbarian",
+          "mov": 3,
+          "rng": 1,
+          "atk": 4,
+          "def": 3,
+          "hp": 2,
+          "actions": "NormalAttack",
+          "behaviors": "None",
+          "canHaveItems": true,
+          "canHaveEquipment": true,
+          "lootDropSuccesses": 1,
+          "attackDefinitionOrder": [],
+          "unique": true,
+          "footprint": "OneByOne",
+          "displayName": "Budget Barbarian",
+          "localAbilities": [
+            {
+              "key": "open-door",
+              "name": "Open Door",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "openDoor"
+              },
+              "usage": {}
+            },
+            {
+              "key": "fury",
+              "name": "Fury",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "fury",
+                "adjacentEnemyThreshold": 2,
+                "atkBonus": 1
+              },
+              "usage": {}
+            },
+            {
+              "key": "rage",
+              "name": "Rage",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        }
+      ],
+      "equipmentTypes": [
+        {
+          "id": "bracers-of-strength",
+          "name": "Bracers of Strength",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Strength",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "iron-shield",
+          "name": "Iron Shield",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Shield",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "eagle-eye",
+          "name": "Eagle Eye",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Eagle Eye",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Rng",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "banner-of-furt",
+          "name": "Banner of Fury",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Banner",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Friendlies",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "guardian-standard",
+          "name": "Guardian Standard",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Standard",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Friendlies",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": 1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "berserker-ring",
+          "name": "Berserker Ring",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Berserk",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "seven-league-boots",
+          "name": "Seven-League Boots",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Rush",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Mov",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "scope-of-precision",
+          "name": "Scope of Precision",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Precision",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Rng",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "healers-staff",
+          "name": "Healer\u0027s Staff",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Heal",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitHeal",
+                "selector": "Friendlies",
+                "amount": 2
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "holy-boots",
+          "name": "Holy Boots",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Holy Wave",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitsPostureChange",
+                "selector": "Enemies",
+                "newPosture": "Lying"
+              },
+              "usage": {
+                "maxUses": 2
+              },
+              "costs": [
+                {
+                  "kind": "layDownSelf"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ring-of-command",
+          "name": "Ring of Command",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Command",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "extraActions",
+                "amount": 1
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "displacer-boots",
+          "name": "Displacer Boots",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Displace",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "displace",
+                "maxMove": 1
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "goblin-whistle",
+          "name": "Goblin Whistle",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Summon Goblin",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "goblin-type",
+                "initialPosture": "Lying"
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "knightly-boots",
+          "name": "Knightly Boots",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Summon Hobby Knight",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "hobby-knight-type",
+                "initialPosture": "Lying"
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "rogues-cape",
+          "name": "Rogue\u0027s Cape",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Backstab",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "backstab",
+                "atkBonus": 1
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "telekinetic-gloves",
+          "name": "Telekinetic Gloves",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Telekinesis",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "telekinesis"
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "doorbreakers",
+          "name": "Doorbreakers",
+          "localAbilities": [
+            {
+              "key": "ability-2",
+              "name": "Break door",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "tryOpenDoor",
+                "successCount": 4
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "fireball-slippers",
+          "name": "Fireball Slippers",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Fireball",
+              "timing": "FreeAction",
+              "mechanic": {
+                "kind": "fireball"
+              },
+              "usage": {
+                "maxUses": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "cowards-medal",
+          "name": "Coward\u0027s Medal",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Coward",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": 2
+                  },
+                  {
+                    "stat": "Atk",
+                    "amount": -1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "heroic paper crown",
+          "name": "Heroic Paper Crown",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Heroic-ish",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "selfModifiers",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 2
+                  },
+                  {
+                    "stat": "Def",
+                    "amount": -2
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "aura-of-doubt",
+          "name": "Aura of Doubt",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Doubt",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Enemies",
+                "modifiers": [
+                  {
+                    "stat": "Def",
+                    "amount": -1
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "hostile-encouragement",
+          "name": "Hostile Encouragement",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Adjacent Units Stat Modifiers",
+              "timing": "Passive",
+              "mechanic": {
+                "kind": "adjacentUnitsStatModifiers",
+                "selector": "Enemies",
+                "modifiers": [
+                  {
+                    "stat": "Atk",
+                    "amount": 2
+                  }
+                ]
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "displacer-gloves",
+          "name": "Displacer Gloves",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Swap",
+              "timing": "BonusAction",
+              "mechanic": {
+                "kind": "swap"
+              },
+              "usage": {}
+            }
+          ]
+        }
+      ],
+      "itemTypes": [
+        {
+          "id": "last-resort-fireball",
+          "name": "Last Resort Fireball",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Fireball",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "fireball"
+              },
+              "usage": {}
+            }
+          ]
+        },
+        {
+          "id": "budget-barbarian-kit",
+          "name": "Budget Barbarian Kit",
+          "localAbilities": [
+            {
+              "key": "ability-1",
+              "name": "Summon Budget Barbarian",
+              "timing": "Action",
+              "mechanic": {
+                "kind": "adjacentUnitSummon",
+                "unitTypeId": "budget-barbarian",
+                "initialPosture": "Lying",
+                "sameTypeSideLimit": 1
+              },
+              "usage": {}
+            }
+          ]
+        }
+      ],
+      "lootCardDefinitions": [
+        {
+          "id": "emergency-lunch",
+          "name": "Emergency Lunch",
+          "immediate": {
+            "kind": "healCollector",
+            "amount": 3
+          }
+        },
+        {
+          "id": "aura-of-doubt",
+          "name": "Aura of Doubt",
+          "equipmentTypeId": "aura-of-doubt"
+        },
+        {
+          "id": "banner-of-furt",
+          "name": "Banner of Fury",
+          "equipmentTypeId": "banner-of-furt"
+        },
+        {
+          "id": "berserker-ring",
+          "name": "Berserker Ring",
+          "equipmentTypeId": "berserker-ring"
+        },
+        {
+          "id": "bracers-of-strength",
+          "name": "Bracers of Strength",
+          "equipmentTypeId": "bracers-of-strength"
+        },
+        {
+          "id": "cowards-medal",
+          "name": "Coward\u0027s Medal",
+          "equipmentTypeId": "cowards-medal"
+        },
+        {
+          "id": "displacer-boots",
+          "name": "Displacer Boots",
+          "equipmentTypeId": "displacer-boots"
+        },
+        {
+          "id": "displacer-gloves",
+          "name": "Displacer Gloves",
+          "equipmentTypeId": "displacer-gloves"
+        },
+        {
+          "id": "doorbreakers",
+          "name": "Doorbreakers",
+          "equipmentTypeId": "doorbreakers"
+        },
+        {
+          "id": "eagle-eye",
+          "name": "Eagle Eye",
+          "equipmentTypeId": "eagle-eye"
+        },
+        {
+          "id": "fireball-slippers",
+          "name": "Fireball Slippers",
+          "equipmentTypeId": "fireball-slippers"
+        },
+        {
+          "id": "goblin-whistle",
+          "name": "Goblin Whistle",
+          "equipmentTypeId": "goblin-whistle"
+        },
+        {
+          "id": "guardian-standard",
+          "name": "Guardian Standard",
+          "equipmentTypeId": "guardian-standard"
+        },
+        {
+          "id": "healers-staff",
+          "name": "Healer\u0027s Staff",
+          "equipmentTypeId": "healers-staff"
+        },
+        {
+          "id": "heroic paper crown",
+          "name": "Heroic Paper Crown",
+          "equipmentTypeId": "heroic paper crown"
+        },
+        {
+          "id": "holy-boots",
+          "name": "Holy Boots",
+          "equipmentTypeId": "holy-boots"
+        },
+        {
+          "id": "hostile-encouragement",
+          "name": "Hostile Encouragement",
+          "equipmentTypeId": "hostile-encouragement"
+        },
+        {
+          "id": "iron-shield",
+          "name": "Iron Shield",
+          "equipmentTypeId": "iron-shield"
+        },
+        {
+          "id": "knightly-boots",
+          "name": "Knightly Boots",
+          "equipmentTypeId": "knightly-boots"
+        },
+        {
+          "id": "ring-of-command",
+          "name": "Ring of Command",
+          "equipmentTypeId": "ring-of-command"
+        },
+        {
+          "id": "rogues-cape",
+          "name": "Rogue\u0027s Cape",
+          "equipmentTypeId": "rogues-cape"
+        },
+        {
+          "id": "scope-of-precision",
+          "name": "Scope of Precision",
+          "equipmentTypeId": "scope-of-precision"
+        },
+        {
+          "id": "seven-league-boots",
+          "name": "Seven-League Boots",
+          "equipmentTypeId": "seven-league-boots"
+        },
+        {
+          "id": "telekinetic-gloves",
+          "name": "Telekinetic Gloves",
+          "equipmentTypeId": "telekinetic-gloves"
+        },
+        {
+          "id": "budget-barbarian-kit",
+          "name": "Budget Barbarian Kit",
+          "itemTypeId": "budget-barbarian-kit"
+        },
+        {
+          "id": "last-resort-fireball",
+          "name": "Last Resort Fireball",
+          "itemTypeId": "last-resort-fireball"
+        }
+      ],
+      "lootPresets": [],
+      "worldCardDefinitions": [],
+      "defaultWorldDeck": [],
+      "terrainTypes": [],
+      "terrainAssemblies": [],
+      "fixedComponentTypes": [],
+      "resources": []
+    }
+  },
+  "replacements": []
+}
