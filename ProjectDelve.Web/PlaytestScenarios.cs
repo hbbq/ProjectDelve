@@ -1,4 +1,5 @@
 using ProjectDelve.Engine;
+using System.Collections.ObjectModel;
 using static ProjectDelve.Engine.Scenario;
 using static ProjectDelve.Engine.EdgeDirection;
 
@@ -6,22 +7,50 @@ namespace ProjectDelve.Web;
 
 public sealed record ScenarioDescription(string Id, string Name, string Description)
 {
-    public IReadOnlyDictionary<string, int> SideHues => Id == "genombrottet" ? new Dictionary<string, int> { ["side-1"] = 210, ["side-2"] = 0 } : new Dictionary<string, int>();
-    public IReadOnlyDictionary<string,string> Controllers => PlaytestScenarios.Definition(Id).Agency.GroupBy(a => a.SideId).ToDictionary(g => g.Key, g => g.All(a => a.Controller == ControllerKind.Human) ? "Human" : "Default Behavior");
-    public IReadOnlyList<ControllerSelection> ControllerAssignments => PlaytestScenarios.Definition(Id).Agency
-        .Select(a => new ControllerSelection(a.UnitTypeId, a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior")).ToArray();
-    public IReadOnlyDictionary<string,string> UnitTypeNames => PlaytestScenarios.Create(Id).Types
-        .ToDictionary(type => type.Id, type => type.DisplayName ?? type.Id);
-    public IReadOnlyList<ActivationToken> InitiallyPresentTokens => PlaytestScenarios.Definition(Id).Units
-        .Select(unit => new ActivationToken(unit.UnitTypeId, unit.SideId)).Distinct().ToArray();
-    public IReadOnlyList<string> SideIds => PlaytestScenarios.Definition(Id).Agency.Select(a => a.SideId).Distinct().ToArray();
+    public IReadOnlyDictionary<string, int> SideHues { get; init; } = ReadOnly(new Dictionary<string, int>());
+    public IReadOnlyDictionary<string,string> Controllers { get; init; } = ReadOnly(new Dictionary<string, string>());
+    public IReadOnlyList<ControllerSelection> ControllerAssignments { get; init; } = Array.AsReadOnly<ControllerSelection>([]);
+    public IReadOnlyDictionary<string,string> UnitTypeNames { get; init; } = ReadOnly(new Dictionary<string, string>());
+    public IReadOnlyList<ActivationToken> InitiallyPresentTokens { get; init; } = Array.AsReadOnly<ActivationToken>([]);
+    public IReadOnlyList<string> SideIds { get; init; } = Array.AsReadOnly<string>([]);
+
+    // Capture only presentation data. Do not instantiate a board, figures, decks or rules state.
+    internal static ScenarioDescription Create(ScenarioDescription entry, ScenarioDefinition definition, ContentBundle canonical)
+    {
+        var content = ScenarioContentReferences.ScenarioCatalog(canonical, definition);
+        // Match the Engine's captured roster, including Units granted by Equipment/Items.
+        var roots = content.Definitions.Equipment.Select(e => new ContentIdentity(ContentFamily.Equipment, e.Id))
+            .Concat(content.Definitions.Items.Select(i => new ContentIdentity(ContentFamily.Item, i.Id)))
+            .Concat(definition.UnitTypeIds.Select(id => new ContentIdentity(ContentFamily.Unit, id)));
+        var required = content.Dependencies.Closure(roots).Where(d => d.Family == ContentFamily.Unit)
+            .Select(d => d.TypeId).ToHashSet(StringComparer.Ordinal);
+        var declared = definition.UnitTypeIds.ToHashSet(StringComparer.Ordinal);
+        var types = definition.UnitTypeIds.Select(id => content.Definitions.Units.Single(t => t.Id == id))
+            .Concat(content.Definitions.Units.Where(t => required.Contains(t.Id) && !declared.Contains(t.Id)));
+        return entry with
+        {
+            SideHues = ReadOnly(entry.SideHues.ToDictionary(p => p.Key, p => p.Value)),
+            Controllers = ReadOnly(definition.Agency.GroupBy(a => a.SideId).ToDictionary(g => g.Key,
+                g => g.All(a => a.Controller == ControllerKind.Human) ? "Human" : "Default Behavior")),
+            ControllerAssignments = Array.AsReadOnly(definition.Agency.Select(a => new ControllerSelection(a.UnitTypeId,
+                a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior")).ToArray()),
+            UnitTypeNames = ReadOnly(types.ToDictionary(t => t.Id, t => t.DisplayName ?? t.Id)),
+            InitiallyPresentTokens = Array.AsReadOnly(definition.Units.Select(u => new ActivationToken(u.UnitTypeId, u.SideId)).Distinct().ToArray()),
+            SideIds = Array.AsReadOnly(definition.Agency.Select(a => a.SideId).Distinct().ToArray())
+        };
+    }
+
+    private static ReadOnlyDictionary<string, T> ReadOnly<T>(Dictionary<string, T> values) => new(values);
 }
 
 // Catalog presentation stays separate from initial setup definitions.
 public static class PlaytestScenarios
 {
     public const string DefaultId = "basic-combat";
-    public static IReadOnlyList<ScenarioDescription> Catalog { get; } = Array.AsReadOnly<ScenarioDescription>([
+    // This legacy response catalog is compiled content, independent of the editable
+    // ScenarioLibrary and host Workspace/JSON providers. Its immutable snapshots may
+    // be shared; each separately resolved content context must capture its own metadata.
+    public static IReadOnlyList<ScenarioDescription> Catalog { get; } = CaptureCatalog([
         new("loot-equipment", "Loot & Equipment", "Collect mysterious Loot, try individual Equipment, ring the Goat Bell and recover objects from defeated Units. No victory objective."),
         new("chess", "Chess", "Defeat the opposing King."),
         new("delve-chess-peasants-rooks", "Delve Chess — Peasants and Rooks", "Two courts test straight Rook Moves, diagonal melee and Advance On Kill around Walls, Windows and Doors. A neutral Rogue opens Doors. Change controllers to compare manual and automated play."),
@@ -51,7 +80,14 @@ public static class PlaytestScenarios
         new("orders-escort-retreat", "Orders: Escort & Retreat", "Observe a moving escort target, its following protector, and a group retreating from nearby Heroes."),
         new("labyrinth-shaper", "Labyrinth Shaper (digital-only)", "Digital-only encounter: approach the Labyrinth Shaper as it rebuilds a 3x3 room before moving. Old Walls and Doors disappear, four open gaps remain, and Water prevents a Wall on the northeast side."),
         new("genombrottet", "Genombrottet (The Breakthrough)", "Get all three Blue Heroes into the eastern exit area together. Red wins by defeating one initial Hero.")
+            { SideHues = new ReadOnlyDictionary<string, int>(new Dictionary<string, int> { ["side-1"] = 210, ["side-2"] = 0 }) }
     ]);
+
+    private static IReadOnlyList<ScenarioDescription> CaptureCatalog(ScenarioDescription[] entries)
+    {
+        var content = ContentBundle.Canonical();
+        return Array.AsReadOnly(entries.Select(entry => ScenarioDescription.Create(entry, Definition(entry.Id), content)).ToArray());
+    }
 
     public static GameState Create(string id) => GameEngine.CreateGame(Definition(id));
 

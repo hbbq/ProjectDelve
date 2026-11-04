@@ -215,7 +215,7 @@ public sealed record GameResponse(long Revision, EngineResult Result, bool AutoC
     // Presentation metadata, persisted with detached responses, independent of session/RNG.
     public string? VisualSeed { get; init; }
     public IReadOnlyList<DecisionCommentary> Commentaries { get; init; } = [];
-    public IReadOnlyList<ScenarioDescription> Scenarios => PlaytestScenarios.Catalog;
+    public IReadOnlyList<ScenarioDescription> Scenarios { get; init; } = PlaytestScenarios.Catalog;
     [JsonIgnore] public BrowserPresentation? PresentationOverride { get; init; }
     // Typed consumers must retain the received authoritative preview: public state
     // deliberately omits unused definitions and cannot recreate every preview.
