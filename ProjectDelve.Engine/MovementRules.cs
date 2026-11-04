@@ -161,6 +161,30 @@ internal static class MovementRules
 // Approach queries describe the terrain route, independently of figures and MOV.
 internal static class ApproachRules
 {
+    // Exact distances to any qualifying attack position. Reverse the actual directed
+    // CanStep relation: destination restrictions make forward adjacency asymmetric.
+    // A predecessor need not itself be traversable. Forward BFS always admits its
+    // initial Cell, so a legal query origin may leave terrain/knowledge it cannot enter.
+    internal static IReadOnlyDictionary<Cell, int> DistancesTo(Board board, IEnumerable<Cell> goals,
+        MovementTraversal traversal = default, Footprint footprint = Footprint.OneByOne)
+    {
+        var distances = new Dictionary<Cell, int>();
+        var queue = new Queue<Cell>();
+        foreach (var goal in goals)
+            if (distances.TryAdd(goal, 0)) queue.Enqueue(goal);
+        while (queue.TryDequeue(out var current))
+        {
+            foreach (var predecessor in MovementRules.Neighbors(current))
+            {
+                if (distances.ContainsKey(predecessor) || !MovementRules.Inside(board, predecessor) ||
+                    !MovementRules.CanStep(board, footprint, predecessor, current, traversal)) continue;
+                distances[predecessor] = distances[current] + 1;
+                queue.Enqueue(predecessor);
+            }
+        }
+        return distances;
+    }
+
     internal static int? Distance(Board board, Cell from, Cell goal,
         bool closedDoorsTraversable = false, MovementTraversal traversal = default) =>
         Distances(board, from, goal, closedDoorsTraversable, traversal).TryGetValue(goal, out var distance) ? distance : null;

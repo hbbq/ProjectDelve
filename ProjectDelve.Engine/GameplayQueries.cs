@@ -100,6 +100,8 @@ internal sealed class GameplayQueries : IGameplayQueries
     private readonly ConcurrentDictionary<(string Actor, Cell Position, string Target), bool> attackTargets = new();
     private readonly ConcurrentDictionary<(string Actor, Cell Position), bool> attackPositions = new();
     private readonly ConcurrentDictionary<(string Actor, string Target), bool> attackAvailability = new();
+    private readonly ConcurrentDictionary<(string Actor, bool ClosedDoors), Lazy<IReadOnlyDictionary<Cell, int>>> approachFields = new();
+    private readonly ConcurrentDictionary<(string Actor, bool ClosedDoors, string Target), Lazy<IReadOnlyDictionary<Cell, int>>> targetedApproachFields = new();
 
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
@@ -194,11 +196,40 @@ internal sealed class GameplayQueries : IGameplayQueries
         bool closedDoorsTraversable = false)
     {
         HypotheticalPosition.Validate(world, unitId, position);
-        return ApproachRules.Distances(world.Physical.Board, position,
-                traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
-                footprint: FootprintGeometry.FootprintOf(world, unitId))
-            .Where(pair => targetIds.Any(targetId => CanAttackTargetFrom(unitId, pair.Key, targetId)))
-            .Select(pair => (int?)pair.Value).Min();
+        int? best = null;
+        foreach (var targetId in targetIds)
+        {
+            var distances = targetedApproachFields.GetOrAdd((unitId, closedDoorsTraversable, targetId),
+                static (key, queries) => new(() => queries.BuildApproachField(key.Actor, key.ClosedDoors,
+                    key.Target, targeted: true)), this).Value;
+            if (distances.TryGetValue(position, out var distance) && (!best.HasValue || distance < best.Value)) best = distance;
+        }
+        return best;
+    }
+
+    private IReadOnlyDictionary<Cell, int> BuildApproachField(string unitId, bool closedDoorsTraversable,
+        string? targetId = null, bool targeted = false)
+    {
+        var board = world.Physical.Board;
+        var footprint = FootprintGeometry.FootprintOf(world, unitId);
+        IEnumerable<Cell> AttackPositions()
+        {
+            for (var y = 0; y < board.Height; y++)
+            for (var x = 0; x < board.Width; x++)
+            {
+                var position = new Cell(x, y);
+                // The general query requires normally occupiable attack positions.
+                // The explicit-target query historically accepts traversal-only
+                // positions (e.g. Phase inside rock). Preserve that distinction.
+                if (targeted
+                    ? FootprintGeometry.OccupiedCells(footprint, position).All(c => MovementRules.Inside(board, c)) &&
+                        CanAttackTargetFrom(unitId, position, targetId!)
+                    : SpatialRules.Fits(board, footprint, position) && CanAttackFrom(unitId, position))
+                    yield return position;
+            }
+        }
+        return ApproachRules.DistancesTo(board, AttackPositions(),
+            MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint);
     }
 
     public bool IsLivingFriendlyUnit(string unitId, string targetId)
@@ -411,12 +442,9 @@ internal sealed class GameplayQueries : IGameplayQueries
     public int? DistanceToAttackPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false)
     {
         HypotheticalPosition.Validate(world, unitId, position);
-        return ApproachRules.Distances(world.Physical.Board, position,
-                traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
-                footprint: FootprintGeometry.FootprintOf(world, unitId))
-            .Where(pair => SpatialRules.Fits(world.Physical.Board, FootprintGeometry.FootprintOf(world, unitId), pair.Key) &&
-                CanAttackFrom(unitId, pair.Key))
-            .Select(pair => (int?)pair.Value).Min();
+        var distances = approachFields.GetOrAdd((unitId, closedDoorsTraversable), static (key, queries) =>
+            new(() => queries.BuildApproachField(key.Actor, key.ClosedDoors)), this).Value;
+        return distances.TryGetValue(position, out var distance) ? distance : null;
     }
 
     public bool HasNearbyHostileThreatFrom(string unitId, Cell position)

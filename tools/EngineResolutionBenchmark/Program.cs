@@ -6,11 +6,15 @@ using ProjectDelve.Engine;
 // dotnet run --project tools/EngineResolutionBenchmark -c Release --artifacts-path .playwright-cli
 // Fixed investigation fixture: 30x30 implicit floor, MOV 3/RNG 1/ATK 1/DEF 0/HP 1,
 // ten Default Behavior monsters, one human Unit, blue-only FoW, seed 7241.
-var initial = Fixture();
+// Add -- --obstacles for a deterministic 35%-density interior rock fixture.
+var initial = Fixture(args.Contains("--obstacles", StringComparer.Ordinal));
 var cold = Stopwatch.StartNew();
 Resolve(initial);
 cold.Stop();
 for (var i = 0; i < 5; i++) Resolve(initial);
+// Allow background tiered compilation triggered by warmups to finish before the
+// faster runs' short sample window. This is harness setup, never gameplay timing.
+Thread.Sleep(1000);
 var samples = new List<(double Total, double Decision, long Bytes)>();
 var collections = Enumerable.Range(0, 3).Select(GC.CollectionCount).ToArray();
 for (var i = 0; i < 15; i++)
@@ -26,6 +30,7 @@ var check = Resolve(initial, trace: true);
 Console.WriteLine(JsonSerializer.Serialize(new
 {
     runtime = Environment.Version.ToString(), serverGC = System.Runtime.GCSettings.IsServerGC,
+    obstacleCells = initial.Physical.Board.Terrain.Count,
     tieredCompilation = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "default",
     coldMs = cold.Elapsed.TotalMilliseconds, warmups = 5, samples = samples.Count,
     medianMs = samples.Select(s => s.Total).Order().ElementAt(7),
@@ -36,7 +41,7 @@ Console.WriteLine(JsonSerializer.Serialize(new
     check.Decisions, check.MonstersCompleted, check.Events, check.TraceDigest, check.RandomCalls
 }));
 
-static GameState Fixture()
+static GameState Fixture(bool obstacles)
 {
     var state = new GameState
     {
@@ -51,6 +56,11 @@ static GameState Fixture()
         state.Units.Add(new("monster-" + i, "monster", "red", 1));
         state.Physical.Figures.Add(new("monster-" + i, new(28 - i % 5 * 2, 28 - i / 5 * 2)));
     }
+    if (obstacles)
+        for (var y = 3; y < 27; y++)
+        for (var x = 3; x < 27; x++)
+            if ((37 * x + 13 * y) % 100 < 35 && !state.Physical.Figures.Any(f => f.Position == new Cell(x, y)))
+                state.Physical.Board.Terrain.Add(new(new(x, y), TerrainKind.SolidRock));
     FogOfWar.Refresh(state);
     return state;
 }
