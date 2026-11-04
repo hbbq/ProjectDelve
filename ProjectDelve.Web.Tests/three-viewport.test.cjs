@@ -1415,3 +1415,208 @@ test('replacing a session clears inspected tabletop label emphasis for reused Un
     assert.equal(label().dataset.expanded,'false');assert.deepEqual(h.failures,[]);
   }finally{h.cleanup();}
 });
+
+
+for(const presentation of ['flat','tabletop'])test(`${presentation} movement samples one segment clock through corners and late frames`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const f=fixture(50),h=await harness(f);try{
+  h.viewport.setPresentation(presentation);h.viewport.settle();h.flush();
+  const event={role:'Movement',unitId:'hero',path:[{x:2,y:2},{x:3,y:2},{x:3,y:3},{x:4,y:3}]};
+  const before=structuredClone(f);let pauses=0;
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async duration=>{
+   pauses++;assert.equal(duration,660,'one pause covers the whole observed run');
+   const root=h.rendered.at(-1).scene.getObjectByName('movement').children[0];
+   for(const [elapsed,x,z]of [[0,2.5,2.5],[110,3,2.5],[220,3.5,2.5],[230,3.5,2.5+10/220],[330,3.5,3],[440,3.5,3.5],[550,4,3.5],[1000,4.5,3.5]]){
+    now=100+elapsed;h.flush(now);
+    assert.ok(Math.abs(root.position.x-x)<1e-9,`x at ${elapsed}`);assert.ok(Math.abs(root.position.z-z)<1e-9,`z at ${elapsed}`);
+   }
+  }});
+  assert.equal(pauses,1);assert.deepEqual(f,before);assert.equal(h.viewport.inspect().transient,false);
+  h.viewport.settle();h.flush();assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+ }finally{h.cleanup();}
+});
+
+for(const presentation of ['flat','tabletop'])for(const width of [900,390])test(`${presentation} camera follows the same sampled point continuously at width ${width}`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  h.host.clientWidth=width;h.viewport.setPresentation(presentation);const c=h.viewport.camera;c.resize(width,600);h.viewport.settle();h.flush();
+  const event={role:'Movement',unitId:'hero',path:[{x:20,y:20},{x:21,y:20},{x:21,y:21}],movingFigure:{name:'Hero',sideId:'blue',cellSpan:1,posture:'Lying'}};
+  c.occurrence({kind:'UnitMoved'},event);const initial=c.current();
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async duration=>{
+   assert.equal(duration,440);assert.deepEqual(c.current(),initial,'acquisition does not snap');
+   const firstTarget=c.inspect().target;
+   let previousElapsed=0;for(const elapsed of [55,110,220,230,330,440]){
+    const before=c.current();now=100+elapsed;h.flush(now);const after=c.current(),target=c.inspect().target;
+    assert.ok(Math.abs(target.x-firstTarget.x-Math.min(1,elapsed/220))<1e-8,'camera target uses displayed x');
+    assert.ok(Math.abs(target.y-firstTarget.y-Math.max(0,elapsed/220-1))<1e-8,'camera target follows the supplied turn');
+    const alpha=1-Math.exp(-(elapsed-previousElapsed)/90);previousElapsed=elapsed;
+    for(const key of ['x','y'])assert.ok(Math.abs(after[key]-(before[key]+(target[key]-before[key])*alpha))<1e-8,`${key} uses elapsed smoothing without overshoot`);
+   }
+  }});
+  now+=500;h.flush(now);assert.deepEqual(c.current(),c.inspect().target);assert.equal(h.viewport.inspect().transient,false);
+  h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});
+
+for(const interruption of ['manual','off','full','cancel','replacement'])test(`continuous camera tracking stops on ${interruption}`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const c=h.viewport.camera;
+  const event={role:'Movement',unitId:'hero',path:[{x:20,y:20},{x:21,y:20},{x:22,y:20}],movingFigure:{name:'Hero',sideId:'blue',cellSpan:1}};
+  c.occurrence({kind:'UnitMoved'},event);
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+   now+=110;h.flush(now);
+   if(interruption==='manual')c.manual({...c.current(),x:30,y:30});
+   if(interruption==='off'){h.controls.follow.value='off';h.controls.follow.emit('change');}
+   if(interruption==='full')c.setMode('full');
+   if(interruption==='cancel')h.viewport.cancel();
+   if(interruption==='replacement'){const f=fixture(50);f.metadata.sessionId='new';h.viewport.renderFrame(f);}
+   const target=c.inspect().target;now+=110;h.flush(now);assert.deepEqual(c.inspect().target,target,'a later transient sample cannot restart follow');
+  }});
+  assert.equal(h.viewport.inspect().transient,false);h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});
+
+
+test('camera progress is scoped to the current observed run and never translates through a hidden gap',async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const f=fixture(50,'blue');f.state.exploredCells.blue=[{x:20,y:20},{x:21,y:20},{x:30,y:20},{x:31,y:20}];
+ const h=await harness(f);try{
+  h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const c=h.viewport.camera;
+  const event={role:'Movement',unitId:'hero',movingFigure:{name:'Hero',sideId:'blue',cellSpan:1},movementSegments:[[{x:20,y:20},{x:21,y:20}],[{x:30,y:20},{x:31,y:20}]]};
+  c.occurrence({kind:'UnitMoved'},event);let pauses=0;
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async duration=>{
+   const start=now,target=c.inspect().target;pauses++;assert.equal(duration,220);
+   c.movementProgress({x:25,y:20});assert.deepEqual(c.inspect().target,target,'hidden point is ignored');
+   now=start+110;h.flush(now);assert.ok(Math.abs(c.inspect().target.x-target.x-.5)<1e-8,'new run has its own progress origin');
+   const root=h.rendered.at(-1).scene.getObjectByName('movement').children[0];assert.equal(root.position.x,pauses===1?21:31);
+   now=start+220;h.flush(now);
+  }});
+  assert.equal(pauses,2);h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});
+
+test('repeated short moves acquire smoothly and fixed follow retains its lens and orientation',async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  h.viewport.setPresentation('tabletop');const c=h.viewport.camera;c.setMode('fixed');h.viewport.settle();h.flush();
+  const lens=c.current();
+  for(let i=0;i<5;i++){
+   const event={role:'Movement',unitId:'hero',movingFigure:{name:'Hero',sideId:'blue',cellSpan:1},path:[{x:20+i,y:20},{x:21+i,y:20}]};
+   const before=c.current();c.occurrence({kind:'UnitMoved'},event);
+   await h.viewport.present(event,{}, {skipping:()=>false,pause:async duration=>{
+    assert.equal(duration,220);assert.deepEqual(c.current(),before,'new event retains displayed pose');
+    now+=110;h.flush(now);const current=c.current();
+    for(const key of ['scale','tilt','yaw','fov','projectionMix'])assert.ok(Math.abs(current[key]-lens[key])<1e-8,`${key} is stable during fixed follow`);
+    now+=110;h.flush(now);
+   }});
+   const displayed=c.current();now+=10;h.flush(now);assert.ok(Math.hypot(c.current().x-displayed.x,c.current().y-displayed.y)<1,'event boundaries continue smoothly');
+  }
+  now+=1000;h.flush(now);assert.deepEqual(c.current(),c.inspect().target);h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});
+
+
+test('a late movement frame catches up the miniature heading at a sharp corner',async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const f=fixture(20);f.state.physical.figures[0].posture='Upright';const h=await harness(f,miniatureOptions());try{
+  await readyMiniature(h);const offset=h.viewport.facing.get('hero').offset;
+  const event={role:'Movement',unitId:'hero',path:[{x:2,y:2},{x:3,y:2},{x:3,y:3},{x:2,y:3}]};
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async duration=>{
+   assert.equal(duration,660);const root=h.rendered.at(-1).scene.getObjectByName('movement').children[0],yaw=root.getObjectByName('miniature-facing');
+   now=320;h.flush(now);assert.ok(Math.abs(yaw.rotation.y-(Math.PI/2+offset))<1e-8,'corner begins from completed eastward heading');
+   now=470;h.flush(now);assert.ok(Math.abs(yaw.rotation.y-offset)<1e-8,'southward heading is complete while piece keeps moving');
+   now=740;h.flush(now);assert.ok(Math.abs(Math.sin(yaw.rotation.y-(-Math.PI/2+offset)))<1e-8,'late frame catches up the final westward turn');
+   assert.ok(Math.abs(root.position.x-(3.5-200/220))<1e-8);assert.equal(root.position.z,3.5);
+  }});
+  const stable=h.rendered.at(-1).scene.getObjectByName('unit:hero');assert.equal(stable.userData.body.facingNode.rotation.y,h.viewport.facing.get('hero').yaw);
+  h.viewport.settle();h.flush();assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+ }finally{h.cleanup();}
+});
+
+
+for(const interruption of ['manual','off','full'])test(`camera reacquires the current moving point after ${interruption}`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const c=h.viewport.camera;
+  const event={role:'Movement',unitId:'hero',path:[{x:20,y:20},{x:21,y:20},{x:22,y:20},{x:23,y:20}],movingFigure:{name:'Hero',sideId:'blue',cellSpan:1}};
+  c.occurrence({kind:'UnitMoved'},event);
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+   now+=110;h.flush(now);
+   if(interruption==='manual')c.manual({...c.current(),x:30,y:30});
+   if(interruption==='off'){h.controls.follow.value='off';h.controls.follow.emit('change');}
+   if(interruption==='full')c.setMode('full');
+   now+=220;h.flush(now);const before=c.current();
+   if(interruption==='manual')c.resume();
+   if(interruption==='off'){h.controls.follow.value='own';h.controls.follow.emit('change');}
+   if(interruption==='full')c.setMode('auto');
+   assert.deepEqual(c.current(),before,'explicit resume acquires from the displayed pose');
+   const target=c.inspect().target;now+=110;h.flush(now);
+   assert.ok(Math.abs(c.inspect().target.x-target.x-.5)<1e-8,'remaining run resumes continuous tracking');
+   assert.ok(Math.abs(c.current().x-before.x)>1e-5,'camera continues moving after resume');
+   now+=220;h.flush(now);
+  }});
+  h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});
+
+for(const mode of ['auto','fixed'])for(const projection of ['orthographic','perspective'])test(`${mode} ${projection} tracking survives resize without pose or lens jumps`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  h.viewport.setPresentation('tabletop');const c=h.viewport.camera,g=await moduleAt('three-camera-geometry.js');c.setProjection(projection,false);c.setMode(mode);h.viewport.settle();h.flush();
+  const event={role:'Movement',unitId:'hero',path:[{x:20,y:20},{x:21,y:20},{x:22,y:20},{x:23,y:20}],movingFigure:{name:'Hero',sideId:'blue',cellSpan:1}};
+  c.occurrence({kind:'UnitMoved'},event);
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+   now+=110;h.flush(now);
+   for(const [width,height]of [[899,599],[390,700]]){
+    const before=c.current(),span=g.threeSpanScale(c.size,1,before)/before.scale;
+    h.host.clientWidth=width;h.host.clientHeight=height;c.resize(width,height);
+    const after=c.current();for(const key of ['x','y','tilt','yaw','fov','projectionMix'])assert.equal(after[key],before[key],`${key} is continuous at resize`);
+    assert.ok(Math.abs(g.threeSpanScale(c.size,1,after)/after.scale-span)<1e-8,'displayed span survives layout change');
+    const target=c.inspect().target;now+=110;h.flush(now);
+    assert.ok(Math.abs(c.inspect().target.x-target.x-.5)<1e-8,'tracking continues from resized current point');
+    const p=c.current();assert.ok(p.x>=0&&p.x<=50&&p.y>=0&&p.y<=50,'follow remains on board');
+   }
+   now+=330;h.flush(now);
+  }});
+  h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});
+
+
+for(const terminal of [false,true])for(const late of [false,true])test(`camera acquires the visible ${terminal?'terminal':'middle'} anchor of a padded run${late?' after a late frame':''}`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const f=fixture(50,'blue');f.state.exploredCells.blue=[{x:30,y:20}];const h=await harness(f);try{
+  h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const c=h.viewport.camera;
+  const event={role:'Movement',unitId:'hero',movingFigure:{name:'Hero',sideId:'blue',cellSpan:1},movementSegments:[terminal?[{x:29,y:20},{x:30,y:20}]:[{x:29,y:20},{x:30,y:20},{x:31,y:20},{x:32,y:20}]]};
+  c.occurrence({kind:'UnitMoved'},event);const before=c.inspect().target;
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+   if(!late){now=210;h.flush(now);assert.deepEqual(c.inspect().target,before,'hidden entry padding is ignored');now=330;h.flush(now);}
+   else {now=650;h.flush(now);}
+   const shown=c.inspect().target;assert.ok(Math.hypot(shown.x-before.x,shown.y-before.y)>5,'observed middle anchor is acquired');
+   const primary={x:30.5,y:20.5};assert.ok(Math.hypot(shown.x-primary.x,shown.y-primary.y)<3,'only the supplied visible middle is composed');
+   now=760;h.flush(now);assert.deepEqual(c.inspect().target,shown,'hidden exit padding cannot translate the camera');
+  }});
+  h.viewport.settle();h.flush();assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+ }finally{h.cleanup();}
+});
+
+
+for(const presentation of ['flat','tabletop'])test(`${presentation} explicit fixed span changes apply while movement continues`,async t=>{
+ let now=100;t.mock.method(performance,'now',()=>now);
+ const h=await harness(fixture(50));try{
+  h.viewport.setPresentation(presentation);const c=h.viewport.camera,g=await moduleAt('three-camera-geometry.js');c.setMode('fixed');h.viewport.settle();h.flush();
+  const event={role:'Movement',unitId:'hero',path:[{x:20,y:20},{x:21,y:20},{x:22,y:20},{x:23,y:20}],movingFigure:{name:'Hero',sideId:'blue',cellSpan:1}};
+  c.occurrence({kind:'UnitMoved'},event);
+  await h.viewport.present(event,{}, {skipping:()=>false,pause:async()=>{
+   now+=110;h.flush(now);const before=c.current();
+   h.controls.span.value='10';h.controls.span.emit('change');assert.deepEqual(c.current(),before,'changing span eases from the displayed lens');
+   let target=c.inspect().target;assert.ok(Math.abs(g.threeSpanScale(c.size,1,target)/target.scale-10)<1e-8,'explicit Fixed span reaches the active movement target');
+   now+=110;h.flush(now);assert.ok(Math.abs(c.inspect().target.x-target.x-.5)<1e-8,'tracking continues while zoom changes');
+   c.setMode('auto');c.setMode('fixed');target=c.inspect().target;
+   assert.ok(Math.abs(g.threeSpanScale(c.size,1,target)/target.scale-10)<1e-8,'switching back to Fixed restores its requested span');
+   now+=440;h.flush(now);
+  }});
+  now+=500;h.flush(now);assert.ok(Math.abs(g.threeSpanScale(c.size,1,c.current())/c.current().scale-10)<1e-8);h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
+ }finally{h.cleanup();}
+});

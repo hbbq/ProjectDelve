@@ -94,6 +94,8 @@ if (!boardView.value) boardView.value = "enhanced";
 updateBoardView();
 let boardCamera;
 let snapshot;
+let renderedSnapshot;
+let presentingMovement;
 let dismissedResultSession;
 document.getElementById("show-result")?.addEventListener("click", () => {
   dismissedResultSession = undefined;
@@ -303,6 +305,7 @@ const edges = new Map();
 const cells = new Map();
 const choiceFeedback = new Map();
 let boardObjects = new Map();
+let domBoardDirty = false;
 const cameraViewport = document.querySelector?.("#camera-viewport");
 if (cameraViewport) boardCamera = createBoardCamera({ document, viewport: cameraViewport,
   world: document.getElementById("camera-world"), boardElement: ui.board,
@@ -312,7 +315,11 @@ if (cameraViewport) boardCamera = createBoardCamera({ document, viewport: camera
 
 const domCameraControls = document.querySelector?.(".camera-controls");
 const domViewport = { host: cameraViewport, mode: boardView.value === "classic" ? "classic" : "enhanced", camera: boardCamera,
-  setActive(active) { cameraViewport.hidden = !active; domCameraControls.hidden = !active; if (!active) boardCamera.cancel(); },
+  setActive(active) {
+    // The router calls this at a safe checkpoint, before exposing the DOM board.
+    if (active) refreshDomBoard();
+    cameraViewport.hidden = !active; domCameraControls.hidden = !active; if (!active) boardCamera.cancel();
+  },
   dispose() {} };
 const threeActive = () => !!threeViewport && viewportRouter?.active === threeViewport;
 const playCamera = () => threeActive() ? threeViewport.camera : boardCamera;
@@ -452,7 +459,7 @@ function inspectCell(key) {
   }
 }
 
-function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives, groundObjects = snapshot.presentation.groundObjects) {
+function renderBoard(state, preserveNodes = false, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives, groundObjects = snapshot.presentation.groundObjects, frame = null) {
   const board = state.physical.board;
   for (const node of choiceFeedback.values()) node.remove();
   choiceFeedback.clear();
@@ -462,7 +469,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   // Retain decoded artwork through both playback steps and snapshot redraws.
   // Prune absent objects every render and isolate artwork by game identity.
   const objectNode = (category, id, identity, className) => {
-    const base = JSON.stringify([snapshot.sessionId, snapshot.scenarioId, snapshot.visualSeed, category, identity, id]);
+    const base = JSON.stringify([frame?.metadata.sessionId ?? snapshot.sessionId, frame?.metadata.scenarioId ?? snapshot.scenarioId, frame?.visualSeed ?? snapshot.visualSeed, category, identity, id]);
     const occurrence = objectCounts.get(base) ?? 0;
     objectCounts.set(base, occurrence + 1);
     const key = JSON.stringify([base, occurrence]);
@@ -499,7 +506,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     ui.board.append(node);
   }
   const terrain = new Map((board.terrain ?? []).map(tile => [cellKey(tile.position), tile]));
-  const viewingSide = snapshot.presentation.viewingSideId;
+  const viewingSide = frame ? frame.presentation.viewingSideId : snapshot.presentation.viewingSideId;
   const explored = viewingSide ? new Set((state.exploredCells?.[viewingSide] ?? []).map(cellKey)) : null;
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const tile = terrain.get(cellKey({ x, y }));
@@ -511,7 +518,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.removeAttribute("aria-label");
     node.className = `cell ${kind}${display.fallback ? ' custom-terrain' : ''}`; node.dataset.cell = key; node.dataset.x = x; node.dataset.y = y;
     node.dataset.x = String(x); node.dataset.y = String(y);
-    applyBoardVisual(node, "terrain", kind, { seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
+    applyBoardVisual(node, "terrain", kind, { seed: frame?.visualSeed ?? snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
       x, y, direction: tile?.direction, terrain, assembly: display.assembly });
     node.dataset.railDirection = tile?.direction ?? "";
     retainedCells.add(key);
@@ -536,7 +543,7 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     const art = objectNode("machine", machine.typeId, machine.id, "machine-art");
     const visual = applyBoardVisual(art, "machine", machine.typeId);
     if (visual.baseTerrain) applyBoardVisual(node, "terrain", visual.baseTerrain, {
-      seed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
+      seed: frame?.visualSeed ?? snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}`,
       x: machine.position.x, y: machine.position.y });
     art.setAttribute("aria-hidden", "true"); node.append(art);
     const labels = text("span", ""); labels.className = "machine-labels";
@@ -666,7 +673,19 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
   }
 }
 
+function refreshDomBoard() {
+  if (!domBoardDirty || !displayedFrame) return;
+  const frame = displayedFrame, { machines, objectives, groundObjects } = frame.presentation;
+  renderBoard(frame.state, false, machines, objectives, groundObjects, frame);
+  domBoardDirty = false;
+  boardChoiceKeys.clear();
+  if (frame.state === snapshot?.result.state) bindDisplayedBoardChoices(snapshot.presentation.decision, true);
+  highlightContext();
+  if (threePreview) previewChoice(threePreview);
+}
+
 function renderState(state, preserveNodes = true, cards = snapshot.presentation.cards, geometry = snapshot.presentation.figures, world = snapshot.presentation.worldEffects, orders = snapshot.presentation.orders, machines = snapshot.presentation.machines, objectives = snapshot.presentation.objectives, groundObjects = snapshot.presentation.groundObjects) {
+  renderedSnapshot = null;
   applySideHues(snapshot?.scenarios?.find(scenario => scenario.id === snapshot.scenarioId)?.sideHues);
   displayedCards = cards;
   displayedFigures = geometry;
@@ -674,10 +693,14 @@ function renderState(state, preserveNodes = true, cards = snapshot.presentation.
   const isSetup = state.round === 0;
   if (setupPhase === undefined || setupPhase !== isSetup) ui["game-setup"].open = isSetup;
   setupPhase = isSetup;
-  renderBoard(state, preserveNodes, machines, objectives, groundObjects);
   displayedState = state;
   displayedFrame = { state, presentation: { cards, figures: geometry, worldEffects: world, orders, machines, objectives, groundObjects, viewingSideId: snapshot.presentation.viewingSideId },
     metadata: { sessionId: snapshot.sessionId, scenarioId: snapshot.scenarioId, assignments: snapshot.controllerAssignments, controllers: snapshot.controllers, round: state.round }, visualSeed: snapshot.visualSeed ?? `scenario:${snapshot.scenarioId ?? "legacy"}` };
+  if (threeActive()) domBoardDirty = true;
+  else {
+    renderBoard(state, preserveNodes, machines, objectives, groundObjects, displayedFrame);
+    domBoardDirty = false;
+  }
   unitFacing.setFrame(displayedFrame);
   if (threeActive()) threeViewport.renderFrame(displayedFrame);
   playCamera()?.setFrame(state, { figures: geometry, objectives, viewingSideId: snapshot.presentation.viewingSideId },
@@ -1193,6 +1216,34 @@ function renderSnapshot() {
   renderState(state, false);
   ui.auto.checked = snapshot.autoChooseSingleRelevantChoice;
   const decision = snapshot.presentation.decision;
+  ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? decision.roll ? rollLabel(decision.roll) : decision.displayPrompt ?? decision.prompt : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
+  const selected = selectedActionKey === null ? null : actionGroups(decision).find(group => group.key === selectedActionKey);
+  if (selected) ui.prompt.textContent = `Choose an option for ${selected.name}.`;
+  ui["board-hint"].textContent = ui.prompt.textContent;
+  bindDisplayedBoardChoices(decision);
+  renderChoicePanel();
+  playCamera()?.stable(decision);
+  positionDecisionPanel();
+  updateControls();
+  void viewportRouter?.checkpoint();
+  renderedSnapshot = snapshot;
+}
+
+function bindDisplayedBoardChoices(decision, dom = !threeActive()) {
+  const state = displayedState;
+  if (!dom) {
+    // Canvas choices still drive the accessible board list, without depending on
+    // hidden DOM nodes from a previous frame or scenario.
+    for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
+      if (!visibleBoardChoice(candidate)) continue;
+      const reference = candidate.interaction, board = state.physical.board;
+      const mounted = reference.kind === "Unit" ? state.physical.figures.some(figure => figure.id === reference.unitId)
+        : reference.kind === "Position" ? reference.position.x >= 0 && reference.position.x < board.width && reference.position.y >= 0 && reference.position.y < board.height
+        : reference.kind === "Door" && board.edges.some(edge => edge.kind !== "None" && edgeKey(edge) === edgeKey(reference.door));
+      if (mounted) boardChoiceKeys.add(candidate.key);
+    }
+    return;
+  }
   // Bind supplied selection references. Affected Units are preview data, never selections.
   const boardChoices = new Map();
   const offer = (node, candidate) => {
@@ -1200,10 +1251,6 @@ function renderSnapshot() {
     if (!boardChoices.has(node)) boardChoices.set(node, new Map());
     boardChoices.get(node).set(candidate.key, candidate);
   };
-  ui.prompt.textContent = state.completion ? "Game over. Restart or choose a scenario to play again." : decision ? decision.roll ? rollLabel(decision.roll) : decision.displayPrompt ?? decision.prompt : state.roundComplete ? "Round complete. Start the next round when ready." : "Start the first round.";
-  const selected = selectedActionKey === null ? null : actionGroups(decision).find(group => group.key === selectedActionKey);
-  if (selected) ui.prompt.textContent = `Choose an option for ${selected.name}.`;
-  ui["board-hint"].textContent = ui.prompt.textContent;
   for (const candidate of [...(decision?.candidates ?? []), ...(decision?.noneChoice ? [decision.noneChoice] : [])]) {
     if (!visibleBoardChoice(candidate)) continue;
     const selection = candidate.interaction;
@@ -1229,11 +1276,6 @@ function renderSnapshot() {
     bindBoardChoice(node, candidates);
     for (const candidate of candidates) boardChoiceKeys.add(candidate.key);
   }
-  renderChoicePanel();
-  playCamera()?.stable(decision);
-  positionDecisionPanel();
-  updateControls();
-  void viewportRouter?.checkpoint();
 }
 
 function chooseCandidate(key) {
@@ -1470,7 +1512,9 @@ async function drainUpdates() {
     }
     if (generation === playbackGeneration && latestUpdate && displayedSequence === receivedSequence) {
       snapshot = latestUpdate.snapshot;
-      renderSnapshot();
+      // A boundary already rendered this exact view. Event-only drains still
+      // need the full decision/UI handoff after their event-time state renders.
+      if (renderedSnapshot !== snapshot) renderSnapshot();
     }
   } catch (error) {
     if (generation !== playbackGeneration) return;
@@ -1718,7 +1762,13 @@ async function present(event, occurrence) {
     PostureChanged: 200, UnitCreated: 200 }[occurrence?.kind];
   if (delay != null) { await guardedPause(delay); return; }
   if (threeActive()) {
-    await threeViewport.present(event, occurrence, { pause: guardedPause, skipping: () => skipEffects || !ui.animate.checked || reducedMotion() });
+    const movement = event.role === "Movement" ? {} : null;
+    if (movement) presentingMovement = movement;
+    try {
+      await threeViewport.present(event, occurrence, { pause: guardedPause, skipping: () => skipEffects || !ui.animate.checked || reducedMotion() });
+    } finally {
+      if (presentingMovement === movement) presentingMovement = null;
+    }
     return;
   }
   if (event.movementSegments?.length && event.movingFigure) {
@@ -1736,7 +1786,7 @@ async function present(event, occurrence) {
         node.style.transition = "left .22s linear, top .22s linear";
         placeFigure(node, cell, snapshot.result.state.physical.board);
         playCamera()?.movementStep(cell);
-        await guardedPause(250);
+        await guardedPause(220);
       }
       break;
     }
@@ -1812,7 +1862,7 @@ async function presentObservedMovement(event) {
       for (const cell of segment.slice(1)) {
         if (skipEffects) break;
         node.style.transition = "left .22s linear, top .22s linear";
-        placeFigure(node, cell, board); playCamera()?.movementStep(cell); await guardedPause(250);
+        placeFigure(node, cell, board); playCamera()?.movementStep(cell); await guardedPause(220);
       }
     }
   } finally {
@@ -2201,7 +2251,12 @@ waypointToggle.addEventListener("change", () => { ui.board.classList.toggle("hid
 ui.round.addEventListener("click", () => mutate("round"));
 ui.refresh.addEventListener("click", refresh);
 ui.skip.addEventListener("click", () => { skipLootCards = true; skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); ui.dice.classList.remove("rolling"); for (const row of ui.dice.querySelectorAll(".rolling")) row.classList.remove("rolling"); cancelPause?.(); updateControls(); });
-ui.animate.addEventListener("change", () => { if (!ui.animate.checked) { threeViewport?.settle(); playCamera()?.settle(); } });
+ui.animate.addEventListener("change", () => {
+  if (!ui.animate.checked) {
+    skipEffects = true; threeViewport?.settle(); playCamera()?.settle();
+    if (presentingMovement) cancelPause?.();
+  }
+});
 globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").addEventListener?.("change", event => {
   if (event.matches) { skipEffects = true; threeViewport?.settle(); playCamera()?.settle(); cancelPause?.(); }
 });

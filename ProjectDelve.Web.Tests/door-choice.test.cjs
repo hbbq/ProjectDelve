@@ -252,15 +252,99 @@ const click = node => node.listeners.click({ stopPropagation() {} });
 const buttons = node => node.querySelectorAll("button");
 const pendingButtons = h => [...buttons(h.elements.get("play-actions")), ...buttons(h.elements.get("choices"))];
 
-function attachThree(h) {
+function attachThree(h, useDomHandoff = false) {
   const rendered = [], frames = [], camera = { setFrame() {}, stable() {}, occurrence() {}, movementStep() {}, finishMovement() {}, settle() {}, cancel() {}, screen:p=>p };
   h.context.testThree = { host: new Element(), camera, setActive() {}, renderFrame: frame=>frames.push(frame),
     showInteraction: view=>rendered.push(view), present: async()=>{}, afterOccurrence() {}, settle() {}, cancel() {}, dispose() {} };
-  h.run(`threeViewport = testThree; domViewport.setActive = () => {}; domViewport.host = document.getElementById('board');
+  h.run(`threeViewport = testThree; ${useDomHandoff ? "" : "domViewport.setActive = () => {};"} domViewport.host = document.getElementById('board');
     viewportRouter = createViewportRouter({ dom: domViewport, overlay: ui['board-overlays'], loadThree: async () => threeViewport,
       onChange: (selection, active) => { boardView.value = selection; if (active === threeViewport && displayedFrame) threeViewport.renderFrame(displayedFrame); syncThreeInteraction(); } });`);
   return { frames, rendered };
 }
+
+for (const view of ['three', 'tabletop']) test(`hidden DOM board stays untouched until an event-time handoff (${view})`, async () => {
+  const initial = response(), final = structuredClone(initial), during = structuredClone(initial.result.state);
+  during.physical.figures[0].position.x = 1;
+  during.exploredCells = { blue: [{ x: 0, y: 0 }] };
+  during.physical.board.terrain = [{ kind: 'Lava', position: { x: 5, y: 0 } }];
+  final.result.state.physical.figures[0].position.x = 2;
+  final.result.events = [{ kind: 'MovementCompleted', unitId: 'actor' }, { kind: 'MovementCompleted', unitId: 'actor' }];
+  final.presentation.events = [1, 2].map(x => ({ role: 'Movement', text: `Observed move ${x}`, unitId: 'actor' }));
+  final.presentation.viewingSideId = 'blue';
+  final.result.resolutionSteps = [{ eventIndex: 0, stateAfter: during }, { eventIndex: 1, stateAfter: final.result.state }];
+  const earlyCards = cards(); earlyCards.actor.displayName = 'Event-time name';
+  final.presentation.resolutionSteps = [{ eventIndex: 0, cards: earlyCards, figures: { actor: { cellSpan: 2 } },
+    objectives: [{ sideId: 'blue', meaning: 'Earlier objective', area: { x: 0, y: 0, w: 1, h: 1 } }] },
+    { eventIndex: 1, cards: final.presentation.cards }];
+  final.presentation.decision.candidates = [choice('future', 'Position', { position: { x: 2, y: 0 } })];
+  const h = harness(initial, undefined, { withCamera: true });
+  const three = attachThree(h, true);
+  h.context.view = view; h.context.final = final;
+  h.run('let boardRenders = 0; const originalBoard = renderBoard; renderBoard = (...args) => { boardRenders++; return originalBoard(...args); };');
+  await h.run('viewportRouter.request(view)');
+  h.run(`snapshot = final; busy = true; ui.animate.checked = true; pause = async () => {};
+    let presented = 0;
+    present = async () => {
+      if (presented++ === 0) {
+        if (boardRenders !== 0) throw Error('hidden DOM was rebuilt');
+        await viewportRouter.request('enhanced');
+        if (!threeActive()) throw Error('handoff occurred within an event');
+      } else {
+        if (boardRenders !== 1 || displayedState.physical.figures[0].position.x !== 1) throw Error('wrong checkpoint');
+        if (!figures.get('actor').textContent.includes('Event-time name')) throw Error('future card shown');
+        if (figures.get('actor').dataset.cellSpan !== 2) throw Error('future geometry shown');
+        if (!cells.get('5,0').classList.contains('Unknown')) throw Error('future terrain revealed');
+        if (!ui.board.querySelectorAll('.mission-area')[0].getAttribute('aria-label').includes('Earlier objective')) throw Error('future objective shown');
+        if (boardChoiceKeys.size || cells.get('2,0').classList.contains('choosable')) throw Error('future decision bound');
+        if (!figures.get('actor').classList.contains('token-selected')) throw Error('event focus lost');
+      }
+    };`);
+  await h.run('playEvents(final)');
+  assert.equal(three.frames.at(-1).state, during);
+  assert.equal(h.run('boardRenders'), 2);
+  assert.equal(h.run('displayedState'), final.result.state);
+  assert.equal(h.elements.get('events').children.length, 2);
+  assert.equal(h.submitted.length, 0);
+});
+
+for (const view of ['three', 'tabletop']) for (const replacement of ['scenario replacement', 'save resume'])
+test(`${replacement} refreshes the DOM once on return from ${view}, with current choices`, async () => {
+  const initial = response(), resumed = response();
+  resumed.sessionId = replacement; resumed.scenarioId = 'test-owned-replacement'; resumed.visualSeed = 'replacement-art';
+  resumed.result.state.physical.figures = [{ id: 'new-unit', position: { x: 1, y: 0 }, posture: 'Lying' }];
+  resumed.result.state.units = [{ ...resumed.result.state.units[0], id: 'new-unit' }];
+  resumed.result.state.currentUnitId = 'new-unit';
+  resumed.presentation.cards = { 'new-unit': { displayName: 'Resumed Unit', entries: [] } };
+  resumed.presentation.figures = { 'new-unit': { cellSpan: 2, occupiedCells: [{ x: 1, y: 0 }, { x: 2, y: 0 }] } };
+  resumed.presentation.decision = { unitId: 'new-unit', prompt: 'Resumed decision', candidates: [
+    choice('unit-key', 'Unit', { unitId: 'new-unit' }), choice('cell-key', 'Position', { position: { x: 2, y: 0 } })] };
+  const h = harness(initial, undefined, { withCamera: true });
+  const three = attachThree(h, true); h.context.view = view; h.context.resumed = resumed;
+  await h.run('viewportRouter.request(view)');
+  h.run(`let boardRenders = 0; const originalBoard = renderBoard; renderBoard = (...args) => { boardRenders++; return originalBoard(...args); };
+    snapshot = resumed; renderSnapshot();`);
+  assert.equal(h.run('boardRenders'), 0);
+  assert.equal(three.frames.at(-1).state, resumed.result.state);
+  assert.equal(h.run('displayedFrame.visualSeed'), 'replacement-art');
+  assert.match(h.elements.get('prompt').textContent, /Resumed decision/);
+  assert.deepEqual(Array.from(h.run('[...boardChoiceKeys]')), ['unit-key', 'cell-key']);
+  assert.ok(h.elements.get('board-alternatives').querySelectorAll('.three-board-choices').length);
+  assert.equal(h.figure('new-unit'), undefined);
+  await h.run('viewportRouter.request("enhanced")');
+  assert.equal(h.run('boardRenders'), 1);
+  assert.equal(h.figure('actor'), undefined);
+  assert.match(h.figure('new-unit').textContent, /Resumed Unit/);
+  assert.equal(h.figure('new-unit').style.pointerEvents, 'none');
+  assert.ok(h.figure('new-unit').classList.contains('token-selected'));
+  assert.ok(h.figure('new-unit').classList.contains('lying'));
+  h.run('chooseCandidate = key => submitted.push(key);');
+  await click(h.run('cells.get("2,0")'));
+  assert.deepEqual(Array.from(h.run('boardChooser.map(candidate => candidate.key)')), ['unit-key', 'cell-key']);
+  await click(buttons(h.elements.get('choices')).find(button => button.textContent === 'Supplied label cell-key'));
+  assert.deepEqual(h.submitted, ['cell-key']);
+  await h.run('viewportRouter.request("classic"); viewportRouter.request(view); viewportRouter.request("enhanced");');
+  assert.equal(h.run('boardRenders'), 1);
+});
 
 test('Three routing receives displayed StateAfter, never future legal decisions, and submits one opaque key', async () => {
   const initial = response([choice('first','Position',{position:{x:1,y:0}}),choice('second','Position',{position:{x:1,y:0}})]);
@@ -352,6 +436,26 @@ test(`${view}: observed movement ${journey} starts under fog, keeps gaps hidden 
   assert.equal(h.elements.get("board").querySelectorAll(".movement-fog").length, 0);
   assert.equal(!!h.figure("actor"), known.includes(end));
   if (h.figure("actor")) assert.equal(h.figure("actor").style.left, `${(end+.5)/6*100}%`);
+});
+
+for (const observed of [false, true]) test(`DOM movement uses matching 220 ms travel and waits through sharp turns (observed=${observed})`, async () => {
+  const initial = response(); initial.result.state.physical.board.height = 3;
+  const h = harness(initial), path = [{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:2,y:1},{x:2,y:2}];
+  h.context.motionEvent = { role:'Movement', unitId:'actor', path, ...(observed ? {
+    movementSegments:[path], movingFigure:{typeId:'grunt-type',sideId:'same',name:'Observed Unit',posture:'Lying',cellSpan:1,hp:1,maxHp:1}
+  } : {}) };
+  h.run(`let legSamples=[]; skipEffects=false; pause=async ms=>{
+    const node=ui.board.querySelectorAll('.movement-figure')[0]??figures.get('actor');
+    legSamples.push({ms,left:node.style.left,top:node.style.top,transition:node.style.transition,lying:node.classList.contains('lying')});
+  };`);
+  await h.run('present(motionEvent,{kind:"MovementCompleted",unitId:"actor"})');
+  const samples=JSON.parse(h.run('JSON.stringify(legSamples)'));
+  assert.deepEqual(samples.map(s=>s.ms),[220,220,220,220]);
+  assert.deepEqual(samples.map(s=>[s.left,s.top]),path.slice(1).map(p=>[`${(p.x+.5)/6*100}%`,`${(p.y+.5)/3*100}%`]));
+  assert.ok(samples.every(s=>s.transition==='left .22s linear, top .22s linear'));
+  if(observed)assert.ok(samples.every(s=>s.lying));
+  assert.equal(h.run('displayedState.physical.figures[0].position.x'),0,'animation never mutates authoritative geometry');
+  assert.equal(h.elements.get('board').querySelectorAll('.movement-figure').length,0);
 });
 
 for (const animate of [true, false]) {
@@ -1494,6 +1598,116 @@ function movementView(x = 1) {
   view.presentation.resolutionSteps = [{ eventIndex: 0, cards: view.presentation.cards, figures: view.presentation.figures, worldEffects: view.presentation.worldEffects }];
   return view;
 }
+
+test('resumed baseline cancels a Three event and pending DOM handoff without stale figures or choices', async () => {
+  const h = streamHarness(undefined, { withCamera: true });
+  h.emit(update(0, 'baseline', 'idle'));
+  attachThree(h, true);
+  h.run('testThree.present = (event, occurrence, playback) => playback.pause(250)');
+  await h.run('viewportRouter.request("tabletop")');
+  h.emit(update(1, 'event', 'resolving', movementView(1)));
+  h.run('void viewportRouter.request("enhanced")');
+  const resumed = response([choice('restored-cell', 'Position', { position: { x: 4, y: 0 } })]);
+  resumed.sessionId = 'resumed-session';
+  resumed.result.state.physical.figures = [{ id: 'restored', position: { x: 4, y: 0 }, posture: 'Lying' }];
+  resumed.result.state.units = [{ ...resumed.result.state.units[0], id: 'restored' }];
+  resumed.result.state.currentUnitId = 'restored';
+  resumed.presentation.cards = { restored: { displayName: 'Restored Unit', entries: [] } };
+  resumed.presentation.figures = { restored: { cellSpan: 1 } };
+  h.emit(update(0, 'baseline', 'waiting-human', resumed, 'resumed-session'));
+  await settleStream();
+  assert.equal(h.run('threeActive()'), false);
+  assert.equal(h.run('domBoardDirty'), false);
+  assert.deepEqual(Array.from(h.run('[...figures.keys()]')), ['restored']);
+  assert.ok(h.figure('restored').classList.contains('lying'));
+  assert.ok(h.run('cells.get("4,0").classList.contains("board-choice")'));
+  assert.deepEqual(Array.from(h.run('[...boardChoiceKeys]')), ['restored-cell']);
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.run('displayedSequence'), 0);
+  assert.equal(h.run('displayedFrame.metadata.sessionId'), 'resumed-session');
+});
+
+test('drained boundaries render once, including a terminal resolving boundary and later status change', async () => {
+  const h = streamHarness(); h.emit(update(0, 'baseline', 'idle'));
+  h.run('let snapshotRenders = 0; const drawSnapshot = renderSnapshot; renderSnapshot = () => { snapshotRenders++; drawSnapshot(); };');
+  h.emit(update(1, 'boundary', 'resolving'));
+  await settleStream();
+  assert.equal(h.run('snapshotRenders'), 1);
+  assert.equal(h.run('displayedSequence'), 1);
+  assert.equal(h.run('busy'), true);
+  const ready = response([choice('ready', 'Direct')]);
+  h.emit(update(2, 'boundary', 'waiting-human', ready));
+  await settleStream();
+  assert.equal(h.run('snapshotRenders'), 2, 'a distinct boundary must still refresh its controls');
+  assert.equal(h.run('busy'), false);
+  assert.equal(pendingButtons(h)[0].disabled, false);
+  h.run('renderSnapshot()');
+  assert.equal(h.run('snapshotRenders'), 3, 'explicit UI refreshes are never memoized away');
+});
+
+test('boundary deduplication preserves every event-time state and checkpoint in a buffered drain', async () => {
+  const h = streamHarness(); h.emit(update(0, 'baseline', 'idle'));
+  h.run(`let drawnStates = [], fullRenders = 0, checkpoints = 0;
+    const drawState = renderState; renderState = (...args) => { drawnStates.push(args[0].physical.figures[0].position.x); return drawState(...args); };
+    const drawSnapshot = renderSnapshot; renderSnapshot = () => { fullRenders++; drawSnapshot(); };
+    viewportRouter = { beginEvent() {}, checkpoint() { checkpoints++; } };`);
+  h.emit(update(1, 'event', 'resolving', movementView(1)));
+  h.emit(update(2, 'event', 'resolving', movementView(2)));
+  const ready = response([choice('after', 'Direct')]); ready.result.state.physical.figures[0].position.x = 2;
+  h.emit(update(3, 'boundary', 'waiting-human', ready));
+  await h.tick(); await h.tick();
+  assert.deepEqual(Array.from(h.run('drawnStates')), [1, 2, 2]);
+  assert.equal(h.run('fullRenders'), 1);
+  assert.equal(h.run('checkpoints'), 3, 'both event checkpoints and the final handoff remain');
+  assert.equal(h.elements.get('events').children.length, 2);
+  assert.equal(h.run('displayedSequence'), 3);
+  assert.equal(h.run('playbackQueue.length'), 0);
+});
+
+test('event-only drains still finish with a full snapshot and replacement baseline renders immediately', async () => {
+  const h = streamHarness(); h.emit(update(0, 'baseline', 'idle'));
+  h.run('let snapshotRenders = 0; const drawSnapshot = renderSnapshot; renderSnapshot = () => { snapshotRenders++; drawSnapshot(); };');
+  h.emit(update(1, 'event', 'resolving', movementView(1)));
+  await h.tick();
+  assert.equal(h.run('snapshotRenders'), 1);
+  assert.equal(h.run('displayedState.physical.figures[0].position.x'), 1);
+  h.emit(update(0, 'baseline', 'waiting-human', response([choice('replacement', 'Direct')]), 'new-session'));
+  await settleStream();
+  assert.equal(h.run('snapshotRenders'), 2);
+  assert.equal(h.run('displayedState.physical.figures[0].position.x'), 0);
+  assert.equal(h.run('latestUpdate.sessionId'), 'new-session');
+});
+
+test('disabling animation wakes an active full-run movement pause and drains the remaining authoritative events', async () => {
+  const h=streamHarness();h.emit(update(0,'baseline','idle'));
+  attachThree(h);
+  await h.run('viewportRouter.request("tabletop")');
+  h.run('testThree.present = (event,occurrence,playback) => playback.pause(880)');
+  h.emit(update(1,'event','resolving',movementView(1)));
+  h.emit(update(2,'event','resolving',movementView(2)));
+  h.emit(update(3,'boundary','waiting-human',response([choice('after-toggle','Direct')])));
+  assert.equal(h.timers.size,1);
+  h.elements.get('animate').checked=false;
+  h.elements.get('animate').listeners.change();
+  await settleStream();
+  assert.equal(h.timers.size,0);
+  assert.equal(h.run('displayedSequence'),3);
+  assert.equal(h.run('playbackRunning'),false);
+  assert.equal(h.elements.get('events').children.length,2);
+  assert.equal(h.run('skipEffects'),true);
+  assert.deepEqual(h.submitted,[]);
+});
+
+test('disabling animation preserves a human Loot card acknowledgement', async () => {
+  const h=harness(response());let finished=false;
+  const reveal=h.run('revealLoot({lootCard:{kind:"TestLoot",name:"Keep this card",category:"Equipment",text:"Supplied text"},humanCollector:true})');
+  reveal.then(()=>{finished=true;});
+  h.elements.get('animate').checked=false;h.elements.get('animate').listeners.change();await settleStream();
+  assert.equal(finished,false);
+  assert.match(h.context.document.body.textContent,/Keep this card/);
+  h.context.document.body.querySelectorAll('.loot-continue')[0].onclick();await reveal;
+  assert.equal(finished,true);
+});
 
 test("stream receives ahead of playback, drains during external wait, and resumes the same session", async () => {
   const h = streamHarness();

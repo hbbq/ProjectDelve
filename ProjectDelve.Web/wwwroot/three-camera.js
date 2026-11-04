@@ -16,7 +16,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   let projection=saved?.projection==='perspective'?'perspective':'orthographic',fov=lensFov(saved?.fov);
   const optics=()=>({projection:physical?projection:'orthographic',projectionMix:physical&&projection==='perspective'?1:0,fov,allowGutters:physical});
   const geometry=()=>({...orientation,...optics(),visualHeight:physical?visualHeight:0,visualOverhang:physical?visualOverhang:0});
-  let fitBounds=null,activeBounds=null;
+  let fitBounds=null,activeBounds=null,tracking=null,progressAllowed=false,progressRun=null,progressPoint=null;
   const director=createCameraDirector();
   function direct(smooth=true){
     if(!physical||!automatic()||!pose)return;
@@ -99,7 +99,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function setFrame(state,presentation,meta) {
     const replacement = session !== (meta.sessionId ?? meta.scenarioId);
-    if(replacement)director.reset();
+    if(replacement){tracking=null;progressAllowed=false;progressRun=progressPoint=null;director.reset();}
     if (replacement) { session = meta.sessionId ?? meta.scenarioId; pose = target = transition = null; suspended = false; decision = movement = null; activationKey = null; activation = 0; manualActivation = null; fittedSpan = moveSignature = fitBounds = activeBounds = null; }
     frame = cameraObservedFrame(state,presentation); metadata = meta;
     refreshSides();
@@ -118,7 +118,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     controls.side.value = side ?? '';
   }
   function stable(next) {
-    decision = next;
+    endMovement();decision = next;
     if(physical){activeBounds=fitBounds=cameraBounds(cameraFootprint(frame,next?.unitId));director.stable(frame,next,directorSide());direct();return;}
     if (!next?.unitId || !own(next.unitId)) { fitBounds=activeBounds=null;return; }
     const key = `${metadata.round}:${next.unitId}:${activation}`;
@@ -129,29 +129,66 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   }
   function occurrence(occurrence,event,instant=false) {
     if (!frame) return;
+    endMovement();movement=cameraEventIntent(occurrence,event,frame);
     if(physical){
       activeBounds=fitBounds=null;
       if(occurrence?.kind==='ActivationStarted'&&side&&frame.units.some(u=>u.id===occurrence.unitId&&u.sideId===side)&&cameraFootprint(frame,occurrence.unitId).length){activation++;if(preferences.follow!=='off')suspended=false;}
       director.event(frame,occurrence,event);direct(!instant);
       if(instant){if(event.role==='Movement')finishMovement();else settle();}return;
     }
-    movement = cameraEventIntent(occurrence,event,frame);
     if (occurrence?.kind === 'ActivationStarted' && own(occurrence.unitId)) { activation++; activationKey = null; if (preferences.follow !== 'off') suspended=false; if(preferences.mode==='auto') return; }
     if (movement?.kind === 'movement') { if(instant) finishMovement(); return; }
     follow(movement,!instant);
   }
   function movementStep(anchor) {
-    if(physical){director.step(anchor,frame);direct();return;}
+    progressRun=movement?.segments?.find(s=>s.some(c=>c.x===anchor.x&&c.y===anchor.y));
+    progressPoint={...anchor};progressAllowed=false;
+    if(physical){director.step(anchor,frame);progressAllowed=!!progressRun&&director.inspect().context==='Movement'&&automatic();direct();return;}
+    progressAllowed=movement?.kind==='movement'&&movement.segments.some(s=>s.some(c=>c.x===anchor.x&&c.y===anchor.y))&&cameraAllowsFollow(preferences,suspended,movement,side);
     if (movement?.kind === 'movement' && movement.segments.some(s=>s.some(c=>c.x===anchor.x && c.y===anchor.y))) follow({ ...movement,bounds:cameraAnchorBounds(anchor,movement.span) });
   }
+  function movementProgress(point,anchor=null) {
+    if(anchor){
+      const run=movement?.segments?.find(s=>s.some(c=>c.x===anchor.x&&c.y===anchor.y));
+      if(run!==progressRun){endMovement();if(run)movementStep(anchor);}
+    }
+    const contains=(a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,px=point.x-a.x,py=point.y-a.y;
+      if(dx===0&&dy===0)return Math.hypot(px,py)<1e-6;
+      return Math.abs(dx*py-dy*px)<1e-6&&px*dx+py*dy>=-1e-6&&px*dx+py*dy<=dx*dx+dy*dy+1e-6;};
+    if(!progressRun?.some((a,i)=>i?contains(progressRun[i-1],a):Math.hypot(point.x-a.x,point.y-a.y)<1e-6))return;
+    const previousPoint=progressPoint;progressPoint={...point};
+    if(!progressAllowed||!pose||!target||!automatic()||!animate()||reduced())return;
+    // Composition runs at observed run boundaries, never on each frame.
+    if(!tracking)tracking={point:{...(previousPoint??point)},time:environment.performance.now()};
+    const dx=point.x-tracking.point.x,dy=point.y-tracking.point.y;tracking.point={...point};
+    target=threeClampPose({...target,x:target.x+dx,y:target.y+dy},frame.board,size);
+    if(transition)transition.to={...target};
+  }
+  function resumeMovement(){
+    if(!progressRun||!progressPoint||!automatic())return false;
+    const point={...progressPoint},current=target??pose;
+    const span=preferences.mode==='fixed'?preferences.fixedSpan:Math.max(preferences.minSpan,Math.min(preferences.maxSpan,threeSpanScale(size,1,current)/current.scale));
+    apply({...current,scale:threeSpanScale(size,span,current)});
+    movementStep(progressRun[0]);
+    if(!progressAllowed)return false;
+    if(preferences.mode==='fixed'||!physical)target={...target,scale:threeSpanScale(size,span,target)};
+    target=threeClampPose({...target,x:target.x+point.x-progressPoint.x,y:target.y+point.y-progressPoint.y},frame.board,size);
+    if(transition)transition.to={...target};
+    progressPoint=point;tracking={point,time:environment.performance.now()};invalidate();return true;
+  }
+  function endMovement(){
+    progressAllowed=false;progressRun=progressPoint=null;if(!tracking)return;tracking=null;
+    if(target){const next={...target};target=null;apply(next);}
+  }
   function finishMovement() {
+    tracking=null;progressAllowed=false;progressRun=progressPoint=null;
     if(physical){const last=director.finish();if(last){director.step(last,frame);direct(false);}settle();return;}
     if (movement?.kind === 'movement') { const last=movement.segments.at(-1).at(-1); follow({...movement,bounds:cameraAnchorBounds(last,movement.span)},false); }
     settle();
   }
-  function settle() { if(target) pose={...target}; transition=null; invalidate(); }
+  function settle() { tracking=null;progressAllowed=false;progressRun=progressPoint=null;if(target) pose={...target}; transition=null; invalidate(); }
   function manual(next,smooth=false) {
-    if(!frame)return;if(preferences.mode==='full')preferences.mode='fixed';
+    tracking=null;progressAllowed=false;if(!frame)return;if(preferences.mode==='full')preferences.mode='fixed';
     orientation={tilt:next.tilt??orientation.tilt,yaw:next.yaw??orientation.yaw};suspended=true;manualActivation=activation;
     const lensChanging=pose&&(pose.fov!==optics().fov||pose.projectionMix!==optics().projectionMix);
     if(lensChanging){
@@ -178,6 +215,14 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
   function resize(width,height) {
     if(!width||!height||width===size.width&&height===size.height) return;
     const previousSize=size;
+    if(tracking&&automatic()){
+      // Layout changes remap the displayed lens without composing the run's
+      // old start anchor or completing acquisition at the current destination.
+      const remap=p=>({...p,scale:threeSpanScale({width,height},threeSpanScale(size,1,p)/p.scale,p)});
+      const nextPose=remap(pose),nextTarget=remap(target);size={width,height};pose=nextPose;target=threeClampPose(nextTarget,frame.board,size);
+      if(transition){const now=environment.performance.now();transition={...transition,from:{...pose},to:target,start:now,duration:Math.max(1,transition.duration-(now-transition.start))};}
+      renderControls();invalidate();return;
+    }
     if(physical&&preferences.mode==='auto'&&transition&&previousSize.width>1&&previousSize.height>1&&animate()&&!reduced()){
       // Layout changes must not complete an Auto move at its destination. Keep
       // the displayed pose and remaining easing time in the new dimensions.
@@ -200,6 +245,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     else apply({...pose,scale:spanScale(preferences.mode==='fixed'?preferences.fixedSpan:span)},false);
   }
   function tick(time) {
+    const previous=pose&&{...pose};
     if(transition) { const fraction=(time-transition.start)/transition.duration,ease=1-(1-Math.max(0,Math.min(1,fraction)))**3;
       pose={...transition.to,...interpolatePose(transition.from,transition.to,fraction),...interpolateOrientation(transition.from,transition.to,fraction),fov:transition.from.fov+(transition.to.fov-transition.from.fov)*ease,projectionMix:transition.from.projectionMix+(transition.to.projectionMix-transition.from.projectionMix)*ease};
       if(preferences.mode!=='full'){
@@ -218,7 +264,11 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
       if(transition.directed&&transition.to.projectionMix===1&&transition.from.projectionMix===1)pose=interpolateCameraWorld(transition.from,transition.to,fraction,size);
       if(fraction>=1) { pose={...transition.to};transition=null; }
     }
-    renderControls(); onChange(); return !!transition;
+    if(tracking&&previous&&target&&automatic()){
+      const dt=Math.max(0,time-tracking.time),alpha=1-Math.exp(-dt/90);tracking.time=Math.max(time,tracking.time);
+      pose={...pose,x:previous.x+(target.x-previous.x)*alpha,y:previous.y+(target.y-previous.y)*alpha};
+    }
+    renderControls(); onChange(); return !!transition||!!tracking;
   }
   function renderIndicators(blocked=[]) {
     const retained=new Set(),placed=[]; if(!frame||!pose) return;
@@ -238,7 +288,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     }
     for(const [key,node] of indicators) if(!retained.has(key)){node.remove();indicators.delete(key);}
   }
-  function resume(){suspended=false;moveSignature=fittedSpan=null;director.reset();useful();renderControls();}
+  function resume(){suspended=false;moveSignature=fittedSpan=null;if(!resumeMovement()){director.reset();useful();}renderControls();}
   function setOrientation(next,smooth=true) {
     orientation={tilt:Math.max(0,Math.min(55,Number(next.tilt??orientation.tilt))),yaw:Number(next.yaw??orientation.yaw)};
     moveSignature=null;
@@ -251,7 +301,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     else if(pose)apply({...pose,...orientation,scale:spanScale(preferences.fixedSpan)},smooth);
     renderControls();
   }
-  function setPresentation(value,smooth=true){director.reset();physical=value==='tabletop';fitBounds=activeBounds=null;setOrientation(physical?tabletopOrientation:{tilt:0,yaw:0},smooth);if(frame)refreshSides();}
+  function setPresentation(value,smooth=true){endMovement();director.reset();physical=value==='tabletop';fitBounds=activeBounds=null;setOrientation(physical?tabletopOrientation:{tilt:0,yaw:0},smooth);if(frame)refreshSides();}
   function setProjection(value,smooth=true){projection=value==='perspective'?'perspective':'orthographic';changeLens(smooth);}
   function setFov(value,smooth=true){fov=lensFov(value);changeLens(smooth);}
   function changeLens(smooth){
@@ -271,11 +321,11 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     renderControls();
   }
   function pan(from,to,start=pose){if(!start)return;const a=threeUnproject(from,start,size),b=threeUnproject(to,start,size);if(a&&b)manual({...start,x:start.x+a.x-b.x,y:start.y+a.y-b.y});}
-  function setMode(mode){preferences.mode=mode;suspended=false;moveSignature=fittedSpan=null;persist();useful();renderControls();}
+  function setMode(mode){tracking=null;progressAllowed=false;preferences.mode=mode;suspended=false;moveSignature=fittedSpan=null;persist();if(!resumeMovement())useful();renderControls();}
   const bind=(id,type,fn)=>controls[id].addEventListener(type,fn,{signal:subscriptions.signal});
   bind('mode','change',()=>setMode(controls.mode.value));
   bind('span','change',()=>{preferences.fixedSpan=Number(controls.span.value);resume();persist();});
-  bind('follow','change',()=>{preferences.follow=controls.follow.value;persist();if(preferences.follow!=='off')resume();else settle();});
+  bind('follow','change',()=>{tracking=null;progressAllowed=false;preferences.follow=controls.follow.value;persist();if(preferences.follow!=='off')resume();else {if(target)pose={...target};transition=null;invalidate();}});
   for(const [id,key] of [['min','minSpan'],['max','maxSpan'],['margin','margin']]) bind(id,'change',()=>{preferences=cameraPreferences({...preferences,[key]:controls[id].value});persist();resume();});
   bind('side','change',()=>{sideChoice=controls.side.value||null;side=sideChoice;activationKey=null;persist();resume();});
   bind('reset','click',()=>{if(physical)manualOrientation(tabletopOrientation);else{orientation={tilt:0,yaw:0};resume();}});bind('resume','click',resume);bind('in','click',()=>zoom(1.2,undefined,true));bind('out','click',()=>zoom(1/1.2,undefined,true));
@@ -287,7 +337,7 @@ export function createThreeCamera({ controls, invalidate, animate, onChange = ()
     if(controls[key])bind(key,'click',()=>{if(physical)manualOrientation(change());});
   const media=environment.matchMedia?.('(prefers-reduced-motion: reduce)');media?.addEventListener?.('change',()=>{if(reduced())settle();},{signal:subscriptions.signal});
   renderControls();
-  return {setFrame,stable,occurrence,movementStep,finishMovement,settle,cancel:()=>{movement=null;director.reset();settle();},resize,tick,manual,pan,zoom,resume,setMode,setOrientation,setPresentation,setProjection,setFov,renderIndicators,
+  return {setFrame,stable,occurrence,movementStep,movementProgress,endMovement,finishMovement,settle,cancel:()=>{movement=null;director.reset();settle();},resize,tick,manual,pan,zoom,resume,setMode,setOrientation,setPresentation,setProjection,setFov,renderIndicators,
     screen:point=>pose?threeProject(point,pose,size):point,
     ground:point=>pose?threeUnproject(point,pose,size):point,
     groundAtHeight:(point,height)=>pose?threeUnproject(point,pose,size,height):point,

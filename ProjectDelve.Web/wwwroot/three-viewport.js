@@ -448,9 +448,9 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     try { drawFrame(time); } catch(error) { raf=null;lost=true;onFailure?.(error); }
   }
   function drawFrame(time){
-    raf=null;if(!active||lost||disposed||!frame)return;commitBodies();const begin=performance.now();if(!resize())return;const movingCamera=cameraControl.tick(time);updateCamera();
+    raf=null;if(!active||lost||disposed||!frame)return;commitBodies();const begin=performance.now();if(!resize())return;sampleMovement(time);const movingCamera=cameraControl.tick(time);updateCamera();
     const animateShadows=!!(motion||transient||arrivals.size||flips.size||doorMotions.size||pieceEffects.size||representationTransition||rotations.size||inEvent);
-    if(motion){const t=Math.min(1,(time-motion.start)/motion.duration);motion.object.position.x=motion.from.x+(motion.to.x-motion.from.x)*t;motion.object.position.z=motion.from.z+(motion.to.z-motion.from.z)*t;if(t>=1)motion=null;}
+
     for(const [id,r]of rotations){const t=Math.min(1,(time-r.start)/150);r.node.rotation.y=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(t>=1)rotations.delete(id);}
     if(transientYaw){const r=transientYaw,t=Math.min(1,(time-r.start)/150);r.current=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(r.node)r.node.rotation.y=r.current;}
     if(clipPool&&transient)clipPool.update(transient.position.x,transient.position.z,transient.userData.span,transientYaw?.current);
@@ -676,17 +676,37 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       }else transient=source;
       groups.movement.add(transient);
       const localTransient=transient,localPool=clipPool;
-      try{for(const [si,segment]of segments.entries()){if(!transient||playback.skipping()||generation!==epoch)break;const start=presentation==='tabletop'?physicalCenter(segment[0],a):cellCenter(segment[0],a.cellSpan);transient.position.x=start.x;transient.position.z=start.z;cameraControl.movementStep(segment[0]);invalidate();
-        for(const [li,anchor]of segment.slice(1).entries()){if(!transient||playback.skipping()||generation!==epoch)break;
-          if(yawNode&&legs[si][li]!=null){const to=legs[si][li]+facing.get(event.unitId).offset;transientYaw={node:yawNode,from:transientYaw?.current??currentYaw,current:transientYaw?.current??currentYaw,to,start:performance.now()};currentYaw=to;}
-          const to=presentation==='tabletop'?physicalCenter(anchor,a):cellCenter(anchor,a.cellSpan);motion={object:transient,from:{x:transient.position.x,z:transient.position.z},to,start:performance.now(),duration:220};cameraControl.movementStep(anchor);invalidate();await playback.pause(250);if(generation===epoch&&motion?.object===localTransient){motion.object.position.x=to.x;motion.object.position.z=to.z;motion=null;}}
-      }}finally{localPool?.dispose();removeRecord({object:source});localTransient.removeFromParent();if(transient===localTransient){clipPool=null;transient=null;transientId=null;transientYaw=null;motion=null;}if(generation===epoch&&stable&&unitRoots.get(event.unitId)===stable){stable.visible=true;if(stable.userData.body?.facingNode)stable.userData.body.facingNode.rotation.y=facing.get(event.unitId).yaw;}invalidate();}
+      try{for(const [si,segment]of segments.entries()){
+        if(!transient||playback.skipping()||generation!==epoch)break;
+        cameraControl.endMovement();cameraControl.movementStep(segment[0]);
+        const points=segment.map(anchor=>presentation==='tabletop'?physicalCenter(anchor,a):cellCenter(anchor,a.cellSpan));
+        const yaws=legs[si].map(yaw=>{const from=currentYaw;if(yaw!=null)currentYaw=yaw+facing.get(event.unitId).offset;return {from,to:currentYaw};});
+        transient.position.x=points[0].x;transient.position.z=points[0].z;
+        motion={object:transient,points,anchors:segment,yaws,yawNode,start:performance.now(),duration:220*Math.max(0,segment.length-1),to:points.at(-1)};
+        sampleMovement(motion.start);invalidate();
+        if(segment.length>1)await playback.pause(motion.duration);
+        if(generation===epoch&&motion?.object===localTransient){sampleMovement(motion.start+motion.duration);motion=null;cameraControl.endMovement();}
+      }}finally{localPool?.dispose();removeRecord({object:source});localTransient.removeFromParent();if(transient===localTransient){clipPool=null;transient=null;transientId=null;transientYaw=null;motion=null;cameraControl.endMovement();}if(generation===epoch&&stable&&unitRoots.get(event.unitId)===stable){stable.visible=true;if(stable.userData.body?.facingNode)stable.userData.body.facingNode.rotation.y=facing.get(event.unitId).yaw;}invalidate();}
       return;
     }
     const id=event.targetId??event.unitId??occurrence?.unitId,node=nodes.get(`unit:${id}`)?.object;
     const duration=event.role==='Defeat'?320:['DoorAttempt','DoorOpened','DoorClosed'].includes(event.role)?300:250;
     if(node){node.scale.setScalar(event.role==='Defeat'?.6:1.06);shadowDirty=true;invalidate();}
     try{await playback.pause(duration);}finally{if(node)node.scale.setScalar(1);shadowDirty=true;invalidate();}
+  }
+  // Sample only the supplied observed run, with one clock and no Cell pauses.
+  function sampleMovement(time){
+    if(!motion)return;
+    const m=motion,n=m.points.length-1,progress=Math.max(0,Math.min(n,(time-m.start)/220)),leg=Math.min(Math.max(0,n-1),Math.floor(progress)),t=n?progress-leg:0;
+    const from=m.points[leg],to=m.points[Math.min(leg+1,n)],a=m.anchors[leg],b=m.anchors[Math.min(leg+1,n)];
+    m.object.position.x=from.x+(to.x-from.x)*t;m.object.position.z=from.z+(to.z-from.z)*t;
+    if(m.yawNode&&m.yaws[leg]){const yaw=m.yaws[leg];transientYaw={node:m.yawNode,from:yaw.from,to:yaw.to,current:yaw.from,start:m.start+leg*220};}
+    // Visit crossed anchors even after a late frame. Camera observation may
+    // trim hidden padding from this run, leaving only a visible middle anchor.
+    const reached=Math.floor(progress);
+    for(let i=(m.lastAnchor??-1)+1;i<=reached;i++)cameraControl.movementProgress(m.anchors[i],m.anchors[i]);
+    m.lastAnchor=reached;
+    cameraControl.movementProgress({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t},m.anchors[reached]);
   }
   function settle(){if(motion){motion.object.position.x=motion.to.x;motion.object.position.z=motion.to.z;motion=null;}
     for(const r of rotations.values())r.node.rotation.y=r.to;rotations.clear();transientYaw=null;syncFacing(true);
