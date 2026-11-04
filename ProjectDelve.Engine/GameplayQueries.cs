@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 
 namespace ProjectDelve.Engine;
 
@@ -93,6 +94,12 @@ internal sealed class GameplayQueries : IGameplayQueries
             .Select(p => (int?)p.Value).Min();
     }
     private readonly GameState world;
+    // Results belong only to this detached decision snapshot. Keep target-specific
+    // answers separate from the all-hostiles aggregate: Orders may supply a subset.
+    // No paths, candidate ordering, RNG or mutable rules state are cached here.
+    private readonly ConcurrentDictionary<(string Actor, Cell Position, string Target), bool> attackTargets = new();
+    private readonly ConcurrentDictionary<(string Actor, Cell Position), bool> attackPositions = new();
+    private readonly ConcurrentDictionary<(string Actor, string Target), bool> attackAvailability = new();
 
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
@@ -251,9 +258,28 @@ internal sealed class GameplayQueries : IGameplayQueries
 
     private bool CanAttackTargetFrom(string unitId, Cell position, string targetId)
     {
+        // Knowledge, life, placement and Side are fixed independently of the proposed
+        // position. Do not retain a per-Cell false entry for every friendly/unknown Unit.
+        if (!attackAvailability.GetOrAdd((unitId, targetId), static (key, queries) =>
+            queries.IsAttackTargetAvailable(key.Actor, key.Target), this)) return false;
+        return attackTargets.GetOrAdd((unitId, position, targetId), static (key, queries) =>
+            queries.EvaluateAttackTargetFrom(key.Actor, key.Position, key.Target), this);
+    }
+
+    private bool IsAttackTargetAvailable(string unitId, string targetId)
+    {
         var attacker = world.Units.Single(u => u.Id == unitId);
-        if (!Knows(unitId, targetId) || world.Units.SingleOrDefault(u => u.Id == targetId) is not { CurrentHp: > 0 } target ||
-            !world.AreHostile(attacker.SideId, target.SideId) || !world.Physical.Figures.Any(f => f.Id == targetId)) return false;
+        return Knows(unitId, targetId) && world.Units.SingleOrDefault(u => u.Id == targetId) is { CurrentHp: > 0 } target &&
+            world.AreHostile(attacker.SideId, target.SideId) && world.Physical.Figures.Any(f => f.Id == targetId);
+    }
+
+    private bool CanAttackFrom(string unitId, Cell position) =>
+        attackPositions.GetOrAdd((unitId, position), static (key, queries) =>
+            queries.world.Units.Any(target => queries.CanAttackTargetFrom(key.Actor, key.Position, target.Id)), this);
+
+    private bool EvaluateAttackTargetFrom(string unitId, Cell position, string targetId)
+    {
+        var attacker = world.Units.Single(u => u.Id == unitId);
         if (AttackRules.EvaluateApproachFrom(world, unitId, position, targetId) == UnitTargetEvaluation.Possible ||
             world.AbilitiesOf(unitId).Where(ability => ability.Definition.Mechanic is ClawAttack or FireBreath or TargetUnitAttackMechanic)
                 .Any(ability => AttackRules.EvaluateAbilityFrom(world, unitId, position, targetId, ability)
@@ -369,7 +395,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public bool CanAttackHostileFrom(string unitId, Cell position)
     {
         HypotheticalPosition.Validate(world, unitId, position);
-        return world.Units.Any(target => CanAttackTargetFrom(unitId, position, target.Id));
+        return CanAttackFrom(unitId, position);
     }
 
     public int? DistanceToNearestAttackableHostileFrom(string unitId, Cell position)
@@ -389,7 +415,7 @@ internal sealed class GameplayQueries : IGameplayQueries
                 traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable),
                 footprint: FootprintGeometry.FootprintOf(world, unitId))
             .Where(pair => SpatialRules.Fits(world.Physical.Board, FootprintGeometry.FootprintOf(world, unitId), pair.Key) &&
-                world.Units.Any(target => CanAttackTargetFrom(unitId, pair.Key, target.Id)))
+                CanAttackFrom(unitId, pair.Key))
             .Select(pair => (int?)pair.Value).Min();
     }
 
