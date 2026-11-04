@@ -29,7 +29,8 @@ const unique=(rows,key)=>{const result=Object.create(null);for(const row of rows
 export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.url){
   if(value?.schemaVersion!==1||!Array.isArray(value.units)||!Array.isArray(value.models)||!Array.isArray(canonicalTypes))throw Error('Unsupported Unit visual catalog schema');
   const units=unique(value.units,'typeId'),models=unique(value.models,'id'),canonical=unique(canonicalTypes,'unitTypeId');
-  for(const id of Object.keys(canonical))if(!Object.hasOwn(units,id))throw Error(`Missing Unit visual metadata: ${id}`);
+  // Visuals are optional presentation metadata. Content catalogs can contain
+  // authored Types with no assets; those use the renderer's procedural token.
   for(const [id,u]of Object.entries(units)){
     if(!Object.hasOwn(canonical,id))throw Error(`Unknown Unit visual Type: ${id}`);
     if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadiusForFootprint(canonical[id].cellSpan)||!positive(u.baseRadius)||u.baseRadius>maximumBaseRadius(canonical[id].cellSpan))throw Error(`Invalid Unit visual dimensions: ${id}`);

@@ -205,6 +205,39 @@ async function harness(frame=fixture(),options={}){
   return{viewport,host,controls,frames,requests,rendered,picked,hovered,failures,THREE,flush,renderer,get disposed(){return disposed;},cleanup(){viewport.dispose();for(const[key,value]of Object.entries(saved))if(value===undefined)delete globalThis[key];else globalThis[key]=value;}};
 }
 
+test('unregistered custom Types initialize, keep Side/posture/footprints and accept targeting on desktop and mobile',async()=>{
+  const {validateUnitVisualCatalog}=await moduleAt('unit-visuals.js'),{sideHue}=await moduleAt('side-colors.js');
+  const visualCatalog=validateUnitVisualCatalog({schemaVersion:1,units:[],models:[]},[{unitTypeId:'budget-barbarian',cellSpan:1}]);
+  for(const width of [900,390]){
+    const f=fixture();f.state.units.forEach(u=>u.typeId='budget-barbarian');f.state.types[0].id='budget-barbarian';f.state.units[1].sideId='red';
+    f.presentation.cards.hero.displayName='Budget Barbarian';
+    const h=await harness(f,{visualCatalog});try{
+      h.host.clientWidth=width;h.host.clientHeight=width===390?844:600;
+      h.viewport.setPresentation('tabletop');h.viewport.setRepresentation('miniatures');h.viewport.camera.setMode('full');h.viewport.settle();h.flush();
+      const scene=h.rendered.at(-1).scene,hero=scene.getObjectByName('unit:hero'),large=scene.getObjectByName('unit:large');
+      assert.equal(hero.userData.appearance.name,'Budget Barbarian');
+      for(const [root,side,angle,radius]of [[hero,'blue',Math.PI,.46],[large,'red',0,.92]]){
+        const body=root.getObjectByName('cardboard-body');assert.ok(body);
+        assert.equal(body.userData.angle,angle);assert.equal(body.userData.radius,radius);
+        const rim=body.getObjectByName('turnover').children[0];
+        assert.equal(rim.material.color.getHex(),new h.THREE.Color(`hsl(${sideHue(side)},70%,65%)`).getHex());
+      }
+      assert.equal(large.userData.footprint.length,4);
+      for(const cell of large.userData.footprint)assert.equal(h.viewport.pick(h.viewport.project({x:cell.x+.5,y:cell.y+.5})).unitId,'large');
+      h.viewport.showInteraction({focusedUnitId:'hero',relationship:{attackerId:'large',targets:[{targetId:'hero'}]},candidates:[{key:'custom',interaction:{kind:'Unit',unitId:'hero'}}]});h.flush();
+      const label=h.host.querySelector('.three-labels').children.find(n=>n.appearance?.name==='Budget Barbarian');
+      assert.match(label.children[2].textContent,/Lying/);assert.match(label.children[2].textContent,/Target/);assert.equal(label.children[3].textContent,'blue');
+      // A new Type arriving after initialization (e.g. Summon) needs no catalog reload.
+      const summoned=structuredClone(f);summoned.state.units.push({id:'summoned',typeId:'new-summon',sideId:'red',currentHp:1});summoned.state.types.push({id:'new-summon',displayName:'New Summon',hp:1});summoned.state.physical.figures.push({id:'summoned',position:{x:6,y:6},posture:'Lying'});
+      h.viewport.renderFrame(summoned);h.viewport.settle();h.flush();assert.ok(scene.getObjectByName('unit:summoned').getObjectByName('cardboard-body'));
+      // The authoritative FoW projection omits hidden Units, cards and figures.
+      h.viewport.renderFrame(f);h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('unit:summoned'),undefined);
+      for(const presentation of ['flat','tabletop']){h.viewport.setPresentation(presentation);h.viewport.settle();h.flush();assert.equal(scene.getObjectByName('unit:summoned'),undefined);}
+      assert.deepEqual(h.viewport.models.inspect(),[]);assert.deepEqual(h.failures,[]);assert.equal(h.requests.filter(r=>r.url.includes('budget')||r.url.includes('summon')).length,0);
+    }finally{h.cleanup();}
+  }
+});
+
 test('printed texture filtering respects hardware limits and caps sampling at four',async()=>{
   for(const [maximum,expected]of [[0,1],[2,2],[16,4]]){
     const h=await harness(fixture(),{maxAnisotropy:maximum});try{

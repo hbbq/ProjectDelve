@@ -11,10 +11,19 @@ test('Ghost appearance is explicit source metadata and unsupported appearances a
   const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')));
   assert.deepEqual(disk.models.filter(m=>m.appearance).map(m=>[m.id,m.appearance]),[['ghost/v1','ghost']]);
 });
-test('catalog rejects omissions, stale IDs, duplicates, invalid dimensions, schema and model references',async()=>{
+test('catalog rejects stale IDs, duplicates, invalid dimensions, schema and model references',async()=>{
   const {validateUnitVisualCatalog:v}=await at('unit-visuals.js');assert.equal(v(sample(),canonical).units.large.targetHeight,2.4);
-  for(const mutate of [s=>s.units.pop(),s=>s.units.push({...s.units[0],typeId:'stale'}),s=>s.units.push(s.units[0]),s=>s.units[0].targetHeight=0,s=>s.units[0].targetHeight=Infinity,s=>s.units[0].maximumRadius=-1,s=>s.units[0].maximumRadius=.921,s=>s.units[0].model='missing',s=>s.schemaVersion=2,s=>s.models.push(s.models[0]),s=>s.models[0].approved=false,s=>s.models[0].url='https://other.invalid/test.glb',s=>s.models[0].maxTextureDimension=Infinity]){const s=sample();mutate(s);assert.throws(()=>v(s,canonical));}
-  assert.throws(()=>v(sample(),[...canonical,{unitTypeId:'new-type',cellSpan:1}]),/Missing/);
+  for(const mutate of [s=>s.units.push({...s.units[0],typeId:'stale'}),s=>s.units.push(s.units[0]),s=>s.units[0].targetHeight=0,s=>s.units[0].targetHeight=Infinity,s=>s.units[0].maximumRadius=-1,s=>s.units[0].maximumRadius=.921,s=>s.units[0].model='missing',s=>s.schemaVersion=2,s=>s.models.push(s.models[0]),s=>s.models[0].approved=false,s=>s.models[0].url='https://other.invalid/test.glb',s=>s.models[0].maxTextureDimension=Infinity]){const s=sample();mutate(s);assert.throws(()=>v(s,canonical));}
+});
+test('optional metadata preserves registered visuals and needs no registration for authored or later summoned Types',async()=>{
+  const {validateUnitVisualCatalog:v,resolveUnitModel:r,loadUnitVisualCatalog:load}=await at('unit-visuals.js');
+  const types=[...canonical,{unitTypeId:'budget-barbarian',cellSpan:1}];
+  const c=await load(async url=>({ok:true,json:async()=>url.includes('/api/')?{unitTypes:types}:sample()}));
+  assert.deepEqual(c,v(sample(),types));
+  assert.deepEqual(c.units.small,sample().units[0]);assert.deepEqual(c.units.large,sample().units[1]);
+  assert.equal(r(c,'budget-barbarian',1),null);assert.equal(r(c,'scenario-only-summon',2),null);
+  assert.equal(c.cellSpans['budget-barbarian'],1);
+  assert.doesNotThrow(()=>v({schemaVersion:1,units:[],models:[]},types));
 });
 test('oversized visual metadata stays bounded to nine columns and does not alter canonical footprints',async()=>{
   const {validateUnitVisualCatalog:v,resolveUnitModel:r,unitVisualEnvelope:e,unitVisualOverhang:o}=await at('unit-visuals.js');

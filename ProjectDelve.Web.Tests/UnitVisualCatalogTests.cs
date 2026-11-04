@@ -8,7 +8,7 @@ namespace ProjectDelve.Web.Tests;
 public sealed class UnitVisualCatalogTests
 {
     [Fact]
-    public void VisualCatalogExactlyCoversTheCompleteCanonicalRegistryAndRoster()
+    public void OptionalVisualCatalogReferencesValidCanonicalTypesAndModels()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../.."));
         using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "ProjectDelve.Web/wwwroot/art/models/unit-visuals.json")));
@@ -18,13 +18,13 @@ public sealed class UnitVisualCatalogTests
         var units = catalog.GetProperty("units").EnumerateArray().ToArray();
         var ids = units.Select(u => u.GetProperty("typeId").GetString()).ToArray();
         Assert.Equal(ids.Length, ids.Distinct().Count());
-        Assert.Equal(types.Select(t => t.Id).Order(), ids.Order());
+        Assert.All(ids, id => Assert.Contains(types, t => t.Id == id));
         var constants = typeof(UnitTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!);
-        Assert.Equal(constants.Order(), ids.Order());
+        Assert.Equal(constants.Order(), types.Select(t => t.Id).Order());
         // Catch a new authored factory forgotten by the assembled canonical registry too.
         var factories = typeof(UnitRoster).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(m => m.ReturnType == typeof(UnitType));
         var authored = factories.Select(m => (UnitType)m.Invoke(null, m.GetParameters().Select(_ => Type.Missing).ToArray())!).Select(t => t.Id);
-        Assert.Equal(authored.Order(), ids.Order());
+        Assert.Equal(authored.Order(), types.Select(t => t.Id).Order());
         var models = catalog.GetProperty("models").EnumerateArray().ToArray();
         var modelIds = models.Select(m => m.GetProperty("id").GetString()).ToArray();
         Assert.Equal(modelIds.Length, modelIds.Distinct().Count());
