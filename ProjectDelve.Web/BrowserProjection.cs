@@ -122,6 +122,9 @@ public static class BrowserProjection
     public static BrowserPresentation Create(EngineResult result, IReadOnlyDictionary<string, string>? individualNames = null)
     {
         var side = FogOfWar.ViewingSide(result.State);
+        // Observation omits unplaced Unit Types. Keep authoritative geometry
+        // available for legal summon previews without exposing those definitions.
+        var placementState = result.State;
         IReadOnlyList<BrowserOutcome> outcomes;
         if (side is null) outcomes = result.Events.Select(e => Outcome(e, result.State, individualNames)).ToArray();
         else
@@ -133,7 +136,7 @@ public static class BrowserProjection
         }
         if (side is not null) result = Observe(result, side);
         return new(
-        Cards(result.State, individualNames), Decision(result.NextInput, result.State, individualNames),
+        Cards(result.State, individualNames), Decision(result.NextInput, result.State, individualNames, placementState),
         outcomes,
         result.ResolutionSteps.Select(s => new BrowserResolutionStep(s.EventIndex, Cards(s.StateAfter, individualNames))
             { GroundObjects = GroundObjects(s.StateAfter), Machines = Machines(s.StateAfter), Figures = Figures(s.StateAfter), WorldEffects = WorldEffects(s.StateAfter), Objectives = Objectives(s.StateAfter),
@@ -273,6 +276,10 @@ public static class BrowserProjection
     }
 
     public static BrowserDecision? Decision(DecisionRequest? request, GameState state, IReadOnlyDictionary<string, string>? individualNames = null)
+        => Decision(request, state, individualNames, state);
+
+    private static BrowserDecision? Decision(DecisionRequest? request, GameState state,
+        IReadOnlyDictionary<string, string>? individualNames, GameState placementState)
     {
         if (request is null) return null;
         var type = state.Types.Single(t => t.Id == request.TypeId);
@@ -337,7 +344,7 @@ public static class BrowserProjection
                     c.Kind == ActivationChoiceKind.Move
                         ? FootprintGeometry.OccupiedCells(state, request.UnitId!, c.Destination)
                         : c.Ability is { } summonAbility && SummoningRules.Placement(summonAbility.Definition.Mechanic) is { } summon
-                            ? FootprintGeometry.PlacementCells(state, summon.UnitTypeId, c.Destination)
+                            ? FootprintGeometry.PlacementCells(placementState, summon.UnitTypeId, c.Destination)
                             : c.Ability?.Definition.Mechanic is Displace
                                 ? FootprintGeometry.OccupiedCells(state, c.TargetId!, c.Destination)
                             : []

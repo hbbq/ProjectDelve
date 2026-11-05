@@ -129,8 +129,10 @@ public sealed class ContentEditorWorkflowTests
         Assert.Equal(reward.Id, Assert.Single(definition.Loot!.Composition!).LootCardId);
     }
 
-    [Fact]
-    public async Task KnightlyBootsLootGrantsTwoPhysicalSummonUsesWithPlacementPreviewAndPendingResume()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task KnightlyBootsLootGrantsTwoPhysicalSummonUsesWithPlacementPreviewAndPendingResume(bool fog)
     {
         await using var host = await Host.Start();
         var boots = await host.Validate<EquipmentDefinition>("equipment", new EquipmentDefinition("knightly-boots", "Knightly Boots")
@@ -155,6 +157,7 @@ public sealed class ContentEditorWorkflowTests
             ]) with
         {
             UnitTypes = [bearer, patient], EquipmentTypes = [boots], LootCardDefinitions = [reward],
+            FogOfWarSides = fog ? ["blue"] : [],
             Loot = new() { Composition = [new(Count: 1) { LootCardId = reward.Id }] },
             LootMarkers = [new("boots-marker", new(2, 1))],
             Objectives = [new("blue", ScenarioObjective.NoObjective)]
@@ -173,6 +176,10 @@ public sealed class ContentEditorWorkflowTests
         Assert.Equal(boots.Id, owned.EquipmentTypeId);
         Assert.Equal(reward.Id, owned.LootCardId);
         Assert.Empty(game.Result.State.LootMarkers);
+        // A preview needs the captured summon footprint even before its first
+        // physical instance exists. The browser must not receive its definition.
+        Assert.DoesNotContain(game.Result.State.Types, type => type.Id == UnitTypeIds.HobbyKnight);
+        Assert.Contains(host.Game.Snapshot().Result.State.Types, type => type.Id == UnitTypeIds.HobbyKnight);
         Assert.Equal(new AbilityUses(2, 2), Assert.Single(game.Presentation.Cards[HeroId].Entries.Where(entry => entry.SourceTypeId == boots.Id)).Uses);
         var practice = Assert.Single(game.Result.NextInput!.Candidates, candidate => candidate.Ability?.Key == "practice");
         game = await host.Command("decision", new { expectedRevision = game.Revision, candidateKey = practice.Key });
