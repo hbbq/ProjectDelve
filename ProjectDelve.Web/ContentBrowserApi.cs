@@ -8,6 +8,7 @@ public static class ContentBrowserApi
 {
     public static void Map(WebApplication app)
     {
+        var limits = app.Services.GetRequiredService<AuthoringLimits>();
         ContentBundle Canonical() => app.Services.GetRequiredService<CanonicalContent>().Bundle;
         app.MapGet("/api/content/catalog", () => ContentBrowserCatalog.Canonical(Canonical()));
         app.MapPost("/api/content/inspect", async (HttpRequest request) =>
@@ -19,7 +20,7 @@ public static class ContentBrowserApi
                 var canonical = Canonical();
                 var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
                 var effective = ContentComposition.ComposeScopes(canonical, workspace).Definitions;
-                var definition = ScenarioDefinitionJson.FromJson(document, DesignerApi.CheckHostLimits, effective);
+                var definition = ScenarioDefinitionJson.FromJson(document, limits.CheckScenario, effective);
                 return Results.Ok(ContentBrowserCatalog.WorkspaceOrigins(ContentBrowserCatalog.Scenario(definition, effective), workspace, canonical));
             }
             catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)

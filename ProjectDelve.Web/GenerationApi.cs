@@ -9,12 +9,15 @@ public static class GenerationApi
 {
     public static void Map(WebApplication app)
     {
+        var limits = app.Services.GetRequiredService<AuthoringLimits>();
         ContentBundle Canonical() => app.Services.GetRequiredService<ContentWorkspace>().Resolve().Definitions;
         app.MapPost("/api/generation", (GenerationRequest request, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
             try
             {
+                var code = GenerationCode.Parse(request.Code);
+                limits.CheckDimensions(code.Width, code.Height);
                 var result = DungeonGenerator.Generate(request.Code);
                 var effectiveUnits = UnitContent.Resolve(result.Definition.UnitTypes, Canonical().Units);
                 return Results.Ok(new { code = result.Code.ToString(), prefix = result.Code.Prefix,

@@ -18,13 +18,13 @@ public sealed record DesignerValidation(bool Valid, IReadOnlyList<DesignerError>
 public sealed record DesignerImportRequest(string Transport);
 public sealed record DesignerLegacyTerrainMapping(TerrainKind Kind, string TerrainTypeId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CoalGeneration = null);
-public sealed class DesignerBoardLimitException() : ArgumentException(
-    $"This host supports boards up to {DesignerApi.MaxBoardSize} × {DesignerApi.MaxBoardSize} (editor policy).");
+public sealed class DesignerBoardLimitException(int maxBoardSize = DesignerApi.MaxBoardSize) : ArgumentException(
+    $"This host supports boards up to {maxBoardSize} × {maxBoardSize} (editor policy).");
 
 // Stateless authoring operations. The engine still owns all scenario legality.
 public static class DesignerApi
 {
-    public const int MaxBoardSize = 50; // Web/editor policy, never a Delve rule.
+    public const int MaxBoardSize = AuthoringLimits.SupportedMaxBoardSize; // Web/editor policy, never a Delve rule.
 
     private static DesignerUnitType Metadata(UnitType type)
     {
@@ -37,18 +37,15 @@ public static class DesignerApi
         definitions.Where(type => type.Production is not null)
             .ToDictionary(type => type.Id, type => EnvironmentalProductionContent.Describe(type.Production, resources)!, StringComparer.Ordinal);
 
-    public static void CheckHostLimits(ScenarioDefinition definition)
-    {
-        if (definition.Board is { } board && (board.Width > MaxBoardSize || board.Height > MaxBoardSize))
-            throw new DesignerBoardLimitException();
-    }
+    public static void CheckHostLimits(ScenarioDefinition definition) => AuthoringLimits.Default.CheckScenario(definition);
 
     public static void Map(WebApplication app)
     {
+        var limits = app.Services.GetRequiredService<AuthoringLimits>();
         ContentBundle Canonical() => app.Services.GetRequiredService<ContentWorkspace>().Resolve().Definitions;
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
-            maxBoardSize = MaxBoardSize,
+            maxBoardSize = limits.MaxBoardSize,
             scenarios = PlaytestScenarios.Catalog.Select(s => new { s.Id, s.Name }),
             cellMarkerTypes = CellMarkerTypes.All,
             lootCards = LootCards.All,
@@ -105,18 +102,18 @@ public static class DesignerApi
                 : Results.NotFound());
         app.MapPost("/api/designer/import", (DesignerImportRequest request) => Execute(() =>
         {
-            var definition = ScenarioDefinitionTransport.Decode(request.Transport, CheckHostLimits, Canonical());
+            var definition = ScenarioDefinitionTransport.Decode(request.Transport, limits.CheckScenario, Canonical());
             return Results.Text(ScenarioDefinitionJson.ToJson(definition), "application/json");
         }));
         // JsonElement preserves the scenario JSON contract: no independent HTTP enum/model parser.
         app.MapPost("/api/designer/validate", (JsonElement draft) => Execute(() =>
         {
-            _ = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits, Canonical());
+            _ = ScenarioDefinitionJson.FromJson(draft.GetRawText(), limits.CheckScenario, Canonical());
             return Results.Ok(new DesignerValidation(true, []));
         }, validation: true));
         app.MapPost("/api/designer/export", (JsonElement draft) => Execute(() =>
         {
-            var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), CheckHostLimits, Canonical());
+            var definition = ScenarioDefinitionJson.FromJson(draft.GetRawText(), limits.CheckScenario, Canonical());
             definition = WorkspaceScenarioExport.Capture(definition, app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions, app.Services.GetRequiredService<CanonicalContent>().Bundle);
             return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(definition) });
         }));

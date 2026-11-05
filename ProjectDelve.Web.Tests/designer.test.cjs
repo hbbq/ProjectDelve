@@ -6,6 +6,36 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test('large board selection retains mounted terrain while terrain and edge edits survive recovery', () => {
+  const oldLimit=catalog.maxBoardSize;catalog.maxBoardSize=120;
+  try {
+    const storage=memoryStorage(), h=harness(undefined,undefined,storage);
+    const definition={board:{width:120,height:100,defaultTerrain:'Grass',cells:[],edges:[]},unitTypeIds:[],units:[],agency:[]};
+    h.editor.draft.replace(definition);h.editor.render();
+    const mounted=h.cell(119,99);
+    h.editor.selectTarget({node:mounted,position:{x:119,y:99}});
+    assert.equal(h.cell(119,99),mounted);
+    assert.ok(mounted.classList.contains('editor-selected'));
+    h.editor.selectTarget({node:h.cell(0,0),position:{x:0,y:0}});
+    assert.equal(h.cell(119,99),mounted);
+    assert.ok(!mounted.classList.contains('editor-selected'));
+    h.editor.setTool('Terrain');h.editor.ui.terrain.value='Rail';h.editor.ui['rail-direction'].value='West';
+    h.down(h.cell(119,99));h.up();
+    assert.equal(h.cell(119,99),mounted);
+    assert.equal(mounted.dataset.railDirection,'West');
+    assert.match(mounted.title,/Rail/);
+    const mountedEdge=h.edge(118,99,'Right');
+    h.editor.setTool('Edge');h.editor.ui.edge.value='ClosedDoor';h.down(h.edge(118,99,'Right'));h.up();
+    assert.equal(h.edge(118,99,'Right'),mountedEdge);
+    assert.match(mountedEdge.attributes['aria-label'],/ClosedDoor/);
+    const expected=plain(h.editor.draft.snapshot()), recovered=harness(undefined,undefined,storage);
+    assert.deepEqual(plain(recovered.editor.draft.snapshot()),expected);
+    assert.equal(recovered.cell(119,99).dataset.railDirection,'West');
+    assert.equal(recovered.edge(118,99,'Right').className,'edge designer-edge-hit ClosedDoor');
+    assert.equal(recovered.editor.ui.board.children.filter(n=>n.dataset.editorHit==='cell').length,12000);
+  }finally{catalog.maxBoardSize=oldLimit;}
+});
+
 test("world handoff keeps terrain-only content, title, recipe and portable Dirt presentation", () => {
   const h = harness();
   const result = {title:'Generated world terrain',code:'WLD1-2x2-X-8-Y12-F0-W0-R0-KFine-HLakes-S000000000000002A',definition:{

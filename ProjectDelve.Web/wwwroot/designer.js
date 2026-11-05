@@ -277,7 +277,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     document.body?.classList.toggle("designing", designer);
     document.getElementById("playtest-tools").open = false;
     try { globalThis.localStorage?.setItem("project-delve.mode", designer ? "designer" : "playtest"); } catch {}
-    if (designer) render();
+    // Edits, imports and metadata updates already render the draft, even while
+    // hidden. Navigation only changes visibility; rebuilding here repeats that work.
     if (notify) globalThis.delveNavigate?.(designer ? "designer" : "play");
   }
   globalThis.delveSetDesignerMode = designer => setMode(designer, false);
@@ -423,11 +424,12 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     if (lastPaint === key) return;
     if (tool === "Terrain" && !target.direction) {
       draft.paintTerrain(target.position, ui.terrain.value || null, ui["rail-direction"].value);
-      target.node.className = `cell ${draft.terrainRecipeAt(target.position)}`;
-      target.node.dataset.railDirection = draft.railDirectionAt(target.position) ?? "";
+      refreshCell(target.node, target.position);
     } else if (tool === "Edge" && target.direction) {
       draft.paintEdge(target.position, target.direction, ui.edge.value || null);
       target.node.className = `edge designer-edge-hit ${ui.edge.value || "None"}`;
+      target.node.title = `(${target.position.x},${target.position.y}) ${target.direction} · ${ui.edge.value || "empty"}`;
+      target.node.setAttribute("aria-label", `Edge ${target.position.x},${target.position.y} ${target.direction}: ${ui.edge.value || "empty"}`);
     } else return;
     lastPaint = key; unchecked();
   }
@@ -470,9 +472,14 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   });
   document.addEventListener("pointerup", () => {
     if (picker?.kind === "area" && picker.start && picker.end && !sameCell(picker.start, picker.end)) completePick(rectangle(picker.start, picker.end));
-    if (painting) { painting = false; lastPaint = null; history.finish(); persist(); render(); }
+    if (painting) { painting = false; lastPaint = null; history.finish(); finishPainting(); }
   });
-  document.addEventListener("pointercancel", () => { painting = false; lastPaint = null; history.finish(); persist(); render(); });
+  document.addEventListener("pointercancel", () => { painting = false; lastPaint = null; history.finish(); finishPainting(); });
+  function finishPainting() {
+    // Paint already updated each affected node. Preserve the mounted board and
+    // focus; only refresh controls and the inspector after the atomic stroke.
+    persist(); syncTerrainTypes(); renderProperties(); renderBoardSelection();
+  }
   ui.board.addEventListener("keydown", event => {
     if (!["Enter", " "].includes(event.key) || pendingPlay) return;
     const target = hit(event); if (!target) return;
@@ -488,12 +495,13 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     });
     else if (tool === "Machine" && !target.direction) placeMachine(target.position);
     else if (tool === "Resource" && !target.direction) commit(() => draft.setResource(target.position, resourceTypes.find(t => t.id === ui["resource-type"].value)));
-    else { history.begin(); lastPaint = null; paint(target); history.finish(); persist(); render(); }
+    else { history.begin(); lastPaint = null; paint(target); history.finish(); finishPainting(); }
   });
   function placeMachine(position) {
     commit(() => { selection = { kind: "machine", key: draft.placeMachine(ui["machine-type"].value, position) }; });
   }
   function selectTarget(target) {
+    const refreshHighlights = objectiveSide != null || highlightedGroup != null;
     showPanel("inspect");
     if (target.direction) selection = { kind: "edge", position: target.position, direction: target.direction };
     else {
@@ -502,12 +510,16 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         sameCell(machine.position, target.position) ? [draft.machineKeys[index]] : []);
       const resource = (draft.definition.resources ?? []).some(r => sameCell(r.position, target.position));
       const count = units.length + machines.length + (resource ? 1 : 0);
-      if (resource && count === 1) { selection = { kind: "cell", position: target.position }; render(); return; }
+      if (resource && count === 1) { selection = { kind: "cell", position: target.position }; refreshSelection(); return; }
       selection = count === 1 ? (units.length ? { kind: "unit", key: units[0] } : { kind: "machine", key: machines[0] })
         : count > 1 ? { kind: "overlap", keys: units, machineKeys: machines, resource, position: target.position }
         : { kind: "cell", position: target.position };
     }
-    render();
+    refreshSelection();
+    function refreshSelection() {
+      if (refreshHighlights) render();
+      else { renderProperties(); renderBoardSelection(); }
+    }
   }
   function selectPath(path) {
     const clean = path.replace(/^\$\.?/, "");
@@ -540,8 +552,68 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   }
 
   const cellNodes = new Map();
+  const edgeNodes = new Map(), unitNodes = new Map();
+  function renderBoardSelection() {
+    for (const node of ui.board.querySelectorAll(".editor-selected")) node.classList.remove("editor-selected");
+    for (const node of ui.board.querySelectorAll(".selected")) node.classList.remove("selected");
+    if (selection?.kind === "cell") cellNodes.get(`${selection.position.x},${selection.position.y}`)?.classList.add("editor-selected");
+    if (selection?.kind === "edge") edgeNodes.get(`${selection.position.x},${selection.position.y},${selection.direction}`)?.classList.add("editor-selected");
+    if (selection?.kind === "unit") unitNodes.get(selection.key)?.classList.add("selected");
+    if (selection?.kind === "machine") {
+      const machine = draft.definition.machines?.[draft.machineKeys.indexOf(selection.key)];
+      if (machine) cellNodes.get(`${machine.position.x},${machine.position.y}`)?.classList.add("editor-selected");
+    }
+  }
+  function refreshCell(node, cell) {
+    const { x, y } = cell;
+    node.replaceChildren();
+    node.className = `cell ${draft.terrainRecipeAt(cell)}`;
+    node.dataset.railDirection = draft.railDirectionAt(cell) ?? "";
+    node.dataset.editorHit = "cell"; node.dataset.x = x; node.dataset.y = y;
+    node.tabIndex = 0; node.setAttribute("role", "button");
+    node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainNameAt(cell)} ${draft.railDirectionAt(cell) ?? ""}`);
+    node.title = `${x},${y} · ${draft.terrainNameAt(cell)}`;
+    node.append(element("span", `${x},${y}`));
+    for (const component of draft.terrainComponentsAt(cell)) {
+      const fixed = element('span', component.name); fixed.className = 'designer-fixed-component';
+      fixed.title = `${component.slot}: ${component.name}`; node.append(fixed);
+    }
+    if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
+    for (const [index, machine] of (draft.definition.machines ?? []).entries()) {
+      if (!sameCell(machine.position, cell)) continue;
+      node.classList.add("machine-cell");
+      node.append(element("span", machine.type.name));
+      node.append(element("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
+      for (const capacity of machine.type.storage.capacities) {
+        const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
+        node.append(element("small", `${capacity.type.name}: ${quantity}/${capacity.capacity}`));
+      }
+      node.title += ` · ${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}`;
+      node.setAttribute("aria-label", node.title);
+      if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
+    }
+    const unopened = (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, cell)).length;
+    const known = (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, cell)).length;
+    if (unopened || known) { const loot = element('span', `▣ ${unopened} · ◆ ${known}`); loot.className = 'loot-ground'; node.append(loot); }
+    const cellMarker = (draft.definition.cellMarkers ?? []).find(marker => sameCell(marker.position, cell));
+    if (cellMarker) {
+      const marker = element("span", "\u{1F34C}"); marker.className = "cell-marker";
+      marker.title = cellMarker.type.name; marker.setAttribute("aria-label", cellMarker.type.name);
+      node.append(marker); node.title += ` · ${cellMarker.type.name}`;
+      node.setAttribute("aria-label", node.title);
+    }
+    const resource = (draft.definition.resources ?? []).find(resource => sameCell(resource.position, cell));
+    if (resource) {
+      const marker = element("span", resourceSymbol(resource.type)); marker.className = "resource-marker";
+      marker.title = resource.type.name; marker.setAttribute("aria-label", resource.type.name);
+      node.append(marker); node.title += ` · ${resource.type.name}`; node.setAttribute("aria-label", node.title);
+    }
+  }
   function renderBoard() {
-    const board = draft.definition.board; ui.board.replaceChildren(); cellNodes.clear();
+    return draft.withTerrainLookup(renderIndexedBoard);
+  }
+  function renderIndexedBoard() {
+    const board = draft.definition.board; ui.board.replaceChildren(); cellNodes.clear(); edgeNodes.clear(); unitNodes.clear();
     ui.board.style.gridTemplateColumns = `repeat(${board.width}, minmax(0, 1fr))`;
     ui.board.style.gridTemplateRows = `repeat(${board.height}, minmax(0, 1fr))`;
     ui.board.style.setProperty("--columns", board.width);
@@ -569,47 +641,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     }
     for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
       const cell = { x, y }, node = element("div");
-      node.className = `cell ${draft.terrainRecipeAt(cell)}`;
-      node.dataset.railDirection = draft.railDirectionAt(cell) ?? "";
-      node.dataset.editorHit = "cell"; node.dataset.x = x; node.dataset.y = y;
-      node.tabIndex = 0; node.setAttribute("role", "button");
-      node.setAttribute("aria-label", `Cell ${x},${y}: ${draft.terrainNameAt(cell)} ${draft.railDirectionAt(cell) ?? ""}`);
-      node.title = `${x},${y} · ${draft.terrainNameAt(cell)}`;
-      node.append(element("span", `${x},${y}`));
-      for (const component of draft.terrainComponentsAt(cell)) {
-        const fixed = element('span', component.name); fixed.className = 'designer-fixed-component';
-        fixed.title = `${component.slot}: ${component.name}`; node.append(fixed);
-      }
-      if (selection?.kind === "cell" && sameCell(selection.position, cell)) node.classList.add("editor-selected");
-      for (const [index, machine] of (draft.definition.machines ?? []).entries()) {
-        if (!sameCell(machine.position, cell)) continue;
-        node.classList.add("machine-cell");
-        node.append(element("span", machine.type.name));
-        node.append(element("small", machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`));
-        for (const capacity of machine.type.storage.capacities) {
-          const quantity = machine.storedResources?.find(row => row.type.id === capacity.type.id)?.quantity ?? 0;
-          node.append(element("small", `${capacity.type.name}: ${quantity}/${capacity.capacity}`));
-        }
-        node.title += ` · ${machine.type.name} (${machine.id}) - ${machine.ownerSide == null ? "Public" : `Owner: ${machine.ownerSide}`}`;
-        node.setAttribute("aria-label", node.title);
-        if (selection?.kind === "machine" && selection.key === draft.machineKeys[index]) node.classList.add("editor-selected");
-      }
-      const unopened = (draft.definition.lootMarkers ?? []).filter(m => sameCell(m.position, cell)).length;
-      const known = (draft.definition.groundObjects ?? []).filter(g => sameCell(g.position, cell)).length;
-      if (unopened || known) { const loot = element('span', `▣ ${unopened} · ◆ ${known}`); loot.className = 'loot-ground'; node.append(loot); }
-      const cellMarker = (draft.definition.cellMarkers ?? []).find(marker => sameCell(marker.position, cell));
-      if (cellMarker) {
-        const marker = element("span", "\u{1F34C}"); marker.className = "cell-marker";
-        marker.title = cellMarker.type.name; marker.setAttribute("aria-label", cellMarker.type.name);
-        node.append(marker); node.title += ` · ${cellMarker.type.name}`;
-        node.setAttribute("aria-label", node.title);
-      }
-      const resource = (draft.definition.resources ?? []).find(resource => sameCell(resource.position, cell));
-      if (resource) {
-        const marker = element("span", resourceSymbol(resource.type)); marker.className = "resource-marker";
-        marker.title = resource.type.name; marker.setAttribute("aria-label", resource.type.name);
-        node.append(marker); node.title += ` · ${resource.type.name}`; node.setAttribute("aria-label", node.title);
-      }
+      refreshCell(node, cell);
       ui.board.append(node); cellNodes.set(`${x},${y}`, node);
     }
     const edges = new Map(board.edges.map(edge => [`${edge.position.x},${edge.position.y},${edge.direction}`, edge]));
@@ -628,6 +660,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       if (selection?.kind === "edge" && selection.direction === direction && sameCell(selection.position, { x, y }))
         node.classList.add("editor-selected");
       ui.board.append(node);
+      edgeNodes.set(`${x},${y},${direction}`, node);
     }
     for (const [index, unit] of draft.definition.units.entries()) {
       const metadata = draft.metadata(unit.unitTypeId), span = metadata?.cellSpan ?? 1;
@@ -645,6 +678,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       styleSide(node, unit.sideId);
       node.title = `${name} · ${unit.sideId} · ${unit.posture} · HP ${unit.initialHp ?? metadata?.maxHp}`;
       ui.board.append(node);
+      unitNodes.set(draft.unitKeys[index], node);
     }
   }
   function renderProperties() {

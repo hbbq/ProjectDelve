@@ -327,8 +327,8 @@
       <section class="world-generator-controls" aria-label="World terrain configuration">
         <label>Terrain preset <select id="world-generator-preset"><option value="">Custom settings</option></select></label>
         <div class="world-generator-fields">
-          <label>Width <input id="world-generator-width" type="number" min="1" max="50" value="30"></label>
-          <label>Height <input id="world-generator-height" type="number" min="1" max="50" value="24"></label>
+          <label>Width <input id="world-generator-width" type="number" min="1" max="120" value="30"></label>
+          <label>Height <input id="world-generator-height" type="number" min="1" max="120" value="24"></label>
           <label>World offset X <input id="world-generator-offsetX" type="number" min="-2147483648" max="2147483647" value="0"></label>
           <label>World offset Y <input id="world-generator-offsetY" type="number" min="-2147483648" max="2147483647" value="0"></label>
           <label>Forest coverage % <input id="world-generator-forestCoverage" type="number" min="0" max="100" value="35"></label>
@@ -337,7 +337,7 @@
           <label>Terrain scale <select id="world-generator-scale"><option>Fine</option><option selected>Balanced</option><option>Broad</option></select></label>
           <label>Water form <select id="world-generator-waterForm"><option>Auto</option><option>Lakes</option><option>River</option><option>Mixed</option></select></label>
         </div>
-        <small>Dimensions 1–50. Offsets locate this window in the world. Coverage totals must be at most 100%; local terrain proportions vary by window.</small>
+        <small id="world-generator-dimension-help">Dimensions 1–120. Offsets locate this window in the world. Coverage totals must be at most 100%; local terrain proportions vary by window.</small>
         <label>Seed · optional 16 hexadecimal digits <input id="world-generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" autocomplete="off" spellcheck="false"></label>
         <div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div>
         <details><summary>World recipe code</summary>
@@ -349,7 +349,7 @@
       <section class="world-generator-result" aria-label="World terrain preview">
         <p id="world-generator-status" role="status" aria-live="polite"></p>
         <div id="world-generator-preview-content" hidden>
-          <div class="toolbar"><strong>Terrain only · awaiting scenario authoring</strong><label>View <select id="world-generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label></div>
+          <div class="toolbar"><strong>Terrain only · awaiting scenario authoring</strong><label>View <select id="world-generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label><label>Zoom <select id="world-generator-zoom"><option value="fit">Fit window</option><option value="12">12 px / Cell</option><option value="24">24 px / Cell</option><option value="48">48 px / Cell</option></select></label></div>
           <p id="world-generator-preview-summary" class="legend"></p>
           <div class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world terrain window"></div></div>
           <p id="world-generator-performance" class="legend"></p>

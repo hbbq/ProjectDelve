@@ -14,7 +14,9 @@ public static class BoardAppearance
         var cells = Enumerable.Range(0, board.Height).SelectMany(y => Enumerable.Range(0, board.Width).Select(x =>
         {
             terrain.TryGetValue(new(x, y), out var tile);
-            var definition = board.TerrainDefinitionAt(new(x, y));
+            // This full-board traversal already has a snapshot-local index. Avoid
+            // rescanning the dense runtime Terrain list for every Cell.
+            var definition = board.TerrainDefinition(tile);
             return new object?[] { x, y, definition.LegacyKind?.ToString() ?? definition.Id, tile?.Direction?.ToString() };
         })).ToArray();
         var edges = board.Edges.Where(e => e.Kind != EdgeKind.None).Select(e =>

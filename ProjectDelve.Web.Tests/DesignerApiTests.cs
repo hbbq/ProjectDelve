@@ -201,7 +201,7 @@ public sealed class DesignerApiTests
     {
         await using var host = await Host.Start();
         var catalog = (await host.Client.GetFromJsonAsync<JsonElement>("/api/designer/catalog"));
-        Assert.Equal(50, catalog.GetProperty("maxBoardSize").GetInt32());
+        Assert.Equal(120, catalog.GetProperty("maxBoardSize").GetInt32());
         var machineType = Assert.Single(catalog.GetProperty("machineTypes").EnumerateArray(), m => m.GetProperty("id").GetString() == "diamond-press");
         Assert.Equal(JsonSerializer.SerializeToElement(MachineTypes.DiamondPress, Json).GetRawText(), machineType.GetRawText());
         Assert.Contains(catalog.GetProperty("machineTypes").EnumerateArray(), m => m.GetProperty("id").GetString() == "slot-machine");
@@ -712,8 +712,8 @@ public sealed class DesignerApiTests
     }
 
     [Theory]
-    [InlineData(51, 1)]
-    [InlineData(1, 51)]
+    [InlineData(121, 1)]
+    [InlineData(1, 121)]
     [InlineData(int.MaxValue, int.MaxValue)]
     public async Task HostLimitRejectsBeforeMaterializationOnDesignerAndPlayImport(int width, int height)
     {

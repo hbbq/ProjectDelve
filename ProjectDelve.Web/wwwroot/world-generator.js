@@ -6,13 +6,13 @@ const byId = id => document.getElementById(`world-generator-${id}`);
 const dialog = document.getElementById("world-generator");
 const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed"];
 const session = new GeneratorSession();
-let presets = [], catalogPromise;
+let presets = [], catalogPromise, maxBoardSize = 120;
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
 const signature = () => JSON.stringify(config());
 const status = message => { byId("status").textContent = message; };
 function changed() {
   session.changed();
-  try { byId("prefix").value = worldConfigurationCode(config(), false); worldConfigurationCode(config()); }
+  try { byId("prefix").value = worldConfigurationCode(config(), false, maxBoardSize); worldConfigurationCode(config(), true, maxBoardSize); }
   catch (error) { status(error.message); return; }
   status(session.outdated(signature()) ? "Preview outdated · the retained map and completed code belong to the previous generation." : session.result ? "Terrain preview ready · awaiting scenario authoring." : "Choose a world window, then generate a terrain preview.");
 }
@@ -22,6 +22,10 @@ async function loadCatalog() {
     const response = await fetch("/api/world-generation/catalog", { cache: "no-store" });
     if (!response.ok) throw new Error("World presets could not be loaded. You can still use custom settings.");
     const catalog = await response.json(); presets = catalog.presets;
+    maxBoardSize = catalog.maxBoardSize;
+    byId("width").max = byId("height").max = maxBoardSize;
+    byId("dimension-help").textContent = `Dimensions 1–${maxBoardSize}. Offsets locate this window in the world. Coverage totals must be at most 100%; local terrain proportions vary by window.`;
+    changed();
     for (const preset of presets) {
       const option = document.createElement("option"); option.value = preset.id; option.textContent = preset.name; byId("preset").append(option);
     }
@@ -46,14 +50,14 @@ function randomSeed() {
 }
 byId("load").addEventListener("click", () => {
   try {
-    const loaded = worldConfigurationFromCode(byId("code-input").value);
+    const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
     for (const field of fields) byId(field).value = loaded[field];
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
   } catch (error) { status(error.message); }
 });
 async function generate() {
   let code;
-  try { code = worldConfigurationCode(config()); } catch (error) { status(error.message); return; }
+  try { code = worldConfigurationCode(config(), true, maxBoardSize); } catch (error) { status(error.message); return; }
   const ticket = session.begin(signature()); status("Generating world terrain…");
   try {
     const response = await fetch("/api/world-generation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), cache: "no-store" });
@@ -71,6 +75,11 @@ async function generate() {
 byId("preview").addEventListener("click", () => { void generate(); });
 byId("another").addEventListener("click", () => { randomSeed(); void generate(); });
 byId("view").addEventListener("change", () => { byId("board").dataset.view = byId("view").value; });
+function zoomPreview() {
+  const pixels = Number(byId("zoom").value);
+  byId("board").style.width = session.result && [12, 24, 48].includes(pixels) ? `${session.result.definition.board.width * pixels}px` : "";
+}
+byId("zoom").addEventListener("change", zoomPreview);
 byId("designer").addEventListener("click", () => {
   if (!session.result) return;
   if (!globalThis.delveOpenGenerated) { status("Designer is still loading. Try again."); return; }
@@ -108,6 +117,7 @@ function renderPreview() {
     counts.set(display.name, (counts.get(display.name) ?? 0) + 1); fragment.append(node);
   }
   root.append(fragment);
+  zoomPreview();
   byId("complete").value = result.code;
   const elapsed = (performance.now() - started).toFixed(1); root.dataset.renderMs = elapsed;
   byId("preview-summary").textContent = `${board.width} × ${board.height} · world (${offsetX}, ${offsetY}) · ${[...counts].map(([name, count]) => `${name} ${count} (${(100 * count / (board.width * board.height)).toFixed(1)}%)`).join(" · ")} · fingerprint ${result.fingerprint.slice(0, 16)}`;

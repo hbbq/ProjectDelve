@@ -54,7 +54,7 @@ test("world recipes round-trip every scale and water form, signed bounds and see
 });
 
 test("invalid coverage, dimensions, coordinates and seeds never submit a generation", () => {
-  for (const [field, value, error] of [["width","0",/width/],["height","51",/height/],["width","",/width/],["offsetX","2147483647",/entire window/],["offsetY","-2147483649",/offsetY/],["forestCoverage","80",/at most 100/],["waterCoverage","1.5",/whole number/],["seed","bad",/16 hexadecimal/]]) {
+  for (const [field, value, error] of [["width","0",/width/],["height","121",/height/],["width","",/width/],["offsetX","2147483647",/entire window/],["offsetY","-2147483649",/offsetY/],["forestCoverage","80",/at most 100/],["waterCoverage","1.5",/whole number/],["seed","bad",/16 hexadecimal/]]) {
     const h = harness(); h.enter(field,value); h.click("preview");
     assert.equal(h.requests.length,0); assert.match(h.get("world-generator-status").textContent,error);
   }
@@ -113,13 +113,32 @@ test("overlapping windows use the same seed and world cell coordinates despite d
   assert.notEqual(h.requests[0].body.code,h.requests[1].body.code);
 });
 
-test("a 50 by 50 terrain preview materializes every Cell and records its render measurement", async () => {
-  const h = harness(); h.enter("width","50"); h.enter("height","50"); h.click("preview");
-  const large = h.result(); large.definition.board.width = 50; large.definition.board.height = 50;
-  large.window.width = 50; large.window.height = 50; await h.accept(0,large);
-  assert.equal(h.get("world-generator-board").children.length,2500);
-  assert.equal(h.visuals.length,2500); assert.equal(h.get("world-generator-board").dataset.renderMs,"0.0");
-  assert.match(h.get("world-generator-performance").textContent,/Rendered 2500 terrain Cells/);
+test("a 120 by 100 terrain preview materializes every Cell and records its render measurement", async () => {
+  const h = harness(); h.enter("width","120"); h.enter("height","100"); h.click("preview");
+  const large = h.result(); large.definition.board.width = 120; large.definition.board.height = 100;
+  large.window.width = 120; large.window.height = 100; await h.accept(0,large);
+  assert.equal(h.get("world-generator-board").children.length,12000);
+  assert.equal(h.visuals.length,12000); assert.equal(h.get("world-generator-board").dataset.renderMs,"0.0");
+  assert.match(h.get("world-generator-performance").textContent,/Rendered 12000 terrain Cells/);
+  const mounted=h.get('world-generator-board').children[0];
+  h.get('world-generator-zoom').value='48';h.get('world-generator-zoom').listeners.change();
+  assert.equal(h.get('world-generator-board').style.width,'5760px');
+  assert.equal(h.get('world-generator-board').children[0],mounted);
+  h.get('world-generator-zoom').value='fit';h.get('world-generator-zoom').listeners.change();
+  assert.equal(h.get('world-generator-board').style.width,'');
+});
+
+test("large rectangular recipes retain signed offsets and respect a lower host authoring limit", async () => {
+  const h = harness();
+  for (const dimensions of ['120x100','100x120','120x120','1x120']) {
+    const recipe=code.replace('2x2',dimensions);
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),recipe);
+  }
+  assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('2x2','120x100')}',50)`,h.context),/width/);
+  h.opened.click(); await h.accept(0,{maxBoardSize:32,presets:[]});
+  assert.equal(h.get('world-generator-width').max,32);
+  h.enter('width','33'); h.click('preview'); assert.equal(h.requests.length,1);
+  assert.match(h.get('world-generator-status').textContent,/32/);
 });
 
 test("catalog arrival does not overwrite edits and closing cancels a pending preview", async () => {

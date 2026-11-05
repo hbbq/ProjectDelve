@@ -180,7 +180,7 @@ public sealed class ScenarioLibraryTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/library/scenarios", new { name = "Missing definition" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/library/scenarios", Draft() with { Name = " " })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/library/scenarios", new StringContent("{broken", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
-        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await client.PostAsync("/api/library/scenarios", new StringContent("{\"name\":\"" + new string('x', 2_200_000) + "\"}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, (await client.PostAsync("/api/library/scenarios", new StringContent("{\"name\":\"" + new string('x', (int)AuthoringLimits.MaxLibraryRequestBytes + 1) + "\"}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/library/scenarios/missing")).StatusCode);
         await app.StopAsync();
     }

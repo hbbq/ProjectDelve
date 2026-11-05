@@ -7,13 +7,14 @@ public static class LibraryApi
 {
     public static void Map(WebApplication app)
     {
+        var limits = app.Services.GetRequiredService<AuthoringLimits>();
         ContentBundle Canonical() => app.Services.GetRequiredService<ContentWorkspace>().Resolve().Definitions;
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments("/api/library") && !context.Request.Path.StartsWithSegments("/api/library/covers"))
             {
                 var size = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
-                if (size is { IsReadOnly: false }) size.MaxRequestBodySize = 2_100_000;
+                if (size is { IsReadOnly: false }) size.MaxRequestBodySize = AuthoringLimits.MaxLibraryRequestBytes;
             }
             await next(context);
         });
@@ -36,7 +37,7 @@ public static class LibraryApi
         api.MapGet("/campaigns/{id}", (string id, ScenarioLibrary library) => library.Campaign(id));
         api.MapGet("/scenarios/{id}/transport", (string id, ScenarioLibrary library) => new
         {
-            transport = ScenarioDefinitionTransport.Encode(WorkspaceScenarioExport.Capture(ScenarioDefinitionJson.FromJson(library.Scenario(id).Definition.GetRawText(), DesignerApi.CheckHostLimits, Canonical()), app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions, app.Services.GetRequiredService<CanonicalContent>().Bundle))
+            transport = ScenarioDefinitionTransport.Encode(WorkspaceScenarioExport.Capture(ScenarioDefinitionJson.FromJson(library.Scenario(id).Definition.GetRawText(), limits.CheckScenario, Canonical()), app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions, app.Services.GetRequiredService<CanonicalContent>().Bundle))
         });
         api.MapPost("/scenarios", (SaveLibraryScenario request, ScenarioLibrary library) => Results.Ok(library.SaveScenario(null, request)));
         api.MapPut("/scenarios/{id}", (string id, SaveLibraryScenario request, ScenarioLibrary library) => Results.Ok(library.SaveScenario(id, request)));

@@ -7,6 +7,57 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../ProjectDelve.Web/wwwroot/designer-state.js'), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('new empty drafts honor host limits smaller than the usual blank board', () => {
+  const context=vm.createContext({structuredClone});vm.runInContext(source.replace(/^export /gm,''),context);
+  const Draft=vm.runInContext('DesignerDraft',context);
+  for(const limit of [1,10,15,120]) {
+    const draft=new Draft({maxBoardSize:limit});
+    assert.equal(draft.definition.board.width,Math.min(15,limit));
+    assert.equal(draft.definition.board.height,Math.min(15,limit));
+    assert.throws(()=>draft.resize(limit+1,1),/Dimensions/);
+  }
+});
+
+test('large rectangular terrain editing survives history and draft files without retaining a stale render index', () => {
+  const context=vm.createContext({structuredClone});
+  vm.runInContext(source.replace(/^export /gm,''),context);
+  const {DesignerDraft,DesignerHistory,draftDocument,readDraftDocument}=vm.runInContext('({DesignerDraft,DesignerHistory,draftDocument,readDraftDocument})',context);
+  const catalog={maxBoardSize:120,terrains:['Grass','Gravel','Rail','StoneFloor'],terrainDefinitions:[],unitTypes:[]};
+  const draft=new DesignerDraft(catalog);
+  draft.replace({board:{width:120,height:100,defaultTerrain:'Grass',cells:Array.from({length:12000},(_,i)=>({position:{x:i%120,y:Math.floor(i/120)},terrain:'Gravel'})),edges:[]},units:[],unitTypeIds:[],agency:[]});
+  const history=new DesignerHistory(draft);
+  // A full-board render must not fall back to linear searches, including missing overrides.
+  const cells=draft.definition.board.cells;
+  cells.find=()=>{throw Error('Repeated terrain scan');};
+  draft.withTerrainLookup(()=>{
+    for(let y=0;y<100;y++)for(let x=0;x<120;x++)assert.equal(draft.terrainAt({x,y}),'Gravel');
+    assert.equal(draft.terrainAt({x:999,y:999}),'Grass');
+  });
+  delete cells.find;
+  history.transact(()=>{draft.paintTerrain({x:119,y:99},'Rail','West');draft.paintEdge({x:118,y:99},'Right','ClosedDoor');});
+  assert.equal(draft.railDirectionAt({x:119,y:99}),'West');
+  history.undo();assert.equal(draft.terrainAt({x:119,y:99}),'Gravel');
+  history.redo();
+  const doc=readDraftDocument(JSON.stringify(draftDocument(draft.snapshot(),'Large fixture')));
+  const reopened=new DesignerDraft(catalog);reopened.replace(doc.definition);
+  assert.deepEqual(plain(reopened.snapshot()),plain(draft.snapshot()));
+  assert.equal(reopened.railDirectionAt({x:119,y:99}),'West');
+  assert.throws(()=>readDraftDocument(JSON.stringify(doc),50),/unsupported structure/i);
+  assert.throws(()=>draft.withTerrainLookup(()=>{throw Error('cancelled render');}),/cancelled/);
+  draft.paintTerrain({x:119,y:99},'Grass');
+  assert.equal(draft.terrainAt({x:119,y:99}),'Grass');
+  draft.withTerrainLookup(()=>assert.equal(draft.terrainAt({x:119,y:99}),'Grass'));
+});
+
+test('temporary terrain lookup preserves first-match overrides, custom types and implicit defaults', () => {
+  const context=vm.createContext({structuredClone});vm.runInContext(source.replace(/^export /gm,''),context);
+  const Draft=vm.runInContext('DesignerDraft',context), draft=new Draft({maxBoardSize:120,terrains:['Grass','Rail'],terrainDefinitions:[{id:'soil',name:'Soil',presentation:{recipe:'Dirt'}}],terrainPresentationRecipes:['Dirt']});
+  draft.replace({board:{width:120,height:100,defaultTerrain:'Grass',defaultTerrainTypeId:'soil',cells:[{position:{x:1,y:2},terrain:'Rail',direction:'North'},{position:{x:1,y:2},terrain:'Grass'}],edges:[]},units:[]});
+  const at=()=>[draft.terrainSelectionAt({x:1,y:2}),draft.railDirectionAt({x:1,y:2}),draft.terrainNameAt({x:119,y:99}),draft.terrainRecipeAt({x:119,y:99})];
+  assert.deepEqual(draft.withTerrainLookup(at),at());
+  assert.equal(draft.terrainNameAt({x:119,y:99}),'Soil');
+});
+
 test('Loot Card batch is one history step, persists, and rejects collisions without partial changes', () => {
   const context = vm.createContext({ structuredClone });
   vm.runInContext(source.replace(/^export /gm, ''), context);

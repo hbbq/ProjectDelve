@@ -5,6 +5,28 @@ namespace ProjectDelve.Engine.Tests;
 
 public sealed class WorldGenerationTests
 {
+    [Theory]
+    [InlineData(120, 100)]
+    [InlineData(100, 120)]
+    [InlineData(120, 120)]
+    public void LargeRectangularWindowsReproduceAndOverlapAcrossSignedAxes(int width, int height)
+    {
+        var recipe = Recipe(new(-60, -50, width, height));
+        var whole = WorldGenerator.Generate(recipe);
+        var reproduced = WorldGenerator.Generate(WorldGenerationRecipe.Parse(whole.Code));
+        Assert.Equal(whole.Fingerprint, reproduced.Fingerprint);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(whole.Definition), ScenarioDefinitionJson.ToJson(
+            ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(whole.Definition))));
+        var adjacent = WorldGenerator.Generate(recipe with { Window = new(-19, -23, width, height) });
+        var a = whole.Definition.Board.Cells.ToDictionary(c => c.Position, c => c.TerrainTypeId);
+        var b = adjacent.Definition.Board.Cells.ToDictionary(c => c.Position, c => c.TerrainTypeId);
+        Assert.Equal(whole.VisualSeed, adjacent.VisualSeed);
+        for (var y = -23; y < height - 50; y++)
+        for (var x = -19; x < width - 60; x++)
+            Assert.Equal(a.GetValueOrDefault(new(x + 60, y + 50), whole.Definition.Board.DefaultTerrainTypeId),
+                b.GetValueOrDefault(new(x + 19, y + 23), adjacent.Definition.Board.DefaultTerrainTypeId));
+    }
+
     private static WorldGenerationRecipe Recipe(WorldWindow? window = null, NaturalTerrainSettings? settings = null, ulong seed = 0x123456789ABCDEF0) =>
         new(window ?? new(-17, -13, 30, 24), settings ?? new(), seed);
     private static string Terrain(ScenarioDefinition definition, int x, int y) =>

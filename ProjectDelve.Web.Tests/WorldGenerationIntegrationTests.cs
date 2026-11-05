@@ -49,13 +49,13 @@ public sealed class WorldGenerationIntegrationTests
     {
         await using var host = await Host.Start();
         var catalog = await host.Client.GetFromJsonAsync<JsonElement>("/api/world-generation/catalog");
-        Assert.Equal(50, catalog.GetProperty("maxBoardSize").GetInt32());
+        Assert.Equal(120, catalog.GetProperty("maxBoardSize").GetInt32());
         Assert.Equal(WorldGenerationPresets.All.Select(p => p.Id), catalog.GetProperty("presets").EnumerateArray().Select(p => p.GetProperty("id").GetString()));
         using var fresh = await host.Client.PostAsJsonAsync("/api/world-generation", new { code = Code[..Code.LastIndexOf("-S", StringComparison.Ordinal)] });
         fresh.EnsureSuccessStatusCode();
         var completed = (await fresh.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString()!;
         Assert.NotNull(WorldGenerationRecipe.Parse(completed).Seed);
-        foreach (var code in new[] { Code.Replace("30x24", "120x100"), Code.Replace("X-17", "X2147483647"), Code.Replace("F35", "F99"), "DNG1-invalid" })
+        foreach (var code in new[] { Code.Replace("30x24", "121x100"), Code.Replace("X-17", "X2147483647"), Code.Replace("F35", "F99"), "DNG1-invalid" })
         {
             using var rejected = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
             Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);

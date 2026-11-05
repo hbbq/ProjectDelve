@@ -1,52 +1,139 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ProjectDelve.Engine;
 using ProjectDelve.Generation;
+using ProjectDelve.Web;
 
-// Detached benchmark, deliberately outside the solution. Run sequentially after tests:
-// dotnet run --project tools/WorldGenerationBenchmark --artifacts-path .world-benchmark
-foreach (var (width, height) in new[] { (30, 24), (50, 50), (120, 100) })
+// Detached, package-free benchmark, deliberately outside the solution. Run sequentially:
+// dotnet run --project tools/WorldGenerationBenchmark -c Release --artifacts-path .world-benchmark -- --fixtures .playwright-cli/large-map-baseline
+const int warmups = 3, samples = 7, lookupPasses = 3;
+string? fixtures = null;
+for (var i = 0; i < args.Length; i++)
 {
-    var recipe = new WorldGenerationRecipe(new(-17, -13, width, height), new(), 0x123456789ABCDEF0);
-    for (var i = 0; i < 3; i++) _ = WorldGenerator.Generate(recipe);
-    var generations = new List<double>(); var allocations = new List<long>();
-    var sampling = new List<double>(); var validation = new List<double>();
-    var materializations = new List<double>(); var materializationAllocations = new List<long>();
-    var projections = new List<double>(); var projectionAllocations = new List<long>();
-    GeneratedWorld world = null!;
-    for (var i = 0; i < 7; i++)
+    if (args[i] != "--fixtures" || ++i == args.Length)
+        throw new ArgumentException("Usage: WorldGenerationBenchmark [--fixtures directory]");
+    fixtures = Path.GetFullPath(args[i]);
+}
+if (fixtures is not null) Directory.CreateDirectory(fixtures);
+var httpJson = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+{
+    Converters = { new JsonStringEnumConverter() }
+};
+var canonical = ContentBundle.Canonical();
+var cases = new List<(int Width, int Height, string Preset, NaturalTerrainSettings Settings)>();
+foreach (var (width, height) in new[] { (30, 24), (50, 50), (120, 100), (120, 120) })
+    cases.Add((width, height, "Default", new()));
+foreach (var (width, height) in new[] { (120, 100), (120, 120) })
+foreach (var preset in WorldGenerationPresets.All.Where(p => p.Id is "Grassland" or "Woodland" or "LakeCountry" or "RockyWilds"))
+    cases.Add((width, height, preset.Id, preset.Settings));
+
+// Emit every fixture before profiling so browser inspection can use captured baselines.
+var worlds = new List<(WorldGenerationRecipe Recipe, GeneratedWorld World)>();
+foreach (var (width, height, preset, settings) in cases)
+{
+    var recipe = new WorldGenerationRecipe(new(-17, -13, width, height), settings, 0x123456789ABCDEF0);
+    var world = WorldGenerator.Generate(recipe);
+    worlds.Add((recipe, world));
+    if (fixtures is null) continue;
+    var stem = $"{width}x{height}-{preset}";
+    var catalog = ScenarioContentReferences.ScenarioCatalog(canonical, world.Definition).Definitions;
+    var state = GameEngine.CreateGame(world.Definition);
+    var response = new
     {
-        var before = GC.GetAllocatedBytesForCurrentThread(); var watch = Stopwatch.StartNew();
+        definition = JsonSerializer.Deserialize<JsonElement>(ScenarioDefinitionJson.ToJson(world.Definition)),
+        terrainDefinitions = catalog.Terrain, world.Code,
+        transport = ScenarioDefinitionTransport.Encode(world.Definition),
+        world.VisualSeed, world.Window, world.Fingerprint, world.Diagnostics
+    };
+    File.WriteAllText(Path.Combine(fixtures, stem + ".response.json"), JsonSerializer.Serialize(response, httpJson));
+    File.WriteAllText(Path.Combine(fixtures, stem + ".state.json"), JsonSerializer.Serialize(state, httpJson));
+    Console.Error.WriteLine($"Fixture {stem}: {fixtures}");
+}
+Console.Error.WriteLine("Fixtures complete; warm median profiling begins.");
+
+for (var caseIndex = 0; caseIndex < cases.Count; caseIndex++)
+{
+    var (width, height, preset, _) = cases[caseIndex];
+    var (recipe, initialWorld) = worlds[caseIndex];
+    var world = initialWorld;
+    var sampling = new List<double>(); var validation = new List<double>();
+    var generation = Measure(() =>
+    {
         world = WorldGenerator.Generate(recipe);
-        generations.Add(watch.Elapsed.TotalMilliseconds); allocations.Add(GC.GetAllocatedBytesForCurrentThread() - before);
-        sampling.Add(world.Diagnostics.SamplingMilliseconds); validation.Add(world.Diagnostics.MaterializationMilliseconds);
-        before = GC.GetAllocatedBytesForCurrentThread(); watch.Restart();
-        _ = GameEngine.CreateGame(world.Definition);
-        materializations.Add(watch.Elapsed.TotalMilliseconds); materializationAllocations.Add(GC.GetAllocatedBytesForCurrentThread() - before);
-        var context = new WorldGenerationContext(recipe.World, recipe.Window); context.SampleNaturalTerrain();
-        before = GC.GetAllocatedBytesForCurrentThread(); watch.Restart(); _ = context.Materialize();
-        projections.Add(watch.Elapsed.TotalMilliseconds); projectionAllocations.Add(GC.GetAllocatedBytesForCurrentThread() - before);
-    }
+        sampling.Add(world.Diagnostics.SamplingMilliseconds);
+        validation.Add(world.Diagnostics.MaterializationMilliseconds);
+    });
+    var materialization = Measure(() => { _ = GameEngine.CreateGame(world.Definition); });
+    var context = new WorldGenerationContext(recipe.World, recipe.Window); context.SampleNaturalTerrain();
+    var projection = Measure(() => { _ = context.Materialize(); });
+    // Shared typed catalog composition/validation boundary, excluding Engine creation.
+    var contentValidation = Measure(() => { _ = ScenarioContentReferences.ScenarioCatalog(canonical, world.Definition); });
     var json = ScenarioDefinitionJson.ToJson(world.Definition);
     var transport = ScenarioDefinitionTransport.Encode(world.Definition);
-    Console.WriteLine(JsonSerializer.Serialize(new
+    var jsonSerialization = Measure(() => { _ = ScenarioDefinitionJson.ToJson(world.Definition); });
+    // Public readers deliberately include authoritative Engine validation.
+    var jsonDeserialization = Measure(() => { _ = ScenarioDefinitionJson.FromJson(json); });
+    var transportEncode = Measure(() => { _ = ScenarioDefinitionTransport.Encode(world.Definition); });
+    var transportDecode = Measure(() => { _ = ScenarioDefinitionTransport.Decode(transport); });
+    var board = GameEngine.CreateGame(world.Definition).Physical.Board;
+    var visualSeed = BoardAppearance.DeriveSeed("benchmark", board);
+    var appearance = Measure(() => { _ = BoardAppearance.DeriveSeed("benchmark", board); });
+    long lookupChecksum = 0;
+    var lookups = Measure(() =>
     {
-        width, height, runtime = Environment.Version.ToString(), configuration =
+        long sum = 0;
+        for (var pass = 0; pass < lookupPasses; pass++)
+        for (var y = 0; y < board.Height; y++)
+        for (var x = 0; x < board.Width; x++)
+            sum += board.TerrainDefinitionAt(new(x, y)).Id.Length + (int)board.TerrainAt(new(x, y));
+        lookupChecksum = sum;
+    });
+    var result = JsonSerializer.Serialize(new
+    {
+        width, height, preset, code = recipe.ToString(), runtime = Environment.Version.ToString(), configuration =
 #if DEBUG
             "Debug",
 #else
             "Release",
 #endif
-        samples = 7, warmups = 3,
-        generationMs = Median(generations), generationBytes = Median(allocations),
-        materializationMs = Median(materializations), materializationBytes = Median(materializationAllocations),
-        projectionMs = Median(projections), projectionBytes = Median(projectionAllocations),
-        samplingMs = Median(sampling), validationAndSerializationMs = Median(validation),
+        samples, warmups,
+        generationMs = generation.Milliseconds, generationBytes = generation.Bytes,
+        materializationMs = materialization.Milliseconds, materializationBytes = materialization.Bytes,
+        projectionMs = projection.Milliseconds, projectionBytes = projection.Bytes,
+        samplingMs = Median(sampling.Skip(warmups)), validationAndSerializationMs = Median(validation.Skip(warmups)),
+        contentValidationMs = contentValidation.Milliseconds, contentValidationBytes = contentValidation.Bytes,
+        jsonSerializationMs = jsonSerialization.Milliseconds, jsonSerializationBytes = jsonSerialization.Bytes,
+        jsonDeserializationMs = jsonDeserialization.Milliseconds, jsonDeserializationBytes = jsonDeserialization.Bytes,
+        transportEncodeMs = transportEncode.Milliseconds, transportEncodeBytes = transportEncode.Bytes,
+        transportDecodeMs = transportDecode.Milliseconds, transportDecodeBytes = transportDecode.Bytes,
+        appearanceMs = appearance.Milliseconds, appearanceBytes = appearance.Bytes,
+        denseLookupsMs = lookups.Milliseconds, denseLookupsBytes = lookups.Bytes,
+        lookupPasses, lookupChecksum, ordinaryVisualSeed = visualSeed,
         sparseOverrides = world.Definition.Board.Cells.Count,
         jsonBytes = Encoding.UTF8.GetByteCount(json), transportCharacters = transport.Length,
         coverage = world.Diagnostics.ActualCoverage, world.Fingerprint
-    }));
+    });
+    Console.WriteLine(result);
+    if (fixtures is not null) File.AppendAllText(Path.Combine(fixtures, "benchmark.jsonl"), result + Environment.NewLine);
 }
 
-static T Median<T>(IEnumerable<T> values) where T : IComparable<T> => values.Order().ElementAt(3);
+static (double Milliseconds, long Bytes) Measure(Action action)
+{
+    for (var i = 0; i < warmups; i++) action();
+    var elapsed = new List<double>(); var allocated = new List<long>();
+    for (var i = 0; i < samples; i++)
+    {
+        var before = GC.GetAllocatedBytesForCurrentThread(); var watch = Stopwatch.StartNew();
+        action();
+        elapsed.Add(watch.Elapsed.TotalMilliseconds); allocated.Add(GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+    return (Median(elapsed), Median(allocated));
+}
+
+static T Median<T>(IEnumerable<T> values) where T : IComparable<T>
+{
+    var sorted = values.Order().ToArray();
+    return sorted[sorted.Length / 2];
+}

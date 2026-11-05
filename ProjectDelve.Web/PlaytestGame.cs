@@ -12,6 +12,7 @@ public sealed partial class PlaytestGame : IDisposable
     private readonly object gate = new();
     private readonly IRandomProvider random;
     private readonly ContentBundle canonicalContent;
+    private readonly AuthoringLimits authoringLimits;
     private readonly Func<ContentBundle>? canonicalProvider;
     private ContentBundle NewGameContent => canonicalProvider?.Invoke() ?? canonicalContent;
     private readonly OrderAwareAutomatedProvider automated = new();
@@ -47,8 +48,9 @@ public sealed partial class PlaytestGame : IDisposable
     public PlaytestGame(IRandomProvider random) : this(random, PlaytestScenarios.Create(PlaytestScenarios.DefaultId)) { }
     internal PlaytestGame(IRandomProvider random, GameState initialState,
         Func<ExternalDecisionContext, CancellationToken, Task<string?>>? external = null, int replayCapacity = 256,
-        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null, IReadOnlyDictionary<string,string>? controllers = null, IReadOnlyList<ControllerSelection>? controllerAssignments = null, int historyLimit = 16384, int payloadLimit = 8 * 1024 * 1024, ContentBundle? canonicalContent = null, Func<ContentBundle>? canonicalProvider = null)
+        Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null, IReadOnlyDictionary<string,string>? controllers = null, IReadOnlyList<ControllerSelection>? controllerAssignments = null, int historyLimit = 16384, int payloadLimit = 8 * 1024 * 1024, ContentBundle? canonicalContent = null, Func<ContentBundle>? canonicalProvider = null, AuthoringLimits? authoringLimits = null)
     {
+        this.authoringLimits = authoringLimits ?? AuthoringLimits.Default;
         this.canonicalContent = canonicalContent ?? ContentBundle.Canonical();
         this.canonicalProvider = canonicalProvider;
         this.historyLimit = historyLimit; this.payloadLimit = payloadLimit;
@@ -153,6 +155,8 @@ public sealed partial class PlaytestGame : IDisposable
                     if (request.Transport is not null) throw Error(400, "Supply either a generation code or DELVE1, not both.");
                     try
                     {
+                        var code = GenerationCode.Parse(request.GenerationCode);
+                        authoringLimits.CheckDimensions(code.Width, code.Height);
                         var generated = DungeonGenerator.Generate(request.GenerationCode);
                         replacement = generated.Definition;
                         request = request with { GenerationCode = generated.Code.ToString() };
@@ -181,6 +185,8 @@ public sealed partial class PlaytestGame : IDisposable
                 }
                 request = request with { ControllerAssignments = merged.Values.ToList() };
             }
+            try { authoringLimits.CheckScenario(replacement ?? definition); }
+            catch (DesignerBoardLimitException error) { throw Error(400, error.Message); }
             var preview = GameEngine.CreateGame(replacement ?? definition, NewGameContent);
             if (request.Controllers is not null || request.ControllerAssignments is not null)
             {
@@ -199,7 +205,7 @@ public sealed partial class PlaytestGame : IDisposable
     }
     private ScenarioDefinition Decode(string? transport)
     {
-        try { return ScenarioDefinitionTransport.Decode(transport ?? "", DesignerApi.CheckHostLimits, NewGameContent); }
+        try { return ScenarioDefinitionTransport.Decode(transport ?? "", authoringLimits.CheckScenario, NewGameContent); }
         catch (DesignerBoardLimitException e) { throw Error(400, e.Message); }
         catch (Exception e) when (e is ArgumentException or FormatException or InvalidDataException or JsonException)
         { throw Error(400, "Could not load scenario. Paste a valid DELVE1 scenario string."); }

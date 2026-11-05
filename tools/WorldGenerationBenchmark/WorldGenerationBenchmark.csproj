@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../ProjectDelve.Generation/ProjectDelve.Generation.csproj" />
+    <Compile Include="../../ProjectDelve.Web/BoardAppearance.cs" Link="BoardAppearance.cs" />
   </ItemGroup>
 </Project>

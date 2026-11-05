@@ -14,9 +14,13 @@ positive Width/Height. Bounds are half-open. Every cell samples
 order or previous requests. The entire requested window must fit signed 32-bit
 world-cell coordinates. Negative lattice coordinates use mathematical floor.
 
-The Web authoring limit remains 50 by 50. Detached generation supports windows
-up to 120 by 120 (including the measured 120 by 100 experiment). The pure sampler
-can sample any supported world position without generating preceding windows.
+Web authoring and detached generation support windows up to 120 by 120, including
+120 by 100 and transposed rectangles. Hosts can lower the authoring ceiling with
+`Authoring:MaxBoardSize` (1..120; default 120). This is a resource policy, not a
+game rule. DNG1/DNG2 retain their separate maximum of 50 in each dimension.
+The pure sampler can sample any supported world position without generating
+preceding windows. See [Large map support](LARGE_MAP_SUPPORT.md) for measured
+limits, payload budgets, verification and remaining costs.
 
 ## Recipes and controls
 
@@ -40,6 +44,8 @@ an existing recipe.
 Presets are Grassland, Woodland, Lake Country, River Valley and Rocky Wilds.
 Loading a recipe changes controls without regenerating. Editing controls retains
 the last preview and marks it outdated until another preview is requested.
+Preview zoom offers Fit window or 12/24/48 pixels per Cell with scrolling, without
+regenerating terrain or rebuilding the preview. Designer has its own board zoom.
 
 ## Sampling and composition
 
@@ -118,7 +124,7 @@ validation. A detached test scenario also checked Tabletop, Three.js Flat,
 Enhanced DOM and Classic rendering. Successful inspections reported no console
 errors or failed requests. The original port-5080 game was preserved.
 
-## Performance
+## Original V1 investigation performance
 
 Detached .NET 10.0.12 Release measurements use three warmups and the median of
 seven samples. Root seed 123456789ABCDEF0, offset (-17, -13), default Natural
@@ -139,9 +145,11 @@ network latency; screenshots separately establish the final appearance.
 
 The primary large-window costs remain Engine materialization/validation and
 serialization, rather than pure field sampling or sparse board projection.
-Runtime terrain lists, LOS scans, ordinary appearance derivation and Designer
-full-board rebuilds remain future profiling targets. No terrain-storage refactor
-or production size-limit increase is included.
+These were the measurements before enabling large-map authoring. The subsequent
+[large-map investigation and implementation](LARGE_MAP_SUPPORT.md) profiles those
+paths, indexes appearance and Designer render traversals, and avoids full-board
+reconstruction for painting and ordinary selection. Runtime terrain lists and
+LOS scans remain potential future optimization targets.
 
 Reproduce the detached measurements from the repository root:
 

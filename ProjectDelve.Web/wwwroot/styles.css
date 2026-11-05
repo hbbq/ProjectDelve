@@ -552,7 +552,7 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 #world-generator small, #world-generator .legend { color: #a9bac8; line-height: 1.5; overflow-wrap: anywhere; }
 #world-generator-status { margin-top: 0; border-left: 3px solid #91ba91; padding: 12px; background: #91ba9110; line-height: 1.5; overflow-wrap: anywhere; }
 .world-generator-result { min-width: 0; }
-.world-generator-board-wrap { padding: 4px; margin: 12px 0; background: #101820; border-radius: 5px; }
+.world-generator-board-wrap { padding: 4px; margin: 12px 0; max-height: 65dvh; overflow: auto; background: #101820; border-radius: 5px; }
 #world-generator-board { min-width: 0; width: min(100%, calc(65dvh * var(--world-board-ratio, 1))); margin-inline: auto; }
 #world-generator-board .cell { border-width: .5px; }
 #world-generator label[hidden] { display: none; }

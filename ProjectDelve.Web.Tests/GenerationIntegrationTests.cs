@@ -26,6 +26,8 @@ public sealed class GenerationIntegrationTests
     [InlineData(Code)]
     [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F1-QFun-S000000000000002A")]
     [InlineData("DNG2-OS-30x24-O2-T2-N2-L3-B2-OR2-F0-QClassic-S0000000000000002")]
+    [InlineData("DNG1-HVM-50x50-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF")]
+    [InlineData("DNG2-OS-50x50-O2-T2-N2-L3-B2-OR2-F1-QFun-S000000000000002A")]
     public async Task PreviewAndDirectPlayShareExactDefinitionAndRestartKeepsCompletedRecipe(string recipe)
     {
         await using var host = await Host.Start();
@@ -85,6 +87,8 @@ public sealed class GenerationIntegrationTests
     [Theory]
     [InlineData("DNG2-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1")]
     [InlineData("DNG1-HVM-14x14-R24-E2-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG1-HVM-51x50-R8-E2-C2-D2-N2-L3-OR2-F1")]
+    [InlineData("DNG2-OS-50x51-O2-T2-N2-L3-B2-OR2-F1-QFun")]
     public async Task InvalidRequestsRetainTheCurrentGame(string code)
     {
         await using var host = await Host.Start();

@@ -17,6 +17,8 @@ public static class PlaytestHost
         Func<ExternalDecisionContext, CancellationToken, Task<ExternalDecisionSelection>>? externalSelection = null)
     {
         var builder = WebApplication.CreateBuilder(args);
+        var limits = new AuthoringLimits(builder.Configuration.GetValue<int?>("Authoring:MaxBoardSize") ?? AuthoringLimits.SupportedMaxBoardSize);
+        builder.Services.AddSingleton(limits);
         builder.Services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         var randomProvider = random ?? new SystemRandomProvider();
@@ -39,10 +41,10 @@ public static class PlaytestHost
             ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "library");
         var bundledLibraryPath = builder.Configuration["Library:BundlePath"]
             ?? Path.Combine(builder.Environment.ContentRootPath, "Content", "Library");
-        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, contentProvider: () => workspace.Resolve().Definitions));
+        builder.Services.AddSingleton(_ => new ScenarioLibrary(libraryPath, bundledLibraryPath, contentProvider: () => workspace.Resolve().Definitions, authoringLimits: limits));
         builder.Services.AddSingleton(_ => new LibraryCoverStore(libraryPath, bundledLibraryPath));
         builder.Services.AddSingleton<PlaytestGame>(_ => new PlaytestGame(randomProvider,
-            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), workspace.Resolve().Definitions), external, replayCapacity, externalSelection, canonicalProvider: () => workspace.Resolve().Definitions));
+            initialState ?? GameEngine.CreateGame(PlaytestScenarios.Definition(PlaytestScenarios.DefaultId), workspace.Resolve().Definitions), external, replayCapacity, externalSelection, canonicalProvider: () => workspace.Resolve().Definitions, authoringLimits: limits));
         var app = builder.Build();
         app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<PlaytestGame>().Dispose);
         app.UseDefaultFiles();

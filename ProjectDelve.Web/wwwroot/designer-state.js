@@ -4,7 +4,8 @@ export class DesignerDraft {
     this.catalog = catalog;
     this.nextKey = 0;
     this.revision = 0;
-    this.replace({ board: { width: 15, height: 15, defaultTerrain: "StoneFloor", cells: [], edges: [] },
+    const initialSize = Math.min(15, catalog.maxBoardSize);
+    this.replace({ board: { width: initialSize, height: initialSize, defaultTerrain: "StoneFloor", cells: [], edges: [] },
       unitTypeIds: [], units: [], agency: [], loot: { preset: catalog.defaultLootPreset ?? "Classic" } });
   }
   replace(definition) {
@@ -235,8 +236,23 @@ export class DesignerDraft {
     board.width = width; board.height = height; this.changed();
   }
   terrainAt(cell) {
-    const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
+    const entry = this.terrainEntryAt(cell);
     return entry ? entry.terrainTypeId ?? entry.terrain : this.definition.board.defaultTerrainTypeId ?? this.definition.board.defaultTerrain;
+  }
+  // A synchronous render reads one draft snapshot. Keep the index inside that
+  // traversal so direct edits, Undo and imported definitions cannot leave a stale cache.
+  withTerrainLookup(action) {
+    const previous = this.renderTerrainIndex, index = new Map();
+    for (const entry of this.definition.board.cells) {
+      const key = `${entry.position.x},${entry.position.y}`;
+      if (!index.has(key)) index.set(key, entry); // Preserve Array.find's first-match semantics.
+    }
+    this.renderTerrainIndex = index;
+    try { return action(); } finally { this.renderTerrainIndex = previous; }
+  }
+  terrainEntryAt(cell) {
+    return this.renderTerrainIndex ? this.renderTerrainIndex.get(`${cell.x},${cell.y}`)
+      : this.definition.board.cells.find(entry => sameCell(entry.position, cell));
   }
   terrainCatalog() {
     return this.effectiveTerrainMetadata ?? [...(this.catalog.terrainDefinitions ?? []), ...(this.definition.terrainTypes ?? []), ...(this.definition.terrainAssemblies ?? [])];
@@ -249,7 +265,7 @@ export class DesignerDraft {
     return this.definition.board.defaultTerrainTypeId != null ? this.terrainTypeSelection(this.definition.board.defaultTerrainTypeId) : this.definition.board.defaultTerrain;
   }
   terrainSelectionAt(cell) {
-    const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
+    const entry = this.terrainEntryAt(cell);
     return entry ? entry.terrainTypeId != null ? this.terrainTypeSelection(entry.terrainTypeId) : entry.terrain : this.defaultTerrainSelection();
   }
   legacyTerrainKind(reference) {
@@ -266,7 +282,7 @@ export class DesignerDraft {
     return this.terrainCatalog().find(type => type.legacyKind === reference) ?? this.terrainCatalog().find(type => type.id === reference);
   }
   terrainDefinitionAt(cell) {
-    const entry = this.definition.board.cells.find(entry => sameCell(entry.position, cell));
+    const entry = this.terrainEntryAt(cell);
     return this.terrainMetadata(this.terrainSelectionAt(cell), entry?.coalGeneration);
   }
   productionDescriptionAt(cell) {
@@ -306,7 +322,7 @@ export class DesignerDraft {
     this.changed();
   }
   railDirectionAt(cell) {
-    return this.definition.board.cells.find(entry => sameCell(entry.position, cell))?.direction;
+    return this.terrainEntryAt(cell)?.direction;
   }
   setNeutral(side, neutral) {
     const sides = (this.definition.neutralSides ?? []).filter(value => value !== side);
@@ -576,7 +592,7 @@ export const draftStorageKey = "project-delve.designer.v1";
 export function draftDocument(definition, title = "Untitled scenario", buffers = {}) {
   return { format: "ProjectDelveDraft", version: 1, title, savedAt: new Date().toISOString(), definition: structuredClone(definition), buffers: structuredClone(buffers) };
 }
-export function readDraftDocument(text, maxBoardSize = 50) {
+export function readDraftDocument(text, maxBoardSize = 120) {
   const doc = JSON.parse(text);
   if (doc?.format !== "ProjectDelveDraft" || doc.version !== 1) throw new Error("Unsupported draft document. Expected Project Delve draft version 1.");
   if (doc.transportInput != null && typeof doc.transportInput !== "string") throw new Error("Invalid saved import text.");

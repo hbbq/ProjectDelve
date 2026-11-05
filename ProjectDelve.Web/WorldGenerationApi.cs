@@ -11,10 +11,11 @@ public static class WorldGenerationApi
 {
     public static void Map(WebApplication app)
     {
+        var limits = app.Services.GetRequiredService<AuthoringLimits>();
         app.MapGet("/api/world-generation/catalog", (HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            return Results.Ok(new { maxBoardSize = DesignerApi.MaxBoardSize, presets = WorldGenerationPresets.All });
+            return Results.Ok(new { maxBoardSize = limits.MaxBoardSize, presets = WorldGenerationPresets.All });
         });
         app.MapPost("/api/world-generation", (GenerationRequest request, HttpContext context) =>
         {
@@ -24,8 +25,7 @@ public static class WorldGenerationApi
                 var recipe = WorldGenerationRecipe.Parse(request.Code);
                 // Reject oversized requests before sampling/materializing. The detached sampler
                 // and generator remain usable for larger experiments without changing host policy.
-                if (recipe.Window.Width > DesignerApi.MaxBoardSize || recipe.Window.Height > DesignerApi.MaxBoardSize)
-                    throw new DesignerBoardLimitException();
+                limits.CheckDimensions(recipe.Window.Width, recipe.Window.Height);
                 var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
                 var workspace = app.Services.GetRequiredService<ContentWorkspace>().Snapshot().Definitions;
                 var provider = ContentComposition.ComposeScopes(canonical, workspace).Definitions;
