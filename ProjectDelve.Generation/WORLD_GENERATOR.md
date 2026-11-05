@@ -5,6 +5,11 @@ Open **World Generator** in the browser, choose a preset or explicit settings,
 and generate terrain. The result contains no Units, Objectives, Loot or FoW.
 It can be exported as DELVE1 or opened in Scenario Designer for further authoring.
 
+Optional Civilization now constructs Campsites and small Settlements with nested
+Building/Room generators and atomic terrain/Edge planning. See
+[CIVILIZATION_SITES.md](CIVILIZATION_SITES.md) for current contracts, recipe controls,
+nested inspection, evaluation, measurements and limits.
+
 ## World and window
 
 `WorldDefinition` contains the completed root seed and Natural Terrain settings;

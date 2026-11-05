@@ -4,7 +4,10 @@ World Generator now runs an explicit typed recipe: Natural Terrain, Terrain
 Analysis, Forest Enrichment, Rock Enrichment, Water Enrichment, Grassland
 Enrichment and Post-Enrichment Analysis. Disabled families are omitted. Analysis
 never paints terrain. The output remains an ordinary terrain-only scenario.
-No Units, Sites, Objectives, climate or inter-site routing are introduced.
+This milestone introduced no Units, Sites, Objectives, climate or inter-site routing.
+The subsequent optional Civilization stage is documented in
+[CIVILIZATION_SITES.md](CIVILIZATION_SITES.md); it runs after enrichment and before
+final analysis, and adds constructed terrain and Edges with semantic Site results.
 
 ## Scope and recipe contract
 
@@ -284,5 +287,5 @@ finalization timing labels.
 
 The reported Three.js smoothness degradation near 80x80 remains a separate
 rendering-performance concern. This milestone does not change Three.js rendering.
-Global enrichment, climate, civilization/Sites, inter-site connections, population,
+Global enrichment, climate, inter-site connections, population,
 objectives, final Playability, chunking and expanding worlds remain unimplemented.

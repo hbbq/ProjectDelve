@@ -177,6 +177,7 @@ public sealed partial class WorldGenerationContext
     public ScenarioDefinition Materialize()
     {
         if (!sampled) throw new InvalidOperationException("Sample natural terrain before materializing a board.");
+        if (ConstructionBoard is not null) return ConstructionBoard.Export();
         List<CellDefinition> cells = [];
         for (var y = 0; y < Window.Height; y++)
         for (var x = 0; x < Window.Width; x++)
@@ -218,6 +219,10 @@ public static class WorldGenerator
         {
             Preview = execution.Preview, Context = context,
             Metrics = new(execution.Measurements, timer.Elapsed.TotalMilliseconds, execution.Preview.EstimatedRetainedBytes)
+            {
+                ConstructionValidationMilliseconds = context.ConstructionBoard?.ValidationMilliseconds ?? 0,
+                ConstructionValidations = context.ConstructionBoard?.ValidationCount ?? 0
+            }
         };
     }
 }

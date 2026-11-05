@@ -1,0 +1,1462 @@
+[
+  {
+    "name": "50x50-Grassland",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 102.0438,
+    "allocatedBytes": 25074544,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.6806,
+        "allocatedBytes": 392232
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 3.8902,
+        "allocatedBytes": 595240
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 3.9814,
+        "allocatedBytes": 596544
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.8033,
+        "allocatedBytes": 596464
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 3.8924,
+        "allocatedBytes": 596496
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.4739,
+        "allocatedBytes": 1320240
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 59.8361,
+        "allocatedBytes": 17269832
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.9411,
+        "allocatedBytes": 677416
+      }
+    ],
+    "validationMs": 34.1924,
+    "constructionValidations": 4,
+    "finalizationMs": 11.3124,
+    "responsePayloadBytes": 334011,
+    "previewPayloadBytes": 265941,
+    "previewRawEstimateBytes": 214596,
+    "previewRetainedManagedBytes": 234152,
+    "civilizationStats": {
+      "attempts": 13,
+      "work": 9187,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 9,
+      "changedTerrain": 319,
+      "changedEdges": 140
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "27CA8D4FCA862D36C9D749232B05A92A9EF343921AB35BB325A380656DE547C0"
+  },
+  {
+    "name": "50x50-Woodland",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 153.1723,
+    "allocatedBytes": 29914448,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.1195,
+        "allocatedBytes": 393160
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 2.3074,
+        "allocatedBytes": 410088
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 4.4431,
+        "allocatedBytes": 1122112
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 2.5433,
+        "allocatedBytes": 428584
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 3.1586,
+        "allocatedBytes": 722904
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 3.2443,
+        "allocatedBytes": 608272
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 104.7226,
+        "allocatedBytes": 21010176
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 2.9831,
+        "allocatedBytes": 531768
+      }
+    ],
+    "validationMs": 68.9013,
+    "constructionValidations": 4,
+    "finalizationMs": 23.2983,
+    "responsePayloadBytes": 424233,
+    "previewPayloadBytes": 294857,
+    "previewRawEstimateBytes": 224176,
+    "previewRetainedManagedBytes": 248704,
+    "civilizationStats": {
+      "attempts": 15,
+      "work": 9015,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 9,
+      "changedTerrain": 304,
+      "changedEdges": 129
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "8BEC2F0DEAAE904730621DAE9784FBB696087448C1E4AA772890CFC1DCA6AEF4"
+  },
+  {
+    "name": "50x50-LakeCountry",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 161.2715,
+    "allocatedBytes": 27912176,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.1668,
+        "allocatedBytes": 393064
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.9408,
+        "allocatedBytes": 492520
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 2.5388,
+        "allocatedBytes": 656952
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.174,
+        "allocatedBytes": 889344
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 2.2717,
+        "allocatedBytes": 598608
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 3.1176,
+        "allocatedBytes": 922600
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 114.3755,
+        "allocatedBytes": 19469496
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 2.4309,
+        "allocatedBytes": 586224
+      }
+    ],
+    "validationMs": 80.4376,
+    "constructionValidations": 4,
+    "finalizationMs": 26.3371,
+    "responsePayloadBytes": 393985,
+    "previewPayloadBytes": 291323,
+    "previewRawEstimateBytes": 223796,
+    "previewRetainedManagedBytes": 243632,
+    "civilizationStats": {
+      "attempts": 13,
+      "work": 9156,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 9,
+      "changedTerrain": 295,
+      "changedEdges": 135
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "63851E9F62E2581BFEA5FDF30B84D83A745FF020CF31CC732395CEA75727725B"
+  },
+  {
+    "name": "50x50-RiverValley",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 72.1735,
+    "allocatedBytes": 26445856,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.1155,
+        "allocatedBytes": 393712
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.4525,
+        "allocatedBytes": 537792
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 2.7039,
+        "allocatedBytes": 1024584
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 1.4136,
+        "allocatedBytes": 546912
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.5945,
+        "allocatedBytes": 576400
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 2.245,
+        "allocatedBytes": 981240
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 46.9646,
+        "allocatedBytes": 18333368
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 2.0579,
+        "allocatedBytes": 639832
+      }
+    ],
+    "validationMs": 25.851399999999998,
+    "constructionValidations": 4,
+    "finalizationMs": 10.5602,
+    "responsePayloadBytes": 402884,
+    "previewPayloadBytes": 307331,
+    "previewRawEstimateBytes": 235024,
+    "previewRetainedManagedBytes": 260232,
+    "civilizationStats": {
+      "attempts": 18,
+      "work": 9343,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 9,
+      "changedTerrain": 307,
+      "changedEdges": 140
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "5744E88BD680305E32D06DD2DCD49315B04E1251E0D32E24763B5AF00946DBFB"
+  },
+  {
+    "name": "50x50-RockyWilds",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 51.57,
+    "allocatedBytes": 26416336,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.7254,
+        "allocatedBytes": 392480
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.3528,
+        "allocatedBytes": 461232
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 1.6184,
+        "allocatedBytes": 574968
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.6884,
+        "allocatedBytes": 1389664
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.3882,
+        "allocatedBytes": 481288
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 2.4262,
+        "allocatedBytes": 954592
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 27.8321,
+        "allocatedBytes": 17750680
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.8101,
+        "allocatedBytes": 567672
+      }
+    ],
+    "validationMs": 18.3758,
+    "constructionValidations": 4,
+    "finalizationMs": 6.3896,
+    "responsePayloadBytes": 411983,
+    "previewPayloadBytes": 294876,
+    "previewRawEstimateBytes": 224516,
+    "previewRetainedManagedBytes": 249760,
+    "civilizationStats": {
+      "attempts": 12,
+      "work": 9055,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 9,
+      "changedTerrain": 300,
+      "changedEdges": 134
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "44D88F849E41A66D9D725FEFB4F00FE7F43C6BBCFF2DD657067F55C36319048E"
+  },
+  {
+    "name": "120x100-Grassland",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 122.0084,
+    "allocatedBytes": 63064416,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.6963,
+        "allocatedBytes": 1812296
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.4999,
+        "allocatedBytes": 2626776
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.3854,
+        "allocatedBytes": 3591864
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.3348,
+        "allocatedBytes": 2643552
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.1587,
+        "allocatedBytes": 2750696
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 14.0744,
+        "allocatedBytes": 9574800
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 49.346,
+        "allocatedBytes": 29845600
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.8194,
+        "allocatedBytes": 2704632
+      }
+    ],
+    "validationMs": 31.448700000000002,
+    "constructionValidations": 4,
+    "finalizationMs": 9.2946,
+    "responsePayloadBytes": 710600,
+    "previewPayloadBytes": 524694,
+    "previewRawEstimateBytes": 713388,
+    "previewRetainedManagedBytes": 690000,
+    "civilizationStats": {
+      "attempts": 8,
+      "work": 7338,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 5,
+      "changedTerrain": 194,
+      "changedEdges": 66
+    },
+    "failures": [],
+    "operations": 29,
+    "fingerprint": "6142C772267C55DB4038446ACF6B72A447677A438473F152BE4E0665DD484BCF"
+  },
+  {
+    "name": "120x100-Woodland",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 191.2741,
+    "allocatedBytes": 92046256,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.5359,
+        "allocatedBytes": 1108344
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.729,
+        "allocatedBytes": 1851056
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.0011,
+        "allocatedBytes": 8435408
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 4.6519,
+        "allocatedBytes": 1879488
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.5076,
+        "allocatedBytes": 2393472
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 5.8397,
+        "allocatedBytes": 2630168
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 110.6233,
+        "allocatedBytes": 54844192
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.9972,
+        "allocatedBytes": 1970792
+      }
+    ],
+    "validationMs": 81.7436,
+    "constructionValidations": 4,
+    "finalizationMs": 26.1771,
+    "responsePayloadBytes": 1236264,
+    "previewPayloadBytes": 676600,
+    "previewRawEstimateBytes": 763444,
+    "previewRetainedManagedBytes": 765192,
+    "civilizationStats": {
+      "attempts": 8,
+      "work": 7336,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 5,
+      "changedTerrain": 205,
+      "changedEdges": 66
+    },
+    "failures": [],
+    "operations": 29,
+    "fingerprint": "07F3C09A0E6017AC94300A6AEA147B25F65223BF0A8815B7E00A97629AC17FBC"
+  },
+  {
+    "name": "120x100-LakeCountry",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 185.2767,
+    "allocatedBytes": 95453480,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.0986,
+        "allocatedBytes": 1108248
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.5534,
+        "allocatedBytes": 1858472
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 7.281,
+        "allocatedBytes": 5485088
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 7.0039,
+        "allocatedBytes": 7738072
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.4625,
+        "allocatedBytes": 2847696
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.5345,
+        "allocatedBytes": 3216432
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 108.0051,
+        "allocatedBytes": 54428192
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.7913,
+        "allocatedBytes": 2005728
+      }
+    ],
+    "validationMs": 79.707,
+    "constructionValidations": 4,
+    "finalizationMs": 24.203,
+    "responsePayloadBytes": 1243329,
+    "previewPayloadBytes": 686250,
+    "previewRawEstimateBytes": 761784,
+    "previewRetainedManagedBytes": 754680,
+    "civilizationStats": {
+      "attempts": 9,
+      "work": 7364,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 6,
+      "changedTerrain": 173,
+      "changedEdges": 71
+    },
+    "failures": [],
+    "operations": 29,
+    "fingerprint": "789F4AEB5EE8D0BD7ED984CF3A93F77F7E3B1FA5B4C216D7762745BEE9127A15"
+  },
+  {
+    "name": "120x100-RiverValley",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 165.916,
+    "allocatedBytes": 78502912,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.4433,
+        "allocatedBytes": 1108632
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.3834,
+        "allocatedBytes": 2323232
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.1805,
+        "allocatedBytes": 5452888
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.8417,
+        "allocatedBytes": 2344672
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.9729,
+        "allocatedBytes": 2615624
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 11.002,
+        "allocatedBytes": 6205720
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 84.3753,
+        "allocatedBytes": 43360520
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.4618,
+        "allocatedBytes": 2419320
+      }
+    ],
+    "validationMs": 55.183800000000005,
+    "constructionValidations": 4,
+    "finalizationMs": 24.8132,
+    "responsePayloadBytes": 1166084,
+    "previewPayloadBytes": 767101,
+    "previewRawEstimateBytes": 822836,
+    "previewRetainedManagedBytes": 840456,
+    "civilizationStats": {
+      "attempts": 8,
+      "work": 7336,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 5,
+      "changedTerrain": 200,
+      "changedEdges": 66
+    },
+    "failures": [],
+    "operations": 29,
+    "fingerprint": "65A5903B7EEFB2093D1DF8691C01E766D3A61402DE8B3BB51DAA668D75973782"
+  },
+  {
+    "name": "120x100-RockyWilds",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 224.0821,
+    "allocatedBytes": 137847072,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.4016,
+        "allocatedBytes": 1107336
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.7773,
+        "allocatedBytes": 1903024
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 10.1784,
+        "allocatedBytes": 7681584
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 37.8923,
+        "allocatedBytes": 32919656
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.2057,
+        "allocatedBytes": 2228616
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.577,
+        "allocatedBytes": 3020976
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 113.374,
+        "allocatedBytes": 63539680
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 6.1869,
+        "allocatedBytes": 2085024
+      }
+    ],
+    "validationMs": 85.11089999999999,
+    "constructionValidations": 4,
+    "finalizationMs": 24.8568,
+    "responsePayloadBytes": 1282274,
+    "previewPayloadBytes": 694232,
+    "previewRawEstimateBytes": 768716,
+    "previewRetainedManagedBytes": 766840,
+    "civilizationStats": {
+      "attempts": 8,
+      "work": 7336,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 5,
+      "changedTerrain": 207,
+      "changedEdges": 66
+    },
+    "failures": [],
+    "operations": 29,
+    "fingerprint": "D08DBAC2D8CEA2FA82B8BD1D34EF04C2FBECAC7AC7AEC73C3BE97A82603FA018"
+  },
+  {
+    "name": "120x120-Grassland",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 162.7772,
+    "allocatedBytes": 75448536,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.1478,
+        "allocatedBytes": 1327944
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 6.2849,
+        "allocatedBytes": 3117360
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.6576,
+        "allocatedBytes": 4320184
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 6.4307,
+        "allocatedBytes": 3117552
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.9139,
+        "allocatedBytes": 3216176
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 16.2735,
+        "allocatedBytes": 10274592
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 73.4616,
+        "allocatedBytes": 38042256
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 8.9005,
+        "allocatedBytes": 3228040
+      }
+    ],
+    "validationMs": 51.7478,
+    "constructionValidations": 4,
+    "finalizationMs": 17.1734,
+    "responsePayloadBytes": 896703,
+    "previewPayloadBytes": 674797,
+    "previewRawEstimateBytes": 875020,
+    "previewRetainedManagedBytes": 846192,
+    "civilizationStats": {
+      "attempts": 12,
+      "work": 9074,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 8,
+      "changedTerrain": 321,
+      "changedEdges": 137
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "1812C5D3FC3720AE96ED354FF361C143FBABFB5396FBF114392BEE1FC82B9A40"
+  },
+  {
+    "name": "120x120-Woodland",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 229.3694,
+    "allocatedBytes": 107102184,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.7541,
+        "allocatedBytes": 1329336
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.5026,
+        "allocatedBytes": 2308432
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.9005,
+        "allocatedBytes": 7670808
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.4915,
+        "allocatedBytes": 2331192
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.3693,
+        "allocatedBytes": 2869520
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.6786,
+        "allocatedBytes": 2925512
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 137.8744,
+        "allocatedBytes": 65648648
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.4059,
+        "allocatedBytes": 2452480
+      }
+    ],
+    "validationMs": 105.1334,
+    "constructionValidations": 4,
+    "finalizationMs": 38.9645,
+    "responsePayloadBytes": 1528550,
+    "previewPayloadBytes": 861219,
+    "previewRawEstimateBytes": 934548,
+    "previewRetainedManagedBytes": 947488,
+    "civilizationStats": {
+      "attempts": 14,
+      "work": 8827,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 8,
+      "changedTerrain": 313,
+      "changedEdges": 123
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "D0031EE8B32A8DE99EB2D7F59237E4488169181795D34AC08EDB41BE31345F93"
+  },
+  {
+    "name": "120x120-LakeCountry",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 210.602,
+    "allocatedBytes": 115769096,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.2011,
+        "allocatedBytes": 1329240
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.5494,
+        "allocatedBytes": 2221920
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 12.1366,
+        "allocatedBytes": 11394016
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 11.041,
+        "allocatedBytes": 7573944
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.4765,
+        "allocatedBytes": 3306040
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 8.8412,
+        "allocatedBytes": 4332568
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 117.0519,
+        "allocatedBytes": 64020488
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.1746,
+        "allocatedBytes": 2452752
+      }
+    ],
+    "validationMs": 82.5757,
+    "constructionValidations": 4,
+    "finalizationMs": 37.1329,
+    "responsePayloadBytes": 1528401,
+    "previewPayloadBytes": 875155,
+    "previewRawEstimateBytes": 935008,
+    "previewRetainedManagedBytes": 933464,
+    "civilizationStats": {
+      "attempts": 12,
+      "work": 8660,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 8,
+      "changedTerrain": 331,
+      "changedEdges": 119
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "2180B3B7AB3BABD82606AF2F35145F446EB69379D6667D60497A609F36A493BE"
+  },
+  {
+    "name": "120x120-RiverValley",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 202.891,
+    "allocatedBytes": 101022992,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.1366,
+        "allocatedBytes": 1329904
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 6.9955,
+        "allocatedBytes": 2852232
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.7263,
+        "allocatedBytes": 9274232
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 6.6773,
+        "allocatedBytes": 2882664
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 9.5651,
+        "allocatedBytes": 3316408
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 16.334,
+        "allocatedBytes": 8879048
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 101.2266,
+        "allocatedBytes": 54826840
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 8.7609,
+        "allocatedBytes": 3016176
+      }
+    ],
+    "validationMs": 68.6418,
+    "constructionValidations": 4,
+    "finalizationMs": 30.2779,
+    "responsePayloadBytes": 1475684,
+    "previewPayloadBytes": 996828,
+    "previewRawEstimateBytes": 1020240,
+    "previewRetainedManagedBytes": 1040680,
+    "civilizationStats": {
+      "attempts": 12,
+      "work": 9464,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 8,
+      "changedTerrain": 407,
+      "changedEdges": 156
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "B3395CC250150AB487DBC2B0AB050F42B373F23DAD00B3A5544C2BABCD870CEA"
+  },
+  {
+    "name": "120x120-RockyWilds",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 247.9567,
+    "allocatedBytes": 119451688,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.2398,
+        "allocatedBytes": 1328320
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.5185,
+        "allocatedBytes": 2278712
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.562,
+        "allocatedBytes": 8611568
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 14.8543,
+        "allocatedBytes": 10482320
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 8.0915,
+        "allocatedBytes": 2797920
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 8.5545,
+        "allocatedBytes": 4333672
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 141.7448,
+        "allocatedBytes": 67192096
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 6.9155,
+        "allocatedBytes": 2517040
+      }
+    ],
+    "validationMs": 106.2831,
+    "constructionValidations": 4,
+    "finalizationMs": 44.458,
+    "responsePayloadBytes": 1605027,
+    "previewPayloadBytes": 894191,
+    "previewRawEstimateBytes": 945484,
+    "previewRetainedManagedBytes": 947232,
+    "civilizationStats": {
+      "attempts": 13,
+      "work": 9103,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 4,
+      "rooms": 8,
+      "changedTerrain": 349,
+      "changedEdges": 137
+    },
+    "failures": [],
+    "operations": 45,
+    "fingerprint": "E419B456CA6CF8DD43F7A6DAE8EB024C983316906E5E414C01E6DF67F364F3E9"
+  },
+  {
+    "name": "ExcavatedRock",
+    "width": 60,
+    "height": 50,
+    "code": "WLD1-60x50-X-1-Y-69-F0-W0-R100-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 46.1125,
+    "allocatedBytes": 31636176,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.1444,
+        "allocatedBytes": 278624
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 0.9906,
+        "allocatedBytes": 379896
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 0.9677,
+        "allocatedBytes": 380336
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 1.2693,
+        "allocatedBytes": 1305792
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 0.9516,
+        "allocatedBytes": 380384
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 0.9606,
+        "allocatedBytes": 383552
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 29.4927,
+        "allocatedBytes": 22245280
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.2746,
+        "allocatedBytes": 509728
+      }
+    ],
+    "validationMs": 20.029799999999998,
+    "constructionValidations": 4,
+    "finalizationMs": 7.3957,
+    "responsePayloadBytes": 452505,
+    "previewPayloadBytes": 254515,
+    "previewRawEstimateBytes": 219984,
+    "previewRetainedManagedBytes": 243600,
+    "civilizationStats": {
+      "attempts": 14,
+      "work": 8128,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 8,
+      "changedTerrain": 324,
+      "changedEdges": 99
+    },
+    "failures": [],
+    "operations": 37,
+    "fingerprint": "9FF560B9152EDCACB825A7E8C1D20AB4EF5E5B9A685F6AEBF8E6EEEE4AF075D8"
+  },
+  {
+    "name": "ArtificialIslands",
+    "width": 60,
+    "height": 50,
+    "code": "WLD1-60x50-X-1-Y-69-F0-W100-R0-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 44.2657,
+    "allocatedBytes": 30249608,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.1741,
+        "allocatedBytes": 277976
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 0.9975,
+        "allocatedBytes": 355896
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 0.9634,
+        "allocatedBytes": 356336
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 0.9477,
+        "allocatedBytes": 356352
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.4972,
+        "allocatedBytes": 991504
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 1.0393,
+        "allocatedBytes": 399296
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 29.1913,
+        "allocatedBytes": 21417944
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.3161,
+        "allocatedBytes": 508624
+      }
+    ],
+    "validationMs": 19.8496,
+    "constructionValidations": 4,
+    "finalizationMs": 6.8144,
+    "responsePayloadBytes": 448309,
+    "previewPayloadBytes": 267615,
+    "previewRawEstimateBytes": 228936,
+    "previewRetainedManagedBytes": 252384,
+    "civilizationStats": {
+      "attempts": 10,
+      "work": 8004,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 8,
+      "changedTerrain": 308,
+      "changedEdges": 99
+    },
+    "failures": [],
+    "operations": 37,
+    "fingerprint": "B524C45F275D9064D04AC5FC65187C29FAE71AE3BAC85D95CD3CD518913EAC29"
+  },
+  {
+    "name": "DenseWoodland",
+    "width": 60,
+    "height": 50,
+    "code": "WLD1-60x50-X-1-Y-69-F100-W0-R0-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 44.276,
+    "allocatedBytes": 30893408,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.1799,
+        "allocatedBytes": 277976
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 0.973,
+        "allocatedBytes": 355152
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 1.1939,
+        "allocatedBytes": 1137600
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 0.9421,
+        "allocatedBytes": 356344
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 0.9418,
+        "allocatedBytes": 356376
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 0.9787,
+        "allocatedBytes": 359544
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 29.7363,
+        "allocatedBytes": 21913640
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.2687,
+        "allocatedBytes": 488288
+      }
+    ],
+    "validationMs": 21.0029,
+    "constructionValidations": 4,
+    "finalizationMs": 7.1272,
+    "responsePayloadBytes": 431903,
+    "previewPayloadBytes": 250589,
+    "previewRawEstimateBytes": 219984,
+    "previewRetainedManagedBytes": 238360,
+    "civilizationStats": {
+      "attempts": 14,
+      "work": 8128,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 8,
+      "changedTerrain": 324,
+      "changedEdges": 99
+    },
+    "failures": [],
+    "operations": 37,
+    "fingerprint": "0F123F2C6DB926517AD5C8DCF34DB27B4588E30AE575501C4BD09BDE88EAA33E"
+  },
+  {
+    "name": "Mixed",
+    "width": 60,
+    "height": 50,
+    "code": "WLD1-60x50-X-1-Y-69-F40-W20-R30-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 43.511,
+    "allocatedBytes": 30252728,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.3908,
+        "allocatedBytes": 278968
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.1417,
+        "allocatedBytes": 473584
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 1.4694,
+        "allocatedBytes": 1136904
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 1.5079,
+        "allocatedBytes": 997992
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.2574,
+        "allocatedBytes": 590032
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 1.2953,
+        "allocatedBytes": 559448
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 26.7964,
+        "allocatedBytes": 20359648
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.5469,
+        "allocatedBytes": 588512
+      }
+    ],
+    "validationMs": 18.366799999999998,
+    "constructionValidations": 4,
+    "finalizationMs": 5.7596,
+    "responsePayloadBytes": 475910,
+    "previewPayloadBytes": 304600,
+    "previewRawEstimateBytes": 251024,
+    "previewRetainedManagedBytes": 275112,
+    "civilizationStats": {
+      "attempts": 15,
+      "work": 8113,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 6,
+      "changedTerrain": 246,
+      "changedEdges": 84
+    },
+    "failures": [],
+    "operations": 37,
+    "fingerprint": "9AC9F263B4E5590F4A409E3F86B66126C981C67CADAA3F8D4AED6E2401E8004B"
+  },
+  {
+    "name": "NarrowEdge",
+    "width": 21,
+    "height": 55,
+    "code": "WLD1-21x55-X-121-Y-1-F20-W10-R20-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000003DF",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 16.8625,
+    "allocatedBytes": 14265728,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 0.5522,
+        "allocatedBytes": 109232
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 0.5682,
+        "allocatedBytes": 237784
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 0.5585,
+        "allocatedBytes": 240680
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 0.8652,
+        "allocatedBytes": 549168
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 0.6452,
+        "allocatedBytes": 345152
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 0.7882,
+        "allocatedBytes": 380680
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 10.0035,
+        "allocatedBytes": 10026672
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 0.7019,
+        "allocatedBytes": 292688
+      }
+    ],
+    "validationMs": 5.6059,
+    "constructionValidations": 4,
+    "finalizationMs": 1.8729,
+    "responsePayloadBytes": 230282,
+    "previewPayloadBytes": 178521,
+    "previewRawEstimateBytes": 129216,
+    "previewRetainedManagedBytes": 148456,
+    "civilizationStats": {
+      "attempts": 18,
+      "work": 7557,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 2,
+      "changedTerrain": 207,
+      "changedEdges": 50
+    },
+    "failures": [],
+    "operations": 29,
+    "fingerprint": "D892C4663BEBC3C942C094A9628168AA40F1FB3EE8CAC3628CD5CB833930A429"
+  }
+]

@@ -91,6 +91,31 @@ public sealed class WorldGenerationIntegrationTests
     }
 
     [Fact]
+    public async Task CivilizedPreviewExportsFinalEdgesAndCapturedFurnitureToDesigner()
+    {
+        await using var host = await Host.Start();
+        var workspace = host.App.Services.GetRequiredService<ContentWorkspace>();
+        var table = TerrainRoster.Assemblies.Single(a => a.Id == "stone-floor-with-table") with { Name = "Captured village table" };
+        var saved = workspace.Save(new() { Assemblies = [table] }, workspace.Snapshot().Token);
+        var code = Code.Replace("30x24", "120x100").Replace("-S", "-E1-I2-B1111-C1-N2-V1-P2-S");
+        using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync()); var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        workspace.Clear(saved.Token);
+        var frames = result.GetProperty("preview").GetProperty("frames");
+        var civilization = frames.EnumerateArray().Single(f => f.GetProperty("stage").GetString() == "Civilization");
+        Assert.NotEmpty(civilization.GetProperty("sites").EnumerateArray());
+        Assert.NotEmpty(civilization.GetProperty("construction").EnumerateArray());
+        Assert.NotEmpty(civilization.GetProperty("changedEdges").EnumerateArray());
+        var definition = ScenarioDefinitionTransport.Decode(result.GetProperty("transport").GetString()!);
+        Assert.Equal(definition.Board.Edges.Count, frames[frames.GetArrayLength() - 1].GetProperty("edges").GetArrayLength());
+        Assert.Contains(GameEngine.CreateGame(definition).Physical.Board.TerrainTypes, t => t.Id == table.Id && t.Name == table.Name);
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = result.GetProperty("transport").GetString() });
+        imported.EnsureSuccessStatusCode(); Assert.Equal(ScenarioDefinitionJson.ToJson(definition), await imported.Content.ReadAsStringAsync());
+        using var validated = await host.Client.PostAsJsonAsync("/api/designer/validate", result.GetProperty("definition"));
+        Assert.True((await validated.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+    }
+
+    [Fact]
     public async Task WorkspaceTerrainIsResolvedAndCapturedWhileExistingGameStaysFrozen()
     {
         await using var host = await Host.Start();

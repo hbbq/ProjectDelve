@@ -567,6 +567,22 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 #world-generator-board .world-analysis-marker { position: absolute; inset: 23%; border: 2px solid white; border-radius: 50%; pointer-events: none; z-index: 4; }
 #world-generator-board .world-opportunity { border-color: #e196ff; border-radius: 0; }
 #world-generator-board .world-opportunity.world-entrance { box-shadow: 0 0 0 1px white; }
+.world-construction-tree { max-height: 260px; overflow: auto; border: 1px solid #586976; border-radius: 5px; padding: 8px; }
+.world-construction-node .world-construction-node { margin-left: 18px; border-left: 1px solid #586976; padding-left: 8px; }
+.world-construction-node button { text-align: left; margin: 2px 0; padding: 5px 8px; font-size: 12px; }
+.world-construction-node button[data-selected="true"] { outline: 2px solid #ffd34f; background: #47402b; }
+.world-construction-node summary { cursor: pointer; }
+.world-room-inspection { display: block; max-width: 100%; overflow-wrap: anywhere; }
+.world-civilization-summary { white-space: pre-line; }
+.world-generator-plan-overlays { min-width: 0; margin-top: 12px; padding: 10px; border: 1px solid #586976; border-radius: 5px; }
+#world-generator-board .world-edge-changed { box-shadow: 0 0 0 2px #ffd34f; z-index: 6; }
+#world-generator-board .world-edge-removed { background: transparent; outline: 1px dashed #ffd34f; }
+.world-plan-space { position: absolute; pointer-events: none; box-sizing: border-box; z-index: 4; border: 1px solid #79db9c90; background: #79db9c10; }
+.world-plan-building { border-color: #ffcf8fa0; background: #ffcf8f12; }
+.world-plan-room { border-color: #c9b0ffb0; background: #c9b0ff16; }
+.world-plan-usable { border-color: #79d7ff80; background: #79d7ff30; }
+.world-plan-portal { position: absolute; transform: translate(-50%, -50%); width: 7px; height: 7px; border: 1px solid white; border-radius: 50%; background: #202c38; z-index: 7; pointer-events: none; }
+.world-construction-bounds { position: absolute; box-sizing: border-box; outline: 2px dashed #ffe08c; z-index: 8; pointer-events: none; }
 #world-generator label[hidden] { display: none; }
 @media (max-width: 850px) {
   #world-generator { padding: 16px; }

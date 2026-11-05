@@ -1,0 +1,104 @@
+[
+  {
+    "name": "120x100-Grassland",
+    "image": "world-civilization-120x100-grassland.png",
+    "code": "WLD1-120x100-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-S123456789ABCDEF0",
+    "fingerprint": "6142C772267C55DB4038446ACF6B72A447677A438473F152BE4E0665DD484BCF",
+    "stats": {
+      "attempts": 8,
+      "work": 7338,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 5,
+      "changedTerrain": 194,
+      "changedEdges": 66
+    }
+  },
+  {
+    "name": "DenseWoodland",
+    "image": "world-civilization-densewoodland.png",
+    "code": "WLD1-60x50-X-1-Y-69-F100-W0-R0-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "fingerprint": "0F123F2C6DB926517AD5C8DCF34DB27B4588E30AE575501C4BD09BDE88EAA33E",
+    "stats": {
+      "attempts": 14,
+      "work": 8128,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 8,
+      "changedTerrain": 324,
+      "changedEdges": 99
+    }
+  },
+  {
+    "name": "ExcavatedRock",
+    "image": "world-civilization-excavatedrock.png",
+    "code": "WLD1-60x50-X-1-Y-69-F0-W0-R100-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "fingerprint": "9FF560B9152EDCACB825A7E8C1D20AB4EF5E5B9A685F6AEBF8E6EEEE4AF075D8",
+    "stats": {
+      "attempts": 14,
+      "work": 8128,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 8,
+      "changedTerrain": 324,
+      "changedEdges": 99
+    }
+  },
+  {
+    "name": "ArtificialIslands",
+    "image": "world-civilization-artificialislands.png",
+    "code": "WLD1-60x50-X-1-Y-69-F0-W100-R0-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "fingerprint": "B524C45F275D9064D04AC5FC65187C29FAE71AE3BAC85D95CD3CD518913EAC29",
+    "stats": {
+      "attempts": 10,
+      "work": 8004,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 8,
+      "changedTerrain": 308,
+      "changedEdges": 99
+    }
+  },
+  {
+    "name": "Mixed",
+    "image": "world-civilization-mixed.png",
+    "code": "WLD1-60x50-X-1-Y-69-F40-W20-R30-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000DE1FE",
+    "fingerprint": "9AC9F263B4E5590F4A409E3F86B66126C981C67CADAA3F8D4AED6E2401E8004B",
+    "stats": {
+      "attempts": 15,
+      "work": 8113,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 3,
+      "rooms": 6,
+      "changedTerrain": 246,
+      "changedEdges": 84
+    }
+  },
+  {
+    "name": "NarrowEdge",
+    "image": "world-civilization-narrowedge.png",
+    "code": "WLD1-21x55-X-121-Y-1-F20-W10-R20-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P3-S00000000000003DF",
+    "fingerprint": "D892C4663BEBC3C942C094A9628168AA40F1FB3EE8CAC3628CD5CB833930A429",
+    "stats": {
+      "attempts": 18,
+      "work": 7557,
+      "sites": 3,
+      "campsites": 2,
+      "settlements": 1,
+      "buildings": 2,
+      "rooms": 2,
+      "changedTerrain": 207,
+      "changedEdges": 50
+    }
+  }
+]

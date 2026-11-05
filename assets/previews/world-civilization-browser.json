@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-05",
+  "browser": "Microsoft Edge, protected repository dispatcher, disposable context",
+  "host": "Isolated port 5081, Debug build; existing 5080 preserved",
+  "measurement": "Synchronous DOM rebuild in performance.now; excludes request, layout completion and paint",
+  "checks": [
+    "50x50 nested disclosure and shared partition Door before/after at 24px zoom",
+    "50x50 mobile-width fit and export while inspecting an intermediate operation",
+    "Final accepted scenario opened in Designer and Engine-validated",
+    "120x120 Civilization sparse replay, stage switch, mobile fit and new-seed regeneration",
+    "No console errors or failed requests"
+  ],
+  "samples": [
+    { "board": "50x50", "operation": "Room connecting Doors after", "milliseconds": 64.7 },
+    { "board": "50x50", "operation": "Room connecting Doors before", "milliseconds": 62.8 },
+    { "board": "120x120", "operation": "Civilization subtree after", "milliseconds": 541.3 },
+    { "board": "120x120", "operation": "Civilization subtree before", "milliseconds": 544.3 },
+    { "board": "120x120", "operation": "Final stage, 600x850 viewport", "milliseconds": 556.2 }
+  ],
+  "limits": "Desktop machine at a mobile-width viewport, not physical mobile hardware. Renderer rebuild is noticeable at 14400 Cells. Three.js performance is separate."
+}

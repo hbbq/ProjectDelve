@@ -11,15 +11,18 @@ using ProjectDelve.Web;
 const int warmups = 3, samples = 7, lookupPasses = 3;
 string? fixtures = null;
 var enrichment = false;
+var civilization = false;
 for (var i = 0; i < args.Length; i++)
 {
     if (args[i] == "--enrichment") { enrichment = true; continue; }
+    if (args[i] == "--civilization") { civilization = true; continue; }
     if (args[i] != "--fixtures" || ++i == args.Length)
         throw new ArgumentException("Usage: WorldGenerationBenchmark [--fixtures directory]");
     fixtures = Path.GetFullPath(args[i]);
 }
 if (fixtures is not null) Directory.CreateDirectory(fixtures);
 if (enrichment) { EnrichmentInvestigation.Run(fixtures); return; }
+if (civilization) { CivilizationInvestigation.Run(fixtures); return; }
 var httpJson = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {
     Converters = { new JsonStringEnumConverter() }

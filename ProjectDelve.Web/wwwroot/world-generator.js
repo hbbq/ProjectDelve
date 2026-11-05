@@ -1,14 +1,17 @@
 import { GeneratorSession } from "./generator-state.js";
-import { worldConfigurationCode, worldConfigurationFromCode } from "./world-generator-state.js";
+import { worldConfigurationCode, worldConfigurationFromCode, constructionPreview, constructionRange } from "./world-generator-state.js";
 import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 
 const byId = id => document.getElementById(`world-generator-${id}`);
 const dialog = document.getElementById("world-generator");
 const enrichmentFields = ["enrichmentEnabled", "enrichmentIntensity", "forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"];
-const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields];
+const civilizationFields = ["civilizationEnabled", "campsiteCount", "settlementCount", "preparationIntensity"];
+const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields, ...civilizationFields];
 const session = new GeneratorSession();
 let presets = [], catalogPromise, maxBoardSize = 120;
 let selectedStage = 0, compareBefore = false;
+let selectedOperation = null, selectedSpace = null, traceFrame = null;
+const traceButtons = new Map();
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
 const signature = () => JSON.stringify(config());
 const status = message => { byId("status").textContent = message; };
@@ -45,9 +48,11 @@ byId("preset").addEventListener("change", () => {
   for (const [key, value] of Object.entries(preset.settings)) if (fields.includes(key)) byId(key).value = value;
   const enrichment = preset.enrichment ?? preset.settings.enrichment;
   if (enrichment) for (const [field, key] of [["enrichmentEnabled", "enabled"], ["enrichmentIntensity", "intensity"], ["forestEnrichment", "forest"], ["rockEnrichment", "rock"], ["waterEnrichment", "water"], ["grasslandEnrichment", "grassland"]]) byId(field).value = String(enrichment[key]);
+  const civilization = preset.civilization ?? preset.settings.civilization;
+  if (civilization) for (const [field, key] of [["civilizationEnabled", "enabled"], ["campsiteCount", "campsites"], ["settlementCount", "settlements"], ["preparationIntensity", "preparationIntensity"]]) byId(field).value = String(civilization[key]);
   changed();
 });
-for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields])
+for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields, ...civilizationFields])
   byId(field).addEventListener("change", () => { byId("preset").value = ""; });
 function randomSeed() {
   byId("seed").value = [...crypto.getRandomValues(new Uint32Array(2))].map(value => value.toString(16).padStart(8, "0")).join("").toUpperCase(); changed();
@@ -55,7 +60,8 @@ function randomSeed() {
 byId("load").addEventListener("click", () => {
   try {
     const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
-    for (const field of fields) byId(field).value = loaded[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
+    const defaults = { civilizationEnabled: "false", campsiteCount: "2", settlementCount: "1", preparationIntensity: "2" };
+    for (const field of fields) byId(field).value = loaded[field] ?? defaults[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
   } catch (error) { status(error.message); }
 });
@@ -63,6 +69,7 @@ async function generate() {
   let code;
   try { code = worldConfigurationCode(config(), true, maxBoardSize); } catch (error) { status(error.message); return; }
   const ticket = session.begin(signature()); status("Generating world terrain…");
+  selectedOperation = null; selectedSpace = null; traceFrame = null; compareBefore = false; byId("construction-tree").replaceChildren(); byId("construction").hidden = true;
   try {
     const response = await fetch("/api/world-generation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }), cache: "no-store" });
     const result = await response.json();
@@ -75,6 +82,7 @@ async function generate() {
     if (!byId("seed").value.trim()) byId("seed").value = worldConfigurationFromCode(result.code).seed;
     session.signature = signature();
     selectedStage = (result.preview?.frames.length ?? 1) - 1; compareBefore = false;
+    selectedOperation = null; selectedSpace = null; traceFrame = null;
     const select = byId("stage"); select.replaceChildren();
     for (const [index, frame] of (result.preview?.frames ?? []).entries()) {
       const option = document.createElement("option"); option.value = String(index); option.textContent = `${index + 1}. ${stageName(frame)}`; select.append(option);
@@ -96,6 +104,7 @@ function showStage(index) {
   const frames = session.result?.preview?.frames;
   if (!frames?.length) return;
   selectedStage = Math.max(0, Math.min(frames.length - 1, index));
+  selectedOperation = null; selectedSpace = null; traceFrame = null;
   if (selectedStage === 0) compareBefore = false;
   renderPreview();
 }
@@ -103,7 +112,7 @@ byId("stage").addEventListener("change", () => showStage(Number(byId("stage").va
 byId("previous").addEventListener("click", () => showStage(selectedStage - 1));
 byId("next").addEventListener("click", () => showStage(selectedStage + 1));
 byId("compare").addEventListener("click", () => { compareBefore = !compareBefore; renderPreview(); });
-for (const name of ["changed", "boundaries", "components", "opportunities"])
+for (const name of ["changed", "boundaries", "components", "opportunities", "sites", "buildings", "rooms", "usable", "site-entrances"])
   byId(name).addEventListener("change", () => { if (session.result) renderPreview(); });
 byId("designer").addEventListener("click", () => {
   if (!session.result) return;
@@ -124,9 +133,10 @@ function renderPreview() {
   const started = performance.now(), result = session.result, board = result.definition.board, root = byId("board");
   const { offsetX, offsetY } = result.window;
   const preview = result.preview, selected = preview?.frames[selectedStage];
-  const frame = selected && preview.frames[compareBefore ? Math.max(0, selectedStage - 1) : selectedStage];
+  const frame = selectedOperation ? constructionPreview(preview, selectedStage, selectedOperation, compareBefore, board.width)
+    : selected && preview.frames[compareBefore ? Math.max(0, selectedStage - 1) : selectedStage];
   const scroll = byId("board-wrap"), scrollLeft = scroll.scrollLeft, scrollTop = scroll.scrollTop;
-  const changed = new Set(selected?.changedCells ?? []), boundaries = new Set(preview?.boundaryCells ?? []);
+  const changed = new Set((selectedOperation ? frame : selected)?.changedCells ?? []), boundaries = new Set(preview?.boundaryCells ?? []);
   const chokepoints = new Set(frame?.chokepoints ?? []);
   const entrances = new Map(), opportunities = new Map();
   for (const entrance of frame?.entrances ?? []) for (const index of [entrance.insideIndex, entrance.outsideIndex]) {
@@ -155,8 +165,8 @@ function renderPreview() {
     node.dataset.worldX = worldX; node.dataset.worldY = worldY;
     applyBoardVisual(node, "terrain", display.kind, { seed: result.visualSeed, x: worldX, y: worldY, direction: tile.direction, terrain, assembly: display.assembly });
     if (frame) {
-      const index = y * board.width + x, component = frame.walkableComponents[index];
-      const formation = preview.formations[preview.formationLabels[index]];
+      const index = y * board.width + x, component = frame.walkableComponents?.[index] ?? -1;
+      const formation = preview.formations?.[preview.formationLabels?.[index]];
       if (byId("changed").checked && changed.has(index)) node.className += " world-changed";
       if (byId("boundaries").checked && boundaries.has(index)) node.className += " world-boundary";
       if (byId("components").checked && component >= 0) {
@@ -180,6 +190,9 @@ function renderPreview() {
     counts.set(display.name, (counts.get(display.name) ?? 0) + 1); fragment.append(node);
   }
   root.append(fragment);
+  renderEdges(root, frame?.edges ?? board.edges ?? [], (selectedOperation ? frame : selected)?.changedEdges ?? [], board.width, board.height);
+  renderPlanSpaces(root, selected, board.width, board.height);
+  renderConstruction(selected);
   zoomPreview();
   scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
   if (selected) {
@@ -188,7 +201,8 @@ function renderPreview() {
     byId("compare").disabled = selectedStage === 0; byId("compare").textContent = compareBefore ? "Before" : "After";
     byId("compare").setAttribute?.("aria-pressed", String(compareBefore));
     const d = frame.diagnostics;
-    byId("diagnostics").textContent = `${stageName(frame)} · ${compareBefore ? "Before" : "After"} · selected step changes ${selected.diagnostics.changedCells} · features added ${d.featuresAdded} · walkable ${d.walkableArea} · components ${d.componentCount} · largest ${d.largestComponentArea} · route searches ${d.routingSearches} · visited ${d.routingVisitedCells}`;
+    const operation = selected.construction?.find(operation => operation.id === selectedOperation);
+    byId("diagnostics").textContent = `${stageName(frame)} · ${compareBefore ? "Before" : "After"}${operation ? ` ${operation.name} · server analysis describes the accepted stage` : ""} · selected step changes ${changed.size} · features added ${d.featuresAdded} · walkable ${d.walkableArea} · components ${d.componentCount} · largest ${d.largestComponentArea} · route searches ${d.routingSearches} · visited ${d.routingVisitedCells}`;
     byId("inspection").textContent = "Hover or click a Cell to inspect server analysis. Overlays: gold changes, cyan formation boundaries, coloured components, red chokepoints, white entrances, purple opportunities.";
   }
   byId("complete").value = result.code;
@@ -197,5 +211,95 @@ function renderPreview() {
   const metrics = result.metrics, stageMetric = metrics?.stages?.find(stage => stage.stepId === frame?.stepId);
   byId("performance").textContent = `Rendered ${board.width * board.height} terrain Cells in ${elapsed} ms.${metrics ? ` Server frame stage ${stageMetric?.milliseconds?.toFixed(1) ?? "—"} ms / ${stageMetric?.allocatedBytes ?? "—"} allocated bytes; finalization ${metrics.finalizationMilliseconds.toFixed(1)} ms; preview raw data estimate ${metrics.retainedPreviewBytes} bytes.` : ""}`;
   byId("preview-content").hidden = false;
+}
+
+function renderEdges(root, edges, changes, width, height) {
+  const key = edge => `${edge.position.y * width + edge.position.x}:${edge.direction}`;
+  const changed = new Map(changes.map(change => [`${change.key.index}:${change.key.direction}`, change]));
+  const present = new Set();
+  const draw = (edge, removed = false) => {
+    const node = document.createElement("div"), id = key(edge), right = edge.direction === "Right";
+    node.className = `edge ${edge.kind}${byId("changed").checked && changed.has(id) ? " world-edge-changed" : ""}${removed ? " world-edge-removed" : ""}`;
+    node.dataset.edgeKey = id; node.title = `${edge.kind} (${edge.position.x},${edge.position.y}) ${edge.direction}`;
+    Object.assign(node.style, { left: `${(edge.position.x + (right ? 1 : .5)) / width * 100}%`, top: `${(edge.position.y + (right ? .5 : 1)) / height * 100}%`, width: right ? "4px" : `${100 / width}%`, height: right ? `${100 / height}%` : "4px" });
+    root.append(node);
+  };
+  for (const edge of edges) if (edge.kind !== "None") { present.add(key(edge)); draw(edge); }
+  if (byId("changed").checked) for (const [id, change] of changed) if (!present.has(id))
+    draw({ position: { x: change.key.index % width, y: Math.floor(change.key.index / width) }, direction: change.key.direction, kind: "None" }, true);
+}
+
+function renderConstruction(frame) {
+  const operations = frame?.construction ?? [], panel = byId("construction"); panel.hidden = !operations.length;
+  if (traceFrame !== frame) {
+    traceFrame = frame; traceButtons.clear(); const tree = byId("construction-tree"); tree.replaceChildren();
+    const parents = new Set(operations.map(operation => operation.parentId)), nodes = new Map();
+    for (const operation of operations) {
+      const container = document.createElement(parents.has(operation.id) ? "details" : "div");
+      container.dataset.traceId = operation.id;
+      container.dataset.traceIndex = String(nodes.size);
+      container.className = "world-construction-node"; container.open = operation.parentId === operations[0]?.parentId;
+      const heading = parents.has(operation.id) ? document.createElement("summary") : container;
+      const button = document.createElement("button"); button.type = "button"; button.textContent = operation.name;
+      button.dataset.operationId = operation.id; button.title = operation.id;
+      button.dataset.operationIndex = container.dataset.traceIndex;
+      button.addEventListener("click", event => { event?.preventDefault?.(); selectedOperation = operation.id; selectedSpace = null; compareBefore = false; renderPreview(); });
+      heading.append(button); if (heading !== container) container.append(heading);
+      (nodes.get(operation.parentId) ?? tree).append(container); nodes.set(operation.id, container); traceButtons.set(operation.id, button);
+    }
+    for (const site of frame?.sites ?? []) for (const building of site.buildings ?? []) for (const room of building.rooms ?? []) {
+      const layoutId = room.id.slice(0, room.id.lastIndexOf("/room-"));
+      const layout = operations.find(operation => operation.objectId === layoutId);
+      const button = document.createElement("button"); button.type = "button"; button.className = "world-room-inspection";
+      button.dataset.spaceId = room.id; button.textContent = `${room.id} · ${room.usable.area}/${room.interior.area} usable · ${room.portalIds.length} Doors · ${room.twoByTwoPlacements} 2 × 2 placements`;
+      button.addEventListener("click", () => { selectedSpace = room.id; selectedOperation = layout?.id ?? building.id; compareBefore = false; renderPreview(); });
+      (nodes.get(layout?.id) ?? nodes.get(building.id) ?? tree).append(button);
+    }
+  }
+  for (const [id, button] of traceButtons) { button.dataset.selected = String(id === selectedOperation); button.setAttribute?.("aria-pressed", String(id === selectedOperation)); }
+  const operation = operations.find(operation => operation.id === selectedOperation);
+  byId("construction-selection").textContent = operation ? `${selectedSpace ?? operation.id} · ${compareBefore ? "Before" : "After"} the complete ${selectedSpace ? "containing room layout" : "selected subtree"} · (${operation.bounds.x}, ${operation.bounds.y}), ${operation.bounds.width} × ${operation.bounds.height}` : "Choose a construction step. Parent steps inspect their complete subtree; Before shows its preceding checkpoint.";
+  const stats = frame?.civilizationStats;
+  const costs = (frame?.sites ?? []).map(site => `${site.id}: preparation ${site.preparation.cost}, trees ${site.preparation.treesRemoved}, rock ${site.preparation.rockExcavated}, Water ${site.preparation.waterFilled}`);
+  byId("civilization-summary").textContent = stats ? `${stats.sites} sites · ${stats.campsites} campsites · ${stats.settlements} settlements · ${stats.buildings} buildings · ${stats.rooms} rooms · ${stats.attempts} attempts · work ${stats.work} · terrain changes ${stats.changedTerrain} · Edge changes ${stats.changedEdges}${costs.length ? "\n" + costs.join("\n") : ""}` : "";
+  const failures = frame?.planningFailures ?? [], list = byId("planning-failures"); list.replaceChildren();
+  for (const failure of failures.slice(0, 24)) { const item = document.createElement("li"); item.textContent = `${failure.requestId} · ${failure.code}: ${failure.reason} (${failure.attempts} attempts)`; list.append(item); }
+  byId("planning-failure-panel").hidden = !failures.length;
+}
+
+function renderPlanSpaces(root, frame, width, height) {
+  const area = (value, objectId, kind, label) => {
+    for (const span of value?.spans ?? []) {
+      const node = document.createElement("div"); node.className = `world-plan-space world-plan-${kind}`;
+      node.dataset.objectId = objectId; node.dataset.areaId = value.id; node.dataset.spaceKind = kind; node.title = `${label}: ${objectId} · accepted plan space`;
+      Object.assign(node.style, { left: `${span.x / width * 100}%`, top: `${span.y / height * 100}%`, width: `${span.length / width * 100}%`, height: `${100 / height}%` }); root.append(node);
+    }
+  };
+  const portal = value => {
+    for (const index of [value.insideIndex, value.outsideIndex]) {
+      const node = document.createElement("span"); node.className = "world-plan-portal"; node.dataset.objectId = value.id;
+      node.title = `Accepted entrance ${value.id} · ${value.kind} · width ${value.width}`;
+      Object.assign(node.style, { left: `${(index % width + .5) / width * 100}%`, top: `${(Math.floor(index / width) + .5) / height * 100}%` }); root.append(node);
+    }
+  };
+  for (const site of frame?.sites ?? []) {
+    if (byId("sites").checked) area(site.footprint, site.id, "site", site.kind);
+    if (byId("usable").checked) area(site.exterior, site.id, "usable", "Exterior");
+    if (byId("site-entrances").checked) for (const entrance of site.entrances ?? []) portal(entrance);
+    for (const building of site.buildings ?? []) {
+      if (byId("buildings").checked) area(building.footprint, building.id, "building", "Building");
+      if (byId("site-entrances").checked) for (const entrance of building.portals ?? []) portal(entrance);
+      for (const room of building.rooms ?? []) {
+        if (byId("rooms").checked) area(room.interior, room.id, "room", room.purpose);
+        if (byId("usable").checked) area(room.usable, room.id, "usable", "Room usable space");
+      }
+    }
+  }
+  const selected = frame?.construction?.find(operation => operation.id === selectedOperation);
+  const room = (frame?.sites ?? []).flatMap(site => site.buildings ?? []).flatMap(building => building.rooms ?? []).find(room => room.id === selectedSpace);
+  if (selected || room) {
+    const node = document.createElement("div"), b = room?.interior.bounds ?? selected.bounds; node.className = "world-construction-bounds"; node.dataset.objectId = room?.id ?? selected.objectId;
+    Object.assign(node.style, { left: `${b.x / width * 100}%`, top: `${b.y / height * 100}%`, width: `${b.width / width * 100}%`, height: `${b.height / height * 100}%` }); root.append(node);
+  }
 }
 changed();

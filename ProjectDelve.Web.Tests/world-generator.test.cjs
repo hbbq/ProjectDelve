@@ -153,7 +153,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-S')); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-N2-V1-P2-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -222,7 +222,7 @@ test("performance labels distinguish finalization and follow the displayed compa
 test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
   const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
   assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),enriched);
-  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched);
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-N2-V1-P2-S'));
   assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
   h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
   for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
@@ -237,4 +237,97 @@ test("a maximum map with the bounded 24-frame preview renders stage changes and 
   h.click('previous');assert.equal(h.get('world-generator-stage').value,'22');
   h.click('preview');h.enter('forestCoverage','30');await h.accept(1,stagedResult(h));
   assert.equal(h.get('world-generator-stage').value,'22');assert.equal(h.get('world-generator-board').children.length,14400);
+});
+
+test("civilization suffixes round-trip independently and validate controls before generation", () => {
+  const h = harness();
+  for (const suffix of ['-C1-N2-V1-P2','-C0-N0-V0-P1','-E1-I3-B1111-C1-N8-V4-P3']) {
+    const complete = code.replace('-S',`${suffix}-S`);
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${complete}'))`,h.context),complete);
+    h.enter('code-input',complete); h.click('load');
+    assert.equal(h.get('world-generator-civilizationEnabled').value, suffix.includes('-C1-') ? 'true' : 'false');
+  }
+  for (const suffix of ['-C2-N2-V1-P2','-C1-N9-V1-P2','-C1-N2-V5-P2','-C1-N2-V1-P0'])
+    assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',`${suffix}-S`)}')`,h.context),/ordered WLD1/);
+  h.enter('campsiteCount','9'); h.click('preview'); assert.equal(h.requests.length,0); assert.match(h.get('world-generator-status').textContent,/campsiteCount/);
+});
+
+test("catalog civilization presets update only authored settings", async () => {
+  const h=harness(); h.opened.click();
+  await h.accept(0,{maxBoardSize:120,presets:[{id:'settled',name:'Settled',settings:{},civilization:{enabled:true,campsites:3,settlements:2,preparationIntensity:3}}]});
+  h.get('world-generator-preset').value='settled'; h.get('world-generator-preset').listeners.change(); h.click('preview');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-C1-N3-V2-P3');
+  assert.equal(h.get('world-generator-offsetX').value,'-8');
+});
+
+function constructionResult(h) {
+  const result=stagedResult(h,3), bounds={x:0,y:0,width:2,height:2}, root='test/site', building=root+'/building', layout=building+'/rooms';
+  const op=(id,parentId,name,terrainChanges=[],edgeChanges=[])=>({id,parentId,name,objectId:id,bounds,terrainChanges,edgeChanges});
+  const edge=(index,direction,before,after)=>({key:{index,direction},before,after});
+  const operations=[op(root,'test','Settlement'),op(root+'/prepare',root,'Prepare',[{index:0,before:'test-ground',after:'test-canopy'}]),
+    op(building,root,'Building'),op(layout,building,'Room layout'),
+    op(layout+'/walls',layout,'Partitions',[{index:1,before:'test-ground',after:'test-canopy'}],[edge(0,'Right','Wall','None')]),
+    op(layout+'/furniture',layout,'Furniture',[{index:0,before:'test-canopy',after:'test-ground'}],[edge(2,'Right','None','ClosedDoor')]),op(root+'/commit',root,'Ready')];
+  const area=(id,spans)=>({id,bounds,spans,area:spans.reduce((total,span)=>total+span.length,0)});
+  const footprint=area(root+'/footprint',[{y:0,x:0,length:2},{y:1,x:0,length:2}]);
+  const room={id:layout+'/room-0',purpose:'Room',interior:area(layout+'/interior',[{y:1,x:0,length:2}]),usable:area(layout+'/usable',[{y:1,x:0,length:1}]),portalIds:[building+'/door'],twoByTwoPlacements:0};
+  const portal={id:building+'/door',ownerId:building,insideIndex:2,outsideIndex:3,edge:{index:2,direction:'Right'},kind:'ClosedDoor',width:1};
+  const site={id:root,kind:'Settlement',footprint,exterior:area(root+'/exterior',[{y:0,x:0,length:2}]),entrances:[],buildings:[{id:building,footprint:room.interior,rooms:[room],portals:[portal]}],preparation:{cost:5,treesRemoved:1,rockExcavated:0,waterFilled:0}};
+  const wall={position:{x:0,y:0},direction:'Right',kind:'Wall'}, door={position:{x:0,y:1},direction:'Right',kind:'ClosedDoor'};
+  result.preview.frames[0]={...result.preview.frames[0],terrain:'AAAA',edges:[wall],construction:[],sites:[]};
+  for(const i of [1,2]) result.preview.frames[i]={...result.preview.frames[i],stage:i===1?'Civilization':'WalkabilityAnalysis',terrain:'ABAA',edges:[door],changedEdges:[edge(0,'Right','Wall','None'),edge(2,'Right','None','ClosedDoor')],construction:operations,sites:[site],planningFailures:[{requestId:'test/failure',code:'NoFootprint',reason:'No valid ground',attempts:4}],civilizationStats:{sites:1,campsites:0,settlements:1,buildings:1,rooms:1,attempts:6,work:40,changedTerrain:1,changedEdges:2}};
+  result.definition.board.edges=[door];
+  return result;
+}
+function descendants(node) { return [node,...node.children.flatMap(descendants)]; }
+function operation(h,id) { return descendants(h.get('world-generator-construction-tree')).find(node=>node.dataset.operationId===id); }
+
+test("nested construction replay restores terrain, deletes Edges and uses the first trace checkpoint on Final", async () => {
+  const h=harness(), result=constructionResult(h); h.click('preview'); await h.accept(0,result);
+  const frame=vm.runInContext(`constructionPreview(${JSON.stringify(result.preview)},2,'test/site/building/rooms',false,2)`,h.context);
+  assert.equal(frame.terrain,'ABAA'); assert.deepEqual(JSON.parse(JSON.stringify(frame.edges)),[{position:{x:0,y:1},direction:'Right',kind:'ClosedDoor'}]);
+  const before=vm.runInContext(`constructionPreview(${JSON.stringify(result.preview)},2,'test/site/building/rooms',true,2)`,h.context);
+  assert.equal(before.terrain,'BAAA'); assert.equal(before.edges[0].kind,'Wall');
+  assert.equal(JSON.stringify(vm.runInContext(`constructionRange(${JSON.stringify(result.preview.frames[2].construction)},'test/site/building')`,h.context)),JSON.stringify({start:2,end:6}));
+  operation(h,'test/site').click(); h.click('compare');
+  assert.equal(h.get('world-generator-board').children[0].className,'cell Gravel');
+  assert.ok(h.get('world-generator-board').children.some(node=>node.className==='edge Wall'));
+  h.click('compare');
+  assert.equal(h.get('world-generator-board').children[1].className,'cell Tree');
+  assert.ok(h.get('world-generator-board').children.some(node=>node.className==='edge ClosedDoor'));
+  h.click('export');h.click('designer');assert.equal(h.get('world-generator-transport').value,result.transport); assert.equal(JSON.stringify(h.designs[0]),JSON.stringify(result));
+});
+
+test("construction tree expands parents and shows server Room identities, quality and accepted spans", async () => {
+  const h=harness();h.click('preview');await h.accept(0,constructionResult(h));
+  assert.equal(h.get('world-generator-construction').hidden,false);
+  assert.ok(descendants(h.get('world-generator-construction-tree')).some(node=>node.open===true));
+  const room=descendants(h.get('world-generator-construction-tree')).find(node=>node.dataset.spaceId);
+  assert.match(room.textContent,/test\/site\/building\/rooms\/room-0.*1\/2 usable.*1 Doors/);room.click();
+  assert.match(h.get('world-generator-construction-selection').textContent,/room-0.*containing room layout/);
+  assert.ok(h.get('world-generator-board').children.some(node=>node.className==='world-construction-bounds'&&node.dataset.objectId.endsWith('/room-0')));
+  for(const name of ['sites','buildings','rooms','usable','site-entrances']) {h.get('world-generator-'+name).checked=true;h.get('world-generator-'+name).listeners.change();}
+  const overlays=h.get('world-generator-board').children;
+  assert.ok(overlays.some(node=>node.dataset.spaceKind==='site'&&node.dataset.objectId==='test/site'));
+  assert.ok(overlays.some(node=>node.dataset.spaceKind==='room'&&node.dataset.areaId.endsWith('/interior')));
+  assert.ok(overlays.some(node=>node.dataset.spaceKind==='usable'&&node.style.width==='50%'));
+  assert.ok(overlays.some(node=>node.className==='world-plan-portal'&&node.title.includes('ClosedDoor')));
+  assert.match(h.get('world-generator-civilization-summary').textContent,/1 settlements.*1 buildings.*1 rooms/);
+  assert.match(h.get('world-generator-civilization-summary').textContent,/preparation 5, trees 1/);
+  assert.match(h.get('world-generator-planning-failures').children[0].textContent,/NoFootprint: No valid ground/);
+});
+
+test("Edge-only frames, removal highlights and selection reset preserve navigation and zoom", async () => {
+  const h=harness(), result=constructionResult(h);result.preview.frames[1].terrain=result.preview.frames[0].terrain;
+  h.click('preview');await h.accept(0,result);
+  h.get('world-generator-changed').checked=true;h.get('world-generator-changed').listeners.change();
+  assert.ok(h.get('world-generator-board').children.some(node=>node.className.includes('world-edge-removed')));
+  operation(h,'test/site/building/rooms/walls').click();
+  h.get('world-generator-board-wrap').scrollLeft=45;h.get('world-generator-board-wrap').scrollTop=70;
+  h.get('world-generator-zoom').value='48';h.get('world-generator-zoom').listeners.change();
+  h.click('compare');assert.equal(h.get('world-generator-board-wrap').scrollTop,70);assert.equal(h.get('world-generator-board').style.width,'96px');
+  h.click('previous');assert.match(h.get('world-generator-construction-selection').textContent,/Choose a construction step/);
+  operation(h,'test/site').click();h.click('preview');assert.equal(h.get('world-generator-construction').hidden,true);assert.equal(h.get('world-generator-construction-tree').children.length,0);
+  await h.accept(1,result);assert.match(h.get('world-generator-construction-selection').textContent,/Choose a construction step/);
+  assert.equal(h.get('world-generator-stage').value,'2');
 });
