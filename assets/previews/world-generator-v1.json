@@ -1,0 +1,142 @@
+[
+  {
+    "name": "world-01-grassland-fine",
+    "preset": "Grassland",
+    "scale": "Fine",
+    "code": "WLD1-50x50-X0-Y0-F10-W4-R5-KFine-HLakes-S0000000000000001",
+    "fingerprint": "C3B97EAFE7B630708890BE1BAD4BDA3DF25A385B08016286E1736899E46A1E23",
+    "actualCoverage": {
+      "grass": 75.84,
+      "tree": 2.6,
+      "solid-rock": 0.8,
+      "dirt": 14.48,
+      "water": 6.28
+    }
+  },
+  {
+    "name": "world-02-grassland-broad",
+    "preset": "Grassland",
+    "scale": "Broad",
+    "code": "WLD1-50x50-X0-Y0-F10-W4-R5-KBroad-HLakes-S000000000000002A",
+    "fingerprint": "77A4F5F4BD18F9BAE406A5F70EC2CA557CD38BCBE7DF5C27671B897DF2E98C2F",
+    "actualCoverage": {
+      "grass": 80.8,
+      "solid-rock": 0.36,
+      "water": 9.36,
+      "tree": 3.92,
+      "dirt": 5.56
+    }
+  },
+  {
+    "name": "world-03-woodland-balanced",
+    "preset": "Woodland",
+    "scale": "Balanced",
+    "code": "WLD1-50x50-X0-Y0-F60-W8-R8-KBalanced-HAuto-S0000000000000002",
+    "fingerprint": "BCA402E71574FAA0F86D952C0C0A9A1DD3C1DFD2DCAF5DF6111D119538FE49ED",
+    "actualCoverage": {
+      "tree": 53.72,
+      "grass": 30.88,
+      "solid-rock": 4.16,
+      "dirt": 2.44,
+      "water": 8.8
+    }
+  },
+  {
+    "name": "world-04-woodland-broad",
+    "preset": "Woodland",
+    "scale": "Broad",
+    "code": "WLD1-50x50-X0-Y0-F60-W8-R8-KBroad-HAuto-S000000000000002A",
+    "fingerprint": "A31185F8FDCE97A5639AC1045BACBA3100FA61107ECA19E2BD221CBF186602DF",
+    "actualCoverage": {
+      "grass": 44.68,
+      "solid-rock": 6.04,
+      "water": 10.04,
+      "tree": 35.48,
+      "dirt": 3.76
+    }
+  },
+  {
+    "name": "world-05-lakecountry-balanced",
+    "preset": "LakeCountry",
+    "scale": "Balanced",
+    "code": "WLD1-50x50-X0-Y0-F25-W30-R10-KBalanced-HLakes-S0000000000003039",
+    "fingerprint": "3E1F2E92D90417D0906EBC22C008A692C661C4E1076DB0C6CB3BC226ABE8E437",
+    "actualCoverage": {
+      "dirt": 4.28,
+      "grass": 14.04,
+      "water": 48.6,
+      "tree": 22.64,
+      "solid-rock": 10.44
+    }
+  },
+  {
+    "name": "world-06-lakecountry-broad",
+    "preset": "LakeCountry",
+    "scale": "Broad",
+    "code": "WLD1-50x50-X0-Y0-F25-W30-R10-KBroad-HLakes-S0000000000000003",
+    "fingerprint": "DDAE33A7EAF3B7BBF4A99DAC5A7584D711A7A762F364BDA8FA2E6C831D203EC3",
+    "actualCoverage": {
+      "tree": 37.24,
+      "water": 22.52,
+      "grass": 22.72,
+      "dirt": 11,
+      "solid-rock": 6.52
+    }
+  },
+  {
+    "name": "world-07-rivervalley-fine",
+    "preset": "RiverValley",
+    "scale": "Fine",
+    "code": "WLD1-50x50-X0-Y0-F25-W15-R10-KFine-HRiver-S000000000000002A",
+    "fingerprint": "8666EAAC1EAE581CB0454FDE9458F83F8ED75A7CCEEB9E35B16E2A43B7E02C9A",
+    "actualCoverage": {
+      "grass": 36.16,
+      "water": 11.16,
+      "tree": 29.64,
+      "solid-rock": 14.28,
+      "dirt": 8.76
+    }
+  },
+  {
+    "name": "world-08-rivervalley-broad",
+    "preset": "RiverValley",
+    "scale": "Broad",
+    "code": "WLD1-50x50-X0-Y0-F25-W15-R10-KBroad-HRiver-S0000000000003039",
+    "fingerprint": "64E32AE825E5E30C83784552937E660D0C94B0B0F23EF7A6C2CC94EE05D0BCFF",
+    "actualCoverage": {
+      "dirt": 6.04,
+      "grass": 22.96,
+      "solid-rock": 9.88,
+      "water": 9.88,
+      "tree": 51.24
+    }
+  },
+  {
+    "name": "world-09-rockywilds-balanced",
+    "preset": "RockyWilds",
+    "scale": "Balanced",
+    "code": "WLD1-50x50-X0-Y0-F15-W8-R50-KBalanced-HMixed-S0000000000000003",
+    "fingerprint": "1F2D27B42E10C7A39F9CD18F8032798ECABDD7B8C3A906E47ECEA9EF550B827B",
+    "actualCoverage": {
+      "solid-rock": 45.92,
+      "dirt": 7.64,
+      "grass": 27.36,
+      "tree": 12.64,
+      "water": 6.44
+    }
+  },
+  {
+    "name": "world-10-rockywilds-broad",
+    "preset": "RockyWilds",
+    "scale": "Broad",
+    "code": "WLD1-50x50-X0-Y0-F15-W8-R50-KBroad-HMixed-S000000000000002A",
+    "fingerprint": "60443956FE582D5CFA646FBDA582BA04CD25A675F07F02C6D444CBA4FE985F02",
+    "actualCoverage": {
+      "grass": 51.28,
+      "solid-rock": 26.08,
+      "tree": 6.6,
+      "water": 12.24,
+      "dirt": 3.8
+    }
+  }
+]

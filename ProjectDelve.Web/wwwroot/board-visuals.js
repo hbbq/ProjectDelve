@@ -20,6 +20,8 @@ export const boardVisuals = {
         { image: "./art/terrain/grass/02.webp" },
         { image: "./art/terrain/grass/03.webp" }
       ] },
+    Dirt: { rotation: true, fill: "#806344", detail: "radial-gradient(ellipse, #a38c6130, transparent)",
+      variants: [1, 2, 3].map(i => ({ image: `./art/terrain/dirt/0${i}.webp` })) },
     Tree: { baseTerrain: "Grass", object: { rotation: true,
       variants: [1, 2, 3].map(i => ({ image: `./art/terrain/objects/tree/0${i}.webp` })) }, fill: "#244737", detail: "radial-gradient(ellipse at 40% 40%, #638452 0 18%, #355b37 20% 43%, transparent 46%), radial-gradient(ellipse at 60% 60%, #436b40 0 38%, transparent 42%)" },
     FruitTree: { baseTerrain: "Grass", object: { rotation: true,

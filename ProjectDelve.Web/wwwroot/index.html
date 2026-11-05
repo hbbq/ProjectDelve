@@ -19,6 +19,7 @@
   <script type="module" src="app.js"></script>
   <script type="module" src="designer.js"></script>
   <script type="module" src="generator.js"></script>
+  <script type="module" src="world-generator.js"></script>
   <script type="module" src="player-shell.js"></script>
 </head>
 <body>
@@ -30,6 +31,7 @@
     <button id="mode-designer" aria-pressed="false">Designer</button>
     <button id="mode-content" aria-pressed="false">Content</button>
     <button id="open-generator" data-open-generator>Dungeon generator</button>
+    <button id="open-world-generator" data-open-world-generator>World Generator</button>
   </nav>
   </header>
   <main id="library-main" aria-label="Campaigns and scenarios">
@@ -50,6 +52,7 @@
           <button id="start-scenario" disabled>Start selected</button>
           <button id="restart-scenario" disabled>Restart current</button>
           <button data-open-generator>Generate dungeon</button>
+          <button data-open-world-generator>Generate world terrain</button>
         </div>
         <div id="side-controllers" class="toolbar" aria-label="Controllers for selected scenario Sides"></div>
         <p class="legend">Assign each Unit Type + Side before starting or restarting. Side defaults are shortcuts; Gambit assignments must stay on one Side. Gambit dice and sole legal choices resolve automatically.</p>
@@ -317,5 +320,46 @@
     </div>
   </dialog>
   <footer><span>Project Delve · A world at your table</span><span>One shared game per host. Browsing keeps it running; starting another scenario replaces it.</span></footer>
+  <dialog id="world-generator" aria-labelledby="world-generator-heading">
+    <div class="generator-heading"><div><span class="designer-eyebrow">TERRAIN WORKSHOP</span><h2 id="world-generator-heading">World Generator</h2></div><button id="world-generator-close" type="button">Close</button></div>
+    <p class="world-generator-intro">Generate a window of continuous world terrain. Terrain only · awaiting scenario authoring.</p>
+    <div class="world-generator-layout">
+      <section class="world-generator-controls" aria-label="World terrain configuration">
+        <label>Terrain preset <select id="world-generator-preset"><option value="">Custom settings</option></select></label>
+        <div class="world-generator-fields">
+          <label>Width <input id="world-generator-width" type="number" min="1" max="50" value="30"></label>
+          <label>Height <input id="world-generator-height" type="number" min="1" max="50" value="24"></label>
+          <label>World offset X <input id="world-generator-offsetX" type="number" min="-2147483648" max="2147483647" value="0"></label>
+          <label>World offset Y <input id="world-generator-offsetY" type="number" min="-2147483648" max="2147483647" value="0"></label>
+          <label>Forest coverage % <input id="world-generator-forestCoverage" type="number" min="0" max="100" value="35"></label>
+          <label>Water coverage % <input id="world-generator-waterCoverage" type="number" min="0" max="100" value="20"></label>
+          <label>Rock coverage % <input id="world-generator-rockCoverage" type="number" min="0" max="100" value="15"></label>
+          <label>Terrain scale <select id="world-generator-scale"><option>Fine</option><option selected>Balanced</option><option>Broad</option></select></label>
+          <label>Water form <select id="world-generator-waterForm"><option>Auto</option><option>Lakes</option><option>River</option><option>Mixed</option></select></label>
+        </div>
+        <small>Dimensions 1–50. Offsets locate this window in the world. Coverage totals must be at most 100%; local terrain proportions vary by window.</small>
+        <label>Seed · optional 16 hexadecimal digits <input id="world-generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" autocomplete="off" spellcheck="false"></label>
+        <div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div>
+        <details><summary>World recipe code</summary>
+          <label>Load a recipe or completed code <textarea id="world-generator-code-input" rows="3" spellcheck="false" placeholder="WLD1-30x24-X0-Y0-F35-W20-R15-KBalanced-HAuto"></textarea></label>
+          <button id="world-generator-load">Load World Code</button>
+          <label>Current configuration prefix <textarea id="world-generator-prefix" rows="3" readonly spellcheck="false"></textarea></label>
+        </details>
+      </section>
+      <section class="world-generator-result" aria-label="World terrain preview">
+        <p id="world-generator-status" role="status" aria-live="polite"></p>
+        <div id="world-generator-preview-content" hidden>
+          <div class="toolbar"><strong>Terrain only · awaiting scenario authoring</strong><label>View <select id="world-generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label></div>
+          <p id="world-generator-preview-summary" class="legend"></p>
+          <div class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world terrain window"></div></div>
+          <p id="world-generator-performance" class="legend"></p>
+          <label>Completed code for this preview <textarea id="world-generator-complete" rows="3" readonly spellcheck="false"></textarea></label>
+          <div class="generator-actions"><button id="world-generator-copy-complete">Copy Completed Code</button><button id="world-generator-designer">Open in Designer</button><button id="world-generator-export">Export DELVE1</button></div>
+          <label id="world-generator-export-label" hidden>Exact terrain · DELVE1 <textarea id="world-generator-transport" rows="4" readonly spellcheck="false"></textarea></label>
+          <p class="legend">Add Units, Sides and Objectives in Designer to make a playable scenario. A world code is a recipe; DELVE1 preserves the exact terrain.</p>
+        </div>
+      </section>
+    </div>
+  </dialog>
 </body>
 </html>

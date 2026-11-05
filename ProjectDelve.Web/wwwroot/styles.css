@@ -535,3 +535,28 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .cell.Unknown { background: #171e29; color: #718296; border-color: #283344; }
 .cell.Unknown .terrain-label { color: #718296; font-size: 1.1em; }
 .cell.Unknown .cell-coordinates { color: #718296; }
+
+/* World authoring is separate from dungeon generation and gameplay. */
+.cell.Dirt { background: #806344; color: #f0ddbc; }
+#world-generator { width: min(1440px, 96vw); max-width: 96vw; max-height: 94dvh; box-sizing: border-box; overflow: auto; padding: 24px; border: 1px solid #586976; border-radius: 14px; background: #19232d; color: #e3e8ed; }
+#world-generator::backdrop { background: #080d16c9; }
+.world-generator-intro { color: #b7c7ba; line-height: 1.5; }
+.world-generator-layout { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.world-generator-controls { display: grid; gap: 12px; }
+.world-generator-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#world-generator label { display: grid; gap: 5px; min-width: 0; }
+#world-generator input, #world-generator select, #world-generator textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+#world-generator input, #world-generator textarea { background: var(--ui-control); color: var(--ui-text); border: 1px solid var(--ui-control-border); border-radius: 4px; padding: 8px; font: inherit; }
+#world-generator textarea, #world-generator-seed { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+#world-generator details > label { margin: 12px 0; }
+#world-generator small, #world-generator .legend { color: #a9bac8; line-height: 1.5; overflow-wrap: anywhere; }
+#world-generator-status { margin-top: 0; border-left: 3px solid #91ba91; padding: 12px; background: #91ba9110; line-height: 1.5; overflow-wrap: anywhere; }
+.world-generator-result { min-width: 0; }
+.world-generator-board-wrap { padding: 4px; margin: 12px 0; background: #101820; border-radius: 5px; }
+#world-generator-board { min-width: 0; width: min(100%, calc(65dvh * var(--world-board-ratio, 1))); margin-inline: auto; }
+#world-generator-board .cell { border-width: .5px; }
+#world-generator label[hidden] { display: none; }
+@media (max-width: 850px) {
+  #world-generator { padding: 16px; }
+  .world-generator-layout { grid-template-columns: 1fr; gap: 18px; }
+}

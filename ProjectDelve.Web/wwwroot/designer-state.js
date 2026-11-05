@@ -280,7 +280,7 @@ export class DesignerDraft {
     const reference = this.terrainSelectionAt(cell), definition = this.terrainDefinitionAt(cell);
     const recipe = (definition?.legacyKind ? definition.presentation?.recipe : this.terrainSurfaceAt(cell)?.presentation?.recipe)
       ?? definition?.presentation?.recipe ?? reference;
-    return this.catalog.terrains.includes(recipe) ? recipe : 'custom-terrain';
+    return this.catalog.terrains.includes(recipe) || this.catalog.terrainPresentationRecipes?.includes(recipe) ? recipe : 'custom-terrain';
   }
   terrainSurfaceAt(cell) {
     const definition = this.terrainDefinitionAt(cell);

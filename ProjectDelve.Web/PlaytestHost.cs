@@ -66,6 +66,7 @@ public static class PlaytestHost
         LibraryApi.Map(app);
         LibraryCoverApi.Map(app);
         GenerationApi.Map(app);
+        WorldGenerationApi.Map(app);
         app.MapGet("/api/game", (PlaytestGame game, HttpContext context) =>
         {
             context.Response.Headers.CacheControl = "no-store";

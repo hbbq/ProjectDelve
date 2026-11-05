@@ -31,7 +31,7 @@ ASSETS = [
                    "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
                    "royal-queen", "witch-queen", "royal-king", "goblin-king")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
-      for name in ("stone-floor", "grass", "water", "lava", "gravel", "asphalt", "solid-rock") for i in range(1, 4)],
+      for name in ("stone-floor", "grass", "dirt", "water", "lava", "gravel", "asphalt", "solid-rock") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)
       for name in ("tree", "table", "fruit-tree") for i in range(1, 4)],
     *[(f"resources/{name}.png", f"resources/{name}.webp", 128) for name in ("coal", "diamond", "fruit", "banana", "mushroom", "shell")],

@@ -6,6 +6,21 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test("world handoff keeps terrain-only content, title, recipe and portable Dirt presentation", () => {
+  const h = harness();
+  const result = {title:'Generated world terrain',code:'WLD1-2x2-X-8-Y12-F0-W0-R0-KFine-HLakes-S000000000000002A',definition:{
+    board:{width:2,height:2,defaultTerrain:'Grass',cells:[{position:{x:1,y:1},terrainTypeId:'dirt'}],edges:[]},
+    unitTypeIds:[],units:[],agency:[],loot:{composition:[]},
+    terrainTypes:[{id:'dirt',name:'Captured Dirt',passable:true,blocksLos:false,presentation:{recipe:'Dirt'}}]}};
+  h.context.generatedWorld=result;
+  assert.equal(h.run('delveOpenGenerated(generatedWorld)'),true);
+  assert.deepEqual(plain(h.editor.draft.snapshot()),result.definition);
+  assert.equal(h.editor.ui.title.value,'Generated world terrain');
+  assert.equal(h.editor.documentData().generationSource.code,result.code);
+  assert.equal(h.editor.draft.terrainRecipeAt({x:1,y:1}),'Dirt');
+  assert.equal(h.cell(1,1).className,'cell Dirt');
+});
+
 test("generated Designer transfer preserves the exact definition and identifies later edits through recovery", () => {
   const storage = memoryStorage(), h = harness(undefined, undefined, storage);
   const result = { code:"DNG1-HVM-30x20-R8-E2-C2-D2-N2-L3-OR2-F1-S0123456789ABCDEF", definition:structuredClone(designerSetup) };
@@ -382,6 +397,7 @@ function harness(request = async () => ({ valid: true, errors: [] }), play = asy
   const context = vm.createContext({ document, catalog, request, play, projectMetadata, structuredClone, localStorage: storage, navigator: { clipboard: { writeText: async () => {} } } });
   vm.runInContext(source("designer-state.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("side-colors.js").replace(/^export /gm, ""), context);
+  vm.runInContext(source("board-visuals.js").replace(/^export /gm, ""), context);
   vm.runInContext(source("designer.js").replace(/^import .*\r?\n/gm, "").replace(/^export /gm, "").replace(/startDesigner\(\);\s*$/, ""), context);
   vm.runInContext("globalThis.editor = mountDesigner(catalog, request, play, projectMetadata)", context);
   const editor = context.editor;

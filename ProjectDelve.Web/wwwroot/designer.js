@@ -1,6 +1,7 @@
 import { DesignerDraft, DesignerRequests, DesignerHistory, draftDocument, readDraftDocument, draftStorageKey, sameCell } from "./designer-state.js";
 import { styleSide } from "./side-colors.js";
 import { prepareCover } from "./cover-upload.js";
+import { boardVisuals } from "./board-visuals.js";
 
 const element = (tag, value = "") => {
   const node = document.createElement(tag); node.textContent = value;
@@ -31,6 +32,9 @@ function globalField(form, label, value, { entries, type = "text", list } = {}) 
 
 // A renderer for drafts, deliberately separate from GameState, choices and event playback.
 export function mountDesigner(catalog, request, playDesign, projectMetadata = body => request("metadata", body)) {
+  // Presentation support belongs to the renderer, independent of Workspace
+  // changes or the content provider captured by an imported scenario.
+  catalog = { ...catalog, terrainPresentationRecipes: Object.keys(boardVisuals.terrain).filter(recipe => !["Unknown", "default"].includes(recipe)) };
   const ids = ["main", "board", "board-form", "world-form", "world-enabled", "world-draws", "world-cycling", "width", "height", "default", "tools", "terrain", "edge", "type", "side", "controller",
     "terrain-label", "edge-label", "unit-brush", "machine-label", "machine-type", "help", "hover", "status", "errors", "properties", "order", "declare-form", "declare-type",
     "rail-direction", "side-settings", "agency", "routes", "agency-form", "agency-type", "agency-side", "agency-controller", "placements", "sides", "unit-ids", "transport", "validate", "export", "play", "import", "copy",
@@ -1432,7 +1436,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   if (typeof fetch === "function") refreshLibrary();
   globalThis.delveOpenGenerated = result => {
     if (!canReplace()) return false;
-    const doc = draftDocument(result.definition, result.code.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon");
+    const doc = draftDocument(result.definition, result.title ?? (result.code.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon"));
     doc.generationSource = { code: result.code, definitionJson: JSON.stringify(result.definition) };
     loadDocument(JSON.stringify(doc)); setMode(true); return true;
   };

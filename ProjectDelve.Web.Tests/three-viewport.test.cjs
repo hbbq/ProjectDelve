@@ -8,6 +8,23 @@ const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelv
 const componentAssembly=(surface,recipe,quarterTurns=null)=>({surface:{presentation:{recipe:surface}},
   components:[{slot:'furniture',definition:{id:`fixture-${recipe}`,name:recipe,presentation:{recipe,layer:'Object'}},quarterTurns}]});
 
+test('canonical Dirt uses its shared surface recipe in flat and Tabletop rendering',async()=>{
+  const f=fixture(),board=f.state.physical.board;
+  board.terrainTypes=[{id:'dirt',name:'Dirt',passable:true,blocksLos:false,presentation:{recipe:'Dirt'}},
+    {id:'stone-floor',name:'Stone Floor',legacyKind:'StoneFloor',presentation:{recipe:'StoneFloor'}}];
+  board.terrain=[{position:{x:0,y:0},typeId:'dirt'}];
+  const {observedTerrain}=await moduleAt('three-viewport.js');
+  assert.equal(observedTerrain(f).kindAt(0,0),'Dirt');
+  const h=await harness(f);try{
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.settle();h.flush();
+      const terrain=h.rendered.at(-1).scene.getObjectByName('terrain');
+      assert.ok(terrain.children.some(mesh=>mesh.count>0));
+      assert.deepEqual(h.failures,[]);
+    }
+  }finally{h.cleanup();}
+});
+
 test('an assembly consumes only the printed surface of a borrowed combined visual recipe',async()=>{
   const f=fixture(),board=f.state.physical.board;
   board.terrainTypes=['Tree','StoneFloorWithTable','Rail','SolidRock'].map((recipe,i)=>({id:`printed-${i}`,name:`Printed ${recipe}`,

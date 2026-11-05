@@ -25,6 +25,7 @@ public static class TerrainRoster
         return
         [
             grass,
+            new("dirt", "Dirt", true, false) { Presentation = new("Dirt") },
             tree,
             Define("water", "Water", false, false, TerrainKind.Water),
             floor,
