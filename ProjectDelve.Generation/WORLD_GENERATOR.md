@@ -1,4 +1,4 @@
-# World Generator V1
+# World Generator
 
 World Generator is an authoring pipeline separate from DNG1-HVM and DNG2-OS.
 Open **World Generator** in the browser, choose a preset or explicit settings,
@@ -25,7 +25,7 @@ limits, payload budgets, verification and remaining costs.
 ## Recipes and controls
 
 ```
-WLD1-30x24-X-25-Y-12-F25-W15-R10-KBalanced-HRiver-S0000000000003039
+WLD1-30x24-X-25-Y-12-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S0000000000003039
 ```
 
 This selects a 30 by 24 rectangle starting at (-25, -12), with forest/water/rock
@@ -34,6 +34,14 @@ Fields are strict and ordered. `K` accepts Fine, Balanced or Broad. `H` accepts
 Auto, Lakes, River or Mixed. Coverage values are integers from zero to 100 and
 must total at most 100. Coverage controls approximate landscape-wide density;
 a particular crop may have more, less or none of a requested terrain.
+
+The optional enrichment suffix is `-E0/1-I1/2/3-Bffff`: E enables enrichment,
+I is low/medium/high intensity, and the four B bits enable Forest, Rock, Water
+and Grassland respectively. For example `-E1-I2-B1010` enables Forest and Water.
+All effective values are encoded, independent of presets. Omitting the suffix
+selects Natural Terrain only. The World Generator remains WLD1 under the current
+development contract; DNG1/DNG2 recipe interpretation and deterministic outputs
+are unchanged. Preserve concrete maps with DELVE1.
 
 Omitting `-S` creates a seed once and returns a completed recipe. The browser
 retains that seed when changing window offsets. Generate Another selects a new
@@ -46,6 +54,14 @@ Loading a recipe changes controls without regenerating. Editing controls retains
 the last preview and marks it outdated until another preview is requested.
 Preview zoom offers Fit window or 12/24/48 pixels per Cell with scrolling, without
 regenerating terrain or rebuilding the preview. Designer has its own board zoom.
+
+Preview runs the ordered recipe immediately and retains bounded stage frames.
+Select a stage or use Previous/Next; Before shows its preceding frame. Optional
+overlays show changed Cells, original formation boundaries, current walkable
+components/chokepoints, entrances and opportunities. Hover or click a Cell for
+details. Export and Designer always use the final result, regardless of the
+inspection frame. See [Terrain analysis and enrichment](TERRAIN_ENRICHMENT.md)
+for architecture, evaluation, performance and limitations.
 
 ## Sampling and composition
 
@@ -72,10 +88,13 @@ provider. Canonical, Workspace and Scenario-local content retain their establish
 resolution and export boundaries. The Web fingerprint hashes the exact captured
 scenario JSON, including embeddable Workspace definitions.
 
-Future seamless modifiers can compose over immutable preceding global layers;
-future local structures/encounters can modify materialized output. V1 adds no
-stage registry, generic framework, region generation, streaming or world runtime.
-Changing WLD1's terrain output requires a new recipe algorithm version.
+`WorldGenerationPlan` executes explicit typed steps with stable IDs and validated
+dependencies. The default sequence is Natural Terrain, Terrain Analysis, enabled
+Forest/Rock/Water/Grassland steps, then Post-Enrichment Analysis. Natural Terrain
+remains GlobalSeamless; enrichment is WindowLocal and may differ between crops.
+Original samples/formations remain available as provenance. Timings and allocation
+measurements are separate from reproducible diagnostics. There is no plugin
+registry, external recipe DSL, streaming or persistent world runtime.
 
 ## Dirt and appearance
 
@@ -102,7 +121,7 @@ Ordinary imported/test scenarios keep their established board-scoped appearance
 seed and may use different texture variants or rotations. No running snapshot
 format or ordinary-scenario appearance lifecycle changed.
 
-## Visual gallery
+## Original Natural Terrain visual gallery
 
 [Ten fixed-seed Edge previews](../assets/previews/world-generator-v1.png) cover
 all five presets and all three scales. The [recipe/coverage manifest](../assets/previews/world-generator-v1.json)
@@ -157,7 +176,7 @@ Reproduce the detached measurements from the repository root:
 dotnet run --project tools/WorldGenerationBenchmark -c Release --artifacts-path .playwright-cli
 ```
 
-## Verification
+## Original Natural Terrain milestone verification
 
 Focused tests cover recipes, fixed output, partitions/overlaps, negative and
 extreme signed coordinates, dense feature discovery, sparse river connectivity,

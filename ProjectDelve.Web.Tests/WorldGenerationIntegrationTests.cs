@@ -45,6 +45,31 @@ public sealed class WorldGenerationIntegrationTests
     }
 
     [Fact]
+    public async Task StageFramesAreDeterministicAndFinalExportRemainsAuthoritative()
+    {
+        await using var host = await Host.Start();
+        var code = Code.Replace("-S", "-E1-I2-B1111-S");
+        using var first = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        first.EnsureSuccessStatusCode();
+        var a = await first.Content.ReadFromJsonAsync<JsonElement>();
+        using var second = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        second.EnsureSuccessStatusCode();
+        var b = await second.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(a.GetProperty("preview").GetRawText(), b.GetProperty("preview").GetRawText());
+        Assert.Equal(a.GetProperty("diagnostics").GetRawText(), b.GetProperty("diagnostics").GetRawText());
+        var preview = a.GetProperty("preview"); var frames = preview.GetProperty("frames");
+        Assert.Equal("natural", frames[0].GetProperty("stepId").GetString());
+        Assert.Equal("current", frames[frames.GetArrayLength() - 1].GetProperty("stepId").GetString());
+        foreach (var frame in frames.EnumerateArray()) Assert.Equal(720, frame.GetProperty("terrain").GetString()!.Length);
+        var final = frames[frames.GetArrayLength() - 1].GetProperty("terrain").GetString()!;
+        var palette = preview.GetProperty("terrainPalette").Deserialize<string[]>()!;
+        var definition = ScenarioDefinitionTransport.Decode(a.GetProperty("transport").GetString()!);
+        var overrides = definition.Board.Cells.ToDictionary(c => c.Position, c => c.TerrainTypeId);
+        for (var i = 0; i < final.Length; i++) Assert.Equal(palette[final[i] - 'A'], overrides.GetValueOrDefault(new(i % 30, i / 30), "grass"));
+        Assert.True(a.GetProperty("metrics").GetProperty("retainedPreviewBytes").GetInt64() < 4_000_000);
+    }
+
+    [Fact]
     public async Task CatalogAndSeedCompletionAndHostLimitUseSeparateWorldContract()
     {
         await using var host = await Host.Start();

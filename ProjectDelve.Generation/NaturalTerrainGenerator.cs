@@ -143,12 +143,17 @@ public sealed class NaturalTerrainSampler
 }
 
 public sealed record WorldGenerationDiagnostics(IReadOnlyDictionary<string, int> TerrainCounts,
-    IReadOnlyDictionary<string, double> ActualCoverage, double SamplingMilliseconds, double MaterializationMilliseconds);
+    IReadOnlyDictionary<string, double> ActualCoverage);
 public sealed record GeneratedWorld(string Code, ScenarioDefinition Definition, string Fingerprint,
-    WorldGenerationDiagnostics Diagnostics, string VisualSeed, WorldWindow Window);
+    WorldGenerationDiagnostics Diagnostics, string VisualSeed, WorldWindow Window)
+{
+    public required WorldPreview Preview { get; init; }
+    public required WorldGenerationMetrics Metrics { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public required WorldGenerationContext Context { get; init; }
+}
 
 /// <summary>Mutable authoring output for one crop; never retained by the pure world sampler.</summary>
-public sealed class WorldGenerationContext
+public sealed partial class WorldGenerationContext
 {
     public WorldDefinition World { get; }
     public WorldWindow Window { get; }
@@ -167,6 +172,7 @@ public sealed class WorldGenerationContext
         for (var x = 0; x < Window.Width; x++)
             Samples[y * Window.Width + x] = sampler.Sample(Window.OffsetX + x, Window.OffsetY + y, features);
         sampled = true;
+        OriginalSamples = (NaturalTerrainSample[])Samples.Clone();
     }
     public ScenarioDefinition Materialize()
     {
@@ -193,23 +199,25 @@ public static class WorldGenerator
     {
         var completed = recipe.Complete();
         var window = completed.Window;
-        var context = new WorldGenerationContext(completed.World, window);
-        var timer = Stopwatch.StartNew();
-        context.SampleNaturalTerrain();
+        var execution = WorldGenerationPipeline.Execute(WorldGenerationPlan.FromRecipe(completed), content);
+        var context = execution.Context;
         Dictionary<string, int> counts = new(StringComparer.Ordinal);
         foreach (var sample in context.Samples)
         {
             var terrain = sample.TerrainTypeId;
             counts[terrain] = counts.GetValueOrDefault(terrain) + 1;
         }
-        var sampling = timer.Elapsed.TotalMilliseconds;
-        timer.Restart();
+        var timer = Stopwatch.StartNew();
         var definition = context.Materialize();
         _ = GameEngine.CreateGame(definition, content ?? ContentBundle.Canonical());
         var json = ScenarioDefinitionJson.ToJson(definition);
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
         return new(completed.ToString(), definition, fingerprint,
-            new(counts, counts.ToDictionary(p => p.Key, p => p.Value * 100.0 / (window.Width * window.Height)), sampling, timer.Elapsed.TotalMilliseconds),
-            $"WLD1-NaturalTerrain-{NaturalTerrainSampler.DomainSeed(completed.Seed!.Value, 100):X16}", window);
+            new(counts, counts.ToDictionary(p => p.Key, p => p.Value * 100.0 / (window.Width * window.Height))),
+            $"WLD1-NaturalTerrain-{NaturalTerrainSampler.DomainSeed(completed.Seed!.Value, 100):X16}", window)
+        {
+            Preview = execution.Preview, Context = context,
+            Metrics = new(execution.Measurements, timer.Elapsed.TotalMilliseconds, execution.Preview.EstimatedRetainedBytes)
+        };
     }
 }

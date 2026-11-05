@@ -1,0 +1,297 @@
+{
+  "desktopViewport": {
+    "width": 1440,
+    "height": 1100
+  },
+  "mobileViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "desktopReport": {
+    "session": "delve-qa-bc916976-7e37-489a-9cd7-4f78a769b20b",
+    "url": "http://127.0.0.1:5081/#designer",
+    "messages": [],
+    "requests": []
+  },
+  "mobileReport": {
+    "session": "delve-qa-1637c829-1ba0-4b0c-93a3-cdd03d88cb03",
+    "url": "http://127.0.0.1:5081/",
+    "messages": [],
+    "requests": []
+  },
+  "desktopPerformance": "- paragraph: Rendered 12000 terrain Cells in 362.8 ms. Server frame stage 152.0 ms / 32957920 allocated bytes; finalization 28.8 ms; preview raw data estimate 639580 bytes.",
+  "mobilePerformance": "- paragraph: Rendered 14400 terrain Cells in 456.8 ms. Server frame stage 10.4 ms / 2491224 allocated bytes; finalization 22.1 ms; preview raw data estimate 767044 bytes.",
+  "designerValidation": "- status: Valid \u00b7 checked by the engine",
+  "beforeComparison": "- paragraph: Terrain Analysis \u00b7 Before \u00b7 selected step changes 251 \u00b7 features added 0 \u00b7 walkable 4804 \u00b7 components 12 \u00b7 largest 3586 \u00b7 route searches 0 \u00b7 visited 0",
+  "regenerationCode": "- textbox \"Completed code for this preview\": WLD1-120x120-X-60-Y-50-F30-W20-R25-KBroad-HMixed-E1-I2-B1111-SF06F6E0B02CC5467",
+  "desktopPlan": {
+    "steps": [
+      {
+        "height": 1100,
+        "width": 1440,
+        "action": "resize"
+      },
+      {
+        "target": "#open-world-generator",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator summary",
+        "action": "click"
+      },
+      {
+        "value": "WLD1-120x100-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S123456789ABCDEF0",
+        "target": "#world-generator-code-input",
+        "action": "fill"
+      },
+      {
+        "target": "#world-generator-load",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-preview",
+        "action": "click"
+      },
+      {
+        "value": "3",
+        "target": "#world-generator-stage",
+        "action": "select"
+      },
+      {
+        "target": "#world-generator-board",
+        "action": "hover"
+      },
+      {
+        "name": "rock-after.png",
+        "action": "screenshot"
+      },
+      {
+        "target": "#world-generator-compare",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-board",
+        "action": "hover"
+      },
+      {
+        "name": "rock-before.png",
+        "action": "screenshot"
+      },
+      {
+        "target": "#world-generator-compare",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-changed",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-boundaries",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-components",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-opportunities",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-board",
+        "action": "hover"
+      },
+      {
+        "name": "rock-overlays.png",
+        "action": "screenshot"
+      },
+      {
+        "name": "desktop-performance.yaml",
+        "target": "#world-generator-performance",
+        "action": "snapshot"
+      },
+      {
+        "name": "rock-diagnostics.yaml",
+        "target": "#world-generator-diagnostics",
+        "action": "snapshot"
+      },
+      {
+        "value": "12",
+        "target": "#world-generator-zoom",
+        "action": "select"
+      },
+      {
+        "value": "fit",
+        "target": "#world-generator-zoom",
+        "action": "select"
+      },
+      {
+        "value": "0",
+        "target": "#world-generator-stage",
+        "action": "select"
+      },
+      {
+        "target": "#world-generator-export",
+        "action": "click"
+      },
+      {
+        "name": "final-export.yaml",
+        "target": "#world-generator-export-label",
+        "action": "snapshot"
+      },
+      {
+        "target": "#world-generator-designer",
+        "action": "click"
+      },
+      {
+        "name": "designer-final.png",
+        "action": "screenshot"
+      },
+      {
+        "name": "designer-validation.yaml",
+        "target": "#designer-status",
+        "action": "snapshot"
+      },
+      {
+        "action": "console"
+      },
+      {
+        "action": "requests"
+      },
+      {
+        "target": "#designer-validate",
+        "action": "click"
+      },
+      {
+        "name": "designer-checked.yaml",
+        "target": "#designer-status",
+        "action": "snapshot"
+      }
+    ]
+  },
+  "mobilePlan": {
+    "steps": [
+      {
+        "height": 844,
+        "width": 390,
+        "action": "resize"
+      },
+      {
+        "target": "#open-world-generator",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator summary",
+        "action": "click"
+      },
+      {
+        "value": "WLD1-120x120-X-60-Y-50-F30-W20-R25-KBroad-HMixed-E1-I2-B1111-S000000000000002A",
+        "target": "#world-generator-code-input",
+        "action": "fill"
+      },
+      {
+        "target": "#world-generator-load",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-preview",
+        "action": "click"
+      },
+      {
+        "value": "6",
+        "target": "#world-generator-stage",
+        "action": "select"
+      },
+      {
+        "target": "#world-generator-board",
+        "action": "hover"
+      },
+      {
+        "name": "mobile-final.png",
+        "action": "screenshot"
+      },
+      {
+        "name": "mobile-performance.yaml",
+        "target": "#world-generator-performance",
+        "action": "snapshot"
+      },
+      {
+        "value": "2",
+        "target": "#world-generator-stage",
+        "action": "select"
+      },
+      {
+        "target": "#world-generator-changed",
+        "action": "click"
+      },
+      {
+        "target": "#world-generator-board",
+        "action": "hover"
+      },
+      {
+        "name": "mobile-forest.png",
+        "action": "screenshot"
+      },
+      {
+        "target": "#world-generator-compare",
+        "action": "click"
+      },
+      {
+        "name": "mobile-before.yaml",
+        "target": "#world-generator-diagnostics",
+        "action": "snapshot"
+      },
+      {
+        "target": "#world-generator-compare",
+        "action": "click"
+      },
+      {
+        "value": "12",
+        "target": "#world-generator-zoom",
+        "action": "select"
+      },
+      {
+        "target": "[data-world-x=\"59\"][data-world-y=\"69\"]",
+        "action": "click"
+      },
+      {
+        "name": "mobile-inspect-zoom.png",
+        "action": "screenshot"
+      },
+      {
+        "name": "mobile-cell.yaml",
+        "target": "#world-generator-inspection",
+        "action": "snapshot"
+      },
+      {
+        "value": "fit",
+        "target": "#world-generator-zoom",
+        "action": "select"
+      },
+      {
+        "target": "#world-generator-another",
+        "action": "click"
+      },
+      {
+        "value": "4",
+        "target": "#world-generator-stage",
+        "action": "select"
+      },
+      {
+        "name": "mobile-another.png",
+        "action": "screenshot"
+      },
+      {
+        "name": "mobile-another-code.yaml",
+        "target": "#world-generator-complete",
+        "action": "snapshot"
+      },
+      {
+        "action": "console"
+      },
+      {
+        "action": "requests"
+      }
+    ]
+  }
+}

@@ -1,0 +1,995 @@
+[
+  {
+    "preset": "Grassland",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 33.6338,
+    "allocatedBytes": 6817536,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.5848,
+        "allocatedBytes": 390600
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 2.9792,
+        "allocatedBytes": 594432
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 2.97,
+        "allocatedBytes": 595000
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 2.9668,
+        "allocatedBytes": 594920
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 2.857,
+        "allocatedBytes": 594952
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 5.72,
+        "allocatedBytes": 1318696
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 3.3886,
+        "allocatedBytes": 581304
+      }
+    ],
+    "previewPayloadBytes": 77205,
+    "responsePayloadBytes": 120957,
+    "previewRawDataEstimateBytes": 123460,
+    "previewRetainedManagedBytes": 119992,
+    "finalizationMs": 4.5233,
+    "beforeWalkable": 2389,
+    "afterWalkable": 2356,
+    "beforeLargest": 2389,
+    "afterLargest": 2356,
+    "featureKinds": {
+      "dirt-patch": 7,
+      "tree-pocket": 3,
+      "rock-outcrop": 1
+    },
+    "routingSearches": 0,
+    "routingVisitedCells": 0,
+    "fingerprint": "53081B7D2A05789699B18990A80A2F4A8E981300945EC05484917249FC330357"
+  },
+  {
+    "preset": "Woodland",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 32.4577,
+    "allocatedBytes": 7335000,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.8636,
+        "allocatedBytes": 391512
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 2.9871,
+        "allocatedBytes": 408528
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 5.0972,
+        "allocatedBytes": 1120552
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.0818,
+        "allocatedBytes": 427024
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 3.6335,
+        "allocatedBytes": 721344
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 3.9033,
+        "allocatedBytes": 606712
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 3.2084,
+        "allocatedBytes": 430664
+      }
+    ],
+    "previewPayloadBytes": 110734,
+    "responsePayloadBytes": 221144,
+    "previewRawDataEstimateBytes": 136136,
+    "previewRetainedManagedBytes": 134480,
+    "finalizationMs": 21.6209,
+    "beforeWalkable": 716,
+    "afterWalkable": 801,
+    "beforeLargest": 605,
+    "afterLargest": 660,
+    "featureKinds": {
+      "forest-clearing": 4,
+      "dirt-patch": 3,
+      "rock-outcrop": 1,
+      "tree-pocket": 1
+    },
+    "routingSearches": 5,
+    "routingVisitedCells": 536,
+    "fingerprint": "508ABBC3766F8CAB11FC21C9CD557506A1E459D8D2BA0C5ECCFFBF335C420544"
+  },
+  {
+    "preset": "LakeCountry",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 35.6034,
+    "allocatedBytes": 7150712,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.0988,
+        "allocatedBytes": 391416
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 3.3909,
+        "allocatedBytes": 490960
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 3.7365,
+        "allocatedBytes": 655392
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 4.5429,
+        "allocatedBytes": 887776
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 3.8062,
+        "allocatedBytes": 597040
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 4.8356,
+        "allocatedBytes": 921032
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 3.4563,
+        "allocatedBytes": 511752
+      }
+    ],
+    "previewPayloadBytes": 100996,
+    "responsePayloadBytes": 177888,
+    "previewRawDataEstimateBytes": 133212,
+    "previewRetainedManagedBytes": 130864,
+    "finalizationMs": 8.7217,
+    "beforeWalkable": 1477,
+    "afterWalkable": 1514,
+    "beforeLargest": 1413,
+    "afterLargest": 1421,
+    "featureKinds": {
+      "forest-clearing": 1,
+      "cave-chamber": 1,
+      "island": 1,
+      "dirt-patch": 5,
+      "rock-outcrop": 1,
+      "tree-pocket": 2
+    },
+    "routingSearches": 7,
+    "routingVisitedCells": 388,
+    "fingerprint": "76D29C8AA4CBA78520FE034BB6EF6146804AE02729AF7E3ABCC75D9CDCFBD803"
+  },
+  {
+    "preset": "RiverValley",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 25.999,
+    "allocatedBytes": 7255080,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.1309,
+        "allocatedBytes": 391416
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 2.4465,
+        "allocatedBytes": 540616
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 3.3241,
+        "allocatedBytes": 1028400
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 2.1517,
+        "allocatedBytes": 550472
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 2.1825,
+        "allocatedBytes": 580280
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 3.633,
+        "allocatedBytes": 986304
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.9553,
+        "allocatedBytes": 546464
+      }
+    ],
+    "previewPayloadBytes": 114539,
+    "responsePayloadBytes": 186167,
+    "previewRawDataEstimateBytes": 142332,
+    "previewRetainedManagedBytes": 143656,
+    "finalizationMs": 8.2963,
+    "beforeWalkable": 1634,
+    "afterWalkable": 1651,
+    "beforeLargest": 1493,
+    "afterLargest": 1485,
+    "featureKinds": {
+      "forest-clearing": 2,
+      "dirt-patch": 5,
+      "rock-outcrop": 1,
+      "tree-pocket": 2
+    },
+    "routingSearches": 12,
+    "routingVisitedCells": 643,
+    "fingerprint": "196C99B062487FFDD98F2C37DE62F5C5E4049FE96CD805FBF54DF2FAEA5DD9FC"
+  },
+  {
+    "preset": "RockyWilds",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 25.9283,
+    "allocatedBytes": 7650032,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.7541,
+        "allocatedBytes": 390848
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.5915,
+        "allocatedBytes": 459960
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 1.6366,
+        "allocatedBytes": 572776
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 4.0951,
+        "allocatedBytes": 1388624
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.708,
+        "allocatedBytes": 479640
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 3.3389,
+        "allocatedBytes": 952320
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.286,
+        "allocatedBytes": 478744
+      }
+    ],
+    "previewPayloadBytes": 106530,
+    "responsePayloadBytes": 202140,
+    "previewRawDataEstimateBytes": 135336,
+    "previewRetainedManagedBytes": 135176,
+    "finalizationMs": 7.847,
+    "beforeWalkable": 1174,
+    "afterWalkable": 1243,
+    "beforeLargest": 907,
+    "afterLargest": 1069,
+    "featureKinds": {
+      "forest-clearing": 1,
+      "cave-chamber": 3,
+      "tree-pocket": 1,
+      "dirt-patch": 4,
+      "rock-outcrop": 1
+    },
+    "routingSearches": 8,
+    "routingVisitedCells": 763,
+    "fingerprint": "AA19804B78924C2AC8F59823A5B0C03220A950BBF21AEBC9F27DC2753177BBEE"
+  },
+  {
+    "preset": "Grassland",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 85.8777,
+    "allocatedBytes": 32582808,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 8.0675,
+        "allocatedBytes": 1873440
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.9024,
+        "allocatedBytes": 2622824
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.0763,
+        "allocatedBytes": 3591208
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 6.1557,
+        "allocatedBytes": 2639600
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 7.0564,
+        "allocatedBytes": 2752488
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 20.2087,
+        "allocatedBytes": 9588968
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.9823,
+        "allocatedBytes": 2650344
+      }
+    ],
+    "previewPayloadBytes": 368204,
+    "responsePayloadBytes": 542684,
+    "previewRawDataEstimateBytes": 592116,
+    "previewRetainedManagedBytes": 555704,
+    "finalizationMs": 20.6887,
+    "beforeWalkable": 10470,
+    "afterWalkable": 10458,
+    "beforeLargest": 10469,
+    "afterLargest": 10446,
+    "featureKinds": {
+      "forest-clearing": 4,
+      "island": 1,
+      "tree-pocket": 9,
+      "dirt-patch": 13,
+      "rock-outcrop": 2
+    },
+    "routingSearches": 6,
+    "routingVisitedCells": 237,
+    "fingerprint": "45DE325F0923C76512DD4DF08BFBACF2AC43254C0CDD384DBADF1F489731404D"
+  },
+  {
+    "preset": "Woodland",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 86.7704,
+    "allocatedBytes": 32769448,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.6783,
+        "allocatedBytes": 1106808
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.0393,
+        "allocatedBytes": 1843160
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 14.0985,
+        "allocatedBytes": 8431488
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 4.9764,
+        "allocatedBytes": 1871616
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 8.5936,
+        "allocatedBytes": 2638512
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 9.252,
+        "allocatedBytes": 2624296
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.4895,
+        "allocatedBytes": 1891360
+      }
+    ],
+    "previewPayloadBytes": 501893,
+    "responsePayloadBytes": 1053488,
+    "previewRawDataEstimateBytes": 635868,
+    "previewRetainedManagedBytes": 617496,
+    "finalizationMs": 13.6751,
+    "beforeWalkable": 2727,
+    "afterWalkable": 2837,
+    "beforeLargest": 605,
+    "afterLargest": 627,
+    "featureKinds": {
+      "forest-clearing": 6,
+      "island": 3,
+      "dirt-patch": 4,
+      "tree-pocket": 2
+    },
+    "routingSearches": 35,
+    "routingVisitedCells": 1686,
+    "fingerprint": "BDEBC5CB8829F36FE8C5C4FA27A3265C904D8C301473B506E16F10D367E2B13B"
+  },
+  {
+    "preset": "LakeCountry",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 58.437,
+    "allocatedBytes": 36346672,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.9149,
+        "allocatedBytes": 1106544
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.2742,
+        "allocatedBytes": 1853664
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.9378,
+        "allocatedBytes": 5480048
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 9.1011,
+        "allocatedBytes": 7730008
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 7.2382,
+        "allocatedBytes": 2841432
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.9148,
+        "allocatedBytes": 3206080
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 4.3319,
+        "allocatedBytes": 1949784
+      }
+    ],
+    "previewPayloadBytes": 503736,
+    "responsePayloadBytes": 1048001,
+    "previewRawDataEstimateBytes": 632780,
+    "previewRetainedManagedBytes": 609648,
+    "finalizationMs": 7.5186,
+    "beforeWalkable": 2937,
+    "afterWalkable": 3178,
+    "beforeLargest": 1737,
+    "afterLargest": 1777,
+    "featureKinds": {
+      "forest-clearing": 9,
+      "cave-chamber": 2,
+      "island": 9,
+      "island-chain": 1,
+      "rock-outcrop": 3,
+      "tree-pocket": 2,
+      "dirt-patch": 6
+    },
+    "routingSearches": 67,
+    "routingVisitedCells": 4106,
+    "fingerprint": "51A7036CEA07B80754348658E999FB08797FFD7EC2382B08BB5501C93BFF12CA"
+  },
+  {
+    "preset": "RiverValley",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 56.2402,
+    "allocatedBytes": 31678312,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.6904,
+        "allocatedBytes": 1106928
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.8757,
+        "allocatedBytes": 2311416
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 7.5036,
+        "allocatedBytes": 5440688
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 4.9769,
+        "allocatedBytes": 2332848
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.27,
+        "allocatedBytes": 2602712
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 12.2542,
+        "allocatedBytes": 6188888
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 4.9855,
+        "allocatedBytes": 2359560
+      }
+    ],
+    "previewPayloadBytes": 576083,
+    "responsePayloadBytes": 963499,
+    "previewRawDataEstimateBytes": 686456,
+    "previewRetainedManagedBytes": 687344,
+    "finalizationMs": 9.1021,
+    "beforeWalkable": 6278,
+    "afterWalkable": 6332,
+    "beforeLargest": 3567,
+    "afterLargest": 3566,
+    "featureKinds": {
+      "forest-clearing": 10,
+      "island": 3,
+      "rock-outcrop": 7,
+      "tree-pocket": 3,
+      "dirt-patch": 16
+    },
+    "routingSearches": 18,
+    "routingVisitedCells": 985,
+    "fingerprint": "98CB89017593277735D53552B20077CFB18CDB66A9250EED0417F9B6EA804841"
+  },
+  {
+    "preset": "RockyWilds",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 85.0314,
+    "allocatedBytes": 63307280,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 4.9592,
+        "allocatedBytes": 1105632
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.3348,
+        "allocatedBytes": 1897216
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.4097,
+        "allocatedBytes": 7668624
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 42.1167,
+        "allocatedBytes": 32923040
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 4.5195,
+        "allocatedBytes": 2220840
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 5.836,
+        "allocatedBytes": 3010824
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 4.3372,
+        "allocatedBytes": 2038096
+      }
+    ],
+    "previewPayloadBytes": 515339,
+    "responsePayloadBytes": 1091785,
+    "previewRawDataEstimateBytes": 639580,
+    "previewRetainedManagedBytes": 620744,
+    "finalizationMs": 7.721,
+    "beforeWalkable": 2934,
+    "afterWalkable": 3352,
+    "beforeLargest": 1072,
+    "afterLargest": 1503,
+    "featureKinds": {
+      "forest-clearing": 8,
+      "cave-chamber": 8,
+      "island": 3,
+      "dirt-patch": 10,
+      "rock-outcrop": 2,
+      "tree-pocket": 1
+    },
+    "routingSearches": 84,
+    "routingVisitedCells": 61515,
+    "fingerprint": "EA740D721F54B0407138173F92F4BD3C527482EBC2E1E201596842C73B7C0791"
+  },
+  {
+    "preset": "Grassland",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 58.7723,
+    "allocatedBytes": 35029840,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.658,
+        "allocatedBytes": 1326240
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.8858,
+        "allocatedBytes": 3112928
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 7.9604,
+        "allocatedBytes": 4315440
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.9264,
+        "allocatedBytes": 3113120
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.5665,
+        "allocatedBytes": 3212672
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 14.7662,
+        "allocatedBytes": 10267312
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.8948,
+        "allocatedBytes": 3141752
+      }
+    ],
+    "previewPayloadBytes": 428571,
+    "responsePayloadBytes": 622905,
+    "previewRawDataEstimateBytes": 704640,
+    "previewRetainedManagedBytes": 658480,
+    "finalizationMs": 3.5705,
+    "beforeWalkable": 12736,
+    "afterWalkable": 12757,
+    "beforeLargest": 12735,
+    "afterLargest": 12747,
+    "featureKinds": {
+      "forest-clearing": 4,
+      "island": 1,
+      "dirt-patch": 14,
+      "rock-outcrop": 5,
+      "tree-pocket": 5
+    },
+    "routingSearches": 7,
+    "routingVisitedCells": 412,
+    "fingerprint": "5D31DF82510A578A248508D05562DBF0596A98CD98055594EC79F70653B38403"
+  },
+  {
+    "preset": "Woodland",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 60.0962,
+    "allocatedBytes": 35843856,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.3223,
+        "allocatedBytes": 1327632
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 8.752,
+        "allocatedBytes": 2299160
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.0745,
+        "allocatedBytes": 7660208
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.3211,
+        "allocatedBytes": 2321160
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.236,
+        "allocatedBytes": 2854776
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.0383,
+        "allocatedBytes": 2914744
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.2737,
+        "allocatedBytes": 2338024
+      }
+    ],
+    "previewPayloadBytes": 611070,
+    "responsePayloadBytes": 1259652,
+    "previewRawDataEstimateBytes": 766508,
+    "previewRetainedManagedBytes": 750088,
+    "finalizationMs": 10.6364,
+    "beforeWalkable": 3511,
+    "afterWalkable": 3626,
+    "beforeLargest": 663,
+    "afterLargest": 705,
+    "featureKinds": {
+      "forest-clearing": 8,
+      "island": 3,
+      "tree-pocket": 1,
+      "dirt-patch": 5
+    },
+    "routingSearches": 16,
+    "routingVisitedCells": 1687,
+    "fingerprint": "AC3F5E53B2F1F9D4E9E579BDF9A2F8835F604D7C931D2594857E5A8816A21277"
+  },
+  {
+    "preset": "LakeCountry",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 66.5441,
+    "allocatedBytes": 46348840,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.1338,
+        "allocatedBytes": 1327536
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.2322,
+        "allocatedBytes": 2216640
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 10.9268,
+        "allocatedBytes": 11386488
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 11.2757,
+        "allocatedBytes": 7571296
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.3653,
+        "allocatedBytes": 3299944
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 7.9622,
+        "allocatedBytes": 4320432
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.4058,
+        "allocatedBytes": 2331272
+      }
+    ],
+    "previewPayloadBytes": 614856,
+    "responsePayloadBytes": 1253843,
+    "previewRawDataEstimateBytes": 760856,
+    "previewRetainedManagedBytes": 732240,
+    "finalizationMs": 8.1773,
+    "beforeWalkable": 3826,
+    "afterWalkable": 4125,
+    "beforeLargest": 1737,
+    "afterLargest": 1755,
+    "featureKinds": {
+      "forest-clearing": 13,
+      "cave-with-mountain-pass": 1,
+      "cave-chamber": 1,
+      "island": 8,
+      "island-chain": 3,
+      "rock-outcrop": 5,
+      "tree-pocket": 2,
+      "dirt-patch": 12
+    },
+    "routingSearches": 96,
+    "routingVisitedCells": 4631,
+    "fingerprint": "97C6A9A14B811256A33F9D992CFFB86675EB216FE11B961440708265E30680E8"
+  },
+  {
+    "preset": "RiverValley",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 66.6479,
+    "allocatedBytes": 41932784,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.8151,
+        "allocatedBytes": 1328200
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.769,
+        "allocatedBytes": 2838688
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 10.2759,
+        "allocatedBytes": 9259400
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.9026,
+        "allocatedBytes": 2869744
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.9204,
+        "allocatedBytes": 3300328
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 15.513,
+        "allocatedBytes": 8859552
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 6.1624,
+        "allocatedBytes": 2892152
+      }
+    ],
+    "previewPayloadBytes": 694459,
+    "responsePayloadBytes": 1145433,
+    "previewRawDataEstimateBytes": 823992,
+    "previewRetainedManagedBytes": 819416,
+    "finalizationMs": 6.1415,
+    "beforeWalkable": 7822,
+    "afterWalkable": 7946,
+    "beforeLargest": 4817,
+    "afterLargest": 4891,
+    "featureKinds": {
+      "forest-clearing": 12,
+      "island": 4,
+      "dirt-patch": 19,
+      "tree-pocket": 9,
+      "rock-outcrop": 4
+    },
+    "routingSearches": 41,
+    "routingVisitedCells": 2263,
+    "fingerprint": "65046254465CC73405F4889B29695A7585093D6ECF250ADF21BE6A4D389691DA"
+  },
+  {
+    "preset": "RockyWilds",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S123456789ABCDEF0",
+    "samples": 7,
+    "warmups": 3,
+    "generationMs": 69.5636,
+    "allocatedBytes": 46463960,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.2432,
+        "allocatedBytes": 1326616
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.0564,
+        "allocatedBytes": 2272440
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.6982,
+        "allocatedBytes": 8603192
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 16.7882,
+        "allocatedBytes": 10503408
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.2033,
+        "allocatedBytes": 2786896
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 8.2203,
+        "allocatedBytes": 4318512
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.2712,
+        "allocatedBytes": 2423816
+      }
+    ],
+    "previewPayloadBytes": 623170,
+    "responsePayloadBytes": 1312186,
+    "previewRawDataEstimateBytes": 767316,
+    "previewRetainedManagedBytes": 742984,
+    "finalizationMs": 9.1605,
+    "beforeWalkable": 3486,
+    "afterWalkable": 4041,
+    "beforeLargest": 1072,
+    "afterLargest": 1265,
+    "featureKinds": {
+      "forest-clearing": 11,
+      "cave-chamber": 9,
+      "cave-with-mountain-pass": 1,
+      "island": 2,
+      "dirt-patch": 10,
+      "tree-pocket": 3,
+      "rock-outcrop": 2
+    },
+    "routingSearches": 63,
+    "routingVisitedCells": 9972,
+    "fingerprint": "3A045BB0240A4625C04841DCDA82827E6BBE8B0D61B472FF442D3ECA597DDA56"
+  }
+]

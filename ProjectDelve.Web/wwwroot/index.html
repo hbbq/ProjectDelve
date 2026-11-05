@@ -338,6 +338,14 @@
           <label>Water form <select id="world-generator-waterForm"><option>Auto</option><option>Lakes</option><option>River</option><option>Mixed</option></select></label>
         </div>
         <small id="world-generator-dimension-help">Dimensions 1–120. Offsets locate this window in the world. Coverage totals must be at most 100%; local terrain proportions vary by window.</small>
+        <fieldset class="world-generator-enrichment"><legend>Formation enrichment</legend><div class="world-generator-fields">
+          <label>Enrichment <select id="world-generator-enrichmentEnabled"><option value="true">Enabled</option><option value="false">Natural terrain only</option></select></label>
+          <label>Intensity <select id="world-generator-enrichmentIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
+          <label>Forest <select id="world-generator-forestEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Rock <select id="world-generator-rockEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Water <select id="world-generator-waterEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Grassland <select id="world-generator-grasslandEnrichment"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+        </div></fieldset>
         <label>Seed · optional 16 hexadecimal digits <input id="world-generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" autocomplete="off" spellcheck="false"></label>
         <div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div>
         <details><summary>World recipe code</summary>
@@ -351,7 +359,13 @@
         <div id="world-generator-preview-content" hidden>
           <div class="toolbar"><strong>Terrain only · awaiting scenario authoring</strong><label>View <select id="world-generator-view"><option value="enhanced">Enhanced 2D</option><option value="classic">Classic</option></select></label><label>Zoom <select id="world-generator-zoom"><option value="fit">Fit window</option><option value="12">12 px / Cell</option><option value="24">24 px / Cell</option><option value="48">48 px / Cell</option></select></label></div>
           <p id="world-generator-preview-summary" class="legend"></p>
-          <div class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world terrain window"></div></div>
+          <div id="world-generator-steps" hidden>
+            <div class="toolbar"><button id="world-generator-previous">Previous</button><label>Generation stage <select id="world-generator-stage"></select></label><button id="world-generator-next">Next</button><button id="world-generator-compare" aria-pressed="false" title="Compare the selected stage with its preceding frame">After</button></div>
+            <div class="world-generator-overlays"><label><input id="world-generator-changed" type="checkbox" checked> Changed Cells</label><label><input id="world-generator-boundaries" type="checkbox"> Formation boundaries</label><label><input id="world-generator-components" type="checkbox"> Walkable components / chokepoints</label><label><input id="world-generator-opportunities" type="checkbox"> Entrances / opportunities</label></div>
+            <p id="world-generator-diagnostics" class="legend"></p>
+            <p id="world-generator-inspection" class="legend"></p>
+          </div>
+          <div id="world-generator-board-wrap" class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world terrain window"></div></div>
           <p id="world-generator-performance" class="legend"></p>
           <label>Completed code for this preview <textarea id="world-generator-complete" rows="3" readonly spellcheck="false"></textarea></label>
           <div class="generator-actions"><button id="world-generator-copy-complete">Copy Completed Code</button><button id="world-generator-designer">Open in Designer</button><button id="world-generator-export">Export DELVE1</button></div>

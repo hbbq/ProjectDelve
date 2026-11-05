@@ -10,13 +10,16 @@ using ProjectDelve.Web;
 // dotnet run --project tools/WorldGenerationBenchmark -c Release --artifacts-path .world-benchmark -- --fixtures .playwright-cli/large-map-baseline
 const int warmups = 3, samples = 7, lookupPasses = 3;
 string? fixtures = null;
+var enrichment = false;
 for (var i = 0; i < args.Length; i++)
 {
+    if (args[i] == "--enrichment") { enrichment = true; continue; }
     if (args[i] != "--fixtures" || ++i == args.Length)
         throw new ArgumentException("Usage: WorldGenerationBenchmark [--fixtures directory]");
     fixtures = Path.GetFullPath(args[i]);
 }
 if (fixtures is not null) Directory.CreateDirectory(fixtures);
+if (enrichment) { EnrichmentInvestigation.Run(fixtures); return; }
 var httpJson = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {
     Converters = { new JsonStringEnumConverter() }
@@ -62,8 +65,8 @@ for (var caseIndex = 0; caseIndex < cases.Count; caseIndex++)
     var generation = Measure(() =>
     {
         world = WorldGenerator.Generate(recipe);
-        sampling.Add(world.Diagnostics.SamplingMilliseconds);
-        validation.Add(world.Diagnostics.MaterializationMilliseconds);
+        sampling.Add(world.Metrics.SamplingMilliseconds);
+        validation.Add(world.Metrics.FinalizationMilliseconds);
     });
     var materialization = Measure(() => { _ = GameEngine.CreateGame(world.Definition); });
     var context = new WorldGenerationContext(recipe.World, recipe.Window); context.SampleNaturalTerrain();

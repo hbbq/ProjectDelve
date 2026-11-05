@@ -16,13 +16,27 @@ export function worldConfigurationCode(config, includeSeed = true, maxBoardSize 
   if (!["Auto", "Lakes", "River", "Mixed"].includes(config.waterForm)) throw new Error("Choose a water form.");
   const seed = String(config.seed ?? "").trim();
   if (includeSeed && seed && !/^[0-9a-f]{16}$/i.test(seed)) throw new Error("Seed must contain exactly 16 hexadecimal digits, or be blank.");
-  return `WLD1-${width}x${height}-X${x}-Y${y}-F${forest}-W${water}-R${rock}-K${config.scale}-H${config.waterForm}${includeSeed && seed ? `-S${seed.toUpperCase()}` : ""}`;
+  let enrichment = "";
+  if (config.enrichmentEnabled != null && config.enrichmentEnabled !== "") {
+    const bit = key => {
+      const value = String(config[key]);
+      if (!["true", "false"].includes(value)) throw new Error(`Choose ${key}.`);
+      return value === "true" ? "1" : "0";
+    };
+    enrichment = `-E${bit("enrichmentEnabled")}-I${integer("enrichmentIntensity", 1, 3)}-B${["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].map(bit).join("")}`;
+  }
+  return `WLD1-${width}x${height}-X${x}-Y${y}-F${forest}-W${water}-R${rock}-K${config.scale}-H${config.waterForm}${enrichment}${includeSeed && seed ? `-S${seed.toUpperCase()}` : ""}`;
 }
 
 export function worldConfigurationFromCode(input, maxBoardSize = 120) {
-  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-S([0-9a-fA-F]{16}))?$/);
+  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-S([0-9a-fA-F]{16}))?$/);
   if (!match) throw new Error("Enter an ordered WLD1 recipe or complete code; a seed needs exactly 16 hexadecimal digits.");
-  const result = Object.fromEntries(["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed"].map((key, i) => [key, match[i + 1] ?? ""]));
+  const result = Object.fromEntries(["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm"].map((key, i) => [key, match[i + 1]]));
+  result.seed = match[13] ?? "";
+  if (match[10] != null) {
+    result.enrichmentEnabled = String(match[10] === "1"); result.enrichmentIntensity = match[11];
+    ["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].forEach((key, i) => { result[key] = String(match[12][i] === "1"); });
+  }
   worldConfigurationCode(result, true, maxBoardSize);
   result.seed = result.seed.toUpperCase();
   return result;

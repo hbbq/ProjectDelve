@@ -153,7 +153,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -164,4 +164,77 @@ test("world generator has a separate entry and terrain-only authoring actions", 
   assert.match(html,/data-open-world-generator/); assert.match(html,/<script type="module" src="world-generator.js"/);
   assert.match(world,/awaiting scenario authoring/); assert.doesNotMatch(world,/<button[^>]*>Play/);
   for (const id of ["width","height","offsetX","offsetY","seed","view"]) assert.match(world,new RegExp(`<label>[^<]*<(?:input|select) id="world-generator-${id}"`));
+});
+
+function stagedResult(h, count = 3) {
+  const result = h.result();
+  result.preview = { terrainPalette:["test-ground","test-canopy"], formationLabels:[0,0,-1,-1], boundaryCells:[0,1],
+    formations:[{id:"forest-1",kind:"Forest",coreArea:2,envelopeArea:3,density:0.67,maxDepth:1,touchesBoundary:true}],
+    frames:Array.from({length:count}, (_, index) => ({stepId:`step-${index}`,stage:["NaturalTerrain","FormationAnalysis","WalkabilityAnalysis"][index % 3],terrain:index === 0 ? "AAAA" : "ABAA",changedCells:index ? [1] : [],walkableComponents:[0,-1,0,0],chokepoints:[2],entrances:[{id:"entry",featureId:"clearing",insideIndex:0,outsideIndex:2,width:1}],opportunities:[{id:"clearing",kind:"Clearing",anchorIndex:0,usableArea:3,walkableComponent:0,requiresConnection:true}],diagnostics:{changedCells:index ? 1 : 0,featuresAdded:0,walkableArea:3,componentCount:1,largestComponentArea:3,routingSearches:0,routingVisitedCells:0}})) };
+  return result;
+}
+
+test("stage navigation and before comparison retain scroll, zoom and the final handoff", async () => {
+  const h = harness(), result = stagedResult(h); h.click("preview"); await h.accept(0,result);
+  assert.equal(h.get("world-generator-stage").value,"2");
+  assert.equal(h.get("world-generator-stage").children.length,3);
+  h.get("world-generator-board-wrap").scrollTop=70; h.get("world-generator-board-wrap").scrollLeft=35;
+  h.click("previous"); assert.equal(h.get("world-generator-stage").value,"1");
+  h.click("compare"); assert.equal(h.get("world-generator-board").children[1].className,"cell Gravel");
+  assert.match(h.get("world-generator-diagnostics").textContent,/Before/);
+  assert.match(h.get("world-generator-diagnostics").textContent,/Natural Terrain/);
+  h.click("compare"); assert.equal(h.get("world-generator-board").children[1].className,"cell Tree");
+  h.click("next"); assert.equal(h.get("world-generator-next").disabled,true);
+  assert.equal(h.get("world-generator-board-wrap").scrollTop,70); assert.equal(h.get("world-generator-board-wrap").scrollLeft,35);
+  h.get("world-generator-zoom").value="24"; h.get("world-generator-zoom").listeners.change();
+  const mounted=h.get("world-generator-board").children[0];
+  h.get("world-generator-zoom").value="48"; h.get("world-generator-zoom").listeners.change();
+  assert.equal(h.get("world-generator-board").children[0],mounted);
+  h.click("previous"); h.click("previous");
+  h.click("export"); h.click("designer");
+  assert.equal(h.get("world-generator-transport").value,result.transport);
+  assert.equal(JSON.stringify(h.designs[0]),JSON.stringify(result)); assert.equal(h.get("world-generator-complete").value,code);
+});
+
+test("server supplied overlays and cell inspection display analysis without recomputing it", async () => {
+  const h = harness(); h.click("preview"); await h.accept(0,stagedResult(h));
+  for(const name of ["changed","boundaries","components","opportunities"]) { h.get(`world-generator-${name}`).checked=true; h.get(`world-generator-${name}`).listeners.change(); }
+  const cells=h.get("world-generator-board").children;
+  assert.match(cells[0].className,/world-boundary.*world-component/);
+  assert.match(cells[0].children[0].className,/world-entrance.*world-opportunity/);
+  assert.match(cells[1].className,/world-changed/); assert.match(cells[2].className,/world-chokepoint/);
+  cells[0].click();
+  assert.match(h.get("world-generator-inspection").textContent,/Original formation forest-1: Forest/);
+  assert.match(h.get("world-generator-inspection").textContent,/Opportunity clearing: Clearing/);
+  assert.match(h.get("world-generator-inspection").textContent,/Entrance entry: feature clearing/);
+  assert.match(h.get("world-generator-diagnostics").textContent,/walkable 3 · components 1/);
+});
+
+test("performance labels distinguish finalization and follow the displayed comparison frame", async () => {
+  const h=harness(), result=stagedResult(h);
+  result.metrics={stages:[{stepId:'step-0',milliseconds:1.25,allocatedBytes:100},{stepId:'step-1',milliseconds:2.5,allocatedBytes:200},{stepId:'step-2',milliseconds:3.75,allocatedBytes:300}],finalizationMilliseconds:4.5,retainedPreviewBytes:800};
+  h.click('preview');await h.accept(0,result);h.click('previous');
+  assert.match(h.get('world-generator-performance').textContent,/Server frame stage 2.5 ms/);
+  h.click('compare');assert.match(h.get('world-generator-performance').textContent,/Server frame stage 1.3 ms/);
+  assert.match(h.get('world-generator-performance').textContent,/finalization 4.5 ms; preview raw data estimate 800 bytes/);
+});
+
+test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
+  const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
+  assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),enriched);
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched);
+  assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
+  h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
+  for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
+});
+
+test("a maximum map with the bounded 24-frame preview renders stage changes and rejects stale results", async () => {
+  const h=harness(); h.enter('width','120');h.enter('height','120');h.click('preview');
+  const result=stagedResult(h,24);result.definition.board.width=result.window.width=120;result.definition.board.height=result.window.height=120;
+  result.preview.formationLabels=Array(14400).fill(-1);
+  for(const frame of result.preview.frames) {frame.terrain='A'.repeat(14400);frame.walkableComponents=Array(14400).fill(0);}
+  await h.accept(0,result);assert.equal(h.get('world-generator-board').children.length,14400);
+  h.click('previous');assert.equal(h.get('world-generator-stage').value,'22');
+  h.click('preview');h.enter('forestCoverage','30');await h.accept(1,stagedResult(h));
+  assert.equal(h.get('world-generator-stage').value,'22');assert.equal(h.get('world-generator-board').children.length,14400);
 });

@@ -1,0 +1,117 @@
+[
+  {
+    "image": "world-enrichment-woodland.png",
+    "code": "WLD1-120x100-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-S123456789ABCDEF0",
+    "stage": "ForestEnrichment",
+    "fingerprint": "BDEBC5CB8829F36FE8C5C4FA27A3265C904D8C301473B506E16F10D367E2B13B"
+  },
+  {
+    "image": "world-enrichment-rockywilds.png",
+    "code": "WLD1-120x100-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S123456789ABCDEF0",
+    "stage": "RockEnrichment",
+    "fingerprint": "EA740D721F54B0407138173F92F4BD3C527482EBC2E1E201596842C73B7C0791"
+  },
+  {
+    "image": "world-enrichment-lakecountry.png",
+    "code": "WLD1-120x100-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "stage": "WaterEnrichment",
+    "fingerprint": "51A7036CEA07B80754348658E999FB08797FFD7EC2382B08BB5501C93BFF12CA"
+  },
+  {
+    "image": "world-enrichment-rivervalley.png",
+    "code": "WLD1-120x100-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S123456789ABCDEF0",
+    "stage": "WaterEnrichment",
+    "fingerprint": "98CB89017593277735D53552B20077CFB18CDB66A9250EED0417F9B6EA804841"
+  },
+  {
+    "image": "world-enrichment-grassland.png",
+    "code": "WLD1-120x100-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "stage": "GrasslandEnrichment",
+    "fingerprint": "45DE325F0923C76512DD4DF08BFBACF2AC43254C0CDD384DBADF1F489731404D"
+  },
+  {
+    "case": "world-01-grassland-fine.response",
+    "code": "WLD1-50x50-X0-Y0-F10-W4-R5-KFine-HLakes-E1-I2-B1111-S0000000000000001",
+    "fingerprint": "AEEF9720F1F2DBCFBE32C5895333DE8E142525BB884B7D466641504C8EE0B404"
+  },
+  {
+    "case": "world-02-grassland-broad.response",
+    "code": "WLD1-50x50-X0-Y0-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-S000000000000002A",
+    "fingerprint": "80AFBAB4DFDC5C4CB8830E8BCEFBDF38F152670DEED512976CCC358CEE4844D5"
+  },
+  {
+    "case": "world-03-woodland-balanced.response",
+    "code": "WLD1-50x50-X0-Y0-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-S0000000000000002",
+    "fingerprint": "5D93653E635FC4A589817382EEF7B3B5CBFE4C706510048E8530D9B17AE9E6C3"
+  },
+  {
+    "case": "world-04-woodland-broad.response",
+    "code": "WLD1-50x50-X0-Y0-F60-W8-R8-KBroad-HAuto-E1-I2-B1111-S000000000000002A",
+    "fingerprint": "EC73D3CCD071AE15282C04D317EF6B63239EC1B91651F8628C3EA23BDF5E849F"
+  },
+  {
+    "case": "world-05-lakecountry-balanced.response",
+    "code": "WLD1-50x50-X0-Y0-F25-W30-R10-KBalanced-HLakes-E1-I2-B1111-S0000000000003039",
+    "fingerprint": "6561D0AFE2F1A92B48613F767D16D35B3E00E7CD4ECC3D545B6C6861D8C19431"
+  },
+  {
+    "case": "world-06-lakecountry-broad.response",
+    "code": "WLD1-50x50-X0-Y0-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-S0000000000000003",
+    "fingerprint": "D147EE2013FB2A25B23DDF8908F938830374D67C630C2F0CC32F59538369FB8B"
+  },
+  {
+    "case": "world-07-rivervalley-fine.response",
+    "code": "WLD1-50x50-X0-Y0-F25-W15-R10-KFine-HRiver-E1-I2-B1111-S000000000000002A",
+    "fingerprint": "B8EC7DCE9619EDC2917FAE385EBAFD3B465515D67085C4A0FF30610BE3F963E8"
+  },
+  {
+    "case": "world-08-rivervalley-broad.response",
+    "code": "WLD1-50x50-X0-Y0-F25-W15-R10-KBroad-HRiver-E1-I2-B1111-S0000000000003039",
+    "fingerprint": "A0C1D698CC4B1308AD30ECFA19A1C2D15A3A0CB876F8767ABE9D26CA3E1FAE64"
+  },
+  {
+    "case": "world-09-rockywilds-balanced.response",
+    "code": "WLD1-50x50-X0-Y0-F15-W8-R50-KBalanced-HMixed-E1-I2-B1111-S0000000000000003",
+    "fingerprint": "8B510AD84E9D1A2C78B78B0621C6E838A001C503190CFC0D0AD22E369ECD95B5"
+  },
+  {
+    "case": "world-10-rockywilds-broad.response",
+    "code": "WLD1-50x50-X0-Y0-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S000000000000002A",
+    "fingerprint": "2BEB1AC1F38F79BED645C7EDF3DB472818AA4E9601D7C65D0A8BA17C2AC4E65F"
+  },
+  {
+    "case": "boundary-crop",
+    "code": "WLD1-45x70-X-1-Y-69-F60-W8-R8-KBroad-HMixed-E1-I2-B1111-S0000000000003039",
+    "fingerprint": "40AF2A298E307BDC5B04E56ADF894D581B5FEEF3E3C2E419F37059057DC3396B"
+  },
+  {
+    "case": "120x120-Grassland.response",
+    "code": "WLD1-120x120-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "fingerprint": "5D31DF82510A578A248508D05562DBF0596A98CD98055594EC79F70653B38403"
+  },
+  {
+    "case": "120x120-LakeCountry.response",
+    "code": "WLD1-120x120-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-S123456789ABCDEF0",
+    "fingerprint": "97C6A9A14B811256A33F9D992CFFB86675EB216FE11B961440708265E30680E8"
+  },
+  {
+    "case": "120x120-Mixed.response",
+    "code": "WLD1-120x120-X-60-Y-50-F30-W20-R25-KBroad-HMixed-E1-I2-B1111-S000000000000002A",
+    "fingerprint": "EAFAE8883103584D29B3850B0401637D749F084DDF8D614D86248F91BED38D98"
+  },
+  {
+    "case": "120x120-RiverValley.response",
+    "code": "WLD1-120x120-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-S123456789ABCDEF0",
+    "fingerprint": "65046254465CC73405F4889B29695A7585093D6ECF250ADF21BE6A4D389691DA"
+  },
+  {
+    "case": "120x120-RockyWilds.response",
+    "code": "WLD1-120x120-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-S123456789ABCDEF0",
+    "fingerprint": "3A045BB0240A4625C04841DCDA82827E6BBE8B0D61B472FF442D3ECA597DDA56"
+  },
+  {
+    "case": "120x120-Woodland.response",
+    "code": "WLD1-120x120-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-S123456789ABCDEF0",
+    "fingerprint": "AC3F5E53B2F1F9D4E9E579BDF9A2F8835F604D7C931D2594857E5A8816A21277"
+  }
+]

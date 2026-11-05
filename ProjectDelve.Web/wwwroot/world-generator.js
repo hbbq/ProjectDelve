@@ -4,9 +4,11 @@ import { applyBoardVisual, terrainDisplay } from "./board-visuals.js";
 
 const byId = id => document.getElementById(`world-generator-${id}`);
 const dialog = document.getElementById("world-generator");
-const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed"];
+const enrichmentFields = ["enrichmentEnabled", "enrichmentIntensity", "forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"];
+const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields];
 const session = new GeneratorSession();
 let presets = [], catalogPromise, maxBoardSize = 120;
+let selectedStage = 0, compareBefore = false;
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
 const signature = () => JSON.stringify(config());
 const status = message => { byId("status").textContent = message; };
@@ -41,9 +43,11 @@ byId("preset").addEventListener("change", () => {
   const preset = presets.find(p => p.id === byId("preset").value);
   if (!preset) return;
   for (const [key, value] of Object.entries(preset.settings)) if (fields.includes(key)) byId(key).value = value;
+  const enrichment = preset.enrichment ?? preset.settings.enrichment;
+  if (enrichment) for (const [field, key] of [["enrichmentEnabled", "enabled"], ["enrichmentIntensity", "intensity"], ["forestEnrichment", "forest"], ["rockEnrichment", "rock"], ["waterEnrichment", "water"], ["grasslandEnrichment", "grassland"]]) byId(field).value = String(enrichment[key]);
   changed();
 });
-for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm"])
+for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields])
   byId(field).addEventListener("change", () => { byId("preset").value = ""; });
 function randomSeed() {
   byId("seed").value = [...crypto.getRandomValues(new Uint32Array(2))].map(value => value.toString(16).padStart(8, "0")).join("").toUpperCase(); changed();
@@ -51,7 +55,7 @@ function randomSeed() {
 byId("load").addEventListener("click", () => {
   try {
     const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
-    for (const field of fields) byId(field).value = loaded[field];
+    for (const field of fields) byId(field).value = loaded[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
   } catch (error) { status(error.message); }
 });
@@ -65,10 +69,17 @@ async function generate() {
     if (ticket.sequence !== session.sequence) return;
     if (!response.ok) throw new Error(result.detail ?? "World generation failed.");
     if (!session.accept(ticket, result)) return;
+    byId("export-label").hidden = true; byId("transport").value = "";
     // Once a world is created, moving its window keeps that world. Generate
     // Another explicitly selects a new seed; clearing the field also opts in.
     if (!byId("seed").value.trim()) byId("seed").value = worldConfigurationFromCode(result.code).seed;
     session.signature = signature();
+    selectedStage = (result.preview?.frames.length ?? 1) - 1; compareBefore = false;
+    const select = byId("stage"); select.replaceChildren();
+    for (const [index, frame] of (result.preview?.frames ?? []).entries()) {
+      const option = document.createElement("option"); option.value = String(index); option.textContent = `${index + 1}. ${stageName(frame)}`; select.append(option);
+    }
+    byId("steps").hidden = !result.preview?.frames.length;
     renderPreview(); status("Terrain preview ready · awaiting scenario authoring. Add Units, Sides and Objectives in Designer.");
   } catch (error) { if (ticket.sequence === session.sequence) status(error.message); }
 }
@@ -80,6 +91,20 @@ function zoomPreview() {
   byId("board").style.width = session.result && [12, 24, 48].includes(pixels) ? `${session.result.definition.board.width * pixels}px` : "";
 }
 byId("zoom").addEventListener("change", zoomPreview);
+const stageName = frame => String(frame.stage ?? frame.stepId).replace(/([a-z])([A-Z])/g, "$1 $2");
+function showStage(index) {
+  const frames = session.result?.preview?.frames;
+  if (!frames?.length) return;
+  selectedStage = Math.max(0, Math.min(frames.length - 1, index));
+  if (selectedStage === 0) compareBefore = false;
+  renderPreview();
+}
+byId("stage").addEventListener("change", () => showStage(Number(byId("stage").value)));
+byId("previous").addEventListener("click", () => showStage(selectedStage - 1));
+byId("next").addEventListener("click", () => showStage(selectedStage + 1));
+byId("compare").addEventListener("click", () => { compareBefore = !compareBefore; renderPreview(); });
+for (const name of ["changed", "boundaries", "components", "opportunities"])
+  byId(name).addEventListener("change", () => { if (session.result) renderPreview(); });
 byId("designer").addEventListener("click", () => {
   if (!session.result) return;
   if (!globalThis.delveOpenGenerated) { status("Designer is still loading. Try again."); return; }
@@ -98,6 +123,19 @@ byId("copy-complete").addEventListener("click", async () => {
 function renderPreview() {
   const started = performance.now(), result = session.result, board = result.definition.board, root = byId("board");
   const { offsetX, offsetY } = result.window;
+  const preview = result.preview, selected = preview?.frames[selectedStage];
+  const frame = selected && preview.frames[compareBefore ? Math.max(0, selectedStage - 1) : selectedStage];
+  const scroll = byId("board-wrap"), scrollLeft = scroll.scrollLeft, scrollTop = scroll.scrollTop;
+  const changed = new Set(selected?.changedCells ?? []), boundaries = new Set(preview?.boundaryCells ?? []);
+  const chokepoints = new Set(frame?.chokepoints ?? []);
+  const entrances = new Map(), opportunities = new Map();
+  for (const entrance of frame?.entrances ?? []) for (const index of [entrance.insideIndex, entrance.outsideIndex]) {
+    if (!entrances.has(index)) entrances.set(index, []); entrances.get(index).push(entrance);
+  }
+  for (const opportunity of frame?.opportunities ?? []) {
+    if (!opportunities.has(opportunity.anchorIndex)) opportunities.set(opportunity.anchorIndex, []);
+    opportunities.get(opportunity.anchorIndex).push(opportunity);
+  }
   root.replaceChildren(); root.dataset.generationCode = result.code;
   root.style.gridTemplateColumns = `repeat(${board.width}, 1fr)`; root.style.gridTemplateRows = `repeat(${board.height}, 1fr)`;
   root.style.aspectRatio = `${board.width} / ${board.height}`; root.style.setProperty("--columns", board.width);
@@ -105,8 +143,10 @@ function renderPreview() {
   const overrides = new Map(board.cells.map(c => [`${c.position.x},${c.position.y}`, { kind: c.terrain, typeId: c.terrainTypeId, direction: c.direction }]));
   const terrain = new Map(), counts = new Map(), presentationBoard = { terrainTypes: result.terrainDefinitions };
   // Full absolute-coordinate context keeps appearance stable across overlapping windows.
-  for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++)
-    terrain.set(`${x + offsetX},${y + offsetY}`, overrides.get(`${x},${y}`) ?? { kind: board.defaultTerrain, typeId: board.defaultTerrainTypeId });
+  for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
+    const typeId = frame && preview.terrainPalette[frame.terrain.charCodeAt(y * board.width + x) - 65];
+    terrain.set(`${x + offsetX},${y + offsetY}`, typeId ? { typeId } : overrides.get(`${x},${y}`) ?? { kind: board.defaultTerrain, typeId: board.defaultTerrainTypeId });
+  }
   const fragment = document.createDocumentFragment();
   for (let y = 0; y < board.height; y++) for (let x = 0; x < board.width; x++) {
     const worldX = x + offsetX, worldY = y + offsetY, tile = terrain.get(`${worldX},${worldY}`);
@@ -114,14 +154,48 @@ function renderPreview() {
     node.className = `cell ${display.kind}${display.fallback ? " custom-terrain" : ""}`; node.title = `${display.name} (${worldX},${worldY})`;
     node.dataset.worldX = worldX; node.dataset.worldY = worldY;
     applyBoardVisual(node, "terrain", display.kind, { seed: result.visualSeed, x: worldX, y: worldY, direction: tile.direction, terrain, assembly: display.assembly });
+    if (frame) {
+      const index = y * board.width + x, component = frame.walkableComponents[index];
+      const formation = preview.formations[preview.formationLabels[index]];
+      if (byId("changed").checked && changed.has(index)) node.className += " world-changed";
+      if (byId("boundaries").checked && boundaries.has(index)) node.className += " world-boundary";
+      if (byId("components").checked && component >= 0) {
+        node.className += " world-component"; node.style.setProperty("--component-color", `hsl(${component * 137.508 % 360} 80% 65% / .48)`);
+      }
+      if (byId("components").checked && chokepoints.has(index)) node.className += " world-chokepoint";
+      if (byId("opportunities").checked && (entrances.has(index) || opportunities.has(index))) {
+        const marker = document.createElement("span");
+        marker.className = `world-analysis-marker${entrances.has(index) ? " world-entrance" : ""}${opportunities.has(index) ? " world-opportunity" : ""}`;
+        node.append(marker);
+      }
+      const details = [node.title, `Stage: ${stageName(frame)}`, `Walkable component: ${component >= 0 ? component : "blocked"}`];
+      if (formation) details.push(`Original formation ${formation.id}: ${formation.kind}; core ${formation.coreArea}, envelope ${formation.envelopeArea}, density ${Number(formation.density).toFixed(2)}, depth ${formation.maxDepth}${formation.touchesBoundary ? "; touches window boundary" : ""}`);
+      for (const entrance of entrances.get(index) ?? []) details.push(`Entrance ${entrance.id}: feature ${entrance.featureId}, width ${entrance.width}`);
+      for (const opportunity of opportunities.get(index) ?? []) details.push(`Opportunity ${opportunity.id}: ${opportunity.kind}; usable area ${opportunity.usableArea}; component ${opportunity.walkableComponent}${opportunity.requiresConnection ? "; requires connection" : ""}${opportunity.otherBankIndex != null ? `; opposite bank (${opportunity.otherBankIndex % board.width + offsetX},${Math.floor(opportunity.otherBankIndex / board.width) + offsetY}), Water span ${opportunity.waterSpan}` : ""}`);
+      if (chokepoints.has(index)) details.push("Chokepoint");
+      node.title = details.join("\n");
+      const inspect = () => { byId("inspection").textContent = node.title; };
+      node.addEventListener("pointerenter", inspect); node.addEventListener("click", inspect);
+    }
     counts.set(display.name, (counts.get(display.name) ?? 0) + 1); fragment.append(node);
   }
   root.append(fragment);
   zoomPreview();
+  scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
+  if (selected) {
+    byId("stage").value = String(selectedStage); byId("previous").disabled = selectedStage === 0;
+    byId("next").disabled = selectedStage === preview.frames.length - 1;
+    byId("compare").disabled = selectedStage === 0; byId("compare").textContent = compareBefore ? "Before" : "After";
+    byId("compare").setAttribute?.("aria-pressed", String(compareBefore));
+    const d = frame.diagnostics;
+    byId("diagnostics").textContent = `${stageName(frame)} · ${compareBefore ? "Before" : "After"} · selected step changes ${selected.diagnostics.changedCells} · features added ${d.featuresAdded} · walkable ${d.walkableArea} · components ${d.componentCount} · largest ${d.largestComponentArea} · route searches ${d.routingSearches} · visited ${d.routingVisitedCells}`;
+    byId("inspection").textContent = "Hover or click a Cell to inspect server analysis. Overlays: gold changes, cyan formation boundaries, coloured components, red chokepoints, white entrances, purple opportunities.";
+  }
   byId("complete").value = result.code;
   const elapsed = (performance.now() - started).toFixed(1); root.dataset.renderMs = elapsed;
   byId("preview-summary").textContent = `${board.width} × ${board.height} · world (${offsetX}, ${offsetY}) · ${[...counts].map(([name, count]) => `${name} ${count} (${(100 * count / (board.width * board.height)).toFixed(1)}%)`).join(" · ")} · fingerprint ${result.fingerprint.slice(0, 16)}`;
-  byId("performance").textContent = `Rendered ${board.width * board.height} terrain Cells in ${elapsed} ms.`;
-  byId("export-label").hidden = true; byId("transport").value = ""; byId("preview-content").hidden = false;
+  const metrics = result.metrics, stageMetric = metrics?.stages?.find(stage => stage.stepId === frame?.stepId);
+  byId("performance").textContent = `Rendered ${board.width * board.height} terrain Cells in ${elapsed} ms.${metrics ? ` Server frame stage ${stageMetric?.milliseconds?.toFixed(1) ?? "—"} ms / ${stageMetric?.allocatedBytes ?? "—"} allocated bytes; finalization ${metrics.finalizationMilliseconds.toFixed(1)} ms; preview raw data estimate ${metrics.retainedPreviewBytes} bytes.` : ""}`;
+  byId("preview-content").hidden = false;
 }
 changed();

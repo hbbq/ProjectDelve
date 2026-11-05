@@ -40,7 +40,7 @@ public static class WorldGenerationApi
                     terrainDefinitions = catalog.Terrain,
                     transport = ScenarioDefinitionTransport.Encode(definition),
                     fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))),
-                    result.Diagnostics, result.VisualSeed, result.Window
+                    result.Diagnostics, result.VisualSeed, result.Window, result.Preview, result.Metrics
                 });
             }
             catch (Exception error) when (error is ArgumentException or FormatException or OverflowException)
