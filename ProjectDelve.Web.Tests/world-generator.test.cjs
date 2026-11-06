@@ -18,14 +18,16 @@ function harness() {
   }
   const nodes = new Map(), get = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
   for (const [key, value] of Object.entries({ width:"2", height:"2", offsetX:"-8", offsetY:"12", forestCoverage:"35", waterCoverage:"20", rockCoverage:"15", scale:"Balanced", waterForm:"Auto", seed:"", view:"enhanced" })) get(`world-generator-${key}`).value = value;
-  const opened = new Node(), requests = [], designs = [], visuals = [], copied = [];
+  const opened = new Node(), requests = [], designs = [], visuals = [], copied = [], plays = [], navigations = [];
   const context = vm.createContext({ structuredClone, Uint32Array,
     performance: { now: () => 42 },
     document: { getElementById: get, querySelectorAll: () => [opened], createElement: () => new Node(), createDocumentFragment: () => Object.assign(new Node(), {fragment:true}) },
     crypto: { getRandomValues: array => { array[0] = 1; array[1] = 2; return array; } },
     navigator: { clipboard: { writeText: async value => { copied.push(value); } } },
     fetch: (url, options) => new Promise(resolve => requests.push({ url, body: options.body && JSON.parse(options.body), resolve })),
-    delveOpenGenerated: value => { designs.push(value); return true; }
+    delveOpenGenerated: value => { designs.push(value); return true; },
+    delvePlayDesign: async transport => { plays.push(transport); return true; },
+    delveNavigate: mode => navigations.push(mode)
   });
   vm.runInContext(source("board-visuals.js").replace(/^export /gm, ""), context);
   context.applyBoardVisual = (node, category, kind, options) => visuals.push({ node, category, kind, options });
@@ -37,8 +39,64 @@ function harness() {
     terrainDefinitions:[{ id:"test-ground", name:"Test Paving", presentation:{recipe:"Gravel"} }, {id:"test-canopy",name:"Test Canopy",presentation:{recipe:"Tree"}}],
     definition:{ board:{width:2,height:2,defaultTerrain:"StoneFloor",defaultTerrainTypeId:"test-ground",cells:[{position:{x:1,y:0},terrain:"Tree",terrainTypeId:"test-canopy"}],edges:[]},units:[] }, diagnostics:{} });
   const accept = async (index, value = result()) => { requests[index].resolve({ok:true,json:async () => value}); await flush(); };
-  return { get, click, enter, requests, designs, opened, context, result, visuals, copied, accept };
+  return { get, click, enter, requests, designs, opened, context, result, visuals, copied, plays, navigations, accept };
 }
+
+test("Quick Play passes only the temporary transport to Playtest and retains the original world in Designer", async () => {
+  const h = harness(), result = h.result();
+  result.definition.units = [{ unitId: 'original-enemy', groupId: 'original-camp' }];
+  result.definition.orders = [{ groupId: 'original-camp', kind: 'GuardArea' }];
+  const original = JSON.stringify(result);
+  h.get('world-generator').open = true;
+  h.click('preview'); await h.accept(0, result);
+  h.enter('forestCoverage', '20'); // Like Export, Quick Play uses the retained result.
+  const pending = h.click('quick-play'); h.click('quick-play');
+  assert.equal(h.requests.length, 2); assert.equal(h.requests[1].url, '/api/world-generation/quick-play');
+  assert.deepEqual(h.requests[1].body, result.definition);
+  assert.equal(h.get('world-generator-quick-play').disabled, true);
+  await h.accept(1, { transport: 'DELVE1:temporary-heroes' }); await pending;
+  assert.deepEqual(h.plays, ['DELVE1:temporary-heroes']); assert.equal(JSON.stringify(h.designs[0]), original);
+  assert.deepEqual(h.navigations, ['play']);
+  assert.equal(JSON.stringify(result), original); assert.equal(h.get('world-generator').open, false);
+  h.click('export'); assert.equal(h.get('world-generator-transport').value, result.transport);
+  assert.equal(h.get('world-generator-quick-play').disabled, false);
+});
+
+test("Quick Play placement failure leaves the original preview and Designer untouched", async () => {
+  const h = harness(); h.get('world-generator').open = true;
+  h.click('preview'); await h.accept(0); const original = h.get('world-generator-board').children[0];
+  const pending = h.click('quick-play');
+  h.requests[1].resolve({ ok: false, json: async () => ({ detail: 'No free legal cluster for four Heroes.' }) });
+  await pending;
+  assert.match(h.get('world-generator-status').textContent, /No free legal cluster/);
+  assert.equal(h.designs.length, 0); assert.equal(h.plays.length, 0);
+  assert.equal(h.get('world-generator-board').children[0], original);
+  assert.equal(h.get('world-generator').open, true); assert.equal(h.get('world-generator-quick-play').disabled, false);
+});
+
+test("closed or replaced previews cannot launch a late Quick Play preparation", async () => {
+  for (const close of [true, false]) {
+    const h = harness(); h.get('world-generator').open = true;
+    h.click('preview'); await h.accept(0); const pending = h.click('quick-play');
+    if (close) h.click('close');
+    else { h.click('preview'); await h.accept(2, h.result(code.replace('X-8', 'X-7'))); }
+    await h.accept(1, { transport: 'DELVE1:late-party' }); await pending;
+    assert.equal(h.plays.length, 0); assert.equal(h.designs.length, 0);
+  }
+});
+
+test("Quick Play uses existing handoff cancellation and reports game replacement failure", async () => {
+  for (const canceled of [true, false]) {
+    const h = harness(); h.get('world-generator').open = true;
+    h.click('preview'); await h.accept(0);
+    if (canceled) h.context.delveOpenGenerated = () => false;
+    else h.context.delvePlayDesign = async () => false;
+    const pending = h.click('quick-play'); await h.accept(1, { transport: 'DELVE1:temporary' }); await pending;
+    assert.equal(h.plays.length, 0); assert.equal(h.get('world-generator').open, true);
+    assert.equal(h.navigations.length, 0);
+    assert.match(h.get('world-generator-status').textContent, canceled ? /canceled/ : /Could not start Quick Play/);
+  }
+});
 
 test("world recipes round-trip every scale and water form, signed bounds and seed case", () => {
   const h = harness();
@@ -153,7 +211,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-S')); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-MOff-D3-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -222,7 +280,7 @@ test("performance labels distinguish finalization and follow the displayed compa
 test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
   const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
   assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),enriched);
-  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-S'));
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-MOff-D3-S'));
   assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
   h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
   for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
@@ -280,6 +338,66 @@ function constructionResult(h) {
   return result;
 }
 function descendants(node) { return [node,...node.children.flatMap(descendants)]; }
+
+test("Population controls round-trip all densities and difficulties without type selection controls", () => {
+  const h = harness();
+  for (const density of ['Off', 'Low', 'Medium', 'High']) for (const difficulty of [1, 3, 5]) {
+    const recipe = code.replace('-S', `-M${density}-D${difficulty}-S`);
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`, h.context), recipe);
+    h.enter('code-input', recipe); h.click('load');
+    assert.equal(h.get('world-generator-populationDensity').value, density);
+    assert.equal(h.get('world-generator-populationDifficulty').value, String(difficulty));
+  }
+  h.enter('code-input', code); h.click('load');
+  assert.equal(h.get('world-generator-populationDensity').value, 'Off');
+  for (const suffix of ['-MRare-D3', '-MHigh-D0', '-MHigh-D6', '-MHigh'])
+    assert.throws(() => vm.runInContext(`worldConfigurationFromCode('${code.replace('-S', suffix + '-S')}')`, h.context), /ordered WLD1/);
+  const html = source('index.html');
+  assert.match(html, /id="world-generator-populationDensity"/); assert.match(html, /id="world-generator-populationDifficulty"/);
+  assert.doesNotMatch(html, /id="world-generator-(?:theme|encounterType|rarity|encounterWeight)"/);
+});
+
+test("Population preset settings and edits invalidate the retained preview", async () => {
+  const h = harness(); h.opened.click();
+  await h.accept(0, { maxBoardSize: 120, presets: [{ id: 'inhabited', name: 'Inhabited', settings: {}, population: { density: 'High', difficulty: 4 } }] });
+  h.get('world-generator-preset').value = 'inhabited'; h.get('world-generator-preset').listeners.change();
+  h.click('preview'); assert.match(h.requests[1].body.code, /-MHigh-D4$/); await h.accept(1);
+  const retained = h.get('world-generator-board').children[0];
+  h.enter('populationDensity', 'Low');
+  assert.match(h.get('world-generator-status').textContent, /outdated/); assert.equal(h.get('world-generator-board').children[0], retained);
+  h.enter('populationDifficulty', '6'); h.click('preview'); assert.equal(h.requests.length, 2);
+  assert.match(h.get('world-generator-status').textContent, /populationDifficulty/);
+});
+
+test("Population preview renders only its displayed stage and preserves the ordinary final scenario", async () => {
+  const h = harness(), result = constructionResult(h);
+  const unit = { unitTypeId: 'test-guard', unitId: 'unit-7', sideId: 'monsters', groupId: 'slot-7-guards', anchor: { x: 1, y: 1 }, posture: 'Lying', dormant: true };
+  const waypoint = { id: 'slot-7-waypoint', area: { x: 0, y: 0, w: 1, h: 1 } };
+  const route = { id: 'slot-7-route', mode: 'PingPong', waypointIds: [waypoint.id, 'slot-7-other'] };
+  const order = { unitTypeId: unit.unitTypeId, sideId: unit.sideId, groupId: unit.groupId, kind: 'FollowRoute', route: { routeId: route.id, currentIndex: 0, direction: 1 } };
+  const encounter = { id: 'slot-7', kind: 'RoadPatrol', sourceId: 'road-2', groupIds: [unit.groupId], units: [unit], orders: [order], routes: [route], waypoints: [waypoint, { id: 'slot-7-other', area: { x: 1, y: 1, w: 1, h: 1 } }] };
+  result.unitDefinitions = [{ id: unit.unitTypeId, displayName: 'Test Guard', cellSpan: 1 }];
+  result.definition.units = [unit]; result.definition.orders = [order]; result.definition.routes = [route]; result.definition.waypoints = encounter.waypoints;
+  result.preview.frames[2].stage = 'Population';
+  result.preview.frames[2].population = { encounters: [encounter], statistics: { target: 2, acceptedEncounters: 1, units: 1, groups: 1, attempts: 2, work: 30, shortfall: 1 }, failures: [{ kind: 'ZombieHouse', reason: 'No accessible building.' }] };
+  h.get('world-generator-population-units').checked = true; h.get('world-generator-population-routes').checked = true;
+  h.click('preview'); await h.accept(0, result);
+  const populationNodes = () => h.get('world-generator-board').children.filter(node => node.className.includes('world-population-'));
+  assert.equal(populationNodes().length, 4); assert.equal(h.get('world-generator-population').hidden, false);
+  const figure = populationNodes().find(node => node.dataset.unitId);
+  assert.match(figure.className, /lying dormant/); assert.match(figure.title, /Test Guard.*unit-7/);
+  figure.click(); assert.match(h.get('world-generator-inspection').textContent, /Group slot-7-guards/);
+  assert.match(h.get('world-generator-population-summary').textContent, /1 \/ 2 encounters.*shortfall 1/);
+  assert.match(descendants(h.get('world-generator-population-details')).find(node => node.dataset.groupId).textContent, /FollowRoute.*slot-7-route/);
+  assert.match(h.get('world-generator-population-failures').children[0].textContent, /No accessible building/);
+  h.click('compare'); assert.equal(populationNodes().length, 0); assert.equal(h.get('world-generator-population').hidden, true);
+  h.click('compare'); assert.equal(populationNodes().length, 4);
+  operation(h, 'test/site').click(); assert.equal(populationNodes().length, 0);
+  h.click('previous'); assert.equal(populationNodes().length, 0);
+  h.click('export'); h.click('designer'); assert.equal(h.get('world-generator-transport').value, result.transport);
+  assert.equal(JSON.stringify(h.designs[0].definition), JSON.stringify(result.definition));
+});
+
 function operation(h,id) { return descendants(h.get('world-generator-construction-tree')).find(node=>node.dataset.operationId===id); }
 
 test("nested construction replay restores terrain, deletes Edges and uses the first trace checkpoint on Final", async () => {
@@ -366,7 +484,7 @@ test("route recipes round-trip every profile and bounded setting, with old codes
   }
   h.enter('code-input',code);h.click('load');
   assert.equal(h.get('world-generator-routesEnabled').value,'false');assert.equal(h.get('world-generator-waterCrossings').value,'false');
-  assert.match(h.get('world-generator-prefix').value,/-Q0-T1-JMinorPath-L1-A1-U0-Z2$/);
+  assert.match(h.get('world-generator-prefix').value,/-Q0-T1-JMinorPath-L1-A1-U0-Z2-MOff-D3$/);
   for(const suffix of ['-Q2-T1-JRoad-L1-A1-U0-Z2','-Q1-T5-JRoad-L1-A1-U0-Z2','-Q1-T1-JRail-L1-A1-U0-Z2',
     '-Q1-T1-JRoad-L1-A4-U0-Z2','-Q1-T1-JRoad-L1-A1-U2-Z2','-Q1-T1-JRoad-L1-A1-U0-Z0'])
     assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',suffix+'-S')}')`,h.context),/ordered WLD1/);

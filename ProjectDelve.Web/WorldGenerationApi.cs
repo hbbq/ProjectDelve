@@ -35,15 +35,32 @@ public static class WorldGenerationApi
                 var json = ScenarioDefinitionJson.ToJson(definition);
                 return Results.Ok(new
                 {
-                    result.Code, title = "Generated world terrain",
+                    result.Code, title = definition.Units.Count > 0 ? "Generated populated world" : "Generated world terrain",
                     definition = JsonSerializer.Deserialize<JsonElement>(json),
                     terrainDefinitions = catalog.Terrain,
+                    unitDefinitions = catalog.Units.Where(type => definition.UnitTypeIds.Contains(type.Id))
+                        .Select(type => new { type.Id, displayName = type.DisplayName ?? type.Id, cellSpan = type.Footprint == Footprint.TwoByTwo ? 2 : 1 }),
                     transport = ScenarioDefinitionTransport.Encode(definition),
                     fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))),
                     result.Diagnostics, result.VisualSeed, result.Window, result.Preview, result.Metrics
                 });
             }
             catch (Exception error) when (error is ArgumentException or FormatException or OverflowException)
+            { return Results.Problem(error.Message, statusCode: 400); }
+        });
+        // Prepare a detached playtest artifact; game replacement uses the existing
+        // revisioned Designer/Client import flow, never this authoring endpoint.
+        app.MapPost("/api/world-generation/quick-play", (JsonElement input, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            try
+            {
+                var canonical = app.Services.GetRequiredService<CanonicalContent>().Bundle;
+                var original = ScenarioDefinitionJson.FromJson(input.GetRawText(), limits.CheckScenario, canonical);
+                var temporary = WorldQuickPlay.Prepare(original, canonical);
+                return Results.Ok(new { transport = ScenarioDefinitionTransport.Encode(temporary) });
+            }
+            catch (Exception error) when (error is ArgumentException or FormatException or InvalidDataException or JsonException)
             { return Results.Problem(error.Message, statusCode: 400); }
         });
     }

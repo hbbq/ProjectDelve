@@ -599,6 +599,14 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .world-route-detail { padding: 8px 0; border-top: 1px solid #58697666; }
 .world-route-detail p, #world-generator-route-summary { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 #world-generator label[hidden] { display: none; }
+.world-population-panel { margin-top: 12px; padding: 12px; border: 1px solid #709b86; border-radius: 5px; }
+.world-population-panel details { margin-top: 10px; }
+.world-population-detail { padding: 10px 0; border-bottom: 1px solid #58697666; overflow-wrap: anywhere; }
+.world-population-detail p { font-size: 12px; margin: 6px 0; line-height: 1.5; }
+.world-population-unit { z-index: 10; cursor: pointer; }
+.world-population-waypoint { position: absolute; border: 2px solid #9df3ba; box-sizing: border-box; z-index: 8; pointer-events: none; }
+.world-population-route { position: absolute; height: 0; border-top: 2px dashed #9df3ba; transform-origin: left center; z-index: 8; pointer-events: none; }
+.designer-board .waypoint-area { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 @media (max-width: 850px) {
   #world-generator { padding: 16px; }
   .world-generator-layout { grid-template-columns: 1fr; gap: 18px; }

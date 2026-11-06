@@ -7,11 +7,13 @@ const dialog = document.getElementById("world-generator");
 const enrichmentFields = ["enrichmentEnabled", "enrichmentIntensity", "forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"];
 const civilizationFields = ["civilizationEnabled", "campsiteCount", "settlementCount", "preparationIntensity"];
 const routeFields = ["routesEnabled", "throughRoutes", "routeProfile", "connectSites", "explorationLinks", "waterCrossings", "routeIntensity"];
-const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields, ...civilizationFields, ...routeFields];
+const populationFields = ["populationDensity", "populationDifficulty"];
+const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields, ...civilizationFields, ...routeFields, ...populationFields];
 const session = new GeneratorSession();
 let presets = [], catalogPromise, maxBoardSize = 120;
 let selectedStage = 0, compareBefore = false;
 let selectedOperation = null, selectedSpace = null, traceFrame = null;
+let quickPlaying = false;
 const traceButtons = new Map();
 const config = () => Object.fromEntries(fields.map(id => [id, byId(id).value]));
 const signature = () => JSON.stringify(config());
@@ -20,7 +22,7 @@ function changed() {
   session.changed();
   try { byId("prefix").value = worldConfigurationCode(config(), false, maxBoardSize); worldConfigurationCode(config(), true, maxBoardSize); }
   catch (error) { status(error.message); return; }
-  status(session.outdated(signature()) ? "Preview outdated · the retained map and completed code belong to the previous generation." : session.result ? "Terrain preview ready · awaiting scenario authoring." : "Choose a world window, then generate a terrain preview.");
+  status(session.outdated(signature()) ? "Preview outdated · the retained map and completed code belong to the previous generation." : session.result ? "World preview ready · awaiting scenario authoring." : "Choose a world window, then generate a preview.");
 }
 for (const field of fields) byId(field).addEventListener("input", changed);
 async function loadCatalog() {
@@ -53,9 +55,11 @@ byId("preset").addEventListener("change", () => {
   if (civilization) for (const [field, key] of [["civilizationEnabled", "enabled"], ["campsiteCount", "campsites"], ["settlementCount", "settlements"], ["preparationIntensity", "preparationIntensity"]]) byId(field).value = String(civilization[key]);
   const routes = preset.routes ?? preset.settings.routes;
   if (routes) for (const [field, key] of [["routesEnabled", "enabled"], ["throughRoutes", "throughRoutes"], ["routeProfile", "profile"], ["connectSites", "connectSites"], ["explorationLinks", "alternatives"], ["waterCrossings", "waterCrossings"], ["routeIntensity", "intensity"]]) byId(field).value = String(routes[key]);
+  const population = preset.population ?? preset.settings.population;
+  if (population) { byId("populationDensity").value = population.density; byId("populationDifficulty").value = String(population.difficulty); }
   changed();
 });
-for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields, ...civilizationFields, ...routeFields])
+for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields, ...civilizationFields, ...routeFields, ...populationFields])
   byId(field).addEventListener("change", () => { byId("preset").value = ""; });
 function randomSeed() {
   byId("seed").value = [...crypto.getRandomValues(new Uint32Array(2))].map(value => value.toString(16).padStart(8, "0")).join("").toUpperCase(); changed();
@@ -64,7 +68,8 @@ byId("load").addEventListener("click", () => {
   try {
     const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
     const defaults = { civilizationEnabled: "false", campsiteCount: "2", settlementCount: "1", preparationIntensity: "2",
-      routesEnabled: "false", throughRoutes: "1", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "1", waterCrossings: "false", routeIntensity: "2" };
+      routesEnabled: "false", throughRoutes: "1", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "1", waterCrossings: "false", routeIntensity: "2",
+      populationDensity: "Off", populationDifficulty: "3" };
     for (const field of fields) byId(field).value = loaded[field] ?? defaults[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
   } catch (error) { status(error.message); }
@@ -92,7 +97,7 @@ async function generate() {
       const option = document.createElement("option"); option.value = String(index); option.textContent = `${index + 1}. ${stageName(frame)}`; select.append(option);
     }
     byId("steps").hidden = !result.preview?.frames.length;
-    renderPreview(); status("Terrain preview ready · awaiting scenario authoring. Add Units, Sides and Objectives in Designer.");
+    renderPreview(); status("World preview ready · awaiting scenario authoring. Add your party and Objectives in Designer.");
   } catch (error) { if (ticket.sequence === session.sequence) status(error.message); }
 }
 byId("preview").addEventListener("click", () => { void generate(); });
@@ -117,17 +122,38 @@ byId("previous").addEventListener("click", () => showStage(selectedStage - 1));
 byId("next").addEventListener("click", () => showStage(selectedStage + 1));
 byId("compare").addEventListener("click", () => { compareBefore = !compareBefore; renderPreview(); });
 for (const name of ["changed", "boundaries", "components", "opportunities", "sites", "buildings", "rooms", "usable", "site-entrances",
-  "route-intents", "route-centerlines", "route-corridors", "route-junctions", "route-crossings", "route-access"])
+  "route-intents", "route-centerlines", "route-corridors", "route-junctions", "route-crossings", "route-access", "population-units", "population-routes"])
   byId(name).addEventListener("change", () => { if (session.result) renderPreview(); });
 byId("designer").addEventListener("click", () => {
   if (!session.result) return;
   if (!globalThis.delveOpenGenerated) { status("Designer is still loading. Try again."); return; }
   if (globalThis.delveOpenGenerated(session.result)) dialog.close();
 });
+byId("quick-play").addEventListener("click", async () => {
+  if (!session.result || quickPlaying) return;
+  if (!globalThis.delveOpenGenerated || !globalThis.delvePlayDesign) { status("Designer and Playtest are still loading. Try again."); return; }
+  const result = session.result;
+  quickPlaying = true; byId("quick-play").disabled = true;
+  status("Preparing a temporary Hero party for Quick Play…");
+  try {
+    const response = await fetch("/api/world-generation/quick-play", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.definition), cache: "no-store" });
+    const prepared = await response.json();
+    if (!dialog.open || session.result !== result) return;
+    if (!response.ok) throw new Error(prepared.detail ?? "No suitable Hero starting area was found.");
+    // Retain only the original in Designer/recovery. The temporary transport goes
+    // straight to the existing Client importer and its Back to Designer context.
+    if (!globalThis.delveOpenGenerated(result, { reuseUnchanged: true })) { status("Quick Play canceled · the generated world is retained."); return; }
+    if (!await globalThis.delvePlayDesign(prepared.transport)) throw new Error("Could not start Quick Play. Check Playtest status and try again.");
+    if (globalThis.delveNavigate) globalThis.delveNavigate("play");
+    else globalThis.delveSetDesignerMode?.(false);
+    dialog.close();
+  } catch (error) { status(error.message); }
+  finally { quickPlaying = false; byId("quick-play").disabled = false; }
+});
 byId("export").addEventListener("click", () => {
   if (!session.result) return;
   byId("transport").value = session.result.transport; byId("export-label").hidden = false;
-  byId("transport").focus(); byId("transport").select(); status("Exact terrain exported as DELVE1 · awaiting scenario authoring.");
+  byId("transport").focus(); byId("transport").select(); status("Exact world exported as DELVE1 · awaiting scenario authoring.");
 });
 byId("copy-complete").addEventListener("click", async () => {
   if (!session.result) return;
@@ -199,6 +225,7 @@ function renderPreview() {
   renderPlanSpaces(root, selected, board.width, board.height);
   renderRoutes(root, selected, board.width, board.height, result.window);
   renderConstruction(selected);
+  renderPopulation(root, selectedOperation ? null : frame, board.width, board.height, result);
   zoomPreview();
   scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
   if (selected) {
@@ -403,5 +430,69 @@ function renderRoutes(root, frame, width, height, window) {
     `${s.searches} searches on accepted Routes · ${s.expandedStates} expanded states on accepted Routes · peak queue ${s.peakQueue} · planning attempts ${s.planningAttempts ?? "—"} · work ${s.planningWork ?? "—"} · ` +
     `preparation cost ${s.preparationCost} · terrain changes ${s.changedTerrain} · Edge changes ${s.changedEdges} · ${s.crossings} Water crossings · ${s.tunnelEntrances} tunnel mouths · ` +
     `${(network.intents ?? []).filter(intent => intent.status === "Unresolved").length} unresolved requests.` : "Published Site access; no route network accepted at this stage.";
+}
+// Authoring-only projection of the displayed frame. Never use final scenario Units
+// as a fallback: earlier stages and construction checkpoints predate Population.
+function renderPopulation(root, frame, width, height, result) {
+  const population = frame?.population, panel = byId("population");
+  panel.hidden = !population;
+  const details = byId("population-details"), failures = byId("population-failures");
+  details.replaceChildren(); failures.replaceChildren();
+  if (!population) return;
+  const s = population.statistics;
+  byId("population-summary").textContent = `${s.acceptedEncounters} / ${s.target} encounters · ${s.units} Units · ${s.groups} Groups · ${s.attempts} attempts · work ${s.work}${s.shortfall ? ` · shortfall ${s.shortfall}` : ""}. No party, starts or Objectives are generated.`;
+  const metadata = new Map((result.unitDefinitions ?? []).map(type => [type.id, type]));
+  const inspect = text => { byId("inspection").textContent = text; };
+  const areaText = a => `(${a.x}, ${a.y}), ${a.w} × ${a.h}`;
+  for (const encounter of population.encounters) {
+    const item = document.createElement("div"); item.className = "world-population-detail"; item.dataset.encounterId = encounter.id;
+    const heading = document.createElement("strong"); heading.textContent = `${String(encounter.kind).replace(/([a-z])([A-Z])/g, "$1 $2")} · ${encounter.units.length} Units`;
+    const source = document.createElement("p"); source.textContent = `Source: ${encounter.sourceId}`;
+    item.append(heading, source);
+    for (const order of encounter.orders) {
+      const line = document.createElement("p");
+      line.textContent = `${order.unitTypeId} · ${order.sideId} · Group ${order.groupId}: ${order.kind}${order.area ? ` ${areaText(order.area)}` : ""}${order.route ? ` ${order.route.routeId} · waypoint ${order.route.currentIndex + 1} · direction ${order.route.direction}` : ""}`;
+      line.dataset.groupId = order.groupId; item.append(line);
+    }
+    for (const route of encounter.routes) {
+      const line = document.createElement("p"); line.textContent = `${route.id} · ${route.mode} · ${route.waypointIds.length} Waypoints. Lines show waypoint order; movement may take shortcuts.`; item.append(line);
+    }
+    details.append(item);
+    if (byId("population-routes").checked) {
+      const waypoints = new Map(encounter.waypoints.map(w => [w.id, w]));
+      for (const route of encounter.routes) {
+        const ordered = route.waypointIds.map(id => waypoints.get(id)).filter(Boolean);
+        for (let i = 0; i < ordered.length; i++) {
+          const waypoint = ordered[i], a = waypoint.area, node = document.createElement("span");
+          node.className = "world-population-waypoint"; node.dataset.waypointId = waypoint.id;
+          node.title = `${waypoint.id} · ${areaText(a)} · ${route.mode}`;
+          Object.assign(node.style, { left: `${a.x / width * 100}%`, top: `${a.y / height * 100}%`, width: `${a.w / width * 100}%`, height: `${a.h / height * 100}%` });
+          root.append(node);
+          if (i === 0) continue;
+          const b = ordered[i - 1].area, x = (b.x + b.w / 2) / width * 100, y = (b.y + b.h / 2) / height * 100;
+          const dx = (a.x + a.w / 2) / width * 100 - x, dy = ((a.y + a.h / 2) / height * 100 - y) * height / width;
+          const line = document.createElement("span"); line.className = "world-population-route"; line.dataset.routeId = route.id;
+          line.title = `${route.id} · waypoint sequence`;
+          Object.assign(line.style, { left: `${x}%`, top: `${y}%`, width: `${Math.hypot(dx, dy)}%`, transform: `rotate(${Math.atan2(dy, dx)}rad)` }); root.append(line);
+        }
+      }
+    }
+    if (byId("population-units").checked) for (const unit of encounter.units) {
+      const type = metadata.get(unit.unitTypeId), span = type?.cellSpan ?? 1, name = type?.displayName ?? unit.unitTypeId;
+      const order = encounter.orders.find(o => o.unitTypeId === unit.unitTypeId && o.sideId === unit.sideId && o.groupId === unit.groupId);
+      const node = document.createElement("div");
+      node.className = `figure world-population-unit${unit.posture === "Lying" ? " lying" : ""}${unit.dormant ? " dormant" : ""}`;
+      node.dataset.unitId = unit.unitId; node.dataset.groupId = unit.groupId;
+      node.title = `${name} · ${unit.unitId}\n${unit.sideId} · Group ${unit.groupId}\n${unit.posture ?? "Upright"}${unit.dormant ? " · Dormant" : " · Awake"}${unit.wakeDistance != null ? ` · Wake Distance ${unit.wakeDistance}` : ""}\nOrder: ${order?.kind ?? "Normal"}`;
+      const label = document.createElement("span"); label.className = "figure-name"; label.textContent = name.split(/\s+/).map(word => word[0]).join("").slice(0, 3); node.append(label);
+      if (unit.dormant) { const marker = document.createElement("span"); marker.className = "dormant-marker"; marker.textContent = "Zz"; node.append(marker); }
+      Object.assign(node.style, { left: `${(unit.anchor.x + span / 2) / width * 100}%`, top: `${(unit.anchor.y + span / 2) / height * 100}%`, width: `${span * 72 / width}%` });
+      node.addEventListener("click", () => inspect(node.title)); node.addEventListener("pointerenter", () => inspect(node.title)); root.append(node);
+    }
+  }
+  for (const failure of population.failures.slice(0, 24)) {
+    const item = document.createElement("li"); item.textContent = `${failure.kind ?? "Population"}: ${failure.reason}`; failures.append(item);
+  }
+  byId("population-failure-panel").hidden = !population.failures.length;
 }
 changed();

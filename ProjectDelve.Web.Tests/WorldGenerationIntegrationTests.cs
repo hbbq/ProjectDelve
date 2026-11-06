@@ -158,6 +158,125 @@ public sealed class WorldGenerationIntegrationTests
         Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
     }
 
+    [Fact]
+    public async Task PopulationPreviewAndPortableDesignerScenarioPreserveGroupsOrdersAndRoutesWithoutReplacingGame()
+    {
+        await using var host = await Host.Start();
+        var before = await host.Client.GetStringAsync("/api/game");
+        var code = "WLD1-80x60-X-17-Y-13-F0-W0-R0-KBalanced-HAuto-C1-N2-V1-P2-Q1-T2-JRoad-L1-A1-U0-Z2-MHigh-D3-S0000000000003039";
+        using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var definition = ScenarioDefinitionTransport.Decode(result.GetProperty("transport").GetString()!);
+        Assert.NotEmpty(definition.Units); Assert.NotEmpty(definition.Orders!);
+        Assert.Equal("Generated populated world", result.GetProperty("title").GetString());
+        Assert.Null(definition.Objectives); Assert.Null(definition.FogOfWarSides); Assert.Null(definition.WorldEffects);
+        Assert.Empty(definition.Loot!.Composition!);
+        Assert.All(definition.Units, unit =>
+        {
+            Assert.Equal(HeroesVsMonsters.Monsters, unit.SideId);
+            Assert.False(string.IsNullOrWhiteSpace(unit.GroupId)); Assert.False(string.IsNullOrWhiteSpace(unit.UnitId));
+            Assert.Contains(definition.Agency, a => a.UnitTypeId == unit.UnitTypeId && a.SideId == unit.SideId && a.GroupId == unit.GroupId);
+        });
+        var frames = result.GetProperty("preview").GetProperty("frames").EnumerateArray().ToArray();
+        Assert.Equal("Population", frames[^1].GetProperty("stage").GetString());
+        Assert.All(frames[..^1], frame => Assert.True(!frame.TryGetProperty("population", out var p) || p.ValueKind == JsonValueKind.Null));
+        var population = frames[^1].GetProperty("population");
+        var encounterGroups = population.GetProperty("encounters").EnumerateArray()
+            .SelectMany(e => e.GetProperty("groupIds").EnumerateArray().Select(g => g.GetString())).ToArray();
+        Assert.Equal(encounterGroups.Length, encounterGroups.Distinct().Count());
+        var previewUnitIds = population.GetProperty("encounters").EnumerateArray()
+            .SelectMany(e => e.GetProperty("units").EnumerateArray().Select(u => u.GetProperty("unitId").GetString())).Order().ToArray();
+        Assert.Equal(definition.Units.Select(u => u.UnitId).Order(), previewUnitIds);
+        Assert.Equal(definition.Units.Count, population.GetProperty("statistics").GetProperty("units").GetInt32());
+        Assert.NotEmpty(result.GetProperty("unitDefinitions").EnumerateArray());
+        Assert.DoesNotContain("encounterId", result.GetProperty("definition").GetRawText(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(ScenarioDefinitionJson.FromJson(result.GetProperty("definition").GetRawText())));
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = result.GetProperty("transport").GetString() });
+        imported.EnsureSuccessStatusCode(); Assert.Equal(ScenarioDefinitionJson.ToJson(definition), await imported.Content.ReadAsStringAsync());
+        using var validated = await host.Client.PostAsJsonAsync("/api/designer/validate", result.GetProperty("definition"));
+        Assert.True((await validated.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        using var repeated = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        repeated.EnsureSuccessStatusCode(); var second = await repeated.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(result.GetProperty("fingerprint").GetString(), second.GetProperty("fingerprint").GetString());
+        Assert.Equal(result.GetProperty("preview").GetRawText(), second.GetProperty("preview").GetRawText());
+        Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
+    }
+
+    [Theory]
+    [InlineData("Off")]
+    [InlineData("High")]
+    public async Task TinyPopulationWorldsRemainValidAuthoringArtifacts(string density)
+    {
+        await using var host = await Host.Start();
+        using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new
+        { code = $"WLD1-2x2-X0-Y0-F0-W0-R0-KBalanced-HAuto-M{density}-D3-S0000000000003039" });
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var definition = ScenarioDefinitionTransport.Decode(result.GetProperty("transport").GetString()!);
+        Assert.Empty(definition.Units); Assert.Null(definition.Objectives);
+        _ = GameEngine.CreateGame(definition);
+    }
+
+    [Fact]
+    public async Task QuickPlayPreparesOnlyATemporaryCopyThenUsesTheExistingPlaytestImport()
+    {
+        await using var host = await Host.Start();
+        var code = "WLD1-40x35-X0-Y0-F0-W0-R0-KBalanced-HAuto-C1-N2-V0-P2-Q1-T1-JRoad-L1-A0-U0-Z2-MHigh-D3-S0000000000003039";
+        using var generatedResponse = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        generatedResponse.EnsureSuccessStatusCode();
+        var generated = await generatedResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var originalJson = generated.GetProperty("definition").GetRawText();
+        var original = ScenarioDefinitionJson.FromJson(originalJson);
+        var before = await host.Client.GetStringAsync("/api/game");
+        using var response = await host.Client.PostAsJsonAsync("/api/world-generation/quick-play", generated.GetProperty("definition"));
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        Assert.Equal("no-store", response.Headers.CacheControl!.ToString());
+        var prepared = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var transport = prepared.GetProperty("transport").GetString()!;
+        var temporary = ScenarioDefinitionTransport.Decode(transport);
+        Assert.Equal(original.Units.Count + 4, temporary.Units.Count);
+        Assert.Equal(original.Units, temporary.Units.Take(original.Units.Count));
+        Assert.Equal(original.Orders, temporary.Orders);
+        Assert.Equal(original.Routes, temporary.Routes); Assert.Equal(original.Waypoints, temporary.Waypoints);
+        Assert.Equal(JsonSerializer.Serialize(original.Board), JsonSerializer.Serialize(temporary.Board));
+        Assert.All(temporary.Objectives!, o => Assert.Equal(ScenarioObjective.NoObjective, o.Objective));
+        Assert.Contains(HeroesVsMonsters.Heroes, temporary.FogOfWarSides!);
+        Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
+        using var repeated = await host.Client.PostAsJsonAsync("/api/world-generation/quick-play", generated.GetProperty("definition"));
+        repeated.EnsureSuccessStatusCode();
+        Assert.Equal(transport, (await repeated.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("transport").GetString());
+        Assert.Equal(originalJson, generated.GetProperty("definition").GetRawText());
+        using var imported = await host.Client.PostAsJsonAsync("/api/game/scenario/import", new
+        { expectedRevision = JsonDocument.Parse(before).RootElement.GetProperty("revision").GetInt64(), transport });
+        Assert.True(imported.IsSuccessStatusCode, await imported.Content.ReadAsStringAsync());
+        var state = host.App.Services.GetRequiredService<PlaytestGame>().Snapshot().Result.State;
+        Assert.Equal(temporary.Units.Count, state.Units.Count);
+        Assert.Contains(HeroesVsMonsters.Heroes, state.FogOfWarSides);
+        Assert.All(state.Objectives, objective => Assert.Equal(ScenarioObjective.NoObjective, objective.Objective));
+        using var unchanged = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        unchanged.EnsureSuccessStatusCode();
+        var regenerated = await unchanged.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(generated.GetProperty("fingerprint").GetString(), regenerated.GetProperty("fingerprint").GetString());
+        Assert.Equal(generated.GetProperty("transport").GetString(), regenerated.GetProperty("transport").GetString());
+    }
+
+    [Fact]
+    public async Task QuickPlayFailureDoesNotReplaceTheGame()
+    {
+        await using var host = await Host.Start(); var before = await host.Client.GetStringAsync("/api/game");
+        var original = new ScenarioDefinition
+        {
+            Board = new() { Width = 2, Height = 2, DefaultTerrain = TerrainKind.SolidRock },
+            UnitTypeIds = [], Units = [], Agency = [], Loot = LootSettings.Empty
+        };
+        using var document = JsonDocument.Parse(ScenarioDefinitionJson.ToJson(original));
+        using var response = await host.Client.PostAsJsonAsync("/api/world-generation/quick-play", document.RootElement);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("Hero", await response.Content.ReadAsStringAsync());
+        Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
+    }
+
     private sealed class Host(WebApplication app, HttpClient client, string directory) : IAsyncDisposable
     {
         public WebApplication App => app;

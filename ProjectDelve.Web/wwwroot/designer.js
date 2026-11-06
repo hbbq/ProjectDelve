@@ -627,7 +627,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     ui.board.style.aspectRatio = `${board.width} / ${board.height}`;
     ui.board.style.minWidth = ui.zoom.value === "fit" ? "" : `${board.width * Number(ui.zoom.value)}px`;
     for (const waypoint of draft.definition.waypoints ?? []) {
-      const area = waypoint.area, node = element("span", waypoint.id); node.className = "waypoint-area";
+      const area = waypoint.area, node = element("span", waypoint.id); node.className = "waypoint-area"; node.title = waypoint.id;
       Object.assign(node.style, { left: `${area.x / board.width * 100}%`, top: `${area.y / board.height * 100}%`,
         width: `${area.w / board.width * 100}%`, height: `${area.h / board.height * 100}%` });
       ui.board.append(node);
@@ -1503,7 +1503,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   globalThis.addEventListener?.("delve-library-changed", refreshLibrary);
   describeLibrary();
   if (typeof fetch === "function") refreshLibrary();
-  globalThis.delveOpenGenerated = result => {
+  globalThis.delveOpenGenerated = (result, { reuseUnchanged = false } = {}) => {
+    if (reuseUnchanged && !Object.keys(buffers).length && generationSource?.code === result.code &&
+        ui.title.value === result.title && JSON.stringify(draft.definition) === JSON.stringify(result.definition)) {
+      setMode(true); return true;
+    }
     if (!canReplace()) return false;
     const doc = draftDocument(result.definition, result.title ?? (result.code.startsWith("DNG2-OS-") ? "Overgrown Stronghold" : "Generated dungeon"));
     doc.generationSource = { code: result.code, definitionJson: JSON.stringify(result.definition) };

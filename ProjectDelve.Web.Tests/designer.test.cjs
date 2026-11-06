@@ -66,6 +66,21 @@ test("generated Designer transfer preserves the exact definition and identifies 
   assert.match(label.textContent, /Modified scenario/);
   assert.equal(h.editor.draft.terrainAt({x:0,y:0}), "SolidRock");
 });
+
+test("Quick Play reuses the unchanged generated original on return and still guards edited drafts", () => {
+  const h = harness();
+  h.context.generated = { title: 'Generated world', code: 'WLD1:test-owned', definition: structuredClone(designerSetup) };
+  assert.equal(h.run('delveOpenGenerated(generated)'), true);
+  const before = plain(h.editor.draft.snapshot());
+  h.editor.setMode(false); // Existing Playtest leaves the original draft mounted.
+  let confirmations = 0;
+  h.context.confirm = () => { confirmations++; return false; };
+  assert.equal(h.run('delveOpenGenerated(generated, {reuseUnchanged:true})'), true);
+  assert.equal(confirmations, 0); assert.deepEqual(plain(h.editor.draft.snapshot()), before);
+  h.editor.draft.paintTerrain({ x: 0, y: 0 }, 'SolidRock');
+  assert.equal(h.run('delveOpenGenerated(generated, {reuseUnchanged:true})'), false);
+  assert.equal(confirmations, 1); assert.equal(h.editor.draft.terrainAt({x:0,y:0}), 'SolidRock');
+});
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
 
 test("All Loot uses current Engine metadata and waits before Copy to Custom when local content changes", async () => {

@@ -6,7 +6,7 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public enum WorldStepKind { NaturalTerrain, TerrainAnalysis, ForestEnrichment, RockEnrichment, WaterEnrichment, GrasslandEnrichment, Civilization, PostEnrichmentAnalysis, RouteNetwork }
+public enum WorldStepKind { NaturalTerrain, TerrainAnalysis, ForestEnrichment, RockEnrichment, WaterEnrichment, GrasslandEnrichment, Civilization, PostEnrichmentAnalysis, RouteNetwork, Population }
 public abstract record WorldStepParameters;
 public sealed record NaturalStepParameters(NaturalTerrainSettings Settings) : WorldStepParameters;
 public sealed record AnalysisStepParameters : WorldStepParameters;
@@ -57,6 +57,8 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
             steps.Add(new("exploration-links", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, links), [last])); last = "exploration-links";
         }
         steps.Add(new("current", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), [last]));
+        if (recipe.Population is { Density: not PopulationDensity.Off } population)
+            steps.Add(new("population", WorldStepKind.Population, new PopulationStepParameters(population), ["current"]));
         return new(recipe.World, recipe.Window, steps);
     }
 
@@ -67,7 +69,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         HashSet<string> seen = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<WorldStepKind>> ancestry = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<string>> ancestorIds = new(StringComparer.Ordinal);
-        string? lastTerrainStep = null;
+        string? lastTerrainStep = null, lastPostAnalysisTerrain = null, lastPostAnalysisId = null;
         bool natural = false, analyzed = false, civilization = false, boardPlanning = false;
         foreach (var step in Steps)
         {
@@ -94,7 +96,11 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
                 case WorldStepKind.PostEnrichmentAnalysis:
                     if (!analyzed || step.Parameters is not AnalysisStepParameters || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
                         throw new ArgumentException("Post analysis requires original analysis.");
-                    break;
+                    lastPostAnalysisTerrain = lastTerrainStep; lastPostAnalysisId = step.Id; break;
+                case WorldStepKind.Population:
+                    if (step.Parameters is not PopulationStepParameters pp || !ancestors.Contains(WorldStepKind.PostEnrichmentAnalysis) ||
+                        seen.Count != Steps.Count - 1 || lastPostAnalysisTerrain != lastTerrainStep || lastPostAnalysisId is null || !ids.Contains(lastPostAnalysisId)) throw new ArgumentException("Population runs last after final post analysis.");
+                    pp.Settings.Validate(); break;
                 case WorldStepKind.Civilization:
                     if (!analyzed || civilization || step.Parameters is not CivilizationStepParameters cp || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
                         throw new ArgumentException("Civilization runs once after original analysis.");
@@ -140,6 +146,7 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public CivilizationStatistics? CivilizationStats { get; init; }
     public IReadOnlyList<ConstructionBatch> ConstructionBatches { get; init; } = [];
     public RouteNetworkSnapshot? RouteNetwork { get; init; }
+    public PopulationSnapshot? Population { get; init; }
 }
 public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnlyList<WorldPreviewFrame> Frames,
     IReadOnlyList<NaturalFormation> Formations, int[] FormationLabels, int[] BoundaryCells)
@@ -155,6 +162,11 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
             r.Geometry.Runs.Count * 16L + r.Crossings.Sum(c => c.Footprint.Spans.Count * 12L) + r.TunnelEntrances.Count * 32L) +
         Frames.Sum(f => (f.RouteNetwork?.Junctions.Sum(j => 128L + j.Contact.Spans.Count * 12L) ?? 0) +
             (f.RouteNetwork?.SharedSegments.Sum(s => 128L + s.Area.Spans.Count * 12L) ?? 0)) +
+        Frames.Where(f => f.Population is not null).Sum(f => 96L + f.Population!.Encounters.Sum(e => 128L +
+            2L * (e.Id.Length + e.Kind.Length + e.SourceId.Length + e.GroupIds.Sum(g => g.Length)) +
+            e.Units.Sum(u => 96L + 2L * ((u.UnitId?.Length ?? 0) + (u.GroupId?.Length ?? 0) + u.UnitTypeId.Length + u.SideId.Length)) +
+            e.Orders.Count * 128L + e.Agency.Count * 64L + e.Routes.Sum(r => 64L + r.Id.Length * 2L + r.WaypointIds.Sum(id => id.Length * 2L)) +
+            e.Waypoints.Sum(p => 48L + p.Id.Length * 2L)) + f.Population.Failures.Sum(p => 64L + 2L * (p.RequestId.Length + p.Reason.Length + (p.Kind?.Length ?? 0) + (p.SourceId?.Length ?? 0)))) +
         4L * (FormationLabels.Length + BoundaryCells.Length) + Formations.Count * 256L;
 }
 public sealed record WorldGenerationExecution(WorldGenerationContext Context, WorldPreview Preview, IReadOnlyList<WorldStageMeasurement> Measurements);
@@ -213,6 +225,7 @@ public static class WorldGenerationPipeline
                 case WorldStepKind.RockEnrichment: RockEnricher.Apply(context, step, content); break;
                 case WorldStepKind.WaterEnrichment: WaterEnricher.Apply(context, step, content); break;
                 case WorldStepKind.GrasslandEnrichment: GrasslandEnricher.Apply(context, step, content); break;
+                case WorldStepKind.Population: PopulationGenerator.Apply(context, step, content); break;
                 case WorldStepKind.Civilization:
                     CivilizationGenerator.Apply(context, step, content);
                     if (context.RouteNetwork is not null) context.RouteNetwork = RouteTopologyBuilder.Build(context);
@@ -255,7 +268,7 @@ public static class WorldGenerationPipeline
             {
                 Edges = edges, ChangedEdges = changedEdges, Sites = context.Sites.ToArray(), Construction = context.Construction.ToArray(),
                 PlanningFailures = context.PlanningFailures.ToArray(), CivilizationStats = context.CivilizationStats,
-                ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork
+                ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork, Population = context.Population
             });
             previous = terrain; previousEdges = edgeMap;
             measurements.Add(new(step.Id, step.Kind, timer.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));
