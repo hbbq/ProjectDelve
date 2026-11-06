@@ -33,18 +33,37 @@ Empty tokens remain valid. No creation, defeat or wake edits the current bag.
 `UnitPlacement.Dormant` defaults false. `WakeDistance` is an optional placement
 override, then an optional Unit Type default, then the common default 8. Runtime
 Units capture the effective distance. Negative values are rejected; zero is valid
-and normally requires an Attack to wake, because legal footprints do not overlap.
+and cannot directly detect a non-overlapping hostile at zero distance; an Attack
+or a friendly Alert chain can still wake it.
 
 Proximity is minimum raw Manhattan distance between occupied Cells of living
 hostile Units. Walls, terrain, Doors, LOS and FoW do not affect it. Check the fully
 instantiated initial setup before first-round effects; check after Round Start
 effects before population; check after a whole token completes, never between its
-members. Recipients are determined together and removed topmost/leftmost, then ID.
+members. Every living Unit with a hostile in its own WakeDistance initiates Alert,
+including already awake Units. Recipients are determined together and removed
+topmost/leftmost, then ID.
 
-A valid committed Attack immediately wakes every Dormant recipient before DEF
-capture and dice, regardless of miss, block or damage. Invalid candidates do not
-wake anything. Ordinary damage without an Attack adds no wake trigger. There are
-no alarms, nearby-attack/defeat reactions, wake chains or return to Dormant.
+A valid committed Attack initiates Alert from every target, awake or Dormant,
+before DEF capture and dice, regardless of miss, block or damage. No proximity
+check is needed. Invalid candidates do not initiate Alert. Ordinary damage without
+an Attack adds no trigger.
+
+Alert immediately reaches the whole connected friendly network. A link is minimum
+raw footprint Manhattan distance **3** or less, ignoring terrain, Walls, Doors,
+LOS, Phase, FoW and pathfinding. Existing friendliness means the same Side;
+other Sides, including neutral ones, cannot bridge the network. Every living
+in-play Unit relays, awake or Dormant, regardless of Type or Group. Only Dormant
+markers are removed. There is no Alert stat, flag, Ability, Order change, token
+insertion or additional activation. A temporary queue and occupied-Cell lookup
+visit each reached Unit once; no paths or alert history enter save state.
+Marker events contain no source/path and retain event-time FoW filtering.
+
+Physical play follows friendly links of at most three Cells, marking visited
+figures temporarily if needed for a large cycle. Only removed Dormant markers
+persist. Long chains can wake an entire tightly packed encounter, even through
+walls; this follows the approved raw-distance rule. There are no defeat triggers,
+alarm actions, sound simulation or return to Dormant.
 
 Dormant changes activation only. Figures, occupancy, targeting, passives, World
 Effects, Objectives and vision remain ordinary. `UnitWoken` uses existing
@@ -136,7 +155,13 @@ Area fixtures include melee/ranged/Flee/Worker/ATK0/special abilities, equipment
 2x2 actors/targets, barriers, known space and route interruption/resumption.
 
 Wake checks use temporary figure/footprint indexes and hostile lists by Side,
-without pathfinding or a persistent spatial subsystem. A 100-enemy fixture retains
+without pathfinding or a persistent spatial subsystem. Alert uses one temporary
+same-Side occupied-Cell lookup, searching the 25-Cell Manhattan diamond around
+each relay's occupied Cells. It visits each reached Unit once; it does not scan
+the whole population again for every link. Proximity-source discovery still uses
+bounded Unit comparisons, and ordinary wake events still copy/observe state.
+If no living Dormant Units remain, the calculation is skipped because Alert has
+no other consequence. A 100-enemy fixture retains
 all 101 figures but reduces activation starts from 101 to 1 and token draws from
 2 to 1 while those enemies are Dormant. This measures skipped operations, not a
 hardware latency guarantee. Dormant still incurs ordinary observation, effects,
@@ -180,3 +205,34 @@ save/reopen, FoW gameplay and visible 3D Group/Dormant labels. A dedicated QA
 fixture confirmed the marker disappears while its valid Attack is still awaiting
 the first dice roll. Successful inspection reports contain no console errors or
 failed requests. The QA host was stopped; the original 5080 listener was preserved.
+
+### Universal Alert verification
+
+`AlertPropagationTests` adds fifteen cases covering awake/Dormant initiators,
+mixed chains (including a Lying relay), three-Cell gaps, hostile/neutral barriers,
+cycles, terrain/Doors, multi-Cell footprints, valid/invalid/missed/blocked/lethal
+Attacks, simultaneous targets on different Sides, pre-dice resolution, undrawn
+versus captured participants, removed/defeated bridges, FoW and JSON continuation.
+The attacked-Goblin fixture reaches multiple sleeping Goblins beyond the initial
+three-Cell radius through awake and newly awakened friends. Web fixtures cover
+DELVE1 and the complete projected response, ensuring hidden relay/recipient IDs
+and wake events stay absent.
+
+After Alert: solution build succeeded; Engine **2,610 passed**, Web **692 passed**
+with the same twelve pre-existing `knightly-boots` reference-fixture failures;
+all **981 JavaScript/client/security tests passed**. The existing cached NU1900
+audit metadata warning remains. Python/Pillow was selected using the repository
+environment override for asset verification.
+
+An isolated 144-enemy measurement retained all 145 figures, reduced activation
+starts **145 to 1**, and reduced submitted decisions **143 to 0** for one Round.
+Measured setup-plus-Round elapsed time was **726 ms awake versus 136 ms Dormant**
+in that run. These are illustrative local measurements, not latency guarantees;
+concurrent full-suite runs varied substantially. No timing threshold is asserted.
+Alert has not removed the activation-work savings for distant sleeping crowds.
+
+Desktop 1440x1000 and mobile 390x844 Edge checks use a test-owned imported fixture:
+an attacked awake Goblin, an awake relay, and two Dormant Goblins at successive
+three-Cell links. Both markers disappear before the first Attack dice roll,
+without changing the existing token count. The same workflow is checked behind
+a Wall with Blue FoW enabled. No Client rule duplication or new Alert UI is needed.

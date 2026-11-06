@@ -90,7 +90,7 @@ public sealed class DormantTests
         var caster = UnitRoster.Wizard("caster");
         scenario = scenario with { UnitTypeIds = ["caster", "enemy"], UnitTypes = [caster, scenario.UnitTypes![1]],
             Agency = [new("caster", "red", ControllerKind.Human), new("enemy", "blue", ControllerKind.Human)],
-            Units = [new("caster", "red", new(7, 2), UnitId: "caster", GroupId: "camp"),
+            Units = [new("caster", "red", new(7, 2), UnitId: "caster", GroupId: "camp", WakeDistance: 0),
                 new("caster", "red", new(9, 2), UnitId: "sleeper", GroupId: "camp", Dormant: true, WakeDistance: 0),
                 new("caster", "red", new(10, 2), UnitId: "second-sleeper", GroupId: "camp", Dormant: true, WakeDistance: 0),
                 new("enemy", "blue", new(11, 2), UnitId: "enemy") ] };

@@ -562,7 +562,7 @@ public static partial class GameEngine
     {
         // Only committed, authoritatively validated Attack recipients reach this boundary.
         // Wake before defensive values are captured and before dice, including on a miss.
-        foreach (var id in attack.TargetIds) WakeUnit(state, id, events, "attack");
+        foreach (var id in DormantRules.WakingUnits(state, attack.TargetIds)) WakeUnit(state, id, events, "attack");
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
             attack.AttackDice, Results: []) { SemanticAction = semanticAction, OriginTiming = originTiming, RangeOverride = rangeOverride,
