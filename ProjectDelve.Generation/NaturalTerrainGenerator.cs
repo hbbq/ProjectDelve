@@ -222,6 +222,7 @@ public static class WorldGenerator
             {
                 ConstructionValidationMilliseconds = context.ConstructionBoard?.ValidationMilliseconds ?? 0,
                 ConstructionValidations = context.ConstructionBoard?.ValidationCount ?? 0
+                , RouteSearchMilliseconds = context.RouteSearchMilliseconds, RouteMaterializationMilliseconds = context.RouteMaterializationMilliseconds
             }
         };
     }

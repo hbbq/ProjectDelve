@@ -24,7 +24,7 @@ public static class SettlementGenerator
             return Fail(PlacementFailureCode.InvalidContent, "Settlement materials are unavailable or require unsupported placement properties.");
         var call = scope.Child(request.Key, scope.Draft); var w = scope.Draft.Width;
         var candidates = new List<(CellBounds Bounds, int PlotWidth, int PlotHeight, int Ordinal, int Cost)>();
-        for (var attempt = 0; attempt < 12; attempt++)
+        for (var attempt = 0; attempt < (request.Preferences?.RouteAnchors is { Count: > 0 } ? 24 : 12); attempt++)
         {
             var random = call.Random("placement", attempt);
             var pw = 9 + random.Next(Math.Min(3, (request.Area.Width - 3) / 2 - 8));
@@ -38,14 +38,14 @@ public static class SettlementGenerator
             }
             var bounds = new CellBounds(x, y, width, height);
             if (!scope.Budget.Spend(width * height)) return Fail(PlacementFailureCode.BudgetExhausted, "Settlement candidate search budget exhausted.");
-            var cost = SiteGeometry.Cells(bounds, w).Sum(i => scope.Draft.TerrainAt(i) is "tree" or "fruit-tree" ? 2 : scope.Draft.TerrainAt(i) == "solid-rock" ? 4 : scope.Draft.TerrainAt(i) == "water" ? 6 : 0);
+            var cost = SiteGeometry.Cells(bounds, w).Sum(i => scope.Draft.TerrainAt(i) is "tree" or "fruit-tree" ? 2 : scope.Draft.TerrainAt(i) == "solid-rock" ? 4 : scope.Draft.TerrainAt(i) == "water" ? 6 : 0) + SiteRouteAccess.ProximityCost(bounds, request.Preferences?.RouteAnchors, w);
             candidates.Add((bounds, pw, ph, attempt, cost));
         }
         var lastCode = PlacementFailureCode.NoFootprint; var lastReason = "No complete Settlement could fit.";
         foreach (var candidate in candidates.OrderBy(c => c.Cost).ThenBy(c => c.Ordinal))
         {
             if (!scope.Budget.TryAttempt()) return Fail(PlacementFailureCode.BudgetExhausted, "Settlement attempt budget exhausted.");
-            var area = candidate.Bounds; var draft = scope.Draft.Fork(area, id); var localScope = new GenerationScope(scope.RootSeed, id, draft);
+            var area = candidate.Bounds; var draft = scope.Draft.Fork(SiteGeometry.Pad(area, request.Area, 1), id); var localScope = new GenerationScope(scope.RootSeed, id, draft);
             var pw = candidate.PlotWidth; var ph = candidate.PlotHeight; var midX = area.X + pw + 1; var midY = area.Y + ph + 1;
             var slots = new List<(string Key, CellBounds Plot, CardinalSide Facing)>
             {
@@ -128,6 +128,7 @@ public static class SettlementGenerator
                 buildings, [entrance], new(usable.Count, reached.Count, true, needsConnection, SiteGeometry.TwoByTwo(draft, usable)), tags,
                 r.ScenarioRole is { } roleId ? [new(roleId, GeneratedObjectKind.Site, id)] : [], [], null, summary);
             operations.Add(new(id + "/commit", id, "Site ready for atomic commit", id, area, [], []));
+            info = SiteRouteAccess.Publish(info, draft, request.Preferences);
             return new Planned<SitePlan>(new(draft.BuildPatch(), info, operations));
         }
         return Fail(lastCode, lastReason);

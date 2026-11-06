@@ -1,0 +1,2131 @@
+[
+  {
+    "name": "50x50-Grassland",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 211.465,
+    "allocatedBytes": 62871088,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.5456,
+        "allocatedBytes": 392248
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 3.2345,
+        "allocatedBytes": 595992
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 3.1078,
+        "allocatedBytes": 596560
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.1525,
+        "allocatedBytes": 596480
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 3.0709,
+        "allocatedBytes": 596512
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 5.1294,
+        "allocatedBytes": 1320256
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 37.7628,
+        "allocatedBytes": 11092016
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 96.3823,
+        "allocatedBytes": 33328336
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 27.4209,
+        "allocatedBytes": 9147848
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 6.1575,
+        "allocatedBytes": 1269808
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 4.9034,
+        "allocatedBytes": 670688
+      }
+    ],
+    "planningMs": 20.471,
+    "materializationMs": 3.3095,
+    "validationMs": 69.635,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 696834,
+    "previewPayloadBytes": 620691,
+    "previewRawEstimateBytes": 302900,
+    "previewRetainedManagedBytes": 366792,
+    "statistics": {
+      "searches": 4,
+      "expandedStates": 11231,
+      "peakQueue": 788,
+      "acceptedRoutes": 4,
+      "changedTerrain": 213,
+      "changedEdges": 0,
+      "preparationCost": 213,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 28731,
+      "planningAttempts": 7
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 6,
+    "sharedSegments": 3,
+    "unresolved": 1,
+    "remote": 0,
+    "fingerprint": "0397866000AAE486B52CB617A8DDF4EF2A185F1954EFEAFE2FE999D96FD511EF"
+  },
+  {
+    "name": "50x50-Woodland",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JForestTrail-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 330.299,
+    "allocatedBytes": 69536752,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.3931,
+        "allocatedBytes": 393888
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 3.7774,
+        "allocatedBytes": 410840
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 6.0372,
+        "allocatedBytes": 1122128
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.8127,
+        "allocatedBytes": 428600
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 4.9504,
+        "allocatedBytes": 722920
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.3094,
+        "allocatedBytes": 608288
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 66.0953,
+        "allocatedBytes": 12459912
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 133.8006,
+        "allocatedBytes": 35945656
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 36.7027,
+        "allocatedBytes": 9278720
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 10.6028,
+        "allocatedBytes": 2759608
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.2832,
+        "allocatedBytes": 552624
+      }
+    ],
+    "planningMs": 32.1636,
+    "materializationMs": 2.2877,
+    "validationMs": 123.42010000000002,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 781675,
+    "previewPayloadBytes": 646343,
+    "previewRawEstimateBytes": 308268,
+    "previewRetainedManagedBytes": 373416,
+    "statistics": {
+      "searches": 5,
+      "expandedStates": 16633,
+      "peakQueue": 402,
+      "acceptedRoutes": 5,
+      "changedTerrain": 144,
+      "changedEdges": 0,
+      "preparationCost": 236,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 32222,
+      "planningAttempts": 6
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 5,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "CCA510A17FA14480FDCE7F47A3B36E59EB6FE2625C7D0DC473592C257E93D13F"
+  },
+  {
+    "name": "50x50-LakeCountry",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 89.9454,
+    "allocatedBytes": 58003464,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 2.0748,
+        "allocatedBytes": 393080
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.4291,
+        "allocatedBytes": 491096
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 1.9686,
+        "allocatedBytes": 655528
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 2.6046,
+        "allocatedBytes": 887600
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.6907,
+        "allocatedBytes": 596704
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 3.2659,
+        "allocatedBytes": 920376
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 21.8619,
+        "allocatedBytes": 14526192
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 35.888,
+        "allocatedBytes": 26827240
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 9.5034,
+        "allocatedBytes": 7491952
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 2.6046,
+        "allocatedBytes": 990568
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.917,
+        "allocatedBytes": 588608
+      }
+    ],
+    "planningMs": 14.462600000000004,
+    "materializationMs": 0.6674,
+    "validationMs": 23.436700000000002,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 710251,
+    "previewPayloadBytes": 604269,
+    "previewRawEstimateBytes": 300720,
+    "previewRetainedManagedBytes": 350008,
+    "statistics": {
+      "searches": 4,
+      "expandedStates": 7868,
+      "peakQueue": 372,
+      "acceptedRoutes": 4,
+      "changedTerrain": 67,
+      "changedEdges": 0,
+      "preparationCost": 82,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 50545,
+      "planningAttempts": 7
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 3,
+    "sharedSegments": 3,
+    "unresolved": 1,
+    "remote": 0,
+    "fingerprint": "C8D1202812EE458E20E06F4821E63961E3E3182A93C5C2EF91F21FA37B660361"
+  },
+  {
+    "name": "50x50-RiverValley",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 82.7797,
+    "allocatedBytes": 59589872,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.5921,
+        "allocatedBytes": 331640
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.5276,
+        "allocatedBytes": 537616
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 2.5984,
+        "allocatedBytes": 1025176
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 1.3758,
+        "allocatedBytes": 547248
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.4526,
+        "allocatedBytes": 577056
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 2.1975,
+        "allocatedBytes": 982600
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 17.5557,
+        "allocatedBytes": 10819520
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 34.5884,
+        "allocatedBytes": 30894128
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 9.3876,
+        "allocatedBytes": 8470528
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 2.7686,
+        "allocatedBytes": 1154968
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.973,
+        "allocatedBytes": 636800
+      }
+    ],
+    "planningMs": 8.814200000000001,
+    "materializationMs": 1.2522000000000002,
+    "validationMs": 20.374599999999997,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 769816,
+    "previewPayloadBytes": 668425,
+    "previewRawEstimateBytes": 323504,
+    "previewRetainedManagedBytes": 388320,
+    "statistics": {
+      "searches": 5,
+      "expandedStates": 17269,
+      "peakQueue": 623,
+      "acceptedRoutes": 5,
+      "changedTerrain": 135,
+      "changedEdges": 0,
+      "preparationCost": 181,
+      "crossings": 1,
+      "tunnelEntrances": 0,
+      "planningWork": 29769,
+      "planningAttempts": 5
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 11,
+    "sharedSegments": 7,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "6E8ED482F6CFCEBB1203163FDAD6A1C907C5CD0766B7632EACA53C14F9B37EAE"
+  },
+  {
+    "name": "50x50-RockyWilds",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRockPassage-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 84.1589,
+    "allocatedBytes": 72932672,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.2514,
+        "allocatedBytes": 331056
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.1629,
+        "allocatedBytes": 461568
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 1.4702,
+        "allocatedBytes": 575432
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.1364,
+        "allocatedBytes": 1390384
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.203,
+        "allocatedBytes": 481624
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 2.2921,
+        "allocatedBytes": 955696
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 17.5558,
+        "allocatedBytes": 12143384
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 36.3392,
+        "allocatedBytes": 42413096
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 8.8045,
+        "allocatedBytes": 8538016
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 2.1935,
+        "allocatedBytes": 1084424
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 1.8055,
+        "allocatedBytes": 611600
+      }
+    ],
+    "planningMs": 9.6983,
+    "materializationMs": 0.924,
+    "validationMs": 25.091499999999996,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 788967,
+    "previewPayloadBytes": 667568,
+    "previewRawEstimateBytes": 316416,
+    "previewRetainedManagedBytes": 388408,
+    "statistics": {
+      "searches": 5,
+      "expandedStates": 19342,
+      "peakQueue": 796,
+      "acceptedRoutes": 5,
+      "changedTerrain": 138,
+      "changedEdges": 0,
+      "preparationCost": 267,
+      "crossings": 0,
+      "tunnelEntrances": 5,
+      "planningWork": 31842,
+      "planningAttempts": 5
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 5,
+    "sharedSegments": 4,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "2984DBBB8BFA7D154866CE38615C7857188631FADA1F74108D68F294BF00DB09"
+  },
+  {
+    "name": "120x100-Grassland",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 245.1908,
+    "allocatedBytes": 163055968,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.3086,
+        "allocatedBytes": 1107224
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.3321,
+        "allocatedBytes": 2626920
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.1154,
+        "allocatedBytes": 3592424
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.4554,
+        "allocatedBytes": 2643696
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.4744,
+        "allocatedBytes": 2745752
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 14.518,
+        "allocatedBytes": 9575040
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 62.9256,
+        "allocatedBytes": 43876184
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 65.7497,
+        "allocatedBytes": 53780864
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 32.2789,
+        "allocatedBytes": 27210544
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 10.4173,
+        "allocatedBytes": 4644072
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 8.1322,
+        "allocatedBytes": 2691056
+      }
+    ],
+    "planningMs": 43.4862,
+    "materializationMs": 2.7039999999999997,
+    "validationMs": 53.66790000000001,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 1283896,
+    "previewPayloadBytes": 1067430,
+    "previewRawEstimateBytes": 1020848,
+    "previewRetainedManagedBytes": 1030528,
+    "statistics": {
+      "searches": 5,
+      "expandedStates": 67246,
+      "peakQueue": 2088,
+      "acceptedRoutes": 5,
+      "changedTerrain": 478,
+      "changedEdges": 0,
+      "preparationCost": 485,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 127246,
+      "planningAttempts": 5
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 4,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "ED90B37220DF546FF4BE86C8B4AD1954632CBDD63CEC48B296A28F043DC38D87"
+  },
+  {
+    "name": "120x100-Woodland",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JForestTrail-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 378.1247,
+    "allocatedBytes": 229459576,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.8244,
+        "allocatedBytes": 1108592
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.6375,
+        "allocatedBytes": 1852416
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.9474,
+        "allocatedBytes": 8436704
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.4554,
+        "allocatedBytes": 1882112
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.6737,
+        "allocatedBytes": 2394896
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 7.0299,
+        "allocatedBytes": 2631368
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 82.9026,
+        "allocatedBytes": 49709440
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 103.2451,
+        "allocatedBytes": 71179104
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 40.3708,
+        "allocatedBytes": 30065184
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 69.5861,
+        "allocatedBytes": 41029120
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.9192,
+        "allocatedBytes": 2033272
+      }
+    ],
+    "planningMs": 83.8589,
+    "materializationMs": 3.3162,
+    "validationMs": 136.6952,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 1776128,
+    "previewPayloadBytes": 1207995,
+    "previewRawEstimateBytes": 1064684,
+    "previewRetainedManagedBytes": 1110544,
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 138354,
+      "peakQueue": 2746,
+      "acceptedRoutes": 7,
+      "changedTerrain": 345,
+      "changedEdges": 0,
+      "preparationCost": 594,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 222354,
+      "planningAttempts": 7
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-0",
+        "previousDistance": -1,
+        "newDistance": 39,
+        "newCorridorCells": 39,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-1",
+        "previousDistance": -1,
+        "newDistance": 23,
+        "newCorridorCells": 23,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 6,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "EF8AFBDE9B8CD34F362BDD1CAA2AF044E65F377CC83B0984C00856C04ED852F8"
+  },
+  {
+    "name": "120x100-LakeCountry",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 393.4227,
+    "allocatedBytes": 226660216,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.3363,
+        "allocatedBytes": 1108328
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.5421,
+        "allocatedBytes": 1859320
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 8.6757,
+        "allocatedBytes": 5485904
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 7.7752,
+        "allocatedBytes": 7738856
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.665,
+        "allocatedBytes": 2849056
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.8987,
+        "allocatedBytes": 3217792
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 129.4928,
+        "allocatedBytes": 82119504
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 78.3127,
+        "allocatedBytes": 42548208
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 52.6983,
+        "allocatedBytes": 28055712
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 53.5668,
+        "allocatedBytes": 32698760
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 5.9474,
+        "allocatedBytes": 2036616
+      }
+    ],
+    "planningMs": 145.124,
+    "materializationMs": 0.9166000000000001,
+    "validationMs": 119.48519999999999,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 1693232,
+    "previewPayloadBytes": 1128543,
+    "previewRawEstimateBytes": 1049740,
+    "previewRetainedManagedBytes": 1068632,
+    "statistics": {
+      "searches": 4,
+      "expandedStates": 57407,
+      "peakQueue": 1154,
+      "acceptedRoutes": 4,
+      "changedTerrain": 181,
+      "changedEdges": 0,
+      "preparationCost": 243,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 429353,
+      "planningAttempts": 10
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-0",
+        "previousDistance": -1,
+        "newDistance": 62,
+        "newCorridorCells": 62,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-1",
+        "previousDistance": -1,
+        "newDistance": 27,
+        "newCorridorCells": 10,
+        "sharedCorridorCells": 18,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 4,
+    "sharedSegments": 3,
+    "unresolved": 2,
+    "remote": 0,
+    "fingerprint": "11455F59E96D9B6891BF3D4B64DE3C6C322EC2B631579050EC6AEE4FAA1EBCF0"
+  },
+  {
+    "name": "120x100-RiverValley",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 334.0381,
+    "allocatedBytes": 192526024,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.2412,
+        "allocatedBytes": 1108712
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.7667,
+        "allocatedBytes": 2325232
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 6.9302,
+        "allocatedBytes": 5453336
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.4999,
+        "allocatedBytes": 2346544
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.9423,
+        "allocatedBytes": 2617784
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 13.2452,
+        "allocatedBytes": 6207688
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 70.9535,
+        "allocatedBytes": 41835848
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 76.45,
+        "allocatedBytes": 48647960
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 44.9559,
+        "allocatedBytes": 27568368
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 66.3701,
+        "allocatedBytes": 38942720
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 6.9796,
+        "allocatedBytes": 2459384
+      }
+    ],
+    "planningMs": 81.67649999999999,
+    "materializationMs": 3.1983,
+    "validationMs": 109.67220000000002,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 1709959,
+    "previewPayloadBytes": 1296439,
+    "previewRawEstimateBytes": 1138676,
+    "previewRetainedManagedBytes": 1186592,
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 123559,
+      "peakQueue": 2364,
+      "acceptedRoutes": 7,
+      "changedTerrain": 310,
+      "changedEdges": 0,
+      "preparationCost": 372,
+      "crossings": 1,
+      "tunnelEntrances": 0,
+      "planningWork": 207559,
+      "planningAttempts": 7
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-0",
+        "previousDistance": -1,
+        "newDistance": 45,
+        "newCorridorCells": 45,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-1",
+        "previousDistance": -1,
+        "newDistance": 25,
+        "newCorridorCells": 25,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 6,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "245F6CC8EF504E17D71D3DDA7D2D242DFAD08A4B6400395B65BD42F159BECD08"
+  },
+  {
+    "name": "120x100-RockyWilds",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRockPassage-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 416.369,
+    "allocatedBytes": 246304792,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.4065,
+        "allocatedBytes": 1107416
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.8926,
+        "allocatedBytes": 1903952
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 12.8147,
+        "allocatedBytes": 7677336
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 41.5772,
+        "allocatedBytes": 32907504
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.0423,
+        "allocatedBytes": 2229160
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.6469,
+        "allocatedBytes": 3022992
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 78.852,
+        "allocatedBytes": 48278712
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 87.6444,
+        "allocatedBytes": 53332848
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 52.3352,
+        "allocatedBytes": 32399336
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 79.4955,
+        "allocatedBytes": 43839152
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 6.3432,
+        "allocatedBytes": 2159616
+      }
+    ],
+    "planningMs": 92.53489999999998,
+    "materializationMs": 2.3336,
+    "validationMs": 140.8456,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 1864638,
+    "previewPayloadBytes": 1259139,
+    "previewRawEstimateBytes": 1085368,
+    "previewRetainedManagedBytes": 1131768,
+    "statistics": {
+      "searches": 6,
+      "expandedStates": 132249,
+      "peakQueue": 2391,
+      "acceptedRoutes": 6,
+      "changedTerrain": 408,
+      "changedEdges": 0,
+      "preparationCost": 733,
+      "crossings": 0,
+      "tunnelEntrances": 11,
+      "planningWork": 240249,
+      "planningAttempts": 9
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-0",
+        "previousDistance": -1,
+        "newDistance": 48,
+        "newCorridorCells": 48,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h100/region-1",
+        "previousDistance": -1,
+        "newDistance": 59,
+        "newCorridorCells": 59,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 5,
+    "sharedSegments": 5,
+    "unresolved": 1,
+    "remote": 0,
+    "fingerprint": "D60A750D79F537D8FF6019ECFCB0734D8184EB12B4D56A6BBBE0791CE135369C"
+  },
+  {
+    "name": "120x120-Grassland",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 317.9907,
+    "allocatedBytes": 212159536,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 5.9716,
+        "allocatedBytes": 1328024
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 14.1581,
+        "allocatedBytes": 3118384
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 7.2716,
+        "allocatedBytes": 4318904
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 7.304,
+        "allocatedBytes": 3118864
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.7419,
+        "allocatedBytes": 3216384
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 16.5917,
+        "allocatedBytes": 10274864
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 78.8197,
+        "allocatedBytes": 53171232
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 95.1572,
+        "allocatedBytes": 83263056
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 42.2767,
+        "allocatedBytes": 32123760
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 13.539,
+        "allocatedBytes": 5517424
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 9.0602,
+        "allocatedBytes": 3300056
+      }
+    ],
+    "planningMs": 57.625800000000005,
+    "materializationMs": 4.065499999999999,
+    "validationMs": 71.4576,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 1561662,
+    "previewPayloadBytes": 1314043,
+    "previewRawEstimateBytes": 1228896,
+    "previewRetainedManagedBytes": 1233512,
+    "statistics": {
+      "searches": 5,
+      "expandedStates": 92025,
+      "peakQueue": 2567,
+      "acceptedRoutes": 5,
+      "changedTerrain": 580,
+      "changedEdges": 0,
+      "preparationCost": 602,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 164025,
+      "planningAttempts": 5
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 4,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "F9777A77BD6B360FEE5F3901088E238A7EBE2A4A9D7086277DC2B1995359B921"
+  },
+  {
+    "name": "120x120-Woodland",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JForestTrail-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 470.2244,
+    "allocatedBytes": 263470016,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 7.3512,
+        "allocatedBytes": 1329584
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.6182,
+        "allocatedBytes": 2310176
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 11.5715,
+        "allocatedBytes": 7672424
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.7269,
+        "allocatedBytes": 2332712
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 7.104,
+        "allocatedBytes": 2871456
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 6.8479,
+        "allocatedBytes": 2927224
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 103.7544,
+        "allocatedBytes": 59805832
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 133.0697,
+        "allocatedBytes": 81237656
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 59.9215,
+        "allocatedBytes": 37272384
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 80.7665,
+        "allocatedBytes": 43419368
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.3432,
+        "allocatedBytes": 2519392
+      }
+    ],
+    "planningMs": 99.1637,
+    "materializationMs": 4.1583000000000006,
+    "validationMs": 190.42669999999998,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 2177660,
+    "previewPayloadBytes": 1502312,
+    "previewRawEstimateBytes": 1292592,
+    "previewRetainedManagedBytes": 1361504,
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 155946,
+      "peakQueue": 2716,
+      "acceptedRoutes": 7,
+      "changedTerrain": 441,
+      "changedEdges": 0,
+      "preparationCost": 760,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 256746,
+      "planningAttempts": 7
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-0",
+        "previousDistance": -1,
+        "newDistance": 35,
+        "newCorridorCells": 35,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-1",
+        "previousDistance": -1,
+        "newDistance": 16,
+        "newCorridorCells": 16,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 6,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "ECBFA100E8A0297D66217E40323BFB867717F79EAF36363C468C7A2E8C37B577"
+  },
+  {
+    "name": "120x120-LakeCountry",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 480.1958,
+    "allocatedBytes": 273107080,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 14.5464,
+        "allocatedBytes": 1329488
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.5854,
+        "allocatedBytes": 2222896
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 11.6008,
+        "allocatedBytes": 11394608
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 10.2569,
+        "allocatedBytes": 7574856
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 8.1801,
+        "allocatedBytes": 3308760
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 8.941,
+        "allocatedBytes": 4333016
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 106.2003,
+        "allocatedBytes": 56636984
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 119.0791,
+        "allocatedBytes": 79607400
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 53.0681,
+        "allocatedBytes": 35075800
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 92.8053,
+        "allocatedBytes": 49610568
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.3246,
+        "allocatedBytes": 2462976
+      }
+    ],
+    "planningMs": 102.03980000000001,
+    "materializationMs": 2.8251000000000004,
+    "validationMs": 171.47210000000004,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 2229326,
+    "previewPayloadBytes": 1558919,
+    "previewRawEstimateBytes": 1309288,
+    "previewRetainedManagedBytes": 1345432,
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 169861,
+      "peakQueue": 2730,
+      "acceptedRoutes": 7,
+      "changedTerrain": 399,
+      "changedEdges": 0,
+      "preparationCost": 623,
+      "crossings": 0,
+      "tunnelEntrances": 2,
+      "planningWork": 270661,
+      "planningAttempts": 7
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-0",
+        "previousDistance": -1,
+        "newDistance": 61,
+        "newCorridorCells": 61,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-1",
+        "previousDistance": -1,
+        "newDistance": 47,
+        "newCorridorCells": 47,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 6,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "72E87829C223CDA69F435B345338D55EEFA4E844E1E2DB2EF86617238EA126E8"
+  },
+  {
+    "name": "120x120-RiverValley",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 433.1009,
+    "allocatedBytes": 248372840,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 10.1246,
+        "allocatedBytes": 1330152
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 6.8059,
+        "allocatedBytes": 2854424
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 11.9749,
+        "allocatedBytes": 9275912
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 6.7565,
+        "allocatedBytes": 2884728
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 7.5468,
+        "allocatedBytes": 3318216
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 14.5657,
+        "allocatedBytes": 8881432
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 89.7498,
+        "allocatedBytes": 52615584
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 112.7693,
+        "allocatedBytes": 70328952
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 51.6632,
+        "allocatedBytes": 33985072
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 85.3277,
+        "allocatedBytes": 44948576
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 9.0689,
+        "allocatedBytes": 3005632
+      }
+    ],
+    "planningMs": 105.7166,
+    "materializationMs": 2.4505,
+    "validationMs": 138.0826,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 2193810,
+    "previewPayloadBytes": 1702726,
+    "previewRawEstimateBytes": 1411044,
+    "previewRetainedManagedBytes": 1477344,
+    "statistics": {
+      "searches": 6,
+      "expandedStates": 164992,
+      "peakQueue": 2512,
+      "acceptedRoutes": 6,
+      "changedTerrain": 382,
+      "changedEdges": 0,
+      "preparationCost": 514,
+      "crossings": 2,
+      "tunnelEntrances": 2,
+      "planningWork": 294592,
+      "planningAttempts": 9
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-0",
+        "previousDistance": -1,
+        "newDistance": 40,
+        "newCorridorCells": 40,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-1",
+        "previousDistance": -1,
+        "newDistance": 54,
+        "newCorridorCells": 54,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 10,
+    "sharedSegments": 7,
+    "unresolved": 1,
+    "remote": 0,
+    "fingerprint": "E97FBE9437CE6200ABE795B53AD2E92F8A2576BD1E51953AED32FA04B298C2D4"
+  },
+  {
+    "name": "120x120-RockyWilds",
+    "width": 120,
+    "height": 120,
+    "code": "WLD1-120x120-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRockPassage-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 466.8654,
+    "allocatedBytes": 275788520,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.3033,
+        "allocatedBytes": 1328400
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 5.5575,
+        "allocatedBytes": 2280136
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 10.5704,
+        "allocatedBytes": 8612416
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 16.1259,
+        "allocatedBytes": 10483808
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 6.2535,
+        "allocatedBytes": 2798368
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 9.2516,
+        "allocatedBytes": 4335880
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 105.2378,
+        "allocatedBytes": 61700368
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 123.1562,
+        "allocatedBytes": 79581336
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 51.2936,
+        "allocatedBytes": 34930096
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 84.7575,
+        "allocatedBytes": 47164920
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 7.5843,
+        "allocatedBytes": 2615288
+      }
+    ],
+    "planningMs": 99.2436,
+    "materializationMs": 2.6237,
+    "validationMs": 168.3789,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 2263292,
+    "previewPayloadBytes": 1551234,
+    "previewRawEstimateBytes": 1310788,
+    "previewRetainedManagedBytes": 1377088,
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 169971,
+      "peakQueue": 2477,
+      "acceptedRoutes": 7,
+      "changedTerrain": 323,
+      "changedEdges": 0,
+      "preparationCost": 608,
+      "crossings": 0,
+      "tunnelEntrances": 27,
+      "planningWork": 270771,
+      "planningAttempts": 7
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-0",
+        "previousDistance": -1,
+        "newDistance": 41,
+        "newCorridorCells": 41,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-17-y-13-w120-h120/region-1",
+        "previousDistance": -1,
+        "newDistance": 34,
+        "newCorridorCells": 34,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 6,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "E6455D842CDFACAD40CFB986C9568A376A76DC17897C6CA3DE0A9BBE404EF470"
+  },
+  {
+    "name": "Mixed",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-1-Y-69-F35-W20-R30-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U1-Z2-S00000000000003DF",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 400.5645,
+    "allocatedBytes": 242186048,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 6.6481,
+        "allocatedBytes": 1109568
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 4.9697,
+        "allocatedBytes": 1873968
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 9.9767,
+        "allocatedBytes": 5572064
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 8.5202,
+        "allocatedBytes": 6403224
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 5.7034,
+        "allocatedBytes": 2454224
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 5.6217,
+        "allocatedBytes": 2354176
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 102.209,
+        "allocatedBytes": 63403672
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 105.6181,
+        "allocatedBytes": 72774480
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 48.7202,
+        "allocatedBytes": 28464640
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 62.6397,
+        "allocatedBytes": 36792208
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 6.1389,
+        "allocatedBytes": 2176864
+      }
+    ],
+    "planningMs": 76.1716,
+    "materializationMs": 3.8467,
+    "validationMs": 146.281,
+    "constructionValidations": 7,
+    "responsePayloadBytes": 2113926,
+    "previewPayloadBytes": 1458910,
+    "previewRawEstimateBytes": 1168704,
+    "previewRetainedManagedBytes": 1252104,
+    "statistics": {
+      "searches": 6,
+      "expandedStates": 115648,
+      "peakQueue": 1892,
+      "acceptedRoutes": 6,
+      "changedTerrain": 539,
+      "changedEdges": 0,
+      "preparationCost": 1178,
+      "crossings": 5,
+      "tunnelEntrances": 28,
+      "planningWork": 187648,
+      "planningAttempts": 6
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-1-y-69-w120-h100/region-0",
+        "previousDistance": -1,
+        "newDistance": 32,
+        "newCorridorCells": 32,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-1-y-69-w120-h100/region-1",
+        "previousDistance": -1,
+        "newDistance": 17,
+        "newCorridorCells": 17,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 7,
+    "sharedSegments": 5,
+    "unresolved": 0,
+    "remote": 1,
+    "fingerprint": "20980E17D55C1B6093E5354A9224D6BF90055E45D67087D0CFDC1EE154072833"
+  },
+  {
+    "name": "ThroughOnly",
+    "width": 120,
+    "height": 100,
+    "code": "WLD1-120x100-X-51-Y-1-F75-W0-R10-KBalanced-HAuto-E1-I2-B1111-Q1-T2-JForestTrail-L1-A2-U0-Z2-S000000000000000E",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 218.4474,
+    "allocatedBytes": 124564016,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 4.8202,
+        "allocatedBytes": 1106928
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 12.3511,
+        "allocatedBytes": 1757240
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 5.9777,
+        "allocatedBytes": 6158968
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 5.3787,
+        "allocatedBytes": 2045416
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 4.0954,
+        "allocatedBytes": 1767544
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 4.9573,
+        "allocatedBytes": 2044224
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 90.5054,
+        "allocatedBytes": 52673920
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 61.2682,
+        "allocatedBytes": 36898448
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 4.5553,
+        "allocatedBytes": 1837160
+      }
+    ],
+    "planningMs": 65.8,
+    "materializationMs": 1.3059,
+    "validationMs": 53.2288,
+    "constructionValidations": 3,
+    "responsePayloadBytes": 1304403,
+    "previewPayloadBytes": 691459,
+    "previewRawEstimateBytes": 808056,
+    "previewRetainedManagedBytes": 813536,
+    "statistics": {
+      "searches": 4,
+      "expandedStates": 126866,
+      "peakQueue": 2423,
+      "acceptedRoutes": 4,
+      "changedTerrain": 326,
+      "changedEdges": 0,
+      "preparationCost": 591,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 174866,
+      "planningAttempts": 4
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-51-y-1-w120-h100/region-0",
+        "previousDistance": -1,
+        "newDistance": 21,
+        "newCorridorCells": 21,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      },
+      {
+        "routeId": "exploration-links/x-51-y-1-w120-h100/region-1",
+        "previousDistance": -1,
+        "newDistance": 41,
+        "newCorridorCells": 41,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 0,
+    "junctions": 4,
+    "sharedSegments": 3,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "FD3487A197911007BDB2354FFEB20F73786ED1CE3313E35FA9FDC5E3B1074AF8"
+  },
+  {
+    "name": "RockPassages",
+    "width": 50,
+    "height": 50,
+    "code": "WLD1-50x50-X-17-Y-13-F0-W0-R95-KBalanced-HAuto-E1-I2-B1111-Q1-T2-JRockPassage-L1-A2-U0-Z2-S0000000000000018",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 44.8562,
+    "allocatedBytes": 31062616,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 0.9481,
+        "allocatedBytes": 232728
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 0.8452,
+        "allocatedBytes": 368424
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 0.8624,
+        "allocatedBytes": 369120
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 3.6559,
+        "allocatedBytes": 3089528
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 0.8825,
+        "allocatedBytes": 403120
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 0.899,
+        "allocatedBytes": 422920
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 18.8043,
+        "allocatedBytes": 13406920
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 10.3847,
+        "allocatedBytes": 7480792
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 0.9963,
+        "allocatedBytes": 420584
+      }
+    ],
+    "planningMs": 11.017599999999998,
+    "materializationMs": 0.4425,
+    "validationMs": 10.0505,
+    "constructionValidations": 3,
+    "responsePayloadBytes": 358641,
+    "previewPayloadBytes": 199100,
+    "previewRawEstimateBytes": 186836,
+    "previewRetainedManagedBytes": 203256,
+    "statistics": {
+      "searches": 3,
+      "expandedStates": 25474,
+      "peakQueue": 963,
+      "acceptedRoutes": 3,
+      "changedTerrain": 114,
+      "changedEdges": 0,
+      "preparationCost": 438,
+      "crossings": 0,
+      "tunnelEntrances": 12,
+      "planningWork": 32974,
+      "planningAttempts": 3
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x-17-y-13-w50-h50/region-0",
+        "previousDistance": -1,
+        "newDistance": 22,
+        "newCorridorCells": 22,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 0,
+    "junctions": 3,
+    "sharedSegments": 2,
+    "unresolved": 0,
+    "remote": 0,
+    "fingerprint": "535372CC2ED64482936494700D623A039A4E2772F6EBA5EA4C129487CB5FB7A9"
+  },
+  {
+    "name": "Narrow",
+    "width": 21,
+    "height": 55,
+    "code": "WLD1-21x55-X-121-Y-1-F35-W10-R15-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T1-JForestTrail-L1-A1-U0-Z2-S00000000000003DF",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 25.126,
+    "allocatedBytes": 20456280,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 0.6005,
+        "allocatedBytes": 109248
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 0.5365,
+        "allocatedBytes": 224552
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 0.5874,
+        "allocatedBytes": 327152
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 1.5328,
+        "allocatedBytes": 1329488
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 0.6007,
+        "allocatedBytes": 313760
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 0.5849,
+        "allocatedBytes": 278944
+      },
+      {
+        "stepId": "primary-routes",
+        "milliseconds": 5.7467,
+        "allocatedBytes": 4379848
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 9.5033,
+        "allocatedBytes": 8841208
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 1.5182,
+        "allocatedBytes": 1804784
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 0.8468,
+        "allocatedBytes": 441072
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 0.7318,
+        "allocatedBytes": 288408
+      }
+    ],
+    "planningMs": 3.3836999999999997,
+    "materializationMs": 0,
+    "validationMs": 6.340999999999999,
+    "constructionValidations": 4,
+    "responsePayloadBytes": 392128,
+    "previewPayloadBytes": 339016,
+    "previewRawEstimateBytes": 162346,
+    "previewRetainedManagedBytes": 199312,
+    "statistics": {
+      "searches": 0,
+      "expandedStates": 0,
+      "peakQueue": 0,
+      "acceptedRoutes": 0,
+      "changedTerrain": 0,
+      "changedEdges": 0,
+      "preparationCost": 0,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 18213,
+      "planningAttempts": 9
+    },
+    "alternatives": [],
+    "sites": 3,
+    "junctions": 0,
+    "sharedSegments": 0,
+    "unresolved": 4,
+    "remote": 0,
+    "fingerprint": "885E14F42D8AC81485BE1AC384529606ECD94E03822A5CD387E86E54C6E00D70"
+  },
+  {
+    "name": "SiteNetworkOnly",
+    "width": 60,
+    "height": 60,
+    "code": "WLD1-60x60-X0-Y0-F15-W4-R5-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T0-JMinorPath-L1-A1-U0-Z2-S000000000000002A",
+    "samples": 5,
+    "warmups": 3,
+    "generationMs": 72.0754,
+    "allocatedBytes": 49492904,
+    "stages": [
+      {
+        "stepId": "natural",
+        "milliseconds": 1.605,
+        "allocatedBytes": 333712
+      },
+      {
+        "stepId": "formations",
+        "milliseconds": 1.7084,
+        "allocatedBytes": 787296
+      },
+      {
+        "stepId": "forest",
+        "milliseconds": 2.2912,
+        "allocatedBytes": 1953440
+      },
+      {
+        "stepId": "rock",
+        "milliseconds": 1.7033,
+        "allocatedBytes": 795728
+      },
+      {
+        "stepId": "water",
+        "milliseconds": 1.7236,
+        "allocatedBytes": 867408
+      },
+      {
+        "stepId": "grassland",
+        "milliseconds": 2.7587,
+        "allocatedBytes": 1825584
+      },
+      {
+        "stepId": "civilization",
+        "milliseconds": 22.2269,
+        "allocatedBytes": 16705864
+      },
+      {
+        "stepId": "site-connections",
+        "milliseconds": 12.6535,
+        "allocatedBytes": 10511272
+      },
+      {
+        "stepId": "exploration-links",
+        "milliseconds": 16.6946,
+        "allocatedBytes": 11133608
+      },
+      {
+        "stepId": "current",
+        "milliseconds": 2.6174,
+        "allocatedBytes": 852136
+      }
+    ],
+    "planningMs": 14.992600000000001,
+    "materializationMs": 0.2681,
+    "validationMs": 22.2601,
+    "constructionValidations": 6,
+    "responsePayloadBytes": 619885,
+    "previewPayloadBytes": 518767,
+    "previewRawEstimateBytes": 348844,
+    "previewRetainedManagedBytes": 378456,
+    "statistics": {
+      "searches": 2,
+      "expandedStates": 15493,
+      "peakQueue": 561,
+      "acceptedRoutes": 2,
+      "changedTerrain": 86,
+      "changedEdges": 0,
+      "preparationCost": 113,
+      "crossings": 0,
+      "tunnelEntrances": 2,
+      "planningWork": 51105,
+      "planningAttempts": 6
+    },
+    "alternatives": [
+      {
+        "routeId": "exploration-links/x0-y0-w60-h60/region-1",
+        "previousDistance": -1,
+        "newDistance": 50,
+        "newCorridorCells": 50,
+        "sharedCorridorCells": 1,
+        "addsCycle": false,
+        "bypassesSelectedBottleneck": false,
+        "independentSiteEntrance": false,
+        "connectsRegion": true
+      }
+    ],
+    "sites": 3,
+    "junctions": 1,
+    "sharedSegments": 1,
+    "unresolved": 2,
+    "remote": 0,
+    "fingerprint": "BB629D9B2CFB469E272AB869512627C9BB992F648B2D63208738D9816EFCCC0F"
+  }
+]

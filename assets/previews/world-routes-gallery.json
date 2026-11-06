@@ -1,0 +1,192 @@
+[
+  {
+    "name": "120x100-Grassland",
+    "image": "world-routes-120x100-grassland.png",
+    "code": "WLD1-120x100-X-17-Y-13-F10-W4-R5-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "fingerprint": "ED90B37220DF546FF4BE86C8B4AD1954632CBDD63CEC48B296A28F043DC38D87",
+    "statistics": {
+      "searches": 5,
+      "expandedStates": 67246,
+      "peakQueue": 2088,
+      "acceptedRoutes": 5,
+      "changedTerrain": 478,
+      "changedEdges": 0,
+      "preparationCost": 485,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 127246,
+      "planningAttempts": 5
+    }
+  },
+  {
+    "name": "120x100-Woodland",
+    "image": "world-routes-120x100-woodland.png",
+    "code": "WLD1-120x100-X-17-Y-13-F60-W8-R8-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JForestTrail-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "fingerprint": "EF8AFBDE9B8CD34F362BDD1CAA2AF044E65F377CC83B0984C00856C04ED852F8",
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 138354,
+      "peakQueue": 2746,
+      "acceptedRoutes": 7,
+      "changedTerrain": 345,
+      "changedEdges": 0,
+      "preparationCost": 594,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 222354,
+      "planningAttempts": 7
+    }
+  },
+  {
+    "name": "120x100-RockyWilds",
+    "image": "world-routes-120x100-rockywilds.png",
+    "code": "WLD1-120x100-X-17-Y-13-F15-W8-R50-KBroad-HMixed-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRockPassage-L1-A2-U0-Z2-S123456789ABCDEF0",
+    "fingerprint": "D60A750D79F537D8FF6019ECFCB0734D8184EB12B4D56A6BBBE0791CE135369C",
+    "statistics": {
+      "searches": 6,
+      "expandedStates": 132249,
+      "peakQueue": 2391,
+      "acceptedRoutes": 6,
+      "changedTerrain": 408,
+      "changedEdges": 0,
+      "preparationCost": 733,
+      "crossings": 0,
+      "tunnelEntrances": 11,
+      "planningWork": 240249,
+      "planningAttempts": 9
+    }
+  },
+  {
+    "name": "120x100-LakeCountry",
+    "image": "world-routes-120x100-lakecountry.png",
+    "code": "WLD1-120x100-X-17-Y-13-F25-W30-R10-KBroad-HLakes-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "fingerprint": "11455F59E96D9B6891BF3D4B64DE3C6C322EC2B631579050EC6AEE4FAA1EBCF0",
+    "statistics": {
+      "searches": 4,
+      "expandedStates": 57407,
+      "peakQueue": 1154,
+      "acceptedRoutes": 4,
+      "changedTerrain": 181,
+      "changedEdges": 0,
+      "preparationCost": 243,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 429353,
+      "planningAttempts": 10
+    }
+  },
+  {
+    "name": "120x100-RiverValley",
+    "image": "world-routes-120x100-rivervalley.png",
+    "code": "WLD1-120x100-X-17-Y-13-F25-W15-R10-KBalanced-HRiver-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JMinorPath-L1-A2-U1-Z2-S123456789ABCDEF0",
+    "fingerprint": "245F6CC8EF504E17D71D3DDA7D2D242DFAD08A4B6400395B65BD42F159BECD08",
+    "statistics": {
+      "searches": 7,
+      "expandedStates": 123559,
+      "peakQueue": 2364,
+      "acceptedRoutes": 7,
+      "changedTerrain": 310,
+      "changedEdges": 0,
+      "preparationCost": 372,
+      "crossings": 1,
+      "tunnelEntrances": 0,
+      "planningWork": 207559,
+      "planningAttempts": 7
+    }
+  },
+  {
+    "name": "Mixed",
+    "image": "world-routes-mixed.png",
+    "code": "WLD1-120x100-X-1-Y-69-F35-W20-R30-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U1-Z2-S00000000000003DF",
+    "fingerprint": "20980E17D55C1B6093E5354A9224D6BF90055E45D67087D0CFDC1EE154072833",
+    "statistics": {
+      "searches": 6,
+      "expandedStates": 115648,
+      "peakQueue": 1892,
+      "acceptedRoutes": 6,
+      "changedTerrain": 539,
+      "changedEdges": 0,
+      "preparationCost": 1178,
+      "crossings": 5,
+      "tunnelEntrances": 28,
+      "planningWork": 187648,
+      "planningAttempts": 6
+    }
+  },
+  {
+    "name": "ThroughOnly",
+    "image": "world-routes-throughonly.png",
+    "code": "WLD1-120x100-X-51-Y-1-F75-W0-R10-KBalanced-HAuto-E1-I2-B1111-Q1-T2-JForestTrail-L1-A2-U0-Z2-S000000000000000E",
+    "fingerprint": "FD3487A197911007BDB2354FFEB20F73786ED1CE3313E35FA9FDC5E3B1074AF8",
+    "statistics": {
+      "searches": 4,
+      "expandedStates": 126866,
+      "peakQueue": 2423,
+      "acceptedRoutes": 4,
+      "changedTerrain": 326,
+      "changedEdges": 0,
+      "preparationCost": 591,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 174866,
+      "planningAttempts": 4
+    }
+  },
+  {
+    "name": "RockPassages",
+    "image": "world-routes-rockpassages.png",
+    "code": "WLD1-50x50-X-17-Y-13-F0-W0-R95-KBalanced-HAuto-E1-I2-B1111-Q1-T2-JRockPassage-L1-A2-U0-Z2-S0000000000000018",
+    "fingerprint": "535372CC2ED64482936494700D623A039A4E2772F6EBA5EA4C129487CB5FB7A9",
+    "statistics": {
+      "searches": 3,
+      "expandedStates": 25474,
+      "peakQueue": 963,
+      "acceptedRoutes": 3,
+      "changedTerrain": 114,
+      "changedEdges": 0,
+      "preparationCost": 438,
+      "crossings": 0,
+      "tunnelEntrances": 12,
+      "planningWork": 32974,
+      "planningAttempts": 3
+    }
+  },
+  {
+    "name": "Narrow",
+    "image": "world-routes-narrow.png",
+    "code": "WLD1-21x55-X-121-Y-1-F35-W10-R15-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T1-JForestTrail-L1-A1-U0-Z2-S00000000000003DF",
+    "fingerprint": "885E14F42D8AC81485BE1AC384529606ECD94E03822A5CD387E86E54C6E00D70",
+    "statistics": {
+      "searches": 0,
+      "expandedStates": 0,
+      "peakQueue": 0,
+      "acceptedRoutes": 0,
+      "changedTerrain": 0,
+      "changedEdges": 0,
+      "preparationCost": 0,
+      "crossings": 0,
+      "tunnelEntrances": 0,
+      "planningWork": 18213,
+      "planningAttempts": 9
+    }
+  },
+  {
+    "name": "SiteNetworkOnly",
+    "image": "world-routes-sitenetworkonly.png",
+    "code": "WLD1-60x60-X0-Y0-F15-W4-R5-KBalanced-HAuto-E1-I2-B1111-C1-N2-V1-P2-Q1-T0-JMinorPath-L1-A1-U0-Z2-S000000000000002A",
+    "fingerprint": "BB629D9B2CFB469E272AB869512627C9BB992F648B2D63208738D9816EFCCC0F",
+    "statistics": {
+      "searches": 2,
+      "expandedStates": 15493,
+      "peakQueue": 561,
+      "acceptedRoutes": 2,
+      "changedTerrain": 86,
+      "changedEdges": 0,
+      "preparationCost": 113,
+      "crossings": 0,
+      "tunnelEntrances": 2,
+      "planningWork": 51105,
+      "planningAttempts": 6
+    }
+  }
+]

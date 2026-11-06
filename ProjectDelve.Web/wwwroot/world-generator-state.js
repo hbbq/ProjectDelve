@@ -21,20 +21,24 @@ export function worldConfigurationCode(config, includeSeed = true, maxBoardSize 
     if (!["true", "false"].includes(value)) throw new Error(`Choose ${key}.`);
     return value === "true" ? "1" : "0";
   };
-  let enrichment = "", civilization = "";
+  let enrichment = "", civilization = "", routes = "";
   if (config.enrichmentEnabled != null && config.enrichmentEnabled !== "") {
     enrichment = `-E${bit("enrichmentEnabled")}-I${integer("enrichmentIntensity", 1, 3)}-B${["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].map(bit).join("")}`;
   }
   if (config.civilizationEnabled != null && config.civilizationEnabled !== "")
     civilization = `-C${bit("civilizationEnabled")}-N${integer("campsiteCount", 0, 8)}-V${integer("settlementCount", 0, 4)}-P${integer("preparationIntensity", 1, 3)}`;
-  return `WLD1-${width}x${height}-X${x}-Y${y}-F${forest}-W${water}-R${rock}-K${config.scale}-H${config.waterForm}${enrichment}${civilization}${includeSeed && seed ? `-S${seed.toUpperCase()}` : ""}`;
+  if (config.routesEnabled != null && config.routesEnabled !== "") {
+    if (!["ForestTrail", "MinorPath", "Road", "RockPassage"].includes(config.routeProfile)) throw new Error("Choose a route profile.");
+    routes = `-Q${bit("routesEnabled")}-T${integer("throughRoutes", 0, 4)}-J${config.routeProfile}-L${bit("connectSites")}-A${integer("explorationLinks", 0, 3)}-U${bit("waterCrossings")}-Z${integer("routeIntensity", 1, 3)}`;
+  }
+  return `WLD1-${width}x${height}-X${x}-Y${y}-F${forest}-W${water}-R${rock}-K${config.scale}-H${config.waterForm}${enrichment}${civilization}${routes}${includeSeed && seed ? `-S${seed.toUpperCase()}` : ""}`;
 }
 
 export function worldConfigurationFromCode(input, maxBoardSize = 120) {
-  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-C([01])-N([0-8])-V([0-4])-P([123]))?(?:-S([0-9a-fA-F]{16}))?$/);
+  const match = input.trim().match(/^WLD1-([1-9]\d{0,2})x([1-9]\d{0,2})-X(-?\d+)-Y(-?\d+)-F(\d{1,3})-W(\d{1,3})-R(\d{1,3})-K(Fine|Balanced|Broad)-H(Auto|Lakes|River|Mixed)(?:-E([01])-I([123])-B([01]{4}))?(?:-C([01])-N([0-8])-V([0-4])-P([123]))?(?:-Q([01])-T([0-4])-J(ForestTrail|MinorPath|Road|RockPassage)-L([01])-A([0-3])-U([01])-Z([123]))?(?:-S([0-9a-fA-F]{16}))?$/);
   if (!match) throw new Error("Enter an ordered WLD1 recipe or complete code; a seed needs exactly 16 hexadecimal digits.");
   const result = Object.fromEntries(["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm"].map((key, i) => [key, match[i + 1]]));
-  result.seed = match[17] ?? "";
+  result.seed = match[24] ?? "";
   if (match[10] != null) {
     result.enrichmentEnabled = String(match[10] === "1"); result.enrichmentIntensity = match[11];
     ["forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"].forEach((key, i) => { result[key] = String(match[12][i] === "1"); });
@@ -42,6 +46,11 @@ export function worldConfigurationFromCode(input, maxBoardSize = 120) {
   if (match[13] != null) {
     result.civilizationEnabled = String(match[13] === "1"); result.campsiteCount = match[14];
     result.settlementCount = match[15]; result.preparationIntensity = match[16];
+  }
+  if (match[17] != null) {
+    result.routesEnabled = String(match[17] === "1"); result.throughRoutes = match[18]; result.routeProfile = match[19];
+    result.connectSites = String(match[20] === "1"); result.explorationLinks = match[21];
+    result.waterCrossings = String(match[22] === "1"); result.routeIntensity = match[23];
   }
   worldConfigurationCode(result, true, maxBoardSize);
   result.seed = result.seed.toUpperCase();
@@ -65,14 +74,17 @@ export function constructionPreview(preview, frameIndex, operationId, before = f
   const byId = new Map(operations.map(operation => [operation.id, operation]));
   let root = operations[range.start]; const seen = new Set();
   while (byId.has(root.parentId) && !seen.has(root.id)) { seen.add(root.id); root = byId.get(root.parentId); }
+  const batch = selected.constructionBatches?.find(batch => range.start >= batch.firstOperation && range.start < batch.endOperation);
   const first = preview.frames.findIndex(frame => frame.construction?.some(operation => operation.id === root.id));
-  if (first <= 0) throw new Error("Construction inspection requires its preceding checkpoint.");
-  const checkpoint = preview.frames[first - 1], terrain = checkpoint.terrain.split("");
+  const checkpoint = batch ? preview.frames.find(frame => frame.stepId === batch.checkpointStepId) : preview.frames[first - 1];
+  if (!checkpoint) throw new Error("Construction inspection requires its preceding checkpoint.");
+  const replayStart = batch?.firstOperation ?? checkpoint.construction?.length ?? 0;
+  const terrain = checkpoint.terrain.split("");
   const palette = new Map(preview.terrainPalette.map((id, index) => [id, String.fromCharCode(65 + index)]));
   const edgeId = key => `${key.index}:${key.direction}`;
   const edges = new Map((checkpoint.edges ?? []).filter(edge => edge.kind !== "None").map(edge =>
     [edgeId({ index: edge.position.y * width + edge.position.x, direction: edge.direction }), edge]));
-  for (const operation of operations.slice(0, before ? range.start : range.end)) {
+  for (const operation of operations.slice(replayStart, before ? range.start : range.end)) {
     for (const change of operation.terrainChanges ?? []) {
       if (!palette.has(change.after)) throw new Error(`Construction Terrain '${change.after}' is missing from the palette.`);
       terrain[change.index] = palette.get(change.after);

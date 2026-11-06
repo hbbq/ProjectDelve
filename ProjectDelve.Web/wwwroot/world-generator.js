@@ -6,7 +6,8 @@ const byId = id => document.getElementById(`world-generator-${id}`);
 const dialog = document.getElementById("world-generator");
 const enrichmentFields = ["enrichmentEnabled", "enrichmentIntensity", "forestEnrichment", "rockEnrichment", "waterEnrichment", "grasslandEnrichment"];
 const civilizationFields = ["civilizationEnabled", "campsiteCount", "settlementCount", "preparationIntensity"];
-const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields, ...civilizationFields];
+const routeFields = ["routesEnabled", "throughRoutes", "routeProfile", "connectSites", "explorationLinks", "waterCrossings", "routeIntensity"];
+const fields = ["width", "height", "offsetX", "offsetY", "forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", "seed", ...enrichmentFields, ...civilizationFields, ...routeFields];
 const session = new GeneratorSession();
 let presets = [], catalogPromise, maxBoardSize = 120;
 let selectedStage = 0, compareBefore = false;
@@ -50,9 +51,11 @@ byId("preset").addEventListener("change", () => {
   if (enrichment) for (const [field, key] of [["enrichmentEnabled", "enabled"], ["enrichmentIntensity", "intensity"], ["forestEnrichment", "forest"], ["rockEnrichment", "rock"], ["waterEnrichment", "water"], ["grasslandEnrichment", "grassland"]]) byId(field).value = String(enrichment[key]);
   const civilization = preset.civilization ?? preset.settings.civilization;
   if (civilization) for (const [field, key] of [["civilizationEnabled", "enabled"], ["campsiteCount", "campsites"], ["settlementCount", "settlements"], ["preparationIntensity", "preparationIntensity"]]) byId(field).value = String(civilization[key]);
+  const routes = preset.routes ?? preset.settings.routes;
+  if (routes) for (const [field, key] of [["routesEnabled", "enabled"], ["throughRoutes", "throughRoutes"], ["routeProfile", "profile"], ["connectSites", "connectSites"], ["explorationLinks", "alternatives"], ["waterCrossings", "waterCrossings"], ["routeIntensity", "intensity"]]) byId(field).value = String(routes[key]);
   changed();
 });
-for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields, ...civilizationFields])
+for (const field of ["forestCoverage", "waterCoverage", "rockCoverage", "scale", "waterForm", ...enrichmentFields, ...civilizationFields, ...routeFields])
   byId(field).addEventListener("change", () => { byId("preset").value = ""; });
 function randomSeed() {
   byId("seed").value = [...crypto.getRandomValues(new Uint32Array(2))].map(value => value.toString(16).padStart(8, "0")).join("").toUpperCase(); changed();
@@ -60,7 +63,8 @@ function randomSeed() {
 byId("load").addEventListener("click", () => {
   try {
     const loaded = worldConfigurationFromCode(byId("code-input").value, maxBoardSize);
-    const defaults = { civilizationEnabled: "false", campsiteCount: "2", settlementCount: "1", preparationIntensity: "2" };
+    const defaults = { civilizationEnabled: "false", campsiteCount: "2", settlementCount: "1", preparationIntensity: "2",
+      routesEnabled: "false", throughRoutes: "1", routeProfile: "MinorPath", connectSites: "true", explorationLinks: "1", waterCrossings: "false", routeIntensity: "2" };
     for (const field of fields) byId(field).value = loaded[field] ?? defaults[field] ?? (field === "enrichmentEnabled" ? "false" : field === "enrichmentIntensity" ? "2" : enrichmentFields.includes(field) ? "true" : "");
     byId("preset").value = ""; changed(); status("Recipe loaded · choose Generate Preview.");
   } catch (error) { status(error.message); }
@@ -112,7 +116,8 @@ byId("stage").addEventListener("change", () => showStage(Number(byId("stage").va
 byId("previous").addEventListener("click", () => showStage(selectedStage - 1));
 byId("next").addEventListener("click", () => showStage(selectedStage + 1));
 byId("compare").addEventListener("click", () => { compareBefore = !compareBefore; renderPreview(); });
-for (const name of ["changed", "boundaries", "components", "opportunities", "sites", "buildings", "rooms", "usable", "site-entrances"])
+for (const name of ["changed", "boundaries", "components", "opportunities", "sites", "buildings", "rooms", "usable", "site-entrances",
+  "route-intents", "route-centerlines", "route-corridors", "route-junctions", "route-crossings", "route-access"])
   byId(name).addEventListener("change", () => { if (session.result) renderPreview(); });
 byId("designer").addEventListener("click", () => {
   if (!session.result) return;
@@ -192,6 +197,7 @@ function renderPreview() {
   root.append(fragment);
   renderEdges(root, frame?.edges ?? board.edges ?? [], (selectedOperation ? frame : selected)?.changedEdges ?? [], board.width, board.height);
   renderPlanSpaces(root, selected, board.width, board.height);
+  renderRoutes(root, selected, board.width, board.height, result.window);
   renderConstruction(selected);
   zoomPreview();
   scroll.scrollLeft = scrollLeft; scroll.scrollTop = scrollTop;
@@ -301,5 +307,101 @@ function renderPlanSpaces(root, frame, width, height) {
     const node = document.createElement("div"), b = room?.interior.bounds ?? selected.bounds; node.className = "world-construction-bounds"; node.dataset.objectId = room?.id ?? selected.objectId;
     Object.assign(node.style, { left: `${b.x / width * 100}%`, top: `${b.y / height * 100}%`, width: `${b.width / width * 100}%`, height: `${b.height / height * 100}%` }); root.append(node);
   }
+}
+
+// Draw only server-authored spans, runs, ports and endpoint pairs. These overlays do not infer routes or connectivity.
+function renderRoutes(root, frame, width, height, window) {
+  const network = frame?.routeNetwork, routes = network?.routes ?? [], sites = frame?.sites ?? [];
+  const inspector = byId("route-inspector"), entries = byId("route-details"); entries.replaceChildren();
+  inspector.hidden = !network && !sites.some(site => site.accessPorts?.length);
+  const accepted = `Accepted metadata for ${frame ? stageName(frame) : "this stage"}; also shown during Before and construction inspection.`;
+  byId("route-authority").textContent = accepted;
+  const area = (value, id, kind, label) => {
+    for (const span of value?.spans ?? []) {
+      const node = document.createElement("div"); node.className = `world-route-area world-route-${kind}`;
+      node.dataset.routeObjectId = id; node.dataset.routeKind = kind; node.title = `${label} · ${id} · accepted stage metadata`;
+      Object.assign(node.style, { left: `${span.x / width * 100}%`, top: `${span.y / height * 100}%`, width: `${span.length / width * 100}%`, height: `${100 / height}%` }); root.append(node);
+    }
+  };
+  const marker = (index, id, kind, label) => {
+    const node = document.createElement("span"); node.className = `world-route-marker world-route-${kind}`;
+    node.dataset.routeObjectId = id; node.dataset.routeKind = kind; node.title = label;
+    Object.assign(node.style, { left: `${(index % width + .5) / width * 100}%`, top: `${(Math.floor(index / width) + .5) / height * 100}%` }); root.append(node);
+  };
+  const segment = (x, y, endX, endY, id, kind, label) => {
+    const node = document.createElement("div"); node.className = `world-route-line world-route-${kind}`;
+    node.dataset.routeObjectId = id; node.dataset.routeKind = kind; node.title = label;
+    Object.assign(node.style, { left: `${(x + .5) / width * 100}%`, top: `${(y + .5) / height * 100}%`,
+      width: `${Math.hypot(endX - x, endY - y) / width * 100}%`, transform: `rotate(${Math.atan2(endY - y, endX - x) * 180 / Math.PI}deg)` }); root.append(node);
+  };
+  const detail = (title, text, kind) => {
+    const item = document.createElement("details"), summary = document.createElement("summary"), body = document.createElement("p");
+    item.className = "world-route-detail"; item.dataset.routeDetail = kind; summary.textContent = title; body.textContent = text;
+    item.append(summary, body); entries.append(item);
+  };
+  for (const route of routes) {
+    const p = route.preparation, s = route.stats;
+    if (byId("route-corridors").checked) area(route.corridor, route.id, "corridor", "Accepted corridor");
+    if (byId("route-centerlines").checked) {
+      for (const run of route.geometry?.runs ?? []) {
+        const x = run.worldX - window.offsetX, y = run.worldY - window.offsetY;
+        const dx = run.direction === "East" ? run.length : run.direction === "West" ? -run.length : 0;
+        const dy = run.direction === "South" ? run.length : run.direction === "North" ? -run.length : 0;
+        segment(x, y, x + dx, y + dy, route.id, "centerline", `Accepted ${route.profile} centerline · ${route.id}`);
+      }
+      for (const port of [route.start, route.end]) if (port) marker(port.anchorIndex, port.id, "port", `Accepted route port ${port.id} · ${port.kind} (${port.worldX}, ${port.worldY})${port.siteId ? ` · Site ${port.siteId}` : ""}`);
+    }
+    if (byId("route-crossings").checked) {
+      for (const crossing of route.crossings ?? []) area(crossing.footprint, route.id, "crossing", "Accepted ordinary terrain Water fill");
+      for (const mouth of route.tunnelEntrances ?? []) marker(mouth.anchorIndex, route.id, "mouth", `Excavated tunnel mouth · ${route.id} (${mouth.worldX}, ${mouth.worldY})`);
+    }
+    detail(`${route.id} · ${route.purpose} · ${route.profile}`, `Accepted corridor: ${route.corridor.area} Cells; width ${route.realizedWidth}; verified ${route.verifiedFootprint} × ${route.verifiedFootprint} footprint. ` +
+      `Ports: ${route.start.id} (${route.start.worldX}, ${route.start.worldY}) → ${route.end.id} (${route.end.worldX}, ${route.end.worldY}). ` +
+      `Surface ${route.surfaceTypeId ?? "server ground"}; realized ${(route.realizedSurfaceTypeIds ?? []).join(", ") || "server terrain"}. Requires opening Doors: ${route.requiresOpeningDoors ? "yes" : "no"}. Length ${s.length}; turns ${s.turns}; reused Cells ${s.reusedCells}; search cost ${s.searchCost}; attempts ${s.attempts}; expanded states ${s.expandedStates}; peak queue ${s.queuePeak}. ` +
+      `Preparation cost ${p.cost}; trees ${p.treesRemoved}; rock ${p.rockExcavated}; Water filled ${p.waterFilled}; terrain changes ${p.changedTerrain}; Edge changes ${p.changedEdges}. ` +
+      `Water crossing spans: ${(route.crossings ?? []).map(crossing => `${crossing.footprint.area} Cells`).join(", ") || "none"}; tunnel mouths: ${(route.tunnelEntrances ?? []).map(mouth => `(${mouth.worldX}, ${mouth.worldY})`).join(", ") || "none"}. ` +
+      `Materialization ${route.materializationId}; source revision ${route.sourceRevision}.`, "route");
+  }
+  for (const intent of network?.intents ?? []) {
+    if (byId("route-intents").checked) {
+      marker(intent.startIndex, intent.id, "intent-port", `Intended link start · ${intent.id} · ${intent.status}`);
+      if (intent.destinationIndex != null) {
+        marker(intent.destinationIndex, intent.id, "intent-port", `Intended link destination · ${intent.id} · ${intent.status}`);
+        segment(intent.startIndex % width, Math.floor(intent.startIndex / width), intent.destinationIndex % width, Math.floor(intent.destinationIndex / width),
+          intent.id, "intent", `Intended endpoint pair only, not a computed path · ${intent.id} · ${intent.status}`);
+      }
+    }
+    detail(`${intent.status} · ${intent.id}`, `${intent.purpose} · ${intent.profile}${intent.destinationObjectId ? ` · destination ${intent.destinationObjectId}` : ""}${intent.routeId ? ` · accepted route ${intent.routeId}` : ""}. ` +
+      `Start (${intent.startIndex % width + window.offsetX}, ${Math.floor(intent.startIndex / width) + window.offsetY})${intent.destinationIndex != null ? `; destination (${intent.destinationIndex % width + window.offsetX}, ${Math.floor(intent.destinationIndex / width) + window.offsetY})` : "; no destination endpoint supplied"}. ` +
+      `${intent.reason ?? "No additional explanation supplied."} Intent endpoint pairs show requested links, not computed paths.`, "intent");
+  }
+  if (byId("route-junctions").checked) {
+    for (const shared of network?.sharedSegments ?? []) area(shared.area, shared.id, "shared", `Shared corridor · ${shared.routeIds.join(", ")}`);
+    for (const junction of network?.junctions ?? []) area(junction.contact, junction.id, "junction", `Junction · ${junction.routeIds.join(", ")}`);
+  }
+  for (const junction of network?.junctions ?? []) detail(`Junction · ${junction.id}`,
+    `${junction.contact.area} contact Cells; Routes ${junction.routeIds.join(", ")}.`, "junction");
+  for (const shared of network?.sharedSegments ?? []) detail(`Shared segment · ${shared.id}`,
+    `${shared.area.area} shared corridor Cells; Routes ${shared.routeIds.join(", ")}.`, "shared");
+  for (const site of sites) for (const port of site.accessPorts ?? []) {
+    if (byId("route-access").checked) {
+      area(port.approach, port.id, "approach", `Published Site approach · exact owner ${port.ownerId}`);
+      marker(port.anchorIndex, port.id, "access", `Site access ${port.id} · ${port.direction} · verified width ${port.verifiedWidth}`);
+      marker(port.outwardIndex, port.id, "access", `Site outward port ${port.id} · ${port.direction}`);
+    }
+    detail(`Site access · ${port.id}`, `Exact owner ${port.ownerId}; direction ${port.direction}; verified width ${port.verifiedWidth}; published approach ${port.approach.area} Cells. ` +
+      `Anchor (${port.anchorIndex % width + window.offsetX}, ${Math.floor(port.anchorIndex / width) + window.offsetY}); outward (${port.outwardIndex % width + window.offsetX}, ${Math.floor(port.outwardIndex / width) + window.offsetY}).`, "access");
+  }
+  for (const alternative of network?.alternatives ?? []) detail(`Alternative quality · ${alternative.routeId}`,
+    `Previous distance ${alternative.previousDistance}; new distance ${alternative.newDistance}; new corridor Cells ${alternative.newCorridorCells}; shared Cells ${alternative.sharedCorridorCells}. ` +
+    `Adds cycle: ${alternative.addsCycle ? "yes" : "no"}; bypasses selected bottleneck: ${alternative.bypassesSelectedBottleneck ? "yes" : "no"}; independent Site entrance: ${alternative.independentSiteEntrance ? "yes" : "no"}; connects region: ${alternative.connectsRegion ? "yes" : "no"}.`, "alternative");
+  for (const attachment of network?.siteAttachments ?? []) detail(`Site attachment · ${attachment.siteId}`,
+    `Port ${attachment.portId}; network component ${attachment.networkComponent}; Routes ${attachment.routeIds.join(", ")}. ` +
+    `Ordinary open access: ${attachment.ordinaryOpenAccess ? "yes" : "no"}; Doors-openable access: ${attachment.doorsOpenableAccess ? "yes" : "no"}.`, "attachment");
+  const s = network?.statistics;
+  byId("route-summary").textContent = s ? `${s.acceptedRoutes} accepted Routes · ${network.topology.components.length} route components · board revision ${network.topology.boardRevision} · ` +
+    `${s.searches} searches on accepted Routes · ${s.expandedStates} expanded states on accepted Routes · peak queue ${s.peakQueue} · planning attempts ${s.planningAttempts ?? "—"} · work ${s.planningWork ?? "—"} · ` +
+    `preparation cost ${s.preparationCost} · terrain changes ${s.changedTerrain} · Edge changes ${s.changedEdges} · ${s.crossings} Water crossings · ${s.tunnelEntrances} tunnel mouths · ` +
+    `${(network.intents ?? []).filter(intent => intent.status === "Unresolved").length} unresolved requests.` : "Published Site access; no route network accepted at this stage.";
 }
 changed();

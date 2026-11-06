@@ -352,6 +352,15 @@
           <label>Settlements <input id="world-generator-settlementCount" type="number" min="0" max="4" value="1"></label>
           <label>Preparation <select id="world-generator-preparationIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
         </div><small>Construction may clear trees, excavate rock or fill Water within its preparation allowance. Unplaced requests are reported below.</small></fieldset>
+        <fieldset class="world-generator-enrichment"><legend>Routes</legend><div class="world-generator-fields">
+          <label>Route planning <select id="world-generator-routesEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Through routes <input id="world-generator-throughRoutes" type="number" min="0" max="4" value="1"></label>
+          <label>Route profile <select id="world-generator-routeProfile"><option value="ForestTrail">Forest trail</option><option value="MinorPath" selected>Minor path</option><option value="Road">Road</option><option value="RockPassage">Rock passage</option></select></label>
+          <label>Connect Sites <select id="world-generator-connectSites"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+          <label>Exploration links <input id="world-generator-explorationLinks" type="number" min="0" max="3" value="1"></label>
+          <label>Water crossings <select id="world-generator-waterCrossings"><option value="false">Preserve Water</option><option value="true">Allow limited fill</option></select></label>
+          <label>Route intensity <select id="world-generator-routeIntensity"><option value="1">Low</option><option value="2" selected>Medium</option><option value="3">High</option></select></label>
+        </div><small>Primary Routes are planned before Sites, followed by Site connections and exploration links. Water crossings use ordinary terrain fill within the preparation allowance.</small></fieldset>
         <label>Seed · optional 16 hexadecimal digits <input id="world-generator-seed" maxlength="16" placeholder="Blank = fresh seed on Generate" autocomplete="off" spellcheck="false"></label>
         <div class="generator-actions"><button id="world-generator-preview" class="designer-primary">Generate Preview</button><button id="world-generator-another">Generate Another</button></div>
         <details><summary>World recipe code</summary>
@@ -382,6 +391,16 @@
               <div class="world-generator-overlays"><label><input id="world-generator-sites" type="checkbox" checked> Sites</label><label><input id="world-generator-buildings" type="checkbox" checked> Buildings</label><label><input id="world-generator-rooms" type="checkbox"> Rooms</label><label><input id="world-generator-usable" type="checkbox"> Usable spans</label><label><input id="world-generator-site-entrances" type="checkbox" checked> Entrances / Doors</label></div>
             </fieldset>
           </div>
+          <fieldset class="world-generator-plan-overlays"><legend>Route overlays</legend>
+            <small>Accepted overlays describe the selected stage, including while inspecting an earlier construction step. Dashed intent lines connect requested endpoints only; they do not claim a computed path.</small>
+            <div class="world-generator-overlays"><label><input id="world-generator-route-centerlines" type="checkbox" checked> Accepted centerlines / ports</label><label><input id="world-generator-route-intents" type="checkbox"> Planned intents / endpoints</label><label><input id="world-generator-route-corridors" type="checkbox"> Accepted corridor spans</label><label><input id="world-generator-route-junctions" type="checkbox"> Junctions / shared segments</label><label><input id="world-generator-route-crossings" type="checkbox"> Water crossings / tunnel mouths</label><label><input id="world-generator-route-access" type="checkbox"> Site approaches / access ports</label></div>
+          </fieldset>
+          <details id="world-generator-route-inspector" class="world-route-inspector" hidden>
+            <summary>Routes: requests, costs and connection quality</summary>
+            <p id="world-generator-route-authority" class="legend"></p>
+            <p id="world-generator-route-summary" class="legend"></p>
+            <div id="world-generator-route-details" aria-label="Route and Site access details"></div>
+          </details>
           <div id="world-generator-board-wrap" class="world-generator-board-wrap"><div id="world-generator-board" class="generator-board" data-view="enhanced" role="img" aria-label="Generated world terrain window"></div></div>
           <p id="world-generator-performance" class="legend"></p>
           <label>Completed code for this preview <textarea id="world-generator-complete" rows="3" readonly spellcheck="false"></textarea></label>

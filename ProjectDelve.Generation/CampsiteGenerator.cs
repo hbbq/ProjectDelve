@@ -2,7 +2,8 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public sealed record SitePlacementPreferences(int? PreferredAnchor = null, IReadOnlyList<int>? OpportunityAnchors = null);
+public sealed record SitePlacementPreferences(int? PreferredAnchor = null, IReadOnlyList<int>? OpportunityAnchors = null,
+    IReadOnlyList<int>? RouteAnchors = null, CardinalSide? PreferredApproach = null);
 public sealed record CampsiteRequirements(int MinimumUsableArea = 18, int Radius = 3, string? ScenarioRole = null);
 public sealed record CampsiteRequest(string Key, CellBounds Area, PreparationPolicy Preparation,
     CampsiteRequirements? Requirements = null, SitePlacementPreferences? Preferences = null,
@@ -40,7 +41,7 @@ public static class CampsiteGenerator
         var ranked = possible.Select((i, order) => (Index: i, Order: order,
             Cost: SiteGeometry.Cells(new(i % scope.Draft.Width - r, i / scope.Draft.Width - r, 2 * r + 1, 2 * r + 1), scope.Draft.Width)
                 .Sum(j => scope.Draft.TerrainAt(j) is "tree" or "fruit-tree" ? 2 : scope.Draft.TerrainAt(j) == "solid-rock" ? 4 : scope.Draft.TerrainAt(j) == "water" ? 6 : 0)))
-            .OrderBy(c => request.Preferences?.PreferredAnchor == c.Index ? -1 : c.Cost).ThenBy(c => c.Order);
+            .OrderBy(c => request.Preferences?.PreferredAnchor == c.Index ? -10000 : c.Cost + SiteRouteAccess.ProximityCost(new(c.Index % scope.Draft.Width - r - 2, c.Index / scope.Draft.Width - r - 2, 2 * r + 5, 2 * r + 5), request.Preferences?.RouteAnchors, scope.Draft.Width)).ThenBy(c => c.Order);
         PlacementFailureCode lastCode = PlacementFailureCode.NoFootprint; var lastReason = "No campsite footprint fitted.";
         foreach (var candidate in ranked)
         {
@@ -48,7 +49,7 @@ public static class CampsiteGenerator
             var center = candidate.Index; var random = call.Random("clearing", candidate.Order);
             var cx = center % scope.Draft.Width; var cy = center / scope.Draft.Width;
             var area = new CellBounds(cx - r - 2, cy - r - 2, 2 * r + 5, 2 * r + 5);
-            var draft = scope.Draft.Fork(area, id); var phase = random.Next(628) / 100.0;
+            var draft = scope.Draft.Fork(SiteGeometry.Pad(area, request.Area, 1), id); var phase = random.Next(628) / 100.0;
             var cells = SiteGeometry.Cells(area, draft.Width).Where(i =>
             {
                 var dx = i % draft.Width - cx; var dy = i / draft.Width - cy;
@@ -56,7 +57,15 @@ public static class CampsiteGenerator
             }).ToHashSet();
             // A guaranteed inner disk and a short cardinal apron keep the irregular clearing usable.
             cells.UnionWith(SiteGeometry.Cells(new(cx - 1, cy - 1, 3, 3), draft.Width));
-            var direction = random.Next(4); var dx = direction == 0 ? 1 : direction == 1 ? -1 : 0; var dy = direction == 2 ? 1 : direction == 3 ? -1 : 0;
+            var direction = random.Next(4);
+            if (request.Preferences?.RouteAnchors is { Count: > 0 } routeAnchors)
+            {
+                var nearest = routeAnchors.OrderBy(i => Math.Abs(i % draft.Width - cx) + Math.Abs(i / draft.Width - cy)).ThenBy(i => i).First();
+                var tx = nearest % draft.Width - cx; var ty = nearest / draft.Width - cy;
+                direction = Math.Abs(tx) >= Math.Abs(ty) ? tx >= 0 ? 0 : 1 : ty >= 0 ? 2 : 3;
+            }
+            if (request.Preferences?.PreferredApproach is { } facing) direction = facing == CardinalSide.East ? 0 : facing == CardinalSide.West ? 1 : facing == CardinalSide.South ? 2 : 3;
+            var dx = direction == 0 ? 1 : direction == 1 ? -1 : 0; var dy = direction == 2 ? 1 : direction == 3 ? -1 : 0;
             for (var distance = 1; distance <= r + 2; distance++) cells.Add((cy + dy * distance) * draft.Width + cx + dx * distance);
             var before = draft.BuildPatch();
             var preparation = SiteGeometry.Prepare(draft, cells, "grass", request.Preparation);
@@ -84,6 +93,7 @@ public static class CampsiteGenerator
                 GeneratedArea.From(id + "/exterior", usable, draft.Width), [], [portal],
                 new(usable.Count, reached.Count, true, needsConnection, SiteGeometry.TwoByTwo(draft, usable)), tags,
                 requirements.ScenarioRole is { } roleId ? [new(roleId, GeneratedObjectKind.Site, id)] : [], request.SourceFormationIds ?? [], request.SourceOpportunityId, summary);
+            site = SiteRouteAccess.Publish(site, draft, request.Preferences);
             return new Planned<SitePlan>(new(draft.BuildPatch(), site, operations));
         }
         return Fail(lastCode, lastReason);

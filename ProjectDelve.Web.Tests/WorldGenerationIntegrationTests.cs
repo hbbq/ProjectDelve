@@ -116,6 +116,29 @@ public sealed class WorldGenerationIntegrationTests
     }
 
     [Fact]
+    public async Task RouteRecipeExportsAcceptedFinalNetworkAndDesignerBoard()
+    {
+        await using var host = await Host.Start(); var before = await host.Client.GetStringAsync("/api/game");
+        var code = Code.Replace("30x24", "120x100").Replace("-S", "-E1-I2-B1111-C1-N2-V1-P2-Q1-T2-JRoad-L1-A2-U1-Z2-S");
+        using var response = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var preview = result.GetProperty("preview"); var frames = preview.GetProperty("frames"); var final = frames[frames.GetArrayLength() - 1];
+        Assert.NotEmpty(final.GetProperty("routeNetwork").GetProperty("routes").EnumerateArray());
+        Assert.NotEmpty(final.GetProperty("constructionBatches").EnumerateArray());
+        var definition = ScenarioDefinitionTransport.Decode(result.GetProperty("transport").GetString()!);
+        Assert.Equal(ScenarioDefinitionJson.ToJson(definition), ScenarioDefinitionJson.ToJson(ScenarioDefinitionJson.FromJson(result.GetProperty("definition").GetRawText())));
+        var cells = definition.Board.Cells.ToDictionary(c => c.Position.Y * 120 + c.Position.X, c => c.TerrainTypeId);
+        var palette = preview.GetProperty("terrainPalette").Deserialize<string[]>()!; var terrain = final.GetProperty("terrain").GetString()!;
+        for (var i = 0; i < terrain.Length; i++) Assert.Equal(palette[terrain[i] - 'A'], cells.GetValueOrDefault(i, "grass"));
+        using var imported = await host.Client.PostAsJsonAsync("/api/designer/import", new { transport = result.GetProperty("transport").GetString() });
+        imported.EnsureSuccessStatusCode(); Assert.Equal(ScenarioDefinitionJson.ToJson(definition), await imported.Content.ReadAsStringAsync());
+        using var validated = await host.Client.PostAsJsonAsync("/api/designer/validate", result.GetProperty("definition"));
+        Assert.True((await validated.Content.ReadFromJsonAsync<DesignerValidation>())!.Valid);
+        Assert.Equal(before, await host.Client.GetStringAsync("/api/game"));
+    }
+
+    [Fact]
     public async Task WorkspaceTerrainIsResolvedAndCapturedWhileExistingGameStaysFrozen()
     {
         await using var host = await Host.Start();

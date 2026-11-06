@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-06",
+  "build": "passed",
+  "focusedGeneratorTests": { "passed": 56, "failed": 0 },
+  "engine": { "passed": 2533, "failed": 0 },
+  "web": { "passed": 683, "failed": 12, "knownFailure": "ScenarioContentReferenceTests conflicting Equipment identity knightly-boots; pre-existing" },
+  "javascriptAndDispatcherSecurity": { "passed": 968, "failed": 0 },
+  "fixedSeedComparisons": 20,
+  "comparisonImages": 24,
+  "originalNaturalTerrainEqual": true,
+  "edge": {
+    "evidence": ".playwright-cli/browser-qa/inspection-jgzRId",
+    "case": "120x100 Woodland",
+    "narrowViewportWidth": 390,
+    "checks": ["nested accepted route operation", "before/after", "regenerate with new seed", "intermediate inspection DELVE1 export", "final Designer handoff"],
+    "originalSeed": "123456789ABCDEF0",
+    "regeneratedSeed": "FC8023C959F9CCEE",
+    "designerStatus": "Valid · checked by the engine",
+    "consoleErrors": [],
+    "requestErrors": []
+  },
+  "logs": [
+    ".playwright-cli/routes-quality-build.log",
+    ".playwright-cli/routes-quality-focused.log",
+    ".playwright-cli/routes-quality-full-dotnet.log",
+    ".playwright-cli/routes-quality-full-node.log",
+    ".playwright-cli/routes-quality-benchmark.log"
+  ],
+  "measurements": "world-routes-refinement-diagnostics.json"
+}

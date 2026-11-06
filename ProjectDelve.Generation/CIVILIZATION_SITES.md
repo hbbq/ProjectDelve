@@ -6,6 +6,9 @@ All generated structures use existing terrain, assemblies and shared Edges. Ther
 are no inhabitants, scenario Objectives, new movement rules or inter-Site routes.
 Natural Terrain sampling and DNG1/DNG2 are unchanged.
 
+The subsequent [Connections milestone](ROUTE_NETWORKS.md) adds route-aware placement,
+exact published access, shared planning ownership and external Site connections.
+
 ## Execution and contracts
 
 The explicit call graph is:

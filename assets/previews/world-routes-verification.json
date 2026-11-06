@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-06",
+  "engine": { "passed": 2527, "failed": 0 },
+  "web": { "passed": 683, "failed": 12, "knownFailure": "ScenarioContentReferenceTests: conflicting Equipment identity knightly-boots; established before this milestone" },
+  "javascriptAndDispatcherSecurity": { "passed": 968, "failed": 0 },
+  "logs": [
+    ".playwright-cli/routes-full-dotnet-final.log",
+    ".playwright-cli/routes-full-node-final.log",
+    ".playwright-cli/routes-benchmark-final.log"
+  ],
+  "edge": [
+    {
+      "case": "50x50 River Valley",
+      "evidence": ".playwright-cli/browser-qa/inspection-OaWSER",
+      "renderMilliseconds": [83.0, 87.8],
+      "narrowViewportWidth": 600,
+      "checks": ["nested accepted operation", "before/after", "intermediate-stage DELVE1 export", "final Designer handoff", "Engine validation in Designer"],
+      "designerStatus": "Valid · checked by the engine",
+      "consoleErrors": [], "requestErrors": []
+    },
+    {
+      "case": "120x120 Woodland",
+      "evidence": ".playwright-cli/browser-qa/inspection-ojQkTE",
+      "renderMilliseconds": [623.1, 577.6, 568.5],
+      "narrowViewportWidth": 600,
+      "checks": ["primary network subtree", "before/after", "zoom", "final frame", "Generate Another changes seed"],
+      "consoleErrors": [], "requestErrors": []
+    },
+    {
+      "case": "120x100 Through Routes without Sites",
+      "evidence": ".playwright-cli/browser-qa/inspection-iTFeuJ",
+      "renderMilliseconds": [537.7],
+      "narrowViewportWidth": 390,
+      "checks": ["no-Site routes", "narrow layout", "repeat fixed-seed generation"],
+      "consoleErrors": [], "requestErrors": []
+    }
+  ],
+  "measurementNotes": [
+    "Edge render times are individual observations, not statistical benchmarks.",
+    "Server measurements use Release, three warmups and five samples, without concurrent browser/test work; see world-routes-performance.json.",
+    "Retained preview memory is a managed GC probe and excludes browser DOM memory.",
+    "Known Three.js large-map performance is outside this milestone."
+  ]
+}

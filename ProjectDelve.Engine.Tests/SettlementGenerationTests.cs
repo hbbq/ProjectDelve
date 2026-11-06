@@ -26,6 +26,16 @@ public sealed class SettlementGenerationTests
         _ = GameEngine.CreateGame(board.Export());
     }
     [Fact]
+    public void InteriorMinimumAreaPublishesOnlyInAreaAccessWithoutThrowing()
+    {
+        var board = CampsiteGenerationTests.Board("grass", 25, 25); var scope = CampsiteGenerationTests.Scope(board);
+        var result = Assert.IsType<Planned<SitePlan>>(SettlementGenerator.Plan(new("bounded", new(2, 2, 21, 21), new()), scope));
+        Assert.All(result.Plan.Site.AccessPorts, p => Assert.InRange(p.OutwardIndex % 25, 2, 22));
+        Assert.All(result.Plan.Site.AccessPorts, p => Assert.InRange(p.OutwardIndex / 25, 2, 22));
+        Assert.True(scope.Draft.Accept(result.Plan.Patch, out _)); Assert.True(board.TryCommit(scope.Draft.BuildPatch(), out _));
+    }
+
+    [Fact]
     public void FailedParentAfterSuccessfulChildrenDoesNotLeakConstructionOrReservations()
     {
         var board = CampsiteGenerationTests.Board("grass", 40, 35); var scope = CampsiteGenerationTests.Scope(board); var source = ScenarioDefinitionJson.ToJson(board.Export());

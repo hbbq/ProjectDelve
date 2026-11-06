@@ -47,8 +47,7 @@ public static class CivilizationGenerator
     {
         var settings = ((CivilizationStepParameters)step.Parameters).Settings.Validate();
         if (!settings.Enabled) return;
-        var board = new PlanningBoard(context.Materialize(), content);
-        context.ConstructionBoard = board;
+        var board = context.EnsurePlanningBoard(content);
         var area = new CellBounds(0, 0, board.Width, board.Height);
         var budget = new PlanningBudget(512, 2_000_000);
         var path = FormattableString.Invariant($"{step.Id}/x{context.Window.OffsetX}-y{context.Window.OffsetY}-w{board.Width}-h{board.Height}");
@@ -66,7 +65,8 @@ public static class CivilizationGenerator
             var draft = board.BeginDraft(area, path + "/" + key, budget);
             var scope = new GenerationScope(context.World.Seed, path, draft);
             var rng = scope.Child(key, draft).Random("requirements");
-            Accept(SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3))), scope), draft);
+            var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
+            Accept(SettlementGenerator.Plan(new(key, area, policy, new(BuildingCount: 2 + rng.Next(3)), new(RouteAnchors: routeAnchors)), scope), draft);
         }
         for (var i = 0; i < settings.Campsites; i++)
         {
@@ -76,7 +76,8 @@ public static class CivilizationGenerator
             var anchors = (context.CurrentAnalysis?.Opportunities ?? []).Concat(context.FeatureOpportunities)
                 .Where(o => o.Kind is "clearing" or "open-area").OrderByDescending(o => o.UsableArea)
                 .Select(o => o.AnchorIndex).Distinct().Take(16).ToArray();
-            Accept(CampsiteGenerator.Plan(new(key, area, policy, Preferences: new(OpportunityAnchors: anchors)), scope), draft);
+            var routeAnchors = board.State.RouteCorridors.Keys.Order().ToArray();
+            Accept(CampsiteGenerator.Plan(new(key, area, policy, Preferences: new(OpportunityAnchors: anchors, RouteAnchors: routeAnchors)), scope), draft);
         }
         context.RefreshConstructionAnalysis();
         context.CivilizationStats = new(budget.Attempts, budget.Work, context.Sites.Count,

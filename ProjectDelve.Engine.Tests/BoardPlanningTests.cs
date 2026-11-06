@@ -160,4 +160,113 @@ public sealed class BoardPlanningTests
         Assert.False(Assert.Single(state.Physical.Board.Edges).Kind.Passable());
         Assert.Equal(new[] { 1, 4 }, board.Neighbors(0));
     }
+
+    [Fact]
+    public void RoutesShareMembershipWithoutReplacingTerrainOrCreatingHardReservations()
+    {
+        var board = Board(); var first = Draft(board, "road-a"); first.EnableRoutePlanning();
+        first.SetTerrain(0, "stone-floor"); first.ReserveRoute([0, 1], "road-a");
+        Assert.False(board.IsRouteCorridor(0));
+        Assert.Equal(new[] { new RouteMembership(0, "road-a"), new RouteMembership(1, "road-a") }, first.BuildPatch().RouteMemberships);
+        Assert.True(board.TryCommit(first.BuildPatch(), out var error), error);
+        var second = Draft(board, "road-b"); second.EnableRoutePlanning();
+        Assert.True(second.CanRouteThrough(0)); Assert.False(second.CanWrite(0));
+        second.SetTerrain(0, "stone-floor"); second.ReplaceTerrain(0, "stone-floor");
+        Assert.Throws<ArgumentException>(() => second.ReplaceTerrain(0, "grass"));
+        Assert.Throws<ArgumentException>(() => second.SetTerrain(0, "tree"));
+        second.ReserveRoute([0, 2], "road-b");
+        Assert.Equal(new[] { "road-a" }, board.RouteMemberships(0));
+        Assert.True(board.TryCommit(second.BuildPatch(), out error), error);
+        Assert.Equal(new[] { "road-a", "road-b" }, board.RouteMemberships(0));
+        Assert.False(board.IsReserved(0)); Assert.Equal("stone-floor", board.TerrainAt(0));
+    }
+
+    [Fact]
+    public void CivilizationDraftCannotWriteOrReserveCorridorsEvenForNoOpWrites()
+    {
+        var board = Board(); var route = Draft(board); route.EnableRoutePlanning(); route.ReserveRoute([0, 1], "road");
+        Assert.True(board.TryCommit(route.BuildPatch(), out _));
+        var civilization = Draft(board, "civilization"); Assert.False(civilization.CanWrite(0));
+        Assert.Throws<ArgumentException>(() => civilization.SetTerrain(0, "grass"));
+        Assert.Throws<ArgumentException>(() => civilization.ReplaceTerrain(0, "grass"));
+        Assert.Throws<ArgumentException>(() => civilization.Reserve([2, 0]));
+        Assert.False(civilization.IsReserved(2));
+        Assert.Throws<ArgumentException>(() => civilization.SetEdge(new(0, EdgeDirection.Right), EdgeKind.None));
+        var nextRoute = Draft(board); nextRoute.EnableRoutePlanning();
+        Assert.Throws<ArgumentException>(() => nextRoute.ReplaceEdge(new(0, EdgeDirection.Right), EdgeKind.Wall));
+        nextRoute.SetEdge(new(0, EdgeDirection.Right), EdgeKind.OpenDoor);
+    }
+
+    [Fact]
+    public void ExactSiteGrantsSeparateTraversalTerrainAndEdgeAccessAndPreserveOwners()
+    {
+        var board = Board(); var site = Draft(board, "site"); site.Reserve([0, 1]);
+        Assert.True(board.TryCommit(site.BuildPatch(), out _));
+        var key = new EdgeKey(0, EdgeDirection.Right); var route = Draft(board, "road");
+        route.EnableRoutePlanning([new("site", [0], [], [key])]);
+        Assert.True(route.CanRouteThrough(0)); Assert.False(route.CanRouteThrough(1));
+        Assert.Throws<ArgumentException>(() => route.SetTerrain(0, "grass"));
+        Assert.Throws<ArgumentException>(() => route.SetEdge(key, EdgeKind.OpenDoor));
+        Assert.Throws<ArgumentException>(() => route.ReserveRoute([2, 1], "road"));
+        Assert.False(route.IsRouteCorridor(2));
+        route.EnableRoutePlanning([new("site", [0, 1], [0], [key])]);
+        route.SetTerrain(0, "stone-floor"); route.SetEdge(key, EdgeKind.OpenDoor);
+        Assert.Throws<ArgumentException>(() => route.SetTerrain(1, "stone-floor"));
+        Assert.Throws<ArgumentException>(() => route.Reserve([0]));
+        route.ReserveRoute([0, 1, 2], "road");
+        Assert.True(board.TryCommit(route.BuildPatch(), out var error), error);
+        Assert.False(board.IsReserved(0, "site")); Assert.True(board.IsReserved(0, "road"));
+        var fresh = Draft(board, "road"); fresh.EnableRoutePlanning();
+        Assert.False(fresh.CanRouteThrough(0)); Assert.False(fresh.CanWrite(0));
+    }
+
+    [Fact]
+    public void EdgeGrantsRequireEachForeignEndpointOwnerAndExactEdge()
+    {
+        var board = Board(); var first = Draft(board, "site"); first.Reserve([0]); Assert.True(board.TryCommit(first.BuildPatch(), out _));
+        var second = Draft(board, "site/building"); second.Reserve([1]); Assert.True(board.TryCommit(second.BuildPatch(), out _));
+        var key = new EdgeKey(0, EdgeDirection.Right); var route = Draft(board, "road");
+        Assert.Throws<ArgumentException>(() => route.EnableRoutePlanning([new("site", [0, 1], [], [key])]));
+        route.EnableRoutePlanning([new("site", [0], [], [key]), new("site/building", [1], [], [])]);
+        Assert.True(route.CanRouteThrough(1)); Assert.Throws<ArgumentException>(() => route.ReplaceEdge(key, EdgeKind.OpenDoor));
+        route.EnableRoutePlanning([new("site", [0], [], [key]), new("site/building", [1], [], [key])]);
+        route.ReplaceEdge(key, EdgeKind.OpenDoor);
+        Assert.Throws<ArgumentException>(() => route.ReplaceEdge(new(0, EdgeDirection.Down), EdgeKind.OpenDoor));
+    }
+
+    [Fact]
+    public void ProtectedCellsCannotBeGrantedAndGrantInputsAreDetached()
+    {
+        var board = new PlanningBoard(Scenario(), ContentBundle.Canonical(), new HashSet<int> { 11 });
+        var site = Draft(board, "site"); site.Reserve([0]); Assert.True(board.TryCommit(site.BuildPatch(), out _));
+        var route = Draft(board); Assert.Throws<ArgumentException>(() => route.EnableRoutePlanning([new("\0protected", [11], [], [])]));
+        Assert.Throws<ArgumentException>(() => route.EnableRoutePlanning([new("site", [11], [], [])]));
+        var traverse = new HashSet<int> { 0 }; route.EnableRoutePlanning([new("site", traverse, [], [])]);
+        traverse.Add(11); traverse.Clear(); Assert.True(route.CanRouteThrough(0)); Assert.False(route.CanRouteThrough(11));
+        var child = route.Fork(new(0, 0, 4, 3), "child"); Assert.True(child.CanRouteThrough(0));
+    }
+
+    [Fact]
+    public void RouteMembershipsRemainPrivateAcrossChildRollbackInvalidCommitAndStaleClaims()
+    {
+        var board = Board(); var parent = Draft(board); parent.EnableRoutePlanning();
+        var child = parent.Fork(new(0, 0, 4, 3), "child"); child.ReserveRoute([0], "child-road");
+        Assert.True(child.CommitToParent(out _)); Assert.True(parent.IsRouteCorridor(0)); Assert.False(board.IsRouteCorridor(0));
+        child.ReserveRoute([0, 1], "later-child-road"); Assert.False(parent.IsRouteCorridor(1));
+        Assert.Equal(new[] { "child-road" }, parent.RouteMemberships(0));
+        var staleChild = parent.Fork(new(0, 0, 4, 3), "stale-child"); staleChild.ReserveRoute([3], "stale-child-road");
+        parent.ReserveRoute([4], "parent-road"); Assert.False(staleChild.CommitToParent(out _));
+        Assert.False(parent.IsRouteCorridor(3));
+        var stale = parent.BuildPatch();
+        var winner = Draft(board); winner.EnableRoutePlanning(); winner.ReserveRoute([2], "winner");
+        Assert.True(board.TryCommit(winner.BuildPatch(), out _)); Assert.False(board.TryCommit(stale, out _));
+        Assert.False(board.IsRouteCorridor(0)); Assert.Equal(new[] { "winner" }, board.RouteMemberships(2));
+
+        var water = Board(Scenario() with { Board = Scenario().Board with { DefaultTerrain = TerrainKind.Water } });
+        var invalid = Draft(water); invalid.EnableRoutePlanning();
+        invalid.SetTerrain(4, "grass"); invalid.ReserveRoute([4], "uncommitted");
+        invalid.SetEdge(new(0, EdgeDirection.Right), EdgeKind.Wall);
+        Assert.False(water.TryCommit(invalid.BuildPatch(), out _));
+        Assert.False(water.IsRouteCorridor(4)); Assert.Equal("water", water.TerrainAt(4));
+    }
 }

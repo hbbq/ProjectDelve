@@ -6,7 +6,7 @@ using ProjectDelve.Engine;
 
 namespace ProjectDelve.Generation;
 
-public enum WorldStepKind { NaturalTerrain, TerrainAnalysis, ForestEnrichment, RockEnrichment, WaterEnrichment, GrasslandEnrichment, Civilization, PostEnrichmentAnalysis }
+public enum WorldStepKind { NaturalTerrain, TerrainAnalysis, ForestEnrichment, RockEnrichment, WaterEnrichment, GrasslandEnrichment, Civilization, PostEnrichmentAnalysis, RouteNetwork }
 public abstract record WorldStepParameters;
 public sealed record NaturalStepParameters(NaturalTerrainSettings Settings) : WorldStepParameters;
 public sealed record AnalysisStepParameters : WorldStepParameters;
@@ -40,9 +40,21 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         {
             steps.Add(new("grassland", WorldStepKind.GrasslandEnrichment, new EnrichmentStepParameters(grass.Intensity), [last])); last = "grassland";
         }
+        if (recipe.Routes is { Enabled: true, ThroughRoutes: > 0 } routes)
+        {
+            steps.Add(new("primary-routes", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.PrimaryRoutes, routes), [last])); last = "primary-routes";
+        }
         if (recipe.Civilization is { Enabled: true } civilization)
         {
             steps.Add(new("civilization", WorldStepKind.Civilization, new CivilizationStepParameters(civilization), [last])); last = "civilization";
+        }
+        if (recipe.Routes is { Enabled: true, ConnectSites: true } connections && recipe.Civilization is { Enabled: true })
+        {
+            steps.Add(new("site-connections", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.SiteConnections, connections), [last])); last = "site-connections";
+        }
+        if (recipe.Routes is { Enabled: true, Alternatives: > 0 } links)
+        {
+            steps.Add(new("exploration-links", WorldStepKind.RouteNetwork, new RouteNetworkStepParameters(RouteNetworkMode.ExplorationLinks, links), [last])); last = "exploration-links";
         }
         steps.Add(new("current", WorldStepKind.PostEnrichmentAnalysis, new AnalysisStepParameters(), [last]));
         return new(recipe.World, recipe.Window, steps);
@@ -56,7 +68,7 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
         Dictionary<string, HashSet<WorldStepKind>> ancestry = new(StringComparer.Ordinal);
         Dictionary<string, HashSet<string>> ancestorIds = new(StringComparer.Ordinal);
         string? lastTerrainStep = null;
-        bool natural = false, analyzed = false, civilization = false;
+        bool natural = false, analyzed = false, civilization = false, boardPlanning = false;
         foreach (var step in Steps)
         {
             if (step is null || string.IsNullOrWhiteSpace(step.Id) || step.Id.Length > 48 ||
@@ -86,16 +98,20 @@ public sealed record WorldGenerationPlan(WorldDefinition World, WorldWindow Wind
                 case WorldStepKind.Civilization:
                     if (!analyzed || civilization || step.Parameters is not CivilizationStepParameters cp || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
                         throw new ArgumentException("Civilization runs once after original analysis.");
-                    cp.Settings.Validate(); civilization = true; break;
+                    cp.Settings.Validate(); civilization = true; boardPlanning = true; break;
+                case WorldStepKind.RouteNetwork:
+                    if (!analyzed || step.Parameters is not RouteNetworkStepParameters rp || !Enum.IsDefined(rp.Mode) || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
+                        throw new ArgumentException("Routes require original analysis and an explicit supported mode.");
+                    rp.Settings.Validate(); boardPlanning = true; break;
                 default:
-                    if (!analyzed || civilization || step.Parameters is not EnrichmentStepParameters { Intensity: >= 1 and <= 3 } || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
+                    if (!analyzed || boardPlanning || step.Parameters is not EnrichmentStepParameters { Intensity: >= 1 and <= 3 } || !ancestors.Contains(WorldStepKind.TerrainAnalysis))
                         throw new ArgumentException("Enrichment requires original analysis and intensity 1..3.");
                     break;
             }
             seen.Add(step.Id);
             ancestors.Add(step.Kind); ancestry.Add(step.Id, ancestors);
             ancestorIds.Add(step.Id, ids);
-            if (step.Kind == WorldStepKind.NaturalTerrain || step.Parameters is EnrichmentStepParameters or CivilizationStepParameters) lastTerrainStep = step.Id;
+            if (step.Kind == WorldStepKind.NaturalTerrain || step.Parameters is EnrichmentStepParameters or CivilizationStepParameters or RouteNetworkStepParameters) lastTerrainStep = step.Id;
         }
         if (!analyzed) throw new ArgumentException("World plans require original formation analysis.");
         return this;
@@ -108,6 +124,8 @@ public sealed record WorldGenerationMetrics(IReadOnlyList<WorldStageMeasurement>
     public double SamplingMilliseconds => Stages.Where(s => s.Stage == WorldStepKind.NaturalTerrain).Sum(s => s.Milliseconds);
     public double ConstructionValidationMilliseconds { get; init; }
     public int ConstructionValidations { get; init; }
+    public double RouteSearchMilliseconds { get; init; }
+    public double RouteMaterializationMilliseconds { get; init; }
 }
 public sealed record WorldStageDiagnostics(int ChangedCells, int FeaturesAdded, int WalkableArea, int ComponentCount, int LargestComponentArea,
     int RoutingSearches, int RoutingVisitedCells);
@@ -120,6 +138,8 @@ public sealed record WorldPreviewFrame(string StepId, string Stage, string Terra
     public IReadOnlyList<SiteInfo> Sites { get; init; } = [];
     public IReadOnlyList<PlacementFailure> PlanningFailures { get; init; } = [];
     public CivilizationStatistics? CivilizationStats { get; init; }
+    public IReadOnlyList<ConstructionBatch> ConstructionBatches { get; init; } = [];
+    public RouteNetworkSnapshot? RouteNetwork { get; init; }
 }
 public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnlyList<WorldPreviewFrame> Frames,
     IReadOnlyList<NaturalFormation> Formations, int[] FormationLabels, int[] BoundaryCells)
@@ -131,6 +151,10 @@ public sealed record WorldPreview(IReadOnlyList<string> TerrainPalette, IReadOnl
         Frames.SelectMany(f => f.Construction).DistinctBy(o => o.Id).Sum(o => 256L + o.TerrainChanges.Count * 64L + o.EdgeChanges.Count * 32L) +
         Frames.SelectMany(f => f.Sites).DistinctBy(s => s.Id).Sum(s => 512L + s.Footprint.Spans.Count * 12L + s.Exterior.Spans.Count * 12L +
             s.Buildings.Sum(b => 256L + b.Footprint.Spans.Count * 12L + b.Rooms.Sum(r => 192L + (r.Interior.Spans.Count + r.Usable.Spans.Count) * 12L))) +
+        Frames.SelectMany(f => f.RouteNetwork?.Routes ?? []).DistinctBy(r => r.Id).Sum(r => 512L + r.Corridor.Spans.Count * 12L +
+            r.Geometry.Runs.Count * 16L + r.Crossings.Sum(c => c.Footprint.Spans.Count * 12L) + r.TunnelEntrances.Count * 32L) +
+        Frames.Sum(f => (f.RouteNetwork?.Junctions.Sum(j => 128L + j.Contact.Spans.Count * 12L) ?? 0) +
+            (f.RouteNetwork?.SharedSegments.Sum(s => 128L + s.Area.Spans.Count * 12L) ?? 0)) +
         4L * (FormationLabels.Length + BoundaryCells.Length) + Formations.Count * 256L;
 }
 public sealed record WorldGenerationExecution(WorldGenerationContext Context, WorldPreview Preview, IReadOnlyList<WorldStageMeasurement> Measurements);
@@ -176,6 +200,7 @@ public static class WorldGenerationPipeline
         {
             var allocated = GC.GetAllocatedBytesForCurrentThread(); var timer = Stopwatch.StartNew();
             var featureStart = context.Features.Count; var searches = context.RoutingSearches; var visited = context.RoutingVisitedCells;
+            var operationStart = context.Construction.Count;
             switch (step.Kind)
             {
                 case WorldStepKind.NaturalTerrain: context.SampleNaturalTerrain(); break;
@@ -188,7 +213,11 @@ public static class WorldGenerationPipeline
                 case WorldStepKind.RockEnrichment: RockEnricher.Apply(context, step, content); break;
                 case WorldStepKind.WaterEnrichment: WaterEnricher.Apply(context, step, content); break;
                 case WorldStepKind.GrasslandEnrichment: GrasslandEnricher.Apply(context, step, content); break;
-                case WorldStepKind.Civilization: CivilizationGenerator.Apply(context, step, content); break;
+                case WorldStepKind.Civilization:
+                    CivilizationGenerator.Apply(context, step, content);
+                    if (context.RouteNetwork is not null) context.RouteNetwork = RouteTopologyBuilder.Build(context);
+                    break;
+                case WorldStepKind.RouteNetwork: RouteNetworkGenerator.Apply(context, step, content); break;
                 default: throw new ArgumentException($"Step {step.Kind} is not available.");
             }
             foreach (var id in context.Samples.Select(s => s.TerrainTypeId).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
@@ -201,6 +230,8 @@ public static class WorldGenerationPipeline
                 context.CurrentAnalysis = TerrainAnalyzer.Analyze(plan.Window, context.Samples, content, context.Revision);
             }
             var analysis = context.CurrentAnalysis;
+            if (context.Construction.Count > operationStart)
+                context.ConstructionBatches.Add(new(step.Id, frames[^1].StepId, operationStart, context.Construction.Count));
             for (var opportunityIndex = 0; opportunityIndex < context.FeatureOpportunities.Count; opportunityIndex++)
             {
                 var o = context.FeatureOpportunities[opportunityIndex];
@@ -217,13 +248,14 @@ public static class WorldGenerationPipeline
             var changedEdges = previousEdges.Keys.Concat(edgeMap.Keys).Distinct().OrderBy(k => k.Index).ThenBy(k => k.Direction)
                 .Where(k => previousEdges.GetValueOrDefault(k, EdgeKind.None) != edgeMap.GetValueOrDefault(k, EdgeKind.None))
                 .Select(k => new EdgeChange(k, previousEdges.GetValueOrDefault(k, EdgeKind.None), edgeMap.GetValueOrDefault(k, EdgeKind.None))).ToArray();
-            frames.Add(new(step.Id, step.Kind.ToString(), terrain, changed, analysis?.WalkableLabels ?? [], analysis?.Chokepoints ?? [],
+            frames.Add(new(step.Id, step.Parameters is RouteNetworkStepParameters routeParameters ? routeParameters.Mode.ToString() : step.Kind.ToString(), terrain, changed, analysis?.WalkableLabels ?? [], analysis?.Chokepoints ?? [],
                 context.Entrances.ToArray(), opportunities,
                 new(changed.Length, context.Features.Count - featureStart, connectivity?.WalkableArea ?? 0, connectivity?.ComponentCount ?? 0,
                     connectivity?.LargestComponentArea ?? 0, context.RoutingSearches - searches, context.RoutingVisitedCells - visited))
             {
                 Edges = edges, ChangedEdges = changedEdges, Sites = context.Sites.ToArray(), Construction = context.Construction.ToArray(),
-                PlanningFailures = context.PlanningFailures.ToArray(), CivilizationStats = context.CivilizationStats
+                PlanningFailures = context.PlanningFailures.ToArray(), CivilizationStats = context.CivilizationStats,
+                ConstructionBatches = context.ConstructionBatches.ToArray(), RouteNetwork = context.RouteNetwork
             });
             previous = terrain; previousEdges = edgeMap;
             measurements.Add(new(step.Id, step.Kind, timer.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));

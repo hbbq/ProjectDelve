@@ -52,7 +52,11 @@ public sealed record PreparationSummary(int TreesRemoved, int RockExcavated, int
 public sealed record SiteInfo(string Id, GeneratedSiteKind Kind, GeneratedArea Footprint, GeneratedArea Exterior,
     IReadOnlyList<BuildingInfo> Buildings, IReadOnlyList<SitePortal> Entrances, SpaceAccess Access,
     IReadOnlyList<SiteTag> Tags, IReadOnlyList<ScenarioRoleBinding> Roles, IReadOnlyList<string> SourceFormationIds,
-    string? SourceOpportunityId, PreparationSummary Preparation);
+    string? SourceOpportunityId, PreparationSummary Preparation)
+{
+    public IReadOnlyList<SiteAccessPort> AccessPorts { get; init; } = [];
+    public IReadOnlyList<SiteConnectionRequest> ConnectionRequests { get; init; } = [];
+}
 public sealed record ConstructionOperation(string Id, string? ParentId, string Name, string ObjectId, CellBounds Bounds,
     IReadOnlyList<TerrainChange> TerrainChanges, IReadOnlyList<EdgeChange> EdgeChanges);
 public sealed record SitePlan(BoardPatch Patch, SiteInfo Site, IReadOnlyList<ConstructionOperation> Operations);
@@ -102,6 +106,12 @@ internal static class SiteGeometry
     internal static IEnumerable<int> Cells(CellBounds b, int width) => Enumerable.Range(b.Y, b.Height).SelectMany(y => Enumerable.Range(y * width + b.X, b.Width));
     internal static bool Fits(CellBounds inner, CellBounds outer) => inner.Width > 0 && inner.Height > 0 && inner.X >= outer.X && inner.Y >= outer.Y &&
         (long)inner.X + inner.Width <= (long)outer.X + outer.Width && (long)inner.Y + inner.Height <= (long)outer.Y + outer.Height;
+    internal static CellBounds Pad(CellBounds inner, CellBounds outer, int padding)
+    {
+        var left = Math.Max(outer.X, inner.X - padding); var top = Math.Max(outer.Y, inner.Y - padding);
+        return new(left, top, Math.Min(outer.X + outer.Width, inner.X + inner.Width + padding) - left,
+            Math.Min(outer.Y + outer.Height, inner.Y + inner.Height + padding) - top);
+    }
     internal static bool Crossable(BoardDraft d, int a, int b) => d.Passable(a) && d.Passable(b) &&
         (d.EdgeAt(EdgeKey.Between(a, b, d.Width)).Passable() || d.EdgeAt(EdgeKey.Between(a, b, d.Width)) == EdgeKind.ClosedDoor);
     internal static HashSet<int>? Flood(BoardDraft d, int start, IEnumerable<int>? restricted = null)

@@ -153,7 +153,7 @@ test("loaded recipes update controls and stale responses cannot overwrite a newe
   const h = harness(); h.enter("code-input",code); h.click("load");
   assert.equal(h.get("world-generator-seed").value,"0123456789ABCDEF"); h.click("preview");
   h.click("another"); const newer = code.replace("0123456789ABCDEF","0000000100000002");
-  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-N2-V1-P2-S')); await h.accept(1,h.result(newer)); await h.accept(0);
+  assert.equal(h.requests[1].body.code,newer.replace('-S','-E0-I2-B1111-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-S')); await h.accept(1,h.result(newer)); await h.accept(0);
   assert.equal(h.get("world-generator-complete").value,newer);
   h.click("preview"); h.enter("forestCoverage","30"); await h.accept(2);
   assert.equal(h.get("world-generator-complete").value,newer);
@@ -222,7 +222,7 @@ test("performance labels distinguish finalization and follow the displayed compa
 test("enrichment codes round-trip settings, preserve legacy codes and load old codes disabled", () => {
   const h=harness(), enriched=code.replace('-S','-E1-I3-B1010-S');
   assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${enriched}'))`,h.context),enriched);
-  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-N2-V1-P2-S'));
+  h.enter('code-input',enriched);h.click('load');h.click('preview');assert.equal(h.requests[0].body.code,enriched.replace('-S','-C0-N2-V1-P2-Q0-T1-JMinorPath-L1-A1-U0-Z2-S'));
   assert.equal(h.get('world-generator-enrichmentIntensity').value,'3'); assert.equal(h.get('world-generator-rockEnrichment').value,'false');
   h.enter('code-input',code);h.click('load');assert.equal(h.get('world-generator-enrichmentEnabled').value,'false');
   for(const suffix of ['-E2-I1-B1111','-E1-I4-B1111','-E1-I2-B111','-E1-I2-B1112']) assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.split('-S')[0]+suffix}')`,h.context),/ordered WLD1/);
@@ -330,4 +330,148 @@ test("Edge-only frames, removal highlights and selection reset preserve navigati
   operation(h,'test/site').click();h.click('preview');assert.equal(h.get('world-generator-construction').hidden,true);assert.equal(h.get('world-generator-construction-tree').children.length,0);
   await h.accept(1,result);assert.match(h.get('world-generator-construction-selection').textContent,/Choose a construction step/);
   assert.equal(h.get('world-generator-stage').value,'2');
+});
+
+test("construction checkpoints isolate overlapping edits across several writer stages", () => {
+  const h = harness();
+  const operations = [
+    {id:"primary",terrainChanges:[{index:0,before:"grass",after:"dirt"}],edgeChanges:[{key:{index:0,direction:"Right"},before:"None",after:"Wall"}]},
+    {id:"civilization",terrainChanges:[{index:0,before:"dirt",after:"stone-floor"}],edgeChanges:[{key:{index:0,direction:"Right"},before:"Wall",after:"ClosedDoor"}]},
+    {id:"connections",terrainChanges:[{index:0,before:"stone-floor",after:"gravel"}],edgeChanges:[{key:{index:0,direction:"Right"},before:"ClosedDoor",after:"None"}]}
+  ];
+  const edge=kind=>[{position:{x:0,y:0},direction:"Right",kind}];
+  const batches=[{stepId:"primary",checkpointStepId:"base",firstOperation:0,endOperation:1},{stepId:"civilization",checkpointStepId:"primary",firstOperation:1,endOperation:2},{stepId:"connections",checkpointStepId:"civilization",firstOperation:2,endOperation:3}];
+  h.context.checkpoints={terrainPalette:["grass","dirt","stone-floor","gravel"],frames:[
+    {stepId:"base",terrain:"AAAA",edges:[],construction:[]},
+    {stepId:"primary",terrain:"BAAA",edges:edge("Wall"),construction:operations.slice(0,1),constructionBatches:batches.slice(0,1)},
+    {stepId:"civilization",terrain:"CAAA",edges:edge("ClosedDoor"),construction:operations.slice(0,2),constructionBatches:batches.slice(0,2)},
+    {stepId:"connections",terrain:"DAAA",edges:[],construction:operations,constructionBatches:batches},
+    {stepId:"final",terrain:"DAAA",edges:[],construction:operations,constructionBatches:batches}
+  ]};
+  for(const [id,expected] of [["primary","BAAA"],["civilization","CAAA"],["connections","DAAA"]])
+    assert.equal(vm.runInContext(`constructionPreview(checkpoints,4,'${id}',false,2).terrain`,h.context),expected);
+  assert.equal(vm.runInContext("constructionPreview(checkpoints,4,'connections',true,2).edges[0].kind",h.context),"ClosedDoor");
+  assert.equal(vm.runInContext("constructionPreview(checkpoints,4,'connections',false,2).edges.length",h.context),0);
+  assert.equal(h.context.checkpoints.frames[4].terrain,"DAAA");
+});
+
+test("route recipes round-trip every profile and bounded setting, with old codes explicitly disabled on load", () => {
+  const h=harness();
+  for(const profile of ['ForestTrail','MinorPath','Road','RockPassage']) for(const enabled of [0,1]) {
+    const recipe=code.replace('-S',`-E1-I2-B1111-C1-N2-V1-P2-Q${enabled}-T4-J${profile}-L0-A3-U1-Z3-S`);
+    assert.equal(vm.runInContext(`worldConfigurationCode(worldConfigurationFromCode('${recipe}'))`,h.context),recipe);
+    h.enter('code-input',recipe);h.click('load');
+    assert.equal(h.get('world-generator-routeProfile').value,profile);assert.equal(h.get('world-generator-throughRoutes').value,'4');
+    assert.equal(h.get('world-generator-explorationLinks').value,'3');assert.equal(h.get('world-generator-waterCrossings').value,'true');
+  }
+  h.enter('code-input',code);h.click('load');
+  assert.equal(h.get('world-generator-routesEnabled').value,'false');assert.equal(h.get('world-generator-waterCrossings').value,'false');
+  assert.match(h.get('world-generator-prefix').value,/-Q0-T1-JMinorPath-L1-A1-U0-Z2$/);
+  for(const suffix of ['-Q2-T1-JRoad-L1-A1-U0-Z2','-Q1-T5-JRoad-L1-A1-U0-Z2','-Q1-T1-JRail-L1-A1-U0-Z2',
+    '-Q1-T1-JRoad-L1-A4-U0-Z2','-Q1-T1-JRoad-L1-A1-U2-Z2','-Q1-T1-JRoad-L1-A1-U0-Z0'])
+    assert.throws(()=>vm.runInContext(`worldConfigurationFromCode('${code.replace('-S',suffix+'-S')}')`,h.context),/ordered WLD1/);
+});
+
+test("catalog route settings preserve world inputs and HTML declares enabled conservative defaults", async () => {
+  const h=harness();h.opened.click();
+  await h.accept(0,{maxBoardSize:120,presets:[{id:'connected',name:'Connected',settings:{},routes:{enabled:true,throughRoutes:2,profile:'Road',connectSites:true,alternatives:3,waterCrossings:false,intensity:1}}]});
+  h.get('world-generator-preset').value='connected';h.get('world-generator-preset').listeners.change();h.click('preview');
+  assert.equal(h.requests[1].body.code,code.split('-S')[0]+'-Q1-T2-JRoad-L1-A3-U0-Z1');
+  assert.equal(h.get('world-generator-offsetX').value,'-8');assert.equal(h.get('world-generator-width').value,'2');
+  const html=source('index.html').slice(source('index.html').indexOf('<dialog id="world-generator"'));
+  assert.match(html,/id="world-generator-routesEnabled"><option value="true">Enabled/);
+  assert.match(html,/id="world-generator-throughRoutes"[^>]*value="1"/);
+  assert.match(html,/<option value="MinorPath" selected>/);
+  assert.match(html,/id="world-generator-waterCrossings"><option value="false">Preserve Water/);
+  for(const id of ['route-intents','route-centerlines','route-corridors','route-junctions','route-crossings','route-access'])
+    assert.match(html,new RegExp(`id="world-generator-${id}"`));
+  assert.match(html,/<summary>Routes: requests, costs and connection quality<\/summary>/);
+});
+
+test("invalid route controls reject submission without changing the retained preview", async () => {
+  for(const [field,value,error] of [['throughRoutes','5',/throughRoutes/],['routeProfile','Unknown',/route profile/],
+    ['explorationLinks','4',/explorationLinks/],['waterCrossings','yes',/waterCrossings/],['routeIntensity','0',/routeIntensity/]]) {
+    const h=harness();h.enter('code-input',code);h.click('load');h.click('preview');await h.accept(0);
+    const original=h.get('world-generator-board').children[0];h.enter(field,value);h.click('preview');
+    assert.equal(h.requests.length,1);assert.match(h.get('world-generator-status').textContent,error);
+    assert.equal(h.get('world-generator-board').children[0],original);
+  }
+});
+
+function routedResult(h) {
+  const result=constructionResult(h), bounds={x:0,y:0,width:2,height:2};
+  const area=(id,spans)=>({id,bounds,spans,area:spans.reduce((sum,span)=>sum+span.length,0)});
+  const contact=area('routes/shared/contact',[{y:0,x:1,length:1}]);
+  const route={id:'routes/test',purpose:'ThroughRoute',profile:'MinorPath',corridor:area('routes/test/corridor',[{y:0,x:0,length:2},{y:1,x:1,length:1}]),
+    geometry:{worldX:-8,worldY:12,runs:[{worldX:-8,worldY:12,direction:'East',length:1},{worldX:-7,worldY:12,direction:'South',length:1}]},
+    start:{id:'north',anchorIndex:0,worldX:-8,worldY:12,kind:'Boundary',side:'North'},end:{id:'south',anchorIndex:3,worldX:-7,worldY:13,kind:'Boundary',side:'South'},
+    verifiedFootprint:1,realizedWidth:1,preparation:{cost:9,treesRemoved:1,rockExcavated:1,waterFilled:1,changedTerrain:3,changedEdges:1},
+    stats:{attempts:1,expandedStates:8,queuePeak:4,searchCost:27,length:3,turns:1,reusedCells:1},
+    crossings:[{footprint:contact}],tunnelEntrances:[{anchorIndex:3,worldX:-7,worldY:13,edge:{index:1,direction:'Down'}}],materializationId:'routes/test/materialization-0',sourceRevision:0};
+  const network={routes:[route],intents:[{id:'request/accepted',purpose:'ThroughRoute',profile:'MinorPath',startIndex:0,destinationIndex:3,status:'Accepted',routeId:route.id},
+    {id:'request/unresolved',purpose:'SiteConnection',profile:'MinorPath',startIndex:2,destinationIndex:1,destinationObjectId:'test/site',status:'Unresolved',reason:'No legal portal'},
+    {id:'request/remote',purpose:'SiteConnection',profile:'ForestTrail',startIndex:2,status:'DeliberatelyRemote',reason:'Authored remote Site'}],
+    junctions:[{id:'routes/junction',contact,routeIds:[route.id,'routes/other']}],sharedSegments:[{id:'routes/shared',area:contact,routeIds:[route.id,'routes/other']}],
+    siteAttachments:[{siteId:'test/site',portId:'test/site/access',routeIds:[route.id],networkComponent:0,ordinaryOpenAccess:false,doorsOpenableAccess:true}],
+    alternatives:[{routeId:'routes/alternative',previousDistance:10,newDistance:6,newCorridorCells:4,sharedCorridorCells:2,addsCycle:true,bypassesSelectedBottleneck:true,independentSiteEntrance:false,connectsRegion:false}],
+    topology:{boardRevision:4,components:[{label:0,area:3,routeIds:[route.id]}]},
+    statistics:{searches:2,expandedStates:15,peakQueue:5,acceptedRoutes:1,changedTerrain:3,changedEdges:1,preparationCost:9,crossings:1,tunnelEntrances:1,planningWork:55,planningAttempts:2}};
+  for(const i of [1,2]) {
+    result.preview.frames[i].routeNetwork=structuredClone(network);
+    result.preview.frames[i].sites[0].accessPorts=[{id:'test/site/access',ownerId:'test/site',anchorIndex:2,outwardIndex:3,direction:'East',verifiedWidth:1,
+      approach:area('test/site/access/approach',[{y:1,x:0,length:1}]),permission:{exactOwnerId:'test/site',traverseCells:[2],writableCells:[],writableEdges:[]}}];
+  }
+  result.preview.frames[1].stage='PrimaryRoutes';result.preview.frames[2].stage='ExplorationLinks';
+  return result;
+}
+
+test("route overlays draw supplied spans, world runs, exact ports and intended pairs without computing paths", async () => {
+  const h=harness(), result=routedResult(h);h.click('preview');await h.accept(0,result);
+  for(const name of ['route-centerlines','route-intents','route-corridors','route-junctions','route-crossings','route-access']) {
+    h.get('world-generator-'+name).checked=true;h.get('world-generator-'+name).listeners.change();
+  }
+  const overlays=h.get('world-generator-board').children.filter(node=>node.dataset.routeKind);
+  for(const kind of ['centerline','port','intent','intent-port','corridor','shared','junction','crossing','mouth','approach','access'])
+    assert.ok(overlays.some(node=>node.dataset.routeKind===kind),kind);
+  const lines=overlays.filter(node=>node.dataset.routeKind==='centerline');
+  assert.equal(lines.length,2);assert.equal(lines[0].style.left,'25%');assert.equal(lines[0].style.width,'50%');assert.equal(lines[1].style.transform,'rotate(90deg)');
+  assert.equal(overlays.filter(node=>node.dataset.routeKind==='corridor').length,2);
+  assert.ok(overlays.some(node=>node.dataset.routeKind==='intent'&&node.title.includes('not a computed path')));
+  assert.ok(overlays.some(node=>node.dataset.routeKind==='approach'&&node.title.includes('exact owner test/site')));
+  assert.ok(overlays.every(node=>Object.keys(node.listeners).length===0));
+  assert.match(h.get('world-generator-route-summary').textContent,/1 accepted Routes.*2 searches.*15 expanded states.*preparation cost 9.*1 unresolved/);
+  const details=descendants(h.get('world-generator-route-details')).map(node=>node.textContent).join('\n');
+  assert.match(details,/search cost 27.*Preparation cost 9/);assert.match(details,/Unresolved.*request\/unresolved/);assert.match(details,/No legal portal/);
+  assert.match(details,/Adds cycle: yes; bypasses selected bottleneck: yes/);assert.match(details,/Ordinary open access: no; Doors-openable access: yes/);
+  assert.match(details,/DeliberatelyRemote/);assert.match(details,/published approach 1 Cells/);
+});
+
+test("route metadata stays labeled as accepted while inspecting earlier construction and final handoff remains immutable", async () => {
+  const h=harness(), result=routedResult(h), original=JSON.stringify(result);h.click('preview');await h.accept(0,result);
+  h.get('world-generator-route-centerlines').checked=true;h.get('world-generator-route-centerlines').listeners.change();
+  operation(h,'test/site/building/rooms/walls').click();h.click('compare');
+  assert.match(h.get('world-generator-route-authority').textContent,/Accepted metadata for Exploration Links; also shown during Before/);
+  assert.ok(h.get('world-generator-board').children.some(node=>node.dataset.routeKind==='centerline'));
+  h.click('previous');assert.match(h.get('world-generator-route-authority').textContent,/Accepted metadata for Primary Routes/);
+  h.click('previous');assert.equal(h.get('world-generator-route-inspector').hidden,true);
+  assert.equal(h.get('world-generator-board').children.filter(node=>node.dataset.routeKind).length,0);
+  h.click('export');h.click('designer');assert.equal(h.get('world-generator-transport').value,result.transport);
+  assert.equal(JSON.stringify(h.designs[0]),original);assert.equal(JSON.stringify(result),original);
+});
+
+test("maximum-window route overlays scale with supplied spans and runs without Cell expansion", async () => {
+  const h=harness(), result=routedResult(h);result.definition.board.width=result.window.width=120;result.definition.board.height=result.window.height=120;
+  result.preview.formationLabels=Array(14400).fill(-1);
+  for(const frame of result.preview.frames) { frame.terrain='A'.repeat(14400);frame.walkableComponents=Array(14400).fill(0); }
+  const route=result.preview.frames[2].routeNetwork.routes[0];
+  route.corridor.spans=[{x:0,y:0,length:120},...Array.from({length:119},(_,i)=>({x:119,y:i+1,length:1}))];route.corridor.area=239;
+  route.geometry.runs=[{worldX:-8,worldY:12,direction:'East',length:119},{worldX:111,worldY:12,direction:'South',length:119}];
+  route.end={id:'south',anchorIndex:14399,worldX:111,worldY:131,kind:'Boundary',side:'South'};
+  h.click('preview');await h.accept(0,result);
+  for(const kind of ['route-centerlines','route-corridors']) {h.get('world-generator-'+kind).checked=true;h.get('world-generator-'+kind).listeners.change();}
+  const overlays=h.get('world-generator-board').children.filter(node=>node.dataset.routeKind);
+  assert.equal(overlays.filter(node=>node.dataset.routeKind==='corridor').length,120);
+  assert.equal(overlays.filter(node=>node.dataset.routeKind==='centerline').length,2);assert.equal(overlays.length,124);
+  assert.ok(overlays.every(node=>Object.keys(node.listeners).length===0));
+  assert.equal(h.get('world-generator-board').children.filter(node=>node.className.startsWith('cell ')).length,14400);
 });

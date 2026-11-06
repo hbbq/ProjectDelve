@@ -10,6 +10,10 @@ Building/Room generators and atomic terrain/Edge planning. See
 [CIVILIZATION_SITES.md](CIVILIZATION_SITES.md) for current contracts, recipe controls,
 nested inspection, evaluation, measurements and limits.
 
+Optional [Connections and route networks](ROUTE_NETWORKS.md) now add WindowLocal
+Through Routes, Site branches, selected alternatives, tunnels and ordinary-terrain
+Water crossings, with shared atomic planning and multi-stage inspection.
+
 ## World and window
 
 `WorldDefinition` contains the completed root seed and Natural Terrain settings;

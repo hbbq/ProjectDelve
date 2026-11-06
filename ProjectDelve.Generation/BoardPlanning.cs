@@ -46,6 +46,8 @@ public interface IPlanningBoardView
     EdgeKind EdgeAt(EdgeKey key);
     bool Passable(int index);
     bool IsReserved(int index, string? ownerId = null);
+    bool IsRouteCorridor(int index);
+    IReadOnlyList<string> RouteMemberships(int index);
     IEnumerable<int> Neighbors(int index);
 }
 
@@ -58,6 +60,7 @@ public sealed class BoardPatch
     public IReadOnlyList<TerrainChange> TerrainChanges { get; }
     public IReadOnlyList<EdgeChange> EdgeChanges { get; }
     public IReadOnlyList<CellReservation> Reservations { get; }
+    public IReadOnlyList<RouteMembership> RouteMemberships { get; }
     public ContentBundle LocalContent { get; }
     internal BoardPatch(object target, long revision, string owner, PlanningState before, PlanningState after,
         IEnumerable<int> terrain, IEnumerable<EdgeKey> edges, IEnumerable<int> reservations, ContentBundle local)
@@ -68,6 +71,9 @@ public sealed class BoardPatch
         EdgeChanges = Array.AsReadOnly(edges.Distinct().OrderBy(k => k.Index).ThenBy(k => k.Direction)
             .Where(k => before.EdgeAt(k) != after.EdgeAt(k)).Select(k => new EdgeChange(k, before.EdgeAt(k), after.EdgeAt(k))).ToArray());
         Reservations = Array.AsReadOnly(reservations.Distinct().Order().Select(i => new CellReservation(i, after.Reservations[i])).ToArray());
+        RouteMemberships = Array.AsReadOnly(after.RouteCorridors.OrderBy(p => p.Key)
+            .SelectMany(p => p.Value.Order(StringComparer.Ordinal).Where(id => !before.RouteCorridors.TryGetValue(p.Key, out var old) || !old.Contains(id))
+                .Select(id => new RouteMembership(p.Key, id))).ToArray());
     }
 }
 
@@ -98,7 +104,7 @@ public sealed class PlanningBoard : IPlanningBoardView
         foreach (var cell in Original.Board.Cells) terrain[cell.Position.Y * Width + cell.Position.X] =
             TerrainCompatibility.ResolveTypeId(cell.Terrain, cell.TerrainTypeId, cell.CoalGeneration);
         State = new(terrain, [], Original.Board.Edges.ToDictionary(e => new EdgeKey(e.Position.Y * Width + e.Position.X, e.Direction), e => e.Kind),
-            [], local, effective);
+            [], [], local, effective);
         foreach (var index in protectedCells ?? new HashSet<int>()) { CheckIndex(index); State.Reservations[index] = "\0protected"; }
     }
     public string TerrainAt(int index) { CheckIndex(index); return State.TerrainAt(index); }
@@ -107,6 +113,11 @@ public sealed class PlanningBoard : IPlanningBoardView
     public bool IsReserved(int index, string? ownerId = null)
     {
         CheckIndex(index); return State.Reservations.TryGetValue(index, out var owner) && owner != ownerId;
+    }
+    public bool IsRouteCorridor(int index) { CheckIndex(index); return State.RouteCorridors.ContainsKey(index); }
+    public IReadOnlyList<string> RouteMemberships(int index)
+    {
+        CheckIndex(index); return State.Memberships(index);
     }
     public IEnumerable<int> Neighbors(int index) { CheckIndex(index); return Adjacent(index, Width, Height); }
     public ScenarioDefinition Export() => Export(State);
@@ -155,11 +166,15 @@ public sealed class PlanningBoard : IPlanningBoardView
 }
 
 internal sealed record PlanningState(string[] Terrain, Dictionary<int, string> TerrainWrites,
-    Dictionary<EdgeKey, EdgeKind> Edges, Dictionary<int, string> Reservations, ContentBundle Local, ContentBundle Content)
+    Dictionary<EdgeKey, EdgeKind> Edges, Dictionary<int, string> Reservations,
+    Dictionary<int, HashSet<string>> RouteCorridors, ContentBundle Local, ContentBundle Content)
 {
     internal string TerrainAt(int i) => TerrainWrites.GetValueOrDefault(i, Terrain[i]);
     internal EdgeKind EdgeAt(EdgeKey key) => Edges.GetValueOrDefault(key, EdgeKind.None);
-    internal PlanningState Copy() => this with { TerrainWrites = new(TerrainWrites), Edges = new(Edges), Reservations = new(Reservations) };
+    internal IReadOnlyList<string> Memberships(int index) => RouteCorridors.TryGetValue(index, out var routes)
+        ? Array.AsReadOnly(routes.Order(StringComparer.Ordinal).ToArray()) : Array.Empty<string>();
+    internal PlanningState Copy() => this with { TerrainWrites = new(TerrainWrites), Edges = new(Edges), Reservations = new(Reservations),
+        RouteCorridors = RouteCorridors.ToDictionary(p => p.Key, p => new HashSet<string>(p.Value, StringComparer.Ordinal)) };
 }
 
 public sealed class BoardDraft : IPlanningBoardView
@@ -172,6 +187,8 @@ public sealed class BoardDraft : IPlanningBoardView
     private readonly HashSet<int> terrainTouched = [];
     private readonly HashSet<EdgeKey> edgeTouched = [];
     private readonly HashSet<int> reservationsTouched = [];
+    private bool routePlanning;
+    private RouteAccessGrant[] routeGrants = [];
     public CellBounds AllowedArea { get; }
     public string OwnerId { get; }
     public PlanningBudget Budget { get; }
@@ -193,6 +210,8 @@ public sealed class BoardDraft : IPlanningBoardView
         expectedRevision = parent?.Revision ?? board.Revision;
         if (parent is not null)
         {
+            routePlanning = parent.routePlanning;
+            routeGrants = parent.routeGrants;
             terrainTouched.UnionWith(parent.terrainTouched);
             edgeTouched.UnionWith(parent.edgeTouched);
         }
@@ -204,6 +223,45 @@ public sealed class BoardDraft : IPlanningBoardView
     {
         board.CheckIndex(index); return state.Reservations.TryGetValue(index, out var owner) && owner != ownerId;
     }
+    public bool IsRouteCorridor(int index) { board.CheckIndex(index); return state.RouteCorridors.ContainsKey(index); }
+    public IReadOnlyList<string> RouteMemberships(int index) { board.CheckIndex(index); return state.Memberships(index); }
+    public void EnableRoutePlanning(IEnumerable<RouteAccessGrant>? grants = null)
+    {
+        var validated = new List<RouteAccessGrant>();
+        foreach (var grant in grants ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(grant.ExactOwnerId) || grant.ExactOwnerId.Contains('\0'))
+                throw new ArgumentException("Route access requires an exact Site owner.");
+            var traverse = grant.TraverseCells.ToHashSet(); var writable = grant.WritableCells.ToHashSet();
+            var edges = grant.WritableEdges.ToHashSet();
+            foreach (var index in traverse.Concat(writable))
+            {
+                InArea(index);
+                if (!state.Reservations.TryGetValue(index, out var owner) || owner != grant.ExactOwnerId)
+                    throw new ArgumentException("Route access must match the cell's exact reservation owner.");
+            }
+            if (!writable.IsSubsetOf(traverse)) throw new ArgumentException("Writable route access cells must also allow traversal.");
+            foreach (var edge in edges)
+            {
+                var end = board.CheckEdge(edge); InArea(edge.Index); InArea(end);
+                if (!traverse.Contains(edge.Index) && !traverse.Contains(end))
+                    throw new ArgumentException("A granted Edge must border a cell granted to the exact owner.");
+            }
+            validated.Add(new(grant.ExactOwnerId, traverse, writable, edges));
+        }
+        routeGrants = validated.ToArray(); routePlanning = true; Revision++;
+    }
+    public bool CanRouteThrough(int index)
+    {
+        if (!routePlanning) return false;
+        try
+        {
+            InArea(index);
+            return !state.Reservations.TryGetValue(index, out var owner) || owner == OwnerId ||
+                routeGrants.Any(g => g.ExactOwnerId == owner && g.TraverseCells.Contains(index));
+        }
+        catch (ArgumentException) { return false; }
+    }
     public bool CanWrite(int index)
     {
         try { Writable(index); return true; }
@@ -212,18 +270,29 @@ public sealed class BoardDraft : IPlanningBoardView
     public IEnumerable<int> Neighbors(int index) { board.CheckIndex(index); return PlanningBoard.Adjacent(index, Width, Height); }
     public ScenarioDefinition Export() => board.Export(state);
     public BoardDraft Fork(CellBounds area, string ownerId) => new(board, this, area, ownerId, Budget);
-    private void Writable(int index)
+    private void InArea(int index)
     {
         board.CheckIndex(index); var x = index % Width; var y = index / Width;
         if (x < AllowedArea.X || x >= AllowedArea.X + AllowedArea.Width || y < AllowedArea.Y || y >= AllowedArea.Y + AllowedArea.Height)
             throw new ArgumentException("Cell is outside the draft area.");
-        if (state.Reservations.TryGetValue(index, out var owner) && owner != OwnerId)
+    }
+    private void Writable(int index)
+    {
+        InArea(index);
+        if (IsRouteCorridor(index)) throw new ArgumentException("Cell belongs to a protected route corridor.");
+        if (state.Reservations.TryGetValue(index, out var owner) && owner != OwnerId &&
+            !(routePlanning && routeGrants.Any(g => g.ExactOwnerId == owner && g.WritableCells.Contains(index))))
             throw new ArgumentException("Cell is reserved by another owner.");
     }
     public void SetTerrain(int index, string typeId) => WriteTerrain(index, typeId, false);
     public void ReplaceTerrain(int index, string typeId) => WriteTerrain(index, typeId, true);
     private void WriteTerrain(int index, string typeId, bool replace)
     {
+        if (routePlanning && IsRouteCorridor(index))
+        {
+            if (!CanRouteThrough(index) || TerrainAt(index) != typeId) throw new ArgumentException("Existing route terrain must be preserved.");
+            return;
+        }
         Writable(index); _ = TerrainCatalog.Find(Content.Terrain, typeId);
         if (!replace && terrainTouched.Contains(index) && TerrainAt(index) != typeId) throw new ArgumentException("Conflicting terrain write.");
         if (typeId == state.Terrain[index]) state.TerrainWrites.Remove(index);
@@ -234,16 +303,46 @@ public sealed class BoardDraft : IPlanningBoardView
     public void ReplaceEdge(EdgeKey key, EdgeKind kind) => WriteEdge(key, kind, true);
     private void WriteEdge(EdgeKey key, EdgeKind kind, bool replace)
     {
-        var end = board.CheckEdge(key); Writable(key.Index); Writable(end);
+        var end = board.CheckEdge(key);
         if (!Enum.IsDefined(kind)) throw new ArgumentException("Unknown Edge kind.");
+        if (routePlanning)
+        {
+            if (!CanRouteThrough(key.Index) || !CanRouteThrough(end)) throw new ArgumentException("Both Edge endpoints require route access.");
+            foreach (var index in new[] { key.Index, end })
+                if (state.Reservations.TryGetValue(index, out var owner) && owner != OwnerId &&
+                    !routeGrants.Any(g => g.ExactOwnerId == owner && g.TraverseCells.Contains(index) && g.WritableEdges.Contains(key)))
+                    throw new ArgumentException("Foreign Site Edge requires an explicit exact-owner Edge grant.");
+            if ((IsRouteCorridor(key.Index) || IsRouteCorridor(end)) && EdgeAt(key).Passable() && !kind.Passable())
+                throw new ArgumentException("A passable route corridor Edge cannot be blocked.");
+        }
+        else { Writable(key.Index); Writable(end); }
         if (!replace && (edgeTouched.Contains(key) || EdgeAt(key) != EdgeKind.None) && EdgeAt(key) != kind)
             throw new ArgumentException("Conflicting Edge write; existing geometry needs explicit replacement.");
         state.Edges[key] = kind; edgeTouched.Add(key); Revision++;
     }
     public void Reserve(IEnumerable<int> indices)
     {
-        var cells = indices.Distinct().ToArray(); foreach (var i in cells) Writable(i);
+        var cells = indices.Distinct().ToArray(); foreach (var i in cells)
+        {
+            Writable(i);
+            if (state.Reservations.TryGetValue(i, out var owner) && owner != OwnerId)
+                throw new ArgumentException("Route access cannot transfer Site ownership.");
+        }
         foreach (var i in cells) { state.Reservations[i] = OwnerId; reservationsTouched.Add(i); } Revision++;
+    }
+    public void ReserveRoute(IEnumerable<int> indices, string routeId)
+    {
+        if (!routePlanning) throw new ArgumentException("Route membership requires route planning mode.");
+        if (string.IsNullOrWhiteSpace(routeId) || routeId.Contains('\0')) throw new ArgumentException("A route ID is required.");
+        var cells = indices.Distinct().ToArray();
+        foreach (var index in cells)
+            if (!CanRouteThrough(index) || !Passable(index)) throw new ArgumentException("Route corridors require accessible passable cells.");
+        foreach (var index in cells)
+        {
+            if (!state.RouteCorridors.TryGetValue(index, out var memberships)) state.RouteCorridors.Add(index, memberships = new(StringComparer.Ordinal));
+            memberships.Add(routeId);
+        }
+        Revision++;
     }
     public void AddContent(ContentBundle local)
     {

@@ -583,6 +583,21 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
 .world-plan-usable { border-color: #79d7ff80; background: #79d7ff30; }
 .world-plan-portal { position: absolute; transform: translate(-50%, -50%); width: 7px; height: 7px; border: 1px solid white; border-radius: 50%; background: #202c38; z-index: 7; pointer-events: none; }
 .world-construction-bounds { position: absolute; box-sizing: border-box; outline: 2px dashed #ffe08c; z-index: 8; pointer-events: none; }
+.world-route-area { position: absolute; box-sizing: border-box; pointer-events: none; z-index: 5; border: 1px solid #80d6ff99; background: #80d6ff25; }
+.world-route-shared { border-color: #dc9bff; background: #dc9bff45; }
+.world-route-junction { border: 2px solid #fff38b; background: #fff38b60; z-index: 7; }
+.world-route-crossing { border-color: #6be4ed; background: repeating-linear-gradient(45deg, #6be4ed55 0 3px, transparent 3px 6px); }
+.world-route-approach { border: 1px dashed #f6b884; background: #f6b88430; }
+.world-route-line { position: absolute; height: 0; border-top: 2px solid #f5ecb6; transform-origin: left center; pointer-events: none; z-index: 7; }
+.world-route-intent { border-top: 2px dashed #ffab73; z-index: 6; opacity: .85; }
+.world-route-marker { position: absolute; width: 7px; height: 7px; transform: translate(-50%, -50%); box-sizing: border-box; background: #192c3c; border: 2px solid #f5ecb6; border-radius: 50%; pointer-events: none; z-index: 8; }
+.world-route-intent-port { border-color: #ffab73; border-radius: 0; }
+.world-route-mouth { border-color: #e5c5ff; width: 9px; height: 9px; }
+.world-route-access { border-color: #f6b884; border-radius: 0; }
+.world-route-inspector { margin: 12px 0; padding: 10px; border: 1px solid #586976; border-radius: 5px; }
+.world-route-inspector summary { cursor: pointer; min-height: 28px; overflow-wrap: anywhere; }
+.world-route-detail { padding: 8px 0; border-top: 1px solid #58697666; }
+.world-route-detail p, #world-generator-route-summary { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 #world-generator label[hidden] { display: none; }
 @media (max-width: 850px) {
   #world-generator { padding: 16px; }
