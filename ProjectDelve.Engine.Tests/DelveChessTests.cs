@@ -256,6 +256,7 @@ public sealed partial class DelveChessTests
         var state = State();
         state.Units.Add(state.Types[0].CreateUnit("friend", "a"));
         state.Physical.Figures.Add(new("friend", new(0, 0)));
+        state.ResolvingTokenUnitIds.Add("friend");
         state.WorldEffects = new(1, 1);
         state.WorldDeck = new() { ActiveContinuous = [new("frenzy", WorldEffect.Frenzy)] };
         var result = Attack(state);

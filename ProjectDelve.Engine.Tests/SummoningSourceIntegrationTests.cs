@@ -47,6 +47,29 @@ public sealed class SummoningSourceIntegrationTests
         .First(candidate => candidate.Ability?.SourceKind == source && candidate.Ability.Key == "call");
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NamedSourceSummonsIntoDefaultGroupWithoutCopyingOrders(bool existingDefaultController)
+    {
+        var scenario = Scenario();
+        scenario.Units[0] = scenario.Units[0] with { GroupId = "summoners" };
+        scenario.Agency.Add(new("carrier", "blue", ControllerKind.Automated, "summoners"));
+        scenario = scenario with { Orders = [new("carrier", "blue", OrderKind.HoldPosition, GroupId: "summoners")] };
+        if (existingDefaultController) scenario.Agency.Add(new("local-spirit", "blue", ControllerKind.Human));
+        var state = GameEngine.CreateGame(scenario);
+        state.Round = 1; state.ActiveToken = new("carrier", "blue", "summoners");
+        state.ResolvingTokenUnitIds = ["actor"]; state.CurrentUnitId = "actor"; state.MoveDone = true;
+        var ready = GameEngine.RefreshChoices(state, new Dice(), false).State;
+        var result = Use(ready, Candidate(ready, AbilitySourceKind.Unit).Key);
+        var created = Assert.Single(result.State.Units, u => u.TypeId == "local-spirit");
+        Assert.Null(created.GroupId);
+        Assert.Equal(existingDefaultController ? ControllerKind.Human : ControllerKind.Automated,
+            result.State.ControllerFor(created.Token));
+        Assert.Equal(OrderKind.Normal, result.State.OrderFor(created.Token).Kind);
+        Assert.DoesNotContain(created.Id, result.State.ResolvingTokenUnitIds);
+    }
+
+    [Theory]
     [InlineData(AbilitySourceKind.Unit, Posture.Upright)]
     [InlineData(AbilitySourceKind.Unit, Posture.Lying)]
     [InlineData(AbilitySourceKind.Equipment, Posture.Upright)]

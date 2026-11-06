@@ -22,7 +22,7 @@ public static class ObjectivePresentation
         {
             UnitSelectorKind.Unit => $"Unit {s.UnitId}",
             UnitSelectorKind.SideAtStart => $"Side {s.SideId} at start (fixed initial Units)",
-            UnitSelectorKind.Group => $"{s.UnitTypeId} / {s.SideId} (dynamic group)",
+            UnitSelectorKind.Group => $"{s.UnitTypeId} / {s.SideId}{(s.GroupId is null ? "" : " / " + s.GroupId)} (dynamic group)",
             _ => "Unknown selector"
         }));
         var criterion = objective.Objective == ScenarioObjective.ReachArea

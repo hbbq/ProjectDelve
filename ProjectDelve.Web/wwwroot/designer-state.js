@@ -434,10 +434,10 @@ export class DesignerDraft {
     if (index < 0) return;
     this.definition.machines.splice(index, 1); this.machineKeys.splice(index, 1); this.changed();
   }
-  ensureAgency(unitTypeId, sideId, controller) {
+  ensureAgency(unitTypeId, sideId, controller, groupId = null) {
     this.declare(unitTypeId);
-    if (!this.definition.agency.some(row => row.unitTypeId === unitTypeId && row.sideId === sideId))
-      this.definition.agency.push({ unitTypeId, sideId, controller });
+    if (!this.definition.agency.some(row => row.unitTypeId === unitTypeId && row.sideId === sideId && (row.groupId ?? null) === groupId))
+      this.definition.agency.push({ unitTypeId, sideId, controller, ...(groupId == null ? {} : { groupId }) });
   }
   place(unitTypeId, sideId, controller, anchor) {
     this.ensureAgency(unitTypeId, sideId, controller);
@@ -448,7 +448,11 @@ export class DesignerDraft {
     const index = this.unitIndex(key);
     if (index < 0) return;
     const unit = { ...this.definition.units[index], ...changes };
-    this.ensureAgency(unit.unitTypeId, unit.sideId, controller);
+    // A setup default already supplies this named group's controller. Editing a
+    // placement must not turn that inherited value into an explicit override.
+    if (!this.definition.agency.some(row => row.unitTypeId === unit.unitTypeId && row.sideId === unit.sideId &&
+      ((row.groupId ?? null) === (unit.groupId ?? null) || row.groupId == null)))
+      this.ensureAgency(unit.unitTypeId, unit.sideId, controller, unit.groupId ?? null);
     this.definition.units[index] = unit; this.changed();
   }
   removeUnit(key) {
@@ -464,35 +468,38 @@ export class DesignerDraft {
     }
     this.definition.units.splice(index, 1); this.unitKeys.splice(index, 1); this.changed();
   }
-  setAgency(unitTypeId, sideId, controller) {
+  setAgency(unitTypeId, sideId, controller, groupId = null) {
     this.declare(unitTypeId);
-    upsert(this.definition.agency, row => row.unitTypeId === unitTypeId && row.sideId === sideId,
-      { unitTypeId, sideId, controller });
+    upsert(this.definition.agency, row => row.unitTypeId === unitTypeId && row.sideId === sideId && (row.groupId ?? null) === groupId,
+      { unitTypeId, sideId, controller, ...(groupId == null ? {} : { groupId }) });
     this.changed();
   }
-  setOrder(unitTypeId, sideId, order) {
-    if (order.kind === "FollowRoute" && !(this.definition.routes ?? []).some(r => r.id === order.route?.routeId))
+  setOrder(unitTypeId, sideId, order, groupId = null) {
+    if (["FollowRoute", "PatrolRoute"].includes(order.kind) && !(this.definition.routes ?? []).some(r => r.id === order.route?.routeId))
       throw new Error("Select an existing Route first.");
     const orders = this.definition.orders ?? [];
-    upsert(orders, row => row.unitTypeId === unitTypeId && row.sideId === sideId,
-      order.kind === "Normal" ? null : { unitTypeId, sideId, ...order });
+    const details = structuredClone(order);
+    delete details.unitTypeId; delete details.sideId; delete details.groupId;
+    upsert(orders, row => row.unitTypeId === unitTypeId && row.sideId === sideId && (row.groupId ?? null) === groupId,
+      order.kind === "Normal" && groupId == null ? null : { unitTypeId, sideId, ...(groupId == null ? {} : { groupId }), ...details });
     if (orders.length) this.definition.orders = orders;
     else delete this.definition.orders;
     this.changed();
   }
   editAgency(index, assignment, order) {
     // Check before touching declarations, the previous pair or its Order.
-    if (order.kind === "FollowRoute" && !(this.definition.routes ?? []).some(r => r.id === order.route?.routeId))
+    if (["FollowRoute", "PatrolRoute"].includes(order.kind) && !(this.definition.routes ?? []).some(r => r.id === order.route?.routeId))
       throw new Error("Select an existing Route first.");
     const previous = this.definition.agency[index];
-    this.setOrder(previous.unitTypeId, previous.sideId, { kind: "Normal" });
+    this.definition.orders = (this.definition.orders ?? []).filter(row => !(row.unitTypeId === previous.unitTypeId && row.sideId === previous.sideId && (row.groupId ?? null) === (previous.groupId ?? null)));
     this.declare(assignment.unitTypeId);
     this.definition.agency[index] = assignment;
-    this.setOrder(assignment.unitTypeId, assignment.sideId, order);
+    this.setOrder(assignment.unitTypeId, assignment.sideId, order, assignment.groupId ?? null);
   }
   removeAgency(index) {
     const row = this.definition.agency[index];
-    this.setOrder(row.unitTypeId, row.sideId, { kind: "Normal" });
+    this.definition.orders = (this.definition.orders ?? []).filter(order => !(order.unitTypeId === row.unitTypeId && order.sideId === row.sideId && (order.groupId ?? null) === (row.groupId ?? null)));
+    if (!this.definition.orders.length) delete this.definition.orders;
     this.definition.agency.splice(index, 1); this.changed();
   }
   saveWaypoint(previousId, waypoint) {

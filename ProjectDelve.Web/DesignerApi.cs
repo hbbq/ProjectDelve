@@ -8,6 +8,7 @@ public sealed record DesignerUnitType(string UnitTypeId, string DisplayName, int
     IReadOnlyList<Cell> FootprintOffsets, int CellSpan, ResourceStorage? ResourceStorage)
 {
     public UnitType? Definition { get; init; }
+    public int DefaultWakeDistance { get; init; }
 }
 public sealed record DesignerMetadataRequest(List<UnitType> UnitTypes, List<UnitPlacement>? Units = null, List<string>? MachineIds = null,
     List<TerrainDefinition>? TerrainTypes = null, List<TerrainAssemblyDefinition>? TerrainAssemblies = null,
@@ -30,7 +31,8 @@ public static class DesignerApi
     {
         var offsets = FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0));
         return new(type.Id, type.DisplayName ?? type.Id, type.Hp, offsets,
-            offsets.Max(cell => cell.X) + 1, type.ResourceStorage) { Definition = type };
+            offsets.Max(cell => cell.X) + 1, type.ResourceStorage)
+            { Definition = type, DefaultWakeDistance = type.WakeDistance ?? DormantRules.DefaultWakeDistance };
     }
 
     private static Dictionary<string, string> ProductionDescriptions(IEnumerable<TerrainDefinition> definitions, IReadOnlyList<ResourceType>? resources = null) =>
@@ -46,6 +48,7 @@ public static class DesignerApi
         app.MapGet("/api/designer/catalog", () => Results.Ok(new
         {
             maxBoardSize = limits.MaxBoardSize,
+            defaultWakeDistance = DormantRules.DefaultWakeDistance,
             scenarios = PlaytestScenarios.Catalog.Select(s => new { s.Id, s.Name }),
             cellMarkerTypes = CellMarkerTypes.All,
             lootCards = LootCards.All,

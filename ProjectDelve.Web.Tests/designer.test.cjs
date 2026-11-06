@@ -366,7 +366,7 @@ const catalog = {
   railDirections: ["North", "East", "South", "West"],
   edgeKinds: ["Wall", "ClosedDoor", "OpenDoor", "None", "WallWithWindow"],
   postures: ["Upright", "Lying"], controllers: ["Human", "Automated"],
-  orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith", "FollowRoute"]
+  orderKinds: ["Normal", "DoNothing", "HoldPosition", "MoveTo", "Attack", "Protect", "Retreat", "InteractWith", "FollowRoute", "GuardArea", "PatrolRoute"]
 };
 
 // Extends the existing playtest's small DOM approach with delegated pointer events and forms.
@@ -1852,4 +1852,111 @@ test('Loot overrides preserve other unfinished group edits and restore inheritan
   press(panel, 'Apply Loot settings');
   assert.equal(h.editor.draft.snapshot().lootUnitOverrides, undefined);
   assert.equal(inputField(h.editor.ui.agency.children[0], 'SideId').value, 'unfinished-side');
+});
+
+test('Unit properties author group, Dormant and optional Wake Distance', () => {
+  const h = harness(), d = h.editor.draft;
+  d.place('goblin-type', 'A', 'Human', { x: 0, y: 0 }); h.editor.render(); h.down(h.cell(0, 0));
+  let form = h.editor.ui.properties.children[0];
+  inputField(form, 'Group ID (blank = default)').value = 'sentries';
+  inputField(form, 'Dormant').value = 'Yes';
+  const wake = form.querySelectorAll('input').find(input => input.dataset.field?.startsWith('wake-distance'));
+  wake.value = '4'; h.submit(form);
+  assert.equal(d.definition.units[0].groupId, 'sentries'); assert.equal(d.definition.units[0].dormant, true); assert.equal(d.definition.units[0].wakeDistance, 4);
+  assert.equal(d.definition.agency.length, 1);
+  form = h.editor.ui.properties.children[0];
+  form.querySelectorAll('input').find(input => input.dataset.field?.startsWith('wake-distance')).value = ''; h.submit(form);
+  assert.equal(d.definition.units[0].wakeDistance, null);
+});
+
+test('Guard Area and Patrol Route can be authored independently for same-Type same-Side groups', () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency('goblin-type', 'A', 'Automated', 'gate'); d.setAgency('goblin-type', 'A', 'Human', 'road');
+  d.saveWaypoint(null, { id: 'a', area: { x: 0, y: 0, w: 1, h: 1 } }); d.saveWaypoint(null, { id: 'b', area: { x: 2, y: 0, w: 1, h: 1 } });
+  d.saveRoute(null, { id: 'track', mode: 'PingPong', waypointIds: ['a', 'b'] }); h.editor.render();
+  let form = h.editor.ui.agency.children[0], kind = inputField(form, 'Starting Order'); kind.value = 'GuardArea'; kind.listeners.change();
+  for (const [label, value] of [['Guard area X','1'],['Guard area Y','2'],['Guard area width','3'],['Guard area height','4']]) inputField(form,label).value = value;
+  h.submit(form);
+  form = h.editor.ui.agency.children[1]; kind = inputField(form, 'Starting Order'); kind.value = 'PatrolRoute'; kind.listeners.change();
+  inputField(form,'Shared Route').value = 'track'; inputField(form,'Current waypoint index (0-based)').value = '1'; inputField(form,'Ping-pong direction').value = '-1'; h.submit(form);
+  assert.deepEqual(plain(d.definition.orders), [{ unitTypeId:'goblin-type',sideId:'A',groupId:'gate',kind:'GuardArea',area:{x:1,y:2,w:3,h:4} }, { unitTypeId:'goblin-type',sideId:'A',groupId:'road',kind:'PatrolRoute',route:{routeId:'track',currentIndex:1,direction:-1} }]);
+  assert.deepEqual(plain(d.definition.agency.map(a=>a.controller)), ['Automated','Human']);
+});
+
+test('switching a named Group objective selector clears its Group ID for Unit and Side At Start', () => {
+  for (const kind of ['Unit', 'SideAtStart']) {
+    const h = harness(), d = h.editor.draft;
+    d.place('grunt-type','blue','Human',{x:0,y:0}); d.definition.units[0].unitId = 'leader';
+    d.setAgency('grunt-type','blue','Human','gate');
+    d.setObjective('blue',{objective:'DefeatUnits',count:1,selectors:[{kind:'Group',unitTypeId:'grunt-type',sideId:'blue',groupId:'gate'}]});
+    h.editor.render(); let form = openObjective(h);
+    change(inputField(form,'Selection 1 \u00b7 select'),kind); form = objectiveForm(h);
+    if (kind === 'Unit') inputField(form,'Selection 1 \u00b7 Unit').value = 'leader';
+    h.submit(form);
+    const selector = d.definition.objectives[0].selectors[0];
+    assert.equal(selector.kind,kind); assert.equal(Object.hasOwn(selector,'groupId'),false);
+    assert.equal(Object.hasOwn(selector,'unitTypeId'),false);
+  }
+});
+
+test('imported named groups expose explicit override actions without mutating Type Side defaults', () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency('grunt-type','blue','Human'); d.setOrder('grunt-type','blue',{kind:'HoldPosition'});
+  d.definition.units.push({unitTypeId:'grunt-type',sideId:'blue',groupId:'gate',anchor:{x:0,y:0},posture:'Upright'});
+  d.unitKeys.push(++d.nextKey);
+  d.setOrder('grunt-type','blue',{kind:'DoNothing'},'reserve');
+  const before = plain(d.snapshot()); h.editor.render();
+  assert.deepEqual(plain(d.snapshot()),before);
+  assert.match(h.editor.ui.agency.textContent,/uses Type \+ Side setup defaults/);
+  const add = h.editor.ui.agency.querySelectorAll('button').find(b=>b.textContent.includes('Add group override:') && b.textContent.endsWith('/ gate'));
+  assert.ok(add); add.listeners.click();
+  assert.equal(d.definition.agency.length,2);
+  assert.deepEqual(plain(d.definition.agency[1]),{unitTypeId:'grunt-type',sideId:'blue',groupId:'gate',controller:'Human'});
+  const form = h.editor.ui.agency.children.find(node=>node.dataset.groupId === 'gate');
+  assert.equal(inputField(form,'Starting Order').value,'HoldPosition');
+  change(inputField(form,'Starting Order'),'Normal'); h.submit(form);
+  assert.deepEqual(plain(d.definition.orders.find(o=>o.groupId === 'gate')),{unitTypeId:'grunt-type',sideId:'blue',groupId:'gate',kind:'Normal'});
+  assert.equal(d.definition.orders.find(o=>o.groupId == null).kind,'HoldPosition');
+  assert.equal(d.definition.orders.find(o=>o.groupId === 'reserve').kind,'DoNothing');
+});
+
+test('Patrol Route authoring offers Once, Loop and PingPong shared Routes', () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency('goblin-type','A','Automated','patrol');
+  d.saveWaypoint(null,{id:'a',area:{x:0,y:0,w:1,h:1}});
+  for (const mode of ['Once','Loop','PingPong']) d.saveRoute(null,{id:mode,mode,waypointIds:['a']});
+  h.editor.render(); let form = h.editor.ui.agency.children[0];
+  change(inputField(form,'Starting Order'),'PatrolRoute');
+  assert.deepEqual(inputField(form,'Shared Route').children.map(option=>option.value),['Once','Loop','PingPong']);
+  inputField(form,'Shared Route').value = 'Once'; h.submit(form);
+  assert.equal(d.definition.orders[0].kind,'PatrolRoute'); assert.equal(d.definition.orders[0].route.routeId,'Once');
+});
+
+test('editing an imported named Unit preserves its setup controller default without creating an override', () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency('goblin-type','A','Automated');
+  const key = d.place('goblin-type','A','Automated',{x:0,y:0});
+  d.definition.units[0].groupId = 'camp';
+  h.editor.render(); h.down(h.cell(0,0));
+  let form = h.editor.ui.properties.children[0];
+  const controller = inputField(form,'Controller for new group');
+  assert.equal(controller.value,'Automated'); assert.equal(controller.disabled,true);
+  assert.equal(d.definition.agency.length,1);
+  inputField(form,'Dormant').value = 'Yes'; h.submit(form);
+  assert.equal(d.definition.units[0].dormant,true);
+  assert.deepEqual(plain(d.definition.agency),[{unitTypeId:'goblin-type',sideId:'A',controller:'Automated'}]);
+  d.editUnit(key,{initialHp:1},'Human');
+  assert.equal(d.definition.units[0].initialHp,1);
+  assert.deepEqual(plain(d.definition.agency),[{unitTypeId:'goblin-type',sideId:'A',controller:'Automated'}]);
+});
+
+test('switching a named Group objective to its default group clears the named identity', () => {
+  const h = harness(), d = h.editor.draft;
+  d.setAgency('grunt-type','blue','Human'); d.setAgency('grunt-type','blue','Human','camp');
+  d.setObjective('blue',{objective:'DefeatUnits',count:1,selectors:[{kind:'Group',unitTypeId:'grunt-type',sideId:'blue',groupId:'camp',custom:'retained'}]});
+  h.editor.render(); let form = openObjective(h);
+  change(inputField(form,'Selection 1 \u00b7 Group'),JSON.stringify(['grunt-type','blue',null]));
+  form = objectiveForm(h); h.submit(form);
+  const selector = d.definition.objectives[0].selectors[0];
+  assert.deepEqual(plain(selector),{kind:'Group',unitTypeId:'grunt-type',sideId:'blue',custom:'retained'});
 });

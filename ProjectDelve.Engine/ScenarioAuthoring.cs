@@ -5,7 +5,7 @@ public static class Scenario
 {
     public sealed record Placement(Cell Anchor, Posture Posture = Posture.Upright, int? InitialHp = null,
         string? UnitId = null);
-    public sealed record UnitGroup(string UnitTypeId, string SideId, ControllerKind Controller, Placement[] Placements);
+    public sealed record UnitGroup(string UnitTypeId, string SideId, ControllerKind Controller, Placement[] Placements, string? GroupId = null);
 
     public static Placement At(int x, int y, Posture posture = Posture.Upright, int? initialHp = null,
         string? unitId = null) => new(new(x, y), posture, initialHp, unitId);
@@ -24,15 +24,15 @@ public static class Scenario
         {
             ArgumentNullException.ThrowIfNull(group);
             ArgumentNullException.ThrowIfNull(group.Placements);
-            var existing = agency.SingleOrDefault(a => a.UnitTypeId == group.UnitTypeId && a.SideId == group.SideId);
+            var existing = agency.SingleOrDefault(a => a.UnitTypeId == group.UnitTypeId && a.SideId == group.SideId && a.GroupId == group.GroupId);
             if (existing is not null && existing.Controller != group.Controller)
                 throw new ArgumentException($"Conflicting agency for '{group.UnitTypeId}' on Side '{group.SideId}'.", nameof(groups));
-            if (existing is null) agency.Add(new(group.UnitTypeId, group.SideId, group.Controller));
+            if (existing is null) agency.Add(new(group.UnitTypeId, group.SideId, group.Controller, group.GroupId));
             foreach (var placement in group.Placements)
             {
                 ArgumentNullException.ThrowIfNull(placement);
                 units.Add(new(group.UnitTypeId, group.SideId, placement.Anchor, placement.Posture, placement.InitialHp,
-                    placement.UnitId));
+                    placement.UnitId, group.GroupId));
             }
         }
         return new()

@@ -425,7 +425,7 @@ public static class BrowserProjection
         var collector = state.Units.FirstOrDefault(u => u.Id == e.UnitId);
         return raw with { DisplayText = display.Text, MovingFigure = display.MovingFigure,
             LootCard = e.Kind == "LootCardDrawn" ? state.ObjectContent(e.ObjectCard!) : null,
-            HumanCollector = collector is not null && state.Controllers.Any(c => c.Token == new ActivationToken(collector.TypeId, collector.SideId) && c.Controller == ControllerKind.Human) };
+            HumanCollector = collector is not null && state.Controllers.Any(c => c.Token == collector.Token && c.Controller == ControllerKind.Human) };
     }
 
     private static BrowserOutcome OutcomeCore(RulesEvent e, GameState state, Func<string?, string> name)
@@ -488,12 +488,15 @@ public static class BrowserProjection
             case "ActivationBagPopulated":
                 description = "Activation Bag populated from Units now in play";
                 break;
+            case "UnitWoken":
+                description = $"{name(e.UnitId)}: Dormant marker removed ({(e.ActionId == "attack" ? "targeted by an Attack" : "hostile proximity")})";
+                break;
             case "RoundCompleted":
                 description = $"Round {e.Round} completed";
                 break;
             case "ActivationStarted":
             case "ActivationCompleted":
-                description = $"{name(e.UnitId)}: {(e.Kind == "ActivationStarted" ? "activation started" : "activation completed")} ({e.Token?.TypeId}, {e.Token?.SideId})";
+                description = $"{name(e.UnitId)}: {(e.Kind == "ActivationStarted" ? "activation started" : "activation completed")} ({e.Token?.TypeId}, {e.Token?.SideId}{(e.Token?.GroupId is { } group ? ", " + group : "")})";
                 break;
             case "ActionUsed":
                 var category = e.Category switch
@@ -621,7 +624,7 @@ public static class BrowserProjection
                 description = $"{subject} closed door {CellLabel(e.Door!.A)} ↔ {CellLabel(e.Door.B)}";
                 break;
             case "TokenDrawn":
-                description = $"Token drawn: {state.Types.Single(t => t.Id == e.TypeId).DisplayName ?? e.TypeId} ({e.Token?.SideId})";
+                description = $"Token drawn: {state.Types.Single(t => t.Id == e.TypeId).DisplayName ?? e.TypeId} ({e.Token?.SideId}{(e.Token?.GroupId is { } tokenGroup ? ", " + tokenGroup : "")})";
                 break;
             default:
                 description = e.Kind;

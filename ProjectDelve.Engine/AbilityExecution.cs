@@ -242,7 +242,7 @@ public static partial class GameEngine
         var summonedId = $"{prefix}-{number}";
         var group = new ActivationToken(summonedType.Id, source.SideId);
         if (!state.Controllers.Any(c => c.Token == group))
-            state.Controllers.Add(new(group, state.ControllerFor(new ActivationToken(source.TypeId, source.SideId))));
+            state.Controllers.Add(new(group, state.ControllerFor(source.Token)));
         state.PlaceUnit(summonedType.Id, summonedId, source.SideId, choice.Destination!, summon.InitialPosture);
         events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
             AbilityName: ability.Definition.Name, Posture: summon.InitialPosture)

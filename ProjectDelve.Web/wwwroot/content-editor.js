@@ -275,7 +275,7 @@ export function mountContentEditor(root, options) {
     const automation = group('Automation', text('Preferences for automated decisions; these do not change legality.'));
     const fields = metadata.fields ?? [];
     const sections = { unique: stats, footprint: movement, movementPattern: movement, terrainRestrictedMovement: movement,
-      terrainRestriction: movement, canHaveItems: capabilities, canHaveEquipment: capabilities, lootDropSuccesses: loot,
+      terrainRestriction: movement, wakeDistance: capabilities, canHaveItems: capabilities, canHaveEquipment: capabilities, lootDropSuccesses: loot,
       resourceStorage: resources, attackDefinitionOrder: automation };
     for (const schema of fields) (sections[schema.name] ?? stats).append(parameter(schema, [schema.name]));
     // Metadata owns enum choices and bounds; these controls only select declarations.

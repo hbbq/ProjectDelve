@@ -216,11 +216,12 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     root.userData.appearance={...a};root.userData.footprint=frame.presentation.figures?.[id]?.occupiedCells??[figure.position];
     return root;
   }
+  const displayUnitLabel=(a,name=a.name)=>`${name}${a.groupId==null?'':` [${a.groupId}]`}${a.dormant?' Zz':''}`;
   function appearance(figure){
     const unit=frame.state.units.find(u=>u.id===figure.id),type=frame.state.types.find(t=>t.id===unit?.typeId),card=frame.presentation.cards?.[figure.id];
     const geometry=frame.presentation.figures?.[figure.id],cells=geometry?.occupiedCells;
     const footprint=cells?.length?{footprintWidth:Math.max(...cells.map(c=>c.x))-Math.min(...cells.map(c=>c.x))+1,footprintDepth:Math.max(...cells.map(c=>c.y))-Math.min(...cells.map(c=>c.y))+1}:{};
-    return{typeId:unit?.typeId,sideId:unit?.sideId,name:card?.individualName?.trim()||card?.displayName||type?.displayName||'Unit',posture:figure.posture,active:frame.state.currentUnitId===figure.id,cellSpan:geometry?.cellSpan??1,...footprint,hp:unit?.currentHp,maxHp:type?.hp??1};
+    return{typeId:unit?.typeId,sideId:unit?.sideId,groupId:unit?.groupId??null,dormant:unit?.dormant??false,wakeDistance:unit?.wakeDistance,name:card?.individualName?.trim()||card?.displayName||type?.displayName||'Unit',posture:figure.posture,active:frame.state.currentUnitId===figure.id,cellSpan:geometry?.cellSpan??1,...footprint,hp:unit?.currentHp,maxHp:type?.hp??1};
   }
   function renderFrame(next){
     if(disposed)return;const begin=performance.now();postureChanges.clear();const identity=next.metadata.sessionId??next.metadata.scenarioId;
@@ -339,14 +340,15 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     for(const figure of frame.state.physical.figures){const a=appearance(figure);
       updateUnit(figure,a);
       labelIds.add(figure.id);let label=labelNodes.get(figure.id);if(!label){label=document.createElement('div');label.className='three-token-info';label.innerHTML='<span class="three-hp"></span><span class="three-name"></span><span class="three-state"></span><span class="three-side"></span><span class="three-inventory"></span>';labels.append(label);labelNodes.set(figure.id,label);}
-      label.appearance=a;label.position=figure.position;label.title=`${a.name} · Side ${a.sideId} · ${a.posture}${a.maxHp>1?` · HP ${a.hp}/${a.maxHp}`:''}`;
+      label.appearance=a;label.position=figure.position;label.dataset.unitId=figure.id;label.dataset.groupId=a.groupId??'';label.dataset.dormant=String(a.dormant);label.title=`${a.name} · Side ${a.sideId} · ${a.posture}${a.maxHp>1?` · HP ${a.hp}/${a.maxHp}`:''}`;
       const inventoryCount=frame.state.units.find(u=>u.id===figure.id)?.inventory?.length??0;
+      label.title+=`${a.groupId==null?'':` - Group ${a.groupId}`}${a.dormant?' - Dormant':''}${a.wakeDistance==null?'':` - Wake Distance ${a.wakeDistance}`}`;
       const inventory = label.children[4];
       inventory.textContent=inventoryCount?`◆ ${inventoryCount}`:'';
       inventory.hidden=!inventoryCount;
       inventory.setAttribute('aria-label', `${inventoryCount} carried objects`);
       if(inventoryCount) label.title+=` · Inventory: ${inventoryCount}`;
-      label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[1].textContent=a.name;
+      label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[1].textContent=displayUnitLabel(a);
     }
     for(const[id,label]of labelNodes)if(!labelIds.has(id)){label.remove();labelNodes.delete(id);}
     for(const[key,batch]of solidBatches)retain(key,JSON.stringify(batch.matrices.map(m=>m.elements)),'objects',()=>{
@@ -515,10 +517,10 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const detailed=priority>0||a.posture==='Lying';
       label.dataset.important=String(priority>0);label.dataset.damaged=String(a.hp<a.maxHp);label.dataset.status=state.toLowerCase();label.dataset.body=root?.userData.body?.facingNode?'miniature':'cardboard';
       label.style.setProperty('--unit-side',`hsl(${sideHue(a.sideId)},65%,70%)`);
-      label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[2].textContent=[a.posture==='Lying'&&state!=='Lying'?'Lying':'',state].filter(Boolean).join(' · ');label.children[3].textContent=a.sideId??'';
+      label.children[0].textContent=a.maxHp>1?`${a.hp}/${a.maxHp}`:'';label.children[2].textContent=[a.posture==='Lying'&&state!=='Lying'?'Lying':'',a.dormant?'Dormant':'',state].filter(Boolean).join(' · ');label.children[3].textContent=a.sideId??'';
       const shortName=a.name.split(/\s+/)[0],compactText=shortName.length>8?shortName.slice(0,7)+'…':shortName;
-      label.compactText=compactText;
-      const compactWidth=Math.max(34,compactText.length*6+14)+(a.maxHp>1&&a.hp<a.maxHp?32:0),width=Math.max(detailed?(a.posture==='Lying'?138:118):72,Math.min(180,a.name.length*6.5+(a.maxHp>1?47:18)));
+      label.compactText=displayUnitLabel(a,compactText);
+      const compactWidth=Math.max(34,label.compactText.length*6+14)+(a.maxHp>1&&a.hp<a.maxHp?32:0),width=Math.max(detailed?(a.posture==='Lying'?138:118):72,Math.min(180,displayUnitLabel(a).length*6.5+(a.maxHp>1?47:18)));
       const compact=diameter<35&&bodyRect.h<55&&!priority&&a.posture!=='Lying';
       const offscreen=p.behind||bodyRect.x+bodyRect.w<0||bodyRect.y+bodyRect.h<0||bodyRect.x>size.width||bodyRect.y>size.height||id===transientId;
       label.hidden=offscreen;
@@ -532,7 +534,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     for(const entry of candidates){const label=labelNodes.get(entry.id),p=layout.get(entry.id);label.hidden=!p||p.hidden;if(label.hidden)continue;
       const compact=entry.compact||p.compact;
       label.dataset.compact=String(compact);label.dataset.expanded=String(entry.height>24&&!compact);
-      label.children[1].textContent=compact?label.compactText:label.appearance.name;
+      label.children[1].textContent=compact?label.compactText:displayUnitLabel(label.appearance);
       label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;label.style.width=`${p.width}px`;label.style.height=`${compact?24:p.height}px`;
       const targetY=p.y>=entry.bodyRect.y+entry.bodyRect.h?entry.bodyRect.y+entry.bodyRect.h:entry.y;
       const startX=Math.max(p.x,Math.min(p.x+p.width,entry.x)),startY=Math.max(p.y,Math.min(p.y+(compact?24:p.height),targetY));
@@ -546,7 +548,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const entries=[...labelNodes].sort(([a],[b])=>priority(b)-priority(a));
     if(presentation==='tabletop')updateTabletopLabels();
     else for(const[id,label]of entries){const a=label.appearance,root=unitRoots.get(id),anchor=root?.userData.infoAnchor??{x:0,y:0,z:0},height=(root?.position.y??0)+anchor.y;
-      label.children[1].textContent=a.name;
+      label.children[1].textContent=displayUnitLabel(a);
       const center={x:label.position.x+a.cellSpan/2+anchor.x,y:label.position.y+a.cellSpan/2+anchor.z,height},p=cameraControl.screen(center),radius=root?.userData.body?.pickRadius??root?.userData.visualBounds?.radius??a.cellSpan*.42;
       const samples=presentation==='tabletop'?Array.from({length:16},(_,i)=>cameraControl.screen({...center,height:.084,x:center.x+Math.cos(i*Math.PI/8)*radius,y:center.y+Math.sin(i*Math.PI/8)*radius})):null;
       const diameter=samples?Math.max(...samples.map(p=>p.x))-Math.min(...samples.map(p=>p.x)):pose.scale*.84*a.cellSpan;
@@ -559,7 +561,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const collision=placed.some(r=>Math.abs(r.x-p.x)<(r.w+width)/2&&Math.abs(r.y-p.y)<diameter*.7);
       label.hidden=offscreen||id===transientId||label.detail<2||collision&&id!==view.focusedUnitId;
       if(label.hidden)continue;placed.push({x:p.x,y:p.y,w:width});label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;label.style.width=`${width}px`;label.style.height=`${Math.max(22,screenHeight)}px`;
-      label.children[2].textContent=[a.posture==='Lying'?'Lying':'',frame.state.currentUnitId===id?'▶':''].filter(Boolean).join(' ');
+      label.children[2].textContent=[a.posture==='Lying'?'Lying':'',a.dormant?'Dormant':'',frame.state.currentUnitId===id?'▶':''].filter(Boolean).join(' ');
     }
     // Coordinates are a presentation setting, never information about hidden contents.
     let coordinates=labels.querySelector('.three-coordinates');if(view.coordinates){if(!coordinates){coordinates=document.createElement('div');coordinates.className='three-coordinates';labels.append(coordinates);}coordinates.replaceChildren();

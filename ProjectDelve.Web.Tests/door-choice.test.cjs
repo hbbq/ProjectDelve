@@ -4400,3 +4400,24 @@ test("historical choice panel exposes no future action dock, fallback controls o
   assert.equal(h.elements.get("choice-visibility").hidden, true);
   assert.deepEqual(h.submitted, []);
 });
+
+test('named groups keep independent controller choices and order/card token identities', async () => {
+  const initial = response(), requests = [];
+  initial.sessionId = 'groups-session'; initial.scenarioId = 'groups';
+  initial.controllerAssignments = [
+    { typeId: 'goblin', sideId: 'red', controller: 'Human' },
+    { typeId: 'goblin', sideId: 'red', groupId: 'gate', controller: 'Default Behavior' },
+    { typeId: 'goblin', sideId: 'red', groupId: 'road', controller: 'Human' }
+  ];
+  initial.scenarios = [{ id: 'groups', name: 'Groups', controllerAssignments: initial.controllerAssignments }];
+  const h = harness(initial, async (url, options) => { requests.push(JSON.parse(options.body)); return { ok: true, json: async () => initial }; });
+  assert.equal(h.run('controllerSelects.size'), 3);
+  h.run('controllerSelects.get("goblin\\0red\\0road").value = "Gambit";');
+  await h.elements.get('start-scenario').listeners.click();
+  assert.deepEqual(requests[0].controllerAssignments.map(row => [row.groupId ?? null, row.controller]), [[null, 'Human'], ['gate', 'Default Behavior'], ['road', 'Gambit']]);
+  assert.match(h.elements.get('side-controllers').textContent, /Group gate/);
+  assert.equal(h.run('tokenIdentity({typeId:"goblin",sideId:"red"})'), 'goblin\0red');
+  assert.notEqual(h.run('tokenIdentity({typeId:"goblin",sideId:"red",groupId:"gate"})'), 'goblin\0red');
+  assert.match(h.run('orderLabel({kind:"GuardArea",area:{x:1,y:2,w:3,h:4}}, {types:[]})'), /Guard Area.*1,2.*3.*4/);
+  assert.match(h.run('orderLabel({kind:"PatrolRoute",route:{routeId:"track",currentIndex:1,direction:-1}}, {types:[],routes:[{id:"track",mode:"PingPong",waypointIds:["a","b"]}]})'), /Patrol Route.*waypoint 2\/2/);
+});

@@ -55,7 +55,7 @@
           <button data-open-world-generator>Generate world terrain</button>
         </div>
         <div id="side-controllers" class="toolbar" aria-label="Controllers for selected scenario Sides"></div>
-        <p class="legend">Assign each Unit Type + Side before starting or restarting. Side defaults are shortcuts; Gambit assignments must stay on one Side. Gambit dice and sole legal choices resolve automatically.</p>
+        <p class="legend">Assign each Unit Type + Side + Group before starting or restarting. Side defaults are shortcuts; Gambit assignments must stay on one Side. Gambit dice and sole legal choices resolve automatically.</p>
         <div class="toolbar scenario-import" aria-label="Import scenario">
           <label for="scenario-transport">DELVE1 scenario</label>
           <textarea id="scenario-transport" rows="2" placeholder="Paste DELVE1:..." spellcheck="false"></textarea>
@@ -250,7 +250,7 @@
         <div id="designer-loot-editor"></div><h2>World Effects</h2><form id="designer-world-form" class="designer-property-form"><label><input id="designer-world-enabled" type="checkbox"> Use World Effects</label><label>Cards per Round <input id="designer-world-draws" type="number" value="1" disabled></label><label>Cycling N <input id="designer-world-cycling" type="number" value="1" disabled></label><button>Apply World Effects</button></form>
         <h2>Unit Type order</h2><p class="legend">First placement appends a Type. Deleting Units retains declarations.</p><ol id="designer-order"></ol><form id="designer-declare-form" class="designer-property-form"><label>Declare unplaced Type <select id="designer-declare-type"></select></label><button>Declare</button></form>
       </section>
-      <section data-designer-panel="groups" hidden><h2>Sides &amp; groups</h2><p class="legend">One controller and starting Order per Unit Type + Side. Apply each group together.</p><div id="designer-agency"></div><h3>Add a group</h3><form id="designer-agency-form" class="designer-property-form"><label>Unit Type <select id="designer-agency-type"></select></label><label>Side <input id="designer-agency-side" list="designer-sides" value="side-1"></label><label>Controller <select id="designer-agency-controller"></select></label><button>Add / update pair</button></form></section>
+      <section data-designer-panel="groups" hidden><h2>Sides &amp; groups</h2><p class="legend">One controller and starting Order per Unit Type + Side + Group. Blank Group ID supplies Type + Side setup defaults; named groups can override them. Apply each group together.</p><div id="designer-agency"></div><h3>Add a group</h3><form id="designer-agency-form" class="designer-property-form"><label>Unit Type <select id="designer-agency-type"></select></label><label>Side <input id="designer-agency-side" list="designer-sides" value="side-1"></label><label>Controller <select id="designer-agency-controller"></select></label><button>Add / update group</button></form></section>
       <section data-designer-panel="sides" hidden><h2>Side relationships &amp; Objectives</h2><p class="legend">Each Side has one Objective. Select a Side to edit its goal and highlight its selected Units and area.</p><div id="designer-side-settings"></div></section>
       <section data-designer-panel="routes" hidden><h2>Waypoints &amp; Routes</h2><p class="legend">Create rectangular Waypoints, assemble a shared Route, then assign it in Groups.</p><div id="designer-routes"></div></section>
       <section data-designer-panel="document" hidden><h2>Shared scenario library</h2>

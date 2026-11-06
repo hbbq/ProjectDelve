@@ -224,7 +224,8 @@ public sealed class DesignerApiTests
             Assert.Equal(type.DisplayName, entry.GetProperty("displayName").GetString());
             Assert.Equal(FootprintGeometry.OccupiedCells(type.Footprint, new(0, 0)),
                 entry.GetProperty("footprintOffsets").Deserialize<Cell[]>(Json));
-            Assert.Equal(new[] { "unitTypeId", "displayName", "maxHp", "footprintOffsets", "cellSpan", "resourceStorage", "definition" }, entry.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(new[] { "unitTypeId", "displayName", "maxHp", "footprintOffsets", "cellSpan", "resourceStorage", "definition", "defaultWakeDistance" }, entry.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(type.WakeDistance ?? DormantRules.DefaultWakeDistance, entry.GetProperty("defaultWakeDistance").GetInt32());
             Assert.True(JsonElement.DeepEquals(JsonSerializer.SerializeToElement(type, Json), entry.GetProperty("definition")));
             Assert.Equal(JsonSerializer.SerializeToElement(type.ResourceStorage, Json).GetRawText(), entry.GetProperty("resourceStorage").GetRawText());
         }

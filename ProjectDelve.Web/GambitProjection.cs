@@ -16,6 +16,10 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
     GambitStats EffectiveStats, IReadOnlyList<GambitAbilityUse> LimitedUses)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? GroupId { get; init; }
+    public bool Dormant { get; init; }
+    public int WakeDistance { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ObjectDisplay>? Inventory { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<GambitGrantedAbility>? Abilities { get; init; }
@@ -30,7 +34,8 @@ public sealed record GambitGrantedAbility(GambitAbility Content, string Source,
     int CopyCount);
 public sealed record GambitType(string Id, string Name, Footprint Footprint, GambitStats Stats, int Hp,
     IReadOnlyList<GambitAbility> Abilities);
-public sealed record GambitBagEntry(string TypeId, string SideId, int Count);
+public sealed record GambitBagEntry(string TypeId, string SideId, int Count,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? GroupId = null);
 public sealed record GambitWorldEffects(int CardsPerRound, int Cycling, int DrawPileCount, int DiscardPileCount,
     IReadOnlyList<BrowserWorldCard> ActiveContinuous,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BrowserWorldCard? ResolvingCard);
@@ -223,22 +228,23 @@ internal static class GambitProjection
             var individualAbilities = entries.Where(e => e.Source != "Native" || !typeEntryIds.Contains(e.Content.Id))
                 .Select(e => new GambitGrantedAbility(new(e.Content.Id, e.Content.Name, e.Content.Category, e.Content.Description, e.Content.MaxUses),
                     e.Source, e.SourceName, e.SourceTypeId, e.SourceInstanceId, e.AccountingId, e.CopyCount)).ToArray();
-            var token = new ActivationToken(unit.TypeId, unit.SideId);
+            var token = unit.Token;
             var agency = unit.SideId != bindingSide ? (state.AreHostile(bindingSide, unit.SideId) ? GambitAgency.Hostile : GambitAgency.Neutral)
                 : controllerBindings.GetValueOrDefault(token) == "Gambit" ? GambitAgency.Direct : GambitAgency.Allied;
             return new GambitUnit(unit.Id, unit.TypeId, unit.SideId, agency, unit.CurrentHp, type.Hp,
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
-                { Abilities = individualAbilities.Length == 0 ? null : individualAbilities,
+                { GroupId = unit.GroupId, Dormant = unit.Dormant, WakeDistance = unit.WakeDistance,
+                    Abilities = individualAbilities.Length == 0 ? null : individualAbilities,
                     Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
         }).ToArray();
         var types = state.Types.Where(type => state.Units.Any(unit => unit.TypeId == type.Id)).Select(type => new GambitType(type.Id, type.DisplayName ?? type.Id, type.Footprint,
             new(type.Mov, type.Rng, type.Atk, type.Def), type.Hp,
             type.CardEntries(state.Types).Select(entry => new GambitAbility(entry.Id, entry.Name, entry.Category,
                 entry.Description, entry.MaxUses)).ToArray())).ToArray();
-        var bag = state.Bag.GroupBy(token => token).OrderBy(group => group.Key.SideId).ThenBy(group => group.Key.TypeId)
-            .Select(group => new GambitBagEntry(group.Key.TypeId, group.Key.SideId, group.Count())).ToArray();
+        var bag = state.Bag.GroupBy(token => token).OrderBy(group => group.Key.SideId).ThenBy(group => group.Key.TypeId).ThenBy(group => group.Key.GroupId, StringComparer.Ordinal)
+            .Select(group => new GambitBagEntry(group.Key.TypeId, group.Key.SideId, group.Count(), group.Key.GroupId)).ToArray();
         var activation = new GambitActivation(state.ActiveToken, state.CurrentUnitId, state.CompletedUnitIds.ToArray(), state.MoveDone,
             state.ActionsUsedThisActivation, state.ActionsRemaining,
             new SortedDictionary<string, int>(state.BonusActionUseCountsThisActivation), state.ModifiersThisTurn.ToArray(),

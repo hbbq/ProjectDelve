@@ -35,7 +35,9 @@ internal static class TestGame
         var required = graph.Closure(roots).Where(d => d.Family == ContentFamily.Unit).Select(d => d.TypeId).ToHashSet();
         state.Types.AddRange(available.Where(t => required.Contains(t.Id) && !state.Types.Any(existing => existing.Id == t.Id)));
         state.ActivationTypeOrder = order.Concat(state.Units.Select(u => u.TypeId)).Distinct().ToList();
-        foreach (var group in state.Units.Select(u => new ActivationToken(u.TypeId, u.SideId)).Distinct())
+        if (state.ActiveToken is { } active && state.ResolvingTokenUnitIds.Count == 0)
+            state.ResolvingTokenUnitIds = state.Units.Where(u => u.Token == active && u.CurrentHp > 0).Select(u => u.Id).ToHashSet();
+        foreach (var group in state.Units.Select(u => u.Token).Distinct())
             if (!state.Controllers.Any(c => c.Token == group)) state.Controllers.Add(new(group, ControllerKind.Human));
     }
     internal static EngineResult StartRound(GameState state, IRandomProvider random, bool autoChooseSingleRelevantChoice = true)

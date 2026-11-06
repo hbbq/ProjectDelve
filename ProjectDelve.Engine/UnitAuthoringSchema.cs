@@ -37,6 +37,7 @@ public static class UnitAuthoringSchema
             [new("unique", MechanicParameterKind.Boolean), EnumField("footprint", Enum.GetNames<Footprint>()),
                 new("canHaveItems", MechanicParameterKind.Boolean), new("canHaveEquipment", MechanicParameterKind.Boolean),
                 Integer("lootDropSuccesses", MinimumDropSuccesses, MaximumDropSuccesses),
+                Optional(Integer("wakeDistance", 0)),
                 Optional(EnumField("movementPattern", Enum.GetNames<MovementPattern>())),
                 Optional(Object("terrainRestrictedMovement", EnumField("terrain", terrains))),
                 Optional(Object("terrainRestriction", List("categories", Text("category"), 1))),

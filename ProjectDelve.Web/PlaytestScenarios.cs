@@ -30,12 +30,12 @@ public sealed record ScenarioDescription(string Id, string Name, string Descript
         return entry with
         {
             SideHues = ReadOnly(entry.SideHues.ToDictionary(p => p.Key, p => p.Value)),
-            Controllers = ReadOnly(definition.Agency.GroupBy(a => a.SideId).ToDictionary(g => g.Key,
+            Controllers = ReadOnly(ScenarioGroups.Controllers(definition).GroupBy(a => a.SideId).ToDictionary(g => g.Key,
                 g => g.All(a => a.Controller == ControllerKind.Human) ? "Human" : "Default Behavior")),
-            ControllerAssignments = Array.AsReadOnly(definition.Agency.Select(a => new ControllerSelection(a.UnitTypeId,
-                a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior")).ToArray()),
+            ControllerAssignments = Array.AsReadOnly(ScenarioGroups.Controllers(definition).Select(a => new ControllerSelection(a.UnitTypeId,
+                a.SideId, a.Controller == ControllerKind.Human ? "Human" : "Default Behavior", a.GroupId)).ToArray()),
             UnitTypeNames = ReadOnly(types.ToDictionary(t => t.Id, t => t.DisplayName ?? t.Id)),
-            InitiallyPresentTokens = Array.AsReadOnly(definition.Units.Select(u => new ActivationToken(u.UnitTypeId, u.SideId)).Distinct().ToArray()),
+            InitiallyPresentTokens = Array.AsReadOnly(definition.Units.Select(u => new ActivationToken(u.UnitTypeId, u.SideId, u.GroupId)).Distinct().ToArray()),
             SideIds = Array.AsReadOnly(definition.Agency.Select(a => a.SideId).Distinct().ToArray())
         };
     }
@@ -51,6 +51,7 @@ public static class PlaytestScenarios
     // ScenarioLibrary and host Workspace/JSON providers. Its immutable snapshots may
     // be shared; each separately resolved content context must capture its own metadata.
     public static IReadOnlyList<ScenarioDescription> Catalog { get; } = CaptureCatalog([
+        new("groups-and-dormant", "Groups, Dormant & Patrols", "Explore east from the Heroes: the camp and road Goblins activate independently. Dormant markers wake by proximity or when targeted by an Attack. An Archer guards at range, a Shaman favors safety, and Zombies sleep behind the house Door. No victory objective; use Designer to inspect or adjust the demonstration."),
         new("loot-equipment", "Loot & Equipment", "Collect mysterious Loot, try individual Equipment, ring the Goat Bell and recover objects from defeated Units. No victory objective."),
         new("chess", "Chess", "Defeat the opposing King."),
         new("delve-chess-peasants-rooks", "Delve Chess — Peasants and Rooks", "Two courts test straight Rook Moves, diagonal melee and Advance On Kill around Walls, Windows and Doors. A neutral Rogue opens Doors. Change controllers to compare manual and automated play."),
@@ -99,6 +100,7 @@ public static class PlaytestScenarios
 
     private static ScenarioDefinition AuthoredDefinition(string id) => id switch
     {
+        "groups-and-dormant" => GroupsAndDormantScenario.Definition(),
         "loot-equipment" => LootPlaytestScenario.Definition(),
         "chess" => DelveChessScenario.ChessDefinition(),
         "delve-chess-peasants-rooks" => DelveChessScenario.Definition(),

@@ -3,9 +3,17 @@ namespace ProjectDelve.Engine;
 internal static class OrderValidation
 {
     internal static bool IsStructurallyValid(GroupOrder order, GameState state) =>
-        order is not null && (order.Kind == OrderKind.FollowRoute
-            ? order.Destination is null && order.Target is null && RouteRules.IsValid(order.Route, state)
-            : order.Route is null && IsStructurallyValid(order.Kind, order.Destination, order.Target, state.Physical.Board));
+        order is not null && (order.Kind switch
+        {
+            OrderKind.GuardArea => order.Destination is null && order.Target is null && order.Route is null &&
+                ValidArea(order.Area, state.Physical.Board),
+            OrderKind.FollowRoute or OrderKind.PatrolRoute => order.Destination is null && order.Target is null && order.Area is null &&
+                RouteRules.IsValid(order.Route, state),
+            _ => order.Area is null && order.Route is null && IsStructurallyValid(order.Kind, order.Destination, order.Target, state.Physical.Board)
+        });
+
+    private static bool ValidArea(ObjectiveArea? area, Board board) => area is { X: >= 0, Y: >= 0, W: > 0, H: > 0 } a &&
+        (long)a.X + a.W <= board.Width && (long)a.Y + a.H <= board.Height;
 
     internal static bool IsStructurallyValid(OrderKind kind, Cell? destination, OrderTarget? target, Board board)
     {
@@ -52,7 +60,7 @@ internal static class OrderValidation
         if (!Enum.IsDefined(target.Kind)) return false;
         var unit = !string.IsNullOrWhiteSpace(target.UnitId);
         var group = target.Group is { } token && !string.IsNullOrWhiteSpace(token.TypeId) &&
-            !string.IsNullOrWhiteSpace(token.SideId);
+            !string.IsNullOrWhiteSpace(token.SideId) && (token.GroupId is null || !string.IsNullOrWhiteSpace(token.GroupId));
         var side = !string.IsNullOrWhiteSpace(target.SideId);
         var door = target.Door is not null;
         return target.Kind switch

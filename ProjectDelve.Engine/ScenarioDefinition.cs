@@ -59,10 +59,11 @@ public sealed record CellDefinition(Cell Position, TerrainKind Terrain, RailDire
 public enum EdgeDirection { Right, Down }
 public sealed record EdgeDefinition(Cell Position, EdgeDirection Direction, EdgeKind Kind);
 public sealed record UnitPlacement(string UnitTypeId, string SideId, Cell Anchor,
-    Posture Posture = Posture.Upright, int? InitialHp = null, string? UnitId = null)
+    Posture Posture = Posture.Upright, int? InitialHp = null, string? UnitId = null, string? GroupId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Dormant = false, int? WakeDistance = null)
 {
     public List<OwnedObject>? Inventory { get; init; }
 }
-public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller);
+public sealed record AgencyAssignment(string UnitTypeId, string SideId, ControllerKind Controller, string? GroupId = null);
 public sealed record InitialGroupOrder(string UnitTypeId, string SideId, OrderKind Kind, Cell? Destination = null,
-    OrderTarget? Target = null, FollowRoute? Route = null);
+    OrderTarget? Target = null, FollowRoute? Route = null, string? GroupId = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ObjectiveArea? Area = null);

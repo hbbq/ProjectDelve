@@ -83,7 +83,8 @@ export function cameraHumanSides(assignments = []) { return [...new Set(assignme
 export function cameraOwnHuman(frame, unitId, side, assignments = []) {
   const unit = frame.units.find(u => u.id === unitId);
   return !!unit && unit.sideId === side && cameraFootprint(frame, unitId).length > 0 &&
-    assignments.some(a => a.sideId === side && (!a.typeId || a.typeId === unit.typeId) && a.controller === "Human");
+    assignments.some(a => a.sideId === side && (!a.typeId || a.typeId === unit.typeId &&
+      (a.groupId ?? null) === (unit.groupId ?? null)) && a.controller === "Human");
 }
 export function cameraAllowsFollow(preferences, suspended, intent, side) {
   return !!intent && preferences.mode !== "full" && !suspended && preferences.follow !== "off" &&

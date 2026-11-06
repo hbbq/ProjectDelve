@@ -19,7 +19,7 @@ public sealed record GameCommand
     public List<ControllerSelection>? ControllerAssignments { get; init; }
     public bool? AutoChooseSingleRelevantChoice { get; init; }
 }
-public sealed record ControllerSelection(string TypeId, string SideId, string Controller);
+public sealed record ControllerSelection(string TypeId, string SideId, string Controller, string? GroupId = null);
 public sealed record CommandAcceptance(string CommandId, string SessionId, bool Accepted);
 public sealed record GameUpdate(string SessionId, long Sequence, string Kind, string Status,
     long Revision, string? DecisionId, GameResponse Snapshot, string? CommandId = null, string? Error = null,

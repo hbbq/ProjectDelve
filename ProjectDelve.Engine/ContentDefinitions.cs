@@ -90,7 +90,7 @@ public static class ContentDefinitions
             throw new ArgumentException("World Deck composition requires known unique Type IDs and quantities from 1 to 1000 (at most 6000 cards).");
     }
 
-    internal static bool InvalidUnitStructure(UnitType t) => t.LocalAbilities.IsDefault || t.LocalAbilities.Any(a => a is null) || !Enum.IsDefined(t.Footprint) || t.Mov < UnitAuthoringSchema.MinimumStat || t.Rng < UnitAuthoringSchema.MinimumStat || t.Atk < UnitAuthoringSchema.MinimumStat || t.Def < UnitAuthoringSchema.MinimumStat || t.Hp < UnitAuthoringSchema.MinimumHp || (t.Hp > 1 && !t.Unique) ||
+    internal static bool InvalidUnitStructure(UnitType t) => t.WakeDistance < 0 || t.LocalAbilities.IsDefault || t.LocalAbilities.Any(a => a is null) || !Enum.IsDefined(t.Footprint) || t.Mov < UnitAuthoringSchema.MinimumStat || t.Rng < UnitAuthoringSchema.MinimumStat || t.Atk < UnitAuthoringSchema.MinimumStat || t.Def < UnitAuthoringSchema.MinimumStat || t.Hp < UnitAuthoringSchema.MinimumHp || (t.Hp > 1 && !t.Unique) ||
         (t.Actions & ~UnitAction.NormalAttack) != 0 || (t.Mechanic<RunRails>() is not null && t.Footprint != Footprint.OneByOne) ||
         (t.Behaviors & ~UnitAuthoringSchema.SupportedBehaviors) != 0 || t.AttackDefinitionOrder.IsDefault ||
         t.AttackDefinitionOrder.Any(a => !UnitAuthoringSchema.AttackActions.Contains(a)) ||
@@ -103,6 +103,7 @@ public static class ContentDefinitions
         { if (!valid) throw ScenarioValidationContext.At(new ArgumentException(message), path); }
         Require(!string.IsNullOrWhiteSpace(type.Id), "id", "A Unit Type requires a stable nonblank ID.");
         Require(type.DisplayName is null || !string.IsNullOrWhiteSpace(type.DisplayName), "displayName", "A supplied display name cannot be blank.");
+        Require(type.WakeDistance is null or >= 0, "wakeDistance", "WakeDistance must be a nonnegative integer or omitted.");
         foreach (var (path, value) in new[] { ("mov", type.Mov), ("rng", type.Rng), ("atk", type.Atk), ("def", type.Def) })
             Require(value >= UnitAuthoringSchema.MinimumStat, path, "Base stats must be nonnegative integers.");
         Require(type.Hp >= UnitAuthoringSchema.MinimumHp, "hp", "HP must be at least 1.");

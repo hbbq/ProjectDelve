@@ -75,7 +75,8 @@ internal static class ScenarioCreation
         {
             var unit = definition.Units[index];
             if (unit is null || string.IsNullOrWhiteSpace(unit.UnitTypeId) || string.IsNullOrWhiteSpace(unit.SideId) ||
-                unit.Anchor is null || !Enum.IsDefined(unit.Posture) ||
+                unit.GroupId is not null && string.IsNullOrWhiteSpace(unit.GroupId) ||
+                unit.Anchor is null || unit.WakeDistance < 0 || !Enum.IsDefined(unit.Posture) ||
                 unit.UnitId is not null && string.IsNullOrWhiteSpace(unit.UnitId))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Unit placement data.", nameof(definition)), $"units[{index}]");
             if (!declared.Contains(unit.UnitTypeId))
@@ -85,29 +86,33 @@ internal static class ScenarioCreation
             .Select(unit => unit.UnitId!).ToHashSet(StringComparer.Ordinal);
         if (authoredUnitIds.Count != definition.Units.Count(unit => unit.UnitId is not null))
             throw new ArgumentException("Authored Unit IDs must be unique.", nameof(definition));
-        HashSet<(string, string)> seenAgency = [];
+        HashSet<(string, string, string?)> seenAgency = [];
         for (var index = 0; index < definition.Agency.Count; index++)
         {
             var agency = definition.Agency[index];
             if (agency is null || string.IsNullOrWhiteSpace(agency.UnitTypeId) || string.IsNullOrWhiteSpace(agency.SideId) ||
+                agency.GroupId is not null && string.IsNullOrWhiteSpace(agency.GroupId) ||
                 !Enum.IsDefined(agency.Controller) || !declared.Contains(agency.UnitTypeId))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid agency assignment; its Unit Type must be declared.", nameof(definition)), $"agency[{index}]");
-            if (!seenAgency.Add((agency.UnitTypeId, agency.SideId)))
+            if (!seenAgency.Add((agency.UnitTypeId, agency.SideId, agency.GroupId)))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate agency assignment for Unit Type + Side.", nameof(definition)), $"agency[{index}]");
         }
         for (var index = 0; index < definition.Units.Count; index++)
-            if (!definition.Agency.Any(a => a.UnitTypeId == definition.Units[index].UnitTypeId && a.SideId == definition.Units[index].SideId))
+            if (!definition.Agency.Any(a => a.UnitTypeId == definition.Units[index].UnitTypeId && a.SideId == definition.Units[index].SideId &&
+                (a.GroupId == definition.Units[index].GroupId || a.GroupId is null)))
                 throw ScenarioValidationContext.At(new ArgumentException("Every initial Unit Type + Side needs an explicit agency assignment.", nameof(definition)), $"units[{index}]");
 
         var orders = definition.Orders ?? [];
-        HashSet<(string, string)> seenOrders = [];
+        HashSet<(string, string, string?)> seenOrders = [];
         for (var index = 0; index < orders.Count; index++)
         {
             var order = orders[index];
             if (order is null || string.IsNullOrWhiteSpace(order.UnitTypeId) || string.IsNullOrWhiteSpace(order.SideId) ||
-                !definition.Agency.Any(a => a.UnitTypeId == order.UnitTypeId && a.SideId == order.SideId))
+                order.GroupId is not null && string.IsNullOrWhiteSpace(order.GroupId) ||
+                !definition.Agency.Any(a => a.UnitTypeId == order.UnitTypeId && a.SideId == order.SideId &&
+                    (a.GroupId == order.GroupId || a.GroupId is null)))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Order assignment or group.", nameof(definition)), $"orders[{index}]");
-            if (!seenOrders.Add((order.UnitTypeId, order.SideId)))
+            if (!seenOrders.Add((order.UnitTypeId, order.SideId, order.GroupId)))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate Order assignment for Unit Type + Side.", nameof(definition)), $"orders[{index}]");
         }
 
@@ -188,8 +193,12 @@ internal static class ScenarioCreation
             Waypoints = [.. definition.Waypoints ?? []], Routes = [.. definition.Routes ?? []],
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
-            Controllers = definition.Agency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId), a.Controller)).ToList()
+            Controllers = ScenarioGroups.Controllers(definition).Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId, a.GroupId), a.Controller)).ToList()
         };
+        // Setup defaults are copied once into each independently controlled identity.
+        var identities = definition.Units.Select(u => new ActivationToken(u.UnitTypeId, u.SideId, u.GroupId))
+            .Concat(definition.Agency.Select(a => new ActivationToken(a.UnitTypeId, a.SideId, a.GroupId)))
+            .Concat(orders.Select(o => new ActivationToken(o.UnitTypeId, o.SideId, o.GroupId))).Distinct().ToList();
         try
         {
             state.WorldDeck = definition.WorldEffects is null ? null
@@ -223,7 +232,8 @@ internal static class ScenarioCreation
                 throw ScenarioValidationContext.At(new ArgumentException($"InitialHp for placement {index} must be between 1 and {type.Hp}.", nameof(definition)), $"units[{index}]");
             // Preserve existing deterministic IDs when free, while reserving every authored identity first.
             var id = initialUnitIds[index];
-            try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture); }
+            try { state.PlaceUnit(type.Id, id, placement.SideId, placement.Anchor, placement.Posture, placement.GroupId,
+                placement.Dormant, placement.WakeDistance); }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"units[{index}]"); }
             if (placement.InitialHp is { } initialHp) state.Units[^1] = state.Units[^1] with { CurrentHp = initialHp };
             state.Units[^1] = state.Units[^1] with { Inventory = [.. placement.Inventory ?? []] };
@@ -238,15 +248,16 @@ internal static class ScenarioCreation
             }
             catch (ArgumentException error) { throw ScenarioValidationContext.At(error, $"cellMarkers[{index}]"); }
         }
-        for (var index = 0; index < orders.Count; index++)
+        foreach (var token in identities)
         {
-            var order = orders[index];
-            var runtimeOrder = new GroupOrder(new(order.UnitTypeId, order.SideId), order.Kind,
-                order.Destination, order.Target, order.Route);
+            var order = orders.SingleOrDefault(o => o.UnitTypeId == token.TypeId && o.SideId == token.SideId && o.GroupId == token.GroupId)
+                ?? orders.SingleOrDefault(o => o.UnitTypeId == token.TypeId && o.SideId == token.SideId && o.GroupId is null);
+            if (order is null) continue;
+            var runtimeOrder = new GroupOrder(token, order.Kind, order.Destination, order.Target, order.Route, order.Area);
             if (!OrderValidation.IsValidAssignment(runtimeOrder, state))
                 throw ScenarioValidationContext.At(new ArgumentException(
-                    "Invalid Order kind, target, destination, or target relationship.", nameof(definition)), $"orders[{index}]");
-            state.AssignOrder(runtimeOrder.Token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target, runtimeOrder.Route);
+                    "Invalid Order kind, target, destination, or target relationship.", nameof(definition)), $"orders[{orders.IndexOf(order)}]");
+            state.AssignOrder(token, runtimeOrder.Kind, runtimeOrder.Destination, runtimeOrder.Target, runtimeOrder.Route, runtimeOrder.Area);
         }
         ValidateObjectiveSelections(state, definition);
         GameEngine.CaptureObjectiveStartUnits(state);
@@ -271,12 +282,12 @@ internal static class ScenarioCreation
             foreach (var selector in objective.Selectors.IsDefault ? [] : objective.Selectors)
                 valid &= selector is not null && (selector.Kind switch
                 {
-                    UnitSelectorKind.Unit => selector.SideId is null && selector.UnitTypeId is null &&
+                    UnitSelectorKind.Unit => selector.SideId is null && selector.UnitTypeId is null && selector.GroupId is null &&
                                              state.Units.Any(u => u.Id == selector.UnitId),
-                    UnitSelectorKind.SideAtStart => selector.UnitId is null && selector.UnitTypeId is null &&
+                    UnitSelectorKind.SideAtStart => selector.UnitId is null && selector.UnitTypeId is null && selector.GroupId is null &&
                                                     state.Controllers.Any(c => c.Token.SideId == selector.SideId),
                     UnitSelectorKind.Group => selector.UnitId is null &&
-                                             state.Controllers.Any(c => c.Token.SideId == selector.SideId && c.Token.TypeId == selector.UnitTypeId),
+                                             state.Controllers.Any(c => c.Token.SideId == selector.SideId && c.Token.TypeId == selector.UnitTypeId && c.Token.GroupId == selector.GroupId),
                     _ => false
                 });
             if (!valid) throw ScenarioValidationContext.At(new ArgumentException("Invalid Objective count, selectors, references, or area.", nameof(definition)),

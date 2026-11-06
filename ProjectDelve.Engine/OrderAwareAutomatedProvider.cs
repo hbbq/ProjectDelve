@@ -2,7 +2,7 @@ namespace ProjectDelve.Engine;
 
 // Resolves the group's standing Order while retaining established Unit Type behavior
 // for every choice the Order does not override.
-public sealed class OrderAwareAutomatedProvider : IDecisionProvider
+public sealed partial class OrderAwareAutomatedProvider : IDecisionProvider
 {
     private readonly DefaultAutomatedProvider normal = new();
     private sealed record RankedMove(Candidate Candidate, int? Remaining, int Length);
@@ -16,6 +16,8 @@ public sealed class OrderAwareAutomatedProvider : IDecisionProvider
         var order = queries.EffectiveOrderFor(request.UnitId);
         if (order.Kind != OrderKind.DoNothing && queries.BehaviorsOf(request.UnitId).HasFlag(UnitBehavior.Worker))
             return normal.Choose(request, queries);
+        if (order.Kind is OrderKind.GuardArea or OrderKind.PatrolRoute)
+            return ChooseAreaOrder(request, queries, order);
         if (order.Kind == OrderKind.FollowRoute)
             return ChooseOrdinaryMovement(request, queries, (_, _) => RouteRules.ChooseMove(request, queries, order.Route!));
         return order.Kind switch

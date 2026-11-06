@@ -103,8 +103,8 @@ public sealed partial class PlaytestGame : IDisposable
         (left.Controllers is null ? right.Controllers is null : right.Controllers is not null &&
             left.Controllers.Count == right.Controllers.Count && left.Controllers.All(p => right.Controllers.GetValueOrDefault(p.Key) == p.Value)) &&
         (left.ControllerAssignments is null ? right.ControllerAssignments is null : right.ControllerAssignments is not null &&
-            left.ControllerAssignments.OrderBy(a => a?.TypeId).ThenBy(a => a?.SideId).ThenBy(a => a?.Controller)
-                .SequenceEqual(right.ControllerAssignments.OrderBy(a => a?.TypeId).ThenBy(a => a?.SideId).ThenBy(a => a?.Controller)));
+            left.ControllerAssignments.OrderBy(a => a?.TypeId).ThenBy(a => a?.SideId).ThenBy(a => a?.GroupId).ThenBy(a => a?.Controller)
+                .SequenceEqual(right.ControllerAssignments.OrderBy(a => a?.TypeId).ThenBy(a => a?.SideId).ThenBy(a => a?.GroupId).ThenBy(a => a?.Controller)));
     private GameResponse Legacy(GameCommand request)
     {
         Work item;
@@ -174,12 +174,12 @@ public sealed partial class PlaytestGame : IDisposable
             if (request.Operation == "restart" && FogOfWar.ViewingSide(state) is { } viewingSide &&
                 request.ControllerAssignments is { } observedAssignments &&
                 observedAssignments.All(a => a is not null && a.SideId == viewingSide) &&
-                observedAssignments.Select(a => new ActivationToken(a.TypeId, a.SideId)).Distinct().Count() == observedAssignments.Count)
+                observedAssignments.Select(a => new ActivationToken(a.TypeId, a.SideId, a.GroupId)).Distinct().Count() == observedAssignments.Count)
             {
-                var merged = ControllerAssignmentsFor(state).ToDictionary(a => new ActivationToken(a.TypeId, a.SideId));
+                var merged = ControllerAssignmentsFor(state).ToDictionary(a => new ActivationToken(a.TypeId, a.SideId, a.GroupId));
                 foreach (var assignment in observedAssignments)
                 {
-                    var token = new ActivationToken(assignment.TypeId, assignment.SideId);
+                    var token = new ActivationToken(assignment.TypeId, assignment.SideId, assignment.GroupId);
                     if (!merged.ContainsKey(token)) throw Error(400, "Assign controllers to existing Unit Type + Side groups.");
                     merged[token] = assignment;
                 }

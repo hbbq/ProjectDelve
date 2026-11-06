@@ -5,6 +5,9 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    IReadOnlyList<string> KnownHostileUnitIds(string unitId) => throw new NotSupportedException();
+    int FootprintDistanceToArea(string unitId, Cell position, ObjectiveArea area) => throw new NotSupportedException();
+    int? WholeFootprintRouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false) => throw new NotSupportedException();
     Route RouteDefinition(string id) => throw new NotSupportedException();
     ObjectiveArea WaypointArea(string id) => throw new NotSupportedException();
     TerrainKind TerrainAt(Cell cell) => throw new NotSupportedException();
@@ -78,6 +81,41 @@ public interface IGameplayQueries
 
 internal sealed class GameplayQueries : IGameplayQueries
 {
+    public IReadOnlyList<string> KnownHostileUnitIds(string unitId)
+    {
+        var actor = world.Units.Single(u => u.Id == unitId);
+        return world.Units.Where(u => u.CurrentHp > 0 && world.AreHostile(actor.SideId, u.SideId) &&
+                Knows(unitId, u.Id) && world.Physical.Figures.Any(f => f.Id == u.Id))
+            .Select(u => u.Id).ToArray();
+    }
+    public int FootprintDistanceToArea(string unitId, Cell position, ObjectiveArea area) =>
+        FootprintGeometry.OccupiedCells(FootprintGeometry.FootprintOf(world, unitId), position)
+            .Max(c => Math.Max(area.X - c.X, Math.Max(0, c.X - (area.X + area.W - 1))) +
+                Math.Max(area.Y - c.Y, Math.Max(0, c.Y - (area.Y + area.H - 1))));
+    public int? WholeFootprintRouteDistanceToArea(string unitId, Cell position, ObjectiveArea area, bool closedDoorsTraversable = false)
+    {
+        HypotheticalPosition.Validate(world, unitId, position);
+        var distances = areaReturnFields.GetOrAdd((unitId, area, closedDoorsTraversable), static (key, queries) => new(() =>
+        {
+            var board = queries.world.Physical.Board;
+            var footprint = FootprintGeometry.FootprintOf(queries.world, key.Actor);
+            var traversal = MovementTraversal.For(queries.world, key.Actor, key.ClosedDoors);
+            IEnumerable<Cell> Goals()
+            {
+                for (var y = key.Area.Y; y < (long)key.Area.Y + key.Area.H; y++)
+                for (var x = key.Area.X; x < (long)key.Area.X + key.Area.W; x++)
+                {
+                    var anchor = new Cell(x, y);
+                    if (FootprintGeometry.OccupiedCells(footprint, anchor).All(c => RouteRules.Contains(key.Area, c) &&
+                            (traversal.KnownCells is null || traversal.KnownCells.Contains(c))) &&
+                        SpatialRules.Fits(board, footprint, anchor) && SpatialRules.Fits(board, footprint, anchor, traversal))
+                        yield return anchor;
+                }
+            }
+            return ApproachRules.DistancesTo(board, Goals(), traversal, footprint);
+        }), this).Value;
+        return distances.TryGetValue(position, out var distance) ? distance : null;
+    }
     public int EffectiveDefOf(string unitId) => world.EffectiveDefOf(unitId);
     public Route RouteDefinition(string id) => world.Routes.Single(r => r.Id == id);
     public ObjectiveArea WaypointArea(string id) => world.Waypoints.Single(w => w.Id == id).Area;
@@ -102,6 +140,9 @@ internal sealed class GameplayQueries : IGameplayQueries
     private readonly ConcurrentDictionary<(string Actor, string Target), bool> attackAvailability = new();
     private readonly ConcurrentDictionary<(string Actor, bool ClosedDoors), Lazy<IReadOnlyDictionary<Cell, int>>> approachFields = new();
     private readonly ConcurrentDictionary<(string Actor, bool ClosedDoors, string Target), Lazy<IReadOnlyDictionary<Cell, int>>> targetedApproachFields = new();
+    // A returning guard scores many legal destinations against one immutable area.
+    // Reverse traversal once per decision snapshot, rather than flood once per candidate.
+    private readonly ConcurrentDictionary<(string Actor, ObjectiveArea Area, bool ClosedDoors), Lazy<IReadOnlyDictionary<Cell, int>>> areaReturnFields = new();
 
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
@@ -160,7 +201,7 @@ internal sealed class GameplayQueries : IGameplayQueries
     public GroupOrder EffectiveOrderFor(string unitId)
     {
         var unit = world.Units.Single(u => u.Id == unitId);
-        return world.OrderFor(new(unit.TypeId, unit.SideId));
+        return world.OrderFor(unit.Token);
     }
 
     public int? RouteDistanceTo(string unitId, Cell position, Cell destination, bool closedDoorsTraversable = false)
@@ -179,7 +220,7 @@ internal sealed class GameplayQueries : IGameplayQueries
                 world.Physical.Figures.Any(f => f.Id == u.Id) && target.Kind switch
                 {
                     OrderTargetKind.Unit => u.Id == target.UnitId,
-                    OrderTargetKind.Group => u.TypeId == target.Group!.TypeId && u.SideId == target.Group.SideId,
+                    OrderTargetKind.Group => u.Token == target.Group!,
                     OrderTargetKind.Side => u.SideId == target.SideId,
                     _ => false
                 })

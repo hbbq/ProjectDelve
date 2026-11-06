@@ -87,7 +87,7 @@ public sealed partial class PlaytestGame
         .GroupBy(c => c.SideId).ToDictionary(g => g.Key, g => g.Select(c => c.Controller).Distinct().Count() == 1 ? g.First().Controller : "Mixed");
     private IReadOnlyList<ControllerSelection> ControllerAssignmentsFor(GameState current) => current.Controllers
         .Select(c => new ControllerSelection(c.Token.TypeId, c.Token.SideId,
-            controllerBindings.GetValueOrDefault(c.Token, c.Controller == ControllerKind.Human ? "Human" : "Default Behavior"))).ToArray();
+            controllerBindings.GetValueOrDefault(c.Token, c.Controller == ControllerKind.Human ? "Human" : "Default Behavior"), c.Token.GroupId)).ToArray();
     private void ApplyControllers(GameState created, IReadOnlyDictionary<string,string>? supplied, IReadOnlyList<ControllerSelection>? explicitAssignments = null)
     {
         if (supplied is not null && explicitAssignments is not null)
@@ -101,12 +101,12 @@ public sealed partial class PlaytestGame
             {
                 if (item is null || string.IsNullOrWhiteSpace(item.TypeId) || string.IsNullOrWhiteSpace(item.SideId) || string.IsNullOrWhiteSpace(item.Controller))
                     throw Error(400, "Controller assignments require Unit Type, Side and controller values.");
-                var token = new ActivationToken(item.TypeId, item.SideId);
+                var token = new ActivationToken(item.TypeId, item.SideId, item.GroupId);
                 if (!assignments.TryAdd(token, item.Controller))
-                    throw Error(400, "Controller assignments must not contain duplicate Unit Type + Side entries.");
+                    throw Error(400, "Controller assignments must not contain duplicate Unit Type + Side + Group entries.");
             }
             if (assignments.Count != tokens.Length || assignments.Keys.Any(token => !tokens.Contains(token)) || tokens.Any(token => !assignments.ContainsKey(token)))
-                throw Error(400, "Assign an available controller to every authored Unit Type + Side.");
+                throw Error(400, "Assign an available controller to every authored Unit Type + Side + Group.");
         }
         else if (supplied is not null)
         {
@@ -136,11 +136,11 @@ public sealed partial class PlaytestGame
         var updated = new Dictionary<ActivationToken, string>(controllerBindings);
         foreach (var assignment in additions)
         {
-            var created = result.State.Units.FirstOrDefault(unit => unit.TypeId == assignment.Token.TypeId && unit.SideId == assignment.Token.SideId);
+            var created = result.State.Units.FirstOrDefault(unit => unit.Token == assignment.Token);
             var occurrence = created is null ? null : result.Events.LastOrDefault(e => e.Kind == "UnitCreated" && e.UnitId == created.Id);
             var source = occurrence?.SourceUnitId is null ? null : result.State.Units.FirstOrDefault(unit => unit.Id == occurrence.SourceUnitId)
                 ?? previous.Units.FirstOrDefault(unit => unit.Id == occurrence.SourceUnitId);
-            var inherited = source is null ? null : updated.GetValueOrDefault(new ActivationToken(source.TypeId, source.SideId));
+            var inherited = source is null ? null : updated.GetValueOrDefault(source.Token);
             updated[assignment.Token] = inherited ?? (assignment.Controller == ControllerKind.Human ? "Human" : "Default Behavior");
         }
         controllerBindings = updated;

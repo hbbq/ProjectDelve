@@ -1637,3 +1637,20 @@ for(const presentation of ['flat','tabletop'])test(`${presentation} explicit fix
   now+=500;h.flush(now);assert.ok(Math.abs(g.threeSpanScale(c.size,1,c.current())/c.current().scale-10)<1e-8);h.viewport.settle();h.flush();assert.equal(h.frames.size,0);
  }finally{h.cleanup();}
 });
+
+for(const presentation of ['flat','tabletop'])test(`${presentation} labels preserve named group and Dormant state across waking`,async()=>{
+  const f=fixture(); const unit=f.state.units.find(u=>u.id==='hero');unit.groupId='camp';unit.dormant=true;unit.wakeDistance=4;
+  const h=await harness(f);
+  try{
+    h.viewport.setPresentation(presentation);h.viewport.camera.manual({x:2.5,y:2.5,scale:110});h.viewport.settle();h.flush();
+    let info=h.host.querySelector('.three-token-info');
+    assert.equal(info.dataset.groupId,'camp');assert.equal(info.dataset.dormant,'true');
+    assert.match(info.children[1].textContent,/\[camp\].*Zz/);assert.match(info.title,/Group camp.*Dormant.*Wake Distance 4/);
+    const root=h.rendered.at(-1).scene.getObjectByName('units').children[0];
+    assert.equal(root.userData.appearance.groupId,'camp');assert.equal(root.userData.appearance.dormant,true);
+    const awake=structuredClone(f);awake.state.units.find(u=>u.id==='hero').dormant=false;
+    h.viewport.renderFrame(awake);h.viewport.settle();h.flush();info=h.host.querySelector('.three-token-info');
+    assert.equal(info.dataset.dormant,'false');assert.match(info.children[1].textContent,/\[camp\]/);assert.doesNotMatch(info.children[1].textContent,/Zz/);assert.doesNotMatch(info.title,/Dormant/);
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});

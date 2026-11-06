@@ -129,6 +129,8 @@ let controllerSetupScenario;
 let controllerSetupSession;
 const controllerSelects = new Map();
 const controllerSideDefaults = new Map();
+const groupSuffix = id => id == null ? "" : ` \u00b7 Group ${id}`;
+const tokenIdentity = token => `${token.typeId}\0${token.sideId}${token.groupId == null ? "" : `\0${token.groupId}`}`;
 const controllerOptions = ["Human", "Default Behavior", "Gambit"];
 function controllerOptionSelect(label, includeMixed = false) {
   const select = document.createElement("select");
@@ -162,8 +164,8 @@ function renderControllerSetup(force = false) {
   const currentTypes = new Map((snapshot?.result.state.types ?? []).map(type => [type.id, type.displayName ?? type.id]));
   if (identity !== snapshot?.scenarioId) for (const [typeId, name] of Object.entries(selected?.unitTypeNames ?? {})) currentTypes.set(typeId, name);
   const initiallyPresent = new Set((identity === snapshot?.scenarioId
-    ? snapshot?.result.state.units?.map(unit => ({ typeId: unit.typeId, sideId: unit.sideId }))
-    : selected?.initiallyPresentTokens ?? []).map(token => `${token.typeId}\0${token.sideId}`));
+    ? snapshot?.result.state.units?.map(unit => ({ typeId: unit.typeId, sideId: unit.sideId, groupId: unit.groupId }))
+    : selected?.initiallyPresentTokens ?? []).map(token => tokenIdentity(token)));
   const assignmentsBySide = new Map();
   for (const assignment of assignments) {
     const side = assignmentsBySide.get(assignment.sideId) ?? [];
@@ -187,16 +189,16 @@ function renderControllerSetup(force = false) {
     sideLabel.append(sideDefault); group.append(sideLabel);
     for (const assignment of sideAssignments) {
       const typeName = currentTypes.get(assignment.typeId) ?? assignment.typeId ?? "Controller";
-      const absent = assignment.typeId && !initiallyPresent.has(`${assignment.typeId}\0${sideId}`) ? " (not initially present)" : "";
-      const label = text("label", `${typeName}${absent} `), select = controllerOptionSelect(`Controller for ${typeName} on Side ${sideId}`);
+      const absent = assignment.typeId && !initiallyPresent.has(tokenIdentity(assignment)) ? " (not initially present)" : "";
+      const label = text("label", `${typeName}${groupSuffix(assignment.groupId)}${absent} `), select = controllerOptionSelect(`Controller for ${typeName} on Side ${sideId}${groupSuffix(assignment.groupId)}`);
       select.value = assignment.controller ?? "Human";
       select.addEventListener("change", () => {
         if (select.value === "Gambit") for (const entry of controllerSelects.values())
           if (entry.sideId !== sideId && entry.value === "Gambit") entry.value = "Human";
         syncControllerSideDefaults();
       });
-      const key = assignment.typeId ? `${assignment.typeId}\0${sideId}` : sideId;
-      select.typeId = assignment.typeId; select.sideId = sideId;
+      const key = assignment.typeId ? tokenIdentity(assignment) : sideId;
+      select.typeId = assignment.typeId; select.sideId = sideId; select.groupId = assignment.groupId ?? null;
       controllerSelects.set(key, select);
       label.append(select); group.append(label);
     }
@@ -209,7 +211,7 @@ function setupControllers() {
   const entries = [...controllerSelects.values()];
   if (!entries.length) return {};
   if (entries.every(entry => entry.typeId)) return { controllerAssignments: entries.map(entry =>
-    ({ typeId: entry.typeId, sideId: entry.sideId, controller: entry.value })) };
+    ({ typeId: entry.typeId, sideId: entry.sideId, ...(entry.groupId == null ? {} : { groupId: entry.groupId }), controller: entry.value })) };
   return { controllers: Object.fromEntries(entries.map(entry => [entry.sideId, entry.value])) };
 }
 
@@ -645,7 +647,9 @@ function renderBoard(state, preserveNodes = false, machines = snapshot.presentat
     node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
     node.style.pointerEvents = "";
     node.dataset.unitId = figure.id;
+    if (unit?.dormant) { node.classList.add("dormant"); const marker = text("span", "Zz"); marker.className = "dormant-marker"; node.append(marker); }
     node.title = `${displayedCards[figure.id]?.playerName ?? tokenName} · ${figure.posture} · Side ${unit?.sideId ?? ""}`;
+    node.title += `${groupSuffix(unit?.groupId)}${unit?.dormant ? " - Dormant" : ""}${unit?.wakeDistance != null ? ` - Wake Distance ${unit.wakeDistance}` : ""}`;
     node.dataset.postureLabel = node.title;
     if (type?.hp > 1) {
       const hp = text("span", `${unit.currentHp}/${type.hp}`);
@@ -757,6 +761,9 @@ function renderUnitCard() {
     identity.append(text("small", "Most recently active"));
   identity.append(text("h3", name));
   identity.append(text("small", `Side ${unit.sideId ?? "—"}`));
+  if (unit.groupId != null) identity.append(text("small", `Group ${unit.groupId}`));
+  if (unit.dormant) identity.append(text("strong", "Dormant"));
+  if (unit.wakeDistance != null) identity.append(text("small", `Wake Distance ${unit.wakeDistance}`));
   const hp = text("p", `HP ${unit.currentHp} / ${type.hp}`); hp.className = "card-health"; identity.append(hp);
   const posture = state.physical.figures.find(figure => figure.id === unit.id)?.posture;
   if (posture && posture !== "Upright") identity.append(text("small", posture));
@@ -779,7 +786,7 @@ function renderUnitCard() {
   }
   for (const stored of content.resourceStorage ?? [])
     card.append(text("p", `${stored.name}: ${stored.quantity} / ${stored.capacity} (shared by ${unit.sideId} / ${content.displayName})`));
-  const order = displayedOrders?.find(order => order.token.typeId === unit.typeId && order.token.sideId === unit.sideId);
+  const order = displayedOrders?.find(order => tokenIdentity(order.token) === tokenIdentity(unit));
   if (order) {
     const row = text("div", ""); row.className = "card-order"; styleSide(row, unit.sideId);
     row.append(text("small", "Standing Order"));
@@ -1874,7 +1881,7 @@ async function presentObservedMovement(event) {
 // Generic visual vocabulary only. No content identities, legality or RNG live here.
 function tokenNode(token, state) {
   const name = state.types.find(type => type.id === token.typeId)?.displayName ?? token.typeId;
-  const node = text("span", `${name} \u00b7 ${token.sideId}`);
+  const node = text("span", `${name} \u00b7 ${token.sideId}${groupSuffix(token.groupId)}`);
   node.className = "activation-token"; styleSide(node, token.sideId);
   return node;
 }
@@ -1887,7 +1894,7 @@ function renderOrders(orders, state) {
   panel.append(text("h2", "Standing Orders"));
   for (const order of orders) {
     const name = state.types.find(type => type.id === order.token.typeId)?.displayName ?? order.token.typeId;
-    const row = text("p", `${name} · ${order.token.sideId}: ${orderLabel(order, state)}`);
+    const row = text("p", `${name} · ${order.token.sideId}${groupSuffix(order.token.groupId)}: ${orderLabel(order, state)}`);
     styleSide(row, order.token.sideId); panel.append(row);
   }
 }
@@ -1896,12 +1903,13 @@ function orderLabel(order, state) {
   const route = state.routes?.find(r => r.id === order.route?.routeId);
   const target = order.target;
   const targetLabel = target?.kind === "Unit" ? unitName(target.unitId)
-    : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}`
+    : target?.kind === "Group" ? `${state.types.find(type => type.id === target.group.typeId)?.displayName ?? target.group.typeId} · ${target.group.sideId}${groupSuffix(target.group.groupId)}`
     : target?.kind === "Side" ? `Side ${target.sideId}`
     : target?.kind === "Door" ? `Door (${target.door.a.x},${target.door.a.y})–(${target.door.b.x},${target.door.b.y})`
     : null;
   return order.kind === "DoNothing" ? "Do Nothing"
-    : order.kind === "FollowRoute" ? `Follow Route · ${order.route.routeId} · ${route?.mode === "PingPong" ? "Ping-pong" : route?.mode ?? ""} · waypoint ${order.route.currentIndex + 1}/${route?.waypointIds.length ?? "?"}${route?.mode === "PingPong" ? (order.route.direction === 1 ? " →" : " ←") : ""}`
+    : ["FollowRoute", "PatrolRoute"].includes(order.kind) ? `${order.kind === "PatrolRoute" ? "Patrol Route" : "Follow Route"} · ${order.route.routeId} · ${route?.mode === "PingPong" ? "Ping-pong" : route?.mode ?? ""} · waypoint ${order.route.currentIndex + 1}/${route?.waypointIds.length ?? "?"}${route?.mode === "PingPong" ? (order.route.direction === 1 ? " →" : " ←") : ""}`
+    : order.kind === "GuardArea" ? `Guard Area (${order.area.x},${order.area.y}) \u00b7 ${order.area.w} x ${order.area.h}`
     : order.kind === "HoldPosition" ? "Hold Position"
     : order.kind === "MoveTo" ? `Move To (${order.destination.x},${order.destination.y})`
     : order.kind === "InteractWith" ? `Interact With · ${targetLabel}`
@@ -2214,6 +2222,9 @@ function prepareOccurrence(occurrence, outcome) {
     case "DiceRolled":
       renderDice(occurrence.dice);
       ui.effect.textContent = `${rollLabel(occurrence.dice.pool)} · ${diceTotal(occurrence.dice)}`;
+      break;
+    case "UnitWoken":
+      ui.effect.textContent = `${unitName(occurrence.unitId)} wakes`;
       break;
     case "UnitDefeated":
       ui.effect.textContent = `${unitName(occurrence.unitId)} was defeated`;

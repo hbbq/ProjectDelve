@@ -23,7 +23,7 @@ public static partial class GameEngine
         if (stepLimit < 1) throw new ArgumentOutOfRangeException(nameof(stepLimit));
         var selected = authoritative.Units.SingleOrDefault(unit => unit.Id == unitId)
             ?? throw new ArgumentException("The Unit does not exist.", nameof(unitId));
-        var token = new ActivationToken(selected.TypeId, selected.SideId);
+        var token = selected.Token;
         var provider = new OrderAwareAutomatedProvider();
         var random = new PreviewRandomProvider();
         var steps = new List<DefaultBehaviorPreviewStep>();

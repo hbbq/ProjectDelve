@@ -311,3 +311,44 @@ test('ordered Ability Costs survive Scenario edits, undo/redo, recovery and Save
     assert.equal(ability.costs[0].amount, 1);
   }
 });
+
+test('named groups retain independent controllers, Normal overrides and route progress through roundtrip and edits', () => {
+  const context = vm.createContext({ structuredClone }); vm.runInContext(source.replace(/^export /gm, ''), context);
+  const Draft = vm.runInContext('DesignerDraft', context), d = new Draft({ maxBoardSize: 20, unitTypes: [] });
+  d.setAgency('scout', 'A', 'Human'); d.setAgency('scout', 'A', 'Automated', 'east'); d.setAgency('scout', 'A', 'Gambit', 'west');
+  d.saveWaypoint(null, { id: 'a', area: { x: 0, y: 0, w: 1, h: 1 } }); d.saveWaypoint(null, { id: 'b', area: { x: 2, y: 0, w: 1, h: 1 } });
+  d.saveRoute(null, { id: 'road', mode: 'PingPong', waypointIds: ['a', 'b'] });
+  const route = { kind: 'PatrolRoute', route: { routeId: 'road', currentIndex: 1, direction: -1 } };
+  d.setOrder('scout', 'A', route, 'east'); d.setOrder('scout', 'A', { kind: 'Normal' }, 'west');
+  route.route.currentIndex = 0;
+  assert.equal(d.definition.orders[0].route.currentIndex, 1);
+  const key = d.place('scout', 'A', 'Human', { x: 1, y: 1 });
+  d.editUnit(key, { groupId: 'east', dormant: true, wakeDistance: 3 }, 'Automated');
+  const reopened = new Draft({ maxBoardSize: 20, unitTypes: [] }); reopened.replace(d.snapshot());
+  assert.deepEqual(plain(reopened.snapshot()), plain(d.snapshot()));
+  assert.equal(reopened.definition.units[0].dormant, true); assert.equal(reopened.definition.units[0].wakeDistance, 3);
+  assert.equal(reopened.definition.agency.length, 3);
+  reopened.editAgency(1, { unitTypeId: 'scout', sideId: 'A', groupId: 'north', controller: 'Human' }, reopened.definition.orders[0]);
+  assert.deepEqual(plain(reopened.definition.orders.map(o => [o.groupId, o.kind])), [['west', 'Normal'], ['north', 'PatrolRoute']]);
+  reopened.removeAgency(2);
+  assert.equal(reopened.definition.orders.length, 1); assert.equal(reopened.definition.orders[0].route.currentIndex, 1);
+  assert.throws(() => reopened.setOrder('scout', 'A', { kind: 'PatrolRoute', route: { routeId: 'missing' } }, 'north'), /existing Route/);
+  reopened.saveRoute('road', { id: 'renamed', mode: 'PingPong', waypointIds: ['a', 'b'] });
+  assert.equal(reopened.definition.orders[0].route.routeId, 'renamed');
+  assert.equal(reopened.definition.orders[0].route.currentIndex, 1);
+});
+
+test('same-Type groups retain separate Patrol and Follow Route progress when a shared Route changes', () => {
+  const context = vm.createContext({ structuredClone }); vm.runInContext(source.replace(/^export /gm, ''), context);
+  const Draft = vm.runInContext('DesignerDraft', context), d = new Draft({ maxBoardSize: 20, unitTypes: [] });
+  for (const [id, x] of [['a',0],['b',1],['c',2]]) d.saveWaypoint(null, { id, area: { x, y:0, w:1, h:1 } });
+  d.saveRoute(null, { id:'track', mode:'PingPong', waypointIds:['a','b'] });
+  d.setOrder('scout','A',{kind:'FollowRoute',route:{routeId:'track',currentIndex:0,direction:1}},'east');
+  d.setOrder('scout','A',{kind:'PatrolRoute',route:{routeId:'track',currentIndex:1,direction:-1}},'west');
+  assert.throws(()=>d.saveRoute('track',{id:'track',mode:'PingPong',waypointIds:['a','c']}), /Reset affected group progress/);
+  assert.equal(d.definition.orders[1].route.currentIndex,1);
+  d.saveRoute('track',{id:'track',mode:'PingPong',waypointIds:['a','c']},true);
+  assert.deepEqual(plain(d.definition.orders.map(o=>o.route)), [{routeId:'track',currentIndex:0,direction:1},{routeId:'track',currentIndex:0,direction:1}]);
+  d.definition.orders[1].route.currentIndex=1;
+  assert.equal(d.definition.orders[0].route.currentIndex,0);
+});

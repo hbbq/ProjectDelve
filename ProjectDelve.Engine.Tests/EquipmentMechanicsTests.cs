@@ -43,6 +43,7 @@ public sealed class EquipmentMechanicsTests
         state.Round = 1;
         state.CurrentUnitId = "a";
         state.ActiveToken = new("test-bearer", "blue");
+        state.ResolvingTokenUnitIds = state.Units.Where(u => u.Token == state.ActiveToken && u.CurrentHp > 0).Select(u => u.Id).ToHashSet();
         state.Pending = new(DecisionKind.Activation, "test-bearer", "a", [], false);
         return state;
     }

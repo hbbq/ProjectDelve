@@ -8,11 +8,12 @@ public enum UnitSelectorKind { Unit, SideAtStart, Group }
 public sealed record UnitSelector(UnitSelectorKind Kind,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitId = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SideId = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitTypeId = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? UnitTypeId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? GroupId = null)
 {
     public static UnitSelector ForUnit(string unitId) => new(UnitSelectorKind.Unit, UnitId: unitId);
     public static UnitSelector SideAtStart(string sideId) => new(UnitSelectorKind.SideAtStart, SideId: sideId);
-    public static UnitSelector Group(string unitTypeId, string sideId) => new(UnitSelectorKind.Group, SideId: sideId, UnitTypeId: unitTypeId);
+    public static UnitSelector Group(string unitTypeId, string sideId, string? groupId = null) => new(UnitSelectorKind.Group, SideId: sideId, UnitTypeId: unitTypeId, GroupId: groupId);
 }
 public sealed record ObjectiveArea(int X, int Y, int W, int H);
 public sealed record SideObjective(string SideId, ScenarioObjective Objective = ScenarioObjective.EliminateEnemies)
@@ -24,8 +25,9 @@ public sealed record SideObjective(string SideId, ScenarioObjective Objective = 
 }
 public sealed record GameCompletion(ImmutableArray<string> AchievedSideIds);
 
-public sealed record ActivationToken(string TypeId, string SideId);
-public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo, Attack, Protect, Retreat, InteractWith, FollowRoute }
+public sealed record ActivationToken(string TypeId, string SideId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? GroupId = null);
+public enum OrderKind { Normal, DoNothing, HoldPosition, MoveTo, Attack, Protect, Retreat, InteractWith, FollowRoute, GuardArea, PatrolRoute }
 public enum OrderTargetKind { Unit, Group, Side, Door }
 public sealed record DoorTarget(Cell A, Cell B)
 {
@@ -41,13 +43,13 @@ public sealed record OrderTarget(OrderTargetKind Kind, string? UnitId = null, Ac
     string? SideId = null, DoorTarget? Door = null)
 {
     public static OrderTarget ForUnit(string unitId) => new(OrderTargetKind.Unit, UnitId: unitId);
-    public static OrderTarget ForGroup(string unitTypeId, string sideId) =>
-        new(OrderTargetKind.Group, Group: new(unitTypeId, sideId));
+    public static OrderTarget ForGroup(string unitTypeId, string sideId, string? groupId = null) =>
+        new(OrderTargetKind.Group, Group: new(unitTypeId, sideId, groupId));
     public static OrderTarget ForSide(string sideId) => new(OrderTargetKind.Side, SideId: sideId);
     public static OrderTarget ForDoor(Cell a, Cell b) => new(OrderTargetKind.Door, Door: DoorTarget.Canonical(a, b));
 }
 public sealed record GroupOrder(ActivationToken Token, OrderKind Kind, Cell? Destination = null,
-    OrderTarget? Target = null, FollowRoute? Route = null);
+    OrderTarget? Target = null, FollowRoute? Route = null, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ObjectiveArea? Area = null);
 public enum ControllerKind { Human, Automated }
 public sealed record ControllerAssignment(ActivationToken Token, ControllerKind Controller);
 public enum DiceFamily { Attack, Defence, D6 }
@@ -123,7 +125,8 @@ public enum UnitBehavior
     PreferSummonWorker = 8192,
     RouteLookahead = 16384,
     PreferBananaPeel = 32768,
-    PreferLowestEffectiveDefense = 65536
+    PreferLowestEffectiveDefense = 65536,
+    IgnoreLeash = 131072
 }
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill : AbilityMechanic;
@@ -191,6 +194,7 @@ public sealed record AbilityUses
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, UnitBehavior Behaviors = UnitBehavior.None)
 {
+    public int? WakeDistance { get; init; }
     public bool CanHaveItems { get; init; }
     public bool CanHaveEquipment { get; init; }
     public int LootDropSuccesses { get; init; }
@@ -226,7 +230,8 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType Hero(string id, int mov, int rng, int atk, int def, int hp) =>
         new(id, mov, rng, atk, def, hp);
 
-    public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp);
+    public Unit CreateUnit(string id, string sideId) => new(id, Id, sideId, Hp)
+        { WakeDistance = WakeDistance ?? DormantRules.DefaultWakeDistance };
 
     public static UnitType Define(string id, string name, UnitAuthoring.BaseStats stats, params UnitAuthoring.Entry[] entries) =>
         UnitAuthoring.Define(id, name, stats, entries);
@@ -254,8 +259,11 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType LabyrinthShaper(string id = UnitTypeIds.LabyrinthShaper) => UnitRoster.LabyrinthShaper(id);
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitRoster.RedDragon(id);
 }
-public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp)
+public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp, string? GroupId = null)
 {
+    [JsonIgnore] public ActivationToken Token => new(TypeId, SideId, GroupId);
+    public bool Dormant { get; init; }
+    public int WakeDistance { get; init; } = DormantRules.DefaultWakeDistance;
     private ImmutableArray<OwnedObject> inventory = ImmutableArray<OwnedObject>.Empty;
     public ImmutableArray<OwnedObject> Inventory
     {
@@ -424,7 +432,8 @@ public sealed class GameState
         !type.Unique || !Units.Any(u => u.TypeId == type.Id && u.SideId == sideId && u.CurrentHp > 0);
 
     // Creating detached Unit data does not enter play; placement is the runtime entry boundary.
-    public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright)
+    public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright, string? groupId = null,
+        bool dormant = false, int? wakeDistance = null)
     {
         var type = UnitContent.Find(typeId, Types)
             ?? throw new ArgumentException("Unit Type is not defined.", nameof(typeId));
@@ -432,13 +441,15 @@ public sealed class GameState
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
         if (!CanPlaceUnitType(type, sideId))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
-        if (Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
+        if (wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
+            groupId is not null && string.IsNullOrWhiteSpace(groupId) ||
             !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell) ||
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (ActivationTypeOrder is {} order && !order.Contains(type.Id)) order.Add(type.Id);
-        Units.Add(type.CreateUnit(id, sideId));
+        Units.Add(type.CreateUnit(id, sideId) with { GroupId = groupId, Dormant = dormant,
+            WakeDistance = wakeDistance ?? type.WakeDistance ?? DormantRules.DefaultWakeDistance });
         Physical.Figures.Add(new(id, cell, posture));
         FogOfWar.Refresh(this);
     }
@@ -458,6 +469,7 @@ public sealed class GameState
     public int Round { get; set; }
     public List<ActivationToken> Bag { get; set; } = [];
     public ActivationToken? ActiveToken { get; set; }
+    public HashSet<string> ResolvingTokenUnitIds { get; set; } = new(StringComparer.Ordinal);
     public List<ControllerAssignment> Controllers { get; set; } = [];
     // Sparse authoritative assignments: absence means Normal.
     public List<GroupOrder> Orders { get; set; } = [];
@@ -465,12 +477,12 @@ public sealed class GameState
     public List<Route> Routes { get; set; } = [];
     public GroupOrder OrderFor(ActivationToken token) =>
         Orders.SingleOrDefault(order => order.Token == token) ?? new(token, OrderKind.Normal);
-    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null, OrderTarget? target = null, FollowRoute? route = null)
+    public void AssignOrder(ActivationToken token, OrderKind kind, Cell? destination = null, OrderTarget? target = null, FollowRoute? route = null, ObjectiveArea? area = null)
     {
         ArgumentNullException.ThrowIfNull(token);
         if (!Controllers.Any(assignment => assignment.Token == token))
             throw new ArgumentException("The Order group is not part of the game.", nameof(token));
-        var order = new GroupOrder(token, kind, destination, target, route);
+        var order = new GroupOrder(token, kind, destination, target, route, area);
         if (!OrderValidation.IsValidAssignment(order, this))
             throw new ArgumentException("Invalid Order kind, destination, target, or target relationship.", nameof(kind));
         Orders.RemoveAll(order => order.Token == token);
@@ -637,7 +649,7 @@ public sealed class GameState
         ActionsUsedThisActivation = ActionsUsedThisActivation,
         ExtraActionsThisActivation = ExtraActionsThisActivation,
         BonusActionUseCountsThisActivation = new(BonusActionUseCountsThisActivation),
-        ActiveToken = ActiveToken, Controllers = [.. Controllers], Orders = [.. Orders], Waypoints = [.. Waypoints], Routes = [.. Routes],
+        ActiveToken = ActiveToken, ResolvingTokenUnitIds = new(ResolvingTokenUnitIds, StringComparer.Ordinal), Controllers = [.. Controllers], Orders = [.. Orders], Waypoints = [.. Waypoints], Routes = [.. Routes],
         MovesCompletedThisActivation = MovesCompletedThisActivation, MoveOpportunityModifierThisActivation = MoveOpportunityModifierThisActivation,
         WaypointAdvancedThisActivation = WaypointAdvancedThisActivation,
         AttackInProgress = AttackInProgress, DoorInProgress = DoorInProgress, ActionDone = ActionDone,

@@ -603,3 +603,6 @@ body:has(#playtest-main:not([hidden])) > footer { margin-top: 8px; }
   #world-generator { padding: 16px; }
   .world-generator-layout { grid-template-columns: 1fr; gap: 18px; }
 }
+
+.dormant-marker { position: absolute; top: 0; right: 0; z-index: 3; border-radius: 3px; padding: 1px 3px; background: #18243f; color: #fff; font-size: 11px; font-weight: bold; pointer-events: none; }
+.figure.dormant { outline: 2px dashed #9bb5dd; outline-offset: -3px; }

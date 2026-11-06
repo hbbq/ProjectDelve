@@ -41,7 +41,7 @@ public static class FogOfWar
         copy.WorldCardDefinitions.RemoveAll(d => !revealedWorldTypes.Contains(d.Id));
         if (!IsEnabled(state, side)) { FilterEquipment(copy); return copy; }
         var visible = state.Units.Where(u => IsUnitObservable(state, side, u.Id)).Select(u => u.Id).ToHashSet();
-        var groups = state.Units.Where(u => visible.Contains(u.Id)).Select(u => new ActivationToken(u.TypeId, u.SideId)).ToHashSet();
+        var groups = state.Units.Where(u => visible.Contains(u.Id)).Select(u => u.Token).ToHashSet();
         copy.ObservationValues = visible.ToDictionary(id => id, id =>
             (state.EffectiveMovOf(id), state.EffectiveRngOf(id), state.EffectiveAtkOf(id), state.EffectiveDefOf(id)));
         var board = copy.Physical.Board;
@@ -64,13 +64,15 @@ public static class FogOfWar
         copy.Controllers.RemoveAll(c => c.Token.SideId != side && !groups.Contains(c.Token));
         copy.Orders.RemoveAll(o => o.Token.SideId != side || o.Target is { Kind: OrderTargetKind.Unit, UnitId: { } id } && !visible.Contains(id) ||
             o.Target?.Door is { } d && !IsEdgeObservable(state, side, new(d.A, d.B, EdgeKind.None)));
-        copy.StoredResources.RemoveAll(r => r.SideId != side && !groups.Contains(new(r.UnitTypeId, r.SideId)));
+        copy.StoredResources.RemoveAll(r => r.SideId != side && !groups.Any(g => g.TypeId == r.UnitTypeId && g.SideId == r.SideId));
         copy.Objectives.RemoveAll(o => o.SideId != side);
         copy.ObjectiveStartUnitIds.Clear(); copy.DefeatedUnitIds.Clear();
         copy.Waypoints.RemoveAll(w => Enumerable.Range(w.Area.Y, w.Area.H).Any(y =>
             Enumerable.Range(w.Area.X, w.Area.W).Any(x => !IsExplored(state, side, new(x, y)))));
         copy.Routes.Clear();
-        copy.ActiveToken = state.ActiveToken is { } token && groups.Contains(token) ? token : null;
+        copy.ResolvingTokenUnitIds.IntersectWith(visible);
+        copy.ActiveToken = state.ActiveToken is { } token &&
+            (token.SideId == side || copy.ResolvingTokenUnitIds.Count > 0) ? token : null;
         copy.CurrentUnitId = state.CurrentUnitId is { } current && visible.Contains(current) ? current : null;
         copy.CompletedUnitIds.RemoveAll(id => !visible.Contains(id));
         copy.AttackInProgress = ObserveAttack(state, side, state.AttackInProgress);
@@ -170,8 +172,8 @@ public static class FogOfWar
             "GameCompleted" or "RoundStarted" or "RoundCompleted" or "ActivationBagPopulated" or
             "WorldDeckShuffled" or "WorldDeckReshuffled" or "WorldDrawSkipped" or "WorldCardDrawn" or
             "WorldContinuousChanged" or "WorldCardDiscarded" => true,
-            "TokenDrawn" => e.Token?.SideId == side || state.Units.Any(u => u.TypeId == e.Token?.TypeId &&
-                u.SideId == e.Token?.SideId && Known(u.Id)),
+            "TokenDrawn" => e.Token?.SideId == side || state.Units.Any(u => u.Token == e.Token && !u.Dormant &&
+                state.ResolvingTokenUnitIds.Contains(u.Id) && Known(u.Id)),
             "MovementCompleted" or "UnitRepositioned" or "MovementObserved" => unit || path?.Count > 0 || segments?.Count > 0,
             "PlacesSwapped" => unit || target,
             "DoorOpened" or "DoorClosed" or "DoorOpeningAttemptResolved" => door,

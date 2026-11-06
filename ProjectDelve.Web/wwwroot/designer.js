@@ -8,6 +8,10 @@ const element = (tag, value = "") => {
   if (tag === "button") node.dataset.action = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return node;
 };
+const sameGroup = (a, b) => a.unitTypeId === b.unitTypeId && a.sideId === b.sideId && (a.groupId ?? null) === (b.groupId ?? null);
+const authoredGroups = definition => [...definition.agency, ...definition.units, ...(definition.orders ?? [])]
+  .filter((row, index, rows) => rows.findIndex(other => sameGroup(row, other)) === index);
+const groupLabel = id => id == null ? "" : ` \u00b7 Group ${id}`;
 const button = (label, action) => {
   const node = element("button", label); node.type = "button"; node.addEventListener("click", action); return node;
 };
@@ -201,7 +205,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       units: draft.definition.units, machineIds: (draft.definition.machines ?? []).map(m => m.id) };
     const lootSignature = draft.lootMetadataSignature();
     const signature = JSON.stringify([custom, body.terrainTypes, body.terrainAssemblies, body.fixedComponentTypes,
-      body.units.map(u => [u.unitTypeId, u.sideId, u.unitId]), body.machineIds, lootSignature]);
+      body.units.map(u => [u.unitTypeId, u.sideId, u.groupId, u.unitId]), body.machineIds, lootSignature]);
     if (signature === metadataSignature && draft.effectiveMetadata) return;
     metadataSignature = signature; draft.effectiveUnitIds = null;
     draft.effectiveTerrainMetadata = null;
@@ -318,7 +322,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     }
   }
   function syncBrushAgency() {
-    const row = draft.definition.agency.find(row => row.unitTypeId === ui.type.value && row.sideId === ui.side.value);
+    const row = draft.definition.agency.find(row => row.unitTypeId === ui.type.value && row.sideId === ui.side.value && row.groupId == null);
     ui.controller.disabled = !!row;
     if (row) ui.controller.value = row.controller;
     ui.controller.title = row ? "Existing pair: change its controller in the Agency table." : "Controller for a new Type + Side pair.";
@@ -326,7 +330,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   ui.type.addEventListener("change", syncBrushAgency); ui.side.addEventListener("input", syncBrushAgency);
   prepareStatic("board-form", ["width", "height", "default"]);
   prepareStatic("world-form", ["world-enabled", "world-draws", "world-cycling"]);
-  prepareStatic("agency-form", ["agency-type", "agency-side", "agency-controller"]);
+  const newGroup = globalField(ui["agency-form"], "Group ID (blank = default)", "");
+  ui["agency-group"] = newGroup;
+  prepareStatic("agency-form", ["agency-type", "agency-side", "agency-controller", "agency-group"]);
   ui["board-form"].addEventListener("submit", event => {
     event.preventDefault();
     if (commit(() => {
@@ -544,7 +550,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     if (match[1] === "agency") ui.agency.children[index]?.scrollIntoView?.({ block: "nearest" });
     if (match[1] === "orders") {
       const order = draft.definition.orders?.[index];
-      const groupIndex = draft.definition.agency.findIndex(row => row.unitTypeId === order?.unitTypeId && row.sideId === order?.sideId);
+      const groupIndex = draft.definition.agency.findIndex(row => order && sameGroup(row, order));
       ui.agency.children[groupIndex]?.scrollIntoView?.({ block: "nearest" });
     }
     setTool("Select"); renderBoard(); renderProperties();
@@ -665,11 +671,12 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     for (const [index, unit] of draft.definition.units.entries()) {
       const metadata = draft.metadata(unit.unitTypeId), span = metadata?.cellSpan ?? 1;
       const name = metadata?.displayName ?? unit.unitTypeId, node = element("div");
-      node.className = `figure${span > 1 ? " large" : ""}${unit.posture === "Lying" ? " lying" : ""}`;
+      node.className = `figure${span > 1 ? " large" : ""}${unit.posture === "Lying" ? " lying" : ""}${unit.dormant ? " dormant" : ""}`;
+      if (unit.dormant) { const marker = element("span", "Zz"); marker.className = "dormant-marker"; node.append(marker); }
       node.dataset.unitKey = draft.unitKeys[index]; node.dataset.cellSpan = span;
       if (selection?.kind === "unit" && selection.key === draft.unitKeys[index]) node.classList.add("selected");
-      if (highlightedGroup?.unitTypeId === unit.unitTypeId && highlightedGroup?.sideId === unit.sideId ||
-        objectiveSide && inspectedObjective?.selectors?.some(s => s.kind === "Unit" ? (unit.unitId ?? draft.effectiveUnitIds?.[index]) === s.unitId : s.sideId === unit.sideId && (s.kind === "SideAtStart" || s.unitTypeId === unit.unitTypeId))) node.classList.add("objective-reference");
+      if (highlightedGroup && sameGroup(highlightedGroup, unit) ||
+        objectiveSide && inspectedObjective?.selectors?.some(s => s.kind === "Unit" ? (unit.unitId ?? draft.effectiveUnitIds?.[index]) === s.unitId : s.sideId === unit.sideId && (s.kind === "SideAtStart" || sameGroup(s, unit)))) node.classList.add("objective-reference");
       const label = element("span", name.split(/\s+/).map(word => word[0]).join("").slice(0, 3) + (index + 1));
       label.className = "figure-name"; node.append(label);
       node.style.left = `${(unit.anchor.x + span / 2) / board.width * 100}%`;
@@ -677,6 +684,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       node.style.width = `${(span > 1 ? span * 95 : 70) / board.width}%`;
       styleSide(node, unit.sideId);
       node.title = `${name} · ${unit.sideId} · ${unit.posture} · HP ${unit.initialHp ?? metadata?.maxHp}`;
+      node.title += `${groupLabel(unit.groupId)}${unit.dormant ? " - Dormant" : ""}${unit.wakeDistance != null ? ` - Wake Distance ${unit.wakeDistance}` : ""}`;
       ui.board.append(node);
       unitNodes.set(draft.unitKeys[index], node);
     }
@@ -707,17 +715,25 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const y = field(form, "Anchor Y", unit.anchor.y, { type: "number" });
       const posture = field(form, "Posture", unit.posture, { entries: catalog.postures });
       const hp = field(form, `Initial HP (blank = full; max ${draft.metadata(unit.unitTypeId)?.maxHp ?? "?"})`, unit.initialHp, { type: "number" });
-      const agency = draft.definition.agency.find(row => row.unitTypeId === unit.unitTypeId && row.sideId === unit.sideId);
-      const controller = field(form, "Controller for new Type + Side", agency?.controller ?? ui.controller.value, { entries: catalog.controllers });
+      const agency = draft.definition.agency.find(row => sameGroup(row, unit)) ??
+        draft.definition.agency.find(row => sameGroup(row, { ...unit, groupId: null }));
+      const controller = field(form, "Controller for new group", agency?.controller ?? ui.controller.value, { entries: catalog.controllers });
       const unitId = field(form, "Unit ID (optional; blank = generated)", unit.unitId);
+      const group = field(form, "Group ID (blank = default)", unit.groupId);
+      const dormant = field(form, "Dormant", unit.dormant ? "Yes" : "No", { entries: ["No", "Yes"] });
+      const wake = field(form, `Wake Distance (blank = Unit Type default ${draft.metadata(unit.unitTypeId)?.defaultWakeDistance ?? ""})`, unit.wakeDistance, { type: "number" });
+      wake.dataset.optional = "true";
       objectEditor(form, unit.inventory ?? [], { unitKey: key });
       const sync = () => {
-        const existing = draft.definition.agency.find(row => row.unitTypeId === type.value && row.sideId === side.value);
+        const identity = { unitTypeId: type.value, sideId: side.value, groupId: group.value.trim() || null };
+        const existing = draft.definition.agency.find(row => sameGroup(row, identity)) ??
+          draft.definition.agency.find(row => sameGroup(row, { ...identity, groupId: null }));
         controller.disabled = !!existing; if (existing) controller.value = existing.controller;
       };
-      type.addEventListener("change", sync); side.addEventListener("input", sync); sync();
+      type.addEventListener("change", sync); side.addEventListener("input", sync); group.addEventListener("input", sync); sync();
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editUnit(key,
         { unitTypeId: type.value, sideId: side.value, anchor: { x: Number(x.value), y: Number(y.value) },
+          groupId: group.value.trim() || null, dormant: dormant.value === "Yes", wakeDistance: wake.value === "" ? null : Number(wake.value),
           posture: posture.value, initialHp: hp.value === "" ? null : Number(hp.value),
           unitId: unitId.value.trim() ? unitId.value : null }, controller.value)); });
       form.append(element("button", "Apply Unit"));
@@ -727,8 +743,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; }, [form.dataset.formKey])));
       form.append(button("Edit terrain at anchor", () => { selection = { kind: "cell", position: unit.anchor }; render(); }));
       form.append(button("Inspect group and inventory", () => {
-        highlightedGroup = { unitTypeId: unit.unitTypeId, sideId: unit.sideId }; objectiveSide = null; showPanel("groups"); render();
-        const index = draft.definition.agency.findIndex(g => g.unitTypeId === unit.unitTypeId && g.sideId === unit.sideId);
+        highlightedGroup = { unitTypeId: unit.unitTypeId, sideId: unit.sideId, groupId: unit.groupId ?? null }; objectiveSide = null; showPanel("groups"); render();
+        const index = draft.definition.agency.findIndex(g => sameGroup(g, unit));
         ui.agency.children[index]?.scrollIntoView?.({ block: "nearest" });
       }));
     } else if (selection.kind === "machine") {
@@ -835,14 +851,19 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         return () => ({ x: Number(x.value), y: Number(y.value) });
       };
       readDetails = () => ({});
-      if (kind.value === "FollowRoute") {
+      if (["FollowRoute", "PatrolRoute"].includes(kind.value)) {
         const route = saved?.route;
         const routeId = field(details, "Shared Route", route?.routeId, {
           entries: (draft.definition.routes ?? []).map(r => ({ value: r.id, label: `${r.id} (${r.mode})` })) });
         const current = field(details, "Current waypoint index (0-based)", route?.currentIndex ?? 0, { type: "number" });
         const direction = field(details, "Ping-pong direction", String(route?.direction ?? 1), { entries: ["1", "-1"] });
         routeId.addEventListener("change", () => { current.value = "0"; direction.value = "1"; });
-        readDetails = () => ({ route: { routeId: routeId.value, currentIndex: Number(current.value), direction: Number(direction.value) } });      } else if (kind.value === "MoveTo") {
+        readDetails = () => ({ route: { routeId: routeId.value, currentIndex: Number(current.value), direction: Number(direction.value) } });      } else if (kind.value === "GuardArea") {
+        const anchor = cellFields("Guard area", saved?.area);
+        const width = field(details, "Guard area width", saved?.area?.w ?? 1, { type: "number" });
+        const height = field(details, "Guard area height", saved?.area?.h ?? 1, { type: "number" });
+        readDetails = () => ({ area: { ...anchor(), w: Number(width.value), h: Number(height.value) } });
+      } else if (kind.value === "MoveTo") {
         const destination = cellFields("Destination", saved?.destination);
         readDetails = () => ({ destination: destination() });
       } else if (["Attack", "Protect"].includes(kind.value)) {
@@ -866,7 +887,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
           } else if (scope.value === "Group") {
             const type = field(targetFields, "Target Unit Type", target?.group?.typeId ?? typeOptions[0].value, { entries: typeOptions });
             const side = field(targetFields, "Target SideId", target?.group?.sideId, { list: "designer-sides" });
-            readTarget = () => ({ kind: "Group", group: { typeId: type.value, sideId: side.value } });
+            const group = field(targetFields, "Target Group ID (blank = default)", target?.group?.groupId);
+            readTarget = () => ({ kind: "Group", group: { typeId: type.value, sideId: side.value, ...(group.value.trim() ? { groupId: group.value.trim() } : {}) } });
           } else {
             const side = field(targetFields, "Target SideId", target?.sideId, { list: "designer-sides" });
             readTarget = () => ({ kind: "Side", sideId: side.value });
@@ -938,20 +960,23 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
           section.append(element("small", "Only Units present at setup are included; summoned Units are excluded."));
           read = () => ({ kind: "SideAtStart", sideId: id.value });
         } else {
-          const entries = draft.definition.agency.map(g => ({ value: JSON.stringify([g.unitTypeId, g.sideId]), label: `${draft.metadata(g.unitTypeId)?.displayName ?? g.unitTypeId} · ${g.sideId}` }));
-          const identity = row.unitTypeId && row.sideId ? JSON.stringify([row.unitTypeId, row.sideId]) : "missing";
+          const entries = authoredGroups(draft.definition).map(g => ({ value: JSON.stringify([g.unitTypeId, g.sideId, g.groupId ?? null]), label: `${draft.metadata(g.unitTypeId)?.displayName ?? g.unitTypeId} · ${g.sideId}${groupLabel(g.groupId)}` }));
+          const identity = row.unitTypeId && row.sideId ? JSON.stringify([row.unitTypeId, row.sideId, row.groupId ?? null]) : "missing";
           const group = field(section, `${prefix} · Group`, identity, { entries: [{ value: "missing", label: "Choose a group" }, ...entries] });
-          read = () => { try { const [unitTypeId, sideId] = JSON.parse(group.value); return { kind: "Group", unitTypeId, sideId }; } catch { return { ...row, kind: "Group" }; } };
+          read = () => { try { const [unitTypeId, sideId, groupId] = JSON.parse(group.value); return { kind: "Group", unitTypeId, sideId, ...(groupId == null ? {} : { groupId }) }; } catch { return { ...row, kind: "Group" }; } };
           section.append(button("Pick group on board", () => beginPick("cell", "Pick a Unit in the group", position => {
             const keys = draft.unitsAt(position), unit = keys.length === 1 ? draft.definition.units[draft.unitIndex(keys[0])] : null;
             if (!unit) { ui.status.textContent = "Choose a Cell with one Unit."; return; }
-            bufferedValues(form, { [`${prefix} · Group`]: JSON.stringify([unit.unitTypeId, unit.sideId]) });
+            bufferedValues(form, { [`${prefix} · Group`]: JSON.stringify([unit.unitTypeId, unit.sideId, unit.groupId ?? null]) });
           })));
         }
         const readKnown = read;
         reads.push(() => {
-          const result = { ...row, ...readKnown() };
+          const known = readKnown();
+          const result = { ...row, ...known };
+          if (result.kind === "Group" && !Object.hasOwn(known, "groupId")) delete result.groupId;
           if (result.kind !== "Unit") delete result.unitId;
+          if (result.kind !== "Group") delete result.groupId;
           if (result.kind === "Unit") { delete result.sideId; delete result.unitTypeId; }
           if (result.kind === "SideAtStart") delete result.unitTypeId;
           return result;
@@ -1022,14 +1047,16 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       option.value = unit.unitId; return option;
     }));
     ui.agency.replaceChildren(...draft.definition.agency.map((row, index) => {
-      const form = editorForm(`agency:${JSON.stringify([row.unitTypeId, row.sideId])}`); form.className += " designer-agency-row";
-      form.dataset.groupType = row.unitTypeId; form.dataset.groupSide = row.sideId;
+      const form = editorForm(`agency:${JSON.stringify([row.unitTypeId, row.sideId, row.groupId ?? null])}`); form.className += " designer-agency-row";
+      form.dataset.groupType = row.unitTypeId; form.dataset.groupSide = row.sideId; form.dataset.groupId = row.groupId ?? "";
       const type = field(form, "Type", row.unitTypeId, { entries: typeOptions });
       const side = field(form, "SideId", row.sideId, { list: "designer-sides" });
       const controller = field(form, "Controller", row.controller, { entries: catalog.controllers });
+      const group = field(form, "Group ID (blank = default)", row.groupId);
       const readOrder = orderFields(form, draft.definition.orders?.find(order =>
-        order.unitTypeId === row.unitTypeId && order.sideId === row.sideId));
-      form.append(button("Highlight group", () => { highlightedGroup = { unitTypeId: row.unitTypeId, sideId: row.sideId }; objectiveSide = null; renderBoard(); }));
+        sameGroup(order, row)) ?? (row.groupId != null ? draft.definition.orders?.find(order =>
+          sameGroup(order, { ...row, groupId: null })) : null));
+      form.append(button("Highlight group", () => { highlightedGroup = { ...row }; objectiveSide = null; renderBoard(); }));
       const capacities = draft.metadata(row.unitTypeId)?.resourceStorage?.capacities ?? [];
       const lootType = draft.definition.unitTypes?.find(t => t.id === row.unitTypeId) ?? draft.metadata(row.unitTypeId)?.definition;
       const lootPanel = element('details'); lootPanel.dataset.lootType = row.unitTypeId; lootPanel.dataset.formKey = `loot-type:${row.unitTypeId}`; lootPanel.append(element('summary', 'Loot & ownership · Unit Type')); form.append(lootPanel);
@@ -1057,18 +1084,26 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         form.append(element("small", `Retained unsupported inventory: ${resource.quantity} ${resource.type.name}`));
         form.append(button(`Remove unsupported ${resource.type.name}`, () => commit(() => { draft.definition.storedResources = draft.definition.storedResources.filter(r => r !== resource); draft.changed(); })));
       }
-      const count = draft.definition.units.filter(unit => unit.unitTypeId === row.unitTypeId && unit.sideId === row.sideId).length;
+      const count = draft.definition.units.filter(unit => sameGroup(unit, row)).length;
       form.append(element("small", `${count} initial Units`));
-      form.append(element("button", "Apply pair"));
-      form.append(button("Remove pair", () => commit(() => draft.removeAgency(index), [form.dataset.formKey])));
+      form.append(element("button", "Apply group"));
+      form.append(button("Remove group", () => commit(() => draft.removeAgency(index), [form.dataset.formKey])));
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => {
         const identityChanged = type.value !== row.unitTypeId || side.value !== row.sideId;
         if (identityChanged && inventory.some(q => Number(q.input.value) !== (draft.definition.storedResources?.find(r => r.unitTypeId === row.unitTypeId && r.sideId === row.sideId && r.type.id === q.type.id)?.quantity ?? 0))) throw new Error("Apply inventory before changing the group's identity. Existing stored Resources retain their original group.");
         if (inventory.length && !identityChanged) draft.setInventory(row.unitTypeId, row.sideId, inventory.map(q => ({ type: q.type, quantity: Number(q.input.value) })));
-        draft.editAgency(index, { unitTypeId: type.value, sideId: side.value, controller: controller.value }, readOrder());
+        draft.editAgency(index, { unitTypeId: type.value, sideId: side.value, groupId: group.value.trim() || null, controller: controller.value }, readOrder());
       }); });
       return form;
     }));
+    for (const group of authoredGroups(draft.definition).filter(group =>
+      group.groupId != null && !draft.definition.agency.some(row => sameGroup(row, group)))) {
+      const inherited = draft.definition.agency.find(row => sameGroup(row, { ...group, groupId: null }));
+      const label = `${draft.metadata(group.unitTypeId)?.displayName ?? group.unitTypeId} / ${group.sideId} / ${group.groupId}`;
+      ui.agency.append(element("p", `${label}: uses Type + Side setup defaults.`));
+      ui.agency.append(button(`Add group override: ${label}`, () => commit(() =>
+        draft.setAgency(group.unitTypeId, group.sideId, inherited?.controller ?? "Human", group.groupId))));
+    }
     ui.placements.replaceChildren(...draft.unitKeys.map((key, index) => button(unitLabel(index), () => {
       selection = { kind: "unit", key }; setTool("Select"); render();
     })));
@@ -1144,7 +1179,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   function render() { refreshMetadata(); syncImportedTypes(); syncTerrainTypes(); renderRoutes(); syncWorldFields(); renderProperties(); renderData(); renderBoard(); updateDocumentState(); }
   ui["declare-form"].addEventListener("submit", event => { event.preventDefault(); commit(() => { draft.declare(ui["declare-type"].value); draft.changed(); }); });
   ui["agency-form"].addEventListener("submit", event => { event.preventDefault(); commit(() =>
-    draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value)); });
+    draft.setAgency(ui["agency-type"].value, ui["agency-side"].value, ui["agency-controller"].value, newGroup.value.trim() || null)); });
   ui.validate.addEventListener("click", () => ready() ? requests.run("validate", draft.snapshot()) : null);
   ui.content.addEventListener("click", () => {
     if (pendingPlay || !ready()) return;

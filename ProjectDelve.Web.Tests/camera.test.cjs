@@ -142,3 +142,14 @@ test("observed frame keeps only viewing Side Objectives and its mask", () => {
   const result=geometry("cameraObservedFrame(state,presentation).objectives",{state:{physical:{board:{},figures:[]},units:[],exploredCells:{blue:[]}},presentation:{viewingSideId:"blue",objectives:[{sideId:"blue",area:{x:0,y:0,w:1,h:1}},{sideId:"red",area:{x:30,y:0,w:1,h:1}}]}});
   assert.equal(result.length,1); assert.equal(result[0].sideId,"blue");
 });
+
+test('Human camera ownership uses complete group identity while retaining legacy Side assignments', () => {
+  const f=frame(); f.units.find(u=>u.id==='own').groupId='camp';
+  const assignments=[{sideId:'blue',typeId:'hero',controller:'Human'}, {sideId:'blue',typeId:'hero',groupId:'patrol',controller:'Human'}, {sideId:'blue',typeId:'hero',groupId:'camp',controller:'Automated'}];
+  assert.equal(geometry("cameraOwnHuman(frame,'own','blue',assignments)",{frame:f,assignments}),false);
+  assignments[2].controller='Human';
+  assert.equal(geometry("cameraOwnHuman(frame,'own','blue',assignments)",{frame:f,assignments}),true);
+  assert.equal(geometry("cameraOwnHuman(frame,'own','blue',[{sideId:'blue',controller:'Human'}])",{frame:f}),true);
+  delete f.units.find(u=>u.id==='own').groupId;
+  assert.equal(geometry("cameraOwnHuman(frame,'own','blue',[{sideId:'blue',typeId:'hero',groupId:'camp',controller:'Human'}])",{frame:f}),false);
+});

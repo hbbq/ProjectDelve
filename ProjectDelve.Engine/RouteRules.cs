@@ -48,17 +48,17 @@ public static class RouteRules
         return route with { CurrentIndex = route.CurrentIndex + direction, Direction = direction };
     }
 
-    internal static void CompleteMove(GameState state, string unitId, Action<RulesEvent> emit)
+    internal static void CompleteMove(GameState state, string unitId, Action<RulesEvent> emit, bool patrolCombat = false)
     {
         var unit = state.Units.Single(u => u.Id == unitId);
-        var token = new ActivationToken(unit.TypeId, unit.SideId);
+        var token = unit.Token;
         var order = state.OrderFor(token);
-        if (order.Route is not { } route) return;
+        if (order.Route is not { } route || order.Kind == OrderKind.PatrolRoute && patrolCombat) return;
         var definition = state.Routes.Single(r => r.Id == route.RouteId);
         var waypoint = state.Waypoints.Single(w => w.Id == definition.WaypointIds[route.CurrentIndex]);
         if (!FootprintGeometry.OccupiedCells(state, unitId).Any(c => Contains(waypoint.Area, c))) return;
         var next = Next(route, definition);
-        state.AssignOrder(token, next is null ? OrderKind.Normal : OrderKind.FollowRoute, route: next);
+        state.AssignOrder(token, next is null ? OrderKind.Normal : order.Kind, route: next);
         state.WaypointAdvancedThisActivation = true;
         emit(new RulesEvent("WaypointReached", unitId, TypeId: unit.TypeId)
             { SideId = unit.SideId, RouteId = definition.Id, WaypointId = waypoint.Id });

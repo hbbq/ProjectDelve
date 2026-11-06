@@ -25,6 +25,7 @@ public static partial class GameEngine
         state.Round++;
         state.Bag.Clear();
         state.ActiveToken = null;
+        state.ResolvingTokenUnitIds.Clear();
         state.CurrentUnitId = null;
         state.MoveAfterAttackAllowance = null;
         state.AdvanceOnKillCells = null;
@@ -45,6 +46,7 @@ public static partial class GameEngine
         var events = new ResolutionEvents(state, random, observe);
         if (state.Round == 1)
         {
+            ResolveDormantWaking(state, events);
             events.LootArrivals.AddRange(state.Physical.Figures.OrderBy(f => f.Position.Y).ThenBy(f => f.Position.X).Select(f => f.Id));
             ResolveLootArrivals(state, events);
         }
@@ -53,15 +55,16 @@ public static partial class GameEngine
             events.Add(new RulesEvent("RoundStarted") { Round = state.Round });
         ResolveRoundStartWorldCards(state, random, events);
         ResolveEnvironmentalProduction(state, random, events);
+        ResolveDormantWaking(state, events);
         if (state.WorldEffects is { CardsPerRound: > 0 })
         {
             EvaluateObjectives(state, events);
             if (state.IsCompleted) return new(state, events.Events, null) { ResolutionSteps = events.Steps };
         }
-        state.Bag = (state.ActivationTypeOrder is {} order ? order.Select(id => state.Types.Single(t => t.Id == id)).Concat(state.Types.Where(t => !order.Contains(t.Id))) : state.Types).SelectMany(t => state.Units
-            .Where(u => u.TypeId == t.Id && u.CurrentHp > 0).Select(u => u.SideId)
-            .Distinct().OrderBy(side => side, StringComparer.Ordinal)
-            .Select(side => new ActivationToken(t.Id, side))).ToList();
+        state.Bag = (state.ActivationTypeOrder ?? []).Concat(state.Types.Select(t => t.Id)).Distinct()
+            .SelectMany(typeId => state.Units.Where(u => u.TypeId == typeId && u.CurrentHp > 0 && !u.Dormant)
+                .Select(u => u.Token).Distinct().OrderBy(t => t.SideId, StringComparer.Ordinal)
+                .ThenBy(t => t.GroupId, StringComparer.Ordinal)).ToList();
         // Automatic Round Start operations expose a separate bag-population boundary.
         events.Add(new RulesEvent(state.WorldEffects is null && !hasProduction ? "RoundStarted" : "ActivationBagPopulated") { Round = state.Round });
         RunUntilDecision(state, random, events, autoChooseSingleRelevantChoice);
@@ -210,6 +213,11 @@ public static partial class GameEngine
                 break;
             case DecisionKind.Activation when request.Candidates.Single(c => c.Key == choice).Kind is ActivationChoiceKind.Move or ActivationChoiceKind.Stay:
             case DecisionKind.Move:
+                var movingUnit = state.Units.Single(u => u.Id == request.UnitId);
+                var movingOrder = state.OrderFor(movingUnit.Token);
+                var patrolQueries = movingOrder.Kind == OrderKind.PatrolRoute ? new GameplayQueries(state) : null;
+                var patrolCombat = patrolQueries is not null && AreaOrderBehavior.Threats(patrolQueries, movingUnit.Id,
+                    AreaOrderBehavior.Home(patrolQueries, movingOrder)).Count > 0;
                 var figure = state.Physical.Figures.Single(f => f.Id == request.UnitId);
                 var path = choice is null ? new List<Cell> { figure.Position } :
                     request.Candidates.Single(c => c.Key == choice).Path!;
@@ -230,7 +238,7 @@ public static partial class GameEngine
                 FogOfWar.Sweep(state, request.UnitId!, path);
                 events.Add(new RulesEvent("MovementCompleted", request.UnitId, Path: [.. path],
                     IsMoveAfterAttack: request.IsMoveAfterAttack));
-                if (!request.IsMoveAfterAttack) RouteRules.CompleteMove(state, request.UnitId!, events.Add);
+                if (!request.IsMoveAfterAttack) RouteRules.CompleteMove(state, request.UnitId!, events.Add, patrolCombat);
                 if (path.Count > 1) ResolveArrival(state, request.UnitId!, events);
                 else events.LootArrivals.Add(request.UnitId!);
                 break;
@@ -282,6 +290,8 @@ public static partial class GameEngine
                 if (!state.Bag.Remove(drawn))
                     throw new ArgumentException("Random provider drew a token outside the bag.", nameof(random));
                 state.ActiveToken = drawn;
+                state.ResolvingTokenUnitIds = state.Units.Where(u => u.CurrentHp > 0 && !u.Dormant && u.Token == drawn)
+                    .Select(u => u.Id).ToHashSet(StringComparer.Ordinal);
                 state.CompletedUnitIds.Clear();
                 events.Add(new RulesEvent("TokenDrawn", TypeId: drawn.TypeId) { Token = drawn, SideId = drawn.SideId });
             }
@@ -293,8 +303,10 @@ public static partial class GameEngine
             if (state.IsCompleted) return;
             if (state.CurrentUnitId is null && EligibleUnits(state).Count == 0)
             {
+                ResolveDormantWaking(state, events);
                 state.CompletedUnitIds.Clear();
                 state.ActiveToken = null;
+                state.ResolvingTokenUnitIds.Clear();
                 continue;
             }
             var request = CreateDecision(state, preview: false);
@@ -418,7 +430,7 @@ public static partial class GameEngine
         ActiveAbilityCandidates(state, unit, AbilityTiming.FreeAction);
 
     private static List<Unit> EligibleUnits(GameState state) =>
-        state.Units.Where(u => u.TypeId == state.ActiveToken!.TypeId && u.SideId == state.ActiveToken.SideId && u.CurrentHp > 0 &&
+        state.Units.Where(u => state.ResolvingTokenUnitIds.Contains(u.Id) && u.CurrentHp > 0 && !u.Dormant &&
                 !state.CompletedUnitIds.Contains(u.Id))
             .OrderBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.Y)
             .ThenBy(u => state.Physical.Figures.Single(f => f.Id == u.Id).Position.X)
@@ -456,7 +468,7 @@ public static partial class GameEngine
         FogOfWar.Refresh(state);
         var request = CreateDecisionCore(state);
         var owner = request.UnitId is null ? null : state.Units.Single(u => u.Id == request.UnitId);
-        var token = owner is null ? state.ActiveToken : new(owner.TypeId, owner.SideId);
+        var token = owner is null ? state.ActiveToken : owner.Token;
         if (request.Kind != DecisionKind.RollDice && owner is not null && FogOfWar.IsEnabled(state, owner.SideId))
             request = request with { Candidates = request.Candidates.Where(c => FogOfWar.Allows(state, owner.SideId, c)).ToList() };
         request = request with { Token = token };
@@ -498,7 +510,7 @@ public static partial class GameEngine
             return new DecisionRequest(DecisionKind.SelectUnit, state.ActiveToken!.TypeId, null,
                 eligible.Select(u => new Candidate(u.Id, Kind: ActivationChoiceKind.SelectUnit)).ToList(), false);
 
-        var unit = eligible.Single(u => u.Id == state.CurrentUnitId);
+        var unit = state.Units.Single(u => u.Id == state.CurrentUnitId);
         var candidates = new List<Candidate>();
         candidates.AddRange(FreeActionCandidates(state, unit));
         candidates.AddRange(BonusActionCandidates(state, unit));
@@ -548,6 +560,9 @@ public static partial class GameEngine
         ResolutionEvents events, string actionId, Cell? selectedCell, UnitAction? semanticAction = null,
         AbilityTiming originTiming = AbilityTiming.Action, int? rangeOverride = null, AbilitySourceReference? abilitySource = null)
     {
+        // Only committed, authoritatively validated Attack recipients reach this boundary.
+        // Wake before defensive values are captured and before dice, including on a miss.
+        foreach (var id in attack.TargetIds) WakeUnit(state, id, events, "attack");
         var targets = attack.TargetIds.Select(id => new AttackTargetDice(id, state.EffectiveDefOf(id))).ToImmutableArray();
         state.AttackInProgress = new(attackerId, actionId, attack.AbilityName, selectedCell, targets,
             attack.AttackDice, Results: []) { SemanticAction = semanticAction, OriginTiming = originTiming, RangeOverride = rangeOverride,
@@ -809,14 +824,15 @@ public static partial class GameEngine
                 !state.Controllers.Any(controller => controller.Token == order.Token))))
             throw new ArgumentException("Orders must be sparse, unique, valid assignments for participating groups.");
         if (state.Controllers.GroupBy(c => c.Token).Any(g => g.Count() != 1) ||
-            state.Controllers.Any(c => !Enum.IsDefined(c.Controller) || string.IsNullOrWhiteSpace(c.Token.SideId) || string.IsNullOrWhiteSpace(c.Token.TypeId)) ||
-            state.Units.Any(u => u.CurrentHp > 0 && !state.Controllers.Any(c => c.Token == new ActivationToken(u.TypeId, u.SideId))))
+            state.Controllers.Any(c => !Enum.IsDefined(c.Controller) || string.IsNullOrWhiteSpace(c.Token.SideId) || string.IsNullOrWhiteSpace(c.Token.TypeId) || c.Token.GroupId is not null && string.IsNullOrWhiteSpace(c.Token.GroupId)) ||
+            state.Units.Any(u => u.CurrentHp > 0 && !state.Controllers.Any(c => c.Token == u.Token)))
             throw new ArgumentException("Every participating Unit Type + Side needs one explicit controller assignment.");
         if (board.Width < 1 || board.Height < 1 || state.Types.Select(t => t.Id).Distinct().Count() != state.Types.Count ||
             state.Units.Select(u => u.Id).Distinct().Count() != state.Units.Count ||
             state.Types.Any(ContentDefinitions.InvalidUnitStructure))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
+            u.WakeDistance < 0 ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
             string.IsNullOrWhiteSpace(u.SideId)))
             throw new ArgumentException("Invalid Unit state.");

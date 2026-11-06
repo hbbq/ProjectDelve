@@ -69,6 +69,7 @@ public sealed class ActivationTests
         var state = State();
         state.Round = 1;
         state.ActiveToken = new("zombie-type", state.Units.First(u => u.TypeId == "zombie-type").SideId);
+        state.ResolvingTokenUnitIds = ["first", "second"];
         state.CurrentUnitId = "first";
         state.MoveDone = true;
         state.ActionDone = continuation;
