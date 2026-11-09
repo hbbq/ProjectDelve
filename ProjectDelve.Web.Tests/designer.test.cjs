@@ -81,7 +81,128 @@ test("Quick Play reuses the unchanged generated original on return and still gua
   assert.equal(h.run('delveOpenGenerated(generated, {reuseUnchanged:true})'), false);
   assert.equal(confirmations, 1); assert.equal(h.editor.draft.terrainAt({x:0,y:0}), 'SolidRock');
 });
+
+test("Back to Designer preserves the generated original, recipe, mounted selection and recovery after temporary play", () => {
+  const storage = memoryStorage(), h = harness(undefined, undefined, storage);
+  h.context.generated = { title: 'Original generated world', code: 'WLD1:test-owned-return', fingerprint: 'unchanged-world-fingerprint',
+    definition: structuredClone(designerSetup) };
+  const originalResult = JSON.stringify(h.context.generated);
+  assert.equal(h.run('delveOpenGenerated(generated, {reuseUnchanged:true})'), true);
+  h.editor.setTool('Select'); h.editor.selectTarget({node:h.cell(1, 1),position:{x:1,y:1}});
+  const selectedCell = h.cell(1, 1), properties = h.editor.ui.properties.children[0];
+  const {savedAt: beforeSavedAt, ...documentBefore} = plain(h.editor.documentData());
+  const historyBefore = h.editor.history.past.length;
+  // Quick Play imports its separate transport into Playtest; it never loads it in Designer.
+  h.editor.setMode(false);
+  h.run('delveSetDesignerMode(true)'); // The existing Back to Designer route.
+  assert.equal(h.editor.ui.main.hidden, false);
+  const {savedAt: afterSavedAt, ...documentAfter} = plain(h.editor.documentData());
+  assert.deepEqual(documentAfter, documentBefore);
+  assert.equal(h.cell(1, 1), selectedCell);
+  assert.ok(selectedCell.classList.contains('editor-selected'));
+  assert.equal(h.editor.ui.properties.children[0], properties);
+  assert.equal(h.editor.history.past.length, historyBefore);
+  assert.equal(JSON.stringify(h.context.generated), originalResult);
+  const recovered = harness(undefined, undefined, storage);
+  assert.deepEqual(plain(recovered.editor.draft.snapshot()), documentBefore.definition);
+  assert.deepEqual(plain(recovered.editor.documentData().generationSource), documentBefore.generationSource);
+  assert.equal(recovered.editor.ui.title.value, 'Original generated world');
+});
 const designerSetup = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/designer-setup.json"), "utf8"));
+
+test('placement uses Type controller defaults while existing agency and per-pair user choices remain explicit', () => {
+  const h = harness(), draft = h.editor.draft;
+  draft.applyContentDefinition('units', {id:'test-companion',displayName:'Test Companion',defaultController:'Automated'});
+  draft.applyContentDefinition('units', {id:'test-neutral',displayName:'Test Neutral'});
+  h.editor.render(); h.editor.setTool('Unit');
+  change(h.editor.ui.type, 'test-companion');
+  assert.equal(h.editor.ui.controller.value, 'Automated');
+  assert.equal(h.editor.ui.controller.disabled, false);
+  change(h.editor.ui.controller, 'Human');
+  h.editor.render();
+  assert.equal(h.editor.ui.controller.value, 'Human');
+  change(h.editor.ui.type, 'test-neutral');
+  assert.equal(h.editor.ui.controller.value, 'Human');
+  change(h.editor.ui.type, 'test-companion');
+  assert.equal(h.editor.ui.controller.value, 'Human');
+  h.down(h.cell(1, 1)); h.up();
+  assert.equal(draft.definition.agency.find(row => row.unitTypeId === 'test-companion').controller, 'Human');
+  assert.equal(h.editor.ui.controller.disabled, true);
+  draft.setAgency('test-companion', h.editor.ui.side.value, 'Automated'); h.editor.render();
+  assert.equal(h.editor.ui.controller.value, 'Automated');
+  assert.equal(h.editor.ui.controller.disabled, true);
+  enter(h.editor.ui.side, 'another-side');
+  assert.equal(h.editor.ui.controller.value, 'Automated');
+  assert.equal(h.editor.ui.controller.disabled, false);
+  h.down(h.cell(2, 1)); h.up();
+  assert.equal(draft.definition.agency.find(row => row.unitTypeId === 'test-companion' && row.sideId === 'another-side').controller, 'Automated');
+});
+
+test('placement reads canonical and pinned Type defaults and a local null default stays Human', () => {
+  const h = harness(), draft = h.editor.draft;
+  const original = catalog.unitTypes[0].definition;
+  try {
+    catalog.unitTypes[0].definition = {defaultController:'Automated'};
+    change(h.editor.ui.type, catalog.unitTypes[0].unitTypeId);
+    assert.equal(h.editor.ui.controller.value, 'Automated');
+    draft.definition.contentReferences = [{packageId:'test-pinned'}];
+    draft.effectiveMetadata = [{unitTypeId:'test-pinned-unit',definition:{defaultController:'Automated'}}];
+    assert.equal(draft.defaultController('test-pinned-unit'), 'Automated');
+    draft.definition.unitTypes = [{id:'test-pinned-unit',defaultController:null}];
+    assert.equal(draft.defaultController('test-pinned-unit'), 'Human');
+  } finally { catalog.unitTypes[0].definition = original; }
+});
+
+function importedControllerDefault(h, groupId = null) {
+  h.editor.draft.replace({board:{width:4,height:4,defaultTerrain:'StoneFloor',cells:[],edges:[]},
+    unitTypeIds:['test-scout','test-human'],
+    unitTypes:[{id:'test-scout',displayName:'Test Scout',defaultController:'Automated'},
+      {id:'test-human',displayName:'Test Human',defaultController:'Human'}],
+    units:[{unitTypeId:'test-scout',sideId:'blue',groupId,anchor:{x:0,y:0},posture:'Upright'}],agency:[]});
+  h.editor.render(); h.editor.setTool('Select'); h.down(h.cell(0, 0));
+}
+
+test('imported Units retain Type controller defaults through property edits and board moves without adding agency', () => {
+  const h = harness(), d = h.editor.draft;
+  importedControllerDefault(h);
+  let form = h.editor.ui.properties.children[0];
+  assert.equal(inputField(form, 'Controller for new group').value, 'Automated');
+  inputField(form, 'Dormant').value = 'Yes'; h.submit(form);
+  assert.equal(d.definition.units[0].dormant, true);
+  assert.deepEqual(plain(d.definition.agency), []);
+  press(h.editor.ui.properties, 'Move Unit on board'); h.down(h.cell(1, 1));
+  assert.deepEqual(plain(d.definition.units[0].anchor), {x:1,y:1});
+  assert.deepEqual(plain(d.definition.agency), []);
+  h.editor.setTool('Select'); h.down(h.cell(1, 1));
+  form = h.editor.ui.properties.children[0];
+  change(inputField(form, 'Controller for new group'), 'Human'); h.submit(form);
+  assert.deepEqual(plain(d.definition.agency), [{unitTypeId:'test-scout',sideId:'blue',controller:'Human'}]);
+});
+
+test('imported named group override starts with the Type controller default', () => {
+  const h = harness(), d = h.editor.draft;
+  importedControllerDefault(h, 'scouts');
+  const add = h.editor.ui.agency.querySelectorAll('button').find(button => button.textContent.includes('Add group override:'));
+  assert.ok(add); add.listeners.click();
+  assert.deepEqual(plain(d.definition.agency), [{unitTypeId:'test-scout',sideId:'blue',groupId:'scouts',controller:'Automated'}]);
+});
+
+test('Unit inspector Type changes refresh controller defaults until an explicit choice and existing agency wins', () => {
+  const h = harness(), d = h.editor.draft;
+  importedControllerDefault(h);
+  const form = h.editor.ui.properties.children[0], type = inputField(form, 'Unit Type');
+  const controller = inputField(form, 'Controller for new group');
+  change(type, 'test-human'); assert.equal(controller.value, 'Human');
+  change(type, 'test-scout'); assert.equal(controller.value, 'Automated');
+  change(controller, 'Human');
+  change(type, 'test-human'); change(type, 'test-scout');
+  assert.equal(controller.value, 'Human');
+  d.setAgency('test-human', 'blue', 'Automated');
+  change(type, 'test-human');
+  assert.equal(controller.value, 'Automated'); assert.equal(controller.disabled, true);
+  change(type, 'test-scout');
+  assert.equal(controller.value, 'Human'); assert.equal(controller.disabled, false);
+});
 
 test("All Loot uses current Engine metadata and waits before Copy to Custom when local content changes", async () => {
   const savedPresets = catalog.lootPresets;

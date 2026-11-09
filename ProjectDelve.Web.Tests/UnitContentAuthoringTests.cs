@@ -86,6 +86,40 @@ public sealed class UnitContentAuthoringTests : IDisposable
     }
 
     [Fact]
+    public void ControllerDefaultAndAmphibiousRoundTripThroughTypedEditingAndBrowserMetadata()
+    {
+        var type = Unit() with { DefaultController = ControllerKind.Automated, Amphibious = true };
+        var result = ContentEditorApi.Validate(Edit(type));
+        Assert.True(result.Valid, string.Join(";", result.Diagnostics));
+        var restored = result.Definition!.Value.Deserialize<UnitType>(Json)!;
+        Assert.Equal(ControllerKind.Automated, restored.DefaultController);
+        Assert.True(restored.Amphibious);
+        var sections = result.Entry!.Sections;
+        Assert.True(Assert.Single(sections.Single(section => section.Title == "Movement and structure").Fields,
+            field => field.Label == "Amphibious").Value.GetBoolean());
+        Assert.Equal("Automated", Assert.Single(sections.Single(section => section.Title == "Automated policies").Fields,
+            field => field.Label == "Default Controller").Value.GetString());
+        var scene = Scene(type.Id) with { UnitTypes = [restored], Agency = [] };
+        var portable = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(scene));
+        var state = GameEngine.CreateGame(portable);
+        Assert.Equal(ControllerKind.Automated, state.ControllerFor(new ActivationToken(type.Id, "blue")));
+        Assert.True(state.Types.Single(unit => unit.Id == type.Id).Amphibious);
+        Assert.Equal(JsonSerializer.Serialize(type, Json), JsonSerializer.Serialize(portable.UnitTypes!.Single(), Json));
+    }
+
+    [Fact]
+    public void InvalidControllerDefaultReportsTheTypedAuthoringPath()
+    {
+        var invalid = Unit() with { DefaultController = (ControllerKind)999 };
+        Assert.Contains(ContentDefinitions.Validate(new(invalid)), diagnostic => diagnostic.Path == "defaultController");
+        var node = JsonSerializer.SerializeToNode(Unit(), Json)!;
+        node["defaultController"] = "unsupported";
+        var result = ContentEditorApi.Validate(new("units", JsonSerializer.SerializeToElement(node)));
+        Assert.False(result.Valid);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Path == "definition.defaultController");
+    }
+
+    [Fact]
     public void ScenarioPreviewPreservesCompleteTypedDeclarationAndEmbeddedResourceReferences()
     {
         var result = ContentEditorApi.Validate(Edit(Unit()));

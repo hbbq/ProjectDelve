@@ -51,7 +51,10 @@ public sealed class WorldQuickPlayTests
         };
         var prepared = WorldQuickPlay.Prepare(original, Canonical);
         Assert.Equal(Json(prepared), Json(WorldQuickPlay.Prepare(original, Canonical)));
-        Assert.Equal(HeroesVsMonsters.HeroTypes, prepared.Units.Select(u => u.UnitTypeId));
+        Assert.Equal(new[] { UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster },
+            prepared.Units.Select(u => u.UnitTypeId));
+        Assert.Equal(5, prepared.Units.Select(u => u.Anchor).Distinct().Count());
+        Assert.Equal(LootPresets.AllPresetId, prepared.Loot!.Preset);
         var state = GameEngine.CreateGame(prepared, Canonical);
         Assert.All(state.Units, u =>
         {
@@ -69,7 +72,30 @@ public sealed class WorldQuickPlayTests
     }
 
     [Fact]
-    public void PreservesAndDeeplyDetachesOriginalPopulationOrdersRoutesLootAndTerrain()
+    public void TemporaryAllLootIncludesEffectiveLocalCardsAndLeavesSourceLootUntouchedThroughTransport()
+    {
+        var original = Empty() with
+        {
+            Loot = new() { Preset = LootPresets.Default, PresetMultiplier = 2 },
+            LootCardDefinitions = [new("quick-play-local-card", "Local Quick Play card") { Immediate = new HealCollectorMechanic(3) }],
+            LootMarkers = [new("world-loot", new(7, 5))]
+        };
+        var before = Json(original);
+        var prepared = WorldQuickPlay.Prepare(original, Canonical);
+        var restored = ScenarioDefinitionTransport.Decode(ScenarioDefinitionTransport.Encode(prepared));
+        Assert.Equal(LootPresets.AllPresetId, restored.Loot!.Preset);
+        Assert.Null(restored.Loot.PresetMultiplier);
+        Assert.Null(restored.Loot.Composition);
+        var state = GameEngine.CreateGame(restored, Canonical);
+        Assert.Equal(state.LootCardDefinitions.OrderBy(card => card.Id, StringComparer.Ordinal).Select(card => card.Id),
+            state.LootDeck!.DrawPile.Select(card => card.LootCardId));
+        Assert.Single(state.LootDeck.DrawPile.Where(card => card.LootCardId == "quick-play-local-card"));
+        Assert.Equal(Json(original.LootMarkers), Json(restored.LootMarkers));
+        Assert.Equal(before, Json(original));
+    }
+
+    [Fact]
+    public void PreservesAndDeeplyDetachesOriginalPopulationOrdersRoutesAndTerrainWhileReplacingTemporaryLoot()
     {
         var original = Empty() with
         {
@@ -90,7 +116,8 @@ public sealed class WorldQuickPlayTests
         Assert.Equal(Json(original.Waypoints), Json(prepared.Waypoints));
         Assert.Equal(Json(original.Routes), Json(prepared.Routes));
         Assert.Equal(Json(original.Resources), Json(prepared.Resources));
-        Assert.Equal(Json(original.Loot), Json(prepared.Loot));
+        Assert.Equal(LootPresets.AllPresetId, prepared.Loot!.Preset);
+        Assert.Null(prepared.Loot.Composition);
         Assert.Equal(original.NeutralSides, prepared.NeutralSides);
         Assert.NotSame(original.Units[0], prepared.Units[0]);
         Assert.NotSame(original.Units[0].Inventory, prepared.Units[0].Inventory);
@@ -117,7 +144,7 @@ public sealed class WorldQuickPlayTests
         var occupied = FootprintGeometry.OccupiedCells(Footprint.TwoByTwo, new(0, 0))
             .Append(new(2, 0)).Append(new(3, 0)).ToHashSet();
         Assert.All(prepared.Units.Skip(1), u => Assert.DoesNotContain(u.Anchor, occupied));
-        Assert.Equal(5, GameEngine.CreateGame(prepared, Canonical).Units.Count);
+        Assert.Equal(6, GameEngine.CreateGame(prepared, Canonical).Units.Count);
     }
 
     [Theory]
@@ -125,20 +152,20 @@ public sealed class WorldQuickPlayTests
     [InlineData(EdgeKind.ClosedDoor)]
     public void CompactClusterDoesNotCrossClosedEdges(EdgeKind edge)
     {
-        var original = Empty(6, 1) with
+        var original = Empty(7, 1) with
         {
-            Board = new() { Width = 6, Height = 1, Edges = [new(new(1, 0), EdgeDirection.Right, edge)] }
+            Board = new() { Width = 7, Height = 1, Edges = [new(new(1, 0), EdgeDirection.Right, edge)] }
         };
         var prepared = WorldQuickPlay.Prepare(original, Canonical);
-        Assert.Equal(new[] { new Cell(2, 0), new(3, 0), new(4, 0), new(5, 0) }, prepared.Units.Select(u => u.Anchor));
+        Assert.Equal(new[] { new Cell(2, 0), new(3, 0), new(4, 0), new(5, 0), new(6, 0) }, prepared.Units.Select(u => u.Anchor));
     }
 
     [Fact]
     public void UsesResolvedLocalTerrainPassabilityInsteadOfLegacyCellKind()
     {
-        var original = Empty(5, 1) with
+        var original = Empty(6, 1) with
         {
-            Board = new() { Width = 5, Height = 1, Cells = [new(new(0, 0), TerrainKind.StoneFloor) { TerrainTypeId = "test-obstruction" }] },
+            Board = new() { Width = 6, Height = 1, Cells = [new(new(0, 0), TerrainKind.StoneFloor) { TerrainTypeId = "test-obstruction" }] },
             TerrainTypes = [new("test-obstruction", "Test obstruction", false, true)]
         };
         var prepared = WorldQuickPlay.Prepare(original, Canonical);
@@ -148,13 +175,14 @@ public sealed class WorldQuickPlayTests
     }
 
     [Fact]
-    public void OpenDoorAllowsFourCellCorridorCluster()
+    public void OpenDoorAllowsFiveCellCorridorCluster()
     {
-        var original = Empty(4, 1) with
+        var original = Empty(5, 1) with
         {
-            Board = new() { Width = 4, Height = 1, Edges = [new(new(1, 0), EdgeDirection.Right, EdgeKind.OpenDoor)] }
+            Board = new() { Width = 5, Height = 1, Edges = [new(new(1, 0), EdgeDirection.Right, EdgeKind.OpenDoor)] }
         };
-        Assert.Equal(4, WorldQuickPlay.Prepare(original, Canonical).Units.Count);
+        var prepared = WorldQuickPlay.Prepare(original, Canonical);
+        Assert.Equal(Enumerable.Range(0, 5).Select(x => new Cell(x, 0)), prepared.Units.Select(u => u.Anchor));
     }
 
     [Fact]
@@ -162,13 +190,17 @@ public sealed class WorldQuickPlayTests
     {
         var cases = new[]
         {
-            Empty(3, 1),
+            Empty(4, 1),
             Empty(8, 6) with { Board = new() { Width = 8, Height = 6, DefaultTerrain = TerrainKind.SolidRock } },
-            Empty(4, 1) with { Board = new() { Width = 4, Height = 1, Edges = [new(new(1, 0), EdgeDirection.Right, EdgeKind.ClosedDoor)] } },
-            Empty(4, 1) with { UnitTypeIds = [UnitTypeIds.Goblin], Units = [new(UnitTypeIds.Goblin, "world", new(0, 0))], Agency = [new(UnitTypeIds.Goblin, "world", ControllerKind.Automated)] }
+            Empty(5, 1) with { Board = new() { Width = 5, Height = 1, Edges = [new(new(1, 0), EdgeDirection.Right, EdgeKind.ClosedDoor)] } },
+            Empty(5, 1) with { UnitTypeIds = [UnitTypeIds.Goblin], Units = [new(UnitTypeIds.Goblin, "world", new(0, 0))], Agency = [new(UnitTypeIds.Goblin, "world", ControllerKind.Automated)] }
         };
         foreach (var original in cases)
-            Assert.Contains("four free passable Cells", Assert.Throws<ArgumentException>(() => WorldQuickPlay.Prepare(original, Canonical)).Message);
+        {
+            var before = Json(original);
+            Assert.Contains("five free passable Cells", Assert.Throws<ArgumentException>(() => WorldQuickPlay.Prepare(original, Canonical)).Message);
+            Assert.Equal(before, Json(original));
+        }
     }
 
     [Fact]
@@ -189,7 +221,7 @@ public sealed class WorldQuickPlayTests
         Assert.All(prepared.Units.Skip(2), u => Assert.Equal("quick-play-heroes-2", u.GroupId));
         Assert.Equal("quick-play-barbarian-type-2", prepared.Units[2].UnitId);
         Assert.Equal("quick-play-rogue-type-2", prepared.Units[3].UnitId);
-        Assert.Equal(6, state.Units.Select(u => u.Id).Distinct().Count());
+        Assert.Equal(7, state.Units.Select(u => u.Id).Distinct().Count());
     }
 
     [Fact]

@@ -1,13 +1,17 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
 const at=n=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',n)).href);
 
-test('all 32 canonical base radii are explicit, finite and within footprint coverage',async()=>{
-  const {validateUnitVisualCatalog}=await at('unit-visuals.js');
+test('all 32 authored production base radii are explicit and new Types retain procedural fallback',async()=>{
+  const {validateUnitVisualCatalog,resolveUnitModel}=await at('unit-visuals.js');
   const disk=JSON.parse(fs.readFileSync(path.join(__dirname,'../ProjectDelve.Web/wwwroot/art/models/unit-visuals.json')));
   const ids=fs.readFileSync(path.join(__dirname,'../ProjectDelve.Engine/UnitContent.cs'),'utf8').split('public static class UnitRoster')[0];
   const canonical=[...ids.matchAll(/const string \w+ = "([^"]+)"/g)].map(m=>({unitTypeId:m[1],cellSpan:m[1]==='red-dragon-type'?2:1}));
-  assert.equal(canonical.length,32);const c=validateUnitVisualCatalog(disk,canonical);
+  assert.equal(disk.units.length,32);const c=validateUnitVisualCatalog(disk,canonical);
   assert.equal(Object.keys(c.units).length,32);assert.equal(c.units['zombie-type'].baseRadius,.25);assert.equal(c.units['troll-type'].baseRadius,.44);
+  for(const id of ['beastmaster-type','jackalope-type','giant-toad-type','dire-bear-type','raptor-type','light-elemental-type']){
+    assert.ok(canonical.some(type=>type.unitTypeId===id));assert.equal(c.cellSpans[id],1);
+    assert.equal(resolveUnitModel(c,id,1),null);
+  }
   for(const bad of [undefined,0,-.2,NaN,Infinity,.451]){const d=structuredClone(disk);d.units[0].baseRadius=bad;assert.throws(()=>validateUnitVisualCatalog(d,canonical));}
 });
 

@@ -8,7 +8,7 @@ namespace ProjectDelve.Web;
 // Temporary authoring setup only; the generated world and its recipe remain untouched.
 public static class WorldQuickPlay
 {
-    private static readonly string[] HeroIds = [UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric];
+    private static readonly string[] HeroIds = [UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster];
 
     public static ScenarioDefinition Prepare(ScenarioDefinition original, ContentBundle canonical)
     {
@@ -45,6 +45,7 @@ public static class WorldQuickPlay
             UnitTypeIds = definition.UnitTypeIds.Concat(HeroIds).Distinct(StringComparer.Ordinal).ToList(),
             UnitTypes = (definition.UnitTypes ?? []).Concat(Detach(heroes).Where(h => !(definition.UnitTypes ?? []).Any(t => t.Id == h.Id))).ToList(),
             Agency = [.. definition.Agency, .. HeroIds.Select(id => new AgencyAssignment(id, HeroesVsMonsters.Heroes, ControllerKind.Human, groupId))],
+            Loot = new() { Preset = LootPresets.AllPresetId },
             FogOfWarSides = (definition.FogOfWarSides ?? []).Append(HeroesVsMonsters.Heroes).Distinct(StringComparer.Ordinal).ToList(),
             Objectives = definition.Units.Select(u => u.SideId).Concat(definition.Agency.Select(a => a.SideId))
                 .Append(HeroesVsMonsters.Heroes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
@@ -73,21 +74,21 @@ public static class WorldQuickPlay
             List<Cell> found = [anchor];
             Queue<(Cell Cell, int Depth)> queue = new([(anchor, 0)]);
             HashSet<Cell> seen = [anchor];
-            while (queue.TryDequeue(out var current) && found.Count < 4)
+            while (queue.TryDequeue(out var current) && found.Count < HeroIds.Length)
             {
-                if (current.Depth == 3) continue;
+                if (current.Depth == HeroIds.Length - 1) continue;
                 foreach (var next in Neighbors(current.Cell))
                 {
                     if (!free.Contains(next) || blocked.Contains(Key(current.Cell, next)) || !seen.Add(next)) continue;
                     found.Add(next);
                     queue.Enqueue((next, current.Depth + 1));
-                    if (found.Count == 4) break;
+                    if (found.Count == HeroIds.Length) break;
                 }
             }
-            if (found.Count == 4) { cluster = found; break; }
+            if (found.Count == HeroIds.Length) { cluster = found; break; }
         }
         if (cluster is null)
-            throw new ArgumentException("Quick Play needs four free passable Cells connected by open Edges in a compact starting cluster for the Heroes. Try another world window.", nameof(original));
+            throw new ArgumentException("Quick Play needs five free passable Cells connected by open Edges in a compact starting cluster for the Heroes. Try another world window.", nameof(original));
 
         for (var i = 0; i < HeroIds.Length; i++)
         {

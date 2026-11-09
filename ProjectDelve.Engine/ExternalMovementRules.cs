@@ -1,7 +1,7 @@
 namespace ProjectDelve.Engine;
 
 // Position changes caused by another Unit are distinct from the affected Unit's Move.
-// No MOV, Posture or movement capability is consulted here.
+// No MOV, Posture or Phase traversal is consulted here. Receiving-Type occupancy applies.
 internal static class ExternalMovementRules
 {
     internal static bool CanAffect(GameState state, string sourceId, string affectedId) =>
@@ -11,7 +11,13 @@ internal static class ExternalMovementRules
 
     internal static bool CanSwap(GameState state, string sourceId, string affectedId) =>
         sourceId != affectedId && CanAffect(state, sourceId, affectedId) &&
-        FootprintGeometry.FootprintOf(state, sourceId) == Footprint.OneByOne;
+        FootprintGeometry.FootprintOf(state, sourceId) == Footprint.OneByOne &&
+        FitsAt(state, sourceId, state.Physical.Figures.Single(f => f.Id == affectedId).Position) &&
+        FitsAt(state, affectedId, state.Physical.Figures.Single(f => f.Id == sourceId).Position);
+
+    private static bool FitsAt(GameState state, string id, Cell destination) =>
+        SpatialRules.Fits(state.Physical.Board, FootprintGeometry.FootprintOf(state, id), destination,
+            MovementTraversal.OccupancyFor(state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == id).TypeId)));
 
     internal static IEnumerable<Cell> Destinations(GameState state, string sourceId, string affectedId, int maxMove)
     {
@@ -19,11 +25,13 @@ internal static class ExternalMovementRules
         if (!CanAffect(state, sourceId, affectedId)) yield break;
         var figure = state.Physical.Figures.Single(f => f.Id == affectedId);
         var footprint = FootprintGeometry.FootprintOf(state, affectedId);
+        var type = state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == affectedId).TypeId);
+        var placement = MovementTraversal.OccupancyFor(type);
         yield return figure.Position;
         if (maxMove == 0) yield break;
         foreach (var destination in MovementRules.Neighbors(figure.Position))
-            if (MovementRules.CanStep(state.Physical.Board, footprint, figure.Position, destination, default) &&
-                SpatialRules.CanPlaceUnit(state, footprint, destination, affectedId))
+            if (MovementRules.CanStep(state.Physical.Board, footprint, figure.Position, destination, placement) &&
+                SpatialRules.CanPlaceUnit(state, type, destination, affectedId))
                 yield return destination;
     }
 

@@ -90,6 +90,7 @@ public static partial class MechanicCatalog
         yield return ReusableActive(MechanicRegistration.Create<AdjacentUnitSummonMechanic>(SpecializedDescriptor("adjacentUnitSummon", "Adjacent Unit Summon", MechanicTiming.Action,
             "Place one {initialPosture} {unitTypeId} in an adjacent empty Cell.") with
         {
+            MaxPerSource = null,
             Parameters = [target, posture, sideLimit], Targeting = new(MechanicTargetSelection.Cell, "A legal adjacent footprint with LOS, subject to uniqueness and the optional living same-Type population limit on the acting Side."),
             ContextRequirements = "Requires an Upright acting Unit with an Action available. Resolve the summoned Unit Type from the effective scenario catalog, then require a legal empty adjacent footprint with LOS and respect that Unit Type's uniqueness. Equipment and Items use their bearer's context.",
             Description = new("Place one {initialPosture} {unitTypeId} in an adjacent empty Cell on this Unit's Side.{sameTypeSideLimit}", ["initialPosture", "unitTypeId", "sameTypeSideLimit"])

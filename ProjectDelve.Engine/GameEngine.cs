@@ -850,7 +850,8 @@ public static partial class GameEngine
             figures.Select(f => f.Id).Distinct().Count() != figures.Count ||
             state.Units.Any(u => u.CurrentHp > 0 && !figures.Any(f => f.Id == u.Id)))
             throw new ArgumentException("Invalid figure placement.");
-        if (figures.Any(f => !SpatialRules.CanPlaceUnit(state, FootprintGeometry.FootprintOf(state, f.Id), f.Position, f.Id)))
+        if (figures.Any(f => !SpatialRules.CanPlaceUnit(state,
+                state.Types.Single(t => t.Id == state.Units.Single(u => u.Id == f.Id).TypeId), f.Position, f.Id)))
             throw new ArgumentException("Invalid figure footprint placement.");
         if (board.Edges.Any(e => !EdgeReplacementRules.CanReplace(state, e)) ||
             board.Edges.Select(e => e.A.Y < e.B.Y || e.A.Y == e.B.Y && e.A.X < e.B.X

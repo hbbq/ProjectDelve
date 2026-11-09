@@ -276,7 +276,7 @@ export function mountContentEditor(root, options) {
     const fields = metadata.fields ?? [];
     const sections = { unique: stats, footprint: movement, movementPattern: movement, terrainRestrictedMovement: movement,
       terrainRestriction: movement, wakeDistance: capabilities, canHaveItems: capabilities, canHaveEquipment: capabilities, lootDropSuccesses: loot,
-      resourceStorage: resources, attackDefinitionOrder: automation };
+      resourceStorage: resources, attackDefinitionOrder: automation, defaultController: automation, amphibious: movement };
     for (const schema of fields) (sections[schema.name] ?? stats).append(parameter(schema, [schema.name]));
     // Metadata owns enum choices and bounds; these controls only select declarations.
     if (!fields.some(schema => schema.name === 'footprint')) movement.append(parameter({ name: 'footprint', kind: 'Enum', required: true, allowedValues: metadata.footprints }, ['footprint']));

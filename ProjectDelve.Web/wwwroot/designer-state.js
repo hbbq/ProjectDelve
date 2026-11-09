@@ -201,6 +201,11 @@ export class DesignerDraft {
       return this.effectiveMetadata?.find(type => type.unitTypeId === id);
     return this.catalog.unitTypes.find(type => type.unitTypeId === id);
   }
+  typeDefaultController(id) {
+    const local = this.definition.unitTypes?.find(type => type.id === id);
+    return (local ?? this.metadata(id)?.definition)?.defaultController ?? null;
+  }
+  defaultController(id) { return this.typeDefaultController(id) ?? "Human"; }
   occupied(unit) {
     const metadata = this.metadata(unit.unitTypeId);
     // Unknown imported content remains recoverable/selectable at its anchor. Geometry is supplied by the catalog.
@@ -451,8 +456,9 @@ export class DesignerDraft {
     // A setup default already supplies this named group's controller. Editing a
     // placement must not turn that inherited value into an explicit override.
     if (!this.definition.agency.some(row => row.unitTypeId === unit.unitTypeId && row.sideId === unit.sideId &&
-      ((row.groupId ?? null) === (unit.groupId ?? null) || row.groupId == null)))
-      this.ensureAgency(unit.unitTypeId, unit.sideId, controller, unit.groupId ?? null);
+      ((row.groupId ?? null) === (unit.groupId ?? null) || row.groupId == null)) &&
+      (controller ?? this.defaultController(unit.unitTypeId)) !== this.typeDefaultController(unit.unitTypeId))
+      this.ensureAgency(unit.unitTypeId, unit.sideId, controller ?? this.defaultController(unit.unitTypeId), unit.groupId ?? null);
     this.definition.units[index] = unit; this.changed();
   }
   removeUnit(key) {

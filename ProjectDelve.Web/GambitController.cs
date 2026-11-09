@@ -140,7 +140,8 @@ public sealed partial class PlaytestGame
             var occurrence = created is null ? null : result.Events.LastOrDefault(e => e.Kind == "UnitCreated" && e.UnitId == created.Id);
             var source = occurrence?.SourceUnitId is null ? null : result.State.Units.FirstOrDefault(unit => unit.Id == occurrence.SourceUnitId)
                 ?? previous.Units.FirstOrDefault(unit => unit.Id == occurrence.SourceUnitId);
-            var inherited = source is null ? null : updated.GetValueOrDefault(source.Token);
+            var typeDefault = result.State.Types.Single(type => type.Id == assignment.Token.TypeId).DefaultController;
+            var inherited = source is null || typeDefault is not null ? null : updated.GetValueOrDefault(source.Token);
             updated[assignment.Token] = inherited ?? (assignment.Controller == ControllerKind.Human ? "Human" : "Default Behavior");
         }
         controllerBindings = updated;

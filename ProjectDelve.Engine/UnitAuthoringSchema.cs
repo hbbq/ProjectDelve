@@ -35,6 +35,8 @@ public static class UnitAuthoringSchema
             [Integer("mov", MinimumStat), Integer("rng", MinimumStat), Integer("atk", MinimumStat),
                 Integer("def", MinimumStat), Integer("hp", MinimumHp)],
             [new("unique", MechanicParameterKind.Boolean), EnumField("footprint", Enum.GetNames<Footprint>()),
+                new("amphibious", MechanicParameterKind.Boolean),
+                Optional(EnumField("defaultController", Enum.GetNames<ControllerKind>())),
                 new("canHaveItems", MechanicParameterKind.Boolean), new("canHaveEquipment", MechanicParameterKind.Boolean),
                 Integer("lootDropSuccesses", MinimumDropSuccesses, MaximumDropSuccesses),
                 Optional(Integer("wakeDistance", 0)),

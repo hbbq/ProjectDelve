@@ -365,10 +365,10 @@ public static class ContentBrowserCatalog
         new("Movement and structure", Fields(Element(new
         {
             type.Footprint, type.Unique, type.Actions, type.MovementPattern,
-            type.TerrainRestrictedMovement, type.TerrainRestriction, type.ResourceStorage
+            type.TerrainRestrictedMovement, type.TerrainRestriction, type.ResourceStorage, type.Amphibious
         }))),
         new("Loot", Fields(Element(new { type.CanHaveItems, type.CanHaveEquipment, type.LootDropSuccesses }))),
-        new("Automated policies", Fields(Element(new { type.Behaviors, type.AttackDefinitionOrder })))
+        new("Automated policies", Fields(Element(new { type.DefaultController, type.Behaviors, type.AttackDefinitionOrder })))
     ];
     private static ContentBrowserSection[] TerrainSections(TerrainDefinition type, IReadOnlyList<ResourceType>? resources = null) =>
     [

@@ -2,6 +2,12 @@ namespace ProjectDelve.Engine;
 
 public static class UnitTypeIds
 {
+    public const string Beastmaster = "beastmaster-type";
+    public const string Jackalope = "jackalope-type";
+    public const string GiantToad = "giant-toad-type";
+    public const string DireBear = "dire-bear-type";
+    public const string Raptor = "raptor-type";
+    public const string LightElemental = "light-elemental-type";
     public const string RoyalQueen = "royal-queen-type";
     public const string WitchQueen = "witch-queen-type";
     public const string RoyalKing = "royal-king-type";
@@ -68,6 +74,12 @@ public static class CanonicalUnitTypes
     private static readonly IReadOnlyDictionary<string, Func<UnitType>> Factories =
         new Dictionary<string, Func<UnitType>>(StringComparer.Ordinal)
         {
+            [UnitTypeIds.Beastmaster] = () => UnitRoster.Beastmaster(),
+            [UnitTypeIds.Jackalope] = () => UnitRoster.Jackalope(),
+            [UnitTypeIds.GiantToad] = () => UnitRoster.GiantToad(),
+            [UnitTypeIds.DireBear] = () => UnitRoster.DireBear(),
+            [UnitTypeIds.Raptor] = () => UnitRoster.Raptor(),
+            [UnitTypeIds.LightElemental] = () => UnitRoster.LightElemental(),
             [UnitTypeIds.RoyalQueen] = () => UnitRoster.RoyalQueen(),
             [UnitTypeIds.WitchQueen] = () => UnitRoster.WitchQueen(),
             [UnitTypeIds.RoyalKing] = () => UnitRoster.RoyalKing(),

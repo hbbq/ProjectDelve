@@ -321,12 +321,15 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       persist(); return false;
     }
   }
+  const brushControllers = new Map();
+  const brushControllerKey = () => JSON.stringify([ui.type.value, ui.side.value]);
   function syncBrushAgency() {
     const row = draft.definition.agency.find(row => row.unitTypeId === ui.type.value && row.sideId === ui.side.value && row.groupId == null);
     ui.controller.disabled = !!row;
-    if (row) ui.controller.value = row.controller;
+    ui.controller.value = row?.controller ?? brushControllers.get(brushControllerKey()) ?? draft.defaultController(ui.type.value);
     ui.controller.title = row ? "Existing pair: change its controller in the Agency table." : "Controller for a new Type + Side pair.";
   }
+  ui.controller.addEventListener("change", () => { if (!ui.controller.disabled) brushControllers.set(brushControllerKey(), ui.controller.value); });
   ui.type.addEventListener("change", syncBrushAgency); ui.side.addEventListener("input", syncBrushAgency);
   prepareStatic("board-form", ["width", "height", "default"]);
   prepareStatic("world-form", ["world-enabled", "world-draws", "world-cycling"]);
@@ -717,7 +720,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const hp = field(form, `Initial HP (blank = full; max ${draft.metadata(unit.unitTypeId)?.maxHp ?? "?"})`, unit.initialHp, { type: "number" });
       const agency = draft.definition.agency.find(row => sameGroup(row, unit)) ??
         draft.definition.agency.find(row => sameGroup(row, { ...unit, groupId: null }));
-      const controller = field(form, "Controller for new group", agency?.controller ?? ui.controller.value, { entries: catalog.controllers });
+      const controller = field(form, "Controller for new group", agency?.controller ?? draft.defaultController(unit.unitTypeId), { entries: catalog.controllers });
+      let explicitController = buffers[form.dataset.formKey]?.values?.["Controller for new group"];
+      controller.addEventListener("change", () => { if (!controller.disabled) explicitController = controller.value; });
       const unitId = field(form, "Unit ID (optional; blank = generated)", unit.unitId);
       const group = field(form, "Group ID (blank = default)", unit.groupId);
       const dormant = field(form, "Dormant", unit.dormant ? "Yes" : "No", { entries: ["No", "Yes"] });
@@ -728,7 +733,8 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
         const identity = { unitTypeId: type.value, sideId: side.value, groupId: group.value.trim() || null };
         const existing = draft.definition.agency.find(row => sameGroup(row, identity)) ??
           draft.definition.agency.find(row => sameGroup(row, { ...identity, groupId: null }));
-        controller.disabled = !!existing; if (existing) controller.value = existing.controller;
+        controller.disabled = !!existing;
+        controller.value = existing?.controller ?? explicitController ?? draft.defaultController(type.value);
       };
       type.addEventListener("change", sync); side.addEventListener("input", sync); group.addEventListener("input", sync); sync();
       form.addEventListener("submit", event => { event.preventDefault(); commit(() => draft.editUnit(key,
@@ -738,7 +744,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
           unitId: unitId.value.trim() ? unitId.value : null }, controller.value)); });
       form.append(element("button", "Apply Unit"));
       form.append(button("Move Unit on board", () => beginPick("cell", `Choose top-left anchor for ${draft.metadata(unit.unitTypeId)?.displayName ?? unit.unitTypeId}`, anchor => commit(() => {
-        draft.editUnit(key, { anchor }, agency?.controller ?? "Human");
+        draft.editUnit(key, { anchor }, agency?.controller ?? draft.defaultController(unit.unitTypeId));
       }), unit.unitTypeId)));
       form.append(button("Delete Unit", () => commit(() => { draft.removeUnit(key); selection = null; }, [form.dataset.formKey])));
       form.append(button("Edit terrain at anchor", () => { selection = { kind: "cell", position: unit.anchor }; render(); }));
@@ -1102,7 +1108,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       const label = `${draft.metadata(group.unitTypeId)?.displayName ?? group.unitTypeId} / ${group.sideId} / ${group.groupId}`;
       ui.agency.append(element("p", `${label}: uses Type + Side setup defaults.`));
       ui.agency.append(button(`Add group override: ${label}`, () => commit(() =>
-        draft.setAgency(group.unitTypeId, group.sideId, inherited?.controller ?? "Human", group.groupId))));
+        draft.setAgency(group.unitTypeId, group.sideId, inherited?.controller ?? draft.defaultController(group.unitTypeId), group.groupId))));
     }
     ui.placements.replaceChildren(...draft.unitKeys.map((key, index) => button(unitLabel(index), () => {
       selection = { kind: "unit", key }; setTool("Select"); render();

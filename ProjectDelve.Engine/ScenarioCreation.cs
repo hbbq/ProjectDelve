@@ -99,7 +99,8 @@ internal static class ScenarioCreation
         }
         for (var index = 0; index < definition.Units.Count; index++)
             if (!definition.Agency.Any(a => a.UnitTypeId == definition.Units[index].UnitTypeId && a.SideId == definition.Units[index].SideId &&
-                (a.GroupId == definition.Units[index].GroupId || a.GroupId is null)))
+                (a.GroupId == definition.Units[index].GroupId || a.GroupId is null)) &&
+                catalog.Units.Single(t => t.Id == definition.Units[index].UnitTypeId).DefaultController is null)
                 throw ScenarioValidationContext.At(new ArgumentException("Every initial Unit Type + Side needs an explicit agency assignment.", nameof(definition)), $"units[{index}]");
 
         var orders = definition.Orders ?? [];
@@ -108,15 +109,18 @@ internal static class ScenarioCreation
         {
             var order = orders[index];
             if (order is null || string.IsNullOrWhiteSpace(order.UnitTypeId) || string.IsNullOrWhiteSpace(order.SideId) ||
+                !declared.Contains(order.UnitTypeId) ||
                 order.GroupId is not null && string.IsNullOrWhiteSpace(order.GroupId) ||
-                !definition.Agency.Any(a => a.UnitTypeId == order.UnitTypeId && a.SideId == order.SideId &&
-                    (a.GroupId == order.GroupId || a.GroupId is null)))
+                (!definition.Agency.Any(a => a.UnitTypeId == order.UnitTypeId && a.SideId == order.SideId &&
+                    (a.GroupId == order.GroupId || a.GroupId is null)) &&
+                    catalog.Units.SingleOrDefault(t => t.Id == order.UnitTypeId)?.DefaultController is null))
                 throw ScenarioValidationContext.At(new ArgumentException("Invalid Order assignment or group.", nameof(definition)), $"orders[{index}]");
             if (!seenOrders.Add((order.UnitTypeId, order.SideId, order.GroupId)))
                 throw ScenarioValidationContext.At(new ArgumentException("Duplicate Order assignment for Unit Type + Side.", nameof(definition)), $"orders[{index}]");
         }
 
-        var sides = definition.Units.Select(u => u.SideId).Concat(definition.Agency.Select(a => a.SideId))
+        var resolvedAgency = ScenarioGroups.Controllers(definition, catalog.Units);
+        var sides = definition.Units.Select(u => u.SideId).Concat(resolvedAgency.Select(a => a.SideId))
             .Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
         if (definition.NeutralSides is { } neutral &&
             (neutral.Any(s => s is null || !sides.Contains(s)) || neutral.Distinct().Count() != neutral.Count))
@@ -193,7 +197,7 @@ internal static class ScenarioCreation
             Waypoints = [.. definition.Waypoints ?? []], Routes = [.. definition.Routes ?? []],
             Objectives = sides.OrderBy(side => side, StringComparer.Ordinal)
                 .Select(side => objectives.SingleOrDefault(o => o.SideId == side) ?? new SideObjective(side)).ToList(),
-            Controllers = ScenarioGroups.Controllers(definition).Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId, a.GroupId), a.Controller)).ToList()
+            Controllers = resolvedAgency.Select(a => new ControllerAssignment(new(a.UnitTypeId, a.SideId, a.GroupId), a.Controller)).ToList()
         };
         // Setup defaults are copied once into each independently controlled identity.
         var identities = definition.Units.Select(u => new ActivationToken(u.UnitTypeId, u.SideId, u.GroupId))

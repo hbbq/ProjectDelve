@@ -45,8 +45,12 @@ internal static class SpatialRules
 
     internal static bool CanPlaceUnit(GameState state, Cell cell) => CanPlaceUnit(state, Footprint.OneByOne, cell);
 
-    internal static bool CanPlaceUnit(GameState state, Footprint footprint, Cell anchor, string? excludedId = null) =>
-        Fits(state.Physical.Board, footprint, anchor) &&
+    internal static bool CanPlaceUnit(GameState state, UnitType type, Cell anchor, string? excludedId = null) =>
+        CanPlaceUnit(state, type.Footprint, anchor, excludedId, MovementTraversal.OccupancyFor(type));
+
+    internal static bool CanPlaceUnit(GameState state, Footprint footprint, Cell anchor, string? excludedId = null,
+        MovementTraversal placement = default) =>
+        Fits(state.Physical.Board, footprint, anchor, placement) &&
         !state.Physical.Figures.Any(f => f.Id != excludedId &&
             FootprintGeometry.OccupiedCells(state, f.Id).Intersect(FootprintGeometry.OccupiedCells(footprint, anchor)).Any());
 

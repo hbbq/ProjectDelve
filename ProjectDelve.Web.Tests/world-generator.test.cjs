@@ -66,7 +66,7 @@ test("Quick Play placement failure leaves the original preview and Designer unto
   const h = harness(); h.get('world-generator').open = true;
   h.click('preview'); await h.accept(0); const original = h.get('world-generator-board').children[0];
   const pending = h.click('quick-play');
-  h.requests[1].resolve({ ok: false, json: async () => ({ detail: 'No free legal cluster for four Heroes.' }) });
+  h.requests[1].resolve({ ok: false, json: async () => ({ detail: 'No free legal cluster for five Heroes.' }) });
   await pending;
   assert.match(h.get('world-generator-status').textContent, /No free legal cluster/);
   assert.equal(h.designs.length, 0); assert.equal(h.plays.length, 0);

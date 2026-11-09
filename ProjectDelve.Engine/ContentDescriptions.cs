@@ -76,6 +76,9 @@ public static class ContentDescriptions
     public static IReadOnlyList<CardEntryDescription> CardEntries(this UnitType type, IReadOnlyList<UnitType>? existingTypes = null)
     {
         List<CardEntryDescription> entries = [];
+        if (type.Amphibious)
+            entries.Add(new("amphibious", "Amphibious", "Capability",
+                "May traverse and occupy Water as well as ordinarily legal terrain. Normal Edge, Machine, footprint and Unit occupancy restrictions apply."));
         if (type.MovementPattern == MovementPattern.StraightOrthogonalOrDiagonalCorridor)
             entries.Add(new("straight-orthogonal-or-diagonal-corridor", "Straight Orthogonal or Diagonal Corridor Movement", "Capability",
                 "Each ordinary Move may Stay, travel straight in one cardinal direction for 1 MOV per Cell, or travel along one straight diagonal for 2 MOV per Cell. Each diagonal segment uses two legal orthogonal steps through either corner. Do not turn or mix modes. No passing through Banana Peels; only the final Cell resolves arrival effects.", ShortDescription: "Move straight or diagonally; 1 MOV per cardinal Cell, 2 per diagonal Cell."));

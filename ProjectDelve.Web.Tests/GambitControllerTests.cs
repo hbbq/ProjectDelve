@@ -614,6 +614,44 @@ public sealed class GambitControllerTests
         var providers = snapshot.ControllerAssignments.ToDictionary(a => new ActivationToken(a.TypeId, a.SideId), a => a.Controller);
         Assert.Equal(GambitAgency.Direct, Assert.Single(GambitProjection.Observation(snapshot.Result.State, "red", providers).Units, u => u.TypeId == UnitTypeIds.Goblin).Agency);
     }
+
+    [Theory]
+    [InlineData(null, "Default Behavior", GambitAgency.Allied)]
+    [InlineData("Human", "Human", GambitAgency.Allied)]
+    [InlineData("Gambit", "Gambit", GambitAgency.Direct)]
+    public async Task SummonedTypeDefaultOverridesCreatorProviderWhileExplicitBindingsRemainAuthoritative(
+        string? explicitProvider, string expectedProvider, GambitAgency expectedAgency)
+    {
+        var definition = Scenario.Define(Scenario.Map(6, 4),
+        [
+            Scenario.Group(UnitTypeIds.Shaman, "red", ControllerKind.Automated, Scenario.At(2, 1)),
+            Scenario.Group(UnitTypeIds.Barbarian, "blue", ControllerKind.Human, Scenario.At(5, 3))
+        ], [UnitTypeIds.Shaman, UnitTypeIds.Goblin, UnitTypeIds.Barbarian]) with
+        {
+            UnitTypes = [UnitType.Goblin() with { DefaultController = ControllerKind.Automated }]
+        };
+        List<ControllerSelection> assignments = [new(UnitTypeIds.Shaman, "red", "Gambit"), new(UnitTypeIds.Barbarian, "blue", "Human")];
+        if (explicitProvider is not null)
+        {
+            definition.Agency.Add(new(UnitTypeIds.Goblin, "red", explicitProvider == "Human" ? ControllerKind.Human : ControllerKind.Automated));
+            assignments.Add(new(UnitTypeIds.Goblin, "red", explicitProvider));
+        }
+        using var game = new PlaytestGame(new ShamanFirstDice(), GameEngine.CreateGame(WebScenarioFixtures.Combat()));
+        var configured = game.SetupImport(0, ScenarioDefinitionTransport.Encode(definition), null, assignments);
+        game.StartRound(configured.Revision);
+        var request = await ReachShamanAction(game, "stay-before-type-default-summon");
+        var summon = request.Request.Candidates.First(candidate => candidate.Action == UnitAction.AdjacentUnitSummon);
+        game.AdmitController(request.Binding);
+        game.SubmitController(new("summon-type-default", request.Binding, summon.Key));
+        await Wait(game, g => g.Receipt("summon-type-default").Status == "applied");
+        var snapshot = game.Snapshot();
+        Assert.Equal(expectedProvider, Assert.Single(snapshot.ControllerAssignments, a => a.TypeId == UnitTypeIds.Goblin && a.SideId == "red").Controller);
+        Assert.Equal(explicitProvider == "Human" ? ControllerKind.Human : ControllerKind.Automated,
+            snapshot.Result.State.ControllerFor(new ActivationToken(UnitTypeIds.Goblin, "red")));
+        var providers = snapshot.ControllerAssignments.ToDictionary(a => new ActivationToken(a.TypeId, a.SideId, a.GroupId), a => a.Controller);
+        Assert.Equal(expectedAgency, Assert.Single(GambitProjection.Observation(snapshot.Result.State, "red", providers).Units,
+            u => u.TypeId == UnitTypeIds.Goblin).Agency);
+    }
     [Fact]
     public void MixedSameSideRoutingUsesTheExactDecisionTokenIncludingDice()
     {

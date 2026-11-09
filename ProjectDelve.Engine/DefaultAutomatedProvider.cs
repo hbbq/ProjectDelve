@@ -116,6 +116,21 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
                 .FirstOrDefault();
             return escape?.Key ?? NoCandidate(request);
         }
+        if (!request.IsMoveAfterAttack)
+        {
+            if (behaviors.HasFlag(UnitBehavior.ExploreFoW))
+                return AutonomousMovementBehavior.Choose(request, queries, explore: true);
+            if (behaviors.HasFlag(UnitBehavior.MaximizeFriendlyAdjacent))
+                return AutonomousMovementBehavior.Choose(request, queries, maximizeFriendlies: true);
+            // A reachable attack approach includes deliberate Stay and congestion.
+            // Only absence of a route enables the friendly fallback.
+            if (behaviors.HasFlag(UnitBehavior.GoToFriendly) &&
+                !queries.DistanceToAttackPositionFrom(unitId, queries.PositionOf(unitId),
+                    behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors)).HasValue &&
+                !request.Candidates.Any(c => queries.DistanceToAttackPositionFrom(unitId, c.Destination!,
+                    behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors)).HasValue))
+                return AutonomousMovementBehavior.Choose(request, queries);
+        }
         if (behaviors.HasFlag(UnitBehavior.MaximizeAttackDistance))
         {
             var positions = request.Candidates.Select(c => (

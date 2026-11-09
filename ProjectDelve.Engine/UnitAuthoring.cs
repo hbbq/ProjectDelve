@@ -59,6 +59,9 @@ public static class UnitAuthoring
 
     public static Entry CantAttack() => new UpdateEntry(t => t with { Actions = UnitAction.None });
     public static Entry Unique() => new UpdateEntry(t => t with { Unique = true });
+    public static Entry DefaultController(ControllerKind controller) => new UpdateEntry(t => Enum.IsDefined(controller)
+        ? t with { DefaultController = controller } : throw new ArgumentOutOfRangeException(nameof(controller)));
+    public static Entry Amphibious() => new UpdateEntry(t => t with { Amphibious = true });
     public static Entry WakeDistance(int distance) => new UpdateEntry(t => distance >= 0
         ? t with { WakeDistance = distance } : throw new ArgumentOutOfRangeException(nameof(distance)));
     public static Entry Footprint2x2() => new UpdateEntry(t => t with { Footprint = Footprint.TwoByTwo });

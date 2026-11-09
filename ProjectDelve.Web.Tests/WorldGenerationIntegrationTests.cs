@@ -235,7 +235,11 @@ public sealed class WorldGenerationIntegrationTests
         var prepared = await response.Content.ReadFromJsonAsync<JsonElement>();
         var transport = prepared.GetProperty("transport").GetString()!;
         var temporary = ScenarioDefinitionTransport.Decode(transport);
-        Assert.Equal(original.Units.Count + 4, temporary.Units.Count);
+        Assert.Equal(original.Units.Count + 5, temporary.Units.Count);
+        Assert.Equal(LootPresets.AllPresetId, temporary.Loot!.Preset);
+        Assert.Equal(new[] { UnitTypeIds.Barbarian, UnitTypeIds.Rogue, UnitTypeIds.Wizard, UnitTypeIds.Cleric, UnitTypeIds.Beastmaster },
+            temporary.Units.Skip(original.Units.Count).Select(unit => unit.UnitTypeId));
+        Assert.All(temporary.Agency.Skip(original.Agency.Count), agency => Assert.Equal(ControllerKind.Human, agency.Controller));
         Assert.Equal(original.Units, temporary.Units.Take(original.Units.Count));
         Assert.Equal(original.Orders, temporary.Orders);
         Assert.Equal(original.Routes, temporary.Routes); Assert.Equal(original.Waypoints, temporary.Waypoints);
@@ -252,6 +256,7 @@ public sealed class WorldGenerationIntegrationTests
         Assert.True(imported.IsSuccessStatusCode, await imported.Content.ReadAsStringAsync());
         var state = host.App.Services.GetRequiredService<PlaytestGame>().Snapshot().Result.State;
         Assert.Equal(temporary.Units.Count, state.Units.Count);
+        Assert.Equal(state.LootCardDefinitions.Count, state.LootDeck!.DrawPile.Count);
         Assert.Contains(HeroesVsMonsters.Heroes, state.FogOfWarSides);
         Assert.All(state.Objectives, objective => Assert.Equal(ScenarioObjective.NoObjective, objective.Objective));
         using var unchanged = await host.Client.PostAsJsonAsync("/api/world-generation", new { code });

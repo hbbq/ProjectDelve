@@ -12,6 +12,8 @@ Open Content to browse Canonical, Workspace or the current Scenario-local catalo
 
 Unit, Equipment, Item and Loot Card editors reuse the existing destination-neutral forms, Unit authoring contract, Mechanic Catalog, Costs and Engine-generated text. No new family editors are introduced. Type IDs identify definitions; Ability local keys, mechanic identity, physical Instance IDs and display names remain distinct.
 
+Unit definitions expose optional **Default Controller**, intrinsic **Amphibious** movement/occupancy, and the reusable ExploreFoW, Go To Friendly and Maximize Friendly Adjacent preferences through the same metadata-driven forms. Explicit scenario Group and Type/Side assignments override Type defaults. Existing Types with no default keep their existing assignment requirements. Amphibious does not grant Phase; Engine validation owns Water placement and movement legality. Multiple separately keyed Adjacent Unit Summon Abilities can coexist on one source, each retaining its own target Type, starting Posture and Side cap.
+
 ### Ability Costs
 
 Each Unit, Equipment and Single Use Item Ability has an ordered **Costs** section.

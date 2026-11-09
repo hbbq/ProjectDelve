@@ -22,7 +22,7 @@ public static class SummoningRules
         {
             var cell = new Cell(x, y);
             var footprint = FootprintGeometry.OccupiedCells(summonedType.Footprint, cell);
-            if (SpatialRules.CanPlaceUnit(state, summonedType.Footprint, cell) &&
+            if (SpatialRules.CanPlaceUnit(state, summonedType, cell) &&
                 footprint.All(c => TerrainCatalog.Accepts(summonedType, state.Physical.Board.TerrainDefinitionAt(c))) &&
                 SpatialRules.AreFootprintsAdjacent(state.Physical.Board, FootprintGeometry.OccupiedCells(state, unit.Id), footprint))
                 yield return new($"{ability.CandidatePrefix}:{x},{y}",

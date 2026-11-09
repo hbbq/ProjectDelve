@@ -126,7 +126,10 @@ public enum UnitBehavior
     RouteLookahead = 16384,
     PreferBananaPeel = 32768,
     PreferLowestEffectiveDefense = 65536,
-    IgnoreLeash = 131072
+    IgnoreLeash = 131072,
+    ExploreFoW = 262144,
+    GoToFriendly = 524288,
+    MaximizeFriendlyAdjacent = 1048576
 }
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill : AbilityMechanic;
@@ -194,6 +197,10 @@ public sealed record AbilityUses
 public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int Hp,
     UnitAction Actions = UnitAction.NormalAttack, UnitBehavior Behaviors = UnitBehavior.None)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ControllerKind? DefaultController { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Amphibious { get; init; }
     public int? WakeDistance { get; init; }
     public bool CanHaveItems { get; init; }
     public bool CanHaveEquipment { get; init; }
@@ -443,7 +450,7 @@ public sealed class GameState
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
         if (wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
             groupId is not null && string.IsNullOrWhiteSpace(groupId) ||
-            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type.Footprint, cell) ||
+            !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type, cell) ||
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");

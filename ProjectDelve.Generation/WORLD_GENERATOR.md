@@ -8,11 +8,12 @@ Loot changes or FoW configuration are generated. Export DELVE1 or open in Scenar
 Designer to finish the scenario before play.
 
 **Quick Play** starts a temporary copy through the existing Designer Playtest flow.
-It places the four canonical Heroes in a small legal connected cluster, preferring
-the board edge, assigns human control, explicitly sets No Objective for every
-participating Side, and enables the ordinary Hero Fog of War. The original world
+It places Barbarian, Rogue, Wizard, Cleric and Beastmaster in a small legal connected
+cluster, preferring the board edge, assigns explicit Human control, explicitly sets
+No Objective for every participating Side, selects the existing **All** Loot Deck
+preset, and enables ordinary Hero Fog of War. The original world
 is retained in Designer; **Back to Designer** returns to it without the temporary
-party, Objectives or FoW changes. The retained generator preview, recipe,
+party, Loot, Objectives or FoW changes. The retained generator preview, recipe,
 fingerprint and DELVE1 export are unchanged. Unsuitable or crowded boards report
 a placement failure without replacing the game. This convenience setup makes no
 global reachability, encounter-distance or mission guarantees.

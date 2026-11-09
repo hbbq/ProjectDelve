@@ -89,6 +89,8 @@ All supported Action, Bonus Action and Free Action mechanics accept independent 
 
 `waypointSlotMachine` authors a six-face `ResourceOutputTable`; both reward resolution and card text read it. Adjacent Unit Summon authors its Unit Type, initial Posture and optional same-Type Side population limit. Resource requirements belong to the enclosing Ability Costs.
 
+Adjacent Unit Summon permits multiple distinct declarations on one source (`MaxPerSource: null`), as used by Beastmaster's five independently keyed Actions. Each declaration retains its own payload and Ability identity. This does not relax other specialized mechanics' source-count restrictions. Summons keep their creator's Side and the default Group; an existing exact runtime Controller wins, otherwise the summoned Type's optional DefaultController wins before creator inheritance.
+
 Summoning resolves Unit references exclusively against the captured effective game catalog. New-game composition applies scenario-local Unit overrides before capturing transitive dependencies; runtime lookup has no canonical fallback. Definition-only validation uses this same lookup, and the Designer supplies scoped Unit definitions to its reference picker and preview. Resource costs and storage access use the acting bearer's Side + Unit Type; granting an Ability does not grant Resource Storage. Machine ownership, capacities, placement, posture and other dynamic requirements still determine whether any candidate exists.
 
 All Ability sources require an acting or bearing Unit. Item consumption remains the selected physical object's lifecycle, not a one-use Ability restriction. No Item Passives, arbitrary triggers, or unsupported source/timing combinations are advertised.
