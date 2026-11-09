@@ -56,6 +56,7 @@ function harness(fetcher) {
   vm.runInContext(source('content-editor-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-library-state.js').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-promotion.js').replace(/^export /gm, ''), context);
+  vm.runInContext('const boardVisuals = { unit: {} };', context);
   vm.runInContext(source('content-editor.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   vm.runInContext(source('content-browser.js').replace(/^import .*\r?\n/gm, '').replace(/^export /gm, ''), context);
   context.root = root;
@@ -93,6 +94,30 @@ const catalog = { unitAuthoring,
     { key: 'mechanics:mend', family: 'mechanics', id: 'mend', name: 'Mending', origin: 'canonical', summary: 'Restore health.', sections: [], abilities: [], references: [], definition: heal, mechanic: heal }
   ]
 };
+
+test('Unit catalog, detail and reference portraits use registered artwork with text fallbacks', async () => {
+  const data = structuredClone(catalog);
+  data.entries[1].references.push({targetKey:'units:weaver',exists:true});
+  const h = harness(async () => ({ok:true,json:async () => data}));
+  h.run('boardVisuals.unit.weaver = { image: "./test-owned-portrait.webp" }');
+  await h.viewer.showCanonical();
+  const row = h.byId('content-list').children.find(row => row.dataset.contentId === 'weaver');
+  assert.equal(row.children[0].src, './test-owned-portrait.webp');
+  assert.equal(row.children[0].alt, '');
+  assert.match(row.textContent, /Sky Weaver/);
+  h.click(row);
+  const image = h.byId('content-detail').children.find(node => node.tagName === 'img');
+  assert.equal(image.src, './test-owned-portrait.webp');
+  image.listeners.error(); assert.equal(image.hidden, true);
+  assert.match(h.byId('content-detail').textContent, /Sky Weaver/);
+  h.click(h.byId('content-list').children.find(row => row.dataset.contentId === 'chime'));
+  const reference = h.byClass('cb-reference').find(node => node.dataset.targetId === 'weaver');
+  assert.equal(reference.children[0].src, './test-owned-portrait.webp');
+  h.run('delete boardVisuals.unit.weaver');
+  h.click(reference);
+  assert.equal(h.byId('content-detail').children.some(node => node.tagName === 'img'), false);
+  assert.match(h.byId('content-detail').textContent, /Sky Weaver/);
+});
 
 test('search, category and origin counts use actual data and reference navigation restores filters', () => {
   const h = harness(); h.context.data = structuredClone(catalog);

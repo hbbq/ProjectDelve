@@ -147,6 +147,52 @@ unexpected dimensions/composition, destructive cropping/distortion, conflicting
 documentation or missing rendering support. Missing sources never trigger automatic
 runtime deletion. Unresolved files and any unverified visual behavior are reported.
 
+### Beastmaster and summoned-creature portraits
+
+The six user-approved portraits use the ordinary explicit artwork catalog and
+`tools/prepare-artwork.py` registrations. Each opaque 1254×1254 PNG source exports
+as a 512×512 sRGB WebP with Lanczos resizing, quality 85 and method 6, preserving
+the complete composition without cropping or retouching.
+
+| Unit Type ID | Source portrait | Runtime portrait under `ProjectDelve.Web/wwwroot/` |
+| --- | --- | --- |
+| `beastmaster-type` | `assets/source/units/beastmaster.png` | `art/units/beastmaster.webp` |
+| `jackalope-type` | `assets/source/units/jackalope.png` | `art/units/jackalope.webp` |
+| `giant-toad-type` | `assets/source/units/giant-toad.png` | `art/units/giant-toad.webp` |
+| `dire-bear-type` | `assets/source/units/dire-bear.png` | `art/units/dire-bear.webp` |
+| `raptor-type` | `assets/source/units/raptor.png` | `art/units/raptor.webp` |
+| `light-elemental-type` | `assets/source/units/light-elemental.png` | `art/units/light-elemental.webp` |
+
+The shared catalog supplies 2D board tokens, Unit cards and Client/Quick Play
+views. Designer placement and Unit inspectors, Content Workspace lists/details
+and Unit reference links show generic catalog-driven thumbnails. Summon ability
+headings use an optional `referencedUnitTypeId` from the browser presentation's
+typed Summon mechanic, never ability-name or description parsing. Unknown images
+retain text fallbacks; failed thumbnails hide without changing controls.
+
+The [catalog preview](assets/previews/artwork-pack-01.png) includes the six new
+portraits. [Desktop](assets/previews/beastmaster-portraits-desktop.png) and
+[mobile](assets/previews/beastmaster-portraits-mobile.png) browser captures show
+their board tokens and Beastmaster's individual summon-target thumbnails. The
+approved Jackalope antlers remain within the circular clip; Raptor retains its
+approved torso-heavy composition. Both stay readable at card size; no source
+framing was changed. Source portraits, full-body masters, sheets and all 3D files
+remain unchanged. Existing runtime exports retain their original bytes after
+equivalent re-exports were checked for identical pixels/profile meaning.
+
+Verification: 9 Python artwork checks, 1,004 JavaScript/client/security checks,
+27 focused browser-projection/appearance .NET checks and 2,679 Engine tests passed;
+the solution build passed. The full Web suite passed 719 tests and retained the
+12 documented `ScenarioContentReferenceTests` failures caused by conflicting
+`knightly-boots` content identities (see [baseline evidence](ProjectDelve.Generation/WORLD_GENERATOR.md)).
+The build also reported cached NU1900 vulnerability-feed availability warning.
+The existing artwork virtual environment reproduces the committed rail SVG's
+embedded PNG compression; model regression checks use the documented
+`PROJECTDELVE_PYTHON` selection. No package installation or model import was needed.
+Restricted Edge QA covered all six portraits on 1440×1000 and 390×844 layouts,
+Designer placement/inspector, Content Workspace and Quick Play. Successful runs
+reported no console errors or failed requests; native touch was not exercised.
+
 ### Optional Unit concepts and references
 
 Production 3D miniatures use the manual GLB inbox at `assets/import/models/`.

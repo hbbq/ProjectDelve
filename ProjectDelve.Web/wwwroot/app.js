@@ -803,6 +803,15 @@ function renderUnitCard() {
     const ability = entry.content;
     row.dataset.entryId = ability.id;
     const heading = text("div", ""); heading.className = "ability-heading";
+    if (entry.referencedUnitTypeId) {
+      const image = document.createElement("img"); image.className = "unit-portrait ability-target-portrait"; image.alt = "";
+      const visual = applyBoardVisual(image, "unit", entry.referencedUnitTypeId);
+      if (visual.image) {
+        image.src = visual.image;
+        image.addEventListener("error", () => { image.hidden = true; });
+        heading.append(image);
+      }
+    }
     const name = text("strong", ability.name + (entry.copyCount > 1 ? ` ×${entry.copyCount}` : ""));
     bindTooltip(name, () => ability.description || ability.name);
     if (ability.useLimitText != null) {

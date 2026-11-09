@@ -21,6 +21,24 @@ spec.loader.exec_module(pipeline)
 
 
 class CompositeArtworkTests(unittest.TestCase):
+    def test_beastmaster_portraits_preserve_full_composition_and_standard_encoding(self):
+        for slug in ('beastmaster', 'jackalope', 'giant-toad', 'dire-bear', 'raptor', 'light-elemental'):
+            with self.subTest(slug=slug):
+                source, destination = f'units/{slug}.png', f'units/{slug}.webp'
+                self.assertIn((source, destination, 512), pipeline.ASSETS)
+                with Image.open(pipeline.SOURCE / source) as original:
+                    original.load()
+                    expected = ImageOps.exif_transpose(original).convert('RGB').resize((512, 512), Image.Resampling.LANCZOS)
+                    buffer = BytesIO()
+                    expected.save(buffer, 'WEBP', quality=85, method=6, exact=True)
+                with Image.open(buffer) as encoded, Image.open(pipeline.OUTPUT / destination) as actual:
+                    encoded.load(); actual.load()
+                    self.assertEqual(actual.format, 'WEBP')
+                    self.assertEqual(actual.size, (512, 512))
+                    self.assertEqual(actual.convert('RGB').tobytes(), encoded.convert('RGB').tobytes())
+                    self.assertEqual(actual.convert('RGBA').getchannel('A').getextrema(), (255, 255))
+                    self.assertEqual(ImageCms.getProfileName(ImageCms.ImageCmsProfile(BytesIO(actual.info['icc_profile']))).strip(), 'sRGB built-in')
+
     def test_chess_portraits_use_standard_pipeline_and_catalog(self):
         catalog = (pipeline.ROOT / 'ProjectDelve.Web/wwwroot/board-visuals.js').read_text(encoding='utf-8')
         for name in ('royal-peasant', 'goblin-peasant', 'castle-guard', 'tower-troll',

@@ -1,0 +1,190 @@
+{
+  "protectedFiles": 547,
+  "protectedFilesUnchanged": true,
+  "approvedMastersUnchanged": true,
+  "generatedOutputs": 12,
+  "outputs": [
+    {
+      "slug": "beastmaster",
+      "kind": "portrait",
+      "path": "assets/source/units/beastmaster.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "beastmaster",
+      "kind": "characterSheet",
+      "path": "assets/source/units/beastmaster/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "jackalope",
+      "kind": "portrait",
+      "path": "assets/source/units/jackalope.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "jackalope",
+      "kind": "characterSheet",
+      "path": "assets/source/units/jackalope/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "giant-toad",
+      "kind": "portrait",
+      "path": "assets/source/units/giant-toad.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "giant-toad",
+      "kind": "characterSheet",
+      "path": "assets/source/units/giant-toad/reference/character-sheet.png",
+      "dimensions": [
+        2172,
+        724
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "dire-bear",
+      "kind": "portrait",
+      "path": "assets/source/units/dire-bear.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "dire-bear",
+      "kind": "characterSheet",
+      "path": "assets/source/units/dire-bear/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "raptor",
+      "kind": "portrait",
+      "path": "assets/source/units/raptor.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "raptor",
+      "kind": "characterSheet",
+      "path": "assets/source/units/raptor/reference/character-sheet.png",
+      "dimensions": [
+        2172,
+        724
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "light-elemental",
+      "kind": "portrait",
+      "path": "assets/source/units/light-elemental.png",
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    },
+    {
+      "slug": "light-elemental",
+      "kind": "characterSheet",
+      "path": "assets/source/units/light-elemental/reference/character-sheet.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "format": "PNG",
+      "mode": "RGB",
+      "frames": 1,
+      "exifOrientation": null,
+      "embeddedColorProfile": false,
+      "alphaExtrema": null
+    }
+  ],
+  "runtimeIntegration": false,
+  "userApproval": "pending"
+}

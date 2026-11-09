@@ -226,6 +226,12 @@ body.designing h1 small { display: none; }
 .designer-agency-row { padding: 10px 0; border-bottom: 1px solid var(--ui-border); margin-bottom: 10px; }
 #designer-placements { display: grid; gap: 6px; margin-top: 8px; }
 #designer-properties > button { margin: 4px; }
+.unit-portrait { width: 48px; height: 48px; object-fit: contain; vertical-align: middle; border-radius: 4px; }
+.unit-portrait[hidden] { display: none; }
+.ability-heading .ability-target-portrait { width: 28px; height: 28px; align-self: center; }
+.designer-unit-preview { display: block; margin: 4px 0; }
+.content-browser .unit-portrait { margin: 0 8px 4px 0; }
+.content-browser .cb-list-entry .unit-portrait { width: 36px; height: 36px; }
 .designer-actions { margin-top: 16px; }
 #designer-status { color: var(--ui-emphasis); }
 #designer-errors { color: var(--ui-warning); overflow-wrap: anywhere; }

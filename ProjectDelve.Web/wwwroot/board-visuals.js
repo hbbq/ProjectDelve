@@ -47,6 +47,12 @@ export const boardVisuals = {
     Rail: { baseTerrain: "Gravel", tracks: Object.fromEntries(["straight", "curve", "tee", "cross"].map(shape => [shape, `./art/railway/${shape}.svg`])) }
   },
   unit: {
+    "beastmaster-type": { image: "./art/units/beastmaster.webp" },
+    "jackalope-type": { image: "./art/units/jackalope.webp" },
+    "giant-toad-type": { image: "./art/units/giant-toad.webp" },
+    "dire-bear-type": { image: "./art/units/dire-bear.webp" },
+    "raptor-type": { image: "./art/units/raptor.webp" },
+    "light-elemental-type": { image: "./art/units/light-elemental.webp" },
     "royal-queen-type": { image: "./art/units/royal-queen.webp" },
     "witch-queen-type": { image: "./art/units/witch-queen.webp" },
     "royal-king-type": { image: "./art/units/royal-king.webp" },

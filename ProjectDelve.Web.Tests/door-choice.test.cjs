@@ -2829,7 +2829,8 @@ test("portrait assets use the content catalog and retain fallback on image failu
 for (const name of ["barbarian", "zombie", "worker", "chief-mechanic", "diamond-kart", "geomancer", "wizard", "rogue", "grunt", "skeleton-archer", "goblin", "troll",
   "cleric", "shaman", "ghost", "bomb-imp", "displacer-demon", "labyrinth-shaper", "red-dragon", "locomotive",
   "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
-  "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
+  "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
+  "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental"]) test(`${name}: shipped portrait composes with token information and existing selection`, () => {
   const initial = response();
   initial.result.state.types[0].id = `${name}-type`;
   initial.result.state.units[0].typeId = `${name}-type`;
@@ -3517,7 +3518,8 @@ test("completion actions restart through the existing revisioned operation and r
 });
 
 test("card portraits reuse the Unit Type catalog and preserve fallback through loading and errors", () => {
-  for (const typeId of ["wizard-type", "chief-mechanic-type", "royal-peasant-type"]) {
+  for (const typeId of ["wizard-type", "chief-mechanic-type", "royal-peasant-type",
+    "beastmaster-type", "jackalope-type", "giant-toad-type", "dire-bear-type", "raptor-type", "light-elemental-type"]) {
     const initial = response(); initial.result.state.units[0].typeId = typeId;
     initial.result.state.types.push({ ...initial.result.state.types[0], id: typeId });
     const h = harness(initial), card = h.elements.get("unit-card");
@@ -3537,6 +3539,26 @@ test("card portraits reuse the Unit Type catalog and preserve fallback through l
   const h = harness(response()), frame = h.elements.get("unit-card").querySelectorAll(".card-portrait")[0];
   assert.ok(frame.children[0].textContent);
   assert.equal(buttons(frame).length, 0);
+});
+
+test("summon target artwork uses explicit presentation references without interpreting ability names", () => {
+  for (const slug of ["jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental"]) {
+    const initial = response();
+    initial.presentation.cards.actor.entries = [{ referencedUnitTypeId: `${slug}-type`, uses: null,
+      content: { id: "ability:fixture", name: "Unrelated printed alias", category: "Action", description: "Fixture reference." } }];
+    const h = harness(initial);
+    const image = h.elements.get("unit-card").querySelectorAll(".ability-target-portrait")[0];
+    assert.equal(image.src, `./art/units/${slug}.webp`);
+    image.listeners.error();
+    assert.equal(image.hidden, true);
+    assert.deepEqual(h.submitted, []);
+  }
+  const initial = response();
+  initial.presentation.cards.actor.entries = [{ referencedUnitTypeId: "fixture-unregistered-target", uses: null,
+    content: { id: "ability:fixture", name: "Fixture target", category: "Action", description: "Fixture reference." } }];
+  const h = harness(initial);
+  assert.equal(h.elements.get("unit-card").querySelectorAll(".ability-target-portrait").length, 0);
+  assert.equal(h.elements.get("unit-card").querySelectorAll(".ability-heading")[0].children[0].textContent, "Fixture target");
 });
 
 test("empty Cell hover and state updates keep an unchanged card portrait mounted and loaded", () => {

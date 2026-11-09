@@ -1,0 +1,63 @@
+{
+  "slug": "giant-toad",
+  "kind": "portrait",
+  "unitTypeId": "giant-toad-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME broad squat toad: very wide closed mouth, raised widely spaced gold-amber eyes with horizontal black pupils, olive/ochre/umber mottled bumpy skin and pale cream speckled throat/belly. Two forelegs and two powerful folded hind legs, four substantial amphibian feet. Preserve its head width, eye placement, skin bumps and visible toe construction; no tongue, tail, fangs or equipment.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.\nComposition correction: make a TIGHT HEAD-AND-THROAT PORTRAIT, not a complete seated toad. Show the broad head, both eyes, upper cream throat and a small amount of shoulders. Crop below the upper chest: NO feet, toes, hind legs or full belly in this portrait. Keep the complete head and both eyes inside the central 75 percent width with circular-crop margins. Preserve exact face anatomy and eye placement.",
+  "references": [
+    "assets/source/units/giant-toad/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/giant-toad/reference/full-body.png",
+      "sha256": "fe3cf2131c31fc2ce4633defb15e12da1e2c85dabb9f06eefcfae384aaf4c02b"
+    }
+  ],
+  "outputPath": "assets/source/units/giant-toad.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "rejectedAttempts": [
+    {
+      "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME broad squat toad: very wide closed mouth, raised widely spaced gold-amber eyes with horizontal black pupils, olive/ochre/umber mottled bumpy skin and pale cream speckled throat/belly. Two forelegs and two powerful folded hind legs, four substantial amphibian feet. Preserve its head width, eye placement, skin bumps and visible toe construction; no tongue, tail, fangs or equipment.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+      "references": [
+        "assets/source/units/giant-toad/reference/full-body.png"
+      ],
+      "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-176c2bd4-c429-4d0c-9a56-3d2e9a720f0a.png",
+      "sha256": "d49abf34fc2f3a903d1d3eaef4b5b7c7b37ee7c5ac7ace8fe6695061a798102f",
+      "image": {
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "reason": "First attempt repeated full seated body rather than head and upper-body portrait."
+    }
+  ],
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-bfed663a-6b21-41ae-a5be-b0c5b8da641a.png",
+  "output": {
+    "path": "assets/source/units/giant-toad.png",
+    "sha256": "e25fb8a6da6a208a5f643687d652a1c9f1a75c65a7cd1d2d47d0136381602820",
+    "bytes": 2253281,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Second attempt correctly frames broad head and throat, retaining eye placement, horizontal pupils, closed mouth, mottled bumps and cream throat. Both eyes and facial features remain readable in circular token crop.",
+  "issues": []
+}

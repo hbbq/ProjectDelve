@@ -6,6 +6,24 @@ const vm = require("node:vm");
 
 const source = name => fs.readFileSync(path.join(__dirname, "../ProjectDelve.Web/wwwroot", name), "utf8");
 
+test('placement and selected Unit previews use registered portraits and retain unknown or failed image text controls', () => {
+  const h = harness();
+  h.run('boardVisuals.unit["opaque-large"] = { image: "./test-owned-portrait.webp" }');
+  change(h.editor.ui.type, 'opaque-large');
+  const image = h.editor.ui['unit-brush'].querySelectorAll('img')[0];
+  assert.equal(image.src, './test-owned-portrait.webp'); assert.equal(image.alt, '');
+  image.listeners.error(); assert.equal(image.hidden, true);
+  assert.equal(h.editor.ui.type.value, 'opaque-large');
+  change(h.editor.ui.type, 'test-unknown-artwork');
+  assert.equal(h.editor.ui['unit-brush'].querySelectorAll('img').length, 0);
+  h.editor.draft.place('opaque-large', 'A', 'Human', {x:1,y:1}); h.editor.render();
+  h.editor.setTool('Select'); h.down(h.cell(1, 1));
+  const selected = h.editor.ui.properties.querySelectorAll('img')[0];
+  assert.equal(selected.src, './test-owned-portrait.webp');
+  selected.listeners.error(); assert.equal(selected.hidden, true);
+  assert.match(h.editor.ui.properties.textContent, /Unit Type/);
+});
+
 test('large board selection retains mounted terrain while terrain and edge edits survive recovery', () => {
   const oldLimit=catalog.maxBoardSize;catalog.maxBoardSize=120;
   try {

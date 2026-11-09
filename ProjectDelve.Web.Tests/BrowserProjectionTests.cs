@@ -222,6 +222,7 @@ public sealed class BrowserProjectionTests
         state = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
         var entry = Assert.Single(BrowserProjection.Cards(state)["actor"].Entries);
         Assert.Equal("Call Sage", entry.Content.Name);
+        Assert.Equal(UnitTypeIds.Wizard, entry.ReferencedUnitTypeId);
         Assert.Equal("Action", entry.Content.Category);
         Assert.Equal("Place one Upright Sage in an adjacent empty Cell on this Unit's Side.", entry.Content.Description);
         Assert.Null(entry.Content.MaxUses);

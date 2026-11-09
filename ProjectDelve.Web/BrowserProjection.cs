@@ -33,6 +33,7 @@ public sealed record CardEntry(CardEntryDescription Content, AbilityUses? Uses)
     public string? AccountingId { get; init; }
     public string? SourceInstanceId { get; init; }
     public int CopyCount { get; init; } = 1;
+    public string? ReferencedUnitTypeId { get; init; }
 }
 public sealed record ObjectDisplay(string Id, LootCardKind Kind, string? EquipmentTypeId, LootCardContent Content)
 {
@@ -244,7 +245,8 @@ public static class BrowserProjection
             Source = grant.SourceKind == AbilitySourceKind.Unit ? "Native" : grant.SourceKind.ToString(),
             SourceName = grant.SourceName, SourceTypeId = grant.SourceTypeId,
             SourceInstanceId = copies == 1 ? grant.SourceInstanceId : null,
-            AccountingId = grant.AccountingId, CopyCount = copies
+            AccountingId = grant.AccountingId, CopyCount = copies,
+            ReferencedUnitTypeId = grant.Definition.Mechanic is AdjacentUnitSummonMechanic summon ? summon.UnitTypeId : null
         };
 
     private static IEnumerable<CardEntry> AcquiredEntries(GameState state, Unit unit)

@@ -1,0 +1,40 @@
+{
+  "slug": "jackalope",
+  "kind": "characterSheet",
+  "unitTypeId": "jackalope-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve four-view character reference sheet.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new landscape character reference sheet with exactly FOUR clearly separated complete full-body views in one horizontal row: front, side, rear, and front three-quarter, in that order. Same character in every view, neutral resting pose, identical anatomy/proportions/colors/materials/equipment, consistent scale and ground line, generous space between figures and margins around all extremities. Use near-orthographic views with minimal perspective distortion. Preserve the master pose as far as each orientation permits. Infer unseen rear construction only in the simplest consistent way, continuing existing forms and colors; no elaborate new features. Include complete antlers, ears, hands, feet, tails, staff and integrated ground-contact form as applicable. The sheet is supporting reference and must not override the approved full body. No portrait panels or decorative layout.\nSubject: The SAME tawny rabbit-like Jackalope: amber-brown eyes with pale eye surrounds, cream muzzle/chest, gray-brown and tawny fur, two long pink-lined ears, two substantial branching ivory-brown antlers, strong folded hind legs, forepaws and short cream-tipped tail. Match the master antler beam and branch arrangement; do not add horns, branches or accessories.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/jackalope/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/jackalope/reference/full-body.png",
+      "sha256": "848ed7c3a6c7170dc296cba233db512a58197d0323344ac2fd9ec14fff5dbdf7"
+    }
+  ],
+  "outputPath": "assets/source/units/jackalope/reference/character-sheet.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-adb2502d-e485-420f-90e8-7ec134d4311e.png",
+  "output": {
+    "path": "assets/source/units/jackalope/reference/character-sheet.png",
+    "sha256": "4510c410f6eba933b3935afa56a47096cb6aa168e3cf9c89b66d4567f0edb7d4",
+    "bytes": 1839674,
+    "dimensions": [
+      1774,
+      887
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Four complete views retain tawny/cream fur, amber eyes, four paws, short tail and branching antlers. Side view is near-profile rather than strict orthographic; overlapping far antler/ear is natural. Small antler surface details vary; master remains authority.",
+  "issues": []
+}

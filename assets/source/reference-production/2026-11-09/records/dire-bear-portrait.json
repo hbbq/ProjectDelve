@@ -1,0 +1,40 @@
+{
+  "slug": "dire-bear",
+  "kind": "portrait",
+  "unitTypeId": "dire-bear-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME massive brown bear: broad forehead and muzzle, small rounded ears, amber-brown eyes, dark nose, pale tan muzzle/bridge, dark umber fur with the distinctive warmer russet shoulder hump and dark chest/legs. Four large planted paws and short bear tail, no clothing, armor, ornaments or spikes. Match facial proportions, mass and broad fur clumps.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/dire-bear/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/dire-bear/reference/full-body.png",
+      "sha256": "73d7e921677371a5eea3b6c70f717896b72feffbdb48b861798c879f097891e2"
+    }
+  ],
+  "outputPath": "assets/source/units/dire-bear.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-20796d24-58dd-42b2-9ed3-4e831aaaf64e.png",
+  "output": {
+    "path": "assets/source/units/dire-bear.png",
+    "sha256": "72ac1677c85b7266d0526565247f84e538f5938e5b21a6472313f299ae560c81",
+    "bytes": 2100849,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Broad face, small rounded ears, amber eyes, pale muzzle, dark chest and russet shoulder coloration match the master. Clear centered face at token scale; no added ornaments or anatomy.",
+  "issues": []
+}

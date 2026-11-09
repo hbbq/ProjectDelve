@@ -1,0 +1,63 @@
+{
+  "slug": "jackalope",
+  "kind": "portrait",
+  "unitTypeId": "jackalope-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME tawny rabbit-like Jackalope: amber-brown eyes with pale eye surrounds, cream muzzle/chest, gray-brown and tawny fur, two long pink-lined ears, two substantial branching ivory-brown antlers, strong folded hind legs, forepaws and short cream-tipped tail. Match the master antler beam and branch arrangement; do not add horns, branches or accessories.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.\nCritical framing: zoom out enough that the entire head, both complete antlers with every tip, and both ears fit comfortably inside the CENTRAL 75 PERCENT of the square image in both axes. Leave at least 13 percent plain background margin above the tallest antler and around the sides. Preserve antler proportions; reduce the subject scale, never shorten antlers. Frame head and chest, with no paws or lower body.",
+  "references": [
+    "assets/source/units/jackalope/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/jackalope/reference/full-body.png",
+      "sha256": "848ed7c3a6c7170dc296cba233db512a58197d0323344ac2fd9ec14fff5dbdf7"
+    }
+  ],
+  "outputPath": "assets/source/units/jackalope.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "rejectedAttempts": [
+    {
+      "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME tawny rabbit-like Jackalope: amber-brown eyes with pale eye surrounds, cream muzzle/chest, gray-brown and tawny fur, two long pink-lined ears, two substantial branching ivory-brown antlers, strong folded hind legs, forepaws and short cream-tipped tail. Match the master antler beam and branch arrangement; do not add horns, branches or accessories.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+      "references": [
+        "assets/source/units/jackalope/reference/full-body.png"
+      ],
+      "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-2cb93c24-89c6-4b10-929e-3256813f8f17.png",
+      "sha256": "28cf668fa1e7c8262f95be2e4b4a581d668265790454a6501fe0bf79291a2533",
+      "image": {
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "reason": "Antler tips too close to square edges for generous token safe margins."
+    }
+  ],
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-5193bbb9-9d82-4bd9-bd76-1c3fa7056edd.png",
+  "output": {
+    "path": "assets/source/units/jackalope.png",
+    "sha256": "a0dccbcb7bce571ad63dae137ce84d404c8363b8650c35e3661c436bc4e33c05",
+    "bytes": 1807653,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Tawny/cream fur, amber eye, ears and master branching antlers preserved. Second attempt improves antler clearance; complete tips fit a circular crop. Tall antlers require a smaller face than ordinary humanoid portraits; inspect the token preview.",
+  "issues": []
+}

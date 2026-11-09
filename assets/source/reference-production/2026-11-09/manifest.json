@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-09",
+  "purpose": "Six full-body-first derived portrait/sheet sets; source artwork for review only",
+  "tool": "built-in image_gen.imagegen",
+  "runtimeIntegration": false,
+  "units": [
+    {
+      "unitTypeId": "beastmaster-type",
+      "slug": "beastmaster",
+      "name": "Beastmaster",
+      "approvedFullBody": {
+        "path": "assets/source/units/beastmaster/reference/full-body.png",
+        "sha256": "c2d8929af9abdebe7fec8767f7b26dba486e2f1bdfe49a97b8ab55b78f9dc667",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "portrait": {
+        "path": "assets/source/units/beastmaster.png",
+        "record": "assets/source/reference-production/2026-11-09/records/beastmaster-portrait.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "057ba4976e8fa4a6c63ffaa3d8613431b470eed43ffdf023243c2e631544bd3a",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "characterSheet": {
+        "path": "assets/source/units/beastmaster/reference/character-sheet.png",
+        "record": "assets/source/reference-production/2026-11-09/records/beastmaster-characterSheet.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "1a40141a3733316cdb50a9121ce6420962f07a3896d57a877c9584ab63bb0352",
+        "dimensions": [
+          1774,
+          887
+        ]
+      }
+    },
+    {
+      "unitTypeId": "jackalope-type",
+      "slug": "jackalope",
+      "name": "Jackalope",
+      "approvedFullBody": {
+        "path": "assets/source/units/jackalope/reference/full-body.png",
+        "sha256": "848ed7c3a6c7170dc296cba233db512a58197d0323344ac2fd9ec14fff5dbdf7",
+        "dimensions": [
+          1214,
+          1295
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "portrait": {
+        "path": "assets/source/units/jackalope.png",
+        "record": "assets/source/reference-production/2026-11-09/records/jackalope-portrait.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "a0dccbcb7bce571ad63dae137ce84d404c8363b8650c35e3661c436bc4e33c05",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "characterSheet": {
+        "path": "assets/source/units/jackalope/reference/character-sheet.png",
+        "record": "assets/source/reference-production/2026-11-09/records/jackalope-characterSheet.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "4510c410f6eba933b3935afa56a47096cb6aa168e3cf9c89b66d4567f0edb7d4",
+        "dimensions": [
+          1774,
+          887
+        ]
+      }
+    },
+    {
+      "unitTypeId": "giant-toad-type",
+      "slug": "giant-toad",
+      "name": "Giant Toad",
+      "approvedFullBody": {
+        "path": "assets/source/units/giant-toad/reference/full-body.png",
+        "sha256": "fe3cf2131c31fc2ce4633defb15e12da1e2c85dabb9f06eefcfae384aaf4c02b",
+        "dimensions": [
+          1312,
+          1199
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "portrait": {
+        "path": "assets/source/units/giant-toad.png",
+        "record": "assets/source/reference-production/2026-11-09/records/giant-toad-portrait.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "e25fb8a6da6a208a5f643687d652a1c9f1a75c65a7cd1d2d47d0136381602820",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "characterSheet": {
+        "path": "assets/source/units/giant-toad/reference/character-sheet.png",
+        "record": "assets/source/reference-production/2026-11-09/records/giant-toad-characterSheet.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "810a085b5bc19bb1b4025cfa9c84d5dc9b59bd6d155921d8fe9dd2fbceac0647",
+        "dimensions": [
+          2172,
+          724
+        ]
+      }
+    },
+    {
+      "unitTypeId": "dire-bear-type",
+      "slug": "dire-bear",
+      "name": "Dire Bear",
+      "approvedFullBody": {
+        "path": "assets/source/units/dire-bear/reference/full-body.png",
+        "sha256": "73d7e921677371a5eea3b6c70f717896b72feffbdb48b861798c879f097891e2",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "portrait": {
+        "path": "assets/source/units/dire-bear.png",
+        "record": "assets/source/reference-production/2026-11-09/records/dire-bear-portrait.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "72ac1677c85b7266d0526565247f84e538f5938e5b21a6472313f299ae560c81",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "characterSheet": {
+        "path": "assets/source/units/dire-bear/reference/character-sheet.png",
+        "record": "assets/source/reference-production/2026-11-09/records/dire-bear-characterSheet.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "315a57cbf5ec9b1302851e28bbebfffd59f95fe232a02c0dd0e7fef40118ed1e",
+        "dimensions": [
+          1774,
+          887
+        ]
+      }
+    },
+    {
+      "unitTypeId": "raptor-type",
+      "slug": "raptor",
+      "name": "Raptor",
+      "approvedFullBody": {
+        "path": "assets/source/units/raptor/reference/full-body.png",
+        "sha256": "309fb24088eba867d8cf744a13ea7b94a213f0d763b89fda9a76729f99bf7927",
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "portrait": {
+        "path": "assets/source/units/raptor.png",
+        "record": "assets/source/reference-production/2026-11-09/records/raptor-portrait.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "5c4d1936b9d2019c62573d8c45c6fe64e958cbc6adbd97a156b3e861c674d341",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "characterSheet": {
+        "path": "assets/source/units/raptor/reference/character-sheet.png",
+        "record": "assets/source/reference-production/2026-11-09/records/raptor-characterSheet.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "8ff834a7bff17440962a8d9d2d4d099134d02c58fd679df30a6aa237d2654b5e",
+        "dimensions": [
+          2172,
+          724
+        ]
+      }
+    },
+    {
+      "unitTypeId": "light-elemental-type",
+      "slug": "light-elemental",
+      "name": "Light Elemental",
+      "approvedFullBody": {
+        "path": "assets/source/units/light-elemental/reference/full-body.png",
+        "sha256": "fc10f485f62bb5ee7fe8c74b7ff26ee90a4c0a5a2860a52b103f29ecc9888458",
+        "dimensions": [
+          1024,
+          1536
+        ],
+        "format": "PNG",
+        "mode": "RGB",
+        "frames": 1,
+        "exifOrientation": null,
+        "embeddedColorProfile": false,
+        "alphaExtrema": null
+      },
+      "portrait": {
+        "path": "assets/source/units/light-elemental.png",
+        "record": "assets/source/reference-production/2026-11-09/records/light-elemental-portrait.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "be6ee425a0bf302c08658e0cea32c9093fc0215f86aa52c73a2585ae00875d2a",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "characterSheet": {
+        "path": "assets/source/units/light-elemental/reference/character-sheet.png",
+        "record": "assets/source/reference-production/2026-11-09/records/light-elemental-characterSheet.json",
+        "status": "agent-visually-reviewed-awaiting-user-review",
+        "sha256": "6c0c564a2fc57b4eeab29813c1629add21788bf3065e5bf3ba61fc1b30db07e7",
+        "dimensions": [
+          1774,
+          887
+        ]
+      }
+    }
+  ],
+  "status": "complete-awaiting-user-review",
+  "generatedOutputs": 12,
+  "approvedMastersPreserved": true
+}

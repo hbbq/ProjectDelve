@@ -1,0 +1,40 @@
+{
+  "slug": "light-elemental",
+  "kind": "characterSheet",
+  "unitTypeId": "light-elemental-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve four-view character reference sheet.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new landscape character reference sheet with exactly FOUR clearly separated complete full-body views in one horizontal row: front, side, rear, and front three-quarter, in that order. Same character in every view, neutral resting pose, identical anatomy/proportions/colors/materials/equipment, consistent scale and ground line, generous space between figures and margins around all extremities. Use near-orthographic views with minimal perspective distortion. Preserve the master pose as far as each orientation permits. Infer unseen rear construction only in the simplest consistent way, continuing existing forms and colors; no elaborate new features. Include complete antlers, ears, hands, feet, tails, staff and integrated ground-contact form as applicable. The sheet is supporting reference and must not override the approved full body. No portrait panels or decorative layout.\nSubject: The SAME small benevolent humanoid-like solid elemental: ivory face, almond golden eyes, subtle smile, amber diamond forehead inset, a connected crown of thick amber/ivory flame-shaped crystals, broad rounded faceted shoulders, two substantial arms and hands held close across the chest, continuous twisting ivory/gold/amber lower taper with broad flattened ground contact. Preserve the opaque painted luminous-looking material, exact silhouette and integrated lower form; no legs, new ornaments, detached crystals, halos or light effects.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/light-elemental/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/light-elemental/reference/full-body.png",
+      "sha256": "fc10f485f62bb5ee7fe8c74b7ff26ee90a4c0a5a2860a52b103f29ecc9888458"
+    }
+  ],
+  "outputPath": "assets/source/units/light-elemental/reference/character-sheet.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-cc0a99f4-61c6-47db-a601-77f258784f0a.png",
+  "output": {
+    "path": "assets/source/units/light-elemental/reference/character-sheet.png",
+    "sha256": "6c0c564a2fc57b4eeab29813c1629add21788bf3065e5bf3ba61fc1b30db07e7",
+    "bytes": 1963780,
+    "dimensions": [
+      1774,
+      887
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Four complete views retain ivory face, golden eyes/forehead diamond, connected crown/shoulders, hands at chest and solid ground-connected taper. Rear crystal and twisting lower-body surfaces simply continue the master; exact facets differ between views. No detached effects or added support.",
+  "issues": []
+}

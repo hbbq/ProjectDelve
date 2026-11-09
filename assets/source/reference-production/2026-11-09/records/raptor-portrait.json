@@ -1,0 +1,40 @@
+{
+  "slug": "raptor",
+  "kind": "portrait",
+  "unitTypeId": "raptor-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME featherless predatory dinosaur: long narrow rounded snout and closed mouth, golden eyes, slate/moss-green scaled hide, ochre irregular stripes from head through torso and tail, pale cream-gray throat and belly, two compact three-fingered forelimbs, two planted clawed hind feet with raised sickle claws, one long gently curved balancing tail. Preserve the exact head anatomy, limb construction and distinctive markings; no feathers, horns, new spikes or equipment.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/raptor/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/raptor/reference/full-body.png",
+      "sha256": "309fb24088eba867d8cf744a13ea7b94a213f0d763b89fda9a76729f99bf7927"
+    }
+  ],
+  "outputPath": "assets/source/units/raptor.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-c660119b-d1ae-47b9-8c5d-9625f0058a21.png",
+  "output": {
+    "path": "assets/source/units/raptor.png",
+    "sha256": "5c4d1936b9d2019c62573d8c45c6fe64e958cbc6adbd97a156b3e861c674d341",
+    "bytes": 2313953,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Head shape, golden eye, cream throat and green/ochre markings match the master; two three-fingered forelimbs retained. Tail/body naturally crop outside portrait; face remains visible in circular token framing.",
+  "issues": []
+}

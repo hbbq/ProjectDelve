@@ -8,6 +8,13 @@ const element = (tag, value = "") => {
   if (tag === "button") node.dataset.action = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return node;
 };
+function unitPortrait(typeId) {
+  const source = boardVisuals.unit[typeId]?.image;
+  if (!source) return null;
+  const image = element("img"); image.className = "unit-portrait"; image.src = source; image.alt = "";
+  image.addEventListener("error", () => { image.hidden = true; });
+  return image;
+}
 const sameGroup = (a, b) => a.unitTypeId === b.unitTypeId && a.sideId === b.sideId && (a.groupId ?? null) === (b.groupId ?? null);
 const authoredGroups = definition => [...definition.agency, ...definition.units, ...(definition.orders ?? [])]
   .filter((row, index, rows) => rows.findIndex(other => sameGroup(row, other)) === index);
@@ -235,6 +242,11 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
     } catch (error) { ui.status.textContent = error.message; }
   });
   const typeOptions = catalog.unitTypes.map(type => ({ value: type.unitTypeId, label: type.displayName }));
+  const brushPortrait = element("span"); brushPortrait.className = "designer-unit-preview";
+  (ui.type.parentElement ?? ui["unit-brush"]).append(brushPortrait);
+  function previewType(container, typeId) {
+    const image = unitPortrait(typeId); container.replaceChildren(...(image ? [image] : []));
+  }
   function syncImportedTypes() {
     typeOptions.splice(0, typeOptions.length, ...draft.unitTypeCatalog().map(type => ({ value: type.unitTypeId, label: type.displayName ?? type.unitTypeId })));
     for (const id of new Set([...(draft.definition.unitTypes ?? []).map(type => type.id), ...(draft.effectiveMetadata ?? []).map(type => type.unitTypeId), ...draft.definition.unitTypeIds, ...draft.definition.units.map(u => u.unitTypeId)]))
@@ -324,6 +336,7 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
   const brushControllers = new Map();
   const brushControllerKey = () => JSON.stringify([ui.type.value, ui.side.value]);
   function syncBrushAgency() {
+    previewType(brushPortrait, ui.type.value);
     const row = draft.definition.agency.find(row => row.unitTypeId === ui.type.value && row.sideId === ui.side.value && row.groupId == null);
     ui.controller.disabled = !!row;
     ui.controller.value = row?.controller ?? brushControllers.get(brushControllerKey()) ?? draft.defaultController(ui.type.value);
@@ -713,6 +726,9 @@ export function mountDesigner(catalog, request, playDesign, projectMetadata = bo
       if (!unit) { selection = null; renderProperties(); return; }
       if (!draft.metadata(unit.unitTypeId)) form.append(element("p", "Imported content: geometry is unavailable in the editor catalog; only the anchor is previewed. Engine validation still checks the full scenario. Save draft retains custom definitions."));
       const type = field(form, "Unit Type", unit.unitTypeId, { entries: typeOptions });
+      const portrait = element("div"); portrait.className = "designer-unit-preview"; form.append(portrait);
+      previewType(portrait, type.value);
+      type.addEventListener("change", () => previewType(portrait, type.value));
       const side = field(form, "SideId", unit.sideId, { list: "designer-sides" });
       const x = field(form, "Anchor X", unit.anchor.x, { type: "number" });
       const y = field(form, "Anchor Y", unit.anchor.y, { type: "number" });

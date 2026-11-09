@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-09",
+  "reviewer": "independent read-only agent",
+  "scope": "Six approved full-body masters, six full-resolution portraits, six full-resolution four-view sheets and contact-sheet circular previews",
+  "result": "No material identity/anatomy mismatch, missing view, cropped critical portrait feature or unexpected equipment found",
+  "requiredRetries": [],
+  "optionalReviewNotes": [
+    {
+      "path": "assets/source/units/raptor.png",
+      "note": "Torso-heavy composition makes the face comparatively small at 50px; identity, eye and snouted silhouette remain legible"
+    }
+  ],
+  "limitations": [
+    "User approval of derived artwork is pending",
+    "In-client presentation has not been verified",
+    "No Tripo geometry or physical printability validation performed"
+  ]
+}

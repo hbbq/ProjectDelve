@@ -1,0 +1,40 @@
+{
+  "slug": "beastmaster",
+  "kind": "characterSheet",
+  "unitTypeId": "beastmaster-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve four-view character reference sheet.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new landscape character reference sheet with exactly FOUR clearly separated complete full-body views in one horizontal row: front, side, rear, and front three-quarter, in that order. Same character in every view, neutral resting pose, identical anatomy/proportions/colors/materials/equipment, consistent scale and ground line, generous space between figures and margins around all extremities. Use near-orthographic views with minimal perspective distortion. Preserve the master pose as far as each orientation permits. Infer unseen rear construction only in the simplest consistent way, continuing existing forms and colors; no elaborate new features. Include complete antlers, ears, hands, feet, tails, staff and integrated ground-contact form as applicable. The sheet is supporting reference and must not override the approved full body. No portrait panels or decorative layout.\nSubject: The SAME human woman: light olive skin, oval face, dark eyebrows and hazel-brown eyes, dark brown hair swept back into the visible long braid; plum tunic, charcoal-green hooded short mantle with geometric gold edging, brass circular geometric clasp, brown leather straps, bracers, pouches, vial holder and boots. Preserve the exact dark carved wooden staff and inset brass circular star motif; no new focus or ornaments.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/beastmaster/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/beastmaster/reference/full-body.png",
+      "sha256": "c2d8929af9abdebe7fec8767f7b26dba486e2f1bdfe49a97b8ab55b78f9dc667"
+    }
+  ],
+  "outputPath": "assets/source/units/beastmaster/reference/character-sheet.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-73cfee9a-ae75-425b-bf75-229af833b1d7.png",
+  "output": {
+    "path": "assets/source/units/beastmaster/reference/character-sheet.png",
+    "sha256": "1a40141a3733316cdb50a9121ce6420962f07a3896d57a877c9584ab63bb0352",
+    "bytes": 2184852,
+    "dimensions": [
+      1774,
+      887
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Four complete views with consistent face, braid, mantle trim, plum tunic, staff, pouches and boots. Rear mantle and braid conservatively inferred; small clasp and strap details may vary by view.",
+  "issues": []
+}

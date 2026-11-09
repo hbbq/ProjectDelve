@@ -1,0 +1,40 @@
+{
+  "slug": "giant-toad",
+  "kind": "characterSheet",
+  "unitTypeId": "giant-toad-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve four-view character reference sheet.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new landscape character reference sheet with exactly FOUR clearly separated complete full-body views in one horizontal row: front, side, rear, and front three-quarter, in that order. Same character in every view, neutral resting pose, identical anatomy/proportions/colors/materials/equipment, consistent scale and ground line, generous space between figures and margins around all extremities. Use near-orthographic views with minimal perspective distortion. Preserve the master pose as far as each orientation permits. Infer unseen rear construction only in the simplest consistent way, continuing existing forms and colors; no elaborate new features. Include complete antlers, ears, hands, feet, tails, staff and integrated ground-contact form as applicable. The sheet is supporting reference and must not override the approved full body. No portrait panels or decorative layout.\nSubject: The SAME broad squat toad: very wide closed mouth, raised widely spaced gold-amber eyes with horizontal black pupils, olive/ochre/umber mottled bumpy skin and pale cream speckled throat/belly. Two forelegs and two powerful folded hind legs, four substantial amphibian feet. Preserve its head width, eye placement, skin bumps and visible toe construction; no tongue, tail, fangs or equipment.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/giant-toad/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/giant-toad/reference/full-body.png",
+      "sha256": "fe3cf2131c31fc2ce4633defb15e12da1e2c85dabb9f06eefcfae384aaf4c02b"
+    }
+  ],
+  "outputPath": "assets/source/units/giant-toad/reference/character-sheet.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-1f22334e-c45a-4511-9e2a-57dae8bf5623.png",
+  "output": {
+    "path": "assets/source/units/giant-toad/reference/character-sheet.png",
+    "sha256": "810a085b5bc19bb1b4025cfa9c84d5dc9b59bd6d155921d8fe9dd2fbceac0647",
+    "bytes": 2004234,
+    "dimensions": [
+      2172,
+      724
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Four complete front, side, rear and three-quarter views retain squat proportions, wide head, gold horizontal-pupil eyes, bumpy mottled skin and folded limbs. Rear bump pattern inferred simply; individual toe and bump details vary slightly between views.",
+  "issues": []
+}

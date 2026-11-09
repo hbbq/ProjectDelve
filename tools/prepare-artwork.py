@@ -29,7 +29,8 @@ ASSETS = [
                    "labyrinth-shaper", "red-dragon", "locomotive",
                    "royal-peasant", "goblin-peasant", "castle-guard", "tower-troll",
                    "royal-bishop", "goblin-bishop", "royal-knight", "hobby-knight",
-                   "royal-queen", "witch-queen", "royal-king", "goblin-king")],
+                   "royal-queen", "witch-queen", "royal-king", "goblin-king",
+                   "beastmaster", "jackalope", "giant-toad", "dire-bear", "raptor", "light-elemental")],
     *[(f"terrain/{name}-{i:02}.png", f"terrain/{name}/{i:02}.webp", 256)
       for name in ("stone-floor", "grass", "dirt", "water", "lava", "gravel", "asphalt", "solid-rock") for i in range(1, 4)],
     *[(f"terrain/objects/{name}-{i:02}.png", f"terrain/objects/{name}/{i:02}.webp", 256)

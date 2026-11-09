@@ -1,0 +1,2190 @@
+[
+  {
+    "path": "assets/source/edges/door-closed.png",
+    "sha256": "308b68047527b0286cbf18f1737b6e71a1e82465cbc3759ea4479bd8f3e2cca7"
+  },
+  {
+    "path": "assets/source/edges/door-open.png",
+    "sha256": "7c760af70259661794054d21abdb8df78a8743b330964f06ec5618c41b35d351"
+  },
+  {
+    "path": "assets/source/edges/wall.png",
+    "sha256": "42cf0cf2caf861b2518fb9e7eed45655a4355e2c818df2b781c6d6c5f44b8040"
+  },
+  {
+    "path": "assets/source/machines/diamond-press.png",
+    "sha256": "9ed76e4d7f609a2f59a88e3854c66ae5c56464ac463952ea1442637b80bf804d"
+  },
+  {
+    "path": "assets/source/machines/slot-machine.png",
+    "sha256": "0252fa754c0ec59cf2fd98f46f824ea861ad249a5b55d735f9fb42e62312b6de"
+  },
+  {
+    "path": "assets/source/markers/banana-peel.png",
+    "sha256": "08e9d3e74d6ca80d07d55d7ef3087798f7e41174bd5367c0c6fa58c9a49bb91d"
+  },
+  {
+    "path": "assets/source/models/final-six-performance.json",
+    "sha256": "3d6d64d265fd40f7125f5aafe66b6c6baa1828a573938b7c1bfd11075fc13e34"
+  },
+  {
+    "path": "assets/source/models/final-six-preflight.json",
+    "sha256": "aed423990b0bb47395a377b3140fce1ac76f1cde10041c0e71cadee9cb8208d3"
+  },
+  {
+    "path": "assets/source/models/FINAL_SIX_IMPORT.md",
+    "sha256": "f92a60897475b3ff76b3b419f6ea27acc327b1873abccbb130996fce889551b2"
+  },
+  {
+    "path": "assets/source/railway/rail.png",
+    "sha256": "da634f5e4dbdb4c5b08239520f4e65c4290e794dd98e57042dbbb35a4b615bef"
+  },
+  {
+    "path": "assets/source/railway/sleeper.png",
+    "sha256": "7aad989e81983a892deec9d38d42951d495c93f941a053c6c0af3dbae7dcb809"
+  },
+  {
+    "path": "assets/source/resources/banana.png",
+    "sha256": "3edf803b3fc1df33b89396c4cf93be30820ae6e19b770f701103bb9586ffa220"
+  },
+  {
+    "path": "assets/source/resources/coal.png",
+    "sha256": "b28645d0329c9aabb1413d394c8244c72fd9d918357c5f34fcd12d15ef4ddf6a"
+  },
+  {
+    "path": "assets/source/resources/diamond.png",
+    "sha256": "31896234fb49112a6d7f9fc28cfa28f22d3892584c099986a5f0b4c05c0d5fe5"
+  },
+  {
+    "path": "assets/source/resources/fruit.png",
+    "sha256": "b6a7af842a16af785ec6970cd2e6f753814e12f0248890435541df5fb9b0293d"
+  },
+  {
+    "path": "assets/source/resources/mushroom.png",
+    "sha256": "b59f7d50ac81d4b0fb8d56c7599fee14978438529a2f9744fd79808789a3b301"
+  },
+  {
+    "path": "assets/source/resources/shell.png",
+    "sha256": "36975da398645b5ec5aa4af8dc8b9a14f92741f31bdb6d3dab93bf9ab2f5944c"
+  },
+  {
+    "path": "assets/source/terrain/asphalt-01.png",
+    "sha256": "97de5a0275cec2de52e82567929c34e2b013e5f433fb92266fa2a9d26c175f92"
+  },
+  {
+    "path": "assets/source/terrain/asphalt-02.png",
+    "sha256": "614241309d1a3e557066f08b91c34768272daffd0518ecd448aa5d1da12ba11a"
+  },
+  {
+    "path": "assets/source/terrain/asphalt-03.png",
+    "sha256": "71506d744fb09d0f2f0378e99d6125361bd6dcb0dce46dcbdc2e401026235bf5"
+  },
+  {
+    "path": "assets/source/terrain/dirt-01.png",
+    "sha256": "552fbfaf4d638ebee0b7b0784e92de0267cd4824605e98e4215dad61409bd87a"
+  },
+  {
+    "path": "assets/source/terrain/dirt-02.png",
+    "sha256": "1826a1b3637eb347ac573b755e2ec70c737f433a03e05abc8226824908dfb692"
+  },
+  {
+    "path": "assets/source/terrain/dirt-03.png",
+    "sha256": "a196a6437c1dc4122762dffb7b501ad26e378c520555112097afccb50b5a8529"
+  },
+  {
+    "path": "assets/source/terrain/grass-01.png",
+    "sha256": "2868a8b33855718d7e0f8acce21b4015779a909b6e35662088e503f4a83ff1ee"
+  },
+  {
+    "path": "assets/source/terrain/grass-02.png",
+    "sha256": "d0e41d8a79b0f1631ecfafa64c29203dd75838e30ce7286dc7486a31e303b62a"
+  },
+  {
+    "path": "assets/source/terrain/grass-03.png",
+    "sha256": "0a8b4572805d9fea5af243164af64e26ecd725186113fd22874bca08f112564a"
+  },
+  {
+    "path": "assets/source/terrain/gravel-01.png",
+    "sha256": "b37176d0729cc73bc0ad5be997ab0cb275f9657fd05f63e8247f4e86932f8b02"
+  },
+  {
+    "path": "assets/source/terrain/gravel-02.png",
+    "sha256": "530544264b5dc9dbfe4de6a15186da548db42756d5c02248cc9c5674a5670225"
+  },
+  {
+    "path": "assets/source/terrain/gravel-03.png",
+    "sha256": "0bf9fd63ba5691da3e2e5cda4b075140e4a4bfb6a0449ec06ad1e5e17a868772"
+  },
+  {
+    "path": "assets/source/terrain/lava-01.png",
+    "sha256": "3cd3c8acba81f07138f7865a8526c02f3b39293cd4ed8c525b308f6178caf539"
+  },
+  {
+    "path": "assets/source/terrain/lava-02.png",
+    "sha256": "bd2c973480b89ff2ecc9bd4562ea543c1bc95c24df919b6a6edfaafb04c82769"
+  },
+  {
+    "path": "assets/source/terrain/lava-03.png",
+    "sha256": "1f5954b1e79757370a57fa4bce23306f6c488ca2b2d5377f37b2734d0fe7cb65"
+  },
+  {
+    "path": "assets/source/terrain/solid-rock-01.png",
+    "sha256": "8cfce9b84b6fad045c932dcabf77908d26e51d38c2987e8bda49def9018cdd28"
+  },
+  {
+    "path": "assets/source/terrain/solid-rock-02.png",
+    "sha256": "f9fc7803f5913a48143ceb9ae1c7a6f78f259f0de295ff9f5cb6731cc4f232ef"
+  },
+  {
+    "path": "assets/source/terrain/solid-rock-03.png",
+    "sha256": "391e2311996ccf1e2598221a327e0a24e1fef3d5b4e96d8231437b2fca18b698"
+  },
+  {
+    "path": "assets/source/terrain/stone-floor-01.png",
+    "sha256": "aa524416cc089254990e62603700de3a27ce7f40d6472fb6f4959096e367a99a"
+  },
+  {
+    "path": "assets/source/terrain/stone-floor-02.png",
+    "sha256": "8908f44f0ecb7bacb978dc9969536344411040ef2c4d0afc9daf79504b6aea92"
+  },
+  {
+    "path": "assets/source/terrain/stone-floor-03.png",
+    "sha256": "4b5448b491cc062548d2904ab945b6193d66ca60b2339487950663a9149b9cc4"
+  },
+  {
+    "path": "assets/source/terrain/water-01.png",
+    "sha256": "566f9d57d5cdb305e4828f284ddc48a35e45cdf2b452811120f75cee47a51d4e"
+  },
+  {
+    "path": "assets/source/terrain/water-02.png",
+    "sha256": "08c0ad03c28bcae40e473ef165672f1f4aa31f4ef0561c471ce0e33cb69317a5"
+  },
+  {
+    "path": "assets/source/terrain/water-03.png",
+    "sha256": "386d46a76bf9bcd00ca302f10b03659e09a657bd2a05bd95dab2797254ff0ae9"
+  },
+  {
+    "path": "assets/source/units/barbarian.png",
+    "sha256": "d91a331beb78e1f4f67a2aec933b5c5df73819ff9d1751c542ec6af829e58722"
+  },
+  {
+    "path": "assets/source/units/bomb-imp.png",
+    "sha256": "fb0f74df2138098c526ab7a8fe235f1a5aafd35ff39b2bcd5623f3e49d8ed6c6"
+  },
+  {
+    "path": "assets/source/units/castle-guard.png",
+    "sha256": "84ec1e6fa82db1ece0b8f6a5db783c5c50f609bd551527200bf5b89129e3e664"
+  },
+  {
+    "path": "assets/source/units/chief-mechanic.png",
+    "sha256": "2e3da066e665877ad0400f557cfaebc04b6d9e7c1b5b690d0a6ebf3feedb647b"
+  },
+  {
+    "path": "assets/source/units/cleric.png",
+    "sha256": "1e2d152760024a349b62fb5c209bb89f6d235ce225ac2a5882124d8236c647a5"
+  },
+  {
+    "path": "assets/source/units/diamond-kart.png",
+    "sha256": "f8ed8db05e9a2906a5a8b870e4aee1481fe216e2ea2191a20d364cabee8f3088"
+  },
+  {
+    "path": "assets/source/units/displacer-demon.png",
+    "sha256": "3945acce8622bc07fde0081b87de5225d1f006dc0a0db225575d8fbcc2543fb2"
+  },
+  {
+    "path": "assets/source/units/geomancer.png",
+    "sha256": "7ec20a502647cdd1c0fec8fd77b28b26f9a3a51d7dcdb5def0de7c6c8de5bb0c"
+  },
+  {
+    "path": "assets/source/units/ghost.png",
+    "sha256": "bf5d4bd5aca37cff89fab8bc3aff79ca9e755b116dd09f2f9b5ca8eb3b7cdda9"
+  },
+  {
+    "path": "assets/source/units/goblin-bishop.png",
+    "sha256": "cbe8d1d47c76c55125fd46d1d77d99b30c0dd20240c5ccb0ed7f99d8f43de029"
+  },
+  {
+    "path": "assets/source/units/goblin-king.png",
+    "sha256": "0bdfc46fa42acc30013827400fa45d4500bca9777800e5c0d377853762a9b685"
+  },
+  {
+    "path": "assets/source/units/goblin-peasant.png",
+    "sha256": "e5a730442234d2a585a108b032a3ba2b4a9cb9776e22056bb8d8e223d45e31b1"
+  },
+  {
+    "path": "assets/source/units/goblin.png",
+    "sha256": "a5a018aa3c3781f42530f956e8299340342968434ee8e4b9c54d43773c9c9d4b"
+  },
+  {
+    "path": "assets/source/units/grunt.png",
+    "sha256": "dc411927145faf26751c91da700ef47b76dac4fcdd0a4b711e04dfadf45ad713"
+  },
+  {
+    "path": "assets/source/units/hobby-knight.png",
+    "sha256": "82997fc1c189881e77ae5ef4d383c7aacd620a3546cfcd242d41612bd03105cb"
+  },
+  {
+    "path": "assets/source/units/labyrinth-shaper.png",
+    "sha256": "20765ff84ee94f6c2e17aa980546aa7e1aafffade2d6ec79b8ac54d71f6ac048"
+  },
+  {
+    "path": "assets/source/units/locomotive.png",
+    "sha256": "fd2a5b0fbcfdda1fb43805d06e8afbf9eb683df600e1a5a46f8dbb2267cbfebf"
+  },
+  {
+    "path": "assets/source/units/red-dragon.png",
+    "sha256": "0929fa4f6e18c8e450d68cffb7dfd106d9f1416f4d6aaae396e02e28b8d8e5f6"
+  },
+  {
+    "path": "assets/source/units/rogue.png",
+    "sha256": "a07dfa7647eafe175d7999ba38f0d2e79ba3234e556f78912d793fbb677b56ff"
+  },
+  {
+    "path": "assets/source/units/royal-bishop.png",
+    "sha256": "8c1164d5b0a70ae5563cd4779da6841b4a9a0d1abd0792dac8c95dd805c7366e"
+  },
+  {
+    "path": "assets/source/units/royal-king.png",
+    "sha256": "cc9b363bc250bdaa8dc5305e979284a3a905ee4cb7423f732bc45b1bab8e0443"
+  },
+  {
+    "path": "assets/source/units/royal-knight.png",
+    "sha256": "30e0cd00a36c170a5b76717cc74cba495cce00ad98b136b3f679f3a221672efa"
+  },
+  {
+    "path": "assets/source/units/royal-peasant.png",
+    "sha256": "d585d0ce03337a2e95ad9b84902ed932b4690b157a7d6a7ea3633d7450fc2fe7"
+  },
+  {
+    "path": "assets/source/units/royal-queen.png",
+    "sha256": "3b9207482b5ae8089f57b4da46624697a1568b5e38d4655ddbe15c22f6ad361d"
+  },
+  {
+    "path": "assets/source/units/shaman.png",
+    "sha256": "86e51773fbbf4a294ceb67c77e9622949a0db95a12fd56343cec893bf98a22d1"
+  },
+  {
+    "path": "assets/source/units/skeleton-archer.png",
+    "sha256": "ee65ef2c484286a4c90865943c58c1e3045f50c815dfa799bb1966edb3eb9ee5"
+  },
+  {
+    "path": "assets/source/units/tower-troll.png",
+    "sha256": "6308afa014bccc2dd959b473f98a6d1b7e724e875ab8ec180ada1a4536c9d434"
+  },
+  {
+    "path": "assets/source/units/troll.png",
+    "sha256": "baa6b5ce761c4752c42e7b20b9c1bebf1b736dc40c5d611a4e5b46adb688d656"
+  },
+  {
+    "path": "assets/source/units/witch-queen.png",
+    "sha256": "b8f80b479b2f432e159bbbdd57c51ba75a1f84c151b6fd4a25440e07ec7eaf90"
+  },
+  {
+    "path": "assets/source/units/wizard.png",
+    "sha256": "54e2dc4523aba7aa028c9016c1500faaa320493543e656933a32217d9239b777"
+  },
+  {
+    "path": "assets/source/units/worker.png",
+    "sha256": "c87127bd609d859b22181d31af3d5e49233090f3c86da0196f6a9de0f72a7cee"
+  },
+  {
+    "path": "assets/source/units/zombie.png",
+    "sha256": "0db1c1644fd69e3e6fad1a34e5cddd825161b1604f4faefad80a4e644bbea3d7"
+  },
+  {
+    "path": "assets/source/units/zombie/CONCEPT.md",
+    "sha256": "58f6152d0b602f3ca50120ff037768c6d4dea67265768bb56351b4f54baf29fc"
+  },
+  {
+    "path": "assets/source/units/zombie/reference/character-sheet.png",
+    "sha256": "463f05924450302ee58273c155643bd2abb17629b4ce11e8a55daaca15a22aaa"
+  },
+  {
+    "path": "assets/source/units/zombie/reference/full-body.png",
+    "sha256": "45c12357b400b32906781e6faf78cd0cdb4bc69b5635c14e436f8c8ecb78affd"
+  },
+  {
+    "path": "assets/source/units/worker/reference/character-sheet.png",
+    "sha256": "8aadc6142a88a617df6fd703b32b81edcd7f8f3fb7aebbad4cb336ecc1896e82"
+  },
+  {
+    "path": "assets/source/units/worker/reference/full-body.png",
+    "sha256": "7e8d8222632c938e49dba6ce329df39be29a1376554763d3f5510f1bdc3e7b50"
+  },
+  {
+    "path": "assets/source/units/worker/reference/views/view-01-front.png",
+    "sha256": "6170a52982bbd79d2afb04449618190c805aaac53741a5d35c08004da0d828f4"
+  },
+  {
+    "path": "assets/source/units/worker/reference/views/view-02-side.png",
+    "sha256": "c7ef1d025d7046f302adf67698ae162babe505058bcf9323bceb9148180c715c"
+  },
+  {
+    "path": "assets/source/units/worker/reference/views/view-03-back.png",
+    "sha256": "5c5f198876000f3a9959fd7ef32bd55ba43dd717f9a2375c45443d0091ef52eb"
+  },
+  {
+    "path": "assets/source/units/worker/reference/views/view-04-three-quarter.png",
+    "sha256": "83e36f57bddd6ce2663948817de7d47b2d8db14af716e4e12d7eb077e8617fac"
+  },
+  {
+    "path": "assets/source/units/wizard/reference/character-sheet.png",
+    "sha256": "3b6963f9c38fc8a3560e6ce823fd5cf3a19068cb38ad74c048aa1c21e12152a7"
+  },
+  {
+    "path": "assets/source/units/wizard/reference/full-body.png",
+    "sha256": "fc129c327f0adbd57486069650c7161a72f65d7b859a50f305650aa7cd3d00bd"
+  },
+  {
+    "path": "assets/source/units/witch-queen/reference/character-sheet.png",
+    "sha256": "c2d8e7ad8e4fb0914ccd6f0106e0af14cffe776e26b70130dba33f86583f5a4b"
+  },
+  {
+    "path": "assets/source/units/witch-queen/reference/full-body.png",
+    "sha256": "49ccb8270b32f3ac60e160610fab1c73ae72e3bc370a3e0b71a86e1f485bfffc"
+  },
+  {
+    "path": "assets/source/units/troll/reference/character-sheet.png",
+    "sha256": "a21c838e2114f1ad32a4299cdf4c012089bf39f64f6d8e3949a0fdfc5bcbe7a2"
+  },
+  {
+    "path": "assets/source/units/troll/reference/full-body.png",
+    "sha256": "c4952960a8d608ca8df574022f38c9d92488cba28f5e84317c3f7e3ac7ff1390"
+  },
+  {
+    "path": "assets/source/units/tower-troll/reference/character-sheet.png",
+    "sha256": "486762045a86b12381e27e2adbb4897d7684da18a47f539d7ee06be5ce447a26"
+  },
+  {
+    "path": "assets/source/units/tower-troll/reference/full-body-compact.png",
+    "sha256": "411ad31012ef1481bddf7c0d6f7ef9ea4e969f23e8dd5183be9af7a00701ca0c"
+  },
+  {
+    "path": "assets/source/units/tower-troll/reference/full-body.png",
+    "sha256": "4a887a9f8e41b1866bae0ac921229bba4980fb314bcc4d2d095f03a2d0819a32"
+  },
+  {
+    "path": "assets/source/units/skeleton-archer/reference/character-sheet.png",
+    "sha256": "6041987fc13fecf9f69712ede41698c4b9d5b6ca3ec1d148d1aa5832f602299f"
+  },
+  {
+    "path": "assets/source/units/skeleton-archer/reference/full-body.png",
+    "sha256": "a35346e2d4391b418a7f7c18251dc5b030086c83edf258818fc70a646b846840"
+  },
+  {
+    "path": "assets/source/units/shaman/reference/character-sheet.png",
+    "sha256": "d1f4af3517cd16998cf7ce4ca653ac6f813402ed5d3e432e16c4aabfe8156283"
+  },
+  {
+    "path": "assets/source/units/shaman/reference/full-body.png",
+    "sha256": "ad20c0ac8cdd9edf2619e3cab44ef311151cf425b44b7af289adc4fff629b694"
+  },
+  {
+    "path": "assets/source/units/royal-queen/reference/character-sheet.png",
+    "sha256": "012609ff0bd3413f1e3e61307fc928dfae25bb9256cc0278a8fbee577b29dbec"
+  },
+  {
+    "path": "assets/source/units/royal-queen/reference/full-body.png",
+    "sha256": "0cab3a815c7ec9689957cac1712296d35d4c7a73e68e033c0ea588843a6419ce"
+  },
+  {
+    "path": "assets/source/units/royal-peasant/reference/character-sheet.png",
+    "sha256": "c2a38350d37c760ca53e225f5439a5cec3e749a0cf2d1889929c36b98af4aa8b"
+  },
+  {
+    "path": "assets/source/units/royal-peasant/reference/full-body.png",
+    "sha256": "1e41190146a049d7be1a53b13ed2b666fdab51f4565ffa1491056b4a42df1f64"
+  },
+  {
+    "path": "assets/source/units/royal-knight/reference/character-sheet.png",
+    "sha256": "ea07499c869de9092b548f58066106b68b3fb4ed36b39e5d991c761507a57748"
+  },
+  {
+    "path": "assets/source/units/royal-knight/reference/full-body-compact.png",
+    "sha256": "06867c434608643a49f959025aca2bde0646842a2b8b6df4ef70683a8946373d"
+  },
+  {
+    "path": "assets/source/units/royal-knight/reference/full-body.png",
+    "sha256": "d471e35f658372ee8dee03b65776b74f283e3c9eefd92775a10bf8629c79b2bf"
+  },
+  {
+    "path": "assets/source/units/royal-king/reference/character-sheet.png",
+    "sha256": "08e644daee646fd91538dd4dfbe0dc885a03a90007ac5f7ae14496b92de0ffd4"
+  },
+  {
+    "path": "assets/source/units/royal-king/reference/full-body.png",
+    "sha256": "db2379d6a8ce9d9f90a5ea38b5df107d3f7d9b51e3f35fe1ed4524787ab45a45"
+  },
+  {
+    "path": "assets/source/units/royal-bishop/reference/character-sheet.png",
+    "sha256": "ec355376041a6a64b8c53a455cf2707b61335b18ec4e7c37c9b9856133a17e58"
+  },
+  {
+    "path": "assets/source/units/royal-bishop/reference/full-body.png",
+    "sha256": "3a75d867749b5391b5c74ab71edda4d0d1e4b0171f65889a366e9a2419fd3570"
+  },
+  {
+    "path": "assets/source/units/rogue/reference/character-sheet.png",
+    "sha256": "5855f825173602322e3d5f65019cc79bacbc4ffb81e3c9c272d5ef541fac8ac9"
+  },
+  {
+    "path": "assets/source/units/rogue/reference/full-body.png",
+    "sha256": "de871781d8e8aaee7939d8f3bc7a5151a7bc5cdcd477b63fe2a9c9b9675d5f3b"
+  },
+  {
+    "path": "assets/source/units/red-dragon/reference/character-sheet.png",
+    "sha256": "2b051e0c90a338205512f26e03b5869ecb03922d1492da9a1bc428f610d8fcfa"
+  },
+  {
+    "path": "assets/source/units/red-dragon/reference/full-body-compact.png",
+    "sha256": "5f7f278fd91b23bc3ff526cf8ace5af5598459ea7c14cf602230366d37e8f3d1"
+  },
+  {
+    "path": "assets/source/units/red-dragon/reference/full-body.png",
+    "sha256": "95400a319de19126732c5d1a6ca9c691c9f54244f7b189209ad350f4aac88344"
+  },
+  {
+    "path": "assets/source/units/raptor/reference/full-body.png",
+    "sha256": "309fb24088eba867d8cf744a13ea7b94a213f0d763b89fda9a76729f99bf7927"
+  },
+  {
+    "path": "assets/source/units/locomotive/reference/character-sheet.png",
+    "sha256": "2b7f2b9e89316794e4011247684728f4413cf18f1fc5d7cee5cb2318fb234582"
+  },
+  {
+    "path": "assets/source/units/locomotive/reference/full-body-compact.png",
+    "sha256": "fe585183ee9480f85ed7f8e3fb7271146d02f4bd9278dedf67d2cbb5204abaf3"
+  },
+  {
+    "path": "assets/source/units/locomotive/reference/full-body.png",
+    "sha256": "6c763cc158a40dcedbe487629240ff814565f61e536058c3b1f713a9027df635"
+  },
+  {
+    "path": "assets/source/units/light-elemental/reference/full-body.png",
+    "sha256": "fc10f485f62bb5ee7fe8c74b7ff26ee90a4c0a5a2860a52b103f29ecc9888458"
+  },
+  {
+    "path": "assets/source/units/labyrinth-shaper/reference/character-sheet.png",
+    "sha256": "af0e13c83a452e1cc0913125b0e102766eab70e13d9f676a6f474592d93b52f0"
+  },
+  {
+    "path": "assets/source/units/labyrinth-shaper/reference/full-body.png",
+    "sha256": "8224afe706cd7abc6c36120839b20775985739ed86b7c3d0b2d4c4e02b1375c0"
+  },
+  {
+    "path": "assets/source/units/jackalope/reference/full-body.png",
+    "sha256": "848ed7c3a6c7170dc296cba233db512a58197d0323344ac2fd9ec14fff5dbdf7"
+  },
+  {
+    "path": "assets/source/units/hobby-knight/reference/character-sheet.png",
+    "sha256": "3f25bd92726a25103effd57a08c05fc1d0a2bf2773e403903aa080390c1717d2"
+  },
+  {
+    "path": "assets/source/units/hobby-knight/reference/full-body.png",
+    "sha256": "e1e358ee7b68b8cc0f874a25d2044a5378770ef1959f5d0dec6ad8fc79fe1260"
+  },
+  {
+    "path": "assets/source/units/hobby-knight/reference/views/view-01-front.png",
+    "sha256": "9088769922b19c04f4282d59704096587ec9380d3376277207945fe13cd79f0a"
+  },
+  {
+    "path": "assets/source/units/hobby-knight/reference/views/view-02-side.png",
+    "sha256": "b2c5525dade46b57e8286d826243aea541a55a659b047dbed834fa55515bafec"
+  },
+  {
+    "path": "assets/source/units/hobby-knight/reference/views/view-03-back.png",
+    "sha256": "0a1da75b561e64d6e2d677dc8af23664f44d1de9ce0e4575a1c862c3e3793b00"
+  },
+  {
+    "path": "assets/source/units/hobby-knight/reference/views/view-04-three-quarter.png",
+    "sha256": "8fda65ca524f6996a6e085276fd00451af06b0c6805e8dc346fd122a5c1630de"
+  },
+  {
+    "path": "assets/source/units/grunt/reference/character-sheet.png",
+    "sha256": "75f221d52f69ef9dc1269a9aeaed445e9e5969c5cc3ebe7e0653bd970436953c"
+  },
+  {
+    "path": "assets/source/units/grunt/reference/full-body.png",
+    "sha256": "e28d63360f044b226e55fcebb66477b2a6125a35b3124602cede23440ca1e128"
+  },
+  {
+    "path": "assets/source/units/goblin-peasant/reference/character-sheet.png",
+    "sha256": "bbd137bbfcd673ed50b18488a545ecbdc12daf9c64cf95f22d2eae339f43136c"
+  },
+  {
+    "path": "assets/source/units/goblin-peasant/reference/full-body.png",
+    "sha256": "eb6392917cb025e65e23239c050831ca20f13844c0e1f436b59468af5b07b603"
+  },
+  {
+    "path": "assets/source/units/goblin-king/reference/character-sheet.png",
+    "sha256": "c36708ee102a9cfd4d34c6102b38c3c67fb858131987e2e9a66bc4508f165785"
+  },
+  {
+    "path": "assets/source/units/goblin-king/reference/full-body.png",
+    "sha256": "48dc34a58b3da00a8eb66076a7338e86e87dc7c035c07c42a9d5cf3348fcba3b"
+  },
+  {
+    "path": "assets/source/units/goblin-bishop/reference/character-sheet.png",
+    "sha256": "20ac14d3fdc47860f88cf367084a3e7d1abc5443a68ece3c7d9b2c0f5f99c38b"
+  },
+  {
+    "path": "assets/source/units/goblin-bishop/reference/full-body.png",
+    "sha256": "82e3af3280817ed4baf385634e7e2f290da767a78b371256acaec87abe2180cb"
+  },
+  {
+    "path": "assets/source/units/goblin/reference/character-sheet.png",
+    "sha256": "67aa9bff673353d046c16451ab74d4017cf512d8b133a2f042d27f69174a8561"
+  },
+  {
+    "path": "assets/source/units/goblin/reference/full-body.png",
+    "sha256": "7f407a144a69c2a3170925324ff656f1cb57760d84089f24e31c14329c950da8"
+  },
+  {
+    "path": "assets/source/units/goblin/reference/views/view-01-front.png",
+    "sha256": "2d9550b5f7bdd3c8be568ab79c04794f30d61b5f3c1b8062383fa95f674e7892"
+  },
+  {
+    "path": "assets/source/units/goblin/reference/views/view-02-side.png",
+    "sha256": "93d8d1ba8aae90ea9c9bc95571de87102b9b3016cbe02f2315921618e4fcbc92"
+  },
+  {
+    "path": "assets/source/units/goblin/reference/views/view-03-back.png",
+    "sha256": "b4266286f6a46897e12067c31d924fd46f07bd5cf3868fa7754f255ecde83e3b"
+  },
+  {
+    "path": "assets/source/units/goblin/reference/views/view-04-three-quarter.png",
+    "sha256": "c0dd2c61e0683faa1219ffc202fe4a086306b849ca545df6491a06ee81f96f9d"
+  },
+  {
+    "path": "assets/source/units/giant-toad/reference/full-body.png",
+    "sha256": "fe3cf2131c31fc2ce4633defb15e12da1e2c85dabb9f06eefcfae384aaf4c02b"
+  },
+  {
+    "path": "assets/source/units/ghost/reference/character-sheet.png",
+    "sha256": "faf5abf1180f46b2a6f3689f57cecc31f669a98820044baccdb33075af5db5fa"
+  },
+  {
+    "path": "assets/source/units/ghost/reference/full-body-solid.png",
+    "sha256": "9209640ab2c326dce56a703680e602523fa47e951ef80234ee3887ce7133c885"
+  },
+  {
+    "path": "assets/source/units/ghost/reference/full-body.png",
+    "sha256": "12b562e9a0fe23ab5d2ec2930c32378f86e27df025138cb1e85521083d322a2f"
+  },
+  {
+    "path": "assets/source/units/geomancer/reference/character-sheet.png",
+    "sha256": "9ca4f91c52e5b91c6b2621c3d4001e17f249a7561c65d477403b74471092db55"
+  },
+  {
+    "path": "assets/source/units/geomancer/reference/full-body.png",
+    "sha256": "9e52fdc5f5038f9033f1770ab15e42598b4f8f859078960441043cd780a3a5a0"
+  },
+  {
+    "path": "assets/source/units/displacer-demon/reference/character-sheet.png",
+    "sha256": "abf2162a18d3a62dc752cfb2c68a76df0a688525b6f71df17ec574dc328d98c5"
+  },
+  {
+    "path": "assets/source/units/displacer-demon/reference/full-body.png",
+    "sha256": "f12d861483e30092b601a61af1f0853f6de2969a738173d25ff89431dda7065e"
+  },
+  {
+    "path": "assets/source/units/dire-bear/reference/full-body.png",
+    "sha256": "73d7e921677371a5eea3b6c70f717896b72feffbdb48b861798c879f097891e2"
+  },
+  {
+    "path": "assets/source/units/diamond-kart/reference/character-sheet.png",
+    "sha256": "b3cb678bdbdc4caa5451ac33fee14daf6d1e5b5b833cc3d5c6c84c1823ffdcee"
+  },
+  {
+    "path": "assets/source/units/diamond-kart/reference/full-body.png",
+    "sha256": "9bf40174d355a80c7137f610f4545f665a3bed2a619b068979145141a75bfb8c"
+  },
+  {
+    "path": "assets/source/units/cleric/reference/character-sheet.png",
+    "sha256": "1fa15017d05be7fa20b319cf50d6d4938c24661347e0364e497bf2d05c134adf"
+  },
+  {
+    "path": "assets/source/units/cleric/reference/full-body.png",
+    "sha256": "4ebfe360f1b95cc0d65ee046620f15d3a6975ae76d4e0ede062778b1ef9c86b2"
+  },
+  {
+    "path": "assets/source/units/cleric/reference/views/view-01-front.png",
+    "sha256": "a50f14ecd7b9045f86121d34c4e9c5df9f620e4ab12fcbd16465ec0a1ee0dd33"
+  },
+  {
+    "path": "assets/source/units/cleric/reference/views/view-02-side.png",
+    "sha256": "72a023abfcb9fe24b341b8a6fdd213da9f7c13c4577f0bcdf152e2e158c89634"
+  },
+  {
+    "path": "assets/source/units/cleric/reference/views/view-03-back.png",
+    "sha256": "6028ee6a8a98d743e6ae38238b91d234fdac413290ec13cff9fd4ebd98e10cc5"
+  },
+  {
+    "path": "assets/source/units/cleric/reference/views/view-04-three-quarter.png",
+    "sha256": "519e559fe3a793adc2814550b1f3442971a5aa5a859f4893017cf0687e6adb47"
+  },
+  {
+    "path": "assets/source/units/chief-mechanic/reference/character-sheet.png",
+    "sha256": "e606d1c6fdd44020f51b6dc1b8dde3c08942819d59c8f8935c61033eb1e2696e"
+  },
+  {
+    "path": "assets/source/units/chief-mechanic/reference/full-body.png",
+    "sha256": "48f64823e7020470744a3abf6807ceaa0e01b6bf7f3ae96ff51e53ff8a8477c0"
+  },
+  {
+    "path": "assets/source/units/castle-guard/reference/character-sheet.png",
+    "sha256": "104c0f8277c322f868033a266408f2c081999355aafe61ae734597b610e117ea"
+  },
+  {
+    "path": "assets/source/units/castle-guard/reference/full-body.png",
+    "sha256": "78879a90392a03f3f5d71345788d40a9fe50a2b80b561f6226c7038e6dcb6156"
+  },
+  {
+    "path": "assets/source/units/bomb-imp/reference/character-sheet.png",
+    "sha256": "b7da51f62b62c5597780307315229fa8b01ebf59f40b7a9ea6c1d08f7faf037f"
+  },
+  {
+    "path": "assets/source/units/bomb-imp/reference/full-body.png",
+    "sha256": "0bc482d95d8da3b2826bf33d0a714ee759367b03be1bc2bfc8e907257a1dd282"
+  },
+  {
+    "path": "assets/source/units/beastmaster/reference/full-body.png",
+    "sha256": "c2d8929af9abdebe7fec8767f7b26dba486e2f1bdfe49a97b8ab55b78f9dc667"
+  },
+  {
+    "path": "assets/source/units/barbarian/reference/character-sheet.png",
+    "sha256": "eb2cad6fff420872e537798599b2af2c72ecd0aa831e4a62cf8f246063aa85f4"
+  },
+  {
+    "path": "assets/source/units/barbarian/reference/full-body.png",
+    "sha256": "150e2cfba20c6b4c00a4301f434ed2c8c4ad111e66bfc1aafe6a674fa343af4a"
+  },
+  {
+    "path": "assets/source/units/barbarian/reference/views/view-01-front.png",
+    "sha256": "34e5cc599bdddc9feac5572a6485ee98d253beae1b8b1b1eb885f83c895397b8"
+  },
+  {
+    "path": "assets/source/units/barbarian/reference/views/view-02-side.png",
+    "sha256": "1f09a72ef3faad08c407f8c1fed7121c9971d7e30a4314ffaa7b79b2bba04414"
+  },
+  {
+    "path": "assets/source/units/barbarian/reference/views/view-03-back.png",
+    "sha256": "3c79070f9dadc6762ddda2becd24bc464f13947841f19785ac77a0571b188031"
+  },
+  {
+    "path": "assets/source/units/barbarian/reference/views/view-04-three-quarter.png",
+    "sha256": "b8abc97873b66ae524c928a467ad175236928b5289d6e26b9703de77b88e5ca9"
+  },
+  {
+    "path": "assets/source/terrain/objects/fruit-tree-01.png",
+    "sha256": "a99f6c33d1fb12ebdb1c5961923f0ba48b4ffef8372d5aa4c4950214c9bd89b9"
+  },
+  {
+    "path": "assets/source/terrain/objects/fruit-tree-02.png",
+    "sha256": "f7652b11b3d9efb794bd0ffab6cb26c47ea26bf297fce11bfd33425896e5e24d"
+  },
+  {
+    "path": "assets/source/terrain/objects/fruit-tree-03.png",
+    "sha256": "72ac387530e461a92d11d81b2d8b1b15c4e7c1d28a63a1e6f054602d6d38825f"
+  },
+  {
+    "path": "assets/source/terrain/objects/table-01.png",
+    "sha256": "92b543697daa0dee609b9cb279a3a2139e084f0cf8eac1eddb5dd37eee969b38"
+  },
+  {
+    "path": "assets/source/terrain/objects/table-02.png",
+    "sha256": "e6530fff871b86b6f6fdc4ae38cf57fac103fb5abf555b3f7e557e7d6822a336"
+  },
+  {
+    "path": "assets/source/terrain/objects/table-03.png",
+    "sha256": "e45820e7525e96eac159fc8f4b4f4a06d6c7c4465c40bd958a1a56bebdfe728b"
+  },
+  {
+    "path": "assets/source/terrain/objects/tree-01.png",
+    "sha256": "9edd236eca96fd55f882c6716685e61168cd04e24fe4fe09530b649f60a19601"
+  },
+  {
+    "path": "assets/source/terrain/objects/tree-02.png",
+    "sha256": "19ed11cb6777d8ff48902304076163820835ba4e05b13d6d01a66b91e1870534"
+  },
+  {
+    "path": "assets/source/terrain/objects/tree-03.png",
+    "sha256": "2edb812d9ea78282ae73fc2c9bfb1933149ffc9d188b1ceae3c9682566b41d85"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/baseline.json",
+    "sha256": "a901e9eca7572d9a536b663714973413a97124f47a691261011fb3dac709d958"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/manage.py",
+    "sha256": "576a3598b80bd0fec89d3ba6a8668e6b283ede82d3452ee983006dda5a1782a8"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/manifest.json",
+    "sha256": "fb3b9107516a4e88ff17f3f2ae4b8f7fb5b1209b146ac9f18fbd0c9864405f2d"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/README.md",
+    "sha256": "e4f5cce485c232188e2409c166e270c13f6c1553adcc1fbfc7b14ec0ff60d2a2"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/review-contact-sheet.png",
+    "sha256": "cd69e521d40c5a1171f412a8b4ae07c50c2cc2eb2322dc59a7eb967438bda109"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/verification.json",
+    "sha256": "633a57e9317b319e5bd0e418f3ecc761986dae0726abce0a75ed88cf18335d06"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/final-six-tripo/manifest.json",
+    "sha256": "269903968e77b74758bc977799ceb44e33b70f0f063faefcd4eea071bb8d6c46"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/multi-view-batch-01/extract.py",
+    "sha256": "1eb6a8d37940d050d603e8218625154c89b0400836d773e1d0263635e9d369d6"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/multi-view-batch-01/manifest.json",
+    "sha256": "a882d59fe9deb91452092258052d1e5d634c942a96b8f569a9f404325b27f1bd"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/barbarian-characterSheet.json",
+    "sha256": "ac2bcc2bb19cab55be216c131b8a94493945ccb19ddb9e5e3629947333356398"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/barbarian-fullBody.json",
+    "sha256": "84cd48817565da046ad01181f2b388e57d058b72087ff7a14ec7ad3b07dee8d9"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/bomb-imp-characterSheet.json",
+    "sha256": "06e004e05a1e9f7673129b6c929e916e5157d4a3472164ee7e3e7d391e22b325"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/bomb-imp-fullBody.json",
+    "sha256": "f6b3d89fa994e6e3be6f8dbf1287a326d4c6d46c6ce28c61df54aaea39200785"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/castle-guard-characterSheet.json",
+    "sha256": "f9a09545a97bb246a3d23b3945628543d7f073217a1b72a92dd39e09bfac815d"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/castle-guard-fullBody.json",
+    "sha256": "3cf01c00baa1077ac052204322b38729166f81155d5cea46c93d5cfd7229204b"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/chief-mechanic-characterSheet.json",
+    "sha256": "9c8366eea03aa4172572793aad1ddfea3d674bbfbd9fe2b5af699df05e0239bb"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/chief-mechanic-fullBody.json",
+    "sha256": "9266585b0b23b36d505ee0cdd80442422a0e2563cbfd969fbe490fb3fba92e53"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/cleric-characterSheet.json",
+    "sha256": "314367f597aa1afd8a2c331954de6c812ee7cfe10fa523c403dac9ae8685d0f5"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/cleric-fullBody.json",
+    "sha256": "4a7a4aa4819515c039bbcdb35fad1a656fb2f08e4b9a87772b1742f826f1c327"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/diamond-kart-characterSheet.json",
+    "sha256": "a7ab2a36e5f861b920e25d0ce50658f9c86f47151ecdfc08a4138578ca7df4ba"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/diamond-kart-fullBody.json",
+    "sha256": "5078716429036371a9dd24f05517872d21e4a92e1e5e4f5c561959d4fda209be"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/displacer-demon-characterSheet.json",
+    "sha256": "ff25f270eebac21c4f4212911f9c6a4a10d16ed5ab72c0a00249a4f30546ea1f"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/displacer-demon-fullBody.json",
+    "sha256": "fb30982468015461062c2cc2657499f1949d22fe4032789e48fb0cf18ceff272"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/geomancer-characterSheet.json",
+    "sha256": "20b179a50e1d40537a7c0a9b61049163d4397c9f1305c5e80fecd72a56cbac8b"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/geomancer-fullBody.json",
+    "sha256": "a561dcfd841a883c8d4e8d4f0fafbeda7a46cfca387719dba5d33fe2c93202de"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/ghost-characterSheet.json",
+    "sha256": "c724c4c3e723ff1ef7c0a1265b450bf9fd7f0933329d1bccf72d5d8c2b926d3c"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/ghost-fullBody.json",
+    "sha256": "4390300d913bf51b3a0c3b58b6bb607d516ef00e487856fec0182f3e870b4030"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-bishop-characterSheet.json",
+    "sha256": "038960f540bf9f3671ce5a511050bb03fcf51dae6bce360221bd7900b10bba12"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-bishop-fullBody.json",
+    "sha256": "af1054585841eeb06268df312da34879ca97698d09d98750795a860eb078faea"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-characterSheet.json",
+    "sha256": "cd6b7f55e3f1aab0336c2577d9adef0035e60cdeb63e680ca42e8b9f809a8d73"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-fullBody.json",
+    "sha256": "a0907ef6168d40afac041cc912cfdda91e5cb0387088a819a6ab975a683e2674"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-king-characterSheet.json",
+    "sha256": "256271459f1bd3a936c4d9d00c837cbd78181f4b478f4056cddb26114326e279"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-king-fullBody.json",
+    "sha256": "ccf30b5800b2f39df874b396fd35e89a8d0b72fc4e395bebe7a7cf1fba4ce130"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-peasant-characterSheet.json",
+    "sha256": "566e391a14132f2194084fa354cce880cef92cb2ee6928d0947e913814fca8ae"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/goblin-peasant-fullBody.json",
+    "sha256": "ef48938c797301d7dfb56e5d2c72cf138a31305643e4f5c4450a2e498af03b2d"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/grunt-characterSheet.json",
+    "sha256": "71a9bcc17fe9aca43753f9ce3ec6bbcc7ad0f6be711564bda82c2be11935f3d2"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/grunt-fullBody.json",
+    "sha256": "ed981abfa67e4363081d313503f5930cb2977dcbe56e48b7001c3d7ab0de4352"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/hobby-knight-characterSheet.json",
+    "sha256": "9d298af0de859549abfae517a857217d178dd625cefd6c98ea492d4d39edf861"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/hobby-knight-fullBody.json",
+    "sha256": "2cf2f77c88fc4b3445d5f4b339a9e81f50c54c0c8e428a0a3fdc55f83f24d9fa"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/labyrinth-shaper-characterSheet.json",
+    "sha256": "5772fa8a2aaa03b81f185e12d2660aba20c4ee291d0ef703930af20312467646"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/labyrinth-shaper-fullBody.json",
+    "sha256": "2a57d1a21af98e9ad0939268091f9a7a08bb0254fde1c7cb1d27548e50386ec3"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/locomotive-characterSheet.json",
+    "sha256": "bc6b93fd6b3bf7453fa5cac5d927c31aaa27e815d752ff9f3919565e0097d606"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/locomotive-fullBody.json",
+    "sha256": "2b106f7f5e90faa2d068a0c066808f315841f9a96e45655bccb39875c9a03920"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/locomotive-retry.json",
+    "sha256": "d6a98d73b2e1b9ba121ef83883b2305375b4dd72d695eaa55f64e3355286e00e"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/red-dragon-characterSheet.json",
+    "sha256": "2e5146873d422858f024458c7d9875f75327f1c83e7b977a2a950dd89de9fcf0"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/red-dragon-fullBody.json",
+    "sha256": "bed5405c85b2e73a98eca7ae17b6e8cd7cd1c98b5e461f62c11ccbc3bdd6f07c"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/rogue-characterSheet.json",
+    "sha256": "bfd9294ab9137ce78a4ade1c1f168759c5f78a45cdc3f9e461428b2932edd2a3"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/rogue-fullBody.json",
+    "sha256": "61c48eca24f1e29549fac9a6f98331a3de271ed78d59f362f1cd40c31597dc87"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-bishop-characterSheet.json",
+    "sha256": "0b5c6417ececf298687ed6b38b0051c236e34538a28b8559cd4e352341cf1594"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-bishop-fullBody.json",
+    "sha256": "6df5d894c1416e62a690a7f36865a886a8d46a665997f94fc92b7e9cf79f0e3c"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-king-characterSheet.json",
+    "sha256": "5eb7c8d711fd3403485d4cfa751f849150326d5946fc2c0f2e187b1aa9edcb85"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-king-fullBody.json",
+    "sha256": "5854a99a914f2a96064a40e60c08b5fab84ad2fb948188ce650fae5b0b2b2d92"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-knight-characterSheet.json",
+    "sha256": "1abe96a954709813901b1623454d4ac02c70fd373074fbe171649873c319db74"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-knight-fullBody.json",
+    "sha256": "fbe690e3e84ba505fba70489d2b080a0338a47c68db39ba6575946abd1653def"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-peasant-characterSheet.json",
+    "sha256": "f85883dd42d2fbb382b5130ebd9c0fe1cfaa2550f4ba3041bde156ffb1929b18"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-peasant-fullBody.json",
+    "sha256": "77f716d90e2629638b9a7f021075df865b9515e938b0c129dab59c15a64e8d9c"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-queen-characterSheet.json",
+    "sha256": "f651caf0922cb005c05d5e57c005136c3cd090ca53877b672991638c762a4b3f"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/royal-queen-fullBody.json",
+    "sha256": "fb228b153b43186d7611cf62e08f95834d005bb1c7a10f204dc93d2738ba770a"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/shaman-characterSheet.json",
+    "sha256": "fc8de850f45e5a8170a74f7f97474e34841570b3c4f26fbaf64c8c22a90c8281"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/shaman-fullBody.json",
+    "sha256": "557c0fc8b9dffca4931b0ac7b5c1f132d45ca382e3a22027ba569d12a2dac515"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/skeleton-archer-characterSheet.json",
+    "sha256": "bcd824f39a2d38820df68ccbd777ef3bd00536c3347f66dce16d022949effa80"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/skeleton-archer-fullBody.json",
+    "sha256": "8f2f9ba08fb9e5fa69a24d858821caca33733a307671e5dbbf3b9c32958a8c7b"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/tower-troll-characterSheet.json",
+    "sha256": "443d0f67576c91c403e01c7933878211906a74a86d84efd5f21caa351517335e"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/tower-troll-fullBody.json",
+    "sha256": "ad1217cd812380a013896500f8df6182b6342ae8ced4f0a6156cadbf873a318c"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/witch-queen-characterSheet.json",
+    "sha256": "efe935fdc4fb9e8fc53078976177876a19cb0af15970b0c3debffe90c5b2e374"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/witch-queen-fullBody.json",
+    "sha256": "3cde6e79d68423f3ba6e0dfa431d6ad3a3dd74a03b9e37a7bff4929671b2ea95"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/wizard-characterSheet.json",
+    "sha256": "283988bd9f06be270e158ae78fc28cb3abf8dc573a23b22cf0355b6067cf602c"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/wizard-fullBody.json",
+    "sha256": "a5f5c3fa2ca53ecd292455777d89efd5396d72338215ddeffd354e13c3a8cf46"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/worker-characterSheet.json",
+    "sha256": "62d3905aafc1d054fd2d80106150c190d5f61d55e811e4ec8ddbf50d3367a1bb"
+  },
+  {
+    "path": "assets/source/reference-production/2026-10-28/records/worker-fullBody.json",
+    "sha256": "d6c811e78fa88f29aa8a070500431e3ab00b57376213b380352fece6ffc8f0d5"
+  },
+  {
+    "path": "assets/source/models/units/barbarian/original.glb",
+    "sha256": "cafa70f23b4452255d69227338b33aa6977496f7a290a6b4823af5173c6ad924"
+  },
+  {
+    "path": "assets/source/models/units/barbarian/provenance.json",
+    "sha256": "740f9e61073aac7aa536db5c8d9a8c2708ddb23e5f156f3c74e2b7c996804b7b"
+  },
+  {
+    "path": "assets/source/models/units/barbarian/README.md",
+    "sha256": "691764657cf44cfc9ed0a7747a7acf81eb98486beb9e15257c31a0fb375a322b"
+  },
+  {
+    "path": "assets/source/models/units/bomb-imp/original.glb",
+    "sha256": "7152b2f58fb1e97300d82c1401012243a79c814856e6b81b4eb9b8dd97ade818"
+  },
+  {
+    "path": "assets/source/models/units/bomb-imp/provenance.json",
+    "sha256": "4dfd10df7f499e74668d2da969c7079af691f8bcd1999c8cbe31beb16e7bb58f"
+  },
+  {
+    "path": "assets/source/models/units/bomb-imp/README.md",
+    "sha256": "afc34795299dcfa9651214759926ffaa33678ad4dd13cbc7616d5dd447694fd4"
+  },
+  {
+    "path": "assets/source/models/units/castle-guard/original.glb",
+    "sha256": "155f14a037396d544a7443f9ac298b5b4ca1d608a0148ee2ef82bcdfbf819b6e"
+  },
+  {
+    "path": "assets/source/models/units/castle-guard/provenance.json",
+    "sha256": "a3bedf1e0189ffac3b6d956cc580b7f6386ecc315720d6fc5282040928bcd66d"
+  },
+  {
+    "path": "assets/source/models/units/castle-guard/README.md",
+    "sha256": "5620897f5a2a40b532e09ddcb8e626c4a5140e3ddc857ef2d8b6a3e1c29b32c5"
+  },
+  {
+    "path": "assets/source/models/units/chief-mechanic/original.glb",
+    "sha256": "d69b60f2dff5eee26bb083a92a723f71e9da508e8875a09d5fac7aaec87e1a72"
+  },
+  {
+    "path": "assets/source/models/units/chief-mechanic/provenance.json",
+    "sha256": "88069176b096391c4b7ae8f7eba08556cd240b1d5344896f2e8ba3d48de457d7"
+  },
+  {
+    "path": "assets/source/models/units/chief-mechanic/README.md",
+    "sha256": "2ff34594e8a279a6526c9f114f47eef136034811cb1b2106533563bf35c014f4"
+  },
+  {
+    "path": "assets/source/models/units/cleric/original.glb",
+    "sha256": "9276845b771a00099032dcaa83c30d16ff5a8ac4194711d44e299bb9684ca967"
+  },
+  {
+    "path": "assets/source/models/units/cleric/provenance.json",
+    "sha256": "5ee58b2887784736142e78e51c9800b4e955c73b039dfe7edced6bfde9c8a24d"
+  },
+  {
+    "path": "assets/source/models/units/cleric/README.md",
+    "sha256": "308944857de13ed0cb455a3d467f2fcc69bbaba74598b1acf407e0269737d46a"
+  },
+  {
+    "path": "assets/source/models/units/diamond-kart/original.glb",
+    "sha256": "ff1dac86418b6ecbe4e06a8509355707d76b3fae7500e70d62091e03530cfe67"
+  },
+  {
+    "path": "assets/source/models/units/diamond-kart/provenance.json",
+    "sha256": "0ccaf12fd555b69939143d21b3bed48f7ad8ade870df4fdeb9d2da42c9b9a6b9"
+  },
+  {
+    "path": "assets/source/models/units/diamond-kart/README.md",
+    "sha256": "26fe7d8ef43fdf11ed3c3a202961b2b5bc2c0918ef3e688cbb1b68d6e4b2ee01"
+  },
+  {
+    "path": "assets/source/models/units/displacer-demon/original.glb",
+    "sha256": "221ba5695916ee40efc465e81237a94fb20cb547f12d4f601113899fb0cbb1a3"
+  },
+  {
+    "path": "assets/source/models/units/displacer-demon/provenance.json",
+    "sha256": "604000f96ec8230d8525e8f67e1b10c352f3de359a857f77a7c91411f78bafc7"
+  },
+  {
+    "path": "assets/source/models/units/displacer-demon/README.md",
+    "sha256": "b2557070a3a0d98bb8aa382369bd83f55d2f6d2848567fe4139d153fa43e60aa"
+  },
+  {
+    "path": "assets/source/models/units/geomancer/original.glb",
+    "sha256": "eb8123e6095d2453f568cc3ae2b6d0288c885f5a2de2ed80e5c52c40fd3049fe"
+  },
+  {
+    "path": "assets/source/models/units/geomancer/provenance.json",
+    "sha256": "95bd286a449ba6d9775434c57d131c496bd8814c9f763cb1fc0d8e6627b7adfd"
+  },
+  {
+    "path": "assets/source/models/units/geomancer/README.md",
+    "sha256": "6a6c9017f49acdf6136eb01ae81449249b4483fe2d72218b3cc24ca02b989f42"
+  },
+  {
+    "path": "assets/source/models/units/ghost/original.glb",
+    "sha256": "0466e6c939cd6a15d9657d0d44004febe4e72f846f1eb486d6ea03ca53426fa0"
+  },
+  {
+    "path": "assets/source/models/units/ghost/provenance.json",
+    "sha256": "6117f7f8d241534fde69bef7841450ba1d976201fb4e977e70b289ab42ae45bf"
+  },
+  {
+    "path": "assets/source/models/units/ghost/README.md",
+    "sha256": "bb65e55bb72ff7ada4840dfc76b74be201c409922b88534832103e15ec0a973c"
+  },
+  {
+    "path": "assets/source/models/units/goblin/original.glb",
+    "sha256": "45836ed0b6d593be49e3a5da31ef4646d9a18ad2bb4054ae5584f408d2963e30"
+  },
+  {
+    "path": "assets/source/models/units/goblin/provenance.json",
+    "sha256": "b67ddeb00b7f2c60abbc3c3ab2fac262a6a04e7412b0cd23ab0b9d5225d80844"
+  },
+  {
+    "path": "assets/source/models/units/goblin/README.md",
+    "sha256": "d5e2c804aadeedbde757b6f8fff6b2ef1d56b5ce3e0a161359c480f32d5f94c3"
+  },
+  {
+    "path": "assets/source/models/units/goblin-bishop/original.glb",
+    "sha256": "b0deaffef6d346bc587edbc3ad62564c915660cf8b338f8f4c4a81754372646c"
+  },
+  {
+    "path": "assets/source/models/units/goblin-bishop/provenance.json",
+    "sha256": "8822f742299c27368e45262e98a09b7667c3676205d4e7fcb16285b0cfb1f40e"
+  },
+  {
+    "path": "assets/source/models/units/goblin-bishop/README.md",
+    "sha256": "8ce0f6400993edbfaf5dfc085e7449884f6ef4024fd8c6c79364c3c756287fbb"
+  },
+  {
+    "path": "assets/source/models/units/goblin-king/original.glb",
+    "sha256": "624e4403c252b26886127812c8c5cc320d49779c4bdb154b429e26603ad48918"
+  },
+  {
+    "path": "assets/source/models/units/goblin-king/provenance.json",
+    "sha256": "03a1c0ff600d44af5b801c13ec7c705096518b9f5c5f7c4b11a3e5ea96db49d3"
+  },
+  {
+    "path": "assets/source/models/units/goblin-king/README.md",
+    "sha256": "1652a56abc64e6ae5c79660e7970c448d852b578ef6139fbd756217619972999"
+  },
+  {
+    "path": "assets/source/models/units/goblin-peasant/original.glb",
+    "sha256": "bfe1dbf3ffd7a78dc61a21b2488d69cdde4c6bdc90c361ddedce178d6331b529"
+  },
+  {
+    "path": "assets/source/models/units/goblin-peasant/provenance.json",
+    "sha256": "7fa13703a089702c9c5106a0b9153ca3287a47e2181597ac18dfa9970a4a3396"
+  },
+  {
+    "path": "assets/source/models/units/goblin-peasant/README.md",
+    "sha256": "92fd1b59a04c0b145e1561b384bb358f5ae3ab8830d19e3cd9985c650825e5bb"
+  },
+  {
+    "path": "assets/source/models/units/grunt/original.glb",
+    "sha256": "2a699e8f4843b845c05eba0d3b20145ce5ca5a64fa5ba19dc231265b9bc5adff"
+  },
+  {
+    "path": "assets/source/models/units/grunt/provenance.json",
+    "sha256": "4d2f2388773a848e94248ecd0aa4d4f1ab501ff0d3b4c386e83dbbf0c4b7fe38"
+  },
+  {
+    "path": "assets/source/models/units/grunt/README.md",
+    "sha256": "4034ca9709f95dee26dd24e03fcb39162f5c48089e16316fb4569c5e0af86ede"
+  },
+  {
+    "path": "assets/source/models/units/hobby-knight/original.glb",
+    "sha256": "a4d4c577786d9e5eefa4579505077f1b6f1cc1acb05efdda735fc8cfe35df3bf"
+  },
+  {
+    "path": "assets/source/models/units/hobby-knight/provenance.json",
+    "sha256": "e6d87bf235875fcafbbb437218ddfc30484a2a8eb2ee449955a5afc8f133b5aa"
+  },
+  {
+    "path": "assets/source/models/units/hobby-knight/README.md",
+    "sha256": "a7f0bb46fab0292c7b97c6b6b60c338d6107acdc4b02797853dc0512b6b86e1c"
+  },
+  {
+    "path": "assets/source/models/units/labyrinth-shaper/original.glb",
+    "sha256": "4acd9b52548177401742eedc62065cec6f438d0a02aa470bd1d514baddc9df54"
+  },
+  {
+    "path": "assets/source/models/units/labyrinth-shaper/provenance.json",
+    "sha256": "395aa9f2eaefb5f600fddfcded5a93f0a146b8a569ecf43dc4b1c37a384f61ba"
+  },
+  {
+    "path": "assets/source/models/units/labyrinth-shaper/README.md",
+    "sha256": "e81deff3ed136d424ea79ed273e74ffd679db38e7e3ff1155483c7a09db521c7"
+  },
+  {
+    "path": "assets/source/models/units/locomotive/original.glb",
+    "sha256": "5450cf69f9276639ce4d8e080eeb6ee8360852dd4ce06cae7c112b4d9d889564"
+  },
+  {
+    "path": "assets/source/models/units/locomotive/provenance.json",
+    "sha256": "6157b0d13b41c0ef5b7c5a5d78d63df8dfe2b0981f690eb5f9bd409e5963b54e"
+  },
+  {
+    "path": "assets/source/models/units/locomotive/README.md",
+    "sha256": "759bbb875514dd7c47d49c4def56d68271760a6b1b356ff6839757908924a5dd"
+  },
+  {
+    "path": "assets/source/models/units/red-dragon/original.glb",
+    "sha256": "2f180423d745036608c27224bf9e3aacae34a8a036a64a4e441cbf39a2237223"
+  },
+  {
+    "path": "assets/source/models/units/red-dragon/provenance.json",
+    "sha256": "26d7a167320f3d5e46f509258e64bed2fb333c79917b5152b8527d0c2213e18b"
+  },
+  {
+    "path": "assets/source/models/units/red-dragon/README.md",
+    "sha256": "75a7f977e37223e67ed8fa4d838dc2014807523d219c7ba0e626b4937e675b61"
+  },
+  {
+    "path": "assets/source/models/units/rogue/original.glb",
+    "sha256": "7b4f13dc66dbbc841388f7ee9ce3dacdf6b1409447524b7d353a78c6af89e9cc"
+  },
+  {
+    "path": "assets/source/models/units/rogue/provenance.json",
+    "sha256": "1248a5ad8b371708e6ff927b21a63a053b7631e3756b6c7ce31889170a947583"
+  },
+  {
+    "path": "assets/source/models/units/rogue/README.md",
+    "sha256": "a8df7e06bb46ecc2dd0ba6c6ff618757fe7f13bf8d23edde907a26636fd78919"
+  },
+  {
+    "path": "assets/source/models/units/royal-bishop/original.glb",
+    "sha256": "e4ed4cecc95d038b4d4dda22a81cabd250a36c08da3382e9926bd9741c176192"
+  },
+  {
+    "path": "assets/source/models/units/royal-bishop/provenance.json",
+    "sha256": "da669608a30ad1aa50eccbeb0fa3c7db80ec6208acf07982184ae6cbd48f6246"
+  },
+  {
+    "path": "assets/source/models/units/royal-bishop/README.md",
+    "sha256": "2c7a80721250e02d4d22d9c84d49150f32866a03121c685bd5b12018b4339bc8"
+  },
+  {
+    "path": "assets/source/models/units/royal-king/original.glb",
+    "sha256": "d8cbf889b195ae87d0a931b972997e96b167434c913e60252e3cfd90270f2459"
+  },
+  {
+    "path": "assets/source/models/units/royal-king/provenance.json",
+    "sha256": "9c9223ed37f7d6964c742c411c2dcf9153e537d7cdad0a26e37861d8cfc88543"
+  },
+  {
+    "path": "assets/source/models/units/royal-king/README.md",
+    "sha256": "be8cc73dfc4df63461acb2312c428ecd0ab9093cb258fa9fc97bb30ab9230098"
+  },
+  {
+    "path": "assets/source/models/units/royal-knight/original.glb",
+    "sha256": "19dcdb2140479d3e38d098bd5ff40047df84d7bc380176087415b36ad488ce62"
+  },
+  {
+    "path": "assets/source/models/units/royal-knight/provenance.json",
+    "sha256": "d7f783fabda86d20b60a14498400308b0300cfc46c6530de65a008ff5a800658"
+  },
+  {
+    "path": "assets/source/models/units/royal-knight/README.md",
+    "sha256": "866c4ddabab3bed369bd41bc61ec63b6db15f6b42eaf22014199b562eba66893"
+  },
+  {
+    "path": "assets/source/models/units/royal-peasant/original.glb",
+    "sha256": "d5a97b08c16bd7d531341af66271c743271770cc4dc3fc7acf05fe2b37fbf920"
+  },
+  {
+    "path": "assets/source/models/units/royal-peasant/provenance.json",
+    "sha256": "c5de357b95442561e04ccc396cbfd9670c50a478b4d7df7736128deadd88af5d"
+  },
+  {
+    "path": "assets/source/models/units/royal-peasant/README.md",
+    "sha256": "0a1ee64c6bcf451d9399f1f536f8ed9f37ca0299e64f7725a98f03334729aecb"
+  },
+  {
+    "path": "assets/source/models/units/royal-queen/original.glb",
+    "sha256": "c80b8a64e4f31ccb1965360aff7dd017ddfa2dcbf8ec2d14b91387efadd16e3a"
+  },
+  {
+    "path": "assets/source/models/units/royal-queen/provenance.json",
+    "sha256": "a78f9de0bf6357cdb4f73fc62f53a4f15e8a5f3aeeee9f53d991723da39a564a"
+  },
+  {
+    "path": "assets/source/models/units/royal-queen/README.md",
+    "sha256": "8826df76c617feb1a6d922d9428d79d5af7ba29eed3028c9d298bea73e4d5bcf"
+  },
+  {
+    "path": "assets/source/models/units/shaman/original.glb",
+    "sha256": "66896c984c2ff230c4e4561941eabf8b991cb8b10dd9548d89661c545537554c"
+  },
+  {
+    "path": "assets/source/models/units/shaman/provenance.json",
+    "sha256": "4317a7e76ac8d7edd1d879558919ed781d9b67c2d6121688e5fe23a4372ec911"
+  },
+  {
+    "path": "assets/source/models/units/shaman/README.md",
+    "sha256": "ba62ec7822765e29c39002e3c170b4033688279e6132c1c036232b735dbb1de8"
+  },
+  {
+    "path": "assets/source/models/units/skeleton-archer/original.glb",
+    "sha256": "877e68d64ec4f08d9005facaef4bd0065dbfc88be8b8955153878e909da30b2c"
+  },
+  {
+    "path": "assets/source/models/units/skeleton-archer/provenance.json",
+    "sha256": "d75d3111ba95b6cebbb631eb8d1cfa7dc00483bf3e81fa6058371b4c1ee60dd0"
+  },
+  {
+    "path": "assets/source/models/units/skeleton-archer/README.md",
+    "sha256": "093d9a8fa928f4dc6f37e50ad7ce9bb3139a074fd1a2e1def359571733ab10b7"
+  },
+  {
+    "path": "assets/source/models/units/tower-troll/original.glb",
+    "sha256": "68028188b198e463f18cf33bafb38bc138e4c058a2f10873b74b1a3700a8dfdc"
+  },
+  {
+    "path": "assets/source/models/units/tower-troll/provenance.json",
+    "sha256": "acda68e7bbd8d37a4b1fe93346027128d42ca5489de2c60b13ad00aef8341a26"
+  },
+  {
+    "path": "assets/source/models/units/tower-troll/README.md",
+    "sha256": "ff693a122a58ef74dd32b1bfd5d5bd24018b20fa2d98440cc953d56163311609"
+  },
+  {
+    "path": "assets/source/models/units/troll/original.glb",
+    "sha256": "fa1efdf52d87635dbce4fbf45784057d9dfb24b8fe88a90b518528f9f3788b33"
+  },
+  {
+    "path": "assets/source/models/units/troll/provenance.json",
+    "sha256": "04a6c646d9cea225c547efee0dde3b7eb2df22b35caf503fd850fbe594b73f25"
+  },
+  {
+    "path": "assets/source/models/units/troll/README.md",
+    "sha256": "330b93776690bb897b47c36f0b74b9878813a8960bab02b17e96c16146c18da0"
+  },
+  {
+    "path": "assets/source/models/units/witch-queen/original.glb",
+    "sha256": "e8d0414ba29e2223be7eaa6d2bbd2646022a1ccbebe3458d81c56784126e7103"
+  },
+  {
+    "path": "assets/source/models/units/witch-queen/provenance.json",
+    "sha256": "a388677759fccd16f4616a7f6d9b54cc6b97c23e7665ad9f6c4f10d2449f1b58"
+  },
+  {
+    "path": "assets/source/models/units/witch-queen/README.md",
+    "sha256": "e83ff9e42f03c6a6b15f45be4692d959157f5cc946f098c0730ed434802f443a"
+  },
+  {
+    "path": "assets/source/models/units/wizard/original.glb",
+    "sha256": "d7038de9039761cfbc85702c92907ed57fc5c7305101e434f28062028f8c9b4f"
+  },
+  {
+    "path": "assets/source/models/units/wizard/provenance.json",
+    "sha256": "0bf8b82203c9a1ab69a003b82ac3622b50f015fb3a4e899affa178defb545012"
+  },
+  {
+    "path": "assets/source/models/units/wizard/README.md",
+    "sha256": "0baeafe2bbf9179646a235d4b8469dbad0e8f013f00cebcd7f92748c15a29250"
+  },
+  {
+    "path": "assets/source/models/units/worker/original.glb",
+    "sha256": "e87fd84d08f0f4e00ff08a06b27b38e3f67995e4dec8c8d1506b020abadd46aa"
+  },
+  {
+    "path": "assets/source/models/units/worker/provenance.json",
+    "sha256": "c9b854e9e97060b80bc6a19f9e4bb9e3a0ac9ce30ea3c05fcdb103c86bc356e8"
+  },
+  {
+    "path": "assets/source/models/units/worker/README.md",
+    "sha256": "527fc7d59571eeca0bc083cda51a27387a24ec57eb64b815e4612c27f6b8db86"
+  },
+  {
+    "path": "assets/source/models/units/zombie/original.glb",
+    "sha256": "9f3804e8fc44deccf126efdec1f8babe2564adff45b4c53fbd131ef1a3823eb3"
+  },
+  {
+    "path": "assets/source/models/units/zombie/provenance.json",
+    "sha256": "3836628f57597d5dfbc0846e5da61bef1ca82e25b1196054d7d6323dd376c026"
+  },
+  {
+    "path": "assets/source/models/units/zombie/README.md",
+    "sha256": "1a6f7ddce02367c14ec33a2588dfdc8a50a63f73f6f71fa312a8984f991751c2"
+  },
+  {
+    "path": "assets/previews/artwork-pack-01.png",
+    "sha256": "2d9ceeaf26af5a7ba3167df982f693b9dd3f301ff4c8912f1fd58e4b21de2359"
+  },
+  {
+    "path": "assets/previews/cell-markers.png",
+    "sha256": "2e0ea9fda39b821ac55c4ed76dc507a1fff07a14d37efdfa6e361412fc249c1b"
+  },
+  {
+    "path": "assets/previews/chess-court.png",
+    "sha256": "29d95c88a4439913a1c223f6b5b53f0b6d9ada4f7434d7053218c5b84748dbdb"
+  },
+  {
+    "path": "assets/previews/composite-terrain.png",
+    "sha256": "898c085f3880cb47fa8a9c6bb3e5d5b59c9c1fa30fe663bba8c347f348222137"
+  },
+  {
+    "path": "assets/previews/edges.png",
+    "sha256": "1eba4dde327b6a9eecf7f678627ca232c78a6011dce068ec2f3e9eb532cd2eae"
+  },
+  {
+    "path": "assets/previews/large-map-mobile.png",
+    "sha256": "13d8ae1d01822e0e604c5e6a86909fe3a1716013c98fc24a4ccb7c376abde5af"
+  },
+  {
+    "path": "assets/previews/large-map-performance.json",
+    "sha256": "f5f657277d554fd19f32152a5ec1fb0623b25f648a3a735ed4686135434a2a85"
+  },
+  {
+    "path": "assets/previews/large-map-preview.png",
+    "sha256": "d1fa15ef16a5c676637ee55cb341bf35ab847a843c6bb4e34882616a3992dfa0"
+  },
+  {
+    "path": "assets/previews/machines-resources.png",
+    "sha256": "3c0842f98c6ddeb0b1b41b640f8068ab5cb8ebaf78fa9808aed5d415218d2cf5"
+  },
+  {
+    "path": "assets/previews/railway.png",
+    "sha256": "b60736b8e29be7570e9863d453737eee21687dacd6e2cb8cd39469985b94b8e5"
+  },
+  {
+    "path": "assets/previews/solid-rock.png",
+    "sha256": "7e6b36f483d2648eac0305bc68761ecaf9eefe4d809afef58dba019bf89176df"
+  },
+  {
+    "path": "assets/previews/world-civilization-120x100-grassland.png",
+    "sha256": "f625a0edbeb507738c5b91f0cd2f42d14c0c5f94f9d66551e7bc820c3d0b45a7"
+  },
+  {
+    "path": "assets/previews/world-civilization-artificialislands.png",
+    "sha256": "a70defd64db891c936c3160069eb91bcc10cb9c935b8a7e05d173e5eb0090977"
+  },
+  {
+    "path": "assets/previews/world-civilization-browser.json",
+    "sha256": "54aa4c3e2280568fe86cfb3889ec54c5b7311bae1b3abae8e6fe170595a51b4d"
+  },
+  {
+    "path": "assets/previews/world-civilization-densewoodland.png",
+    "sha256": "1ba42809cde34313277ef0188e38bc77143f513e488fe9f6a5cdfb2cfcafe835"
+  },
+  {
+    "path": "assets/previews/world-civilization-excavatedrock.png",
+    "sha256": "a7e4fad3f4b7a6344c3621f4235497548b403a522e6873ee9a21fccde1202f0e"
+  },
+  {
+    "path": "assets/previews/world-civilization-gallery.json",
+    "sha256": "c37ca52657157f6480538527ac1620d4d76b598b89d551c3f0e579ecaecf0077"
+  },
+  {
+    "path": "assets/previews/world-civilization-mixed.png",
+    "sha256": "43ca43ba7b32c9cbb9985e820505e1d1abc820f62ac00477dca5aa192480c75f"
+  },
+  {
+    "path": "assets/previews/world-civilization-narrowedge.png",
+    "sha256": "5de6b9bc36693ba8efb878eb24cd19db0daeb3cd6610e7517484741fcf853b7c"
+  },
+  {
+    "path": "assets/previews/world-civilization-performance.json",
+    "sha256": "09fc0671be8edeb0e6843bd5bc1ed6f05f39d4158cf03c369c5c3d06c181f48b"
+  },
+  {
+    "path": "assets/previews/world-civilization-site-details.png",
+    "sha256": "8f9a4a745b5fcba7779649338d3f6a62a34cf211d47d809e395e07910386a5fd"
+  },
+  {
+    "path": "assets/previews/world-enrichment-120x120.png",
+    "sha256": "42228d4b70f2ee2308fd2d3bbda266c933cbb63785bfe1c5dec3fa75bfbfd464"
+  },
+  {
+    "path": "assets/previews/world-enrichment-boundary-crop.png",
+    "sha256": "3f36bc5cc208509087c37992fe40970d217fb8daf44759d93285905acef44603"
+  },
+  {
+    "path": "assets/previews/world-enrichment-browser.json",
+    "sha256": "8027563032d7b1c8dd351b37498905977bd3154ac34064c06fc1502370a25bdf"
+  },
+  {
+    "path": "assets/previews/world-enrichment-designer.png",
+    "sha256": "efcf4af8cbdda615aad0b2129205d78c7e9dc52fe9aa3f15d42024c8f5cd401e"
+  },
+  {
+    "path": "assets/previews/world-enrichment-desktop.png",
+    "sha256": "511516cdc6fbf4ce0addd80d668c02ce790a0076bd412b9da5820d16eccd5041"
+  },
+  {
+    "path": "assets/previews/world-enrichment-fixed-seeds.png",
+    "sha256": "5e721fe41ff1afd1f44660c7c646b2eaaf5d38f73ea9d942a861727aa8783122"
+  },
+  {
+    "path": "assets/previews/world-enrichment-gallery.json",
+    "sha256": "2d9c780008120a4f28fc3505ec6e5f80266f525b7b781997567b5351183041e2"
+  },
+  {
+    "path": "assets/previews/world-enrichment-grassland.png",
+    "sha256": "f3e7f8c66420c18b6c944f9aabe9d45887a3171e2f8549071b489b09cac65127"
+  },
+  {
+    "path": "assets/previews/world-enrichment-lakecountry.png",
+    "sha256": "1e35d1c3956b602f6ed4c8232d2eed1560dd631a97dbd1f45504ececcae43aa7"
+  },
+  {
+    "path": "assets/previews/world-enrichment-mobile-zoom.png",
+    "sha256": "63ac6651dddb7e63930ce286035a8dee45ae549db88d663cf05234d26ca577f5"
+  },
+  {
+    "path": "assets/previews/world-enrichment-mobile.png",
+    "sha256": "865e05e68a3fb997159efc9dc3eed7846e74f693de08e942a546050afcfffa55"
+  },
+  {
+    "path": "assets/previews/world-enrichment-overlays.png",
+    "sha256": "7085872d35880a6c749f238f0b9f2a4b50341dc3dafd0697bb9ecdb37b30309e"
+  },
+  {
+    "path": "assets/previews/world-enrichment-performance.json",
+    "sha256": "72994d21d5dbac4ee68675b17c6b791c4b85e48e2b9d77af999a12864005ae40"
+  },
+  {
+    "path": "assets/previews/world-enrichment-rivervalley.png",
+    "sha256": "c6192d527354e70ac4b3ebf99092a3f5c457500e21f82e318c429c4adfcddcce"
+  },
+  {
+    "path": "assets/previews/world-enrichment-rockywilds.png",
+    "sha256": "f94586e38f89e2a35224968f6432450b0f3e56781aa8259a6da8825dc9249361"
+  },
+  {
+    "path": "assets/previews/world-enrichment-woodland.png",
+    "sha256": "21217feef9d7173fb42d1a423e23a0c845dd30e116150b40a5e352220f128f4c"
+  },
+  {
+    "path": "assets/previews/world-generator-v1-seam.png",
+    "sha256": "a2a162894212c86d58d506d71cefab81a44dcec27729983e817866219b34f33c"
+  },
+  {
+    "path": "assets/previews/world-generator-v1.json",
+    "sha256": "881c03ee85bd5f1dc34b58511ff80b0c86be97c6525636ee06bc48b089e02fab"
+  },
+  {
+    "path": "assets/previews/world-generator-v1.png",
+    "sha256": "69979e88ee2273f13f804f80885d577377b836aa1d3dee9f899e96db34ab70a5"
+  },
+  {
+    "path": "assets/previews/world-routes-120x100-grassland.png",
+    "sha256": "adbdba3ca60538e0494dddbde4b2349e649e86777768103bab4725bea757d087"
+  },
+  {
+    "path": "assets/previews/world-routes-120x100-lakecountry.png",
+    "sha256": "fd7b5c419efd7ede5eb008e5bd8b99d6cbf1035e4f832ad70575539dc1a28170"
+  },
+  {
+    "path": "assets/previews/world-routes-120x100-rivervalley.png",
+    "sha256": "b2713f56f828ad3ff93cd7e1fa64f26b6abdbc0007aa3ef565a642cf4931a03f"
+  },
+  {
+    "path": "assets/previews/world-routes-120x100-rockywilds.png",
+    "sha256": "3ca8bae05686967be04fd3f37b7c4592eeea4b562086447b3f58f3ea27fb339d"
+  },
+  {
+    "path": "assets/previews/world-routes-120x100-woodland.png",
+    "sha256": "29bf6e45ebe583efe35b677e9364d5ad61ef85377c3d4462f760c7130feb976a"
+  },
+  {
+    "path": "assets/previews/world-routes-details.png",
+    "sha256": "03dd9b7ed687547c5ac82928d67906e1207bb1aee122bf20ac23e38cdbd33724"
+  },
+  {
+    "path": "assets/previews/world-routes-gallery.json",
+    "sha256": "ed6585f8d6980d5e417b9eece4b22ea071a060dbfb368e52bec2b035750d07cd"
+  },
+  {
+    "path": "assets/previews/world-routes-mixed.png",
+    "sha256": "bfe6cf3440ecf86f53ae43c66e981969f546e5f1c049a0bcc5077e9edc70fdbe"
+  },
+  {
+    "path": "assets/previews/world-routes-narrow.png",
+    "sha256": "6f7b8e7d01376b888aca52bfb34bead620aa52b55daed59069c5c77377f20f71"
+  },
+  {
+    "path": "assets/previews/world-routes-performance.json",
+    "sha256": "99e4f3e472de4fcce901e2fa60bc149770f365ddeaeefd13b0e4e46f3a420ff2"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-grassland-final.png",
+    "sha256": "6884ac82e52208d71d587fefe0a7c965cf9636f5c024e5a38dcfce315329cdae"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-grassland-primary.png",
+    "sha256": "58ef6b9e4a2cb716fd504b90fba11c486a182687eb3c3825957712fe7f048798"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-lakecountry-final.png",
+    "sha256": "b817dd0379f8beaa09c5f41db50bb4eb56425badc60ed30437dfefeddb19b785"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-lakecountry-primary.png",
+    "sha256": "90f699b7b7f91517e858fca70359995111e12ca3f635777a110a398a9430a29e"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-rivervalley-final.png",
+    "sha256": "36749cbfa643ad81c9d30e5eb7bc7412083bc2d0674a8aaf7217d8bbe955492b"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-rivervalley-primary.png",
+    "sha256": "3febed9b76f106dcedee73f1c2732dce7fe0c57d9a19059f3f7bdc8b8e5ee362"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-rockywilds-final.png",
+    "sha256": "1867340c9569ebd4600623f0a39a6e3f8a5049ef672f3704d0cd5f6651c36723"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-rockywilds-primary.png",
+    "sha256": "4e534c2ac82660afb500e3169e644801ba25441bd9f4ae6c77f511345f48eae7"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-woodland-final.png",
+    "sha256": "ff4a457253be526fd0feccd46e190baa80b8024a9c03e529200274a6c13db544"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-120x100-woodland-primary.png",
+    "sha256": "46aa82a6bd4a6f6a9ece208e4b873c373179d805cfe592bd5ef0a41c369dad4a"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-detail-attachment.png",
+    "sha256": "bbc21cc17e55b77bf969f1748b68462d6b4be6c02ae9640b6642c8f093a4ac25"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-detail-bend.png",
+    "sha256": "f57b358b94f134401699e7f23a3e5ed6725f3a32d7adaf4e320ec9fd6b860020"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-detail-crossing.png",
+    "sha256": "eb5432ebfa9f1213aa6a1bff72819967b8f05138b89d69d18f227dc0d0e746ab"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-detail-junction.png",
+    "sha256": "8003ac3a955138f46426d1fb76747ef280c76d4f859674b94ef9750266bcbcff"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-diagnostics.json",
+    "sha256": "61aa532de82bd80d16d745bd15cc017b5c0a3768bdc7060943069512f2246fa4"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-mixed-final.png",
+    "sha256": "1a42522944c89e5158e085a51503b596be9a73791bc8699264602116801297d0"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-mixed-primary.png",
+    "sha256": "75f66a49188ad6de15a60a52b360e22e3b412355945e246afb53011b9b1f5289"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-narrow-final.png",
+    "sha256": "28b7fbc63ad9e59adf5d18045b429d68de6fc1b7cd640a276a107cfd5177efd8"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-narrow-primary.png",
+    "sha256": "2bf6c6ec8fd624286dea4bea7e38d9a1f2e5272d7cb3feedd2255096e394b1d9"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-rockpassages-final.png",
+    "sha256": "3e471df6857a815689db6dcab413892016b548046251a688651b126187932ccf"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-rockpassages-primary.png",
+    "sha256": "f4975bb1dd4b81a392a9729e98c204e34459f37e24c52e7175d0702beb163aa0"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-sitenetworkonly-final.png",
+    "sha256": "a64e1a4e59f343f98318f633df842ce3a1cf92b2a14dd370cc5408c7e554143f"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-sitenetworkonly-primary.png",
+    "sha256": "c59f14af8a5b784160907f7137c2b7acffe87ccc58beb7fd48a38b280ad6ed82"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-throughonly-final.png",
+    "sha256": "d514bcc0cc8ff277f25e59710e5abfbed61a0b84e28d24a9938a4a00cf132b57"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-throughonly-primary.png",
+    "sha256": "572070ffda75944dbe7978219ea29f196aac6df40794e8f59cb291d4d5cb7663"
+  },
+  {
+    "path": "assets/previews/world-routes-refinement-verification.json",
+    "sha256": "f0bf95f1ff2e9d43505a70b041d973c7ee8101d402634d766588e5a84964c6e9"
+  },
+  {
+    "path": "assets/previews/world-routes-rockpassages.png",
+    "sha256": "a5661ebb7088b52337df011a8a064a5c944f688d3673f446d59bf9877561952b"
+  },
+  {
+    "path": "assets/previews/world-routes-sitenetworkonly.png",
+    "sha256": "9ef7fcc96d24bf53ab7910256fc93fe16fa6c9f16a410a45e19d9c11238d7ddf"
+  },
+  {
+    "path": "assets/previews/world-routes-throughonly.png",
+    "sha256": "54a726cbc5b135eb9e072da79d32c50ffb3a46c4b5540e41591b770decf66384"
+  },
+  {
+    "path": "assets/previews/world-routes-verification.json",
+    "sha256": "990018a5559047dc334d0c478ad8f9ada908725b69e4960c4999f6b5ad90b736"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/campaigns/the-bell-beneath-salt.png",
+    "sha256": "b1efdaedea17f213d9ca0517bdd542d6166687ed9f59bf7f84bdf0a9477587fd"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/edges/door-closed.webp",
+    "sha256": "04245118d4c569d163169eec4fd5177f564327a592204c378229bdc92bb186f8"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/edges/door-open.webp",
+    "sha256": "f5ea12c6425077d992c0a356153095dc728d1b56bec595a23ceef32a3ee9a6a5"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/edges/wall.webp",
+    "sha256": "de80968e636ebc8ece9c15035d5361a5a565d4b1c5394ffa5c983971f37a9f49"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/machines/diamond-press.webp",
+    "sha256": "de8eb8ff4a274980195b0f7f50f66523c5d96584f975ad3c4fbfc26c3047635b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/machines/slot-machine.webp",
+    "sha256": "214a87c61746279d7e35834b5696b580cc9ff1504ed2ba5a45109c60ec8c7910"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/markers/banana-peel.webp",
+    "sha256": "57ba90b55b88d2cce6da8d630ad9d9bd19f6b81413ef5f29195a7bb982e6cb52"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/unit-visuals.json",
+    "sha256": "04e71cef145f63b304174121d642ad682721882f688246b446cb6af5c1445830"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/railway/cross.svg",
+    "sha256": "080cd856b0af30219efc0a39109e55ffc0ce4ba03265c44bb7a7a873e0ff1467"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/railway/curve.svg",
+    "sha256": "908a22310e0c024e3637332babf4f69ff111dbc5948b2f1a0a22f557e5765f7a"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/railway/fallbacks.css",
+    "sha256": "fd65172759c51328600a5da2c017934dac4e9b8b240cdfcabf140b41d193cc21"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/railway/straight.svg",
+    "sha256": "46a0eb29efef58296da58fccc64886f948a5b01140453f9423fa14b02bd421a1"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/railway/tee.svg",
+    "sha256": "4cccbb3a63ccb989fb541ac34584d85427502fded695db832318e0e53ee2845f"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/resources/banana.webp",
+    "sha256": "7a88ab6fc97edb52a64371aef3d40a89f1a1b045dea9e46a1c579edbaa3cb901"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/resources/coal.webp",
+    "sha256": "f472cb44ce0724c1a601f785315f3e41aaaf1a53b81dde17610d03109511010d"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/resources/diamond.webp",
+    "sha256": "0bf4d20e7c8cb77d2524e2abf2383125c3f0e77673bb71560db33eb115304341"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/resources/fruit.webp",
+    "sha256": "0740e5fa16b4c52594a3c69c59d04312a124acdfade5508a2f1d202a802d950f"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/resources/mushroom.webp",
+    "sha256": "9bd6aabb1fdc2b75bda9b6ff0f156ae3823ec3a68265d88b8c2515310bbc128b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/resources/shell.webp",
+    "sha256": "5d10db2d12914667bb603a239113bed49923590b9dd1d9710cd532748fd08114"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/barbarian.webp",
+    "sha256": "038cdba151b4991c6ca2aa8feb0fed71131833c99da4069039d4fb440f94fbeb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/bomb-imp.webp",
+    "sha256": "274ff68cc5d4a5b9b39bfc2a483c94d18df4ff7e40458d0a97afc8da5b2595b4"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/castle-guard.webp",
+    "sha256": "9e4669696a61b1beb318de0404d6609d269242d1fc030f3cd570b4cf357315d0"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/chief-mechanic.webp",
+    "sha256": "630737bbce4d8a9249777860db2b6ec23385316e4bf14706fb127242776f200d"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/cleric.webp",
+    "sha256": "5740f04b91f8bcebdba06839900d2355c9c66811d3bdb7cd3de667c7fef8c975"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/diamond-kart.webp",
+    "sha256": "781c90850158f041e02ec4c409c9bc7717f95c1c67af87f862efdeaf4cd4d755"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/displacer-demon.webp",
+    "sha256": "ec0b7a537c6e8842d15159b5b996411390194753529a3af03fbf32978fd3c340"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/geomancer.webp",
+    "sha256": "96f88f72f8003aaf42d575fa52d0a6bd8832043265c5d4ca9a4d5794fbce8f8c"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/ghost.webp",
+    "sha256": "d93c3e1d01e844a60701e8a5c28702afa277211d51ecbdf423bd9e0ec9874bc4"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/goblin-bishop.webp",
+    "sha256": "74f234bc507da635bbf216d2d21f039fb2f60dd044f9691fc68b8d150d667509"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/goblin-king.webp",
+    "sha256": "1249a1ac6fd8f48f44f5afe7cc9a29aca2a994c791f93cb3155e1a47dac0fc5b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/goblin-peasant.webp",
+    "sha256": "b40dd2f390f3e4d51b7c2ee80d3e6b2535bfac30cc01fc22355eb352121e0ea3"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/goblin.webp",
+    "sha256": "566b1b44746d1a89a309eb4fd8aec61d4dd8826fe2ca1f0b03ee7779de76ed79"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/grunt.webp",
+    "sha256": "9043039d8b6deb318ae438991440257e18dba72c7275c6cb029affc202348bb6"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/hobby-knight.webp",
+    "sha256": "2b2e8cbb57f5703d672ef3dfe9ac591d384169b3474551648fda9b5463c46200"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/labyrinth-shaper.webp",
+    "sha256": "6fbe3930e78287dc221580820a8e92b95aa4948553069edc5a8c8f81befea03b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/locomotive.webp",
+    "sha256": "d35a3a770fec5d956220373eb2c20524398050d82d6e8cdfeefa12cf466ce2c8"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/red-dragon.webp",
+    "sha256": "0ea39a87492bcf42df8cecefaf1d0a8ec99f2922204d7a0366ecb088c6a2ec1e"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/rogue.webp",
+    "sha256": "e49e8153aff87bb209e8400a03b59119b4e6a2b5e5737d048fd342f25088085e"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/royal-bishop.webp",
+    "sha256": "5201decd880eed8fd01038c2ee2947131a367d916484be332e4fdcfa1c0c7009"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/royal-king.webp",
+    "sha256": "fe74483741b856903b9d17bae9bf2471f8b5ee1201324c8fb8393c7395d43215"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/royal-knight.webp",
+    "sha256": "af0a9dae3a9afd99fefd7d439ab7633be988a834eae01b05cb6708de4ba8e1fb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/royal-peasant.webp",
+    "sha256": "5a7d622090057a032237b4ea4b6acdc3e5320ed12cd85f5b3ee93a534983ba06"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/royal-queen.webp",
+    "sha256": "bc8d170d2b0176fb5dd2db6b0906efea2cc16f66fe243e1dc3bc70de7cbb6cdf"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/shaman.webp",
+    "sha256": "85f65277c724fa933d32eddb928259cbe0415afb71fb8b423376f767ab3af116"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/skeleton-archer.webp",
+    "sha256": "3487b23d2e2c45311facfbdb5b7d50d7a4f5b4e53189b6577873828fb6d8cedb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/tower-troll.webp",
+    "sha256": "1e0c3456c49d6ba1b61ce8fd3d5370f44bbeb6cd080e3ad87ee7a397fa7ab24e"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/troll.webp",
+    "sha256": "37c2376c0f7c368f5ef4a565f0c2146a2cce081b9143c7563278c1bce11b37c4"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/witch-queen.webp",
+    "sha256": "ab5829493c246bb49b2375371c0f610111be745d08957138d9e87c0257ca82c9"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/wizard.webp",
+    "sha256": "436b1ef298e45a5960990c94a685fe9e8be47b66562aaf74b7da81eb441f29fe"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/worker.webp",
+    "sha256": "97f2f9fd661500b3da740a9dba77f93d66bf6c74df212329dbb3439b79a7e059"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/units/zombie.webp",
+    "sha256": "f3ef763709ed2fd93ecdca92cc9d7384f4928c96aa70fd4582715d779b2febe6"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/asphalt/01.webp",
+    "sha256": "72ca1c1724c7aadb5d9f780cb33dd9639a095df3a7e2ed7c78d8250c4a83f9eb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/asphalt/02.webp",
+    "sha256": "6ccf46a3e5d53f6dd094eac8f35f8291e77719dfc2692089c29717b6f47538fd"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/asphalt/03.webp",
+    "sha256": "5f7a8f45e561d3ed33085ee6fdd48c389f2f6e34b699b4cf439ade47726be63a"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/dirt/01.webp",
+    "sha256": "f19af6c3a143f9517fecbe6045745da15ba38d605f123d0fd5485be476197b70"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/dirt/02.webp",
+    "sha256": "14e61e3be3d662d7baac069e033a871e164b680bfd926078de73d0045b051ae6"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/dirt/03.webp",
+    "sha256": "bc08abbb615d67c4ad555d383436beb0022c795242796926aa5935c4f4233de9"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/grass/01.webp",
+    "sha256": "05c31af22fcaaf44eab104112225e4f062d5e457670cc77b4583ec1514188100"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/grass/02.webp",
+    "sha256": "bfc730568104a0ae0c3b66272df7916a31a97b88f13c7f6aa7747d5e345cda8b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/grass/03.webp",
+    "sha256": "14674ea80969826e79f05dd3558e972295f919fcd95a1cced58a0b3e97644a47"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/gravel/01.webp",
+    "sha256": "2bd1932a02eb027164023aee6529012baab5ef0c07b2ee8b9367d724f2e47d24"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/gravel/02.webp",
+    "sha256": "0bfaeb49be533f258c00d9d3515a4a7d0af38a121ed603028c71f50ef8c33e1b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/gravel/03.webp",
+    "sha256": "39d06109a5f018e19a5c3a2c064600b49bed41682250db1f4f0716461fc6a8b7"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/lava/01.webp",
+    "sha256": "9e80802458cd47087b7ca41810018f4b2c2b7ce1a7e1432e5dfc4a0cc36226c2"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/lava/02.webp",
+    "sha256": "d12a351b4f41a0dbb90180e871d208c921c226f7f8a5dc05042b77d03c09865a"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/lava/03.webp",
+    "sha256": "ad6f8ad3e1e5bdfde2891ae116a3a273ed10158c585e8bb7ba39d2784bd2fdd9"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/solid-rock/01.webp",
+    "sha256": "0c8684a9d09c5511388b5e71ba2f3bacc040b596e080b72d43d3ba7168461206"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/solid-rock/02.webp",
+    "sha256": "d58f3a092591ee0bf33d529c95658ca02532de68445fc08569582a8f496a5759"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/solid-rock/03.webp",
+    "sha256": "fc2a0d6b8a696e14546e55a2c42adb798d31f6137e17f8a4d02ad3b68432ed54"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/stone-floor/01.webp",
+    "sha256": "cbde29f75f13a9647ac8918f845433e5c0bb6796594905e32813697ee33c084e"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/stone-floor/02.webp",
+    "sha256": "5543dc98a1155a5085492c36782fcd9ff19dfcadce0d3e4bb6a207c581d22de8"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/stone-floor/03.webp",
+    "sha256": "75e8def6d4e912dd9674fb8a78ddccadbbffe2165cfd9bbba4f89656f7ed8dd6"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/water/01.webp",
+    "sha256": "831fe34d8dc2f88ddb358e8591114cdb14ebbf9350c692796191f3b51bd3a5cd"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/water/02.webp",
+    "sha256": "8de18265ac20110e9045fb2985ffde31ac81f794d13096bae94dd531827ec3c7"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/water/03.webp",
+    "sha256": "42cd764cf53577f61f9340b80b6ab7d30c72b02d98c0d64bfa37068bc3c30894"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/fruit-tree/01.webp",
+    "sha256": "c7b1a7cf3500a9ff87bfcffd5a13021ecadfc198821b1e22f6df7fa1be792fb5"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/fruit-tree/02.webp",
+    "sha256": "41d0bf206c93cd1659752d9ae397b51e3281fcc8159194221ec933a911d980d1"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/fruit-tree/03.webp",
+    "sha256": "21732ad1def45b246fd7db832db7abc6b9cd4a1ef2f449965f746711043dad99"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/table/01.webp",
+    "sha256": "4856938a56848b7484e7b1c8d45ae208c3bafb01456f852ee480045bf5e8c2b3"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/table/02.webp",
+    "sha256": "ebdce99fba7d8cb643857b0e673d1560c9dde1a251348b388c7d8b4adf197e5b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/table/03.webp",
+    "sha256": "d1c25547ada683f98a6d5a069ed2cbad4af3a220ec9d032e3562f2918eb91971"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/tree/01.webp",
+    "sha256": "570ee729649e16da23a26a65e25e77ec8e0f70c702c483f7bb13dc13ca80dfb3"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/tree/02.webp",
+    "sha256": "4a767a836d73cb83589ab523577de16734bfd8f57b31490775bb9a383a23940f"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/terrain/objects/tree/03.webp",
+    "sha256": "ac3554788df0a31635a80e8fb48a2fca4478af3fc4c1e7dc1d037e33d4b819ee"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/zombie/v1/zombie.glb",
+    "sha256": "07fb0b8d3fee6139503f0fd8df375c93f1e7bb335fa18589c76760a28b135e24"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/worker/v1/worker.glb",
+    "sha256": "2f75f4ed1165b80cb7f922fbab4ee0ef0d53822d10a0a228ee3de58f6fbfed2d"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/wizard/v1/wizard.glb",
+    "sha256": "d3a4a06332e6b5a5375b60b4a1b2fd4870a363f0631d4965ecbc3218183eb003"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/witch-queen/v1/witch-queen.glb",
+    "sha256": "43e12ae377da42c7096c4bdb9580004f99376e29016d4436c56b08696f591621"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/troll/v1/troll.glb",
+    "sha256": "9bc1970d2ca0d51c3b14693b068c3b8f6f305a86df6e2a2e24ba7b8974f51274"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/tower-troll/v1/tower-troll.glb",
+    "sha256": "6440f641751a2b15e80cb687cbc7b546f82724f50bc0ce2bcdaad684d1821a7f"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/skeleton-archer/v1/skeleton-archer.glb",
+    "sha256": "8f2379531e8c038506e11159500a1279b0264f2b79bb4702b0b9ad0a57a5c46f"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/shaman/v1/shaman.glb",
+    "sha256": "18ea37c4d13eceedced67722f060187ed67a73535bc5a76f8847a0a8816b3980"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-queen/v1/royal-queen.glb",
+    "sha256": "d594d7514bc6551e9d784b578b4e53b67e51fe978040ba02756acdbed4441972"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-peasant/v1/royal-peasant.glb",
+    "sha256": "b866a71ed70e5f48801706c1339a9dcd119b18f5a2cca0529635fbdec714a27b"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-knight/v1/royal-knight.glb",
+    "sha256": "64c5613981067d1a5bd9c2e49e6658f4ff4810c74c6a72cc3ca72a1566d78bea"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-king/v1/royal-king.glb",
+    "sha256": "6a368bdf63c00a6f33cb1313fbedb64abd3e6eac279a1a64d92a9cdd686254fc"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/royal-bishop/v1/royal-bishop.glb",
+    "sha256": "63d8d0a87be9788d4254194a58f08adbd7726cc1f3a3cb33e8d1dd0519ba47ed"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/rogue/v1/rogue.glb",
+    "sha256": "8418b1cec9db43a31ba0ea086ae3c101638b876302746f7bf9ba2ba76e64f5c0"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/red-dragon/v1/red-dragon.glb",
+    "sha256": "1a5c4bba83ed707170952025e75007e30574203d93e9410d6f4e75da855f9f12"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/locomotive/v1/locomotive.glb",
+    "sha256": "4361700b9af3ab9aec79c5ebc84c1572f2a93eb5a249923b7120eace2f0d8f9e"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/labyrinth-shaper/v1/labyrinth-shaper.glb",
+    "sha256": "68163bdb655b597f3fe5238ff574f10aa2774ef8ab94e9ad02220ac68c06a56f"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/hobby-knight/v1/hobby-knight.glb",
+    "sha256": "17d755a88cbd439a91f04681e7a6fdc5ab82884f1a1bdfaec732e998ce48455d"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/grunt/v1/grunt.glb",
+    "sha256": "21b813868094b194e0fffbc82dbaf7c2f0f31cb30ef10cec9c848c67ca57bf4e"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin-peasant/v1/goblin-peasant.glb",
+    "sha256": "c6262367e6148b6dde5c491c98885d6f69490b443859feadd3099a339dee4676"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin-king/v1/goblin-king.glb",
+    "sha256": "ecc660a87d9ac560c7da00ae041e540fe5752ae8fa068852ba56ece932946ee6"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin-bishop/v1/goblin-bishop.glb",
+    "sha256": "66aa55ccfa75c812ca0c57e6ac0fd98664254aa20ba135b0c253811be6192b73"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/goblin/v1/goblin.glb",
+    "sha256": "448c1b490d8e8d477451648fc42d36be3c1fc919286b3ebd5c8c19ed9d8db8d0"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/ghost/v1/ghost.glb",
+    "sha256": "b46acc5d04a6d79f2d0133e6357742558805ec51d46ef229df163d8e00779e43"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/geomancer/v1/geomancer.glb",
+    "sha256": "14d51830471f1dc932eb6ba99c2d682a9a888f93e617864792e8b8c8a5382ed6"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/displacer-demon/v1/displacer-demon.glb",
+    "sha256": "31ec2089567c47366a595351d14febfa55dbd9fbde257cb90c1ba5309120e7fc"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/diamond-kart/v1/diamond-kart.glb",
+    "sha256": "20a684f1b7a1821560378d0a0a25c019c8663720637f5a29ec9c7691f286fbdb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/cleric/v1/cleric.glb",
+    "sha256": "bc941a1907379cc56c7f6e900f8b5c5f3bff18107c730289a431e421afb44ecb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/chief-mechanic/v1/chief-mechanic.glb",
+    "sha256": "d11b25c48b48aa2f2ac526e0e4501336deda5a55ab801f300e09192178d0da35"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/castle-guard/v1/castle-guard.glb",
+    "sha256": "590ac0f822daaf3d0781282c66c43d7b24acb7d6a2d6b249ac3112b36e4efe28"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/bomb-imp/v1/bomb-imp.glb",
+    "sha256": "9413ed0062edbc7925dcd667c23d014ee5a4ccd51ec384510fe30c4ec231e0fb"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/barbarian/v1/barbarian.glb",
+    "sha256": "71674c266f171b3254a5fb946dcf35c03268670989608429dd87d573cd759ea0"
+  },
+  {
+    "path": "ASSET_PROMPTS.md",
+    "sha256": "da5893efc87701277c901a3409835fa0120964c25b874f2fe080648e36f1ddea"
+  },
+  {
+    "path": "CONSTRAINTS.md",
+    "sha256": "42bef27cc87e8cf258661edd68d10f8c0d8a029545d34b4798a6c86c98be35cc"
+  },
+  {
+    "path": "ProjectDelve.Engine/UnitContent.cs",
+    "sha256": "bba9c51a377baaf2b14c5a4acb571c77b96b6e090913edb1dc99d593e8099507"
+  },
+  {
+    "path": "ProjectDelve.Engine/UnitRoster.cs",
+    "sha256": "a8cdf4c2cfa21e5eb7214aab6828437565c5dd3d98295790f993d5db7106266a"
+  },
+  {
+    "path": "ProjectDelve.Web/wwwroot/board-visuals.js",
+    "sha256": "92f2578c3cefd4944c3d6dcf48165b06b35950a812c633d61acbb3f7fbf706f2"
+  },
+  {
+    "path": "tools/prepare-artwork.py",
+    "sha256": "7b92363edb3c4c03f954f8191bb7fab2e4d7ee1350293faaa571b06e3a8b2792"
+  },
+  {
+    "path": "tools/import-unit-models.cjs",
+    "sha256": "0aa5eafdabe2e6bdbe9478325071eace0c8a7586c4999a107d145076242fc718"
+  }
+]

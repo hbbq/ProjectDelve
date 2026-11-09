@@ -1,5 +1,6 @@
 import { ContentBrowserState, contentLabel, contentUsage } from './content-browser-state.js';
 import { mountContentEditor } from './content-editor.js';
+import { boardVisuals } from './board-visuals.js';
 
 const definitionFields = { units: 'unitTypes', equipment: 'equipmentTypes', items: 'itemTypes', lootCards: 'lootCardDefinitions' };
 const families = { units: 'Unit', equipment: 'Equipment', items: 'Item', lootCards: 'LootCard' };
@@ -10,6 +11,13 @@ export function mountContentBrowser(root, options = {}) {
   let refreshGeneration = 0, loading = false, contentReady = false;
   let context = 'canonical', target = null, snapshot = null, workspace = null, catalog = null, editScope = null, editToken = null, editCopy = false;
   const node = (tag, text, className) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e; };
+  function appendPortrait(container, entry) {
+    const source = entry?.family === 'units' ? boardVisuals.unit[entry.id]?.image : null;
+    if (!source) return;
+    const image = node('img', null, 'unit-portrait'); image.src = source; image.alt = '';
+    image.addEventListener('error', () => { image.hidden = true; });
+    container.append(image);
+  }
   const button = (text, action, id) => { const e = node('button', text); e.type = 'button'; if (id) e.id = id; e.addEventListener('click', () => { if (!e.disabled) void run(action); }); return e; };
   const authoringButton = (text, action, id) => {
     const e = button(text, () => { if (contentReady && !loading) return action(); }, id);
@@ -263,7 +271,7 @@ export function mountContentBrowser(root, options = {}) {
     const result = legacyButton(text, () => { if (state.open(key, true)) { render(); focusDetail(); } }, className);
     result.dataset.contentTarget = key;
     const target = state.entries.find(entry => entry.key === key);
-    if (target) { result.dataset.targetId = target.id; result.dataset.targetFamily = target.family; }
+    if (target) { result.dataset.targetId = target.id; result.dataset.targetFamily = target.family; appendPortrait(result, target); }
     return result;
   }
   function focusDetail() { detail.querySelector('h3')?.focus({ preventScroll: true }); detail.scrollIntoView?.({ block: 'nearest' }); }
@@ -357,11 +365,12 @@ export function mountContentBrowser(root, options = {}) {
     }));
     root.classList.toggle('cb-show-detail',state.detailOpen);
     list.replaceChildren();
-    for (const entry of state.visible) {const row=button(`${entry.name} \u00b7 ${entry.origin}`, () => {state.open(entry.key);render();focusDetail();});row.className='cb-list-entry';row.dataset.contentKey=entry.key;row.dataset.contentId=entry.id;row.setAttribute('aria-current',String(state.selectedKey===entry.key));list.append(row);}
+    for (const entry of state.visible) {const row=button('', () => {state.open(entry.key);render();focusDetail();});row.className='cb-list-entry';appendPortrait(row,entry);row.append(node('span',`${entry.name} \u00b7 ${entry.origin}`));row.dataset.contentKey=entry.key;row.dataset.contentId=entry.id;row.setAttribute('aria-current',String(state.selectedKey===entry.key));list.append(row);}
     detail.replaceChildren(); const entry = state.selected; if(!entry) return;
     detail.append(legacyButton('\u2190 All results',()=>{state.detailOpen=false;render();list.querySelector('[aria-current="true"]')?.focus();},'cb-back-list'));
     if(state.history.length) detail.append(legacyButton('\u2190 Previous definition',()=>{state.back();render();search.value=state.query;focusDetail();},'cb-text-button'));
     const heading=node('h3',entry.name);heading.tabIndex=-1;
+    appendPortrait(detail, entry);
     detail.append(heading,node('p',`${entry.id} \u00b7 ${entry.origin}`),node('p',entry.summary));
     for(const group of entry.sections ?? []) if(group.fields?.length) detail.append(contentGroup(group.title,fields(group.fields)));
     if(entry.abilities?.length) detail.append(section(`Owned abilities \u00b7 ${entry.abilities.length}`,...entry.abilities.map(renderAbility)));

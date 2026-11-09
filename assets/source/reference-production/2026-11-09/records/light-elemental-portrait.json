@@ -1,0 +1,40 @@
+{
+  "slug": "light-elemental",
+  "kind": "portrait",
+  "unitTypeId": "light-elemental-type",
+  "prompt": "Use case: stylized-concept. Asset type: Project Delve token portrait.\nInput Image 1: approved full-body master, PRIMARY and authoritative identity/design reference, not an edit target. Generate a separate derived image; never change or replace the master.\nPremium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable premium board-game presentation. Soft directional lighting from the upper left and a simple subdued neutral gray background. Preserve the approved reference material colors and painting; no style redesign.\nCreate ONE new square 1:1 portrait of exactly this character. Center the recognizable head and upper body; adapt the crop naturally for this creature. Fit all identity-critical features inside the central 75 percent, including complete ears, antlers or crystal crown where present, with generous circular-token crop margins. The face and silhouette must read clearly at small token size. For Beastmaster retain visible collar, mantle, clasp and a hint of the existing staff without covering the face. For the Jackalope frame the full antlers and ears; for the toad retain broad head width and both eyes. This is a portrait, not a full-body view or sheet. Do not draw the circular crop or frame.\nSubject: The SAME small benevolent humanoid-like solid elemental: ivory face, almond golden eyes, subtle smile, amber diamond forehead inset, a connected crown of thick amber/ivory flame-shaped crystals, broad rounded faceted shoulders, two substantial arms and hands held close across the chest, continuous twisting ivory/gold/amber lower taper with broad flattened ground contact. Preserve the opaque painted luminous-looking material, exact silhouette and integrated lower form; no legs, new ornaments, detached crystals, halos or light effects.\nPreserve identity, face, anatomy, proportions, palette, clothing, materials, accessories and equipment exactly as visible in Image 1. Do not substitute the earlier text concept for the approved image. No added equipment, limbs, horns, ornaments or magical effects. No text, labels, measurements, letters, borders, token frames, faction rings, health markers, UI, logos or watermarks. No scenery, pedestal, miniature base, additional character designs, motion blur, detached effects, bloom or transparency-dependent anatomy.",
+  "references": [
+    "assets/source/units/light-elemental/reference/full-body.png"
+  ],
+  "inputs": [
+    {
+      "path": "assets/source/units/light-elemental/reference/full-body.png",
+      "sha256": "fc10f485f62bb5ee7fe8c74b7ff26ee90a4c0a5a2860a52b103f29ecc9888458"
+    }
+  ],
+  "outputPath": "assets/source/units/light-elemental.png",
+  "status": "agent-visually-reviewed-awaiting-user-review",
+  "tool": "built-in image_gen.imagegen",
+  "model": "not exposed by tool",
+  "seed": "not exposed by tool",
+  "date": "2026-11-09",
+  "approval": "Agent visually inspected; user review of derived output pending; no Tripo or print validation",
+  "generatedSource": "C:\\Users\\Henrik\\.codex\\generated_images\\01a1bf9d-056a-7f12-a877-d5110141fef8\\exec-cf349a49-eedf-411d-ad08-0168d0dbdea7.png",
+  "output": {
+    "path": "assets/source/units/light-elemental.png",
+    "sha256": "be6ee425a0bf302c08658e0cea32c9093fc0215f86aa52c73a2585ae00875d2a",
+    "bytes": 2020228,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "format": "PNG",
+    "mode": "RGB",
+    "frames": 1,
+    "exifOrientation": null,
+    "embeddedColorProfile": false,
+    "alphaExtrema": null
+  },
+  "visualReview": "Ivory face, golden almond eyes, forehead diamond, connected crystal crown, faceted shoulders and hands-at-chest identity agree with master. Solid painted amber/ivory forms with no detached particles or added effects; complete crown remains inside circular crop.",
+  "issues": []
+}

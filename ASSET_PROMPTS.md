@@ -800,6 +800,165 @@ Full-bleed opaque square terrain texture, not a transparent overlay. No baked-in
 - Verify the result inside both the normal and zoomed Enhanced 2D board, especially next to Stone Floor, Walls, Doors and FoW. Preserve a distinct Classic fallback. Do not bake any gameplay overlays into the artwork.
 - This batch is only the artwork for existing Solid Rock. Do not introduce a new terrain type or change gameplay.
 
+## Beastmaster and summoned creatures — Flare full-body masters
+
+These prompts prepare visual designs for six existing canonical Unit Types. They do not establish gameplay rules or approve model dimensions. Each fenced prompt below is complete: copy it into Flare on its own, without appending the shared portrait prompt or assembling fragments. Generate approximately 4–5 alternatives from the same prompt; the user chooses the preferred design.
+
+The selected full-body image becomes the primary visual identity reference for later portraits, character sheets and Tripo models. Derived images must preserve that selected anatomy, face, proportions, palette, materials and equipment. Keep the original selected image unchanged.
+
+### Shared full-body reference instructions
+
+Retain the established **Shared portrait style** above: premium fantasy tabletop artwork, hand-painted digital illustration, rich but controlled colors, detailed textures, subtle brushwork, cohesive classic fantasy aesthetic and soft directional lighting from the upper left. Replace only the portrait-specific framing with one complete character in a shallow front three-quarter view, a compact balanced resting pose, modest perspective, plain neutral gray background and generous margins. Frame the entire silhouette and every extremity. The image is a single-view reconstruction reference; it does not need a square canvas or circular crop.
+
+Style precedents: [Barbarian full body](assets/source/units/barbarian/reference/full-body.png), [Wizard portrait](assets/source/units/wizard.png) and [Shaman portrait](assets/source/units/shaman.png). The [Barbarian full-body production record](assets/source/reference-production/2026-10-28/records/barbarian-fullBody.json) and [character-sheet record](assets/source/reference-production/2026-10-28/records/barbarian-characterSheet.json) document the established reference treatment. Attach the Barbarian full body as an optional style-only reference consistently across this batch: borrow painting, materials and lighting, not its identity, anatomy, costume, axe or background details. The prompts remain usable without an attachment. Do not mix independently chosen style references between candidate runs.
+
+Common exclusions, repeated in every complete prompt: other characters, extra or missing anatomy, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI, logos, watermarks, motion blur, detached effects, elaborate spell effects, floating accessories, fragile filaments and transparency-dependent anatomy. Keep major forms connected and details substantial; retain enough separation to distinguish limbs and equipment without sprawling poses. Reference images guide reconstruction but do not certify printable geometry or physical balance.
+
+### Canonical identities and asset slugs
+
+| Character | UnitTypeId | Asset slug |
+| --- | --- | --- |
+| Beastmaster | `beastmaster-type` | `beastmaster` |
+| Jackalope | `jackalope-type` | `jackalope` |
+| Giant Toad | `giant-toad-type` | `giant-toad` |
+| Dire Bear | `dire-bear-type` | `dire-bear` |
+| Raptor | `raptor-type` | `raptor` |
+| Light Elemental | `light-elemental-type` | `light-elemental` |
+
+### Beastmaster — Mystical Summoner
+
+UnitTypeId: `beastmaster-type`. Asset slug: `beastmaster`.
+
+Visual requirements: ordinary Hero scale; an arcane adventurer with a distinct short-mantle silhouette, substantial summoning focus and restrained mystical ornament. Avoid the Barbarian's fur-heavy warrior silhouette, Wizard's pointed hat and Shaman's feather-and-bone clutter.
+
+```text
+Premium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable, premium board-game presentation. If approved Project Delve artwork is attached, use it only as a painting, material and lighting reference; preserve the subject design specified here.
+
+Create exactly one complete Beastmaster: a distinctive mystical fantasy summoner capable of calling animals, cryptids, mythical creatures and elementals. An alert, composed arcane practitioner at ordinary adventuring Hero scale, with a clearly visible expressive face. Practical layered tunic, fitted trousers, sturdy boots, a short structured mantle and a few substantial leather-and-metal accessories. Muted plum cloth, charcoal-green mantle, worn brown leather and restrained antique brass details. Simple nonlinguistic geometric summoning motifs are inlaid into a broad clasp and one solid staff focus. Hold the sturdy staff upright close beside the body, with a compact carved head and no dangling or floating parts. Keep both hands readable. Convey broad summoning knowledge through costume and focus design. Distinguish the silhouette from a fur-clad Barbarian, pointed-hat Wizard and feather-and-bone Shaman.
+
+One single-view full-body reference for later Tripo reconstruction, in a shallow front three-quarter view showing the front and one side. Neutral, compact, balanced resting pose with both feet firmly planted and equipment close to the body. Modest perspective without wide-angle distortion. Entire silhouette visible, including hair, both hands, boots, staff and every accessory, with generous margins on all sides. Plain neutral medium-gray background, consistent soft directional lighting from the upper left and clear readable material shading. Keep major forms connected and fine details substantial enough for a small solid miniature.
+
+No other characters, summoned creatures, animal companions, extra or missing limbs, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI elements, logos or watermarks. No motion blur, portals, detached effects, elaborate spell effects, floating accessories, fragile filaments or transparency-dependent anatomy. No whip, animal-training props, oversized fur mantle, pointed hat or dense feather-and-bone ornaments.
+```
+
+### Jackalope — Cryptid Scout
+
+UnitTypeId: `jackalope-type`. Asset slug: `jackalope`.
+
+Visual requirements: small, curious and alert; rabbit anatomy, strong hind legs, long ears and unmistakable substantial branching antlers. Keep ears and antlers visually distinct.
+
+```text
+Premium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable, premium board-game presentation. If approved Project Delve artwork is attached, use it only as a painting, material and lighting reference; preserve the subject design specified here.
+
+Create exactly one complete Jackalope, a small curious rabbit-like cryptid scout. Recognizable rabbit muzzle, bright watchful eyes, long upright ears, strong folded hind legs, compact forepaws and a short rabbit tail. Lean, quick-looking anatomy with a poised alert expression. A pair of unmistakable branching antlers grows solidly from the head; use thick main beams and a few short substantial branches, clearly separated from the ears. Warm tawny and muted gray-brown fur, lighter muzzle and chest, natural ivory-brown antlers. Describe fur through broad painted masses and restrained texture.
+
+One single-view full-body reference for later Tripo reconstruction, in a shallow front three-quarter view showing the front and one side. Neutral, compact, balanced resting pose with all four paws grounded, hind legs tucked naturally and the head attentively raised. Modest perspective without wide-angle distortion. Entire silhouette visible, including all paws, both ears, every antler tip and the short tail, with generous margins on all sides; use a slight natural head or body turn to keep these features readable. Plain neutral medium-gray background, consistent soft directional lighting from the upper left and clear readable material shading. Keep major forms connected and details substantial enough for a small solid miniature.
+
+No other characters, extra or missing limbs, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI elements, logos or watermarks. No motion blur, detached effects, elaborate spell effects, floating accessories, fragile filaments or transparency-dependent anatomy. No jumping or running pose, fine whiskers, sprawling antler branches, excessive fur strands, harness or scout equipment.
+```
+
+### Giant Toad — Amphibious Scout
+
+UnitTypeId: `giant-toad-type`. Asset slug: `giant-toad`.
+
+Visual requirements: low and broad; prominent eyes, broad head, squat body, strong folded hind legs and readable amphibian feet. Its land-and-water character comes from anatomy and skin, without a water scene.
+
+```text
+Premium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable, premium board-game presentation. If approved Project Delve artwork is attached, use it only as a painting, material and lighting reference; preserve the subject design specified here.
+
+Create exactly one complete Giant Toad, a large fantasy amphibian scout with a low broad head, prominent watchful eyes, wide closed mouth, squat rounded body and powerful folded hind legs. Clearly recognizable toad anatomy with two forelegs, two hind legs and four readable feet. Broad sturdy toes with subtle webbing, grouped into substantial forms. Earthy olive, warm umber and muted ochre skin, lighter throat and belly, broad sculptable bumps and restrained moist-looking painted highlights. Its amphibious nature should read through its skin and land-and-water anatomy.
+
+One single-view full-body reference for later Tripo reconstruction, in a shallow front three-quarter view showing the front and one side, with only slight elevation to reveal the broad back and folded legs. Neutral, compact, balanced resting pose, settled low with all four feet grounded. Distinguish the limbs with small natural gaps and a modest stagger of the feet. Modest perspective without wide-angle distortion. Entire silhouette visible, including every foot and toe group, with generous margins on all sides. Plain neutral medium-gray background, consistent soft directional lighting from the upper left and clear readable material shading. Keep the low broad body compact enough for a one-cell tabletop miniature; keep major forms connected and details substantial.
+
+No other characters, extra or missing limbs, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI elements, logos or watermarks. No motion blur, detached effects, elaborate spell effects, floating accessories, fragile filaments or transparency-dependent anatomy. No water effects, pool, splashes, extended tongue, jumping pose, overlapping unreadable limbs, delicate toes or costume accessories.
+```
+
+### Dire Bear — Heavy Attacker
+
+UnitTypeId: `dire-bear-type`. Asset slug: `dire-bear`.
+
+Visual requirements: large and massive within the existing 1×1 gameplay footprint; weight, shoulders, neck and paws carry the design. Four firmly planted paws and broad fur masses take priority over decorative complexity.
+
+```text
+Premium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable, premium board-game presentation. If approved Project Delve artwork is attached, use it only as a painting, material and lighting reference; preserve the subject design specified here.
+
+Create exactly one complete Dire Bear, a massive intimidating fantasy bear built for slow overwhelming strength. Heavy high shoulders, powerful neck, broad deep torso, substantial paws, rounded ears, a recognizable bear muzzle and a short bear tail. Restrained fantasy exaggeration of muscle and mass, with convincing bear anatomy. Deep umber and charcoal-brown fur with warmer shoulder highlights, described in broad thick masses and subtle painted texture. An imposing watchful expression and closed or only slightly parted mouth. Communicate strength through body volume and weight.
+
+One single-view full-body reference for later Tripo reconstruction, in a shallow front three-quarter view showing the front and enough of one side to read the torso. Neutral, compact, balanced resting stance with all four paws firmly planted under the body's mass, short natural steps between the paws and no dramatic limb spread. Modest perspective without wide-angle distortion. Entire silhouette visible, including all four paws, ears and short tail, with generous margins on all sides. Plain neutral medium-gray background, consistent soft directional lighting from the upper left and clear readable material shading. Preserve a compact, believable silhouette suitable for an existing 1x1 gameplay footprint; show large size through bulk rather than an elongated pose. Keep major forms connected and details substantial enough for a solid miniature.
+
+No other characters, extra or missing limbs, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI elements, logos or watermarks. No motion blur, detached effects, elaborate spell effects, floating accessories, fragile filaments or transparency-dependent anatomy. No rearing, lunging, running, elaborate armor, excessive spikes, thin fur strands, exaggerated exposed claws, blood or gore.
+```
+
+### Raptor — Sneak Attacker
+
+UnitTypeId: `raptor-type`. Asset slug: `raptor`.
+
+Visual requirements: medium-sized, compact and agile; clear head, two forelimbs, two planted hind feet and a complete balancing tail. The role label is art direction, not a new gameplay ability.
+
+```text
+Premium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable, premium board-game presentation. If approved Project Delve artwork is attached, use it only as a painting, material and lighting reference; preserve the subject design specified here.
+
+Create exactly one complete Raptor, a medium-sized agile predatory dinosaur with an alert narrow head, focused eyes, readable snout, two compact forelimbs, powerful hind legs, substantial clawed feet and one long balancing tail. Convey stealth, speed, precision and hit-and-run readiness through lean anatomy and an attentive restrained posture. Muted moss and slate-green hide with warm ochre markings, lighter underside and restrained painted scale texture. Keep claws substantial, the mouth closed and anatomy clearly readable.
+
+One single-view full-body reference for later Tripo reconstruction, in a shallow front three-quarter view showing the front and one side sufficiently to distinguish both forelimbs and both hind legs. Neutral, compact, balanced ready stance with both feet firmly planted and weight centered over them. The long tail curves gently within a compact believable silhouette, its complete path and tip visible without crossing or hiding the legs; retain plausible balancing anatomy. Modest perspective without wide-angle distortion. Entire silhouette visible, including hands, feet, claws and tail tip, with generous margins on all sides. Plain neutral medium-gray background, consistent soft directional lighting from the upper left and clear readable material shading. Keep major forms connected and details substantial enough for a solid miniature.
+
+No other characters, extra or missing limbs, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI elements, logos or watermarks. No motion blur, detached effects, elaborate spell effects, floating accessories, fragile filaments or transparency-dependent anatomy. No extreme tail extension or tight tail coil, running or leaping pose, one-foot balance, delicate feathers, oversized needle claws, armor, blood or gore.
+```
+
+### Light Elemental — Protective Light Creature
+
+UnitTypeId: `light-elemental-type`. Asset slug: `light-elemental`.
+
+Visual requirements: small and compact, benevolent and supernatural; a solid humanoid-like silhouette with connected material masses and an integral ground-connected lower form. Luminosity must survive as painted color on opaque geometry.
+
+```text
+Premium fantasy tabletop board game artwork. Hand-painted digital illustration with rich but controlled colors, detailed textures, subtle brushwork, and a cohesive classic fantasy aesthetic. Clean, readable, premium board-game presentation. If approved Project Delve artwork is attached, use it only as a painting, material and lighting reference; preserve the subject design specified here.
+
+Create exactly one complete Light Elemental, a small benevolent supernatural creature with a compact coherent humanoid-like form. A recognizable head and calm face, solid rounded shoulders, two substantial arms held close to a protective chest and simple readable hands. Connected rounded crystal and flame-like material masses form one continuous opaque body. Warm ivory, pale gold and restrained amber transitions with painted highlights suggest a luminous core and a gentle protective presence. The creature must remain recognizable as a solid painted miniature under ordinary lighting, without transparency, emissive shaders or actual light effects. Its lower body is a thick integral taper with a broad flattened ground contact, connected continuously to the torso; the taper is part of the creature, with no separate stand or support.
+
+One single-view full-body reference for later Tripo reconstruction, in a shallow front three-quarter view showing the front and one side. Neutral, compact, balanced resting pose with the solid lower form firmly grounded beneath the body's mass. Modest perspective without wide-angle distortion. Entire silhouette visible, including head, both arms, hands and the complete lower contact form, with generous margins on all sides. Plain neutral medium-gray background, consistent soft directional lighting from the upper left and clear readable material shading. Keep all material forms connected and rounded points substantial enough for a small solid miniature.
+
+No other characters, extra or missing limbs, cropped extremities, scenery, environment, pedestal, miniature base, text, labels, borders, token frames, faction-color rings, health markers, UI elements, logos or watermarks. No motion blur, detached effects, elaborate spell effects, floating accessories, fragile filaments or transparency-dependent anatomy. No detached particles, thin rays, floating halos, translucent anatomy, disconnected crystal pieces, spindly flame tips, aura dome, bloom, cast light beams or hovering gap. No separate mounting rod or invented support system.
+```
+
+### Provisional relative size guidance — suggestions only
+
+All six retain their established **1×1 gameplay footprints**. Size impressions are relative to other miniatures, not changes to occupied Cells. The figures should fill their own reference images with generous margins; do not add a person, ruler or scale-comparison silhouette to communicate size.
+
+The following are **unapproved starting suggestions**, not runtime registrations, final dimensions or instructions to resize geometry to pass an import. Values are in Cell units, not millimeters. `targetHeight` includes the entire character and equipment (including antlers or staff), excluding the procedural base; `maximumRadius` is the horizontal model-envelope budget, not body width; `baseRadius` is the circular base radius. Final values require review after GLB generation and before import.
+
+| Character | Relative impression | Suggested targetHeight | Suggested maximumRadius | Suggested baseRadius |
+| --- | --- | --- | --- | --- |
+| Beastmaster | Ordinary Hero | 0.80 | 0.40 | 0.32 |
+| Jackalope | Small, including ears and antlers | 0.38 | 0.30 | 0.25 |
+| Giant Toad | Low and broad | 0.32 | 0.43 | 0.39 |
+| Dire Bear | Large and massive; quadruped bulk rather than humanoid height | 0.75 | 0.48 | 0.43 |
+| Raptor | Medium-sized, compact and agile | 0.60 | 0.46 | 0.36 |
+| Light Elemental | Small and compact | 0.45 | 0.28 | 0.24 |
+
+These follow the separate height/model-radius/base-radius conventions in [unit-visuals.json](ProjectDelve.Web/wwwroot/art/models/unit-visuals.json). Existing comparison points are Barbarian (0.80 / 0.42 / 0.34), Wizard (0.80 / 0.38 / 0.32), Goblin (0.55 / 0.32 / 0.27) and Bomb Imp (0.48 / 0.28 / 0.24). Existing [Barbarian](assets/source/models/units/barbarian/provenance.json) and [Goblin](assets/source/models/units/goblin/provenance.json) miniature records document actual model review; [Ghost](assets/source/models/units/ghost/README.md) demonstrates opaque painted supernatural materials. These examples establish conventions, not proven fit for the new designs.
+
+Keep the toad's feet and bear's paws close to their mass; check the raptor's full tail envelope and the Jackalope's total antler height after reconstruction. Uniform height normalization also scales width and depth. In [unit-visuals.js](ProjectDelve.Web/wwwroot/unit-visuals.js), a 1×1 base is capped at radius 0.45 Cell and the preferred contact margin is 0.04 Cell. The suggested bases remain below that cap, but actual contact and overall radius must be measured. A visual contact estimate does not certify physical stability or printability. The Light Elemental uses its integral lower form rather than a floating offset or new support schema. No runtime visual metadata is changed by this guidance.
+
+### Manual selection and file handoff
+
+Use the exact asset slug from the identity table. Names and paths are explicit handoff conventions; saving artwork does not automatically register it with a Unit Type.
+
+| Stage | Path | Status and Git handling |
+| --- | --- | --- |
+| Flare alternatives | `.artwork-qa/candidates/<slug>/full-body-01.png` through `full-body-05.png` | Temporary, ignored; no need to commit rejected candidates. |
+| User-selected full-body master | `assets/source/units/<slug>/reference/full-body.png` | Canonical visual identity reference; preserve unchanged and commit. |
+| Later derived portrait | `assets/source/units/<slug>.png` | Canonical portrait source; commit after generation and review. |
+| Later character sheet | `assets/source/units/<slug>/reference/character-sheet.png` | Derived reference; commit after generation and review. |
+| Later Tripo GLB inbox | `assets/import/models/<slug>.glb` | Temporary input to the existing reviewed importer; successful import preserves the original elsewhere and removes the inbox copy. |
+
+1. Copy one complete prompt into Flare. If using the optional approved style reference, attach the same one for each alternative. Generate approximately 4–5 alternatives without changing the master prompt between runs. Save genuine PNG originals at the candidate paths; do not merely rename another format's extension to `.png`.
+2. The user chooses the preferred design. Check the complete silhouette, clear anatomy, compact pose, substantial details and ground contact. Codex may flag reconstruction concerns; the user's creative selection remains manual. Do not automate selection or promote a candidate merely because it is the newest file.
+3. Copy the chosen original unchanged to the canonical full-body path, creating its parent directories only when an image is actually selected. For example, Beastmaster's destination is `assets/source/units/beastmaster/reference/full-body.png`. Do not overwrite an existing master silently; preserve later revisions separately and record which reference is selected.
+4. Tell Codex which character is selected and provide any available Flare model/version, settings and seed. In a later authorized generation task, Codex inspects that image and derives the matching portrait and character sheet. Use the full body as identity authority; use existing approved artwork only for shared style. Record exact prompts, reference paths, hashes and available generation facts using the existing `assets/source/reference-production/<batch-date>/` pattern; record unknown facts honestly. No exact regeneration guarantee is implied.
+5. After the derived references are reviewed, the user generates a model in Tripo from the selected full body. If separate views are needed, derive and review them consistently from the same design. Export a self-contained GLB to the inbox path, for example `assets/import/models/beastmaster.glb`, and retain actual generation settings and plan/export evidence.
+6. Follow the [existing GLB import workflow](assets/import/models/README.md). Review final height, radius, base contact and orientation against the generated model before authoring its visual entry and importing it. The importer requires an existing reviewed visual-size entry and provenance; it does not infer them from a filename. Codex handles those later registrations through the existing tools. No placeholder images, empty registrations, GLB imports or existing-artwork changes are part of this prompt-preparation step.
+
 ## Future prompt candidates
 
 Further Unit/Terrain art. New assets should match the same art direction. Originals remain separate from optimized `wwwroot/art/` files.
