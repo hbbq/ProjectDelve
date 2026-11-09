@@ -2404,3 +2404,18 @@ footprints. Existing models, gameplay and observations are unchanged.
 The earlier Dragon deferral entries are historical. Current provenance, source
 preservation, Edge evidence, regression/publish results and limitations are in
 [the completion report](assets/source/models/FINAL_SIX_IMPORT.md#red-dragon-completion--2026-10-28).
+
+## Beastmaster and summons - 2026-11-09
+
+The six Beastmaster roster additions now have approved production miniatures,
+bringing the current catalog to 38. All retain 1x1 gameplay footprints; originals
+are archived unchanged and runtime textures use the established 1024 limit.
+Jackalope and Raptor use reviewed rigid +90 degree Y corrections. Existing model
+registrations, artwork and gameplay remain unchanged.
+
+Light Elemental declares a restrained pale-gold local light in Unit visual
+metadata. It follows displayed roots/transients through the field used by Lava
+and Campfire, with no gameplay vision or hidden-information effects. See
+[the import and QA report](assets/source/models/BEASTMASTER_IMPORT.md) for
+sizes, commands, provenance, validation, browser evidence, test results and limits;
+[LOCAL_LIGHTING.md](LOCAL_LIGHTING.md) describes the small shared extension.

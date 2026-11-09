@@ -34,7 +34,13 @@ export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.
   for(const [id,u]of Object.entries(units)){
     if(!Object.hasOwn(canonical,id))throw Error(`Unknown Unit visual Type: ${id}`);
     if(!positive(u.targetHeight)||!positive(u.maximumRadius)||u.maximumRadius>maximumModelRadiusForFootprint(canonical[id].cellSpan)||!positive(u.baseRadius)||u.baseRadius>maximumBaseRadius(canonical[id].cellSpan))throw Error(`Invalid Unit visual dimensions: ${id}`);
-    if(Object.keys(u).some(k=>!['typeId','targetHeight','maximumRadius','baseRadius','model'].includes(k)))throw Error(`Unknown Unit visual field: ${id}`);
+    if(Object.keys(u).some(k=>!['typeId','targetHeight','maximumRadius','baseRadius','model','light'].includes(k)))throw Error(`Unknown Unit visual field: ${id}`);
+    if(u.light!==undefined){
+      const l=u.light;
+      if(!l||typeof l!=='object'||Array.isArray(l)||Object.keys(l).some(k=>!['color','strength','radius'].includes(k))||
+        !Array.isArray(l.color)||l.color.length!==3||!l.color.every(c=>typeof c==='number'&&Number.isFinite(c)&&c>=0&&c<=1)||
+        !positive(l.strength)||l.strength>4||!positive(l.radius)||l.radius>4)throw Error(`Invalid Unit visual light: ${id}`);
+    }
     if(u.model!=null&&!Object.hasOwn(models,u.model))throw Error(`Unknown model reference: ${id}`);
   }
   for(const [id,m]of Object.entries(models)){
@@ -44,7 +50,8 @@ export function validateUnitVisualCatalog(value,canonicalTypes,base=import.meta.
     for(const [key,max]of [['maxTriangles',12000],['maxPrimitives',2],['maxTextureDimension',8192]])if(m[key]!=null&&(!Number.isInteger(m[key])||m[key]<=0||m[key]>max))throw Error(`Invalid model budget: ${id}`);
     if(Object.keys(m).some(k=>!['id','approved','url','version','maxTriangles','maxPrimitives','maxTextureDimension','appearance'].includes(k)))throw Error(`Unknown model field: ${id}`);
   }
-  return Object.freeze({schemaVersion:1,units,models,cellSpans:Object.freeze(Object.fromEntries(Object.values(canonical).map(t=>[t.unitTypeId,t.cellSpan])))});
+  const frozenUnits=unique(Object.values(units).map(u=>u.light?{...u,light:Object.freeze({...u.light,color:Object.freeze([...u.light.color])})}:u),'typeId');
+  return Object.freeze({schemaVersion:1,units:frozenUnits,models,cellSpans:Object.freeze(Object.fromEntries(Object.values(canonical).map(t=>[t.unitTypeId,t.cellSpan])))});
 }
 let loading;
 export function loadUnitVisualCatalog(fetcher=globalThis.fetch){

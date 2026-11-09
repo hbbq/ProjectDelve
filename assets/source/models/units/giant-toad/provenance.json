@@ -1,0 +1,398 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "H3.1",
+  "plan": "Pro",
+  "planEvidence": "Owner confirmation for these six exact inbox GLBs on 2026-11-09: \"Yes — all six were generated under my paid Tripo Pro plan.\"",
+  "generationDate": "2026-11-09",
+  "generationEvidence": "Owner: \"H3.1 for all except dire-bear that is h3.0. all are made today 2026-11-09\"",
+  "generationSettings": "unknown",
+  "exportSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/giant-toad.png",
+  "projectConceptReferences": [
+    "assets/source/units/giant-toad/reference/full-body.png",
+    "assets/source/units/giant-toad/reference/character-sheet.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "fullBodyUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/giant-toad/original.glb",
+    "sha256": "39770a9098de4b0523aed038ae2092050926a0409d93af32c25238ba11ba9d23",
+    "bytes": 3658432,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/giant-toad/v1/giant-toad.glb",
+    "sha256": "f16c48ac9ea8fb373f127bd024b49e1acb4dbd264d2f2f678da1800e32fefd83",
+    "bytes": 3176988
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 0,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify source SHA-256; preserve original unchanged",
+      "Remove unused extension declarations, add deterministic source metadata",
+      "Downsample three embedded 2048 maps to 1024 with Pillow LANCZOS, lossless PNG compression 9",
+      "Runtime uniform target-height normalization; ground-center at procedural base top"
+    ],
+    "orientation": "Broad low amphibian with recognizable eyes, folded limbs and visible feet; supported squat pose. Source +Z forward. Verified confirmed positive-Z Move: inspection-sYLiRv/move-positive-z-front.png."
+  },
+  "rightsReview": {
+    "date": "2026-11-09",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Current official Terms 5.2.2 grant paid users rights including use, modification, publication, distribution and licensing; current Pro pricing states commercial use. Owner confirms these exact exports were generated under paid Pro. Reviewed for source/runtime repository inclusion and game/web distribution.",
+    "restrictions": "Subject to Tripo agreement and applicable law, including third-party rights and competing generative model/service restrictions. No assertion of exclusive copyright or independent third-party clearance.",
+    "unknown": "Export receipt, exact generation build/settings and generation-time supplemental terms not supplied.",
+    "repositoryPolicy": "Preserve source outside wwwroot; source and prepared runtime may be version-controlled. No new public asset license is assigned."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "sourceReport": "assets/source/models/units/giant-toad/validation-source.json",
+    "runtimeReport": "assets/source/models/units/giant-toad/validation-runtime.json",
+    "warning": "Each source/runtime has one MESH_PRIMITIVE_GENERATED_TANGENT_SPACE warning: normal maps use renderer-generated tangents. Source has one unsupported unused FB_ngon_encoding declaration info; preparation removes unused declarations. No extension payloads. All images fully decoded during preparation.",
+    "runtimeChecks": "Core static preflight, finite positive transforms, one opaque material/primitive, no external resources/skins/animations. Geometry retained. Independent preservation/reproduction checks run after import."
+  },
+  "visualReview": {
+    "findings": "Broad low amphibian with recognizable eyes, folded limbs and visible feet; supported squat pose. Source +Z forward.",
+    "evidence": {
+      "detail": "inspection-bEv3td",
+      "move": "inspection-sYLiRv",
+      "mixed": "inspection-XvYyFp",
+      "production": "inspection-RrXq5b",
+      "posture": "inspection-bvemjI"
+    },
+    "verified": [
+      "Front/side/rear appearance and ground contact",
+      "Confirmed positive-Z movement facing",
+      "Base contact margin and radius against actual geometry",
+      "Production desktop and 600x850 narrow rendering, Cardboard/Miniatures switching",
+      "Actual Lying fallback and wake/restored Upright"
+    ],
+    "limitations": "Screen review of digital models only; no physical printing, center-of-mass, support-generation or low-end-device certification.",
+    "report": "assets/source/models/BEASTMASTER_IMPORT.md"
+  },
+  "metadataAdjustment": "New visual dimensions reviewed from actual normalized geometry; gameplay footprint remains 1x1.",
+  "import": {
+    "inboxPath": "assets/import/models/giant-toad.glb",
+    "sha256BeforeMove": "39770a9098de4b0523aed038ae2092050926a0409d93af32c25238ba11ba9d23",
+    "sha256AfterMove": "39770a9098de4b0523aed038ae2092050926a0409d93af32c25238ba11ba9d23"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/giant-toad/original.glb",
+    "bytes": 3658432,
+    "sha256": "39770a9098de4b0523aed038ae2092050926a0409d93af32c25238ba11ba9d23",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2012
+      },
+      {
+        "type": 5130562,
+        "length": 3656392
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9426,
+    "materials": [
+      {
+        "name": "tripo_material_a081abdd-01d2-4627-8e29-dd2b198b0433",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 954720,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "63f9ce6e6a696f58c772d653221ebd563e1ef46686bde0a97554f82022fd4cf0"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 531276,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "29a3791561b4c4db70b9631ae1bd85a09fd802bedb617967f50d3ed2c2ba4c6b"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1869796,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "7c28e4607713be22d956c059ddb4231f36feeb29177290889ea8c956f93946ac"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_a081abdd-01d2-4627-8e29-dd2b198b0433",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.46246337890625,
+        0,
+        -0.490570068359375
+      ],
+      "max": [
+        0.46246337890625,
+        0.5893555283546448,
+        0.490570068359375
+      ],
+      "dimensions": [
+        0.9249267578125,
+        0.5893555283546448,
+        0.98114013671875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.35,
+      "scale": 0.5938690368734225,
+      "maximumRadius": 0.3305139643199556,
+      "contact": {
+        "radius": 0.3088745396588632,
+        "minX": -0.27464268142028336,
+        "maxX": 0.27464268142028336,
+        "minZ": -0.2321613269759687,
+        "maxZ": 0.25775163093303877,
+        "bandHeight": 0.026249999999999996,
+        "samples": 669
+      },
+      "dimensions": [
+        0.5492853628405667,
+        0.3499999999999999,
+        0.5826687480310222
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/giant-toad/v1/giant-toad.glb",
+    "bytes": 3176988,
+    "sha256": "f16c48ac9ea8fb373f127bd024b49e1acb4dbd264d2f2f678da1800e32fefd83",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "39770a9098de4b0523aed038ae2092050926a0409d93af32c25238ba11ba9d23",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2108
+      },
+      {
+        "type": 5130562,
+        "length": 3174852
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9426,
+    "materials": [
+      {
+        "name": "tripo_material_a081abdd-01d2-4627-8e29-dd2b198b0433",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 1369769,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "49bf9f144075c3014c74a54d4401fdf9735e587f37cf7e9f74df60f69dc8ace4"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 874393,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "55d302ad05032266aef1685188a281c0d62dbc10f08cd1ffddcaa492eca8b0db"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 630084,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "016250b6c30b42bdf27f6f09090b9036626d01a84c8b397c8d635b9a9322abab"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_a081abdd-01d2-4627-8e29-dd2b198b0433",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.46246337890625,
+        0,
+        -0.490570068359375
+      ],
+      "max": [
+        0.46246337890625,
+        0.5893555283546448,
+        0.490570068359375
+      ],
+      "dimensions": [
+        0.9249267578125,
+        0.5893555283546448,
+        0.98114013671875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.35,
+      "scale": 0.5938690368734225,
+      "maximumRadius": 0.3305139643199556,
+      "contact": {
+        "radius": 0.3088745396588632,
+        "minX": -0.27464268142028336,
+        "maxX": 0.27464268142028336,
+        "minZ": -0.2321613269759687,
+        "maxZ": 0.25775163093303877,
+        "bandHeight": 0.026249999999999996,
+        "samples": 669
+      },
+      "dimensions": [
+        0.5492853628405667,
+        0.3499999999999999,
+        0.5826687480310222
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.35,
+    "maximumRadius": 0.36,
+    "baseRadius": 0.39,
+    "measuredMaximumRadius": 0.3305139643199556,
+    "contact": {
+      "radius": 0.3088745396588632,
+      "minX": -0.27464268142028336,
+      "maxX": 0.27464268142028336,
+      "minZ": -0.2321613269759687,
+      "maxZ": 0.25775163093303877,
+      "bandHeight": 0.026249999999999996,
+      "samples": 669
+    },
+    "base": {
+      "radius": 0.39,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.39,
+      "requiredRadius": 0.34887453965886317,
+      "margin": 0.08112546034113682,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "verification": {
+    "date": "2026-11-09",
+    "batchReport": "assets/source/models/BEASTMASTER_IMPORT.md",
+    "reproduction": "All six runtime exports reproduced byte for byte; geometry, materials, UVs and original nodes preserved by focused tests.",
+    "tests": "1010 client/dispatcher passed; 6 hosting passed; 2679 Engine passed; 719 Web passed, same 12 pre-existing knightly-boots content-reference failures.",
+    "publish": "Release fixture and ordinary publish passed; exactly 38 production GLBs with provenance-bound hashes, no source GLBs."
+  }
+}

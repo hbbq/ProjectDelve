@@ -1,0 +1,404 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "H3.1",
+  "plan": "Pro",
+  "planEvidence": "Owner confirmation for these six exact inbox GLBs on 2026-11-09: \"Yes — all six were generated under my paid Tripo Pro plan.\"",
+  "generationDate": "2026-11-09",
+  "generationEvidence": "Owner: \"H3.1 for all except dire-bear that is h3.0. all are made today 2026-11-09\"",
+  "generationSettings": "unknown",
+  "exportSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/light-elemental.png",
+  "projectConceptReferences": [
+    "assets/source/units/light-elemental/reference/full-body.png",
+    "assets/source/units/light-elemental/reference/character-sheet.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "fullBodyUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/light-elemental/original.glb",
+    "sha256": "058f0c42f5cfb427b32ffe5aafea52d292bbe28e643162086a410522d72487d4",
+    "bytes": 2860900,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/light-elemental/v1/light-elemental.glb",
+    "sha256": "f6fe05fa0c616041c2bf38878def0e81bdbd8c6e5750e0af3061028e68ce66d6",
+    "bytes": 2437852
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 0,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify source SHA-256; preserve original unchanged",
+      "Remove unused extension declarations, add deterministic source metadata",
+      "Downsample three embedded 2048 maps to 1024 with Pillow LANCZOS, lossless PNG compression 9",
+      "Runtime uniform target-height normalization; ground-center at procedural base top"
+    ],
+    "orientation": "Small coherent opaque golden flame/crystal figure with a solid tapered lower support. Recognizable without transparency. Source +Z forward. Verified confirmed positive-Z Move: inspection-DDzSyV/move-positive-z-front.png."
+  },
+  "rightsReview": {
+    "date": "2026-11-09",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Current official Terms 5.2.2 grant paid users rights including use, modification, publication, distribution and licensing; current Pro pricing states commercial use. Owner confirms these exact exports were generated under paid Pro. Reviewed for source/runtime repository inclusion and game/web distribution.",
+    "restrictions": "Subject to Tripo agreement and applicable law, including third-party rights and competing generative model/service restrictions. No assertion of exclusive copyright or independent third-party clearance.",
+    "unknown": "Export receipt, exact generation build/settings and generation-time supplemental terms not supplied.",
+    "repositoryPolicy": "Preserve source outside wwwroot; source and prepared runtime may be version-controlled. No new public asset license is assigned."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "sourceReport": "assets/source/models/units/light-elemental/validation-source.json",
+    "runtimeReport": "assets/source/models/units/light-elemental/validation-runtime.json",
+    "warning": "Each source/runtime has one MESH_PRIMITIVE_GENERATED_TANGENT_SPACE warning: normal maps use renderer-generated tangents. Source has one unsupported unused FB_ngon_encoding declaration info; preparation removes unused declarations. No extension payloads. All images fully decoded during preparation.",
+    "runtimeChecks": "Core static preflight, finite positive transforms, one opaque material/primitive, no external resources/skins/animations. Geometry retained. Independent preservation/reproduction checks run after import."
+  },
+  "visualReview": {
+    "findings": "Small coherent opaque golden flame/crystal figure with a solid tapered lower support. Recognizable without transparency. Source +Z forward.",
+    "evidence": {
+      "detail": "inspection-RrIxUr",
+      "move": "inspection-DDzSyV",
+      "mixed": "inspection-XvYyFp",
+      "production": "inspection-RrXq5b",
+      "posture": "inspection-keM5JN",
+      "illuminationMoveReload": "inspection-TbDr4c",
+      "summon": "inspection-3pJkJ1",
+      "defeat": "inspection-GOIQKx",
+      "hidden": "inspection-YCA2Zn"
+    },
+    "verified": [
+      "Front/side/rear appearance and ground contact",
+      "Confirmed positive-Z movement facing",
+      "Base contact margin and radius against actual geometry",
+      "Production desktop and 600x850 narrow rendering, Cardboard/Miniatures switching",
+      "Actual Lying fallback and wake/restored Upright",
+      "Actual summon with one source; actual defeat with zero sources",
+      "Resting/moved glow and page reload; hidden FoW source omitted"
+    ],
+    "limitations": "Screen review of digital models only; no physical printing, center-of-mass, support-generation or low-end-device certification.",
+    "report": "assets/source/models/BEASTMASTER_IMPORT.md"
+  },
+  "metadataAdjustment": "New visual dimensions reviewed from actual normalized geometry; gameplay footprint remains 1x1.",
+  "import": {
+    "inboxPath": "assets/import/models/light-elemental.glb",
+    "sha256BeforeMove": "058f0c42f5cfb427b32ffe5aafea52d292bbe28e643162086a410522d72487d4",
+    "sha256AfterMove": "058f0c42f5cfb427b32ffe5aafea52d292bbe28e643162086a410522d72487d4"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/light-elemental/original.glb",
+    "bytes": 2860900,
+    "sha256": "058f0c42f5cfb427b32ffe5aafea52d292bbe28e643162086a410522d72487d4",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2016
+      },
+      {
+        "type": 5130562,
+        "length": 2858856
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9910,
+    "materials": [
+      {
+        "name": "tripo_material_f9959e57-7015-4234-8df4-ef9363416437",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 507522,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "b89592a2264d86ebc4175375a2250bec25ec097069a269a37d76a66df179399e"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 368006,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "75e5b50cfa41e885906eb8ef7fd1fc0ae17ad82b4b1cc6617ca9311ed3640de3"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1658643,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "1bfd7b343e330b90abaede993ae0107d9ea570d4c49183ddb4161816b201b79c"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_f9959e57-7015-4234-8df4-ef9363416437",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2365875244140625,
+        0,
+        -0.21193695068359375
+      ],
+      "max": [
+        0.2365875244140625,
+        0.9769287109375,
+        0.21193695068359375
+      ],
+      "dimensions": [
+        0.473175048828125,
+        0.9769287109375,
+        0.4238739013671875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.45,
+      "scale": 0.46062726477570914,
+      "maximumRadius": 0.1090509138550484,
+      "contact": {
+        "radius": 0.10201613553020152,
+        "minX": -0.09978522992232405,
+        "maxX": 0.10031942519846074,
+        "minZ": -0.09762393789828815,
+        "maxZ": 0.09762393789828815,
+        "bandHeight": 0.03375,
+        "samples": 1319
+      },
+      "dimensions": [
+        0.21795732850181185,
+        0.45,
+        0.1952478757965763
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/light-elemental/v1/light-elemental.glb",
+    "bytes": 2437852,
+    "sha256": "f6fe05fa0c616041c2bf38878def0e81bdbd8c6e5750e0af3061028e68ce66d6",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "058f0c42f5cfb427b32ffe5aafea52d292bbe28e643162086a410522d72487d4",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2108
+      },
+      {
+        "type": 5130562,
+        "length": 2435716
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9910,
+    "materials": [
+      {
+        "name": "tripo_material_f9959e57-7015-4234-8df4-ef9363416437",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 913665,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "dbb4177f7b2142426d5baae39fae0826ed56fa382f5506c019ebeeb1c06c46dd"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 622450,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "a2c6e9cb332a350c39a9768a2ed5d0842c417276670cf9e1e9450156233aa812"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 574915,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "2f8bee6e8beff808b7c98643049b736d184862b824ddd23d3f6dd66280edfa01"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_f9959e57-7015-4234-8df4-ef9363416437",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2365875244140625,
+        0,
+        -0.21193695068359375
+      ],
+      "max": [
+        0.2365875244140625,
+        0.9769287109375,
+        0.21193695068359375
+      ],
+      "dimensions": [
+        0.473175048828125,
+        0.9769287109375,
+        0.4238739013671875
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.45,
+      "scale": 0.46062726477570914,
+      "maximumRadius": 0.1090509138550484,
+      "contact": {
+        "radius": 0.10201613553020152,
+        "minX": -0.09978522992232405,
+        "maxX": 0.10031942519846074,
+        "minZ": -0.09762393789828815,
+        "maxZ": 0.09762393789828815,
+        "bandHeight": 0.03375,
+        "samples": 1319
+      },
+      "dimensions": [
+        0.21795732850181185,
+        0.45,
+        0.1952478757965763
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.45,
+    "maximumRadius": 0.18,
+    "baseRadius": 0.17,
+    "measuredMaximumRadius": 0.1090509138550484,
+    "contact": {
+      "radius": 0.10201613553020152,
+      "minX": -0.09978522992232405,
+      "maxX": 0.10031942519846074,
+      "minZ": -0.09762393789828815,
+      "maxZ": 0.09762393789828815,
+      "bandHeight": 0.03375,
+      "samples": 1319
+    },
+    "base": {
+      "radius": 0.17,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.17,
+      "requiredRadius": 0.1420161355302015,
+      "margin": 0.0679838644697985,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "verification": {
+    "date": "2026-11-09",
+    "batchReport": "assets/source/models/BEASTMASTER_IMPORT.md",
+    "reproduction": "All six runtime exports reproduced byte for byte; geometry, materials, UVs and original nodes preserved by focused tests.",
+    "tests": "1010 client/dispatcher passed; 6 hosting passed; 2679 Engine passed; 719 Web passed, same 12 pre-existing knightly-boots content-reference failures.",
+    "publish": "Release fixture and ordinary publish passed; exactly 38 production GLBs with provenance-bound hashes, no source GLBs."
+  }
+}

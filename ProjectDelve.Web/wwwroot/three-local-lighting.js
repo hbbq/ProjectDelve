@@ -11,6 +11,19 @@ export function lootLightSources(piles){
   return piles.filter(p=>p.unopened>0).map(p=>({...lootStarStyle,x:p.position.x+lootStarStyle.x,z:p.position.y+lootStarStyle.z}));
 }
 
+// Inputs are displayed roots, never unprojected Units. A moving root replaces
+// its checkpoint root. Hidden padding in observed runs must not emit, even when
+// a clipped sliver of the miniature still intersects an explored Cell column.
+export function unitLightSources(catalog,roots,kindAt){
+  const sources=[];
+  for(const root of roots){
+    const light=catalog?.units[root.userData.appearance?.typeId]?.light;
+    const {x,z}=root.position;
+    if(light&&root.visible&&kindAt(Math.floor(x),Math.floor(z))!=='Unknown')sources.push({x,z,...light});
+  }
+  return sources;
+}
+
 // A bounded irradiance field avoids per-source shader loops and shadow cubes.
 // Unknown space is opaque. Use only the displayed checkpoint's observed data.
 export function buildLocalLightField({board,kindAt},sources,edges=board.edges??[]){

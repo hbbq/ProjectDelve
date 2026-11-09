@@ -13,7 +13,7 @@ import { createUnitFacing, observedMovementLegs, shortestYaw } from './unit-faci
 import { createTabletopMarks } from './three-tabletop-marks.js';
 import { layoutTabletopLabels } from './three-label-layout.js';
 import { groundLoot } from './loot-ui.js';
-import { terrainLightSources, lootLightSources } from './three-local-lighting.js';
+import { terrainLightSources, lootLightSources, unitLightSources } from './three-local-lighting.js';
 
 const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edges:.1,items:.15,movement:.3,fog:.6,units:.8,feedback:1.1,areas:1.2,board:-.1});
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
@@ -69,6 +69,12 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const rows=new Map();for(const root of unitRoots.values()){const b=root.userData.base;if(b)rows.set(`${b.typeId}:${b.radius}:${b.maximumRadius}`,b);}return [...rows.values()];
   }
   let clipPool=null;
+  let checkpointLights=[];
+  function updateLocalLights(){
+    if(!data)return;
+    lighting.local.update(data,[...checkpointLights,...unitLightSources(visualCatalog,
+      [...unitRoots.values(),...(transient?[transient]:[])],data.kindAt)]);
+  }
   let inEvent=false,bodiesDirty=false,unitRepresentation='cardboard',requestedRepresentation='cardboard';
   const readyModels=new Set(),pendingModels=new Set();
   const rotations=new Map();let transientYaw=null;
@@ -229,7 +235,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(identity!==session){cancel();session=identity;hoveredUnitId=null;epoch++;for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();for(const label of labelNodes.values())label.remove();labelNodes.clear();}
     frame=next;facing.setFrame(frame);lastHover='';data=observedTerrain(frame);retained=new Set();const{board,terrain,kindAt}=data;
     const lootPiles=groundLoot(frame.state, frame.presentation.groundObjects);
-    lighting.local.update(data,[...terrainLightSources(data),...lootLightSources(lootPiles)]);
+    checkpointLights=[...terrainLightSources(data),...lootLightSources(lootPiles)];
     lighting.setBoard(board);
     // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat
     // terrain and fog by material; all dynamic objects retain ordinary meshes.
@@ -355,6 +361,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const mesh=new THREE.InstancedMesh(batch.geometry,batch.material,batch.matrices.length);batch.matrices.forEach((m,i)=>mesh.setMatrixAt(i,m));mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();return mesh;
     });
     for(const[key,record]of nodes)if(!retained.has(key)){removeRecord(record);nodes.delete(key);if(key.startsWith('unit:'))unitRoots.delete(key.slice(5));}
+    updateLocalLights();
     cameraControl.setFrame(frame.state,frame.presentation,frame.metadata);if(frame.state.currentUnitId)focusedCell={...frame.state.physical.figures.find(f=>f.id===frame.state.currentUnitId)?.position??focusedCell};
     showInteraction(view);reconcileTimes.push(performance.now()-begin);if(reconcileTimes.length>120)reconcileTimes.shift();invalidate();
   }
@@ -456,6 +463,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     for(const [id,r]of rotations){const t=Math.min(1,(time-r.start)/150);r.node.rotation.y=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(t>=1)rotations.delete(id);}
     if(transientYaw){const r=transientYaw,t=Math.min(1,(time-r.start)/150);r.current=r.from+shortestYaw(r.from,r.to)*(1-(1-t)**3);if(r.node)r.node.rotation.y=r.current;}
     if(clipPool&&transient)clipPool.update(transient.position.x,transient.position.z,transient.userData.span,transientYaw?.current);
+    if(transient&&visualCatalog?.units[transient.userData.appearance?.typeId]?.light)updateLocalLights();
     for(const [id,effect]of flips){const body=unitRoots.get(id)?.getObjectByName('cardboard-body'),t=Math.min(1,(time-effect.start)/360);if(body)physical.posture(body,effect.from+(effect.to-effect.from)*(1-(1-t)**3));if(t>=1||!body)flips.delete(id);}
     for(const [key,effect]of doorMotions){const leaf=nodes.get(key)?.object.getObjectByName('door-leaf'),t=Math.min(1,(time-effect.start)/280);if(leaf){leaf.visible=t<1||!effect.open;leaf.position.y=effect.open?t*.3:(1-t)*.3;leaf.scale.y=effect.open?1-t:t;}if(t>=1||!leaf){if(leaf){leaf.position.y=0;leaf.scale.y=1;}doorMotions.delete(key);}}
     for(const [key,effect]of pieceEffects){const object=nodes.get(key)?.object,t=Math.min(1,(time-effect.start)/240);if(object)object.scale.setScalar(.65+.35*(1-(1-t)**3));if(t>=1||!object)pieceEffects.delete(key);}
@@ -676,6 +684,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       if(data.explored&&(presentation==='tabletop'||cameraControl.current().tilt)){
         clipPool=createMovementClipPool(source,data.explored,THREE,lighting.clippedVariants);transient=clipPool.root;transient.userData.span=a.cellSpan??1;clipPool.update(source.position.x,source.position.z,a.cellSpan??1);
       }else transient=source;
+      transient.userData.appearance=a;
       groups.movement.add(transient);
       const localTransient=transient,localPool=clipPool;
       try{for(const [si,segment]of segments.entries()){
@@ -688,7 +697,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
         sampleMovement(motion.start);invalidate();
         if(segment.length>1)await playback.pause(motion.duration);
         if(generation===epoch&&motion?.object===localTransient){sampleMovement(motion.start+motion.duration);motion=null;cameraControl.endMovement();}
-      }}finally{localPool?.dispose();removeRecord({object:source});localTransient.removeFromParent();if(transient===localTransient){clipPool=null;transient=null;transientId=null;transientYaw=null;motion=null;cameraControl.endMovement();}if(generation===epoch&&stable&&unitRoots.get(event.unitId)===stable){stable.visible=true;if(stable.userData.body?.facingNode)stable.userData.body.facingNode.rotation.y=facing.get(event.unitId).yaw;}invalidate();}
+      }}finally{localPool?.dispose();removeRecord({object:source});localTransient.removeFromParent();if(transient===localTransient){clipPool=null;transient=null;transientId=null;transientYaw=null;motion=null;cameraControl.endMovement();}if(generation===epoch&&stable&&unitRoots.get(event.unitId)===stable){stable.visible=true;if(stable.userData.body?.facingNode)stable.userData.body.facingNode.rotation.y=facing.get(event.unitId).yaw;}updateLocalLights();invalidate();}
       return;
     }
     const id=event.targetId??event.unitId??occurrence?.unitId,node=nodes.get(`unit:${id}`)?.object;
@@ -719,7 +728,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(representationTransition)for(const {object,scale}of representationTransition.parts)object.scale.copy(scale);
     representationTransition=null;for(const group of Object.values(groups))group.scale.y=1;
     clipPool?.dispose();clipPool=null;if(transient){transient.removeFromParent();transient=null;transientId=null;for(const root of unitRoots.values())root.visible=true;}
-    cameraControl.settle();shadowDirty=true;invalidate();}
+    updateLocalLights();cameraControl.settle();shadowDirty=true;invalidate();}
   function cancel(){epoch++;settle();motion=null;for(const record of nodes.values())record.object.visible=true;cameraControl.cancel();}
   function dispose(){if(disposed)return;setActive(false);disposed=true;models.dispose();readyModels.clear();pendingModels.clear();abort.abort();observer.disconnect();cameraControl.dispose();lighting.dispose();surfaces.dispose();tabletopMarks.dispose();for(const record of nodes.values())removeRecord(record);nodes.clear();unitRoots.clear();labelNodes.clear();for(const geometry of Object.values(geometries))geometry.dispose();for(const m of materials.values())m.dispose();for(const entry of textures.values())entry.texture?.dispose();for(const m of glyphs.values()){m.map.dispose();m.dispose();}renderer.dispose();labels.remove();focus.remove();canvas.remove();diagnostics.remove();controls.root.remove();}
   return{host,lighting,models,facing,camera:cameraControl,renderFrame,showInteraction,present,project:cameraControl.screen,settle,cancel,setActive,dispose,pick,setPresentation,setRepresentation,syncFacing,

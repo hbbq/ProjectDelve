@@ -1,0 +1,398 @@
+{
+  "schemaVersion": 1,
+  "status": "approved-production",
+  "generator": "Tripo",
+  "generationModel": "H3.0",
+  "plan": "Pro",
+  "planEvidence": "Owner confirmation for these six exact inbox GLBs on 2026-11-09: \"Yes — all six were generated under my paid Tripo Pro plan.\"",
+  "generationDate": "2026-11-09",
+  "generationEvidence": "Owner: \"H3.1 for all except dire-bear that is h3.0. all are made today 2026-11-09\"",
+  "generationSettings": "unknown",
+  "exportSettings": "unknown",
+  "savedLicenseOrExportRecord": "not supplied",
+  "projectPortraitReference": "assets/source/units/dire-bear.png",
+  "projectConceptReferences": [
+    "assets/source/units/dire-bear/reference/full-body.png",
+    "assets/source/units/dire-bear/reference/character-sheet.png"
+  ],
+  "portraitUsedAsGenerationInput": "unknown",
+  "fullBodyUsedAsGenerationInput": "unknown",
+  "commerciallyCleared": true,
+  "redistributionRightsConfirmed": true,
+  "original": {
+    "path": "assets/source/models/units/dire-bear/original.glb",
+    "sha256": "5e20f94007f3f3cc4f706d3634d07363e44591e71124c5ff8047bf59efee8a3b",
+    "bytes": 2828456,
+    "preservedUnchanged": true
+  },
+  "runtime": {
+    "path": "ProjectDelve.Web/wwwroot/art/models/units/dire-bear/v1/dire-bear.glb",
+    "sha256": "5a8627f732428b644acd26c391798cf53742f4c80c0d8a695655e568dd6bb9a2",
+    "bytes": 2609776
+  },
+  "preparation": {
+    "tool": "tools/prepare-unit-model.cjs",
+    "version": 1,
+    "node": "v22.23.2",
+    "textureLimit": 1024,
+    "rotationYDegrees": 0,
+    "python": "3.14.7",
+    "pillow": "13.0.0",
+    "zlib": "1.3.1.zlib-ng",
+    "steps": [
+      "Verify source SHA-256; preserve original unchanged",
+      "Remove unused extension declarations, add deterministic source metadata",
+      "Downsample three embedded 2048 maps to 1024 with Pillow LANCZOS, lossless PNG compression 9",
+      "Runtime uniform target-height normalization; ground-center at procedural base top"
+    ],
+    "orientation": "Heavy four-legged bear with broad shoulders; paws supported, measured radius below half a Cell. Source +Z forward. Verified confirmed positive-Z Move: inspection-7zHfBM/move-positive-z-front.png."
+  },
+  "rightsReview": {
+    "date": "2026-11-09",
+    "termsLastUpdated": "2025-07-11",
+    "sources": [
+      "https://www.tripo3d.ai/terms",
+      "https://www.tripo3d.ai/pricing"
+    ],
+    "basis": "Current official Terms 5.2.2 grant paid users rights including use, modification, publication, distribution and licensing; current Pro pricing states commercial use. Owner confirms these exact exports were generated under paid Pro. Reviewed for source/runtime repository inclusion and game/web distribution.",
+    "restrictions": "Subject to Tripo agreement and applicable law, including third-party rights and competing generative model/service restrictions. No assertion of exclusive copyright or independent third-party clearance.",
+    "unknown": "Export receipt, exact generation build/settings and generation-time supplemental terms not supplied.",
+    "repositoryPolicy": "Preserve source outside wwwroot; source and prepared runtime may be version-controlled. No new public asset license is assigned."
+  },
+  "validation": {
+    "validator": "Khronos glTF Validator",
+    "version": "2.0.0-dev.3.10",
+    "source": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 1
+    },
+    "runtime": {
+      "errors": 0,
+      "warnings": 1,
+      "infos": 0
+    },
+    "sourceReport": "assets/source/models/units/dire-bear/validation-source.json",
+    "runtimeReport": "assets/source/models/units/dire-bear/validation-runtime.json",
+    "warning": "Each source/runtime has one MESH_PRIMITIVE_GENERATED_TANGENT_SPACE warning: normal maps use renderer-generated tangents. Source has one unsupported unused FB_ngon_encoding declaration info; preparation removes unused declarations. No extension payloads. All images fully decoded during preparation.",
+    "runtimeChecks": "Core static preflight, finite positive transforms, one opaque material/primitive, no external resources/skins/animations. Geometry retained. Independent preservation/reproduction checks run after import."
+  },
+  "visualReview": {
+    "findings": "Heavy four-legged bear with broad shoulders; paws supported, measured radius below half a Cell. Source +Z forward.",
+    "evidence": {
+      "detail": "inspection-RRhplo",
+      "move": "inspection-7zHfBM",
+      "mixed": "inspection-XvYyFp",
+      "production": "inspection-RrXq5b",
+      "posture": "inspection-aoUKxZ"
+    },
+    "verified": [
+      "Front/side/rear appearance and ground contact",
+      "Confirmed positive-Z movement facing",
+      "Base contact margin and radius against actual geometry",
+      "Production desktop and 600x850 narrow rendering, Cardboard/Miniatures switching",
+      "Actual Lying fallback and wake/restored Upright"
+    ],
+    "limitations": "Screen review of digital models only; no physical printing, center-of-mass, support-generation or low-end-device certification.",
+    "report": "assets/source/models/BEASTMASTER_IMPORT.md"
+  },
+  "metadataAdjustment": "New visual dimensions reviewed from actual normalized geometry; gameplay footprint remains 1x1.",
+  "import": {
+    "inboxPath": "assets/import/models/dire-bear.glb",
+    "sha256BeforeMove": "5e20f94007f3f3cc4f706d3634d07363e44591e71124c5ff8047bf59efee8a3b",
+    "sha256AfterMove": "5e20f94007f3f3cc4f706d3634d07363e44591e71124c5ff8047bf59efee8a3b"
+  },
+  "inspection": {
+    "file": "assets/source/models/units/dire-bear/original.glb",
+    "bytes": 2828456,
+    "sha256": "5e20f94007f3f3cc4f706d3634d07363e44591e71124c5ff8047bf59efee8a3b",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo"
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2004
+      },
+      {
+        "type": 5130562,
+        "length": 2826424
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9885,
+    "materials": [
+      {
+        "name": "tripo_material_a6cb8144-a51a-4faf-8b9e-c3a78bd7fce5",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/jpeg",
+        "bytes": 565149,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "34dc1d7f020709bbe9b6129358c33859447d0471383c856d0905173647364e99"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/jpeg",
+        "bytes": 546648,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "949b7ed93d92e7a749264c1e2cb05d2b3ee3255d815d3d9338b919519e6ada3f"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 1388996,
+        "width": 2048,
+        "height": 2048,
+        "sha256": "3459c9bd7c4d50b87939ebc27641dca1a6fb28c13e43cee3880bae643bb677dd"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_a6cb8144-a51a-4faf-8b9e-c3a78bd7fce5",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [
+      "KHR_materials_volume",
+      "FB_ngon_encoding"
+    ],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2288055419921875,
+        0,
+        -0.500732421875
+      ],
+      "max": [
+        0.2288055419921875,
+        0.687713623046875,
+        0.500732421875
+      ],
+      "dimensions": [
+        0.457611083984375,
+        0.687713623046875,
+        1.00146484375
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.64,
+      "scale": 0.9306199245617928,
+      "maximumRadius": 0.4981744453568857,
+      "contact": {
+        "radius": 0.36747846416429086,
+        "minX": -0.1891600149767029,
+        "maxX": 0.18923093243842912,
+        "minZ": -0.34247881073885067,
+        "maxZ": 0.30413850676725096,
+        "bandHeight": 0.048,
+        "samples": 691
+      },
+      "dimensions": [
+        0.4258619924561793,
+        0.64,
+        0.9319831373419126
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "runtimeInspection": {
+    "file": "ProjectDelve.Web/wwwroot/art/models/units/dire-bear/v1/dire-bear.glb",
+    "bytes": 2609776,
+    "sha256": "5a8627f732428b644acd26c391798cf53742f4c80c0d8a695655e568dd6bb9a2",
+    "asset": {
+      "version": "2.0",
+      "generator": "Tripo",
+      "extras": {
+        "preparation": "ProjectDelve core static GLB v1",
+        "sourceSha256": "5e20f94007f3f3cc4f706d3634d07363e44591e71124c5ff8047bf59efee8a3b",
+        "runtimeTextureLimit": 1024
+      }
+    },
+    "chunks": [
+      {
+        "type": 1313821514,
+        "length": 2100
+      },
+      {
+        "type": 5130562,
+        "length": 2607648
+      }
+    ],
+    "scenes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "triangles": 9885,
+    "materials": [
+      {
+        "name": "tripo_material_a6cb8144-a51a-4faf-8b9e-c3a78bd7fce5",
+        "pbrMetallicRoughness": {
+          "baseColorTexture": {
+            "index": 0
+          },
+          "metallicRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "normalTexture": {
+          "index": 2
+        }
+      }
+    ],
+    "textures": 3,
+    "images": [
+      {
+        "index": 0,
+        "mimeType": "image/png",
+        "bytes": 919910,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "b7d0e673bdb8ac9ceadc416131c3a05e70596991367904dac68778d95235897b"
+      },
+      {
+        "index": 1,
+        "mimeType": "image/png",
+        "bytes": 892120,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "790028974bf459706ed9056e9641734fb3319e29b3fad72cbfc78fb784a364fa"
+      },
+      {
+        "index": 2,
+        "mimeType": "image/png",
+        "bytes": 469985,
+        "width": 1024,
+        "height": 1024,
+        "sha256": "396d8993cd1687d81331ce68ea2681d940c70b2eef051236a349f1d2d60131eb"
+      }
+    ],
+    "externalResources": [],
+    "hierarchy": [
+      {
+        "index": 0,
+        "name": "tripo_node_a6cb8144-a51a-4faf-8b9e-c3a78bd7fce5",
+        "mesh": 0,
+        "determinant": 1,
+        "children": []
+      }
+    ],
+    "animations": 0,
+    "skins": 0,
+    "cameras": 0,
+    "extensionsUsed": [],
+    "extensionsRequired": [],
+    "attributes": [
+      [
+        "POSITION",
+        "NORMAL",
+        "TEXCOORD_0"
+      ]
+    ],
+    "finite": true,
+    "bounds": {
+      "min": [
+        -0.2288055419921875,
+        0,
+        -0.500732421875
+      ],
+      "max": [
+        0.2288055419921875,
+        0.687713623046875,
+        0.500732421875
+      ],
+      "dimensions": [
+        0.457611083984375,
+        0.687713623046875,
+        1.00146484375
+      ]
+    },
+    "normalization": {
+      "targetHeight": 0.64,
+      "scale": 0.9306199245617928,
+      "maximumRadius": 0.4981744453568857,
+      "contact": {
+        "radius": 0.36747846416429086,
+        "minX": -0.1891600149767029,
+        "maxX": 0.18923093243842912,
+        "minZ": -0.34247881073885067,
+        "maxZ": 0.30413850676725096,
+        "bandHeight": 0.048,
+        "samples": 691
+      },
+      "dimensions": [
+        0.4258619924561793,
+        0.64,
+        0.9319831373419126
+      ]
+    },
+    "orientation": "Requires visual verification; axes are interpreted as glTF +Y up, +Z forward"
+  },
+  "compatibility": {
+    "targetHeight": 0.64,
+    "maximumRadius": 0.52,
+    "baseRadius": 0.43,
+    "measuredMaximumRadius": 0.4981744453568857,
+    "contact": {
+      "radius": 0.36747846416429086,
+      "minX": -0.1891600149767029,
+      "maxX": 0.18923093243842912,
+      "minZ": -0.34247881073885067,
+      "maxZ": 0.30413850676725096,
+      "bandHeight": 0.048,
+      "samples": 691
+    },
+    "base": {
+      "radius": 0.43,
+      "maximumRadius": 0.45,
+      "requestedRadius": 0.43,
+      "requiredRadius": 0.40747846416429084,
+      "margin": 0.06252153583570913,
+      "shortfall": 0,
+      "fitsContact": true,
+      "warning": null
+    },
+    "logicalFootprint": "unchanged"
+  },
+  "verification": {
+    "date": "2026-11-09",
+    "batchReport": "assets/source/models/BEASTMASTER_IMPORT.md",
+    "reproduction": "All six runtime exports reproduced byte for byte; geometry, materials, UVs and original nodes preserved by focused tests.",
+    "tests": "1010 client/dispatcher passed; 6 hosting passed; 2679 Engine passed; 719 Web passed, same 12 pre-existing knightly-boots content-reference failures.",
+    "publish": "Release fixture and ordinary publish passed; exactly 38 production GLBs with provenance-bound hashes, no source GLBs."
+  }
+}

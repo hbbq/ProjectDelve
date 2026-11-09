@@ -1259,6 +1259,68 @@ for(const mode of ['disabled','reduced'])test(`Auto resize settles immediately w
  }finally{h.cleanup();}
 });
 
+test('declared Unit light follows displayed roots, replay checkpoints and removal without model coupling',async()=>{
+  const {validateUnitVisualCatalog}=await moduleAt('unit-visuals.js');
+  const visualCatalog=validateUnitVisualCatalog({schemaVersion:1,models:[],units:[{typeId:'test',targetHeight:1,maximumRadius:.38,baseRadius:.3,
+    light:{color:[1,.88,.60],strength:1.2,radius:2.25}}]},[{unitTypeId:'test',cellSpan:1}]);
+  const f=fixture();f.state.physical.figures=f.state.physical.figures.slice(0,1);
+  const h=await harness(f,{visualCatalog});try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();
+    const field=()=>{const shader={uniforms:{},vertexShader:'#include <project_vertex>',fragmentShader:'#include <opaque_fragment>'};
+      h.rendered.at(-1).scene.getObjectByName('terrain').children[0].material.onBeforeCompile(shader);return shader.uniforms.delveLightField.value.image;};
+    const red=(x,z)=>{const image=field();return image.data[(Math.floor(z*4)*image.width+Math.floor(x*4))*4];};
+    assert.equal(h.viewport.inspect().lighting.local.sources,1);assert.ok(red(2.5,2.5)>red(5.5,2.5));
+    const oldImage=field(),oldPixels=[...oldImage.data];
+    h.viewport.setRepresentation('miniatures');h.flush();assert.deepEqual([...field().data],oldPixels);assert.equal(h.viewport.models.inspect().length,0);
+    const relocated=structuredClone(f);relocated.state.physical.figures[0].position={x:5,y:2};
+    h.viewport.renderFrame(relocated);h.flush();assert.ok(red(5.5,2.5)>red(2.5,2.5));
+    assert.equal(field().width,oldImage.width);assert.equal(h.viewport.inspect().lighting.local.textureBytes,8*8*16*4);
+    // Rewinding uses this checkpoint, never the future relocation. A fresh load
+    // has the same result without persistent presentation state.
+    h.viewport.renderFrame(structuredClone(f));h.flush();assert.deepEqual([...field().data],oldPixels);
+    const loaded=structuredClone(relocated);loaded.metadata.sessionId='loaded';h.viewport.renderFrame(loaded);h.flush();assert.ok(red(5.5,2.5)>red(2.5,2.5));
+    const defeated=structuredClone(loaded);defeated.state.physical.figures=[];defeated.state.units[0].currentHp=0;
+    h.viewport.renderFrame(defeated);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);assert.equal(red(5.5,2.5),0);
+    // Creation/summoning is represented by the arriving projected figure.
+    h.viewport.renderFrame(loaded);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    const hidden=structuredClone(loaded);hidden.state.physical.figures=[];
+    h.viewport.renderFrame(hidden);h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,0);
+    h.viewport.renderFrame(loaded);h.viewport.setPresentation('flat');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,false);
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();h.viewport.lighting.set({enabled:false});h.flush();assert.equal(h.viewport.inspect().lighting.local.enabled,false);
+    h.viewport.lighting.set({enabled:true});h.viewport.settle();h.flush();assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('moving Unit light replaces its stable source and excludes clipped hidden padding and hidden events',async t=>{
+  let now=1000;t.mock.method(performance,'now',()=>now);
+  const visualCatalog={units:{test:{light:{color:[1,.88,.60],strength:1.2,radius:2.25}}},models:{}};
+  const f=fixture(8,'blue');f.state.physical.figures=f.state.physical.figures.slice(0,1);
+  f.state.exploredCells.blue=[{x:1,y:2},{x:2,y:2},{x:5,y:2},{x:6,y:2}];
+  const h=await harness(f,{visualCatalog});try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    const red=(x,z)=>{const shader={uniforms:{},vertexShader:'#include <project_vertex>',fragmentShader:'#include <opaque_fragment>'};
+      h.rendered.at(-1).scene.getObjectByName('terrain').children[0].material.onBeforeCompile(shader);
+      const image=shader.uniforms.delveLightField.value.image;return image.data[(Math.floor(z*4)*image.width+Math.floor(x*4))*4];};
+    const event={role:'Movement',unitId:'hero',movingFigure:{typeId:'test',name:'Emitter',sideId:'blue',cellSpan:1,posture:'Upright'},
+      movementSegments:[[{x:0,y:2},{x:1,y:2},{x:2,y:2}],[{x:5,y:2},{x:6,y:2},{x:7,y:2}]]};
+    let pauses=0;
+    await h.viewport.present(event,{},{skipping:()=>false,pause:async()=>{
+      pauses++;h.flush(now);assert.equal(h.viewport.inspect().lighting.local.sources,pauses===1?0:1);
+      assert.equal(h.rendered.at(-1).scene.getObjectByName('unit:hero').visible,false);
+      h.flush(now+220);assert.equal(h.viewport.inspect().lighting.local.sources,1,'one moving source replaces stable source');
+      assert.ok(red(pauses===1?1.5:6.5,2.5)>red(pauses===1?2.5:5.5,2.5),'field follows displayed moving position');
+      assert.equal(red(3.5,2.5),0,'Unknown receiver remains dark between observed runs');
+      h.flush(now+440);assert.equal(h.viewport.inspect().lighting.local.sources,pauses===1?1:0,'hidden endpoint emits no light');
+      assert.equal(h.viewport.inspect().lighting.local.textureBytes,8*8*16*4);now+=440;
+    }});
+    h.flush();assert.equal(pauses,2);assert.equal(h.viewport.inspect().lighting.local.sources,1);assert.equal(h.viewport.inspect().transient,false);
+    await h.viewport.present({...event,unitId:'hidden',movementSegments:[[{x:0,y:0},{x:1,y:0}]]},{},{skipping:()=>false,pause:async()=>assert.fail('hidden event must not animate')});
+    assert.equal(h.viewport.inspect().lighting.local.sources,1);
+    await h.viewport.present(event,{},{skipping:()=>false,pause:async()=>{h.flush(now);h.viewport.cancel();}});
+    h.viewport.settle();h.flush();assert.equal(h.viewport.inspect().transient,false);assert.equal(h.viewport.inspect().lighting.local.sources,1);assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('local illumination follows displayed checkpoints, switches off, survives movement and clears on restart',async()=>{
   const f=fixture(8,'blue');f.state.physical.board.terrain=[{kind:'Lava',position:{x:3,y:2}}];
   const h=await harness(f);try{

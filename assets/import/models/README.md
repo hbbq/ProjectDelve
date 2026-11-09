@@ -145,3 +145,12 @@ node tools/batch-model-qa-plans.cjs --final
 
 See `BROWSER_INSPECTION.md` for installed-Node resolution if the nvm shim fails.
 The importer adds no watchers, service, UI, packages or production preview flags.
+
+## Beastmaster batch — 2026-11-09
+
+The six Beastmaster/summon imports bring the current production inventory to 38
+miniatures. Earlier 31/32-model notes describe prior batches. This batch uses the
+same importer and 1024 texture option; Jackalope and Raptor additionally use the
+existing rigid `--rotation-y 90` option. Sources, actual Pro evidence, generation
+versions/date, validator reports and dimensions are preserved per Unit. See
+[the current batch report](../../source/models/BEASTMASTER_IMPORT.md).

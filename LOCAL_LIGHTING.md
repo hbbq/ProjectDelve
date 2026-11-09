@@ -25,18 +25,37 @@ work; steady rendering still samples the same field. Stored lighting intensities
 remain user-controlled, and interaction overlays are unaffected.
 
 The field is rebuilt only when observed terrain, sources, dimensions or edges
-change. Ordinary Unit movement samples it in world space, including instanced
+change. Unit movement samples it in world space, including instanced
 geometry, Facing transforms and clipped playback copies. Shader hooks compose
 with Ghost treatment. It schedules no frames, owns one texture, reuses it across
 checkpoints, and releases allocations on dimension changes and disposal.
+
+Unit Type visual metadata can optionally declare
+`light: {color: [1, 0.88, 0.60], strength: 1.2, radius: 2.25}`. Color is linear
+RGB with channels in [0, 1]; strength and radius must be positive and at most
+four. Unknown fields and invalid declarations are rejected by the existing
+Unit visual catalog validator. Light is independent of model availability and
+Cardboard/Miniatures selection. It uses the same field, attenuation, brightness
+ceiling, occlusion and Lighting On/Off controls as terrain emitters.
+
+Sources come only from displayed projected figure roots. Creation, relocation,
+removal, replay checkpoints and reload rebuild them from that observation. A
+movement transient replaces its hidden stable root and updates the field at its
+displayed interpolated position. Source centers in Unknown Cells do not emit,
+even when the clipped miniature has a visible sliver in an explored Cell; hidden
+padding and gaps therefore cannot illuminate known surroundings. The existing
+Unknown mask blocks receivers, and hidden Units never acquire render roots or
+light sources. There is no gameplay Vision, LOS, discovery or saved-state change.
+Moving emitters rebuild the bounded CPU field during existing animation frames;
+settled scenes retain checkpoint caching and schedule no extra frames or lights.
 
 For another terrain emitter, add a recipe. For observed objects, Units or effects,
 extend the source collection passed to `lighting.local.update(data, sources)`;
 sources have `{x, z, color: [r,g,b], strength, radius}` in board coordinates.
 Build this collection from the displayed observation at the presentation
-checkpoint, never from final state or undiscovered content. No new rendering
-implementation or game rule is needed. Animated emitter positions would require
-explicit field updates; V1 does not implement animated emitters.
+checkpoint, never from final state or undiscovered content. Unit emitters use
+the existing transient movement envelope and explicitly update the field from
+its displayed position. No new rendering implementation or game rule is needed.
 
 ## Visibility and approximation
 

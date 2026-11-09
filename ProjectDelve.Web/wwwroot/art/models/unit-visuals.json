@@ -289,9 +289,110 @@
       "maxTriangles": 12000,
       "maxPrimitives": 2,
       "maxTextureDimension": 1024
+    },
+    {
+      "id": "beastmaster/v1",
+      "approved": true,
+      "url": "./art/models/units/beastmaster/v1/beastmaster.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "dire-bear/v1",
+      "approved": true,
+      "url": "./art/models/units/dire-bear/v1/dire-bear.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "giant-toad/v1",
+      "approved": true,
+      "url": "./art/models/units/giant-toad/v1/giant-toad.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "light-elemental/v1",
+      "approved": true,
+      "url": "./art/models/units/light-elemental/v1/light-elemental.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "jackalope/v1",
+      "approved": true,
+      "url": "./art/models/units/jackalope/v1/jackalope.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
+    },
+    {
+      "id": "raptor/v1",
+      "approved": true,
+      "url": "./art/models/units/raptor/v1/raptor.glb",
+      "version": "tripo-v1",
+      "maxTriangles": 12000,
+      "maxPrimitives": 2,
+      "maxTextureDimension": 1024
     }
   ],
   "units": [
+    {
+      "typeId": "beastmaster-type",
+      "targetHeight": 0.80,
+      "maximumRadius": 0.30,
+      "baseRadius": 0.27,
+      "model": "beastmaster/v1"
+    },
+    {
+      "typeId": "jackalope-type",
+      "targetHeight": 0.42,
+      "maximumRadius": 0.22,
+      "baseRadius": 0.20,
+      "model": "jackalope/v1"
+    },
+    {
+      "typeId": "giant-toad-type",
+      "targetHeight": 0.35,
+      "maximumRadius": 0.36,
+      "baseRadius": 0.39,
+      "model": "giant-toad/v1"
+    },
+    {
+      "typeId": "dire-bear-type",
+      "targetHeight": 0.64,
+      "maximumRadius": 0.52,
+      "baseRadius": 0.43,
+      "model": "dire-bear/v1"
+    },
+    {
+      "typeId": "raptor-type",
+      "targetHeight": 0.60,
+      "maximumRadius": 0.44,
+      "baseRadius": 0.37,
+      "model": "raptor/v1"
+    },
+    {
+      "typeId": "light-elemental-type",
+      "targetHeight": 0.45,
+      "maximumRadius": 0.18,
+      "baseRadius": 0.17,
+      "light": {
+        "color": [1, 0.88, 0.60],
+        "strength": 1.2,
+        "radius": 2.25
+      },
+      "model": "light-elemental/v1"
+    },
     {
       "typeId": "royal-queen-type",
       "targetHeight": 0.83,

@@ -6,6 +6,20 @@ const moduleAt=name=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelv
 const observation=(cells={},edges=[])=>({board:{width:8,height:8,edges},kindAt:(x,y)=>cells[`${x},${y}`]??'StoneFloor'});
 const sample=(field,x,y)=>field.pixels[(Math.floor(y*4)*field.width+Math.floor(x*4))*4];
 
+test('Unit emitters use displayed visible roots and observed source Cells with the shared bounded field',async()=>{
+  const {unitLightSources,buildLocalLightField}=await moduleAt('three-local-lighting.js');
+  const light={color:[1,.88,.60],strength:1.2,radius:2.25},catalog={units:{emitter:{light}}};
+  const root=(x,z,typeId='emitter',visible=true)=>({position:{x,z},visible,userData:{appearance:{typeId}}});
+  const data=observation({'5,5':'Unknown'});
+  const sources=unitLightSources(catalog,[root(2.5,2.5),root(5.5,5.5),root(1.5,1.5,'plain'),root(3.5,3.5,'emitter',false)],data.kindAt);
+  assert.deepEqual(sources,[{x:2.5,z:2.5,...light}]);
+  const field=buildLocalLightField(data,sources);
+  assert.ok(sample(field,2.5,2.5)>sample(field,3.5,2.5));assert.equal(sample(field,5.5,5.5),0);
+  const dense=buildLocalLightField(data,Array(100).fill(sources[0]));
+  assert.equal(dense.pixels.length,field.pixels.length);assert.ok(Math.max(...dense.pixels)<=255);
+  assert.equal(sample(dense,7.5,7.5),0);
+});
+
 test('assembly surface light and component light use observed presentation, while flat decals do not emit',async()=>{
   const {terrainLightSources,localLightRecipes}=await moduleAt('three-local-lighting.js');
   const definitions=[

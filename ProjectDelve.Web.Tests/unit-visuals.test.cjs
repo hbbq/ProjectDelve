@@ -2,6 +2,22 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const at=n=>import(pathToFileURL(path.resolve(__dirname,'../ProjectDelve.Web/wwwroot',n)).href);
 const sample=()=>({schemaVersion:1,models:[{id:'shared',approved:true,url:'./art/shared.glb',version:'v1'}],units:[{typeId:'small',targetHeight:1.2,maximumRadius:.38,baseRadius:.30,model:'shared'},{typeId:'large',targetHeight:2.4,maximumRadius:.76,baseRadius:.65,model:'shared'}]});
 const canonical=[{unitTypeId:'small',cellSpan:1},{unitTypeId:'large',cellSpan:2}];
+
+test('Unit visual light declarations are bounded, cloned and independent of model registration',async()=>{
+  const {validateUnitVisualCatalog:v}=await at('unit-visuals.js');
+  const s=sample(),light={color:[1,.88,.60],strength:1.2,radius:2.25};
+  delete s.units[0].model;s.units[0].light=light;
+  const c=v(s,canonical);assert.deepEqual(c.units.small.light,light);
+  assert.ok(Object.isFrozen(c.units.small.light));assert.ok(Object.isFrozen(c.units.small.light.color));
+  light.color[0]=0;light.radius=4;assert.deepEqual(c.units.small.light,{color:[1,.88,.60],strength:1.2,radius:2.25});
+  for(const invalid of [null,[],{}, {color:[1,1],strength:1,radius:2},{color:[1,1,NaN],strength:1,radius:2},
+    {color:[1,1,1.01],strength:1,radius:2},{color:[-1,1,1],strength:1,radius:2},
+    {color:[1,1,1],strength:0,radius:2},{color:[1,1,1],strength:4.01,radius:2},
+    {color:[1,1,1],strength:1,radius:0},{color:[1,1,1],strength:1,radius:4.01},
+    {color:[1,1,1],strength:1,radius:2,gameplayVision:2}]){
+    const bad=sample();bad.units[0].light=invalid;assert.throws(()=>v(bad,canonical),/visual light/);
+  }
+});
 test('Ghost appearance is explicit source metadata and unsupported appearances are rejected',async()=>{
   const {validateUnitVisualCatalog:v,resolveUnitModel:r}=await at('unit-visuals.js'),{validateModelDescriptor:d}=await at('three-models.js');
   const s=sample();s.models[0].appearance='ghost';const catalog=v(s,canonical);
