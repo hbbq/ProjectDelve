@@ -830,11 +830,144 @@ test('touch pinch suppresses tap, keyboard focuses exact Cells, and stable label
   }finally{h.cleanup();}
 });
 test('50x50 terrain and unknown covers use bounded material batches and remain idle after settling',async()=>{
-  const f=fixture(50);const h=await harness(f);try{const scene=h.rendered.at(-1).scene,terrain=scene.getObjectByName('terrain');assert.equal(terrain.children.reduce((n,b)=>n+b.count,0),2500);assert.ok(terrain.children.length<=3);
-    for(let i=0;i<12;i++){h.viewport.setActive(false);h.viewport.setActive(true);h.viewport.renderFrame(f);h.viewport.settle();h.flush();}assert.equal(terrain.children.length,3);assert.equal(h.frames.size,0);
-    const next=fixture(50,'blue');next.metadata.sessionId='replacement';h.viewport.renderFrame(next);h.flush();assert.equal(h.viewport.inspect().transient,false);assert.equal(scene.getObjectByName('fog').children[0].count,2498);
+  const f=fixture(50);const h=await harness(f);try{const scene=h.rendered.at(-1).scene,terrain=scene.getObjectByName('terrain');assert.equal(terrain.children.reduce((n,b)=>n+b.count,0),2500);assert.ok(terrain.children.length<=3*4);const batches=[...terrain.children];
+    for(let i=0;i<12;i++){h.viewport.setActive(false);h.viewport.setActive(true);h.viewport.renderFrame(f);h.viewport.settle();h.flush();}assert.deepEqual(terrain.children,batches);assert.equal(h.frames.size,0);
+    const next=fixture(50,'blue');next.metadata.sessionId='replacement';h.viewport.renderFrame(next);h.flush();assert.equal(h.viewport.inspect().transient,false);assert.equal(scene.getObjectByName('fog').children.reduce((n,b)=>n+b.count,0),2498);
   }finally{h.cleanup();}
 });
+
+const instanceMatrices=(h,mesh)=>Array.from({length:mesh.count},(_,i)=>{const m=new h.THREE.Matrix4();mesh.getMatrixAt(i,m);return m;});
+const cellChunk=([x,y])=>`${Math.floor(x/32)},${Math.floor(y/32)}`;
+test('fog and fallback object planes allocate once per material and owning Cell chunk',async()=>{
+  const f=fixture(65,'blue'),board=f.state.physical.board;board.height=34;
+  f.state.exploredCells.blue=[31,32,63,64].map(x=>({x,y:0}));
+  board.terrainTypes=[{id:'paper',name:'Fixture Paper',presentation:{recipe:'uninstalled'}}];
+  board.terrain=f.state.exploredCells.blue.map(position=>({position,typeId:'paper'}));
+  const h=await harness(f);try{
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.settle();h.flush();const scene=h.rendered.at(-1).scene;
+      const objects=scene.getObjectByName('objects').children,fog=scene.getObjectByName('fog').children;
+      assert.deepEqual(objects.map(m=>m.count),[1,2,1]);assert.equal(fog.length,6);assert.equal(fog.reduce((n,m)=>n+m.count,0),65*34-4);
+      for(const meshes of [objects,fog]){
+        const chunks=[];
+        for(const mesh of meshes){const cells=instanceMatrices(h,mesh).map(m=>[m.elements[12]-.5,m.elements[14]-.5]),chunk=cellChunk(cells[0]);chunks.push(chunk);assert.ok(cells.every(c=>cellChunk(c)===chunk));}
+        assert.equal(new Set(chunks).size,meshes.length);assert.equal(new Set(meshes.map(m=>m.material)).size,1);
+      }
+    }
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('static plane chunks preserve Cell order, rotations, resources and bounds at 31/32/63/64 and partial edges',async()=>{
+  const f=fixture(65);f.state.physical.board.height=34;
+  const h=await harness(f);try{
+    const {terrainLayers}=await moduleAt('board-visuals.js');
+    for(const mode of ['flat','tabletop']){
+      h.viewport.setPresentation(mode);h.viewport.settle();h.flush();
+      const scene=h.rendered.at(-1).scene,terrain=scene.getObjectByName('terrain').children.filter(m=>!m.receiveShadow),seen=new Set(),allocations=new Set();
+      for(const mesh of terrain){
+        const matrices=instanceMatrices(h,mesh),cells=matrices.map(m=>[Math.round(m.elements[12]-.5),Math.round(m.elements[14]-.5)]),chunk=cellChunk(cells[0]);
+        assert.ok(cells.every(c=>cellChunk(c)===chunk));assert.ok(mesh.count<=1024);
+        const allocation=`${chunk}:${mesh.material.id}`;assert.ok(!allocations.has(allocation));allocations.add(allocation);
+        assert.deepEqual(cells,[...cells].sort((a,b)=>a[1]-b[1]||a[0]-b[0]));
+        assert.ok(mesh.instanceMatrix.version>0);assert.ok(mesh.boundingSphere);assert.ok(mesh.boundingSphere.radius<32);
+        for(let i=0;i<cells.length;i++){
+          const [x,y]=cells[i],key=`${x},${y}`;assert.ok(!seen.has(key));seen.add(key);
+          const layer=terrainLayers('StoneFloor',{seed:f.visualSeed,x,y}),transform=new h.THREE.Object3D();
+          transform.position.set(x+.5,0,y+.5);transform.rotation.set(-Math.PI/2,0,-layer.rotation*Math.PI/180);transform.updateMatrix();
+          assert.deepEqual(matrices[i].elements,Array.from(new Float32Array(transform.matrix.elements)));
+        }
+      }
+      assert.equal(seen.size,65*34);for(const x of [15,16,31,32,63,64])for(const y of [15,16,31,32,33])assert.ok(seen.has(`${x},${y}`));
+      assert.equal(new Set([...allocations].map(k=>k.split(':')[0])).size,6);
+      assert.equal(new Set(terrain.map(m=>m.geometry)).size,1);
+      if(mode==='tabletop'){
+        const shadows=scene.getObjectByName('terrain').children.filter(m=>m.receiveShadow);
+        assert.deepEqual(shadows.map(m=>m.count),[1024,1024,32,64,64,2]);
+        assert.deepEqual(shadows.map(m=>cellChunk(instanceMatrices(h,m).map(a=>[a.elements[12]-.5,a.elements[14]-.5])[0])),['0,0','1,0','2,0','0,1','1,1','2,1']);
+      }
+    }
+    assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
+test('static chunks replace and dispose locally on reveal, retain unaffected chunks, and release on session/dispose',async()=>{
+  const f=fixture(65,'blue');f.state.exploredCells.blue=[{x:31,y:0},{x:63,y:0},{x:64,y:33}];
+  f.state.physical.board.terrain=[{kind:'StoneFloorWithTable',position:{x:32,y:0}},{kind:'Tree',position:{x:64,y:0}}];
+  const h=await harness(f),disposed=new Map();
+  const track=meshes=>{for(const m of meshes)if(!disposed.has(m)){disposed.set(m,0);m.addEventListener('dispose',()=>disposed.set(m,disposed.get(m)+1));}};
+  try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const scene=h.rendered.at(-1).scene;
+    const meshes=()=>['terrain','fog','objects'].flatMap(n=>scene.getObjectByName(n).children).filter(m=>m.isInstancedMesh);
+    const before=meshes();track(before);assert.equal(scene.getObjectByName('objects').children.length,0);
+    assert.equal(before.filter(m=>m.name==='observed-ground-shadows').reduce((n,m)=>n+m.count,0),3);
+    const next=structuredClone(f);next.state.exploredCells.blue.push({x:32,y:0});h.viewport.renderFrame(next);h.flush();
+    const after=meshes();track(after);assert.ok(scene.getObjectByName('objects').children.length>0);
+    assert.equal(after.filter(m=>m.name==='observed-ground-shadows').reduce((n,m)=>n+m.count,0),4);
+    const unchanged=before.filter(m=>after.includes(m)),replaced=before.filter(m=>!after.includes(m));assert.ok(unchanged.length>0);assert.ok(replaced.length>0);
+    assert.ok(unchanged.every(m=>disposed.get(m)===0));assert.ok(replaced.every(m=>disposed.get(m)===1));
+    h.viewport.renderFrame(next);h.flush();assert.deepEqual(meshes(),after);
+    next.metadata.sessionId='new-chunk-session';h.viewport.renderFrame(next);h.flush();assert.ok(after.every(m=>disposed.get(m)===1));track(meshes());
+    assert.deepEqual(h.failures,[]);h.viewport.dispose();assert.ok([...disposed.values()].every(n=>n===1));
+  }finally{h.cleanup();}
+});
+
+test('static physical chunks use owning Cells and canonical edge endpoints while preserving transformed instances',async()=>{
+  const f=fixture(66),board=f.state.physical.board;
+  board.terrainTypes=[{id:'table',name:'Fixture Table',presentation:{recipe:'generic'},assembly:componentAssembly('StoneFloor','Table',1)}];
+  board.terrain=[31,32,63,64].map(x=>({typeId:'table',position:{x,y:0}}));
+  board.edges=[31,32,63,64].map(x=>({kind:'Wall',a:{x,y:4},b:{x:x+1,y:4}}));
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const objects=h.rendered.at(-1).scene.getObjectByName('objects'),before=[...objects.children];
+    const legs=[],walls=[];
+    for(const mesh of before){
+      assert.ok(mesh.instanceMatrix.version>0);assert.ok(mesh.boundingSphere);
+      const matrices=instanceMatrices(h,mesh),scale=new h.THREE.Vector3().setFromMatrixScale(matrices[0]);
+      if(Math.abs(scale.y-.34)<1e-6)legs.push(mesh);
+      if(Math.abs(scale.y-.52)<1e-6)walls.push(mesh);
+    }
+    assert.deepEqual(legs.map(m=>instanceMatrices(h,m).filter(a=>Math.abs(new h.THREE.Vector3().setFromMatrixScale(a).x-.085)<1e-6).length),[4,8,4]);assert.deepEqual(walls.map(m=>m.count),[1,2,1]);
+    assert.deepEqual(walls.map(m=>instanceMatrices(h,m).map(a=>a.elements[12])),[[32],[33,64],[65]]);
+    assert.equal(new Set(legs.map(m=>m.geometry)).size,1);assert.equal(new Set(legs.map(m=>m.material)).size,1);
+    // Component rotations must survive chunking, including the boundary Cells.
+    for(const mesh of legs)for(const m of instanceMatrices(h,mesh).filter(a=>Math.abs(new h.THREE.Vector3().setFromMatrixScale(a).x-.085)<1e-6)){assert.ok(Math.abs(m.elements[0])<1e-6);assert.ok(Math.abs(Math.abs(m.elements[8])-.085)<1e-6);}
+    const reversed=structuredClone(f);reversed.state.physical.board.edges.forEach(e=>[e.a,e.b]=[e.b,e.a]);h.viewport.renderFrame(reversed);h.flush();
+    assert.deepEqual(objects.children,before);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+test('component rotation replaces only its chunk and recomputes bounds containing transformed props and overhang',async()=>{
+  const f=fixture(34),board=f.state.physical.board;board.height=8;
+  board.terrainTypes=['rotating','stationary'].map(id=>({id,name:`Fixture ${id}`,presentation:{recipe:'generic'},assembly:componentAssembly('StoneFloor','Table',0)}));
+  board.terrain=[{typeId:'rotating',position:{x:31,y:0}},{typeId:'stationary',position:{x:32,y:0}}];
+  const h=await harness(f);try{
+    h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const objects=h.rendered.at(-1).scene.getObjectByName('objects');
+    const identity=m=>`${m.geometry.id}:${m.material.id}`;
+    const atChunk=x=>new Map(objects.children.filter(m=>Math.floor(m.boundingSphere.center.x/32)===x).map(m=>[identity(m),m]));
+    const before=atChunk(0),unchanged=atChunk(1),disposals=new Map();
+    assert.ok(before.size>0);assert.equal(unchanged.size,before.size);
+    for(const mesh of before.values()){disposals.set(mesh,0);mesh.addEventListener('dispose',()=>disposals.set(mesh,disposals.get(mesh)+1));}
+    const next=structuredClone(f);next.state.physical.board.terrainTypes[0].assembly.components[0].quarterTurns=1;
+    h.viewport.renderFrame(next);h.flush();const after=atChunk(0);assert.equal(after.size,before.size);assert.deepEqual(atChunk(1),unchanged);
+    let changedBounds=0,overhangingSpheres=0;
+    for(const [key,mesh]of after){
+      const previous=before.get(key);assert.ok(previous);assert.notEqual(mesh,previous);assert.equal(disposals.get(previous),1);
+      assert.notDeepEqual(Array.from(mesh.instanceMatrix.array),Array.from(previous.instanceMatrix.array));assert.ok(mesh.instanceMatrix.version>0);
+      if(!mesh.boundingSphere.equals(previous.boundingSphere))changedBounds++;
+      mesh.geometry.computeBoundingSphere();const positions=mesh.geometry.getAttribute('position');
+      for(const matrix of instanceMatrices(h,mesh)){
+        const sphere=mesh.geometry.boundingSphere.clone().applyMatrix4(matrix);
+        assert.ok(mesh.boundingSphere.center.distanceTo(sphere.center)+sphere.radius<=mesh.boundingSphere.radius+1e-5);
+        if(sphere.center.x+sphere.radius>32)overhangingSpheres++;
+        for(let i=0;i<positions.count;i++){
+          const vertex=new h.THREE.Vector3().fromBufferAttribute(positions,i).applyMatrix4(matrix);
+          assert.ok(mesh.boundingSphere.center.distanceTo(vertex)<=mesh.boundingSphere.radius+1e-5);
+        }
+      }
+    }
+    assert.ok(changedBounds>0);assert.ok(overhangingSpheres>0);assert.deepEqual(h.failures,[]);
+  }finally{h.cleanup();}
+});
+
 test('reconciling a moved portrait releases old fallback references and hidden hosts do not render',async()=>{
   const f=fixture();f.state.units[0].typeId='barbarian-type';f.state.types.push({id:'barbarian-type',hp:5});const h=await harness(f);try{
     const scene=h.rendered.at(-1).scene,findPortrait=()=>scene.getObjectByName('units').children[0].children.find(n=>n.material?.userData.fallbacks);
@@ -1061,8 +1194,8 @@ test('dense 50x50 Tabletop static components batch by shared geometry/material a
   const f=fixture(50);f.state.physical.board.terrain=Array.from({length:2500},(_,i)=>({kind:i%3?'SolidRock':'Tree',position:{x:i%50,y:Math.floor(i/50)}}));
   const h=await harness(f);try{
     h.viewport.setPresentation('tabletop');h.viewport.settle();h.flush();const objects=h.rendered.at(-1).scene.getObjectByName('objects');
-    assert.ok(objects.children.length<25);assert.ok(objects.children.every(n=>n.isInstancedMesh));assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);
-    h.viewport.renderFrame(f);h.flush();assert.ok(objects.children.length<25);assert.equal(h.frames.size,0);
+    assert.ok(objects.children.length<25*4);assert.ok(objects.children.every(n=>n.isInstancedMesh));assert.equal(h.frames.size,0);assert.deepEqual(h.failures,[]);const batches=[...objects.children];
+    h.viewport.renderFrame(f);h.flush();assert.deepEqual(objects.children,batches);assert.equal(h.frames.size,0);
   }finally{h.cleanup();}
 });
 

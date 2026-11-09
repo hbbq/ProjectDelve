@@ -19,6 +19,10 @@ const flatHeights = Object.freeze({terrain:0,grid:.015,objects:.04,rails:.06,edg
 const physicalHeights = Object.freeze({...flatHeights,objects:.02,rails:.008,edges:.02,items:.03,movement:.012,fog:.006,units:.012,feedback:.018,areas:.02});
 export const cellCenter = (cell, span=1) => ({x:cell.x+span/2,z:cell.y+span/2});
 const physicalCenter=(cell,a)=>({x:cell.x+(a.footprintWidth??a.cellSpan??1)/2,z:cell.y+(a.footprintDepth??a.cellSpan??1)/2});
+// Static instances share resources, but each 32x32 Cell region has its own
+// bounds so Three can cull it. Ownership uses Cells, never prop jitter/overhang.
+const staticChunk=cell=>`chunk:${Math.floor(cell.x/32)},${Math.floor(cell.y/32)}`;
+const edgeOwner=edge=>edge.a.y<edge.b.y||edge.a.y===edge.b.y&&edge.a.x<=edge.b.x?edge.a:edge.b;
 export function edgePlacement(edge) {
   return {x:(edge.a.x+edge.b.x)/2+.5,z:(edge.a.y+edge.b.y)/2+.5,vertical:edge.a.y===edge.b.y};
 }
@@ -237,17 +241,17 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     const lootPiles=groundLoot(frame.state, frame.presentation.groundObjects);
     checkpointLights=[...terrainLightSources(data),...lootLightSources(lootPiles)];
     lighting.setBoard(board);
-    // Measured 50x50 rendering was draw-call-bound. Batch only repeated flat
-    // terrain and fog by material; all dynamic objects retain ordinary meshes.
+    // Partition repeated static geometry by material and Cell region;
+    // dynamic objects retain ordinary meshes.
     const batches=new Map(),solidBatches=new Map();
-    const batchSolid=object=>{
+    const batchSolid=(object,owner)=>{
       object.updateMatrixWorld(true);object.traverse(mesh=>{if(!mesh.isMesh)return;
-        const key=`physical-batch:${mesh.geometry.id}:${lighting.identity(mesh.material)}`;let batch=solidBatches.get(key);
+        const key=`physical-batch:${mesh.geometry.id}:${lighting.identity(mesh.material)}:${staticChunk(owner)}`;let batch=solidBatches.get(key);
         if(!batch){batch={geometry:mesh.geometry,material:mesh.material,matrices:[]};solidBatches.set(key,batch);}batch.matrices.push(mesh.matrixWorld.clone());
       });
     };
     if(presentation==='tabletop')retain('board-slab',`${board.width}:${board.height}`,'board',()=>physical.board(board.width,board.height));
-    const batchCell=(group,m,x,y,rotation=0)=>{const key=`${group}-batch:${m.id}`;let batch=batches.get(key);if(!batch){batch={group,material:m,cells:[]};batches.set(key,batch);}batch.cells.push([x,y,rotation]);};
+    const batchCell=(group,m,x,y,rotation=0)=>{const key=`${group}-batch:${m.id}:${staticChunk({x,y})}`;let batch=batches.get(key);if(!batch){batch={group,material:m,cells:[]};batches.set(key,batch);}batch.cells.push([x,y,rotation]);};
     for(let y=0;y<board.height;y++)for(let x=0;x<board.width;x++){
       const kind=kindAt(x,y),tile=terrain.get(`${x},${y}`);
       if(kind==='Unknown'){
@@ -256,13 +260,13 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
       const layer=terrainLayers(kind,{seed:frame.visualSeed,x,y,direction:tile?.direction,terrain,assembly:data.displayAt(x,y).assembly});
       batchCell('terrain',material(layer.base.fill,layer.base.image,false,false,true),x,y,layer.rotation);
       if(data.displayAt(x,y).fallback)batchCell('objects',glyph('?'),x,y);
-      if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'&&!layer.components))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt));
+      if(presentation==='tabletop'&&(layer.object||kind==='SolidRock'&&!layer.components))batchSolid(physical.terrain(kind,layer,x,y,frame.visualSeed,kindAt),{x,y});
       else if(layer.object){retain(`object:${x},${y}`,JSON.stringify(layer.object)+layer.objectRotation,'objects',()=>{
         const group=new THREE.Group(),fallback=plane(glyph(kind==='StoneFloorWithTable'?'▰':'♣'),x+.5,y+.5,.65,.65,heights.objects);
         artwork(group,fallback,layer.object.image?material('#254737',layer.object.image,true):null,x+.5,y+.5,1,1,heights.objects+.005,layer.objectRotation);return group;
       });}
       for(const component of layer.components??[]){
-        if(presentation==='tabletop'&&!component.decal)batchSolid(physical.component(component.recipe,component,x,y,frame.visualSeed));
+        if(presentation==='tabletop'&&!component.decal)batchSolid(physical.component(component.recipe,component,x,y,frame.visualSeed),{x,y});
         else retain(`component:${x},${y}:${component.slot}`,JSON.stringify(component),'objects',()=>{
           const group=new THREE.Group(),cx=x+component.x,cy=y+component.y,size=component.scale;
           const fallback=plane(glyph(component.object.glyph??'?'),cx,cy,.65*size,.65*size,heights.objects,component.objectRotation);
@@ -288,8 +292,10 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
     if(presentation==='tabletop'){
       // Only explored ground receives shadows. Unknown Cells remain opaque,
       // unlit cover even beside an observed large Unit or a bordering wall.
-      const cells=[];for(let y=0;y<board.height;y++)for(let x=0;x<board.width;x++)if(kindAt(x,y)!=='Unknown')cells.push([x,y]);
-      retain('ground-shadows',JSON.stringify(cells),'terrain',()=>{
+      const chunks=new Map();for(let y=0;y<board.height;y++)for(let x=0;x<board.width;x++)if(kindAt(x,y)!=='Unknown'){
+        const key=staticChunk({x,y});if(!chunks.has(key))chunks.set(key,[]);chunks.get(key).push([x,y]);
+      }
+      for(const [key,cells]of chunks)retain(`ground-shadows:${key}`,JSON.stringify(cells),'terrain',()=>{
         const mesh=new THREE.InstancedMesh(geometries.plane,surfaces.shadow,cells.length),transform=new THREE.Object3D();
         mesh.name='observed-ground-shadows';mesh.receiveShadow=true;
         cells.forEach(([x,y],i)=>{transform.position.set(x+.5,.003,y+.5);transform.rotation.x=-Math.PI/2;transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);});
@@ -309,7 +315,7 @@ export function createThreeViewport({ host, controls, animate, onPick, onHover, 
           if(changed&&animate())doorMotions.set(key,{open:edge.kind==='OpenDoor',start:performance.now()});
           object.userData.edge=edge;continue;
         }
-        batchSolid(physical.edge(edge,at));continue;
+        batchSolid(physical.edge(edge,at),edgeOwner(edge));continue;
       }
       retain(`edge:${boardEdgeKey(edge)}`,edge.kind,'edges',()=>{
         const group=new THREE.Group();

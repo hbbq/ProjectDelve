@@ -1,0 +1,1697 @@
+{
+  "date": "2026-11-09",
+  "chunkSize": 32,
+  "architecture": "Existing material/geometry batch keys gain deterministic owning-Cell region. Transforms and shared assets unchanged; retain/dispose lifecycle and full transformed bounding spheres reused.",
+  "rationale": "16x16: 1207 full-board calls, median render submission 3ms. 32x32: 385 calls, about 1ms; close desktop triangles reduced 58%, forest 70%. Measured frame intervals remain ~16.7ms. No FPS or GPU-time speedup claimed.",
+  "methodology": {
+    "tool": "tools/chunking-browser.cjs",
+    "browser": "headed Edge, fresh disposable context",
+    "device": {
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1050 Ti (0x00001C82) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "dpr": 1
+    },
+    "viewports": [
+      [
+        1440,
+        1000
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "framesPerCase": 100,
+    "discardedWarmupFrames": 10,
+    "timing": "CPU renderer.render submission and whole drawFrame measured separately, requestAnimationFrame pacing. Main-pass info reset occurs after shadow rendering in pinned Three.js. No GPU timer; mobile is viewport emulation on desktop GPU.",
+    "fixtures": "Test-owned 8x8 and populated fixture; Default/Woodland generated 120x120 observations, seed WLD1-NaturalTerrain-4D4D7E795EC7369C. Medium is 60x60 window extracted from same observation. Exact observations archived with each run.",
+    "construction": "Single synchronous renderFrame measurement per case; warm material caches; excludes asynchronous texture/model loading. Scene switches and initial startup excluded from steady-frame timing.",
+    "baselineSourceSha256": "7449626380bff5fafca709c778bc5e89d914c59f94733aa07b28392eb6431450",
+    "afterSourceSha256": "6d16628fd30b5122e613ff9c215d57673282aedfe41a7c6d496de03284af6f74",
+    "fixturesSha256": "c28728fd18909b222e8f36a8cd9b77147d56ce89d33c74f4959892041ab7afca",
+    "exactFixturesAndCameraPosesMatch": true,
+    "artifactRoot": ".playwright-cli/chunking/"
+  },
+  "before": [
+    {
+      "name": "small",
+      "mobile": false,
+      "constructionMs": 5.1,
+      "calls": 29,
+      "triangles": 1248,
+      "cpuP50": 0.3,
+      "cpuP95": 0.5,
+      "frameCpuP50": 1.4,
+      "frameCpuP95": 1.8,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 9,
+        "textures": 10
+      },
+      "instances": 10,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 4,
+        "y": 4,
+        "scale": 56.46
+      }
+    },
+    {
+      "name": "medium",
+      "mobile": false,
+      "constructionMs": 101.8,
+      "calls": 31,
+      "triangles": 876870,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 92.43
+      }
+    },
+    {
+      "name": "large-full",
+      "mobile": false,
+      "constructionMs": 302,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.98,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 60,
+        "y": 60,
+        "scale": 4.18
+      }
+    },
+    {
+      "name": "large-close",
+      "mobile": false,
+      "constructionMs": 269.5,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 0.9,
+      "frameCpuP95": 1.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 92.43
+      }
+    },
+    {
+      "name": "large-rotate",
+      "mobile": false,
+      "constructionMs": 262.4,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 78.96
+      }
+    },
+    {
+      "name": "forest",
+      "mobile": false,
+      "constructionMs": 419,
+      "calls": 31,
+      "triangles": 5442988,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 0.9,
+      "frameCpuP95": 1.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 75.64
+      }
+    },
+    {
+      "name": "populated",
+      "mobile": false,
+      "constructionMs": 294,
+      "calls": 72,
+      "triangles": 3103224,
+      "cpuP50": 0.4,
+      "cpuP95": 0.5,
+      "frameCpuP50": 1.5,
+      "frameCpuP95": 1.8,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.94,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 45,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 7,
+        "y": 5,
+        "scale": 75.64
+      }
+    },
+    {
+      "name": "orthographic",
+      "mobile": false,
+      "constructionMs": 272.4,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 0.9,
+      "frameCpuP95": 1.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "x": 30,
+        "y": 30,
+        "scale": 75.64,
+        "projection": "orthographic",
+        "projectionMix": 0,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36
+      }
+    },
+    {
+      "name": "fog",
+      "mobile": false,
+      "constructionMs": 27.3,
+      "calls": 29,
+      "triangles": 123816,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 0.9,
+      "frameCpuP95": 1.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.94,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 22,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 16,
+        "y": 16,
+        "scale": 60.51
+      }
+    },
+    {
+      "name": "small",
+      "mobile": true,
+      "constructionMs": 4.8,
+      "calls": 29,
+      "triangles": 1248,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1.5,
+      "frameCpuP95": 1.8,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 10,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 4,
+        "y": 4,
+        "scale": 23.98
+      }
+    },
+    {
+      "name": "medium",
+      "mobile": true,
+      "constructionMs": 96,
+      "calls": 31,
+      "triangles": 876870,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 41.06
+      }
+    },
+    {
+      "name": "large-full",
+      "mobile": true,
+      "constructionMs": 304,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.3,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.94,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 60,
+        "y": 60,
+        "scale": 1.87
+      }
+    },
+    {
+      "name": "large-close",
+      "mobile": true,
+      "constructionMs": 262.7,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 41.06
+      }
+    },
+    {
+      "name": "large-rotate",
+      "mobile": true,
+      "constructionMs": 260.4,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1.1,
+      "frameCpuP95": 1.3,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 35.08
+      }
+    },
+    {
+      "name": "forest",
+      "mobile": true,
+      "constructionMs": 411.9,
+      "calls": 31,
+      "triangles": 5442988,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 43.38
+      }
+    },
+    {
+      "name": "populated",
+      "mobile": true,
+      "constructionMs": 278.9,
+      "calls": 72,
+      "triangles": 3103224,
+      "cpuP50": 0.5,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.6,
+      "frameCpuP95": 1.9,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 45,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 7,
+        "y": 5,
+        "scale": 43.38
+      }
+    },
+    {
+      "name": "orthographic",
+      "mobile": true,
+      "constructionMs": 271.7,
+      "calls": 31,
+      "triangles": 3131268,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.3,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 24,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "x": 30,
+        "y": 30,
+        "scale": 43.38,
+        "projection": "orthographic",
+        "projectionMix": 0,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36
+      }
+    },
+    {
+      "name": "fog",
+      "mobile": true,
+      "constructionMs": 29.1,
+      "calls": 29,
+      "triangles": 123816,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 22,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 16,
+        "y": 16,
+        "scale": 34.7
+      }
+    }
+  ],
+  "after": [
+    {
+      "name": "small",
+      "mobile": false,
+      "constructionMs": 4.6,
+      "calls": 29,
+      "triangles": 1248,
+      "cpuP50": 0.3,
+      "cpuP95": 0.5,
+      "frameCpuP50": 1.5,
+      "frameCpuP95": 1.9,
+      "intervalP50": 16.7,
+      "intervalP95": 17.1,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 9,
+        "textures": 10
+      },
+      "instances": 10,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 4,
+        "y": 4,
+        "scale": 56.46
+      }
+    },
+    {
+      "name": "medium",
+      "mobile": false,
+      "constructionMs": 98.3,
+      "calls": 97,
+      "triangles": 876858,
+      "cpuP50": 0.5,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.2,
+      "frameCpuP95": 1.4,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 93,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 92.43
+      }
+    },
+    {
+      "name": "large-full",
+      "mobile": false,
+      "constructionMs": 302.4,
+      "calls": 385,
+      "triangles": 3131268,
+      "cpuP50": 1,
+      "cpuP95": 1.2,
+      "frameCpuP50": 1.7,
+      "frameCpuP95": 2,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 60,
+        "y": 60,
+        "scale": 4.18
+      }
+    },
+    {
+      "name": "large-close",
+      "mobile": false,
+      "constructionMs": 266.6,
+      "calls": 124,
+      "triangles": 1330244,
+      "cpuP50": 0.6,
+      "cpuP95": 0.7,
+      "frameCpuP50": 1.2,
+      "frameCpuP95": 1.5,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 92.43
+      }
+    },
+    {
+      "name": "large-rotate",
+      "mobile": false,
+      "constructionMs": 260.4,
+      "calls": 96,
+      "triangles": 1031538,
+      "cpuP50": 0.5,
+      "cpuP95": 0.7,
+      "frameCpuP50": 1.3,
+      "frameCpuP95": 1.6,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.97,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 78.96
+      }
+    },
+    {
+      "name": "forest",
+      "mobile": false,
+      "constructionMs": 417.2,
+      "calls": 85,
+      "triangles": 1629478,
+      "cpuP50": 0.5,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.1,
+      "frameCpuP95": 1.3,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.93,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 360,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 75.64
+      }
+    },
+    {
+      "name": "populated",
+      "mobile": false,
+      "constructionMs": 291.3,
+      "calls": 69,
+      "triangles": 79362,
+      "cpuP50": 0.5,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.6,
+      "frameCpuP95": 1.9,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 399,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 7,
+        "y": 5,
+        "scale": 75.64
+      }
+    },
+    {
+      "name": "orthographic",
+      "mobile": false,
+      "constructionMs": 270.6,
+      "calls": 107,
+      "triangles": 1323058,
+      "cpuP50": 0.5,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.2,
+      "frameCpuP95": 1.4,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "x": 30,
+        "y": 30,
+        "scale": 75.64,
+        "projection": "orthographic",
+        "projectionMix": 0,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36
+      }
+    },
+    {
+      "name": "fog",
+      "mobile": false,
+      "constructionMs": 34.2,
+      "calls": 33,
+      "triangles": 96248,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 51,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 16,
+        "y": 16,
+        "scale": 60.51
+      }
+    },
+    {
+      "name": "small",
+      "mobile": true,
+      "constructionMs": 3.3,
+      "calls": 29,
+      "triangles": 1248,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1.6,
+      "frameCpuP95": 1.9,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 10,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 4,
+        "y": 4,
+        "scale": 23.98
+      }
+    },
+    {
+      "name": "medium",
+      "mobile": true,
+      "constructionMs": 110.2,
+      "calls": 94,
+      "triangles": 876698,
+      "cpuP50": 0.4,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.1,
+      "frameCpuP95": 1.5,
+      "intervalP50": 16.7,
+      "intervalP95": 17.1,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 93,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 41.06
+      }
+    },
+    {
+      "name": "large-full",
+      "mobile": true,
+      "constructionMs": 278.8,
+      "calls": 385,
+      "triangles": 3131268,
+      "cpuP50": 1.1,
+      "cpuP95": 1.3,
+      "frameCpuP50": 1.9,
+      "frameCpuP95": 2.1,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 60,
+        "y": 60,
+        "scale": 1.87
+      }
+    },
+    {
+      "name": "large-close",
+      "mobile": true,
+      "constructionMs": 270.8,
+      "calls": 94,
+      "triangles": 1028004,
+      "cpuP50": 0.5,
+      "cpuP95": 0.7,
+      "frameCpuP50": 1.3,
+      "frameCpuP95": 1.5,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 41.06
+      }
+    },
+    {
+      "name": "large-rotate",
+      "mobile": true,
+      "constructionMs": 259.5,
+      "calls": 88,
+      "triangles": 732452,
+      "cpuP50": 0.5,
+      "cpuP95": 0.7,
+      "frameCpuP50": 1.3,
+      "frameCpuP95": 1.5,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.94,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 35.08
+      }
+    },
+    {
+      "name": "forest",
+      "mobile": true,
+      "constructionMs": 433.1,
+      "calls": 76,
+      "triangles": 1629142,
+      "cpuP50": 0.5,
+      "cpuP95": 0.5,
+      "frameCpuP50": 1.2,
+      "frameCpuP95": 1.4,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 360,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 43.38
+      }
+    },
+    {
+      "name": "populated",
+      "mobile": true,
+      "constructionMs": 295.6,
+      "calls": 69,
+      "triangles": 79362,
+      "cpuP50": 0.6,
+      "cpuP95": 0.7,
+      "frameCpuP50": 1.7,
+      "frameCpuP95": 2,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 399,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 7,
+        "y": 5,
+        "scale": 43.38
+      }
+    },
+    {
+      "name": "orthographic",
+      "mobile": true,
+      "constructionMs": 264.6,
+      "calls": 97,
+      "triangles": 1028260,
+      "cpuP50": 0.5,
+      "cpuP95": 0.6,
+      "frameCpuP50": 1.2,
+      "frameCpuP95": 1.4,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 378,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "x": 30,
+        "y": 30,
+        "scale": 43.38,
+        "projection": "orthographic",
+        "projectionMix": 0,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36
+      }
+    },
+    {
+      "name": "fog",
+      "mobile": true,
+      "constructionMs": 33.4,
+      "calls": 31,
+      "triangles": 94168,
+      "cpuP50": 0.3,
+      "cpuP95": 0.4,
+      "frameCpuP50": 1,
+      "frameCpuP95": 1.2,
+      "intervalP50": 16.7,
+      "intervalP95": 16.9,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 13,
+        "textures": 29
+      },
+      "instances": 51,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 16,
+        "y": 16,
+        "scale": 34.7
+      }
+    }
+  ],
+  "candidate16": [
+    {
+      "name": "large-full",
+      "mobile": false,
+      "constructionMs": 309.7,
+      "calls": 1207,
+      "triangles": 3131268,
+      "cpuP50": 3,
+      "cpuP95": 3.4,
+      "frameCpuP50": 3.7,
+      "frameCpuP95": 4.2,
+      "intervalP50": 16.7,
+      "intervalP95": 17.1,
+      "fps": 59.97,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 1200,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 60,
+        "y": 60,
+        "scale": 4.18
+      }
+    },
+    {
+      "name": "large-close",
+      "mobile": false,
+      "constructionMs": 295.1,
+      "calls": 149,
+      "triangles": 580408,
+      "cpuP50": 0.8,
+      "cpuP95": 1,
+      "frameCpuP50": 1.6,
+      "frameCpuP95": 1.8,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 1200,
+      "camera": {
+        "tilt": 44,
+        "yaw": -50,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 92.43
+      }
+    },
+    {
+      "name": "large-rotate",
+      "mobile": false,
+      "constructionMs": 269.7,
+      "calls": 121,
+      "triangles": 407268,
+      "cpuP50": 0.8,
+      "cpuP95": 1.2,
+      "frameCpuP50": 1.6,
+      "frameCpuP95": 2.2,
+      "intervalP50": 16.7,
+      "intervalP95": 17.1,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 1200,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 78.96
+      }
+    },
+    {
+      "name": "forest",
+      "mobile": false,
+      "constructionMs": 433.1,
+      "calls": 119,
+      "triangles": 771554,
+      "cpuP50": 0.8,
+      "cpuP95": 1.1,
+      "frameCpuP50": 1.6,
+      "frameCpuP95": 2.1,
+      "intervalP50": 16.7,
+      "intervalP95": 17.1,
+      "fps": 59.93,
+      "memory": {
+        "geometries": 10,
+        "textures": 21
+      },
+      "instances": 1076,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 75.64
+      }
+    },
+    {
+      "name": "large-full",
+      "mobile": true,
+      "constructionMs": 288.2,
+      "calls": 1207,
+      "triangles": 3131268,
+      "cpuP50": 2.9,
+      "cpuP95": 3.1,
+      "frameCpuP50": 3.6,
+      "frameCpuP95": 3.9,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.96,
+      "memory": {
+        "geometries": 10,
+        "textures": 27
+      },
+      "instances": 1200,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 60,
+        "y": 60,
+        "scale": 1.87
+      }
+    },
+    {
+      "name": "large-close",
+      "mobile": true,
+      "constructionMs": 274.3,
+      "calls": 104,
+      "triangles": 128762,
+      "cpuP50": 0.7,
+      "cpuP95": 0.9,
+      "frameCpuP50": 1.4,
+      "frameCpuP95": 1.9,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.94,
+      "memory": {
+        "geometries": 10,
+        "textures": 27
+      },
+      "instances": 1200,
+      "camera": {
+        "tilt": 44,
+        "yaw": 9.4,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 41.06
+      }
+    },
+    {
+      "name": "large-rotate",
+      "mobile": true,
+      "constructionMs": 265.5,
+      "calls": 101,
+      "triangles": 217952,
+      "cpuP50": 0.7,
+      "cpuP95": 0.8,
+      "frameCpuP50": 1.5,
+      "frameCpuP95": 1.7,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 27
+      },
+      "instances": 1200,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 35.08
+      }
+    },
+    {
+      "name": "forest",
+      "mobile": true,
+      "constructionMs": 468.8,
+      "calls": 91,
+      "triangles": 670898,
+      "cpuP50": 0.6,
+      "cpuP95": 0.8,
+      "frameCpuP50": 1.4,
+      "frameCpuP95": 1.7,
+      "intervalP50": 16.7,
+      "intervalP95": 17,
+      "fps": 59.95,
+      "memory": {
+        "geometries": 10,
+        "textures": 27
+      },
+      "instances": 1076,
+      "camera": {
+        "tilt": 44,
+        "yaw": 68.8,
+        "projection": "perspective",
+        "projectionMix": 1,
+        "fov": 45,
+        "allowGutters": true,
+        "visualHeight": 1.6,
+        "visualOverhang": 0.36,
+        "x": 30,
+        "y": 30,
+        "scale": 43.38
+      }
+    }
+  ],
+  "lifecycle": {
+    "before": {
+      "resources": [
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        }
+      ],
+      "errors": [],
+      "warnings": [],
+      "failed": [],
+      "pick": {
+        "cell": {
+          "x": 2,
+          "y": 2
+        },
+        "unitId": "hero"
+      },
+      "device": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1050 Ti (0x00001C82) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "dpr": 1
+      }
+    },
+    "after": {
+      "resources": [
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        },
+        {
+          "geometries": 13,
+          "textures": 29
+        }
+      ],
+      "errors": [],
+      "warnings": [],
+      "failed": [],
+      "pick": {
+        "cell": {
+          "x": 2,
+          "y": 2
+        },
+        "unitId": "hero"
+      },
+      "device": {
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1050 Ti (0x00001C82) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "dpr": 1
+      }
+    },
+    "observation": "Six alternating small/large replacements stabilize at 13 geometries and 29 textures. Shared resources remain cached; each obsolete instance buffer is disposed. Unit tests verify session and viewport disposal."
+  },
+  "verification": {
+    "viewportTests": 161,
+    "clientAndDispatcherTests": 1014,
+    "clientNote": "Full suite passed before the final additional bounds test; final 161-test viewport suite also passes.",
+    "engineTests": 2679,
+    "webDotnet": {
+      "passed": 719,
+      "failed": 12,
+      "reason": "Unchanged ScenarioContentReferenceTests: Equipment 'knightly-boots': Providers contain conflicting identities. Reproduced with class filter (12 failed, 4 passed)."
+    },
+    "build": "Succeeded with existing NU1900 package-vulnerability-feed warning.",
+    "browser": "No page/console/WebGL errors or failed requests. Picking assertion and stable replacement counts pass. Exact camera/fixture comparison passes.",
+    "dispatcher": "Lighting on/off, Miniatures and rotation plan passed (inspection-yTEugM); partial-FoW rotation/overhead passed (inspection-jXWovD); round/movement/refresh passed (inspection-JR0IHQ) after adapting navigation and removing obsolete End Turn click (already completed automatically). Refresh canceled the old SSE /updates stream (ERR_ABORTED), as expected; no console errors.",
+    "visual": "Desktop/mobile perspective, orthographic, distant/close, rotation, forest, roads/props, fog, local lights, cardboard/miniature and selection captures compared. No material visual differences; minor distant shading/rasterization differences quantified separately.",
+    "pixels": [
+      {
+        "name": "desktop-fog.png",
+        "changedPixels": 150,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 5,
+        "meanChannelDifference": 0.00010046296296296296
+      },
+      {
+        "name": "desktop-forest.png",
+        "changedPixels": 277,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 8,
+        "meanChannelDifference": 0.0001601851851851852
+      },
+      {
+        "name": "desktop-large-close.png",
+        "changedPixels": 48,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 4,
+        "meanChannelDifference": 0.00003888888888888889
+      },
+      {
+        "name": "desktop-large-full.png",
+        "changedPixels": 12249,
+        "pixelsOver10": 225,
+        "maxChannelDifference": 16,
+        "meanChannelDifference": 0.017896759259259258
+      },
+      {
+        "name": "desktop-large-rotate.png",
+        "changedPixels": 27,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 3,
+        "meanChannelDifference": 0.000013657407407407408
+      },
+      {
+        "name": "desktop-medium.png",
+        "changedPixels": 8,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 2,
+        "meanChannelDifference": 0.0000037037037037037037
+      },
+      {
+        "name": "desktop-orthographic.png",
+        "changedPixels": 14,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 1,
+        "meanChannelDifference": 0.000004166666666666667
+      },
+      {
+        "name": "desktop-populated.png",
+        "changedPixels": 1,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 1,
+        "meanChannelDifference": 4.6296296296296297e-7
+      },
+      {
+        "name": "desktop-small.png",
+        "changedPixels": 0,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0
+      },
+      {
+        "name": "mobile-fog.png",
+        "changedPixels": 0,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0
+      },
+      {
+        "name": "mobile-forest.png",
+        "changedPixels": 24,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 4,
+        "meanChannelDifference": 0.00007190019038360271
+      },
+      {
+        "name": "mobile-large-close.png",
+        "changedPixels": 0,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0
+      },
+      {
+        "name": "mobile-large-full.png",
+        "changedPixels": 5099,
+        "pixelsOver10": 33,
+        "maxChannelDifference": 13,
+        "meanChannelDifference": 0.030201117997326526
+      },
+      {
+        "name": "mobile-large-rotate.png",
+        "changedPixels": 2,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 1,
+        "meanChannelDifference": 0.0000020253574755944423
+      },
+      {
+        "name": "mobile-medium.png",
+        "changedPixels": 3,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 1,
+        "meanChannelDifference": 0.0000060760724267833275
+      },
+      {
+        "name": "mobile-miniatures.png",
+        "changedPixels": 0,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0
+      },
+      {
+        "name": "mobile-orthographic.png",
+        "changedPixels": 0,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0
+      },
+      {
+        "name": "mobile-populated.png",
+        "changedPixels": 2,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 1,
+        "meanChannelDifference": 0.0000020253574755944423
+      },
+      {
+        "name": "mobile-selection.png",
+        "changedPixels": 6,
+        "pixelsOver10": 1,
+        "maxChannelDifference": 11,
+        "meanChannelDifference": 0.00005164661562765828
+      },
+      {
+        "name": "mobile-small.png",
+        "changedPixels": 0,
+        "pixelsOver10": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0
+      }
+    ]
+  },
+  "limitations": [
+    "No actual mobile-device or GPU-execution timing. Display refresh caps throughput, so lower submitted geometry does not establish a faster GPU frame.",
+    "Medium 60x60 close view has little triangle reduction with 32x32 chunks; CPU cost rises slightly.",
+    "Large scenes still reconstruct and serialize static transforms during reconciliation (~260-430ms in these runs). Profile that CPU work before further optimization."
+  ]
+}
