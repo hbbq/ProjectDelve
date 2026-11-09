@@ -347,17 +347,19 @@ export function createTabletopVisuals({material,physicalMaterial=(color,vertexCo
     if(!geometries[key]){
       geometries[key]=new THREE.LatheGeometry([
         new THREE.Vector2(Math.max(0,r-.012),0),new THREE.Vector2(r,.012),
-        new THREE.Vector2(r,.04),new THREE.Vector2(top,.06)
+        new THREE.Vector2(r,.04)
       ],32);
       bakeFaceTones(geometries[key]);
       const ring=new THREE.RingGeometry(top/r,1,32),positions=ring.getAttribute('position');
-      // plane() rotates local Z into world Y: outer edge meets the shoulder.
-      for(let i=0;i<positions.count;i++)positions.setZ(i,Math.hypot(positions.getX(i),positions.getY(i))>.999?-.021:0);
+      // The Side rim owns the shoulder, joining the side wall and top cap.
+      // Do not put a neutral shoulder beneath it: even a .001 gap z-fights.
+      // plane() rotates local Z into world Y.
+      for(let i=0;i<positions.count;i++)positions.setZ(i,Math.hypot(positions.getX(i),positions.getY(i))>.999?-.02:0);
       ring.computeVertexNormals();geometries[rimKey]=ring;
     }
     mesh(group,geometries[key],'#494642',0,0,0,1,1,1);
     group.add(plane(physicalMaterial('#494642',false),0,0,top,top,.06,0,geometries.miniatureCap));
-    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.061,0,geometries[rimKey]));
+    group.add(plane(material(`hsl(${sideHue(a.sideId)},70%,65%)`),0,0,r,r,.06,0,geometries[rimKey]));
     return group;
   }
   return {unit,posture,board,terrain,component,edge,machine,item,loot,miniatureBase};

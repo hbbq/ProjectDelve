@@ -52,7 +52,7 @@ test('beveled bases share geometry and retain their envelope, lit neutral top an
   const physical=createTabletopVisuals({material,physicalMaterial,plane,geometries});
   for(const [width,depth,r]of [[1,1,.25],[2,2,.72],[2,1,.44]]){
     const a={sideId:'blue',cellSpan:width,footprintWidth:width,footprintDepth:depth,baseRadius:r},base=physical.miniatureBase(a),other=physical.miniatureBase(a);
-    const box=new T.Box3().setFromObject(base);assert.ok(Math.abs(box.min.y)<1e-7);assert.ok(Math.abs(box.max.y-.061)<1e-7);
+    const box=new T.Box3().setFromObject(base);assert.ok(Math.abs(box.min.y)<1e-7);assert.ok(Math.abs(box.max.y-.06)<1e-7);
     assert.ok(Math.abs(box.max.x-r)<1e-6);assert.ok(box.max.x<=width*.45&&box.max.z<=depth*.45);
     assert.equal(base.children.length,3);
     for(let i=0;i<3;i++)assert.equal(base.children[i].geometry,other.children[i].geometry);
@@ -68,7 +68,17 @@ test('beveled bases share geometry and retain their envelope, lit neutral top an
     const points=ring.geometry.getAttribute('position');
     for(let i=0;i<points.count;i++){
       const point=new T.Vector3().fromBufferAttribute(points,i).applyMatrix4(ring.matrixWorld),radius=Math.hypot(point.x,point.z);
-      assert.ok(Math.abs(point.y-(Math.abs(radius-r)<1e-7?.04:.061))<1e-7,'Side rim meets shoulder and top');
+      assert.ok(Math.abs(point.y-(Math.abs(radius-r)<1e-7?.04:.06))<1e-7,'Side rim meets shoulder and top');
+    }
+    // Every point on the colored shoulder must have one surface, not a nearly
+    // coplanar dark shoulder underneath it that competes in the depth buffer.
+    base.updateMatrixWorld(true);
+    for(let segment=0;segment<32;segment++)for(const fraction of [.2,.5,.8]){
+      const angle=(segment+.37)*Math.PI*2/32,radius=r-.025*fraction;
+      const ray=new T.Raycaster(new T.Vector3(Math.cos(angle)*radius,1,Math.sin(angle)*radius),new T.Vector3(0,-1,0));
+      const hits=ray.intersectObject(base,true);
+      assert.equal(hits.length,1,'one exposed surface across the Side rim');
+      assert.equal(hits[0].object,ring);
     }
   }
   // Cached radii are owned by the same viewport geometry registry and released once.
