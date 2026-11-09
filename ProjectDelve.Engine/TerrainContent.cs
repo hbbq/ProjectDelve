@@ -11,6 +11,8 @@ public sealed record TerrainPresentation([property: JsonRequired] string Recipe)
 public sealed record TerrainDefinition([property: JsonRequired] string Id, [property: JsonRequired] string Name,
     [property: JsonRequired] bool Passable, [property: JsonRequired] bool BlocksLos)
 {
+    // Existing authored blockers remain opaque unless vision is explicitly different.
+    public bool BlocksVision { get; init; } = BlocksLos;
     public ImmutableArray<string> Categories { get; init; } = [];
     public bool AllowsResourceMarkers { get; init; } = true;
     public TerrainPresentation Presentation { get; init; } = new("generic");
@@ -127,7 +129,7 @@ public static class TerrainCatalog
                 throw new ArgumentException("Only the corresponding canonical Terrain may use a legacy production event identity.");
             if (againstCanonical && All.SingleOrDefault(c => c.Id == d.Id) is { } canonical &&
                 (d.LegacyKind != canonical.LegacyKind || d.Passable != canonical.Passable ||
-                 d.BlocksLos != canonical.BlocksLos || d.AllowsResourceMarkers != canonical.AllowsResourceMarkers ||
+                 d.BlocksLos != canonical.BlocksLos || d.BlocksVision != canonical.BlocksVision || d.AllowsResourceMarkers != canonical.AllowsResourceMarkers ||
                  d.Production != canonical.Production || d.LegacyProductionIdentity != canonical.LegacyProductionIdentity ||
                  !d.Categories.SequenceEqual(canonical.Categories)))
                 throw new ArgumentException("Canonical Terrain gameplay definitions cannot be replaced.");
@@ -139,7 +141,7 @@ public static class TerrainCatalog
 
     private static bool EquivalentSurface(TerrainDefinition a, TerrainDefinition b) =>
         a.Assembly is null && b.Assembly is null && a.Id == b.Id && a.Name == b.Name && a.Passable == b.Passable &&
-        a.BlocksLos == b.BlocksLos && a.AllowsResourceMarkers == b.AllowsResourceMarkers &&
+        a.BlocksLos == b.BlocksLos && a.BlocksVision == b.BlocksVision && a.AllowsResourceMarkers == b.AllowsResourceMarkers &&
         a.Categories.SequenceEqual(b.Categories) && a.Production == b.Production && a.Presentation == b.Presentation &&
         a.LegacyKind == b.LegacyKind && a.LegacyProductionIdentity == b.LegacyProductionIdentity;
 

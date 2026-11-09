@@ -65,7 +65,7 @@ public sealed class TerrainContentTests
         board.Terrain.RemoveAt(1);
         board.Edges.Add(new(new(0, 0), new(0, 1), EdgeKind.ClosedDoor));
         Assert.False(AttackRules.HasGeometricLineOfSight(board, new(0, 0), new(1, 1)));
-        Assert.True(AttackRules.HasGeometricLineOfSight(board, new(0, 0), new(1, 1), phaseVision: true));
+        Assert.True(AttackRules.HasGeometricVision(board, new(0, 0), new(1, 1), ignoreObstacles: true));
         board.Edges[0] = board.Edges[0] with { Kind = EdgeKind.OpenDoor };
         Assert.True(AttackRules.HasGeometricLineOfSight(board, new(0, 0), new(1, 1)));
     }

@@ -14,6 +14,33 @@ public sealed class WorldQuickPlayTests
     };
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, ContentPackageJson.CreateOptions());
 
+    [Theory]
+    [InlineData(1UL)]
+    public void GeneratedForestQuickPlayExploresFullFriendlySightDiamondsThroughTrees(ulong seed)
+    {
+        var generated = WorldGenerator.Generate(new WorldGenerationRecipe(new(Width: 30, Height: 24),
+            new(ForestCoverage: 45, WaterCoverage: 0, RockCoverage: 0), seed,
+            Enrichment: new(Enabled: false)), Canonical);
+        var prepared = WorldQuickPlay.Prepare(generated.Definition, Canonical);
+        var state = GameEngine.CreateGame(prepared, Canonical);
+        var board = state.Physical.Board;
+        Assert.Contains(board.Terrain, t => board.TerrainDefinition(t).Id == "tree");
+        var sources = state.Units.Where(u => u.SideId == HeroesVsMonsters.Heroes)
+            .SelectMany(u => FootprintGeometry.OccupiedCells(state, u.Id)).ToArray();
+        var expected = Enumerable.Range(0, board.Height).SelectMany(y => Enumerable.Range(0, board.Width)
+            .Select(x => new Cell(x, y))).Where(c => sources.Any(s => Math.Abs(c.X - s.X) + Math.Abs(c.Y - s.Y) <= 5)).ToHashSet();
+        Assert.True(expected.SetEquals(state.ExploredCells[HeroesVsMonsters.Heroes]));
+        // Ensure these generated cases actually exercise a Tree between a source and a revealed Cell.
+        Assert.Contains(sources, s => expected.Any(c => (c.X == s.X || c.Y == s.Y) && board.Terrain.Any(t =>
+            board.TerrainDefinition(t).Id == "tree" &&
+            (c.X == s.X && t.Position.X == s.X && t.Position.Y > Math.Min(c.Y, s.Y) && t.Position.Y < Math.Max(c.Y, s.Y) ||
+             c.Y == s.Y && t.Position.Y == s.Y && t.Position.X > Math.Min(c.X, s.X) && t.Position.X < Math.Max(c.X, s.X)))));
+        var restored = JsonSerializer.Deserialize<GameState>(JsonSerializer.Serialize(state))!;
+        FogOfWar.Refresh(restored);
+        Assert.True(expected.SetEquals(restored.ExploredCells[HeroesVsMonsters.Heroes]));
+        Assert.Equal(Json(prepared), Json(WorldQuickPlay.Prepare(generated.Definition, Canonical)));
+    }
+
     [Fact]
     public void DeterministicCanonicalHumanPartyUsesEngineFogAndExplicitNonWinningObjectives()
     {

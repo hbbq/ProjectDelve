@@ -46,22 +46,22 @@ public sealed class ClosedCornerLosTests
     [InlineData("rock", true, true)]
     [InlineData("wall-end", true, true)]
     [InlineData("two-rocks", false, false)]
-    [InlineData("two-trees", false, false)]
-    [InlineData("rock-opposite-wall", false, true)]
+    [InlineData("two-trees", false, true)]
+    [InlineData("rock-opposite-wall", false, false)]
     [InlineData("rock-same-wall", true, true)]
-    [InlineData("two-opposite-walls", false, true)]
+    [InlineData("two-opposite-walls", false, false)]
     [InlineData("two-same-walls", true, true)]
     [InlineData("open-door", true, true)]
-    [InlineData("closed-door", false, true)]
+    [InlineData("closed-door", false, false)]
     [InlineData("window", true, true)]
     [InlineData("machine", true, true)]
     [InlineData("two-machines", false, false)]
-    [InlineData("machine-tree", false, false)]
-    [InlineData("machine-wall", false, true)]
+    [InlineData("machine-tree", false, true)]
+    [InlineData("machine-wall", false, false)]
     [InlineData("machine-same-wall", true, true)]
     [InlineData("water", true, true)]
     [InlineData("tables", true, true)]
-    public void PassageClosureUsesLosPropertiesWithRotationsReflectionsReversalAndSkewRays(string geometry, bool normal, bool phase)
+    public void PassageClosureUsesQueryObstaclePropertiesWithRotationsReflectionsReversalAndSkewRays(string geometry, bool normal, bool vision)
     {
         var original = Corner(geometry);
         for (var rotation = 0; rotation < 4; rotation++)
@@ -83,7 +83,8 @@ public sealed class ClosedCornerLosTests
             {
                 var from = Transform(reverse ? end : start); var to = Transform(reverse ? start : end);
                 Assert.Equal(normal, AttackRules.HasGeometricLineOfSight(board, from, to));
-                Assert.Equal(phase, AttackRules.HasGeometricLineOfSight(board, from, to, phaseVision: true));
+                Assert.Equal(vision, AttackRules.HasGeometricVision(board, from, to));
+                Assert.True(AttackRules.HasGeometricVision(board, from, to, ignoreObstacles: true));
             }
         }
     }
@@ -116,13 +117,13 @@ public sealed class ClosedCornerLosTests
     {
         var board = Corner("rock");
         if (machine) board.Machines.Add(new("destination", Target, MachineTypes.DiamondPress));
-        else board.Terrain.Add(new(Target, TerrainKind.Tree));
+        else board.Terrain.Add(new(Target, TerrainKind.SolidRock));
         Assert.False(AttackRules.HasGeometricLineOfSight(board, Source, Target));
-        Assert.True(AttackRules.HasGeometricLineOfSight(board, Source, Target, ignoredTerrainCell: Target, discoverDestination: true));
-        Assert.False(AttackRules.HasGeometricLineOfSight(board, Source, new(5, 5), ignoredTerrainCell: new(5, 5), discoverDestination: true));
+        Assert.True(AttackRules.HasGeometricVision(board, Source, Target));
+        Assert.False(AttackRules.HasGeometricVision(board, Source, new(5, 5)));
         board.Edges.Add(new(Source, SouthWest, EdgeKind.Wall));
-        Assert.False(AttackRules.HasGeometricLineOfSight(board, Source, Target, ignoredTerrainCell: Target, discoverDestination: true));
-        Assert.True(AttackRules.HasGeometricLineOfSight(board, Source, Target, ignoredTerrainCell: Target, discoverDestination: true, phaseVision: true));
+        Assert.False(AttackRules.HasGeometricVision(board, Source, Target));
+        Assert.True(AttackRules.HasGeometricVision(board, Source, Target, ignoreObstacles: true));
     }
 
     [Fact]

@@ -394,29 +394,30 @@ There are no meaningful positions between cells.
 
 Every grid cell contains exactly one terrain tile.
 
-Each terrain type defines two independent base properties:
+Each terrain type defines three independent base properties:
 
 - **Passable** — whether a Unit may move through or into the cell, before Unit occupancy and other rules are considered.
 - **Blocks LOS** — whether the cell blocks Line of Sight.
+- **Blocks Vision** — whether the cell blocks ordinary Fog of War vision and exploration.
 
 Passability describes the terrain itself. Unit occupancy is a separate rule: a passable cell can still be unavailable as a movement destination because another Unit occupies it, and Units may affect whether it can be traversed.
 
 The initial terrain types are:
 
-| Terrain | Passable | Blocks LOS |
-| --- | --- | --- |
-| Grass | yes | no |
-| Asphalt | yes | no |
-| Tree | no | yes |
-| Solid Rock | no | yes |
-| Fruit Tree | no | yes |
-| Water | no | no |
-| Lava | no | no |
-| Gravel | yes | no |
-| Stone floor | yes | no |
-| Stone floor with table | no | no |
+| Terrain | Passable | Blocks LOS | Blocks Vision |
+| --- | --- | --- | --- |
+| Grass | yes | no | no |
+| Asphalt | yes | no | no |
+| Tree | no | yes | no |
+| Solid Rock | no | yes | yes |
+| Fruit Tree | no | yes | no |
+| Water | no | no | no |
+| Lava | no | no | no |
+| Gravel | yes | no | no |
+| Stone floor | yes | no | no |
+| Stone floor with table | no | no | no |
 
-**Solid Rock** is a distinct Terrain type with the same gameplay properties and interactions as Tree: Passable = no, Blocks LOS = yes. It has no special effect of its own. Movement, placement, Phase traversal, ordinary attack LOS, and Fog of War vision treat Solid Rock exactly as Tree. It has its own terrain identity and presentation; dedicated artwork may be added separately. No new digging, destruction, or other gameplay mechanic is introduced.
+**Solid Rock** is a distinct Terrain type: Passable = no, Blocks LOS = yes, Blocks Vision = yes. Movement, placement, Phase traversal and ordinary attack LOS treat Solid Rock exactly as Tree. Ordinary Fog of War vision is blocked by Solid Rock and passes through Tree; Phase vision ignores both within normal sight range. Solid Rock has its own terrain identity and presentation. No new digging, destruction, or other gameplay mechanic is introduced.
 
 **Asphalt** is ordinary, non-directional Terrain with **Passable = yes** and **Blocks LOS = no**, and no intrinsic special effects. Any future restriction to Asphalt-only traversal belongs to the Unit's movement capability, not to Asphalt itself.
 
@@ -1874,7 +1875,7 @@ Because LOS runs between cell centers, it cannot run along a grid edge. It can, 
 
 When LOS passes exactly through a grid corner, consider the two flank Cells beside the straight line, excluding the Cell the ray arrives from and the Cell it enters. Each flank defines one possible corner passage. A passage is closed when its flank Cell contains LOS-blocking terrain or a LOS-blocking fixed object, or when an LOS-blocking Edge separates that flank Cell from either the arriving Cell or the entered Cell. LOS is blocked at that corner only when **both passages are closed**. If at least one passage is open, LOS passes through the corner. Evaluate each crossed corner independently, including where a Wall or Door ends exactly at the corner. Two blocking features on the same flank do not close the opposite passage.
 
-Merely touching the corner of a single LOS-blocking Cell or the endpoint of a single LOS-blocking Edge does not by itself block LOS when the other corner passage is open. A ray entering a blocking Cell's interior remains blocked by the ordinary terrain/fixed-object rule. Corner passages use LOS-blocking properties, not movement passability, and do not bend the straight sightline. Apply established query-specific exceptions (including FoW blocking-destination discovery, Phase vision's ignored Walls/Doors, and other explicit source/target exemptions) before evaluating whether a passage is closed. Unit figures retain their established interior-only LOS-blocking rules and are not treated as flank terrain or fixed objects. This clarification does not change movement or Phase traversal.
+Merely touching the corner of a single LOS-blocking Cell or the endpoint of a single LOS-blocking Edge does not by itself block LOS when the other corner passage is open. A ray entering a blocking Cell's interior remains blocked by the ordinary terrain/fixed-object rule. Corner passages use LOS-blocking properties, not movement passability, and do not bend the straight sightline. Apply established query-specific exceptions (including FoW vision-blocking properties and blocking-destination discovery, Phase vision's ignored obstacles, and other explicit source/target exemptions) before evaluating whether a passage is closed. Unit figures retain their established interior-only LOS-blocking rules and are not treated as flank terrain or fixed objects. This clarification does not change movement or Phase traversal.
 
 Friendly Units do not block LOS.
 
@@ -2039,7 +2040,11 @@ Preview is explicitly omniscient authoring; direct play from a prefix or complet
 
 Fog of War is an optional scenario setting per Side (`fogOfWarSides`). It is **Digital only*** under the existing digital-only exception: permanent exploration is persistent digital game state without a required physical representation. Ordinary physical content and scenarios without Fog of War retain their existing rules. V1 has only permanent exploration; no additional modes are established.
 
-Each in-play Unit of an enabled Side, including Lying Units, contributes vision from every occupied Cell of its footprint. Sight range is a constant 5 Cells for all Units, measured by Manhattan distance, independent of RNG and temporary attack modifiers. There is no separate Sight stat or per-Unit vision override. Vision uses existing geometric LOS and corner rules, with only terrain and edges blocking it; Units do not block vision. The blocking destination Cell can itself be discovered. Phase Units see through Walls and Doors, while other sight-blocking terrain still applies. Phase does not change ordinary attack LOS.
+Each in-play Unit of an enabled Side, including Lying Units, contributes vision from every occupied Cell of its footprint. Sight range is a constant 5 Cells for all Units, measured by Manhattan distance, independent of RNG and temporary attack modifiers. There is no separate Sight stat or per-Unit vision override. Vision uses the existing Cell-center geometry and corner passages with vision-blocking properties; Units do not block vision. The blocking destination Cell can itself be discovered.
+
+**BlocksLoS** describes attack Line of Sight obstruction; **BlocksVision** describes ordinary Fog of War vision and exploration obstruction. Floor blocks neither. Tree and Fruit Tree block attack LOS but do not block vision: ordinary vision reveals their Cells and continues beyond them within sight range. Solid Rock, other existing solid LOS-blocking objects (including Machines), Walls and Closed Doors block both. Open Doors block neither. These properties belong to terrain Types or shared obstacle rules, not individual Cell settings. At corners, use the corresponding blocking property with the established straight-ray passage rule. Seeing a Unit through Trees does not make an otherwise illegal Attack legal.
+
+Phase vision ignores all terrain, fixed objects, Walls and Doors, while retaining the normal sight range. Vision obstacle handling is independent of movement permissions; Phase movement and attack rules remain unchanged. This separation permits a future vision-only exception without granting Phase movement; no X-Ray Vision trait is established here.
 
 Initial exploration is calculated after the complete scenario has been instantiated. Exploration updates when authoritative changes affect vision, including movement, repositioning, swaps, creation/removal, capabilities, Doors, Edges and terrain. Once explored, a Cell remains explored for the entire game and always displays its current contents. Normal atomic Moves accumulate swept sight from actual canonical transit positions; leaps and other movement without ordinary traversed Cells reveal no invented intermediate positions. Movement remains atomic and creates no intermediate decisions.
 

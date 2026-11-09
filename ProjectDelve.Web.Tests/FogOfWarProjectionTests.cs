@@ -24,6 +24,74 @@ public sealed class FogOfWarProjectionTests
         public DefenceFace RollDefenceDie() => DefenceFace.Miss;
         public int RollD6() => 6;
     }
+    private sealed class Pick(string key) : IDecisionProvider
+    { public string Choose(DecisionRequest request, IGameplayQueries queries) => key; }
+
+    [Fact]
+    public void TreesRevealUnitsWithoutGrantingAttacksAndHistoryUsesEventTimeExploration()
+    {
+        var definition = Scenario.Define(Scenario.Map(12, 1, cells:
+            [Scenario.Tile(1, 0, TerrainKind.Tree), Scenario.Tile(2, 0, TerrainKind.Tree)]),
+            [Scenario.Group(UnitTypeIds.Wizard, "explorers", ControllerKind.Human, Scenario.At(0, 0, unitId: "wizard")),
+             Scenario.Group(UnitTypeIds.Grunt, "dungeon", ControllerKind.Automated,
+                 Scenario.At(3, 0, unitId: "seen"), Scenario.At(10, 0, unitId: "hidden"))]) with
+            { FogOfWarSides = ["explorers"] };
+        var state = GameEngine.CreateGame(definition);
+        var view = BrowserProjection.Create(new(state, [], null));
+        Assert.Contains("seen", view.Cards.Keys);
+        Assert.DoesNotContain("hidden", view.Cards.Keys);
+        Assert.DoesNotContain(new Cell(5, 0), view.UnknownCells);
+        Assert.Contains(new Cell(6, 0), view.UnknownCells);
+        state.Round = 1; state.CurrentUnitId = "wizard"; state.MoveDone = true;
+        state.ActiveToken = new(UnitTypeIds.Wizard, "explorers");
+        state.Pending = new(DecisionKind.Activation, UnitTypeIds.Wizard, "wizard", [], false) { Token = state.ActiveToken };
+        var choices = GameEngine.RefreshChoices(state, new Random(), false);
+        Assert.DoesNotContain(choices.NextInput!.Candidates, c => c.Key == "attack:seen");
+        var continued = GameEngine.Advance(Copy(choices.State), new Pick("end-turn"), new Random(), false);
+        var uninterrupted = GameEngine.Advance(choices.State, new Pick("end-turn"), new Random(), false);
+        Assert.Equal(JsonSerializer.Serialize(uninterrupted), JsonSerializer.Serialize(continued));
+
+        var before = Copy(state);
+        before.Physical.Board.Terrain[0] = new(new(1, 0), TerrainKind.SolidRock);
+        before.ExploredCells.Clear(); FogOfWar.Refresh(before);
+        var occurrence = new RulesEvent("ActivationStarted", "seen");
+        var history = new EngineResult(state, [occurrence, occurrence], null)
+            { ResolutionSteps = [new(0, before), new(1, Copy(state))] };
+        var projected = BrowserProjection.Observe(history, "explorers");
+        Assert.Single(projected.Events);
+        Assert.Equal(0, Assert.Single(projected.ResolutionSteps).EventIndex);
+        Assert.Null(FogOfWar.ObserveEvent(state, "explorers", new("ActivationStarted", "hidden")));
+
+        var restored = Copy(state);
+        Move(restored, "wizard", new(11, 0)); FogOfWar.Refresh(restored);
+        // Exploration, rather than a new current-visibility mode, still controls observation.
+        Assert.Contains("seen", BrowserProjection.Create(new(restored, [], null)).Cards.Keys);
+        Assert.True(state.ExploredCells["explorers"].SetEquals(Copy(state).ExploredCells["explorers"]));
+    }
+
+    [Fact]
+    public async Task TreeVisionAndHiddenEventFilteringAreIdenticalOnStreamReplay()
+    {
+        var definition = Scenario.Define(Scenario.Map(12, 1, cells: [Scenario.Tile(1, 0, TerrainKind.Tree)]),
+            [Scenario.Group(UnitTypeIds.Wizard, "explorers", ControllerKind.Human, Scenario.At(0, 0, unitId: "wizard")),
+             Scenario.Group(UnitTypeIds.Grunt, "dungeon", ControllerKind.Human,
+                 Scenario.At(3, 0, unitId: "seen"), Scenario.At(10, 0, unitId: "hidden"))]) with
+            { FogOfWarSides = ["explorers"] };
+        using var game = new PlaytestGame(new Random(), GameEngine.CreateGame(definition));
+        using var live = game.Subscribe(null);
+        var baseline = await live.Reader.ReadAsync();
+        var started = game.StartRound(0);
+        Assert.Contains("seen", game.BrowserResponse(started).Presentation.Cards.Keys);
+        Assert.DoesNotContain("hidden", game.BrowserResponse(started).Presentation.Cards.Keys);
+        var updates = new List<GameUpdate>();
+        while (live.Reader.TryRead(out var update)) updates.Add(game.BrowserUpdate(update));
+        Assert.NotEmpty(updates);
+        using var replay = game.Subscribe($"{baseline.SessionId}:0");
+        var replayed = new List<GameUpdate>();
+        while (replay.Reader.TryRead(out var update)) replayed.Add(game.BrowserUpdate(update));
+        Assert.Equal(JsonSerializer.Serialize(updates), JsonSerializer.Serialize(replayed));
+        Assert.DoesNotContain(updates.SelectMany(u => u.Snapshot.Result.Events), e => e.UnitId == "hidden");
+    }
 
     [Fact]
     public void ObservationHidesUnknownContentsAndInteriorEdgesAndKeepsDimensions()
@@ -283,7 +351,7 @@ public sealed class FogOfWarProjectionTests
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
         Move(state, "guard", new(4, 3));
-        state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.Tree));
+        state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.SolidRock));
         var aura = new UnitType("hidden-aura", 1, 0, 0, 0, 1) { LocalAbilities = [
             new("defence", "Hidden Defence", AbilityTiming.Passive, new AdjacentUnitsStatModifiersMechanic(RelationshipSelector.Friendlies, [new(Stat.Def, 2)]))] };
         state.Types.Add(aura); state.Units.Add(aura.CreateUnit("aura", "dungeon"));

@@ -281,8 +281,7 @@ public static class FogOfWar
         {
             var to = new Cell(x, y);
             if (Math.Abs(x - from.X) + Math.Abs(y - from.Y) <= range &&
-                AttackRules.HasGeometricLineOfSight(board, from, to, ignoredTerrainCell: to,
-                    phaseVision: phase, discoverDestination: true)) explored.Add(to);
+                AttackRules.HasGeometricVision(board, from, to, ignoreObstacles: phase)) explored.Add(to);
         }
     }
 

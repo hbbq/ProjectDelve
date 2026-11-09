@@ -61,18 +61,18 @@ public sealed class WizardCornerTests(ITestOutputHelper output)
     [Theory]
     [InlineData(TerrainKind.SolidRock, false)] [InlineData(TerrainKind.Tree, false)]
     [InlineData(TerrainKind.SolidRock, true)] [InlineData(TerrainKind.Tree, true)]
-    public void MixedCornerClosureBlocksNormallyWhilePhaseIgnoresOnlyTheWall(TerrainKind blocking, bool phase)
+    public void MixedCornerClosureUsesVisionPropertiesWhilePhaseIgnoresAllObstacles(TerrainKind blocking, bool phase)
     {
         var state = GameEngine.CreateGame(Corner(blocking));
         var index = state.Types.FindIndex(t => t.Id == UnitTypeIds.Wizard);
         if (phase) state.Types[index] = state.Types[index].WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
         Relocate(state, "wizard", new(13, 7)); state.ExploredCells.Clear(); FogOfWar.Refresh(state);
-        Assert.Equal(phase, FogOfWar.IsExplored(state, "heroes", new(11, 5)));
+        Assert.Equal(phase || blocking == TerrainKind.Tree, FogOfWar.IsExplored(state, "heroes", new(11, 5)));
         // Six Cells away: outside vision even with Phase and clear LOS.
         Assert.False(FogOfWar.IsExplored(state, "heroes", new(10, 4)));
         foreach (var cell in new Cell[] { new(12, 6), new(12, 5), new(13, 6) })
             Assert.True(FogOfWar.IsExplored(state, "heroes", cell));
-        Assert.False(FogOfWar.IsExplored(state, "heroes", new(11, 4)));
+        Assert.Equal(phase || blocking == TerrainKind.Tree, FogOfWar.IsExplored(state, "heroes", new(11, 4)));
         Assert.False(FogOfWar.IsExplored(state, "heroes", new(11, 3)));
         Assert.False(AttackRules.HasUnitLineOfSight(state, "wizard", "shaman"));
         Assert.False(AttackRules.HasGeometricLineOfSight(state.Physical.Board, new(13, 7), new(11, 3)));
@@ -80,7 +80,7 @@ public sealed class WizardCornerTests(ITestOutputHelper output)
 
     [Theory]
     [InlineData(TerrainKind.SolidRock)] [InlineData(TerrainKind.Tree)]
-    public void TwoDiagonalBlockingCellsCloseSightIncludingPhaseVision(TerrainKind blocking)
+    public void TwoDiagonalBlockersCloseAttackLosWhileVisionUsesItsOwnObstaclePolicy(TerrainKind blocking)
     {
         var state = GameEngine.CreateGame(Corner() with {
             Board = new() { Width = 6, Height = 6, Cells = [new(new(2, 1), blocking), new(new(1, 2), blocking)] },
@@ -89,13 +89,14 @@ public sealed class WizardCornerTests(ITestOutputHelper output)
         Assert.False(AttackRules.HasGeometricLineOfSight(board, new(1, 1), new(2, 2)));
         Assert.False(AttackRules.HasGeometricLineOfSight(board, new(0, 0), new(3, 3)));
         Assert.False(AttackRules.HasGeometricLineOfSight(board, new(0, 1), new(3, 1)));
-        Assert.False(FogOfWar.IsExplored(state, "heroes", new(2, 2)));
-        Assert.False(FogOfWar.IsUnitObservable(state, "heroes", "shaman"));
+        Assert.Equal(blocking == TerrainKind.Tree, FogOfWar.IsExplored(state, "heroes", new(2, 2)));
+        Assert.Equal(blocking == TerrainKind.Tree, FogOfWar.IsUnitObservable(state, "heroes", "shaman"));
         board.Edges.AddRange([new(new(1, 1), new(2, 1), EdgeKind.Wall), new(new(1, 1), new(1, 2), EdgeKind.Wall)]);
         Assert.False(AttackRules.HasGeometricLineOfSight(board, new(1, 1), new(2, 2)));
-        Assert.False(AttackRules.HasGeometricLineOfSight(board, new(1, 1), new(2, 2), phaseVision: true));
+        Assert.False(AttackRules.HasGeometricVision(board, new(1, 1), new(2, 2)));
+        Assert.True(AttackRules.HasGeometricVision(board, new(1, 1), new(2, 2), ignoreObstacles: true));
         board.Terrain.Clear();
-        Assert.True(AttackRules.HasGeometricLineOfSight(board, new(1, 1), new(2, 2), phaseVision: true));
+        Assert.True(AttackRules.HasGeometricVision(board, new(1, 1), new(2, 2), ignoreObstacles: true));
     }
 
     [Fact]

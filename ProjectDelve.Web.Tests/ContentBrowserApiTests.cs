@@ -183,9 +183,10 @@ public sealed class ContentBrowserApiTests
         var assemblyEntry = Entry(catalog, "terrainAssemblies", assembly.Id);
         Assert.Contains(assemblyEntry.References, reference => reference.TargetKey == "fixedComponents:table" && reference.Exists);
         var resolvedFields = assemblyEntry.Sections.Single(section => section.Title == "Resolved Terrain").Fields;
-        Assert.Equal(new[] { "Passable", "Blocks LOS", "Allows Resource Markers", "Categories", "Production", "Production Description", "Presentation" },
+        Assert.Equal(new[] { "Passable", "Blocks LOS", "Blocks Vision", "Allows Resource Markers", "Categories", "Production", "Production Description", "Presentation" },
             resolvedFields.Select(field => field.Label));
         Assert.False(resolvedFields.Single(field => field.Label == "Passable").Value.GetBoolean());
+        Assert.False(resolvedFields.Single(field => field.Label == "Blocks Vision").Value.GetBoolean());
         Assert.Equal("grass", composed.Definition.GetProperty("assembly").GetProperty("surface").GetProperty("id").GetString());
         Assert.Contains(Entry(catalog, "worldDecks", "scenario").References, reference => reference.TargetKey == "worldCards:context-rain" && reference.Exists);
         var rain = Entry(catalog, "worldCards", "context-rain");

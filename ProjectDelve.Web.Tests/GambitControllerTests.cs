@@ -388,6 +388,22 @@ public sealed class GambitControllerTests
     }
 
     [Fact]
+    public void TreeObservationCarriesSeparateVisionAndAttackProperties()
+    {
+        var state = Setup();
+        state.Physical.Board.Terrain.Add(new(new(1, 0), TerrainKind.Tree));
+        state.Physical.Figures[1] = state.Physical.Figures[1] with { Position = new(2, 0) };
+        state.FogOfWarSides = ["amber"]; FogOfWar.Refresh(state);
+        var observation = GambitProjection.Observation(state);
+        var tree = Assert.Single(observation.Board.TerrainTypes!);
+        Assert.Equal("tree", tree.Id);
+        Assert.True(tree.BlocksLos); Assert.False(tree.BlocksVision);
+        var restored = JsonSerializer.Deserialize<GambitObservation>(JsonSerializer.Serialize(observation, GambitJson.Options), GambitJson.Options)!;
+        Assert.False(Assert.Single(restored.Board.TerrainTypes!).BlocksVision);
+        Assert.True(FogOfWar.IsUnitObservable(state, "amber", "two"));
+    }
+
+    [Fact]
     public void ProjectionHidesWorldOrderAndRetainsPublicWorldStateAndEventConsequences()
     {
         var state = Setup();

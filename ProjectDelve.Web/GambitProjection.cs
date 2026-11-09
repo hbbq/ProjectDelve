@@ -44,6 +44,7 @@ public sealed record GambitGlossary(string MOV, string RNG, string ATK, string D
 // Model observations need terrain rules, not artwork recipes or unused canonical definitions.
 public sealed record GambitTerrainDefinition(string Id, string Name, bool Passable, bool BlocksLos)
 {
+    public bool BlocksVision { get; init; } = BlocksLos;
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? Categories { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -256,11 +257,13 @@ internal static class GambitProjection
         var sourceBoard = state.Physical.Board;
         var terrain = BrowserProjection.TerrainForPresentation(sourceBoard);
         var terrainReferences = terrain.Where(t => t.TypeId is not null ||
+            sourceBoard.TerrainDefinition(t).BlocksVision != sourceBoard.TerrainDefinition(t).BlocksLos ||
             !sourceBoard.TerrainDefinition(t).Categories.IsEmpty || sourceBoard.TerrainDefinition(t).Production is not null)
             .Select(t => sourceBoard.TerrainDefinition(t).Id).ToHashSet(StringComparer.Ordinal);
         var terrainTypes = sourceBoard.TerrainTypes.Where(t => terrainReferences.Contains(t.Id))
             .Select(t => new GambitTerrainDefinition(t.Id, t.Name, t.Passable, t.BlocksLos)
             {
+                BlocksVision = t.BlocksVision,
                 Categories = t.Categories.IsEmpty ? null : t.Categories,
                 AllowsResourceMarkers = t.AllowsResourceMarkers ? null : false,
                 ProductionDescription = EnvironmentalProductionContent.Describe(t.Production, state.ResourceDefinitions)

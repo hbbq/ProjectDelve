@@ -248,7 +248,7 @@ public static class ContentBrowserCatalog
             {
                 Sections = [.. entry.Sections, new("Resolved Terrain", Fields(Element(new
                 {
-                    resolved.Passable, resolved.BlocksLos, resolved.AllowsResourceMarkers, resolved.Categories,
+                    resolved.Passable, resolved.BlocksLos, resolved.BlocksVision, resolved.AllowsResourceMarkers, resolved.Categories,
                     resolved.Production, productionDescription = EnvironmentalProductionContent.Describe(resolved.Production, canonical.Resources), resolved.Presentation
                 })))]
             });
@@ -375,7 +375,7 @@ public static class ContentBrowserCatalog
         new("Terrain properties", Fields(Element(new
         {
             structure = type.Assembly is null ? "Atomic" : "Composed",
-            type.Passable, type.BlocksLos, type.AllowsResourceMarkers, type.Categories
+            type.Passable, type.BlocksLos, type.BlocksVision, type.AllowsResourceMarkers, type.Categories
         }))),
         new("Presentation", Fields(Element(type.Presentation))),
         new("Production", Fields(Element(new { type.Production, description = EnvironmentalProductionContent.Describe(type.Production, resources) })))

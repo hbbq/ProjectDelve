@@ -67,7 +67,6 @@ public sealed class FogOfWarTests
     }
 
     [Theory]
-    [InlineData(TerrainKind.Tree)]
     [InlineData(TerrainKind.SolidRock)]
     public void BlockingDestinationDiscoveredButTerrainBehindItIsHidden(TerrainKind terrain)
     {
@@ -83,8 +82,9 @@ public sealed class FogOfWarTests
 
     [Theory]
     [InlineData(TerrainKind.Tree)]
+    [InlineData(TerrainKind.FruitTree)]
     [InlineData(TerrainKind.SolidRock)]
-    public void PhaseVisionIgnoresWallsAndDoorsButNotTreesOrAttackLos(TerrainKind terrain)
+    public void PhaseVisionIgnoresWallsDoorsAndTerrainButRetainsAttackLos(TerrainKind terrain)
     {
         var state = Dungeon();
         state.Types[0] = state.Types[0].WithLocal(new("phase", "Phase", AbilityTiming.Passive, new Phase()));
@@ -92,7 +92,9 @@ public sealed class FogOfWarTests
         Assert.False(AttackRules.HasUnitLineOfSight(state, "hero", new(3, 4), new(8, 4), "guard"));
         state.Physical.Board.Terrain.Add(new(new(4, 4), terrain));
         state.ExploredCells.Clear(); FogOfWar.Refresh(state);
-        Assert.True(Known(state, 4, 4)); Assert.False(Known(state, 8, 4));
+        Assert.True(Known(state, 4, 4)); Assert.True(Known(state, 8, 4));
+        Assert.False(Known(state, 9, 4));
+        Assert.False(AttackRules.HasUnitLineOfSight(state, "hero", new(3, 4), new(8, 4), "guard"));
     }
 
     [Fact]
@@ -244,7 +246,7 @@ public sealed class FogOfWarTests
     [Fact]
     public void FireballPreviewOmitsHiddenRecipientButResolvesFullWorldAfterSerializedContinuation()
     {
-        var definition = Scenario.Define(Scenario.Map(10, 8, cells: [Scenario.Tile(4, 4, TerrainKind.Tree)]),
+        var definition = Scenario.Define(Scenario.Map(10, 8, cells: [Scenario.Tile(4, 4, TerrainKind.SolidRock)]),
             [Scenario.Group(UnitTypeIds.Wizard, "explorers", ControllerKind.Human, Scenario.At(3, 4, unitId: "wizard")),
              Scenario.Group(UnitTypeIds.Grunt, "dungeon", ControllerKind.Automated, Scenario.At(5, 4, unitId: "hidden"))]) with
             { FogOfWarSides = ["explorers"] };
@@ -387,7 +389,7 @@ public sealed class FogOfWarTests
     public void AdvisoryBehaviorPreviewStopsBeforeHypotheticalDiscoveryCanRevealItsNextAttackTarget()
     {
         var state = Dungeon(); state.Physical.Board.Edges.Clear();
-        state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.Tree));
+        state.Physical.Board.Terrain.Add(new(new(4, 4), TerrainKind.SolidRock));
         Relocate(state, "guard", new(5, 4)); state.ExploredCells.Clear(); FogOfWar.Refresh(state);
         Assert.False(FogOfWar.IsUnitObservable(state, "explorers", "guard"));
         Ready(state, "hero"); state.AssignOrder(state.ActiveToken!, OrderKind.MoveTo, new(4, 3));

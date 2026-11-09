@@ -42,6 +42,7 @@ public static class TerrainRoster
             Define("asphalt", "Asphalt", true, false, TerrainKind.Asphalt) with { Categories = [TerrainCategories.RacingGround] },
             Define("fruit-tree", "Fruit Tree", false, true, TerrainKind.FruitTree) with
             {
+                BlocksVision = false,
                 Production = new DirectionalResourceProduction("fruit", 2, SourceLos: ProductionSourceLos.IgnoreProducingCell),
                 LegacyProductionIdentity = LegacyTerrainProductionIdentity.FruitTree
             },

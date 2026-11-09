@@ -227,7 +227,7 @@ public sealed class GrantedActionTests
     public void RenamedItemFireballFiltersHiddenRecipientsAndResumesAuthoritativeTargets()
     {
         var scenario = ProjectDelve.Engine.Scenario.Define(
-            ProjectDelve.Engine.Scenario.Map(10, 8, cells: [ProjectDelve.Engine.Scenario.Tile(4, 4, TerrainKind.Tree)]),
+            ProjectDelve.Engine.Scenario.Map(10, 8, cells: [ProjectDelve.Engine.Scenario.Tile(4, 4, TerrainKind.SolidRock)]),
             [ProjectDelve.Engine.Scenario.Group(UnitTypeIds.Wizard, "explorers", ControllerKind.Human,
                 ProjectDelve.Engine.Scenario.At(3, 4, unitId: "wizard")),
              ProjectDelve.Engine.Scenario.Group(UnitTypeIds.Grunt, "dungeon", ControllerKind.Automated,

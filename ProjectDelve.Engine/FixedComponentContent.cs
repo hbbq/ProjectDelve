@@ -19,6 +19,7 @@ public sealed record FixedComponentDefinition(
     [property: JsonRequired] bool BlocksMovement,
     [property: JsonRequired] bool BlocksLos)
 {
+    public bool BlocksVision { get; init; } = BlocksLos;
     public FixedComponentPresentation Presentation { get; init; } = new("generic");
 }
 
@@ -44,7 +45,8 @@ public static class FixedComponentCatalog
                 !TerrainContentKey.Valid(definition.Presentation.Recipe) || !Enum.IsDefined(definition.Presentation.Layer))
                 throw new ArgumentException("Fixed Components require unique IDs, names and valid presentation recipes and layers.");
             if (againstCanonical && All.SingleOrDefault(c => c.Id == definition.Id) is { } canonical &&
-                (definition.BlocksMovement != canonical.BlocksMovement || definition.BlocksLos != canonical.BlocksLos))
+                (definition.BlocksMovement != canonical.BlocksMovement || definition.BlocksLos != canonical.BlocksLos ||
+                 definition.BlocksVision != canonical.BlocksVision))
                 throw new ArgumentException("Canonical Fixed Component gameplay properties cannot be replaced.");
         }
     }
@@ -102,6 +104,7 @@ internal static class TerrainAssemblyContent
         return new(assembly.Id, assembly.Name, surface.Passable && !resolved.Any(c => c.Definition.BlocksMovement),
             surface.BlocksLos || resolved.Any(c => c.Definition.BlocksLos))
         {
+            BlocksVision = surface.BlocksVision || resolved.Any(c => c.Definition.BlocksVision),
             Categories = surface.Categories,
             AllowsResourceMarkers = surface.AllowsResourceMarkers,
             Production = surface.Production,
@@ -117,6 +120,7 @@ internal static class TerrainAssemblyContent
         ValidatePlacements(assembly.Components);
         if (terrain.Passable != (assembly.Surface.Passable && !assembly.Components.Any(c => c.Definition.BlocksMovement)) ||
             terrain.BlocksLos != (assembly.Surface.BlocksLos || assembly.Components.Any(c => c.Definition.BlocksLos)) ||
+            terrain.BlocksVision != (assembly.Surface.BlocksVision || assembly.Components.Any(c => c.Definition.BlocksVision)) ||
             terrain.AllowsResourceMarkers != assembly.Surface.AllowsResourceMarkers ||
             !terrain.Categories.SequenceEqual(assembly.Surface.Categories) || terrain.Production != assembly.Surface.Production)
             throw new ArgumentException("Resolved Terrain properties must match the declared surface and Fixed Components.");

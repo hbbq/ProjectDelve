@@ -49,7 +49,7 @@ public sealed class FogOfWarRefreshReuseTests
             Assert.True(expected.ExploredCells[side].SetEquals(actual.ExploredCells[side]), $"Exploration differs for {side}.");
     }
 
-    // Frozen implementation of the original full Refresh calculation.
+    // Full recomputation without the cache, using the authoritative vision geometry.
     private static void ReferenceRefresh(GameState state)
     {
         foreach (var side in state.FogOfWarSides)
@@ -72,8 +72,7 @@ public sealed class FogOfWarRefreshReuseTests
         {
             var to = new Cell(x, y);
             if (Math.Abs(x - from.X) + Math.Abs(y - from.Y) <= range &&
-                AttackRules.HasGeometricLineOfSight(board, from, to, ignoredTerrainCell: to,
-                    phaseVision: phase, discoverDestination: true)) explored.Add(to);
+                AttackRules.HasGeometricVision(board, from, to, ignoreObstacles: phase)) explored.Add(to);
         }
     }
 
@@ -155,7 +154,7 @@ public sealed class FogOfWarRefreshReuseTests
         state.FogOfWarSides.Add("explorers");
         var board = state.Physical.Board;
         board.Terrain.Add(new(new(4, 4), TerrainKind.Tree));
-        var defs = board.TerrainTypes.Select(d => d.Id == "tree" ? d with { BlocksLos = false } : d).ToImmutableArray();
+        var defs = board.TerrainTypes.Select(d => d.Id == "tree" ? d with { BlocksVision = true } : d).ToImmutableArray();
         state.Physical = state.Physical with { Board = board with { TerrainTypes = defs } };
         CompareRefresh(state);
     }
