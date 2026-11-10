@@ -134,11 +134,37 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     {
         HypotheticalPosition.Validate(world, unitId, position);
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
-        var distances = ApproachRules.Distances(world.Physical.Board, position,
-            traversal: MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint: footprint);
-        return distances.Where(p => FootprintGeometry.OccupiedCells(footprint, p.Key)
-                .Any(c => RouteRules.Contains(area, c)))
-            .Select(p => (int?)p.Value).Min();
+        var key = (Actor: unitId, Area: area, ClosedDoors: closedDoorsTraversable);
+        if (!patrolFields.TryGetValue(key, out var field))
+        {
+            // Nearby waypoints need only a small forward search. This is a work
+            // budget, never a route-distance cutoff: exhaustion falls back to an
+            // exact field and later candidate queries share that completed work.
+            if (ApproachRules.TryDistanceToArea(world.Physical.Board, position, area, out var nearby,
+                    MovementTraversal.For(world, unitId, closedDoorsTraversable), footprint, expansionBudget: 256))
+                return nearby;
+            field = patrolFields.GetOrAdd(key, static (key, queries) => new(() =>
+            {
+                var board = queries.world.Physical.Board;
+                var footprint = FootprintGeometry.FootprintOf(queries.world, key.Actor);
+                // Seed every overlapping anchor, even if it is unknown or cannot
+                // be entered. Forward searches admit their origin unconditionally;
+                // directed CanStep still prevents entering an invalid goal.
+                IEnumerable<Cell> Goals()
+                {
+                    for (var y = 0; y < board.Height; y++)
+                    for (var x = 0; x < board.Width; x++)
+                    {
+                        var anchor = new Cell(x, y);
+                        if (FootprintGeometry.OccupiedCells(footprint, anchor).Any(c => RouteRules.Contains(key.Area, c)))
+                            yield return anchor;
+                    }
+                }
+                return ApproachRules.DistancesTo(board, Goals(),
+                    MovementTraversal.For(queries.world, key.Actor, key.ClosedDoors), footprint);
+            }), this);
+        }
+        return field.Value.TryGetValue(position, out var distance) ? distance : null;
     }
     private readonly GameState world;
     // Results belong only to this detached decision snapshot. Keep target-specific
@@ -152,6 +178,8 @@ internal sealed partial class GameplayQueries : IGameplayQueries
     // A returning guard scores many legal destinations against one immutable area.
     // Reverse traversal once per decision snapshot, rather than flood once per candidate.
     private readonly ConcurrentDictionary<(string Actor, ObjectiveArea Area, bool ClosedDoors), Lazy<IReadOnlyDictionary<Cell, int>>> areaReturnFields = new();
+    // Patrol's any-overlap goals differ from a guard's whole-footprint return area.
+    private readonly ConcurrentDictionary<(string Actor, ObjectiveArea Area, bool ClosedDoors), Lazy<IReadOnlyDictionary<Cell, int>>> patrolFields = new();
 
     // Keep a detached decision-time snapshot; expose no mutable world data.
     internal GameplayQueries(GameState state) => world = state.Copy();
@@ -264,10 +292,8 @@ internal sealed partial class GameplayQueries : IGameplayQueries
         var footprint = FootprintGeometry.FootprintOf(world, unitId);
         IEnumerable<Cell> AttackPositions()
         {
-            for (var y = 0; y < board.Height; y++)
-            for (var x = 0; x < board.Width; x++)
+            foreach (var position in AttackOriginCandidates(unitId, targetId, targeted))
             {
-                var position = new Cell(x, y);
                 // The general query requires normally occupiable attack positions.
                 // The explicit-target query historically accepts traversal-only
                 // positions (e.g. Phase inside rock). Preserve that distinction.
@@ -357,7 +383,7 @@ internal sealed partial class GameplayQueries : IGameplayQueries
 
     private bool CanAttackFrom(string unitId, Cell position) =>
         attackPositions.GetOrAdd((unitId, position), static (key, queries) =>
-            queries.world.Units.Any(target => queries.CanAttackTargetFrom(key.Actor, key.Position, target.Id)), this);
+            queries.KnownAttackTargets(key.Actor).Any(targetId => queries.CanAttackTargetFrom(key.Actor, key.Position, targetId)), this);
 
     private bool EvaluateAttackTargetFrom(string unitId, Cell position, string targetId)
     {

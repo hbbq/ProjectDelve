@@ -198,6 +198,49 @@ internal static class ApproachRules
         bool closedDoorsTraversable = false, MovementTraversal traversal = default) =>
         Distances(board, from, goal, closedDoorsTraversable, traversal).TryGetValue(goal, out var distance) ? distance : null;
 
+    // Patrol needs only the nearest reachable placement overlapping the area.
+    // Admit the origin exactly as Distances does, then stop at the first goal in
+    // the same forward BFS. Area goals do not get the special Flee endpoint rule.
+    internal static int? DistanceToArea(Board board, Cell from, ObjectiveArea area,
+        MovementTraversal traversal = default, Footprint footprint = Footprint.OneByOne)
+    {
+        TryDistanceToArea(board, from, area, out var distance, traversal, footprint);
+        return distance;
+    }
+
+    // false means only that this computation's work budget was exhausted. It is
+    // never an unreachable result or a path-length limit; callers must finish the
+    // exact calculation through another search. null on true means unreachable.
+    internal static bool TryDistanceToArea(Board board, Cell from, ObjectiveArea area, out int? distance,
+        MovementTraversal traversal = default, Footprint footprint = Footprint.OneByOne, int? expansionBudget = null)
+    {
+        if (!MovementRules.Inside(board, from))
+            throw new ArgumentException("Approach endpoints must be on the board.");
+        if (expansionBudget < 0) throw new ArgumentOutOfRangeException(nameof(expansionBudget));
+        distance = null;
+        bool Overlaps(Cell anchor) => FootprintGeometry.OccupiedCells(footprint, anchor)
+            .Any(c => RouteRules.Contains(area, c));
+        if (Overlaps(from)) { distance = 0; return true; }
+        var distances = new Dictionary<Cell, int> { [from] = 0 };
+        var queue = new Queue<Cell>();
+        queue.Enqueue(from);
+        var expanded = 0;
+        while (queue.TryDequeue(out var current))
+        {
+            if (expanded == expansionBudget) return false;
+            expanded++;
+            foreach (var next in MovementRules.Neighbors(current))
+            {
+                if (distances.ContainsKey(next) || !MovementRules.CanStep(board, footprint, current, next, traversal)) continue;
+                var nextDistance = distances[current] + 1;
+                if (Overlaps(next)) { distance = nextDistance; return true; }
+                distances[next] = nextDistance;
+                queue.Enqueue(next);
+            }
+        }
+        return true;
+    }
+
     internal static IReadOnlyDictionary<Cell, int> Distances(Board board, Cell from, Cell? goal = null,
         bool closedDoorsTraversable = false, MovementTraversal traversal = default,
         Footprint footprint = Footprint.OneByOne)

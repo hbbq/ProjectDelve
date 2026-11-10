@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup Condition="'$(FrozenAssemblyDirectory)' == ''"><ProjectReference Include="../../ProjectDelve.Web/ProjectDelve.Web.csproj" /></ItemGroup>
+  <ItemGroup Condition="'$(FrozenAssemblyDirectory)' != ''">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Reference Include="ProjectDelve.Engine"><HintPath>$(FrozenAssemblyDirectory)/ProjectDelve.Engine.dll</HintPath></Reference>
+    <Reference Include="ProjectDelve.Generation"><HintPath>$(FrozenAssemblyDirectory)/ProjectDelve.Generation.dll</HintPath></Reference>
+    <Reference Include="ProjectDelve.Web"><HintPath>$(FrozenAssemblyDirectory)/ProjectDelve.Web.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>
