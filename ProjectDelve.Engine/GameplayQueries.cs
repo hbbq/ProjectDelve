@@ -5,6 +5,10 @@ namespace ProjectDelve.Engine;
 
 public interface IGameplayQueries
 {
+    string? SummonerOf(string unitId) => throw new NotSupportedException();
+    IReadOnlyList<string> KnownFriendlyUnitIds(string unitId) => throw new NotSupportedException();
+    int? DistanceToFollowPositionFrom(string unitId, Cell position, string targetId, bool closedDoorsTraversable = false) => throw new NotSupportedException();
+    int PotentialDiscoveryAlongPath(string unitId, IReadOnlyList<Cell> path) => throw new NotSupportedException();
     int CountAdjacentFriendliesFrom(string unitId, Cell position) => throw new NotSupportedException();
     int? DistanceToFriendlyPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false) => throw new NotSupportedException();
     int? DistanceToExplorationPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false) => throw new NotSupportedException();
@@ -82,120 +86,8 @@ public interface IGameplayQueries
     int? DistanceToNearestHostileFrom(string unitId, Cell position, bool closedDoorsTraversable = false);
 }
 
-internal sealed class GameplayQueries : IGameplayQueries
+internal sealed partial class GameplayQueries : IGameplayQueries
 {
-    private readonly ConcurrentDictionary<(string Actor, bool ClosedDoors, bool Exploration), Lazy<IReadOnlyDictionary<Cell, int>>> autonomousFields = new();
-    private readonly ConcurrentDictionary<(string Actor, Cell Position), Lazy<IReadOnlyDictionary<Cell, IReadOnlyList<Cell>>>> explorationPaths = new();
-    private readonly ConcurrentDictionary<string, Board> autonomousBoards = new(StringComparer.Ordinal);
-
-    public int CountAdjacentFriendliesFrom(string unitId, Cell position)
-    {
-        HypotheticalPosition.Validate(world, unitId, position);
-        var board = AutonomousBoard(unitId);
-        var cells = FootprintGeometry.OccupiedCells(world, unitId, position);
-        return world.Units.Count(u => u.Id != unitId && IsLivingFriendlyUnit(unitId, u.Id) &&
-            SpatialRules.AreFootprintsAdjacent(board, cells, OccupiedCellsOf(u.Id)));
-    }
-
-    public int? DistanceToFriendlyPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false) =>
-        AutonomousDistance(unitId, position, closedDoorsTraversable, exploration: false);
-
-    public int? DistanceToExplorationPositionFrom(string unitId, Cell position, bool closedDoorsTraversable = false) =>
-        AutonomousDistance(unitId, position, closedDoorsTraversable, exploration: true);
-
-    private int? AutonomousDistance(string unitId, Cell position, bool closedDoors, bool exploration)
-    {
-        HypotheticalPosition.Validate(world, unitId, position);
-        var field = autonomousFields.GetOrAdd((unitId, closedDoors, exploration), static (key, queries) =>
-            new(() => queries.BuildAutonomousField(key.Actor, key.ClosedDoors, key.Exploration)), this).Value;
-        if (exploration)
-        {
-            var goal = field.Keys.SingleOrDefault();
-            if (goal is null) return null;
-            var paths = explorationPaths.GetOrAdd((unitId, position), static (key, queries) =>
-                new(() => queries.PlanningPathsFrom(key.Actor, key.Position)), this).Value;
-            return paths.TryGetValue(goal, out var path) ? MovementRules.Cost(path) : null;
-        }
-        return field.TryGetValue(position, out var distance) ? distance : null;
-    }
-
-    private Board AutonomousBoard(string unitId) => autonomousBoards.GetOrAdd(
-        world.Units.Single(u => u.Id == unitId).SideId, BuildAutonomousBoard);
-
-    private Board BuildAutonomousBoard(string side)
-    {
-        var original = world.Physical.Board;
-        if (!FogOfWar.IsEnabled(world, side)) return original;
-        var known = world.ExploredCells.GetValueOrDefault(side) ?? [];
-        // Unknown geometry is never consulted, even for hypothetical vision. An opaque
-        // placeholder allows discovery of the first unknown Cell, but not sight beyond it.
-        var unknownId = "autonomous-unknown";
-        while (original.TerrainTypes.Any(t => t.Id == unknownId)) unknownId += "-";
-        var unknown = new TerrainDefinition(unknownId, "Unknown", false, true);
-        var board = original with {
-            TerrainTypes = original.TerrainTypes.Add(unknown),
-            Terrain = original.Terrain.Where(t => known is null || known.Contains(t.Position)).ToList(),
-            Edges = original.Edges.Where(e => known is null || known.Contains(e.A) || known.Contains(e.B)).ToList(),
-            Machines = original.Machines.Where(m => known is null || known.Contains(m.Position)).ToList()
-        };
-        for (var y = 0; y < board.Height; y++)
-        for (var x = 0; x < board.Width; x++)
-        {
-            var cell = new Cell(x, y);
-            if (!known.Contains(cell))
-                board.Terrain.Add(new(cell) { TypeId = unknown.Id });
-        }
-        return board;
-    }
-
-    private IReadOnlyDictionary<Cell, int> BuildAutonomousField(string unitId, bool closedDoors, bool exploration)
-    {
-        var side = world.Units.Single(u => u.Id == unitId).SideId;
-        if (exploration && !FogOfWar.IsEnabled(world, side)) return new Dictionary<Cell, int>();
-        var known = MovementTraversal.For(world, unitId).KnownCells;
-        var board = AutonomousBoard(unitId);
-        IReadOnlyList<Cell> unknownCells = exploration ? FogOfWar.UnknownCells(world, side) : [];
-        var footprint = FootprintGeometry.FootprintOf(world, unitId);
-        var traversal = MovementTraversal.For(world, unitId, closedDoors);
-        var occupancy = MovementTraversal.OccupancyFor(world.Types.Single(t => t.Id == world.Units.Single(u => u.Id == unitId).TypeId));
-        var friendlies = world.Units.Where(u => u.Id != unitId && IsLivingFriendlyUnit(unitId, u.Id))
-            .Select(u => OccupiedCellsOf(u.Id)).ToArray();
-        var occupied = world.Physical.Figures.Where(f => f.Id != unitId && Knows(unitId, f.Id))
-            .SelectMany(f => OccupiedCellsOf(f.Id)).ToHashSet();
-        // Exploration needs a reachable vantage, not merely a terrain route behind
-        // an impassable line of hostile figures. Planning retains movement patterns
-        // and occupancy while ignoring Banana Peels as hypothetical route barriers.
-        var reachableVantages = exploration ? PlanningPathsFrom(unitId, PositionOf(unitId)) : null;
-        var phase = world.HasPhase(unitId);
-        IEnumerable<Cell> Goals()
-        {
-            for (var y = 0; y < board.Height; y++)
-            for (var x = 0; x < board.Width; x++)
-            {
-                var anchor = new Cell(x, y);
-                if (reachableVantages is not null && !reachableVantages.ContainsKey(anchor)) continue;
-                var cells = FootprintGeometry.OccupiedCells(footprint, anchor);
-                if (cells.Any(c => known is not null && !known.Contains(c) || occupied.Contains(c)) ||
-                    !SpatialRules.Fits(board, footprint, anchor, occupancy) || !SpatialRules.Fits(board, footprint, anchor, traversal)) continue;
-                if (exploration
-                    ? cells.Any(from => unknownCells.Any(to => Math.Abs(from.X - to.X) + Math.Abs(from.Y - to.Y) <= 5 &&
-                        AttackRules.HasGeometricVision(board, from, to, ignoreObstacles: phase)))
-                    : friendlies.Any(target => !cells.Intersect(target).Any() && SpatialRules.AreFootprintsAdjacent(board, cells, target)))
-                    yield return anchor;
-            }
-        }
-        if (exploration)
-        {
-            // Commit only for this decision to the closest productive vantage. Score
-            // every supplied placement with the same patterned, occupancy-aware route
-            // calculation; no goal or route survives the decision boundary.
-            var goal = Goals().OrderBy(c => MovementRules.Cost(reachableVantages![c]))
-                .ThenBy(c => c.Y).ThenBy(c => c.X).FirstOrDefault();
-            return goal is null ? new Dictionary<Cell, int>() : new Dictionary<Cell, int> { [goal] = 0 };
-        }
-        return ApproachRules.DistancesTo(board, Goals(), traversal, footprint);
-    }
-
     public IReadOnlyList<string> KnownHostileUnitIds(string unitId)
     {
         var actor = world.Units.Single(u => u.Id == unitId);

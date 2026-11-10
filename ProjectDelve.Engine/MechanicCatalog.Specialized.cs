@@ -87,18 +87,20 @@ public static partial class MechanicCatalog
         var target = new MechanicParameter("unitTypeId", MechanicParameterKind.Reference) { ReferenceCatalog = "units" };
         var posture = new MechanicParameter("initialPosture", MechanicParameterKind.Enum) { AllowedValues = ["Upright", "Lying"] };
         var sideLimit = new MechanicParameter("sameTypeSideLimit", MechanicParameterKind.Integer) { Required = false, AllowNull = true, Minimum = 1 };
+        var summonerLimit = new MechanicParameter("sameTypeSummonerLimit", MechanicParameterKind.Integer) { Required = false, AllowNull = true, Minimum = 1 };
         yield return ReusableActive(MechanicRegistration.Create<AdjacentUnitSummonMechanic>(SpecializedDescriptor("adjacentUnitSummon", "Adjacent Unit Summon", MechanicTiming.Action,
             "Place one {initialPosture} {unitTypeId} in an adjacent empty Cell.") with
         {
             MaxPerSource = null,
-            Parameters = [target, posture, sideLimit], Targeting = new(MechanicTargetSelection.Cell, "A legal adjacent footprint with LOS, subject to uniqueness and the optional living same-Type population limit on the acting Side."),
+            Parameters = [target, posture, sideLimit, summonerLimit], Targeting = new(MechanicTargetSelection.Cell, "A legal adjacent footprint with LOS, subject to uniqueness and both optional living same-Type limits: on the acting Side and created by the acting Unit."),
             ContextRequirements = "Requires an Upright acting Unit with an Action available. Resolve the summoned Unit Type from the effective scenario catalog, then require a legal empty adjacent footprint with LOS and respect that Unit Type's uniqueness. Equipment and Items use their bearer's context.",
-            Description = new("Place one {initialPosture} {unitTypeId} in an adjacent empty Cell on this Unit's Side.{sameTypeSideLimit}", ["initialPosture", "unitTypeId", "sameTypeSideLimit"])
+            Description = new("Place one {initialPosture} {unitTypeId} in an adjacent empty Cell on this Unit's Side.{sameTypeSideLimit}{sameTypeSummonerLimit}", ["initialPosture", "unitTypeId", "sameTypeSideLimit", "sameTypeSummonerLimit"])
         }, (payload, path, errors) =>
         {
             MechanicChecks.Reference(errors, target, payload.UnitTypeId, path + ".unitTypeId");
             MechanicChecks.Enum(errors, posture, payload.InitialPosture, path + ".initialPosture");
             if (payload.SameTypeSideLimit is { } limit) MechanicChecks.Integer(errors, sideLimit, limit, path + ".sameTypeSideLimit");
+            if (payload.SameTypeSummonerLimit is { } creatorLimit) MechanicChecks.Integer(errors, summonerLimit, creatorLimit, path + ".sameTypeSummonerLimit");
         }));
         var resourceId = new MechanicParameter("id", MechanicParameterKind.Reference) { ReferenceCatalog = "resources" };
         var resource = new MechanicParameter("resource", MechanicParameterKind.Object)

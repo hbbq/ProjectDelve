@@ -45,6 +45,8 @@ public static class ContentDescriptions
                 values["initialPosture"] = summon.InitialPosture.ToString();
                 values["sameTypeSideLimit"] = summon.SameTypeSideLimit is { } limit
                     ? $" Only while fewer than {limit.ToString(CultureInfo.InvariantCulture)} living Units of that Type are on this Unit's Side." : "";
+                values["sameTypeSummonerLimit"] = summon.SameTypeSummonerLimit is { } creatorLimit
+                    ? $" Only while fewer than {creatorLimit.ToString(CultureInfo.InvariantCulture)} living Units of that Type summoned by this Unit are in play." : "";
                 break;
             case TargetUnitAttackMechanic attack: Number("rng", attack.Rng); Number("atk", attack.Atk); break;
             case WaypointSlotMachine slot:

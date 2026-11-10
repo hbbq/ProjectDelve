@@ -118,18 +118,29 @@ public sealed class DefaultAutomatedProvider : IDecisionProvider
         }
         if (!request.IsMoveAfterAttack)
         {
+            var result = MovementPolicyResult.Inapplicable;
             if (behaviors.HasFlag(UnitBehavior.ExploreFoW))
-                return AutonomousMovementBehavior.Choose(request, queries, explore: true);
+                result = AutonomousMovementBehavior.Explore(request, queries);
+            if (result.Outcome != MovementPolicyOutcome.Inapplicable) return result.CandidateKey ?? NoCandidate(request);
             if (behaviors.HasFlag(UnitBehavior.MaximizeFriendlyAdjacent))
-                return AutonomousMovementBehavior.Choose(request, queries, maximizeFriendlies: true);
-            // A reachable attack approach includes deliberate Stay and congestion.
-            // Only absence of a route enables the friendly fallback.
-            if (behaviors.HasFlag(UnitBehavior.GoToFriendly) &&
-                !queries.DistanceToAttackPositionFrom(unitId, queries.PositionOf(unitId),
+                result = AutonomousMovementBehavior.MaximizeFriendlies(request, queries);
+            if (result.Outcome != MovementPolicyOutcome.Inapplicable) return result.CandidateKey ?? NoCandidate(request);
+            var follow = behaviors.HasFlag(UnitBehavior.FollowSummoner) || behaviors.HasFlag(UnitBehavior.GoToFriendly) ||
+                behaviors.HasFlag(UnitBehavior.ExploreFoW) || behaviors.HasFlag(UnitBehavior.MaximizeFriendlyAdjacent);
+            // A reachable enemy approach includes deliberate Stay and congestion.
+            if (follow && !queries.DistanceToAttackPositionFrom(unitId, queries.PositionOf(unitId),
                     behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors)).HasValue &&
                 !request.Candidates.Any(c => queries.DistanceToAttackPositionFrom(unitId, c.Destination!,
                     behaviors.HasFlag(UnitBehavior.ApproachThroughClosedDoors)).HasValue))
-                return AutonomousMovementBehavior.Choose(request, queries);
+            {
+                var optimize = behaviors.HasFlag(UnitBehavior.OptimizeFollowAdjacency);
+                if (behaviors.HasFlag(UnitBehavior.FollowSummoner))
+                    result = AutonomousMovementBehavior.FollowSummoner(request, queries, optimize);
+                if (result.Outcome == MovementPolicyOutcome.Inapplicable &&
+                    (behaviors.HasFlag(UnitBehavior.GoToFriendly) || behaviors.HasFlag(UnitBehavior.ExploreFoW) || behaviors.HasFlag(UnitBehavior.MaximizeFriendlyAdjacent)))
+                    result = AutonomousMovementBehavior.FollowNearestFriendly(request, queries, optimize);
+                if (result.Outcome != MovementPolicyOutcome.Inapplicable) return result.CandidateKey ?? NoCandidate(request);
+            }
         }
         if (behaviors.HasFlag(UnitBehavior.MaximizeAttackDistance))
         {

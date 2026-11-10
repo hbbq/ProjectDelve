@@ -832,6 +832,7 @@ public static partial class GameEngine
             state.Types.Any(ContentDefinitions.InvalidUnitStructure))
             throw new ArgumentException("Invalid board, Unit Type, or stat domain.");
         if (state.Units.Any(u => !state.Types.Any(t => t.Id == u.TypeId) ||
+            u.SummonerUnitId is not null && (string.IsNullOrWhiteSpace(u.SummonerUnitId) || u.SummonerUnitId == u.Id) ||
             u.WakeDistance < 0 ||
             u.CurrentHp < 0 || u.CurrentHp > state.Types.Single(t => t.Id == u.TypeId).Hp ||
             string.IsNullOrWhiteSpace(u.SideId)))

@@ -20,34 +20,34 @@ public static class UnitRoster
     public static UnitType Beastmaster(string id = UnitTypeIds.Beastmaster) => UnitType.Define(id,
         "Beastmaster", Stats(3, 1, 2, 3, 5), Loot(1, items: true, equipment: true),
         Unique(), DefaultController(ControllerKind.Human), OpenDoor(),
-        Ability("Summon Jackalope", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Jackalope, Posture.Upright, sameTypeSideLimit: 1), id: "summon-jackalope"),
-        Ability("Summon Giant Toad", Unlimited(), AdjacentUnitSummon(UnitTypeIds.GiantToad, Posture.Upright, sameTypeSideLimit: 1), id: "summon-giant-toad"),
-        Ability("Summon Dire Bear", Unlimited(), AdjacentUnitSummon(UnitTypeIds.DireBear, Posture.Lying, sameTypeSideLimit: 1), id: "summon-dire-bear"),
-        Ability("Summon Raptor", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Raptor, Posture.Lying, sameTypeSideLimit: 1), id: "summon-raptor"),
-        Ability("Summon Light Elemental", Unlimited(), AdjacentUnitSummon(UnitTypeIds.LightElemental, Posture.Upright, sameTypeSideLimit: 1), id: "summon-light-elemental")
+        Ability("Summon Jackalope", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Jackalope, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-jackalope"),
+        Ability("Summon Giant Toad", Unlimited(), AdjacentUnitSummon(UnitTypeIds.GiantToad, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-giant-toad"),
+        Ability("Summon Dire Bear", Unlimited(), AdjacentUnitSummon(UnitTypeIds.DireBear, Posture.Lying, sameTypeSummonerLimit: 1), id: "summon-dire-bear"),
+        Ability("Summon Raptor", Unlimited(), AdjacentUnitSummon(UnitTypeIds.Raptor, Posture.Lying, sameTypeSummonerLimit: 1), id: "summon-raptor"),
+        Ability("Summon Light Elemental", Unlimited(), AdjacentUnitSummon(UnitTypeIds.LightElemental, Posture.Upright, sameTypeSummonerLimit: 1), id: "summon-light-elemental")
     );
 
     public static UnitType Jackalope(string id = UnitTypeIds.Jackalope) => UnitType.Define(id,
         "Jackalope", Stats(5, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack()
-    ).WithBehaviors(UnitBehavior.ExploreFoW, UnitBehavior.GoToFriendly);
+    ).WithBehaviors(UnitBehavior.ExploreFoW, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
 
     public static UnitType GiantToad(string id = UnitTypeIds.GiantToad) => UnitType.Define(id,
         "Giant Toad", Stats(3, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack(), Amphibious()
-    ).WithBehaviors(UnitBehavior.ExploreFoW, UnitBehavior.GoToFriendly);
+    ).WithBehaviors(UnitBehavior.ExploreFoW, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
 
     public static UnitType DireBear(string id = UnitTypeIds.DireBear) => UnitType.Define(id,
         "Dire Bear", Stats(2, 1, 3, 3, 1), DefaultController(ControllerKind.Automated)
-    ).WithBehaviors(UnitBehavior.GoToFriendly);
+    ).WithBehaviors(UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
 
     public static UnitType Raptor(string id = UnitTypeIds.Raptor) => UnitType.Define(id,
         "Raptor", Stats(4, 1, 2, 2, 1), DefaultController(ControllerKind.Automated),
         Ability("Move After Attack", Unlimited(), MoveAfterAttack(maxMove: 1), id: "move-after-attack")
-    ).WithBehaviors(UnitBehavior.BackAwayAfterAttack, UnitBehavior.GoToFriendly);
+    ).WithBehaviors(UnitBehavior.BackAwayAfterAttack, UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly);
 
     public static UnitType LightElemental(string id = UnitTypeIds.LightElemental) => UnitType.Define(id,
         "Light Elemental", Stats(3, 0, 0, 2, 1), DefaultController(ControllerKind.Automated), CantAttack(),
         Ability("Aura", Unlimited(), AdjacentFriendliesDefenceBonus(amount: +1), id: "aura")
-    ).WithBehaviors(UnitBehavior.MaximizeFriendlyAdjacent, UnitBehavior.GoToFriendly);
+    ).WithBehaviors(UnitBehavior.FollowSummoner, UnitBehavior.GoToFriendly, UnitBehavior.OptimizeFollowAdjacency);
 
     public static UnitType RoyalQueen(string id = UnitTypeIds.RoyalQueen) => UnitType.Define(id,
         "Royal Queen", Stats(16, 1, 4, 5, 3), Loot(2), Unique(), StraightOrthogonalOrDiagonalCorridor(), AdvanceOnKill()

@@ -16,6 +16,9 @@ public sealed record GambitUnit(string Id, string TypeId, string SideId, GambitA
     GambitStats EffectiveStats, IReadOnlyList<GambitAbilityUse> LimitedUses)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SummonerUnitId { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? GroupId { get; init; }
     public bool Dormant { get; init; }
     public int WakeDistance { get; init; }
@@ -236,7 +239,7 @@ internal static class GambitProjection
                 geometry?.Anchor, type.Footprint == Footprint.TwoByTwo ? geometry?.OccupiedCells : null,
                 type.Footprint == Footprint.TwoByTwo ? geometry?.CellSpan : null, posture,
                 new(state.EffectiveMovOf(unit.Id), state.EffectiveRngOf(unit.Id), state.EffectiveAtkOf(unit.Id), state.EffectiveDefOf(unit.Id)), uses)
-                { GroupId = unit.GroupId, Dormant = unit.Dormant, WakeDistance = unit.WakeDistance,
+                { SummonerUnitId = unit.SummonerUnitId, GroupId = unit.GroupId, Dormant = unit.Dormant, WakeDistance = unit.WakeDistance,
                     Abilities = individualAbilities.Length == 0 ? null : individualAbilities,
                     Inventory = unit.Inventory.IsEmpty ? null : unit.Inventory.Select(o => BrowserProjection.Object(state, o)).ToArray() };
         }).ToArray();

@@ -129,7 +129,9 @@ public enum UnitBehavior
     IgnoreLeash = 131072,
     ExploreFoW = 262144,
     GoToFriendly = 524288,
-    MaximizeFriendlyAdjacent = 1048576
+    MaximizeFriendlyAdjacent = 1048576,
+    FollowSummoner = 2097152,
+    OptimizeFollowAdjacency = 4194304
 }
 public enum MovementPattern { StraightOrthogonal, DiagonalCorridor, LShape, StraightOrthogonalOrDiagonalCorridor, Adjacent }
 public sealed record AdvanceOnKill : AbilityMechanic;
@@ -137,7 +139,7 @@ public sealed record ReshapeRoom : AbilityMechanic;
 public sealed record Swap : AbilityMechanic;
 // Current external movement supports zero or one ordinary step only.
 public sealed record Displace(int MaxMove) : AbilityMechanic;
-public sealed record AdjacentUnitSummonMechanic([property: JsonRequired] string UnitTypeId, [property: JsonRequired] Posture InitialPosture, int? SameTypeSideLimit = null) : AbilityMechanic;
+public sealed record AdjacentUnitSummonMechanic([property: JsonRequired] string UnitTypeId, [property: JsonRequired] Posture InitialPosture, int? SameTypeSideLimit = null, int? SameTypeSummonerLimit = null) : AbilityMechanic;
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record PlaceBananaPeel : AbilityMechanic;
 public sealed record SelfExtraMovesMechanic([property: JsonRequired] int Amount) : AbilityMechanic;
@@ -266,8 +268,14 @@ public sealed record UnitType(string Id, int Mov, int Rng, int Atk, int Def, int
     public static UnitType LabyrinthShaper(string id = UnitTypeIds.LabyrinthShaper) => UnitRoster.LabyrinthShaper(id);
     public static UnitType RedDragon(string id = UnitTypeIds.RedDragon) => UnitRoster.RedDragon(id);
 }
-public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp, string? GroupId = null)
+public sealed record Unit(string Id, string TypeId, string SideId, int CurrentHp, string? GroupId = null) : IJsonOnDeserialized
 {
+    public string? SummonerUnitId { get; init; }
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        if (SummonerUnitId is not null && (string.IsNullOrWhiteSpace(SummonerUnitId) || SummonerUnitId == Id))
+            throw new ArgumentException("A creator reference must be nonempty and cannot reference the Unit itself.");
+    }
     [JsonIgnore] public ActivationToken Token => new(TypeId, SideId, GroupId);
     public bool Dormant { get; init; }
     public int WakeDistance { get; init; } = DormantRules.DefaultWakeDistance;
@@ -440,7 +448,7 @@ public sealed class GameState
 
     // Creating detached Unit data does not enter play; placement is the runtime entry boundary.
     public void PlaceUnit(string typeId, string id, string sideId, Cell cell, Posture posture = Posture.Upright, string? groupId = null,
-        bool dormant = false, int? wakeDistance = null)
+        bool dormant = false, int? wakeDistance = null, string? summonerUnitId = null)
     {
         var type = UnitContent.Find(typeId, Types)
             ?? throw new ArgumentException("Unit Type is not defined.", nameof(typeId));
@@ -448,14 +456,15 @@ public sealed class GameState
             throw new ArgumentException("Maximum HP greater than 1 requires a Unique Unit Type.", nameof(typeId));
         if (!CanPlaceUnitType(type, sideId))
             throw new ArgumentException("A Unit of this Unique Unit Type is already in play on this Side.", nameof(typeId));
-        if (wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id) || string.IsNullOrWhiteSpace(sideId) ||
+        if (summonerUnitId is not null && (string.IsNullOrWhiteSpace(summonerUnitId) || summonerUnitId == id) ||
+            wakeDistance < 0 || Physical.Board.Machines.Any(m => m.Id == id) || Units.Any(u => u.Id == id || u.SummonerUnitId == id) || string.IsNullOrWhiteSpace(sideId) ||
             groupId is not null && string.IsNullOrWhiteSpace(groupId) ||
             !Enum.IsDefined(posture) || !Enum.IsDefined(type.Footprint) || !SpatialRules.CanPlaceUnit(this, type, cell) ||
             FootprintGeometry.OccupiedCells(type.Footprint, cell)
                 .Any(c => !TerrainCatalog.Accepts(type, Physical.Board.TerrainDefinitionAt(c))))
             throw new ArgumentException("Invalid Unit placement.");
         if (ActivationTypeOrder is {} order && !order.Contains(type.Id)) order.Add(type.Id);
-        Units.Add(type.CreateUnit(id, sideId) with { GroupId = groupId, Dormant = dormant,
+        Units.Add(type.CreateUnit(id, sideId) with { GroupId = groupId, Dormant = dormant, SummonerUnitId = summonerUnitId,
             WakeDistance = wakeDistance ?? type.WakeDistance ?? DormantRules.DefaultWakeDistance });
         Physical.Figures.Add(new(id, cell, posture));
         FogOfWar.Refresh(this);

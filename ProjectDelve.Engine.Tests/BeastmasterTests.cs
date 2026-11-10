@@ -66,19 +66,20 @@ public sealed class BeastmasterTests
     }
 
     [Theory]
-    [InlineData(UnitTypeIds.Jackalope, 5, 0, 0, 2, Posture.Upright, UnitBehavior.ExploreFoW | UnitBehavior.GoToFriendly)]
-    [InlineData(UnitTypeIds.GiantToad, 3, 0, 0, 2, Posture.Upright, UnitBehavior.ExploreFoW | UnitBehavior.GoToFriendly)]
-    [InlineData(UnitTypeIds.DireBear, 2, 1, 3, 3, Posture.Lying, UnitBehavior.GoToFriendly)]
-    [InlineData(UnitTypeIds.Raptor, 4, 1, 2, 2, Posture.Lying, UnitBehavior.BackAwayAfterAttack | UnitBehavior.GoToFriendly)]
-    [InlineData(UnitTypeIds.LightElemental, 3, 0, 0, 2, Posture.Upright, UnitBehavior.MaximizeFriendlyAdjacent | UnitBehavior.GoToFriendly)]
-    public void EachSummonRetainsItsPayloadSideLimitAndReplayIdentity(string id, int mov, int rng, int atk, int def,
+    [InlineData(UnitTypeIds.Jackalope, 5, 0, 0, 2, Posture.Upright, UnitBehavior.ExploreFoW | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
+    [InlineData(UnitTypeIds.GiantToad, 3, 0, 0, 2, Posture.Upright, UnitBehavior.ExploreFoW | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
+    [InlineData(UnitTypeIds.DireBear, 2, 1, 3, 3, Posture.Lying, UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
+    [InlineData(UnitTypeIds.Raptor, 4, 1, 2, 2, Posture.Lying, UnitBehavior.BackAwayAfterAttack | UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly)]
+    [InlineData(UnitTypeIds.LightElemental, 3, 0, 0, 2, Posture.Upright, UnitBehavior.FollowSummoner | UnitBehavior.GoToFriendly | UnitBehavior.OptimizeFollowAdjacency)]
+    public void EachSummonRetainsItsPayloadCreatorLimitAndReplayIdentity(string id, int mov, int rng, int atk, int def,
         Posture posture, UnitBehavior behaviors)
     {
         var initial = Ready();
         Assert.Equal(5, initial.Pending!.Candidates.Where(c => c.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic)
             .Select(c => c.Ability!.ActionId).Distinct().Count());
         var choice = Summon(initial, id);
-        Assert.Equal(1, ((AdjacentUnitSummonMechanic)choice.Ability!.Definition.Mechanic).SameTypeSideLimit);
+        Assert.Equal(1, ((AdjacentUnitSummonMechanic)choice.Ability!.Definition.Mechanic).SameTypeSummonerLimit);
+        Assert.Null(((AdjacentUnitSummonMechanic)choice.Ability!.Definition.Mechanic).SameTypeSideLimit);
         var result = GameEngine.Advance(initial, new Choice(choice.Key), new Dice(), false);
         var replay = GameEngine.Advance(Restore(initial), new Choice(choice.Key), new Dice(), false);
         Assert.Equal(JsonSerializer.Serialize(result), JsonSerializer.Serialize(replay));
@@ -90,6 +91,7 @@ public sealed class BeastmasterTests
         Assert.Equal(id == UnitTypeIds.GiantToad, type.Amphibious);
         Assert.Equal((mov, rng, atk, def, 1), (type.Mov, type.Rng, type.Atk, type.Def, type.Hp));
         Assert.Equal("blue", unit.SideId); Assert.Equal(1, unit.CurrentHp); Assert.Null(unit.GroupId);
+        Assert.Equal("master", unit.SummonerUnitId);
         Assert.Equal(posture, state.Physical.Figures.Single(f => f.Id == unit.Id).Posture);
         Assert.Equal(ControllerKind.Automated, state.ControllerFor(unit.Token));
         Assert.Equal(initial.Bag, state.Bag); Assert.DoesNotContain(unit.Id, state.ResolvingTokenUnitIds);
@@ -106,7 +108,7 @@ public sealed class BeastmasterTests
     }
 
     [Fact]
-    public void CapCountsOtherGroupsAndControllersOnSameSideButNotOpponents()
+    public void CapDoesNotCountUnrelatedUnitsOnEitherSide()
     {
         var definition = Definition(); definition.UnitTypeIds.Add(UnitTypeIds.Jackalope);
         definition.Units.Add(new(UnitTypeIds.Jackalope, "red", new(9, 4), UnitId: "opponent"));
@@ -115,7 +117,7 @@ public sealed class BeastmasterTests
         state.PlaceUnit(UnitTypeIds.Jackalope, "encounter", "blue", new(8, 3), groupId: "unrelated");
         state.Controllers.Add(new(new(UnitTypeIds.Jackalope, "blue", "unrelated"), ControllerKind.Human));
         state = GameEngine.RefreshChoices(state, new Dice(), false).State;
-        Assert.DoesNotContain(state.Pending!.Candidates, c => c.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic s && s.UnitTypeId == UnitTypeIds.Jackalope);
+        Assert.Contains(state.Pending!.Candidates, c => c.Ability?.Definition.Mechanic is AdjacentUnitSummonMechanic s && s.UnitTypeId == UnitTypeIds.Jackalope);
     }
 
     [Fact]

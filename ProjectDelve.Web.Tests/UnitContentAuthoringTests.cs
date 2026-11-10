@@ -245,7 +245,7 @@ public sealed class UnitContentAuthoringTests : IDisposable
     public async Task AuthoredCustomSummonsReachPlaytestAndReplayWhileHiddenTypesStayOutOfObservations()
     {
         var caller = new UnitType("authored-caller", 2, 1, 1, 1, 1) { DisplayName = "Caller",
-            LocalAbilities = [new("call", "Call Scout", AbilityTiming.Action, new AdjacentUnitSummonMechanic("authored-child", Posture.Lying)) { Usage = new(2) }] };
+            LocalAbilities = [new("call", "Call Scout", AbilityTiming.Action, new AdjacentUnitSummonMechanic("authored-child", Posture.Lying, SameTypeSummonerLimit: 1)) { Usage = new(2) }] };
         var child = new UnitType("authored-child", 1, 1, 1, 1, 1) { DisplayName = "Child" };
         var context = new ContentEditorContext { UnitTypes = [child] };
         Assert.True(ContentEditorApi.Validate(Edit(caller, context: context)).Valid);
@@ -260,6 +260,8 @@ public sealed class UnitContentAuthoringTests : IDisposable
         Assert.True((await validated.Content.ReadFromJsonAsync<ContentEditorResponse>(Json))!.Valid);
         var catalog = await client.GetFromJsonAsync<ContentBrowserResponse>("/api/content/catalog", Json);
         Assert.Contains(catalog!.UnitAuthoring.Behaviors, b => b.Value == "Flee");
+        Assert.Contains(catalog.UnitAuthoring.Behaviors, b => b.Value == "FollowSummoner");
+        Assert.Contains(catalog.UnitAuthoring.Behaviors, b => b.Value == "OptimizeFollowAdjacency");
         Assert.Equal(0, catalog.UnitAuthoring.Stats.Single(s => s.Name == "mov").Minimum);
         using var imported = await client.PostAsJsonAsync("/api/game/scenario/import", new { expectedRevision = 0, transport = ScenarioDefinitionTransport.Encode(scene) });
         Assert.True(imported.IsSuccessStatusCode, await imported.Content.ReadAsStringAsync());
@@ -274,7 +276,8 @@ public sealed class UnitContentAuthoringTests : IDisposable
         var expected = GameEngine.Advance(moved.State, new Choice(summon.Key), new Dice(), false);
         var resumed = GameEngine.Advance(JsonSerializer.Deserialize<GameState>(saved)!, new Choice(summon.Key), new Dice(), false);
         Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(resumed));
-        Assert.Contains(resumed.State.Units, u => u.TypeId == child.Id);
+        Assert.Equal(moved.State.CurrentUnitId, resumed.State.Units.Single(u => u.TypeId == child.Id).SummonerUnitId);
+        Assert.Contains("summoned by this Unit", caller.CardEntries([caller, child]).Single(e => e.Name == "Call Scout").Description);
         var hidden = new UnitType("secret-authored-type", 1, 1, 1, 1, 1) { DisplayName = "Secret authored name" };
         var fog = scene with { Board = new() { Width = 20, Height = 20 }, UnitTypeIds = [caller.Id, child.Id, hidden.Id],
             UnitTypes = [caller, child, hidden], Units = [new(caller.Id, "blue", new(0, 0)), new(hidden.Id, "red", new(19, 19))],

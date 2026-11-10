@@ -659,7 +659,7 @@ public sealed class PlaytestApiTests
         Assert.True(createdIndex >= 0);
         var created = completed.Result.ResolutionSteps.Single(s => s.EventIndex == createdIndex).StateAfter;
         var goblin = Assert.Single(created.Units, u => u.TypeId == "goblin-type");
-        Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red"), goblin);
+        Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red") with { SummonerUnitId = Shaman }, goblin);
         Assert.Equal(Posture.Lying, created.Physical.Figures.Single(f => f.Id == goblin.Id).Posture);
         Assert.DoesNotContain("goblin-type", created.Bag.Select(t => t.TypeId));
         Assert.DoesNotContain(completed.Result.Events, e => e.Kind == "TokenDrawn" && e.TypeId == "goblin-type");

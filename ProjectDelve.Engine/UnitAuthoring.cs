@@ -102,7 +102,8 @@ public static class UnitAuthoring
     public static MoveAfterAttack MoveAfterAttack(int maxMove) => new(maxMove);
     public static Undying Undying() => new();
     public static Explosion Explosion(int damage) => new() { Damage = damage };
-    public static AdjacentUnitSummonMechanic AdjacentUnitSummon(string unitTypeId, Posture initialPosture, int? sameTypeSideLimit = null) => new(unitTypeId, initialPosture, sameTypeSideLimit);
+    public static AdjacentUnitSummonMechanic AdjacentUnitSummon(string unitTypeId, Posture initialPosture, int? sameTypeSideLimit = null,
+        int? sameTypeSummonerLimit = null) => new(unitTypeId, initialPosture, sameTypeSideLimit, sameTypeSummonerLimit);
     public static Telekinesis Telekinesis() => new();
     public static ReshapeRoom ReshapeRoom() => new();
     public static Swap Swap() => new();

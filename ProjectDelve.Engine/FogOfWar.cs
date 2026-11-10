@@ -55,6 +55,11 @@ public static class FogOfWar
             Machines = board.Machines.Where(m => IsExplored(state, side, m.Position)).ToList()
         }, copy.Physical.Figures.Where(f => visible.Contains(f.Id)).ToList());
         copy.Units.RemoveAll(u => !visible.Contains(u.Id));
+        // Provenance is authoritative, but a visible summon must not identify a
+        // hidden creator. Never change the original state or infer a replacement.
+        for (var i = 0; i < copy.Units.Count; i++)
+            if (copy.Units[i].SummonerUnitId is { } creator && !visible.Contains(creator))
+                copy.Units[i] = copy.Units[i] with { SummonerUnitId = null };
         copy.Types.RemoveAll(t => !copy.Units.Any(u => u.TypeId == t.Id));
         copy.Resources.RemoveAll(r => !IsExplored(state, side, r.Position));
         copy.CellMarkers.RemoveAll(m => !IsExplored(state, side, m.Position));

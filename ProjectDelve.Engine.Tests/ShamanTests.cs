@@ -158,7 +158,7 @@ public sealed class ShamanTests
         Assert.Equal(action.State.Bag, step.Bag);
         var goblin = Assert.Single(step.Units, u => u.TypeId == "goblin-type");
         Assert.Equal(JsonSerializer.Serialize(UnitType.Goblin()), JsonSerializer.Serialize(step.Types.Single(t => t.Id == goblin.TypeId)));
-        Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red"), goblin);
+        Assert.Equal(UnitType.Goblin().CreateUnit(goblin.Id, "red") with { SummonerUnitId = "shaman" }, goblin);
         Assert.Equal(new Figure(goblin.Id, new(1, 1), Posture.Lying), step.Physical.Figures.Single(f => f.Id == goblin.Id));
         Assert.Equal(2, initial.Units.Count);
         Assert.True(result.State.RoundComplete);

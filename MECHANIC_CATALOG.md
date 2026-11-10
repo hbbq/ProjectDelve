@@ -103,13 +103,13 @@ All Ability sources require an acting or bearing Unit. Item consumption remains 
 | `adjacentUnitPostureChange` | `selector`, `newPosture` | One selected adjacent Unit with a different Posture |
 | `adjacentUnitHeal` | `selector`, positive `amount` | One selected damaged adjacent Unit; capped at maximum HP |
 | `adjacentUnitsStatModifiers` | `selector`, typed `modifiers` | Other adjacent Units while the source is Upright |
-| `adjacentUnitSummon` | `unitTypeId`, `initialPosture`, optional positive `sameTypeSideLimit` | One legal adjacent footprint on the acting Side |
+| `adjacentUnitSummon` | `unitTypeId`, `initialPosture`, optional positive `sameTypeSideLimit`, `sameTypeSummonerLimit` | One legal adjacent footprint on the acting Side |
 | `selfExtraMoves` | positive `amount` | Acting Unit; before any normal Action |
 | `targetUnitAttack` | positive `rng`, `atk` | Selected hostile Unit using fixed Attack stats |
 
 `selector` accepts Friendlies (same Side), Enemies (hostile relationship), and All (including neutral Sides). Adjacent operations exclude the source. Posture results accept Upright and Lying. Recipients use authoritative footprint adjacency and LOS and deterministic anchor board order (Y, X, then ordinal Instance ID). Selected recipients are observable; automatic sets remain complete internally and their previews are FoW-filtered. Modifier queries use the supplied state, including hypothetical positions.
 
-Holy Wave's source posture and resource payments for Troll, Banana Peel, Boost and Shoot Shell are independent ordered Costs. Candidate binding precedes commitment; operations do not rerun source, usage or affordability checks after payment. Summon limits count living in-play Units of the authored Type on the acting Side. Effective catalogs supply all summoned definitions; no canonical runtime fallback exists. Controller inheritance and Activation Bag snapshot scheduling are unchanged.
+Holy Wave's source posture and resource payments for Troll, Banana Peel, Boost and Shoot Shell are independent ordered Costs. Candidate binding precedes commitment; operations do not rerun source, usage or affordability checks after payment. Side limits count living, placed Units of the authored Type on the acting Side. Summoner limits count living, placed Units of that Type whose permanent `SummonerUnitId` equals the actor ID, across all current Sides. Both optional positive caps are conjunctive. Shared summon execution records the acting bearer as immediate creator before creation events and arrival effects, including granted Abilities. Effective catalogs supply all summoned definitions; no canonical runtime fallback exists. Controller inheritance and Activation Bag snapshot scheduling are unchanged.
 
 The replaced IDs `holyWave`, `heal`, `standAdjacentFriendly`, `adjacentModifiers`, `summonAdjacent`, `summonWorker`, `summonTroll`, `boost` and `shootShell` have no compatibility dispatch. `placeBananaPeel` retains its operation ID with an empty payload; the removed `bananaCost` field is rejected. Display-only cleanup retains IDs such as `selfModifiers`, `tryOpenDoor`, `openDoor`, `fireball`, `fireBreath` and `swap`.
 

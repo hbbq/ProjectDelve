@@ -1,6 +1,6 @@
 namespace ProjectDelve.Engine;
 
-// Summon declarations own the type, starting Posture and optional Side limit.
+// Summon declarations own the type, starting Posture and optional population limits.
 public static class SummoningRules
 {
     public static AdjacentUnitSummonMechanic? Placement(AbilityMechanic mechanic) => mechanic as AdjacentUnitSummonMechanic;
@@ -15,6 +15,9 @@ public static class SummoningRules
         if (summon.SameTypeSideLimit is { } limit && state.Units.Count(recipient => recipient.CurrentHp > 0 &&
                 recipient.SideId == unit.SideId && recipient.TypeId == summon.UnitTypeId &&
                 state.Physical.Figures.Any(figure => figure.Id == recipient.Id)) >= limit) yield break;
+        if (summon.SameTypeSummonerLimit is { } summonerLimit && state.Units.Count(recipient => recipient.CurrentHp > 0 &&
+                recipient.SummonerUnitId == unit.Id && recipient.TypeId == summon.UnitTypeId &&
+                state.Physical.Figures.Any(figure => figure.Id == recipient.Id)) >= summonerLimit) yield break;
         if (state.Types.SingleOrDefault(type => type.Id == summon.UnitTypeId) is not { } summonedType ||
             !state.CanPlaceUnitType(summonedType, unit.SideId)) yield break;
         for (var y = 0; y < state.Physical.Board.Height; y++)

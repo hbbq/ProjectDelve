@@ -237,13 +237,14 @@ public static partial class GameEngine
             ?? throw new InvalidOperationException("Summoned Unit Type is not defined.");
         var prefix = summonedType.Id.EndsWith("-type", StringComparison.Ordinal) ? summonedType.Id[..^5] : summonedType.Id;
         var number = 1;
-        while (state.Units.Any(u => u.Id == $"{prefix}-{number}") ||
+        while (state.Units.Any(u => u.Id == $"{prefix}-{number}" || u.SummonerUnitId == $"{prefix}-{number}") ||
                state.Physical.Board.Machines.Any(machine => machine.Id == $"{prefix}-{number}")) number++;
         var summonedId = $"{prefix}-{number}";
         var group = new ActivationToken(summonedType.Id, source.SideId);
         if (!state.Controllers.Any(c => c.Token == group))
             state.Controllers.Add(new(group, summonedType.DefaultController ?? state.ControllerFor(source.Token)));
-        state.PlaceUnit(summonedType.Id, summonedId, source.SideId, choice.Destination!, summon.InitialPosture);
+        state.PlaceUnit(summonedType.Id, summonedId, source.SideId, choice.Destination!, summon.InitialPosture,
+            summonerUnitId: source.Id);
         events.Add(new RulesEvent("UnitCreated", summonedId, TypeId: summonedType.Id,
             AbilityName: ability.Definition.Name, Posture: summon.InitialPosture)
             { SourceUnitId = source.Id, SideId = source.SideId, Cell = choice.Destination, ActionId = ability.ActionId });

@@ -28,7 +28,7 @@ public sealed class AutonomousMovementBehaviorTests
         new DefaultAutomatedProvider().Choose(Moves(state, afterAttack), new GameplayQueries(state));
 
     [Fact]
-    public void ExploreMovesToNearestProductiveKnownVantage()
+    public void ExploreConservativeFrontierTiePrefersShortestMove()
     {
         var state = State(UnitBehavior.ExploreFoW, height: 1, position: new(1, 0));
         state.FogOfWarSides = ["red"];
@@ -65,7 +65,7 @@ public sealed class AutonomousMovementBehaviorTests
     [Theory]
     [InlineData(TerrainKind.Tree, false, "2,0")]
     [InlineData(TerrainKind.SolidRock, false, null)]
-    [InlineData(TerrainKind.SolidRock, true, "2,0")]
+    [InlineData(TerrainKind.SolidRock, true, "3,0")]
     public void ExplorationUsesVisionPropertiesAndPhase(TerrainKind terrain, bool phase, string? expected)
     {
         var state = State(UnitBehavior.ExploreFoW, height: 1, position: new(1, 0));
